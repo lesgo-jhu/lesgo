@@ -1,0 +1,9 @@
+FOBJ=qpost.o types.o 
+
+qpost: $(FOBJ)
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $(FOBJ) $(LIBS)
+
+qpost.o : qpost.f90 fftw_f77.i types.o 
+	$(FC) -c -o $@ $(FFLAGS) $<
+types.o : types.f90 
+	$(FC) -c -o $@ $(FFLAGS) $<
