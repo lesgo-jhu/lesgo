@@ -9,16 +9,16 @@
 
 SHELL = /bin/sh
 
-EXE = les.go
+EXE = lesgo
 
 #ARCH = linux_intel_71
 #ARCH = linux_g95
-ARCH = linux_intel_81
+ARCH = linux_intel
 #ARCH = aix
 #ARCH = osx_g95
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
-q64 = no
+q64 = yes
 
 # watch the whitespace here
 USE_MPI = no
@@ -53,7 +53,7 @@ OPATH = obj
 # May want to just make this 'obj' as well
 MPATH = mod
 
-ifeq ($(ARCH),linux_intel_81)
+ifeq ($(ARCH),linux_intel)
   FPP += -DIFORT
   FC = ifort
   #FFLAGS = -O0 -traceback -g
@@ -68,9 +68,8 @@ ifeq ($(ARCH),linux_intel_81)
   FPROF = -p
   LDFLAGS = -nothreads
   #LDFLAGS = -static -nothreads
-  LIBPATH = -L${HOME}/fftw/fftw2/lib
-  #LIBS = $(LIBPATH) -lintel81_srfftw -lintel81_sfftw
-  LIBS = $(LIBPATH) -lintel81_drfftw -lintel81_dfftw
+  LIBPATH = -L/opt/fftw2/lib
+  LIBS = $(LIBPATH) -lrfftw -lfftw 
   MODDIR = -I$(MPATH) -module $(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)
 endif
