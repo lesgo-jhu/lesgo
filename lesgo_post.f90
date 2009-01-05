@@ -20,11 +20,7 @@
 !
 !    ################################################################################
 !
-
-PROGRAM POSTPROCESSING
-
-! No implicit variables
-  IMPLICIT NONE
+MODULE input_defs
 
 ! Parameters
   INTEGER,PARAMETER          :: nx=40           ! Number of x-nodes
@@ -39,6 +35,33 @@ PROGRAM POSTPROCESSING
   INTEGER,PARAMETER          :: nt=1            ! Number of time outputs
   INTEGER,PARAMETER          :: tini=1     ! Initial timestep for averaging
   INTEGER,PARAMETER          :: tend=1000     ! Final timestep for averaging
+
+namelist/parameters/&
+nx,ny,nz,kappa,Lz,dt,run,nt,tini,tend
+
+END MODULE input_defs
+
+
+
+
+PROGRAM POSTPROCESSING
+
+! No implicit variables
+  IMPLICIT NONE
+  use input_defs
+!! Parameters
+!  INTEGER,PARAMETER          :: nx=40           ! Number of x-nodes
+!  INTEGER,PARAMETER          :: ny=40           ! Number of y-nodes
+!  INTEGER,PARAMETER          :: nz=40           ! Number of z-nodes
+ ! REAL(KIND=8),PARAMETER     :: kappa=0.4D0     ! Von Karman constant
+
+!  INTEGER,PARAMETER          :: Lz=1         ! Height of domain
+!  REAL(KIND=8),PARAMETER     :: dt=2.e-4    ! Timestep
+
+!  CHARACTER(len=120)         :: run='output'    ! Run to be processed
+!  INTEGER,PARAMETER          :: nt=1            ! Number of time outputs
+!  INTEGER,PARAMETER          :: tini=1     ! Initial timestep for averaging
+!  INTEGER,PARAMETER          :: tend=1000     ! Final timestep for averaging
 
 ! Main variables
   CHARACTER(len=120)         :: file            ! File name
@@ -58,6 +81,10 @@ PROGRAM POSTPROCESSING
 !
 ! BEGINNING CODE   
 !
+!  Read input information
+  open(88,file='postprocessing.inp',status='old')
+  read(88,NML=parameters)
+  close(88)
 
   ! Memory allocation
   ALLOCATE(z(3,nz),avgtx(20,nz))

@@ -61,7 +61,7 @@ real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
 real(rprec),parameter::dz=L_z/z_i/(nz-1)
 real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
-integer, parameter :: nsteps = 1000
+integer, parameter :: nsteps = 4000
 real (rprec), parameter :: dt = 2.e-4_rprec / 1._rprec
                            !--dt=2.e-4 usually works for 64^3
 
@@ -77,11 +77,11 @@ real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
 
 real(rprec),parameter::vonk=.4_rprec
 
-integer,parameter::c_count=1000,p_count=1000
+integer,parameter::c_count=100,p_count=100
 !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
 integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates
 logical,parameter::output=.true.
-logical, parameter :: use_avgslice = .false.
+logical, parameter :: use_avgslice = .true.
 
 !--initu = true to read from a file; false to create with random noise
 logical, parameter :: initu = .false.
