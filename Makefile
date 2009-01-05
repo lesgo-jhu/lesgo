@@ -7,15 +7,9 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-SHELL = /bin/sh
-
+SHELL = /bin/bash
 EXE = lesgo
-
-#ARCH = linux_intel_71
-#ARCH = linux_g95
 ARCH = linux_intel
-#ARCH = aix
-#ARCH = osx_g95
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = yes
@@ -29,7 +23,6 @@ USE_DYNALLOC = no
 
 USE_TREES_LS = yes
 USE_LVLSET = yes
-
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
@@ -57,8 +50,7 @@ ifeq ($(ARCH),linux_intel)
   FPP += -DIFORT
   FC = ifort
   #FFLAGS = -O0 -traceback -g
-  #FFLAGS = -O2
-  FFLAGS = -O3
+  FFLAGS = -O2
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -mp
@@ -66,110 +58,13 @@ ifeq ($(ARCH),linux_intel)
   FFLAGS += -warn all 
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = -nothreads
-  #LDFLAGS = -static -nothreads
+  LDFLAGS = -static -nothreads
   LIBPATH = -L/opt/fftw2/lib
   LIBS = $(LIBPATH) -lrfftw -lfftw 
-  MODDIR = -I$(MPATH) -module $(MPATH)  # where look for/put .mod files
+  MODDIR = -I$(MPATH) -module $(MPATH)  
   FFLAGS += $(MODDIR)
 endif
-ifeq ($(ARCH),linux_intel_71)
-  FPP += -DIFC
-  ifeq ($(USE_MPI), yes)
-    FC = mpif90
-  else
-    FC = ifc
-  endif
-  #FFLAGS = -O0 -stack_temps
-  #FFLAGS = -O2
-  FFLAGS = -O3 -stack_temps
-  #FFLAGS = -O3 -ipo
-  #FFLAGS = -O3 -mp
-  #FFLAGS = -zero -CB -CU -CS
-  #FFLAGS = -CA -CB -CU -CS
-  #FFLAGS = -O0
-  #--warn out of bounds array references instead of error
-  #  this is needed since out of bounds refs will cause error, even if
-  #  the code is unreachable, i.e. is designed for different parameters
-  FFLAGS += -WB
-  FDEBUG = -g
-  FPROF = -p
-  ifeq ($(USE_MPI), yes)
-    # problems with static linking & MPI
-    LDFLAGS =
-  else
-    LDFLAGS = -static -pthread
-    #LDFLAGS = -static  #--this doesnt always work...glibc/pthreads?
-    #LDFLAGS = -static-libcxa  #--only intel library static
-  endif
-  #LIBPATH = -L/home/chester/fftw/fftw2/lib
-  LIBPATH = -L${HOME}/fftw/fftw2/lib
-  #LIBS = $(LIBPATH) -lintel71_srfftw -lintel71_sfftw
-  LIBS = $(LIBPATH) -lintel71_drfftw -lintel71_dfftw
-  #LIBS = $(LIBPATH) -lintel_rfftw -lintel_fftw -lm
-  #LIBS = $(LIBPATH) -lintel_drfftw -lintel_dfftw -lm
-  MODDIR = -I$(MPATH) -module $(MPATH)  # where look for/put .mod files
-  FFLAGS += $(MODDIR)
-endif
-ifeq ($(ARCH),aix)
-  FPP += -DXLF
-  ifeq ($(USE_MPI), yes)
-    FC = mpxlf95_r
-  else
-    FC = xlf95_r
-  endif
-  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
-  FFLAGS = -qstrict -qsuffix=f=f90 -O3
-  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
-  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
-  # find out details of how things are stored
-  FFLAGS += -qsource -qattr=full -qxref=full
-  ifeq ($(USE_OPENMP), yes)
-    FFLAGS += -qsmp=omp
-  endif
-  FDEBUG = -g
-  FPROF = -p
-  ifeq ($(q64),yes)
-    FFLAGS += -q64 -qarch
-    LDFLAGS =
-    LIBPATH =
-    LIBS =
-  else
-    LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000
-    # NOTE: you'll need to modify this!
-    #       or specify on command line
-    LIBPATH = -L${HOME}/fftw/fftw2/lib
-    #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
-    LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
-  endif
-  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
-  FFLAGS += $(MODDIR)
-endif
-ifeq ($(ARCH),linux_g95)
-  FPP += -DG95
-  FC = g95
-  FFLAGS = -O0
-  FDEBUG = -g
-  FPROF = -p
-  LDFLAGS =
-  LIBPATH = -L${HOME}/fftw/fftw2/lib
-  LIBS = $(LIBPATH) -lsrfftw -lsfftw
-  MODDIR =
-  FFLAGS += $(MODDIR)
-endif
-ifeq ($(ARCH),osx_g95)
-  FPP += -DG95
-  FC = g95
-  FFLAGS = -O0
-  FDEBUG = -g
-  FPROF = -p
-  LDFLAGS =
-  LIBPATH = -L${HOME}/Work/fftw/fftw2/lib
-  #LIBS = $(LIBPATH) -lsrfftw -lsfftw
-  LIBS = $(LIBPATH) -ldrfftw -ldfftw
-  MODDIR =
-  FFLAGS += $(MODDIR)
-endif
+
 
 SRCS =  \
 	bottombc.f90 \
@@ -211,8 +106,8 @@ ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
 endif
 
-#COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
-COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
+COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
+#COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
 include .depend
 
