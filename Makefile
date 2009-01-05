@@ -7,33 +7,28 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-SHELL = /bin/bash
-EXE = lesgo
-ARCH = linux_intel
+SHELL = /bin/sh
 
-#--64-bit mode: may want to do export OBJECT_MODE=64
-q64 = yes
+EXE = LES_code
+
+ARCH = linux_intel_71
+#ARCH = linux_g95
+ARCH = linux_intel_81
+#ARCH = aix
+#ARCH = osx_g95
 
 # watch the whitespace here
 USE_MPI = no
-USE_OPENMP = no
-    #--not fully supported by all parts of the code
-USE_DYNALLOC = no
-    #--still experimental
+USE_TREES = no
+USE_LVLSET = no
 
-USE_TREES_LS = yes
-USE_LVLSET = yes
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
 endif
 
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
-endif
-
-ifeq ($(USE_TREES_LS), yes)
-  FPP += -DTREES_LS
+ifeq ($(USE_TREES), yes)
+  FPP += -DTREES
 endif
 
 ifeq ($(USE_LVLSET), yes)
@@ -46,11 +41,13 @@ OPATH = obj
 # May want to just make this 'obj' as well
 MPATH = mod
 
-ifeq ($(ARCH),linux_intel)
+ifeq ($(ARCH),linux_intel_81)
   FPP += -DIFORT
+  #FC = ifc
   FC = ifort
   #FFLAGS = -O0 -traceback -g
-  FFLAGS = -O2
+  FFLAGS = -O0 -check bounds
+  #FFLAGS = -O3
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -mp
@@ -58,13 +55,103 @@ ifeq ($(ARCH),linux_intel)
   FFLAGS += -warn all 
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = -static -nothreads
+  LDFLAGS = -nothreads
+  #LDFLAGS = -static -nothreads
   LIBPATH = -L/opt/fftw2/lib
-  LIBS = $(LIBPATH) -lrfftw -lfftw 
-  MODDIR = -I$(MPATH) -module $(MPATH)  
+  #LIBPATH = -L/home/chester/fftw/fftw2/lib
+  #LIBS = $(LIBPATH) -lintel81_srfftw -lintel81_sfftw
+  #LIBS = $(LIBPATH) -lintel81_drfftw -lintel81_dfftw
+  LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+  MODDIR = -I$(MPATH) -module $(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)
 endif
-
+ifeq ($(ARCH),linux_intel_71)
+  FPP += -DIFC
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = gfortran
+  endif
+  #FFLAGS = -O0
+  FFLAGS = -O0 -stack_temps
+  #FFLAGS = -O2
+  #FFLAGS = -O3 -stack_temps
+  #FFLAGS = -O3 -ipo
+  #FFLAGS = -O3 -mp
+  #FFLAGS = -zero -CB -CU -CS
+  #FFLAGS = -CA -CB -CU -CS
+  #FFLAGS = -O0
+  FDEBUG = -g
+  FPROF = -p
+  ifeq ($(USE_MPI), yes)
+    # problems with static linking & MPI
+    LDFLAGS =
+  else
+    LDFLAGS = -static -pthread
+    #LDFLAGS = -static  #--this doesnt always work...glibc/pthreads?
+    #LDFLAGS = -static-libcxa  #--only intel library static
+  endif
+  LIBPATH =
+  #LIBPATH = -L/home/chester/fftw/fftw2/lib
+  #LIBS = $(LIBPATH) -lintel71_srfftw -lintel71_sfftw
+  #LIBS = $(LIBPATH) -lintel71_drfftw -lintel71_dfftw
+  LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+  #LIBS = $(LIBPATH) -lintel_drfftw -lintel_dfftw -lm
+  #MODDIR = -I$(MPATH)   # where look for/put .mod files
+  MODDIR = -I$(MPATH) -module $(MPATH)  # where look for/put .mod files
+  FFLAGS += $(MODDIR)
+endif
+ifeq ($(ARCH),aix)
+  FPP += -DXLF
+  ifeq ($(USE_MPI), yes)
+    FC = mpxlf95_r
+  else
+    FC = xlf95_r
+  endif
+  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
+  FFLAGS = -qstrict -qsuffix=f=f90 -O3
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
+  # find out details of how things are stored
+  FFLAGS += -qsource -qattr=full -qxref=full -qmaxmem=-1
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000 -bnoquiet
+  # NOTE: you'll need to modify this!
+  #       or specify on command line
+#  LIBPATH = -L/home/bluesky/schester/fftw/fftw2/lib
+LIBPATH = -L/usr/local/lib32/r4i4 -L/home/bluesky/vijayant/fftw/lib
+  #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
+  LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+#  LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
+  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
+  FFLAGS += $(MODDIR)
+endif
+ifeq ($(ARCH),linux_g95)
+  FPP += -DG95
+  FC = g95
+  FFLAGS = -O0
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS =
+  LIBPATH = -L/home/chester/fftw/fftw2/lib
+  LIBS = $(LIBPATH) -lsrfftw -lsfftw
+  MODDIR =
+  FFLAGS += $(MODDIR)
+endif
+ifeq ($(ARCH),osx_g95)
+  FPP += -DG95
+  FC = g95
+  FFLAGS = -O0
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS =
+  LIBPATH = -L/Users/stu/Work/fftw/fftw2/lib
+  #LIBS = $(LIBPATH) -lsrfftw -lsfftw
+  LIBS = $(LIBPATH) -ldrfftw -ldfftw
+  MODDIR =
+  FFLAGS += $(MODDIR)
+endif
 
 SRCS =  \
 	bottombc.f90 \
@@ -76,38 +163,38 @@ SRCS =  \
         fft.f90 filt_da.f90 forcing.f90 \
         ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
-        lagrange_Sdep.f90 lagrange_Ssim.f90 \
+	lagrange_Sdep.f90 lagrange_Ssim.f90 \
 	main.f90 messages.f90 \
-        padd.f90 param.f90 press_stag.f90 press_stag_array.f90 \
+        padd.f90 param.f90 press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
-        sgs_stag.f90 sgsmodule.f90 sim_param.f90 \
-	std_dynamic.f90 string_util.f90 \
+        sgs_stag.f90 sgsmodule.f90 sim_param.f90 std_dynamic.f90 \
+	string_util.f90 \
         test_filtermodule.f90 topbc.f90 \
         tridag.f90 tridag_array.f90 types.f90 \
         unpadd.f90 \
 	wallstress.f90 wallstress_dns.f90
+#        interpolag_Ssim_VIJ.f90 lagrange_Ssim_VIJ.f90 \
+#	output_slice.f90
 
-#--these also depend on linear_simple.f90
-TREES_LS_SRCS = string_util.f90 \
-		trees_ls.f90 trees_base_ls.f90 trees_fmodel_ls.f90 \
-                trees_io_ls.f90 trees_post_mod_ls.f90 trees_setup_ls.f90 \
-		trees_global_fmask_ls.f90
+TREE_SRCS = linear_simple.f90 trees.f90 trees_base.f90 trees_BC.f90 \
+            trees_Cd.f90 trees_CV.f90 trees_output.f90
 
-LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
+LVLSET_SRCS = level_set.f90
 
 ifeq ($(USE_MPI), yes)
+#  SRCS += mpi_transpose_mod.f90
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
 endif
-ifeq ($(USE_TREES_LS), yes)
-  SRCS += $(TREES_LS_SRCS)
+ifeq ($(USE_TREES), yes)
+  SRCS += $(TREE_SRCS)
 endif
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
 endif
 
-COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
-#COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
+#COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
+COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
 include .depend
 
@@ -129,48 +216,18 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 # Other support programs are listed below this point
-interp: interp.f90
+#interp: interp.f90
+interp: interp_scalars.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+#interp: interp_scalars.f90
+#	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
 trees_pre:  trees_pre.f90 $(OPATH)/types.o $(OPATH)/param.o \
-            $(OPATH)/messages.o $(OPATH)/string_util.o \
-	    $(OPATH)/trees_base.o $(OPATH)/trees_setup.o  \
-	    $(OPATH)/trees_output.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-               $(OPATH)/messages.o $(OPATH)/string_util.o \
-               $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-	       $(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-                $(OPATH)/messages.o $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_aprioriCD_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-	        $(OPATH)/sim_param_vel.o \
-                $(OPATH)/messages.o $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_fmodel_ls.o $(OPATH)/trees_ls.o \
-		$(OPATH)/level_set_base.o $(OPATH)/trees_global_fmask_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-                $(OPATH)/messages.o $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_post_mod_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param.o \
-            $(OPATH)/messages.o $(OPATH)/string_util.o \
-            $(OPATH)/trees_base_ls.o
+            $(OPATH)/sim_param.o $(OPATH)/trees_base.o $(OPATH)/trees_CV.o  \
+	    $(OPATH)/trees_Cd.o $(OPATH)/trees_output.o $(OPATH)/trees_BC.o \
+	    $(OPATH)/messages.o $(OPATH)/trees.o $(OPATH)/linear_simple.o \
+	    $(OPATH)/string_util.o $(OPATH)/immersedbc.o $(OPATH)/sgsmodule.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
 # This doesn't remove .mod files--should be OK as long a dependency list 
@@ -178,4 +235,9 @@ merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param.o \
 # FOBJ is defined in .depend
 .PHONY : clean
 clean :
+	echo \0>./total_time.dat
 	rm -rf $(FOBJ) .depend* $(MPATH)/*.mod
+	rm -rf ./output/*
+	mkdir ./output/fields_3d
+	mkdir output/code_used
+	cp $(SRCS) param.f90 Makefile ./output/code_used/

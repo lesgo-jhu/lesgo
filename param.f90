@@ -45,7 +45,7 @@ integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
 logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
                       !--use DEBUG to write lots of data/files
 
-integer,parameter:: nx=128,ny=64,nz=(65-1)/nproc + 1
+integer,parameter:: nx=40,ny=40,nz=(41-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
 integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -99,7 +99,7 @@ logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.
 !Models type: 1->static prandtl, 2->Dynamic
 !Cs is the Smagorinsky Constant
 !Co and nnn are used in the mason model for smagorisky coeff
-integer,parameter::model=1,models=1,nnn=2
+integer,parameter::model=5,models=1,nnn=2
 real(kind=rprec),parameter::Co=0.16_rprec
 
 !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
@@ -121,6 +121,7 @@ real (rprec), parameter :: buff_end = 1._rprec
                            !  as a fraction of L_x
 real (rprec), parameter :: buff_len = 0.25_rprec
                            !--length of buffer region as a fraction of L_x
+!real (rprec), parameter :: face_avg = 0.0_rprec
 real (rprec), parameter :: face_avg = 1.0_rprec
 
 logical, parameter :: read_inflow_file = .false.

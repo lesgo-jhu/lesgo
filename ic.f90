@@ -22,16 +22,16 @@ real(kind=rprec)::z,w_star,T_star,q_star,ran3
 !  return
 !end if
 
-if (.true.) then
+!if (.true.) then
 !if ((inflow) .and. (.not. read_inflow_file)) then  !--no turbulence
 
   u = face_avg 
   v = 0._rprec
   w = 0._rprec
 
-else 
-
-  w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
+!else 
+  
+w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
   !      T_star=wt_s/w_star
   !      q_star=T_star
 
@@ -123,7 +123,7 @@ else
     v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
   end if
 
-end if
+!end if
 
 !VK Display the mean vertical profiles of the initialized variables on the
 !screen

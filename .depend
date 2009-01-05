@@ -1,0 +1,103 @@
+FOBJ=obj/bottombc.o obj/convec.o obj/ddx.o obj/ddxy.o obj/ddy.o obj/ddz_uv.o obj/ddz_w.o obj/dealias1.o obj/dealias2.o obj/debug_mod.o obj/divstress_uv.o obj/divstress_w.o obj/dns_stress.o obj/energy.o obj/fft.o obj/filt_da.o obj/forcing.o obj/ic.o obj/ic_dns.o obj/immersedbc.o obj/initial.o obj/interpolag_Sdep.o obj/interpolag_Ssim.o obj/io.o obj/lagrange_Sdep.o obj/lagrange_Ssim.o obj/main.o obj/messages.o obj/padd.o obj/param.o obj/press_stag_array.o obj/ran3.o obj/rmsdiv.o obj/scaledep_dynamic.o obj/scalars_module.o obj/scalars_module2.o obj/sgs_stag.o obj/sgsmodule.o obj/sim_param.o obj/std_dynamic.o obj/string_util.o obj/test_filtermodule.o obj/topbc.o obj/tridag.o obj/tridag_array.o obj/types.o obj/unpadd.o obj/wallstress.o obj/wallstress_dns.o 
+
+LES_code: $(FOBJ)
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $(FOBJ) $(LIBS)
+
+obj/bottombc.o : bottombc.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/convec.o : convec.f90 obj/debug_mod.o obj/fft.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ddx.o : ddx.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ddxy.o : ddxy.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ddy.o : ddy.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ddz_uv.o : ddz_uv.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ddz_w.o : ddz_w.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/dealias1.o : dealias1.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/dealias2.o : dealias2.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/debug_mod.o : debug_mod.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/divstress_uv.o : divstress_uv.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/divstress_w.o : divstress_w.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/dns_stress.o : dns_stress.f90 obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/energy.o : energy.f90 obj/messages.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/fft.o : fft.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/filt_da.o : filt_da.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/forcing.o : forcing.f90 obj/io.o obj/immersedbc.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ic.o : ic.f90 obj/bottombc.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ic_dns.o : ic_dns.f90 obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/immersedbc.o : immersedbc.f90 obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/initial.o : initial.f90 obj/io.o obj/immersedbc.o obj/scalars_module2.o obj/scalars_module.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/interpolag_Sdep.o : interpolag_Sdep.f90 obj/sgsmodule.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/interpolag_Ssim.o : interpolag_Ssim.f90 obj/messages.o obj/sgsmodule.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/io.o : io.f90 obj/fft.o obj/scalars_module.o obj/immersedbc.o obj/scalars_module2.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/lagrange_Sdep.o : lagrange_Sdep.f90 obj/immersedbc.o obj/test_filtermodule.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/lagrange_Ssim.o : lagrange_Ssim.f90 obj/debug_mod.o obj/messages.o obj/immersedbc.o obj/test_filtermodule.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/main.o : main.f90 obj/messages.o obj/debug_mod.o obj/scalars_module2.o obj/scalars_module.o obj/bottombc.o obj/topbc.o obj/test_filtermodule.o obj/immersedbc.o obj/fft.o obj/io.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/messages.o : messages.f90 obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/padd.o : padd.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/param.o : param.f90 obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/press_stag_array.o : press_stag_array.f90 obj/debug_mod.o obj/immersedbc.o obj/fft.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/ran3.o : ran3.f90 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/rmsdiv.o : rmsdiv.f90 obj/debug_mod.o obj/io.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/scaledep_dynamic.o : scaledep_dynamic.f90 obj/test_filtermodule.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/scalars_module.o : scalars_module.f90 obj/test_filtermodule.o obj/immersedbc.o obj/sgsmodule.o obj/bottombc.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/scalars_module2.o : scalars_module2.f90 obj/sgsmodule.o obj/scalars_module.o obj/sim_param.o obj/bottombc.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/sgs_stag.o : sgs_stag.f90 obj/debug_mod.o obj/messages.o obj/test_filtermodule.o obj/immersedbc.o obj/bottombc.o obj/sgsmodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/sgsmodule.o : sgsmodule.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/sim_param.o : sim_param.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/std_dynamic.o : std_dynamic.f90 obj/test_filtermodule.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/string_util.o : string_util.f90 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/test_filtermodule.o : test_filtermodule.f90 obj/fft.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/topbc.o : topbc.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/tridag.o : tridag.f90 obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/tridag_array.o : tridag_array.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/types.o : types.f90 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/unpadd.o : unpadd.f90 obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/wallstress.o : wallstress.f90 obj/test_filtermodule.o obj/bottombc.o obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<
+obj/wallstress_dns.o : wallstress_dns.f90 obj/sim_param.o obj/param.o obj/types.o 
+	fpx3 -DIFORT $< > t.$<; $(FC) -c -o $@ $(FFLAGS) t.$<

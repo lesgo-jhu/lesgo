@@ -1021,7 +1021,8 @@ $if ($MPI)
 
   recvcounts = size (ubar)
   displs = coord_of_rank * recvcounts 
-  call mpi_gatherv (ubar(1), size (ubar), MPI_RPREC,                &
+  call mpi_gatherv (ubar(1), size (ubar), 
+  ,                &
                     ubar_tot(1, 1), recvcounts, displs, MPI_RPREC,  &
                     rank_of_coord(0), comm, ierr)
 
