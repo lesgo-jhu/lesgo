@@ -1,0 +1,7 @@
+1. The averaged values in io.f90 are averaged across the y-direction
+   for each x-location in each z-plane. 
+
+2. Averaged values are only written when use_avgslice = .true. and
+   mod(jt_total,c_count)==0.
+
+3. ke is the average of the domain
