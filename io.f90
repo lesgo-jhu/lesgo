@@ -364,7 +364,7 @@ $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine avgslice (jt)
 use sim_param,only:path,u,v,w,dudz,dvdz, txx, txz, tyy, tyz, tzz, p
-use param,only:dz,p_count,c_count
+use param,only:dz,p_count,c_count,dt
 use sgsmodule,only:Cs_opt2
 implicit none
 integer::i,j,k, jt
@@ -377,7 +377,7 @@ real(kind=rprec)::tu1,tv1,tw1,ttxx,ttxz,ttyy,ttyz,ttzz,tdudz,tdvdz,&
 
 fr=(1._rprec/real(p_count,kind=rprec))*real(c_count,kind=rprec)
 do k=1,Nz
-do i=1,Nx
+  do i=1,Nx
    tu1=0._rprec;tv1=0._rprec;tw1=0._rprec;tp1=0._rprec
    ttxx=0._rprec;ttxz=0._rprec;ttyy=0._rprec;ttyz=0._rprec
    ttzz=0._rprec;tdudz=0._rprec;tdvdz=0._rprec;tu2=0._rprec
@@ -429,10 +429,11 @@ do i=1,Nx
    aCs(i,k)=aCs(i,k)+(fr)*tCs/Ny
    auw(i,k)=auw(i,k)+(fr)*tuw/Ny
    avw(i,k)=avw(i,k)+(fr)*tvw/Ny
-end do
+  end do
 end do
 
-if(mod(jt,p_count)==0.and.jt_total.gt.2000) then
+!if(mod(jt,p_count)==0.and.jt_total.gt.2000) then
+if(mod(jt,p_count)==0) then
   open(20,file=path//'output/aver_u.out',status="unknown",position="append")
   open(21,file=path//'output/aver_v.out',status="unknown",position="append")
   open(22,file=path//'output/aver_w.out',status="unknown",position="append")
@@ -451,6 +452,9 @@ if(mod(jt,p_count)==0.and.jt_total.gt.2000) then
   open(35,file=path//'output/aver_Cs2.out',status="unknown",position="append")
   open(36,file=path//'output/aver_dudz.out',status="unknown",position="append") 
   open(37,file=path//'output/aver_dvdz.out',status="unknown",position="append")
+  
+  write(*,*) 'Time = ', jt_total*dt
+  write(*,*) 'Writing Statistics for value=', jt_total*dz
   do k=1,nz
       write(20,5168) real(jt_total*dz),(real(au(i,k)),i=1,nx)
       write(21,5168) real(jt_total*dz),(real(av(i,k)),i=1,nx)

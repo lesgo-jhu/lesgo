@@ -15,7 +15,7 @@ integer, parameter :: NAN_MAX = 10
                       !  diagnosis of problem)
 
 logical, parameter :: DEBUG = .true.
-logical, parameter :: flush = .true.
+logical, parameter :: flush = .false.
 
 integer :: jx, jy, jz
 integer :: nan_count

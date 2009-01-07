@@ -22,6 +22,9 @@ use debug_mod  !--just for debugging
 use messages
 implicit none
 
+!!!!!!Temporary for data write!!!!!!!!!!!
+integer :: kkkk 
+
 integer,parameter::wbase=20  !--controls the frequency of screen diagnostics
 integer, parameter :: nenergy = 10  !--frequency of writes to check_ke.dat
 
@@ -520,7 +523,7 @@ end if
 
   end if
    
-7777 format ('jt,dt,divu,ke:',1x,i6.6,3(1x,e9.4))
+7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
 
@@ -542,5 +545,14 @@ $endif
 $if ($MPI)
   call mpi_finalize (ierr)
 $endif
+
+!  Add temporary output information
+open(unit = 7,file = 'u_z.dat')
+do kkkk=1,nz
+write(7,*) (kkkk-1)/nz, u(1,ny/2,kkkk)
+enddo
+close(7)
+write(*,*) 'u(:,:,1) = ', u(:,:,1)
+
 
 end program main

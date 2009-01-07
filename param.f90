@@ -45,7 +45,7 @@ integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
 logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
                       !--use DEBUG to write lots of data/files
 
-integer,parameter:: nx=40,ny=40,nz=(41-1)/nproc + 1
+integer,parameter:: nx=20,ny=20,nz=(21-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
 integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -61,7 +61,7 @@ real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
 real(rprec),parameter::dz=L_z/z_i/(nz-1)
 real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
-integer, parameter :: nsteps = 4000
+integer, parameter :: nsteps = 2000
 real (rprec), parameter :: dt = 2.e-4_rprec / 1._rprec
                            !--dt=2.e-4 usually works for 64^3
 
@@ -77,7 +77,7 @@ real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
 
 real(rprec),parameter::vonk=.4_rprec
 
-integer,parameter::c_count=100,p_count=100
+integer,parameter::c_count=1000,p_count=1000
 !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
 integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates
 logical,parameter::output=.true.
