@@ -432,8 +432,7 @@ do k=1,Nz
   end do
 end do
 
-!if(mod(jt,p_count)==0.and.jt_total.gt.2000) then
-if(mod(jt,p_count)==0) then
+if(mod(jt,p_count)==0.and.jt_total.gt.0) then
   open(20,file=path//'output/aver_u.out',status="unknown",position="append")
   open(21,file=path//'output/aver_v.out',status="unknown",position="append")
   open(22,file=path//'output/aver_w.out',status="unknown",position="append")

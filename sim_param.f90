@@ -358,6 +358,7 @@ do i = 1, size ( array )
 
 end do
 
+write(*,*) 'Setting sim_param_initialized true'
 sim_param_initialized = .true.
     !--beware this does NOT guarentee that a particular set of arrays
     !  was initialized!

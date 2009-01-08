@@ -250,7 +250,7 @@ integer :: tmp(nd), not_i(nd-1)
 real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
 
 !----------------------------------------------------------------------
-
+write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
 if (DEBUG) call enter_sub (sub_name)
 
 grid % nx = (/ nx, ny, nz /)

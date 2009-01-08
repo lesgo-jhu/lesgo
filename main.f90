@@ -22,9 +22,6 @@ use debug_mod  !--just for debugging
 use messages
 implicit none
 
-!!!!!!Temporary for data write!!!!!!!!!!!
-integer :: kkkk 
-
 integer,parameter::wbase=20  !--controls the frequency of screen diagnostics
 integer, parameter :: nenergy = 10  !--frequency of writes to check_ke.dat
 
@@ -547,11 +544,16 @@ $if ($MPI)
 $endif
 
 !  Add temporary output information
-open(unit = 7,file = 'u_z.dat')
-do kkkk=1,nz
-write(7,*) (kkkk-1)/nz, u(1,ny/2,kkkk)
-enddo
-close(7)
+!open(unit = 7,file = 'grid.dat')
+!write(7,*)'variables= "x", "y", "z"'
+!write(7,*)'ZONE F=POINT, i=',size(x,1),'j=',size(y,1),'k=',size(z,1)
+!do k=1,nz
+!  do j=1,ny
+!    do i=1,nx
+!      write(7,*) x(i,j,k), y(j), n, q(i,j,1), q(i,j,2)
+!enddo
+!enddo
+!enddo
 write(*,*) 'u(:,:,1) = ', u(:,:,1)
 
 

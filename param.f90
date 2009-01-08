@@ -45,7 +45,7 @@ integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
 logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
                       !--use DEBUG to write lots of data/files
 
-integer,parameter:: nx=20,ny=20,nz=(21-1)/nproc + 1
+integer,parameter:: nx=32,ny=32,nz=(33-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
 integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -54,19 +54,27 @@ integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
 real (rprec), parameter :: BOGUS = -1234567890._rprec
 
 real(rprec),parameter::pi=3.1415926535897932384626433_rprec
-real(rprec),parameter::L_x=2._rprec, L_y= 1._rprec
-real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
+real(rprec),parameter::L_x=4._rprec, L_y= 4._rprec
+!real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
+real(rprec),parameter::z_i=1000._rprec, L_z=2._rprec*z_i/nproc
                             !--L_z is not nondimensionalized by z_i yet
 ! set the aspect ratio of the box, already nondimensional
 real(rprec),parameter::dz=L_z/z_i/(nz-1)
 real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
-integer, parameter :: nsteps = 2000
-real (rprec), parameter :: dt = 2.e-4_rprec / 1._rprec
+integer, parameter :: nsteps = 20000
+!  Commented out for now; see below u_star declaration
+!  for details
+!real (rprec), parameter :: dt = 2.e-6_rprec / 1._rprec
                            !--dt=2.e-4 usually works for 64^3
 
 ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
 real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
+
+!  dt_dim is not present in this version but is present int
+!  MARCELO_CODE; adding it here to see what we get
+real(rprec),parameter::dt_dim=0.1_rprec !dimensional time step in seconds
+real(rprec),parameter::dt=dt_dim*u_star/z_i
 
 !--Coriolis stuff
 ! coriol=non-dim coriolis parameter,
@@ -77,16 +85,16 @@ real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
 
 real(rprec),parameter::vonk=.4_rprec
 
-integer,parameter::c_count=1000,p_count=1000
+integer,parameter::c_count=2000,p_count=2000
 !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
 integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates
 logical,parameter::output=.true.
 logical, parameter :: use_avgslice = .true.
 
 !--initu = true to read from a file; false to create with random noise
-logical, parameter :: initu = .false.
+logical, parameter :: initu = .true.
 !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-logical, parameter :: inilag = .true.
+logical, parameter :: inilag = .false.
 
 ! nu_molec is dimensional m^2/s
 real(rprec),parameter::nu_molec=1.14e-5_rprec
@@ -101,6 +109,8 @@ logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.
 !Co and nnn are used in the mason model for smagorisky coeff
 integer,parameter::model=5,models=1,nnn=2
 real(kind=rprec),parameter::Co=0.16_rprec
+!  This was not originally here
+real(kind=rprec),parameter::cs=0.2_rprec
 
 !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
 integer,parameter::ifilter=2
@@ -173,5 +183,7 @@ real(kind=rprec),parameter::g=9.81_rprec, inv_strength=0._rprec
 real(kind=rprec),parameter::theta_top=300._rprec,T_scale=300._rprec&
                             ,wt_s=20._rprec,T_init=300._rprec
 real(kind=rprec),parameter::cap_thick=80._rprec, z_decay=1._rprec
+
+
 
 end module param
