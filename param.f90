@@ -62,7 +62,7 @@ real(rprec),parameter::z_i=1000._rprec, L_z=2._rprec*z_i/nproc
 real(rprec),parameter::dz=L_z/z_i/(nz-1)
 real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
-integer, parameter :: nsteps = 20000
+integer, parameter :: nsteps = 1
 !  Commented out for now; see below u_star declaration
 !  for details
 !real (rprec), parameter :: dt = 2.e-6_rprec / 1._rprec
@@ -92,9 +92,9 @@ logical,parameter::output=.true.
 logical, parameter :: use_avgslice = .true.
 
 !--initu = true to read from a file; false to create with random noise
-logical, parameter :: initu = .true.
+logical, parameter :: initu = .false.
 !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-logical, parameter :: inilag = .false.
+logical, parameter :: inilag = .true.
 
 ! nu_molec is dimensional m^2/s
 real(rprec),parameter::nu_molec=1.14e-5_rprec
@@ -116,7 +116,7 @@ real(kind=rprec),parameter::cs=0.2_rprec
 integer,parameter::ifilter=2
 
 ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
-integer,parameter::ubc=0
+integer,parameter::ubc=1
 
 character (*), parameter :: lbc_mom = 'wall'
                             !--'wall', 'stress free'

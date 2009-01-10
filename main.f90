@@ -27,7 +27,7 @@ integer, parameter :: nenergy = 10  !--frequency of writes to check_ke.dat
 
 character (*), parameter :: sub_name = 'main'
 
-logical, parameter :: DEBUG = .false.
+logical, parameter :: DEBUG = .true.
 
 !--for trees_CV, we need the SGS stress, so it was moved to sim_params
 !  also, the equivalence was removed, since this overwrites what we need
@@ -173,7 +173,8 @@ if (DEBUG) then
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
-
+write(*,*) 'Not entering main time loop!'
+stop
 !--MPI: u,v,w should be set at jz = 0:nz before getting here, except
 !  bottom process which is BOGUS (starts at 1)
 ! time Loop
@@ -444,6 +445,7 @@ end if
   !call press_stag (p, dpdx, dpdy)
   !--provides p, dpdx, dpdy at 0:nz-1
   call press_stag_array (p, dpdx, dpdy)
+  write(*,*) 'dpdx = ', dpdx(1,:,2)
 
   if (DEBUG) write (*, *) 'main: after press_stag'
 
@@ -554,7 +556,4 @@ $endif
 !enddo
 !enddo
 !enddo
-write(*,*) 'u(:,:,1) = ', u(:,:,1)
-
-
 end program main

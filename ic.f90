@@ -25,9 +25,9 @@ real(kind=rprec)::z,w_star,T_star,q_star,ran3
 !if (.true.) then
 !if ((inflow) .and. (.not. read_inflow_file)) then  !--no turbulence
 
-  u = face_avg 
-  v = 0._rprec
-  w = 0._rprec
+u = face_avg 
+v = 0._rprec
+w = 0._rprec
 
 !else 
   
