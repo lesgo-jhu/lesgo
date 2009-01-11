@@ -5,7 +5,7 @@
 !  has 1:nz-1
 subroutine ddz_w(dfdz,f)
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
+use param2,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none
 
 $if ($MPI)

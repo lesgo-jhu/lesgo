@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module trees_global_fmask_ls
-use param, only : ld, nx, ny, nz, dx, dy, dz
+use param2, only : ld, nx, ny, nz, dx, dy, dz
 use trees_base_ls
 implicit none
 

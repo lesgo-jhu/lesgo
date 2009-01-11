@@ -1,6 +1,6 @@
 module level_set_base
 use types, rp => rprec
-use param, only : ld, ny, nz
+use param2, only : ld, ny, nz
 implicit none
 
 save

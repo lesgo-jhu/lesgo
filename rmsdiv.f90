@@ -3,6 +3,7 @@ subroutine rmsdiv(rms)
 ! l_1 norm or something.
 use types,only:rprec
 use param
+use param2
 use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz
 use io, only : jt_total
 use debug_mod

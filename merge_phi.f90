@@ -4,7 +4,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program merge_phi
 use types, rp => rprec
-use param, only : nx, ny, nztot => nz, BOGUS
+use param, only : BOGUS
+use param2, only : nx,ny,nztot => nz
 use trees_base_ls, only : grid_initialize, pt_of_grid
 implicit none
 

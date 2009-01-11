@@ -239,7 +239,7 @@ end function delta
 ! this depends on the param module
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine grid_initialize ()
-use param, only : nx, ny, nz, dx, dy, dz
+use param2, only : nx, ny, nz, dx, dy, dz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.grid_initialize'

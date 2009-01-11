@@ -1,6 +1,7 @@
 subroutine ic_dns()
 use types,only:rprec
 use param
+use param2
 use sim_param,only:u,v,w
 implicit none
 real(kind=rprec),dimension(nz)::ubar

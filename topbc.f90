@@ -1,12 +1,13 @@
 module topbc
 use types,only:rprec
-use param,only:nz
+use param2,only:nz
 implicit none
 real(kind=rprec),dimension(nz)::sponge
 
 contains
 subroutine setsponge()
 use param
+use param2
 implicit none
 real(kind=rprec)::factor
 integer::k

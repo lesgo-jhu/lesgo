@@ -2,6 +2,7 @@
 subroutine ic()
 use types,only:rprec
 use param
+use param2
 use sim_param,only:u,v,w
 use bottombc,only:zo_avg
 implicit none

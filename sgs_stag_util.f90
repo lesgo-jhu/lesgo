@@ -3,6 +3,7 @@
 subroutine sgs_stag ()
 use types,only:rprec
 use param
+use param2
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
 use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t

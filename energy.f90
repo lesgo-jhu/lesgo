@@ -1,6 +1,7 @@
 subroutine energy (ke)
 use types,only:rprec
 use param
+use param2
 use sim_param,only:u,v,w
 use messages
 $if ($XLF)

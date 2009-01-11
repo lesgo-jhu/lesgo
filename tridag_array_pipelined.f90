@@ -2,6 +2,7 @@
 subroutine tridag_array_pipelined (tag, a, b, c, r, u)
 use types,only:rprec
 use param
+use param2
 implicit none
 
 integer, intent (in) :: tag  !--base tag

@@ -1,6 +1,6 @@
 module immersedbc
 use types,only:rprec
-use param,only:ld,ny,nz
+use param2,only:ld,ny,nz
 implicit none
 private
 public n_bldg,bldg_pts,fx,fy,fz,u_des,v_des,w_des&
@@ -126,7 +126,8 @@ end subroutine building_mask_one
 
 subroutine walldudx_building
 use types,only:rprec
-use param,only:dy,dx,dz,ld,lh,nx,ny,nz,vonk,z_i
+use param2,only:vonk
+use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
 use sim_param,only:u,v,w,dudx,dvdx,dwdx,dudy,dvdy,dwdy,dudz,dvdz,dwdz
 implicit none
 integer::jx,jy,jz,i,j
@@ -256,7 +257,8 @@ end subroutine walldudx_building
 
 subroutine wallstress_building(txy,txz,tyz)
 use types,only:rprec
-use param,only:dy,dx,dz,ld,lh,nx,ny,nz,vonk,z_i
+use param2,only:vonk
+use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
 use sim_param,only:u,v,w
 implicit none
 integer::jx,jy,jz,i,j

@@ -3,7 +3,7 @@ subroutine dealias1 (u,u_big)
 ! doesn't dealias anything
 ! note: this sort of trashes u
 use types,only:rprec
-use param,only:ld,ld_big,nx,ny,nz,ny2,dx,dy
+use param2,only:ld,ld_big,nx,ny,nz,ny2,dx,dy
 use fft
 implicit none
 integer::jz

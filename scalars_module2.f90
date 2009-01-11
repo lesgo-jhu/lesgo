@@ -1,6 +1,6 @@
 module scalars_module2
 use types,only:rprec
-use param, jt_global => jt  !--rename jt to avoid naming conflicts here
+use param2, jt_global => jt  !--rename jt to avoid naming conflicts here
                             !--only needed since jt added to params
 use bottombc,only:T_s,q_s,q_mix,zo_avg,phi_m,psi_m,phi_h,psi_h
 !makes obukhov functions available
@@ -165,6 +165,7 @@ end subroutine ic_scal
 !!!xxxxxxxxxx----------VIJ----------XXXXXXXXXXXXXXXXXXXXX
 subroutine patch_or_remote()
 use param
+use param2
 use bottombc
 use scalars_module
 implicit none
@@ -222,6 +223,7 @@ subroutine scalar_in()
 !c Authored by Vijayant Kumar
 !c Last modified on April 11th, 2004
 use param
+use param2
 use bottombc,only:T_s,zo !Load the variables from bottombc and update in here
        implicit none
        integer:: ii,jj

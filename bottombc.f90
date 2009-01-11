@@ -1,6 +1,7 @@
 module bottombc
 use types,only:rprec
-use param,only:nx,ny,ld,S_FLAG
+use param,only:S_FLAG
+use param2,only:nx,ny,ld
 implicit none
 private
 public zo_avg,num_patch,zot,zo,phi_m,psi_m,phi_h,psi_h,&
@@ -33,7 +34,8 @@ subroutine patches()
 !TS NOTES ZOT(:,2:4) should locate in the same places for zo, T_s, q_s
 !TS OTHERWISE INCONSISTENCY
 !use types,only:rprec
-use param,only:z_i,t_scale
+use param,only:t_scale
+use param2,only:z_i
 implicit none
 integer::i,j,jp
 character(len=3)::trash

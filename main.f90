@@ -1,6 +1,7 @@
 program main
 use types,only:rprec
 use param
+use param2
 use sim_param
 use io, only : openfiles, output_loop, output_final, inflow_write,  &
             avg_stats, jt_total

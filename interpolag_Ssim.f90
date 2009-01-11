@@ -6,6 +6,7 @@ subroutine interpolag_Ssim ()
 !use sgsmodule,only:u_lag,v_lag,w_lag
 use types,only:rprec
 use param
+use param2
 !use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,c_count, jt,  &
 !               USE_MPI, coord, nproc, BOGUS
 use sgsmodule

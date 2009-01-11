@@ -37,4 +37,15 @@ dz=L_z/z_i/(nz-1)
 dx=L_x/nx
 dy=L_y/n
 
+!--Coriolis stuff
+! coriol=non-dim coriolis parameter,
+! ug=horiz geostrophic vel, vg=transverse geostrophic vel
+! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE
+coriol=9.125E-05*z_i/u_star
+ug=u_star/u_star
+vg=0._rprec/u_star
+
+mean_p_force = 1._rprec * z_i/L_z/nproc !--usually just z_i/L_
+
+return
 end subroutine read_inputs

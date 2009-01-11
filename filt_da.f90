@@ -2,7 +2,7 @@
 !--supplies results for jz=$lbz:nz
 subroutine filt_da(f_c,dfdx_c,dfdy_c)
 use types,only:rprec
-use param,only:lh,nx,ny,nz
+use param2,only:lh,nx,ny,nz
 use fft
 implicit none
 integer::jz

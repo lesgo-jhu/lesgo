@@ -1,7 +1,7 @@
 module scalars_module
 ! HUMIDITY subroutines in place but not yet turned on !!
 use types,only:rprec
-use param, jt_global => jt  !--rename to avoid name clashes
+use param2, jt_global => jt  !--rename to avoid name clashes
                             !--could also modify all routines to access jt
                             !  from param module, not argument list
 use sim_param,only:u,v,w,theta,q,path

@@ -9,6 +9,7 @@
 subroutine convec (cx,cy,cz)
 use types,only:rprec
 use param
+use param2
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
 use fft

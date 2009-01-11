@@ -1,6 +1,6 @@
 module sim_param
 use types, only : rprec
-use param, only : ld, ny, nz, path
+use param2, only : ld, ny, nz, path
 implicit none
 
 save

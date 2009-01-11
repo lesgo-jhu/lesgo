@@ -1,7 +1,8 @@
 module io
 use types,only:rprec
-use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
-                  use_avgslice, USE_MPI, coord, rank, nproc, jt_total
+use param, only :  path, USE_MPI, coord, rank, nproc
+use param2,only : ld, nx, ny, nz, nz_tot, write_inflow_file, &
+  use_avgslice,jt_total
 implicit none
 private
 public openfiles,output_loop,output_final,                   &
@@ -249,7 +250,8 @@ end subroutine openfiles
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
-use param,only:output,dt,c_count,S_FLAG,SCAL_init
+use param,only:S_FLAG,SCAL_init
+use param2,only:dt,c_count,output
 use sim_param,only:path,u,v,w,dudz,dudx,p,&
      RHSx,RHSy,RHSz,theta, txx, txy, txz, tyy, tyz, tzz
 use sgsmodule,only:Cs_opt2!,Cs_opt2_avg  !--not essential, save mem.
@@ -364,7 +366,7 @@ $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine avgslice (jt)
 use sim_param,only:path,u,v,w,dudz,dvdz, txx, txz, tyy, tyz, tzz, p
-use param,only:dz,p_count,c_count,dt
+use param2,only:dz,p_count,c_count,dt
 use sgsmodule,only:Cs_opt2
 implicit none
 integer::i,j,k, jt
@@ -495,7 +497,8 @@ end subroutine avgslice
 !--assumes lun is open and positioned correctly
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine checkpoint (lun)
-use param, only : nz, S_FLAG
+use param, only : S_FLAG
+use param2,only: nz
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use scalars_module, only : RHS_T
@@ -811,7 +814,8 @@ end subroutine timeseries_spec
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine post_spec(jt)
 use sim_param,only:path,u,v,w
-use param,only:dz,z_i,pi,L_x
+use param,only:pi
+use param2, only: dz,z_i,L_x
 use fft,only:FFTW_REAL_TO_COMPLEX,FFTW_ESTIMATE
 implicit none
 real(kind=rprec),dimension(nx/2,nz)::spectra_u,spectra_v,spectra_w,&
@@ -900,6 +904,7 @@ end subroutine spectrum
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine avg_stats ()
 use param
+use param2
 use sim_param, only : u, v, w, txz
 use fft, only : kx
 implicit none
@@ -1235,8 +1240,8 @@ end subroutine write_avg
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_write ()
-use param, only : jt_total, jt_start_write, buff_end,  &
-                  read_inflow_file, write_inflow_file
+use param, only : jt_total,buff_end                  
+use param2, only: jt_start_write,read_inflow_file, write_inflow_file
 use sim_param, only : u, v, w
 implicit none
 
@@ -1347,7 +1352,8 @@ end subroutine inflow_write
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_read ()
-use param, only : ny, nz, pi, nsteps, jt_total, buff_end
+use param, only :  buff_end
+use param2, only: ny, nz, pi, nsteps,  jt_total
 use sim_param, only : u, v, w
 implicit none
 

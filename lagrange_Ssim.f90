@@ -5,6 +5,7 @@
 subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
+use param2
 use sim_param,only:u,v,w
 use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime
 use test_filtermodule

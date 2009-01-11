@@ -4,7 +4,8 @@
 !--provides txz, tyz, dudz, dvdz at jz=1
 subroutine wallstress ()
 use types,only:rprec
-use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom
+use param, only : vonk
+use param2,only:dz,ld,lh,nx,ny,nz,lbc_mom
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
 use bottombc,only:zo,psi_m,phi_m
 use test_filtermodule

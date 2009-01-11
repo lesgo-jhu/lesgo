@@ -1,6 +1,7 @@
 module level_set
 use types, rp => rprec
 use param
+use param2
 !use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, VERBOSE,   &
 !                  vonK, lbc_mom, USE_MPI, coord, nproc, up, down,       &
 !                  comm, ierr, MPI_RPREC, 
@@ -526,7 +527,7 @@ end subroutine modify_dutdn
 !--this avoids using fit3
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau_simple ()
-use param, only : jt
+use param2, only : jt
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -1192,7 +1193,7 @@ end subroutine extrap_tau_log
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_un ()
-use param, only : jt  !--plus stuff above
+use param2, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
@@ -1369,7 +1370,7 @@ end subroutine enforce_un
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_log_profile ()
-use param, only : jt  !--plus stuff above
+use param2, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
@@ -2636,7 +2637,7 @@ end subroutine smooth
 !--also calculates CL (coeff. of lift)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_cylinder_CD ()
-use param, only : jt, dt, L_y, L_z
+use param2, only : jt, dt, L_y, L_z
 use immersedbc, only : fx, fy, fz
 use sim_param, only : u
 use io, only : jt_total
@@ -2741,7 +2742,8 @@ end subroutine level_set_cylinder_CD
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
-use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => nnn 
+use param, only : vonK
+use param2, only: Co, dx, dy, dz, nx, ny, nz, n => nnn 
 use sgsmodule, only : Cs_opt2
 implicit none
 
@@ -3176,7 +3178,7 @@ end subroutine level_set_BC
 !--now, we also need to do extrapolation passes for dead/solid nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau ()
-use param, only : jt  !--just for debug
+use param2, only : jt  !--just for debug
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -3455,7 +3457,7 @@ end subroutine extrap_tau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tau ()
-use param, only : jt  !--in addition to stuff above
+use param2, only : jt  !--in addition to stuff above
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz,             &
                       dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 implicit none
@@ -3972,7 +3974,8 @@ end subroutine fit3
 !--set fx, fy, fz at 1:nz-1
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_forcing ()
-use param, only : tadv1, dt, BOGUS  !--in addition to param vars above
+use param, only : tadv1, BOGUS  !--in addition to param vars above
+use param2, only: dt 
 use sim_param
 use immersedbc, only : fx, fy, fz
 implicit none
@@ -4111,7 +4114,7 @@ end subroutine level_set_forcing
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function safe_cd (i, j, k, d, f)
-use param, only : dx, dy, dz  !--in addition to those above
+use param2, only : dx, dy, dz  !--in addition to those above
 implicit none
 
 real (rp) :: safe_cd
@@ -4425,7 +4428,7 @@ end function mag
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_init ()
-use param, only : dx, dy, dz  !--in addition to those above
+use param2, only : dx, dy, dz  !--in addition to those above
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'

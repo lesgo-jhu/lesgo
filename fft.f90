@@ -3,7 +3,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fft
 use types,only:rprec
-use param,only:lh,ny
+use param2,only:lh,ny
 implicit none
 
 save
@@ -33,7 +33,7 @@ integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine init_fft()
-use param,only:nx,ny,nx2,ny2
+use param2,only:nx,ny,nx2,ny2
 implicit none
 ! formulate the fft plans--may want to use FFTW_USE_WISDOM
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
@@ -49,7 +49,8 @@ end subroutine init_fft
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine init_wavenumber()
-use param,only:lh,nx,ny,L_x,L_y,pi
+use param,only:pi
+use param2,only:lh,nx,ny,L_x,L_y
 implicit none
 integer :: jx,jy
 

@@ -3,8 +3,10 @@
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS, VERBOSE
+use param,only:USE_MPI, nproc, coord, BOGUS, VERBOSE
+use param2,only:ld,nx,ny,nz
 implicit none
+
 $if ($MPI)
   $define $lbz 0
 $else

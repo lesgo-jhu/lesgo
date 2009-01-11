@@ -1,6 +1,6 @@
 module test_filtermodule
 use types,only:rprec
-use param,only:lh,ny
+use param2,only:lh,ny
 
 private lh,ny
 !TS Truely grid refinement test needs to keep the filter_size
@@ -13,7 +13,7 @@ end module test_filtermodule
 subroutine test_filter(f,G_test)
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
-use param,only:lh,ny
+use param2,only:lh,ny
 use fft
 implicit none
 ! note we're treating as complex here
@@ -33,7 +33,7 @@ subroutine test_filter_init(alpha,G_test)
 ! spectral cutoff filter at width alpha*delta
 ! note the normalization for FFT's is already in G! (see 1/(nx*ny))
 use types,only:rprec
-use param,only:lh,nx,ny,dx,dy,pi,ifilter,model
+use param2,only:lh,nx,ny,dx,dy,pi,ifilter,model
 use fft
 implicit none
 real(kind=rprec):: alpha, delta, kc2

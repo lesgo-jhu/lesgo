@@ -6,7 +6,7 @@
 program trees_full_apri_ls
 use trees_ls, only : trees_ls_calc_init, apriori, phi, brindex,  &
                      brindex_initialized
-use param, only : nz, jt, jt_total
+use param2, only : nz, jt, jt_total
 use sim_param, only : u, v, w
 use immersedbc, only : fx, fy, fz
 use messages

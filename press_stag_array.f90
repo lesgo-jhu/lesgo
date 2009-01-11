@@ -24,6 +24,7 @@ subroutine press_stag_array(p_hat,dfdx,dfdy)
 !-------------------          
 use types,only:rprec
 use param
+use param2
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
 use fft
 use immersedbc,only:fx,fy,fz  ! only for forcing experiment

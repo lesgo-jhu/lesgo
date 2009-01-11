@@ -1,6 +1,7 @@
 subroutine initial()
 use types,only:rprec
 use param
+use param2
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
 !use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
 use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN 

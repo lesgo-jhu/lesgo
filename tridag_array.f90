@@ -2,6 +2,7 @@ subroutine tridag_array(a, b, c, r, u)
 ! sc: modified for complex!
 use types,only:rprec
 use param
+use param2
 implicit none
 
 real(kind=rprec),dimension(lh, ny, nz+1),intent(in):: a, b, c

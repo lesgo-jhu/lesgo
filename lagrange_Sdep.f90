@@ -12,6 +12,7 @@ use types,only:rprec
 !use param,only:ld,lh,nx,ny,nz,dx,dy,dz,dt,cs_count,inilag,use_bldg&
 !     ,jx_s,x_relax,inflow,DYN_init
 use param
+use param2
 use sim_param,only:u,v,w
 use sgsmodule,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime
 use test_filtermodule

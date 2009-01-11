@@ -5,6 +5,7 @@ subroutine interpolag_Sdep()
 use types,only:rprec
 !use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,c_count
 use param
+use param2
 use sgsmodule
 implicit none
 integer :: jx, jy, jz 

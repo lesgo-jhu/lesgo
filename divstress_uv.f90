@@ -1,7 +1,8 @@
 !--provides divt, jz=1:nz-1
 subroutine divstress_uv (divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,ny,nz, BOGUS, VERBOSE
+use param,only: BOGUS, VERBOSE
+use param2,only:ld,ny,nz
 implicit none
 $if ($MPI)
   $define $lbz 0

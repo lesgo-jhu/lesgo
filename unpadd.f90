@@ -1,6 +1,6 @@
 subroutine unpadd(cc,cc_big)
 use types,only:rprec
-use param,only:ld,nx,ny,ny2,nz,lh_big,lh
+use param2,only:ld,nx,ny,ny2,nz,lh_big,lh
 implicit none
 integer::jx,jy
 ! note using 2d definitions here!

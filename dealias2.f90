@@ -1,7 +1,7 @@
 subroutine dealias2(u,u_big)
 ! puts back into small array
 use types,only:rprec
-use param,only:ld,ld_big,nx,ny,nz,nx2,ny2,dx,dy
+use param2,only:ld,ld_big,nx,ny,nz,nx2,ny2,dx,dy
 use fft
 implicit none
 integer::jz

@@ -1,6 +1,6 @@
 module sgsmodule
 use types,only:rprec
-use param,only:ld,ny,nz
+use param2,only:ld,ny,nz
 implicit none
 private ld,ny,nz
 !TS In genreal, ofttime is 1.5 (Meneveau et al., 1996)

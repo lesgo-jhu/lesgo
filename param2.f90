@@ -1,7 +1,8 @@
 module param2
+use types,only:rprec
 !  geometry
 integer :: nx,ny,nz
-double precision ::L_z, z_i
+double precision ::L_x, L_y, L_z, z_i
 
 !  tparam
 integer :: nsteps
@@ -32,9 +33,8 @@ logical :: inflow, use_fringe_forcing
 character(15) :: lbc_mom
 integer :: ubc
 
-integer :: nz_tot,nx2,ny2,lh,ld,lh_big,ld_big
-real(rprec) :: dx,dy,dz
-
+integer :: nz_tot,nx2,ny2,lh,ld,lh_big,ld_big,jt,jt_total
+real(rprec) :: dx,dy,dz,coriol,ug,vg,mean_p_force
 
 namelist/geometry/nx,ny,nz,L_x,L_y,L_z,z_i
 namelist/tparam/dt,nsteps

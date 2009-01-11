@@ -2,7 +2,7 @@ subroutine padd (u_big,u)
 ! puts arrays into larger, zero-padded arrays 
 ! automatically zeroes the oddballs
 use types,only:rprec
-use param,only:lh,lh_big,nx,ny,ny2
+use param2,only:lh,lh_big,nx,ny,ny2
 implicit none
 integer::jx,jy
 ! note we're calling with 2D arrays

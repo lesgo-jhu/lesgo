@@ -57,12 +57,8 @@ real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
 
                             !--L_z is not nondimensionalized by z_i yet
-!--Coriolis stuff
-! coriol=non-dim coriolis parameter,
-! ug=horiz geostrophic vel, vg=transverse geostrophic vel
-! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.                         
-real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
-                      ug=u_star/u_star,vg=0._rprec/u_star
+                  
+
 
 real(rprec),parameter::vonk=.4_rprec
 
@@ -80,12 +76,7 @@ real (rprec), parameter :: face_avg = 1.0_rprec
 logical, parameter :: force_top_bot = .false.
 
 logical, parameter :: use_mean_p_force = .false.
-real (rprec), parameter :: mean_p_force = 1._rprec * z_i/L_z/nproc
-                                          !--usually just z_i/L_z
-
-integer :: jt  ! global time-step counter
-integer :: jt_total  !--used for cumulative time (see io module)
-
+                                   
 ! time advance parameters (AB2)
 real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
 

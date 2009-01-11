@@ -8,7 +8,8 @@ subroutine scaledep_dynamic(Cs_opt2,S11,S12,S13,S22,S23,S33)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary.  mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
+use param,only:USE_MPI, coord
+use param2,only:ld,nx,ny,nz,dx,dy,dz, jt
 use sim_param,only:path,u,v,w
 use sgsmodule,only:rtnewt
 use test_filtermodule

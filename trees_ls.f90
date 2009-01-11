@@ -13,9 +13,9 @@ use trees_fmodel_ls, only : clip_fcoeff, def_d_dir, def_dls_dir, def_nba_dir,  &
                             vel_d, vel_dls, vel_nba
                              
 use trees_global_fmask_ls, only : read_global_fmask, global_fmask
-use param, only : ld, nx, ny, nz, dx, dy, dz, USE_MPI, coord, nproc,   &
-                  ierr, MPI_RPREC, comm, rank_of_coord, jt, jt_total,  &
-                  nsteps, BOGUS, chcoord
+use param, only : USE_MPI, coord, nproc, ierr, MPI_RPREC, comm, &
+                  rank_of_coord,  BOGUS, chcoord
+use param2, only : ld, nx, ny, nz, dx, dy, dz,jt, jt_total, nsteps
 use level_set_base, only : phi
 use messages
 use debug_mod
@@ -322,7 +322,7 @@ end subroutine aposteriori
 !  NOT controlled by any other counters
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine apriori ()
-use param, only : dt  !--plus module-wide
+use param2, only : dt  !--plus module-wide
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.apriori'
@@ -1069,7 +1069,7 @@ end subroutine calc_Uinf
 !--MPI: all processes must call this for the mpi_reduce to work
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine calc_globalCD ()
-use param, only : L_x, L_y, L_z, dt  !--see top of this module for more
+use param2, only : L_x, L_y, L_z, dt  !--see top of this module for more
 use sim_param, only : u, txz  !--txz for wall stress @ bottom of domain
 implicit none
 
@@ -3630,7 +3630,7 @@ end subroutine init_fcoeff
 !--this includes time in first column
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine write_fcoeff_line (lun)
-use param, only : dt  !--also see top of module
+use param2, only : dt  !--also see top of module
 implicit none
 
 integer, intent (in) :: lun
@@ -3681,7 +3681,7 @@ end subroutine write_fcoeff
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine write_tscale (n, tscale)
-use param, only : dt  !--also see top of module
+use param2, only : dt  !--also see top of module
 implicit none
 
 integer, intent (in) :: n
@@ -3785,7 +3785,7 @@ end subroutine update_fcoeff
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine tavg_fcoeff (file_init, num_in, den_in, tscale)
-use param, only : dt  !--also see top of module
+use param2, only : dt  !--also see top of module
 $if ($XLF)
   use ieee_arithmetic  !--for NAN checking
 $endif
@@ -3902,7 +3902,7 @@ end subroutine tavg_fcoeff
 !--perhaps could unify this with tavg_fcoeff
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine tavg_fdist (do_file_init, nwksp, num_in, den_in)
-use param, only : dt  !--also see top of module
+use param2, only : dt  !--also see top of module
 implicit none
 
 logical, intent (in) :: do_file_init

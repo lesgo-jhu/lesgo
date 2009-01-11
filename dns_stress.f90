@@ -1,8 +1,8 @@
 subroutine dns_stress(txx,txy,txz,tyy,tyz,tzz)
 ! using the 'sgs' sign convention for stress, so there is a - sign
 use types,only:rprec
-use param,only:ld,ld_big,nx,ny,nz,z_i,u_star,nu_molec,  &
-               USE_MPI, coord, nproc, BOGUS
+use param,only:USE_MPI, coord, nproc, BOGUS
+use param2,only:ld,ld_big,nx,ny,nz,z_i,u_star,nu_molec
 use sim_param,only:dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 implicit none
 real(kind=rprec),dimension(ld,ny,nz),intent(out)::txx,txy,txz,tyy, tyz,tzz

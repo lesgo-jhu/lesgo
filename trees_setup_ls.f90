@@ -1587,7 +1587,8 @@ end subroutine add_sub_branches
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine heightwidth_bbox_br (br)
-use param, only : L_x, L_y, L_z, nproc  !--added to detect bbox out of domain
+use param, only : nproc
+use param2, only : L_x, L_y, L_z !--added to detect bbox out of domain
 implicit none
 
 type (branch_type), intent (inout) :: br

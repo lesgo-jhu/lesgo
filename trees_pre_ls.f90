@@ -1,6 +1,7 @@
 program trees_pre_ls
 use types, rp => rprec
-use param, only : nx, ny, nztot => nz, BOGUS
+use param, only :  BOGUS
+use param2, only : nx, ny, nztot => nz,
 use trees_base_ls, only : grid_initialize, pt_of_grid
 use trees_setup_ls, only : fill_tree_array, sdistfcn_tree_array
 use trees_io_ls, only : draw_tree_array

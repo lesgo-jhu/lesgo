@@ -4,6 +4,7 @@ subroutine forcing ()
 !subroutine forcing(jt)
 use types,only:rprec
 use param
+use param2
 use sim_param
 use immersedbc
 $if ($TREES_LS)
@@ -91,9 +92,9 @@ end function fringe_blend
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_cond ()
 use types, only : rprec
-use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
-                  sflux_flag, buff_end, buff_len, use_fringe_forcing,  &
-                  L_x, dt, dx
+use param, only : face_avg, pi, sflux_flag, buff_end, buff_len
+use param2,only : nx, ny, nz,read_inflow_file, use_fringe_forcing, &
+   L_x, dt, dx
 use sim_param, only : u, v, w, theta
 use immersedbc, only : fx, fy, fz
 use io, only : inflow_read
@@ -194,6 +195,7 @@ end subroutine inflow_cond
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine project ()
 use param
+use param2
 use sim_param
 use immersedbc
 implicit none
