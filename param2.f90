@@ -1,4 +1,4 @@
-module defs
+module param2
 !  geometry
 integer :: nx,ny,nz
 double precision ::L_z, z_i
@@ -32,10 +32,9 @@ logical :: inflow, use_fringe_forcing
 character(15) :: lbc_mom
 integer :: ubc
 
-!  Dont forget to recompute nz
-nz=(nz-1)/nproc + 1
-!  Dont Forget to recompute L_z
-L_z=2._rprec*z_i/nproc
+integer :: nz_tot,nx2,ny2,lh,ld,lh_big,ld_big
+real(rprec) :: dx,dy,dz
+
 
 namelist/geometry/nx,ny,nz,L_x,L_y,L_z,z_i
 namelist/tparam/dt,nsteps
@@ -47,4 +46,4 @@ namelist/pparam/use_bldg,molec,sgs,dns_bc,nu_molec
 namelist/les/model,models,nnn,ifilter,Co
 namelist/bc/inflow,use_fringe_forcing,lbc_mom,ubc  
 
-end module defs
+end module param2
