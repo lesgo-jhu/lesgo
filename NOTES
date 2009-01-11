@@ -35,3 +35,19 @@
     of local roughness length (zo)", or z_i as used in the code, "and near surface
     resolved velocity by integrating the logarithmic velocity gradient from z=zo
     to the height of the first node above the wall" Anderson
+
+11. Structures larger than Δx are explicitly calculated (resolved
+    scales). Structures smaller than Δx must be filtered out (subgrid scales),
+    formally known as low-pass filtering.
+
+12.  Reynolds averaging:  
+     a. split variables in mean part and fluctuation
+     b. spatially average the model equations
+
+13. The filter procedure removes the small scales from the model
+    equations, but it produces new unknowns, mainly averages of 
+    fluctuation products. These unknowns have to be parameterized 
+    using information from the resolved scales.
+
+
+

@@ -23,11 +23,11 @@ use messages
 implicit none
 
 integer,parameter::wbase=20  !--controls the frequency of screen diagnostics
-integer, parameter :: nenergy = 10  !--frequency of writes to check_ke.dat
+integer, parameter :: nenergy = 1  !--frequency of writes to check_ke.dat
 
 character (*), parameter :: sub_name = 'main'
 
-logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 !--for trees_CV, we need the SGS stress, so it was moved to sim_params
 !  also, the equivalence was removed, since this overwrites what we need
@@ -46,7 +46,8 @@ $if ($MPI)
 $endif
 
 !---------------------------------------------------------------------
-
+!  Create output directory
+call system("mkdir -vp output")
 call sim_param_init ()
 
 $if ($MPI)
@@ -157,7 +158,7 @@ if (ubc == 1) call setsponge()
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   print *, 'Number of timesteps', nsteps
-  print *, 'dt = ', dt
+  print *, 'dt and Cs = ', dt, cs
   if (model == 1) print *, 'Co = ', Co
   print *, 'Nx, Ny, Nz = ', nx, ny, nz
   print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
@@ -173,8 +174,13 @@ if (DEBUG) then
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
+
+if(.not. tloop) then
+call output_loop (jt)
 write(*,*) 'Not entering main time loop!'
 stop
+
+else
 !--MPI: u,v,w should be set at jz = 0:nz before getting here, except
 !  bottom process which is BOGUS (starts at 1)
 ! time Loop
@@ -534,6 +540,7 @@ end if
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
 
 end do  !--end time loop
+endif  !  End for tloop check
 
 if (output) call output_final (jt)
 
