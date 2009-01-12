@@ -10,6 +10,9 @@
 SHELL = /bin/bash
 EXE = lesgo
 ARCH = linux_intel
+FCOMP = intel
+LIBPATH = -L/opt/fftw2/lib
+LIBS = $(LIBPATH) -lrfftw -lfftw
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -47,7 +50,7 @@ OPATH = obj
 # May want to just make this 'obj' as well
 MPATH = mod
 
-ifeq ($(ARCH),linux_intel)
+ifeq ($(FCOMP),intel)
   FPP += -DIFORT
   FC = ifort
   #FFLAGS = -O0 -traceback -g
@@ -55,14 +58,32 @@ ifeq ($(ARCH),linux_intel)
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -mp
-  #FFLAGS = -g 
   FFLAGS += -warn all 
   FDEBUG = -g
   FPROF = -p
   LDFLAGS = -static -nothreads
-  LIBPATH = -L/opt/fftw2/lib
-  LIBS = $(LIBPATH) -lrfftw -lfftw 
   MODDIR = -I$(MPATH) -module $(MPATH)  
+  FFLAGS += $(MODDIR)
+endif
+ifeq ($(FCOMP),gfortran)
+  FPP += -DGFORTRAN
+  FC = gfortran
+  FFLAGS = -O2
+  FFLAGS += -Wall
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS = -static -nothreads
+  MODDIR = -I$(MPATH) -J$(MPATH)  
+  FFLAGS += $(MODDIR)  
+endif
+ifeq ($(FCOMP),g95)
+  FPP += -DG95
+  FC = g95
+  FFLAGS = -O0
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS =
+  MODDIR =
   FFLAGS += $(MODDIR)
 endif
 
@@ -79,7 +100,7 @@ SRCS =  \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \
 	main.f90 messages.f90 \
-        padd.f90 param.f90 param2.f90 press_stag.f90 \
+        padd.f90 param2.f90 param.f90 press_stag.f90 \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
@@ -135,30 +156,30 @@ interp: interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
-trees_pre:  trees_pre.f90 $(OPATH)/types.o $(OPATH)/param.o \
-            $(OPATH)/param2.o $(OPATH)/messages.o \
+trees_pre:  trees_pre.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+            $(OPATH)/param.o $(OPATH)/messages.o \
             $(OPATH)/string_util.o \
 	    $(OPATH)/trees_base.o $(OPATH)/trees_setup.o  \
 	    $(OPATH)/trees_output.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-               $(OPATH)/param2.o $(OPATH)/messages.o \
+trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+               $(OPATH)/param.o $(OPATH)/messages.o \
                $(OPATH)/string_util.o \
                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
 	       $(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-                $(OPATH)/param2.o $(OPATH)/messages.o \
+trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+                $(OPATH)/param.o $(OPATH)/messages.o \
                 $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
                 $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
                 $(OPATH)/trees_aprioriCD_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-	        $(OPATH)/param2.o $(OPATH)/sim_param_vel.o \
+trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+	        $(OPATH)/param.o $(OPATH)/sim_param_vel.o \
                 $(OPATH)/messages.o $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
                 $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
@@ -166,16 +187,16 @@ trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
 		$(OPATH)/level_set_base.o $(OPATH)/trees_global_fmask_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o $(OPATH)/param.o \
-                $(OPATH)/param2.o $(OPATH)/messages.o \
+trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+                $(OPATH)/param.o $(OPATH)/messages.o \
                 $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
                 $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
                 $(OPATH)/trees_post_mod_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param.o \
-            $(OPATH)/param2.o $(OPATH)/messages.o \
+merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+            $(OPATH)/param.o $(OPATH)/messages.o \
             $(OPATH)/string_util.o \
             $(OPATH)/trees_base_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
