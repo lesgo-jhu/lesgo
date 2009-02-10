@@ -1,14 +1,13 @@
 module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
-                  use_avgslice, USE_MPI, coord, rank, nproc, jt_total
+                  use_avgslice, avgslice_start, USE_MPI, coord, rank, &
+                  nproc, jt_total
 implicit none
 private
 public openfiles,output_loop,output_final,                   &
      mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2,jt_total,  &
      inflow_read, inflow_write, avg_stats
-
-!integer::jt_total  !--moved into param
 
 integer,parameter::base=2000,nwrite=base
 
@@ -16,15 +15,15 @@ logical, parameter :: cumulative_time = .true.
 character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 
 logical, parameter :: use_avg_stats = .false.
-integer, parameter :: n_avg_stats = 500
+integer, parameter :: n_avg_stats = 5000
                       !--interval for updates in avg_stats
 character (*), parameter :: end_hdr_avg = '# end header'
 
 !--write velocity slices (entire planes, instantaneous)
 !--this is not related to avgslice
 !--this output to be averaged by postprocessing program
-logical, parameter :: use_vel_slice = .true.
-integer, parameter :: n_vel_slice_write = 1000
+logical, parameter :: use_vel_slice = .false.
+integer, parameter :: n_vel_slice_write = 20000
 
 !--write immersed bdry force field
 logical, parameter :: write_f = .false.
@@ -249,6 +248,7 @@ end subroutine openfiles
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
+use stat_defs,only:stats_t, taver_t, ui_t
 use param,only:output,dt,c_count,S_FLAG,SCAL_init
 use sim_param,only:path,u,v,w,dudz,dudx,p,&
      RHSx,RHSy,RHSz,theta, txx, txy, txz, tyy, tyz, tzz
@@ -270,13 +270,42 @@ integer::jx,jy,jz
 if (io_mean) call calculate_mean ()
 
 if (use_avgslice) then
-  if (mod(jt,c_count)==0) then
+  if (mod(jt,c_count)==0 .and. jt .gt. avgslice_start) then
     call avgslice(jt)
     if ((S_FLAG) .and. (jt_total.GE.SCAL_init)) then ! Output scalar variables
       call scalar_slice(jt) ! Uses file unit numbers (36-47)
     end if
   end if
 end if
+
+!  Determine if stats are to be calculated
+if(stats_t%calc) then
+  if(taver_t%calc) then
+!  Check if we are in the time interval for running summations
+    if(jt >= taver_t%nstart .and. jt <= taver_t%nend) then
+	  if(.not. taver_t%started) then
+	    write(*,*) 'Starting running time summation from ', &
+	      taver_t%nstart, ' to ', taver_t%nend
+        taver_t%started=.true.
+	  endif
+!  Compute running summations
+      call compute_sums ()
+	endif 
+  endif
+
+!  Determine if instantaneous velocities are to be recorded
+  if(ui_t%calc) then
+    if(jt >= ui_t%nstart .and. jt <= ui_t%nend) then
+  	  if(.not. ui_t%started) then
+	    write(*,*) 'Starting to store instantaneous velocities from ', &
+	      ui_t%nstart, ' to ', ui_t%nend
+        ui_t%started=.true.
+	  endif
+	endif
+	call write_uinst ()
+  endif
+endif
+
 
 if (output) then
 
@@ -319,7 +348,7 @@ if (output) then
       write (1) fx(:, :, 1:nz), fy(:, :, 1:nz), fz(:, :, 1:nz)
       close (1)
     end if
-
+	
   end if
 
   if (mod(jt_total,nwrite)==0) then
@@ -339,8 +368,129 @@ if (output) then
     if(io_spec)call post_spec(jt)
   end if
   if(time_spec.gt.0)call timeseries_spec
+  
+  
 end if
 end subroutine output_loop
+
+!***************************************************************
+subroutine compute_sums ()
+!***************************************************************
+!  This subroutine computes the sums for each flow 
+!  variable quantity
+use stat_defs, only : taver_t, interp_to_uv_grid
+use param, only : nx,ny,nz
+use sim_param, only : u,v,w,dudz
+integer :: i,j,k, naver
+double precision :: w_interp, dudz_interp, fa
+
+!  Initialize w_interp
+w_interp = 0.
+
+!  Compute number of times to average over
+naver = taver_t%nend - taver_t%nstart + 1
+fa=1./dble(naver)
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+!  Interpolate each w and dudz to uv grid
+      w_interp = interp_to_uv_grid('w',i,j,k)
+	  dudz_interp = interp_to_uv_grid('dudz',i,j,k)
+		  
+	  taver_t%u(i,j,k)=taver_t%u(i,j,k) + fa*u(i,j,k)
+	  taver_t%v(i,j,k)=taver_t%v(i,j,k) + fa*v(i,j,k)
+	  taver_t%w(i,j,k)=taver_t%w(i,j,k) + fa*w_interp
+	  taver_t%u2(i,j,k)=taver_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
+	  taver_t%v2(i,j,k)=taver_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
+	  taver_t%w2(i,j,k)=taver_t%w2(i,j,k) + fa*w_interp*w_interp
+	  taver_t%uw(i,j,k)=taver_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
+	  taver_t%vw(i,j,k)=taver_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
+	  taver_t%uv(i,j,k)=taver_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
+	  taver_t%dudz(i,j,k)=taver_t%dudz(i,j,k) + fa*dudz_interp
+	enddo
+  enddo
+enddo
+
+return
+
+end subroutine compute_sums
+
+!***************************************************************
+subroutine write_uinst()
+!*************************************************************** 
+!  This subroutine writes the instantaneous velocity components 
+!  at specified i,j,k locations
+use stat_defs, only : ui_t, interp_to_uv_grid
+use sim_param, only : u,v,w
+use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z
+implicit none
+
+character(25) :: ct
+character(25) :: fname
+integer :: n, fid, i, j, k
+integer, pointer :: ip,jp,kp
+
+double precision :: x(0:nx), y(0:ny), z(0:nz)
+double precision :: dnx, dny, dnz
+
+!  Convert integer quantities to double precision
+dnx=dble(nx)
+dny=dble(ny)
+dnz=dble(nz)
+
+!  Compute x
+x(0)=0.
+do i=1,nx
+  x(i)=x(i-1)+dx
+enddo
+!  Compute y
+y(0)=0.
+do j=1,ny
+  y(j)=y(j-1)+dy
+enddo
+!  Compute z
+z(0)=-dz*z_i/2.
+do k=1,nz
+  z(k)=z(k-1)+dz*z_i
+enddo
+
+!  Non-dimensionalize by L_x, L_y, and L_z
+x=x/L_x
+y=y/L_y
+z=z/L_z
+
+!nullify(ip,jp,kp)
+!do n=1,ui_t%nloc
+!  ip => ui_t%ijk(1,n)
+!  jp => ui_t%ijk(2,n)
+!  kp => ui_t%ijk(3,n)
+!  fid=3000*n
+!  write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , w(ip,jp,kp)
+!enddo
+!nullify(ip,jp,kp)
+
+if(ui_t%global .and. mod(jt_total,ui_t%nskip) == 0) then
+
+  write(ct,*) jt_total
+
+  write (fname,*) 'output/uvw.', trim(adjustl(ct)),'.out'
+  fname = trim(adjustl(fname))
+  open(unit = 7,file = fname, status='unknown',form='unformatted', &
+        action='write',position='rewind')
+  
+  do k=1,nz
+    do j=1,ny
+	  do i=1,nx
+	    write(7) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k)
+      enddo
+	enddo
+  enddo
+  
+  close(7)
+endif
+return
+end subroutine write_uinst
 
 $if (0)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -363,6 +513,12 @@ $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine avgslice (jt)
+!  This subroutine spatially averages quanties (i.e. u,v,w, dudz, etc.) 
+!  for a given time step jt. The averaged values are appended to the 
+!  appropriate output file.
+!
+!  Inputs:  jt
+!
 use sim_param,only:path,u,v,w,dudz,dvdz, txx, txz, tyy, tyz, tzz, p
 use param,only:dz,p_count,c_count,dt
 use sgsmodule,only:Cs_opt2
@@ -432,7 +588,7 @@ do k=1,Nz
   end do
 end do
 
-if(mod(jt,p_count)==0.and.jt_total.gt.0) then
+if(mod(jt,p_count)==0.and.jt_total.gt.avgslice_start) then
   open(20,file=path//'output/aver_u.out',status="unknown",position="append")
   open(21,file=path//'output/aver_v.out',status="unknown",position="append")
   open(22,file=path//'output/aver_w.out',status="unknown",position="append")
@@ -449,30 +605,33 @@ if(mod(jt,p_count)==0.and.jt_total.gt.0) then
   open(33,file=path//'output/aver_uw.out',status="unknown",position="append")
   open(34,file=path//'output/aver_vw.out',status="unknown",position="append")
   open(35,file=path//'output/aver_Cs2.out',status="unknown",position="append")
-  open(36,file=path//'output/aver_dudz.out',status="unknown",position="append") 
+!  open(36,file=path//'output/aver_dudz.out',status="unknown",position="append") 
   open(37,file=path//'output/aver_dvdz.out',status="unknown",position="append")
   
-  write(*,*) 'Time = ', jt_total*dt
-  write(*,*) 'Writing Statistics for value=', jt_total*dz
+  write(*,*) 'Writing Staticstics For Time ', jt_total*dt
+ 
+!  Originally used jt_total*dz and not jt_total*dt; this caused issue with the 
+!  lesgo_post in computing num during the time averaging section
+
   do k=1,nz
-      write(20,5168) real(jt_total*dz),(real(au(i,k)),i=1,nx)
-      write(21,5168) real(jt_total*dz),(real(av(i,k)),i=1,nx)
-      write(22,5168) real(jt_total*dz),(real(aw(i,k)),i=1,nx)
-      write(23,5168) real(jt_total*dz),(real(ap(i,k)),i=1,nx)
-      write(24,5168) real(jt_total*dz),(real(u2(i,k)),i=1,nx)
-      write(25,5168) real(jt_total*dz),(real(v2(i,k)),i=1,nx)
-      write(26,5168) real(jt_total*dz),(real(w2(i,k)),i=1,nx)
-      write(27,5168) real(jt_total*dz),(real(atxx(i,k)),i=1,nx)
-      write(28,5168) real(jt_total*dz),(real(atxz(i,k)),i=1,nx)
-      write(29,5168) real(jt_total*dz),(real(atyy(i,k)),i=1,nx)
-      write(30,5168) real(jt_total*dz),(real(atyz(i,k)),i=1,nx)
-      write(31,5168) real(jt_total*dz),(real(atzz(i,k)),i=1,nx)
-      write(32,5168) real(jt_total*dz),(real(p2(i,k)),i=1,nx)
-      write(33,5168) real(jt_total*dz),(real(auw(i,k)),i=1,nx)
-      write(34,5168) real(jt_total*dz),(real(avw(i,k)),i=1,nx)
-      write(35,5168) real(jt_total*dz),(real(aCs(i,k)),i=1,nx)
-      write(36,5168) real(jt_total*dz),(real(adudz(i,k)),i=1,nx)
-      write(37,5168) real(jt_total*dz),(real(advdz(i,k)),i=1,nx)
+      write(20,5168) real(jt_total*dt),(real(au(i,k)),i=1,nx)
+      write(21,5168) real(jt_total*dt),(real(av(i,k)),i=1,nx)
+      write(22,5168) real(jt_total*dt),(real(aw(i,k)),i=1,nx)
+      write(23,5168) real(jt_total*dt),(real(ap(i,k)),i=1,nx)
+      write(24,5168) real(jt_total*dt),(real(u2(i,k)),i=1,nx)
+      write(25,5168) real(jt_total*dt),(real(v2(i,k)),i=1,nx)
+      write(26,5168) real(jt_total*dt),(real(w2(i,k)),i=1,nx)
+      write(27,5168) real(jt_total*dt),(real(atxx(i,k)),i=1,nx)
+      write(28,5168) real(jt_total*dt),(real(atxz(i,k)),i=1,nx)
+      write(29,5168) real(jt_total*dt),(real(atyy(i,k)),i=1,nx)
+      write(30,5168) real(jt_total*dt),(real(atyz(i,k)),i=1,nx)
+      write(31,5168) real(jt_total*dt),(real(atzz(i,k)),i=1,nx)
+      write(32,5168) real(jt_total*dt),(real(p2(i,k)),i=1,nx)
+      write(33,5168) real(jt_total*dt),(real(auw(i,k)),i=1,nx)
+      write(34,5168) real(jt_total*dt),(real(avw(i,k)),i=1,nx)
+      write(35,5168) real(jt_total*dt),(real(aCs(i,k)),i=1,nx)
+!      write(36,5168) real(jt_total*dt),(real(adudz(i,k)),i=1,nx)
+      write(37,5168) real(jt_total*dt),(real(advdz(i,k)),i=1,nx)
   end do
 
 !VK Zero out the outputted averages !!
@@ -485,7 +644,9 @@ if(mod(jt,p_count)==0.and.jt_total.gt.0) then
 ! only when mod(jt,p_count)==0 !!
    close(19);close(20);close(22);close(23);close(24);close(25)
    close(26);close(27);close(28);close(29);close(30)
-   close(31);close(33);close(34);close(35);close(36);close(37)
+   close(31);close(33);close(34);close(35);
+!   close(36);
+   close(37)
 
 end if
  5168     format(1400(E14.5))
@@ -525,14 +686,17 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
+use stat_defs, only : stats_t, ui_t
+
 implicit none
+
 
 integer,intent(in)::jt
 integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
 
 integer, parameter :: lun_default = 11
 
-integer::jx,jy,jz
+integer::i,fid,jx,jy,jz
 integer :: lun
 
 logical :: opn
@@ -569,6 +733,18 @@ if ((cumulative_time) .and. (lun == lun_default)) then
 
 end if
 
+!  Check if writing statistics
+if(stats_t%calc) call compute_stats()
+
+!  Close instantaneous velocity files
+if(ui_t%calc) then
+  do i=1,ui_t%nloc
+    fid=3000*i
+    close(fid)
+  enddo
+endif
+
+return
 end subroutine output_final
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

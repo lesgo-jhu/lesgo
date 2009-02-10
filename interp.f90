@@ -26,8 +26,8 @@ integer, parameter :: np_s = 1  !--must be 1 when MPI_s is false
 integer, parameter :: np_b = 1  !--must to 1 when MPI_b is false
 
 !--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx_s = 64, ny_s = 64, nz_s = 65
-integer, parameter :: nx_b = 32, ny_b = 32 , nz_b = 33
+integer, parameter :: nx_s = 32, ny_s = 32, nz_s = 41
+integer, parameter :: nx_b = 64, ny_b = 64 , nz_b = 81
 
 character (64) :: fmt
 character (128) :: fname
