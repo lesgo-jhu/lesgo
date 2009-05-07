@@ -14,8 +14,8 @@ character (*), parameter :: fphi_raw_out = 'phi.out'
 character (*), parameter :: fbrindex_out = 'brindex.dat'
 character (*), parameter :: fbrindex_raw_out = 'brindex.out'
 
-logical, parameter :: do_write_ascii = .false.
-logical, parameter :: do_calc_global_fmask = .false.
+logical, parameter :: do_write_ascii = .true.
+logical, parameter :: do_calc_global_fmask = .true.
 
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI

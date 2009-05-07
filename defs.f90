@@ -1,50 +1,94 @@
-module defs
-!  geometry
-integer :: nx,ny,nz
-double precision ::L_z, z_i
+module stat_defs
+!  Define parameters for writing statistics
+type stats
+  logical :: calc
+  integer :: nstart, nend !  Time step when to start and stop averaging
+end type stats
 
-!  tparam
-integer :: nsteps
-double precision :: dt
+!  Reynolds stresses
+type rs
+  logical :: calc
+  double precision, allocatable, dimension(:,:,:) :: up2, vp2, wp2, & 
+                                                     upwp, vpwp, upvp
+end type rs
 
-!  coriolis
-logical :: coriolis_forcing
-double precision :: u_star, Pr
+!  Sums performed over time
+type taver
+  logical :: calc,started
+  integer :: nstart, nend
+  double precision, allocatable, dimension(:,:,:) :: u, v, w, &
+                                                     u2, v2, w2, &
+      											     uw, vw, uv, dudz
+end type taver	
+  
+!  Instantaneous Variables Storage (Parameters for storing velocity 
+!  componentsvalues each time step)
+type ui_pnt
+  logical :: calc,started,global
+  integer :: nstart, nend, nloc, nskip
+  integer :: ijk(3,10) !  Can specify up to 10 points to record 
+end type
 
-!  io
-logical :: output, use_avgslice,read_inflow_file, &
-  write_inflow_file
-integer :: c_count, p_count, cs_count, jt_start_write
+!  Instantaneous velocity global declarations
+type ui_gbl
+  logical :: calc,started,global
+  integer :: nstart, nend, nskip
+end type   
+  
+!  Planar stats/data
+type plane
+  logical :: avg
+  integer :: na, nstart, nend
+  integer, dimension(10) :: istart
+  double precision :: fa
+  double precision, dimension (10) :: la, ldiff
+  double precision, allocatable, dimension(:,:,:) :: ua, va, wa
+end type	
+  
+logical :: aver_calc
+ 
+type(stats)          :: stats_t
+type(rs)             :: rs_t
+type(taver)          :: taver_t
+type(ui_pnt), target :: ui_pnt_t
+type(ui_gbl)         :: ui_gbl_t
+type(plane)		     :: yplane_t, zplane_t
+  
+contains
+!***************************************************************
+double precision function interp_to_uv_grid(var,i,j,k)
+!***************************************************************
+!  This function computes any values the read in value u1(k) and
+!  u2(k+1) to the w grid location k
+use param,only : nz
+use sim_param, only : w, dudz
 
-!  ic
-logical :: initu, inilag
+character(*), intent(IN) :: var
+integer,intent(IN) :: i,j,k
 
-!  pparam
-logical :: use_bldg, molec, sgs, dns_bc
-double precision :: nu_molec
+if(trim(adjustl(var)) == 'w') then
+  if(k==nz) then
+    interp_to_uv_grid = 3./2.*w(i,j,k) - 0.5*w(i,j,k-1)
+  else
+    interp_to_uv_grid = 0.5*(w(i,j,k)+w(i,j,k+1))
+  endif
+elseif(trim(adjustl(var)) == 'dudz') then 
+  if(k==nz) then
+    interp_to_uv_grid = 3./2.*dudz(i,j,k) - 0.5*dudz(i,j,k-1)
+  else
+    interp_to_uv_grid = 0.5*(dudz(i,j,k)+dudz(i,j,k+1))
+  endif
+else
+  write(*,*) 'Error: variable specification not specified properly!'
+  stop
+endif
+return
+end function
 
-!  les
-integer :: model,models,nnn, ifilter
-double precision ::Co
+end module stat_defs
+  
+module Sij_defs
+  use param, only : ld, nx, ny, nz, USE_MPI, coord, lbc_mom
+  double precision, dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
+end module Sij_defs
 
-!  bc
-logical :: inflow, use_fringe_forcing
-character(15) :: lbc_mom
-integer :: ubc
-
-!  Dont forget to recompute nz
-nz=(nz-1)/nproc + 1
-!  Dont Forget to recompute L_z
-L_z=2._rprec*z_i/nproc
-
-namelist/geometry/nx,ny,nz,L_x,L_y,L_z,z_i
-namelist/tparam/dt,nsteps
-namelist/coriolis/coriolis_forcing,u_star,Pr
-namelist/io/output,use_avgslice,read_inflow_file, &
-  write_inflow_file, c_count,p_count,cs_count,jt_start_write
-namelist/ic/initu,inilag
-namelist/pparam/use_bldg,molec,sgs,dns_bc,nu_molec
-namelist/les/model,models,nnn,ifilter,Co
-namelist/bc/inflow,use_fringe_forcing,lbc_mom,ubc  
-
-end module defs

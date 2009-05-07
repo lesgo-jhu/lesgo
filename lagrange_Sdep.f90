@@ -408,15 +408,15 @@ Cs_opt2(ld,:,jz) = 1E-24
 Cs_opt2(ld-1,:,jz) = 1E-24
 Cs_opt2(:,:,jz)=max(real(1E-24),real(Cs_opt2(:,:,jz)))
 
-if (mod(jt,100) == 0) then
-      if (jz==1.or.jz==nz/4.or.jz==nz/2) then
-         !--2d array to save mem.
-         !write(91)real(jt*dt),real(jz),real(Cs_opt2_2d(1:NX,1:NY,jz))
-         !write(92)real(jt*dt),real(jz),real(Cs_opt2_4d(1:NX,1:NY,jz))
-         write(91)real(jt*dt),real(jz),real(Cs_opt2_2d(1:NX,1:NY))
-         write(92)real(jt*dt),real(jz),real(Cs_opt2_4d(1:NX,1:NY))
-      end if
-end if
+!!$if (mod(jt,100) == 0) then
+!!$      if (jz==1.or.jz==nz/4.or.jz==nz/2) then
+!!$         !--2d array to save mem.
+!!$         !write(91)real(jt*dt),real(jz),real(Cs_opt2_2d(1:NX,1:NY,jz))
+!!$         !write(92)real(jt*dt),real(jz),real(Cs_opt2_4d(1:NX,1:NY,jz))
+!!$         write(91)real(jt*dt),real(jz),real(Cs_opt2_2d(1:NX,1:NY))
+!!$         write(92)real(jt*dt),real(jz),real(Cs_opt2_4d(1:NX,1:NY))
+!!$      end if
+!!$end if
 
 if (mod(jt,200) == 0) then
    LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
@@ -439,12 +439,12 @@ if(use_bldg)then
    enddo
 endif
 
-if (mod(jt,100) == 0) then
-         write(95)real(jt*dt),real(Cs_opt2(1:NX,1:NY/2+1,1:NZ))
-         !--save mem.: do not store more than a plane
-         !write(96)real(jt*dt),real(Cs_opt2_2d(1:NX,NY/2+1,1:NZ))
-         !write(97)real(jt*dt),real(Cs_opt2_4d(1:NX,NY/2+1,1:NZ))
-end if
+!!$if (mod(jt,100) == 0) then
+!!$         write(95)real(jt*dt),real(Cs_opt2(1:NX,1:NY/2+1,1:NZ))
+!!$         !--save mem.: do not store more than a plane
+!!$         !write(96)real(jt*dt),real(Cs_opt2_2d(1:NX,NY/2+1,1:NZ))
+!!$         !write(97)real(jt*dt),real(Cs_opt2_4d(1:NX,NY/2+1,1:NZ))
+!!$end if
 
 if (VERBOSE) write (*, *) 'finished lagrange_Sdep'
 

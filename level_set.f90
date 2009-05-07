@@ -2683,6 +2683,7 @@ select case (Ldir)
     call error (sub_name, 'invalid Ldir =', Ldir)
 end select
 
+!  Uinf is defined as the average U velocity at the inflow plane.
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
