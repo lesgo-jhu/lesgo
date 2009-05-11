@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(56-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -67,12 +67,14 @@ module param
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
+
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.4920634920634921*z_i/nproc
+  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
-  real(rprec),parameter::dz=L_z/z_i/(nz-1)
   real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
+  
+  real(rprec), parameter :: L_z=(nz-1)*dx*z_i/nproc,dz=L_z/z_i/(nz-1) 
 
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec

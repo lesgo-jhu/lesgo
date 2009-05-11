@@ -247,7 +247,7 @@ character (*), parameter :: sub_name = mod_name // '.grid_initialize'
 integer :: i, j
 integer :: tmp(nd), not_i(nd-1)
 
-real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
+real (rp), parameter :: thresh = 100._rp * epsilon (1._rp)
 
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz

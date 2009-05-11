@@ -40,7 +40,7 @@ real (rp), parameter :: phi_thresh = 10._rp * epsilon (0._rp)
 integer :: i
 
 !---------------------------------------------------------------------
-
+write(*,*) 'epsilon(0) = ', epsilon(0.);
 if (.not. grid % initialized) then
   call error (sub, 'grid must be initialized')
 end if
@@ -505,8 +505,8 @@ contains
     
   end if
 
-  !write (*, '(1x,a,4(1x,i0),es12.5)') 'i, j, k, code, dist =',  &
-  !                                     i, j, k, code, dist
+ !write (*, '(1x,a,4(1x,i0),es12.5)') 'i, j, k, code, dist =',  &
+ !                                    i, j, k, code, dist
 
   end subroutine dist_circle_bc
 
@@ -956,6 +956,7 @@ i_tree = 0
 !      ...
 !    }
 !    the {,} delimiters are reqd to be in the lines as shown
+
 do
 
   read (lun, '(a)', iostat=ios) buff
@@ -1052,6 +1053,7 @@ do
         call error (sub, 'n_sub_branch must be specified before rel_dir')
       end if
       read (buff(eqpos+1:), *) tree_array(i_tree) % rel_dir
+	  write(*,*) 'tree_array(i_tree) % rel_dir = ', tree_array(i_tree) % rel_dir
       do i = 1, n_sub_branch
         call mesg (sub, 'rel_dir =', tree_array(i_tree) % rel_dir(:, i))
       end do
