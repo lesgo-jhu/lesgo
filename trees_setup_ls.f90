@@ -27,24 +27,25 @@ implicit none
 integer, intent (in) :: ip  !--specifies chunk (or process)
                             !  local chunk k=0 <-> ip*(mx(3)-1)
                             !  local chunk k=nz <-> ip*(mx(3)-1)+mx(3)
-integer, intent (in) :: mx(nd)
+integer, intent (in) :: mx(nd) ! maximum dimension in x,y,z directions
 
-real (rp), intent (out) :: phi(mx(1), mx(2), 0:mx(3))  !--note 0 here
+real (rp), intent (out) :: phi(mx(1), mx(2), 0:mx(3))  !--note 0 here 
 integer, intent (out), optional :: brident(mx(1), mx(2), mx(3))
 
 character (*), parameter :: sub = mod_name // '.sdistfcn_tree_array'
 
+!  Make initial phi really, really (unrealistically) big
 real (rp), parameter :: phi_init = huge (1._rp)
 real (rp), parameter :: phi_thresh = 10._rp * epsilon (0._rp)
 
 integer :: i
 
 !---------------------------------------------------------------------
-write(*,*) 'epsilon(0) = ', epsilon(0.);
 if (.not. grid % initialized) then
   call error (sub, 'grid must be initialized')
 end if
-
+write(*,*) 'mx = ', mx
+stop
 !--check size of phi array vs. size of grid
 do i = 1, nd-1
   if (mx(i) < grid % nx(i)) then
@@ -118,6 +119,7 @@ real (rp) :: x(nd)
 
 if (.not. br % resolved) return
 
+!  Length of the branch
 l = br % l
 rb0 = 0.5_rp * (br % d)  !--base radius
 t = br % taper

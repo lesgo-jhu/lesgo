@@ -11,7 +11,7 @@ private :: mod_name
 
 character (*), parameter :: mod_name = 'trees_base_ls'
 
-character (*), parameter :: branch_cross_section = 'square'
+character (*), parameter :: branch_cross_section = 'circular'
                             !--'circular', 'square'
                             !--only for trees_pre: 'square+plate'
 
@@ -247,12 +247,13 @@ character (*), parameter :: sub_name = mod_name // '.grid_initialize'
 integer :: i, j
 integer :: tmp(nd), not_i(nd-1)
 
-real (rp), parameter :: thresh = 100._rp * epsilon (1._rp)
+real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
 
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
 if (DEBUG) call enter_sub (sub_name)
 
+!  Set grid dimensions to those of global values
 grid % nx = (/ nx, ny, nz /)
 
 ! currently, we make assumption that dx=dy=dz, so we had better
@@ -264,6 +265,7 @@ if ((abs (dx-dy) > thresh ) .or. (abs (dx-dz) > thresh) .or.  &
 
 end if
 
+!  Set grid spacing to that of global values
 grid % dx = (/ dx, dy, dz /)
 
 ! u-nodes
@@ -274,10 +276,13 @@ grid % x_min (:, 2) = (/ 0._rp, 0._rp, dz / 2._rp /)
 grid % x_min (:, 3) = (/ 0._rp, 0._rp, 0._rp /)
 
 ! determine which nodes are staggered
+!  Loop over number of dimensions
 do i = 1, nd
-
+  write(*,*) 'j = ', j
   tmp = (/ ( j, j=1, nd ) /)
+  write(*,*) 'tmp = ', tmp
   not_i = pack (tmp, tmp /= i)
+  write(*,*) 'not_i = ', not_i
 
   ! this is the definition of staggered (i.e. our convention)
   ! note (-) in front of dx/2 part--could arguably be a (+)
@@ -296,6 +301,10 @@ do i = 1, nd
   end if
 
 end do
+
+write(*,*) 'nd = ', nd
+write(*,*) 'grid%staggered = ', grid%staggered
+write(*,*) 'epsilon = ', epsilon(0.)
 
 grid % initialized = .true.
 
