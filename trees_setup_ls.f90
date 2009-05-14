@@ -45,7 +45,7 @@ if (.not. grid % initialized) then
   call error (sub, 'grid must be initialized')
 end if
 write(*,*) 'mx = ', mx
-stop
+
 !--check size of phi array vs. size of grid
 do i = 1, nd-1
   if (mx(i) < grid % nx(i)) then
@@ -114,6 +114,8 @@ real (rp) :: rb0, rb, rbl
 real (rp) :: t, tgt
 real (rp) :: x_para(nd), x_perp(nd)
 real (rp) :: x(nd)
+real(rp), dimension(3,3) :: lambda_skew
+real(rp) :: xkeep
 
 !---------------------------------------------------------------------
 
@@ -121,18 +123,30 @@ if (.not. br % resolved) return
 
 !  Length of the branch
 l = br % l
-rb0 = 0.5_rp * (br % d)  !--base radius
+
 t = br % taper
-rbl = rb0 * (1._rp - t)  !--top radius
+write(*,*) 'br%taper = ', br%taper
+
+!  Radius of the base
+rb0 = 0.5_rp * (br % d)  
+!  Radius of the top
+rbl = rb0 * (1._rp - t) 
+
 tgt = rb0 * t / l
 sine = rb0 * t / sqrt ((rb0 * t)**2 + l**2)
 cosine  = l / sqrt ((rb0 * t)**2 + l**2)
+!lambda_skew=0.
+!lambda_skew(1,1)=1.
+!lambda_skew(2,2)=1.
+!lambda_skew(3,1)=sin(45.*3.14/180);
+!lambda_skew(3,3)=cos(45.*3.14/180);
 
 !--not sure how openmp will handle the internal sub variables and
 !  present (brident)
 !$omp parallel do                                             &
 !$omp private(x,d_para,x_para,d_perp,x_perp,rb,dist_sq,dist)  &
 !$omp shared(phi, brident)
+
 do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
 
   ktot = ip * (mx(3) - 1) + k
@@ -140,14 +154,19 @@ do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
   call mesg (sub_name, 'processing k =', ktot)
 
   x(3) = pt_of_grid (ktot, 3, phi_node) - br % x0(3)
+  xkeep=x(3)
+  
 
   do j = 1, mx(2)  !--mx(2) should be grid % nx(2)
 
     x(2) = pt_of_grid (j, 2, phi_node) - br % x0(2)
 
-    do i = 1, mx(1)  !--mx(3) should be grid % nx(1)
+    do i = 1, mx(1)  !--mx(1) should be grid % nx(1)
 
       x(1) = pt_of_grid (i, 1, phi_node) - br % x0(1)
+
+!!  Perform cylinder skew operations
+!      x(3) = lambda_skew(3,1)*x(1) + lambda_skew(3,3)*xkeep;
 
       !--this part depends on cross section
       d_para = dot_product (x, br % abs_dir)
