@@ -23,12 +23,12 @@ type(cs0), allocatable, target, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t
 type(cs1) :: tcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=128
+integer, parameter :: Nx=64, Ny=64, Nz=64
 
-double precision, parameter :: skew_angle=60.*3.14/180. !  In radians
+double precision, parameter :: skew_angle=30.*3.14/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clength = 0.5 !  Cylinder length
-double precision, parameter, dimension(3) :: axis=(/0,1,0/)
+double precision, parameter, dimension(3) :: axis=(/-cos(60*3.14/180),sin(60.*3.14/180),0/)
 double precision :: tplane,bplane
 double precision, parameter :: thresh = 1.e-9
 double precision :: echeck,dist,rlcs(3),rrlcs(3)
