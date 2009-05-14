@@ -1,6 +1,5 @@
 program cylinder_skew
-use error
-use root
+
 implicit none
 
 type cs
@@ -8,18 +7,19 @@ type cs
 end type cs
 
 type(cs), allocatable, dimension(:,:,:) :: gcs_t
-type(cs) :: lcs_t, scs_t  ! global, local, skewed coordinate system respectivly
+type(cs) :: lcs_t ! global, local coordinate system respectivly
 type(cs) :: tcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=128
+integer, parameter :: Nx=64, Ny=64, Nz=64
 
-double precision, parameter :: skew_angle=1.*3.14/180. !  In radians
+double precision, parameter :: skew_angle=35.*3.14/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clength = 0.5 !  Cylinder length
+double precision, parameter, dimension(3) :: axis=(/0,1,0/)
+double precision, dimension(3) :: tplane,bplane
 double precision, parameter :: thresh = 1.e-9
-double precision :: echeck, aa,bb,cc,dd,ee, dist
-double complex, dimension(4) :: rx,ry
-integer :: lcase,i,j,k,icount,ir,nf
+double precision :: echeck,dist,rlcs(3),rrlcs(3)
+integer :: lcase,i,j,k,nf
 
 double precision, parameter :: xmin=0., xmax=1., dx=(xmax-xmin)/(Nx-1)
 double precision, parameter :: ymin=0., ymax=1., dy=(ymax-ymin)/(Ny-1)
@@ -44,124 +44,124 @@ enddo
 lcs_t%x0=0.333
 lcs_t%y0=0.5
 lcs_t%z0=0.25
+!  Top and bottom plane
+tplane=(/0.,0.,clength/)
+call rotation_axis_vector_3d ( -axis, skew_angle, tplane, tplane )
+tplane = (/ tplane(1) + lcs_t%x0, tplane(2) + lcs_t%y0, tplane(3) + lcs_t%z0/)
+bplane=(/lcs_t%x0,lcs_t%y0,lcs_t%z0/)
 
 !  Loop over all global coordinates
 do k=1,Nz
   do j=1,ny
     do i=1,nx
-!  Convert global coordinate to local coordinate system (no rotation)
-      lcs_t%x=gcs_t(i,j,k)%x - lcs_t%x0
-      lcs_t%y=gcs_t(i,j,k)%y - lcs_t%y0
-      lcs_t%z=gcs_t(i,j,k)%z - lcs_t%z0
+	  gcs_t(i,j,k)%phi = 10.
+!  Compute rlcs
+      rlcs = (/lcs_t%x, lcs_t%y, lcs_t%z/) - (/gcs_t(i,j,k)%x, gcs_t(i,j,k)%y, gcs_t(i,j,k)%z/)
+!  Check if below cutting planes
+      if(gcs_t(i,j,k)%z > bplane(3) .and. gcs_t(i,j,k)%z < tplane(3)) then
+        call rotation_axis_vector_3d ( -axis, skew_angle, rlcs, rlcs )
+		rlcs = rlcs + (/lcs_t%x0, lcs_t%y0, lcs_t%z0/)
+		gcs_t(i,j,k)%phi = magnitude_vector_2d(rlcs(1:2)) - crad
+	  endif
 
-!  Transform local coordinates to skewed (local) coordinates
-      scs_t%x = lcs_t%x - lcs_t%z*dtan(skew_angle)
-      scs_t%y = lcs_t%y
-      scs_t%z = lcs_t%z/dcos(skew_angle)
 
-!  Set up coefficients for minimum dist calculations
-      aa=b*b*(b*b-a*a)
-      bb=2.*a**2*b**2*(b*b-a*a)*scs_t%x
-      cc=a**4*b**2*scs_t%x**2+a**2*b**4*scs_t%y**2 - a**2*b**2*(b**2-a**2)
-      dd=-2.*a**4*b**2*(b**2-a**2)*scs_t%x
-      ee=-a**6*b**2*scs_t%x**2
 
-!  Check where the point lies wrt to the scs.
-      echeck = (scs_t%x/a)**2 + (scs_t%y/b)**2
-      if(scs_t%z > 0 .and. scs_t%z < clength) then
-        if(echeck > 1) then
-          lcase=1
-        else
-          lcase=4
-        endif
-      elseif(scs_t%z < 0) then
-        if(echeck > 1) then
-          lcase=3
-        else
-          lcase=6
-        endif
-      else
-         if(echeck > 1) then
-          lcase=2
-        else
-          lcase=5
-        endif       
-      endif
-      if(skew_angle <= thresh) then !  Non skewed cylinder
-!  Check which case is applied
-        if(lcase == 1) then
-          gcs_t(i,j,k)%phi = dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad
-        elseif(lcase == 2) then
-          gcs_t(i,j,k)%phi = dsqrt((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad)**2 + (lcs_t%z - clength)**2)
-        elseif(lcase == 3) then    
-          gcs_t(i,j,k)%phi = dsqrt((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad)**2 + lcs_t%z**2)
-        elseif(lcase == 4) then
-          gcs_t(i,j,k)%phi = -dabs((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad))
-        elseif(lcase == 5) then
-          gcs_t(i,j,k)%phi = dabs(lcs_t%z - clength)
-        else
-          gcs_t(i,j,k)%phi = dabs(lcs_t%z)
-        endif
-      else !  Skewed cylinder
-        gcs_t(i,j,k)%phi=huge(1.)
-        if(lcase == 1 .or. lcase == 4) then
-          call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
-          icount=0
-          do ir=1,4
-            ry(ir) = scs_t%y/(1 - (rx(ir) - scs_t%x)/rx(ir)*a**2/b**2)
-            if(dimag(rx(ir)) <= thresh) then
-              icount=icount+1
-              tcs_t%x = real(rx(ir)) + scs_t%z*sin(skew_angle)
-              tcs_t%y = real(ry(ir))
-              tcs_t%z = scs_t%z*dsin(skew_angle)
-!  Compute distance
-              dist = sqrt((lcs_t%x - tcs_t%x)**2 + (lcs_t%y - tcs_t%y)**2 + (lcs_t%z - tcs_t%z)**2)
-              if(dist < gcs_t(i,j,k)%phi) then
-                gcs_t(i,j,k)%phi = dist !  Keep it      
-              endif
-            endif
-          enddo
-          if(lcase == 4) gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
-          if(icount == 0) then
-            write(*,*) 'No exclusively real roots found!'
-            stop
-          endif
-        elseif(lcase == 2 .or. lcase == 3) then
-          call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
-          icount=0
-          do ir=1,4
-            ry(ir) = scs_t%y/(1 - (rx(ir) - scs_t%x)/rx(ir)*a**2/b**2)
-            if(dimag(rx(ir)) <= thresh) then
-              icount=icount+1
-              if(lcase == 2) then
-                tcs_t%x = real(rx(ir)) + clength*dsin(skew_angle)
-                tcs_t%y = real(ry(ir))
-                tcs_t%z = clength*dsin(skew_angle)
-              elseif(lcase == 3) then
-                tcs_t%x = real(rx(ir))
-                tcs_t%y = real(ry(ir))
-                tcs_t%z = 0.
-              endif
-!  Compute distance
-              dist = dsqrt((lcs_t%x - tcs_t%x)**2 + (lcs_t%y - tcs_t%y)**2 + (lcs_t%z - tcs_t%z)**2)
-              if(dist < gcs_t(i,j,k)%phi) then
-                gcs_t(i,j,k)%phi = dist !  Keep it      
-              endif
-            endif
-          enddo   
-          if(icount == 0) then
-            write(*,*) 'No exclusively real roots found!'
-            stop
-          endif
-        elseif(lcase == 5) then
-          gcs_t(i,j,k)%phi = dabs(scs_t%z - clength)
-          write(*,*) 'scs_t%z - clength = ', scs_t%z - clength
-        elseif(lcase == 6) then
-          gcs_t(i,j,k)%phi = dabs(scs_t%z)
-        endif
-      endif  
+!!  Check where the point lies wrt to the scs.
+!      echeck = (scs_t%x/a)**2 + (scs_t%y/b)**2
+!      if(scs_t%z > 0 .and. scs_t%z < clength) then
+!        if(echeck > 1) then
+!          lcase=1
+!        else
+!          lcase=4
+!        endif
+!      elseif(scs_t%z < 0) then
+!        if(echeck > 1) then
+!          lcase=3
+!        else
+!          lcase=6
+!        endif
+!      else
+!         if(echeck > 1) then
+!          lcase=2
+!        else
+!          lcase=5
+!        endif       
+!      endif
+!      if(skew_angle <= thresh) then !  Non skewed cylinder
+!!  Check which case is applied
+!        if(lcase == 1) then
+!          gcs_t(i,j,k)%phi = dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad
+!        elseif(lcase == 2) then
+!          gcs_t(i,j,k)%phi = dsqrt((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad)**2 + (lcs_t%z - clength)**2)
+!        elseif(lcase == 3) then    
+!          gcs_t(i,j,k)%phi = dsqrt((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad)**2 + lcs_t%z**2)
+!        elseif(lcase == 4) then
+!          gcs_t(i,j,k)%phi = -dabs((dsqrt(lcs_t%x**2 + lcs_t%y**2) - crad))
+!        elseif(lcase == 5) then
+!          gcs_t(i,j,k)%phi = dabs(lcs_t%z - clength)
+!        else
+!          gcs_t(i,j,k)%phi = dabs(lcs_t%z)
+!        endif
+!      else !  Skewed cylinder
+!        gcs_t(i,j,k)%phi=huge(1.)
+!        if(lcase == 1 .or. lcase == 4) then
+!          call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
+!          icount=0
+!          do ir=1,4
+!            ry(ir) = scs_t%y/(1 - (rx(ir) - scs_t%x)/rx(ir)*a**2/b**2)
+!            if(dimag(rx(ir)) <= thresh) then
+!              icount=icount+1
+!              tcs_t%x = real(rx(ir)) + scs_t%z*sin(skew_angle)
+!              tcs_t%y = real(ry(ir))
+!              tcs_t%z = scs_t%z*dsin(skew_angle)
+!!  Compute distance
+!              dist = sqrt((lcs_t%x - tcs_t%x)**2 + (lcs_t%y - tcs_t%y)**2 + (lcs_t%z - tcs_t%z)**2)
+!              if(dist < gcs_t(i,j,k)%phi) then
+!                gcs_t(i,j,k)%phi = dist !  Keep it      
+!              endif
+!            endif
+!          enddo
+!          if(lcase == 4) gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
+!          if(icount == 0) then
+!            write(*,*) 'No exclusively real roots found!'
+!            stop
+!          endif
+!        elseif(lcase == 2 .or. lcase == 3) then
+!          call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
+!          icount=0
+!          do ir=1,4
+!            ry(ir) = scs_t%y/(1 - (rx(ir) - scs_t%x)/rx(ir)*a**2/b**2)
+!            if(dimag(rx(ir)) <= thresh) then
+!              icount=icount+1
+!              if(lcase == 2) then
+!                tcs_t%x = real(rx(ir)) + clength*dsin(skew_angle)
+!                tcs_t%y = real(ry(ir))
+!                tcs_t%z = clength*dsin(skew_angle)
+!              elseif(lcase == 3) then
+!                tcs_t%x = real(rx(ir))
+!                tcs_t%y = real(ry(ir))
+!                tcs_t%z = 0.
+!              endif
+!!  Compute distance
+!              dist = dsqrt((lcs_t%x - tcs_t%x)**2 + (lcs_t%y - tcs_t%y)**2 + (lcs_t%z - tcs_t%z)**2)
+!              if(dist < gcs_t(i,j,k)%phi) then
+!                gcs_t(i,j,k)%phi = dist !  Keep it      
+!              endif
+!            endif
+!          enddo   
+!          if(icount == 0) then
+!            write(*,*) 'No exclusively real roots found!'
+!            stop
+!          endif
+!        elseif(lcase == 5) then
+!          gcs_t(i,j,k)%phi = dabs(scs_t%z - clength)
+!          write(*,*) 'scs_t%z - clength = ', scs_t%z - clength
+!        elseif(lcase == 6) then
+!          gcs_t(i,j,k)%phi = dabs(scs_t%z)
+!        endif
+!      endif  
 
-      if(gcs_t(i,j,k)%phi > 0. .and. gcs_t(i,j,k)%phi <= thresh) gcs_t(i,j,k)%phi = 0.  
+!      if(gcs_t(i,j,k)%phi > 0. .and. gcs_t(i,j,k)%phi <= thresh) gcs_t(i,j,k)%phi = 0.  
 
     enddo
   enddo
@@ -189,4 +189,20 @@ nf=1
 
 
 stop
+
+contains
+double precision function magnitude_vector_3d(vector)
+  double precision, dimension(3), intent(IN) :: vector
+  magnitude_vector_3d = dsqrt(vector(1)*vector(1) + vector(2)*vector(2) + vector(3)*vector(3))
+  return
+end function magnitude_vector_3d
+
+double precision function magnitude_vector_2d(vector)
+  double precision, dimension(2), intent(IN) :: vector
+  magnitude_vector_2d = dsqrt(vector(1)*vector(1) + vector(2)*vector(2))
+  return
+end function magnitude_vector_2d
+
 end program cylinder_skew
+
+
