@@ -24,9 +24,10 @@ type(cs1) :: lcs_t
 type(cs1) :: tcs_t
 type(vector1) :: vtcp_t, vbcp_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=64
+integer, parameter :: Nx=6, Ny=4, Nz=4
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: zrot_angle = 0.*pi/180.
+double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle=30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
@@ -97,8 +98,7 @@ do k=1,Nz
       elseif(vgp_t%xyz(3) > vtcp_t%xyz(3)) then
         veck_t%xyz = vgp_t%xyz - vtcp_t%xyz
 !  Rotate the ellipse check vector into the ellipse xy cs
-        call rotation_axis_vector_3d((/dcos(zrot_angle), dsin(zrot_angle), 1. /), &
-          zrot_angle, veck_t%xyz, veck_t%xyz)
+        call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
         eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
         if(eck <= 1) then
 !  Lies inside of ellipse
@@ -113,8 +113,7 @@ do k=1,Nz
       elseif(vgp_t%xyz(3) < vbcp_t%xyz(3)) then
         veck_t%xyz = vgp_t%xyz - vbcp_t%xyz
 !  Rotate the ellipse check vector into the ellipse xy cs
-        call rotation_axis_vector_3d((/dcos(zrot_angle), dsin(zrot_angle), 1. /), &
-          zrot_angle, veck_t%xyz, veck_t%xyz)
+        call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
         eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
         if(eck <= 1) then
 !  Lies inside of ellipse
@@ -125,35 +124,39 @@ do k=1,Nz
             gcs_t(i,j,k)%phi = dsqrt(dist**2 + (vgp_t%xyz(3) - vbcp_t%xyz(3))**2)
           endif
         endif         
+      else
+        write(*,*) 'Error: No configuration found!'
+        stop
 	  endif
     enddo
   enddo
 enddo
 nf=1
 !  Create tecplot formatted velocity field file  
-    open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) 'variables = "x", "y", "z", "phi"'; 
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      nf,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
+  action='write',position='rewind')
+write(2,*) 'variables = "x", "y", "z", "phi"'; 
+write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+nf,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
-    do k=1,nz
-      do j=1,ny
-        do i=1,nx
-          write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi
-        enddo
-      enddo
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi
     enddo
-    close(2)
+  enddo
+enddo
+close(2)
 !  Create plt file the hard way
 !    write(fpreplt,*) 'preplot ',ftec,' && rm -v ', ftec
 !    call system(fpreplt);
-
+write(*,*) 'gcs_t%phi = ', gcs_t%phi 
 
 stop
 
 contains
+
 double precision function magnitude_vector_3d(vector)
   double precision, dimension(3), intent(IN) :: vector
   magnitude_vector_3d = dsqrt(vector(1)*vector(1) + vector(2)*vector(2) + vector(3)*vector(3))
@@ -192,7 +195,9 @@ ee=-a**6*b**2*xy(1)**2
 
 call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
 !  Compute corresponding y values for the roots
-ry = xy(2)/(1 - (rx - xy(1))/rx*a**2/b**2)
+do i=1,rmax
+  ry(i) = xy(2)/(1 - (rx(i) - xy(1))/rx(i)*a**2/b**2)
+enddo
 drx = dble(rx)
 dry = dble(ry)
 !  Initialize counter for finding exclusively real roots
@@ -201,6 +206,7 @@ do i=1,rmax
   if(dimag(rx(i)) <= thresh) then
     icount=icount+1
     dist_chk = magnitude_vector_2d((/drx(i) - xy(1),dry(i) - xy(2)/))
+!    write(*,*) 'dist_chk = ', dist_chk
     if(dist_chk < dist) dist = dist_chk
   endif
 enddo
