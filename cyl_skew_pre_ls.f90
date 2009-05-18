@@ -22,20 +22,23 @@ end type vector1
 type(cs0), allocatable, target, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t
 type(cs1) :: tcs_t
+type(vector1) :: vtcp_t, vbcp_t
 
 integer, parameter :: Nx=64, Ny=64, Nz=64
 
 double precision, parameter :: skew_angle=30.*3.14/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
-double precision, parameter :: clength = 0.5 !  Cylinder length
-double precision, parameter, dimension(3) :: axis=(/-cos(60*3.14/180),sin(60.*3.14/180),0/)
+double precision, parameter :: clen=0.5 !  Cylinder length
+!double precision, parameter, dimension(3) :: axis=(/-cos(60*3.14/180),sin(60.*3.14/180),0/)
+double precision, parameter, dimension(3) :: axis=(/0.,1.,0./)
 double precision :: tplane,bplane
 double precision, parameter :: thresh = 1.e-9
 double precision :: echeck,dist,rlcs(3),rrlcs(3)
 integer :: lcase,i,j,k,nf
 
 type(vector0) :: vgp_t
-type(vector1) :: vlcs_t, vp_t
+type(vector1) :: vlcs_t, vp_t, veck_t
+double precision :: eck
 
 double precision, parameter :: xmin=0., xmax=1., dx=(xmax-xmin)/(Nx-1)
 double precision, parameter :: ymin=0., ymax=1., dy=(ymax-ymin)/(Ny-1)
@@ -59,12 +62,15 @@ enddo
 
 !  Specify global vector to origin of lcs 
 vlcs_t%xyz=(/ 0.333, 0.5, 0.25 /)
-
-
+!  Set the center point of the bottom ellipse
+vbcp_t%xyz=vlcs_t%xyz
+!  Compute the center point of the top ellipse
+call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),vtcp_t%xyz)
+vtcp_t%xyz = vtcp_t%xyz + vbcp_t%xyz
 
 !  Top and bottom plane in gcs
 bplane=vlcs_t%xyz(3)
-tplane=clength*dcos(skew_angle) + bplane
+tplane=clen*dcos(skew_angle) + bplane
 
 write(*,*) 'tplane and bplane = ', tplane, bplane
 
@@ -72,7 +78,7 @@ write(*,*) 'tplane and bplane = ', tplane, bplane
 do k=1,Nz
   do j=1,ny
     do i=1,nx
-	  gcs_t(i,j,k)%phi = 10.
+	  gcs_t(i,j,k)%phi = 1.
 	  vgp_t%xyz => gcs_t(i,j,k)%xyz
 !  Compute vector to point from lcs in the gcs
       vp_t%xyz = vgp_t%xyz - vlcs_t%xyz
@@ -80,8 +86,21 @@ do k=1,Nz
       if(vgp_t%xyz(3) > bplane .and. vgp_t%xyz(3) < tplane) then
         call rotation_axis_vector_3d ( axis, -skew_angle, vp_t%xyz, vp_t%xyz )
 		gcs_t(i,j,k)%phi = magnitude_vector_2d(vp_t%xyz(1:2)) - crad
+      elseif(vgp_t%xyz(3) > vtcp_t%xyz(3)) then
+        veck_t%xyz = vgp_t%xyz - vtcp_t%xyz
+        eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
+        if(eck < 1) then
+!  Lies inside of ellipse
+          gcs_t(i,j,k)%phi = veck_t%xyz(3)
+        endif
+      elseif(vgp_t%xyz(3) < vbcp_t%xyz(3)) then
+        veck_t%xyz = vgp_t%xyz - vbcp_t%xyz
+        eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
+        if(eck < 1) then
+!  Lies inside of ellipse
+          gcs_t(i,j,k)%phi = -veck_t%xyz(3)
+        endif         
 	  endif
-
     enddo
   enddo
 enddo
