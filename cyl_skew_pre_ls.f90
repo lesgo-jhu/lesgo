@@ -11,34 +11,35 @@ type cs1
 	double precision, dimension(3) :: xyz
 end type cs1
 
-type vector0
-  double precision, dimension(:), pointer :: xyz
-end type vector0
+!type vector0
+!  double precision, dimension(:), pointer :: xyz
+!end type vector0
 
-type vector1
+type vector
   double precision, dimension(3) :: xyz
-end type vector1
+end type vector
 
-type(cs0), allocatable, target, dimension(:,:,:) :: gcs_t
-type(cs1) :: lcs_t, tcs_t
-type(vector1) :: vtcp_t, vbcp_t
+!  cs{0,1} all correspond to vectors with the origin at the 
+!  corresponding coordinate system
+type(cs0), allocatable, dimension(:,:,:) :: gcs_t
+type(cs1) :: lcs_t, lgcs_t, lscs_t, lsgcs_t, ecs_t, ebgcs_t, etgcs_t
+!  vectors do not have starting point a origin of corresponding
+!  coordinate system
+type(vector) :: vgcs_t
 
 integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=0.00001*pi/180. !  In radians
+double precision, parameter :: skew_angle=30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
-!double precision, parameter, dimension(3) :: axis=(/-cos(90*3.14/180),sin(90.*3.14/180),0/)
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
-double precision :: tplane,bplane
+double precision :: tplane, bplane
 double precision, parameter :: thresh = 1.e-12
-double precision :: echeck,dist,rlcs(3),rrlcs(3)
-integer :: lcase,i,j,k,nf
+double precision :: echeck, dist, theta
+integer :: i,j,k,nf
 
-type(vector0) :: vgp_t
-type(vector1) :: vlcs_t, vp_t, veck_t
 double precision :: eck
 
 double precision, parameter :: xmin=0., xmax=1., dx=(xmax-xmin)/(Nx-1)
@@ -55,7 +56,6 @@ endif
 
 !  Allocate x,y,z for all coordinate systems
 allocate(gcs_t(nx,ny,nz))
-nullify(vgp_t%xyz)
 
 !  Create grid in the global coordinate system
 do k=1,Nz
@@ -69,21 +69,16 @@ do k=1,Nz
 enddo
 
 !  Specify global vector to origin of lcs 
-vlcs_t%xyz=(/ 0.333, 0.5, 0.25 /)
+lgcs_t%xyz=(/ 0.333, 0.5, 0.25 /)
 !  Set the center point of the bottom ellipse
-vbcp_t%xyz=vlcs_t%xyz
+ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse
-call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),vtcp_t%xyz)
-vtcp_t%xyz = vtcp_t%xyz + vbcp_t%xyz
-
-write(*,*) 'vbcp_t%xyz = ', vbcp_t%xyz
-write(*,*) 'vtcp_t%xyz = ', vtcp_t%xyz
-write(*,*) 'magnitude_vector_3d((/ vtcp_t%xyz(1) - vbcp_t%xyz(1), vtcp_t%xyz(2) - vbcp_t%xyz(2), vtcp_t%xyz(3) - vbcp_t%xyz(3) /)) = ', &
-  magnitude_vector_3d((/ vtcp_t%xyz(1) - vbcp_t%xyz(1), vtcp_t%xyz(2) - vbcp_t%xyz(2), vtcp_t%xyz(3) - vbcp_t%xyz(3) /)) 
+call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
+etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
 
 !  Top and bottom plane in gcs
-bplane=vbcp_t%xyz(3)
-tplane=vtcp_t%xyz(3)
+bplane=ebgcs_t%xyz(3)
+tplane=etgcs_t%xyz(3)
 
 write(*,*) 'tplane and bplane = ', tplane, bplane
 
@@ -98,86 +93,71 @@ do k=1,Nz
 	  gcs_t(i,j,k)%phi = 1.
       gcs_t(i,j,k)%brindex=0
 
-	  vgp_t%xyz => gcs_t(i,j,k)%xyz
+	  !  Compute vector to point from lcs in the gcs
+      vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
+	  
+	  !  Rotate gcs vector into local coordinate system
+	  call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
+	  
+	  !  Compute the location on the cylinder surface that corresponds
+	  !  to the minimum distance.
+	  theta = datan2(lcs_t%xyz(1),lcs_t%xyz(2))
+	  lscs_t%xyz(1) = crad*dcos(theta)
+	  lscs_t%xyz(2) = crad*dsin(theta)
+	  lscs_t%xyz(3) = lcs_t%xyz(3)
 
-!  Compute vector to point from lcs in the gcs
-      vp_t%xyz = vgp_t%xyz - vlcs_t%xyz
-
+	  !  Rotate the surface vector in the lcs back into the gcs
+	  call rotation_axis_vector_3d(axis,skew_angle,lscs_t%xyz,vgcs_t%xyz)
+	  
+	  lsgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
+	  
 !  Check if between cutting planes
-      if(vgp_t%xyz(3) >= bplane .and. vgp_t%xyz(3) <= tplane) then
-
-        call rotation_axis_vector_3d ( axis, -skew_angle, vp_t%xyz, vp_t%xyz )
-
-		gcs_t(i,j,k)%phi = magnitude_vector_2d(vp_t%xyz(1:2)) - crad
-
-      elseif(vgp_t%xyz(3) > vtcp_t%xyz(3)) then
-
-        veck_t%xyz = vgp_t%xyz - vtcp_t%xyz
-        !write(*,*) 'veck_t%xyz = ', veck_t%xyz
-!  Rotate the ellipse check vector into the ellipse xy cs
-        call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
-        !write(*,*) 'veck_t%xyz = ', veck_t%xyz
-        !pause
-        eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
-
-        if(eck <= 1) then
-
-!  Lies inside of ellipse
-          gcs_t(i,j,k)%phi = veck_t%xyz(3)
-
-        else
-
-!  Compute minimum distance to ellipse
-          call min_dist_to_ellipse(a,b,veck_t%xyz(1:2), dist)
-
-          dist = dsqrt(dist**2 + (vgp_t%xyz(3) - vtcp_t%xyz(3))**2)
-
-          gcs_t(i,j,k)%brindex = 1.
-
-          if(dist < gcs_t(i,j,k)%phi) then
-
-            gcs_t(i,j,k)%phi = dist
-
-          endif
-
-        endif
-
-      elseif(vgp_t%xyz(3) < vbcp_t%xyz(3)) then
-
-        veck_t%xyz = vgp_t%xyz - vbcp_t%xyz
-
-!  Rotate the ellipse check vector into the ellipse xy cs
-        call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
-
-        eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
-
-        if(eck <= 1) then
-
-!  Lies inside of ellipse
-          gcs_t(i,j,k)%phi = dabs(veck_t%xyz(3))
-
-        else
-
-!  Compute minimum distance to ellipse
-          call min_dist_to_ellipse(a,b,veck_t%xyz(1:2), dist)
-
-          dist = dsqrt(dist**2 + (vgp_t%xyz(3) - vbcp_t%xyz(3))**2)
-
-          gcs_t(i,j,k)%brindex = 1.
-
-          if(dist < gcs_t(i,j,k)%phi) then
-
-            gcs_t(i,j,k)%phi = dist
-
-          endif
-
-        endif         
+      if(lsgcs_t%xyz(3) >= bplane .and. lsgcs_t%xyz(3) <= tplane) then
+	    
+	    dist = magnitude_vector_2d(lcs_t%xyz(1:2)) - crad
+		
+		if(dist < gcs_t(i,j,k)%phi) then
+		  gcs_t(i,j,k)%phi = dist
+		  gcs_t(i,j,k)%brindex = 1
+		endif
 
       else
+	  
+	  !  Check if point is in top or bottom ellipse; rotate and translate to ellipse cs
+	    if(lsgcs_t%xyz(3) > tplane) then
+		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+		else
+		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+		endif
+		
+		
+		call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+		
+		eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
 
-        write(*,*) 'Error: No configuration found!'
+        if(eck <= 1) then
 
-        stop
+!  Lies inside of ellipse
+          dist = dabs(ecs_t%xyz(3))
+		  
+		  if(dist < gcs_t(i,j,k)%phi) then
+		    gcs_t(i,j,k)%phi = dist
+			gcs_t(i,j,k)%brindex = 1
+		  endif
+
+        else
+
+!  Compute minimum distance to ellipse
+          call min_dist_to_ellipse(a,b,ecs_t%xyz(1:2), dist)
+
+          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+
+		  if(dist < gcs_t(i,j,k)%phi) then
+		    gcs_t(i,j,k)%phi = dist 
+            gcs_t(i,j,k)%brindex = 1.
+          endif
+
+        endif   
 
 	  endif
 
