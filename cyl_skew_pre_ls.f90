@@ -22,7 +22,7 @@ end type vector
 !  cs{0,1} all correspond to vectors with the origin at the 
 !  corresponding coordinate system
 type(cs0), allocatable, dimension(:,:,:) :: gcs_t
-type(cs1) :: lcs_t, lgcs_t, lscs_t, lsgcs_t, ecs_t, ebgcs_t, etgcs_t
+type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
 type(vector) :: vgcs_t
@@ -31,13 +31,15 @@ integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=60*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+
+logical :: inside
 double precision :: tplane, bplane
 double precision, parameter :: thresh = 1.e-12
-double precision :: echeck, dist, theta
+double precision :: circk, dist, theta
 integer :: i,j,k,nf
 
 double precision :: eck
@@ -89,6 +91,8 @@ do k=1,Nz
   
     do i=1,nx
 
+!  First check if points are between the top and bottom planes
+      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) then
 !  Initialize the distance function
 	  gcs_t(i,j,k)%phi = 1.
       gcs_t(i,j,k)%brindex=0
@@ -101,20 +105,27 @@ do k=1,Nz
 	  
 	  !  Compute the location on the cylinder surface that corresponds
 	  !  to the minimum distance.
-	  theta = datan2(lcs_t%xyz(1),lcs_t%xyz(2))
-	  lscs_t%xyz(1) = crad*dcos(theta)
-	  lscs_t%xyz(2) = crad*dsin(theta)
-	  lscs_t%xyz(3) = lcs_t%xyz(3)
+	  theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
+	  slcs_t%xyz(1) = crad*dcos(theta)
+	  slcs_t%xyz(2) = crad*dsin(theta)
+	  slcs_t%xyz(3) = lcs_t%xyz(3)
 
 	  !  Rotate the surface vector in the lcs back into the gcs
-	  call rotation_axis_vector_3d(axis,skew_angle,lscs_t%xyz,vgcs_t%xyz)
+	  call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
 	  
-	  lsgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
+	  sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
 	  
 !  Check if between cutting planes
-      if(lsgcs_t%xyz(3) >= bplane .and. lsgcs_t%xyz(3) <= tplane) then
+      if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
 	    
-	    dist = magnitude_vector_2d(lcs_t%xyz(1:2)) - crad
+
+!	    dist = magnitude_vector_2d(lcs_t%xyz(1:2)) - crad
+        dist = magnitude_vector_3d((/lcs_t%xyz(1) - slcs_t%xyz(1), &
+		  lcs_t%xyz(2) - slcs_t%xyz(2), &
+		  lcs_t%xyz(3) - slcs_t%xyz(3)/))
+!  Check if 		  
+	    circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
+		if(circk < crad**2) dist = -dist
 		
 		if(dist < gcs_t(i,j,k)%phi) then
 		  gcs_t(i,j,k)%phi = dist
@@ -124,7 +135,7 @@ do k=1,Nz
       else
 	  
 	  !  Check if point is in top or bottom ellipse; rotate and translate to ellipse cs
-	    if(lsgcs_t%xyz(3) > tplane) then
+	    if(sgcs_t%xyz(3) > tplane) then
 		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
 		else
 		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
@@ -159,6 +170,7 @@ do k=1,Nz
 
         endif   
 
+	  endif
 	  endif
 
     enddo
