@@ -36,7 +36,7 @@ double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
-logical :: inside
+logical :: inside, incir, incyl, inte, inbe, btplanes
 double precision :: tplane, bplane
 double precision, parameter :: thresh = 1.e-12
 double precision :: circk, dist, theta
@@ -91,17 +91,48 @@ do k=1,Nz
   
     do i=1,nx
 
-!  First check if points are between the top and bottom planes
-      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) then
 !  Initialize the distance function
 	  gcs_t(i,j,k)%phi = 1.
-      gcs_t(i,j,k)%brindex=0
+      gcs_t(i,j,k)%brindex=0	
+	
+	!  Intialize flags
+	  btplanes=.false.
+	  incir=.false.
+	  incyl=.false.
+	  inte=.false.
+	  inbe=.false.
+	
+!!  First check if points are between the top and bottom planes
+      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
 
 	  !  Compute vector to point from lcs in the gcs
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
 	  
 	  !  Rotate gcs vector into local coordinate system
 	  call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
+	  
+!  Check if the point lies in the cylinder circle
+	  circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
+	  if(circk < crad**2) incir = .true.
+	  if(btplanes .and. incir) incyl = .true.	 
+	  
+!  Check if point lies in top ellipse
+      vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+
+	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+		
+	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
+
+      if(eck <= 1) inte=.true.
+	  
+!  Check if point lies in bottom ellipse
+      vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+
+	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+		
+	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
+
+      if(eck <= 1) inbe=.true.	  
 	  
 	  !  Compute the location on the cylinder surface that corresponds
 	  !  to the minimum distance.
@@ -117,61 +148,53 @@ do k=1,Nz
 	  
 !  Check if between cutting planes
       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-	    
-
-!	    dist = magnitude_vector_2d(lcs_t%xyz(1:2)) - crad
-        dist = magnitude_vector_3d((/lcs_t%xyz(1) - slcs_t%xyz(1), &
-		  lcs_t%xyz(2) - slcs_t%xyz(2), &
-		  lcs_t%xyz(3) - slcs_t%xyz(3)/))
-!  Check if 		  
-	    circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
-		if(circk < crad**2) dist = -dist
-		
-		if(dist < gcs_t(i,j,k)%phi) then
+		dist = magnitude_vector_3d(lcs_t%xyz - slcs_t%xyz)		
+		  !  Check if inside of cylinder
+		if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
 		  gcs_t(i,j,k)%phi = dist
-		  gcs_t(i,j,k)%brindex = 1
 		endif
-
-      else
-	  
-	  !  Check if point is in top or bottom ellipse; rotate and translate to ellipse cs
-	    if(sgcs_t%xyz(3) > tplane) then
-		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-		else
-		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-		endif
+	  else
+        if(.not. inte .and. .not. inbe) then
+	    !  Check if point above or below cutoff planes
+	      if(gcs_t(i,j,k)%xyz(3) > tplane) then
+		    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+          else
+		    vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+	      endif
+!  Get vector in ellipse coordinate system		  
+ 		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
 		
-		
-		call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-		
-		eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
-
-        if(eck <= 1) then
-
-!  Lies inside of ellipse
-          dist = dabs(ecs_t%xyz(3))
-		  
-		  if(dist < gcs_t(i,j,k)%phi) then
-		    gcs_t(i,j,k)%phi = dist
-			gcs_t(i,j,k)%brindex = 1
-		  endif
-
-        else
-
-!  Compute minimum distance to ellipse
           call min_dist_to_ellipse(a,b,ecs_t%xyz(1:2), dist)
 
           dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
 
-		  if(dist < gcs_t(i,j,k)%phi) then
+		  if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
 		    gcs_t(i,j,k)%phi = dist 
             gcs_t(i,j,k)%brindex = 1.
           endif
 
         endif   
-
+	
 	  endif
+!  Check also if the point lies on the ellipses
+          
+      if(inte) then
+	    dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
+	    if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+  		  gcs_t(i,j,k)%phi = dist
+		endif
 	  endif
+		  
+      if(inbe) then
+		dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+	    if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+  		  gcs_t(i,j,k)%phi = dist
+		endif
+	  endif	
+	 if(incyl) then
+	   gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
+	   gcs_t(i,j,k)%brindex = 1
+	 endif
 
     enddo
 
