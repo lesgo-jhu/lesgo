@@ -3,7 +3,7 @@ program cylinder_skew
 implicit none
 
 type cs0
-     double precision :: phi
+     double precision :: phi, brindex
 	 double precision, dimension(3) :: xyz
 end type cs0
 
@@ -20,21 +20,20 @@ type vector1
 end type vector1
 
 type(cs0), allocatable, target, dimension(:,:,:) :: gcs_t
-type(cs1) :: lcs_t
-type(cs1) :: tcs_t
+type(cs1) :: lcs_t, tcs_t
 type(vector1) :: vtcp_t, vbcp_t
 
-integer, parameter :: Nx=6, Ny=4, Nz=4
+integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=0.00001*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
 !double precision, parameter, dimension(3) :: axis=(/-cos(90*3.14/180),sin(90.*3.14/180),0/)
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 double precision :: tplane,bplane
-double precision, parameter :: thresh = 1.e-9
+double precision, parameter :: thresh = 1.e-12
 double precision :: echeck,dist,rlcs(3),rrlcs(3)
 integer :: lcase,i,j,k,nf
 
@@ -77,73 +76,135 @@ vbcp_t%xyz=vlcs_t%xyz
 call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),vtcp_t%xyz)
 vtcp_t%xyz = vtcp_t%xyz + vbcp_t%xyz
 
+write(*,*) 'vbcp_t%xyz = ', vbcp_t%xyz
+write(*,*) 'vtcp_t%xyz = ', vtcp_t%xyz
+write(*,*) 'magnitude_vector_3d((/ vtcp_t%xyz(1) - vbcp_t%xyz(1), vtcp_t%xyz(2) - vbcp_t%xyz(2), vtcp_t%xyz(3) - vbcp_t%xyz(3) /)) = ', &
+  magnitude_vector_3d((/ vtcp_t%xyz(1) - vbcp_t%xyz(1), vtcp_t%xyz(2) - vbcp_t%xyz(2), vtcp_t%xyz(3) - vbcp_t%xyz(3) /)) 
+
 !  Top and bottom plane in gcs
-bplane=vlcs_t%xyz(3)
-tplane=clen*dcos(skew_angle) + bplane
+bplane=vbcp_t%xyz(3)
+tplane=vtcp_t%xyz(3)
 
 write(*,*) 'tplane and bplane = ', tplane, bplane
 
 !  Loop over all global coordinates
 do k=1,Nz
+   
   do j=1,ny
+  
     do i=1,nx
+
+!  Initialize the distance function
 	  gcs_t(i,j,k)%phi = 1.
+      gcs_t(i,j,k)%brindex=0
+
 	  vgp_t%xyz => gcs_t(i,j,k)%xyz
+
 !  Compute vector to point from lcs in the gcs
       vp_t%xyz = vgp_t%xyz - vlcs_t%xyz
+
 !  Check if between cutting planes
-      if(vgp_t%xyz(3) > bplane .and. vgp_t%xyz(3) < tplane) then
+      if(vgp_t%xyz(3) >= bplane .and. vgp_t%xyz(3) <= tplane) then
+
         call rotation_axis_vector_3d ( axis, -skew_angle, vp_t%xyz, vp_t%xyz )
+
 		gcs_t(i,j,k)%phi = magnitude_vector_2d(vp_t%xyz(1:2)) - crad
+
       elseif(vgp_t%xyz(3) > vtcp_t%xyz(3)) then
+
         veck_t%xyz = vgp_t%xyz - vtcp_t%xyz
+        !write(*,*) 'veck_t%xyz = ', veck_t%xyz
 !  Rotate the ellipse check vector into the ellipse xy cs
         call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
+        !write(*,*) 'veck_t%xyz = ', veck_t%xyz
+        !pause
         eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
+
         if(eck <= 1) then
+
 !  Lies inside of ellipse
           gcs_t(i,j,k)%phi = veck_t%xyz(3)
+
         else
+
 !  Compute minimum distance to ellipse
-          call min_dist_to_ellipse(a,b,veck_t%xyz(1:3), dist)
+          call min_dist_to_ellipse(a,b,veck_t%xyz(1:2), dist)
+
+          dist = dsqrt(dist**2 + (vgp_t%xyz(3) - vtcp_t%xyz(3))**2)
+
+          gcs_t(i,j,k)%brindex = 1.
+
           if(dist < gcs_t(i,j,k)%phi) then
-            gcs_t(i,j,k)%phi = dsqrt(dist**2 + (vgp_t%xyz(3) - vtcp_t%xyz(3))**2)
+
+            gcs_t(i,j,k)%phi = dist
+
           endif
+
         endif
+
       elseif(vgp_t%xyz(3) < vbcp_t%xyz(3)) then
+
         veck_t%xyz = vgp_t%xyz - vbcp_t%xyz
+
 !  Rotate the ellipse check vector into the ellipse xy cs
         call rotation_axis_vector_3d(zrot_axis, zrot_angle, veck_t%xyz, veck_t%xyz)
+
         eck = veck_t%xyz(1)**2/a**2 + veck_t%xyz(2)**2/b**2 
+
         if(eck <= 1) then
+
 !  Lies inside of ellipse
           gcs_t(i,j,k)%phi = dabs(veck_t%xyz(3))
+
+        else
+
 !  Compute minimum distance to ellipse
-          call min_dist_to_ellipse(a,b,veck_t%xyz(1:3), dist)
+          call min_dist_to_ellipse(a,b,veck_t%xyz(1:2), dist)
+
+          dist = dsqrt(dist**2 + (vgp_t%xyz(3) - vbcp_t%xyz(3))**2)
+
+          gcs_t(i,j,k)%brindex = 1.
+
           if(dist < gcs_t(i,j,k)%phi) then
-            gcs_t(i,j,k)%phi = dsqrt(dist**2 + (vgp_t%xyz(3) - vbcp_t%xyz(3))**2)
+
+            gcs_t(i,j,k)%phi = dist
+
           endif
+
         endif         
+
       else
+
         write(*,*) 'Error: No configuration found!'
+
         stop
+
 	  endif
+
     enddo
+
   enddo
+
 enddo
+
 nf=1
+
 !  Create tecplot formatted velocity field file  
 open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
   action='write',position='rewind')
-write(2,*) 'variables = "x", "y", "z", "phi"'; 
+
+write(2,*) 'variables = "x", "y", "z", "phi", "brindex"'; 
+
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+
 nf,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
 do k=1,nz
   do j=1,ny
     do i=1,nx
-      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi
+      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex
     enddo
   enddo
 enddo
@@ -151,7 +212,7 @@ close(2)
 !  Create plt file the hard way
 !    write(fpreplt,*) 'preplot ',ftec,' && rm -v ', ftec
 !    call system(fpreplt);
-write(*,*) 'gcs_t%phi = ', gcs_t%phi 
+!write(*,*) 'gcs_t%phi = ', gcs_t%phi 
 
 stop
 
@@ -169,55 +230,7 @@ double precision function magnitude_vector_2d(vector)
   return
 end function magnitude_vector_2d
 
-subroutine min_dist_to_ellipse(a,b,xy,dist)
-!  This subroutine computes the minimum distance to an ellipse with origin
-!  x0,y0 = 0,0. 
-use error
-use root
-implicit none
 
-integer, parameter :: rmax = 4  ! maximum number of roots of ellipse
-double precision, intent(IN) :: a,b,xy(2)
-double precision, intent(OUT) :: dist
-integer :: icount
-double precision :: aa,bb,cc,dd,ee,dist_chk
-double complex, dimension(rmax) :: rx, ry
-double precision, dimension(rmax) :: drx, dry
-
-!  Initialize distance value
-dist = huge(1.)
-!  Set up coefficients for minimum dist calculations
-aa=b*b*(b*b-a*a)
-bb=2.*a**2*b**2*(b*b-a*a)*xy(1)
-cc=a**4*b**2*xy(1)**2+a**2*b**4*xy(2)**2 - a**2*b**2*(b**2-a**2)
-dd=-2.*a**4*b**2*(b**2-a**2)*xy(1)
-ee=-a**6*b**2*xy(1)**2
-
-call RootPol(bb/aa,cc/aa,dd/aa,ee/aa,rx(1),rx(2),rx(3),rx(4))
-!  Compute corresponding y values for the roots
-do i=1,rmax
-  ry(i) = xy(2)/(1 - (rx(i) - xy(1))/rx(i)*a**2/b**2)
-enddo
-drx = dble(rx)
-dry = dble(ry)
-!  Initialize counter for finding exclusively real roots
-icount=0
-do i=1,rmax
-  if(dimag(rx(i)) <= thresh) then
-    icount=icount+1
-    dist_chk = magnitude_vector_2d((/drx(i) - xy(1),dry(i) - xy(2)/))
-!    write(*,*) 'dist_chk = ', dist_chk
-    if(dist_chk < dist) dist = dist_chk
-  endif
-enddo
-
-if(icount == 0) then
-  write(*,*) 'Error: No exclusively real roots found!'
-  stop
-endif
-
-return
-end subroutine min_dist_to_ellipse
 
 end program cylinder_skew
 
