@@ -12,7 +12,7 @@ double precision :: eck
 double precision, parameter :: pi = dacos(-1.)
 !double precision, parameter :: skew_angle=30.*pi/180. !  In radians
 !double precision, parameter :: crad = 0.1 !  Cylinder radius
-double precision, parameter :: a=2., b=2.1
+double precision, parameter :: a=2., b=1.
 inside=0.
 phi=huge(1.)
 

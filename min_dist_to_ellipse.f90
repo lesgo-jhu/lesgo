@@ -1,4 +1,4 @@
-subroutine min_dist_to_ellipse(a,b,xy,dist)
+subroutine min_dist_to_ellipse(a,b,u,v,dist)
 !  This subroutine computes the minimum distance to an ellipse with origin
 !  x0,y0 = 0,0. 
 use error
@@ -9,16 +9,18 @@ integer :: i
 logical :: inside
 integer, parameter :: rmax = 4  ! maximum number of roots of ellipse
 double precision, intent(IN) :: a,b
-double precision :: xy(2)
 double precision, intent(OUT) :: dist
+double precision :: u,v
 integer :: icount
 double precision :: aa,bb,cc,dd,ee,dist_chk,rx,ry,rtmax,eck
 double complex, dimension(rmax) :: rt
 !double precision, dimension(rmax) :: drx, dry
 double precision, parameter :: thresh = 1.e-12
 
-!  Because ellipse is symmetrical
-xy=dabs(xy)
+!!  Because ellipse is symmetrical
+!xy=dabs(xy)
+
+write(*,*) 'xy = ', xy
 !  Initialize distance value
 dist = huge(1.)
 inside=.false.
@@ -28,11 +30,11 @@ eck = (xy(1)/a)**2 + (xy(2)/b)**2
 if(eck <= 1.) inside=.true.
 
 !  Check if x < thresh
-if(xy(1) <= thresh) then
-  dist = dabs(xy(2) - b)
-elseif(xy(2) <= thresh) then
-  dist = dabs(xy(1) - a)
-elseif(xy(1) <= thresh .and. xy(2) <= thresh) then
+if(dabs(xy(1)) <= thresh) then
+  dist = xy(2) - b
+elseif(dabs(xy(2)) <= thresh) then
+  dist = xy(1) - a
+elseif(dabs(xy(1)) <= thresh .and. dabs(xy(2)) <= thresh) then
 !  At the origin
   dist = a
 else
@@ -57,6 +59,7 @@ else
   enddo
 
   dist = magnitude_vector_2d((/rx - xy(1),ry - xy(2)/))
+  if(inside) dist = -dist
 
   if(icount == 0) then
     write(*,*) 'Error: No exclusively real roots found!'
@@ -65,7 +68,7 @@ else
 
 endif
 
-if(inside) dist = -dist
+
 
 return
 
