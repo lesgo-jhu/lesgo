@@ -3,16 +3,16 @@ program test
 implicit none
 
 integer :: i,j
-integer, parameter :: Nx=64, Ny=64
+integer, parameter :: Nx=256, Ny=256
 double precision, parameter :: xmin = -4, xmax=4
 double precision, parameter :: ymin = -4, ymax=4
 double precision :: x(Nx), y(Ny), dx, dy
 double precision :: phi(Nx,Ny),inside(Nx,Ny)
 double precision :: eck
 double precision, parameter :: pi = dacos(-1.)
-!double precision, parameter :: skew_angle=30.*pi/180. !  In radians
-!double precision, parameter :: crad = 0.1 !  Cylinder radius
-double precision, parameter :: a=2., b=1.
+double precision, parameter :: eps = 1.e-9
+double precision, parameter :: a=2., b=2.
+
 inside=0.
 phi=huge(1.)
 
@@ -32,7 +32,7 @@ do j=1,Ny
   do i=1,Nx
     eck = (x(i)/a)**2 + (y(j)/b)**2
 	if(eck <= 1.) inside(i,j) = 1.
-    call min_dist_to_ellipse(a,b,(/x(i),y(j)/), phi(i,j))
+    call min_dist_to_ellipse(a,b,x(i),y(j), eps,phi(i,j))
 	!phi(i,j) = dabs(phi(i,j))
 	!if(inside(i,j) > 0.) phi(i,j) = 0.
   enddo
