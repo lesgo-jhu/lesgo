@@ -8,16 +8,20 @@ implicit none
 integer :: i
 logical :: inside
 integer, parameter :: rmax = 4  ! maximum number of roots of ellipse
-double precision, intent(IN) :: a,b,xy(2)
+double precision, intent(IN) :: a,b
+double precision :: xy(2)
 double precision, intent(OUT) :: dist
 integer :: icount
-double precision :: aa,bb,cc,dd,ee,dist_chk,rx,ry,rtmax
+double precision :: aa,bb,cc,dd,ee,dist_chk,rx,ry,rtmax,eck
 double complex, dimension(rmax) :: rt
 !double precision, dimension(rmax) :: drx, dry
 double precision, parameter :: thresh = 1.e-12
 
+!  Because ellipse is symmetrical
+xy=dabs(xy)
 !  Initialize distance value
 dist = huge(1.)
+inside=.false.
 
 !  Check if inside
 eck = (xy(1)/a)**2 + (xy(2)/b)**2
