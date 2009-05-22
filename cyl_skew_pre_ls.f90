@@ -29,9 +29,10 @@ type(vector) :: vgcs_t
 
 integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
+double precision, parameter :: eps = 1.e-6
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=60*pi/180. !  In radians
+double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
@@ -71,7 +72,7 @@ do k=1,Nz
 enddo
 
 !  Specify global vector to origin of lcs 
-lgcs_t%xyz=(/ 0.333, 0.5, 0.25 /)
+lgcs_t%xyz=(/ .5, 0.5, 0.25 /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse
@@ -114,24 +115,19 @@ do k=1,Nz
 !  Check if the point lies in the cylinder circle
 	  circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
 	  if(circk < crad**2) incir = .true.
+!  Check if point is in cylinder	  
 	  if(btplanes .and. incir) incyl = .true.	 
 	  
 !  Check if point lies in top ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-
 	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-		
 	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
-
       if(eck <= 1) inte=.true.
 	  
 !  Check if point lies in bottom ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-
 	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-		
 	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
-
       if(eck <= 1) inbe=.true.	  
 	  
 	  !  Compute the location on the cylinder surface that corresponds
@@ -149,38 +145,54 @@ do k=1,Nz
 !  Check if between cutting planes
       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
 		dist = magnitude_vector_3d(lcs_t%xyz - slcs_t%xyz)		
-		  !  Check if inside of cylinder
+
 		if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
 		  gcs_t(i,j,k)%phi = dist
 		endif
 	  else
-        if(.not. inte .and. .not. inbe) then
-	    !  Check if point above or below cutoff planes
-	      if(gcs_t(i,j,k)%xyz(3) > tplane) then
-		    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-          else
-		    vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-	      endif
-!  Get vector in ellipse coordinate system		  
+
+	    if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
+		  
+  		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+		  
+		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-		
-          call min_dist_to_ellipse(a,b,ecs_t%xyz(1:2), dist)
+ 		
+          call min_dist_to_ellipse(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
           dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
 
-		  if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
-		    gcs_t(i,j,k)%phi = dist 
+		  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  		    gcs_t(i,j,k)%phi = dist 
             gcs_t(i,j,k)%brindex = 1.
           endif
+		
+		elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+		  
+		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+		  
+		  		  !  Get vector in ellipse coordinate system		  
+ 		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+ 		
+          call min_dist_to_ellipse(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
-        endif   
+          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+
+		  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  		    gcs_t(i,j,k)%phi = dist 
+            gcs_t(i,j,k)%brindex = 1.
+          endif
+			
+		endif
+
+
 	
 	  endif
 !  Check also if the point lies on the ellipses
           
       if(inte) then
 	    dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
-	    if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+	    if(dist < dabs(gcs_t(i,j,k)%phi)) then
   		  gcs_t(i,j,k)%phi = dist
 		endif
 	  endif
@@ -191,6 +203,7 @@ do k=1,Nz
   		  gcs_t(i,j,k)%phi = dist
 		endif
 	  endif	
+	  
 	 if(incyl) then
 	   gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
 	   gcs_t(i,j,k)%brindex = 1
