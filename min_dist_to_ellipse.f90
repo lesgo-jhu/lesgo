@@ -6,6 +6,7 @@ use root
 implicit none
 
 integer :: i
+logical :: inside
 integer, parameter :: rmax = 4  ! maximum number of roots of ellipse
 double precision, intent(IN) :: a,b,xy(2)
 double precision, intent(OUT) :: dist
@@ -18,16 +19,23 @@ double precision, parameter :: thresh = 1.e-12
 !  Initialize distance value
 dist = huge(1.)
 
+!  Check if inside
+eck = (xy(1)/a)**2 + (xy(2)/b)**2
+if(eck <= 1.) inside=.true.
+
 !  Check if x < thresh
 if(xy(1) <= thresh) then
   dist = dabs(xy(2) - b)
 elseif(xy(2) <= thresh) then
   dist = dabs(xy(1) - a)
+elseif(xy(1) <= thresh .and. xy(2) <= thresh) then
+!  At the origin
+  dist = a
 else
 
-  aa=2*b**2 + 2*a**2
+  aa=2.*(a**2 + b**2)
   bb=b**4 + 4*a**2*b**2 + a**4 - a**2*xy(1)**2 - b**2*xy(2)**2
-  cc = 2*a**2*b**4 + 2*a**4*b**2 - 2*a**2*b**2*xy(1)**2 - 2*a**2*b**2*xy(2)**2
+  cc = 2*(a**2*b**4 + a**4*b**2 - a**2*b**2*xy(1)**2 - a**2*b**2*xy(2)**2)
   dd = a**4*b**4 - a**2*b**4*xy(1)**2 - a**4*b**2*xy(2)**2
   call RootPol(aa,bb,cc,dd,rt(1),rt(2),rt(3),rt(4))
 
@@ -52,6 +60,8 @@ else
   endif
 
 endif
+
+if(inside) dist = -dist
 
 return
 
