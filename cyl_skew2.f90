@@ -27,7 +27,7 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=128
+integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: eps = 1.e-6
 double precision :: zrot_angle 
@@ -79,6 +79,8 @@ do k=1,Nz
       gcs_t(i,j,k)%xyz(1)=(i-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
       gcs_t(i,j,k)%xyz(3)=(k-1)*dz
+      gcs_t(i,j,k)%phi = huge(1.)
+      gcs_t(i,j,k)%brindex=0
     enddo
   enddo
 enddo
@@ -102,10 +104,6 @@ do k=1,Nz
   
     do i=1,nx
 
-!  Initialize the distance function
-	  gcs_t(i,j,k)%phi = 1.
-      gcs_t(i,j,k)%brindex=0
-	
 	!  Intialize flags
 	  btplanes=.false.
 	  incir=.false.
@@ -226,12 +224,17 @@ do k=1,Nz
 enddo
 
 ! ----------------------------------------------------------
+!  Parameters 
 crad = .05
 clen = 0.25
+!a=crad/cos(skew_angle)
+!b=crad
+
 !  Specify global vector to origin of lcs 
 lgcs_t%xyz=etgcs_t%xyz
-zrot_angle = 180.*pi/180.
+zrot_angle = 90.*pi/180.
 axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+write(*,*) 'skew_angle = ', skew_angle
 
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
@@ -242,8 +245,8 @@ etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
 !  Top and bottom plane in gcs
 bplane=ebgcs_t%xyz(3)
 tplane=etgcs_t%xyz(3)
-
 write(*,*) 'tplane and bplane = ', tplane, bplane
+
 
 !  Loop over all global coordinates
 do k=1,Nz
@@ -251,10 +254,6 @@ do k=1,Nz
   do j=1,ny
   
     do i=1,nx
-
-!!  Initialize the distance function
-!	  gcs_t(i,j,k)%phi = 1.
-!      gcs_t(i,j,k)%brindex=0
 	
 	!  Intialize flags
 	  btplanes=.false.

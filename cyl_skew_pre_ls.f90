@@ -32,8 +32,8 @@ double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: eps = 1.e-6
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=0.*pi/180. !  In radians
-double precision, parameter :: crad = 0.1 !  Cylinder radius
+double precision, parameter :: skew_angle=30.*pi/180. !  In radians
+double precision, parameter :: crad = 0.05 !  Cylinder radius
 double precision, parameter :: clen=0.5 !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
