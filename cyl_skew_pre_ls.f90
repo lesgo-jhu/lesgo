@@ -93,7 +93,7 @@ do k=1,Nz
 
 !  Initialize the distance function
 	  gcs_t(i,j,k)%phi = 1.
-      gcs_t(i,j,k)%brindex=0	
+      gcs_t(i,j,k)%brindex=0
 	
 	!  Intialize flags
 	  btplanes=.false.

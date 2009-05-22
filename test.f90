@@ -4,12 +4,14 @@ implicit none
 
 double precision :: x,y,dist,theta
 double precision, parameter :: pi = dacos(-1.)
-double precision, parameter :: skew_angle=15.*pi/180. !  In radians
+double precision, parameter :: skew_angle=30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.1 !  Cylinder radius
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
-x=-sqrt(3.)/2.
-y=-1./2.
+!x=-sqrt(3.)/2.
+!y=-1./2.
+x=2.*crad
+y=0.
 write(*,*) 'a, b = ', a,b
 write(*,*) 'circle check = ', dsqrt(x**2 + y**2) - crad
 call min_dist_to_ellipse(a,b,(/x,y/), dist)
