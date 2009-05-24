@@ -144,7 +144,7 @@ do k=1,Nz
 	  
 !  Check if between cutting planes
       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-		dist = magnitude_vector_3d(lcs_t%xyz - slcs_t%xyz)		
+		call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)		
 
 		if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
 		  gcs_t(i,j,k)%phi = dist
@@ -158,9 +158,11 @@ do k=1,Nz
 		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call min_dist_to_ellipse(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
-          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+          !dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+
+          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
 		  if(dist < dabs(gcs_t(i,j,k)%phi)) then
   		    gcs_t(i,j,k)%phi = dist 
@@ -171,12 +173,14 @@ do k=1,Nz
 		  
 		  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
 		  
-		  		  !  Get vector in ellipse coordinate system		  
+		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call min_dist_to_ellipse(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
-          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+!          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+
+          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
 		  if(dist < dabs(gcs_t(i,j,k)%phi)) then
   		    gcs_t(i,j,k)%phi = dist 
@@ -243,22 +247,6 @@ close(2)
 !write(*,*) 'gcs_t%phi = ', gcs_t%phi 
 
 stop
-
-contains
-
-double precision function magnitude_vector_3d(vector)
-  double precision, dimension(3), intent(IN) :: vector
-  magnitude_vector_3d = dsqrt(vector(1)*vector(1) + vector(2)*vector(2) + vector(3)*vector(3))
-  return
-end function magnitude_vector_3d
-
-double precision function magnitude_vector_2d(vector)
-  double precision, dimension(2), intent(IN) :: vector
-  magnitude_vector_2d = dsqrt(vector(1)*vector(1) + vector(2)*vector(2))
-  return
-end function magnitude_vector_2d
-
-
 
 end program cylinder_skew
 
