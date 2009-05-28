@@ -12,7 +12,7 @@ EXE = lesgo
 ARCH = linux_intel
 FCOMP = intel
 LIBPATH = -L/opt/fftw2/lib
-LIBS = $(LIBPATH) -lrfftw -lfftw
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -24,8 +24,8 @@ USE_OPENMP = no
 USE_DYNALLOC = no
     #--still experimental
 
-USE_TREES_LS = no
-USE_LVLSET = no
+USE_TREES_LS = yes
+USE_LVLSET = yes
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
@@ -53,7 +53,22 @@ MPATH = mod
 ifeq ($(FCOMP),intel)
   FPP += -DIFORT
   FC = ifort
-  #FFLAGS = -O0 -traceback -g
+#  FFLAGS = -O0 -traceback -g -r8
+#  FFLAGS = -O0 -check all -g -traceback -debug all
+#  FFLAGS = -fast
+#  FFLAGS = -O3 -ipo
+  FFLAGS = -O3 -r8
+#  FFLAGS = -O2
+  FFLAGS += -warn all 
+  #FDEBUG = -g -debug all
+  FPROF = -p
+  LDFLAGS = -static -threads
+  MODDIR = -I$(MPATH) -module $(MPATH)  
+  FFLAGS += $(MODDIR)
+endif
+ifeq ($(FCOMP),gfortran)
+  FPP += -DGFORTRAN
+  FC = gfortran
   FFLAGS = -O2
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
@@ -89,8 +104,8 @@ endif
 
 
 SRCS =  \
-	bottombc.f90 \
-        convec.f90 \
+	bottombc.f90 compute_stats.f90 \
+        convec.f90 defs.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
@@ -100,11 +115,11 @@ SRCS =  \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \
 	main.f90 messages.f90 \
-        padd.f90 param2.f90 param.f90 press_stag.f90 \
+        padd.f90 param.f90 press_stag.f90 \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
-        sgs_stag.f90 sgsmodule.f90 sim_param.f90 \
+        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stats_init.f90 \
 	std_dynamic.f90 string_util.f90 \
         test_filtermodule.f90 topbc.f90 \
         tridag.f90 tridag_array.f90 types.f90 \
@@ -156,29 +171,27 @@ interp: interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
-trees_pre:  trees_pre.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+trees_pre:  trees_pre.f90 $(OPATH)/types.o \
             $(OPATH)/param.o $(OPATH)/messages.o \
             $(OPATH)/string_util.o \
 	    $(OPATH)/trees_base.o $(OPATH)/trees_setup.o  \
 	    $(OPATH)/trees_output.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
+	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
-trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
-               $(OPATH)/param.o $(OPATH)/messages.o \
-               $(OPATH)/string_util.o \
-               $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
+trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/messages.o \
+               $(OPATH)/string_util.o $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
 	       $(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
+	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
-trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o \
                 $(OPATH)/param.o $(OPATH)/messages.o \
                 $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
                 $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
                 $(OPATH)/trees_aprioriCD_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
+	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
-trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o \
 	        $(OPATH)/param.o $(OPATH)/sim_param_vel.o \
                 $(OPATH)/messages.o $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
@@ -187,7 +200,7 @@ trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
 		$(OPATH)/level_set_base.o $(OPATH)/trees_global_fmask_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o \
                 $(OPATH)/param.o $(OPATH)/messages.o \
                 $(OPATH)/string_util.o \
                 $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
@@ -195,7 +208,7 @@ trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o $(OPATH)/param2.o \
                 $(OPATH)/trees_post_mod_ls.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
-merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param2.o \
+merge_phi:  merge_phi.f90 $(OPATH)/types.o \
             $(OPATH)/param.o $(OPATH)/messages.o \
             $(OPATH)/string_util.o \
             $(OPATH)/trees_base_ls.o
@@ -206,5 +219,6 @@ merge_phi:  merge_phi.f90 $(OPATH)/types.o $(OPATH)/param2.o \
 # FOBJ is defined in .depend
 .PHONY : clean
 clean :
+	echo \0>./total_time.dat
 	rm -rf $(FOBJ) .depend* $(MPATH)/*.mod
 	rm -f t.*

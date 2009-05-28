@@ -3,8 +3,9 @@ use types,only:rprec
 use param
 use param2
 use sim_param
-use io, only : openfiles, output_loop, output_final, inflow_write,  &
-            avg_stats, jt_total
+!!$use io, only : output_loop, output_final, inflow_write,  &
+!!$            avg_stats
+use io, only : openfiles, output_loop, output_final, jt_total
 use fft
 use immersedbc
 use test_filtermodule
@@ -23,12 +24,12 @@ use debug_mod  !--just for debugging
 use messages
 implicit none
 
-integer,parameter::wbase=20  !--controls the frequency of screen diagnostics
-integer, parameter :: nenergy = 10  !--frequency of writes to check_ke.dat
+integer,parameter::wbase=100  !--controls the frequency of screen diagnostics
+integer, parameter :: nenergy = 1  !--frequency of writes to check_ke.dat
 
 character (*), parameter :: sub_name = 'main'
 
-logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 !--for trees_CV, we need the SGS stress, so it was moved to sim_params
 !  also, the equivalence was removed, since this overwrites what we need
@@ -47,8 +48,18 @@ $if ($MPI)
 $endif
 
 !---------------------------------------------------------------------
-
+!  Check if read inflow from file is being specified; it currently does
+!  not work
+if(inflow) then
+  write(*,*) 'Error: read inflow conditions from file has been specified!'
+  write(*,*) 'This capability does not currently work. Please set to false.'
+  stop
+endif
+!  Create output directory
+call system("mkdir -vp output")
 call sim_param_init ()
+!  Initialized statics arrays
+call stats_init
 
 $if ($MPI)
   !--check for consistent preprocessor & param.f90 definitions of 
@@ -126,7 +137,6 @@ tt=0
 !end if
 
 call initial()
-
 !--could move this into something like initial ()
 $if ($LVLSET)
   call level_set_init ()
@@ -141,7 +151,6 @@ $endif
 ! formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! initialize the kx,ky arrays
 call init_fft()
-
 ! Open output files      
 call openfiles()
 
@@ -158,7 +167,7 @@ if (ubc == 1) call setsponge()
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   print *, 'Number of timesteps', nsteps
-  print *, 'dt = ', dt
+  print *, 'dt and Cs = ', dt, cs
   if (model == 1) print *, 'Co = ', Co
   print *, 'Nx, Ny, Nz = ', nx, ny, nz
   print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
@@ -174,11 +183,11 @@ if (DEBUG) then
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
-write(*,*) 'Not entering main time loop!'
-stop
+
 !--MPI: u,v,w should be set at jz = 0:nz before getting here, except
 !  bottom process which is BOGUS (starts at 1)
 ! time Loop
+
 do jt=1,nsteps   
 
   jt_total = jt_total + 1  !--moved from io.f90
@@ -223,7 +232,6 @@ do jt=1,nsteps
   call filt_da (u, dudx, dudy)
   call filt_da (v, dvdx, dvdy)
   call filt_da (w, dwdx, dwdy)
-
    ! finite differences
    !--MPI: on exit of ddz_uv, have dudz, dvdz at 1:nz, except
    !  bottom process has 2:nz
@@ -267,8 +275,8 @@ do jt=1,nsteps
     call dns_stress(txx,txy,txz,tyy,tyz,tzz)
   else
     !--MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz
-    call sgs_stag()
-end if
+    call sgs_stag()	    
+  end if
   if(use_bldg)then
      call wallstress_building(txy,txz,tyz)
      call building_mask(u,v,w)
@@ -314,6 +322,13 @@ end if
   !--provides divtz 1:nz-1, except 1:nz at top process
   call divstress_w(divtz, txz, tyz, tzz)
 
+ ! --------- NOTE ----------
+ !  When using the ifort compiler for a 
+ !  grid resolution > 32^3, during execution
+ !  a segmentation fault is recieved somewhere 
+ !  just be for this section (JSG - 1/23/09)
+ !
+ 
   if (DEBUG) then
     call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
     call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
@@ -439,14 +454,12 @@ end if
   end if
 
   if (DEBUG) write (*, *) 'main: before press_stag'
-
   !--solve Poisson equation for pressure
   !--do we ever need p itself, or only its gradient? -> probably
   !  do not need to store p
   !call press_stag (p, dpdx, dpdy)
   !--provides p, dpdx, dpdy at 0:nz-1
   call press_stag_array (p, dpdx, dpdy)
-  write(*,*) 'dpdx = ', dpdx(1,:,2)
 
   if (DEBUG) write (*, *) 'main: after press_stag'
 
@@ -501,7 +514,7 @@ end if
 
   if (modulo (jt, nenergy) == 0) call energy (ke)
 
-  call avg_stats ()  !--only does something once every n_avg_stats steps
+!!$  call avg_stats ()  !--only does something once every n_avg_stats steps
 
   $if ($LVLSET)
     call level_set_cylinder_CD ()
@@ -535,7 +548,7 @@ end if
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
 
 end do  !--end time loop
-
+close(2)
 if (output) call output_final (jt)
 
 $if ($TREES_LS)
@@ -546,15 +559,6 @@ $if ($MPI)
   call mpi_finalize (ierr)
 $endif
 
-!  Add temporary output information
-!open(unit = 7,file = 'grid.dat')
-!write(7,*)'variables= "x", "y", "z"'
-!write(7,*)'ZONE F=POINT, i=',size(x,1),'j=',size(y,1),'k=',size(z,1)
-!do k=1,nz
-!  do j=1,ny
-!    do i=1,nx
-!      write(7,*) x(i,j,k), y(j), n, q(i,j,1), q(i,j,2)
-!enddo
-!enddo
-!enddo
+stop
+
 end program main

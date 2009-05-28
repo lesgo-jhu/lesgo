@@ -28,7 +28,7 @@ character (*), parameter :: sub_name = 'sgs_stag'
 logical, parameter :: DEBUG = .false.
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
+!real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
 real(kind=rprec),dimension(ld,ny,nz):: dissip
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
 real(kind=rprec) :: delta, nu, const
@@ -42,7 +42,6 @@ $endif
 
 integer::jx,jy,jz
 integer :: jz_min
-
 
 if (VERBOSE) call enter_sub (sub_name)
 
@@ -83,9 +82,9 @@ end if
   !               dwdx_s, dwdy_s, dwdz_s)
 
 !$else
-  call calc_Sij (dudx, dudy, dudz,  &
-                 dvdx, dvdy, dvdz,  &
-                 dwdx, dwdy, dwdz)
+  call calc_Sij ()
+ 
+				 
 !$endif
 
 if (DEBUG) then
@@ -390,11 +389,19 @@ end if
 
 if (VERBOSE) call exit_sub (sub_name)
 
+return
+end subroutine sgs_stag
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-contains
+! contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz)
+subroutine calc_Sij ()
+use Sij_defs 
+use types, only : rprec
+use sim_param,only:dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 implicit none
+
+integer::jx,jy,jz
+integer :: jz_min
 
 $if ($MPI)
   $define $lbz 0
@@ -402,12 +409,11 @@ $else
   $define $lbz 1
 $endif
 
-real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,  &
-                                             dvdx, dvdy, dvdz,  &
-                                             dwdx, dwdy, dwdz
+!real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,  &
+!                                             dvdx, dvdy, dvdz,  &
+!                                             dwdx, dwdy, dwdz
 
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
-
 !---------------------------------------------------------------------                                     
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
@@ -520,6 +526,7 @@ end do
 end do
 !$ffohmygod end parallel do
 
+return
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-end subroutine sgs_stag
+

@@ -1,31 +1,31 @@
 module param
-use types,only:rprec
-$if ($MPI)
+  use types,only:rprec
+  $if ($MPI)
   use mpi
-$endif
-implicit none
+  $endif
+  implicit none
 
-save
+  save
 
-private rprec  !--this is dumb.
-public
+  private rprec  !--this is dumb.
+  public
 
-!--mpi stuff
-$if ($MPI)
+  !--mpi stuff
+  $if ($MPI)
   $define $MPI_LOGICAL .true.
   $define $NPROC 4
-$else
+  $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
-$endif
+  $endif
 
-logical, parameter :: USE_MPI = $MPI_LOGICAL
+  logical, parameter :: USE_MPI = $MPI_LOGICAL
 
-$undefine $MPI_LOGICAL
+  $undefine $MPI_LOGICAL
 
-$if ($MPI)
+  $if ($MPI)
   integer :: status(MPI_STATUS_SIZE)
-$endif
+  $endif
 
 character (*), parameter :: path = './'
 
@@ -56,7 +56,9 @@ real (rprec), parameter :: BOGUS = -1234567890._rprec
 real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
 
-                            !--L_z is not nondimensionalized by z_i yet
+!  U intialization for non-log profile IC
+logical, parameter :: ic_const = .false.
+real (rprec), parameter :: u_ic = 20.0/u_star, v_ic=0., w_ic=0.
                   
 
 
@@ -108,7 +110,5 @@ real(kind=rprec),parameter::g=9.81_rprec, inv_strength=0._rprec
 real(kind=rprec),parameter::theta_top=300._rprec,T_scale=300._rprec&
                             ,wt_s=20._rprec,T_init=300._rprec
 real(kind=rprec),parameter::cap_thick=80._rprec, z_decay=1._rprec
-
-
 
 end module param
