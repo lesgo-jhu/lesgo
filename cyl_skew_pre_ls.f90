@@ -27,14 +27,14 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=64
+integer, parameter :: Nx=128, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: eps = 1.e-6
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=30.*pi/180. !  In radians
-double precision, parameter :: crad = 0.05 !  Cylinder radius
-double precision, parameter :: clen=0.5 !  Cylinder length
+double precision, parameter :: skew_angle=60.*pi/180. !  In radians
+double precision, parameter :: crad = 0.2 !  Cylinder radius
+double precision, parameter :: clen=0.75 !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
 logical :: inside, incir, incyl, inte, inbe, btplanes
@@ -45,7 +45,7 @@ integer :: i,j,k,nf
 
 double precision :: eck
 
-double precision, parameter :: xmin=0., xmax=1., dx=(xmax-xmin)/(Nx-1)
+double precision, parameter :: xmin=0., xmax=2., dx=(xmax-xmin)/(Nx-1)
 double precision, parameter :: ymin=0., ymax=1., dy=(ymax-ymin)/(Ny-1)
 double precision, parameter :: zmin=0., zmax=1., dz=(zmax-zmin)/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
@@ -72,7 +72,7 @@ do k=1,Nz
 enddo
 
 !  Specify global vector to origin of lcs 
-lgcs_t%xyz=(/ .5, 0.5, 0.25 /)
+lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse
