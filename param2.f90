@@ -1,5 +1,6 @@
 module param2
 use types,only:rprec
+
 !  geometry
 integer :: nx,ny,nz
 double precision ::L_x, L_y, L_z, z_i
@@ -37,13 +38,20 @@ integer :: nz_tot,nx2,ny2,lh,ld,lh_big,ld_big,jt,jt_total
 real(rprec) :: dx,dy,dz,coriol,ug,vg,mean_p_force
 
 namelist/geometry/nx,ny,nz,L_x,L_y,L_z,z_i
+
 namelist/tparam/dt,nsteps
+
 namelist/coriolis/coriolis_forcing,u_star,Pr
+
 namelist/io/output,use_avgslice,read_inflow_file, &
   write_inflow_file, c_count,p_count,cs_count,jt_start_write
+
 namelist/ic/initu,inilag
+
 namelist/pparam/use_bldg,molec,sgs,dns_bc,nu_molec
+
 namelist/les/model,models,nnn,ifilter,Co
+
 namelist/bc/inflow,use_fringe_forcing,lbc_mom,ubc  
 
 end module param2

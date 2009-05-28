@@ -56,9 +56,9 @@ real (rprec), parameter :: BOGUS = -1234567890._rprec
 real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
 
-!  U intialization for non-log profile IC
-logical, parameter :: ic_const = .false.
-real (rprec), parameter :: u_ic = 20.0/u_star, v_ic=0., w_ic=0.
+!!  U intialization for non-log profile IC
+!logical, parameter :: ic_const = .false.
+!real (rprec), parameter :: u_ic = 20.0/u_star, v_ic=0., w_ic=0.
                   
 
 

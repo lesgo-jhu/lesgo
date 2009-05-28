@@ -2,7 +2,8 @@ module bottombc
 use types,only:rprec
 use param,only:S_FLAG
 use param2,only:nx,ny,ld
-implicit none
+!implicit none
+
 private
 public zo_avg,num_patch,zot,zo,phi_m,psi_m,phi_h,psi_h,&
      patches,avgpatch,T_s,q_s,q_mix
