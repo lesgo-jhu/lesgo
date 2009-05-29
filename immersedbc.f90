@@ -8,7 +8,8 @@ public n_bldg,bldg_pts,fx,fy,fz,u_des,v_des,w_des&
      ,wallstress_building,walldudx_building
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
-real(kind=rprec),dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
+!real(kind=rprec), dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
+real(kind=rprec), allocatable, dimension(:,:,:)::fx,fy,fz,u_des,v_des,w_des
 logical,parameter::callag=.false.
 !--is this for the building or what?
 real(kind=rprec),parameter::zo_avg=2._rprec
@@ -20,7 +21,8 @@ subroutine building_mask(u,v,w)
 implicit none
 integer::px,py,lx,ly,lz
 integer::i
-real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
+!real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
+
 ! this sets pressure grad's inside bldg's
 do i=1,n_bldg
    px=bldg_pts(1,i)
@@ -126,7 +128,7 @@ end subroutine building_mask_one
 
 subroutine walldudx_building
 use types,only:rprec
-use param2,only:vonk
+use param,only:vonk
 use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
 use sim_param,only:u,v,w,dudx,dvdx,dwdx,dudy,dvdy,dwdy,dudz,dvdz,dwdz
 implicit none
@@ -257,7 +259,7 @@ end subroutine walldudx_building
 
 subroutine wallstress_building(txy,txz,tyz)
 use types,only:rprec
-use param2,only:vonk
+use param,only:vonk
 use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
 use sim_param,only:u,v,w
 implicit none

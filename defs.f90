@@ -130,3 +130,10 @@ implicit none
 real(kind=rprec),allocatable, dimension(:,:) :: G_test,G_test_test
 
 end module test_filtermodule_defs
+
+!**********************************************************************
+module immersedbc_defs
+!**********************************************************************
+!  This module contains the allocatable arrays from the immersedbc module
+use types, only : rprec
+implicit none
