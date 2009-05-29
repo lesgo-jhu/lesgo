@@ -59,7 +59,9 @@ endif
 call system("mkdir -vp output")
 call sim_param_init ()
 !  Initialized statics arrays
-call stats_init
+call stats_init()
+!  Allocate arrays based on input values
+call alloc()
 
 $if ($MPI)
   !--check for consistent preprocessor & param.f90 definitions of 
