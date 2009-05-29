@@ -7,11 +7,12 @@ subroutine alloc()
 
 use convec_defs
 use test_filtermodule_defs
-use param2,only:nx,ny,nz,ld,lh,ld_big,ny2
+use param2,only:nx,ny,nz,ld,lh,ld_big,ny2,ubc
 !use bottombc, only : zo,patch,num_patch,use_default_patch
 use bottombc
 use fft, only : kx, ky, k2
 use immersedbc, only : alloc_immersedbc
+use io, only : alloc_io
 
 $if ($LVLSET)
 use Sij_defs
@@ -22,7 +23,7 @@ $endif
 $if ($TREES_LS)
 use trees_global_fmask_ls, only : alloc_trees_global_fmask_ls
 use trees_ls, only : alloc_trees_ls
-$end
+$endif
 
 implicit none
 
@@ -36,6 +37,12 @@ $endif
 
 !  allocate arrays for bottombc
 call alloc_bottombc()
+
+!  Allocate arrays for topbc
+if(ubc==1)  call alloc_topbc()
+
+!  Allocate arrays for io
+call alloc_io()
 
 !  Check if using Sij during level set calculations
 $if ($LVLSET)
@@ -84,6 +91,5 @@ $if ($TREES_LS)
   call alloc_trees_ls()
 $endif
 
-
-return
+!return
 end subroutine alloc

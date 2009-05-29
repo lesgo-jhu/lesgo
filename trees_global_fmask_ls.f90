@@ -9,7 +9,7 @@ private
 
 public :: global_fmask
 public :: calc_global_fmask_ta
-public :: read_global_fmask
+public :: read_global_fmask, alloc_trees_global_fmask_ls
 
 character (*), parameter :: mod_name = 'trees_global_fmask_ls'
 character (*), parameter :: raw_suffix = '.out'

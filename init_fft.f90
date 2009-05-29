@@ -23,6 +23,7 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
+use types, only : rprec
 use fft, only : kx, ky, k2
 use param,only:pi
 use param2,only:lh,nx,ny,L_x,L_y

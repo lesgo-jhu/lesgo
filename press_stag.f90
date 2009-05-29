@@ -1,4 +1,6 @@
+!**********************************************************************
 subroutine press_stag(p_hat,dfdx,dfdy)   
+!**********************************************************************
 ! p_hat contains the physical space pressure on exit
 !-------------------    
 ! Boundary Layer version with 4th order derivs in vertical.
@@ -33,15 +35,21 @@ $if ($MPI)
   use mpi_transpose_mod
 $endif
 implicit none      
-complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
-real(kind=rprec),dimension(ld,ny,nz)::rH_x,rH_y,rH_z
-complex(kind=rprec),dimension(lh,ny,nz)::H_x,H_y,H_z
+
+complex(kind=rprec),allocatable, dimension(:,:,:) :: p_hat
+complex(kind=rprec),allocatable, dimension(:,:,:) :: H_x,H_y,H_z
+real(kind=rprec),allocatable, dimension(:,:,:) :: rH_x,rH_y,rH_z
+
 equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
-real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
-complex(kind=rprec),dimension(lh,ny)::topw,bottomw
+
+real(kind=rprec),allocatable, dimension(:,:) :: rtopw, rbottomw
+complex(kind=rprec),allocatable, dimension(:,:)::topw, bottomw
 equivalence (rtopw,topw),(rbottomw,bottomw)
-complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
+
+complex(kind=rprec), allocatable, dimension(:,:),intent(out)::dfdx,dfdy
+
 real(kind=rprec)::const,ignore_me
+
 ! remove this stuff!
 integer::jx,jy,jz,k
 
@@ -80,6 +88,14 @@ $else
 $endif
 
 if (DEBUG) write (*, *) $str($context_doc), coord, ' started press_stag'
+
+!  Allocate local arrays
+allocate(p_hat(lh,ny,0:nz))
+allocate(H_x(lh,ny,nz),H_y(lh,ny,nz),H_z(lh,ny,nz))
+allocate(rH_x(ld,ny,nz),rH_y(ld,ny,nz),rH_z(ld,ny,nz))
+allocate(rtopw(ld,ny), rbottomw(ld,ny))
+allocate(topw(lh,ny),bottomw(lh,ny))
+allocate(dfdx(lh,ny,nz),dfdy(lh,ny,nz))
 
 !$if ($MPI)
 !  if (.not. init) then
@@ -653,4 +669,15 @@ $if ($MPI)
   end subroutine mpi_transpose_top_line
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 $endif
+
+return
+
+!  Deallocate local memory
+deallocate(p_hat)
+deallocate(H_x,H_y,H_z)
+deallocate(rH_x,rH_y,rH_z)
+deallocate(rtopw, rbottomw)
+deallocate(topw,bottomw)
+deallocate(dfdx,dfdy)
+
 end subroutine press_stag

@@ -9,11 +9,11 @@ implicit none
 save
 
 !public
-private
-public :: kx,ky,k2,eye,forw,back,forw_big,back_big
-public ::  FFTW_FORWARD, FFTW_BACKWARD,&
-     FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
-     FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+!private
+!public :: kx,ky,k2,eye,forw,back,forw_big,back_big
+!public ::  FFTW_FORWARD, FFTW_BACKWARD,&
+!     FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
+!     FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM,FFTW_THREADSAFE
 ! plans
 integer*8::forw,back,forw_big,back_big
 real(kind=rprec), allocatable, dimension(:,:)::kx,ky,k2

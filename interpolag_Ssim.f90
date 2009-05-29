@@ -1,6 +1,8 @@
 ! this is the w-node version
 !--MPI: requires u, v 0:nz, except bottom process 1:nz
+!**********************************************************************
 subroutine interpolag_Ssim ()
+!**********************************************************************
 ! This subroutine computes the values of F_LM and F_MM 
 ! at positions (x-u*dt) for use in the subroutine lagrangian
 !use sgsmodule,only:u_lag,v_lag,w_lag
@@ -32,7 +34,7 @@ $endif
 
 real(kind=rprec) :: frac_x,frac_y,frac_z
 real(kind=rprec) :: comp_x,comp_y,comp_z
-real(kind=rprec), dimension(nx+2,ny+2,nz+2) :: FF_LM,FF_MM
+real(kind=rprec), allocatable, dimension(:,:,:) :: FF_LM,FF_MM
 real(kind=rprec) :: lagran_dt, consta
 real (rprec) :: lcfl
 
@@ -40,6 +42,9 @@ integer :: addx, addy, addz
 integer :: jxaddx, jyaddy, jzaddz
 
 !---------------------------------------------------------------------
+
+!  Allocate local arrays
+allocate(FF_LM(nx+2,ny+2,nz+2),FF_MM(nx+2,ny+2,nz+2))
 
 if (VERBOSE) call enter_sub (sub_name)
 
@@ -306,5 +311,10 @@ v_lag = 0._rprec
 w_lag = 0._rprec
 
 if (VERBOSE) call exit_sub (sub_name)
+
+return
+
+!  Deallocate local arrays
+deallocate(FF_LM,FF_MM)
 
 end subroutine interpolag_Ssim

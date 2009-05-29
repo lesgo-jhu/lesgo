@@ -1,11 +1,26 @@
+!**********************************************************************
 module topbc
+!**********************************************************************
 use types,only:rprec
 use param2,only:nz
 implicit none
-real(kind=rprec),dimension(nz)::sponge
+real(kind=rprec),allocatable,dimension(:)::sponge
 
 contains
+
+!**********************************************************************
+subroutine alloc_topbc()
+!**********************************************************************
+implicit none
+
+allocate(sponge(nz))
+
+return
+end subroutine alloc_topbc
+
+!**********************************************************************
 subroutine setsponge()
+!**********************************************************************
 use param
 use param2
 implicit none

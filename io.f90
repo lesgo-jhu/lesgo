@@ -1,4 +1,6 @@
+!**********************************************************************
 module io
+!**********************************************************************
 use types,only:rprec
 use param, only :  path, USE_MPI, coord, rank, nproc
 use param2,only : ld, nx, ny, nz, nz_tot, write_inflow_file, &
@@ -9,7 +11,7 @@ private
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, output_loop, output_final
-public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
+public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2, alloc_io
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -58,7 +60,7 @@ character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 integer,parameter::jx_pls=1,jx_ple=1,width=1
 !  Set in alloc_io
 integer :: jy_pls,jy_ple
-real(kind=rprec), allocatable, dimension(:,:,:):: &
+real(kind=rprec), allocatable, dimension(:,:,:) :: &
      mean_u,mean_v,mean_w,mean_u2,mean_v2,mean_w2
 !!$
 !!$!!!!  io_lambda2
@@ -83,6 +85,7 @@ allocate(mean_u2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
 allocate(mean_v2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
 allocate(mean_w2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
 
+return
 end subroutine alloc_io
 
 !!$ Commented by JSG

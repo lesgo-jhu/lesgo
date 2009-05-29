@@ -1,5 +1,7 @@
 ! this is the w-node version
+!**********************************************************************
 subroutine interpolag_Sdep()
+!**********************************************************************
 ! This subroutine computes the values of F_LM and F_MM 
 ! at positions (x-u*dt) for use in the subroutine lagrangian
 use types,only:rprec
@@ -25,14 +27,20 @@ $endif
 
 real(kind=rprec) :: frac_x,frac_y,frac_z
 real(kind=rprec) :: comp_x,comp_y,comp_z
-real(kind=rprec), save, dimension(nx+2,ny+2,nz+2) :: FF_LM,FF_MM
-real(kind=rprec), save, dimension(nx+2,ny+2,nz+2) :: FF_QN,FF_NN
+real(kind=rprec), save, allocatable, dimension(:,:,:) :: FF_LM,FF_MM
+real(kind=rprec), save, allocatable, dimension(:,:,:) :: FF_QN,FF_NN
 
 integer :: addx, addy, addz
 integer :: jxaddx, jyaddy, jzaddz
-real(kind=rprec), save, dimension(nx+2,ny+2,nz+2) :: Beta_t
+real(kind=rprec), save, allocatable, dimension(:,:,:) :: Beta_t
 
 !---------------------------------------------------------------------
+
+!  Allocate local arrays
+allocate(FF_LM(nx+2,ny+2,nz+2),FF_MM(nx+2,ny+2,nz+2))
+allocate(FF_QN(nx+2,ny+2,nz+2),FF_NN(nx+2,ny+2,nz+2))
+allocate(Beta_t(nx+2,ny+2,nz+2))
+
 
 if (VERBOSE) write (*, *) 'started interpolag_Sdep'
 
@@ -361,5 +369,11 @@ v_lag = 0._rprec
 w_lag = 0._rprec
 
 if (VERBOSE) write (*, *) 'finished interpolag_Sdep'
+
+return
+
+!  Deallocate local arrays
+deallocate(FF_LM,FF_MM,FF_QN,FF_NN)
+deallocate(Beta_t)
 
 end subroutine interpolag_Sdep

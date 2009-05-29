@@ -325,7 +325,7 @@ real(kind=rprec):: tbeta,tnu_t
 
 !  Allocate local arrays
 allocate(atheta(nx,nz),aq(nx,nz),t2(nx,nz),q2(nx,nz),asgs_t3(nx,nz),&
-  asgs_q3(nx,nz),awt,awq(nx,nz))
+  asgs_q3(nx,nz),awt(nx,nz),awq(nx,nz))
 allocate(adTdz(nx,nz),adqdz(nx,nz),abeta(nx,nz),anu_t(nx,nz))
 
 fr=(1./p_count)*(c_count)
@@ -445,9 +445,12 @@ implicit none
 integer:: i, k, jt
 !real(kind=rprec),dimension(nx,nz):: phi_m,psi_m,phi_h,psi_h
 !real(kind=rprec),dimension(nx,nz):: L_fin,wstar_fin
-real(kind=rprec),dimension(nx,nz),save:: aphi_m,apsi_m,aphi_h,apsi_h,aL,awstar
+real(kind=rprec), allocatable, dimension(:,:),save:: aphi_m,apsi_m,aphi_h,apsi_h,aL,awstar
 real(kind=rprec):: fr
 
+!  Allocate local arrays
+allocate(aphi_m(nx,nz),apsi_m(nx,nz),aphi_h(nx,nz), &
+  apsi_h(nx,nz),aL(nx,nz),awstar(nx,nz))
 
 fr=(1./(p_count))*(c_count)
 !c ------------------------VK----------------------------------
@@ -499,6 +502,10 @@ end if
 close(48);close(49);close(50);close(52);close(53);close(54)
 
  5168     format(1400(E14.5))
+ 
+return
+
+deallocate(aphi_m,apsi_m,aphi_h,apsi_h,aL,awstar)
 
 end subroutine obukhov_slice
 

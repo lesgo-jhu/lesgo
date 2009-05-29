@@ -54,13 +54,13 @@ ifeq ($(FCOMP),intel)
   FPP += -DIFORT
   FC = ifort
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -check all -g -traceback -debug all
+  FFLAGS = -O0 -check all -g -traceback -debug all
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -r8
+#  FFLAGS = -O0 -r8
 #  FFLAGS = -O2
   FFLAGS += -warn all 
-  #FDEBUG = -g -debug all
+  FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -static -threads
   MODDIR = -I$(MPATH) -module $(MPATH)  

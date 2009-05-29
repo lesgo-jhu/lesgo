@@ -13,12 +13,12 @@ double precision :: dt
 logical :: coriolis_forcing
 double precision :: u_star, Pr
 
-!  io
+!  io_param
 logical :: output, use_avgslice,read_inflow_file, &
   write_inflow_file
 integer :: c_count, p_count, cs_count, jt_start_write
 
-!  ic
+!  ic_param
 logical :: initu, inilag
 
 !  pparam
@@ -27,7 +27,7 @@ double precision :: nu_molec
 
 !  les
 integer :: model,models,nnn, ifilter
-double precision ::Co
+double precision ::Co,cs
 
 !  bc
 logical :: inflow, use_fringe_forcing
@@ -43,10 +43,10 @@ namelist/tparam/dt,nsteps
 
 namelist/coriolis/coriolis_forcing,u_star,Pr
 
-namelist/io/output,use_avgslice,read_inflow_file, &
+namelist/io_param/output,use_avgslice,read_inflow_file, &
   write_inflow_file, c_count,p_count,cs_count,jt_start_write
 
-namelist/ic/initu,inilag
+namelist/ic_param/initu,inilag
 
 namelist/pparam/use_bldg,molec,sgs,dns_bc,nu_molec
 
