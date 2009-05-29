@@ -1,4 +1,6 @@
+!**********************************************************************
 module level_set
+!**********************************************************************
 use types, rp => rprec
 use param
 use param2
@@ -17,7 +19,7 @@ private
 public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
 public :: level_set_cylinder_CD, level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
-public :: phi
+public :: phi, alloc_level_set
 
 character (*), parameter :: mod_name = 'level_set'
 
@@ -44,17 +46,17 @@ $else
 $endif
 
 !--these are the extra overlap arrays required for BC with MPI
-real (rp), dimension (ld, ny, nphitop) :: phitop
-real (rp), dimension (ld, ny, nphibot) :: phibot
-real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
-real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
-real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
+real (rp), allocatable, dimension (:,:,:) :: phitop
+real (rp), allocatable, dimension (:,:,:) :: phibot
+real (rp), allocatable, dimension (:,:,:) :: utop, vtop, wtop
+real (rp), allocatable, dimension (:,:,:) :: ubot, vbot, wbot
+real (rp), allocatable, dimension (:,:,:) :: txxtop, txytop, txztop,  &
                                           tyytop, tyztop, tzztop
-real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
+real (rp), allocatable, dimension (:,:,:) :: txxbot, txybot, txzbot,  &
                                           tyybot, tyzbot, tzzbot
 !--really only needed for Lagrangian SGS models
-real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
-real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
+real (rp), allocatable, dimension (:,:,:) :: FMMbot
+real (rp), allocatable, dimension (:,:,:) :: FMMtop
 
 logical, parameter :: DEBUG = .false.
 logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
@@ -74,27 +76,75 @@ real (rp), parameter :: z0 = 0.0001_rp
 logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
 
+real (rp) :: phi_cutoff
+real (rp) :: phi_0
+!real (rp) :: phi(ld, ny, $lbz:nz)
+
+real(rp), allocatable, dimension(:,:,:,:) :: norm !--normal vector
+                                  !--may want to change so only normals
+                                  !  near 0-set are stored						  
+!--experimental: desired velocities for IB method
+real(rp), allocatable, dimension(:,:,:) :: udes, vdes, wdes
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+contains
+
+!**********************************************************************
+subroutine alloc_level_set()
+!**********************************************************************
+implicit none
+
+!--these are the extra overlap arrays required for BC with MPI
+allocate(phitop(ld, ny, nphitop))
+allocate(phibot(ld, ny, nphibot))
+allocate(utop(ld, ny, nveltop)) 
+allocate(vtop(ld, ny, nveltop)) 
+allocate(wtop(ld, ny, nveltop)) 
+
+allocate(ubot(ld, ny, nvelbot)) 
+allocate(vbot(ld, ny, nvelbot)) 
+allocate(wbot(ld, ny, nvelbot)) 
+
+allocate(txxtop(ld,ny,ntautop))
+allocate(txytop(ld,ny,ntautop))
+allocate(txztop(ld,ny,ntautop))
+allocate(tyytop(ld,ny,ntautop))
+allocate(tyztop(ld,ny,ntautop))
+allocate(tzztop(ld,ny,ntautop))
+
+allocate(txxbot(ld,ny,ntaubot))
+allocate(txybot(ld,ny,ntaubot))
+allocate(txzbot(ld,ny,ntaubot))
+allocate(tyybot(ld,ny,ntaubot))
+allocate(tyzbot(ld,ny,ntaubot))
+allocate(tzzbot(ld,ny,ntaubot))
+
+!  Check if using Lagrangian SGS model										  
+if(model == 4 .or. model == 5) then										  
+!--really only needed for Lagrangian SGS models
+  allocate(FMMbot(ld,ny,nFMMbot))
+  allocate(FMMtop(ld,ny,nFMMtop))
+endif
+
 $if ($MPI)
   $define $lbz 0
 $else
   $define $lbz 1
 $endif
 
-real (rp) :: phi_cutoff
-real (rp) :: phi_0
-!real (rp) :: phi(ld, ny, $lbz:nz)
-real (rp) :: norm(nd, ld, ny, $lbz:nz) !--normal vector
-                                  !--may want to change so only normals
-                                  !  near 0-set are stored
-!--experimental: desired velocities for IB method
-real (rp) :: udes(ld, ny, $lbz:nz), vdes(ld, ny, $lbz:nz), wdes(ld, ny, $lbz:nz)
+allocate(norm(nd, ld, ny, $lbz:nz))
+allocate(udes(ld, ny, $lbz:nz), vdes(ld, ny, $lbz:nz), wdes(ld, ny, $lbz:nz))
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-contains
+return
+end subroutine alloc_level_set
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--sets Cs2 to epsilon inside solid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine level_set_Cs_lag_dyn ()
+!**********************************************************************
 use sgsmodule, only : Cs_opt2
 implicit none
 
@@ -144,7 +194,9 @@ end subroutine level_set_Cs_lag_dyn
 !  * zeroes F_LM inside solid
 !  * applies neumann condition on F_MM at solid surface
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
+!**********************************************************************
 use sim_param, only : u, v, w
 implicit none
 
@@ -188,8 +240,9 @@ if (VERBOSE) call exit_sub (sub_name)
 
 end subroutine level_set_lag_dyn
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine modify_beta ()
+!**********************************************************************
 use sgsmodule, only : beta
 implicit none
 
@@ -253,7 +306,9 @@ end subroutine modify_beta
 !--only applies neumann condition to 1:nz-1 though, so additional
 !  sync between nz and 1' is needed
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine neumann_F_MM ()
+!**********************************************************************
 use sgsmodule, only : F_MM
 implicit none
 
@@ -548,7 +603,7 @@ character (128) :: fname
 
 integer :: i, j, k
 !--experiment to reduce time spent on looping over fluid pts
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer, save :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 integer :: nbad
 integer :: kmn
@@ -566,6 +621,12 @@ real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
+
+!  Moved from declarations (where save was used)
+imn=1
+imx=nx
+jmn=1
+jmx=ny
 
 if (VERBOSE) call enter_sub (sub_name)
 
@@ -3482,7 +3543,7 @@ character (128) :: fname
 integer :: i, j, k
 integer :: kmin, kmax
 !--experiment for skipping unsed points
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer, save :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 
 logical :: output
@@ -3497,6 +3558,12 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 real (rp) :: x(nd), xv(nd)
 
 !---------------------------------------------------------------------
+
+!  Moved from declarations (where save was used)
+imn = 1
+imx = nx
+jmn = 1
+jmx = ny
 
 if (VERBOSE) call enter_sub (sub_name)
 

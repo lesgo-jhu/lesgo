@@ -5,10 +5,6 @@ subroutine alloc()
 !  does not include all of the allocatable arrays in the code
 !  however.
 
-!$if (LVLSET)
-use Sij_defs
-!$endif
-
 use convec_defs
 use test_filtermodule_defs
 use param2,only:nx,ny,nz,ld,lh,ld_big,ny2
@@ -17,9 +13,18 @@ use bottombc
 use fft, only : kx, ky, k2
 use immersedbc, only : alloc_immersedbc
 
-implicit none
+$if ($LVLSET)
+use Sij_defs
+use level_set_base, only : alloc_level_set_base
+use level_set, only : alloc_level_set
+$endif
 
-character(len=3)::trash
+$if ($TREES_LS)
+use trees_global_fmask_ls, only : alloc_trees_global_fmask_ls
+use trees_ls, only : alloc_trees_ls
+$end
+
+implicit none
 
 !  Check if running in parallel; allocate lower bounds
 !  of z index accordingly (by virtue of fpx3)
@@ -29,32 +34,15 @@ $else
   $define $lbz 1
 $endif
 
-!  Allocate arrays for patches() in bottombc.f90
-allocate(zo(nx,ny))
-if(.not. use_default_patch) then
-  allocate(patch(nx,ny))
-  allocate(T_s(nx,ny))
-  allocate(q_s(nx,ny))
-  
-!  Load patch data
-  open(1,file='patch.dat',position='rewind')
-  read(1,*)trash
-  read(1,*)trash
-  read(1,*)trash
-  read(1,*)num_patch  
-  
-!  Allocate appropriate arrays  
-  allocate(zot(num_patch,5))
-  allocate(patchnum(num_patch))  
-  
-endif
+!  allocate arrays for bottombc
+call alloc_bottombc()
 
 !  Check if using Sij during level set calculations
-!$if (LVLSET)
+$if ($LVLSET)
 allocate(S11(ld, ny, nz), S12(ld, ny, nz))
 allocate(S22(ld, ny, nz), S33(ld, ny, nz))
 allocate(S13(ld, ny, nz), S23(ld, ny, nz))
-!$endif
+$endif
 
 !  Allocate arrays for fft module
 allocate(kx(lh,ny),ky(lh,ny),k2(lh,ny))
@@ -78,6 +66,24 @@ call alloc_immersedbc()
 
 !  Allocate arrays for sgsmodule
 call alloc_sgsmodule()
+
+!  Allocate arrays for scalars_module
+call alloc_scalars_module()
+
+!  Allocate arrays for level_set_base and level_set
+$if ($LVLSET)
+call alloc_level_set_base()
+call alloc_level_set()
+$endif
+
+
+$if ($TREES_LS)
+!  Allocate arrays for trees_global_fmask_ls
+  call alloc_trees_global_fmask_ls ()
+!  Allocate arrays for trees_ls
+  call alloc_trees_ls()
+$endif
+
 
 return
 end subroutine alloc

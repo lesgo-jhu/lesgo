@@ -34,7 +34,7 @@ $endif
 public :: trees_ls_calc, trees_ls_finalize, trees_ls_init
 public :: trees_ls_calc_init, apriori
 public :: brindex, brindex_initialized
-public :: phi
+public :: phi, alloc_trees_ls
 
 character (*), parameter :: mod_name = 'trees_ls'
 
@@ -82,7 +82,8 @@ logical, parameter :: use_local_vel = .true.
 logical, parameter :: use_global_fmask = .false.
 
 logical :: brindex_initialized = .false.
-integer :: brindex(ld, ny, nz)
+integer, allocatable, dimension(:,:,:) :: brindex
+
 integer :: wksp_size(nd)  !--only the first 3 dimensions of wksp
 integer :: max_res_gen
 
@@ -114,8 +115,20 @@ $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
+subroutine alloc_trees_ls()
+!**********************************************************************
+implicit none
+
+allocate(brindex(ld, ny, nz))
+
+return
+end subroutine alloc_trees_ls
+
+!**********************************************************************
 subroutine trees_ls_calc_init ()
+!**********************************************************************
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.trees_ls_calc_init'

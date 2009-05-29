@@ -1,5 +1,6 @@
 module scalars_module2
 use types,only:rprec
+use param
 use param2, jt_global => jt  !--rename jt to avoid naming conflicts here
                             !--only needed since jt added to params
 use bottombc,only:T_s,q_s,q_mix,zo_avg,phi_m,psi_m,phi_h,psi_h
@@ -317,10 +318,15 @@ use scalars_module
 implicit none
 integer :: jt
 integer:: i, j, k
-real(kind=rprec),dimension(nx,nz),save:: atheta,aq,t2,q2,asgs_t3,asgs_q3,awt,awq
-real(kind=rprec),dimension(nx,nz),save:: adTdz,adqdz,abeta,anu_t
+real(kind=rprec), allocatable, dimension(:,:), save :: atheta,aq,t2,q2,asgs_t3,asgs_q3,awt,awq
+real(kind=rprec), allocatable, dimension(:,:), save :: adTdz,adqdz,abeta,anu_t
 real(kind=rprec):: ttheta1,tq1,tt2,tq2,tsgst,tsgsq,twt,twq,tdTdz,tdqdz,arg1,arg2,fr
 real(kind=rprec):: tbeta,tnu_t
+
+!  Allocate local arrays
+allocate(atheta(nx,nz),aq(nx,nz),t2(nx,nz),q2(nx,nz),asgs_t3(nx,nz),&
+  asgs_q3(nx,nz),awt,awq(nx,nz))
+allocate(adTdz(nx,nz),adqdz(nx,nz),abeta(nx,nz),anu_t(nx,nz))
 
 fr=(1./p_count)*(c_count)
 
@@ -417,16 +423,24 @@ end if
 
 5168     format(1400(E14.5))
 
+return 
+
+!  Deallocate local arrays
+deallocate(atheta,aq,t2,q2,asgs_t3,asgs_q3,awt,awq, &
+  adTdz,adqdz,abeta,anu_t)
+  
 end subroutine scalar_slice
 
 
 !!!xxxxxxxxxx----------VIJ----------XXXXXXXXXXXXXXXXXXXXX
 !!!xxxxxxxxxx----------VIJ----------XXXXXXXXXXXXXXXXXXXXX
 
+!**********************************************************************
 subroutine obukhov_slice(jt)
+!**********************************************************************
 !subroutine obukhov_slice(phi_m,psi_m,phi_h,psi_h,L,wstar,jt)
 use scalars_module,only: L,wstar
-use sim_param,only: path
+use param,only: path
 implicit none
 integer:: i, k, jt
 !real(kind=rprec),dimension(nx,nz):: phi_m,psi_m,phi_h,psi_h

@@ -35,7 +35,7 @@ character(15) :: lbc_mom
 integer :: ubc
 
 integer :: nz_tot,nx2,ny2,lh,ld,lh_big,ld_big,jt,jt_total
-real(rprec) :: dx,dy,dz,coriol,ug,vg,mean_p_force
+real(rprec) :: dx,dy,dz,coriol,ug,vg,mean_p_force,dt_dim
 
 namelist/geometry/nx,ny,nz,L_x,L_y,L_z,z_i
 

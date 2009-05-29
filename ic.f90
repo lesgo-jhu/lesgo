@@ -2,6 +2,7 @@
 subroutine ic()
   use types,only:rprec
   use param
+  use param2
   use sim_param,only:u,v,w
   use bottombc,only:zo_avg
   implicit none
@@ -27,11 +28,11 @@ subroutine ic()
      u = face_avg 
      v = 0._rprec
      w = 0._rprec
-  elseif(ic_const) then
-    write(*,*) 'Constant Velocity IC'
-    u = u_ic
-    v = v_ic
-    w = w_ic
+  !elseif(ic_const) then
+  !  write(*,*) 'Constant Velocity IC'
+  !  u = u_ic
+  !  v = v_ic
+  !  w = w_ic
   else 
 
      w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)

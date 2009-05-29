@@ -28,12 +28,23 @@ logical, parameter :: do_filter_global_fmask = .true.
 integer :: np
 logical :: MPI_split
 
-real (rp) :: global_fmask(ld, ny, nz)  !--experimental
+real (rp), allocatable, dimension(:,:,:) :: global_fmask  !--experimental
     !--nonzero where unres force is to be applied and contents may be filtered
     !--could dimension in a smarter way to save space
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+!**********************************************************************
+subroutine alloc_trees_global_fmask_ls
+!**********************************************************************
+implicit none
+
+allocate(global_fmask(ld, ny, nz))
+
+return
+end subroutine alloc_trees_global_fmask_ls
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--this is usually called from trees_pre_ls
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -1,10 +1,13 @@
+!**********************************************************************
 module scalars_module
+!**********************************************************************
 ! HUMIDITY subroutines in place but not yet turned on !!
 use types,only:rprec
+use param 
 use param2, jt_global => jt  !--rename to avoid name clashes
                             !--could also modify all routines to access jt
                             !  from param module, not argument list
-use sim_param,only:u,v,w,theta,q,path
+use sim_param,only:u,v,w,theta,q
 use bottombc,only:zo,num_patch,zot,T_s,q_s,phi_m,psi_m,phi_h,psi_h,&
                   avgpatch
 !Includes patches subroutine
@@ -25,19 +28,19 @@ implicit none
 !!!!!!--------------------------------------------
 !real(kind=rprec),dimension(ld,ny,nz):: scalar
 !real(kind=rprec),dimension(ld,ny,nz):: theta,q ! theta and q specified in sim_param
-real(kind=rprec),dimension(ld,ny,nz):: beta_scal,Pr_
+real(kind=rprec), allocatable, dimension(:,:,:):: beta_scal,Pr_
 !real(kind=rprec),dimension(ld,ny,nz):: dsdx,dsdy,dsdz
-real(kind=rprec),dimension(ld,ny,nz):: dTdz,dqdz ! Only ones needed for output
+real(kind=rprec), allocatable, dimension(:,:,:):: dTdz,dqdz ! Only ones needed for output
 ! Might need to add x and y derivatives here in case they need to be outputted
 ! Right now they are in the "scalar"_all_in_one routines below !!
-real(kind=rprec),dimension(ld,ny,nz):: RHS_Tf,RHS_T,RHS_qf,RHS_q
-real(kind=rprec), dimension(ld,ny,nz):: sgs_t3,sgs_q3 !defines the surface sgs flux
+real(kind=rprec), allocatable, dimension(:,:,:):: RHS_Tf,RHS_T,RHS_qf,RHS_q
+real(kind=rprec), allocatable, dimension(:,:,:):: sgs_t3,sgs_q3 !defines the surface sgs flux
 
 !real(kind=rprec),dimension(:,:,:),allocatable:: scalar,q
 !real(kind=rprec),parameter::g=9.81,inv_strength=0.008 !inversion strength (K/m)
-real(kind=rprec),dimension(nx,ny)::L,wstar !defines obukhov length and convective vel scale, w_star
-real(kind=rprec),dimension(nx,ny)::z_os !T_s and q_s are defined in bottombc.f90
-real(kind=rprec),dimension(nx,ny)::ustar_avg ! Defines the local u_star as calculated in obukhov
+real(kind=rprec),allocatable, dimension(:,:)::L,wstar !defines obukhov length and convective vel scale, w_star
+real(kind=rprec),allocatable, dimension(:,:)::z_os !T_s and q_s are defined in bottombc.f90
+real(kind=rprec),allocatable, dimension(:,:)::ustar_avg ! Defines the local u_star as calculated in obukhov
 integer, parameter:: obukhov_output=1 !Controls whether obukhov variables are outputted by scalar_slice
 
 !integer,parameter:: patch_flag=1,remote_flag=0
@@ -53,9 +56,32 @@ integer, parameter:: obukhov_output=1 !Controls whether obukhov variables are ou
 !        break
 !end if
 contains
+
+!**********************************************************************
+subroutine alloc_scalars_module()
+!**********************************************************************
+implicit none
+
+allocate(RHS_T(ld,ny,nz))
+allocate(RHS_Tf(ld,ny,nz))
+allocate(beta_scal(ld,ny,nz))
+
+allocate(L(nx,ny),wstar(nx,ny))
+
+!  Comment for now, undo as needed
+!allocate(Pr_(ld,ny,nz))
+!allocate(dTdz(ld,ny,nz),dqdz(ld,ny,nz))
+!allocate(RHS_qf(ld,ny,nz),RHS_q(ld,ny,nz))
+!allocate(sgs_t3(ld,ny,nz),sgs_q3(ld,ny,nz))
+!allocate(z_os(nx,ny),ustar_avg(nx,ny))
+
+end subroutine alloc_scalars_module
+
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
+!**********************************************************************
 subroutine theta_all_in_one(jt)
+!**********************************************************************
 !subroutine theta_all_in_one(theta)
 !subroutine scalar_all_in_one(theta)
 !subroutine scalar_all_in_one
@@ -103,7 +129,9 @@ end subroutine theta_all_in_one
 
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
+!**********************************************************************
 subroutine humidity_all_in_one(jt)
+!**********************************************************************
 ! Not correct now.. DONT USE ....
 use sim_param
 !use scalars_module
@@ -139,7 +167,9 @@ end subroutine humidity_all_in_one
 
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
+!**********************************************************************
 subroutine calcbeta (scalar)
+!**********************************************************************
 !subroutine calcbeta (scalar, beta_scal)
 ! This calculates the buoyancy term (beta_scal) to be added to the vertical
 ! momentum equation for temperature
@@ -181,9 +211,9 @@ return
 end subroutine calcbeta
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
-
-
+!**********************************************************************
 subroutine scalar_RHS_calc(scalar,dsdx,dsdy,dsdz,S_Surf,z_os,RHS,sgs_vert,Pr_,surf_flux_current)
+!**********************************************************************
 !subroutine scalar_RHS_calc(S_Surf,z_os,RHS,sgs_vert,jt,psi_h,phi_h,Pr_,wt_s_current)
 !subroutine scalar_RHS_calc(s,dsdx,dsdy,dsdz,u,v,w,Nu_t,txz,tyz,&
 !S_Surf,z_os,patch,patchnum,RHS,sgs_vert,jt,psi_h,phi_h,Pr_,&
@@ -204,7 +234,8 @@ real(kind=rprec),dimension(ld_big,ny2,nz):: u_m,v_m,w_m,dsdx_m,dsdy_m,dsdz_m
  real(kind=rprec),dimension(ld_big,ny2,nz):: RHS_m
 !cVK - changed the dimensions for RHS_m,u_m etc. to ld_big
 !cVK as otherwise it causes segmentation errors
-real(kind=rprec),dimension(nx,ny):: ustar_local,S_Surf,surf_flux,z_os
+real(kind=rprec),dimension(nx,ny):: S_Surf,surf_flux,z_os
+real(kind=rprec),allocatable,dimension(:,:) :: ustar_local
 !real(kind=rprec),dimension(nx,ny):: psi_h,phi_h
 !real(kind=rprec),dimension(nx,ny):: psi_h,phi_h,ustar2
 !TS CHECK WHAT I CHANGE
@@ -219,6 +250,9 @@ integer::px,py,lx,ly,lz
 !  else
 !  dsdz(:,:,Nz)=0 ! Valid for humidity and other passive scalars
 !  end if
+
+!  Allocate local arrays
+allocate(ustar_local(nx,ny))
 
 if (patch_flag==1) then
  if (sflux_flag) then !PASSIVE SCALAR IF BLOCK
@@ -404,15 +438,16 @@ end do
 
 !5167  format (110(1x,e14.5)) 
 
-!return 
+return 
+
+deallocate(ustar_local)
 
 end subroutine scalar_RHS_calc
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
-
-
-
+!**********************************************************************
 subroutine step_scalar(scalar,RHS_pre,RHS_post)
+!**********************************************************************
 !subroutine step_scalar(scalar,RHS_T,RHS_Tf,wt_s_current)
 use immersedbc,only:n_bldg,bldg_pts
 implicit none
@@ -482,7 +517,9 @@ end subroutine step_scalar
 
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
 !----------------------XXXXXXXXXXXVIJXXXXXXXXXXX-----------------------
+!**********************************************************************
 subroutine obukhov (jt)  
+!**********************************************************************
 use types,only:rprec
 use test_filtermodule
 !use scalars_module

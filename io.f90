@@ -56,8 +56,9 @@ character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 !!$logical,parameter::io_mean=.false.
 !integer,parameter::jx_pls=1,jx_ple=nx,width=ny/2-1
 integer,parameter::jx_pls=1,jx_ple=1,width=1
-integer,parameter::jy_pls=ny/2-width,jy_ple=ny/2+width+1
-real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
+!  Set in alloc_io
+integer :: jy_pls,jy_ple
+real(kind=rprec), allocatable, dimension(:,:,:):: &
      mean_u,mean_v,mean_w,mean_u2,mean_v2,mean_w2
 !!$
 !!$!!!!  io_lambda2
@@ -66,6 +67,23 @@ real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
                    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+!**********************************************************************
+subroutine alloc_io()
+!**********************************************************************
+implicit none
+
+jy_pls=ny/2-width
+jy_ple=ny/2+width+1
+
+allocate(mean_u(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+allocate(mean_v(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+allocate(mean_w(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+allocate(mean_u2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+allocate(mean_v2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+allocate(mean_w2(jx_pls:jx_ple,jy_pls:jy_ple,nz))
+
+end subroutine alloc_io
 
 !!$ Commented by JSG
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -163,7 +181,7 @@ contains
 
 subroutine openfiles()
 !!$use param,only:sflux_flag
-use sim_param,only:path
+use param,only:path
 implicit none
 
 !--to hold file names
@@ -255,7 +273,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 
-use param, only : dx, dy, dz
+use param2, only : dx, dy, dz
 use param2,only:dt,c_count,output
 use stat_defs,only:stats_t, taver_t, ui_pnt_t, ui_gbl_t, yplane_t, &
   zplane_t, interp_to_uv_grid
@@ -523,7 +541,7 @@ subroutine compute_sums ()
 !  This subroutine computes the sums for each flow 
 !  variable quantity
 use stat_defs, only : taver_t, interp_to_uv_grid
-use param, only : nx,ny,nz
+use param2, only : nx,ny,nz
 use sim_param, only : u,v,w,dudz
 integer :: i,j,k, naver
 double precision :: w_interp, dudz_interp, fa
@@ -567,7 +585,7 @@ subroutine write_uinst(itype)
 !  at specified i,j,k locations
 use stat_defs, only : ui_pnt_t, ui_gbl_t, interp_to_uv_grid
 use sim_param, only : u,v,w
-use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z
+use param2, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z
 implicit none
 
 character(25) :: ct
@@ -883,7 +901,7 @@ subroutine plane_io()
 !  This subroutine is used to write yplane data to a formatted Fortran
 !  file in Tecplot format
 use stat_defs, only : yplane_t, zplane_t
-use param, only : Nx, Ny, Nz, dx, dy, dz
+use param2, only : Nx, Ny, Nz, dx, dy, dz
 implicit none
 character(50) :: ct, fname
 integer :: i,j,k
@@ -1711,8 +1729,8 @@ end subroutine plane_io
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_read ()
-use param, only :  buff_end
-use param2, only: ny, nz, pi, nsteps,  jt_total
+use param, only :  buff_end,pi
+use param2, only: ny, nz, nsteps,  jt_total
 use sim_param, only : u, v, w
 implicit none
 
