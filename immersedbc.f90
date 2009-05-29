@@ -1,11 +1,13 @@
+!**********************************************************************
 module immersedbc
+!**********************************************************************
 use types,only:rprec
 use param2,only:ld,ny,nz
 implicit none
 private
 public n_bldg,bldg_pts,fx,fy,fz,u_des,v_des,w_des&
      ,building_mask,building_interp,building_mask_one,building_interp_one&
-     ,wallstress_building,walldudx_building
+     ,wallstress_building,walldudx_building,alloc_immersedbc
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
 !real(kind=rprec), dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
@@ -16,12 +18,29 @@ real(kind=rprec),parameter::zo_avg=2._rprec
 
 contains
 
+!**********************************************************************
+subroutine alloc_immersedbc()
+!**********************************************************************
+implicit none
+allocate(fx(ld,ny,nz))
+allocate(fy(ld,ny,nz))
+allocate(fz(ld,ny,nz))
+allocate(u_des(ld,ny,nz))
+allocate(v_des(ld,ny,nz))
+allocate(w_des(ld,ny,nz))
+
+return 
+end subroutine alloc_immersedbc
+
+!**********************************************************************
 subroutine building_mask(u,v,w)
+!**********************************************************************
 !TSuse sim_param,only:u,v,w
 implicit none
 integer::px,py,lx,ly,lz
 integer::i
 !real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
+real(kind=rprec),dimension(:,:,:),intent(inout)::u,v,w
 
 ! this sets pressure grad's inside bldg's
 do i=1,n_bldg
@@ -41,13 +60,16 @@ end subroutine building_mask
 !  equation (horz. planes), presumably to smooth the solution within
 !  the buildings
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine building_interp(u,v,w,weight,iternum)
+!**********************************************************************
 !TSuse sim_param,only:u,v,w
 implicit none
 integer::px,py,lx,ly,lz
 integer::jx,jy,jz,i,j
 integer,intent(in)::iternum
-real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
+!real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
+real(kind=rprec),dimension(:,:,:),intent(inout)::u,v,w
 real(kind=rprec),intent(in)::weight
 real(kind=rprec)::weightp
 weightp=(1-weight)*.25_rprec
@@ -77,13 +99,16 @@ do i=1,n_bldg
 end do
 end subroutine building_interp
 
+!**********************************************************************
 subroutine building_interp_one(u,weight,iternum)
+!**********************************************************************
 !TSuse sim_param,only:u,v,w
 implicit none
 integer::px,py,lx,ly,lz
 integer::jx,jy,jz,i,j
 integer,intent(in)::iternum
-real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u
+!real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u
+real(kind=rprec),dimension(:,:,:),intent(inout)::u
 real(kind=rprec),intent(in)::weight
 real(kind=rprec)::weightp
 
@@ -109,12 +134,15 @@ do i=1,n_bldg
 end do
 end subroutine building_interp_one
 
+!**********************************************************************
 subroutine building_mask_one(stress,value)
+!**********************************************************************
 implicit none
 integer::px,py,lx,ly,lz
 integer::i
 real(kind=rprec)::value
-real(kind=rprec),dimension(ld,ny,nz),intent(inout)::stress
+!real(kind=rprec),dimension(ld,ny,nz),intent(inout)::stress
+real(kind=rprec),dimension(:,:,:),intent(inout)::stress
 ! this sets pressure grad's inside bldg's
 do i=1,n_bldg
    px=bldg_pts(1,i)
@@ -126,7 +154,9 @@ do i=1,n_bldg
 end do
 end subroutine building_mask_one
 
+!**********************************************************************
 subroutine walldudx_building
+!**********************************************************************
 use types,only:rprec
 use param,only:vonk
 use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
@@ -257,7 +287,9 @@ do i=1,n_bldg
 enddo
 end subroutine walldudx_building
 
+!**********************************************************************
 subroutine wallstress_building(txy,txz,tyz)
+!**********************************************************************
 use types,only:rprec
 use param,only:vonk
 use param2,only:dy,dx,dz,ld,lh,nx,ny,nz,z_i
@@ -265,9 +297,16 @@ use sim_param,only:u,v,w
 implicit none
 integer::jx,jy,jz,i,j
 integer::px,py,lx,ly,lz
-real(kind=rprec),dimension(ld,ny,nz),intent(out)::txz,tyz,txy
+!real(kind=rprec),dimension(ld,ny,nz),intent(out)::txz,tyz,txy
+real(kind=rprec), allocatable, dimension(:,:,:),intent(out)::txz,tyz,txy
 real(kind=rprec)::u1,v1,ustar,u_avg,u_aver
 real(kind=rprec)::const,dz1,zo,zo_s
+
+!  Allocate internal arrays
+allocate(txz(ld,ny,nz))
+allocate(tyz(ld,ny,nz))
+allocate(txy(ld,ny,nz))
+
 zo=zo_avg/z_i
 zo_s=zo_avg/z_i
 do i=1,n_bldg
@@ -369,10 +408,17 @@ do i=1,n_bldg
    enddo
    enddo
 enddo
+
+return
+
+deallocate(txz,tyz,txy)
+
 end subroutine wallstress_building
 
 !TS SUBROUTINES FOR CUBIC SPLINE INTERPOLATION
+!**********************************************************************
 SUBROUTINE bcuint(y,y1,y2,y12,x1dif,x2dif,M,N,x1,x2,ansy,jz)
+!**********************************************************************
 implicit none
 INTEGER::M,N,jz
 REAL(KIND=rprec),INTENT(IN)::x1dif,x2dif
@@ -401,7 +447,9 @@ enddo
 enddo
 END SUBROUTINE bcuint
 
+!**********************************************************************
 SUBROUTINE bcucof(y,y1,y2,y12,d1,d2,c)
+!**********************************************************************
 IMPLICIT NONE
 REAL(KIND=rprec), INTENT(IN) :: d1,d2
 REAL(KIND=rprec), DIMENSION(4), INTENT(IN) :: y,y1,y2,y12
@@ -421,5 +469,9 @@ x(9:12)=y2*d2
 x(13:16)=y12*d1*d2
 x=matmul(wt,x)
 c=reshape(x,(/4,4/),order=(/2,1/))
+
+return
 END SUBROUTINE bcucof
+
 end module immersedbc
+

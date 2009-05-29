@@ -15,6 +15,7 @@ use param2,only:nx,ny,nz,ld,lh,ld_big,ny2
 !use bottombc, only : zo,patch,num_patch,use_default_patch
 use bottombc
 use fft, only : kx, ky, k2
+use immersedbc, only : alloc_immersedbc
 
 implicit none
 
@@ -69,6 +70,14 @@ allocate(vort3_big(ld_big, ny2, nz))
 
 !  Allocate arrays in test_filtermodule_defs
 allocate(G_test(lh,ny),G_test_test(lh,ny))
+
+
+!------ Check above for consistency with below ------
+!  allocate arrays for immersedbc
+call alloc_immersedbc()
+
+!  Allocate arrays for sgsmodule
+call alloc_sgsmodule()
 
 return
 end subroutine alloc
