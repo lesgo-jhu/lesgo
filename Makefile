@@ -104,18 +104,18 @@ endif
 
 
 SRCS =  \
-	bottombc.f90 compute_stats.f90 \
+	alloc.f90 bottombc.f90 compute_stats.f90 \
         convec.f90 defs.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
         fft.f90 filt_da.f90 forcing.f90 \
-        ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 \
+        ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 init_fft.f90 \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \
 	main.f90 messages.f90 \
-        padd.f90 param.f90 param2.f90 press_stag.f90 \
+        padd.f90 param.f90 param2.f90 patches.f90 press_stag.f90 \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \

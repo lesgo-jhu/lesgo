@@ -5,7 +5,8 @@
 !  has 1:nz-1
 subroutine ddz_w(dfdz,f)
 use types,only:rprec
-use param2,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
+use param, only : USE_MPI, coord, nproc, BOGUS
+use param2,only:ld,nx,ny,nz,dz
 implicit none
 
 $if ($MPI)
@@ -22,11 +23,11 @@ integer::jx,jy,jz
 
 const=1._rprec/dz
 do jz=$lbz,nz-1
-do jy=1,ny
-do jx=1,nx
-   dfdz(jx,jy,jz)=const*(f(jx,jy,jz+1)-f(jx,jy,jz))
-end do
-end do
+  do jy=1,ny
+    do jx=1,nx
+      dfdz(jx,jy,jz)=const*(f(jx,jy,jz+1)-f(jx,jy,jz))
+    end do
+  end do
 end do
 
 if (USE_MPI .and. coord == 0) then

@@ -1,6 +1,6 @@
 module sim_param
 use types, only : rprec
-use param2, only : ld, ny, nz, path
+use param2, only : ld, ny, nz
 implicit none
 
 save
@@ -22,7 +22,7 @@ $endif
 !  ifort 8.1 ok
 !  xlf segfaults when in MPI mode 256^3/32 cpu (need to test other combos)
     
-$if ( $DYNALLOC )
+!!$if ( $DYNALLOC )
     
 real (rprec), dimension (:, :, :), allocatable :: u, v, w
 real (rprec), dimension (:, :, :), allocatable :: dudx, dudy, dudz,  &
@@ -43,30 +43,30 @@ real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
 
-$else
+!!$else
 
-real (rprec), dimension (ld, ny, $lbz:nz) :: u, v, w
-real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,    &
-                                             dvdx, dvdy, dvdz,    &
-                                             dwdx, dwdy, dwdz,    &
-                                             RHSx, RHSy, RHSz,    &
-                                             RHSx_f, RHSy_f, RHSz_f
+!real (rprec), dimension (ld, ny, $lbz:nz) :: u, v, w
+!real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,    &
+!                                             dvdx, dvdy, dvdz,    &
+!                                             dwdx, dwdy, dwdz,    &
+!                                             RHSx, RHSy, RHSz,    &
+!                                             RHSx_f, RHSy_f, RHSz_f
 
-real (rprec), dimension (ld, ny, nz) :: dpdx=0._rprec,  &
-                                        dpdy=0._rprec,  &
-                                        dpdz=0._rprec
+!real (rprec), dimension (ld, ny, nz) :: dpdx=0._rprec,  &
+!                                        dpdy=0._rprec,  &
+!                                        dpdz=0._rprec
 
-real (rprec), dimension (ld, ny, $lbz:nz) :: txx, txy, tyy
-real (rprec), dimension (ld, ny, $lbz:nz) :: txz, tyz, tzz
+!real (rprec), dimension (ld, ny, $lbz:nz) :: txx, txy, tyy
+!real (rprec), dimension (ld, ny, $lbz:nz) :: txz, tyz, tzz
 
-real(kind=rprec),dimension(ld,ny,0:nz)::p
+!real(kind=rprec),dimension(ld,ny,0:nz)::p
 
-real (rprec), dimension (ld, ny, $lbz:nz) :: divtx, divty, divtz
+!real (rprec), dimension (ld, ny, $lbz:nz) :: divtx, divty, divtz
 
-! Added for scalars
-real(kind=rprec),dimension(ld,ny,nz)::theta,q
+!! Added for scalars
+!real(kind=rprec),dimension(ld,ny,nz)::theta,q
 
-$endif
+!!$endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -107,8 +107,10 @@ integer :: i
 integer :: ios
 
 !---------------------------------------------------------------------
-
-$if ( $DYNALLOC )
+!
+!  Set as default the allocation of simulation parameters
+!
+!!$if ( $DYNALLOC )
 
 !if ( .not. present ( arrays_to_init ) ) then
 !    !--initialize all arrays
@@ -374,7 +376,7 @@ if ( DEBUG ) then
     
 end if
 
-$endif
+!!$endif
     !--do nothing if not using dynamic allocation
 
 end subroutine sim_param_init

@@ -4,12 +4,11 @@ subroutine compute_stats()
 !  This subroutine computes statistical values at the end
 !  of the simulation for each i,j,k location
 use stat_defs 
-use param, only : nx,ny,nz,dx,dy,dz,z_i,L_x,L_y,L_z
+use param2, only : nx,ny,nz,dx,dy,dz,z_i,L_x,L_y,L_z
 use sim_param, only : u,v,w
 implicit none
 
 integer :: i,j,k
-double precision :: u_aver
 
 !  Check if Reynolds stresses are to be computed
 if(rs_t%calc) then

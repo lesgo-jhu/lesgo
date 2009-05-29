@@ -3,19 +3,27 @@
 !--MPI: provides dfdz(:, :, 1:nz) where f is on uvp-node, except at
 !  bottom process it only supplies 2:nz 
 subroutine ddz_uv(dfdz, f)
+
 use types,only:rprec
-use param2,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
+use param, only : USE_MPI, coord, nproc, BOGUS
+use param2,only:ld,nx,ny,nz,dz
+
 implicit none
+
 $if ($MPI)
   $define $lbz 0
 $else
   $define $lbz 1
 $endif
+
 real (rprec), dimension (ld, ny, $lbz:nz), intent (in) :: f
 real (rprec), dimension(ld, ny, $lbz:nz), intent (inout) :: dfdz
 
 integer::jx,jy,jz
 real (rprec) :: const
+
+!  Allocate arrays
+
 
 const=1._rprec/dz
 

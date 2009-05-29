@@ -42,11 +42,6 @@ integer :: coord = -1  !--same here
 integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
 !--end mpi stuff
 
-  !----- Variable Declaration for Input File -------
-
-  !----- Variable Declaration for Input File -------
-
-
 logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
                       !--use DEBUG to write lots of data/files
 

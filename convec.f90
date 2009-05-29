@@ -14,29 +14,24 @@ use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
 use fft
 use debug_mod
+use convec_defs
+
 implicit none
+
 $if ($MPI)
   $define $lbz 0
 $else
   $define $lbz 1
 $endif
-real (rprec), dimension (ld, ny, $lbz:nz), intent (out) :: cx, cy, cz
+
+real (rprec), dimension(ld, ny, $lbz:nz), intent(out) :: cx, cy, cz
+
 
 logical, parameter :: DEBUG = .false.
 
-integer::jz
-integer :: jz_min
+integer:: jz, jz_min
 
-!--save forces heap storage
-real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
-!real(kind=rprec),dimension(ld_big,ny2,nz)::cc_big
-!--save forces heap storage
-real (rprec), save, dimension (ld_big, ny2, $lbz:nz) :: u1_big, u2_big, u3_big
-!real (rprec), dimension (ld_big, ny2, $lbz:nz) :: u1_big, u2_big, u3_big
-!--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
-!--save forces heap storage 
-real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
-                                                   vort3_big
+
 !real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
 !--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
 real(kind=rprec)::ignore_me,const

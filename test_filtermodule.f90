@@ -1,16 +1,21 @@
+!**********************************************************************
 module test_filtermodule
+!**********************************************************************
 use types,only:rprec
 use param2,only:lh,ny
+use test_filtermodule_defs
 
-private lh,ny
+!private lh,ny
+
 !TS Truely grid refinement test needs to keep the filter_size
 !TS the same as that in coarse grid (Double grid size: filter_size=2. etc)
 integer,parameter::filter_size=1
-real(kind=rprec),dimension(lh,ny)::G_test,G_test_test
+
 end module test_filtermodule
 
-!--THIS IS NOT IN THE MODULE
+!**********************************************************************
 subroutine test_filter(f,G_test)
+!**********************************************************************
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
 use param2,only:lh,ny
@@ -29,12 +34,17 @@ call rfftwnd_f77_one_complex_to_real(back,f,ignore_me)
 !f=real(f_c,kind=rprec)
 end subroutine test_filter
 
+!**********************************************************************
 subroutine test_filter_init(alpha,G_test)
+!**********************************************************************
 ! spectral cutoff filter at width alpha*delta
 ! note the normalization for FFT's is already in G! (see 1/(nx*ny))
+
 use types,only:rprec
-use param2,only:lh,nx,ny,dx,dy,pi,ifilter,model
+use param, only : pi
+use param2,only:lh,nx,ny,dx,dy,ifilter,model
 use fft
+
 implicit none
 real(kind=rprec):: alpha, delta, kc2
 real(kind=rprec),dimension(lh,ny) :: G_test
