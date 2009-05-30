@@ -112,6 +112,9 @@ do jz=1,nz
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
+   write(*,*) 'rH_x(1,1,jz) = ', rH_x(1,1,jz)
+   write(*,*) 'H_x(1,1,jz) = ', H_x(1,1,jz)
+   write(*,*) '--------'
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
    call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),ignore_me)     
 end do

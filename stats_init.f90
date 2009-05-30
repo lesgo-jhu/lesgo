@@ -24,11 +24,11 @@ ui_pnt_t%ijk=-1
 
 !  Master switch for turning on or off all statistics
 !  including instantaneous recordings 
-stats_t%calc = .true.
+stats_t%calc = .false.
 
 !  Sub switches for statistics and output
 !  Turns Reynolds stresses calculations on or off 
-rs_t%calc = .true.
+rs_t%calc = .false.
 !  Turns instantaneous velocity recording on or off
 ui_pnt_t%calc = .false.
 ui_gbl_t%calc = .false.
