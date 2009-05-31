@@ -254,7 +254,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz
-use stat_defs,only:stats_t, taver_t, ui_pnt_t, ui_gbl_t, yplane_t, &
+use stat_defs,only:stats_t, tavg_t, ui_pnt_t, ui_gbl_t, yplane_t, &
   zplane_t, interp_to_uv_grid
 use sim_param, only : u, v, w
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
@@ -291,13 +291,13 @@ double precision :: ui, vi ,wi
 
 !  Determine if stats are to be calculated
 if(stats_t%calc) then
-  if(taver_t%calc) then
+  if(tavg_t%calc) then
 !  Check if we are in the time interval for running summations
-    if(jt >= taver_t%nstart .and. jt <= taver_t%nend) then
-	  if(.not. taver_t%started) then
+    if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
+	  if(.not. tavg_t%started) then
 	    write(*,*) 'Starting running time summation from ', &
-	      taver_t%nstart, ' to ', taver_t%nend
-        taver_t%started=.true.
+	      tavg_t%nstart, ' to ', tavg_t%nend
+        tavg_t%started=.true.
 	  endif
 !  Compute running summations
       call compute_sums ()
@@ -518,18 +518,18 @@ subroutine compute_sums ()
 !***************************************************************
 !  This subroutine computes the sums for each flow 
 !  variable quantity
-use stat_defs, only : taver_t, interp_to_uv_grid
+use stat_defs, only : tavg_t, interp_to_uv_grid
 use param, only : nx,ny,nz
 use sim_param, only : u,v,w,dudz
-integer :: i,j,k, naver
+integer :: i,j,k, navg
 double precision :: w_interp, dudz_interp, fa
 
 !  Initialize w_interp
 w_interp = 0.
 
 !  Compute number of times to average over
-naver = taver_t%nend - taver_t%nstart + 1
-fa=1./dble(naver)
+navg = tavg_t%nend - tavg_t%nstart + 1
+fa=1./dble(navg)
 
 do k=1,nz
   do j=1,ny
@@ -538,16 +538,16 @@ do k=1,nz
       w_interp = interp_to_uv_grid('w',i,j,k)
 	  dudz_interp = interp_to_uv_grid('dudz',i,j,k)
 		  
-	  taver_t%u(i,j,k)=taver_t%u(i,j,k) + fa*u(i,j,k)
-	  taver_t%v(i,j,k)=taver_t%v(i,j,k) + fa*v(i,j,k)
-	  taver_t%w(i,j,k)=taver_t%w(i,j,k) + fa*w_interp
-	  taver_t%u2(i,j,k)=taver_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
-	  taver_t%v2(i,j,k)=taver_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
-	  taver_t%w2(i,j,k)=taver_t%w2(i,j,k) + fa*w_interp*w_interp
-	  taver_t%uw(i,j,k)=taver_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
-	  taver_t%vw(i,j,k)=taver_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
-	  taver_t%uv(i,j,k)=taver_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
-	  taver_t%dudz(i,j,k)=taver_t%dudz(i,j,k) + fa*dudz_interp
+	  tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
+	  tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
+	  tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
+	  tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
+	  tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
+	  tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
+	  tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
+	  tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
+	  tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
+	  tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
 	enddo
   enddo
 enddo

@@ -13,13 +13,12 @@ type rs
 end type rs
 
 !  Sums performed over time
-type taver
+type tavg
   logical :: calc,started
   integer :: nstart, nend
   double precision, allocatable, dimension(:,:,:) :: u, v, w, &
-                                                     u2, v2, w2, &
-      											     uw, vw, uv, dudz
-end type taver	
+    u2, v2, w2, uw, vw, uv, dudz
+end type tavg	
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
 !  componentsvalues each time step)
@@ -45,11 +44,11 @@ type plane
   double precision, allocatable, dimension(:,:,:) :: ua, va, wa
 end type	
   
-logical :: aver_calc
+logical :: avg_calc
  
 type(stats)          :: stats_t
 type(rs)             :: rs_t
-type(taver)          :: taver_t
+type(tavg)          :: tavg_t
 type(ui_pnt), target :: ui_pnt_t
 type(ui_gbl)         :: ui_gbl_t
 type(plane)		     :: yplane_t, zplane_t

@@ -14,8 +14,8 @@ integer :: fid, i, j,k, jy, kz
 
 ! ------ These values are not to be changed ------
 !  Don't change from false
-taver_t%calc     = .false.
-taver_t%started  = .false.
+tavg_t%calc     = .false.
+tavg_t%started  = .false.
 ui_pnt_t%started = .false.
 ui_gbl_t%started = .false.
 !  Initialize with non used integer 
@@ -33,12 +33,12 @@ rs_t%calc = .false.
 ui_pnt_t%calc = .false.
 ui_gbl_t%calc = .false.
 !  Turns temporal averaged quantities on or off
-aver_calc = .false.
+avg_calc = .false.
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-taver_t%nstart = 1
-taver_t%nend = nsteps
+tavg_t%nstart = 1
+tavg_t%nend = nsteps
 
 ui_pnt_t%nstart = 1
 ui_pnt_t%nend   = nsteps
@@ -74,7 +74,7 @@ zplane_t%la(2)	= 2.25
 !  Set time summation calculations based on
 !  dependants. Don't touch, depends on above
 !  information
-if(rs_t%calc) taver_t%calc = .true.
+if(rs_t%calc) tavg_t%calc = .true.
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -87,28 +87,28 @@ $endif
 
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
-if(taver_t%calc) then 
-  allocate(taver_t%u(nx, ny, $lbz:nz))
-  allocate(taver_t%v(nx, ny, $lbz:nz))
-  allocate(taver_t%w(nx, ny, $lbz:nz))
-  allocate(taver_t%u2(nx, ny, $lbz:nz))
-  allocate(taver_t%v2(nx, ny, $lbz:nz))
-  allocate(taver_t%w2(nx, ny, $lbz:nz))
-  allocate(taver_t%uw(nx, ny, $lbz:nz))
-  allocate(taver_t%vw(nx, ny, $lbz:nz))
-  allocate(taver_t%uv(nx, ny, $lbz:nz))
-  allocate(taver_t%dudz(nz, ny, $lbz:nz))
+if(tavg_t%calc) then 
+  allocate(tavg_t%u(nx, ny, $lbz:nz))
+  allocate(tavg_t%v(nx, ny, $lbz:nz))
+  allocate(tavg_t%w(nx, ny, $lbz:nz))
+  allocate(tavg_t%u2(nx, ny, $lbz:nz))
+  allocate(tavg_t%v2(nx, ny, $lbz:nz))
+  allocate(tavg_t%w2(nx, ny, $lbz:nz))
+  allocate(tavg_t%uw(nx, ny, $lbz:nz))
+  allocate(tavg_t%vw(nx, ny, $lbz:nz))
+  allocate(tavg_t%uv(nx, ny, $lbz:nz))
+  allocate(tavg_t%dudz(nz, ny, $lbz:nz))
   !  Initialize arrays
-  taver_t%u=0.
-  taver_t%v=0.
-  taver_t%w=0.
-  taver_t%u2=0.
-  taver_t%v2=0.
-  taver_t%w2=0.
-  taver_t%uw=0.
-  taver_t%vw=0.
-  taver_t%uv=0.
-  taver_t%dudz=0.  
+  tavg_t%u=0.
+  tavg_t%v=0.
+  tavg_t%w=0.
+  tavg_t%u2=0.
+  tavg_t%v2=0.
+  tavg_t%w2=0.
+  tavg_t%uw=0.
+  tavg_t%vw=0.
+  tavg_t%uv=0.
+  tavg_t%dudz=0.  
 endif
 
 if(rs_t%calc) then
