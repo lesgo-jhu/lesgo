@@ -36,9 +36,9 @@ $else
 $endif
 implicit none      
 complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::rH_x,rH_y,rH_z,rH_x_test
+real(kind=rprec),dimension(ld,ny,$lbz:nz)::rH_x,rH_y,rH_z
 complex(kind=rprec),dimension(lh,ny,$lbz:nz)::H_x,H_y,H_z
-!equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
+equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
 real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
 complex(kind=rprec),dimension(lh,ny)::topw,bottomw
 equivalence (rtopw,topw),(rbottomw,bottomw)
@@ -52,8 +52,6 @@ logical, parameter :: DEBUG = .false.
 logical, parameter :: TRI_DEBUG = .false.
 
 integer :: jz_min
-!  Used for looping when setting real to real of the complex 
-integer :: i,j
 
 complex(kind=rprec),dimension(lh, ny, nz+1)::RHS_col
 real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
@@ -80,20 +78,10 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
    rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
-   rH_x_test(:,:,jz) = 0.
-write(*,*) 'before rH_x(20,20,jz) = ', rH_x(20,20,jz)
-   !call rfftwnd_f77_one_real_to_complex(forw_test,rH_x(:,:,jz),H_x(:,:,jz))
-   !call rfftwnd_f77_one_complex_to_real(back_test,H_x(:,:,jz),rH_x_test(:,:,jz))
+
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
-   rH_x_test(:,:,jz) = rH_x(:,:,jz)
-   call rfftwnd_f77_one_complex_to_real(back,rH_x_test(:,:,jz),ignore_me)   
-   !write(*,*) 'ignore_me = ', ignore_me
-   write(*,*) 'after rH_x(20,20,jz) = ', rH_x(20,20,jz)
-   write(*,*) 'after rH_x_test(20,20,jz) = ', rH_x_test(20,20,jz)
-   write(*,*) 'H_x(20,20,jz) = ', H_x(20,20,jz)
-   write(*,*) '--------'
-   call rfftwnd_f77_one_real_to_complex(forw_test,rH_y(:,:,jz),H_y(:,:,jz))
-   call rfftwnd_f77_one_real_to_complex(forw_test,rH_z(:,:,jz),H_z(:,:,jz))   
+   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),ignore_me)   
 end do
 
 
@@ -103,14 +91,6 @@ $if ($MPI)
   H_y(:, :, 0) = BOGUS
   H_z(:, :, 0) = BOGUS
 $endif
-
-!!  Set real values to the real of the complex
-!do j=1,ny
-!rH_x(:,:,jz)=dreal(H_x(:,:,jz))
-write(*,*) 'ubound(u,1) = ', ubound(u,1)
-write(*,*) 'ld = ', ld
-write(*,*) 'lh = ', lh
-stop
 
 !--experiment
 !--this causes blow-up
