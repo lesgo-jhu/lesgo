@@ -23,17 +23,14 @@ upoint_t%ijk=-1
 ! ------ These values are not to be changed ------
 
 !  ------- Begin Statistic Settings -------
-!  Master switch for turning on or off all statistics
-!  including instantaneous recordings 
-stats_t%calc = .true.
 
-!  Turns Reynolds stresses calculations on or off 
-rs_t%calc = .true.
-!  All nstart and nend values are based
-!  on jt and not jt_total
+!  All nstart and nend values are based on jt and not jt_total
 tavg_t%calc = .true.
 tavg_t%nstart = 1
 tavg_t%nend = nsteps
+
+!  Turns Reynolds stresses calculations on or off 
+rs_t%calc = .false. !  Make sure tavg_t%calc = .true. if .true. and vice versa
 
 !  Turns instantaneous velocity recording on or off
 upoint_t%calc = .true.
@@ -52,14 +49,14 @@ uglobal_t%nend   = nsteps
 uglobal_t%nskip = 1
 
 !  y-plane stats/data
-yplane_t%avg=.true.
+yplane_t%avg_calc=.true.
 yplane_t%nstart = 1
 yplane_t%nend   = nsteps
 yplane_t%na     = 1  !  Number of averaging planes
 yplane_t%la(1)  = 2.0  !  Averaging location
 
 !  z-plane stats/data
-zplane_t%avg=.true.
+zplane_t%avg_calc=.true.
 zplane_t%nstart = 1
 zplane_t%nend   = nsteps
 zplane_t%na     = 1 !  Number of averaging planes
@@ -94,7 +91,7 @@ if(tavg_t%calc) then
   allocate(tavg_t%uw(nx, ny, $lbz:nz))
   allocate(tavg_t%vw(nx, ny, $lbz:nz))
   allocate(tavg_t%uv(nx, ny, $lbz:nz))
-  allocate(tavg_t%dudz(nz, ny, $lbz:nz))
+  allocate(tavg_t%dudz(nx, ny, $lbz:nz))
   !  Initialize arrays
   tavg_t%u=0.
   tavg_t%v=0.
@@ -124,7 +121,7 @@ if(rs_t%calc) then
 endif
 
 ! Initialize information for y-planar stats/data
-if(yplane_t%avg) then
+if(yplane_t%avg_calc) then
   allocate(yplane_t%ua(Nx,yplane_t%na,Nz))
   allocate(yplane_t%va(Nx,yplane_t%na,Nz))
   allocate(yplane_t%wa(Nx,yplane_t%na,Nz))
@@ -150,7 +147,7 @@ if(yplane_t%avg) then
 endif
 
 ! Initialize information for y-planar stats/data
-if(zplane_t%avg) then
+if(zplane_t%avg_calc) then
   allocate(zplane_t%ua(Nx,Ny,yplane_t%na))
   allocate(zplane_t%va(Nx,Ny,yplane_t%na))
   allocate(zplane_t%wa(Nx,Ny,yplane_t%na))
@@ -170,7 +167,6 @@ if(zplane_t%avg) then
 		exit isearch_k
 	  endif
 	enddo isearch_k
-	write(*,*) 'zplane_t%istart(kz) = ', zplane_t%istart(kz)
   enddo  
   
 endif
