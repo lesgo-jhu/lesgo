@@ -6,9 +6,8 @@ implicit none
 private
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
-public jt_total, openfiles, inflow_read, output_loop, output_final
+public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
-public rs_write, tavg_write
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -254,8 +253,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz
-use stat_defs,only:stats_t, tavg_t, upoint_t, uglobal_t, yplane_t, &
-  zplane_t, interp_to_uv_grid
+use stat_defs, only: tavg_t, upoint_t, uglobal_t, yplane_t, zplane_t
 use sim_param, only : u, v, w
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
@@ -274,21 +272,19 @@ character (64) :: fname, temp
 integer :: i,j,k
 integer::jx,jy,jz
 
-double precision :: ui, vi ,wi
-
 !  Determine if stats are to be calculated
-  if(tavg_t%calc) then
+if(tavg_t%calc) then
 !  Check if we are in the time interval for running summations
-    if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
-	  if(.not. tavg_t%started) then
-	    write(*,*) 'Starting running time summation from ', &
-	      tavg_t%nstart, ' to ', tavg_t%nend
-        tavg_t%started=.true.
-	  endif
+  if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
+    if(.not. tavg_t%started) then
+      write(*,*) 'Starting running time summation from ', &
+	    tavg_t%nstart, ' to ', tavg_t%nend
+      tavg_t%started=.true.
+    endif
 !  Compute running summations
-      call collect_stats ()
-	endif 
-  endif
+  call tavg_compute ()
+  endif 
+endif
 
 !  Determine if instantaneous point velocities are to be recorded
   if(upoint_t%calc) then
@@ -298,7 +294,7 @@ double precision :: ui, vi ,wi
 	      upoint_t%nstart, ' to ', upoint_t%nend
         upoint_t%started=.true.
 	  endif
-	  call write_inst(1)
+	  call inst_write(1)
 	endif
   endif
   
@@ -313,51 +309,11 @@ double precision :: ui, vi ,wi
 		write(*,*) '-------------------------------'
         uglobal_t%started=.true.
 	  endif
-	  call write_inst(2)
+	  call inst_write(2)
 	endif
   endif    
 
-!  Determine if y-plane averaging should be performed
-if(yplane_t%avg .and. jt >= yplane_t%nstart .and. &
-  jt <= yplane_t%nend) then
-  
-!  Compute average for each y-plane (jya)
-  do j=1,yplane_t%na
-    do k=1,Nz
-      do i=1,Nx
-	    ui = (u(i,yplane_t%istart(j)+1,k) - u(i,yplane_t%istart(j),k))*yplane_t%ldiff(j)/dy + u(i,yplane_t%istart(j),k)
-		vi = (v(i,yplane_t%istart(j)+1,k) - v(i,yplane_t%istart(j),k))*yplane_t%ldiff(j)/dy + v(i,yplane_t%istart(j),k)
-		wi = (interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k) - interp_to_uv_grid('w',i,yplane_t%istart(j),k))*yplane_t%ldiff(j)/dy + &
-		  interp_to_uv_grid('w',i,yplane_t%istart(j),k)
-        yplane_t%ua(i,j,k) = yplane_t%ua(i,j,k) + yplane_t%fa*ui 
-	    yplane_t%va(i,j,k) = yplane_t%va(i,j,k) + yplane_t%fa*vi
-	    yplane_t%wa(i,j,k) = yplane_t%wa(i,j,k) + yplane_t%fa*wi
-	  enddo
-	enddo
-  enddo
-endif 
-
-!  Determine if y-plane averaging should be performed
-if(zplane_t%avg .and. jt >= zplane_t%nstart .and. &
-  jt <= zplane_t%nend) then
-!  Compute average for each y-plane (jya)
-  do k=1,zplane_t%na
-    do j=1,Ny
-      do i=1,Nx
-        ui = (u(i,j,zplane_t%istart(k)+1) - u(i,j,zplane_t%istart(k)))*zplane_t%ldiff(k)/dz + &
-		  u(i,j,zplane_t%istart(k))
-        vi = (v(i,j,zplane_t%istart(k)+1) - v(i,j,zplane_t%istart(k)+1))*zplane_t%ldiff(k)/dz + &
-		  v(i,j,zplane_t%istart(k)) 
-        wi = (interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1) - &
-		  interp_to_uv_grid('w',i,j,zplane_t%istart(k)))*zplane_t%ldiff(k)/dz + &
-          interp_to_uv_grid('w',i,j,zplane_t%istart(k))
-        zplane_t%ua(i,j,k) = zplane_t%ua(i,j,k) + zplane_t%fa*ui
-        zplane_t%va(i,j,k) = zplane_t%va(i,j,k) + zplane_t%fa*vi
-        zplane_t%wa(i,j,k) = zplane_t%wa(i,j,k) + zplane_t%fa*wi
-      enddo
-    enddo
-  enddo
-endif 
+if(yplane_t%avg_calc .or. zplane_t%avg_calc) call plane_avg_compute(jt)
 
 return
 end subroutine output_loop
@@ -431,52 +387,8 @@ end subroutine output_loop
 !!$
 !!$end subroutine plane_interp
 
-!***************************************************************
-subroutine collect_stats()
-!***************************************************************
-!  This subroutine collects the stats for each flow 
-!  variable quantity
-use stat_defs, only : tavg_t, interp_to_uv_grid
-use param, only : nx,ny,nz
-use sim_param, only : u,v,w,dudz
-integer :: i,j,k, navg
-double precision :: w_interp, dudz_interp, fa
-
-!  Initialize w_interp
-w_interp = 0.
-
-!  Compute number of times to average over
-navg = tavg_t%nend - tavg_t%nstart + 1
-!  Averaging factor
-fa=1./dble(navg)
-
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-!  Interpolate each w and dudz to uv grid
-      w_interp = interp_to_uv_grid('w',i,j,k)
-	  dudz_interp = interp_to_uv_grid('dudz',i,j,k)
-		  
-	  tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
-	  tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
-	  tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
-	  tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
-	  tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
-	  tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
-	  tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
-	  tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
-	  tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
-	  tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
-	enddo
-  enddo
-enddo
-
-return
-
-end subroutine collect_stats
-
 !**********************************************************************
-subroutine write_inst(itype)
+subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
@@ -493,8 +405,6 @@ integer, pointer :: ip,jp,kp
 
 double precision :: dnx, dny, dnz
 
-
-
 !  Write point data; assumes files have been opened properly
 !  in stats_init
 if(itype==1) then
@@ -505,7 +415,7 @@ if(itype==1) then
     kp => upoint_t%ijk(3,n)
 !  Files have been opened in stats_init    
     fid=3000*n
-    write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',i,j,k)
+    write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',ip,jp,kp)
   enddo
 elseif(itype==2) then
 !  Convert integer quantities to double precision
@@ -532,11 +442,11 @@ elseif(itype==2) then
   
   close(7)
 else
-  write(*,*) 'Error: itype not specified properly to write_inst!'
+  write(*,*) 'Error: itype not specified properly to inst_write!'
   stop
 endif
 return
-end subroutine write_inst
+end subroutine inst_write
 
 !**********************************************************************
 subroutine rs_write()
@@ -794,10 +704,9 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : stats_t, upoint_t, yplane_t, zplane_t
+use stat_defs, only : rs_t, tavg_t, upoint_t, yplane_t, zplane_t
 
 implicit none
-
 
 integer,intent(in)::jt
 integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
@@ -840,8 +749,14 @@ if ((cumulative_time) .and. (lun == lun_default)) then
 end if
 
 !  Check if writing statistics
-call compute_stats()
+if(rs_t%calc) then
+  call rs_compute()
+  call rs_write()
+endif 
 
+!  Check if average quantities are to be recorded
+if(tavg_t%calc) call tavg_write()
+ 
 !  Close instantaneous velocity files
 if(upoint_t%calc) then
   do i=1,upoint_t%nloc
@@ -851,13 +766,13 @@ if(upoint_t%calc) then
 endif
 
 !  Write averaged yplane data
-if(yplane_t%avg .or. zplane_t%avg) call plane_io()
+if(yplane_t%avg_calc .or. zplane_t%avg_calc) call io_plane()
 
 return
 end subroutine output_final
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine plane_io()
+subroutine io_plane()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !  This subroutine is used to write yplane data to a formatted Fortran
 !  file in Tecplot format
@@ -867,7 +782,7 @@ implicit none
 character(50) :: ct, fname
 integer :: i,j,k
 
-if(yplane_t%avg) then
+if(yplane_t%avg_calc) then
   do j=1,yplane_t%na
     write(ct,'(F12.6)') yplane_t%la(j)
     write(fname,*) 'output/uvw_avg.y-',trim(adjustl(ct)),'.dat'
@@ -887,7 +802,7 @@ if(yplane_t%avg) then
   enddo
 endif
 
-if(zplane_t%avg) then
+if(zplane_t%avg_calc) then
   do k=1,zplane_t%na
     write(ct,'(F12.6)') zplane_t%la(k)
     write(fname,*) 'output/uvw_avg.z-',trim(adjustl(ct)),'.dat'
@@ -910,7 +825,7 @@ endif
 
 
 return
-end subroutine plane_io
+end subroutine io_plane
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !subroutine io_lambda2_out
@@ -1574,118 +1489,118 @@ end subroutine plane_io
 !!$
 !!$end subroutine write_avg
 
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$subroutine inflow_write ()
-!!$use param, only : jt_total, jt_start_write, buff_end,  &
-!!$                  read_inflow_file, write_inflow_file
-!!$use sim_param, only : u, v, w
-!!$implicit none
-!!$
-!!$character (*), parameter :: sub = 'inflow_write'
-!!$character (*), parameter :: inflow_file = 'output/inflow_BC.out'
-!!$character (*), parameter :: field_file = 'output/inflow.vel.out'
-!!$character (*), parameter :: MPI_suffix = '.c'
-!!$
-!!$integer, parameter :: lun = 80
-!!$integer, parameter :: field_lun = 81
-!!$
-!!$logical, parameter :: DEBUG = .false.
-!!$
-!!$character (64) :: fname
-!!$
-!!$integer, save :: rec = 0
-!!$integer :: nrec
-!!$integer :: iolen
-!!$integer :: iend, iend_w
-!!$
-!!$logical, save :: initialized = .false.
-!!$logical :: opn, exst
-!!$
-!!$!---------------------------------------------------------------------
-!!$
-!!$!--option check
-!!$if ( read_inflow_file .and. write_inflow_file ) then
-!!$  write (*, *) sub // ': cannot have read_inflow_file and write_inflow_file'
-!!$  stop
-!!$end if
-!!$
-!!$!--check consistency with inflow_cond
-!!$iend = floor (buff_end * nx + 1._rprec)
-!!$iend_w = modulo (iend - 1, nx) + 1
-!!$
-!!$if (.not. initialized) then
-!!$
-!!$  inquire ( unit=lun, exist=exst, opened=opn )
-!!$  if ( .not. exst ) then
-!!$    write (*, *) sub // ': lun = ', lun, ' does not exist'
-!!$    stop
-!!$  end if
-!!$  if (opn) then
-!!$    write (*, *) sub // ': lun = ', lun, ' is already open'
-!!$    stop
-!!$  end if
-!!$
-!!$  if ( USE_MPI ) then
-!!$      write ( fname, '(a,a,i0)' ) trim (inflow_file), MPI_suffix, coord
-!!$  else
-!!$      write ( fname, '(a)' ) inflow_file
-!!$  end if
-!!$  
-!!$  inquire ( file=fname, exist=exst, opened=opn )
-!!$  if (exst .and. opn) then
-!!$    write (*, *) sub // ': file = ', trim (fname), ' is already open'
-!!$    stop
-!!$  end if
-!!$  
-!!$  !--figure out the record length
-!!$  inquire (iolength=iolen) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
-!!$
-!!$  !--always add to existing inflow_file
-!!$  !--inflow_file records always start at 1
-!!$  if ( exst ) then
-!!$
-!!$      !--figure out the number of records already in file
-!!$      call len_da_file (fname, iolen, nrec)
-!!$
-!!$      write (*, *) sub // ': #records in ' // trim (fname) // '= ', nrec
-!!$
-!!$      rec = nrec
-!!$
-!!$  else
-!!$
-!!$      rec = 0
-!!$
-!!$  end if
-!!$  
-!!$  !--using direct-access file to allow implementation of 'inflow recycling'
-!!$  !  more easily
-!!$  !--may want to put in some simple checks on ny, nz
-!!$  open (unit=lun, file=fname, access='direct', action='write',  &
-!!$        recl=iolen)
-!!$
-!!$  initialized = .true.
-!!$
-!!$end if
-!!$
-!!$if (jt_total == jt_start_write) then  !--write entire flow field out
-!!$  inquire (unit=field_lun, exist=exst, opened=opn)
-!!$  if (exst .and. .not. opn) then
-!!$    open (unit=field_lun, file=field_file, form='unformatted')
-!!$    call output_final (jt_total, field_lun)
-!!$  else
-!!$    write (*, *) sub // ': problem opening ' // field_file
-!!$    stop
-!!$  end if
-!!$end if
-!!$
-!!$if (jt_total >= jt_start_write) then
-!!$  rec = rec + 1
-!!$  write (unit=lun, rec=rec) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
-!!$  if ( DEBUG ) write (*, *) sub // ': wrote record ', rec
-!!$end if
-!!$
-!!$end subroutine inflow_write
-!!$
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine inflow_write ()
+use param, only : jt_total, jt_start_write, buff_end,  &
+                  read_inflow_file, write_inflow_file
+use sim_param, only : u, v, w
+implicit none
+
+character (*), parameter :: sub = 'inflow_write'
+character (*), parameter :: inflow_file = 'output/inflow_BC.out'
+character (*), parameter :: field_file = 'output/inflow.vel.out'
+character (*), parameter :: MPI_suffix = '.c'
+
+integer, parameter :: lun = 80
+integer, parameter :: field_lun = 81
+
+logical, parameter :: DEBUG = .false.
+
+character (64) :: fname
+
+integer, save :: rec = 0
+integer :: nrec
+integer :: iolen
+integer :: iend, iend_w
+
+logical, save :: initialized = .false.
+logical :: opn, exst
+
+!---------------------------------------------------------------------
+
+!--option check
+if ( read_inflow_file .and. write_inflow_file ) then
+  write (*, *) sub // ': cannot have read_inflow_file and write_inflow_file'
+  stop
+end if
+
+!--check consistency with inflow_cond
+iend = floor (buff_end * nx + 1._rprec)
+iend_w = modulo (iend - 1, nx) + 1
+
+if (.not. initialized) then
+
+  inquire ( unit=lun, exist=exst, opened=opn )
+  if ( .not. exst ) then
+    write (*, *) sub // ': lun = ', lun, ' does not exist'
+    stop
+  end if
+  if (opn) then
+    write (*, *) sub // ': lun = ', lun, ' is already open'
+    stop
+  end if
+
+  if ( USE_MPI ) then
+      write ( fname, '(a,a,i0)' ) trim (inflow_file), MPI_suffix, coord
+  else
+      write ( fname, '(a)' ) inflow_file
+  end if
+  
+  inquire ( file=fname, exist=exst, opened=opn )
+  if (exst .and. opn) then
+    write (*, *) sub // ': file = ', trim (fname), ' is already open'
+    stop
+  end if
+  
+  !--figure out the record length
+  inquire (iolength=iolen) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
+
+  !--always add to existing inflow_file
+  !--inflow_file records always start at 1
+  if ( exst ) then
+
+      !--figure out the number of records already in file
+      call len_da_file (fname, iolen, nrec)
+
+      write (*, *) sub // ': #records in ' // trim (fname) // '= ', nrec
+
+      rec = nrec
+
+  else
+
+      rec = 0
+
+  end if
+  
+  !--using direct-access file to allow implementation of 'inflow recycling'
+  !  more easily
+  !--may want to put in some simple checks on ny, nz
+  open (unit=lun, file=fname, access='direct', action='write',  &
+        recl=iolen)
+
+  initialized = .true.
+
+end if
+
+if (jt_total == jt_start_write) then  !--write entire flow field out
+  inquire (unit=field_lun, exist=exst, opened=opn)
+  if (exst .and. .not. opn) then
+    open (unit=field_lun, file=field_file, form='unformatted')
+    call output_final (jt_total, field_lun)
+  else
+    write (*, *) sub // ': problem opening ' // field_file
+    stop
+  end if
+end if
+
+if (jt_total >= jt_start_write) then
+  rec = rec + 1
+  write (unit=lun, rec=rec) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
+  if ( DEBUG ) write (*, *) sub // ': wrote record ', rec
+end if
+
+end subroutine inflow_write
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_read ()
 use param, only : ny, nz, pi, nsteps, jt_total, buff_end

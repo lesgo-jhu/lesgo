@@ -4,7 +4,7 @@ use param
 use sim_param
 !!$use io, only : output_loop, output_final, inflow_write,  &
 !!$            avg_stats
-use io, only : openfiles, output_loop, output_final, jt_total
+use io, only : openfiles, output_loop, output_final, jt_total, inflow_write
 use fft
 use immersedbc
 use test_filtermodule
@@ -542,8 +542,7 @@ do jt=1,nsteps
 !  Check if master switch for outputing data is turned on           
   if(output) call output_loop (jt)
 
-  if (write_inflow_file) call inflow_write ()
-                              !--for creating inflow_BC file
+  if (write_inflow_file) call inflow_write () !--for creating inflow_BC file
 
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
 

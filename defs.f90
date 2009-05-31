@@ -1,9 +1,9 @@
 module stat_defs
-!  Define parameters for writing statistics
-type stats
-  logical :: calc
-  integer :: nstart, nend !  Time step when to start and stop averaging
-end type stats
+!!  Define parameters for writing statistics
+!type stats
+!  logical :: calc
+!  integer :: nstart, nend !  Time step when to start and stop averaging
+!end type stats
 
 !  Reynolds stresses
 type rs
@@ -14,7 +14,7 @@ end type rs
 
 !  Sums performed over time
 type tavg
-  logical :: calc,started
+  logical :: calc, started
   integer :: nstart, nend
   double precision, allocatable, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
@@ -36,7 +36,7 @@ end type
   
 !  Planar stats/data
 type plane
-  logical :: avg
+  logical :: avg_calc
   integer :: na, nstart, nend
   integer, dimension(10) :: istart
   double precision :: fa
@@ -44,7 +44,7 @@ type plane
   double precision, allocatable, dimension(:,:,:) :: ua, va, wa
 end type	
   
-type(stats)          :: stats_t
+!type(stats)          :: stats_t
 type(rs)             :: rs_t
 type(tavg)          :: tavg_t
 type(point), target :: upoint_t
@@ -55,13 +55,14 @@ contains
 !***************************************************************
 double precision function interp_to_uv_grid(var,i,j,k)
 !***************************************************************
-!  This function computes any values the read in value u1(k) and
-!  u2(k+1) to the w grid location k
-use param,only : nz
+!  This function computes any values the read in value u(k) and
+!  u(k+1) to the uv grid location k
+use param,only : nz,ld
 use sim_param, only : w, dudz
 
 character(*), intent(IN) :: var
 integer,intent(IN) :: i,j,k
+
 
 if(trim(adjustl(var)) == 'w') then
   if(k==nz) then
