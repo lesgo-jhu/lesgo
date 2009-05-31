@@ -22,6 +22,7 @@ uglobal_t%started = .false.
 upoint_t%ijk=-1
 ! ------ These values are not to be changed ------
 
+!  ------- Begin Statistic Settings -------
 !  Master switch for turning on or off all statistics
 !  including instantaneous recordings 
 stats_t%calc = .true.
@@ -65,7 +66,7 @@ zplane_t%na     = 1 !  Number of averaging planes
 zplane_t%la(1)  = 0.5 !  Averaging location
 zplane_t%la(2)	= 2.25
 
-
+!  ------- End Statistic Settings -------
 
 !!  Set time summation calculations based on
 !!  dependants. Don't touch, depends on above
