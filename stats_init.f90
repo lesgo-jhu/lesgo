@@ -24,12 +24,10 @@ upoint_t%ijk=-1
 
 !  Master switch for turning on or off all statistics
 !  including instantaneous recordings 
-stats_t%calc = .false.
-
-!  Sub switches for statistics and output
+stats_t%calc = .true.
 
 !  Turns Reynolds stresses calculations on or off 
-rs_t%calc = .false.
+rs_t%calc = .true.
 !  All nstart and nend values are based
 !  on jt and not jt_total
 tavg_t%calc = .true.
@@ -37,7 +35,7 @@ tavg_t%nstart = 1
 tavg_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-upoint_t%calc = .false.
+upoint_t%calc = .true.
 upoint_t%nstart = 1
 upoint_t%nend   = nsteps
 upoint_t%nskip = 1
@@ -47,24 +45,24 @@ upoint_t%ijk(:,1) = (/ nx/2+1, ny/2+1, nz/2+1 /)
 upoint_t%ijk(:,2) = (/ nx/2+1, ny/2+1, 1 /)
 upoint_t%ijk(:,3) = (/ nx/2+1, ny/2+1, nz /)
 
-uglobal_t%calc = .false.
-uglobal_t%nstart = 80000
+uglobal_t%calc = .true.
+uglobal_t%nstart = 1
 uglobal_t%nend   = nsteps
-uglobal_t%nskip = 100
+uglobal_t%nskip = 1
 
 !  y-plane stats/data
-yplane_t%avg=.false.
+yplane_t%avg=.true.
 yplane_t%nstart = 1
 yplane_t%nend   = nsteps
-yplane_t%na     = 1
-yplane_t%la(1)  = 2.0
+yplane_t%na     = 1  !  Number of averaging planes
+yplane_t%la(1)  = 2.0  !  Averaging location
 
 !  z-plane stats/data
-zplane_t%avg=.false.
+zplane_t%avg=.true.
 zplane_t%nstart = 1
 zplane_t%nend   = nsteps
-zplane_t%na     = 1
-zplane_t%la(1)  = 0.5
+zplane_t%na     = 1 !  Number of averaging planes
+zplane_t%la(1)  = 0.5 !  Averaging location
 zplane_t%la(2)	= 2.25
 
 
