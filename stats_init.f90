@@ -16,10 +16,10 @@ integer :: fid, i, j,k, jy, kz
 !  Don't change from false
 tavg_t%calc     = .false.
 tavg_t%started  = .false.
-ui_pnt_t%started = .false.
-ui_gbl_t%started = .false.
+upoint_t%started = .false.
+uglobal_t%started = .false.
 !  Initialize with non used integer 
-ui_pnt_t%ijk=-1
+upoint_t%ijk=-1
 ! ------ These values are not to be changed ------
 
 !  Master switch for turning on or off all statistics
@@ -27,32 +27,30 @@ ui_pnt_t%ijk=-1
 stats_t%calc = .false.
 
 !  Sub switches for statistics and output
+
 !  Turns Reynolds stresses calculations on or off 
 rs_t%calc = .false.
-!  Turns instantaneous velocity recording on or off
-ui_pnt_t%calc = .false.
-ui_gbl_t%calc = .false.
-!  Turns temporal averaged quantities on or off
-avg_calc = .false.
-
 !  All nstart and nend values are based
 !  on jt and not jt_total
+tavg_t%calc = .true.
 tavg_t%nstart = 1
 tavg_t%nend = nsteps
 
-ui_pnt_t%nstart = 1
-ui_pnt_t%nend   = nsteps
-ui_pnt_t%nskip = 1
+!  Turns instantaneous velocity recording on or off
+upoint_t%calc = .false.
+upoint_t%nstart = 1
+upoint_t%nend   = nsteps
+upoint_t%nskip = 1
 
-ui_pnt_t%nloc = 3
-ui_pnt_t%ijk(:,1) = (/ nx/2+1, ny/2+1, nz/2+1 /)
-ui_pnt_t%ijk(:,2) = (/ nx/2+1, ny/2+1, 1 /)
-ui_pnt_t%ijk(:,3) = (/ nx/2+1, ny/2+1, nz /)
+upoint_t%nloc = 3
+upoint_t%ijk(:,1) = (/ nx/2+1, ny/2+1, nz/2+1 /)
+upoint_t%ijk(:,2) = (/ nx/2+1, ny/2+1, 1 /)
+upoint_t%ijk(:,3) = (/ nx/2+1, ny/2+1, nz /)
 
-!ui_gbl_t%nstart = ui_pnt_t%nstart
-ui_gbl_t%nstart = 80000
-ui_gbl_t%nend   = nsteps
-ui_gbl_t%nskip = 100
+uglobal_t%calc = .false.
+uglobal_t%nstart = 80000
+uglobal_t%nend   = nsteps
+uglobal_t%nskip = 100
 
 !  y-plane stats/data
 yplane_t%avg=.false.
@@ -71,10 +69,10 @@ zplane_t%la(2)	= 2.25
 
 
 
-!  Set time summation calculations based on
-!  dependants. Don't touch, depends on above
-!  information
-if(rs_t%calc) tavg_t%calc = .true.
+!!  Set time summation calculations based on
+!!  dependants. Don't touch, depends on above
+!!  information
+!if(rs_t%calc) tavg_t%calc = .true.
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -179,11 +177,11 @@ if(zplane_t%avg) then
 endif
 
 !  Open files for instantaneous writing
-if(ui_pnt_t%calc) then
-  do i=1,ui_pnt_t%nloc
-    write(ci,*) ui_pnt_t%ijk(1,i)
-	write(cj,*) ui_pnt_t%ijk(2,i)
-	write(ck,*) ui_pnt_t%ijk(3,i)
+if(upoint_t%calc) then
+  do i=1,upoint_t%nloc
+    write(ci,*) upoint_t%ijk(1,i)
+	write(cj,*) upoint_t%ijk(2,i)
+	write(ck,*) upoint_t%ijk(3,i)
     write (fname,*) 'output/uvw-inst-',trim(adjustl(ci)),'-',  &
       trim(adjustl(cj)),'-', trim(adjustl(ck)),'.out'
 	fname=trim(adjustl(fname))

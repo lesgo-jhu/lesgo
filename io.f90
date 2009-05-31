@@ -254,7 +254,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz
-use stat_defs,only:stats_t, tavg_t, ui_pnt_t, ui_gbl_t, yplane_t, &
+use stat_defs,only:stats_t, tavg_t, upoint_t, uglobal_t, yplane_t, &
   zplane_t, interp_to_uv_grid
 use sim_param, only : u, v, w
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
@@ -305,27 +305,27 @@ if(stats_t%calc) then
   endif
 
 !  Determine if instantaneous point velocities are to be recorded
-  if(ui_pnt_t%calc) then
-    if(jt >= ui_pnt_t%nstart .and. jt <= ui_pnt_t%nend .and. mod(jt,ui_pnt_t%nskip)==0) then
-  	  if(.not. ui_pnt_t%started) then
+  if(upoint_t%calc) then
+    if(jt >= upoint_t%nstart .and. jt <= upoint_t%nend .and. mod(jt,upoint_t%nskip)==0) then
+  	  if(.not. upoint_t%started) then
 	    write(*,*) 'Starting to store instantaneous velocities from ', &
-	      ui_pnt_t%nstart, ' to ', ui_pnt_t%nend
-        ui_pnt_t%started=.true.
+	      upoint_t%nstart, ' to ', upoint_t%nend
+        upoint_t%started=.true.
 	  endif
 	  call write_uinst(1)
 	endif
   endif
   
 !  Determine if instantaneous global velocities are to be recorded
-  if(ui_gbl_t%calc) then
-    if(jt >= ui_gbl_t%nstart .and. jt <= ui_gbl_t%nend .and. mod(jt,ui_gbl_t%nskip)==0) then
-  	  if(.not. ui_gbl_t%started) then
+  if(uglobal_t%calc) then
+    if(jt >= uglobal_t%nstart .and. jt <= uglobal_t%nend .and. mod(jt,uglobal_t%nskip)==0) then
+  	  if(.not. uglobal_t%started) then
 	    write(*,*) '-------------------------------'
 	    write(*,*) 'Starting to write instantaneous global velocities from ', &
-	      ui_gbl_t%nstart, ' to ', ui_gbl_t%nend
-		write(*,*) 'Iteration skip:', ui_gbl_t%nskip
+	      uglobal_t%nstart, ' to ', uglobal_t%nend
+		write(*,*) 'Iteration skip:', uglobal_t%nskip
 		write(*,*) '-------------------------------'
-        ui_gbl_t%started=.true.
+        uglobal_t%started=.true.
 	  endif
 	  call write_uinst(2)
 	endif
@@ -561,7 +561,7 @@ subroutine write_uinst(itype)
 !*************************************************************** 
 !  This subroutine writes the instantaneous velocity components 
 !  at specified i,j,k locations
-use stat_defs, only : ui_pnt_t, ui_gbl_t, interp_to_uv_grid
+use stat_defs, only : upoint_t, uglobal_t, interp_to_uv_grid
 use sim_param, only : u,v,w
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z
 implicit none
@@ -580,10 +580,10 @@ double precision :: dnx, dny, dnz
 !  in stats_init
 if(itype==1) then
   nullify(ip,jp,kp)
-  do n=1,ui_pnt_t%nloc
-    ip => ui_pnt_t%ijk(1,n)
-    jp => ui_pnt_t%ijk(2,n)
-    kp => ui_pnt_t%ijk(3,n)
+  do n=1,upoint_t%nloc
+    ip => upoint_t%ijk(1,n)
+    jp => upoint_t%ijk(2,n)
+    kp => upoint_t%ijk(3,n)
     fid=3000*n
     write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , w(ip,jp,kp)
   enddo
@@ -812,7 +812,7 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : stats_t, ui_pnt_t, yplane_t, zplane_t
+use stat_defs, only : stats_t, upoint_t, yplane_t, zplane_t
 
 implicit none
 
@@ -861,8 +861,8 @@ end if
 if(stats_t%calc) call compute_stats()
 
 !  Close instantaneous velocity files
-if(ui_pnt_t%calc) then
-  do i=1,ui_pnt_t%nloc
+if(upoint_t%calc) then
+  do i=1,upoint_t%nloc
     fid=3000*i
     close(fid)
   enddo

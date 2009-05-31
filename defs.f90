@@ -22,15 +22,15 @@ end type tavg
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
 !  componentsvalues each time step)
-type ui_pnt
+type point
   logical :: calc,started,global
   integer :: nstart, nend, nloc, nskip
   integer :: ijk(3,10) !  Can specify up to 10 points to record 
 end type
 
 !  Instantaneous velocity global declarations
-type ui_gbl
-  logical :: calc,started,global
+type global
+  logical :: calc,started
   integer :: nstart, nend, nskip
 end type   
   
@@ -44,13 +44,11 @@ type plane
   double precision, allocatable, dimension(:,:,:) :: ua, va, wa
 end type	
   
-logical :: avg_calc
- 
 type(stats)          :: stats_t
 type(rs)             :: rs_t
 type(tavg)          :: tavg_t
-type(ui_pnt), target :: ui_pnt_t
-type(ui_gbl)         :: ui_gbl_t
+type(point), target :: upoint_t
+type(global)         :: uglobal_t
 type(plane)		     :: yplane_t, zplane_t
   
 contains
@@ -85,8 +83,10 @@ return
 end function
 
 end module stat_defs
-  
+
 module Sij_defs
+!  This module was created as a work around of a memory issue
+!  previously seen for large grids
   use param, only : ld, nx, ny, nz, USE_MPI, coord, lbc_mom
   double precision, dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
 end module Sij_defs

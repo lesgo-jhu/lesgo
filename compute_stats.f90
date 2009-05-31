@@ -46,7 +46,7 @@ if(rs_t%calc) then
 endif
 
 !  Check if average quantities are to be recorded
-if(avg_calc) then
+if(tavg_t%calc) then
   open(unit = 7,file = 'output/uvw_avg.dat')
 !  open(unit = 8,file = 'output/avg_dudz.out')
   write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
