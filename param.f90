@@ -84,9 +84,12 @@ module param
   real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
+!  ------- Output settings -------
+  logical,parameter:: output=.true.
+  
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
 !  real(rprec),parameter::dt=dt_dim*u_star/z_i
-                                  !--dt=2.e-4 usually works for 64^3
+                         !--dt=2.e-4 usually works for 64^3
   
   !--Coriolis stuff
   ! coriol=non-dim coriolis parameter,
@@ -95,15 +98,11 @@ module param
   real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
        ug=u_star/u_star,vg=0._rprec/u_star
 
+     
   real(rprec),parameter::vonk=0.4_rprec 
   integer,parameter::c_count=10000,p_count=10000
  !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
   integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates
-  logical,parameter:: output=.true.
-  logical, parameter :: use_avgslice = .false.
-  !  Set minimum time step to write averaged slices
-  integer, parameter :: avgslice_start = 0
-  
   
   !--initu = true to read from a file; false to create with random noise
   logical, parameter :: initu = .true.

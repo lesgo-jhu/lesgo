@@ -1,14 +1,14 @@
 module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
-                  use_avgslice, avgslice_start, USE_MPI, coord, rank, &
-                  nproc, jt_total
+                  USE_MPI, coord, rank, nproc, jt_total
 implicit none
 private
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
+public rs_write, tavg_write
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -276,21 +276,7 @@ integer::jx,jy,jz
 
 double precision :: ui, vi ,wi
 
-!!$!jt_total=jt_total+1  !--moved into main program
-!!$
-!!$if (io_mean) call calculate_mean ()
-
-!!$if (use_avgslice) then
-!!$  if (mod(jt,c_count)==0 .and. jt .gt. avgslice_start) then
-!!$    call avgslice(jt)
-!!$    if ((S_FLAG) .and. (jt_total.GE.SCAL_init)) then ! Output scalar variables
-!!$      call scalar_slice(jt) ! Uses file unit numbers (36-47)
-!!$    end if
-!!$  end if
-!!$end if
-
 !  Determine if stats are to be calculated
-if(stats_t%calc) then
   if(tavg_t%calc) then
 !  Check if we are in the time interval for running summations
     if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
@@ -300,7 +286,7 @@ if(stats_t%calc) then
         tavg_t%started=.true.
 	  endif
 !  Compute running summations
-      call compute_sums ()
+      call collect_stats ()
 	endif 
   endif
 
@@ -312,7 +298,7 @@ if(stats_t%calc) then
 	      upoint_t%nstart, ' to ', upoint_t%nend
         upoint_t%started=.true.
 	  endif
-	  call write_uinst(1)
+	  call write_inst(1)
 	endif
   endif
   
@@ -327,10 +313,9 @@ if(stats_t%calc) then
 		write(*,*) '-------------------------------'
         uglobal_t%started=.true.
 	  endif
-	  call write_uinst(2)
+	  call write_inst(2)
 	endif
   endif    
-endif
 
 !  Determine if y-plane averaging should be performed
 if(yplane_t%avg .and. jt >= yplane_t%nstart .and. &
@@ -373,77 +358,10 @@ if(zplane_t%avg .and. jt >= zplane_t%nstart .and. &
     enddo
   enddo
 endif 
-  
 
-
-!!$if (output) then
-!!$
-!!$  if (modulo (jt_total, n_vel_slice_write) == 0) call vel_slice ()
-!!$
-!!$  if (mod(jt_total,base)==0) then
-!!$
-!!$    write (fname, '(a,i6.6,a)') path // 'output/vel', jt_total, '.out'
-!!$    $if ($MPI)
-!!$      write (temp, '(".c",i0)') coord
-!!$      fname = trim (fname) // temp
-!!$    $endif
-!!$
-!!$    open(1,file=fname,form='unformatted')
-!!$
-!!$    call checkpoint (1)
-!!$
-!!$    close(1)
-!!$
-!!$    if (write_txz) then
-!!$      !--needed for validation (in overall stress balance)
-!!$      write (fname, '(a,i6.6,a)') path // 'output/txz', jt_total, '.out'
-!!$      $if ($MPI)
-!!$        write (temp, '(".c",i0)') coord
-!!$        fname = trim (fname) // temp
-!!$      $endif
-!!$      open (1, file=fname, form='unformatted')
-!!$      write (1) txz(:, :, 1:nz)
-!!$      close (1)
-!!$    end if
-!!$
-!!$    if (write_f) then
-!!$      !--mainly for debugging
-!!$      write (fname, '(a,i6.6,a)') path // 'output/f', jt_total, '.out'
-!!$      $if ($MPI)
-!!$        write (temp, '(".c",i0)') coord
-!!$        fname = trim (fname) // temp
-!!$      $endif
-!!$      open (1, file=fname, form='unformatted')
-!!$      write (1) fx(:, :, 1:nz), fy(:, :, 1:nz), fz(:, :, 1:nz)
-!!$      close (1)
-!!$    end if
-!!$	
-!!$  end if
-!!$
-!!$  if (mod(jt_total,nwrite)==0) then
-!!$    !--this does not make sense to me, instead added p, theta to above
-!!$    !--also Cs_opt2_avg commented out of sgsmodule
-!!$    !write(fname,'(A13,i6.6,A4)')path//'output/vel-',jt_total,'.out'
-!!$    !open(1,file=fname,form='unformatted')
-!!$    !if(S_FLAG)THEN
-!!$    !write(1) real(u),real(v),real(w),real(Cs_opt2_avg),real(p),real(theta)
-!!$    !else
-!!$    !write(1) real(u),real(v),real(w),real(Cs_opt2_avg),real(p)
-!!$    !end if
-!!$    !Cs_opt2_avg(:,:,:)=0._rprec
-!!$    !close(1)
-!!$    if(io_mean)call io_mean_out
-!!$    !if(io_lambda2)call io_lambda2_out
-!!$    if(io_spec)call post_spec(jt)
-!!$  end if
-!!$  if(time_spec.gt.0)call timeseries_spec
-!!$  
-!!$  
-!!$end if
+return
 end subroutine output_loop
 
-!!$subroutine point_interp(istart,ldiff)
-!!$
 !!$!***************************************************************
 !!$subroutine plane_interp(iplane,istart,indx,ldiff)
 !!$!***************************************************************
@@ -514,9 +432,9 @@ end subroutine output_loop
 !!$end subroutine plane_interp
 
 !***************************************************************
-subroutine compute_sums ()
+subroutine collect_stats()
 !***************************************************************
-!  This subroutine computes the sums for each flow 
+!  This subroutine collects the stats for each flow 
 !  variable quantity
 use stat_defs, only : tavg_t, interp_to_uv_grid
 use param, only : nx,ny,nz
@@ -529,6 +447,7 @@ w_interp = 0.
 
 !  Compute number of times to average over
 navg = tavg_t%nend - tavg_t%nstart + 1
+!  Averaging factor
 fa=1./dble(navg)
 
 do k=1,nz
@@ -554,12 +473,12 @@ enddo
 
 return
 
-end subroutine compute_sums
+end subroutine collect_stats
 
-!***************************************************************
-subroutine write_uinst(itype)
-!*************************************************************** 
-!  This subroutine writes the instantaneous velocity components 
+!**********************************************************************
+subroutine write_inst(itype)
+!**********************************************************************
+!  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
 use stat_defs, only : upoint_t, uglobal_t, interp_to_uv_grid
 use sim_param, only : u,v,w
@@ -584,8 +503,9 @@ if(itype==1) then
     ip => upoint_t%ijk(1,n)
     jp => upoint_t%ijk(2,n)
     kp => upoint_t%ijk(3,n)
+!  Files have been opened in stats_init    
     fid=3000*n
-    write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , w(ip,jp,kp)
+    write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',i,j,k)
   enddo
 elseif(itype==2) then
 !  Convert integer quantities to double precision
@@ -612,11 +532,73 @@ elseif(itype==2) then
   
   close(7)
 else
-  write(*,*) 'Error: itype not specified properly to write_uinst!'
+  write(*,*) 'Error: itype not specified properly to write_inst!'
   stop
 endif
 return
-end subroutine write_uinst
+end subroutine write_inst
+
+!**********************************************************************
+subroutine rs_write()
+!**********************************************************************
+use stat_defs, only : rs_t
+use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+implicit none
+
+integer i,j,k
+
+!  Add temporary output information
+open(unit = 7,file = 'output/rs.dat')
+write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+  1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+!  Write spatially averaged, temporally averaged quantities
+      write(7,*) (i-1)*dx/L_x, (j-1)*dy/L_y, ((k-1)*dz + dz/2)/L_z, &
+		rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
+		rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
+	enddo
+  enddo
+enddo
+close(7)
+  
+return
+end subroutine rs_write
+
+!**********************************************************************
+subroutine tavg_write()
+!**********************************************************************
+use stat_defs, only : tavg_t
+use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+implicit none
+
+integer :: i,j,k
+
+open(unit = 7,file = 'output/uvw_avg.dat')
+!  open(unit = 8,file = 'output/avg_dudz.out')
+write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+  1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+!  write(8,*) 'variables= "z", "<dudz>/u*"'
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+      write(7,*) (i-1)*dx/L_x, (j-1)*dy/L_y, ((k-1)*dz + dz/2)/L_z, &
+        tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k)
+!	write(8,*) z(k), sum(tavg_t%dudz(:,:,k))/(dnx*dny)
+    enddo
+  enddo
+enddo
+close(7)
+!  close(8)
+
+return
+end subroutine tavg_write
+
 
 !!$$if (0)
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -858,7 +840,7 @@ if ((cumulative_time) .and. (lun == lun_default)) then
 end if
 
 !  Check if writing statistics
-if(stats_t%calc) call compute_stats()
+call compute_stats()
 
 !  Close instantaneous velocity files
 if(upoint_t%calc) then

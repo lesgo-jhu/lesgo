@@ -539,7 +539,8 @@ do jt=1,nsteps
 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
 
-  call output_loop (jt)
+!  Check if master switch for outputing data is turned on           
+  if(output) call output_loop (jt)
 
   if (write_inflow_file) call inflow_write ()
                               !--for creating inflow_BC file
