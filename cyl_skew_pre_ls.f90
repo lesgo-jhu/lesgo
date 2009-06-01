@@ -27,14 +27,14 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=128, Ny=64, Nz=64
+integer, parameter :: Nx=64, Ny=64, Nz=56
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: eps = 1.e-6
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=60.*pi/180. !  In radians
-double precision, parameter :: crad = 0.2 !  Cylinder radius
-double precision, parameter :: clen=0.75 !  Cylinder length
+double precision, parameter :: skew_angle=0.*pi/180. !  In radians
+double precision, parameter :: crad = 0.5 !  Cylinder radius
+double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
 logical :: inside, incir, incyl, inte, inbe, btplanes
@@ -45,9 +45,9 @@ integer :: i,j,k,nf
 
 double precision :: eck
 
-double precision, parameter :: xmin=0., xmax=2., dx=(xmax-xmin)/(Nx-1)
-double precision, parameter :: ymin=0., ymax=1., dy=(ymax-ymin)/(Ny-1)
-double precision, parameter :: zmin=0., zmax=1., dz=(zmax-zmin)/(Nz-1)
+double precision, parameter :: xmin=0., xmax=4., dx=(xmax-xmin)/(Nx-1)
+double precision, parameter :: ymin=0., ymax=4., dy=(ymax-ymin)/(Ny-1)
+double precision, parameter :: zmin=0., zmax=3.4920634920634921, dz=(zmax-zmin)/(Nz-1./2.)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 
@@ -66,16 +66,16 @@ do k=1,Nz
     do i=1,nx
       gcs_t(i,j,k)%xyz(1)=(i-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz
+      gcs_t(i,j,k)%xyz(3)=(k-1)*dz + dz/2.
     enddo
   enddo
 enddo
 
 !  Specify global vector to origin of lcs 
-lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
+lgcs_t%xyz=(/ gcs_t(Nx/2,1,1)%xyz(1), gcs_t(1,Ny/2,1)%xyz(2), gcs_t(1,1,1)%xyz(3) /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
-!  Compute the center point of the top ellipse
+!  Compute the center point of the top ellipse in the gcs
 call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
 etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
 
@@ -210,8 +210,11 @@ do k=1,Nz
 	  
 	 if(incyl) then
 	   gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
-	   gcs_t(i,j,k)%brindex = 1
+	   gcs_t(i,j,k)%brindex = -1
+     else
+       gcs_t(i,j,k)%brindex = 1
 	 endif
+     
 
     enddo
 
@@ -221,7 +224,7 @@ enddo
 
 nf=1
 
-!  Create tecplot formatted velocity field file  
+!  Create tecplot formatted phi and brindex field file  
 open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
   action='write',position='rewind')
 
@@ -245,6 +248,15 @@ close(2)
 !    write(fpreplt,*) 'preplot ',ftec,' && rm -v ', ftec
 !    call system(fpreplt);
 !write(*,*) 'gcs_t%phi = ', gcs_t%phi 
+
+!  Write binary data for lesgo
+open (1, file='phi.out', form='unformatted')
+write (1) gcs_t(:,:,:)%phi  
+close (1)
+
+open (1, file='brindex.out', form='unformatted')
+write (1) gcs_t(:,:,:)%brindex
+close (1)
 
 stop
 
