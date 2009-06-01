@@ -25,7 +25,7 @@ upoint_t%ijk=-1
 !  ------- Begin Statistic Settings -------
 
 !  All nstart and nend values are based on jt and not jt_total
-tavg_t%calc = .true.
+tavg_t%calc = .false.
 tavg_t%nstart = 1
 tavg_t%nend = nsteps
 
@@ -33,7 +33,7 @@ tavg_t%nend = nsteps
 rs_t%calc = .false. !  Make sure tavg_t%calc = .true. if .true. and vice versa
 
 !  Turns instantaneous velocity recording on or off
-upoint_t%calc = .true.
+upoint_t%calc = .false.
 upoint_t%nstart = 1
 upoint_t%nend   = nsteps
 upoint_t%nskip = 1
@@ -44,9 +44,9 @@ upoint_t%ijk(:,2) = (/ nx/2+1, ny/2+1, 1 /)
 upoint_t%ijk(:,3) = (/ nx/2+1, ny/2+1, nz /)
 
 uglobal_t%calc = .true.
-uglobal_t%nstart = 1
+uglobal_t%nstart = 100
 uglobal_t%nend   = nsteps
-uglobal_t%nskip = 1
+uglobal_t%nskip = 100
 
 !  y-plane stats/data
 yplane_t%avg_calc=.true.

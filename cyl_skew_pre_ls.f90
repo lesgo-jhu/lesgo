@@ -34,7 +34,7 @@ double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
-double precision, parameter :: clen=1. !  Cylinder length
+!double precision, parameter :: clen=1. !  ion, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
 logical :: inside, incir, incyl, inte, inbe, btplanes
@@ -49,6 +49,8 @@ double precision, parameter :: xmin=0., xmax=4., dx=(xmax-xmin)/(Nx-1)
 double precision, parameter :: ymin=0., ymax=4., dy=(ymax-ymin)/(Ny-1)
 double precision, parameter :: zmin=0., zmax=3.4920634920634921, dz=(zmax-zmin)/(Nz-1./2.)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
+
+double precision, parameter :: clen=1.-dz/2. !  Cylinder length
 
 
 !  Check if axis has component in z-direction

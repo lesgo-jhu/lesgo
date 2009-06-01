@@ -53,7 +53,7 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 1
+  integer, parameter :: nsteps = 100
 
 !!$!  Data Output Control
 !!$  logical, parameter :: domain              = .true.

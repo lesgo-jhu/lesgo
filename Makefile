@@ -54,7 +54,7 @@ ifeq ($(FCOMP),ifort)
   FPP += -DIFORT
   FC = ifort
 #  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -check all -g -traceback -debug all
+#  FFLAGS = -O0 -check all -g -traceback -debug all
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 #  FFLAGS = -O3 -r8
