@@ -32,9 +32,9 @@ double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: eps = 1.e-6
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=0.*pi/180. !  In radians
+double precision, parameter :: skew_angle=30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
-!double precision, parameter :: clen=1. !  ion, parameter :: clen=1. !  Cylinder length
+!double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
 logical :: inside, incir, incyl, inte, inbe, btplanes
@@ -60,12 +60,12 @@ if(axis(3) .ne. 0.) then
 endif
 
 !  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx,ny,nz))
+allocate(gcs_t(nx+2,ny,nz))
 
 !  Create grid in the global coordinate system
 do k=1,Nz
   do j=1,ny
-    do i=1,nx
+    do i=1,nx+2
       gcs_t(i,j,k)%xyz(1)=(i-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
       gcs_t(i,j,k)%xyz(3)=(k-1)*dz + dz/2.
@@ -74,7 +74,8 @@ do k=1,Nz
 enddo
 
 !  Specify global vector to origin of lcs 
-lgcs_t%xyz=(/ gcs_t(Nx/2,1,1)%xyz(1), gcs_t(1,Ny/2,1)%xyz(2), gcs_t(1,1,1)%xyz(3) /)
+!lgcs_t%xyz=(/ gcs_t(Nx/2,1,1)%xyz(1), gcs_t(1,Ny/2,1)%xyz(2), gcs_t(1,1,1)%xyz(3) /)
+lgcs_t%xyz=(/ 2., 2., dz/2. /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse in the gcs
@@ -96,7 +97,7 @@ do k=1,Nz
    
   do j=1,ny
   
-    do i=1,nx
+    do i=1,nx+2
     
 	!  Intialize flags
 	  btplanes=.false.
@@ -105,7 +106,7 @@ do k=1,Nz
 	  inte=.false.
 	  inbe=.false.
 	
-!!  First check if points are between the top and bottom planes
+!  First check if points are between the top and bottom planes
       if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
 
 	  !  Compute vector to point from lcs in the gcs

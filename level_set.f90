@@ -3579,8 +3579,9 @@ do k = 1, nz-1
 
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-
+          write(*,*) 'calling interp_vel'
           call interp_vel (xv, vel)
+          write(*,*) 'interp_vel call successfull'
 
         else
         
