@@ -43,7 +43,7 @@ double precision, parameter :: thresh = 1.e-12
 double precision :: circk, dist, theta
 integer :: i,j,k,nf
 
-double precision :: eck
+double precision :: eck, atan4
 
 double precision, parameter :: xmin=0., xmax=4., dx=(xmax-xmin)/(Nx-1)
 double precision, parameter :: ymin=0., ymax=4., dy=(ymax-ymin)/(Ny-1)
@@ -85,17 +85,17 @@ tplane=etgcs_t%xyz(3)
 
 write(*,*) 'tplane and bplane = ', tplane, bplane
 
+!  Initialize the distance function
+gcs_t(:,:,:)%phi = huge(1.)
+gcs_t(:,:,:)%brindex=huge(1.)
+
 !  Loop over all global coordinates
 do k=1,Nz
    
   do j=1,ny
   
     do i=1,nx
-
-!  Initialize the distance function
-	  gcs_t(i,j,k)%phi = 1.
-      gcs_t(i,j,k)%brindex=0
-	
+    
 	!  Intialize flags
 	  btplanes=.false.
 	  incir=.false.
@@ -120,19 +120,21 @@ do k=1,Nz
 	  
 !  Check if point lies in top ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
+        ecs_t%xyz)
 	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
       if(eck <= 1) inte=.true.
 	  
 !  Check if point lies in bottom ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+	  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
+        ecs_t%xyz)
 	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
       if(eck <= 1) inbe=.true.	  
 	  
-	  !  Compute the location on the cylinder surface that corresponds
-	  !  to the minimum distance.
-	  theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
+!  Compute theta value on lcs using geometry - atan4      
+      theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
+        
 	  slcs_t%xyz(1) = crad*dcos(theta)
 	  slcs_t%xyz(2) = crad*dsin(theta)
 	  slcs_t%xyz(3) = lcs_t%xyz(3)
@@ -144,9 +146,9 @@ do k=1,Nz
 	  
 !  Check if between cutting planes
       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-		call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)		
+		call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)	
 
-		if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+		if(dist < dabs(gcs_t(i,j,k)%phi)) then
 		  gcs_t(i,j,k)%phi = dist
 		endif
 	  else
@@ -158,9 +160,7 @@ do k=1,Nz
 		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-          !dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+          call ellipse_point_dist_2D(a,b,(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -176,9 +176,7 @@ do k=1,Nz
 		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-!          dist = dsqrt(dist**2 + ecs_t%xyz(3)**2)
+          call ellipse_point_dist_2D(a,b,(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -214,7 +212,6 @@ do k=1,Nz
      else
        gcs_t(i,j,k)%brindex = 1
 	 endif
-     
 
     enddo
 
