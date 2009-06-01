@@ -29,7 +29,7 @@ type(vector) :: vgcs_t
 
 integer, parameter :: Nx=64, Ny=64, Nz=56
 double precision, parameter :: pi = dacos(-1.)
-double precision, parameter :: eps = 1.e-6
+double precision, parameter :: eps = 1.e-9
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle=30.*pi/180. !  In radians
@@ -37,7 +37,7 @@ double precision, parameter :: crad = 0.5 !  Cylinder radius
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
-logical :: inside, incir, incyl, inte, inbe, btplanes
+logical :: incir, incyl, inte, inbe, btplanes
 double precision :: tplane, bplane
 double precision, parameter :: thresh = 1.e-12
 double precision :: circk, dist, theta
@@ -51,7 +51,6 @@ double precision, parameter :: zmin=0., zmax=3.4920634920634921, dz=(zmax-zmin)/
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 double precision, parameter :: clen=1.-dz/2. !  Cylinder length
-
 
 !  Check if axis has component in z-direction
 if(axis(3) .ne. 0.) then
@@ -74,7 +73,7 @@ do k=1,Nz
 enddo
 
 !  Specify global vector to origin of lcs 
-!lgcs_t%xyz=(/ gcs_t(Nx/2,1,1)%xyz(1), gcs_t(1,Ny/2,1)%xyz(2), gcs_t(1,1,1)%xyz(3) /)
+!lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
 lgcs_t%xyz=(/ 2., 2., dz/2. /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
@@ -97,7 +96,7 @@ do k=1,Nz
    
   do j=1,ny
   
-    do i=1,nx+2
+    do i=1,nx
     
 	!  Intialize flags
 	  btplanes=.false.
@@ -135,9 +134,10 @@ do k=1,Nz
 	  eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2 
       if(eck <= 1) inbe=.true.	  
 	  
-!  Compute theta value on lcs using geometry - atan4      
+!  Compute theta value on lcs using geometry.atan4      
       theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
-        
+      
+      !theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
 	  slcs_t%xyz(1) = crad*dcos(theta)
 	  slcs_t%xyz(2) = crad*dsin(theta)
 	  slcs_t%xyz(3) = lcs_t%xyz(3)
@@ -163,7 +163,7 @@ do k=1,Nz
 		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call ellipse_point_dist_2D(a,b,(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -179,7 +179,7 @@ do k=1,Nz
 		  !  Get vector in ellipse coordinate system		  
  		  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
  		
-          call ellipse_point_dist_2D(a,b,(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -215,7 +215,6 @@ do k=1,Nz
      else
        gcs_t(i,j,k)%brindex = 1
 	 endif
-
     enddo
 
   enddo
@@ -244,10 +243,7 @@ do k=1,nz
   enddo
 enddo
 close(2)
-!  Create plt file the hard way
-!    write(fpreplt,*) 'preplot ',ftec,' && rm -v ', ftec
-!    call system(fpreplt);
-!write(*,*) 'gcs_t%phi = ', gcs_t%phi 
+
 
 !  Write binary data for lesgo
 open (1, file='phi.out', form='unformatted')
