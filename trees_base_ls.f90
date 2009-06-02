@@ -201,6 +201,11 @@ contains
 !**********************************************************************
 function cross_product (a, b)
 !**********************************************************************
+!
+!  This function computes the cross product of vectors a and b (a x b) 
+!  with dimensions nd.
+!
+
 implicit none
 
 real (rp) :: cross_product(nd)
@@ -325,11 +330,15 @@ if (DEBUG) call exit_sub (sub_name)
 
 end subroutine grid_initialize
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! finds nearest grid point corresponding to real position x
-! must be a better way to combine the following 2 routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
 function grid_nearest_of_pt (x, d, node)
+!**********************************************************************
+! 
+! This function finds nearest grid point corresponding to real position 
+! x must be a better way to combine the following 2 routines.
+!
+
 implicit none
 
 integer :: grid_nearest_of_pt
@@ -359,8 +368,10 @@ grid_nearest_of_pt = nint ( (x - (grid % x_min(d, node))) /  &
 
 end function grid_nearest_of_pt
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 function grid_of_pt (x, d, node)
+!**********************************************************************
+
 implicit none
 
 integer :: grid_of_pt
@@ -456,5 +467,4 @@ $endif
 
 end function pt_of_grid
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module trees_base_ls

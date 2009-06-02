@@ -1,4 +1,6 @@
+!***************************************************************
 module stat_defs
+!***************************************************************
 !!  Define parameters for writing statistics
 !type stats
 !  logical :: calc
@@ -8,7 +10,7 @@ module stat_defs
 !  Reynolds stresses
 type rs
   logical :: calc
-  double precision, allocatable, dimension(:,:,:) :: up2, vp2, wp2, & 
+  double precision, allocatable, dimension(:,:,:) :: up2, vp2, wp2, &
                                                      upwp, vpwp, upvp
 end type rs
 
@@ -18,22 +20,22 @@ type tavg
   integer :: nstart, nend
   double precision, allocatable, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
-end type tavg	
-  
-!  Instantaneous Variables Storage (Parameters for storing velocity 
+end type tavg
+
+!  Instantaneous Variables Storage (Parameters for storing velocity
 !  componentsvalues each time step)
 type point
   logical :: calc,started,global
   integer :: nstart, nend, nloc, nskip
-  integer :: ijk(3,10) !  Can specify up to 10 points to record 
+  integer :: ijk(3,10) !  Can specify up to 10 points to record
 end type
 
 !  Instantaneous velocity global declarations
 type global
   logical :: calc,started
   integer :: nstart, nend, nskip
-end type   
-  
+end type
+
 !  Planar stats/data
 type plane
   logical :: avg_calc
@@ -42,15 +44,15 @@ type plane
   double precision :: fa
   double precision, dimension (10) :: la, ldiff
   double precision, allocatable, dimension(:,:,:) :: ua, va, wa
-end type	
-  
+end type
+
 !type(stats)          :: stats_t
 type(rs)             :: rs_t
 type(tavg)          :: tavg_t
 type(point), target :: upoint_t
 type(global)         :: uglobal_t
-type(plane)		     :: yplane_t, zplane_t
-  
+type(plane)          :: yplane_t, zplane_t
+
 contains
 !***************************************************************
 double precision function interp_to_uv_grid(var,i,j,k)
@@ -70,7 +72,7 @@ if(trim(adjustl(var)) == 'w') then
   else
     interp_to_uv_grid = 0.5*(w(i,j,k)+w(i,j,k+1))
   endif
-elseif(trim(adjustl(var)) == 'dudz') then 
+elseif(trim(adjustl(var)) == 'dudz') then
   if(k==nz) then
     interp_to_uv_grid = 3./2.*dudz(i,j,k) - 0.5*dudz(i,j,k-1)
   else
