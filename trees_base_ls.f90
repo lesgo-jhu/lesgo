@@ -1,4 +1,6 @@
+!**********************************************************************
 module trees_base_ls
+!**********************************************************************
 use types, only : rp => rprec
 !use precision
 use messages
@@ -76,12 +78,12 @@ type branch_type
                        !--i.e. the branch generation
   integer :: n_sub_branch = -1  ! number of children this br. has
   integer :: zone = -1 ! zone of this branch, if using multi-zone avging
-  
+
   integer :: nrespt = -1  !--number grid pts inside this (resolved) branch
 
   integer :: nbboxpt = -1  !--number of pts in bbox
   integer, pointer :: bboxpt(:, :) => NULL ()
-  
+
   logical :: resolved  ! whether or not this br. is resolved
 
   !--defaults should be assigned now, any non-defaults will be read
@@ -117,7 +119,7 @@ type branch_type
   real (rp) :: velscale(nd) = 0._rp ! avg. vel. in bounding box
 
   ! unit vectors holding this branch's coordinate directions
-  ! in the absolute coordinate frame  
+  ! in the absolute coordinate frame
   real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
   type (branch_type), pointer :: sub_branch(:) => NULL ()
@@ -147,7 +149,7 @@ type tree_type
   real (rp) :: trunk_twist = 0._rp
   real (rp), pointer :: twist(:) => NULL ()  !--size n_sub_branch
   real (rp) :: x0(nd) = 0._rp
-  
+
   !type (branch_type) :: trunk
   type (branch_type), pointer :: trunk => NULL ()
 
@@ -163,7 +165,7 @@ $if ($XLF)
 $else
   type (tree_type), allocatable :: tree_array(:)  !--experimental
   !type (tree_type) :: tree_array(n_tree)
-$endif                   
+$endif
 
 !--branch array (more convenient to access than linked list)
 
@@ -193,10 +195,12 @@ $else
   type (grid_type) :: grid
 $endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
 function cross_product (a, b)
+!**********************************************************************
 implicit none
 
 real (rp) :: cross_product(nd)
@@ -211,8 +215,9 @@ cross_product(3) = a(1) * b(2) - a(2) * b(1)
 
 end function cross_product
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 function delta (h, x)
+!**********************************************************************
 implicit none
 
 real (rp) :: delta
@@ -235,10 +240,9 @@ end if
 
 end function delta
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! this depends on the param module
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine grid_initialize ()
+!**********************************************************************
 use param, only : nx, ny, nz, dx, dy, dz
 implicit none
 
@@ -251,6 +255,7 @@ real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
 
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
+
 if (DEBUG) call enter_sub (sub_name)
 
 !  Set grid dimensions to those of global values
@@ -275,32 +280,40 @@ grid % x_min (:, 2) = (/ 0._rp, 0._rp, dz / 2._rp /)
 ! w-nodes
 grid % x_min (:, 3) = (/ 0._rp, 0._rp, 0._rp /)
 
-! determine which nodes are staggered
-!  Loop over number of dimensions
-do i = 1, nd
-  write(*,*) 'j = ', j
-  tmp = (/ ( j, j=1, nd ) /)
-  write(*,*) 'tmp = ', tmp
-  not_i = pack (tmp, tmp /= i)
-  write(*,*) 'not_i = ', not_i
+!  Set the grid staggered flags; u, v staggered in
+!  the z direction
+grid % staggered(1:2) = .true.
+grid % staggered(3) = .false.
 
-  ! this is the definition of staggered (i.e. our convention)
-  ! note (-) in front of dx/2 part--could arguably be a (+)
-  ! this would change (i, i+1) pairs for interp to (i-1, i), I think
-  if ((abs (grid % x_min(i, not_i(1)) -                                  &
-            grid % x_min(i, not_i(2))) < thresh) .and.                   &
-      (abs (grid % x_min(i, not_i(1)) -                                  &
-            (grid % x_min(i, i) - (grid % dx(i)) / 2._rp)) < thresh)) then
+! ! determine which nodes are staggered
+! !  Loop over number of dimensions
+! do i = 1, nd
+!   write(*,*) 'j = ', j
+!   tmp = (/ ( j, j=1, nd ) /)
+!   write(*,*) 'tmp = ', tmp
+!   not_i = pack (tmp, tmp /= i)
+!   write(*,*) 'not_i = ', not_i
+! 
+!   ! this is the definition of staggered (i.e. our convention)
+!   ! note (-) in front of dx/2 part--could arguably be a (+)
+!   ! this would change (i, i+1) pairs for interp to (i-1, i), I think
+!   if ((abs (grid % x_min(i, not_i(1)) -                                  &
+!             grid % x_min(i, not_i(2))) < thresh) .and.                   &
+!       (abs (grid % x_min(i, not_i(1)) -                                  &
+!             (grid % x_min(i, i) - (grid % dx(i)) / 2._rp)) < thresh)) then
+! 
+!     grid % staggered(i) = .true.
+! 
+!   else
+! 
+!     grid % staggered(i) = .false.
+! 
+!   end if
+! 
+!   pause
+! 
+! end do
 
-    grid % staggered(i) = .true.
-
-  else
-
-    grid % staggered(i) = .false.
-
-  end if
-
-end do
 
 write(*,*) 'nd = ', nd
 write(*,*) 'grid%staggered = ', grid%staggered
@@ -376,8 +389,9 @@ grid_of_pt = floor ( (x - (grid % x_min(d, node))) / (grid % dx(d)) ) + 1
 
 end function grid_of_pt
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***************************************************************
 function mag (a)
+!***************************************************************
 implicit none
 
 real (rp) :: mag
@@ -390,8 +404,11 @@ mag = sqrt(dot_product(a, a))
 
 end function mag
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***************************************************************
 function pt_of_grid (i, d, node)
+!***************************************************************
+!  This subroutine computes the x,y,z location for the z-partitioned grid
+!
 use param, only : coord
 implicit none
 
@@ -429,11 +446,11 @@ $if ($MPI)
   else
     pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
   end if
-  
+
 $else
 
   pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
-  
+
 $endif
 
 
