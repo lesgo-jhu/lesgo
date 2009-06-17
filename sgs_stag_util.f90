@@ -1,18 +1,22 @@
+!**********************************************************************
+subroutine sgs_stag ()
+!**********************************************************************
 ! put everything onto w-nodes, follow original version
 !--provides txx, txy, tyy, tzz for jz=1:nz-1; txz, tyz for 1:nz
-subroutine sgs_stag ()
-use types,only:rprec
-use param
-use Sij_defs
-use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
-                    txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t
+!
 !------------------------- Vij Comment begins---------------
 ! 04/14/2004 - Added Nu_t to the list of variables from sgsmodule
 ! 05/19/2004 - Replaced all references to visc by Nu_t; deleted local 
 !              declaration of visc
 ! 05/19/2004 - Replace all .5 by 0.5
 !-------------------------Vij Comment ends ------------------
+
+use types,only:rprec
+use param
+use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
+                    txx, txy, txz, tyy, tyz, tzz
+use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t
+
 use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
@@ -28,7 +32,7 @@ character (*), parameter :: sub_name = 'sgs_stag'
 logical, parameter :: DEBUG = .false.
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-!real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
+real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
 real(kind=rprec),dimension(ld,ny,nz):: dissip
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
 real(kind=rprec) :: delta, nu, const
@@ -42,6 +46,14 @@ $endif
 
 integer::jx,jy,jz
 integer :: jz_min
+
+! !  Initialize Sij
+! S11=0.
+! S12=0.
+! S22=0.
+! S33=0.
+! S13=0.
+! S23=0.
 
 if (VERBOSE) call enter_sub (sub_name)
 
@@ -82,9 +94,13 @@ end if
   !               dwdx_s, dwdy_s, dwdz_s)
 
 !$else
-  call calc_Sij ()
- 
-				 
+  call calc_Sij (dudx, dudy, dudz,  &
+                 dvdx, dvdy, dvdz,  &
+                 dwdx, dwdy, dwdz, &
+                 S11,S12,S13,S22, &
+                 S23,S33)
+
+
 !$endif
 
 if (DEBUG) then
@@ -391,17 +407,16 @@ if (VERBOSE) call exit_sub (sub_name)
 
 return
 end subroutine sgs_stag
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine calc_Sij ()
-use Sij_defs 
-use types, only : rprec
-use sim_param,only:dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
-implicit none
 
-integer::jx,jy,jz
-integer :: jz_min
+!**********************************************************************
+subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,S11,&
+  S12,S13,S22,S23,S33)
+!**********************************************************************
+use types,only:rprec
+use param
+implicit none
 
 $if ($MPI)
   $define $lbz 0
@@ -409,11 +424,14 @@ $else
   $define $lbz 1
 $endif
 
-!real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,  &
-!                                             dvdx, dvdy, dvdz,  &
-!                                             dwdx, dwdy, dwdz
+real (rprec), dimension (ld, ny, $lbz:nz), intent(IN) :: dudx, dudy, dudz,  &
+                                             dvdx, dvdy, dvdz,  &
+                                             dwdx, dwdy, dwdz
+real (rprec), dimension (ld, ny, nz),intent(OUT) :: S11, S12, S22, S33, S13, S23
 
+integer :: jx,jy,jz,jz_min
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
+
 !---------------------------------------------------------------------                                     
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
@@ -525,8 +543,6 @@ end do
 end do
 end do
 !$ffohmygod end parallel do
-
 return
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-

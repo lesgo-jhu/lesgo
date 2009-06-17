@@ -2,6 +2,7 @@
 !--most stuff done layer-by-layer to save memory
 !--provides Cs_opt2 1:nz
 !--MPI: requires u,v on 0:nz, except bottom node 1:nz
+
 subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
