@@ -286,44 +286,29 @@ grid % x_min (:, 2) = (/ 0._rp, 0._rp, dz / 2._rp /)
 ! w-nodes
 grid % x_min (:, 3) = (/ 0._rp, 0._rp, 0._rp /)
 
-!  Set the grid staggered flags; u, v staggered in
-!  the z direction
-grid % staggered(1:2) = .true.
-grid % staggered(3) = .false.
+! determine which nodes are staggered
+do i = 1, nd
 
-! ! determine which nodes are staggered
-! !  Loop over number of dimensions
-! do i = 1, nd
-!   write(*,*) 'j = ', j
-!   tmp = (/ ( j, j=1, nd ) /)
-!   write(*,*) 'tmp = ', tmp
-!   not_i = pack (tmp, tmp /= i)
-!   write(*,*) 'not_i = ', not_i
-! 
-!   ! this is the definition of staggered (i.e. our convention)
-!   ! note (-) in front of dx/2 part--could arguably be a (+)
-!   ! this would change (i, i+1) pairs for interp to (i-1, i), I think
-!   if ((abs (grid % x_min(i, not_i(1)) -                                  &
-!             grid % x_min(i, not_i(2))) < thresh) .and.                   &
-!       (abs (grid % x_min(i, not_i(1)) -                                  &
-!             (grid % x_min(i, i) - (grid % dx(i)) / 2._rp)) < thresh)) then
-! 
-!     grid % staggered(i) = .true.
-! 
-!   else
-! 
-!     grid % staggered(i) = .false.
-! 
-!   end if
-! 
-!   pause
-! 
-! end do
+  tmp = (/ ( j, j=1, nd ) /)
+  not_i = pack (tmp, tmp /= i)
 
+  ! this is the definition of staggered (i.e. our convention)
+  ! note (-) in front of dx/2 part--could arguably be a (+)
+  ! this would change (i, i+1) pairs for interp to (i-1, i), I think
+  if ((abs (grid % x_min(i, not_i(1)) -                                  &
+            grid % x_min(i, not_i(2))) < thresh) .and.                   &
+      (abs (grid % x_min(i, not_i(1)) -                                  &
+            (grid % x_min(i, i) - (grid % dx(i)) / 2._rp)) < thresh)) then
 
-write(*,*) 'nd = ', nd
-write(*,*) 'grid%staggered = ', grid%staggered
-write(*,*) 'epsilon = ', epsilon(0.)
+    grid % staggered(i) = .true.
+
+  else
+
+    grid % staggered(i) = .false.
+
+  end if
+
+end do
 
 grid % initialized = .true.
 

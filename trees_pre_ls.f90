@@ -23,8 +23,7 @@ character (*), parameter :: MPI_suffix = '.c'
 integer, parameter :: np = 4
 logical, parameter :: MPI_split = .true.
 
-!integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
-integer, parameter :: nz = nztot
+integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
 
 character (128) :: fphi_out_MPI, fphi_raw_out_MPI
 character (128) :: fbrindex_out_MPI, fbrindex_raw_out_MPI
@@ -41,13 +40,16 @@ real (rp) :: x, y, z
 
 if (MPI_split) then
 
-  !--prompt user for chunks to process
-  write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', np-1, '):'
-  read (*, *) ipmin
-  write (*, *) 'read ipmin = ', ipmin
-  write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', np-1, '):'
-  read (*, *) ipmax
-  write (*, *) 'read ipmax = ', ipmax
+!   !--prompt user for chunks to process
+!   write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', np-1, '):'
+!   read (*, *) ipmin
+!   write (*, *) 'read ipmin = ', ipmin
+!   write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', np-1, '):'
+!   read (*, *) ipmax
+!   write (*, *) 'read ipmax = ', ipmax
+
+  ipmin = 0
+  ipmax = 1 - 1
 
   if  ((ipmin < 0) .or. (ipmin > np - 1)) then
     write (*, *) 'invalid ipmin = ', ipmin
