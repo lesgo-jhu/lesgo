@@ -41,7 +41,7 @@ tavg_t%nend = nsteps
 rs_t%calc = .true.
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .true.
+point_t%calc = .false.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -50,23 +50,22 @@ point_t%xyz(:,1) = (/2., 2., 2./)
 point_t%xyz(:,2) = (/2., 2., 1./)
 
 domain_t%calc = .true.
-domain_t%nstart = 1
+domain_t%nstart = 20000
 domain_t%nend   = nsteps
-domain_t%nskip = 50
+domain_t%nskip = 1
 
 !  y-plane stats/data
 yplane_t%calc=.true.
-yplane_t%nstart = 1
+yplane_t%nstart = 10000
 yplane_t%nend   = nsteps
-yplane_t%nloc     = 2
+yplane_t%nloc     = 1
 yplane_t%loc(1)  = 2.0
-yplane_t%loc(2)  = 1.25
 
 !  z-plane stats/data
 zplane_t%calc=.true.
-zplane_t%nstart = 1
+zplane_t%nstart = 10000
 zplane_t%nend   = nsteps
-zplane_t%nloc     = 2
+zplane_t%nloc     = 1
 zplane_t%loc(1)  = 0.5
 zplane_t%loc(2)  = 2.25
 
