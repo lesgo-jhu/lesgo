@@ -18,14 +18,14 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
     #--still experimental
 
-USE_TREES_LS = no
-USE_LVLSET = no
+USE_TREES_LS = yes
+USE_LVLSET = yes
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
@@ -68,11 +68,11 @@ endif
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
-ifeq ($(USE_MPI), yes)
-  MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
-else
-  MODDIR = -I$(MPATH) -module $(MPATH)
-endif
+  ifeq ($(USE_MPI), yes)
+    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
+  else
+    MODDIR = -I$(MPATH) -module $(MPATH)
+  endif
   FFLAGS += $(MODDIR)
 endif
 
