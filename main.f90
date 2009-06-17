@@ -2,6 +2,7 @@ program main
 use types,only:rprec
 use param
 use sim_param
+use grid_defs, only : grid_build
 !!$use io, only : output_loop, output_final, inflow_write,  &
 !!$            avg_stats
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write
@@ -57,8 +58,6 @@ endif
 !  Create output directory
 call system("mkdir -vp output")
 call sim_param_init ()
-!  Initialized statics arrays
-call stats_init
 
 $if ($MPI)
   !--check for consistent preprocessor & param.f90 definitions of 
@@ -126,6 +125,15 @@ $else
   chcoord = ''
 
 $endif
+
+!  Initialize uv grid
+call grid_build()
+!  Initialized statics arrays
+call stats_init()
+
+write(*,*) 'dz = ', dz
+write(*,*) 'nz = ', nz
+write(*,*) 'nz_tot = ', nz_tot
 
 tt=0
 

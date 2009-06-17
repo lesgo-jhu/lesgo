@@ -11,8 +11,8 @@ SHELL = /bin/bash
 EXE = lesgo
 ARCH = linux_intel
 FCOMP = ifort
-LIBPATH = -L/opt/fftw2/lib
-LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -24,8 +24,8 @@ USE_OPENMP = no
 USE_DYNALLOC = no
     #--still experimental
 
-USE_TREES_LS = yes
-USE_LVLSET = yes
+USE_TREES_LS = no
+USE_LVLSET = no
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
@@ -52,9 +52,14 @@ MPATH = mod
 
 ifeq ($(FCOMP),ifort)
   FPP += -DIFORT
+ifeq ($(USE_MPI), yes)
+  FC = /opt/mpich2-1.1-ifort/bin/mpif90
+else
   FC = ifort
+endif
+
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -check all -g -traceback -debug all
+  FFLAGS = -O0 -check all -g -traceback -debug all
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 #  FFLAGS = -O3 -r8
@@ -62,10 +67,15 @@ ifeq ($(FCOMP),ifort)
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
-  LDFLAGS = -static -threads
-  MODDIR = -I$(MPATH) -module $(MPATH)  
+  LDFLAGS = -threads
+ifeq ($(USE_MPI), yes)
+  MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
+else
+  MODDIR = -I$(MPATH) -module $(MPATH)
+endif
   FFLAGS += $(MODDIR)
 endif
+
 ifeq ($(FCOMP),gfortran)
   FPP += -DGFORTRAN
   FC = gfortran
@@ -77,6 +87,7 @@ ifeq ($(FCOMP),gfortran)
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
 endif
+
 ifeq ($(FCOMP),g95)
   FPP += -DG95
   FC = g95
@@ -91,12 +102,12 @@ endif
 
 SRCS =  \
 	bottombc.f90 \
-        convec.f90 defs.f90 \
+        convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
-        fft.f90 filt_da.f90 forcing.f90 \
+        fft.f90 filt_da.f90 forcing.f90 functions.f90 grid.f90 \
         ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \
@@ -105,7 +116,7 @@ SRCS =  \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
-        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stats.f90 stats_init.f90 \
+        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stat_defs.f90 stats.f90 stats_init.f90 \
 	std_dynamic.f90 string_util.f90 \
         test_filtermodule.f90 topbc.f90 \
         tridag.f90 tridag_array.f90 types.f90 \
@@ -123,9 +134,11 @@ LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
 endif
+
 ifeq ($(USE_TREES_LS), yes)
   SRCS += $(TREES_LS_SRCS)
 endif
+
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
 endif
@@ -165,16 +178,16 @@ trees_pre:  trees_pre.f90 $(OPATH)/types.o \
 	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
 trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/messages.o \
-               $(OPATH)/string_util.o $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-	       $(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
+	$(OPATH)/string_util.o $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
+	$(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
 	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
 trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o \
-                $(OPATH)/param.o $(OPATH)/messages.o \
-                $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_aprioriCD_ls.o
+	$(OPATH)/param.o $(OPATH)/messages.o \
+	$(OPATH)/string_util.o \
+	$(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
+	$(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
+	$(OPATH)/trees_aprioriCD_ls.o
 	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
 
 trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o \

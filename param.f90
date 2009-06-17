@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 2
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(64-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -53,25 +53,15 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 100
-
-!!$!  Data Output Control
-!!$  logical, parameter :: domain              = .true.
-!!$  integer, parameter :: domain_nskip        = 10
-!!$  logical, parameter :: yplane              = .true.
-!!$  integer, parameter :: nyp                 = 1
-!!$  integer, parameter :: yplane_nskip        = domain_nskip
-!!$  integer, parameter :: dimension(nyp) :: jyp = (/ ny/2 /)
-!!$  logical, parameter :: point  = .true.
-!!$  integer, parameter :: npoints = 
+  integer, parameter :: nsteps = 200
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i/nproc
+  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
-  real(rprec),parameter::dz=L_z/z_i/(nz-1)
+  real(rprec),parameter::dz=L_z/z_i/(nz_tot-1./2.)
   real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
 
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
@@ -84,12 +74,9 @@ module param
   real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
-!  ------- Output settings -------
-  logical,parameter:: output=.true.
-  
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
 !  real(rprec),parameter::dt=dt_dim*u_star/z_i
-                         !--dt=2.e-4 usually works for 64^3
+                                  !--dt=2.e-4 usually works for 64^3
   
   !--Coriolis stuff
   ! coriol=non-dim coriolis parameter,
@@ -98,16 +85,20 @@ module param
   real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
        ug=u_star/u_star,vg=0._rprec/u_star
 
-     
   real(rprec),parameter::vonk=0.4_rprec 
   integer,parameter::c_count=10000,p_count=10000
  !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
   integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates
+  logical,parameter:: output=.true.
+  logical, parameter :: use_avgslice = .false.
+  !  Set minimum time step to write averaged slices
+  integer, parameter :: avgslice_start = 0
+  
   
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! nu_molec is dimensional m^2/s
   real(rprec),parameter::nu_molec=1.14e-5_rprec

@@ -4,71 +4,76 @@ subroutine stats_init ()
 !  This subroutine allocates the memory for arrays
 !  used for statistical calculations 
 
+use param, only : dy,dz,nx,ny,nz,nsteps,coord
 use stat_defs
-use param, only : dy,dz,nx,ny,nz,nsteps
+use grid_defs
 implicit none
 
-character(15) :: ci,cj,ck
+character(120) :: cx,cy,cz
 character(120) :: fname
-integer :: fid, i, j,k, jy, kz
+integer :: fid, i,j,k
 
 ! ------ These values are not to be changed ------
 !  Don't change from false
 tavg_t%calc     = .false.
 tavg_t%started  = .false.
-upoint_t%started = .false.
-uglobal_t%started = .false.
+point_t%started = .false.
+domain_t%started = .false.
 !  Initialize with non used integer 
-upoint_t%ijk=-1
+point_t%xyz=-1.
 ! ------ These values are not to be changed ------
 
-!  ------- Begin Statistic Settings -------
+!  Master switch for turning on or off all statistics
+!  including instantaneous recordings 
+!stats_t%calc = .true.
 
-!  All nstart and nend values are based on jt and not jt_total
-tavg_t%calc = .false.
+!  Sub switches for statistics and output
+!  Turns temporal averaged quantities on or off
+!aver_calc = .false.
+
+!  All nstart and nend values are based
+!  on jt and not jt_total
+tavg_t%calc = .true.
 tavg_t%nstart = 1
 tavg_t%nend = nsteps
 
 !  Turns Reynolds stresses calculations on or off 
-rs_t%calc = .false. !  Make sure tavg_t%calc = .true. if .true. and vice versa
+rs_t%calc = .true.
 
 !  Turns instantaneous velocity recording on or off
-upoint_t%calc = .false.
-upoint_t%nstart = 1
-upoint_t%nend   = nsteps
-upoint_t%nskip = 1
+point_t%calc = .true.
+point_t%nstart = 1
+point_t%nend   = nsteps
+point_t%nskip = 1
+point_t%nloc = 2
+point_t%xyz(:,1) = (/2., 2., 2./)
+point_t%xyz(:,2) = (/2., 2., 1./)
 
-upoint_t%nloc = 3
-upoint_t%ijk(:,1) = (/ nx/2+1, ny/2+1, nz/2+1 /)
-upoint_t%ijk(:,2) = (/ nx/2+1, ny/2+1, 1 /)
-upoint_t%ijk(:,3) = (/ nx/2+1, ny/2+1, nz /)
-
-uglobal_t%calc = .true.
-uglobal_t%nstart = 100
-uglobal_t%nend   = nsteps
-uglobal_t%nskip = 100
+domain_t%calc = .true.
+domain_t%nstart = 1
+domain_t%nend   = nsteps
+domain_t%nskip = 50
 
 !  y-plane stats/data
-yplane_t%avg_calc=.true.
+yplane_t%calc=.true.
 yplane_t%nstart = 1
 yplane_t%nend   = nsteps
-yplane_t%na     = 1  !  Number of averaging planes
-yplane_t%la(1)  = 2.0  !  Averaging location
+yplane_t%nloc     = 2
+yplane_t%loc(1)  = 2.0
+yplane_t%loc(2)  = 1.25
 
 !  z-plane stats/data
-zplane_t%avg_calc=.true.
+zplane_t%calc=.true.
 zplane_t%nstart = 1
 zplane_t%nend   = nsteps
-zplane_t%na     = 1 !  Number of averaging planes
-zplane_t%la(1)  = 0.5 !  Averaging location
-zplane_t%la(2)	= 2.25
+zplane_t%nloc     = 2
+zplane_t%loc(1)  = 0.5
+zplane_t%loc(2)  = 2.25
 
-!  ------- End Statistic Settings -------
-
-!!  Set time summation calculations based on
-!!  dependants. Don't touch, depends on above
-!!  information
-!if(rs_t%calc) tavg_t%calc = .true.
+!  Set time summation calculations based on
+!  dependants. Don't touch, depends on above
+!  information
+if(rs_t%calc) tavg_t%calc = .true.
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -102,7 +107,7 @@ if(tavg_t%calc) then
   tavg_t%uw=0.
   tavg_t%vw=0.
   tavg_t%uv=0.
-  tavg_t%dudz=0.  
+  tavg_t%dudz=0.
 endif
 
 if(rs_t%calc) then
@@ -121,10 +126,10 @@ if(rs_t%calc) then
 endif
 
 ! Initialize information for y-planar stats/data
-if(yplane_t%avg_calc) then
-  allocate(yplane_t%ua(Nx,yplane_t%na,Nz))
-  allocate(yplane_t%va(Nx,yplane_t%na,Nz))
-  allocate(yplane_t%wa(Nx,yplane_t%na,Nz))
+if(yplane_t%calc) then
+  allocate(yplane_t%ua(Nx,yplane_t%nloc,Nz))
+  allocate(yplane_t%va(Nx,yplane_t%nloc,Nz))
+  allocate(yplane_t%wa(Nx,yplane_t%nloc,Nz))
   
   yplane_t%fa = 1./(dble(yplane_t%nend - yplane_t%nstart + 1))
   yplane_t%ua = 0.
@@ -132,59 +137,116 @@ if(yplane_t%avg_calc) then
   yplane_t%wa = 0.
   yplane_t%istart = -1
   yplane_t%ldiff = 0.
+!  Not really needed
+  yplane_t%coord = -1
   
 !  Compute istart and ldiff
-  do jy=1,yplane_t%na
-    isearch_j: do j=1,ny
-	  if((j-1)*dy >= yplane_t%la(jy)) then
-	    yplane_t%istart(jy) = j-1
-		yplane_t%ldiff(jy) = yplane_t%la(jy) - (j-1-1)*dy
-		exit isearch_j
-	  endif
-	enddo isearch_j
+  do j=1,yplane_t%nloc
+    call find_istart(y,ny,yplane_t%loc(j),yplane_t%istart(j), yplane_t%ldiff(j))
   enddo
     
 endif
 
 ! Initialize information for y-planar stats/data
-if(zplane_t%avg_calc) then
-  allocate(zplane_t%ua(Nx,Ny,yplane_t%na))
-  allocate(zplane_t%va(Nx,Ny,yplane_t%na))
-  allocate(zplane_t%wa(Nx,Ny,yplane_t%na))
+if(zplane_t%calc) then
+  allocate(zplane_t%ua(Nx,Ny,zplane_t%nloc))
+  allocate(zplane_t%va(Nx,Ny,zplane_t%nloc))
+  allocate(zplane_t%wa(Nx,Ny,zplane_t%nloc))
   zplane_t%fa = 1./(dble(zplane_t%nend - zplane_t%nstart + 1))
   zplane_t%ua = 0.
   zplane_t%va = 0.
   zplane_t%wa = 0.
+
+!  Initialize 
   zplane_t%istart = -1
-  zplane_t%ldiff = 0.  
+  zplane_t%ldiff = 0. 
+  zplane_t%coord=-1 
   
 !  Compute istart and ldiff
-  do kz=1,zplane_t%na
-    isearch_k: do k=1,nz
-	  if((k-1)*dz + dz/2. >= zplane_t%la(kz)) then
-	    zplane_t%istart(kz) = k-1
-		zplane_t%ldiff(kz) = zplane_t%la(kz) - ((k-1-1)*dz + dz/2.)
-		exit isearch_k
-	  endif
-	enddo isearch_k
+  do k=1,zplane_t%nloc
+
+    $if ($MPI)
+    if(zplane_t%loc(k) >= z(1) .and. zplane_t%loc(k) < z(nz)) then
+      zplane_t%coord(k) = coord
+      call find_istart(z,nz,zplane_t%loc(k),zplane_t%istart(k), zplane_t%ldiff(k))
+    endif
+    $else
+    zplane_t%coord(k) = 0
+    call find_istart(z,nz,zplane_t%loc(k),zplane_t%istart(k), zplane_t%ldiff(k))
+    $endif
+
   enddo  
   
 endif
 
+!  Intialize the coord values (-1 shouldn't be used as coord so initialize to this)
+point_t%coord=-1
+
 !  Open files for instantaneous writing
-if(upoint_t%calc) then
-  do i=1,upoint_t%nloc
-    write(ci,*) upoint_t%ijk(1,i)
-	write(cj,*) upoint_t%ijk(2,i)
-	write(ck,*) upoint_t%ijk(3,i)
-    write (fname,*) 'output/uvw-inst-',trim(adjustl(ci)),'-',  &
-      trim(adjustl(cj)),'-', trim(adjustl(ck)),'.out'
-	fname=trim(adjustl(fname))
-	fid=3000*i
-	open(unit = fid,file = fname,status="unknown",position="rewind")
-	write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+if(point_t%calc) then
+
+  do i=1,point_t%nloc
+!  Find the processor in which this point lives
+  $if ($MPI)
+    if(point_t%xyz(3,i) >= z(1) .and. point_t%xyz(3,i) < z(nz)) then
+      point_t%coord(i) = coord
+      call find_istart(x,nx,point_t%xyz(1,i),point_t%istart(i), point_t%xdiff(i))
+      call find_istart(y,ny,point_t%xyz(2,i),point_t%jstart(i), point_t%ydiff(i))
+      call find_istart(z,nz,point_t%xyz(3,i),point_t%kstart(i), point_t%zdiff(i))
+
+      write(cx,'(F9.4)') point_t%xyz(1,i)
+      write(cy,'(F9.4)') point_t%xyz(2,i)
+      write(cz,'(F9.4)') point_t%xyz(3,i)
+      write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+        trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+      fname=trim(adjustl(fname))
+      fid=3000*i
+      open(unit = fid,file = fname,status="unknown",position="rewind")
+      write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+    endif
+  $else
+    point_t%coord(i) = 0
+    call find_istart(x,nx,point_t%xyz(1,i),point_t%istart(i), point_t%xdiff(i))
+    call find_istart(y,ny,point_t%xyz(2,i),point_t%jstart(i), point_t%ydiff(i))
+    call find_istart(z,nz,point_t%xyz(3,i),point_t%kstart(i), point_t%zdiff(i))
+
+    write(cx,'(F9.4)') point_t%xyz(1,i)
+    write(cy,'(F9.4)') point_t%xyz(2,i)
+    write(cz,'(F9.4)') point_t%xyz(3,i)
+    write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+      trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+    fname=trim(adjustl(fname))
+    fid=3000*i
+    open(unit = fid,file = fname,status="unknown",position="rewind")
+    write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+  $endif
+  
   enddo
 endif
 
 return
 end subroutine stats_init
+
+!**********************************************************************
+subroutine find_istart(x,nx,px,istart,xdiff)
+!**********************************************************************
+implicit none
+
+integer, intent(IN) :: nx
+double precision, dimension(nx), intent(IN) :: x
+double precision, intent(IN) :: px
+integer, intent(OUT) :: istart
+double precision, intent(OUT) :: xdiff
+
+integer :: i
+
+isearch: do i=1,nx
+  if(x(i) >= px) then
+    istart = i-1
+    xdiff = px - x(istart)
+    exit isearch
+  endif
+enddo isearch
+
+return
+end subroutine find_istart
