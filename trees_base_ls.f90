@@ -13,7 +13,7 @@ private :: mod_name
 
 character (*), parameter :: mod_name = 'trees_base_ls'
 
-character (*), parameter :: branch_cross_section = 'circular'
+character (*), parameter :: branch_cross_section = 'square'
                             !--'circular', 'square'
                             !--only for trees_pre: 'square+plate'
 
@@ -256,7 +256,8 @@ character (*), parameter :: sub_name = mod_name // '.grid_initialize'
 integer :: i, j
 integer :: tmp(nd), not_i(nd-1)
 
-real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
+!real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)a
+real (rp), parameter :: thresh = 1e-6
 
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
