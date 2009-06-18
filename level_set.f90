@@ -3079,7 +3079,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
-!logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 !---------------------------------------------------------------------
 
@@ -3979,7 +3979,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
 
-!logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 integer :: k_min
