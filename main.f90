@@ -43,9 +43,15 @@ logical, parameter :: DEBUG = .false.
 real(kind=rprec) rmsdivvel,ke
 real (rprec):: tt
 real (rprec) :: force
+real clock_start, clock_end
 $if ($MPI)
   integer :: ip, np, coords(1)
 $endif
+
+!  Start wall clock
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  call cpu_time (clock_start)
+endif
 
 !---------------------------------------------------------------------
 !  Check if read inflow from file is being specified; it currently does
@@ -565,6 +571,13 @@ $endif
 $if ($MPI)
   call mpi_finalize (ierr)
 $endif
+
+
+!  Stop wall clock
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  call cpu_time (clock_end)
+  write(*,"(a,f9.3)") 'Simulation wall time (s) : ', clock_end - clock_start
+endif
 
 stop
 

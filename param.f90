@@ -53,7 +53,7 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 200
+  integer, parameter :: nsteps = 80000
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
@@ -111,10 +111,10 @@ module param
   !Models type: 1->static prandtl, 2->Dynamic
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
-  integer,parameter::model=5,models=1,nnn=2
+  integer,parameter::model=1,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
   !  This was not originally here
-  real(kind=rprec),parameter::cs=0.2_rprec
+  real(kind=rprec),parameter::cs=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2
@@ -164,7 +164,7 @@ module param
   !logical,parameter::S_FLAG=.TRUE.,coupling_flag=.FALSE.,mo_flag=.TRUE.
   logical,parameter::S_FLAG=.false.
   !integer,parameter::DYN_init=2, SCAL_init=5, no_days=1
-  integer,parameter::DYN_init=1, SCAL_init=5, no_days=1
+  integer,parameter::DYN_init=100, SCAL_init=5, no_days=1
   !integer,parameter::DYN_init=1, SCAL_init=1, no_days=1
   integer,parameter::patch_flag=1, remote_flag=0, time_start=0
   ! initu=.TRUE. & initsc=.FALSE read velocity fields from a binary file

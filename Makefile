@@ -59,20 +59,21 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -check all -g -traceback -debug all
-#  FFLAGS = -fast
+#  FFLAGS = -O2 -check all -g -traceback -debug all
+  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 #  FFLAGS = -O3 -r8
-#  FFLAGS = -O2
+#  FFLAGS = -O2 
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
-ifeq ($(USE_MPI), yes)
-  MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
-else
-  MODDIR = -I$(MPATH) -module $(MPATH)
-endif
+  ifeq ($(USE_MPI), yes)
+    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
+  else
+    MODDIR = -I$(MPATH) -module $(MPATH)
+  endif
   FFLAGS += $(MODDIR)
 endif
 

@@ -2716,7 +2716,6 @@ select case (Ldir)
     call error (sub_name, 'invalid Ldir =', Ldir)
 end select
 
-!  Uinf is defined as the average U velocity at the inflow plane.
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
@@ -3113,7 +3112,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
-!logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 !---------------------------------------------------------------------
 
@@ -3621,9 +3620,8 @@ do k = 1, nz-1
 
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-!          write(*,*) 'calling interp_vel'
+
           call interp_vel (xv, vel)
-!          write(*,*) 'interp_vel call successfull'
 
         else
         
@@ -4023,7 +4021,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
 
-!logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 integer :: k_min
