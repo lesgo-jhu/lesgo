@@ -59,11 +59,12 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -check all -g -traceback -debug all
+  FFLAGS = -O2 -check all -g -traceback -debug all
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -r8
-#  FFLAGS = -O2
+#  FFLAGS = -O3 -r8
+#  FFLAGS = -O2 
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -parallel
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
