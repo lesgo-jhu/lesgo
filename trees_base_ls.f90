@@ -404,7 +404,15 @@ end function mag
 !***************************************************************
 function pt_of_grid (i, d, node)
 !***************************************************************
-!  This subroutine computes the x,y,z location for the z-partitioned grid
+!  This subroutine computes the x,y,z location for the entire domain.
+!  The partitions in the z direction are handled by passing in the 
+!  global node value in the z direction. 
+!
+!  Inputs:
+!
+!  i	- ith node
+!  d	- dimension specifying x, y, or z
+!  node	- specifies either the u,v, or w grid
 !
 use param, only : coord
 implicit none
@@ -435,20 +443,21 @@ end if
 !  stop
 !end if
 
-$if ($MPI)
+!$if ($MPI)
 
-  if (d == nd) then
-    pt_of_grid = (grid % x_min(d, node)) +                           &
-                 (coord * (grid % nx(d) - 1) + i - 1) * (grid % dx(d))
-  else
-    pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
-  end if
+!   if (d == nd) then
+!     pt_of_grid = (grid % x_min(d, node)) +                           &
+!                  (coord * (grid % nx(d) - 1) + i - 1) * (grid % dx(d))
+!   else
+!     pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
+!   end if
 
-$else
+!$else
 
-  pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
+pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
 
-$endif
+!$endif
+
 
 
 end function pt_of_grid
