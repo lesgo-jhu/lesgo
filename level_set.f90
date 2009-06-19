@@ -55,7 +55,7 @@ real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
 real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
 real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
-logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
                                         !  level set BC
 logical, parameter :: use_log_profile = .false.
