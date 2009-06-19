@@ -5,7 +5,8 @@ program cylinder_skew
 implicit none
 
 type cs0
-     double precision :: phi, brindex
+     integer :: brindex
+     double precision :: phi
      double precision, dimension(3) :: xyz
 end type cs0
 
@@ -31,7 +32,8 @@ type(vector) :: vgcs_t
 
 integer, parameter :: Nx=64, Ny=64, Nz=57
 double precision, parameter :: pi = dacos(-1.)
-double precision, parameter :: BOGUS = huge(1.)
+double precision, parameter :: BOGUS = 1234567890.
+double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 90.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
@@ -95,7 +97,7 @@ write(*,*) 'tplane and bplane = ', tplane, bplane
 gcs_t(:,:,:)%phi = BOGUS
 !  Set lower level
 gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindex=BOGUS
+gcs_t(:,:,:)%brindex=iBOGUS
 
 !  Loop over all global coordinates
 do k=1,Nz
@@ -175,7 +177,7 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) then
             gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1.
+            gcs_t(i,j,k)%brindex = 1
           endif
 
         elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
@@ -191,7 +193,7 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) then
             gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1.
+            gcs_t(i,j,k)%brindex = 1
           endif
 
         endif
@@ -227,150 +229,150 @@ do k=1,Nz
 
 enddo
 
-!  Specify global vector to origin of lcs
-!lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
-lgcs_t%xyz=etgcs_t%xyz
-!  Set the center point of the bottom ellipse
-ebgcs_t%xyz=lgcs_t%xyz
-!  Compute the center point of the top ellipse in the gcs
-call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
-etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
-
-!  Top and bottom plane in gcs
-bplane=ebgcs_t%xyz(3)
-tplane=etgcs_t%xyz(3)
-
-write(*,*) 'tplane and bplane = ', tplane, bplane
-
-!  Loop over all global coordinates
-do k=1,Nz
-
-  do j=1,ny
-
-    do i=1,nx+2
-
-    !  Intialize flags
-      btplanes=.false.
-      incir=.false.
-      incyl=.false.
-      inte=.false.
-      inbe=.false.
-
-!  First check if points are between the top and bottom planes
-      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
-
-      !  Compute vector to point from lcs in the gcs
-      vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
-
-      !  Rotate gcs vector into local coordinate system
-      call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
-
-!  Check if the point lies in the cylinder circle
-      circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
-      if(circk < crad**2) incir = .true.
-!  Check if point is in cylinder
-      if(btplanes .and. incir) incyl = .true.
-
-!  Check if point lies in top ellipse
-      vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-      call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-        ecs_t%xyz)
-      eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-      if(eck <= 1) inte=.true.
-
-!  Check if point lies in bottom ellipse
-      vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-      call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-        ecs_t%xyz)
-      eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-      if(eck <= 1) inbe=.true.
-
-!  Compute theta value on lcs using geometry.atan4
-      theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
-
-      !theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
-      slcs_t%xyz(1) = crad*dcos(theta)
-      slcs_t%xyz(2) = crad*dsin(theta)
-      slcs_t%xyz(3) = lcs_t%xyz(3)
-
-      !  Rotate the surface vector in the lcs back into the gcs
-      call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
-
-      sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
-
-!  Check if between cutting planes
-      if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-        call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
-
-        if(dist < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-        endif
-      else
-
-        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
-
-          vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-
-          !  Get vector in ellipse coordinate system
-          call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1.
-          endif
-
-        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
-
-          vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-
-          !  Get vector in ellipse coordinate system
-          call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1.
-          endif
-
-        endif
-
-
-
-      endif
-!  Check also if the point lies on the ellipses
-
-      if(inte) then
-        dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
-        if(dist < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-        endif
-      endif
-
-      if(inbe) then
-        dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
-        if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-        endif
-      endif
-
-     if(incyl) then
-       gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
-       gcs_t(i,j,k)%brindex = -1
-     else
-       gcs_t(i,j,k)%brindex = 1
-     endif
-    enddo
-
-  enddo
-
-enddo
+! !  Specify global vector to origin of lcs
+! !lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
+! lgcs_t%xyz=etgcs_t%xyz
+! !  Set the center point of the bottom ellipse
+! ebgcs_t%xyz=lgcs_t%xyz
+! !  Compute the center point of the top ellipse in the gcs
+! call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
+! etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
+! 
+! !  Top and bottom plane in gcs
+! bplane=ebgcs_t%xyz(3)
+! tplane=etgcs_t%xyz(3)
+! 
+! write(*,*) 'tplane and bplane = ', tplane, bplane
+! 
+! !  Loop over all global coordinates
+! do k=1,Nz
+! 
+!   do j=1,ny
+! 
+!     do i=1,nx+2
+! 
+!     !  Intialize flags
+!       btplanes=.false.
+!       incir=.false.
+!       incyl=.false.
+!       inte=.false.
+!       inbe=.false.
+! 
+! !  First check if points are between the top and bottom planes
+!       if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
+! 
+!       !  Compute vector to point from lcs in the gcs
+!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
+! 
+!       !  Rotate gcs vector into local coordinate system
+!       call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
+! 
+! !  Check if the point lies in the cylinder circle
+!       circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
+!       if(circk < crad**2) incir = .true.
+! !  Check if point is in cylinder
+!       if(btplanes .and. incir) incyl = .true.
+! 
+! !  Check if point lies in top ellipse
+!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+!       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
+!         ecs_t%xyz)
+!       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
+!       if(eck <= 1) inte=.true.
+! 
+! !  Check if point lies in bottom ellipse
+!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+!       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
+!         ecs_t%xyz)
+!       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
+!       if(eck <= 1) inbe=.true.
+! 
+! !  Compute theta value on lcs using geometry.atan4
+!       theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
+! 
+!       !theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
+!       slcs_t%xyz(1) = crad*dcos(theta)
+!       slcs_t%xyz(2) = crad*dsin(theta)
+!       slcs_t%xyz(3) = lcs_t%xyz(3)
+! 
+!       !  Rotate the surface vector in the lcs back into the gcs
+!       call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
+! 
+!       sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
+! 
+! !  Check if between cutting planes
+!       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
+!         call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
+! 
+!         if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!           gcs_t(i,j,k)%phi = dist
+!         endif
+!       else
+! 
+!         if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
+! 
+!           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+! 
+!           !  Get vector in ellipse coordinate system
+!           call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+! 
+!           call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+! 
+!           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+! 
+!           if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!             gcs_t(i,j,k)%phi = dist
+!             gcs_t(i,j,k)%brindex = 1
+!           endif
+! 
+!         elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+! 
+!           vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+! 
+!           !  Get vector in ellipse coordinate system
+!           call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+! 
+!           call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+! 
+!           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+! 
+!           if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!             gcs_t(i,j,k)%phi = dist
+!             gcs_t(i,j,k)%brindex = 1
+!           endif
+! 
+!         endif
+! 
+! 
+! 
+!       endif
+! !  Check also if the point lies on the ellipses
+! 
+!       if(inte) then
+!         dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
+!         if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!           gcs_t(i,j,k)%phi = dist
+!         endif
+!       endif
+! 
+!       if(inbe) then
+!         dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+!         if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+!           gcs_t(i,j,k)%phi = dist
+!         endif
+!       endif
+! 
+!      if(incyl) then
+!        gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
+!        gcs_t(i,j,k)%brindex = -1
+!      else
+!        gcs_t(i,j,k)%brindex = 1
+!      endif
+!     enddo
+! 
+!   enddo
+! 
+! enddo
 
 nf=1
 
@@ -400,11 +402,11 @@ write(*,*) 'lbound(phi) = ', lbound(phi)
 write(*,*) 'ubound(phi) = ', ubound(phi)
 !  Write binary data for lesgo
 open (1, file='phi.out', form='unformatted')
-write (1) phi
+write (1) phi(:, :, 1:nz)
 close (1)
 
 open (1, file='brindex.out', form='unformatted')
-write (1) gcs_t(:,:,:)%brindex
+write (1) gcs_t(:, :, 1:nz)%brindex
 close (1)
 
 stop
