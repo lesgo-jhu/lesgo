@@ -55,7 +55,7 @@ real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
 real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
 real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
-logical, parameter :: DEBUG = .false.
+logical, parameter :: DEBUG = .true.
 logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
                                         !  level set BC
 logical, parameter :: use_log_profile = .false.
@@ -2193,7 +2193,8 @@ subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 implicit none
 
-real (rp), intent (in) :: x(nd)
+!real (rp), intent (in) :: x(nd)
+real (rp) :: x(nd)
 real (rp), intent (out) :: vel(nd)
 
 character (*), parameter :: sub_name = mod_name // '.interp_vel'
@@ -2205,17 +2206,49 @@ real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
+real(rp) :: rku
+
 !---------------------------------------------------------------------
+!if(isnan(x(1))) then
+!  write(*,*) 'x(1) is NAN'
+!  write(*,*) 'Setting to 0'
+!  x(1) = 0.
+!endif  
+
+!if(isnan(x(2))) then
+!  write(*,*) 'x(2) is NAN'
+!  write(*,*) 'Setting to 0'
+!  x(2) = 0.
+!endif 
+
+!if(isnan(x(3))) then
+!  write(*,*) 'x(3) is NAN'
+!  write(*,*) 'Setting to 0'
+!  x(3) = 0.
+!endif 
+
 
 !--calculate indices
 i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
+rku = x(3) / dz + 0.5_rp
 ku = floor (x(3) / dz + 0.5_rp)
 kw = floor (x(3) / dz + 1._rp)
+if(ku == 0) then
+  if(dnint(rku) == 1) then
+    write(*,*) 'x(3) = ' , x(3)
+    write(*,*) 'rku = ', rku
+    write(*,*) 'ku = ', ku
+    write(*,*) 'Warning setting ku to 1'
+    ku = 1
+  endif
+endif
 
 !--need to bounds check i, j, ku, kw
 !--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
+  write(*,*) 'x(1) = ', x(1)
+  write(*,*) 'x(1) / dx + 1._rp = ', x(1) / dx + 1._rp
   call error (sub_name, 'i out of range, i =', i)
 end if
 
@@ -3469,7 +3502,7 @@ integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
 !logical, parameter :: DEBUG = .true.
-logical, parameter :: use_output = .false.
+logical, parameter :: use_output = .true.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
 !real (rp), parameter :: phi_0 = 0._rp * z0  !--this is adjustable
@@ -3538,6 +3571,11 @@ if (output) then
   write (lun, *) 'phi_0 = ', phi_0
 end if
 
+if(DEBUG) then
+  write(*,*) 'phi_c = ', phi_c
+  write(*,*) 'phi_0 = ', phi_0
+endif  
+
 kappa = vonk
 
 !--initial values for _used variables
@@ -3547,13 +3585,15 @@ jmn_used = ny
 jmx_used = 1
 
 if (output) write (lun, *) 'u-node pass'
-
+write(*,*) 'u-node pass'
 !--u-node pass
 do k = 1, nz-1
   do j = jmn, jmx
     do i = imn, imx
 
       phix = phi(i, j, k)
+      
+      if(DEBUG) write(*,*) 'phix = ', phix
 
       if ((phix >= phi_0) .and. (phix <= phi_c)) then
 
@@ -3565,6 +3605,8 @@ do k = 1, nz-1
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
 
         n_hat = norm(:, i, j, k)
+        
+        if(DEBUG) write(*,*) 'From level_set.interp_tau: n_hat = ', n_hat
 
         !--make sure norm is well-defined
         if (mag (n_hat) < eps) then
@@ -4467,16 +4509,46 @@ if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
+
+write(*,*) 'lbound(phi) = ', lbound(phi)
+write(*,*) 'ubound(phi) = ', ubound(phi)
+
 read (lun) phi(:, :, $lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
 close (lun)
+
+write(*,*) 'minval(phi) = ', minval(phi)
+write(*,*) 'maxval(phi) = ', maxval(phi)
+
+!  Create tecplot formatted phi and brindex field file  
+open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
+  action='write',position='rewind')
+
+write(2,*) 'variables = "phi"'; 
+
+write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE)')//''
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+      write(2,*) phi(i,j,k)
+    enddo
+  enddo
+enddo
+close(2)
 
 call mesg (sub_name, 'level set function initialized')
 
 !--calculate the normal
 !--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
 call fill_norm ()
+
+
 
 if (do_write_norm) then
 

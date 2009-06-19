@@ -1,0 +1,1150 @@
+2009-06-18 13:35  tag stable_snap_061809
+
+2009-06-18 13:35  jgraham
+
+	* Makefile, level_set.f90, main.f90, param.f90, stats_init.f90,
+	  trees_base_ls.f90, trees_pre_ls.f90: Merged from devel branch.
+	  Includes:
+
+	  1. bug fix in trees_base_ls in pt_of_grid 2. addition of wall
+	  time calc in main
+
+2009-06-18 13:27  jgraham
+
+	* main.f90: Added wall time calculation and output
+
+2009-06-18 13:26  jgraham
+
+	* Makefile: Added panoramix optimized FFLAGS
+
+2009-06-18 10:52  jgraham
+
+	* Makefile: Set makefile to include panoramix optimizations based
+	  on the suggestions in ifort man page
+
+2009-06-18 08:55  jgraham
+
+	* level_set.f90: Turn debugging off
+
+2009-06-17 21:59  jgraham
+
+	* Makefile, param.f90, stats_init.f90: Made adjustments to cube_mpi
+	  case; having issues with code blowing up during execution
+
+2009-06-17 21:53  jgraham
+
+	* level_set.f90: Reverted changes to original
+
+2009-06-17 21:31  jgraham
+
+	* param.f90: Updated grid dimensions for cube_mpi run; generated
+	  the phi.out and brindex.out files with trees_pre_ls
+
+2009-06-17 21:30  jgraham
+
+	* trees_pre_ls.f90: General updates; nztot is disregarded an nz
+	  from param.f90 is used as the local nz; tested phi calculations
+	  and things look good
+
+2009-06-17 21:00  jgraham
+
+	* trees_base_ls.f90: Corrected bug in pt_of_grid function which is
+	  used to return the global x,y,z values for the domain; there was
+	  redundancy in the z calculation where the k-total index was
+	  specified but an additional chunk offset was attempted by
+	  multplying the z-chunk distance by coord. coord however is not
+	  used execpt in parallel execution and therefore conflicted with
+	  the use of k-total. A different attempt could be used which would
+	  leave the coord offset but used the local k; this would allow for
+	  parallel execution of trees_pre_ls but nproc would have to match
+	  that of nproc lesgo
+
+2009-06-17 16:30  jgraham
+
+	* param.f90, trees_base_ls.f90, trees_pre_ls.f90: Issues still
+	  remain with the MPI_split set to true stuff. the grid is not
+	  being correctly generated. There is some discrepency between the
+	  usage of nz in param.f90 and the trees_{} routines
+
+2009-06-17 14:04  jgraham
+
+	* param.f90, stats_init.f90: Set up case for running 1st run of
+	  cube_mpi; will increase nsteps and stuff later
+
+2009-06-17 14:03  jgraham
+
+	* trees_base_ls.f90: Changed cross section type to square;
+	  increased thresh to allow for dx=dy~=dz
+
+2009-06-17 14:02  jgraham
+
+	* trees_pre_ls.f90: Trying to debug issues when MPI_split=.true.;
+	  may check diffs against original
+
+2009-06-17 14:01  jgraham
+
+	* Makefile: General updates and clean up
+
+2009-06-16 23:24  tag stable_snap_061609
+
+2009-06-16 23:24  jgraham
+
+	* Makefile, README, cylinder_skew.f90, defs.f90, functions.f90,
+	  grid.f90, io.f90, lagrange_Ssim.f90, level_set.f90, main.f90,
+	  param.f90, sgs_stag.f90, stat_defs.f90, stats.f90,
+	  stats_init.f90, trees.conf, trees_base_ls.f90, post/.depend:
+	  Merged all tested changes from devel_branch
+
+2009-06-16 23:19  jgraham
+
+	* defs.f90: Removed unneeded defs file
+
+2009-06-16 23:16  jgraham
+
+	* Makefile, README, functions.f90, grid.f90, io.f90,
+	  lagrange_Ssim.f90, main.f90, param.f90, sgs_stag.f90,
+	  stat_defs.f90, stats.f90, stats_init.f90, post/.depend: Merged
+	  from mpi_devel_branch
+
+2009-06-16 18:06  jgraham
+
+	* io.f90, stat_defs.f90, stats.f90, stats_init.f90: Updated plane
+	  type values to be more logical and easier to understand
+
+2009-06-16 18:05  jgraham
+
+	* README: Added DATA OUTPUT section to explain current output
+	  settings in stats_init.f90
+
+2009-06-16 16:47  jgraham
+
+	* Makefile: Updated Makefile to include MPI settings
+
+2009-06-16 16:29  jgraham
+
+	* README: Updated README file (partially) to include output
+	  settings
+
+2009-06-16 12:49  jgraham
+
+	* README: Made partial updates to explanations of output settings.
+
+2009-06-16 12:38  jgraham
+
+	* stat_defs.f90: file stat_defs.f90 was added on branch
+	  devel_branch on 2009-06-17 03:16:34 +0000
+
+2009-06-16 12:38  jgraham
+
+	* Makefile, defs.f90, functions.f90, grid.f90, io.f90, main.f90,
+	  param.f90, stat_defs.f90, stats.f90: Moved some stuff around to
+	  make it more logical; corrected some bugs; changed any hardcoded
+	  interpolation stuff to use the interpolation functions
+
+2009-06-16 12:38  jgraham
+
+	* functions.f90: file functions.f90 was added on branch
+	  devel_branch on 2009-06-17 03:16:34 +0000
+
+2009-06-16 12:38  jgraham
+
+	* grid.f90: file grid.f90 was added on branch devel_branch on
+	  2009-06-17 03:16:34 +0000
+
+2009-06-15 21:30  jgraham
+
+	* defs.f90, param.f90, stats.f90, stats_init.f90: Corrected several
+	  outstanding bugs; parallel execution seems to work; still working
+	  to make sure everything looks ok; will want to spend time with
+	  code clean up.
+
+2009-06-15 18:42  jgraham
+
+	* Makefile, io.f90, stats.f90: General bug fixes and clean-up;
+	  still running into issues when running in parallel
+
+2009-06-15 18:29  jgraham
+
+	* defs.f90, io.f90, main.f90, stats.f90, stats_init.f90: Corrected
+	  more issues with the mpi stuff; need to test in parallel
+
+2009-06-15 17:02  jgraham
+
+	* Makefile, stats_init.f90: General updates
+
+2009-06-15 16:56  jgraham
+
+	* defs.f90, io.f90, stats_init.f90: Finalized the coding for all
+	  parallel output for the current settings of the code; will be
+	  running in serial and parallel (test cases) to see how well it
+	  works
+
+2009-06-15 11:07  jgraham
+
+	* defs.f90, io.f90, stats_init.f90: Unfinished updates
+
+2009-06-13 11:11  jgraham
+
+	* defs.f90, io.f90, stats.f90, stats_init.f90, post/.depend:
+	  General code clean up and logical renaming
+
+2009-06-12 23:28  jgraham
+
+	* stats.f90: Fixed bug when yplane_t%avg_calc or zplane_t%avg_calc
+	  is set false
+
+2009-06-10 10:23  jgraham
+
+	* param.f90: Corrected nz_tot calc in param
+
+2009-06-10 10:22  jgraham
+
+	* io.f90, stats_init.f90: Updated debug output of global data to be
+	  in tecplot format
+
+2009-06-10 09:04  jgraham
+
+	* io.f90, param.f90, stats_init.f90: Running a debug case to see
+	  the output of the global uvw files
+
+2009-06-09 21:30  jgraham
+
+	* io.f90: Added some mpi compliancy to the uvw global output; may
+	  need some more work, probably should check the non-binary format
+
+2009-06-09 14:20  jgraham
+
+	* Makefile, io.f90, param.f90, stats_init.f90: Have correct
+	  implementation of output files; need to modify remaining output
+	  stuff to use this method; may want to create the grid and grid
+	  related flags for outputing data once run is made to remove the
+	  redundancy
+
+2009-06-09 10:53  jgraham
+
+	* sgs_stag.f90: Corrected bug with the order which Sij was passed
+	  between sgs_stag and calc_Sij
+
+2009-06-09 10:45  jgraham
+
+	* sgs_stag.f90: Moved calc_Sij to its own subroutine, i.e. no
+	  contains in sgs_stag and Sij is explicitly passed between the
+	  routines. Left the calc_Sij in sgs_stag.f90 as its only used by
+	  sgs_stag.
+
+2009-06-09 09:36  jgraham
+
+	* lagrange_Ssim.f90: Coverted to original version in compliance
+	  with the changes to sgs_stag
+
+2009-06-09 09:30  jgraham
+
+	* defs.f90, sgs_stag.f90: Converted sgs_stag to original version
+	  (tag r0_1); I didn't really like having the seperate modules and
+	  stuff; will need to test to see if it runs correctly.
+
+2009-06-08 22:18  jgraham
+
+	* io.f90, main.f90: GU
+
+2009-06-08 16:32  jgraham
+
+	* io.f90: Corrected issue the size of L_z when in parallel; it is
+	  chopped to the length of L_z = L_z/nproc
+
+2009-06-08 16:15  jgraham
+
+	* param.f90: GU
+
+2009-06-08 16:08  jgraham
+
+	* io.f90: gu
+
+2009-06-08 15:57  jgraham
+
+	* io.f90: General updates
+
+2009-06-08 15:54  jgraham
+
+	* io.f90: General cleanup
+
+2009-06-08 15:52  jgraham
+
+	* Makefile: Updated makefile to use the correct mpich2 directory
+
+2009-06-08 15:06  jgraham
+
+	* io.f90: Added prelim changes to offset the z starting location
+	  based on the processor outputing data
+
+2009-06-08 13:21  jgraham
+
+	* Makefile, defs.f90, param.f90, sgs_stag.f90, stats_init.f90: Code
+	  now compiles in mpi mode. still need to investigate the usage of
+	  the sij_defs stuff; dont like the multi-usage of variables
+	  between the various modules;
+
+	  Need to check all the output routine; believe u-inst stuff is not
+	  right and add in to lesgo_post the ability to compile the various
+	  proc files.
+
+2009-06-04 19:47  jgraham
+
+	* lagrange_Ssim.f90: Code compiles cleanly; still need to
+	  understand the usage of the sij_defs module
+
+2009-06-04 15:04  jgraham
+
+	* Makefile, param.f90, stats_init.f90: Compile seems to go fine;
+	  setup the cube case to run a few iterations.
+
+2009-06-04 14:04  jgraham
+
+	* Makefile, defs.f90, stats_init.f90: Code still has issues with
+	  compiling; may need to reverse the sij_defs changes to resolve
+	  the overspecified variables...
+
+2009-06-03 14:10  jgraham
+
+	* Makefile, param.f90, sgs_stag.f90: Set the USE_MPI flag in
+	  Makefile; some issues in sgs_stag with the Sih_defs modules;
+	  still trying to figure it all out.
+
+2009-06-03 12:36  jgraham
+
+	* io.f90, stats_init.f90: Added prelimenary mpi compliancy to the
+	  code. The code compiles with mpi off; no tests have been made
+	  with the output to see how things are written to file.
+
+	  Removed commented out stuff from io.f90; just the original
+	  routines not used.
+
+2009-06-02 16:39  jgraham
+
+	* Makefile, cylinder_skew.f90, defs.f90, level_set.f90, param.f90,
+	  trees.conf, trees_base_ls.f90: Working through level set stuff
+	  for reading in the cylinder_skew phi.out and brindex.out file.
+
+2009-06-02 11:11  tag stable_snap_060209
+
+2009-06-02 11:11  jgraham
+
+	* trees_base_ls.f90: Commented out the find staggered nodes routine
+	  in grid_initialize; it appeared that all nodes where set to be
+	  unstaggered; Hard coded for u,v nodes to be staggered and w nodes
+	  to be unstaggered
+
+2009-06-01 19:35  jgraham
+
+	* cylinder_skew.f90: Corrected issue with the min-ellipse routine;
+	  using ellipse_dist_point_2d instead of ellipse_dist_point_2d_2
+	  caused some problems; the routine ellipse_dist_point_2d_2 is
+	  currently being used with no appearant issues as seen before; a
+	  check in ellipse_dist_point_2d_2 is still implemented which will
+	  make sure no erroneous stuff is made
+
+2009-06-01 17:25  jgraham
+
+	* cylinder_skew.f90, level_set.f90: Issues still exist with the
+	  current implementation of the cylinder_skew stuff; there seems to
+	  be some problems that will require further analysis.
+
+2009-06-01 14:29  jgraham
+
+	* Makefile, cylinder_skew.f90, param.f90, stats_init.f90: Set up
+	  case for prelim cylinder run; no devel changes
+
+2009-06-01 14:17  jgraham
+
+	* cylinder_skew.f90: Found bug in ellipse_point_dist_2D_2 in
+	  geometry lib; switched to use ellipse_point_dist_2D instead.
+
+2009-06-01 10:03  jgraham
+
+	* cylinder_skew.f90: Added binary output for phi and brindex as
+	  used by the code.
+
+2009-05-31 19:57  jgraham
+
+	* Makefile, defs.f90, io.f90, main.f90: General updates; removed
+	  unecessary stuff and renamed variables to more intuitive names
+
+2009-05-31 19:55  jgraham
+
+	* compute_stats.f90: Moved compute_stats to stats
+
+2009-05-31 19:55  jgraham
+
+	* stats.f90: Renamed compute_stats to stats
+
+2009-05-31 19:54  jgraham
+
+	* stats_init.f90: Made bug fix in allocation of tavg_t%dudz where
+	  nz was used instead of nx.
+
+	  Performed renaming of several variables
+
+2009-05-31 18:05  jgraham
+
+	* compute_stats.f90, io.f90, main.f90, param.f90: Renamed
+	  subroutines to be more intuitive; moved subroutines around to
+	  more appropriate files
+
+2009-05-31 16:38  jgraham
+
+	* stats_init.f90: Added settings section
+
+2009-05-31 16:32  jgraham
+
+	* stats_init.f90: General updates
+
+2009-05-31 16:20  jgraham
+
+	* press_stag_array.f90: Put back to original
+
+2009-05-31 16:15  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, stats_init.f90: Made changes
+	  to some of the names used for variables to be more intuitive
+
+2009-05-31 15:38  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, stats_init.f90: Changed
+	  'aver' to 'avg' in output routines
+
+2009-05-29 20:36  jgraham
+
+	* Makefile, fft.f90, param.f90, press_stag.f90,
+	  press_stag_array.f90, stats_init.f90: Made testing updates to
+	  press_stag_array; will need to remove before proceeding
+
+2009-05-29 16:15  tag pre_equivalence_remove
+
+2009-05-29 16:15  jgraham
+
+	* Makefile, alloc.f90, fft.f90, init_fft.f90, initial.f90,
+	  interpolag_Sdep.f90, interpolag_Ssim.f90, io.f90, param2.f90,
+	  press_stag.f90, press_stag_array.f90, scalars_module2.f90,
+	  topbc.f90, trees_global_fmask_ls.f90: Still making dynamic memory
+	  conversion; having issue with a pre-existing equivalence command;
+	  gonna try to do without it.
+
+2009-05-29 13:55  jgraham
+
+	* scalars_module2.f90, Makefile, alloc.f90, bottombc.f90, ic.f90,
+	  io.f90, level_set.f90, level_set_base.f90, param2.f90,
+	  patches.f90, scalars_module.f90, trees_global_fmask_ls.f90,
+	  trees_ls.f90: Still updating module usage
+
+2009-05-29 11:29  jgraham
+
+	* alloc.f90, defs.f90, immersedbc.f90, sgsmodule.f90: Made updates
+	  to module usage in order to use an input file
+
+2009-05-29 08:49  jgraham
+
+	* defs.f90, immersedbc.f90: General updates
+
+2009-05-28 23:17  jgraham
+
+	* .depend, Makefile, alloc.f90, bottombc.f90, compute_stats.f90,
+	  convec.f90, ddz_uv.f90, ddz_w.f90, defs.f90, fft.f90,
+	  init_fft.f90, param.f90, patches.f90, sim_param.f90,
+	  test_filtermodule.f90: Still working to converting entire code to
+	  use an input file; this requires modifying how arrays are handled
+	  in the old modules; compile attempt shows latest issue in
+	  immersedbc.f90
+
+2009-05-28 20:21  jgraham
+
+	* alloc.f90, bottombc.f90, main.f90: In the process of converting
+	  bottombc and its contents to a sane form; still need to settle
+	  the allocation issue with phi and psi in the bottombc module.
+
+2009-05-27 22:52  jgraham
+
+	* .depend, Makefile, bottombc.f90, param.f90, param2.f90: General
+	  updates; still having issues with compiling the code.
+
+2009-05-27 22:16  jgraham
+
+	* defs.f90: Added defs from trunk; did not get transferred for some
+	  reason during the merge
+
+2009-05-27 22:03  jgraham
+
+	* sgs_stag.f90, .depend, Makefile, NOTES, compute_stats.f90,
+	  cylinder_skew.f90, ic.f90, ic_dns.f90, interp.f90, io.f90,
+	  lagrange_Sdep.f90, level_set.f90, main.f90, param.f90,
+	  stats_init.f90, test.f90, trees.conf, trees_base_ls.f90,
+	  trees_pre_ls.f90, trees_setup_ls.f90: Merge head branch into
+	  input_file_branch; managed conflicts best as possible, but will
+	  want to check stuff
+
+2009-05-27 21:11  jgraham
+
+	* cylinder_skew.f90: General updates
+
+2009-05-27 21:11  jgraham
+
+	* cylinder_skew.f90: file cylinder_skew.f90 was added on branch
+	  input_file_branch on 2009-05-28 02:03:49 +0000
+
+2009-05-27 13:19  jgraham
+
+	* compile_cyliner_skew.sh, cylinder_skew2.f90: Removed unnecessary
+	  files
+
+2009-05-23 20:20  jgraham
+
+	* cylinder_skew.f90, trees_base_ls.f90: General updates; made
+	  appropriate changes with regard to the move of the min-dist
+	  ellispe calcs and the vector mag calcs
+
+2009-05-23 20:19  jgraham
+
+	* min_dist_to_ellipse.f90: Moved min-dist calculations to the
+	  geometry lib; also moved the vector magnitude calculations to
+	  geometry lib
+
+2009-05-22 15:45  jgraham
+
+	* cylinder_skew.f90, cylinder_skew2.f90: Proof of concept for
+	  cylinder stuff now works; need to to now build the generalized
+	  framework for the routine; maybe it can be included into Stuart's
+	  stuff don't know
+
+2009-05-22 15:01  jgraham
+
+	* cylinder_skew2.f90: Added another cylinder test routine.
+
+2009-05-22 13:07  jgraham
+
+	* cylinder_skew.f90: The minimum distance routine works as expected
+	  now; may want to spend time documenting an cleaning up.
+
+2009-05-22 11:21  jgraham
+
+	* min_dist_to_ellipse.f90, test.f90: Implementation for the
+	  min-dist to ellipse routine has been completed; it appears to
+	  work correctly now, with limited testing with test.f90
+
+2009-05-22 11:21  jgraham
+
+	* test.f90: file test.f90 was added on branch input_file_branch on
+	  2009-05-28 02:03:49 +0000
+
+2009-05-22 10:36  tag poly_root_method
+
+2009-05-22 10:36  jgraham
+
+	* min_dist_to_ellipse.f90, test.f90: General updates
+
+2009-05-21 23:38  jgraham
+
+	* test.f90: General updates
+
+2009-05-21 23:28  jgraham
+
+	* min_dist_to_ellipse.f90, test.f90: General updates; trying to
+	  test the min-dist stuff; still needs work.
+
+2009-05-21 22:43  jgraham
+
+	* min_dist_to_ellipse.f90, test.f90: General updates; double
+	  checked min-dist calc routine
+
+2009-05-21 21:17  jgraham
+
+	* cylinder_skew.f90, test.f90: General updates
+
+2009-05-21 15:55  jgraham
+
+	* cylinder_skew.f90: Almost there; code is 75% now. still need to
+	  work	out the minimum distance routine
+
+2009-05-21 13:29  jgraham
+
+	* min_dist_to_ellipse.f90: General updates; still need to confirm
+	  the routine.
+
+2009-05-21 13:28  jgraham
+
+	* cylinder_skew.f90: Work is still needed on in the cylinder_skew
+	  routine; more information is needed about the location of the gcs
+	  point wrt to the cylinder; almost there.
+
+2009-05-21 10:47  jgraham
+
+	* cylinder_skew.f90, test.f90: General updates; rewrote how the
+	  vectors are handled; move to more intuitive name declaration.
+
+	  Still having issues with the output though; believe it is an
+	  issue with the minmum distance calculations.
+
+2009-05-20 22:53  jgraham
+
+	* cylinder_skew.f90, min_dist_to_ellipse.f90, test.f90: General
+	  updates; still need to resolve the skewed cylinder calculations;
+	  may want to switch back to the non-orthogonal coordiate system
+
+2009-05-18 14:23  jgraham
+
+	* cylinder_skew.f90, compile_cyliner_skew.sh: General updates
+
+2009-05-18 13:26  jgraham
+
+	* lib/: constants.mod, error.mod, fourier.mod, integration.mod,
+	  libafnl.a, libgeometry.so, linear.mod, nonnumeric.mod,
+	  numtypes.mod, optimization.mod, polynomial.mod, root.mod,
+	  specialfunc.mod, statistics.mod, time.mod: Removed the library
+	  stuff as it caused the problems previously mentioned - shared
+	  library conflicts
+
+2009-05-18 13:02  jgraham
+
+	* compile_cyliner_skew.sh, cylinder_skew.f90, lib/constants.mod,
+	  lib/error.mod, lib/fourier.mod, lib/integration.mod,
+	  lib/libafnl.a, lib/libgeometry.so, lib/linear.mod,
+	  lib/nonnumeric.mod, lib/numtypes.mod, lib/optimization.mod,
+	  lib/polynomial.mod, lib/root.mod, lib/specialfunc.mod,
+	  lib/statistics.mod, lib/time.mod: Included minimum distance to
+	  ellipse calculation. Also incorporated the correct (not yet
+	  tested) values for a and b regardless of the rotation of the
+	  skewed cylinder about the z-axis. This, however, does not include
+	  any rotations about the x or y axis. Also included all the mods
+	  and libraries required for the compilation of the code. May not
+	  want to do this for differing platforms as this might cause
+	  problems later on. Another note, the shared library
+	  libgeometry.so should probably be changed to a static library for
+	  convinience.
+
+2009-05-17 21:39  jgraham
+
+	* cylinder_skew.f90: General update; corrections for a and b in the
+	  ellipse equation need to be generalized.
+
+2009-05-17 21:31  jgraham
+
+	* cylinder_skew.f90: Added distance calculation from above and
+	  below cylinder.
+
+2009-05-14 17:03  jgraham
+
+	* cylinder_skew.f90: General updates
+
+2009-05-14 16:51  jgraham
+
+	* cylinder_skew.f90: General updates
+
+2009-05-14 16:45  jgraham
+
+	* cylinder_skew.f90: Partially completed the formulation of the new
+	  rotated local reference frame used for generating the signed
+	  distance function
+
+2009-05-14 13:48  jgraham
+
+	* cylinder_skew.f90: Change the method by which the minimum
+	  distance is computed. This works much better is and is more
+	  numerically stable; work is still required to iron out the
+	  details and to merge with the existing tree code.
+
+2009-05-14 11:45  jgraham
+
+	* trees.conf, trees_setup_ls.f90: General updates; still working on
+	  getting the skewed cylinder stuff in the code; have been working
+	  on a prototype code that will be added later.
+
+2009-05-14 11:45  jgraham
+
+	* trees.conf: file trees.conf was added on branch input_file_branch
+	  on 2009-05-28 02:03:49 +0000
+
+2009-05-14 11:44  tag pre_redo
+
+2009-05-14 11:44  jgraham
+
+	* cylinder_skew.f90: Adding prototype cylinder_skew code; it is
+	  intended that this code will be deleted later.
+
+2009-05-12 21:46  jgraham
+
+	* trees_base_ls.f90, trees_setup_ls.f90: General updates; still
+	  working on understanding how the level set values phi are applied
+	  in the existing framework.
+
+2009-05-11 17:26  jgraham
+
+	* Makefile, param.f90, trees.conf, trees_base_ls.f90,
+	  trees_setup_ls.f90: General updates; in the process of
+	  understanding how to generate the level set phi file
+
+2009-05-06 21:59  tag pre_press_stag_array_mod
+
+2009-05-06 21:59  jgraham
+
+	* Makefile, NOTES, compute_stats.f90, defs.f90, ic.f90, ic_dns.f90,
+	  interp.f90, io.f90, lagrange_Sdep.f90, level_set.f90, main.f90,
+	  param.f90, sgs_stag.f90, stats_init.f90, trees.conf,
+	  trees_pre_ls.f90: Merged no_input_file_branch to main trunk;
+	  should make all changes to this the main branch
+
+2009-05-06 21:59  jgraham
+
+	* compute_stats.f90: file compute_stats.f90 was added on branch
+	  input_file_branch on 2009-05-28 02:03:49 +0000
+
+2009-05-06 21:59  jgraham
+
+	* stats_init.f90: file stats_init.f90 was added on branch
+	  input_file_branch on 2009-05-28 02:03:49 +0000
+
+2009-05-06 21:40  jgraham
+
+	* param.f90, stats_init.f90: General updates; includes parameter
+	  settings for the cube runs
+
+2009-04-03 16:06  jgraham
+
+	* trees.conf: Added trees.conf to CVS repo
+
+2009-04-01 20:17  jgraham
+
+	* param.f90, stats_init.f90: General updates; setup case for flow
+	  over array of cubes case; should be the last run for these
+	  simulations.
+
+2009-04-01 20:15  jgraham
+
+	* compute_stats.f90, param.f90, stats_init.f90: Added ability to
+	  write time averaged velocities for the entire domain; this file
+	  is called uvw_avg.dat and is in tecplot format.
+
+2009-04-01 16:42  jgraham
+
+	* compute_stats.f90, param.f90, stats_init.f90: Corrected tecplot
+	  format when writing rs.dat; checked for errors; everything looks
+	  good.
+
+2009-04-01 15:46  jgraham
+
+	* compute_stats.f90: Updated Reynolds stress calculations to no be
+	  planar averaged, but computed at each node; the new output file
+	  is call rs_avg.dat and is in tecplot format
+
+2009-03-24 10:58  jgraham
+
+	* defs.f90, io.f90, param.f90, stats_init.f90:
+	  Completed the add-in for the capability to record planar averaged
+	  data for the y and z planes. The values for y and z can be
+	  specified in stats_init.f90 and the nearby values are linear
+	  interpolated.
+
+2009-03-23 22:00  jgraham
+
+	* defs.f90, io.f90, param.f90, stats_init.f90: Preliminary addition
+	  of planar interpolation capability. This will allow for planar
+	  data to be written at specified x,y,z locations instead of i,j,k
+	  locations.
+
+2009-03-21 11:07  jgraham
+
+	* io.f90: Corrected issue with u being written instead of v and w
+	  for the averaged y-plane values
+
+2009-03-20 20:06  jgraham
+
+	* Makefile, param.f90: General updates
+
+2009-03-20 16:38  jgraham
+
+	* Makefile, param.f90: General updates
+
+2009-03-20 14:48  jgraham
+
+	* Makefile, param.f90: Added capability to compute and output
+	  planar data; disregard previous submission
+
+2009-03-20 14:43  jgraham
+
+	* Makefile, defs.f90, io.f90, param.f90, stats_init.f90: Added
+	  capability to compute and record planar data to file.
+
+2009-03-12 23:04  jgraham
+
+	* param.f90, stats_init.f90: General updates
+
+2009-03-12 12:13  jgraham
+
+	* ic.f90, interp.f90, param.f90, stats_init.f90: Added ability to
+	  initialize domain with constant velocities; general updates
+
+2009-03-06 20:34  jgraham
+
+	* NOTES, interp.f90, level_set.f90, param.f90, stats_init.f90:
+	  General updates; added further annotation to NOTES
+
+2009-02-20 21:05  jgraham
+
+	* defs.f90, io.f90, param.f90, stats_init.f90: Updated IO control
+	  to be more specific; cleaned up sections of the code.
+
+	  May want to put the lesgo_post files into the lesgo tree and use
+	  the definitions in lesgo_post as they are in lesgo.
+
+2009-02-20 19:29  jgraham
+
+	* Makefile, param.f90, stats_init.f90, trees_pre_ls.f90: General
+	  updates
+
+2009-02-19 20:13  jgraham
+
+	* io.f90, lagrange_Sdep.f90, main.f90, param.f90, stats_init.f90:
+	  Completed first round of io.f90 clean up; this had implications
+	  on other files where some of the routines in io are coupled
+	  elsewhere in the code; more clean up and organization is
+	  required.
+
+2009-02-19 17:02  jgraham
+
+	* io.f90: Started the io.f90 clean up process; still need to work
+	  out some of the bugs.
+
+2009-02-10 12:24  tag pre_clean_1
+
+2009-02-10 12:24  jgraham
+
+	* NOTES, io.f90: General updates; updated NOTES
+
+2009-02-07 13:39  jgraham
+
+	* Makefile, compute_stats.f90, defs.f90, energy.f90, io.f90,
+	  param.f90, stats_init.f90: General updates; added ability to
+	  write instantaneous flow field information to unformatted file
+	  for specified intervals
+
+2009-02-03 12:28  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, stats_init.f90: Added all
+	  double precision conversion for integers used in multiplying real
+	  numbers; found possible issue pertaining to the erroneous
+	  calculations of the var(u) values; test is underway
+
+2009-02-03 10:54  jgraham
+
+	* compute_stats.f90, param.f90, stats_init.f90: General updates
+
+2009-01-27 22:15  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, main.f90, param.f90,
+	  stats_init.f90: Added ability to write final output of flow field
+	  variables.
+
+2009-01-26 18:02  jgraham
+
+	* Makefile, defs.f90, interp.f90, main.f90, param.f90,
+	  sgs_stag.f90, stats_init.f90: Corrected issue with crash in
+	  sgs_stag; general updates
+
+2009-01-22 17:52  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, param.f90, stats_init.f90:
+	  Added ability to write the temporally and spatially averaged dudz
+	  to file for the computation of the non-dimensional vertical
+	  gradient of u
+
+2009-01-20 10:07  jgraham
+
+	* energy.f90, io.f90, main.f90, param.f90, stats_init.f90: General
+	  updates
+
+2009-01-16 23:58  jgraham
+
+	* Makefile, compute_stats.f90, defs.f90, io.f90, param.f90,
+	  stats_init.f90: Added the capability to write temporally and
+	  spatially averaged u,v,w profiles to file. Set parameters to
+	  match those presented in Albertson's dissertation.
+
+2009-01-15 23:30  jgraham
+
+	* param.f90, stats_init.f90: Contains currently running parameters
+
+2009-01-15 20:22  jgraham
+
+	* defs.f90, io.f90, param.f90, stats_init.f90: Corrected time step
+	  check when computing summed velocity quantities (compute_sums)
+	  and writing instantaneous velocities (write_uinst). The nstart
+	  was specified instead of the nend value.
+
+2009-01-15 17:30  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, param.f90, stats_init.f90:
+	  Successfully added the capability to store instantaneous velocity
+	  information at specified i,j,k locations. The derived type ui was
+	  created for this action. The routines pertaining to the Reynolds
+	  stresses still need to be verified.
+
+2009-01-15 08:29  jgraham
+
+	* compute_stats.f90, defs.f90, io.f90, param.f90, stats_init.f90:
+	  Added the last two Reynold stress terms; this required two
+	  additional tsum_t summation terms also (vw and uv)
+
+2009-01-14 21:09  jgraham
+
+	* Makefile, compute_stats.f90, defs.f90, io.f90, param.f90,
+	  stats_init.f90: Added another data type and moved stuff around
+	  with how the statistics are computed and controlled
+
+2009-01-14 20:18  jgraham
+
+	* Makefile, compute_stats.f90, io.f90, param.f90, stats_init.f90:
+	  Added u,v interpolation during statistics summation
+
+2009-01-14 17:01  jgraham
+
+	* compute_stats.f90, io.f90, param.f90, stats_init.f90: Adding
+	  interpolation routine to compute_stats routine; still not
+	  finished
+
+2009-01-14 16:26  jgraham
+
+	* Makefile, compute_stats.f90, io.f90, main.f90, param.f90,
+	  stats_init.f90: Added a first cut of calculations for the
+	  Reynolds stresses (minus the density) has been added. There still
+	  remains more work to do with this part of the code such as: 1.
+	  use a interpolation function to interpolate u and v onto the w
+	  grid 2. rename derived types to more generic names; combine
+	  already used variables    into these derived types if possible 3.
+	  reduce the redundancy of any statistic calculations 4. increase
+	  the readability of the code
+
+2009-01-13 18:57  jgraham
+
+	* Makefile, ic.f90, ic_dns.f90, io.f90, main.f90, param.f90:
+	  General updates
+
+	  Everything appears to be working correctly now. There was an
+	  issue with the value written to the averaged data file as
+	  jt_total*dz; this caused problems with lesgo_post. As a result
+	  this was changed to jt_total*dt
+
+2009-01-12 16:48  tag pre_trunk_merge
+
+2009-01-12 16:48  jgraham
+
+	* Makefile: Added the ability to use various fortran compilers
+
+2009-01-12 16:46  jgraham
+
+	* Makefile: Updated Makefile to use various fortran compilers
+
+2009-01-12 16:11  jgraham
+
+	* NOTES, main.f90, param.f90: General updates.
+
+	  The issue with the non-physical rms of the velocity field was
+	  tracked down to the logical flag inflow; this value must be false
+	  for the calculations to be performed properly. The actual cause
+	  of the erroneous calculation is not yet known.
+
+	  Removed the dpdx write-to-screen from main.
+
+2009-01-11 16:58  jgraham
+
+	* Makefile, bottombc.f90, convec.f90, ddx.f90, ddxy.f90, ddy.f90,
+	  ddz_uv.f90, ddz_w.f90, dealias1.f90, dealias2.f90, debug_mod.f90,
+	  divstress_uv.f90, divstress_w.f90, dns_stress.f90, energy.f90,
+	  fft.f90, filt_da.f90, forcing.f90, ic.f90, ic_dns.f90,
+	  immersedbc.f90, initial.f90, interpolag_Sdep.f90,
+	  interpolag_Ssim.f90, io.f90, lagrange_Sdep.f90,
+	  lagrange_Ssim.f90, level_set.f90, level_set_base.f90, main.f90,
+	  merge_phi.f90, padd.f90, param.f90, param2.f90, press_stag.f90,
+	  press_stag_array.f90, read_inputs.f90, rmsdiv.f90,
+	  scalars_module.f90, scalars_module2.f90, scaledep_dynamic.f90,
+	  sgs_stag.f90, sgsmodule.f90, sim_param.f90, std_dynamic.f90,
+	  test_filtermodule.f90, topbc.f90, trees_base_ls.f90,
+	  trees_full_apri_ls.f90, trees_global_fmask_ls.f90, trees_ls.f90,
+	  trees_pre_ls.f90, trees_setup_ls.f90, tridag_array.f90,
+	  tridag_array_pipelined.f90, unpadd.f90, wallstress.f90,
+	  wallstress_dns.f90: Updated module usage in routines to use the
+	  new param2 module when necessary; more work is still needed to
+	  get everything to compile cleanly
+
+2009-01-11 13:59  jgraham
+
+	* defs.f90, param.f90, param2.f90, read_inputs.f90: Added
+	  additional steps to completing input file read capability
+
+2009-01-11 13:15  jgraham
+
+	* NOTES, main.f90, param.f90: Merged no_input_file_branch with
+	  trunk to include all new changes; main development will be
+	  performed on the trunch and the no_input_file_branch can be
+	  deleted or ignored
+
+2009-01-11 13:09  jgraham
+
+	* main.f90, param.f90: Added creation of output directory during
+	  run
+
+2009-01-11 12:38  jgraham
+
+	* NOTES, main.f90, param.f90: General updates; added tloop flag
+	  that determines whether or not the main time loop is entered
+
+2009-01-10 14:35  tag input_file
+
+2009-01-10 14:35  jgraham
+
+	* defs.f90, lesgo.inp, param.f90: Move pertinent variables
+	  declarations to defs.f90 to create the capability to read an
+	  input file (lesgo.inp); The input file read statement hasn't been
+	  added yet and the module usage in the subroutines has not been
+	  updated.
+
+2009-01-10 14:35  jgraham
+
+	* defs.f90: file defs.f90 was added on branch no_input_file_branch
+	  on 2009-01-15 02:09:59 +0000
+
+2009-01-10 12:51  tag no_input_file
+
+2009-01-10 12:51  jgraham
+
+	* ic.f90, main.f90, param.f90: Set DEBUG=true; general write to
+	  screen stuff was added;
+
+2009-01-08 18:39  jgraham
+
+	* NOTES, io.f90, main.f90, param.f90, sim_param.f90,
+	  trees_base_ls.f90: Updated NOTES; code is still not produce
+	  physical results; the initialization has been check and seems ok,
+	  but the solver is still not producing realistic results.
+
+2009-01-06 20:51  jgraham
+
+	* NOTES: Added notes file which contains code annotation.
+
+2009-01-06 20:50  jgraham
+
+	* energy.f90, io.f90, main.f90, param.f90: General update; several
+	  lines which write to screen were added in order to better
+	  understand the execution of the code.
+
+2009-01-06 07:37  jgraham
+
+	* .depend, Makefile: Using original Makefile; removed temporary
+	  file .depend from repo
+
+2009-01-06 07:37  jgraham
+
+	* .depend: file .depend was added on branch input_file_branch on
+	  2009-05-28 02:03:49 +0000
+
+2009-01-05 18:32  jgraham
+
+	* lesgo_post.f90: Putting lesgo_post into its own project
+
+2009-01-05 18:18  jgraham
+
+	* lesgo_post.f90, param.f90, postprocessing.f90: Added input file
+	  capability to postprocessing.f90 and renamed to lesgo_post
+
+2009-01-05 17:38  jgraham
+
+	* postprocessing.f90: Added postprocessing tool
+
+2009-01-05 17:37  jgraham
+
+	* .depend, Makefile, ic.f90, io.f90, param.f90: General updates.
+	  Set code to run without immersed bc stuff
+
+2009-01-04 22:31  jgraham
+
+	* Makefile, types.f90: Cleaned up Makefile; commented source code
+
+2009-01-04 18:46  jgraham
+
+	* Makefile: Updated Makefile to reflect system settings. The fftw2
+	  libraries are installed by default to /opt/fftw2/lib and the
+	  ifort compiler is used by default. Currently, the code will
+	  compile but executation has not been successful.
+
+2009-01-03 11:26  tag r0_1
+
+2009-01-03 11:26  cvs
+
+	* .DS_Store, .depend, ddz_uv.f90, interpolag_Sdep.f90,
+	  lagrange_Sdep.f90, lagrange_Ssim.f90, merge_phi.f90,
+	  messages.f90, bottombc.f90, compare.f90, convec.f90, ddz_w.f90,
+	  dealias1.f90, dealias2.f90, debug_compare.f90, debug_merge.f90,
+	  debug_mod.f90, divstress_uv.f90, divstress_w.f90, dns_stress.f90,
+	  energy.f90, fft.f90, ic.f90, ic_dns.f90, immersedbc.f90,
+	  initial.f90, interp.f, io.f90, linear_simple.f90, main.f90,
+	  mpi_transpose_mod.f90, padd.f90, param.f90, press_stag.f90,
+	  ran3.f, ran3.f90, rg.f90, scalars_module.f90,
+	  scalars_module2.f90, sgs_stag.f90, sgsmodule.f90, sim_param.f90,
+	  std_dynamic.f90, string_util.f90, test_filtermodule.f90,
+	  topbc.f90, trees_aprioriCD_ls.f90, trees_global_fmask_ls.f90,
+	  trees_io_ls.f90, trees_mean_ftot_ls.f90, trees_post_mod_ls.f90,
+	  trees_setup_ls.f90, tridag.f90, tridag_array.f90,
+	  tridag_array_pipelined.f90, types.f90, verify_level_set2.f90,
+	  wallstress.f90, wallstress_dns.f90, Makefile, README, ddx.f90,
+	  ddxy.f90, ddy.f90, filt_da.f90, forcing.f90, integrate.f90,
+	  interp.f90, interpolag_Ssim.f90, level_set.f90,
+	  level_set_base.f90, mpif.h, press_stag_array.f90, rg.f,
+	  rmsdiv.f90, scaledep_dynamic.f90, trees_apri_ls.f90,
+	  trees_base_ls.f90, trees_fmodel_ls.f90, trees_full_apri_ls.f90,
+	  trees_ls.f90, trees_post_ls.f90, trees_pre_ls.f90, unpadd.f90,
+	  verify_level_set.f90, loadleveler/cleanup.bash,
+	  loadleveler/mss.sh, loadleveler/save-avg_stats.bash,
+	  loadleveler/submit-512.bash, loadleveler/submit-interp.bash,
+	  loadleveler/submit-no-mpi.bash,
+	  loadleveler/submit-trees_pre.bash, loadleveler/submit.bash,
+	  loadleveler/tarall.bash, lsf/submit-no-mpi.ksh, lsf/submit.ksh,
+	  post/.depend, post/Makefile, post/cylinder_cd.f90,
+	  post/fftw_f77.i, post/format_fdist.f90, post/mean-CD.f90,
+	  post/mean_Cd.f90, post/phi_merge.f90, post/post_Cd.f90,
+	  post/post_f.f90, post/qpost.f90, post/qpost_f.f90,
+	  post/qpost_lite.f90, post/qpost_planes.f90, post/qpost_slice.f90,
+	  post/types.f90: Initial revision
+
+2009-01-03 11:26  cvs
+
+	* .DS_Store, .depend, ddz_uv.f90, interpolag_Sdep.f90,
+	  lagrange_Sdep.f90, lagrange_Ssim.f90, merge_phi.f90,
+	  messages.f90, bottombc.f90, compare.f90, convec.f90, ddz_w.f90,
+	  dealias1.f90, dealias2.f90, debug_compare.f90, debug_merge.f90,
+	  debug_mod.f90, divstress_uv.f90, divstress_w.f90, dns_stress.f90,
+	  energy.f90, fft.f90, ic.f90, ic_dns.f90, immersedbc.f90,
+	  initial.f90, interp.f, io.f90, linear_simple.f90, main.f90,
+	  mpi_transpose_mod.f90, padd.f90, param.f90, press_stag.f90,
+	  ran3.f, ran3.f90, rg.f90, scalars_module.f90,
+	  scalars_module2.f90, sgs_stag.f90, sgsmodule.f90, sim_param.f90,
+	  std_dynamic.f90, string_util.f90, test_filtermodule.f90,
+	  topbc.f90, trees_aprioriCD_ls.f90, trees_global_fmask_ls.f90,
+	  trees_io_ls.f90, trees_mean_ftot_ls.f90, trees_post_mod_ls.f90,
+	  trees_setup_ls.f90, tridag.f90, tridag_array.f90,
+	  tridag_array_pipelined.f90, types.f90, verify_level_set2.f90,
+	  wallstress.f90, wallstress_dns.f90, Makefile, README, ddx.f90,
+	  ddxy.f90, ddy.f90, filt_da.f90, forcing.f90, integrate.f90,
+	  interp.f90, interpolag_Ssim.f90, level_set.f90,
+	  level_set_base.f90, mpif.h, press_stag_array.f90, rg.f,
+	  rmsdiv.f90, scaledep_dynamic.f90, trees_apri_ls.f90,
+	  trees_base_ls.f90, trees_fmodel_ls.f90, trees_full_apri_ls.f90,
+	  trees_ls.f90, trees_post_ls.f90, trees_pre_ls.f90, unpadd.f90,
+	  verify_level_set.f90, loadleveler/cleanup.bash,
+	  loadleveler/mss.sh, loadleveler/save-avg_stats.bash,
+	  loadleveler/submit-512.bash, loadleveler/submit-interp.bash,
+	  loadleveler/submit-no-mpi.bash,
+	  loadleveler/submit-trees_pre.bash, loadleveler/submit.bash,
+	  loadleveler/tarall.bash, lsf/submit-no-mpi.ksh, lsf/submit.ksh,
+	  post/.depend, post/Makefile, post/cylinder_cd.f90,
+	  post/fftw_f77.i, post/format_fdist.f90, post/mean-CD.f90,
+	  post/mean_Cd.f90, post/phi_merge.f90, post/post_Cd.f90,
+	  post/post_f.f90, post/qpost.f90, post/qpost_f.f90,
+	  post/qpost_lite.f90, post/qpost_planes.f90, post/qpost_slice.f90,
+	  post/types.f90: initial import
+
