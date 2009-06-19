@@ -2068,6 +2068,8 @@ i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
 ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 
+write(*,*) 'dz = ', dz
+
 !--need to bounds check i, j, ku, kw
 !--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then

@@ -58,6 +58,9 @@ double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 double precision, parameter :: clen=1. !  Cylinder length
 
+write(*,*) 'dz = ', dz
+stop
+
 !  Check if axis has component in z-direction
 if(axis(3) .ne. 0.) then
   write(*,*) 'Error: axis cannot have a z component!'
