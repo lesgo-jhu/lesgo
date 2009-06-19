@@ -35,9 +35,9 @@ double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
-double precision, parameter :: zrot_angle = 90.*pi/180.
+double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
@@ -71,7 +71,7 @@ allocate(gcs_t(nx+2,ny,0:nz))
 do k=0,Nz
   do j=1,ny
     do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1)=(i-1-1)*dx
+      gcs_t(i,j,k)%xyz(1)=(i-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
       gcs_t(i,j,k)%xyz(3)=(k-1)*dz
     enddo
