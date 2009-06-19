@@ -53,13 +53,12 @@ double precision, pointer, dimension(:,:,:) :: phi
 
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-double precision, parameter :: Lz = 3.4920635, dz = Lz/(Nz-1./2.)
+double precision, parameter :: Lz = 3.4920635, dz = Lz/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 double precision, parameter :: clen=1. !  Cylinder length
 
 write(*,*) 'dz = ', dz
-stop
 
 !  Check if axis has component in z-direction
 if(axis(3) .ne. 0.) then
