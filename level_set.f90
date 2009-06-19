@@ -650,16 +650,12 @@ do k = 1, nz - 1
                                !--this means dphi >= phi_c
 
         !--check phi(x1) >= 0
-
-        write(*,*) 'calling interp_phi 1'
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
-
-          write(*,*) 'calling interp_phi 2'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -701,7 +697,6 @@ do k = 1, nz - 1
                                 !--problem for highly wrinkled surface
 
         !--check phi(x2) >= 0
-        write(*,*) 'calling interp_phi 3'
         call interp_phi (x2, phi2)
         
         !--calculate tij1, for use in extrapolation
@@ -817,14 +812,12 @@ do k = kmn, nz - 1
         x1 = x + dphi * n_hat
 
         !--check phi(x1) >= 0
-        write(*,*) 'calling interp_phi 4'
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
- write(*,*) 'calling interp_phi 5'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -857,7 +850,6 @@ do k = kmn, nz - 1
                                 !  than x1
 
         !--check phi(x2) >= 0
- write(*,*) 'calling interp_phi 6'
         call interp_phi (x2, phi2)
 
         !--calculate tij1, for use in extrapolation
@@ -1010,7 +1002,7 @@ do k = 1, nz - 1
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
- write(*,*) 'calling interp_phi 7'
+
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1043,7 +1035,6 @@ do k = 1, nz - 1
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
- write(*,*) 'calling interp_phi 8'
             call interp_phi (x2, phi2)
 
             call interp_tij_u (x2, txx2, txy2, tyy2, tzz2)
@@ -1144,7 +1135,7 @@ do k = 2, nz
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
- write(*,*) 'calling interp_phi 9'
+
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1171,7 +1162,6 @@ do k = 2, nz
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
- write(*,*) 'calling interp_phi 10'
             call interp_phi (x2, phi2)
 
             call interp_tij_w (x2, txz2, tyz2)
@@ -1263,7 +1253,7 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 11'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
@@ -1320,7 +1310,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 12'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
@@ -1439,7 +1429,7 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 13'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
@@ -1497,7 +1487,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 14'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
@@ -2077,6 +2067,8 @@ real (rp) :: w(8), f(8)
 i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
 ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+
+write(*,*) 'dz = ', dz
 
 !--need to bounds check i, j, ku, kw
 !--in future, may want to autowrap i, j

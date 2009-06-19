@@ -167,7 +167,7 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 cylinder_skew: cylinder_skew.f90
-	$(FC) -o $@ $(FFLAGS) -lgeometry $(LDFLAGS) $<
+	$(FC) -o $@ $(FFLAGS) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
