@@ -59,12 +59,12 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O2 -check all -g -traceback -debug all
-  FFLAGS = -fast
+  FFLAGS = -O0 -r8 -check all -g -traceback -debug all
+#  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 #  FFLAGS = -O3 -r8
 #  FFLAGS = -O2 
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
@@ -165,6 +165,9 @@ debug:
 
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
+
+cylinder_skew: cylinder_skew.f90
+	$(FC) -o $@ $(FFLAGS) -lgeometry $(LDFLAGS) $<
 
 # Other support programs are listed below this point
 interp: interp.f90

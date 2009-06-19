@@ -29,8 +29,9 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=56
+integer, parameter :: Nx=64, Ny=64, Nz=57
 double precision, parameter :: pi = dacos(-1.)
+double precision, parameter :: BOGUS = huge(1.)
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 90.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
@@ -50,7 +51,7 @@ double precision, pointer, dimension(:,:,:) :: phi
 
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-double precision, parameter :: Lz = 3.4920635, dz = Lz/(Nz-1)
+double precision, parameter :: Lz = 3.4920635, dz = Lz/(Nz-1./2.)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 double precision, parameter :: clen=1. !  Cylinder length
@@ -62,15 +63,15 @@ if(axis(3) .ne. 0.) then
 endif
 
 !  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx+2,ny,nz))
+allocate(gcs_t(nx+2,ny,0:nz))
 
 !  Create grid in the global coordinate system
-do k=1,Nz
+do k=0,Nz
   do j=1,ny
     do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1)=(i-1)*dx
+      gcs_t(i,j,k)%xyz(1)=(i-1-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz + dz/2.
+      gcs_t(i,j,k)%xyz(3)=(k-1)*dz
     enddo
   enddo
 enddo
@@ -91,8 +92,10 @@ tplane=etgcs_t%xyz(3)
 write(*,*) 'tplane and bplane = ', tplane, bplane
 
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = huge(1.)
-gcs_t(:,:,:)%brindex=huge(1.)
+gcs_t(:,:,:)%phi = BOGUS
+!  Set lower level
+gcs_t(:,:,0)%phi = -BOGUS
+gcs_t(:,:,:)%brindex=BOGUS
 
 !  Loop over all global coordinates
 do k=1,Nz
