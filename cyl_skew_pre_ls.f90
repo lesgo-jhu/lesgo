@@ -53,10 +53,10 @@ double precision, pointer, dimension(:,:,:) :: phi
 
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
+double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
-double precision, parameter :: clen=1. !  Cylinder length
+double precision, parameter :: clen=2. !  Cylinder length
 
 write(*,*) 'dz = ', dz
 
@@ -75,14 +75,14 @@ do k=0,Nz
     do i=1,nx+2
       gcs_t(i,j,k)%xyz(1)=(i-1)*dx
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz
+      gcs_t(i,j,k)%xyz(3)=(k-1)*dz 
     enddo
   enddo
 enddo
 
 !  Specify global vector to origin of lcs
 !lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
-lgcs_t%xyz=(/ 2., 2., 0. /)
+lgcs_t%xyz=(/ 2., 2., -1. /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse in the gcs
@@ -179,7 +179,7 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) then
             gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1
+!            gcs_t(i,j,k)%brindex = 1
           endif
 
         elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
@@ -195,7 +195,7 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) then
             gcs_t(i,j,k)%phi = dist
-            gcs_t(i,j,k)%brindex = 1
+!            gcs_t(i,j,k)%brindex = 1
           endif
 
         endif

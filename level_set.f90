@@ -629,6 +629,8 @@ do k = 1, nz - 1
 
       phi_x = phi(i, j, k)
 
+      pause
+
       if ((-phi_c <= phi_x) .and. (phi_x < phi_0)) then
 
         imn_used = min (imn_used, i)
@@ -650,12 +652,17 @@ do k = 1, nz - 1
                                !--this means dphi >= phi_c
 
         !--check phi(x1) >= 0
+
+        write(*,*) 'calling interp_phi 1'
+
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
+
+          write(*,*) 'calling interp_phi 2'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -697,6 +704,7 @@ do k = 1, nz - 1
                                 !--problem for highly wrinkled surface
 
         !--check phi(x2) >= 0
+        write(*,*) 'calling interp_phi 3'
         call interp_phi (x2, phi2)
         
         !--calculate tij1, for use in extrapolation
@@ -812,12 +820,14 @@ do k = kmn, nz - 1
         x1 = x + dphi * n_hat
 
         !--check phi(x1) >= 0
+        write(*,*) 'calling interp_phi 4'
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
+ write(*,*) 'calling interp_phi 5'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -850,6 +860,7 @@ do k = kmn, nz - 1
                                 !  than x1
 
         !--check phi(x2) >= 0
+ write(*,*) 'calling interp_phi 6'
         call interp_phi (x2, phi2)
 
         !--calculate tij1, for use in extrapolation
@@ -983,7 +994,7 @@ do k = 1, nz - 1
         n_hat = norm(:, i, j, k)
 
         x1 = x + (dphi - phi_a) * n_hat
-
+write(*,*) 'calling interp_vel 1'
         call interp_vel (x1, v1)
 
         v1n = dot_product (v1, n_hat)  !--scalar
@@ -1002,7 +1013,7 @@ do k = 1, nz - 1
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
-
+ write(*,*) 'calling interp_phi 7'
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1035,6 +1046,7 @@ do k = 1, nz - 1
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
+ write(*,*) 'calling interp_phi 8'
             call interp_phi (x2, phi2)
 
             call interp_tij_u (x2, txx2, txy2, tyy2, tzz2)
@@ -1118,7 +1130,7 @@ do k = 2, nz
         n_hat = n_hat / mag (n_hat)
 
         x1 = x + (dphi - phi_a) * n_hat
-
+write(*,*) 'calling interp_vel 2'
         call interp_vel (x1, v1)
 
         v1n = dot_product (v1, n_hat)  !--scalar
@@ -1135,7 +1147,7 @@ do k = 2, nz
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
-
+ write(*,*) 'calling interp_phi 9'
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1162,6 +1174,7 @@ do k = 2, nz
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
+ write(*,*) 'calling interp_phi 10'
             call interp_phi (x2, phi2)
 
             call interp_tij_w (x2, txz2, tyz2)
@@ -1253,12 +1266,13 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
-
+ write(*,*) 'calling interp_phi 11'
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-
+write(*,*) 'calling interp_vel 3'
           call interp_vel (x1, vel1)
+write(*,*) 'calling interp_vel 4'
           call interp_vel (x2, vel2)
 
           vel2_n = dot_product (vel2, n_hat)
@@ -1310,12 +1324,13 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
-
+ write(*,*) 'calling interp_phi 12'
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-
+write(*,*) 'calling interp_vel 5'
           call interp_vel (x1, vel1)
+write(*,*) 'calling interp_vel 6'
           call interp_vel (x2, vel2)
 
           if (k == nz) then
@@ -1429,11 +1444,11 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
-
+ write(*,*) 'calling interp_phi 13'
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-
+write(*,*) 'calling interp_vel 7'
           call interp_vel (x2, vel2)
 
           vel2_n = dot_product (vel2, n_hat)
@@ -1487,11 +1502,11 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
-
+ write(*,*) 'calling interp_phi 14'
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-
+write(*,*) 'calling interp_vel 8'
           call interp_vel (x2, vel2)
 
           if (k == nz) then
@@ -2068,8 +2083,6 @@ i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
 ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 
-write(*,*) 'dz = ', dz
-
 !--need to bounds check i, j, ku, kw
 !--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
@@ -2195,8 +2208,7 @@ subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 implicit none
 
-!real (rp), intent (in) :: x(nd)
-real (rp) :: x(nd)
+real (rp), intent (in) :: x(nd)
 real (rp), intent (out) :: vel(nd)
 
 character (*), parameter :: sub_name = mod_name // '.interp_vel'
@@ -2208,49 +2220,17 @@ real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
-real(rp) :: rku
-
 !---------------------------------------------------------------------
-!if(isnan(x(1))) then
-!  write(*,*) 'x(1) is NAN'
-!  write(*,*) 'Setting to 0'
-!  x(1) = 0.
-!endif  
-
-!if(isnan(x(2))) then
-!  write(*,*) 'x(2) is NAN'
-!  write(*,*) 'Setting to 0'
-!  x(2) = 0.
-!endif 
-
-!if(isnan(x(3))) then
-!  write(*,*) 'x(3) is NAN'
-!  write(*,*) 'Setting to 0'
-!  x(3) = 0.
-!endif 
-
 
 !--calculate indices
 i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
-rku = x(3) / dz + 0.5_rp
 ku = floor (x(3) / dz + 0.5_rp)
 kw = floor (x(3) / dz + 1._rp)
-if(ku == 0) then
-  if(dnint(rku) == 1) then
-    write(*,*) 'x(3) = ' , x(3)
-    write(*,*) 'rku = ', rku
-    write(*,*) 'ku = ', ku
-    write(*,*) 'Warning setting ku to 1'
-    ku = 1
-  endif
-endif
 
 !--need to bounds check i, j, ku, kw
 !--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
-  write(*,*) 'x(1) = ', x(1)
-  write(*,*) 'x(1) / dx + 1._rp = ', x(1) / dx + 1._rp
   call error (sub_name, 'i out of range, i =', i)
 end if
 
@@ -3573,11 +3553,6 @@ if (output) then
   write (lun, *) 'phi_0 = ', phi_0
 end if
 
-if(DEBUG) then
-  write(*,*) 'phi_c = ', phi_c
-  write(*,*) 'phi_0 = ', phi_0
-endif  
-
 kappa = vonk
 
 !--initial values for _used variables
@@ -3594,8 +3569,6 @@ do k = 1, nz-1
     do i = imn, imx
 
       phix = phi(i, j, k)
-      
-      if(DEBUG) write(*,*) 'phix = ', phix
 
       if ((phix >= phi_0) .and. (phix <= phi_c)) then
 
@@ -3607,8 +3580,6 @@ do k = 1, nz-1
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
 
         n_hat = norm(:, i, j, k)
-        
-        if(DEBUG) write(*,*) 'From level_set.interp_tau: n_hat = ', n_hat
 
         !--make sure norm is well-defined
         if (mag (n_hat) < eps) then
@@ -3622,7 +3593,7 @@ do k = 1, nz-1
 
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-
+write(*,*) 'calling interp_vel 9'
           call interp_vel (xv, vel)
 
         else
@@ -3772,7 +3743,7 @@ do k = kmin, kmax
         
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-
+write(*,*) 'calling interp_vel 10'
           call interp_vel (xv, vel)
 
         else
@@ -4511,10 +4482,6 @@ if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-
-write(*,*) 'lbound(phi) = ', lbound(phi)
-write(*,*) 'ubound(phi) = ', ubound(phi)
-
 read (lun) phi(:, :, $lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
@@ -4549,8 +4516,6 @@ call mesg (sub_name, 'level set function initialized')
 !--calculate the normal
 !--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
 call fill_norm ()
-
-
 
 if (do_write_norm) then
 
