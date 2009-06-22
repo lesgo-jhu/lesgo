@@ -37,8 +37,9 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
+double precision, parameter :: clen=2. !  Cylinder length
+double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
@@ -51,12 +52,11 @@ integer :: i,j,k,nf
 double precision :: eck, atan4
 double precision, pointer, dimension(:,:,:) :: phi
 
-double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
-double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1)
+double precision, parameter :: Lx = 3.8, dx=Lx/(Nx-1)
+double precision, parameter :: Ly = 3.8, dy=Ly/(Ny-1)
+!double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1)
+double precision, parameter :: Lz = 3.8, dz = Lz/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
-
-double precision, parameter :: clen=2. !  Cylinder length
 
 write(*,*) 'dz = ', dz
 
@@ -73,9 +73,9 @@ allocate(gcs_t(nx+2,ny,0:nz))
 do k=0,Nz
   do j=1,ny
     do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1)=(i-1)*dx
-      gcs_t(i,j,k)%xyz(2)=(j-1)*dy
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz 
+      gcs_t(i,j,k)%xyz(1)=(i-1)*dx + 0.1
+      gcs_t(i,j,k)%xyz(2)=(j-1)*dy + 0.1
+      gcs_t(i,j,k)%xyz(3)=(k-1)*dz + 0.1
     enddo
   enddo
 enddo
@@ -404,13 +404,27 @@ write(*,*) 'lbound(phi) = ', lbound(gcs_t(:, :, :)%phi)
 write(*,*) 'ubound(phi) = ', ubound(gcs_t(:, :, :)%phi)
 !  Write binary data for lesgo
 open (1, file='phi.out', form='unformatted')
+! do k=1,nz
+!   do j=1,ny
+!     do i=1,nx+2
+!       write (1) gcs_t(i, j, k)%phi
+!     enddo
+!   enddo
+! enddo
 write (1) gcs_t(:, :, 1:nz)%phi
 close (1)
 
 open (1, file='brindex.out', form='unformatted')
-write (1) gcs_t(:, :, 1:nz)%brindex
-close (1)
+! do k=1,nz
+!   do j=1,ny
+!     do i=1,nx+2
+!       write (1) gcs_t(i, j, k)%brindex
+!     enddo
+!   enddo
+! enddo
 
+write (1) gcs_t(:, :, 1:nz)%brindex
+! close (1)
 stop
 
 end program cylinder_skew

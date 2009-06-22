@@ -629,8 +629,6 @@ do k = 1, nz - 1
 
       phi_x = phi(i, j, k)
 
-      pause
-
       if ((-phi_c <= phi_x) .and. (phi_x < phi_0)) then
 
         imn_used = min (imn_used, i)
@@ -4451,7 +4449,7 @@ character (*), parameter :: MPI_suffix = '.c'
 
 integer, parameter :: lun = 1
 
-logical, parameter :: do_write_norm = .false.
+logical, parameter :: do_write_norm = .true.
 
 character (128) :: fphi_in, fnorm_out
 
@@ -4491,7 +4489,7 @@ write(*,*) 'minval(phi) = ', minval(phi)
 write(*,*) 'maxval(phi) = ', maxval(phi)
 
 !  Create tecplot formatted phi and brindex field file  
-open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
+open (unit = 2,file = 'cylinder_skew_lesgo.dat', status='unknown',form='formatted', &
   action='write',position='rewind')
 
 write(2,*) 'variables = "phi"'; 
