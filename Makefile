@@ -24,7 +24,7 @@ USE_OPENMP = no
 USE_DYNALLOC = no
     #--still experimental
 
-USE_TREES_LS = yes
+USE_TREES_LS = no
 USE_LVLSET = yes
 
 FPP = fpx3

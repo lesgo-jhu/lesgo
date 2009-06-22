@@ -30,7 +30,7 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=57
+integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
@@ -52,10 +52,10 @@ integer :: i,j,k,nf
 double precision :: eck, atan4
 double precision, pointer, dimension(:,:,:) :: phi
 
-double precision, parameter :: Lx = 3.8, dx=Lx/(Nx-1)
-double precision, parameter :: Ly = 3.8, dy=Ly/(Ny-1)
+double precision, parameter :: Lx = 4, dx=Lx/(Nx-1)
+double precision, parameter :: Ly = 4, dy=Ly/(Ny-1)
 !double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1)
-double precision, parameter :: Lz = 3.8, dz = Lz/(Nz-1)
+double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 write(*,*) 'dz = ', dz
@@ -73,9 +73,9 @@ allocate(gcs_t(nx+2,ny,0:nz))
 do k=0,Nz
   do j=1,ny
     do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1)=(i-1)*dx + 0.1
-      gcs_t(i,j,k)%xyz(2)=(j-1)*dy + 0.1
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz + 0.1
+      gcs_t(i,j,k)%xyz(1)=(i-1)*dx 
+      gcs_t(i,j,k)%xyz(2)=(j-1)*dy 
+      gcs_t(i,j,k)%xyz(3)=(k-1)*dz 
     enddo
   enddo
 enddo
@@ -399,9 +399,6 @@ do k=1,nz
 enddo
 close(2)
 
-!phi => gcs_t(:,:,:)%phi
-write(*,*) 'lbound(phi) = ', lbound(gcs_t(:, :, :)%phi)
-write(*,*) 'ubound(phi) = ', ubound(gcs_t(:, :, :)%phi)
 !  Write binary data for lesgo
 open (1, file='phi.out', form='unformatted')
 ! do k=1,nz
