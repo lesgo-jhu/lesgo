@@ -650,17 +650,12 @@ do k = 1, nz - 1
                                !--this means dphi >= phi_c
 
         !--check phi(x1) >= 0
-
-        write(*,*) 'calling interp_phi 1'
-
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
-
-          write(*,*) 'calling interp_phi 2'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -702,7 +697,6 @@ do k = 1, nz - 1
                                 !--problem for highly wrinkled surface
 
         !--check phi(x2) >= 0
-        write(*,*) 'calling interp_phi 3'
         call interp_phi (x2, phi2)
         
         !--calculate tij1, for use in extrapolation
@@ -818,14 +812,12 @@ do k = kmn, nz - 1
         x1 = x + dphi * n_hat
 
         !--check phi(x1) >= 0
-        write(*,*) 'calling interp_phi 4'
         call interp_phi (x1, phi1)
 
         if (phi1 < phi_0) then
           !--try a larger dphi--experimental
           dphi = 1.5_rp * dphi
           x1 = x + dphi * n_hat
- write(*,*) 'calling interp_phi 5'
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
@@ -858,7 +850,6 @@ do k = kmn, nz - 1
                                 !  than x1
 
         !--check phi(x2) >= 0
- write(*,*) 'calling interp_phi 6'
         call interp_phi (x2, phi2)
 
         !--calculate tij1, for use in extrapolation
@@ -992,7 +983,7 @@ do k = 1, nz - 1
         n_hat = norm(:, i, j, k)
 
         x1 = x + (dphi - phi_a) * n_hat
-write(*,*) 'calling interp_vel 1'
+
         call interp_vel (x1, v1)
 
         v1n = dot_product (v1, n_hat)  !--scalar
@@ -1011,7 +1002,7 @@ write(*,*) 'calling interp_vel 1'
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
- write(*,*) 'calling interp_phi 7'
+
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1044,7 +1035,6 @@ write(*,*) 'calling interp_vel 1'
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
- write(*,*) 'calling interp_phi 8'
             call interp_phi (x2, phi2)
 
             call interp_tij_u (x2, txx2, txy2, tyy2, tzz2)
@@ -1128,7 +1118,7 @@ do k = 2, nz
         n_hat = n_hat / mag (n_hat)
 
         x1 = x + (dphi - phi_a) * n_hat
-write(*,*) 'calling interp_vel 2'
+
         call interp_vel (x1, v1)
 
         v1n = dot_product (v1, n_hat)  !--scalar
@@ -1145,7 +1135,7 @@ write(*,*) 'calling interp_vel 2'
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
           z_hat = n_hat
- write(*,*) 'calling interp_phi 9'
+
           call interp_phi (x1, phi1)
 
           tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
@@ -1172,7 +1162,6 @@ write(*,*) 'calling interp_vel 2'
           else  !--image pt method
 
             x2 = x1 + dphi * n_hat
- write(*,*) 'calling interp_phi 10'
             call interp_phi (x2, phi2)
 
             call interp_tij_w (x2, txz2, tyz2)
@@ -1264,13 +1253,12 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 11'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-write(*,*) 'calling interp_vel 3'
+
           call interp_vel (x1, vel1)
-write(*,*) 'calling interp_vel 4'
           call interp_vel (x2, vel2)
 
           vel2_n = dot_product (vel2, n_hat)
@@ -1322,13 +1310,12 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 12'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-write(*,*) 'calling interp_vel 5'
+
           call interp_vel (x1, vel1)
-write(*,*) 'calling interp_vel 6'
           call interp_vel (x2, vel2)
 
           if (k == nz) then
@@ -1442,11 +1429,11 @@ do k = 1, nz - 1
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 13'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-write(*,*) 'calling interp_vel 7'
+
           call interp_vel (x2, vel2)
 
           vel2_n = dot_product (vel2, n_hat)
@@ -1500,11 +1487,11 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
         x2 = x1 + dphi * n_hat
 
         phi2 = phi1 + dphi  !--assume this is approx. correct
- write(*,*) 'calling interp_phi 14'
+
         call interp_phi (x2, phi_x2)
 
         !if (phi_x2 > phi0) then
-write(*,*) 'calling interp_vel 8'
+
           call interp_vel (x2, vel2)
 
           if (k == nz) then
@@ -3591,7 +3578,7 @@ do k = 1, nz-1
 
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-write(*,*) 'calling interp_vel 9'
+
           call interp_vel (xv, vel)
 
         else
@@ -3741,7 +3728,7 @@ do k = kmin, kmax
         
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
-write(*,*) 'calling interp_vel 10'
+
           call interp_vel (xv, vel)
 
         else
