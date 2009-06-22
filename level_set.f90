@@ -3547,7 +3547,7 @@ jmn_used = ny
 jmx_used = 1
 
 if (output) write (lun, *) 'u-node pass'
-write(*,*) 'u-node pass'
+
 !--u-node pass
 do k = 1, nz-1
   do j = jmn, jmx
