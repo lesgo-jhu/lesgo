@@ -52,7 +52,7 @@ point_t%xyz(:,2) = (/1., 2., 0.5/)
 domain_t%calc = .true.
 domain_t%nstart = 1
 domain_t%nend   = nsteps
-domain_t%nskip = 100
+domain_t%nskip = 500
 
 !  y-plane stats/data
 yplane_t%calc=.true.
@@ -65,7 +65,7 @@ yplane_t%loc(1)  = 2.0
 zplane_t%calc=.true.
 zplane_t%nstart = 1
 zplane_t%nend   = nsteps
-zplane_t%nloc     = 2
+zplane_t%nloc     =1 
 zplane_t%loc(1)  = 0.5
 zplane_t%loc(2)  = 2.25
 
