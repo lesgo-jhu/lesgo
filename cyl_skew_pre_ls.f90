@@ -30,7 +30,7 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=64
+integer, parameter :: Nx=64, Ny=64, Nz=57
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
@@ -43,19 +43,19 @@ double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
-logical :: incir, incyl, inte, inbe, btplanes
+logical :: incir, incyl, inte, inbe, btw_planes
 double precision :: tplane, bplane
 double precision, parameter :: thresh = 0.D+00
 double precision :: circk, dist, theta
-integer :: i,j,k,nf
+integer :: i,j,k
 
 double precision :: eck, atan4
 double precision, pointer, dimension(:,:,:) :: phi
 
 double precision, parameter :: Lx = 4, dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4, dy=Ly/(Ny-1)
-!double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1)
-double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
+double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
+!double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision, parameter :: a=crad/cos(skew_angle), b=crad
 
 write(*,*) 'dz = ', dz
@@ -75,13 +75,12 @@ do k=0,Nz
     do i=1,nx+2
       gcs_t(i,j,k)%xyz(1)=(i-1)*dx 
       gcs_t(i,j,k)%xyz(2)=(j-1)*dy 
-      gcs_t(i,j,k)%xyz(3)=(k-1)*dz 
+      gcs_t(i,j,k)%xyz(3)=(k-1./2.)*dz 
     enddo
   enddo
 enddo
 
-!  Specify global vector to origin of lcs
-!lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
+!  Specify global vector to origin of lcs for the cylinder
 lgcs_t%xyz=(/ 2., 2., -1. /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
@@ -89,7 +88,7 @@ ebgcs_t%xyz=lgcs_t%xyz
 call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
 etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
 
-!  Top and bottom plane in gcs
+!  Top and bottom z-plane in gcs
 bplane=ebgcs_t%xyz(3)
 tplane=etgcs_t%xyz(3)
 
@@ -109,14 +108,14 @@ do k=1,Nz
     do i=1,nx+2
 
     !  Intialize flags
-      btplanes=.false.
+      btw_planes=.false.
       incir=.false.
       incyl=.false.
       inte=.false.
       inbe=.false.
 
 !  First check if points are between the top and bottom planes
-      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
+      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
 
       !  Compute vector to point from lcs in the gcs
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
@@ -128,7 +127,7 @@ do k=1,Nz
       circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
       if(circk < crad**2) incir = .true.
 !  Check if point is in cylinder
-      if(btplanes .and. incir) incyl = .true.
+      if(btw_planes .and. incir) incyl = .true.
 
 !  Check if point lies in top ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
@@ -231,153 +230,6 @@ do k=1,Nz
 
 enddo
 
-! !  Specify global vector to origin of lcs
-! !lgcs_t%xyz=(/ .5, 0.5, 0.1 /)
-! lgcs_t%xyz=etgcs_t%xyz
-! !  Set the center point of the bottom ellipse
-! ebgcs_t%xyz=lgcs_t%xyz
-! !  Compute the center point of the top ellipse in the gcs
-! call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
-! etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
-! 
-! !  Top and bottom plane in gcs
-! bplane=ebgcs_t%xyz(3)
-! tplane=etgcs_t%xyz(3)
-! 
-! write(*,*) 'tplane and bplane = ', tplane, bplane
-! 
-! !  Loop over all global coordinates
-! do k=1,Nz
-! 
-!   do j=1,ny
-! 
-!     do i=1,nx+2
-! 
-!     !  Intialize flags
-!       btplanes=.false.
-!       incir=.false.
-!       incyl=.false.
-!       inte=.false.
-!       inbe=.false.
-! 
-! !  First check if points are between the top and bottom planes
-!       if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btplanes=.true.
-! 
-!       !  Compute vector to point from lcs in the gcs
-!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
-! 
-!       !  Rotate gcs vector into local coordinate system
-!       call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
-! 
-! !  Check if the point lies in the cylinder circle
-!       circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
-!       if(circk < crad**2) incir = .true.
-! !  Check if point is in cylinder
-!       if(btplanes .and. incir) incyl = .true.
-! 
-! !  Check if point lies in top ellipse
-!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-!       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-!         ecs_t%xyz)
-!       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-!       if(eck <= 1) inte=.true.
-! 
-! !  Check if point lies in bottom ellipse
-!       vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-!       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-!         ecs_t%xyz)
-!       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-!       if(eck <= 1) inbe=.true.
-! 
-! !  Compute theta value on lcs using geometry.atan4
-!       theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
-! 
-!       !theta = datan2(lcs_t%xyz(2),lcs_t%xyz(1))
-!       slcs_t%xyz(1) = crad*dcos(theta)
-!       slcs_t%xyz(2) = crad*dsin(theta)
-!       slcs_t%xyz(3) = lcs_t%xyz(3)
-! 
-!       !  Rotate the surface vector in the lcs back into the gcs
-!       call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
-! 
-!       sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
-! 
-! !  Check if between cutting planes
-!       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-!         call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
-! 
-!         if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!           gcs_t(i,j,k)%phi = dist
-!         endif
-!       else
-! 
-!         if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
-! 
-!           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-! 
-!           !  Get vector in ellipse coordinate system
-!           call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-! 
-!           call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-! 
-!           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-! 
-!           if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!             gcs_t(i,j,k)%phi = dist
-!             gcs_t(i,j,k)%brindex = 1
-!           endif
-! 
-!         elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
-! 
-!           vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-! 
-!           !  Get vector in ellipse coordinate system
-!           call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-! 
-!           call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-! 
-!           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-! 
-!           if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!             gcs_t(i,j,k)%phi = dist
-!             gcs_t(i,j,k)%brindex = 1
-!           endif
-! 
-!         endif
-! 
-! 
-! 
-!       endif
-! !  Check also if the point lies on the ellipses
-! 
-!       if(inte) then
-!         dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
-!         if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!           gcs_t(i,j,k)%phi = dist
-!         endif
-!       endif
-! 
-!       if(inbe) then
-!         dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
-!         if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
-!           gcs_t(i,j,k)%phi = dist
-!         endif
-!       endif
-! 
-!      if(incyl) then
-!        gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
-!        gcs_t(i,j,k)%brindex = -1
-!      else
-!        gcs_t(i,j,k)%brindex = 1
-!      endif
-!     enddo
-! 
-!   enddo
-! 
-! enddo
-
-nf=1
-
 !  Create tecplot formatted phi and brindex field file
 open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
   action='write',position='rewind')
@@ -386,7 +238,7 @@ write(2,*) 'variables = "x", "y", "z", "phi", "brindex"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
-nf,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
