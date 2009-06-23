@@ -10,12 +10,12 @@ save
 
 !public
 private
-public :: kx,ky,k2,eye,forw,forw_test,back,back_test,forw_big,back_big,init_fft
+public :: kx,ky,k2,eye,forw,back,forw_big,back_big,init_fft
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
 ! plans
-integer*8::forw,forw_test,back,back_test,forw_big,back_big
+integer*8::forw,back,forw_big,back_big
 real(kind=rprec),dimension(lh,ny)::kx,ky,k2
 complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
@@ -38,19 +38,12 @@ implicit none
 ! formulate the fft plans--may want to use FFTW_USE_WISDOM
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
      FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-
 call rfftw2d_f77_create_plan(back,nx,ny,FFTW_COMPLEX_TO_REAL,&
      FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-
 call rfftw2d_f77_create_plan(forw_big,nx2,ny2,&
      FFTW_REAL_TO_COMPLEX,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
 call rfftw2d_f77_create_plan(back_big,nx2,ny2,&
      FFTW_COMPLEX_TO_REAL,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-	 
-!  Used for testing fftw implementation in press_stag_array	 
-call rfftw2d_f77_create_plan(forw_test,nx,ny,FFTW_REAL_TO_COMPLEX,FFTW_MEASURE+FFTW_THREADSAFE)
-call rfftw2d_f77_create_plan(back_test,nx,ny,FFTW_COMPLEX_TO_REAL,FFTW_MEASURE+FFTW_THREADSAFE)	 
-
 call init_wavenumber()
 end subroutine init_fft
 
