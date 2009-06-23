@@ -538,7 +538,7 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -1198,7 +1198,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_un'
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 
@@ -1375,7 +1375,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_log_profile'
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 
@@ -2652,7 +2652,7 @@ integer, parameter :: Ldir = 2
                       !  2 when cyl-axis is z
                       !  3 when cyl axis is y
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 real (rp), parameter :: Ap = 1._rp * 1._rp  !--projected area
 
@@ -3468,7 +3468,7 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .true.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -3852,7 +3852,7 @@ real (rp), intent (in out) :: t(ld, ny, nz)
 
 character (*), parameter :: sub_name = mod_name // '.fit3'
 
-logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 
 integer :: counter
 integer :: m, q
