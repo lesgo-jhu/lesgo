@@ -53,7 +53,7 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 1000
+  integer, parameter :: nsteps = 100000
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
@@ -69,7 +69,7 @@ module param
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
   
   !  U intialization for non-log profile IC
-  logical, parameter :: ic_const = .true.
+  logical, parameter :: ic_const = .false.
   real (rprec), parameter :: u_ic = 10.0/u_star, v_ic=0., w_ic=0.
 
   real (rprec), parameter :: dt = 2.e-4
