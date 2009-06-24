@@ -30,16 +30,16 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=128
+integer, parameter :: Nx=64, Ny=64, Nz=57
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
+double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
-double precision, parameter :: clen=2. !  Cylinder length
-double precision, parameter :: skew_angle=30.*pi/180. !  In radians
+double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
@@ -59,8 +59,8 @@ double precision, parameter :: Lz = 4., dz = Lz/(Nz-1./2.)
 !double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision :: a,b
 
-crad = 0.5 !  Cylinder radius
-clen=1. !  Cylinder length
+!crad = 0.5 !  Cylinder radius
+!clen=1. !  Cylinder length
 a=crad/cos(skew_angle); b=crad
 
 write(*,*) 'dz = ', dz
