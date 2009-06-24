@@ -37,7 +37,7 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=0.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
 double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
@@ -55,7 +55,7 @@ double precision, pointer, dimension(:,:,:) :: phi
 
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-double precision, parameter :: Lz = 4., dz = Lz/(Nz-1./2.)
+double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
 !double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision :: a,b
 
