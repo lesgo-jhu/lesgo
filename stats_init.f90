@@ -34,14 +34,14 @@ point_t%xyz=-1.
 !  All nstart and nend values are based
 !  on jt and not jt_total
 tavg_t%calc = .false.
-tavg_t%nstart = 30000
+tavg_t%nstart = 100
 tavg_t%nend = nsteps
 
 !  Turns Reynolds stresses calculations on or off 
 rs_t%calc = .false.
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .false.
+point_t%calc = .true.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -50,7 +50,7 @@ point_t%xyz(:,1) = (/3., 2., 0.5/)
 point_t%xyz(:,2) = (/1., 2., 0.5/)
 
 domain_t%calc = .true.
-domain_t%nstart = 1
+domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 

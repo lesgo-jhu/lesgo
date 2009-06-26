@@ -37,7 +37,7 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=0.*pi/180. !  In radians
+double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
 double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
@@ -86,7 +86,7 @@ do k=0,Nz
 enddo
 
 !  Specify global vector to origin of lcs for the cylinder
-lgcs_t%xyz=(/ 2., 2., 0. /)
+lgcs_t%xyz=(/ 2., 2., 0.5 /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse in the gcs
@@ -120,8 +120,7 @@ do k=1,Nz
       inbe=.false.
 
 !  First check if points are between the top and bottom planes
-      !if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
-      if(gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
+      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
 
       !  Compute vector to point from lcs in the gcs
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
@@ -163,8 +162,7 @@ do k=1,Nz
       sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
 
 !  Check if between cutting planes
-!      if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
-      if(sgcs_t%xyz(3) < tplane) then
+      if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
         call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
 
         if(dist < dabs(gcs_t(i,j,k)%phi)) then
@@ -172,8 +170,7 @@ do k=1,Nz
         endif
       else
 
-!        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
-       
+        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
 
@@ -189,8 +186,7 @@ do k=1,Nz
 !            gcs_t(i,j,k)%brindex = 1
           endif
 
-!        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
-        if(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
 
@@ -220,12 +216,12 @@ do k=1,Nz
         endif
       endif
 
-!       if(inbe) then
-!         dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
-!         if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
-!           gcs_t(i,j,k)%phi = dist
-!         endif
-!       endif
+      if(inbe) then
+        dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+        if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+          gcs_t(i,j,k)%phi = dist
+        endif
+      endif
 
      if(incyl) then
        gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
@@ -238,10 +234,6 @@ do k=1,Nz
   enddo
 
 enddo
-
-! !******************************* 2nd Cylinder ***************************************
-
-! !******************************* 2nd Cylinder ***************************************
 
 !  Create tecplot formatted phi and brindex field file
 open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
