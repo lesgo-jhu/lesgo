@@ -42,6 +42,7 @@ double precision, parameter :: crad = 0.5 !  Cylinder radius
 double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+double precision, parameter :: z_bottom_surf = 0.25
 
 logical :: incir, incyl, inte, inbe, btw_planes
 double precision :: tplane, bplane
@@ -86,7 +87,7 @@ do k=0,Nz
 enddo
 
 !  Specify global vector to origin of lcs for the cylinder
-lgcs_t%xyz=(/ 2., 2., 0.5 /)
+lgcs_t%xyz=(/ 2., 2., z_bottom_surf /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse in the gcs
@@ -170,7 +171,8 @@ do k=1,Nz
         endif
       else
 
-        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
+!        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
+        if(sgcs_t%xyz(3) <= bplane) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
 
@@ -183,7 +185,6 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) then
             gcs_t(i,j,k)%phi = dist
-!            gcs_t(i,j,k)%brindex = 1
           endif
 
         elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
@@ -216,19 +217,33 @@ do k=1,Nz
         endif
       endif
 
-      if(inbe) then
-        dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
-        if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-        endif
-      endif
+!       if(inbe) then
+!         dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+!         if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
+!           gcs_t(i,j,k)%phi = dist
+!         endif
+!       endif
 
      if(incyl) then
        gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
        gcs_t(i,j,k)%brindex = -1
      else
        gcs_t(i,j,k)%brindex = 1
+
+!  Perform check for creating bottom surface
+       dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
+       if(dist < dabs(gcs_t(i,j,k)%phi)) then
+         gcs_t(i,j,k)%phi = dist
+         if(gcs_t(i,j,k)%xyz(3) > z_bottom_surf) then
+           gcs_t(i,j,k)%brindex = 1
+         else
+           gcs_t(i,j,k)%brindex = -1
+           gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
+         endif
+       endif
+
      endif
+3
     enddo
 
   enddo
