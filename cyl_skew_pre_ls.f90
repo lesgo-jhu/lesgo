@@ -123,7 +123,7 @@ do k=1,Nz
 !  First check if points are between the top and bottom planes
       if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
 
-      !  Compute vector to point from lcs in the gcs
+      !  Compute vector to point in the gcs from the lcs 
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
 
       !  Rotate gcs vector into local coordinate system
@@ -230,6 +230,7 @@ do k=1,Nz
      else
        gcs_t(i,j,k)%brindex = 1
 
+     if(.not. inbe) then
 !  Perform check for creating bottom surface
        dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
        if(dist < dabs(gcs_t(i,j,k)%phi)) then
@@ -241,9 +242,10 @@ do k=1,Nz
            gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
          endif
        endif
+   endif
 
      endif
-3
+    
     enddo
 
   enddo
