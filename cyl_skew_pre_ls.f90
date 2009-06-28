@@ -42,7 +42,7 @@ double precision, parameter :: crad = 0.5 !  Cylinder radius
 double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
-double precision, parameter :: z_bottom_surf = 0.25
+
 
 logical :: incir, incyl, inte, inbe, btw_planes
 double precision :: tplane, bplane
@@ -59,6 +59,7 @@ double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
 !double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision :: a,b
+double precision, parameter :: z_bottom_surf = 1.*dz
 
 !crad = 0.5 !  Cylinder radius
 !clen=1. !  Cylinder length
@@ -132,7 +133,7 @@ do k=1,Nz
 
 !  Check if the point lies in the cylinder circle
       circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
-      if(circk < crad**2) incir = .true.
+      if(circk <= crad*crad) incir = .true.
 !  Check if point is in cylinder
       if(btw_planes .and. incir) incyl = .true.
 
@@ -167,14 +168,14 @@ do k=1,Nz
       if(sgcs_t%xyz(3) > bplane .and. sgcs_t%xyz(3) < tplane) then
         call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
 
-        if(dist < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-        endif
+        if(dist < dabs(gcs_t(i,j,k)%phi)) gcs_t(i,j,k)%phi = dist
+
       else
 
 !        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
 !        if(sgcs_t%xyz(3) <= bplane) then
 
+!  Perform bottom ellipse stuff
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
 
           !  Get vector in ellipse coordinate system
@@ -184,9 +185,7 @@ do k=1,Nz
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-          endif
+          if(dist < dabs(gcs_t(i,j,k)%phi)) gcs_t(i,j,k)%phi = dist
 
 !        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
         if(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
@@ -200,10 +199,7 @@ do k=1,Nz
 
           call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-!            gcs_t(i,j,k)%brindex = 1
-          endif
+          if(dist < dabs(gcs_t(i,j,k)%phi)) gcs_t(i,j,k)%phi = dist
 
         endif
 
@@ -231,12 +227,14 @@ do k=1,Nz
        gcs_t(i,j,k)%brindex = -1
      else
        gcs_t(i,j,k)%brindex = 1
+     endif
 
      if(.not. inbe) then
 !  Perform check for creating bottom surface
        dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
        if(dist < dabs(gcs_t(i,j,k)%phi)) then
          gcs_t(i,j,k)%phi = dist
+!  Check the sign of 
          if(gcs_t(i,j,k)%xyz(3) > z_bottom_surf) then
            gcs_t(i,j,k)%brindex = 1
          else
@@ -244,10 +242,40 @@ do k=1,Nz
            gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
          endif
        endif
-   endif
-
+     else
+       if(gcs_t(i,j,k)%xyz(3) < z_bottom_surf .and. .not. incyl) then
+         gcs_t(i,j,k)%brindex = -1
+         gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
+       endif
      endif
-    
+
+!    if(i == 24 .and. j==32 .and. k == 1) then
+!      if(btw_planes) then
+!        write(*,*) 'im btw_planes'
+!      else
+!        write(*,*) 'im not btw_planes'
+!      endif
+! 
+! 
+!      if(incir) then
+!        write(*,*) 'im incir'
+!      else
+!        write(*,*) 'im not incir'
+!      endif
+! 
+!      if(incyl) then
+!        write(*,*) 'im incyl'
+!      else
+!        write(*,*) 'im not incyl'
+!      endif
+!      if(.not. inbe) then
+!        write(*,*) 'distance from bottom surface = ', gcs_t(i,j,k)%xyz(3) - z_bottom_surf
+!      else
+!        write(*,*) 'im inbe'
+!      endif
+! 
+!    endif
+
     enddo
 
   enddo
