@@ -120,8 +120,9 @@ do k=1,Nz
       inte=.false.
       inbe=.false.
 
-!  First check if points are between the top and bottom planes
-      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
+!  First check if points are between the top and bottom planes in the z - gcs
+!      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
+      if(gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
 
       !  Compute vector to point in the gcs from the lcs 
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t%xyz
@@ -172,7 +173,7 @@ do k=1,Nz
       else
 
 !        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
-        if(sgcs_t%xyz(3) <= bplane) then
+!        if(sgcs_t%xyz(3) <= bplane) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
 
@@ -187,7 +188,8 @@ do k=1,Nz
             gcs_t(i,j,k)%phi = dist
           endif
 
-        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+!        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+        if(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
 
