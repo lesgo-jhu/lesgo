@@ -3469,7 +3469,7 @@ integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
 !logical, parameter :: DEBUG = .false.
-logical, parameter :: use_output = .true.
+logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
 !real (rp), parameter :: phi_0 = 0._rp * z0  !--this is adjustable
