@@ -37,14 +37,14 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter :: zrot_angle = 0.*pi/180.
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=-60.*pi/180. !  In radians
 double precision, parameter :: crad = 0.5 !  Cylinder radius
 double precision, parameter :: clen=1./dcos(skew_angle) !  Cylinder length
 !double precision, parameter :: clen=1. !  Cylinder length
 double precision, parameter, dimension(3) :: axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
 
-logical :: incir, incyl, inte, inbe, btw_planes
+logical :: incir, insolid, intop, inbottom, btw_planes
 double precision :: tplane, bplane
 double precision, parameter :: thresh = 0.D+00
 double precision :: circk, dist, theta
@@ -57,15 +57,12 @@ double precision, pointer, dimension(:,:,:) :: phi
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
-!double precision, parameter :: Lz = 4, dz = Lz/(Nz-1)
 double precision :: a,b
 double precision, parameter :: z_bottom_surf = 1.*dz
 
 !crad = 0.5 !  Cylinder radius
 !clen=1. !  Cylinder length
 a=crad/cos(skew_angle); b=crad
-
-write(*,*) 'dz = ', dz
 
 !  Check if axis has component in z-direction
 if(axis(3) .ne. 0.) then
@@ -88,7 +85,7 @@ do k=0,Nz
 enddo
 
 !  Specify global vector to origin of lcs for the cylinder
-lgcs_t%xyz=(/ 2., 2., z_bottom_surf /)
+lgcs_t%xyz=(/ 2.825, 2., z_bottom_surf /)
 !  Set the center point of the bottom ellipse
 ebgcs_t%xyz=lgcs_t%xyz
 !  Compute the center point of the top ellipse in the gcs
@@ -117,9 +114,9 @@ do k=1,Nz
     !  Intialize flags
       btw_planes=.false.
       incir=.false.
-      incyl=.false.
-      inte=.false.
-      inbe=.false.
+      insolid=.false.
+      intop=.false.
+      inbottom=.false.
 
 !  First check if points are between the top and bottom planes in the z - gcs
 !      if(gcs_t(i,j,k)%xyz(3) > bplane .and. gcs_t(i,j,k)%xyz(3) < tplane) btw_planes=.true.
@@ -135,21 +132,21 @@ do k=1,Nz
       circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
       if(circk <= crad*crad) incir = .true.
 !  Check if point is in cylinder
-      if(btw_planes .and. incir) incyl = .true.
+      if(btw_planes .and. incir) insolid = .true.
 
 !  Check if point lies in top ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
         ecs_t%xyz)
       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-      if(eck <= 1) inte=.true.
+      if(eck <= 1) intop=.true.
 
 !  Check if point lies in bottom ellipse
       vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
       call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
         ecs_t%xyz)
       eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-      if(eck <= 1) inbe=.true.
+      if(eck <= 1) inbottom=.true.
 
 !  Compute theta value on lcs using geometry.atan4
       theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -172,7 +169,7 @@ do k=1,Nz
 
       else
 
-!        if(sgcs_t%xyz(3) <= bplane .and. .not. inbe) then
+!        if(sgcs_t%xyz(3) <= bplane .and. .not. inbottom) then
 !        if(sgcs_t%xyz(3) <= bplane) then
 
 !  Perform bottom ellipse stuff
@@ -187,8 +184,8 @@ do k=1,Nz
 
           if(dist < dabs(gcs_t(i,j,k)%phi)) gcs_t(i,j,k)%phi = dist
 
-!        elseif(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
-        if(sgcs_t%xyz(3) >= tplane .and. .not. inte) then
+!        elseif(sgcs_t%xyz(3) >= tplane .and. .not. intop) then
+        if(sgcs_t%xyz(3) >= tplane .and. .not. intop) then
 
           vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
 
@@ -208,28 +205,28 @@ do k=1,Nz
       endif
 !  Check also if the point lies on the ellipses
 
-      if(inte) then
+      if(intop) then
         dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
         if(dist < dabs(gcs_t(i,j,k)%phi)) then
           gcs_t(i,j,k)%phi = dist
         endif
       endif
 
-!       if(inbe) then
+!       if(inbottom) then
 !         dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
 !         if(dabs(dist) < dabs(gcs_t(i,j,k)%phi)) then
 !           gcs_t(i,j,k)%phi = dist
 !         endif
 !       endif
 
-     if(incyl) then
+     if(insolid) then
        gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
        gcs_t(i,j,k)%brindex = -1
      else
        gcs_t(i,j,k)%brindex = 1
      endif
 
-     if(.not. inbe) then
+     if(.not. inbottom) then
 !  Perform check for creating bottom surface
        dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
        if(dist < dabs(gcs_t(i,j,k)%phi)) then
@@ -243,38 +240,11 @@ do k=1,Nz
          endif
        endif
      else
-       if(gcs_t(i,j,k)%xyz(3) < z_bottom_surf .and. .not. incyl) then
+       if(gcs_t(i,j,k)%xyz(3) < z_bottom_surf .and. .not. insolid) then
          gcs_t(i,j,k)%brindex = -1
          gcs_t(i,j,k)%phi = -gcs_t(i,j,k)%phi
        endif
      endif
-
-!    if(i == 24 .and. j==32 .and. k == 1) then
-!      if(btw_planes) then
-!        write(*,*) 'im btw_planes'
-!      else
-!        write(*,*) 'im not btw_planes'
-!      endif
-! 
-! 
-!      if(incir) then
-!        write(*,*) 'im incir'
-!      else
-!        write(*,*) 'im not incir'
-!      endif
-! 
-!      if(incyl) then
-!        write(*,*) 'im incyl'
-!      else
-!        write(*,*) 'im not incyl'
-!      endif
-!      if(.not. inbe) then
-!        write(*,*) 'distance from bottom surface = ', gcs_t(i,j,k)%xyz(3) - z_bottom_surf
-!      else
-!        write(*,*) 'im inbe'
-!      endif
-! 
-!    endif
 
     enddo
 
