@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(57+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -53,12 +53,13 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 80000
+  integer, parameter :: nsteps = 100
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.5873015873*z_i
+!  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302*z_i
+  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302_rprec
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
   real(rprec),parameter::dz=L_z/z_i/(nz_tot-1./2.)
@@ -69,7 +70,7 @@ module param
   
   !  U intialization for non-log profile IC
   logical, parameter :: ic_const = .false.
-  real (rprec), parameter :: u_ic = 20.0/u_star, v_ic=0., w_ic=0.
+  real (rprec), parameter :: u_ic = 10.0/u_star, v_ic=0., w_ic=0.
 
   real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
