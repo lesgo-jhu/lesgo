@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(57+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=128,ny=128,nz=(129+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -59,7 +59,7 @@ module param
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
 !  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302*z_i
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302_rprec
+  real(rprec),parameter::L_x=16.*z_i, L_y=16.*z_i, L_z=16.188976378*z_i
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
   real(rprec),parameter::dz=L_z/z_i/(nz_tot-1./2.)
