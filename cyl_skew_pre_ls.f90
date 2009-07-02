@@ -35,7 +35,7 @@ type(cs1) :: lcs_t, lgcs_t, slcs_t, sgcs_t, ecs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=114
+integer, parameter :: Nx=64, Ny=64, Nz=57
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
@@ -45,15 +45,16 @@ double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle=-30.*pi/180. !  In radians
+double precision, parameter :: skew_angle=60.*pi/180. !  In radians
 double precision, parameter :: thresh = 0.D+00
 double precision, dimension(3) :: axis
+integer, dimension(3) :: cyl_loc
 
 
 double precision :: zrot_angle
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision :: z_bottom_surf = 1.*dz
+double precision :: z_bottom_surf = 10.*dz
 
 double precision :: tplane, bplane
 
@@ -83,12 +84,12 @@ integer, pointer, dimension(:,:,:) :: brindex
 double precision :: atan4
 double precision, pointer, dimension(:,:,:) :: phi
 
-zrot_angle = 0.*pi/180.
+zrot_angle = 180.*pi/180.
 
 axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
 
  crad = 0.5 !  Cylinder radius
- clen=1./dcos(skew_angle) !  Cylinder length
+ clen=3./dcos(skew_angle) !  Cylinder length
 a=crad/cos(skew_angle); b=crad
 
 !  Check if axis has component in z-direction
@@ -129,66 +130,12 @@ do k=1,Nz
       in_cyl_top=.false.
       in_cyl_bottom=.false.
 
+!  Get all prelimenary information about the point to cylinder location
       call pt_to_cyl_loc(i,j,k)
 
-!  Compute theta value on lcs using geometry.atan4
-      theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
+      call assoc_cyl_loc(i,j,k)
 
-      slcs_t%xyz(1) = crad*dcos(theta)
-      slcs_t%xyz(2) = crad*dsin(theta)
-      slcs_t%xyz(3) = lcs_t%xyz(3)
 
-      !  Rotate the surface vector in the lcs back into the gcs
-      call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
-
-      sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
-
-!  Check if point on cylinder surface is between cutting planes
-      if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
- 
-	call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
-
-	if(dist < dabs(gcs_t(i,j,k)%phi)) then
-          gcs_t(i,j,k)%phi = dist
-          call set_iset(i,j,k)
-        endif
-
-      else
-	 if(below_cyl .and. in_cyl_bottom) then
-!  Perform bottom ellipse stuff
-	   vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
-
-          !  Get vector in ellipse coordinate system
-          call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-            call set_iset(i,j,k)
-          endif
-
-	elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
-
-          vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
-
-          !  Get vector in ellipse coordinate system
-          call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
-
-          call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-          call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-
-          if(dist < dabs(gcs_t(i,j,k)%phi)) then
-            gcs_t(i,j,k)%phi = dist
-            call set_iset(i,j,k)
-          endif
-
-        endif
-
-      endif
 !  Check also if the point lies on the ellipses
       if(in_cyl_top) then
         dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
@@ -205,21 +152,21 @@ do k=1,Nz
        gcs_t(i,j,k)%brindex = 1
      endif
 
-     if(.not. in_cyl .and. .not. in_cyl_bottom) then
-!  Perform check for creating bottom surface
-       dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
-       if(dist < dabs(gcs_t(i,j,k)%phi)) then
-         gcs_t(i,j,k)%phi = dist
-         call set_iset(i,j,k)
-!  Assign appropriate sign
-         if(in_bottom_surf) then
-           gcs_t(i,j,k)%phi = -dabs(gcs_t(i,j,k)%phi)
-           gcs_t(i,j,k)%brindex = -1
-         else
-           gcs_t(i,j,k)%brindex = 1
-         endif
-       endif
-     endif
+!      if(.not. in_cyl .and. .not. in_cyl_bottom) then
+! !  Perform check for creating bottom surface
+!        dist = dabs(gcs_t(i,j,k)%xyz(3) - z_bottom_surf)
+!        if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!          gcs_t(i,j,k)%phi = dist
+!          call set_iset(i,j,k)
+! !  Assign appropriate sign
+!          if(in_bottom_surf) then
+!            gcs_t(i,j,k)%phi = -dabs(gcs_t(i,j,k)%phi)
+!            gcs_t(i,j,k)%brindex = -1
+!          else
+!            gcs_t(i,j,k)%brindex = 1
+!          endif
+!        endif
+!      endif
 
     enddo
 
@@ -333,7 +280,7 @@ use cylinder_skew_defs, only : gcs_t
 
 implicit none
 
-logical, parameter :: VERBOSE=.true.
+logical, parameter :: VERBOSE=.false.
 integer, intent(IN) :: i,j,k
 
 if(gcs_t(i,j,k)%iset == 1) then
@@ -364,13 +311,11 @@ gcs_t(:,:,:)%brindex=1
 gcs_t(:,:,:)%iset=0
 
 if(use_bottom_surf) then
-
 !  Loop over all global coordinates
   do k=1,Nz
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
     if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
   enddo
-
 endif
 
 return 
@@ -401,3 +346,76 @@ enddo
 
 return
 end subroutine generate_grid
+
+!**********************************************************************
+subroutine assoc_cyl_loc(i,j,k)
+!**********************************************************************
+use cylinder_skew_defs
+
+implicit none
+
+integer, intent(IN) :: i,j,k
+double precision :: atan4
+
+!  Compute theta value on lcs using geometry.atan4
+theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
+
+slcs_t%xyz(1) = crad*dcos(theta)
+slcs_t%xyz(2) = crad*dsin(theta)
+slcs_t%xyz(3) = lcs_t%xyz(3)
+
+!  Rotate the surface vector in the lcs back into the gcs
+call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
+
+sgcs_t%xyz = vgcs_t%xyz + lgcs_t%xyz !  Vector now corresponds with origin of gcs
+
+!  Check if point on cylinder surface is between cutting planes
+if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
+
+  call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
+
+  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+    gcs_t(i,j,k)%phi = dist
+    call set_iset(i,j,k)
+  endif
+
+else
+    if(below_cyl .and. in_cyl_bottom) then
+!  Perform bottom ellipse stuff
+      vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t%xyz
+
+    !  Get vector in ellipse coordinate system
+    call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+
+    call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+
+    call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+
+    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      call set_iset(i,j,k)
+    endif
+
+  elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
+
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t%xyz
+
+    !  Get vector in ellipse coordinate system
+    call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+
+    call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+
+    call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+
+    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      call set_iset(i,j,k)
+    endif
+
+  endif
+
+endif
+
+
+return
+end subroutine assoc_cyl_loc
