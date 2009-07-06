@@ -29,7 +29,7 @@ end type vector
 !  corresponding coordinate system
 type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
-type(cs1), allocatable, dimension(:,:) :: lgcs_t, ebgcs_t, etgcs_t
+type(cs1), allocatable, dimension(:) :: lgcs_t, ebgcs_t, etgcs_t
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
 type(vector) :: vgcs_t
@@ -44,32 +44,35 @@ double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision :: skew_angle
+double precision, parameter :: skew_angle = 30.*pi/180.
 double precision, parameter :: thresh = 0.D+00
-double precision, dimension(3) :: axis
-integer, dimension(3) :: cyl_loc
+
 integer, parameter :: ntrunk = 3
 integer, parameter :: ngen = 5
 double precision, parameter :: d = 0.5, l = 1.5
-
-logical :: in_cir, in_cyl, in_cyl_top, in_cyl_bottom, above_cyl, below_cyl, in_bottom_surf, btw_planes
-
-double precision, allocatable, dimension(:,:) :: zrot_angle, rad_offset
+double precision, parameter :: offset = 0.1
+double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision :: z_bottom_surf = 1.*dz
+double precision, parameter :: z_bottom_surf = 1.*dz
+double precision, dimension(3), parameter :: origin=(/ Lx/2., Ly/2., z_bottom_surf /)
 
-double precision, allocatable, dimension(:,:) :: tplane, bplane
+logical :: in_cir, in_cyl
+logical :: in_cyl_top, in_cyl_bottom
+logical :: above_cyl, below_cyl
+logical :: in_bottom_surf, btw_planes
 
-double precision, allocatable, dimension(:,:) :: crad, clen
+integer :: gen_ntrunk
+integer, dimension(3) :: cyl_loc
 
+double precision, allocatable, dimension(:) :: zrot_angle
+double precision, allocatable, dimension(:,:) :: axis
+
+double precision :: crad, clen, rad_offset
 double precision :: circk, dist, theta
-
 double precision :: a,b
-
 double precision :: eck
-
-
+double precision :: tplane, bplane
 
 end module cylinder_skew_defs
 
@@ -87,229 +90,21 @@ integer, pointer, dimension(:,:,:) :: brindex
 double precision :: atan4
 double precision, pointer, dimension(:,:,:) :: phi
 
-! skew_angle=30.*pi/180. !  In radians
-! 
-! zrot_angle = 0.*pi/180.
-! 
-! axis=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
-! 
-!  crad = 0.5 !  Cylinder radius
-!  clen=1.5/dcos(skew_angle) !  Cylinder length
-! a=crad/cos(skew_angle); b=crad
-! 
-! !  Check if axis has component in z-direction
-! if(axis(3) .ne. 0.) then
-!   write(*,*) 'Error: axis cannot have a z component!'
-!   stop
-! endif
-! 
-! !  Specify global vector to origin of lcs for the cylinder
-! lgcs_t%xyz=(/ 2.+0.1*dcos(zrot_angle), 2.+0.1*dsin(zrot_angle), z_bottom_surf /)
-! !  Set the center point of the bottom ellipse
-! ebgcs_t%xyz=lgcs_t%xyz
-! !  Compute the center point of the top ellipse in the gcs
-! call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen/),etgcs_t%xyz)
-! etgcs_t%xyz = etgcs_t%xyz + ebgcs_t%xyz
-! 
-! !  Top and bottom z-plane in gcs
-! bplane=ebgcs_t%xyz(3)
-! tplane=etgcs_t%xyz(3)
-! 
-! write(*,*) 'tplane and bplane = ', tplane, bplane
-
 call generate_grid()
-
 call initialize() 
 
-
 do ng=1,ngen
-  do nt=1,ntrunk
-    call main_loop(nt,ng)
+  if(ng > 1) call gen_update(ng)
+  do nt=1,gen_ntrunk
+    call main_loop(nt)
   enddo
 enddo
 
 call write_output()
 
-
-
 stop
 
 end program cylinder_skew
-
-!**********************************************************************
-subroutine pt_loc(nt,ng,i,j,k)
-!**********************************************************************
-
-use cylinder_skew_defs
-
-implicit none
-
-integer, intent(IN) :: nt,ng,i,j,k
-
-!  Intialize flags
-btw_planes=.false.
-in_cir=.false.
-in_cyl=.false.
-in_bottom_surf = .false.
-in_cyl_top=.false.
-in_cyl_bottom=.false.
-
-!  Also check if point is below bottom surface
-if(use_bottom_surf) then
-  if(gcs_t(i,j,k)%xyz(3) <= z_bottom_surf) in_bottom_surf = .true.
-endif
-
-!  First check if points are between the top and bottom planes in the z - gcs
-if(gcs_t(i,j,k)%xyz(3) >= bplane(nt,ng) .and. gcs_t(i,j,k)%xyz(3) <= tplane(nt,ng)) then
-  btw_planes=.true.
-elseif(gcs_t(i,j,k)%xyz(3) > tplane(nt,ng)) then
-!  Check if point is below bottom ellipse
-  above_cyl = .true.
-elseif(gcs_t(i,j,k)%xyz(3) < bplane(nt,ng)) then
-!  Check if point is below bottom ellipse
-  below_cyl = .true.
-endif
-      
-!  Compute vector to point in the gcs from the lcs 
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t(nt,ng)%xyz
-!  Rotate gcs vector into local coordinate system
-call rotation_axis_vector_3d(axis,-skew_angle,vgcs_t%xyz,lcs_t%xyz)
-!  Check if the point lies in the cylinder circle
- circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
-if(circk <= crad(nt,ng)**2) in_cir = .true.
-!  Check if point is in cylinder
-if(btw_planes .and. in_cir) in_cyl = .true.
-
-!  Check if point lies in top ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(nt,ng)%xyz
-call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-        ecs_t%xyz)
-eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > bplane(nt,ng)) in_cyl_top=.true. !  Could be below or above
-
-!  Check if point lies in bottom ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt,ng)%xyz
-call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, &
-        ecs_t%xyz)
-eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < tplane(nt,ng)) in_cyl_bottom=.true. !  Could be below or above
-
-return
-end subroutine pt_loc
-
-!**********************************************************************
-subroutine set_iset(i,j,k)
-!**********************************************************************
-use cylinder_skew_defs, only : gcs_t
-
-implicit none
-
-logical, parameter :: VERBOSE=.false.
-integer, intent(IN) :: i,j,k
-
-if(gcs_t(i,j,k)%iset == 1) then
-  if(VERBOSE) write(*,*) 'iset already 1 - resetting phi at i,j,k : ', i,j,k
-else
-  gcs_t(i,j,k)%iset = 1
-endif
-
-return
-end subroutine set_iset
-
-!**********************************************************************
-subroutine initialize()
-!**********************************************************************
-use cylinder_skew_defs
-
-implicit none
-
-integer :: nt,ng,i,j,k
-
-!  Initialize the distance function
-gcs_t(:,:,:)%phi = BOGUS
-!  Set lower level
-gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindex=1
-
-!  Initialize the iset flag
-gcs_t(:,:,:)%iset=0
-
-!  Initialize the point to surface association
-gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
-
-if(use_bottom_surf) then
-  gcs_t(:,:,:)%itype=-1
-!  Loop over all global coordinates
-  do k=1,Nz
-    gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
-    if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
-  enddo
-endif
-
-allocate(crad(ntrunk,ngen),clen(ntrunk,ngen))
-allocate(lgcs_t(ntrunk,ngen), ebgcs_t(ntrunk,ngen), etgcs_t(ntrunk,ngen))
-allocate(zrot_angle(ntrunk,ngen),rad_offset(ntrunk,ngen))
-allocate(tplane(ntrunk,ngen),bplane(ntrunk,ngen))
-
- crad(:,1) = d/2.
- clen(:,1) = l
- skew_angle=30.*pi/180. !  In radians
-
- rad_offset = 0.1
- 
- zrot_angle(1,1) = 0.*pi/180.
- zrot_angle(2,1) = zrot_angle(1,1) + 120.
- zrot_angle(3,1) = zrot_angle(2,1) + 120.
-
-do ng=1,ngen
-  do nt=1,ntrunk
-
-    if(ng > 1) then
-      zrot_angle(nt,ng) = zrot_angle(nt,ng-1) + 180.
-      axis=(/dcos(zrot_angle(nt,ng)+pi/2.),dsin(zrot_angle(nt,ng)+pi/2.),0./)
-    endif
-
-    if(ng > 1) then
-      crad(nt,ng) = crad(nt,ng-1)/2.
-      clen(nt,ng) = clen(nt,ng-1)/2.
-      a=crad(nt,ng)/cos(skew_angle); b=crad(nt,ng)
-
-      rad_offset(nt,ng) = rad_offset(nt,ng-1)/2.
-
-    endif
-  
-!  Check if axis has component in z-direction
-    if(axis(3) .ne. 0.) then
-      write(*,*) 'Error: axis cannot have a z component!'
-      stop
-    endif
-
-    if(ng == 1) then
- !  Specify global vector to origin of lcs for the cylinder
-      lgcs_t(nt,ng)%xyz=(/ 2.+rad_offset(nt,ng)*dcos(zrot_angle(nt,ng)), 2.+ &
-        rad_offset(nt,ng)*dsin(zrot_angle(nt,ng)), z_bottom_surf /)
-    else
-      lgcs_t(nt,ng)%xyz = etgcs_t(nt,ng-1)%xyz
-      lgcs_t(nt,ng)%xyz(1) = lgcs_t(nt,ng)%xyz(1) + rad_offset(nt,ng)*dcos(zrot_angle(nt,ng))
-      lgcs_t(nt,ng)%xyz(2) = lgcs_t(nt,ng)%xyz(2) + rad_offset(nt,ng)*dsin(zrot_angle(nt,ng))
-    endif
-
-    !  Set the center point of the bottom ellipse
-    ebgcs_t(nt,ng)%xyz=lgcs_t(nt,ng)%xyz
-    !  Compute the center point of the top ellipse in the gcs
-    call rotation_axis_vector_3d (axis, skew_angle, (/0., 0., clen(nt,ng)/),etgcs_t(nt,ng)%xyz)
-    etgcs_t(nt,ng)%xyz = etgcs_t(nt,ng)%xyz + ebgcs_t(nt,ng)%xyz
-
-    !  Top and bottom z-plane in gcs
-    bplane(nt,ng)=ebgcs_t(nt,ng)%xyz(3)
-    tplane(nt,ng)=etgcs_t(nt,ng)%xyz(3)
-
-    write(*,*) 'tplane(nt,ng) and bplane(nt,ng) = ', tplane(nt,ng), bplane(nt,ng)
-
-  enddo
-enddo
-return 
-end subroutine initialize
 
 !**********************************************************************
 subroutine generate_grid()
@@ -338,29 +133,279 @@ return
 end subroutine generate_grid
 
 !**********************************************************************
-subroutine assoc_cyl_loc(nt,ng,i,j,k)
+subroutine initialize()
 !**********************************************************************
 use cylinder_skew_defs
 
 implicit none
 
-integer, intent(IN) :: nt,ng,i,j,k
+integer :: i,j,k
+
+!  Initialize the distance function
+gcs_t(:,:,:)%phi = BOGUS
+!  Set lower level
+gcs_t(:,:,0)%phi = -BOGUS
+gcs_t(:,:,:)%brindex=1
+
+!  Initialize the iset flag
+gcs_t(:,:,:)%iset=0
+
+!  Initialize the point to surface association
+gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
+
+if(use_bottom_surf) then
+  gcs_t(:,:,:)%itype=-1
+!  Loop over all global coordinates
+  do k=1,Nz
+    gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
+    if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
+  enddo
+endif
+
+!  Set initial generation
+allocate(lgcs_t(ntrunk), ebgcs_t(ntrunk), etgcs_t(ntrunk))
+allocate(zrot_angle(ntrunk))
+allocate(axis(3,ntrunk))
+
+!  Update parameters
+crad = d/2
+clen = l
+rad_offset = offset
+
+!  Set rotation angle about z-axis with which the skew angle is applied 
+zrot_angle=0.
+do i=2,ntrunk
+  zrot_angle(i) = zrot_angle(i-1) + (360./ntrunk)*pi/180.
+  axis(:,i)=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+enddo
+
+do i=1,ntrunk
+  lgcs_t(i)%xyz = origin
+  lgcs_t(i)%xyz(1) = rad_offset*dcos(zrot_angle(i))
+  lgcs_t(i)%xyz(2) = rad_offset*dsin(zrot_angle(i))
+enddo
+
+!  Set top and bottom of the cylinder
+do i=1,ntrunk
+  !  Set the center point of the bottom ellipse
+  ebgcs_t(i)%xyz=lgcs_t(i)%xyz
+  !  Compute the center point of the top ellipse in the gcs
+  call rotation_axis_vector_3d (axis(:,1), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
+  etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
+enddo 
+
+!  Top and bottom z-plane in gcs (same for all cylinders in generation)
+bplane=ebgcs_t(1)%xyz(3)
+tplane=etgcs_t(1)%xyz(3)
+write(*,*) 'generation # : ', 1
+write(*,*) 'tplane and bplane = ', tplane, bplane
+
+return 
+end subroutine initialize
+
+
+!**********************************************************************
+subroutine gen_update(ng)
+!**********************************************************************
+
+use cylinder_skew_defs
+
+implicit none
+
+integer, intent(IN) :: ng
+
+integer :: i,j
+integer :: istart, iend
+integer :: gen_ntrunk_old
+
+type(cs1), allocatable, dimension(:) :: etgcs_old_t
+
+gen_ntrunk_old = ntrunk**(ng - 1)
+allocate(etgcs_old_t(gen_ntrunk_old))
+
+do j=1,gen_ntrunk_old
+  etgcs_old_t(j)%xyz = etgcs_t(j)%xyz
+enddo
+
+if(allocated(lgcs_t)) then
+  deallocate(lgcs_t,ebgcs_t,etgcs_t)
+  deallocate(zrot_angle,axis)
+endif
+
+gen_ntrunk = ntrunk**ng
+
+allocate(lgcs_t(gen_ntrunk), ebgcs_t(gen_ntrunk), etgcs_t(gen_ntrunk))
+allocate(zrot_angle(gen_ntrunk))
+allocate(axis(3,gen_ntrunk))
+
+!  Update parameters
+crad = d/2/(scale_fact**ng)
+clen = l/(scale_fact**ng)
+rad_offset = offset/(scale_fact**ng)
+
+!  Set rotation angle about z-axis with which the skew angle is applied 
+zrot_angle=0.
+do i=2,ntrunk
+  zrot_angle(i) = zrot_angle(i-1) + (360./ntrunk)*pi/180.
+  axis(:,i)=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+enddo
+
+istart=0
+iend=0
+!  Set the lgcs for the new generation
+do j=1,gen_ntrunk_old
+
+    istart = (j-1)*ntrunk + 1
+    iend   = istart + (ntrunk -1)
+
+    do i=istart,iend
+      lgcs_t(i)%xyz = etgcs_old_t(j)%xyz
+      lgcs_t(i)%xyz(1) = rad_offset*dcos(zrot_angle(i))
+      lgcs_t(i)%xyz(2) = rad_offset*dsin(zrot_angle(i))
+    enddo
+
+enddo
+  
+!  Set top and bottom of the cylinder
+do i=1,gen_ntrunk
+  !  Set the center point of the bottom ellipse
+  ebgcs_t(i)%xyz=lgcs_t(i)%xyz
+  !  Compute the center point of the top ellipse in the gcs
+  call rotation_axis_vector_3d (axis(:,1), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
+  etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
+enddo
+
+!  Top and bottom z-plane in gcs (same for all cylinders in generation)
+bplane=ebgcs_t(1)%xyz(3)
+tplane=etgcs_t(1)%xyz(3)
+write(*,*) 'generation # : ', ng
+write(*,*) 'tplane and bplane = ', tplane, bplane
+  
+return
+end subroutine gen_update
+
+
+!**********************************************************************
+subroutine main_loop(nt)
+!**********************************************************************
+use cylinder_skew_defs
+
+implicit none
+
+integer, intent(IN) :: nt
+integer :: i,j,k
+!  Loop over all global coordinates
+do k=1,Nz
+
+  do j=1,ny
+
+    do i=1,nx+2
+
+!  Get all prelimenary information about the point to cylinder location
+    if(gcs_t(i,j,k)%phi > 0) then
+ 
+      call pt_loc(nt,i,j,k)
+
+      call assoc_cyl_loc(nt,i,j,k)
+
+      call set_sign(i,j,k)
+
+    endif
+    enddo
+
+  enddo
+
+enddo
+
+return
+end subroutine main_loop
+
+
+!**********************************************************************
+subroutine pt_loc(nt,i,j,k)
+!**********************************************************************
+
+use cylinder_skew_defs
+
+implicit none
+
+integer, intent(IN) :: nt,i,j,k
+
+!  Intialize flags
+btw_planes=.false.
+in_cir=.false.
+in_cyl=.false.
+in_bottom_surf = .false.
+in_cyl_top=.false.
+in_cyl_bottom=.false.
+
+!  Also check if point is below bottom surface
+if(use_bottom_surf) then
+  if(gcs_t(i,j,k)%xyz(3) <= z_bottom_surf) in_bottom_surf = .true.
+endif
+
+!  First check if points are between the top and bottom planes in the z - gcs
+if(gcs_t(i,j,k)%xyz(3) >= bplane .and. gcs_t(i,j,k)%xyz(3) <= tplane) then
+  btw_planes=.true.
+elseif(gcs_t(i,j,k)%xyz(3) > tplane) then
+!  Check if point is below bottom ellipse
+  above_cyl = .true.
+elseif(gcs_t(i,j,k)%xyz(3) < bplane) then
+!  Check if point is below bottom ellipse
+  below_cyl = .true.
+endif
+      
+!  Compute vector to point in the gcs from the lcs 
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - lgcs_t(nt)%xyz
+!  Rotate gcs vector into local coordinate system
+call rotation_axis_vector_3d(axis(:,nt),-skew_angle,vgcs_t%xyz,lcs_t%xyz)
+!  Check if the point lies in the cylinder circle
+ circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
+if(circk <= crad**2) in_cir = .true.
+!  Check if point is in cylinder
+if(btw_planes .and. in_cir) in_cyl = .true.
+
+!  Check if point lies in top ellipse
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(nt)%xyz
+call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, &
+        ecs_t%xyz)
+eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > bplane) in_cyl_top=.true. !  Could be below or above
+
+!  Check if point lies in bottom ellipse
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt)%xyz
+call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, &
+        ecs_t%xyz)
+eck = ecs_t%xyz(1)**2/a**2 + ecs_t%xyz(2)**2/b**2
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < tplane) in_cyl_bottom=.true. !  Could be below or above
+
+return
+end subroutine pt_loc
+
+!**********************************************************************
+subroutine assoc_cyl_loc(nt,i,j,k)
+!**********************************************************************
+use cylinder_skew_defs
+
+implicit none
+
+integer, intent(IN) :: nt,i,j,k
 double precision :: atan4
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
 
-slcs_t%xyz(1) = crad(nt,ng)*dcos(theta)
-slcs_t%xyz(2) = crad(nt,ng)*dsin(theta)
+slcs_t%xyz(1) = crad*dcos(theta)
+slcs_t%xyz(2) = crad*dsin(theta)
 slcs_t%xyz(3) = lcs_t%xyz(3)
 
 !  Rotate the surface vector in the lcs back into the gcs
-call rotation_axis_vector_3d(axis,skew_angle,slcs_t%xyz,vgcs_t%xyz)
+call rotation_axis_vector_3d(axis(3,nt),skew_angle,slcs_t%xyz,vgcs_t%xyz)
 
-sgcs_t%xyz = vgcs_t%xyz + lgcs_t(nt,ng)%xyz !  Vector now corresponds with origin of gcs
+sgcs_t%xyz = vgcs_t%xyz + lgcs_t(nt)%xyz !  Vector now corresponds with origin of gcs
 
 !  Check if point on cylinder surface is between cutting planes
-if(sgcs_t%xyz(3) >= bplane(nt,ng) .and. sgcs_t%xyz(3) <= tplane(nt,ng)) then
+if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 
   call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
 
@@ -375,10 +420,10 @@ endif
 
 if(in_cyl_bottom) then
 !  Perform bottom ellipse stuff
-  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt,ng)%xyz
+  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt)%xyz
 
     !  Get vector in ellipse coordinate system
-  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+  call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
   call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
@@ -397,11 +442,11 @@ if(in_cyl_bottom) then
 endif
 
   !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
-if(sgcs_t%xyz(3) >= tplane(nt,ng) .and. .not. in_cyl_top) then
-  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(nt,ng)%xyz
+if(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
+  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(nt)%xyz
 
   !  Get vector in ellipse coordinate system
-  call rotation_axis_vector_3d(zrot_axis, -zrot_angle, vgcs_t%xyz, ecs_t%xyz)
+  call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
   call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
@@ -417,7 +462,7 @@ endif
 
 !  Check also if the point lies on the ellipses
 if(in_cyl_top) then
-  dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane(nt,ng))
+  dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
   if(dist < dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
@@ -427,6 +472,25 @@ endif
 
 return
 end subroutine assoc_cyl_loc
+
+!**********************************************************************
+subroutine set_iset(i,j,k)
+!**********************************************************************
+use cylinder_skew_defs, only : gcs_t
+
+implicit none
+
+logical, parameter :: VERBOSE=.true.
+integer, intent(IN) :: i,j,k
+
+if(gcs_t(i,j,k)%iset == 1) then
+  if(VERBOSE) write(*,*) 'iset already 1 - resetting phi at i,j,k : ', i,j,k
+else
+  gcs_t(i,j,k)%iset = 1
+endif
+
+return
+end subroutine set_iset
 
 !**********************************************************************
 subroutine set_sign(i,j,k)
@@ -446,41 +510,6 @@ integer, intent(IN) :: i,j,k
 !endif
 return
 end subroutine set_sign
-
-!**********************************************************************
-subroutine main_loop(nt,ng)
-!**********************************************************************
-use cylinder_skew_defs
-
-implicit none
-
-integer, intent(IN) :: nt,ng
-integer :: i,j,k
-!  Loop over all global coordinates
-do k=1,Nz
-
-  do j=1,ny
-
-    do i=1,nx+2
-
-!  Get all prelimenary information about the point to cylinder location
-    if(gcs_t(i,j,k)%phi > 0) then
- 
-      call pt_loc(nt,ng,i,j,k)
-
-      call assoc_cyl_loc(nt,ng,i,j,k)
-
-      call set_sign(i,j,k)
-
-    endif
-    enddo
-
-  enddo
-
-enddo
-
-return
-end subroutine main_loop
 
 !**********************************************************************
 subroutine write_output()
