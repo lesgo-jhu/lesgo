@@ -47,15 +47,17 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle = 30.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 5
-double precision, parameter :: d = 0.5, l = 1.5
+integer, parameter :: ntrunk = 1
+integer, parameter :: ngen = 1
+double precision, parameter :: d = 1., l = 1.5
 double precision, parameter :: offset = 0.1
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 double precision, parameter :: z_bottom_surf = 1.*dz
 double precision, dimension(3), parameter :: origin=(/ Lx/2., Ly/2., z_bottom_surf /)
+
+logical :: DEBUG=.true.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -82,22 +84,18 @@ program cylinder_skew
 use cylinder_skew_defs
 implicit none
 
-
-integer :: nt,ng,i,j,k
-
-integer, pointer, dimension(:,:,:) :: brindex
-
-double precision :: atan4
-double precision, pointer, dimension(:,:,:) :: phi
+integer :: nt,ng
 
 call generate_grid()
 call initialize() 
 
 do ng=1,ngen
   if(ng > 1) call gen_update(ng)
+
   do nt=1,gen_ntrunk
     call main_loop(nt)
   enddo
+
 enddo
 
 call write_output()
@@ -172,17 +170,30 @@ crad = d/2
 clen = l
 rad_offset = offset
 
+gen_ntrunk = ntrunk
+
+if(DEBUG) then
+  write(*,*) 'ntrunk 	 : ', ntrunk
+  write(*,*) 'crad 	 : ', crad
+  write(*,*) 'clen 	 : ', clen
+  write(*,*) 'rad_offset : ', rad_offset
+endif
+
 !  Set rotation angle about z-axis with which the skew angle is applied 
 zrot_angle=0.
-do i=2,ntrunk
-  zrot_angle(i) = zrot_angle(i-1) + (360./ntrunk)*pi/180.
-  axis(:,i)=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+do i=1,ntrunk
+  zrot_angle(i) =  (360./ntrunk)*(i-1)*pi/180.
+  if(DEBUG) write(*,*) 'zrot_angle(i) : ', zrot_angle(i)*180./pi
+  axis(:,i)=(/dcos(zrot_angle(i)+pi/2.),dsin(zrot_angle(i)+pi/2.),0./)
 enddo
 
 do i=1,ntrunk
   lgcs_t(i)%xyz = origin
-  lgcs_t(i)%xyz(1) = rad_offset*dcos(zrot_angle(i))
-  lgcs_t(i)%xyz(2) = rad_offset*dsin(zrot_angle(i))
+  lgcs_t(i)%xyz(1) = lgcs_t(i)%xyz(1) + rad_offset*dcos(zrot_angle(i))
+  lgcs_t(i)%xyz(2) = lgcs_t(i)%xyz(2) + rad_offset*dsin(zrot_angle(i))
+
+  if(DEBUG) write(*,*) 'lgcs_t(i)%xyz : ', lgcs_t(i)%xyz
+
 enddo
 
 !  Set top and bottom of the cylinder
@@ -190,8 +201,14 @@ do i=1,ntrunk
   !  Set the center point of the bottom ellipse
   ebgcs_t(i)%xyz=lgcs_t(i)%xyz
   !  Compute the center point of the top ellipse in the gcs
-  call rotation_axis_vector_3d (axis(:,1), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
+  call rotation_axis_vector_3d (axis(:,i), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
   etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
+  
+  if(DEBUG) then
+    write(*,*) 'etgcs_t(i)%xyz : ', etgcs_t(i)%xyz
+    write(*,*) 'ebgcs_t(i)%xyz : ', ebgcs_t(i)%xyz
+  endif
+
 enddo 
 
 !  Top and bottom z-plane in gcs (same for all cylinders in generation)
@@ -220,6 +237,9 @@ integer :: gen_ntrunk_old
 
 type(cs1), allocatable, dimension(:) :: etgcs_old_t
 
+
+if(DEBUG) write(*,*) 'gen_update called. ng : ', ng
+
 gen_ntrunk_old = ntrunk**(ng - 1)
 allocate(etgcs_old_t(gen_ntrunk_old))
 
@@ -239,15 +259,16 @@ allocate(zrot_angle(gen_ntrunk))
 allocate(axis(3,gen_ntrunk))
 
 !  Update parameters
-crad = d/2/(scale_fact**ng)
-clen = l/(scale_fact**ng)
-rad_offset = offset/(scale_fact**ng)
+crad = (scale_fact**ng)*d/2
+clen = (scale_fact**ng)*l
+rad_offset = (scale_fact**ng)*offset
 
 !  Set rotation angle about z-axis with which the skew angle is applied 
 zrot_angle=0.
-do i=2,ntrunk
-  zrot_angle(i) = zrot_angle(i-1) + (360./ntrunk)*pi/180.
-  axis(:,i)=(/dcos(zrot_angle+pi/2.),dsin(zrot_angle+pi/2.),0./)
+do i=1,ntrunk
+  zrot_angle(i) =  (360./ntrunk)*(i-1)*pi/180.
+  if(DEBUG) write(*,*) 'zrot_angle(i) : ', zrot_angle(i)*180./pi
+  axis(:,i)=(/dcos(zrot_angle(i)+pi/2.),dsin(zrot_angle(i)+pi/2.),0./)
 enddo
 
 istart=0
@@ -260,8 +281,8 @@ do j=1,gen_ntrunk_old
 
     do i=istart,iend
       lgcs_t(i)%xyz = etgcs_old_t(j)%xyz
-      lgcs_t(i)%xyz(1) = rad_offset*dcos(zrot_angle(i))
-      lgcs_t(i)%xyz(2) = rad_offset*dsin(zrot_angle(i))
+      lgcs_t(i)%xyz(1) = lgcs_t(i)%xyz(1) + rad_offset*dcos(zrot_angle(i))
+      lgcs_t(i)%xyz(2) = lgcs_t(i)%xyz(2) + rad_offset*dsin(zrot_angle(i))
     enddo
 
 enddo
@@ -271,7 +292,7 @@ do i=1,gen_ntrunk
   !  Set the center point of the bottom ellipse
   ebgcs_t(i)%xyz=lgcs_t(i)%xyz
   !  Compute the center point of the top ellipse in the gcs
-  call rotation_axis_vector_3d (axis(:,1), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
+  call rotation_axis_vector_3d (axis(:,i), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
   etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
 enddo
 
@@ -303,7 +324,7 @@ do k=1,Nz
 
 !  Get all prelimenary information about the point to cylinder location
     if(gcs_t(i,j,k)%phi > 0) then
- 
+
       call pt_loc(nt,i,j,k)
 
       call assoc_cyl_loc(nt,i,j,k)
@@ -480,7 +501,7 @@ use cylinder_skew_defs, only : gcs_t
 
 implicit none
 
-logical, parameter :: VERBOSE=.true.
+logical, parameter :: VERBOSE=.false.
 integer, intent(IN) :: i,j,k
 
 if(gcs_t(i,j,k)%iset == 1) then
@@ -521,7 +542,6 @@ implicit none
 integer :: i,j,k
 
 integer, pointer, dimension(:,:,:) :: brindex
-
 double precision, pointer, dimension(:,:,:) :: phi
 
 !  Create tecplot formatted phi and brindex field file
