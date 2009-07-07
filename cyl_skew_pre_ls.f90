@@ -34,7 +34,7 @@ type(cs1), allocatable, dimension(:) :: lgcs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=128, Ny=128, Nz=128
+integer, parameter :: Nx=64, Ny=64, Nz=64
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 !double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
@@ -48,9 +48,9 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle = 30.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 8
-integer, parameter :: ngen = 1
-double precision, parameter :: d = 1., l = 1.5
+integer, parameter :: ntrunk = 1
+integer, parameter :: ngen = 3
+double precision, parameter :: d = 0.5, l = 1.
 double precision, parameter :: offset = 0.1
 double precision, parameter :: scale_fact = 0.5
 
@@ -91,6 +91,7 @@ call generate_grid()
 call initialize() 
 
 do ng=1,ngen
+
   if(ng > 1) call gen_update(ng)
 
   do nt=1,gen_ntrunk
@@ -204,7 +205,7 @@ do i=1,ntrunk
   !  Set the center point of the bottom ellipse
   ebgcs_t(i)%xyz=lgcs_t(i)%xyz
   !  Compute the center point of the top ellipse in the gcs
-  call rotation_axis_vector_3d (axis(:,i), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
+  call rotation_axis_vector_3d(axis(:,i), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
   etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
   
   if(DEBUG) then
@@ -263,16 +264,14 @@ allocate(zrot_angle(gen_ntrunk))
 allocate(axis(3,gen_ntrunk))
 
 !  Update parameters
-!crad = (scale_fact**ng)*d/2
-!clen = (scale_fact**ng)*l
  crad = scale_fact*crad
  clen = scale_fact*clen
 a=crad/cos(skew_angle); b=crad
 
-rad_offset = (scale_fact**ng)*offset
+rad_offset = scale_fact*rad_offset
 
 if(DEBUG) then
-  write(*,*) 'ntrunk 	 : ', ntrunk
+  write(*,*) 'gen_trunk  : ', gen_ntrunk
   write(*,*) 'crad 	 : ', crad
   write(*,*) 'clen 	 : ', clen
   write(*,*) 'rad_offset : ', rad_offset
@@ -354,7 +353,7 @@ do k=1,Nz
 
       call pt_loc(ng,nt,i,j,k)
 
-      call assoc_cyl_loc(nt,i,j,k)
+      call assoc_cyl_loc(ng,nt,i,j,k)
 
       call set_sign(i,j,k)
 
@@ -434,13 +433,13 @@ return
 end subroutine pt_loc
 
 !**********************************************************************
-subroutine assoc_cyl_loc(nt,i,j,k)
+subroutine assoc_cyl_loc(ng,nt,i,j,k)
 !**********************************************************************
 use cylinder_skew_defs
 
 implicit none
 
-integer, intent(IN) :: nt,i,j,k
+integer, intent(IN) :: ng,nt,i,j,k
 double precision :: atan4
 
 !  Compute theta value on lcs using geometry.atan4
@@ -468,28 +467,45 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 endif
 !else
 !    if(below_cyl .and. in_cyl_bottom) then
-
-if(in_cyl_bottom .or. sgcs_t%xyz(3) <= bplane) then
+if(use_bottom_surf .and. ng==1 .and. ebgcs_t(nt)%xyz(3) == z_bottom_surf) then
+  if(in_cyl_bottom .or. sgcs_t%xyz(3) <= bplane) then
 !  Perform bottom ellipse stuff
   vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt)%xyz
 
     !  Get vector in ellipse coordinate system
-  call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, ecs_t%xyz)
+    call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+    call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
-  call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+    call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
 !   if(gcs_t(i,j,k)%itype == -1 .and. sgcs_t%xyz(3) <= bplane) then
 !     gcs_t(i,j,k)%phi = dist
 !     gcs_t(i,j,k)%itype = 0
 !     call set_iset(i,j,k)      
 !   elseif(dist < dabs(gcs_t(i,j,k)%phi)) then
+    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      gcs_t(i,j,k)%itype = 0
+      call set_iset(i,j,k)
+    endif
+  endif
+elseif(sgcs_t%xyz(3) <= bplane .and. .not. in_cyl_bottom) then
+  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(nt)%xyz
+
+  !  Get vector in ellipse coordinate system
+  call rotation_axis_vector_3d(zrot_axis, -zrot_angle(nt), vgcs_t%xyz, ecs_t%xyz)
+
+  call ellipse_point_dist_2D_2(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+
+  call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+
   if(dist < dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%itype = 0
+    gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
+
 endif
 
   !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
@@ -521,6 +537,25 @@ if(in_cyl_top) then
     call set_iset(i,j,k)
   endif
 endif
+
+if(ng == 1) then
+  if(use_bottom_surf .and. ebgcs_t(nt)%xyz(3) .ne. z_bottom_surf) then
+    dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      gcs_t(i,j,k)%itype = 0
+      call set_iset(i,j,k)
+    endif
+  elseif(.not. use_bottom_surf) then
+    dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
+    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      gcs_t(i,j,k)%itype = 0
+      call set_iset(i,j,k)
+    endif
+  endif
+endif
+ 
 
 return
 end subroutine assoc_cyl_loc
@@ -579,18 +614,18 @@ double precision, pointer, dimension(:,:,:) :: phi
 open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
   action='write',position='rewind')
 
-write(2,*) 'variables = "x", "y", "z", "phi", "brindex"';
+write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
 1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
 
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
 do k=1,nz
   do j=1,ny
     do i=1,nx
-      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex
+      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype
     enddo
   enddo
 enddo
