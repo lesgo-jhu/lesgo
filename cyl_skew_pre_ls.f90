@@ -34,7 +34,7 @@ type(cs1), allocatable, dimension(:) :: lgcs_t, ebgcs_t, etgcs_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=64
+integer, parameter :: Nx=256, Ny=256, Nz=256
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 !double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
@@ -48,8 +48,8 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: skew_angle = 30.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 1
-integer, parameter :: ngen = 3
+integer, parameter :: ntrunk = 3
+integer, parameter :: ngen = 5
 double precision, parameter :: d = 0.5, l = 1.
 double precision, parameter :: offset = 0.1
 double precision, parameter :: scale_fact = 0.5
@@ -279,7 +279,7 @@ endif
 
 !  Set rotation angle about z-axis with which the skew angle is applied 
 zrot_angle=0.
-do i=1,ntrunk
+do i=1,gen_ntrunk
 
   if (mod(ng,2)==0) then
     zrot_angle(i) =  (360./ntrunk)*(i-1)*pi/180. + alt_angle
