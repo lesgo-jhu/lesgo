@@ -93,16 +93,13 @@ end module cylinder_skew_defs
 module mpi2
 !**********************************************************************
   integer :: mpierror, mpisize, mpirank, mpicount
-  integer :: nf_start, nf_end, nfiles_proc
 end module mpi2
 
 !**************************************************************
 program cylinder_skew
 !***************************************************************
-use cylinder_skew_defs
-implicit none
 
-integer :: nt,ng
+implicit none
 
 call initialize() 
 
@@ -361,7 +358,7 @@ implicit none
 
 integer :: ng,nt,i,j,k
 !  Loop over all global coordinates
-do k=1,Nz
+do k=0,Nz
 
   do j=1,ny
 
@@ -692,9 +689,9 @@ enddo
 close(2)
 
 nullify(phi,brindex)
-allocate(phi(nx+2,ny,1:nz))
-allocate(brindex(nx+2,ny,1:nz))
-do k=1,nz
+allocate(phi(nx+2,ny,0:nz))
+allocate(brindex(nx+2,ny,0:nz))
+do k=0,nz
   do j = 1,ny
     do i = 1,nx+2
       phi(i,j,k) = gcs_t(i,j,k)%phi
@@ -713,7 +710,11 @@ if(mpisize > 1) then
 endif
 !  Write binary data for lesgo
 open (1, file=fname, form='unformatted')
-write(1) phi
+if(mpisize > 1) then
+  write(1) phi(:,:,0:nz)
+else
+  write(1) phi(:,:,1:nz)
+endif
 close (1)
 
 !  Open file which to write global data
@@ -725,8 +726,12 @@ if(mpisize > 1) then
   fname = trim (fname) // temp
 endif
 
-open (1, file='brindex.out', form='unformatted')
-write(1) brindex
+open (1, file=fname, form='unformatted')
+if(mpisize > 1) then
+  write(1) brindex(:,:,1:nz-1)
+else
+  write(1) brindex(:,:,1:nz)
+endif
 close (1)
 
 return
