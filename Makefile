@@ -53,13 +53,13 @@ MPATH = mod
 ifeq ($(FCOMP),ifort)
   FPP += -DIFORT
 ifeq ($(USE_MPI), yes)
-  FC = /opt/mpich2-1.1-ifort/bin/mpif90
+  FC = mpif90
 else
   FC = ifort
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -r8 -check all -g -traceback -debug all
+#  FFLAGS = -O0 -r8 -check all -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
  FFLAGS = -O3 -r8 -ip -ipo -ftz
