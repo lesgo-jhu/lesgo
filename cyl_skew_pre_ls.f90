@@ -44,11 +44,13 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: Nx=64, Ny=64, Nz=64
+integer, parameter :: nproc=2
+integer, parameter :: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
+integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 !double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
-double precision, parameter :: Lz = 4., dz = Lz/(Nz-1./2.)
+double precision, parameter :: Lz = 4., dz = Lz/(nz_tot-1./2.)
 
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
@@ -87,6 +89,13 @@ double precision :: eck
 
 end module cylinder_skew_defs
 
+!**********************************************************************
+module mpi2
+!**********************************************************************
+  integer :: mpierror, mpisize, mpirank, mpicount
+  integer :: nf_start, nf_end, nfiles_proc
+end module mpi2
+
 !**************************************************************
 program cylinder_skew
 !***************************************************************
@@ -95,47 +104,21 @@ implicit none
 
 integer :: nt,ng
 
-call generate_grid()
-
 call initialize() 
 
 call main_loop()
 
-call write_output()
+call finalize()
 
 stop
 
 end program cylinder_skew
 
 !**********************************************************************
-subroutine generate_grid()
-!**********************************************************************
-use cylinder_skew_defs
-
-implicit none
-
-integer :: i,j,k
-
-!  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx+2,ny,0:nz))
-
-!  Create grid in the global coordinate system
-do k=0,Nz
-  do j=1,ny
-    do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1)=(i-1)*dx 
-      gcs_t(i,j,k)%xyz(2)=(j-1)*dy 
-      gcs_t(i,j,k)%xyz(3)=(k-1./2.)*dz 
-    enddo
-  enddo
-enddo
-
-return
-end subroutine generate_grid
-
-!**********************************************************************
 subroutine initialize()
 !**********************************************************************
+use mpi
+use mpi2
 use cylinder_skew_defs
 
 implicit none
@@ -143,7 +126,11 @@ implicit none
 integer :: ng,nt,i,j,k,istart,iend
 double precision :: gen_scale_fact
 
+call initialize_mpi ()
+
 call allocate_arrays()
+
+call generate_grid()
 
 !  Initialize the distance function
 gcs_t(:,:,:)%phi = BOGUS
@@ -289,10 +276,27 @@ return
 contains
 
 !**********************************************************************
+subroutine initialize_mpi()
+!**********************************************************************
+
+implicit none
+
+!  Initialize mpi communication
+call MPI_Init(mpierror)
+call MPI_Comm_size(MPI_COMM_WORLD, mpisize, mpierror)
+call MPI_Comm_rank(MPI_COMM_WORLD, mpirank, mpierror)
+
+return
+end subroutine initialize_mpi
+
+!**********************************************************************
 subroutine allocate_arrays()
 !**********************************************************************
 
 implicit none
+
+!  Allocate x,y,z for all coordinate systems
+allocate(gcs_t(nx+2,ny,0:nz))
 
 allocate(lgcs_t(ngen), &
   ebgcs_t(ngen), &
@@ -323,115 +327,30 @@ enddo
 return
 end subroutine allocate_arrays
 
+!**********************************************************************
+subroutine generate_grid()
+!**********************************************************************
+
+implicit none
+
+do k=0,nz
+  do j=1,ny
+    do i=1,nx+2
+      gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
+      gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
+      if (mpisize == 1) then
+	gcs_t(i,j,k)%xyz(3) = (k - 0.5) * dz
+      else
+	gcs_t(i,j,k)%xyz(3) = (mpirank*(nz-1) + k - 0.5) * dz
+      endif
+    enddo
+  enddo
+enddo
+     
+return
+end subroutine generate_grid
+
 end subroutine initialize
-
-
-! !**********************************************************************
-! subroutine gen_update(ng)
-! !**********************************************************************
-! 
-! use cylinder_skew_defs
-! 
-! implicit none
-! 
-! integer, intent(IN) :: ng
-! 
-! integer :: i,j
-! integer :: istart, iend
-! integer :: gen_ntrunk_old
-! 
-! double precision :: alt_angle=pi
-! type(cs1), allocatable, dimension(:) :: etgcs_old_t
-! 
-! 
-! if(DEBUG) write(*,*) 'gen_update called. ng : ', ng
-! 
-! gen_ntrunk_old = ntrunk**(ng - 1)
-! allocate(etgcs_old_t(gen_ntrunk_old))
-! 
-! do j=1,gen_ntrunk_old
-!   etgcs_old_t(j)%xyz = etgcs_t(j)%xyz
-! enddo
-! 
-! if(allocated(lgcs_t)) then
-!   deallocate(lgcs_t,ebgcs_t,etgcs_t)
-!   deallocate(zrot_angle,axis)
-! endif
-! 
-! gen_ntrunk = ntrunk**ng
-! 
-! allocate(lgcs_t(gen_ntrunk), ebgcs_t(gen_ntrunk), etgcs_t(gen_ntrunk))
-! allocate(zrot_angle(gen_ntrunk))
-! allocate(axis(3,gen_ntrunk))
-! 
-! !  Update parameters
-!  crad = scale_fact*crad
-!  clen = scale_fact*clen
-! a=crad/cos(skew_angle); b=crad
-! 
-! rad_offset = scale_fact*rad_offset
-! 
-! if(DEBUG) then
-!   write(*,*) 'gen_trunk  : ', gen_ntrunk
-!   write(*,*) 'crad 	 : ', crad
-!   write(*,*) 'clen 	 : ', clen
-!   write(*,*) 'rad_offset : ', rad_offset
-! endif
-! 
-! !  Set rotation angle about z-axis with which the skew angle is applied 
-! zrot_angle=0.
-! do i=1,gen_ntrunk
-! 
-!   if (mod(ng,2)==0) then
-!     zrot_angle(i) =  (360./ntrunk)*(i-1)*pi/180. + alt_angle
-!   else
-!     zrot_angle(i) =  (360./ntrunk)*(i-1)*pi/180.
-!   endif
-!   
-!   if(DEBUG) write(*,*) 'zrot_angle(i) : ', zrot_angle(i)*180./pi
-!   axis(:,i)=(/dcos(zrot_angle(i)+pi/2.),dsin(zrot_angle(i)+pi/2.),0./)
-! enddo
-! 
-! istart=0
-! iend=0
-! !  Set the lgcs for the new generation
-! do j=1,gen_ntrunk_old
-! 
-!     istart = (j-1)*ntrunk + 1
-!     iend   = istart + (ntrunk -1)
-! 
-!     if(DEBUG) then
-!       write(*,*) 
-!       write(*,*) 'istart : ', istart
-!       write(*,*) 'iend   : ', iend
-!     endif
-! 
-!     do i=istart,iend
-!       lgcs_t(i)%xyz = etgcs_old_t(j)%xyz
-!       lgcs_t(i)%xyz(1) = lgcs_t(i)%xyz(1) + rad_offset*dcos(zrot_angle(i))
-!       lgcs_t(i)%xyz(2) = lgcs_t(i)%xyz(2) + rad_offset*dsin(zrot_angle(i))
-!     enddo
-! 
-! enddo
-!   
-! !  Set top and bottom of the cylinder
-! do i=1,gen_ntrunk
-!   !  Set the center point of the bottom ellipse
-!   ebgcs_t(i)%xyz=lgcs_t(i)%xyz
-!   !  Compute the center point of the top ellipse in the gcs
-!   call rotation_axis_vector_3d (axis(:,i), skew_angle, (/0., 0., clen/),etgcs_t(i)%xyz)
-!   etgcs_t(i)%xyz = etgcs_t(i)%xyz + ebgcs_t(i)%xyz
-! enddo
-! 
-! !  Top and bottom z-plane in gcs (same for all cylinders in generation)
-! bplane=ebgcs_t(1)%xyz(3)
-! tplane=etgcs_t(1)%xyz(3)
-! write(*,*) 'generation # : ', ng
-! write(*,*) 'tplane and bplane = ', tplane, bplane
-!   
-! return
-! end subroutine gen_update
-
 
 !**********************************************************************
 subroutine main_loop()
@@ -713,20 +632,46 @@ integer, intent(IN) :: i,j,k
 return
 end subroutine set_sign
 
+
 !**********************************************************************
-subroutine write_output()
+subroutine finalize()
 !**********************************************************************
+use mpi
+use mpi2
 use cylinder_skew_defs
 
 implicit none
 
+call write_output()
+
+!  Finalize mpi communication
+call MPI_FINALIZE(mpierror)
+
+return
+contains
+
+!**********************************************************************
+subroutine write_output()
+!**********************************************************************
+
+implicit none
+
+character (64) :: fname, temp
 integer :: i,j,k
 
 integer, pointer, dimension(:,:,:) :: brindex
 double precision, pointer, dimension(:,:,:) :: phi
 
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew.dat'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
 !  Create tecplot formatted phi and brindex field file
-open (unit = 2,file = 'cylinder_skew.dat', status='unknown',form='formatted', &
+open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
 write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
@@ -758,10 +703,27 @@ do k=1,nz
   enddo
 enddo
 
+!  Open file which to write global data
+write (fname,*) 'phi.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
 !  Write binary data for lesgo
-open (1, file='phi.out', form='unformatted')
+open (1, file=fname, form='unformatted')
 write(1) phi
 close (1)
+
+!  Open file which to write global data
+write (fname,*) 'brindex.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
 
 open (1, file='brindex.out', form='unformatted')
 write(1) brindex
@@ -769,4 +731,6 @@ close (1)
 
 return
 end subroutine write_output
+
+end subroutine finalize
 
