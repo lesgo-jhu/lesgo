@@ -44,7 +44,7 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: nproc=2
+integer, parameter :: nproc=1
 integer, parameter :: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
@@ -57,17 +57,18 @@ double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: skew_angle = 30.*pi/180.
+double precision, parameter :: zrot_angle = 30.*pi/180.
+double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 2
-double precision, parameter :: d = 0.5, l = 1.
-double precision, parameter :: offset = 0.2
+integer, parameter :: ntrunk = 2 
+integer, parameter :: ngen = 1
+double precision, parameter :: d = 0.6227, l = 2.*d
+double precision, parameter :: offset = 0.1946
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 1.*dz
+double precision, parameter :: z_bottom_surf = 5.*dz
 double precision, dimension(3), parameter :: origin=(/ Lx/2., Ly/2., z_bottom_surf /)
 
 logical :: DEBUG=.true.
@@ -81,8 +82,6 @@ integer, dimension(3) :: cyl_loc
 
 integer, allocatable, dimension(:) :: gen_ntrunk
 double precision, allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tplane, bplane
-double precision, allocatable, dimension(:,:) :: zrot_angle
-double precision, allocatable, dimension(:,:,:) :: axis
 
 double precision :: circk, dist, theta
 double precision :: eck
@@ -131,8 +130,8 @@ call generate_grid()
 
 !  Initialize the distance function
 gcs_t(:,:,:)%phi = BOGUS
-!  Set lower level
-gcs_t(:,:,0)%phi = -BOGUS
+!!  Set lower level
+!gcs_t(:,:,0)%phi = -BOGUS
 gcs_t(:,:,:)%brindex=1
 
 !  Initialize the iset flag
@@ -175,7 +174,7 @@ enddo
 
 ng=1 !  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = (360./ntrunk)*(nt-1)*pi/180.
+  zrot_t(ng)%angle(nt) = zrot_angle + (360./ntrunk)*(nt-1)*pi/180.
   zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
   if(DEBUG) then
     write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
@@ -675,11 +674,11 @@ write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
-do k=1,nz
+do k=0,nz
   do j=1,ny
     do i=1,nx
       write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype
