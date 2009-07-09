@@ -25,7 +25,7 @@ USE_DYNALLOC = no
     #--still experimental
 
 USE_TREES_LS = no
-USE_LVLSET = yes
+USE_LVLSET = no
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)

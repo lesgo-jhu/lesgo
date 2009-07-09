@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 2
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=128,ny=128,nz=(129+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -111,7 +111,7 @@ module param
   !Models type: 1->static prandtl, 2->Dynamic
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
-  integer,parameter::model=5,models=1,nnn=2
+  integer,parameter::model=1,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
   !  This was not originally here
   real(kind=rprec),parameter::cs=0.16_rprec

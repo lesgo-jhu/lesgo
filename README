@@ -273,6 +273,3 @@ inputs when launching cases in parallel when NOT using a batch system
 For example, to use run launch lesgo with 4 processors:
 
 ./lesgo-run.sh 4
-
-
-
