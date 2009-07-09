@@ -24,7 +24,7 @@ USE_OPENMP = no
 USE_DYNALLOC = no
     #--still experimental
 
-USE_TREES_LS = no
+USE_TREES_LS = yes
 USE_LVLSET = yes
 
 FPP = fpx3
@@ -59,7 +59,7 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -r8 -check all -g -debug all -traceback
+#  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
  FFLAGS = -O3 -r8 -ip -ipo -ftz
