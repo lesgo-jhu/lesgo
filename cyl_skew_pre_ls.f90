@@ -50,7 +50,7 @@ integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
 !double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
-double precision, parameter :: Lz = 4., dz = Lz/(nz_tot-1./2.)
+double precision, parameter :: Lz = 4./nproc, dz = nproc*Lz/(nz_tot-1./2.)
 
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
@@ -62,7 +62,7 @@ double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 2
+integer, parameter :: ngen = 1
 double precision, parameter :: d = 0.6227, l = 2.*d
 double precision, parameter :: offset = 0.1946
 double precision, parameter :: scale_fact = 0.5
@@ -106,6 +106,7 @@ call main_loop()
 
 call finalize()
 
+write(*,*) 'Program completed successfully.'
 stop
 
 end program cylinder_skew
@@ -281,6 +282,11 @@ implicit none
 call MPI_Init(mpierror)
 call MPI_Comm_size(MPI_COMM_WORLD, mpisize, mpierror)
 call MPI_Comm_rank(MPI_COMM_WORLD, mpirank, mpierror)
+
+if(mpisize .ne. nproc) then
+  write(*,*) 'Error: requested number of processors not equal to specified number!'
+  stop
+endif
 
 return
 end subroutine initialize_mpi
