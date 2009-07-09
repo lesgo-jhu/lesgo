@@ -95,7 +95,7 @@ integer::jx,jy,jz,seed
 !c...Taking std dev of vel as 1 at all heights
 
 !cVK Note that if you put wt_s = 0 symbolizing neutal conditions
-!c u should also put L_z=z_i i.e. the inversion layer height should
+!c u should also put nproc*L_z=z_i i.e. the inversion layer height should
 !c be equal to the height of the domain and in that case the second
 !c part of the subsequent if loop will never execute. This is
 !c ensured by putting an OR statement in the if clause, which makes 
