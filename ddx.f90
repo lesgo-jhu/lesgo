@@ -28,4 +28,6 @@ do jz=$lbz,nz
 ! inverse transform to get pseudospectral derivative
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),ignore_me)
 end do
+
+return
 end subroutine ddx

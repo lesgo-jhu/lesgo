@@ -13,8 +13,8 @@ private :: mod_name
 
 character (*), parameter :: mod_name = 'trees_base_ls'
 
-!character (*), parameter :: branch_cross_section = 'square'
-character (*), parameter :: branch_cross_section = 'circular'
+character (*), parameter :: branch_cross_section = 'square'
+!character (*), parameter :: branch_cross_section = 'circular'
                             !--'circular', 'square'
                             !--only for trees_pre: 'square+plate'
 

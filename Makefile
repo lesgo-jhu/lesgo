@@ -18,7 +18,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -53,16 +53,16 @@ MPATH = mod
 ifeq ($(FCOMP),ifort)
   FPP += -DIFORT
 ifeq ($(USE_MPI), yes)
-  FC = /opt/mpich2-1.1-ifort/bin/mpif90
+  FC = mpif90
 else
   FC = ifort
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -r8 -check all -g -traceback -debug all
+  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
-#  FFLAGS = -O3 -r8
+# FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
 #  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all 

@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(57+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=128,ny=128,nz=(129+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -58,11 +58,10 @@ module param
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-!  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302*z_i
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=3.587301587301587302_rprec
+  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i/nproc
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
-  real(rprec),parameter::dz=L_z/z_i/(nz_tot-1./2.)
+  real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
   real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
 
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
@@ -112,7 +111,7 @@ module param
   !Models type: 1->static prandtl, 2->Dynamic
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
-  integer,parameter::model=1,models=1,nnn=2
+  integer,parameter::model=5,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
   !  This was not originally here
   real(kind=rprec),parameter::cs=0.16_rprec
@@ -121,7 +120,7 @@ module param
   integer,parameter::ifilter=2
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
-  integer,parameter::ubc=1
+  integer,parameter::ubc=0
 
   character (*), parameter :: lbc_mom = 'wall'
   !--'wall', 'stress free'
