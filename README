@@ -263,3 +263,13 @@ non-constant z valued information (so everything except for point_t and
 zplane_t) will have appended to the afore mentioned file names the processor
 number that created the file. The processor number used is coords in lesgo which
 is arranged to be in the increasing z-direction.
+
+ADDITIONAL INFO:
+
+1. Two program launch scripts have been added to the source tree: lesgo-run.sh
+and cylinder_skew-run.sh. These scripts can be used to reduce the number user 
+inputs when launching cases in parallel when NOT using a batch system
+
+For example, to use run launch lesgo with 4 processors:
+
+./lesgo-run.sh 4

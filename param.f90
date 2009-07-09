@@ -53,15 +53,15 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 80000
+  integer, parameter :: nsteps = 100
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i
+  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i/nproc
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
-  real(rprec),parameter::dz=L_z/z_i/(nz_tot-1./2.)
+  real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
   real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
 
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
@@ -69,7 +69,7 @@ module param
   
   !  U intialization for non-log profile IC
   logical, parameter :: ic_const = .false.
-  real (rprec), parameter :: u_ic = 20.0/u_star, v_ic=0., w_ic=0.
+  real (rprec), parameter :: u_ic = 10.0/u_star, v_ic=0., w_ic=0.
 
   real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
@@ -120,7 +120,7 @@ module param
   integer,parameter::ifilter=2
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
-  integer,parameter::ubc=1
+  integer,parameter::ubc=0
 
   character (*), parameter :: lbc_mom = 'wall'
   !--'wall', 'stress free'
@@ -150,7 +150,7 @@ module param
   logical, parameter :: force_top_bot = .false.
 
   logical, parameter :: use_mean_p_force = .true.
-  real (rprec), parameter :: mean_p_force = 1._rprec * z_i/L_z/nproc
+  real (rprec), parameter :: mean_p_force = 1._rprec * z_i/(nproc*L_z)
   !--usually just z_i/L_z
 
   integer :: jt  ! global time-step counter
