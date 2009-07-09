@@ -45,7 +45,7 @@ type(rot), allocatable, dimension(:) :: zrot_t
 type(vector) :: vgcs_t
 
 integer, parameter :: nproc=4
-integer, parameter :: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
+integer, parameter :: nx=64,ny=64,nz=(64+5+(nproc-1)-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
 double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
@@ -61,8 +61,8 @@ double precision, parameter :: zrot_angle = 30.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 2 
-integer, parameter :: ngen = 1
+integer, parameter :: ntrunk = 3
+integer, parameter :: ngen = 2
 double precision, parameter :: d = 0.6227, l = 2.*d
 double precision, parameter :: offset = 0.1946
 double precision, parameter :: scale_fact = 0.5
@@ -71,7 +71,7 @@ logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surfa
 double precision, parameter :: z_bottom_surf = 5.*dz
 double precision, dimension(3), parameter :: origin=(/ Lx/2., Ly/2., z_bottom_surf /)
 
-logical :: DEBUG=.true.
+logical :: DEBUG=.false.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -698,6 +698,8 @@ do k=0,nz
     enddo
   enddo
 enddo
+
+if(mpirank == 0) phi(:,:,0) = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'phi.out'
