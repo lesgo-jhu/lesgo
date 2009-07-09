@@ -65,7 +65,7 @@ endif
 # FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
 #  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-#  FFLAGS += -warn all 
+  FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads

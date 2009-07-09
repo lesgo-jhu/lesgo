@@ -150,7 +150,7 @@ module param
   logical, parameter :: force_top_bot = .false.
 
   logical, parameter :: use_mean_p_force = .true.
-  real (rprec), parameter :: mean_p_force = 1._rprec * z_i/L_z/nproc
+  real (rprec), parameter :: mean_p_force = 1._rprec * z_i/(nproc*L_z)
   !--usually just z_i/L_z
 
   integer :: jt  ! global time-step counter
