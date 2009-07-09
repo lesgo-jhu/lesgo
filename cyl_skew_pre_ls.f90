@@ -44,7 +44,7 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: nproc=1
+integer, parameter :: nproc=4
 integer, parameter :: nx=64,ny=64,nz=(64+(nproc-1)-1)/nproc + 1
 integer, parameter :: nz_tot = (nz - 1) * nproc + 1
 double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
@@ -143,7 +143,7 @@ gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
 if(use_bottom_surf) then
   gcs_t(:,:,:)%itype=-1
 !  Loop over all global coordinates
-  do k=1,Nz
+  do k=0,Nz
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
     if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
   enddo
