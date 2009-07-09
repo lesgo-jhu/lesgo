@@ -11,21 +11,21 @@ SHELL = /bin/bash
 EXE = lesgo
 ARCH = linux_intel
 FCOMP = ifort
-LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
+LIBPATH = -L/opt/fftw-2.1.5/lib -L/usr/local/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
     #--still experimental
 
 USE_TREES_LS = no
-USE_LVLSET = no
+USE_LVLSET = yes
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
@@ -55,25 +55,25 @@ ifeq ($(FCOMP),ifort)
 ifeq ($(USE_MPI), yes)
   FC = mpif90
 else
-  FC = ifort
+  FC = mpif90
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+#  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 # FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
-#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -r8
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
-  ifeq ($(USE_MPI), yes)
-    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
-  else
+#  ifeq ($(USE_MPI), yes)
+#    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
+#  else
     MODDIR = -I$(MPATH) -module $(MPATH)
-  endif
+#  endif
   FFLAGS += $(MODDIR)
 endif
 
@@ -132,6 +132,8 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
+CYLINDER_SKEW_SRCS = param.f90 cylinder_skew.f90
+
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
 endif
@@ -166,8 +168,8 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew: cylinder_skew.f90
-	$(FC) -o $@ $(FFLAGS) -lgeometry $<
+cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
+	$(FC) -o $@ $(FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
