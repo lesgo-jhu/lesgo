@@ -18,7 +18,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -59,12 +59,12 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-#  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 # FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -r8
+#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -r8
   FFLAGS += -warn all 
   #FDEBUG = -g -debug all
   FPROF = -p
