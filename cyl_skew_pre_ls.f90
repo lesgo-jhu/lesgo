@@ -58,8 +58,8 @@ double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: zrot_angle = 0.*pi/180.
-double precision, parameter :: skew_angle = 0.*pi/180.
+double precision, parameter :: zrot_angle = 30.*pi/180.
+double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
@@ -671,6 +671,7 @@ integer, pointer, dimension(:,:,:) :: brindex
 double precision, pointer, dimension(:,:,:) :: phi
 
 if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
+
 !  Open file which to write global data
 write (fname,*) 'cylinder_skew.dat'
 fname = trim(adjustl(fname)) 
