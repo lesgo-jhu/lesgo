@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 2
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -112,9 +112,9 @@ module param
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
   integer,parameter::model=1,models=1,nnn=2
-  real(kind=rprec),parameter::Co=0.8_rprec
+  real(kind=rprec),parameter::Co=0.2_rprec
   !  This was not originally here
-  real(kind=rprec),parameter::cs=0.8_rprec
+  real(kind=rprec),parameter::cs=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2
