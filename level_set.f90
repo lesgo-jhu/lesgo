@@ -68,7 +68,7 @@ logical, parameter :: physBC = .true.
 logical, parameter :: use_smooth_tau = .true.
 logical, parameter :: use_extrap_tau_log = .false.
 logical, parameter :: use_extrap_tau_simple = .true.
-logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau
+logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; not MPI compliant
                                                   !--wont work w/extra_tau_log
 
 real (rp), parameter :: z0 = 0.0001_rp
