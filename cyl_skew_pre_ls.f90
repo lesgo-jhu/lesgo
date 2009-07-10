@@ -58,12 +58,12 @@ double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: zrot_angle = 30.*pi/180.
-double precision, parameter :: skew_angle = 45.*pi/180.
+double precision, parameter :: zrot_angle = 0.*pi/180.
+double precision, parameter :: skew_angle = 0.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 5
+integer, parameter :: ngen = 1
 double precision, parameter :: d = 0.6227, l = 1.5411
 double precision, parameter :: offset = 0.19459
 double precision, parameter :: scale_fact = 0.5
@@ -72,7 +72,7 @@ logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surfa
 double precision, parameter :: z_bottom_surf = 5.*dz
 double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
 
-logical :: DEBUG=.true.
+logical :: DEBUG=.false.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -459,7 +459,7 @@ call rotation_axis_vector_3d(zrot_axis, &
   vgcs_t%xyz, &
   ecs_t%xyz)
 eck = ecs_t%xyz(1)**2/a(ng)**2 + ecs_t%xyz(2)**2/b(ng)**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > bplane(ng)) in_cyl_top=.true. !  Could be below or above
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > (tplane(ng) + bplane(ng))/2.) in_cyl_top=.true. !  Could be below or above
 
 !  Check if point lies in bottom ellipse
 vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
@@ -468,7 +468,7 @@ call rotation_axis_vector_3d(zrot_axis, &
   vgcs_t%xyz, &
   ecs_t%xyz)
 eck = ecs_t%xyz(1)**2/a(ng)**2 + ecs_t%xyz(2)**2/b(ng)**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < tplane(ng)) in_cyl_bottom=.true. !  Could be below or above
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < (tplane(ng) + bplane(ng))/2.) in_cyl_bottom=.true. !  Could be below or above
 
 return
 end subroutine pt_loc
@@ -506,8 +506,8 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
     gcs_t(i,j,k)%itype = 2
     call set_iset(i,j,k)
   endif
-endif
-!else
+!endif
+else
 !    if(below_cyl .and. in_cyl_bottom) then
 if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) then
   if(in_cyl_bottom .or. sgcs_t%xyz(3) <= bplane(ng)) then
@@ -549,7 +549,7 @@ elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
   endif
 
 endif
-
+endif
   !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
 if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
 
@@ -588,7 +588,7 @@ if(ng == 1) then
       gcs_t(i,j,k)%itype = 0
       call set_iset(i,j,k)
     endif
-  elseif(.not. use_bottom_surf) then
+  elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
@@ -670,6 +670,7 @@ integer :: i,j,k
 integer, pointer, dimension(:,:,:) :: brindex
 double precision, pointer, dimension(:,:,:) :: phi
 
+if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
 !  Open file which to write global data
 write (fname,*) 'cylinder_skew.dat'
 fname = trim(adjustl(fname)) 
