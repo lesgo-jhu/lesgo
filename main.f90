@@ -180,7 +180,7 @@ if (ubc == 1) call setsponge()
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   print *, 'Number of timesteps', nsteps
-  print *, 'dt and Cs = ', dt, cs
+  print *, 'dt = ', dt
   if (model == 1) print *, 'Co = ', Co
   print *, 'Nx, Ny, Nz = ', nx, ny, nz
   print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
