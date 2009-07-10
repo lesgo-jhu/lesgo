@@ -4474,28 +4474,6 @@ close (lun)
 
 write(*,*) 'minval(phi) = ', minval(phi)
 write(*,*) 'maxval(phi) = ', maxval(phi)
-
-!  Create tecplot formatted phi and brindex field file  
-open (unit = 2,file = 'cylinder_skew_lesgo.dat', status='unknown',form='formatted', &
-  action='write',position='rewind')
-
-write(2,*) 'variables = "phi"'; 
-
-write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE)')//''
-
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-      write(2,*) phi(i,j,k)
-    enddo
-  enddo
-enddo
-close(2)
-
 call mesg (sub_name, 'level set function initialized')
 
 !--calculate the normal
