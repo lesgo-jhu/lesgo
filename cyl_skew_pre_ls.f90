@@ -2,6 +2,7 @@
 module cylinder_skew_defs
 !**********************************************************************
 use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+
 implicit none
 
 save
@@ -62,7 +63,7 @@ double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 1
+integer, parameter :: ngen = 5
 double precision, parameter :: d = 0.6227, l = 1.5411
 double precision, parameter :: offset = 0.19459
 double precision, parameter :: scale_fact = 0.5
@@ -71,7 +72,7 @@ logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surfa
 double precision, parameter :: z_bottom_surf = 5.*dz
 double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
 
-logical :: DEBUG=.false.
+logical :: DEBUG=.true.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -190,7 +191,12 @@ do nt=1,ntrunk
   lgcs_t(ng)%xyz(1,nt) = lgcs_t(ng)%xyz(1,nt) + rad_offset(ng)*dcos(zrot_t(ng)%angle(nt))
   lgcs_t(ng)%xyz(2,nt) = lgcs_t(ng)%xyz(2,nt) + rad_offset(ng)*dsin(zrot_t(ng)%angle(nt))
 
-  if(DEBUG) write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+  if(DEBUG .and. mpirank == 0 ) then
+    write(*,*) ''
+    write(*,*) 'nt = ', nt
+    write(*,*) 'origin : ', origin
+    write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+  endif
 
   !  Set the center point of the bottom ellipse
   ebgcs_t(ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
