@@ -18,14 +18,14 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
     #--still experimental
 
 USE_TREES_LS = no
-USE_LVLSET = no
+USE_LVLSET = yes
 
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
