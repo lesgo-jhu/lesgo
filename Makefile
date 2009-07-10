@@ -12,13 +12,13 @@ EXE = lesgo
 ARCH = linux_intel
 FCOMP = ifort
 LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
-LIBS = $(LIBPATH) -lrfftw -lfftw -lm -lmpichf90 -lmpichf90 -lfmpich -lmpich
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -30,6 +30,7 @@ USE_LVLSET = no
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
+  LIBS += -lmpichf90 -lmpichf90 -lfmpich -lmpich
 endif
 
 ifeq ($(USE_DYNALLOC),yes)
@@ -65,10 +66,10 @@ endif
 # FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
 #  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all 
+  FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
-  LDFLAGS = -threads
+  LDFLAGS = -threads -shared-intel
   ifeq ($(USE_MPI), yes)
     MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
   else
