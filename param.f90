@@ -113,8 +113,6 @@ module param
   !Co and nnn are used in the mason model for smagorisky coeff
   integer,parameter::model=1,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
-  !  This was not originally here
-  real(kind=rprec),parameter::cs=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2
