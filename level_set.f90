@@ -56,8 +56,12 @@ real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
 real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
 logical, parameter :: DEBUG = .false.
-logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
-                                        !  level set BC
+$if($MPI)
+logical, parameter :: vel_BC = .true.  !--means we are forcing velocity for
+                                       !  level set BC
+$else
+logical, parameter :: vel_BC = .false.
+$endif
 logical, parameter :: use_log_profile = .false.
 logical, parameter :: use_enforce_un = .false.
 logical, parameter :: physBC = .true.
