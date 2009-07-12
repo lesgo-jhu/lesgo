@@ -9,8 +9,7 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-ARCH = linux_intel
-FCOMP = ifort
+FCOMP = gfortran
 LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -18,7 +17,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -60,12 +59,12 @@ else
 endif
 
 #  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+#  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
 # FFLAGS = -O3 -r8 -ip -ipo -ftz
 #  FFLAGS = -O2 
-#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
@@ -80,12 +79,16 @@ endif
 
 ifeq ($(FCOMP),gfortran)
   FPP += -DGFORTRAN
-  FC = gfortran
-  FFLAGS = -O2
+ifeq ($(USE_MPI), yes)
+  FC = mpif90
+else
+  FC = mpif90
+endif
+  FFLAGS = -O2 -fdefault-double-8 -fdefault-real-8 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = -static -nothreads
+  LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
 endif
