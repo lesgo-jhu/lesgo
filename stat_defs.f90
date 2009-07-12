@@ -14,7 +14,7 @@ end type stats
 !  Reynolds stresses
 type rs
   logical :: calc
-  double precision, allocatable, dimension(:,:,:) :: up2, vp2, wp2, & 
+  double precision, pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
                                                      upwp, vpwp, upvp
 end type rs
 
@@ -22,7 +22,7 @@ end type rs
 type tavg
   logical :: calc, started
   integer :: nstart, nend
-  double precision, allocatable, dimension(:,:,:) :: u, v, w, &
+  double precision, pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
 end type tavg	
   
@@ -49,7 +49,7 @@ type plane
   integer, dimension(10) :: istart, coord
   double precision :: fa
   double precision, dimension (10) :: loc, ldiff
-  double precision, allocatable, dimension(:,:,:) :: ua, va, wa
+  double precision, pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
   
 !type(stats)          :: stats_t
