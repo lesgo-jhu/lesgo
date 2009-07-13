@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 EXE = lesgo
 FCOMP = ifort
-LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
+LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/ -L/home/jgraham/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
