@@ -83,7 +83,7 @@ ifeq ($(USE_MPI), yes)
 else
   FC = gfortran
 endif
-  FFLAGS = -O2 -fdefault-double-8 -fdefault-real-8 -ffree-form -ffixed-line-length-none
+  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
