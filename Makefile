@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-FCOMP = gfortran
+FCOMP = ifort
 LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -17,7 +17,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -55,20 +55,19 @@ ifeq ($(FCOMP),ifort)
 ifeq ($(USE_MPI), yes)
   FC = mpif90
 else
-  FC = mpif90
+  FC = ifort
 endif
 
-#  FFLAGS = -O0 -traceback -g -r8
 #  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
-# FFLAGS = -O3 -r8 -ip -ipo -ftz
-#  FFLAGS = -O2 
+# FFLAGS = -O3 -ip -ipo -ftz
   FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
   ifeq ($(USE_MPI), yes)
     MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
   else
@@ -82,7 +81,7 @@ ifeq ($(FCOMP),gfortran)
 ifeq ($(USE_MPI), yes)
   FC = mpif90
 else
-  FC = mpif90
+  FC = gfortran
 endif
   FFLAGS = -O2 -fdefault-double-8 -fdefault-real-8 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
@@ -91,6 +90,8 @@ endif
   LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
+  CYLINDER_SKEW_FFLAGS += -fdefault-real-8 -fdefault-double-8
+
 endif
 
 ifeq ($(FCOMP),g95)
@@ -173,7 +174,7 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
-	$(FC) -o $@ $(FFLAGS) $(LIBPATH) -lgeometry $<
+	$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
