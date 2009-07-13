@@ -29,7 +29,7 @@ USE_LVLSET = yes
 FPP = fpx3
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
-  LIBS += -lmpichf90 -lmpichf90 -lfmpich -lmpich
+  LIBS += -lmpichf90 -lfmpich -lmpich
 endif
 
 ifeq ($(USE_DYNALLOC),yes)
@@ -61,8 +61,8 @@ endif
 #  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
 #  FFLAGS = -fast
 #  FFLAGS = -O3 -ipo
-# FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+ FFLAGS = -O3 -ip -ipo -ftz
+#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p

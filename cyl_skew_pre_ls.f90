@@ -46,32 +46,24 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-!integer, parameter :: nproc=4
-!integer, parameter :: nx=64,ny=64,nz=(64+5+(nproc-1)-1)/nproc + 1
-!integer, parameter :: nz_tot = (nz - 1) * nproc + 1
-!double precision, parameter :: L_x = 4., dx=L_x/(Nx-1)
-!double precision, parameter :: L_y = 4., dy=L_y/(Ny-1)
-!double precision, parameter :: L_z = 3.587301587301587302, dz = L_z/(Nz-1./2.)
-!double precision, parameter :: L_z = 4./nproc, dz = nproc*L_z/(nz_tot-1./2.)
-
 double precision, parameter :: pi = dacos(-1.)
 double precision, parameter :: BOGUS = 1234567890.
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 30.*pi/180.
-double precision, parameter :: skew_angle = 0.*pi/180.
+double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
-integer, parameter :: ntrunk = 1
+integer, parameter :: ntrunk = 3
 integer, parameter :: ngen = 1
 double precision, parameter :: d = 0.6227, l = 1.5411
 double precision, parameter :: offset = 0.19459
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .false. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 5.*dz
-double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., (nproc*L_z - l)/2. /)
+double precision, parameter :: z_bottom_surf = 8.*dz
+double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
 
 logical :: DEBUG=.false.
 
