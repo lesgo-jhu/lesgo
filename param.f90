@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -53,12 +53,14 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 100
+  integer, parameter :: nsteps = 8000
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i/nproc
+  real(rprec),parameter::L_x=4.*z_i
+  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x
+  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1)*L_x/nproc
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
   real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
