@@ -56,13 +56,13 @@ double precision, parameter :: skew_angle = 45.*pi/180.
 double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 1
+integer, parameter :: ngen = 3
 double precision, parameter :: d = 0.6227, l = 1.5411
 double precision, parameter :: offset = 0.19459
 double precision, parameter :: scale_fact = 0.5
 
-logical, parameter :: use_bottom_surf = .false. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 8.*dz
+logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
+double precision, parameter :: z_bottom_surf = 5.*dz
 double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
 
 logical :: DEBUG=.false.
