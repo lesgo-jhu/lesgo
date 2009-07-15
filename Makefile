@@ -52,18 +52,20 @@ OPATH = obj
 MPATH = mod
 
 ifeq ($(FCOMP),ifort)
+  
   FPP += -DIFORT
-ifeq ($(USE_MPI), yes)
-  FC = mpif90
-else
-  FC = ifort
-endif
+  
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = ifort
+  endif
 
-#  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
-#  FFLAGS = -fast
-#  FFLAGS = -O3 -ipo
- FFLAGS = -O3 -ip -ipo -ftz
-#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+  #FFLAGS = -fast
+  #FFLAGS = -O3 -ipo
+  FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
@@ -71,15 +73,16 @@ endif
   CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
 endif
 
 ifeq ($(FCOMP),gfortran)
   FPP += -DGFORTRAN
-ifeq ($(USE_MPI), yes)
-  FC = mpif90
-else
-  FC = gfortran
-endif
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = gfortran
+  endif
   FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
@@ -88,7 +91,6 @@ endif
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
   CYLINDER_SKEW_FFLAGS += -fdefault-real-8 -fdefault-double-8
-
 endif
 
 ifeq ($(FCOMP),xlf)
