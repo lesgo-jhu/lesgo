@@ -17,7 +17,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -69,11 +69,7 @@ endif
   FPROF = -p
   LDFLAGS = -threads -shared-intel
   CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
-  ifeq ($(USE_MPI), yes)
-    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
-  else
-    MODDIR = -I$(MPATH) -module $(MPATH)
-  endif
+  MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
 endif
 
