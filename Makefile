@@ -9,8 +9,8 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-FCOMP = ifort
-LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/ -L/home/jgraham/lib
+FCOMP = xlf
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -27,6 +27,7 @@ USE_TREES_LS = no
 USE_LVLSET = yes
 
 FPP = fpx3
+
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
   LIBS += -lmpichf90 -lfmpich -lmpich
@@ -94,6 +95,42 @@ endif
 
 endif
 
+ifeq ($(FCOMP),xlf)
+  FPP += -DXLF
+  ifeq ($(USE_MPI), yes)
+    FC = mpxlf95_r
+  else
+    FC = xlf95_r
+  endif
+  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
+  FFLAGS = -qstrict -qsuffix=f=f90 -O3
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
+  #find out details of how things are stored
+  #FFLAGS += -qsource -qattr=full -qxref=full
+  #ifeq ($(USE_OPENMP), yes)
+    #FFLAGS += -qsmp=omp
+  #endif
+  #FDEBUG = -g
+  #FPROF = -p
+  ifeq ($(q64),yes)
+    FFLAGS += -q64 -qarch
+    LDFLAGS =
+    LIBPATH =
+    LIBS =
+  else
+    #LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000
+    ## NOTE: you'll need to modify this!
+    ## or specify on command line
+    #LIBPATH = -L${HOME}/fftw/fftw2/lib
+    #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
+    LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+  endif
+  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
+  FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -qautodbl=dbl4 -qrealsize=8
+endif
+
 ifeq ($(FCOMP),g95)
   FPP += -DG95
   FC = g95
@@ -137,7 +174,7 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
-CYLINDER_SKEW_SRCS = param.f90 cylinder_skew.f90
+CYLINDER_SKEW_SRCS = cylinder_skew.f90
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
