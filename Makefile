@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-FCOMP = xlf
+FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -17,7 +17,7 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
