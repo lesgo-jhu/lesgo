@@ -1,6 +1,7 @@
 !**********************************************************************
 module cylinder_skew_defs
 !**********************************************************************
+use types, only : rprec
 use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
 
 implicit none
@@ -46,14 +47,13 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-double precision, parameter :: pi = dacos(-1.)
-double precision, parameter :: BOGUS = 1234567890.
+double precision, parameter :: pi = dacos(-1._rprec)
+double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 30.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
-double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
 integer, parameter :: ngen = 3
