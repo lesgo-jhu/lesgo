@@ -263,8 +263,12 @@ endif
 do ng=1,ngen
   bplane(ng)=ebgcs_t(ng)%xyz(3,1)
   tplane(ng)=etgcs_t(ng)%xyz(3,1)
-  write(*,*) 'generation # : ', ng
-  write(*,*) 'tplane and bplane = ', bplane(ng), tplane(ng)
+
+  if(mpirank == 0) then
+    write(*,*) 'generation # : ', ng
+    write(*,*) 'bplane and tplane = ', bplane(ng), tplane(ng)
+  endif
+
 enddo
 
 return 
