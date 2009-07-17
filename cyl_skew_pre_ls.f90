@@ -171,7 +171,7 @@ enddo
 
 ng=1 !  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = zrot_angle + 2.pi*(nt-1)/ntrunk
+  zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
   zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
   if(DEBUG .and. mpirank == 0) then
     write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
