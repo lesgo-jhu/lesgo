@@ -150,12 +150,14 @@ do ng=1,ngen
   if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
   crad(ng) = gen_scale_fact*d/2.
   clen(ng) = gen_scale_fact*l
-  rad_offset = gen_scale_fact*offset
+  rad_offset(ng) = gen_scale_fact*offset
 enddo
 a = crad/dcos(skew_angle)
 b = crad
 
-if(DEBUG) then
+if(DEBUG .and. mpirank == 0) then
+  write(*,*) 'skew_angle : ', skew_angle
+  write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
   write(*,*) 'ntrunk 	 : ', ntrunk
   write(*,*) 'crad 	 : ', crad
   write(*,*) 'clen 	 : ', clen
@@ -169,9 +171,9 @@ enddo
 
 ng=1 !  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = zrot_angle + (360./ntrunk)*(nt-1)*pi/180.
+  zrot_t(ng)%angle(nt) = zrot_angle + 2.pi*(nt-1)/ntrunk
   zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
-  if(DEBUG) then
+  if(DEBUG .and. mpirank == 0) then
     write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
     write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
   endif
