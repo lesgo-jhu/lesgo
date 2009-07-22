@@ -24,7 +24,7 @@ USE_DYNALLOC = no
     #--still experimental
 
 USE_TREES_LS = no
-USE_LVLSET = yes
+USE_LVLSET = no
 
 FPP = fpx3
 
@@ -70,7 +70,6 @@ ifeq ($(FCOMP),ifort)
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
-  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
   CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
