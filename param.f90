@@ -58,7 +58,9 @@ module param
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i, L_y=4.*z_i, L_z=4.*z_i/nproc
+  real(rprec),parameter::L_x=4.*z_i
+  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x
+  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1)*L_x/nproc
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
   real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
@@ -71,7 +73,7 @@ module param
   logical, parameter :: ic_const = .false.
   real (rprec), parameter :: u_ic = 10.0/u_star, v_ic=0., w_ic=0.
 
-  real (rprec), parameter :: dt = 2.e-4
+  real (rprec), parameter :: dt = 1.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
@@ -113,8 +115,6 @@ module param
   !Co and nnn are used in the mason model for smagorisky coeff
   integer,parameter::model=1,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
-  !  This was not originally here
-  real(kind=rprec),parameter::cs=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2

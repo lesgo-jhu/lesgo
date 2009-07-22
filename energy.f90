@@ -3,6 +3,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use messages
+use functions, only : interp_to_uv_grid
 $if ($XLF)
   use ieee_arithmetic  !--for NAN checking
 $endif
@@ -38,8 +39,9 @@ z_loop: do jz=1,nz-1
     do jy=1,ny
         do jx=1,nx
 
-            temp_w=.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
-            ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)/denom
+!            temp_w=.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
+!            ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)/denom
+            ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+interp_to_uv_grid('w',jx,jy,jz)**2)/denom
  
             if (DEBUG) then
                 $if ($IFORT || $IFC)

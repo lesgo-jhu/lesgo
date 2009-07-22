@@ -1,6 +1,8 @@
 !**********************************************************************
 module cylinder_skew_defs
 !**********************************************************************
+use types, only : rprec
+use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
 
 implicit none
 
@@ -18,12 +20,13 @@ type cs1
 end type cs1
 
 type cs2
-    double precision, allocatable, dimension(:,:) :: xyz
+    !double precision, allocatable, dimension(:,:) :: xyz
+  double precision, pointer, dimension(:,:) :: xyz
 end type cs2
 
 type rot
-  double precision, allocatable, dimension(:) :: angle
-  double precision, allocatable, dimension(:,:) :: axis
+  double precision, pointer, dimension(:) :: angle
+  double precision, pointer, dimension(:,:) :: axis
 end type rot
 
 !type vector0
@@ -44,32 +47,23 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-integer, parameter :: nproc=4
-integer, parameter :: nx=64,ny=64,nz=(64+5+(nproc-1)-1)/nproc + 1
-integer, parameter :: nz_tot = (nz - 1) * nproc + 1
-double precision, parameter :: Lx = 4., dx=Lx/(Nx-1)
-double precision, parameter :: Ly = 4., dy=Ly/(Ny-1)
-!double precision, parameter :: Lz = 3.587301587301587302, dz = Lz/(Nz-1./2.)
-double precision, parameter :: Lz = 4./nproc, dz = nproc*Lz/(nz_tot-1./2.)
-
-double precision, parameter :: pi = dacos(-1.)
-double precision, parameter :: BOGUS = 1234567890.
+double precision, parameter :: pi = dacos(-1._rprec)
+double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 30.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
-double precision, parameter :: thresh = 0.D+00
 
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 1
-double precision, parameter :: d = 0.6227, l = 2.*d
-double precision, parameter :: offset = 0.1946
+integer, parameter :: ngen = 5
+double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
+double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 5.*dz
-double precision, dimension(3), parameter :: origin=(/ Lx/2., Ly/2., z_bottom_surf /)
+double precision, parameter :: z_bottom_surf = 10.*dz
+double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
 
 logical :: DEBUG=.false.
 
@@ -156,12 +150,14 @@ do ng=1,ngen
   if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
   crad(ng) = gen_scale_fact*d/2.
   clen(ng) = gen_scale_fact*l
-  rad_offset = gen_scale_fact*offset
+  rad_offset(ng) = gen_scale_fact*offset
 enddo
 a = crad/dcos(skew_angle)
 b = crad
 
-if(DEBUG) then
+if(DEBUG .and. mpirank == 0) then
+  write(*,*) 'skew_angle : ', skew_angle
+  write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
   write(*,*) 'ntrunk 	 : ', ntrunk
   write(*,*) 'crad 	 : ', crad
   write(*,*) 'clen 	 : ', clen
@@ -175,9 +171,9 @@ enddo
 
 ng=1 !  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = zrot_angle + (360./ntrunk)*(nt-1)*pi/180.
+  zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
   zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
-  if(DEBUG) then
+  if(DEBUG .and. mpirank == 0) then
     write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
     write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
   endif
@@ -190,7 +186,12 @@ do nt=1,ntrunk
   lgcs_t(ng)%xyz(1,nt) = lgcs_t(ng)%xyz(1,nt) + rad_offset(ng)*dcos(zrot_t(ng)%angle(nt))
   lgcs_t(ng)%xyz(2,nt) = lgcs_t(ng)%xyz(2,nt) + rad_offset(ng)*dsin(zrot_t(ng)%angle(nt))
 
-  if(DEBUG) write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+  if(DEBUG .and. mpirank == 0 ) then
+    write(*,*) ''
+    write(*,*) 'nt = ', nt
+    write(*,*) 'origin : ', origin
+    write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+  endif
 
   !  Set the center point of the bottom ellipse
   ebgcs_t(ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
@@ -264,8 +265,12 @@ endif
 do ng=1,ngen
   bplane(ng)=ebgcs_t(ng)%xyz(3,1)
   tplane(ng)=etgcs_t(ng)%xyz(3,1)
-  write(*,*) 'generation # : ', ng
-  write(*,*) 'tplane and bplane = ', bplane(ng), tplane(ng)
+
+  if(mpirank == 0) then
+    write(*,*) 'generation # : ', ng
+    write(*,*) 'bplane and tplane = ', bplane(ng), tplane(ng)
+  endif
+
 enddo
 
 return 
@@ -453,7 +458,7 @@ call rotation_axis_vector_3d(zrot_axis, &
   vgcs_t%xyz, &
   ecs_t%xyz)
 eck = ecs_t%xyz(1)**2/a(ng)**2 + ecs_t%xyz(2)**2/b(ng)**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > bplane(ng)) in_cyl_top=.true. !  Could be below or above
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > (tplane(ng) + bplane(ng))/2.) in_cyl_top=.true. !  Could be below or above
 
 !  Check if point lies in bottom ellipse
 vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
@@ -462,7 +467,7 @@ call rotation_axis_vector_3d(zrot_axis, &
   vgcs_t%xyz, &
   ecs_t%xyz)
 eck = ecs_t%xyz(1)**2/a(ng)**2 + ecs_t%xyz(2)**2/b(ng)**2
-if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < tplane(ng)) in_cyl_bottom=.true. !  Could be below or above
+if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < (tplane(ng) + bplane(ng))/2.) in_cyl_bottom=.true. !  Could be below or above
 
 return
 end subroutine pt_loc
@@ -500,8 +505,8 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
     gcs_t(i,j,k)%itype = 2
     call set_iset(i,j,k)
   endif
-endif
-!else
+!endif
+else
 !    if(below_cyl .and. in_cyl_bottom) then
 if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) then
   if(in_cyl_bottom .or. sgcs_t%xyz(3) <= bplane(ng)) then
@@ -543,7 +548,7 @@ elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
   endif
 
 endif
-
+endif
   !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
 if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
 
@@ -582,7 +587,7 @@ if(ng == 1) then
       gcs_t(i,j,k)%itype = 0
       call set_iset(i,j,k)
     endif
-  elseif(.not. use_bottom_surf) then
+  elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
@@ -663,6 +668,8 @@ integer :: i,j,k
 
 integer, pointer, dimension(:,:,:) :: brindex
 double precision, pointer, dimension(:,:,:) :: phi
+
+if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'cylinder_skew.dat'

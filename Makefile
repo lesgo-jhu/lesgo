@@ -9,16 +9,15 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-ARCH = linux_intel
 FCOMP = ifort
-LIBPATH = -L/opt/fftw-2.1.5/lib -L/opt/mpich2-1.1-ifort/lib/
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
     #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -28,9 +27,10 @@ USE_TREES_LS = no
 USE_LVLSET = no
 
 FPP = fpx3
+
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
-  LIBS += -lmpichf90 -lmpichf90 -lfmpich -lmpich
+  LIBS += -lmpichf90 -lfmpich -lmpich
 endif
 
 ifeq ($(USE_DYNALLOC),yes)
@@ -52,42 +52,81 @@ OPATH = obj
 MPATH = mod
 
 ifeq ($(FCOMP),ifort)
+  
   FPP += -DIFORT
-ifeq ($(USE_MPI), yes)
-  FC = mpif90
-else
-  FC = ifort
-endif
+  
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = ifort
+  endif
 
-#  FFLAGS = -O0 -traceback -g -r8
-  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
-#  FFLAGS = -fast
-#  FFLAGS = -O3 -ipo
-# FFLAGS = -O3 -r8 -ip -ipo -ftz
-#  FFLAGS = -O2 
-#  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+  #FFLAGS = -fast
+  #FFLAGS = -O3 -ipo
+  FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
-  ifeq ($(USE_MPI), yes)
-    MODDIR = -I/opt/mpich2-1.1-ifort/include -I$(MPATH) -module /opt/mpich2-1.1-ifort/include -module $(MPATH)  
-  else
-    MODDIR = -I$(MPATH) -module $(MPATH)
-  endif
+  MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
 endif
 
 ifeq ($(FCOMP),gfortran)
   FPP += -DGFORTRAN
-  FC = gfortran
-  FFLAGS = -O2
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = gfortran
+  endif
+  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = -static -nothreads
+  LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
+  CYLINDER_SKEW_FFLAGS += -fdefault-real-8 -fdefault-double-8
+endif
+
+ifeq ($(FCOMP),xlf)
+  FPP += -DXLF
+  ifeq ($(USE_MPI), yes)
+    FC = mpxlf95_r
+  else
+    FC = xlf95_r
+  endif
+  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
+  FFLAGS = -qstrict -qsuffix=f=f90 -O3
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
+  #find out details of how things are stored
+  #FFLAGS += -qsource -qattr=full -qxref=full
+  #ifeq ($(USE_OPENMP), yes)
+    #FFLAGS += -qsmp=omp
+  #endif
+  #FDEBUG = -g
+  #FPROF = -p
+  ifeq ($(q64),yes)
+    FFLAGS += -q64 -qarch
+    LDFLAGS =
+    LIBPATH =
+    LIBS =
+  else
+    #LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000
+    ## NOTE: you'll need to modify this!
+    ## or specify on command line
+    #LIBPATH = -L${HOME}/fftw/fftw2/lib
+    #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
+    LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+  endif
+  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
+  FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) 
+  #-qautodbl=dbl4 -qrealsize=8
 endif
 
 ifeq ($(FCOMP),g95)
@@ -133,6 +172,8 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
+CYLINDER_SKEW_SRCS = cylinder_skew.f90
+
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
 endif
@@ -167,8 +208,8 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew: cylinder_skew.f90
-	$(FC) -o $@ $(FFLAGS) -lgeometry $<
+cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
+	$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
