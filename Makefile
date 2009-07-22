@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 EXE = lesgo
-FCOMP = ifort
+FCOMP = xlf
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -126,7 +126,8 @@ ifeq ($(FCOMP),xlf)
   endif
   MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)
-  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -qautodbl=dbl4 -qrealsize=8
+  CYLINDER_SKEW_FFLAGS = $(FFLAGS) 
+  #-qautodbl=dbl4 -qrealsize=8
 endif
 
 ifeq ($(FCOMP),g95)
