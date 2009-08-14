@@ -55,15 +55,16 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 30.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
 
+integer, parameter :: ntree = 2
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 5
+integer, parameter :: ngen = 1
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 double precision, parameter :: z_bottom_surf = 10.*dz
-double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
+double precision, dimension(3,ntree) :: origin
 
 logical :: DEBUG=.false.
 
@@ -91,12 +92,15 @@ end module mpi2
 !**************************************************************
 program cylinder_skew
 !***************************************************************
-
+use cylinder_skew_defs, only : ntree
 implicit none
 
-call initialize() 
+integer :: ntr
 
-call main_loop()
+do ntr = 1,ntree
+  call initialize(ntr) 
+  call main_loop()
+enddo 
 
 call finalize()
 
@@ -106,7 +110,7 @@ stop
 end program cylinder_skew
 
 !**********************************************************************
-subroutine initialize()
+subroutine initialize(ntr)
 !**********************************************************************
 use mpi
 use mpi2
@@ -114,82 +118,88 @@ use cylinder_skew_defs
 
 implicit none
 
+integer, intent(IN) :: ntr
+
 integer :: ng,nt,i,j,k,istart,iend
 double precision :: gen_scale_fact
 
-call initialize_mpi ()
+!  Set tree origins
+origin(:,1)=(/ 2., L_y/2., z_bottom_surf /)
+origin(:,2)=(/ 2. + L_x/2., L_y/2., z_bottom_surf /)
 
-call allocate_arrays()
-
-call generate_grid()
+if(ntr == 1) then
+  call initialize_mpi ()
+  call allocate_arrays()
+  call generate_grid()
 
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = BOGUS
+  gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindex=1
+  gcs_t(:,:,:)%brindex=1
 
 !  Initialize the iset flag
-gcs_t(:,:,:)%iset=0
+  gcs_t(:,:,:)%iset=0
 
 !  Initialize the point to surface association
-gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
+  gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
 
-if(use_bottom_surf) then
-  gcs_t(:,:,:)%itype=-1
+  if(use_bottom_surf) then
+    gcs_t(:,:,:)%itype=-1
 !  Loop over all global coordinates
-  do k=0,Nz
-    gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
-    if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
-  enddo
-endif
+    do k=0,Nz
+      gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
+      if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
+    enddo
+  endif
 
 !  Set cylinder parameters for all generations
-do ng=1,ngen
-  gen_scale_fact = scale_fact**(ng-1)
-  if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
-  crad(ng) = gen_scale_fact*d/2.
-  clen(ng) = gen_scale_fact*l
-  rad_offset(ng) = gen_scale_fact*offset
-enddo
-a = crad/dcos(skew_angle)
-b = crad
+  do ng=1,ngen
+    gen_scale_fact = scale_fact**(ng-1)
+    if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
+    crad(ng) = gen_scale_fact*d/2.
+    clen(ng) = gen_scale_fact*l
+    rad_offset(ng) = gen_scale_fact*offset
+  enddo
+  a = crad/dcos(skew_angle)
+  b = crad
 
-if(DEBUG .and. mpirank == 0) then
-  write(*,*) 'skew_angle : ', skew_angle
-  write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
-  write(*,*) 'ntrunk 	 : ', ntrunk
-  write(*,*) 'crad 	 : ', crad
-  write(*,*) 'clen 	 : ', clen
-  write(*,*) 'rad_offset : ', rad_offset
-endif
+  if(DEBUG .and. mpirank == 0) then
+    write(*,*) 'skew_angle : ', skew_angle
+    write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
+    write(*,*) 'ntrunk 	 : ', ntrunk
+    write(*,*) 'crad 	 : ', crad
+    write(*,*) 'clen 	 : ', clen
+    write(*,*) 'rad_offset : ', rad_offset
+  endif
 
 !  Set rotation angle about z-axis with which the skew angle is applied 
-do ng=1,ngen
-  zrot_t(ng)%angle(:)=0.
-enddo
+  do ng=1,ngen
+    zrot_t(ng)%angle(:)=0.
+  enddo
 
-ng=1 !  Do for the 1st generation (ng = 1)
-do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
-  zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
-  if(DEBUG .and. mpirank == 0) then
-    write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
-    write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
-  endif
-enddo
+  ng=1 !  Do for the 1st generation (ng = 1)
+  do nt=1,ntrunk
+    zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
+    zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
+    if(DEBUG .and. mpirank == 0) then
+      write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
+      write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
+    endif
+  enddo
+endif
 
 ng=1 !  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
 !  Set the local coordinate system
-  lgcs_t(ng)%xyz(:,nt) = origin
+  lgcs_t(ng)%xyz(:,nt) = origin(:,ntr)
   lgcs_t(ng)%xyz(1,nt) = lgcs_t(ng)%xyz(1,nt) + rad_offset(ng)*dcos(zrot_t(ng)%angle(nt))
   lgcs_t(ng)%xyz(2,nt) = lgcs_t(ng)%xyz(2,nt) + rad_offset(ng)*dsin(zrot_t(ng)%angle(nt))
 
   if(DEBUG .and. mpirank == 0 ) then
     write(*,*) ''
     write(*,*) 'nt = ', nt
-    write(*,*) 'origin : ', origin
+    write(*,*) 'origin : ', origin(:,ntr)
     write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
   endif
 
