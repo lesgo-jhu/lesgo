@@ -55,9 +55,9 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 180.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
 
-integer, parameter :: ntree = 6
+integer, parameter :: ntree = 1
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 1
+integer, parameter :: ngen = 3
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
@@ -126,12 +126,12 @@ integer :: ng,nt,i,j,k,istart,iend
 double precision :: gen_scale_fact
 
 !  Set tree origins
-origin(:,1)=(/ 0., 0., z_bottom_surf /)
-origin(:,2)=(/ 0., L_y, z_bottom_surf /)
-origin(:,3)=(/ L_x, 0., z_bottom_surf /)
-origin(:,4)=(/ L_x, L_y, z_bottom_surf /)
-origin(:,5)=(/ L_x/2., L_y/2., z_bottom_surf /)
-origin(:,6)=(/ L_x/2.+L_x, L_y/2., z_bottom_surf /)
+origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
+!origin(:,2)=(/ 0., L_y, z_bottom_surf /)
+!origin(:,3)=(/ L_x, 0., z_bottom_surf /)
+!origin(:,4)=(/ L_x, L_y, z_bottom_surf /)
+!origin(:,5)=(/ L_x/2., 2.*cos(30.*pi/180.), z_bottom_surf /)
+!origin(:,6)=(/ L_x/2., 2.*cos(30.*pi/180.) + 4., z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
@@ -184,43 +184,43 @@ if(ntr == 1) then
     zrot_t(ng)%angle(:)=0.
   enddo
 
-  ng=1 !  Do for the 1st generation (ng = 1)
+!  Do for the 1st generation (ng = 1)
   do nt=1,ntrunk
-    zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
-    zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
+    zrot_t(1)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
+    zrot_t(1)%axis(:,nt) = (/dcos(zrot_t(1)%angle(nt)+pi/2.),dsin(zrot_t(1)%angle(nt)+pi/2.),0./)
     if(DEBUG .and. mpirank == 0) then
-      write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
-      write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
+      write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(1)%angle(nt)*180./pi
+      write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(1)%axis(:,nt)
     endif
   enddo
 endif
 
-ng=1 !  Do for the 1st generation (ng = 1)
+!  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
 !  Set the local coordinate system
-  lgcs_t(ng)%xyz(:,nt) = origin(:,ntr)
-  lgcs_t(ng)%xyz(1,nt) = lgcs_t(ng)%xyz(1,nt) + rad_offset(ng)*dcos(zrot_t(ng)%angle(nt))
-  lgcs_t(ng)%xyz(2,nt) = lgcs_t(ng)%xyz(2,nt) + rad_offset(ng)*dsin(zrot_t(ng)%angle(nt))
+  lgcs_t(1)%xyz(:,nt) = origin(:,ntr)
+  lgcs_t(1)%xyz(1,nt) = lgcs_t(1)%xyz(1,nt) + rad_offset(1)*dcos(zrot_t(1)%angle(nt))
+  lgcs_t(1)%xyz(2,nt) = lgcs_t(1)%xyz(2,nt) + rad_offset(1)*dsin(zrot_t(1)%angle(nt))
 
   if(DEBUG .and. mpirank == 0 ) then
     write(*,*) ''
     write(*,*) 'nt = ', nt
     write(*,*) 'origin : ', origin(:,ntr)
-    write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+    write(*,*) 'lgcs_t(1)%xyz(:,nt) : ', lgcs_t(1)%xyz(:,nt)
   endif
 
   !  Set the center point of the bottom ellipse
-  ebgcs_t(ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
+  ebgcs_t(1)%xyz(:,nt)=lgcs_t(1)%xyz(:,nt)
   !  Compute the center point of the top ellipse in the gcs
-  call rotation_axis_vector_3d(zrot_t(ng)%axis(:,nt), &
+  call rotation_axis_vector_3d(zrot_t(1)%axis(:,nt), &
     skew_angle, &
-    (/0., 0., clen(ng)/), &
-    etgcs_t(ng)%xyz(:,nt))
-  etgcs_t(ng)%xyz(:,nt) = etgcs_t(ng)%xyz(:,nt) + ebgcs_t(ng)%xyz(:,nt)
+    (/0., 0., clen(1)/), &
+    etgcs_t(1)%xyz(:,nt))
+  etgcs_t(1)%xyz(:,nt) = etgcs_t(1)%xyz(:,nt) + ebgcs_t(1)%xyz(:,nt)
   
   if(DEBUG) then
-    write(*,*) 'ebgcs_t(ng)%xyz(:,nt) : ', ebgcs_t(ng)%xyz(:,nt)
-    write(*,*) 'etgcs_t(ng)%xyz(:,nt) : ', etgcs_t(ng)%xyz(:,nt)
+    write(*,*) 'ebgcs_t(1)%xyz(:,nt) : ', ebgcs_t(1)%xyz(:,nt)
+    write(*,*) 'etgcs_t(1)%xyz(:,nt) : ', etgcs_t(1)%xyz(:,nt)
   endif
 
 enddo
@@ -288,6 +288,12 @@ do ng=1,ngen
   endif
 
 enddo
+
+!  Generate generation associations to be used in drag force calculations
+!  for each generation
+if(ntr == 1) then
+  call gen_assoc ()
+endif
 
 return 
 
@@ -372,6 +378,107 @@ enddo
      
 return
 end subroutine generate_grid
+
+!**********************************************************************
+subroutine gen_assoc()
+!**********************************************************************
+use param, only : nz,dz
+use cylinder_skew_defs, only : ngen, gcs_t, bplane, tplane
+
+implicit none
+character(64) :: fname, temp
+integer :: ng, k
+
+integer, dimension(:), allocatable :: igen, kstart, kstart_inside, kend, kend_inside
+double precision, dimension(:), allocatable :: gcs_w, dz_start, dz_end
+
+allocate(gcs_w(nz))
+allocate(igen(ngen))
+allocate(kstart(ngen), kstart_inside(ngen))
+allocate(kend(ngen), kend_inside(ngen))
+allocate(dz_start(ngen), dz_end(ngen))
+
+
+!  Create w-grid (physical grid)
+do k=1,nz
+  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz
+enddo
+
+do ng=1,ngen
+  if(bplane(ng) < gcs_w(1) .and. tplane(ng) < gcs_w(1)) then
+    igen(ng) = -1
+    kstart(ng) = -1
+    kend(ng) = -1
+    kstart_inside(ng) = 0
+    kend_inside(ng) = 0
+    dz_start(ng) = 0.
+    dz_end(ng) = 0.
+  elseif(bplane(ng) > gcs_w(nz) .and. tplane(ng) > gcs_w(nz)) then
+    igen(ng) = -1
+    kstart(ng) = -1
+    kend(ng) = -1
+    kstart_inside(ng) = 0
+    kend_inside(ng) = 0
+    dz_start(ng) = 0.
+    dz_end(ng) = 0.
+  else
+    igen(ng) = ng
+  !  Perform kstart, kstart_inside, kend, kend_inside search
+    if(bplane(ng) < gcs_w(1)) then
+      kstart(ng) = -1
+      kstart_inside(ng) = 0
+      dz_start(ng) = 0.
+    else
+      isearch_bottom: do k=2,nz
+        if(gcs_w(k) > bplane(ng)) then
+          kstart(ng) = k-1
+          kstart_inside(ng) = 1
+          dz_start(ng) = bplane(ng) - gcs_w(k-1)
+          exit isearch_bottom
+        endif
+      enddo isearch_bottom
+    endif
+    if(tplane(ng) > gcs_w(nz)) then
+      kend(ng) = -1
+      kend_inside(ng) = 0
+      dz_end(ng) = 0.
+    else
+      isearch_top: do k=2,nz
+        if(gcs_w(k) >= tplane(ng)) then
+          kend(ng) = k-1
+          kend_inside(ng) = 1
+          dz_end(ng) = tplane(ng) - gcs_w(k-1)
+          exit isearch_top
+        endif
+      enddo isearch_top
+    endif
+  endif
+enddo
+
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew_gen.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+do ng=1,ngen
+  write(2,*) igen(ng), kstart_inside(ng), kstart(ng), dz_start(ng), kend_inside(ng), kend(ng), dz_end(ng)
+enddo
+close(2)
+
+deallocate(gcs_w)
+deallocate(igen)
+deallocate(kstart, kstart_inside)
+deallocate(kend, kend_inside)
+deallocate(dz_start, dz_end)
+
+return
+end subroutine gen_assoc
 
 end subroutine initialize
 
@@ -775,6 +882,8 @@ else
   write(1) brindex(:,:,1:nz)
 endif
 close (1)
+
+
 
 return
 end subroutine write_output
