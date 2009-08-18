@@ -52,18 +52,18 @@ double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: zrot_angle = 30.*pi/180.
+double precision, parameter :: zrot_angle = 180.*pi/180.
 double precision, parameter :: skew_angle = 45.*pi/180.
 
-integer, parameter :: ntree = 5
+integer, parameter :: ntree = 6
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 2
+integer, parameter :: ngen = 1
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 10.*dz
+double precision, parameter :: z_bottom_surf = 4.*dz
 double precision, dimension(3,ntree) :: origin
 
 logical :: DEBUG=.false.
@@ -130,8 +130,8 @@ origin(:,1)=(/ 0., 0., z_bottom_surf /)
 origin(:,2)=(/ 0., L_y, z_bottom_surf /)
 origin(:,3)=(/ L_x, 0., z_bottom_surf /)
 origin(:,4)=(/ L_x, L_y, z_bottom_surf /)
-origin(:,5)=(/ L_x/2., 2.*cos(30.*pi/180.), z_bottom_surf /)
-origin(:,6)=(/ L_x/2., 2.*cos(30.*pi/180.) + 4., z_bottom_surf /)
+origin(:,5)=(/ L_x/2., L_y/2., z_bottom_surf /)
+origin(:,6)=(/ L_x/2.+L_x, L_y/2., z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
@@ -532,8 +532,11 @@ if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) the
     !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-    !call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+    $if ($ELLIPSE)
+      call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+    $else
+      call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+    $endif
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -554,8 +557,11 @@ elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  !call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-  call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $if ($ELLIPSE)
+    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $else
+    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $endif
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -575,8 +581,11 @@ if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  !call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-  call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $if ($ELLIPSE)
+    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $else
+    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $endif
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
