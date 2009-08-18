@@ -24,7 +24,8 @@ USE_DYNALLOC = no
     #--still experimental
 
 USE_TREES_LS = no
-USE_LVLSET = no
+USE_LVLSET = yes
+USE_ELLIPSE = yes
 
 FPP = fpx3
 
@@ -43,6 +44,10 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
+endif
+
+ifeq ($(USE_ELLIPSE), yes)
+  FPP += -DELLIPSE
 endif
 
 # Directory for the .o files
@@ -209,7 +214,8 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
-	$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
+	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry t.$<
+#$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
