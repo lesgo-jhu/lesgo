@@ -290,10 +290,6 @@ do ng=1,ngen
 enddo
 
 
-if(ntr == 1) then
-  call gen_assoc ()
-endif
-
 return 
 
 contains
@@ -895,7 +891,8 @@ deallocate(ktop, ktop_inside)
 deallocate(dz_bottom, dz_top)
 
 return
-contains
+
+end subroutine gen_assoc
 
 !**********************************************************************
 subroutine point_assoc()
@@ -903,6 +900,7 @@ subroutine point_assoc()
 
 implicit none
 
+character(64) :: fname, temp
 integer :: i,j,k
 
 !  Open file which to write global data
@@ -928,10 +926,6 @@ close(2)
 
 return
 end subroutine point_assoc
-
-
-end subroutine gen_assoc
-
 
 end subroutine finalize
 
