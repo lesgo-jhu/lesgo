@@ -19,13 +19,16 @@ q64 = no
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
-    #--not fully supported by all parts of the code
+
+#--not fully supported by all parts of the code
 USE_DYNALLOC = no
-    #--still experimental
+#--still experimental
+
+USE_LVLSET = yes
+USE_CYLINDER_SKEW = yes
+USE_ELLIPSE = yes
 
 USE_TREES_LS = no
-USE_LVLSET = yes
-USE_ELLIPSE = yes
 
 FPP = fpx3
 
@@ -44,6 +47,10 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
+endif
+
+ifeq ($(USE_CYLINDER_SKEW), yes)
+  FPP += -DCYLINDER_SKEW
 endif
 
 ifeq ($(USE_ELLIPSE), yes)
@@ -66,12 +73,12 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
 
-  #FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+  FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel=medium
+  #FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
@@ -150,7 +157,7 @@ SRCS =  \
 	bottombc.f90 \
         convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
-        dealias1.f90 dealias2.f90 debug_mod.f90 \
+        dealias1.f90 dealias2.f90 debug_mod.f90 defs.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
         fft.f90 filt_da.f90 forcing.f90 functions.f90 grid.f90 \

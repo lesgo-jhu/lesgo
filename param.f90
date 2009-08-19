@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=128,ny=128,nz=(128+8+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64+8+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -53,12 +53,13 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 10000
+  integer, parameter :: nsteps = 100
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=8.*z_i*dcos(30.*pi/180.)
+!  real(rprec),parameter::L_x=8.*z_i*dcos(30.*pi/180.)
+  real(rprec),parameter::L_x=4.*z_i
   real(rprec),parameter::L_y=4.*z_i
   real(rprec),parameter::L_z=4.*z_i/nproc
   !--L_z is not nondimensionalized by z_i yet

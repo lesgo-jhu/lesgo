@@ -1,5 +1,5 @@
 !**********************************************************************
-module cylinder_skew_defs
+module cylinder_skew_param
 !**********************************************************************
 use types, only : rprec
 use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
@@ -53,11 +53,11 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 180.*pi/180.
-double precision, parameter :: skew_angle = 45.*pi/180.
+double precision, parameter :: skew_angle = 0.*pi/180.
 
 integer, parameter :: ntree = 1
-integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 3
+integer, parameter :: ntrunk = 1
+integer, parameter :: ngen = 1
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
@@ -81,7 +81,7 @@ double precision, allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tpla
 double precision :: circk, dist, theta
 double precision :: eck
 
-end module cylinder_skew_defs
+end module cylinder_skew_param
 
 !**********************************************************************
 module mpi2
@@ -93,7 +93,7 @@ end module mpi2
 program cylinder_skew
 !***************************************************************
 use mpi2, only : mpirank
-use cylinder_skew_defs, only : DEBUG,ntree
+use cylinder_skew_param, only : DEBUG,ntree
 implicit none
 
 integer :: ntr
@@ -116,7 +116,7 @@ subroutine initialize(ntr)
 !**********************************************************************
 use mpi
 use mpi2
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -383,20 +383,20 @@ end subroutine generate_grid
 subroutine gen_assoc()
 !**********************************************************************
 use param, only : nz,dz
-use cylinder_skew_defs, only : ngen, gcs_t, bplane, tplane
+use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
 
 implicit none
 character(64) :: fname, temp
 integer :: ng, k
 
-integer, dimension(:), allocatable :: igen, kstart, kstart_inside, kend, kend_inside
-double precision, dimension(:), allocatable :: gcs_w, dz_start, dz_end
+integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
+double precision, dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
 
 allocate(gcs_w(nz))
 allocate(igen(ngen))
-allocate(kstart(ngen), kstart_inside(ngen))
-allocate(kend(ngen), kend_inside(ngen))
-allocate(dz_start(ngen), dz_end(ngen))
+allocate(kbottom(ngen), kbottom_inside(ngen))
+allocate(ktop(ngen), ktop_inside(ngen))
+allocate(dz_bottom(ngen), dz_top(ngen))
 
 
 !  Create w-grid (physical grid)
@@ -407,47 +407,47 @@ enddo
 do ng=1,ngen
   if(bplane(ng) < gcs_w(1) .and. tplane(ng) < gcs_w(1)) then
     igen(ng) = -1
-    kstart(ng) = -1
-    kend(ng) = -1
-    kstart_inside(ng) = 0
-    kend_inside(ng) = 0
-    dz_start(ng) = 0.
-    dz_end(ng) = 0.
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
   elseif(bplane(ng) > gcs_w(nz) .and. tplane(ng) > gcs_w(nz)) then
     igen(ng) = -1
-    kstart(ng) = -1
-    kend(ng) = -1
-    kstart_inside(ng) = 0
-    kend_inside(ng) = 0
-    dz_start(ng) = 0.
-    dz_end(ng) = 0.
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
   else
     igen(ng) = ng
-  !  Perform kstart, kstart_inside, kend, kend_inside search
+  !  Perform kbottom, kbottom_inside, ktop, ktop_inside search
     if(bplane(ng) < gcs_w(1)) then
-      kstart(ng) = -1
-      kstart_inside(ng) = 0
-      dz_start(ng) = 0.
+      kbottom(ng) = -1
+      kbottom_inside(ng) = 0
+      dz_bottom(ng) = 0.
     else
       isearch_bottom: do k=2,nz
         if(gcs_w(k) > bplane(ng)) then
-          kstart(ng) = k-1
-          kstart_inside(ng) = 1
-          dz_start(ng) = bplane(ng) - gcs_w(k-1)
+          kbottom(ng) = k-1
+          kbottom_inside(ng) = 1
+          dz_bottom(ng) = gcs_w(k) - bplane(ng)
           exit isearch_bottom
         endif
       enddo isearch_bottom
     endif
     if(tplane(ng) > gcs_w(nz)) then
-      kend(ng) = -1
-      kend_inside(ng) = 0
-      dz_end(ng) = 0.
+      ktop(ng) = -1
+      ktop_inside(ng) = 0
+      dz_top(ng) = 0.
     else
       isearch_top: do k=2,nz
         if(gcs_w(k) >= tplane(ng)) then
-          kend(ng) = k-1
-          kend_inside(ng) = 1
-          dz_end(ng) = tplane(ng) - gcs_w(k-1)
+          ktop(ng) = k-1
+          ktop_inside(ng) = 1
+          dz_top(ng) = tplane(ng) - gcs_w(k-1)
           exit isearch_top
         endif
       enddo isearch_top
@@ -466,16 +466,17 @@ endif
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
+write(2,*) ngen
 do ng=1,ngen
-  write(2,*) igen(ng), kstart_inside(ng), kstart(ng), dz_start(ng), kend_inside(ng), kend(ng), dz_end(ng)
+  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
 enddo
 close(2)
 
 deallocate(gcs_w)
 deallocate(igen)
-deallocate(kstart, kstart_inside)
-deallocate(kend, kend_inside)
-deallocate(dz_start, dz_end)
+deallocate(kbottom, kbottom_inside)
+deallocate(ktop, ktop_inside)
+deallocate(dz_bottom, dz_top)
 
 return
 end subroutine gen_assoc
@@ -485,7 +486,7 @@ end subroutine initialize
 !**********************************************************************
 subroutine main_loop()
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -527,7 +528,7 @@ end subroutine main_loop
 subroutine pt_loc(ng,nt,i,j,k)
 !**********************************************************************
 
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -598,7 +599,7 @@ end subroutine pt_loc
 !**********************************************************************
 subroutine assoc_cyl_loc(ng,nt,i,j,k)
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -739,7 +740,7 @@ end subroutine assoc_cyl_loc
 !**********************************************************************
 subroutine set_iset(i,j,k)
 !**********************************************************************
-use cylinder_skew_defs, only : gcs_t
+use cylinder_skew_param, only : gcs_t
 
 implicit none
 
@@ -758,7 +759,7 @@ end subroutine set_iset
 !**********************************************************************
 subroutine set_sign(i,j,k)
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -780,7 +781,7 @@ subroutine finalize()
 !**********************************************************************
 use mpi
 use mpi2
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 

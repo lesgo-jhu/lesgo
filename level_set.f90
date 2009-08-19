@@ -14,7 +14,8 @@ save
 private
 
 public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
-public :: level_set_cylinder_CD, level_set_smooth_vel, level_set_lag_dyn
+public :: level_set_cylinder_CD, level_set_cylinder_skew_CD
+public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
 public :: phi
 
@@ -2739,6 +2740,133 @@ end if
 
 end subroutine level_set_cylinder_CD
 
+!**********************************************************************
+subroutine level_set_cylinder_skew_CD ()
+!**********************************************************************
+use param, only : jt, dt
+use immersedbc, only : fx
+use sim_param, only : u
+use io, only : jt_total
+use cylinder_skew_defs
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.level_set_cylinder_skew_CD'
+character (*), parameter :: fCD_out = 'output/cylinder_skew_CD.dat'
+character(64) :: fname, temp
+
+integer, parameter :: lun = 991  !--keep open between calls
+integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
+
+real (rp), parameter :: Ap = 1._rp * 1._rp  !--projected area
+
+logical, save :: file_init = .false.
+logical :: opn, exst
+
+real (rp) :: CD
+real (rp) :: Uinf   !--velocity scale used in calculation of CD
+real (rp) :: fD     !--drag, lift force
+real (rp) :: Uinf_global
+
+integer :: k,ng
+integer :: kstart, kend
+
+real(rp) :: dz_start, dz_end
+
+!---------------------------------------------------------------------
+
+if (modulo (jt, n_calc_CD) /= 0) return  !--do nothing
+
+do ng=1,cylinder_skew_t%ngen
+  if(cylinder_skew_t%igen(ng) /= -1) then
+
+    fD=0.
+
+    !  Check if bottom is in proc domain
+    if(cylinder_skew_t%kbottom_inside(ng) == 1) then
+      kstart = cylinder_skew_t%kbottom(ng)
+      dz_start = cylinder_skew_t%dz_bottom(ng)
+    else
+      kstart = 1
+      dz_start = dz
+    endif
+
+    if(cylinder_skew_t%ktop_inside(ng) == 1) then
+      kend = cylinder_skew_t%ktop(ng)
+      dz_end = cylinder_skew_t%dz_bottom(ng)
+    else
+      kend = nz
+      dz_end = dz
+    endif
+
+     !--(-) since want force ON cylinder
+     !--dx*dy*dz is since force is per cell (unit volume)
+     !--may want to restrict this sum to points with phi < 0.
+    fD = fD - sum(fx(1:nx, :, kstart)) * dx * dy * dz_start
+    do k=kstart+1,kend-1
+      fD = fD - sum(fx(1:nx, :, k)) * dx * dy * dz
+    enddo
+    fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
+
+ 
+    Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
+
+    $if ($MPI)
+      call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
+        rank_of_coord(coord), comm, ierr)
+
+      Uinf_global = Uinf_global / nproc
+
+    $else
+
+      Uinf_global = Uinf
+
+    $endif
+
+    CD = fD / (0.5_rp * Ap * Uinf_global**2)
+
+
+    inquire (lun, exist=exst, opened=opn)
+
+    if (.not. exst) call error (sub_name, 'unit', lun, ' nonexistant')
+    if (opn) call error (sub_name, 'unit', lun, ' is already open')
+
+    !  Open file which to write global data
+    fname = trim(fCD_out)
+    write(temp,'(".g",i0)') ng
+    fname = trim (fname) // temp
+
+    $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+    $endif
+
+    open (lun, file=fname, position='append')
+
+    if (.not. file_init) then  !--set up file for output
+
+    !--write a header
+      write (lun, '(a,es12.5)') '# Ap = ', Ap
+      write (lun, '(a,es12.5)') 'Gen thickness = ', dz_start+(kend-kstart)*dz+dz_end
+      write (lun, '(a)') '# t, CD, fD, Uinf' 
+
+      file_init = .true.
+
+    end if
+
+
+    !--output to file
+    write (lun, '(4(es12.5,1x))') (jt_total * dt), CD, fD, Uinf_global
+
+    close (lun)  !--only do this to force a flush
+
+  end if
+
+enddo
+
+return
+end subroutine level_set_cylinder_skew_CD
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
 use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => nnn 
@@ -4521,7 +4649,55 @@ end if
 
 if (VERBOSE) call exit_sub (sub_name)
 
+$if ($CYLINDER_SKEW)
+call cylinder_skew_init ()
+$endif
+
 end subroutine level_set_init
+
+!**********************************************************************
+subroutine cylinder_skew_init()
+!**********************************************************************
+use param, only : coord
+use cylinder_skew_defs
+implicit none
+
+character(64) :: fname, temp
+integer :: ng
+integer :: ngen
+
+!  Open file which to write global data
+fname = path // 'cylinder_skew_gen.out'
+$if ($MPI)
+  write (temp, '(".c",i0)') coord
+  fname = trim (fname) // temp
+$endif
+
+!  Read in cylinder_skew_gen.dat file
+open (unit = 2,file = fname, status='old',form='formatted', &
+  action='read',position='rewind')
+read(2,*) cylinder_skew_t%ngen
+
+ngen = cylinder_skew_t%ngen
+
+allocate(cylinder_skew_t%igen(ngen))
+allocate(cylinder_skew_t%kbottom_inside(ngen))
+allocate(cylinder_skew_t%kbottom(ngen))
+allocate(cylinder_skew_t%dz_bottom(ngen))
+allocate(cylinder_skew_t%ktop_inside(ngen))
+allocate(cylinder_skew_t%ktop(ngen))
+allocate(cylinder_skew_t%dz_top(ngen))
+
+do ng=1,cylinder_skew_t%ngen
+  read(2,*) cylinder_skew_t%igen(ng), cylinder_skew_t%kbottom_inside(ng), cylinder_skew_t%kbottom(ng), &
+    cylinder_skew_t%dz_bottom(ng), cylinder_skew_t%ktop_inside(ng), cylinder_skew_t%ktop(ng), &
+    cylinder_skew_t%dz_top(ng)
+enddo
+close(2)
+
+return
+end subroutine cylinder_skew_init
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function cross_product (a, b)
