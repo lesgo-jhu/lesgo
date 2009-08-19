@@ -382,6 +382,12 @@ end subroutine generate_grid
 !**********************************************************************
 subroutine gen_assoc()
 !**********************************************************************
+!
+!  This subroutine is used to find where each generation lives at. The
+!  information created from this routine is used in lesgo for computing
+!  drag force data for individual generations. In order to use this
+!  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
+!           
 use param, only : nz,dz
 use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
 
