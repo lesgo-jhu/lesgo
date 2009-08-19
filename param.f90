@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(64+8+(nproc-1)-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64+4+(nproc-1)-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -72,7 +72,7 @@ module param
   
   !  U intialization for non-log profile IC
   logical, parameter :: ic_const = .false.
-  real (rprec), parameter :: u_ic = 10.0/u_star, v_ic=0., w_ic=0.
+  real (rprec), parameter :: u_ic = 0./u_star, v_ic=0., w_ic=0.
 
   real (rprec), parameter :: dt = 1.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
@@ -112,9 +112,9 @@ module param
   !Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !            4->Lagrangian scale-sim   5-> Lagragian scale-dep
   !Models type: 1->static prandtl, 2->Dynamic
+  integer,parameter::model=1,models=1,nnn=2
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
-  integer,parameter::model=1,models=1,nnn=2
   real(kind=rprec),parameter::Co=0.2_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
