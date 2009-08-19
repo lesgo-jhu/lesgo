@@ -2757,9 +2757,11 @@ character(64) :: fname, temp
 integer, parameter :: lun = 991  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
 
-real (rp), parameter :: Ap = 1._rp * 1._rp  !--projected area
+real (rp), parameter :: Ap = 3.*28.8*4./185.*50.4/cos(45.*3.14/180)*4./185.  !--projected area
+real (rp), parameter :: scale_fact = 0.5_rp
 
-logical, save :: file_init = .false.
+logical, save, dimension(10) :: file_init=.false. !  May want to change this to allocatable to
+                                                  !  match the generation number
 logical :: opn, exst
 
 real (rp) :: CD
@@ -2776,8 +2778,25 @@ real(rp) :: dz_start, dz_end
 
 if (modulo (jt, n_calc_CD) /= 0) return  !--do nothing
 
+!  The the global Uinf from the inlet plane
+Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
+
+$if ($MPI)
+  call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
+    rank_of_coord(coord), comm, ierr)
+
+  Uinf_global = Uinf / nproc
+
+$else
+
+  Uinf_global = Uinf
+
+$endif
+
 do ng=1,cylinder_skew_t%ngen
   if(cylinder_skew_t%igen(ng) /= -1) then
+    
+    Ap_gen = Ap*scale_fact**(2*(ng - 1))
 
     fD=0.
 
@@ -2794,7 +2813,7 @@ do ng=1,cylinder_skew_t%ngen
       kend = cylinder_skew_t%ktop(ng)
       dz_end = cylinder_skew_t%dz_bottom(ng)
     else
-      kend = nz
+      kend = nz-1 ! -1 to avoid interprocessor overlap
       dz_end = dz
     endif
 
@@ -2807,23 +2826,7 @@ do ng=1,cylinder_skew_t%ngen
     enddo
     fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
 
- 
-    Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
-
-    $if ($MPI)
-      !call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
-      !  rank_of_coord(coord), comm, ierr)
-
-      Uinf_global = Uinf / nproc
-
-    $else
-
-      Uinf_global = Uinf
-
-    $endif
-
-    CD = fD / (0.5_rp * Ap * Uinf_global**2)
-
+    CD = fD / (0.5_rp * Ap_gen * Uinf_global**2)
 
     inquire (lun, exist=exst, opened=opn)
 
@@ -2842,14 +2845,14 @@ do ng=1,cylinder_skew_t%ngen
 
     open (lun, file=fname, position='append')
 
-    if (.not. file_init) then  !--set up file for output
+    if (.not. file_init(ng)) then  !--set up file for output
 
     !--write a header
-      write (lun, '(a,es12.5)') '# Ap = ', Ap
+      write (lun, '(a,es12.5)') '# Ap = ', Ap_gen
       write (lun, '(a,es12.5)') 'Gen thickness = ', dz_start+(kend - kstart - 2)*dz+dz_end
       write (lun, '(a)') '# t, CD, fD, Uinf' 
 
-      file_init = .true.
+      file_init(ng) = .true.
 
     end if
 
