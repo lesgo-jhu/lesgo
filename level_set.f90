@@ -2811,10 +2811,10 @@ do ng=1,cylinder_skew_t%ngen
     Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
     $if ($MPI)
-      call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
-        rank_of_coord(coord), comm, ierr)
+      !call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
+      !  rank_of_coord(coord), comm, ierr)
 
-      Uinf_global = Uinf_global / nproc
+      Uinf_global = Uinf / nproc
 
     $else
 
@@ -2846,7 +2846,7 @@ do ng=1,cylinder_skew_t%ngen
 
     !--write a header
       write (lun, '(a,es12.5)') '# Ap = ', Ap
-      write (lun, '(a,es12.5)') 'Gen thickness = ', dz_start+(kend-kstart)*dz+dz_end
+      write (lun, '(a,es12.5)') 'Gen thickness = ', dz_start+(kend - kstart - 2)*dz+dz_end
       write (lun, '(a)') '# t, CD, fD, Uinf' 
 
       file_init = .true.
