@@ -2769,11 +2769,11 @@ real (rp) :: Uinf   !--velocity scale used in calculation of CD
 real (rp) :: fD     !--drag, lift force
 real (rp) :: Uinf_global
 
-integer :: k,ng
+integer :: i,j,k,ng
 integer :: kstart, kend
 
-real(rp), target :: dz_start, dz_end
-real(rp), pointer :: dz_p
+real(rp) :: dz_start, dz_end
+real(rp) :: dz_p
 
 !---------------------------------------------------------------------
 
@@ -2822,17 +2822,16 @@ do ng=1,cylinder_skew_t%ngen
      !--may want to restrict this sum to points with phi < 0.
     if(ng==1) then !  Want to check with ground association
       do k=kstart,kend
-        nullify(dz_p)
         if(k==kstart) then
-          dz_p => dz_start
+          dz_p = dz_start
         elseif(k==kend) then
-          dz_p => dz_end
+          dz_p = dz_end
         else
-          dz_p => dz
+          dz_p = dz
         endif
         do j=1,ny
           do i=1,nx
-            if(itype /= 0) fD = fD - fx(i,j,k) * dx * dy * dz_p
+            if(cylinder_skew_t%itype(i,j,k) /= 0) fD = fD - fx(i,j,k) * dx * dy * dz_p
           enddo
         enddo
       enddo
@@ -4684,7 +4683,7 @@ use cylinder_skew_defs
 implicit none
 
 character(64) :: fname, temp
-integer :: ng
+integer :: i,j,k,ng
 integer :: ngen
 
 !  Open file which to write global data
@@ -4732,7 +4731,7 @@ if(cylinder_skew_t%igen(1) /= -1) then
   do k=1,nz
     do j = 1,ny
       do i = 1,nx+2
-        read(2,*) itype(i,j,k)
+        read(2,*) cylinder_skew_t%itype(i,j,k)
       enddo
     enddo
   enddo
