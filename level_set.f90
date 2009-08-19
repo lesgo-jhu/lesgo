@@ -2743,11 +2743,12 @@ end subroutine level_set_cylinder_CD
 !**********************************************************************
 subroutine level_set_cylinder_skew_CD ()
 !**********************************************************************
-use param, only : jt, dt
+use param, only : jt, dt,comm,ierr
 use immersedbc, only : fx
 use sim_param, only : u
 use io, only : jt_total
 use cylinder_skew_defs
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_cylinder_skew_CD'
@@ -2757,8 +2758,7 @@ character(64) :: fname, temp
 integer, parameter :: lun = 991  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
 
-real (rp), parameter :: Ap = 3.*28.8*4./185.*50.4/cos(45.*3.14/180)*4./185.  !--projected area
-real (rp), parameter :: scale_fact = 0.5_rp
+real (rp), parameter :: Ap = 1._rp !--projected area
 
 logical, save, dimension(10) :: file_init=.false. !  May want to change this to allocatable to
                                                   !  match the generation number
@@ -2778,14 +2778,15 @@ real(rp) :: dz_start, dz_end
 
 if (modulo (jt, n_calc_CD) /= 0) return  !--do nothing
 
-!  The the global Uinf from the inlet plane
+!  The the global Uinf from the inlet plane; average for proc
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
-  call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
-    rank_of_coord(coord), comm, ierr)
 
-  Uinf_global = Uinf / nproc
+  !  Sum Uinf from all procs and redestribute
+  call mpi_allreduce(Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  !  Average over all procs; assuming distribution is even
+  Uinf_global = Uinf_global / nproc
 
 $else
 
@@ -2796,8 +2797,6 @@ $endif
 do ng=1,cylinder_skew_t%ngen
   if(cylinder_skew_t%igen(ng) /= -1) then
     
-    Ap_gen = Ap*scale_fact**(2*(ng - 1))
-
     fD=0.
 
     !  Check if bottom is in proc domain
@@ -2826,7 +2825,7 @@ do ng=1,cylinder_skew_t%ngen
     enddo
     fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
 
-    CD = fD / (0.5_rp * Ap_gen * Uinf_global**2)
+    CD = fD / (0.5_rp * Ap * Uinf_global**2)
 
     inquire (lun, exist=exst, opened=opn)
 
@@ -2848,8 +2847,8 @@ do ng=1,cylinder_skew_t%ngen
     if (.not. file_init(ng)) then  !--set up file for output
 
     !--write a header
-      write (lun, '(a,es12.5)') '# Ap = ', Ap_gen
-      write (lun, '(a,es12.5)') 'Gen thickness = ', dz_start+(kend - kstart - 2)*dz+dz_end
+      write (lun, '(a,es12.5)') '# Ap = ', Ap
+      write (lun, '(a,es12.5)') '# Gen thickness = ', dz_start+(kend - kstart - 2)*dz+dz_end
       write (lun, '(a)') '# t, CD, fD, Uinf' 
 
       file_init(ng) = .true.
