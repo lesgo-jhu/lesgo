@@ -148,10 +148,10 @@ if(ntr == 1) then
   gcs_t(:,:,:)%iset=0
 
 !  Initialize the point to surface association
-  gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
+  gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - elsewhere
 
   if(use_bottom_surf) then
-    gcs_t(:,:,:)%itype=-1
+    gcs_t(:,:,:)%itype=0
 !  Loop over all global coordinates
     do k=0,Nz
       gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
@@ -289,8 +289,7 @@ do ng=1,ngen
 
 enddo
 
-!  Generate generation associations to be used in drag force calculations
-!  for each generation
+
 if(ntr == 1) then
   call gen_assoc ()
 endif
@@ -378,114 +377,6 @@ enddo
      
 return
 end subroutine generate_grid
-
-!**********************************************************************
-subroutine gen_assoc()
-!**********************************************************************
-!
-!  This subroutine is used to find where each generation lives at. The
-!  information created from this routine is used in lesgo for computing
-!  drag force data for individual generations. In order to use this
-!  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
-!           
-use param, only : nz,dz
-use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
-
-implicit none
-character(64) :: fname, temp
-integer :: ng, k
-
-integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
-double precision, dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
-
-allocate(gcs_w(nz))
-allocate(igen(ngen))
-allocate(kbottom(ngen), kbottom_inside(ngen))
-allocate(ktop(ngen), ktop_inside(ngen))
-allocate(dz_bottom(ngen), dz_top(ngen))
-
-
-!  Create w-grid (physical grid)
-do k=1,nz
-  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz
-enddo
-
-do ng=1,ngen
-  if(bplane(ng) < gcs_w(1) .and. tplane(ng) < gcs_w(1)) then
-    igen(ng) = -1
-    kbottom(ng) = -1
-    ktop(ng) = -1
-    kbottom_inside(ng) = 0
-    ktop_inside(ng) = 0
-    dz_bottom(ng) = 0.
-    dz_top(ng) = 0.
-  elseif(bplane(ng) > gcs_w(nz) .and. tplane(ng) > gcs_w(nz)) then
-    igen(ng) = -1
-    kbottom(ng) = -1
-    ktop(ng) = -1
-    kbottom_inside(ng) = 0
-    ktop_inside(ng) = 0
-    dz_bottom(ng) = 0.
-    dz_top(ng) = 0.
-  else
-    igen(ng) = ng
-  !  Perform kbottom, kbottom_inside, ktop, ktop_inside search
-    if(bplane(ng) < gcs_w(1)) then
-      kbottom(ng) = -1
-      kbottom_inside(ng) = 0
-      dz_bottom(ng) = 0.
-    else
-      isearch_bottom: do k=2,nz
-        if(gcs_w(k) > bplane(ng)) then
-          kbottom(ng) = k-1
-          kbottom_inside(ng) = 1
-          dz_bottom(ng) = gcs_w(k) - bplane(ng)
-          exit isearch_bottom
-        endif
-      enddo isearch_bottom
-    endif
-    if(tplane(ng) > gcs_w(nz)) then
-      ktop(ng) = -1
-      ktop_inside(ng) = 0
-      dz_top(ng) = 0.
-    else
-      isearch_top: do k=2,nz
-        if(gcs_w(k) >= tplane(ng)) then
-          ktop(ng) = k-1
-          ktop_inside(ng) = 1
-          dz_top(ng) = tplane(ng) - gcs_w(k-1)
-          exit isearch_top
-        endif
-      enddo isearch_top
-    endif
-  endif
-enddo
-
-!  Open file which to write global data
-write (fname,*) 'cylinder_skew_gen.out'
-fname = trim(adjustl(fname)) 
-
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
-  fname = trim (fname) // temp
-endif
-
-open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='rewind')
-write(2,*) ngen
-do ng=1,ngen
-  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
-enddo
-close(2)
-
-deallocate(gcs_w)
-deallocate(igen)
-deallocate(kbottom, kbottom_inside)
-deallocate(ktop, ktop_inside)
-deallocate(dz_bottom, dz_top)
-
-return
-end subroutine gen_assoc
 
 end subroutine initialize
 
@@ -632,7 +523,7 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
 
   if(dist < dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%itype = 2
+    gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 !endif
@@ -661,7 +552,7 @@ if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) the
 !   elseif(dist < dabs(gcs_t(i,j,k)%phi)) then
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   endif
@@ -726,14 +617,14 @@ if(ng == 1) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   endif
@@ -890,10 +781,157 @@ else
 endif
 close (1)
 
-
+!  Generate generation associations to be used in drag force calculations
+!  for each generation
+call gen_assoc() !  Generation data from the last tree must match that of the first
 
 return
 end subroutine write_output
+
+!**********************************************************************
+subroutine gen_assoc()
+!**********************************************************************
+!
+!  This subroutine is used to find where each generation lives at. The
+!  information created from this routine is used in lesgo for computing
+!  drag force data for individual generations. In order to use this
+!  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
+!           
+use param, only : nz,dz
+!use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
+
+implicit none
+character(64) :: fname, temp
+integer :: ng, k
+
+integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
+double precision, dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
+
+allocate(gcs_w(nz))
+allocate(igen(ngen))
+allocate(kbottom(ngen), kbottom_inside(ngen))
+allocate(ktop(ngen), ktop_inside(ngen))
+allocate(dz_bottom(ngen), dz_top(ngen))
+
+
+!  Create w-grid (physical grid)
+do k=1,nz
+  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz
+enddo
+
+do ng=1,ngen
+  if(bplane(ng) < gcs_w(1) .and. tplane(ng) < gcs_w(1)) then
+    igen(ng) = -1
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
+  elseif(bplane(ng) > gcs_w(nz) .and. tplane(ng) > gcs_w(nz)) then
+    igen(ng) = -1
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
+  else
+    igen(ng) = ng
+  !  Perform kbottom, kbottom_inside, ktop, ktop_inside search
+    if(bplane(ng) < gcs_w(1)) then
+      kbottom(ng) = -1
+      kbottom_inside(ng) = 0
+      dz_bottom(ng) = 0.
+    else
+      isearch_bottom: do k=2,nz
+        if(gcs_w(k) > bplane(ng)) then
+          kbottom(ng) = k-1
+          kbottom_inside(ng) = 1
+          dz_bottom(ng) = gcs_w(k) - bplane(ng)
+          exit isearch_bottom
+        endif
+      enddo isearch_bottom
+    endif
+    if(tplane(ng) > gcs_w(nz)) then
+      ktop(ng) = -1
+      ktop_inside(ng) = 0
+      dz_top(ng) = 0.
+    else
+      isearch_top: do k=2,nz
+        if(gcs_w(k) >= tplane(ng)) then
+          ktop(ng) = k-1
+          ktop_inside(ng) = 1
+          dz_top(ng) = tplane(ng) - gcs_w(k-1)
+          exit isearch_top
+        endif
+      enddo isearch_top
+    endif
+    if(ng == 1) call point_assoc() !  For gen-1 only check point association with the ground
+  endif
+enddo
+
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew_gen.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+write(2,*) ngen
+do ng=1,ngen
+  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
+enddo
+close(2)
+
+deallocate(gcs_w)
+deallocate(igen)
+deallocate(kbottom, kbottom_inside)
+deallocate(ktop, ktop_inside)
+deallocate(dz_bottom, dz_top)
+
+return
+contains
+
+!**********************************************************************
+subroutine point_assoc()
+!**********************************************************************
+
+implicit none
+
+integer :: i,j,k
+
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew_point.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+do k=1,nz
+  do j = 1,ny
+    do i = 1,nx+2
+      write(2,*) gcs_t(i,j,k)%itype
+    enddo
+  enddo
+enddo
+   
+close(2)
+
+return
+end subroutine point_assoc
+
+
+end subroutine gen_assoc
+
 
 end subroutine finalize
 

@@ -2772,7 +2772,8 @@ real (rp) :: Uinf_global
 integer :: k,ng
 integer :: kstart, kend
 
-real(rp) :: dz_start, dz_end
+real(rp), target :: dz_start, dz_end
+real(rp), pointer :: dz_p
 
 !---------------------------------------------------------------------
 
@@ -2819,11 +2820,29 @@ do ng=1,cylinder_skew_t%ngen
      !--(-) since want force ON cylinder
      !--dx*dy*dz is since force is per cell (unit volume)
      !--may want to restrict this sum to points with phi < 0.
-    fD = fD - sum(fx(1:nx, :, kstart)) * dx * dy * dz_start
-    do k=kstart+1,kend-1
-      fD = fD - sum(fx(1:nx, :, k)) * dx * dy * dz
-    enddo
-    fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
+    if(ng==1) then !  Want to check with ground association
+      do k=kstart,kend
+        nullify(dz_p)
+        if(k==kstart) then
+          dz_p => dz_start
+        elseif(k==kend) then
+          dz_p => dz_end
+        else
+          dz_p => dz
+        endif
+        do j=1,ny
+          do i=1,nx
+            if(itype /= 0) fD = fD - fx(i,j,k) * dx * dy * dz_p
+          enddo
+        enddo
+      enddo
+    else ! Assume for ng>1 no ground association
+      fD = fD - sum(fx(1:nx, :, kstart)) * dx * dy * dz_start
+      do k=kstart+1,kend-1
+        fD = fD - sum(fx(1:nx, :, k)) * dx * dy * dz
+      enddo
+      fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
+    endif
 
     CD = fD / (0.5_rp * Ap * Uinf_global**2)
 
@@ -4689,6 +4708,7 @@ allocate(cylinder_skew_t%dz_bottom(ngen))
 allocate(cylinder_skew_t%ktop_inside(ngen))
 allocate(cylinder_skew_t%ktop(ngen))
 allocate(cylinder_skew_t%dz_top(ngen))
+allocate(cylinder_skew_t%itype(nx+2,ny,nz))
 
 do ng=1,cylinder_skew_t%ngen
   read(2,*) cylinder_skew_t%igen(ng), cylinder_skew_t%kbottom_inside(ng), cylinder_skew_t%kbottom(ng), &
@@ -4696,6 +4716,29 @@ do ng=1,cylinder_skew_t%ngen
     cylinder_skew_t%dz_top(ng)
 enddo
 close(2)
+
+!  Check 1st generation only for need ground association
+if(cylinder_skew_t%igen(1) /= -1) then
+  !  Open file which to write global data
+  fname = path // 'cylinder_skew_point.out'
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+  $endif
+
+  !  Read in cylinder_skew_gen.dat file
+  open (unit = 2,file = fname, status='old',form='formatted', &
+    action='read',position='rewind')
+  do k=1,nz
+    do j = 1,ny
+      do i = 1,nx+2
+        read(2,*) itype(i,j,k)
+      enddo
+    enddo
+  enddo
+   
+  close(2)
+endif
 
 return
 end subroutine cylinder_skew_init
