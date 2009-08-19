@@ -56,8 +56,8 @@ double precision, parameter :: zrot_angle = 180.*pi/180.
 double precision, parameter :: skew_angle = 0.*pi/180.
 
 integer, parameter :: ntree = 1
-integer, parameter :: ntrunk = 1
-integer, parameter :: ngen = 1
+integer, parameter :: ntrunk = 3
+integer, parameter :: ngen = 3
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5

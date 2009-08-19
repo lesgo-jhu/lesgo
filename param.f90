@@ -59,9 +59,9 @@ module param
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
 !  real(rprec),parameter::L_x=8.*z_i*dcos(30.*pi/180.)
-  real(rprec),parameter::L_x=4.*z_i
-  real(rprec),parameter::L_y=4.*z_i
-  real(rprec),parameter::L_z=4.*z_i/nproc
+  real(rprec),parameter::L_x=5.*z_i
+  real(rprec),parameter::L_y=5.*z_i
+  real(rprec),parameter::L_z=5.*z_i/nproc
   !--L_z is not nondimensionalized by z_i yet
   ! set the aspect ratio of the box, already nondimensional
   real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
