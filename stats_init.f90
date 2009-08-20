@@ -33,8 +33,8 @@ point_t%xyz=-1.
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tavg_t%calc = .false.
-tavg_t%nstart = 100
+tavg_t%calc = .true.
+tavg_t%nstart = 1
 tavg_t%nend = nsteps
 
 !  Turns Reynolds stresses calculations on or off 
