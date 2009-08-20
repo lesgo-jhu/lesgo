@@ -26,7 +26,6 @@ USE_DYNALLOC = no
 
 USE_LVLSET = yes
 USE_CYLINDER_SKEW = yes
-USE_ELLIPSE = yes
 
 USE_TREES_LS = no
 
@@ -51,10 +50,6 @@ endif
 
 ifeq ($(USE_CYLINDER_SKEW), yes)
   FPP += -DCYLINDER_SKEW
-endif
-
-ifeq ($(USE_ELLIPSE), yes)
-  FPP += -DELLIPSE
 endif
 
 # Directory for the .o files
