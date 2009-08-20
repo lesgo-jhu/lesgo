@@ -13,13 +13,18 @@ use topbc,only:setsponge,sponge
 use bottombc,only:num_patch,avgpatch
 use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
+
 $if ($LVLSET)
-  use level_set, only : level_set_init, level_set_cylinder_CD,  &
-                        level_set_smooth_vel
+use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
+$if ($CYLINDER_SKEW)
+use level_set, only : level_set_cylinder_skew_CD
 $endif
+$endif
+
 $if ($TREES_LS)
-  use trees_ls, only : trees_ls_finalize, trees_ls_init
+use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
+
 use debug_mod  !--just for debugging
 use messages
 implicit none
@@ -61,8 +66,10 @@ if(inflow) then
   write(*,*) 'This capability does not currently work. Please set to false.'
   stop
 endif
+
 !  Create output directory
 call system("mkdir -vp output")
+
 call sim_param_init ()
 
 $if ($MPI)
@@ -531,6 +538,11 @@ do jt=1,nsteps
 
   $if ($LVLSET)
     call level_set_cylinder_CD ()
+    
+    $if ($CYLINDER_SKEW)
+      call level_set_cylinder_skew_CD()
+    $endif
+
   $endif
 
   if (modulo (jt, wbase) == 0) then

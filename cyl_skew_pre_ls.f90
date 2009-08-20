@@ -1,5 +1,5 @@
 !**********************************************************************
-module cylinder_skew_defs
+module cylinder_skew_param
 !**********************************************************************
 use types, only : rprec
 use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
@@ -52,18 +52,19 @@ double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: zrot_angle = 30.*pi/180.
-double precision, parameter :: skew_angle = 45.*pi/180.
+double precision, parameter :: zrot_angle = 180.*pi/180.
+double precision, parameter :: skew_angle = 0.*pi/180.
 
+integer, parameter :: ntree = 1
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 5
+integer, parameter :: ngen = 3
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 10.*dz
-double precision, dimension(3), parameter :: origin=(/ L_x/2., L_y/2., z_bottom_surf /)
+double precision, parameter :: z_bottom_surf = 4.*dz
+double precision, dimension(3,ntree) :: origin
 
 logical :: DEBUG=.false.
 
@@ -80,7 +81,7 @@ double precision, allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tpla
 double precision :: circk, dist, theta
 double precision :: eck
 
-end module cylinder_skew_defs
+end module cylinder_skew_param
 
 !**********************************************************************
 module mpi2
@@ -91,12 +92,17 @@ end module mpi2
 !**************************************************************
 program cylinder_skew
 !***************************************************************
-
+use mpi2, only : mpirank
+use cylinder_skew_param, only : DEBUG,ntree
 implicit none
 
-call initialize() 
+integer :: ntr
 
-call main_loop()
+do ntr = 1,ntree
+  if(DEBUG .and. mpirank == 0) write(*,*) 'Tree id : ', ntr
+  call initialize(ntr) 
+  call main_loop()
+enddo 
 
 call finalize()
 
@@ -106,105 +112,115 @@ stop
 end program cylinder_skew
 
 !**********************************************************************
-subroutine initialize()
+subroutine initialize(ntr)
 !**********************************************************************
 use mpi
 use mpi2
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
+
+integer, intent(IN) :: ntr
 
 integer :: ng,nt,i,j,k,istart,iend
 double precision :: gen_scale_fact
 
-call initialize_mpi ()
+!  Set tree origins
+origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
+!origin(:,2)=(/ 0., L_y, z_bottom_surf /)
+!origin(:,3)=(/ L_x, 0., z_bottom_surf /)
+!origin(:,4)=(/ L_x, L_y, z_bottom_surf /)
+!origin(:,5)=(/ L_x/2., 2.*cos(30.*pi/180.), z_bottom_surf /)
+!origin(:,6)=(/ L_x/2., 2.*cos(30.*pi/180.) + 4., z_bottom_surf /)
 
-call allocate_arrays()
-
-call generate_grid()
+if(ntr == 1) then
+  call initialize_mpi ()
+  call allocate_arrays()
+  call generate_grid()
 
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = BOGUS
+  gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindex=1
+  gcs_t(:,:,:)%brindex=1
 
 !  Initialize the iset flag
-gcs_t(:,:,:)%iset=0
+  gcs_t(:,:,:)%iset=0
 
 !  Initialize the point to surface association
-gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - top, 2 - side
+  gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - elsewhere
 
-if(use_bottom_surf) then
-  gcs_t(:,:,:)%itype=-1
+  if(use_bottom_surf) then
+    gcs_t(:,:,:)%itype=0
 !  Loop over all global coordinates
-  do k=0,Nz
-    gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
-    if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
+    do k=0,Nz
+      gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
+      if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
+    enddo
+  endif
+
+!  Set cylinder parameters for all generations
+  do ng=1,ngen
+    gen_scale_fact = scale_fact**(ng-1)
+    if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
+    crad(ng) = gen_scale_fact*d/2.
+    clen(ng) = gen_scale_fact*l
+    rad_offset(ng) = gen_scale_fact*offset
+  enddo
+  a = crad/dcos(skew_angle)
+  b = crad
+
+  if(DEBUG .and. mpirank == 0) then
+    write(*,*) 'skew_angle : ', skew_angle
+    write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
+    write(*,*) 'ntrunk 	 : ', ntrunk
+    write(*,*) 'crad 	 : ', crad
+    write(*,*) 'clen 	 : ', clen
+    write(*,*) 'rad_offset : ', rad_offset
+  endif
+
+!  Set rotation angle about z-axis with which the skew angle is applied 
+  do ng=1,ngen
+    zrot_t(ng)%angle(:)=0.
+  enddo
+
+!  Do for the 1st generation (ng = 1)
+  do nt=1,ntrunk
+    zrot_t(1)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
+    zrot_t(1)%axis(:,nt) = (/dcos(zrot_t(1)%angle(nt)+pi/2.),dsin(zrot_t(1)%angle(nt)+pi/2.),0./)
+    if(DEBUG .and. mpirank == 0) then
+      write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(1)%angle(nt)*180./pi
+      write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(1)%axis(:,nt)
+    endif
   enddo
 endif
 
-!  Set cylinder parameters for all generations
-do ng=1,ngen
-  gen_scale_fact = scale_fact**(ng-1)
-  if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
-  crad(ng) = gen_scale_fact*d/2.
-  clen(ng) = gen_scale_fact*l
-  rad_offset(ng) = gen_scale_fact*offset
-enddo
-a = crad/dcos(skew_angle)
-b = crad
-
-if(DEBUG .and. mpirank == 0) then
-  write(*,*) 'skew_angle : ', skew_angle
-  write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
-  write(*,*) 'ntrunk 	 : ', ntrunk
-  write(*,*) 'crad 	 : ', crad
-  write(*,*) 'clen 	 : ', clen
-  write(*,*) 'rad_offset : ', rad_offset
-endif
-
-!  Set rotation angle about z-axis with which the skew angle is applied 
-do ng=1,ngen
-  zrot_t(ng)%angle(:)=0.
-enddo
-
-ng=1 !  Do for the 1st generation (ng = 1)
-do nt=1,ntrunk
-  zrot_t(ng)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
-  zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
-  if(DEBUG .and. mpirank == 0) then
-    write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(ng)%angle(nt)*180./pi
-    write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(ng)%axis(:,nt)
-  endif
-enddo
-
-ng=1 !  Do for the 1st generation (ng = 1)
+!  Do for the 1st generation (ng = 1)
 do nt=1,ntrunk
 !  Set the local coordinate system
-  lgcs_t(ng)%xyz(:,nt) = origin
-  lgcs_t(ng)%xyz(1,nt) = lgcs_t(ng)%xyz(1,nt) + rad_offset(ng)*dcos(zrot_t(ng)%angle(nt))
-  lgcs_t(ng)%xyz(2,nt) = lgcs_t(ng)%xyz(2,nt) + rad_offset(ng)*dsin(zrot_t(ng)%angle(nt))
+  lgcs_t(1)%xyz(:,nt) = origin(:,ntr)
+  lgcs_t(1)%xyz(1,nt) = lgcs_t(1)%xyz(1,nt) + rad_offset(1)*dcos(zrot_t(1)%angle(nt))
+  lgcs_t(1)%xyz(2,nt) = lgcs_t(1)%xyz(2,nt) + rad_offset(1)*dsin(zrot_t(1)%angle(nt))
 
   if(DEBUG .and. mpirank == 0 ) then
     write(*,*) ''
     write(*,*) 'nt = ', nt
-    write(*,*) 'origin : ', origin
-    write(*,*) 'lgcs_t(ng)%xyz(:,nt) : ', lgcs_t(ng)%xyz(:,nt)
+    write(*,*) 'origin : ', origin(:,ntr)
+    write(*,*) 'lgcs_t(1)%xyz(:,nt) : ', lgcs_t(1)%xyz(:,nt)
   endif
 
   !  Set the center point of the bottom ellipse
-  ebgcs_t(ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
+  ebgcs_t(1)%xyz(:,nt)=lgcs_t(1)%xyz(:,nt)
   !  Compute the center point of the top ellipse in the gcs
-  call rotation_axis_vector_3d(zrot_t(ng)%axis(:,nt), &
+  call rotation_axis_vector_3d(zrot_t(1)%axis(:,nt), &
     skew_angle, &
-    (/0., 0., clen(ng)/), &
-    etgcs_t(ng)%xyz(:,nt))
-  etgcs_t(ng)%xyz(:,nt) = etgcs_t(ng)%xyz(:,nt) + ebgcs_t(ng)%xyz(:,nt)
+    (/0., 0., clen(1)/), &
+    etgcs_t(1)%xyz(:,nt))
+  etgcs_t(1)%xyz(:,nt) = etgcs_t(1)%xyz(:,nt) + ebgcs_t(1)%xyz(:,nt)
   
   if(DEBUG) then
-    write(*,*) 'ebgcs_t(ng)%xyz(:,nt) : ', ebgcs_t(ng)%xyz(:,nt)
-    write(*,*) 'etgcs_t(ng)%xyz(:,nt) : ', etgcs_t(ng)%xyz(:,nt)
+    write(*,*) 'ebgcs_t(1)%xyz(:,nt) : ', ebgcs_t(1)%xyz(:,nt)
+    write(*,*) 'etgcs_t(1)%xyz(:,nt) : ', etgcs_t(1)%xyz(:,nt)
   endif
 
 enddo
@@ -272,6 +288,7 @@ do ng=1,ngen
   endif
 
 enddo
+
 
 return 
 
@@ -362,7 +379,7 @@ end subroutine initialize
 !**********************************************************************
 subroutine main_loop()
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -404,7 +421,7 @@ end subroutine main_loop
 subroutine pt_loc(ng,nt,i,j,k)
 !**********************************************************************
 
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -475,7 +492,7 @@ end subroutine pt_loc
 !**********************************************************************
 subroutine assoc_cyl_loc(ng,nt,i,j,k)
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -502,7 +519,7 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
 
   if(dist < dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%itype = 2
+    gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 !endif
@@ -516,7 +533,11 @@ if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) the
     !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+    $if ($ELLIPSE)
+      call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+    $else
+      call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+    $endif
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -527,7 +548,7 @@ if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) the
 !   elseif(dist < dabs(gcs_t(i,j,k)%phi)) then
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   endif
@@ -537,7 +558,11 @@ elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $if ($ELLIPSE)
+    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $else
+    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $endif
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -557,7 +582,11 @@ if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $if ($ELLIPSE)
+    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+  $else
+    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
+  $endif
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -584,14 +613,14 @@ if(ng == 1) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
     if(dist < dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 0
+      gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
   endif
@@ -604,7 +633,7 @@ end subroutine assoc_cyl_loc
 !**********************************************************************
 subroutine set_iset(i,j,k)
 !**********************************************************************
-use cylinder_skew_defs, only : gcs_t
+use cylinder_skew_param, only : gcs_t
 
 implicit none
 
@@ -623,7 +652,7 @@ end subroutine set_iset
 !**********************************************************************
 subroutine set_sign(i,j,k)
 !**********************************************************************
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -645,7 +674,7 @@ subroutine finalize()
 !**********************************************************************
 use mpi
 use mpi2
-use cylinder_skew_defs
+use cylinder_skew_param
 
 implicit none
 
@@ -748,8 +777,155 @@ else
 endif
 close (1)
 
+!  Generate generation associations to be used in drag force calculations
+!  for each generation
+call gen_assoc() !  Generation data from the last tree must match that of the first
+
 return
 end subroutine write_output
+
+!**********************************************************************
+subroutine gen_assoc()
+!**********************************************************************
+!
+!  This subroutine is used to find where each generation lives at. The
+!  information created from this routine is used in lesgo for computing
+!  drag force data for individual generations. In order to use this
+!  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
+!           
+use param, only : nz,dz
+!use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
+
+implicit none
+character(64) :: fname, temp
+integer :: ng, k
+
+integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
+double precision, dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
+
+allocate(gcs_w(nz))
+allocate(igen(ngen))
+allocate(kbottom(ngen), kbottom_inside(ngen))
+allocate(ktop(ngen), ktop_inside(ngen))
+allocate(dz_bottom(ngen), dz_top(ngen))
+
+
+!  Create w-grid (physical grid)
+do k=1,nz
+  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz
+enddo
+
+do ng=1,ngen
+  if(bplane(ng) < gcs_w(1) .and. tplane(ng) < gcs_w(1)) then
+    igen(ng) = -1
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
+  elseif(bplane(ng) > gcs_w(nz) .and. tplane(ng) > gcs_w(nz)) then
+    igen(ng) = -1
+    kbottom(ng) = -1
+    ktop(ng) = -1
+    kbottom_inside(ng) = 0
+    ktop_inside(ng) = 0
+    dz_bottom(ng) = 0.
+    dz_top(ng) = 0.
+  else
+    igen(ng) = ng
+  !  Perform kbottom, kbottom_inside, ktop, ktop_inside search
+    if(bplane(ng) < gcs_w(1)) then
+      kbottom(ng) = -1
+      kbottom_inside(ng) = 0
+      dz_bottom(ng) = 0.
+    else
+      isearch_bottom: do k=2,nz
+        if(gcs_w(k) > bplane(ng)) then
+          kbottom(ng) = k-1
+          kbottom_inside(ng) = 1
+          dz_bottom(ng) = gcs_w(k) - bplane(ng)
+          exit isearch_bottom
+        endif
+      enddo isearch_bottom
+    endif
+    if(tplane(ng) > gcs_w(nz)) then
+      ktop(ng) = -1
+      ktop_inside(ng) = 0
+      dz_top(ng) = 0.
+    else
+      isearch_top: do k=2,nz
+        if(gcs_w(k) >= tplane(ng)) then
+          ktop(ng) = k-1
+          ktop_inside(ng) = 1
+          dz_top(ng) = tplane(ng) - gcs_w(k-1)
+          exit isearch_top
+        endif
+      enddo isearch_top
+    endif
+    if(ng == 1) call point_assoc() !  For gen-1 only check point association with the ground
+  endif
+enddo
+
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew_gen.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+write(2,*) ngen
+do ng=1,ngen
+  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
+enddo
+close(2)
+
+deallocate(gcs_w)
+deallocate(igen)
+deallocate(kbottom, kbottom_inside)
+deallocate(ktop, ktop_inside)
+deallocate(dz_bottom, dz_top)
+
+return
+
+end subroutine gen_assoc
+
+!**********************************************************************
+subroutine point_assoc()
+!**********************************************************************
+
+implicit none
+
+character(64) :: fname, temp
+integer :: i,j,k
+
+!  Open file which to write global data
+write (fname,*) 'cylinder_skew_point.out'
+fname = trim(adjustl(fname)) 
+
+if(mpisize > 1) then
+  write (temp, '(".c",i0)') mpirank
+  fname = trim (fname) // temp
+endif
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+do k=1,nz
+  do j = 1,ny
+    do i = 1,nx+2
+      write(2,*) gcs_t(i,j,k)%itype
+    enddo
+  enddo
+enddo
+   
+close(2)
+
+return
+end subroutine point_assoc
 
 end subroutine finalize
 

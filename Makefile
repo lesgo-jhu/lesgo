@@ -19,12 +19,16 @@ q64 = no
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
-    #--not fully supported by all parts of the code
+
+#--not fully supported by all parts of the code
 USE_DYNALLOC = no
-    #--still experimental
+#--still experimental
+
+USE_LVLSET = yes
+USE_CYLINDER_SKEW = yes
+USE_ELLIPSE = yes
 
 USE_TREES_LS = no
-USE_LVLSET = no
 
 FPP = fpx3
 
@@ -45,6 +49,14 @@ ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
 endif
 
+ifeq ($(USE_CYLINDER_SKEW), yes)
+  FPP += -DCYLINDER_SKEW
+endif
+
+ifeq ($(USE_ELLIPSE), yes)
+  FPP += -DELLIPSE
+endif
+
 # Directory for the .o files
 OPATH = obj
 # Directory for the .mod files, if your compiler generates them
@@ -61,12 +73,12 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
 
-  #FFLAGS = -O0 -r8 -check bounds -g -debug all -traceback
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel=medium
+  #FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
@@ -145,7 +157,7 @@ SRCS =  \
 	bottombc.f90 \
         convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
-        dealias1.f90 dealias2.f90 debug_mod.f90 \
+        dealias1.f90 dealias2.f90 debug_mod.f90 defs.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
         fft.f90 filt_da.f90 forcing.f90 functions.f90 grid.f90 \
@@ -209,7 +221,8 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
-	$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
+	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry t.$<
+#$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
 interp: interp.f90
