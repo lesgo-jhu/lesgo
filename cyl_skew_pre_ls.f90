@@ -533,11 +533,7 @@ if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) the
     !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-    $if ($ELLIPSE)
-      call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-    $else
-      call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
-    $endif
+    call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -558,11 +554,7 @@ elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  $if ($ELLIPSE)
-    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-  $else
-    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
-  $endif
+  call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
@@ -582,11 +574,7 @@ if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
   !  Get vector in ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  $if ($ELLIPSE)
-    call ellipse_point_dist_2D_2(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-  $else
-    call ellipse_point_dist_2D(a(ng),b(ng),(/ecs_t%xyz(1),ecs_t%xyz(2)/), dist)
-  $endif
+  call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
   call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
