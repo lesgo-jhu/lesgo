@@ -513,7 +513,7 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
 
   call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
 
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
@@ -574,7 +574,7 @@ else
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+    if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
@@ -590,7 +590,7 @@ else
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+    if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
@@ -603,7 +603,7 @@ endif
 !  Check also if the point lies on the ellipses
 if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane(ng))
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
@@ -612,7 +612,7 @@ endif
 
 if(in_cyl_bottom) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
