@@ -49,7 +49,7 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 180.*pi/180.
-double precision, parameter :: skew_angle = 0.*pi/180.
+double precision, parameter :: skew_angle = 45.*pi/180.
 
 integer, parameter :: ntree = 1
 integer, parameter :: ntrunk = 1
