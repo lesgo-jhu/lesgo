@@ -29,10 +29,6 @@ type rot
   double precision, pointer, dimension(:,:) :: axis
 end type rot
 
-!type vector0
-!  double precision, dimension(:), pointer :: xyz
-!end type vector0
-
 type vector
   double precision, dimension(3) :: xyz
 end type vector
@@ -53,11 +49,11 @@ double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 double precision, parameter :: zrot_angle = 180.*pi/180.
-double precision, parameter :: skew_angle = 0.*pi/180.
+double precision, parameter :: skew_angle = 45.*pi/180.
 
 integer, parameter :: ntree = 1
 integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 3
+integer, parameter :: ngen = 2
 double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
 double precision, parameter :: offset = 9.*4./185.
 double precision, parameter :: scale_fact = 0.5
@@ -399,7 +395,7 @@ do k=0,Nz
 
 	    call pt_loc(ng,nt,i,j,k)
 
-	    call assoc_cyl_loc(ng,nt,i,j,k)
+	    call point_dist(ng,nt,i,j,k)
 
 	    call set_sign(i,j,k)
 
@@ -490,7 +486,7 @@ return
 end subroutine pt_loc
 
 !**********************************************************************
-subroutine assoc_cyl_loc(ng,nt,i,j,k)
+subroutine point_dist(ng,nt,i,j,k)
 !**********************************************************************
 use cylinder_skew_param
 
@@ -517,106 +513,91 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
 
   call vector_magnitude_3d(lcs_t%xyz - slcs_t%xyz,dist)
 
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 !endif
 else
-!    if(below_cyl .and. in_cyl_bottom) then
-if(use_bottom_surf .and. ng==1 .and. ebgcs_t(ng)%xyz(3,nt) == z_bottom_surf) then
-  if(in_cyl_bottom .or. sgcs_t%xyz(3) <= bplane(ng)) then
-!  Perform bottom ellipse stuff
-  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
+  !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
+  if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
 
-    !  Get vector in ellipse coordinate system
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ng)%xyz(:,nt)
+
+  !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
     call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
     call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-!   if(gcs_t(i,j,k)%itype == -1 .and. sgcs_t%xyz(3) <= bplane) then
-!     gcs_t(i,j,k)%phi = dist
-!     gcs_t(i,j,k)%itype = 0
-!     call set_iset(i,j,k)      
-!   elseif(dist < dabs(gcs_t(i,j,k)%phi)) then
-    if(dist < dabs(gcs_t(i,j,k)%phi)) then
+    if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
-  endif
-elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
-  vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
+
+  elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
 
   !  Get vector in ellipse coordinate system
-  call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
+    call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
 
-  call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
+    call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
-  call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
+    call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
 
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
-    gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%itype = 1
-    call set_iset(i,j,k)
-  endif
+    if(dist <= dabs(gcs_t(i,j,k)%phi)) then
+      gcs_t(i,j,k)%phi = dist
+      gcs_t(i,j,k)%itype = 1
+      call set_iset(i,j,k)
+    endif
 
-endif
-endif
-  !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
-if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
-
-  vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ng)%xyz(:,nt)
-
-  !  Get vector in ellipse coordinate system
-  call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
-
-  call ellipse_point_dist_2D_3(a(ng),b(ng),ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
-
-  call vector_magnitude_2d((/dist, ecs_t%xyz(3) /), dist)
-
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
-    gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%itype = 1
-    call set_iset(i,j,k)
-  endif
+  endif 
 
 endif
 
 !  Check also if the point lies on the ellipses
 if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane(ng))
-  if(dist < dabs(gcs_t(i,j,k)%phi)) then
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 endif
 
-if(ng == 1) then
-  if(use_bottom_surf .and. ebgcs_t(ng)%xyz(3,nt) .ne. z_bottom_surf) then
-    dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
-    if(dist < dabs(gcs_t(i,j,k)%phi)) then
-      gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 1
-      call set_iset(i,j,k)
-    endif
-  elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
-    dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
-    if(dist < dabs(gcs_t(i,j,k)%phi)) then
-      gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%itype = 1
-      call set_iset(i,j,k)
-    endif
+if(in_cyl_bottom) then
+  dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
+  if(dist <= dabs(gcs_t(i,j,k)%phi)) then
+    gcs_t(i,j,k)%phi = dist
+    gcs_t(i,j,k)%itype = 1
+    call set_iset(i,j,k)
   endif
 endif
+
+! if(ng == 1) then
+!   if(use_bottom_surf .and. ebgcs_t(ng)%xyz(3,nt) .ne. z_bottom_surf) then
+!     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
+!     if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!       gcs_t(i,j,k)%phi = dist
+!       gcs_t(i,j,k)%itype = 1
+!       call set_iset(i,j,k)
+!     endif
+!   elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
+!     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
+!     if(dist < dabs(gcs_t(i,j,k)%phi)) then
+!       gcs_t(i,j,k)%phi = dist
+!       gcs_t(i,j,k)%itype = 1
+!       call set_iset(i,j,k)
+!     endif
+!   endif
+! endif
  
 
 return
-end subroutine assoc_cyl_loc
+end subroutine point_dist
 
 !**********************************************************************
 subroutine set_iset(i,j,k)
