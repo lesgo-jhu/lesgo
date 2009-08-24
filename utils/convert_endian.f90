@@ -22,7 +22,7 @@ logical, parameter :: DEBUG = .true.
 logical, parameter :: MPI = .true.
 
 integer, parameter :: np = 8  !--must be 1 when MPI_s is false
-integer, parameter :: iendian = 2 ! 1 - little to big endian; 2 - big to little endian
+integer, parameter :: iendian = 1 ! 1 - little to big endian; 2 - big to little endian
 
 !--MPI: these are the total sizes (include all processes)
 integer, parameter :: nx = 64, ny = 64, nz = 97
@@ -54,8 +54,8 @@ if(iendian == 1) then
   read_endian = 'little_endian'
   write_endian = 'big_endian'
 elseif(iendian == 2) then
-  read_endian = 'little_endian'
-  write_endian = 'big_endian' 
+  read_endian = 'big_endian'
+  write_endian = 'little_endian' 
 else
   write(*,*) 'Error: incorrect endian specification.'
   stop
@@ -63,6 +63,11 @@ endif
 
 read_endian = trim(adjustl(read_endian))
 write_endian = trim(adjustl(write_endian))
+
+if(DEBUG) then
+  write(*,*) 'read_endian = ', read_endian
+  write(*,*) 'write_endian = ', write_endian
+endif
 
 write (*, '(1x,a)') 'Going to interpolate "' // fbase // '"'
 
