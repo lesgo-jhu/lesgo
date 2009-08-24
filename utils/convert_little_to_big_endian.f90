@@ -10,7 +10,7 @@ end module convert_types
 !--for now, handle MPI files by reading all files one large array
 !  will change later if it is a problem
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-program convert_little_to_big_endian
+program convert_endian
 use convert_types
 implicit none
 
@@ -22,12 +22,14 @@ logical, parameter :: DEBUG = .true.
 logical, parameter :: MPI = .false.
 
 integer, parameter :: np = 1  !--must be 1 when MPI_s is false
+integer, parameter :: iendian = 1 ! 1 - little to big endian; 2 - big to little endian
 
 !--MPI: these are the total sizes (include all processes)
 integer, parameter :: nx = 64, ny = 64, nz = 65
 
 character (64) :: fmt
 character (128) :: fname
+character (64) :: read_endian, write_endian
 
 integer :: ip
 integer :: lbz, ubz
@@ -48,6 +50,20 @@ if ((.not. MPI) .and. (np /= 1)) then
   stop
 end if
 
+if(iendian == 1) then
+  read_endian = 'little_endian'
+  write_endian = 'big_endian'
+elseif(iendian == 2) then
+  read_endian = 'little_endian'
+  write_endian = 'big_endian' 
+else
+  write(*,*) 'Error: incorrect endian specification.'
+  stop
+endif
+
+read_endian = trim(adjustl(read_endian))
+write_endian = trim(adjustl(write_endian))
+
 write (*, '(1x,a)') 'Going to interpolate "' // fbase // '"'
 
 fmt = '(1x,5(a,i0))'
@@ -61,13 +77,13 @@ write (*, fmt) 'start size is (', nx, ' X ', ny,' X ', nz, ') / ',  &
 !  etc.
 if (.not. MPI) then 
 
-  open (1, file=fbase, form='unformatted')
+  open (1, file=fbase, form='unformatted', convert=read_endian)
   read (1) u, v, w, Rx, Ry, Rz, cs, FLM, FMM, FQN, FNN
   close (1)
 
   !--save a copy
   !--need 'system' command to copy fbase to fsave more efficiently?
-  open (1, file=fbase, form='unformatted', convert='big_endian')
+  open (1, file=fbase, form='unformatted', convert=write_endian)
   write (1) u, v, w, Rx, Ry, Rz, cs, FLM, FMM, FQN, FNN
   close (1)
 
@@ -130,4 +146,4 @@ if (DEBUG) then
 end if
 
 stop
-end program convert_little_to_big_endian
+end program convert_endian
