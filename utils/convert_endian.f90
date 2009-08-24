@@ -19,13 +19,13 @@ character (*), parameter :: fbase = path // 'vel.out'
 character (*), parameter :: MPI_suffix = '.c'  !--must be proc number
 
 logical, parameter :: DEBUG = .true.
-logical, parameter :: MPI = .false.
+logical, parameter :: MPI = .true.
 
-integer, parameter :: np = 1  !--must be 1 when MPI_s is false
-integer, parameter :: iendian = 1 ! 1 - little to big endian; 2 - big to little endian
+integer, parameter :: np = 8  !--must be 1 when MPI_s is false
+integer, parameter :: iendian = 2 ! 1 - little to big endian; 2 - big to little endian
 
 !--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx = 64, ny = 64, nz = 65
+integer, parameter :: nx = 64, ny = 64, nz = 97
 
 character (64) :: fmt
 character (128) :: fname

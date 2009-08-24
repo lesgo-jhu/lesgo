@@ -223,7 +223,7 @@ cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o
 interp: interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
-convert_little_to_big_endian:	utils/convert_little_to_big_endian.f90
+convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
