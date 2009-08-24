@@ -220,7 +220,7 @@ cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o
 #$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
 
 # Other support programs are listed below this point
-interp: interp.f90
+interp: utils/interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 convert_endian:	utils/convert_endian.f90
