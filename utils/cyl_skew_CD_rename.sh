@@ -15,9 +15,11 @@ for (( np=0; np<=$NPROC-1; np++ ))
 do
 	for (( ng=1; ng <= $NGEN; ng++ ))
 	do
+                
 		FTOT="$FBASE.g$ng.c$np";
 		if [ -e "$FTOT" ]; then
 			cp -v $FTOT $FTOT.$FCASE
+                        sed -i '/^#/ d' $FTOT.$FCASE
 		fi
 	done
 done
