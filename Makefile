@@ -152,7 +152,7 @@ SRCS =  \
 	bottombc.f90 \
         convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
-        dealias1.f90 dealias2.f90 debug_mod.f90 defs.f90 \
+        dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
         fft.f90 filt_da.f90 forcing.f90 functions.f90 grid.f90 \
@@ -179,7 +179,7 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
-CYLINDER_SKEW_PRE_LS_SRCS = cylinder_skew_pre_ls.f90
+CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
@@ -191,6 +191,10 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
+endif
+
+ifeq ($(USE_CYLINDER_SKEW_LS), yes)
+  SRCS += $(CYLINDER_SKEW_LS_SRCS)
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'

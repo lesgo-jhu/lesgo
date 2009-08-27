@@ -2,36 +2,9 @@
 module cylinder_skew_param
 !**********************************************************************
 use types, only : rprec
-use param, only : nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+use cylinder_skew_ls_base
 
 implicit none
-
-save
-public
-
-type cs0
-     integer :: brindex, iset, itype
-     double precision :: phi
-     double precision, dimension(3) :: xyz
-end type cs0
-
-type cs1
-    double precision, dimension(3) :: xyz
-end type cs1
-
-type cs2
-    !double precision, allocatable, dimension(:,:) :: xyz
-  double precision, pointer, dimension(:,:) :: xyz
-end type cs2
-
-type rot
-  double precision, pointer, dimension(:) :: angle
-  double precision, pointer, dimension(:,:) :: axis
-end type rot
-
-type vector
-  double precision, dimension(3) :: xyz
-end type vector
 
 !  cs{0,1} all correspond to vectors with the origin at the
 !  corresponding coordinate system
@@ -48,18 +21,7 @@ double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-double precision, parameter :: zrot_angle = 180.*pi/180.
-double precision, parameter :: skew_angle = 45.*pi/180.
 
-integer, parameter :: ntree = 1
-integer, parameter :: ntrunk = 3
-integer, parameter :: ngen = 2
-double precision, parameter :: d = 28.8*4./185., l = 50.4/dcos(skew_angle)*4./185.
-double precision, parameter :: offset = 9.*4./185.
-double precision, parameter :: scale_fact = 0.5
-
-logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-double precision, parameter :: z_bottom_surf = 4.*dz
 double precision, dimension(3,ntree) :: origin
 
 logical :: DEBUG=.false.
@@ -837,7 +799,7 @@ do ng=1,ngen
 enddo
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_gen.out'
+write (fname,*) 'cylinder_skew_ls_gen.out'
 fname = trim(adjustl(fname)) 
 
 if(mpisize > 1) then
@@ -847,7 +809,6 @@ endif
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
-write(2,*) ngen
 do ng=1,ngen
   write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
 enddo
@@ -873,7 +834,7 @@ character(64) :: fname, temp
 integer :: i,j,k
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_point.out'
+write (fname,*) 'cylinder_skew_ls_point.out'
 fname = trim(adjustl(fname)) 
 
 if(mpisize > 1) then

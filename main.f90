@@ -17,7 +17,7 @@ use scalars_module2,only:patch_or_remote
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
 $if ($CYLINDER_SKEW)
-use level_set, only : level_set_cylinder_skew_CD
+use cylinder_skew_ls, only : cylinder_skew_ls_init, cylinder_skew_ls_CD
 $endif
 $endif
 
@@ -160,7 +160,12 @@ call initial()
 !--could move this into something like initial ()
 $if ($LVLSET)
   call level_set_init ()
+  $if ($CYLINDER_SKEW_LS)
+  call cylinder_skew_ls_init ()
+  $endif
 $endif
+
+
 
 $if ($TREES_LS)
   !--this must come after initial, since fx, fy, fz are set 0 there
@@ -540,7 +545,7 @@ do jt=1,nsteps
     call level_set_cylinder_CD ()
     
     $if ($CYLINDER_SKEW)
-      call level_set_cylinder_skew_CD()
+      call cylinder_skew_ls_CD()
     $endif
 
   $endif
