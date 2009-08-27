@@ -86,7 +86,7 @@ module mpi2
 end module mpi2
 
 !**************************************************************
-program cylinder_skew
+program cylinder_skew_pre_ls
 !***************************************************************
 use mpi2, only : mpirank
 use cylinder_skew_param, only : DEBUG,ntree
@@ -105,7 +105,7 @@ call finalize()
 write(*,*) 'Program completed successfully.'
 stop
 
-end program cylinder_skew
+end program cylinder_skew_pre_ls
 
 !**********************************************************************
 subroutine initialize(ntr)
