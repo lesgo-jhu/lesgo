@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 64
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -45,7 +45,7 @@ module param
   logical, parameter :: VERBOSE = .false.  !--prints small stuff to screen
   !--use DEBUG to write lots of data/files
 
-  integer,parameter:: nx=64,ny=64,nz=(64+4-1)/nproc + 1
+  integer,parameter:: nx=128,ny=128,nz=(192+8-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -53,12 +53,11 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 100
+  integer, parameter :: nsteps = 50000
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-!  real(rprec),parameter::L_x=8.*z_i*dcos(30.*pi/180.)
   real(rprec),parameter::L_x=5.*z_i
   real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x ! ensure dy=dx
   real(rprec),parameter::L_z=z_i*(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x ! ensure dz = dx
@@ -99,9 +98,9 @@ module param
   
   
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .false.
+  logical, parameter :: initu = .true.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .true.
+  logical, parameter :: inilag = .false.
 
   ! nu_molec is dimensional m^2/s
   real(rprec),parameter::nu_molec=1.14e-5_rprec
@@ -115,7 +114,7 @@ module param
   integer,parameter::model=1,models=1,nnn=2
   !Cs is the Smagorinsky Constant
   !Co and nnn are used in the mason model for smagorisky coeff
-  real(kind=rprec),parameter::Co=0.2_rprec
+  real(kind=rprec),parameter::Co=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2

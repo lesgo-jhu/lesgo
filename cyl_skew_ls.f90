@@ -9,7 +9,7 @@ implicit none
 save
 private
 
-public :: cylinder_skew_init_l, cylinder_skew_CD_ls
+public :: cylinder_skew_init_ls, cylinder_skew_CD_ls
 
 contains
 
@@ -32,7 +32,6 @@ $endif
 !  Read in cylinder_skew_gen.dat file
 open (unit = 2,file = fname, status='old',form='formatted', &
   action='read',position='rewind')
-read(2,*) ngen
 
 allocate(igen(ngen))
 allocate(kbottom_inside(ngen))
@@ -82,7 +81,7 @@ subroutine cylinder_skew_CD_ls ()
 use immersedbc, only : fx
 use sim_param, only : u
 use io, only : jt_total
-
+use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.cylinder_skew_ls_CD'
@@ -92,22 +91,22 @@ character(64) :: fname, temp
 integer, parameter :: lun = 991  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
 
-real (rp), parameter :: Ap = 1._rp !--projected area
+real (rprec), parameter :: Ap = 1._rprec !--projected area
 
 logical, save, dimension(10) :: file_init=.false. !  May want to change this to allocatable to
                                                   !  match the generation number
 logical :: opn, exst
 
-real (rp) :: CD
-real (rp) :: Uinf   !--velocity scale used in calculation of CD
-real (rp) :: fD     !--drag, lift force
-real (rp) :: Uinf_global
+real (rprec) :: CD
+real (rprec) :: Uinf   !--velocity scale used in calculation of CD
+real (rprec) :: fD     !--drag, lift force
+real (rprec) :: Uinf_global
 
 integer :: i,j,k,ng
 integer :: kstart, kend
 
-real(rp) :: dz_start, dz_end
-real(rp) :: dz_p
+real(rprec) :: dz_start, dz_end
+real(rprec) :: dz_p
 
 !---------------------------------------------------------------------
 
@@ -129,7 +128,7 @@ $else
 
 $endif
 
-do ng=1,cylinder_skew_t%ngen
+do ng=1,ngen
   if(igen(ng) /= -1) then
     
     fD=0.
@@ -154,30 +153,26 @@ do ng=1,cylinder_skew_t%ngen
      !--(-) since want force ON cylinder
      !--dx*dy*dz is since force is per cell (unit volume)
      !--may want to restrict this sum to points with phi < 0.
-    if(ng==1) then !  Want to check with ground association
-      do k=kstart,kend
-        if(k==kstart) then
-          dz_p = dz_start
-        elseif(k==kend) then
-          dz_p = dz_end
-        else
-          dz_p = dz
-        endif
+    do k=kstart,kend
+      if(k==kstart) then
+        dz_p = dz_start
+      elseif(k==kend) then
+        dz_p = dz_end
+      else
+        dz_p = dz
+      endif
+      if(ng==1) then !  Want to check with ground association
         do j=1,ny
           do i=1,nx
             if(itype(i,j,k) /= 0) fD = fD - fx(i,j,k) * dx * dy * dz_p
           enddo
         enddo
-      enddo
-    else ! Assume for ng>1 no ground association
-      fD = fD - sum(fx(1:nx, :, kstart)) * dx * dy * dz_start
-      do k=kstart+1,kend-1
-        fD = fD - sum(fx(1:nx, :, k)) * dx * dy * dz
-      enddo
-      fD = fD - sum(fx(1:nx, :, kend)) * dx * dy * dz_end
-    endif
+      else
+        fD = fD - sum(fx(1:nx, :, k)) * dx * dy * dz_p
+      endif
+    enddo
 
-    CD = fD / (0.5_rp * Ap * Uinf_global**2)
+    CD = fD / (0.5_rprec * Ap * Uinf_global**2)
 
     inquire (lun, exist=exst, opened=opn)
 

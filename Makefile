@@ -222,6 +222,9 @@ prof:
 cylinder_skew_pre_ls: cylinder_skew_pre_ls.f90 $(OPATH)/param.o 
 	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) -lgeometry t.$<
 
+cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+
 # Other support programs are listed below this point
 interp: utils/interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
@@ -229,7 +232,7 @@ interp: utils/interp.f90
 convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
-cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90
+uvw_avg_comb: utils/uvw_avg_comb.f90 $(OPATH)/param.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental

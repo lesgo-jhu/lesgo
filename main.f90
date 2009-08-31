@@ -16,9 +16,9 @@ use scalars_module2,only:patch_or_remote
 
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
-$if ($CYLINDER_SKEW)
-use cylinder_skew_ls, only : cylinder_skew_ls_init, cylinder_skew_ls_CD
-$endif
+  $if ($CYLINDER_SKEW)
+  use cylinder_skew_ls, only : cylinder_skew_init_ls, cylinder_skew_CD_ls
+  $endif
 $endif
 
 $if ($TREES_LS)
@@ -161,7 +161,7 @@ call initial()
 $if ($LVLSET)
   call level_set_init ()
   $if ($CYLINDER_SKEW_LS)
-  call cylinder_skew_ls_init ()
+  call cylinder_skew_init_ls ()
   $endif
 $endif
 
@@ -433,11 +433,6 @@ do jt=1,nsteps
     call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
     call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
     call DEBUG_write (force, 'main.a.force')
-    if (USE_MPI) then
-      if (coord == 1) write (*, *) "RHSx(1, 1, 1'=17) =", RHSx(1, 1, 1)
-    else
-      write (*, *) "RHSx(1, 1, 17) =", RHSx(1, 1, 17)
-    end if
   end if
 
    !--only 1:nz-1 are valid
@@ -545,7 +540,7 @@ do jt=1,nsteps
     call level_set_cylinder_CD ()
     
     $if ($CYLINDER_SKEW)
-      call cylinder_skew_ls_CD()
+      call cylinder_skew_CD_ls()
     $endif
 
   $endif

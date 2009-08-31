@@ -2,6 +2,7 @@
 module cylinder_skew_param
 !**********************************************************************
 use types, only : rprec
+use param, only : pi
 use cylinder_skew_ls_base
 
 implicit none
@@ -16,7 +17,6 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-double precision, parameter :: pi = dacos(-1._rprec)
 double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12

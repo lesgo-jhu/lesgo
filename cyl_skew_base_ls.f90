@@ -7,7 +7,7 @@ implicit none
 
 save
 public
-private :: mod_name
+!private :: mod_name
 
 character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 
