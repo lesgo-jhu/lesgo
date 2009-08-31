@@ -1,25 +1,17 @@
 program cylinder_skew_post
+use types, only : rprec
+use cylinder_skew_base_ls, only : d, l, scale_fact, ntrunk,ngen,nproc
 implicit none
-integer, parameter :: DP = kind(0.0D0)
-
-!  Base dimensions for projected area
-real(DP), parameter :: d = 28.8_DP*4._DP/185._DP
-real(DP), parameter :: l = 50.4_DP*4._DP/185._DP
-real(DP), parameter :: scale_fact=0.5_DP
 
 !  in thousands
-real(DP), parameter :: iter_start=100; 
-real(DP), parameter :: iter_step=10;
-real(DP), parameter :: iter_end=170; 
-
-integer, parameter :: ntrunk=3;
-integer, parameter :: ngen=3; 
-integer, parameter :: nproc=64;
+integer, parameter :: iter_start=100; 
+integer, parameter :: iter_step=10;
+integer, parameter :: iter_end=170; 
 
 character(200) :: fname, temp
 integer :: iter, ng, np, nsamples
-real(DP) :: Ap, fD, CD, Uinf, fD_proc, CD_proc, Uinf_proc
-real(DP), dimension(:,:), allocatable :: dat
+real(rprec) :: Ap, fD, CD, Uinf, fD_proc, CD_proc, Uinf_proc
+real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
 !  Loop over each generation

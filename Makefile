@@ -222,7 +222,7 @@ prof:
 cylinder_skew_pre_ls: cylinder_skew_pre_ls.f90 $(OPATH)/param.o 
 	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) -lgeometry t.$<
 
-cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90
+cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/cylinder_skew_base_ls.o 
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # Other support programs are listed below this point
