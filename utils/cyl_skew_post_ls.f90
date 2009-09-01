@@ -11,8 +11,8 @@ integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
 integer :: iter, iter_count, n,ng, np, nsamples, nsamples_tot, nstart
-real(rprec) :: Ap,Ap_tot
-real(rprec), dimension(:), allocatable :: CD,fD,CD_tot,fD_tot
+real(rprec) :: Ap,CD_avg, fD_avg, Ap_tot,CD_tot,fD_tot
+real(rprec), dimension(:), allocatable :: CD,fD
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
@@ -30,6 +30,8 @@ do iter=iter_start,iter_end,iter_step
 enddo
 
 Ap_tot = 0._rprec
+CD_tot = 0._rprec
+fD_tot = 0._rprec
 
 !  Open output file
 fname ='cylinder_skew_CD.dat'
@@ -67,6 +69,7 @@ do ng=1,ngen
         nstart = nsamples*(iter_count-1) !  Keep data in time order
         write(*,*) 'nsamples : ', nsamples
         write(*,*) 'nstart   : ', nstart
+ 
         if(.not. allocated(CD)) then
           write(*,*) 'Allocating CD and fD'
           nsamples_tot = niter*nsamples
@@ -74,14 +77,6 @@ do ng=1,ngen
           allocate(fD(nsamples_tot))
           CD=0._rprec;
           fD=0._rprec;
-        endif
-        if(.not. allocated(CD_tot)) then
-          write(*,*) 'Allocating CD_tot and fD_tot'
-          nsamples_tot = niter*nsamples
-          allocate(CD_tot(nsamples_tot))
-          allocate(fD_tot(nsamples_tot))
-          CD_tot=0._rprec
-          fD_tot=0._rprec
         endif
           
         do n=1,nsamples
@@ -93,22 +88,21 @@ do ng=1,ngen
       endif        
     enddo
   enddo
-  
-  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, sum(CD)/nsamples_tot/Ap, sum(fD)/nsamples_tot
+  CD_avg = sum(CD)/nsamples_tot/Ap
+  fD_avg = sum(fD)/nsamples_tot
+  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, CD_avg, fD_avg
 
-  do n=1,nsamples_tot
-    CD_tot(n) = CD_tot(n) + CD(n) 
-    fD_tot(n) = fD_tot(n) + fD(n) 
-  enddo
+  CD_tot = CD_tot + Ap*CD_avg
+  fD_tot = fD_tot + fD_avg
   Ap_tot = Ap_tot + Ap
  
   deallocate(CD)
   deallocate(fD)
 
 enddo
+CD_tot = CD_tot/Ap_tot
 
-
-write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot : ',ngen, Ap_tot, sum(CD_tot)/nsamples_tot/Ap_tot, sum(fD_tot)/nsamples_tot
+write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot : ',ngen, Ap_tot, CD_tot, fD_tot
 close(11)
 
 stop
