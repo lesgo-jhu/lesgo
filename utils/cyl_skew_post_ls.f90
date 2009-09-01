@@ -94,7 +94,7 @@ do ng=1,ngen
     enddo
   enddo
   
-  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, sum(CD)/nsamples/Ap, sum(fD)/nsamples
+  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, sum(CD)/nsamples_tot/Ap, sum(fD)/nsamples_tot
 
   do n=1,nsamples_tot
     CD_tot(n) = CD_tot(n) + CD(n) 
