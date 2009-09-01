@@ -1,12 +1,12 @@
 program cylinder_skew_post
 use types, only : rprec
-use cylinder_skew_base_ls, only : d, l, scale_fact, ntrunk,ngen,nproc
+use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,nproc
 implicit none
 
 !  in thousands
-integer, parameter :: iter_start=100; 
-integer, parameter :: iter_step=10;
-integer, parameter :: iter_end=170; 
+integer, parameter :: iter_start=380; 
+integer, parameter :: iter_step=50;
+integer, parameter :: iter_end=540; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
@@ -35,7 +35,7 @@ fD_tot = 0._rprec
 
 !  Loop over each generation
 do ng=1,ngen
-  Ap = (scale_fact**2)**(ng-1)*d*l*(ntrunk**ng) ! Projected area for generation
+  Ap = (scale_fact**2)**(ng-1) * d * (l*cos(skew_angle)) * (ntrunk**ng) ! Projected area for generation
 
   do iter=iter_start,iter_end,iter_step
 
