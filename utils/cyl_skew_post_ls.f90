@@ -11,8 +11,8 @@ integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
 integer :: iter, iter_count, n,ng, np, nsamples, nsamples_tot, nstart
-real(rprec) :: Ap,CD_avg, fD_avg, Ap_tot,CD_tot,fD_tot
-real(rprec), dimension(:), allocatable :: CD,fD
+real(rprec) :: Ap, CD_avg, fD_avg, Uinf_avg, Ap_tot, CD_tot, fD_tot, Uinf_tot
+real(rprec), dimension(:), allocatable :: CD, fD, Uinf
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
@@ -75,13 +75,16 @@ do ng=1,ngen
           nsamples_tot = niter*nsamples
           allocate(CD(nsamples_tot))
           allocate(fD(nsamples_tot))
+          allocate(Uinf(nsamples_tot))
           CD=0._rprec;
           fD=0._rprec;
+          Uinf=0._rprec
         endif
           
         do n=1,nsamples
           CD(nstart + n) = CD(nstart + n) + dat(2,n) ! Sum proc contributions
           fD(nstart + n) = fD(nstart + n) + dat(3,n) ! Sum proc contributions
+          Uinf(nstart + n) = dat(4,n) ! Uinf for all procs is the same; just over writting
         enddo
         write(*,*) 'Summed proc', np, ' contribution for gen ', ng
         deallocate(dat)
@@ -90,7 +93,8 @@ do ng=1,ngen
   enddo
   CD_avg = sum(CD)/nsamples_tot/Ap
   fD_avg = sum(fD)/nsamples_tot
-  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, CD_avg, fD_avg
+  Uinf_avg = sum(Uinf)/nsamples_tot
+  write(11,*) 'Gen, Ap, CD, fD, Uinf : ', ng, Ap, CD_avg, fD_avg, Uinf_avg
 
   CD_tot = CD_tot + Ap*CD_avg
   fD_tot = fD_tot + fD_avg
@@ -101,8 +105,8 @@ do ng=1,ngen
 
 enddo
 CD_tot = CD_tot/Ap_tot
-
-write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot : ',ngen, Ap_tot, CD_tot, fD_tot
+!  Just using the last Uinf_avg; it is a global quantity so Uinf_avg is the same for all generations
+write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot, Uinf_tot : ',ngen, Ap_tot, CD_tot, fD_tot, Uinf_avg
 close(11)
 
 stop
