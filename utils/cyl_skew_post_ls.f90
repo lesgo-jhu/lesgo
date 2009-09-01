@@ -30,8 +30,6 @@ do iter=iter_start,iter_end,iter_step
 enddo
 
 Ap_tot = 0._rprec
-CD_tot = 0._rprec
-fD_tot = 0._rprec
 
 !  Open output file
 fname ='cylinder_skew_CD.dat'
