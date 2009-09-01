@@ -102,6 +102,7 @@ do ng=1,ngen
  
   deallocate(CD)
   deallocate(fD)
+  deallocate(Uinf)
 
 enddo
 CD_tot = CD_tot/Ap_tot
