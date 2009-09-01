@@ -10,9 +10,9 @@ integer, parameter :: iter_end=540;
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
-integer :: iter, iter_count, n,ng, np, nsamples, nstart
-real(rprec) :: Ap,Ap_tot,CD_tot,fD_tot
-real(rprec), dimension(:), allocatable :: CD,fD
+integer :: iter, iter_count, n,ng, np, nsamples, nsamples_tot, nstart
+real(rprec) :: Ap,Ap_tot
+real(rprec), dimension(:), allocatable :: CD,fD,CD_tot,fD_tot
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
@@ -65,17 +65,27 @@ do ng=1,ngen
       if(exst) then ! Generation is associated with proc
         write(*,*) 'File exists : ', fname
         call load_data()
-        if(.not. allocated(CD)) then
-          write(*,*) 'Allocating CD and fD'
-          allocate(CD(niter*size(dat,2)))
-          allocate(fD(niter*size(dat,2)))
-          CD=0._rprec;
-          fD=0._rprec;
-        endif
         nsamples = size(dat,2); ! size(dat,2) is same for all files
         nstart = nsamples*(iter_count-1) !  Keep data in time order
         write(*,*) 'nsamples : ', nsamples
         write(*,*) 'nstart   : ', nstart
+        if(.not. allocated(CD)) then
+          write(*,*) 'Allocating CD and fD'
+          nsamples_tot = niter*nsamples
+          allocate(CD(nsamples_tot))
+          allocate(fD(nsamples_tot))
+          CD=0._rprec;
+          fD=0._rprec;
+        endif
+        if(.not. allocated(CD_tot)) then
+          write(*,*) 'Allocating CD_tot and fD_tot'
+          nsamples_tot = niter*nsamples
+          allocate(CD_tot(nsamples_tot))
+          allocate(fD_tot(nsamples_tot))
+          CD_tot=0._rprec
+          fD_tot=0._rprec
+        endif
+          
         do n=1,nsamples
           CD(nstart + n) = CD(nstart + n) + dat(2,n) ! Sum proc contributions
           fD(nstart + n) = fD(nstart + n) + dat(3,n) ! Sum proc contributions
@@ -85,10 +95,13 @@ do ng=1,ngen
       endif        
     enddo
   enddo
-  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, sum(CD)/size(CD,1)/Ap, sum(fD)/size(fD,1)
+  
+  write(11,*) 'Gen, Ap, CD, fD : ', ng, Ap, sum(CD)/nsamples/Ap, sum(fD)/nsamples
 
-  CD_tot = CD_tot + sum(CD)/size(CD,1)/Ap
-  fD_tot = fD_tot + sum(fD)/size(fD,1)
+  do n=1,nsamples_tot
+    CD_tot(n) = CD_tot(n) + CD(n) 
+    fD_tot(n) = fD_tot(n) + fD(n) 
+  enddo
   Ap_tot = Ap_tot + Ap
  
   deallocate(CD)
@@ -96,7 +109,8 @@ do ng=1,ngen
 
 enddo
 
-write(11,*) '# Gen, Ap_tot, CD_tot, fD_tot : ',ngen, Ap_tot, CD_tot, fD_tot
+
+write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot : ',ngen, Ap_tot, sum(CD_tot)/nsamples_tot/Ap_tot, sum(fD_tot)/nsamples_tot
 close(11)
 
 stop
