@@ -144,7 +144,7 @@ do ng=1,ngen
 
     if(ktop_inside(ng) == 1) then
       kend = ktop(ng)
-      dz_end = dz_bottom(ng)
+      dz_end = dz_top(ng)
     else
       kend = nz-1 ! -1 to avoid interprocessor overlap
       dz_end = dz
