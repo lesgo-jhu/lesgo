@@ -4,9 +4,9 @@ use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,npro
 implicit none
 
 !  in thousands
-integer, parameter :: iter_start=390; 
-integer, parameter :: iter_step=50;
-integer, parameter :: iter_end=540; 
+integer, parameter :: iter_start=1000; 
+integer, parameter :: iter_step=1;
+integer, parameter :: iter_end=1000; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
@@ -17,17 +17,18 @@ real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
 !  Check that all directories are present
-do iter=iter_start,iter_end,iter_step
-  fdir = 'output.'
-  write (temp, '(i0)') iter
-  fdir = trim (fdir) // temp
-  fdir = trim(fdir) // 'k'
-  inquire(file=fdir, exist=exst)
-  if(.not. exst) then
-    write(*,*) 'Directory', fname, ' not found. Please correct iter settings!'
-    stop
-  endif
-enddo
+!do iter=iter_start,iter_end,iter_step
+!  fdir = 'output.'
+!  write (temp, '(i0)') iter
+!  fdir = trim (fdir) // temp
+!  fdir = trim(fdir) // 'k'
+!  fdir = trim(fdir)
+!  inquire(file=trim(fdir), exist=exst)
+!  if(.not. exst) then
+!    write(*,*) 'Directory', trim(fdir), ' not found. Please correct iter settings!'
+!    stop
+!  endif
+!enddo
 
 Ap_tot = 0._rprec
 CD_tot = 0._rprec
@@ -99,7 +100,18 @@ do ng=1,ngen
   CD_tot = CD_tot + Ap*CD_avg
   fD_tot = fD_tot + fD_avg
   Ap_tot = Ap_tot + Ap
- 
+
+  if(ng==1) then
+  !  Open output file
+    fname ='cylinder_skew_CD_inst.dat'
+    open (unit = 12,file = fname, status='unknown',form='formatted', &
+      action='write',position='rewind')
+    do n=1,nsamples_tot
+      write(12,*) CD(n)/Ap
+    enddo
+    close(12)
+  endif
+
   deallocate(CD)
   deallocate(fD)
   deallocate(Uinf)
