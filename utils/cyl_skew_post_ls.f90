@@ -4,9 +4,9 @@ use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,npro
 implicit none
 
 !  in thousands
-integer, parameter :: iter_start=1000; 
-integer, parameter :: iter_step=1;
-integer, parameter :: iter_end=1000; 
+integer, parameter :: iter_start=70; 
+integer, parameter :: iter_step=10;
+integer, parameter :: iter_end=260; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
@@ -17,18 +17,18 @@ real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
 !  Check that all directories are present
-!do iter=iter_start,iter_end,iter_step
-!  fdir = 'output.'
-!  write (temp, '(i0)') iter
-!  fdir = trim (fdir) // temp
-!  fdir = trim(fdir) // 'k'
-!  fdir = trim(fdir)
-!  inquire(file=trim(fdir), exist=exst)
-!  if(.not. exst) then
-!    write(*,*) 'Directory', trim(fdir), ' not found. Please correct iter settings!'
-!    stop
-!  endif
-!enddo
+do iter=iter_start,iter_end,iter_step
+  fdir = 'output.'
+  write (temp, '(i0)') iter
+  fdir = trim (fdir) // temp
+  fdir = trim(fdir) // 'k'
+  fdir = trim(fdir)
+  inquire(file=trim(fdir), exist=exst)
+  if(.not. exst) then
+    write(*,*) 'Directory', trim(fdir), ' not found. Please correct iter settings!'
+    stop
+  endif
+enddo
 
 Ap_tot = 0._rprec
 CD_tot = 0._rprec
@@ -66,7 +66,7 @@ do ng=1,ngen
       if(exst) then ! Generation is associated with proc
         write(*,*) 'File exists : ', fname
         call load_data()
-        nsamples = size(dat,2); ! size(dat,2) is same for all files
+        nsamples = size(dat,2); ! size(dat,2) should be the same for all files
         nstart = nsamples*(iter_count-1) !  Keep data in time order
         write(*,*) 'nsamples : ', nsamples
         write(*,*) 'nstart   : ', nstart
@@ -81,7 +81,14 @@ do ng=1,ngen
           fD=0._rprec;
           Uinf=0._rprec
         endif
-          
+        
+        !  Check that nsamples in current file is the same
+        if(niter*nsamples /= ubound(CD,1)) then
+          write(*,*) 
+          write(*,*) 'Error: mismatch in data size in ', fname, '!'
+          stop
+        endif
+
         do n=1,nsamples
           CD(nstart + n) = CD(nstart + n) + dat(2,n) ! Sum proc contributions
           fD(nstart + n) = fD(nstart + n) + dat(3,n) ! Sum proc contributions
