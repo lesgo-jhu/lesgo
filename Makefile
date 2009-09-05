@@ -49,7 +49,7 @@ ifeq ($(USE_LVLSET), yes)
 endif
 
 ifeq ($(USE_CYLINDER_SKEW_LS), yes)
-  FPP += -DCYLINDER_SKEW
+  FPP += -DCYLINDER_SKEW_LS
 endif
 
 # Directory for the .o files
@@ -219,7 +219,7 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew_pre_ls: cylinder_skew_pre_ls.f90 $(OPATH)/param.o 
+cylinder_skew_pre_ls: cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) -lgeometry t.$<
 
 cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/cylinder_skew_base_ls.o 
