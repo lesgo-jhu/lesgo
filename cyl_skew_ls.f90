@@ -102,7 +102,7 @@ real (rprec) :: Uinf   !--velocity scale used in calculation of CD
 real (rprec) :: fD     !--drag, lift force
 real (rprec) :: Uinf_global
 
-integer :: i,j,k,ng
+integer :: i,j,k,n,ng
 integer :: kstart, kend
 
 real(rprec) :: dz_start, dz_end
@@ -117,14 +117,24 @@ Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
 
+  if(coord_of_rank(rank) == nproc - 1) then
+    Uinf = sum(u(:,:,nz-1))/(nx*ny)
   !  Sum Uinf from all procs and redestribute
-  call mpi_allreduce(Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    do n=0,nproc-2
+      call MPI_Send( Uinf, 1, MPI_RPREC, rank_of_coord(n), coord_of_rank(n), comm, ierr)
+    enddo
+  else
+!    int MPI_Recv( void *buf, int count, MPI_Datatype datatype, int source, 
+!              int tag, MPI_Comm comm, MPI_Status *status )
+    call MPI_Recv( Uinf, 1, MPI_RPREC, rank_of_coord(nproc-1), coord_of_rank(rank), comm, status, ierr)  
+  endif
+!  call mpi_allreduce(Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   !  Average over all procs; assuming distribution is even
-  Uinf_global = Uinf_global / nproc
+!  Uinf_global = Uinf_global / nproc
 
 $else
 
-  Uinf_global = Uinf
+  Uinf = sum(u(:,:,nz-1))/(nx*ny)
 
 $endif
 
@@ -172,7 +182,7 @@ do ng=1,ngen
       endif
     enddo
 
-    CD = fD / (0.5_rprec * Ap * Uinf_global**2)
+    CD = fD / (0.5_rprec * Ap * Uinf**2)
 
     inquire (lun, exist=exst, opened=opn)
 
@@ -204,7 +214,7 @@ do ng=1,ngen
 
 
     !--output to file
-    write (lun, '(4(es12.5,1x))') (jt_total * dt), CD, fD, Uinf_global
+    write (lun, '(4(es12.5,1x))') (jt_total * dt), CD, fD, Uinf
 
     close (lun)  !--only do this to force a flush
 
