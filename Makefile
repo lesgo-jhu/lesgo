@@ -219,11 +219,15 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew_pre_ls: cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
-	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) -lgeometry t.$<
+cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
+	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
+	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \
+	-lgeometry t.cylinder_skew_pre_ls.f90 
 
-cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/cylinder_skew_base_ls.o 
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
+	$(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o 
+	$(FPP) $< > t.cylinder_skew_post_ls.f90; $(FC) -o $@ \
+	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cylinder_skew_post_ls.f90
 
 # Other support programs are listed below this point
 interp: utils/interp.f90
