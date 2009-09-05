@@ -3,7 +3,7 @@ module cylinder_skew_param
 !**********************************************************************
 use types, only : rprec
 use param, only : pi
-use cylinder_skew_ls_base
+use cylinder_skew_base_ls
 
 implicit none
 
@@ -85,11 +85,10 @@ double precision :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
-!origin(:,2)=(/ 0., L_y, z_bottom_surf /)
-!origin(:,3)=(/ L_x, 0., z_bottom_surf /)
-!origin(:,4)=(/ L_x, L_y, z_bottom_surf /)
-!origin(:,5)=(/ L_x/2., 2.*cos(30.*pi/180.), z_bottom_surf /)
-!origin(:,6)=(/ L_x/2., 2.*cos(30.*pi/180.) + 4., z_bottom_surf /)
+origin(:,2)=(/ -L_x/2., L_y/2., z_bottom_surf /)
+origin(:,3)=(/ 3.*L_x/2., L_y/2., z_bottom_surf /)
+origin(:,4)=(/ L_x/2., -L_y/2., z_bottom_surf /)
+origin(:,5)=(/ L_x/2., 3.*L_y/2., z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
