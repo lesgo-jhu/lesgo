@@ -4,9 +4,9 @@ use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,npro
 implicit none
 
 !  in thousands
-integer, parameter :: iter_start=70; 
+integer, parameter :: iter_start=10; 
 integer, parameter :: iter_step=10;
-integer, parameter :: iter_end=260; 
+integer, parameter :: iter_end=10; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
@@ -23,10 +23,10 @@ do iter=iter_start,iter_end,iter_step
   fdir = trim (fdir) // temp
   fdir = trim(fdir) // 'k'
   fdir = trim(fdir)
-  inquire(file=trim(fdir), exist=exst)
+  inquire(file=fdir, exist=exst)
   if(.not. exst) then
-    write(*,*) 'Directory', trim(fdir), ' not found. Please correct iter settings!'
-    stop
+    write(*,*) 'Directory ', trim(fdir), ' not found. Please correct iter settings!'
+  !  stop
   endif
 enddo
 
@@ -35,7 +35,7 @@ CD_tot = 0._rprec
 fD_tot = 0._rprec
 
 !  Open output file
-fname ='cylinder_skew_CD.dat'
+fname ='cylinder_skew_ls_CD.dat'
 open (unit = 11,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
@@ -54,7 +54,7 @@ do ng=1,ngen
     write(*,*) 'Checking for files in directory : ', fdir
     do np=0,nproc-1 ! Sum over all processors
 
-      fname = trim(fdir) // '/cylinder_skew_CD.dat.g'
+      fname = trim(fdir) // '/cylinder_skew_ls_CD.dat.g'
       write (temp, '(i0)') ng
       fname = trim (fname) // temp
       fname = trim(fname) // '.c'
@@ -110,7 +110,7 @@ do ng=1,ngen
 
   if(ng==1) then
   !  Open output file
-    fname ='cylinder_skew_CD_inst.dat'
+    fname ='cylinder_skew_ls_CD_inst.dat'
     open (unit = 12,file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
     do n=1,nsamples_tot
