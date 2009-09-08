@@ -23,7 +23,7 @@ character(64) :: fname, temp
 integer :: i,j,k,ng
 
 !  Open file which to write global data
-fname = path // 'cylinder_skew_ls_gen.out'
+fname = path // 'cylinder_skew_gen_ls.out'
 $if ($MPI)
   write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
@@ -52,7 +52,7 @@ close(2)
 !  Check 1st generation only for need ground association
 if(igen(1) /= -1) then
   !  Open file which to write global data
-  fname = path // 'cylinder_skew_ls_point.out'
+  fname = path // 'cylinder_skew_point_ls.out'
   $if ($MPI)
     write (temp, '(".c",i0)') coord
     fname = trim (fname) // temp
@@ -84,8 +84,8 @@ use io, only : jt_total
 use messages
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.cylinder_skew_ls_CD'
-character (*), parameter :: fCD_out = 'output/cylinder_skew_ls_CD.dat'
+character (*), parameter :: sub_name = mod_name // '.cylinder_skew_CD_ls'
+character (*), parameter :: fCD_out = 'output/cylinder_skew_CD_ls.dat'
 character(64) :: fname, temp
 
 integer, parameter :: lun = 991  !--keep open between calls

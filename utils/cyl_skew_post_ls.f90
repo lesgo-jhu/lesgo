@@ -35,7 +35,7 @@ CD_tot = 0._rprec
 fD_tot = 0._rprec
 
 !  Open output file
-fname ='cylinder_skew_ls_CD.dat'
+fname ='cylinder_skew_CD_ls.dat'
 open (unit = 11,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
@@ -54,7 +54,7 @@ do ng=1,ngen
     write(*,*) 'Checking for files in directory : ', fdir
     do np=0,nproc-1 ! Sum over all processors
 
-      fname = trim(fdir) // '/cylinder_skew_ls_CD.dat.g'
+      fname = trim(fdir) // '/cylinder_skew_CD_ls.dat.g'
       write (temp, '(i0)') ng
       fname = trim (fname) // temp
       fname = trim(fname) // '.c'
@@ -110,7 +110,7 @@ do ng=1,ngen
 
   if(ng==1) then
   !  Open output file
-    fname ='cylinder_skew_ls_CD_inst.dat'
+    fname ='cylinder_skew_CD_inst_ls.dat'
     open (unit = 12,file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
     do n=1,nsamples_tot

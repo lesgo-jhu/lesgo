@@ -631,7 +631,7 @@ double precision, pointer, dimension(:,:,:) :: phi
 if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew.dat'
+write (fname,*) 'cylinder_skew_ls.dat'
 fname = trim(adjustl(fname)) 
 
 if(mpisize > 1) then
@@ -798,7 +798,7 @@ do ng=1,ngen
 enddo
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_ls_gen.out'
+write (fname,*) 'cylinder_skew_gen_ls.out'
 fname = trim(adjustl(fname)) 
 
 if(mpisize > 1) then
@@ -833,7 +833,7 @@ character(64) :: fname, temp
 integer :: i,j,k
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_ls_point.out'
+write (fname,*) 'cylinder_skew_point_ls.out'
 fname = trim(adjustl(fname)) 
 
 if(mpisize > 1) then
