@@ -25,7 +25,7 @@ USE_DYNALLOC = no
 #--still experimental
 
 USE_LVLSET = yes
-USE_CYLINDER_SKEW = yes
+USE_CYLINDER_SKEW_LS = yes
 
 USE_TREES_LS = no
 
@@ -48,8 +48,8 @@ ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
 endif
 
-ifeq ($(USE_CYLINDER_SKEW), yes)
-  FPP += -DCYLINDER_SKEW
+ifeq ($(USE_CYLINDER_SKEW_LS), yes)
+  FPP += -DCYLINDER_SKEW_LS
 endif
 
 # Directory for the .o files
@@ -79,7 +79,7 @@ ifeq ($(FCOMP),ifort)
   LDFLAGS = -threads -shared-intel
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
-  CYLINDER_SKEW_FFLAGS = $(FFLAGS) -r8
+  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
 endif
 
 ifeq ($(FCOMP),gfortran)
@@ -96,7 +96,7 @@ ifeq ($(FCOMP),gfortran)
   LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)  
   FFLAGS += $(MODDIR)  
-  CYLINDER_SKEW_FFLAGS += -fdefault-real-8 -fdefault-double-8
+  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif
 
 ifeq ($(FCOMP),xlf)
@@ -132,7 +132,7 @@ ifeq ($(FCOMP),xlf)
   endif
   MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)
-  CYLINDER_SKEW_FFLAGS = $(FFLAGS) 
+  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) 
   #-qautodbl=dbl4 -qrealsize=8
 endif
 
@@ -179,7 +179,7 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
-CYLINDER_SKEW_SRCS = cylinder_skew.f90
+CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
@@ -191,6 +191,10 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
+endif
+
+ifeq ($(USE_CYLINDER_SKEW_LS), yes)
+  SRCS += $(CYLINDER_SKEW_LS_SRCS)
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
@@ -215,12 +219,24 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew: cylinder_skew.f90 $(OPATH)/param.o 
-	$(FPP) $< > t.$<; $(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry t.$<
-#$(FC) -o $@ $(CYLINDER_SKEW_FFLAGS) $(LIBPATH) -lgeometry $<
+cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
+	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
+	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \
+	-lgeometry t.cylinder_skew_pre_ls.f90 
+
+cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
+	$(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o 
+	$(FPP) $< > t.cylinder_skew_post_ls.f90; $(FC) -o $@ \
+	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cylinder_skew_post_ls.f90
 
 # Other support programs are listed below this point
-interp: interp.f90
+interp: utils/interp.f90
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+
+convert_endian:	utils/convert_endian.f90
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+
+uvw_avg_comb: utils/uvw_avg_comb.f90 $(OPATH)/param.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
