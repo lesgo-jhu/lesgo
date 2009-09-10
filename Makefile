@@ -73,7 +73,7 @@ ifeq ($(FCOMP),ifort)
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  #FFLAGS += -warn all -mcmodel=medium
+  FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
@@ -205,6 +205,7 @@ include .depend
 .depend: $(SRCS)
 	mkdir -p $(OPATH) $(MPATH);
 	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend
+        
 #	makedepf90 -r 'fpx3 $$< > t.$$<;$$(FC) -c -o $$(@) $$(FFLAGS) t.$$<;rm -f t.$$<'\
 #                   -b $(OPATH) -o $(EXE) $(SRCS) > .depend
 
@@ -219,13 +220,16 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-tsum_post: utils/tsum_post.f90 $(OPATH)/param.o $(OPATH)/mpi_defs.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+tsum_post: utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
+	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
+	$(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
+	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/mpi_defs.o $(OPATH)/grid.o
 
-cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/mpi_defs.o $(OPATH)/cylinder_skew_base_ls.o
+cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
+	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
 	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \
-	-lgeometry t.cylinder_skew_pre_ls.f90 
+	-lgeometry t.cylinder_skew_pre_ls.f90 $(OPATH)/mpi_defs.o
 
 cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
 	$(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o 
@@ -289,5 +293,5 @@ merge_phi:  merge_phi.f90 $(OPATH)/types.o \
 .PHONY : clean
 clean :
 	echo \0>./total_time.dat
-	rm -rf $(FOBJ) .depend* $(MPATH)/*.mod
+	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
 	rm -f t.*
