@@ -23,14 +23,6 @@ domain_t%started = .false.
 point_t%xyz=-1.
 ! ------ These values are not to be changed ------
 
-!  Master switch for turning on or off all statistics
-!  including instantaneous recordings 
-!stats_t%calc = .true.
-
-!  Sub switches for statistics and output
-!  Turns temporal averaged quantities on or off
-!aver_calc = .false.
-
 !  All nstart and nend values are based
 !  on jt and not jt_total
 tsum_t%calc = .true.
