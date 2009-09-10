@@ -41,16 +41,10 @@ double precision :: eck
 
 end module cylinder_skew_param
 
-!**********************************************************************
-module mpi2
-!**********************************************************************
-  integer :: mpierror, mpisize, mpirank, mpicount
-end module mpi2
-
 !**************************************************************
 program cylinder_skew_pre_ls
 !***************************************************************
-use mpi2, only : mpirank
+use mpi_defs, only : mpirank
 use cylinder_skew_param, only : DEBUG,ntree
 implicit none
 
@@ -72,8 +66,7 @@ end program cylinder_skew_pre_ls
 !**********************************************************************
 subroutine initialize(ntr)
 !**********************************************************************
-use mpi
-use mpi2
+use mpi_defs
 use cylinder_skew_param
 
 implicit none
@@ -250,25 +243,6 @@ enddo
 return 
 
 contains
-
-!**********************************************************************
-subroutine initialize_mpi()
-!**********************************************************************
-
-implicit none
-
-!  Initialize mpi communication
-call MPI_Init(mpierror)
-call MPI_Comm_size(MPI_COMM_WORLD, mpisize, mpierror)
-call MPI_Comm_rank(MPI_COMM_WORLD, mpirank, mpierror)
-
-if(mpisize .ne. nproc) then
-  write(*,*) 'Error: requested number of processors not equal to specified number!'
-  stop
-endif
-
-return
-end subroutine initialize_mpi
 
 !**********************************************************************
 subroutine allocate_arrays()
@@ -602,8 +576,7 @@ end subroutine set_sign
 !**********************************************************************
 subroutine finalize()
 !**********************************************************************
-use mpi
-use mpi2
+use mpi_defs
 use cylinder_skew_param
 
 implicit none
@@ -611,7 +584,7 @@ implicit none
 call write_output()
 
 !  Finalize mpi communication
-call MPI_FINALIZE(mpierror)
+call finalize_mpi()
 
 return
 contains

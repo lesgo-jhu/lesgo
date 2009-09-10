@@ -219,7 +219,10 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
+tsum_post: utils/tsum_post.f90 $(OPATH)/param.o $(OPATH)/mpi_defs.o
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
+
+cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/mpi_defs.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \
 	-lgeometry t.cylinder_skew_pre_ls.f90 
@@ -234,9 +237,6 @@ interp: utils/interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 convert_endian:	utils/convert_endian.f90
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
-
-uvw_avg_comb: utils/uvw_avg_comb.f90 $(OPATH)/param.o
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
 # This part is experimental
