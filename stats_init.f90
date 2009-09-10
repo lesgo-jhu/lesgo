@@ -15,30 +15,22 @@ integer :: fid, i,j,k
 
 ! ------ These values are not to be changed ------
 !  Don't change from false
-tavg_t%calc     = .false.
-tavg_t%started  = .false.
+tsum_t%calc     = .false.
+tsum_t%started  = .false.
 point_t%started = .false.
 domain_t%started = .false.
 !  Initialize with non used integer 
 point_t%xyz=-1.
 ! ------ These values are not to be changed ------
 
-!  Master switch for turning on or off all statistics
-!  including instantaneous recordings 
-!stats_t%calc = .true.
-
-!  Sub switches for statistics and output
-!  Turns temporal averaged quantities on or off
-!aver_calc = .false.
-
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tavg_t%calc = .true.
-tavg_t%nstart = 1
-tavg_t%nend = nsteps
+tsum_t%calc = .true.
+tsum_t%nstart = 1
+tsum_t%nend = nsteps
 
-!  Turns Reynolds stresses calculations on or off 
-rs_t%calc = .false.
+! !  Turns Reynolds stresses calculations on or off 
+! rs_t%calc = .false.
 
 !  Turns instantaneous velocity recording on or off
 point_t%calc = .false.
@@ -71,7 +63,7 @@ zplane_t%loc(1)  = 0.5
 !  Set time summation calculations based on
 !  dependants. Don't touch, depends on above
 !  information
-if(rs_t%calc) tavg_t%calc = .true.
+if(rs_t%calc) tsum_t%calc = .true.
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -84,44 +76,44 @@ $endif
 
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
-if(tavg_t%calc) then 
-  allocate(tavg_t%u(nx, ny, $lbz:nz))
-  allocate(tavg_t%v(nx, ny, $lbz:nz))
-  allocate(tavg_t%w(nx, ny, $lbz:nz))
-  allocate(tavg_t%u2(nx, ny, $lbz:nz))
-  allocate(tavg_t%v2(nx, ny, $lbz:nz))
-  allocate(tavg_t%w2(nx, ny, $lbz:nz))
-  allocate(tavg_t%uw(nx, ny, $lbz:nz))
-  allocate(tavg_t%vw(nx, ny, $lbz:nz))
-  allocate(tavg_t%uv(nx, ny, $lbz:nz))
-  allocate(tavg_t%dudz(nx, ny, $lbz:nz))
+if(tsum_t%calc) then 
+  allocate(tsum_t%u(nx, ny, $lbz:nz))
+  allocate(tsum_t%v(nx, ny, $lbz:nz))
+  allocate(tsum_t%w(nx, ny, $lbz:nz))
+  allocate(tsum_t%u2(nx, ny, $lbz:nz))
+  allocate(tsum_t%v2(nx, ny, $lbz:nz))
+  allocate(tsum_t%w2(nx, ny, $lbz:nz))
+  allocate(tsum_t%uw(nx, ny, $lbz:nz))
+  allocate(tsum_t%vw(nx, ny, $lbz:nz))
+  allocate(tsum_t%uv(nx, ny, $lbz:nz))
+  allocate(tsum_t%dudz(nx, ny, $lbz:nz))
   !  Initialize arrays
-  tavg_t%u=0.
-  tavg_t%v=0.
-  tavg_t%w=0.
-  tavg_t%u2=0.
-  tavg_t%v2=0.
-  tavg_t%w2=0.
-  tavg_t%uw=0.
-  tavg_t%vw=0.
-  tavg_t%uv=0.
-  tavg_t%dudz=0.
+  tsum_t%u=0.
+  tsum_t%v=0.
+  tsum_t%w=0.
+  tsum_t%u2=0.
+  tsum_t%v2=0.
+  tsum_t%w2=0.
+  tsum_t%uw=0.
+  tsum_t%vw=0.
+  tsum_t%uv=0.
+  tsum_t%dudz=0.
 endif
 
-if(rs_t%calc) then
-  allocate(rs_t%up2(nx, ny, $lbz:nz))
-  allocate(rs_t%vp2(nx, ny, $lbz:nz))
-  allocate(rs_t%wp2(nx, ny, $lbz:nz))
-  allocate(rs_t%upwp(nx, ny, $lbz:nz))
-  allocate(rs_t%vpwp(nx, ny, $lbz:nz))
-  allocate(rs_t%upvp(nx, ny, $lbz:nz))
-  rs_t%up2=0.
-  rs_t%vp2=0.
-  rs_t%wp2=0.
-  rs_t%upwp=0.
-  rs_t%vpwp=0.
-  rs_t%upvp=0.
-endif
+! if(rs_t%calc) then
+!   allocate(rs_t%up2(nx, ny, $lbz:nz))
+!   allocate(rs_t%vp2(nx, ny, $lbz:nz))
+!   allocate(rs_t%wp2(nx, ny, $lbz:nz))
+!   allocate(rs_t%upwp(nx, ny, $lbz:nz))
+!   allocate(rs_t%vpwp(nx, ny, $lbz:nz))
+!   allocate(rs_t%upvp(nx, ny, $lbz:nz))
+!   rs_t%up2=0.
+!   rs_t%vp2=0.
+!   rs_t%wp2=0.
+!   rs_t%upwp=0.
+!   rs_t%vpwp=0.
+!   rs_t%upvp=0.
+! endif
 
 ! Initialize information for y-planar stats/data
 if(yplane_t%calc) then
