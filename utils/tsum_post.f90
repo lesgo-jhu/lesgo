@@ -2,7 +2,9 @@
 program tsum_post
 !**********************************************************************
 use types, only : rprec
+$if ($MPI)
 use mpi_defs
+$endif
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, USE_MPI
@@ -11,14 +13,16 @@ implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=390, iter_stop=540, iter_skip=50 ! In thousands
-character(50) :: ci,fname
-character(50) :: fin, ftec,fdir
-integer :: i,j,k,n
+integer, parameter :: iter_start=1, iter_stop=2, iter_skip=1 ! In thousands
+character(50) :: ci,fname,temp
+character(50) :: ftec, fdir
+integer :: i,j,k
 integer :: nf,ndirs
 real(rprec) :: favg
 
+$if ($MPI)
 call initialize_mpi()
+$endif
 
 ndirs = (iter_stop - iter_start)/iter_skip + 1 ! # of iteration sets
 
@@ -104,7 +108,7 @@ tsum_t%vw, &
 tsum_t%uv, &
 tsum_t%dudz)
 
-if(rs_compute) then
+if(rs_output) then
   allocate(rs_t%up2(nx, ny, nz))
   allocate(rs_t%vp2(nx, ny, nz))
   allocate(rs_t%wp2(nx, ny, nz))
@@ -200,73 +204,60 @@ tavg_t%uw, &
 tavg_t%vw, &
 tavg_t%uv, &
 tavg_t%dudz)
-
+$if ($MPI)
 call finalize_mpi()
+$endif
 
 stop
 end program tsum_post
 
 !**********************************************************************
-subroutine load_data(fname) 
+subroutine load_data(fbase) 
 !**********************************************************************
 !
 !  This subroutine loads binary formatted data files for both
 !  serial and parallel cases
 !
+$if ($MPI)
+use mpi_defs, only : mpirank
+$endif
+use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
 
 implicit none
 
-character(*), intent(IN) :: fname
-character(len=120) :: fname_coord
+character(*), intent(IN) :: fbase
+character(50) :: fname
+character(15) :: temp
 integer :: i,j,k
 
-if(.not. USE_MPI) then
-  write(*,"(1a,1a)") ' Processing File : ', fname
+fname = trim(fbase)
 
-  open(unit = 7,file = fname, status='old',form='unformatted', &
-    action='read',position='rewind')
-
-  do k=1,nz
-    do j=1,ny
-      do i=1,nx
-        read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), &
-         tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), tsum_t%u2(i,j,k), &
-         tsum_t%v2(i,j,k), tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), &
-         tsum_t%vw(i,j,k), tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
-      enddo
-    enddo
-  enddo
-
-  close(7)
-else
-
+$if ($MPI)
   write (temp, '(".c",i0)') mpirank
-  fname_coord = trim (fname) // temp
+  fname = trim (fname) // temp
+$endif
 
-  write(*,"(1a,1a)") ' Processing File : ', fname_coord
+
+write(*,"(1a,1a)") ' Processing File : ', fname
  
-  open(unit = 7,file = fname_coord, status='old',form='unformatted', &
-    action='read',position='rewind') 
+open(unit = 7,file = fname, status='old',form='unformatted', &
+  action='read',position='rewind') 
 
 !  Read data from input data file
-    do k=1,nz
-      do j=1,ny
-        do i=1,nx
-          read(7,*)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-            tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-            tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
-            tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
-            tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
-        enddo
-      enddo
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+      read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+        tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+        tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
+        tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
+        tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
     enddo
-
-    close(7)
-
   enddo
-endif
+enddo
+close(7)
 
 return
 end subroutine load_data
