@@ -253,7 +253,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz
-use stat_defs, only: tavg_t, point_t, domain_t, yplane_t, zplane_t
+use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t
 use sim_param, only : u, v, w
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
@@ -272,22 +272,39 @@ character (64) :: fname, temp
 integer :: i,j,k
 integer::jx,jy,jz
 
-!  Determine if stats are to be calculated
-if(tavg_t%calc) then
+!  Determine if time summations are to be calculated
+if(tsum_t%calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
-    if(.not. tavg_t%started) then
+  if(jt >= tsum_t%nstart .and. jt <= tsum_t%nend) then
+    if(.not. tsum_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(*,*) '-------------------------------'   
-        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_t%nstart, ' to ', tavg_t%nend
+        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tsum_t%nstart, ' to ', tsum_t%nend
         write(*,*) '-------------------------------'   
       endif
-      tavg_t%started=.true.
+      tsum_t%started=.true.
     endif
 !  Compute running summations
-  call tavg_compute ()
+    call tsum_compute ()
   endif 
 endif
+
+! !  Determine if stats are to be calculated
+! if(tavg_t%calc) then
+! !  Check if we are in the time interval for running summations
+!   if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
+!     if(.not. tavg_t%started) then
+!       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!         write(*,*) '-------------------------------'   
+!         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_t%nstart, ' to ', tavg_t%nend
+!         write(*,*) '-------------------------------'   
+!       endif
+!       tavg_t%started=.true.
+!     endif
+! !  Compute running summations
+!   call tavg_compute ()
+!   endif 
+! endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_t%calc) then
@@ -364,10 +381,10 @@ if(itype==1) then
 !     write(*,*) 'point_t%jstart(n) = ', point_t%jstart(n)
 !     write(*,*) 'point_t%kstart(n) = ', point_t%kstart(n)
       write(fid,*) jt_total*dt_dim, &
-        trilinear_interp('u',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-        trilinear_interp('v',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-        trilinear_interp('w',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
-!      write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',ip,jp,kp)
+      trilinear_interp('u',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+      trilinear_interp('v',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+      trilinear_interp('w',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
+!     write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',ip,jp,kp)
 
     $if ($MPI)
     endif
@@ -411,58 +428,58 @@ endif
 return
 end subroutine inst_write
 
+! !**********************************************************************
+! subroutine rs_write()
+! !**********************************************************************
+! use grid_defs, only : x,y,z
+! use stat_defs, only : rs_t
+! use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+! implicit none
+! 
+! character (64) :: fname, temp
+! integer i,j,k
+! 
+! !  Set default output file name
+! fname = 'output/rs.dat'
+! 
+! $if ($MPI)
+! !  Update fname for MPI implementation     
+!   write (temp, '(".c",i0)') coord
+!   fname = trim (fname) // temp
+! $endif
+! 
+! !  Add temporary output information
+! open(unit = 7,file = fname)
+! write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+! do k=1,nz
+!   do j=1,ny
+!     do i=1,nx
+! !  Write spatially averaged, temporally averaged quantities   
+!      write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
+!        rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
+!     enddo
+!   enddo
+! enddo
+! close(7)
+!   
+! return
+! end subroutine rs_write
+
 !**********************************************************************
-subroutine rs_write()
+subroutine tsum_write()
 !**********************************************************************
 use grid_defs, only : x,y,z
-use stat_defs, only : rs_t
-use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
-implicit none
-
-character (64) :: fname, temp
-integer i,j,k
-
-!  Set default output file name
-fname = 'output/rs.dat'
-
-$if ($MPI)
-!  Update fname for MPI implementation     
-  write (temp, '(".c",i0)') coord
-  fname = trim (fname) // temp
-$endif
-
-!  Add temporary output information
-open(unit = 7,file = fname)
-write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
-write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-  1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-!  Write spatially averaged, temporally averaged quantities   
-     write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
-       rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
-    enddo
-  enddo
-enddo
-close(7)
-  
-return
-end subroutine rs_write
-
-!**********************************************************************
-subroutine tavg_write()
-!**********************************************************************
-use grid_defs, only : x,y,z
-use stat_defs, only : tavg_t
+use stat_defs, only : tsum_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
 implicit none
 
 character (64) :: fname, temp
 integer :: i,j,k
 
-fname = 'output/uvw_avg.dat'
+fname = 'output/tsum.out'
 
 $if ($MPI)
 !  For MPI implementation     
@@ -470,18 +487,20 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-open(unit = 7,file = fname)
-!  open(unit = 8,file = 'output/avg_dudz.out')
-write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
-write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-  1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+open (unit = 7,file = fname, status='unknown',form='unformatted', &
+  action='write',position='rewind')
+! write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
 !  write(8,*) 'variables= "z", "<dudz>/u*"'
 do k=1,nz
   do j=1,ny
     do i=1,nx
-       write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k)
-!	write(8,*) z(k), sum(tavg_t%dudz(:,:,k))/(dnx*dny)
+       write(7) x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), &
+         tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), tsum_t%u2(i,j,k), &
+         tsum_t%v2(i,j,k), tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), &
+         tsum_t%vw(i,j,k), tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
     enddo
   enddo
 enddo
@@ -489,7 +508,47 @@ close(7)
 !  close(8)
 
 return
-end subroutine tavg_write
+end subroutine tsum_write
+
+! !**********************************************************************
+! subroutine tavg_write()
+! !**********************************************************************
+! use grid_defs, only : x,y,z
+! use stat_defs, only : tavg_t
+! use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+! implicit none
+! 
+! character (64) :: fname, temp
+! integer :: i,j,k
+! 
+! fname = 'output/uvw_avg.dat'
+! 
+! $if ($MPI)
+! !  For MPI implementation     
+!   write (temp, '(".c",i0)') coord
+!   fname = trim (fname) // temp
+! $endif
+! 
+! open(unit = 7,file = fname)
+! !  open(unit = 8,file = 'output/avg_dudz.out')
+! write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+! !  write(8,*) 'variables= "z", "<dudz>/u*"'
+! do k=1,nz
+!   do j=1,ny
+!     do i=1,nx
+!        write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k)
+! !	write(8,*) z(k), sum(tavg_t%dudz(:,:,k))/(dnx*dny)
+!     enddo
+!   enddo
+! enddo
+! close(7)
+! !  close(8)
+! 
+! return
+! end subroutine tavg_write
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -526,7 +585,7 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : rs_t, tavg_t, point_t, yplane_t, zplane_t
+use stat_defs, only : rs_t, tsum_t, point_t, yplane_t, zplane_t
 
 implicit none
 
@@ -570,14 +629,17 @@ if ((cumulative_time) .and. (lun == lun_default)) then
   end if
 end if
 
-!  Check if writing statistics
-if(rs_t%calc) then
-  call rs_compute()
-  call rs_write()
-endif 
+! !  Check if writing statistics
+! if(rs_t%calc) then
+!   call rs_compute()
+!   call rs_write()
+! endif 
+! 
+! !  Check if average quantities are to be recorded
+! if(tavg_t%calc) call tavg_write()
 
 !  Check if average quantities are to be recorded
-if(tavg_t%calc) call tavg_write()
+if(tsum_t%calc) call tsum_write()
  
 !  Close instantaneous velocity files
 if(point_t%calc) then

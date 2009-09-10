@@ -5,12 +5,6 @@ module stat_defs
 save
 public
 
-!!  Define parameters for writing statistics
-type stats
-  logical :: calc
-  integer :: nstart, nend !  Time step when to start and stop averaging
-end type stats
-
 !  Reynolds stresses
 type rs
   logical :: calc
@@ -19,12 +13,12 @@ type rs
 end type rs
 
 !  Sums performed over time
-type tavg
+type tstats
   logical :: calc, started
   integer :: nstart, nend
   double precision, pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
-end type tavg	
+end type tstats	
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
 !  component values each time step)
@@ -52,9 +46,9 @@ type plane
   double precision, pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
   
-!type(stats)          :: stats_t
 type(rs)             :: rs_t
-type(tavg)          :: tavg_t
+type(tstats)	     :: tavg_t
+type(tstats)          :: tsum_t
 type(point), target :: point_t
 type(domain)         :: domain_t
 type(plane)     :: yplane_t, zplane_t

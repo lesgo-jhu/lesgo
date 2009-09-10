@@ -2,6 +2,47 @@
 !  that compute statistics
 
 !***************************************************************
+subroutine tsum_compute()
+!***************************************************************
+!  This subroutine collects the stats for each flow 
+!  variable quantity
+use types, only : rprec
+use functions, only : interp_to_uv_grid
+use stat_defs, only : tsum_t
+use param, only : nx,ny,nz
+use sim_param, only : u,v,w, dudz
+integer :: i,j,k
+real(rprec) :: u_p, v_p, w_p, dudz_p
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+!  Being cache friendly
+      u_p = u(i,j,k)
+      v_p = v(i,j,k)
+!  Interpolate each w and dudz to uv grid
+      w_p = interp_to_uv_grid('w',i,j,k)  
+      dudz_p = interp_to_uv_grid('dudz',i,j,k)
+      
+      tsum_t%u(i,j,k)=tsum_t%u(i,j,k) + u_p
+      tsum_t%v(i,j,k)=tsum_t%v(i,j,k) + v_p
+      tsum_t%w(i,j,k)=tsum_t%w(i,j,k) + w_p
+      tsum_t%u2(i,j,k)=tsum_t%u2(i,j,k) + u_p*u_p
+      tsum_t%v2(i,j,k)=tsum_t%v2(i,j,k) + v_p*v_p
+      tsum_t%w2(i,j,k)=tsum_t%w2(i,j,k) + w_p*w_p
+      tsum_t%uw(i,j,k)=tsum_t%uw(i,j,k) + u_p*w_p
+      tsum_t%vw(i,j,k)=tsum_t%vw(i,j,k) + v_p*w_p
+      tsum_t%uv(i,j,k)=tsum_t%uv(i,j,k) + u_p*v_p
+      tsum_t%dudz(i,j,k)=tsum_t%dudz(i,j,k) + dudz_p
+    enddo
+  enddo
+enddo
+
+return
+
+end subroutine tsum_compute
+
+!***************************************************************
 subroutine tavg_compute()
 !***************************************************************
 !  This subroutine collects the stats for each flow 
@@ -27,19 +68,19 @@ do k=1,nz
     do i=1,nx
 !  Interpolate each w and dudz to uv grid
       w_interp = interp_to_uv_grid('w',i,j,k)  
-	  dudz_interp = interp_to_uv_grid('dudz',i,j,k)
+      dudz_interp = interp_to_uv_grid('dudz',i,j,k)
       
-	  tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
-	  tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
-	  tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
-	  tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
-	  tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
-	  tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
-	  tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
-	  tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
-	  tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
-	  tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
-	enddo
+      tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
+      tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
+      tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
+      tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
+      tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
+      tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
+      tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
+      tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
+      tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
+      tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
+    enddo
   enddo
 enddo
 
