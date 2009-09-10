@@ -1,14 +1,14 @@
 !**********************************************************************
 module stat_defs
 !**********************************************************************
-
+use types, only : rprec
 save
 public
 
 !  Reynolds stresses
 type rs
   logical :: calc
-  double precision, pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
+  real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
                                                      upwp, vpwp, upvp
 end type rs
 
@@ -16,7 +16,7 @@ end type rs
 type tstats
   logical :: calc, started
   integer :: nstart, nend
-  double precision, pointer, dimension(:,:,:) :: u, v, w, &
+  real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
 end type tstats	
   
@@ -26,8 +26,8 @@ type point
   logical :: calc,started
   integer :: nstart, nend, nloc, nskip
   integer, dimension(10) :: coord, istart, jstart, kstart
-  double precision, dimension(10) :: xdiff, ydiff, zdiff
-  double precision, dimension(3,10) :: xyz
+  real(rprec), dimension(10) :: xdiff, ydiff, zdiff
+  real(rprec), dimension(3,10) :: xyz
 end type
 
 !  Instantaneous velocity global declarations
@@ -41,17 +41,17 @@ type plane
   logical :: calc
   integer :: nloc, nstart, nend
   integer, dimension(10) :: istart, coord
-  double precision :: fa
-  double precision, dimension (10) :: loc, ldiff
-  double precision, pointer, dimension(:,:,:) :: ua, va, wa
+  real(rprec) :: fa
+  real(rprec), dimension (10) :: loc, ldiff
+  real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
   
-type(rs)             :: rs_t
-type(tstats)	     :: tavg_t
-type(tstats)          :: tsum_t
+type(rs)            :: rs_t
+type(tstats)        :: tavg_t
+type(tstats)        :: tsum_t
 type(point), target :: point_t
-type(domain)         :: domain_t
-type(plane)     :: yplane_t, zplane_t
+type(domain)        :: domain_t
+type(plane)         :: yplane_t, zplane_t
 
 end module stat_defs
 
