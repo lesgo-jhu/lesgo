@@ -139,6 +139,8 @@ $else
 
 $endif
 
+
+
 !  Initialize uv grid
 call grid_build()
 !  Initialized statics arrays
