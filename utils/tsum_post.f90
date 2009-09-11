@@ -13,8 +13,8 @@ implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=1, iter_stop=2, iter_skip=1 ! In thousands
-character(50) :: ci,fname,temp
+integer, parameter :: iter_start=200, iter_stop=200, iter_skip=1 ! In thousands
+character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
 integer :: nf,ndirs
@@ -133,7 +133,9 @@ if(rs_output) then
       enddo
     enddo
   enddo
-  write(ftec,*) 'rs-',iter_start,'k-',iter_stop,'k.dat'
+  write(fiter_start, '(i0)') iter_start
+  write(fiter_stop, '(i0)') iter_stop
+  write(ftec,*) 'rs-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
   ftec = trim(adjustl(ftec))
 
 $if ($MPI)
@@ -166,8 +168,9 @@ $endif
 endif
 
 if(uvw_avg_output) then
-
-  write(ftec,*) 'uvw_avg-',iter_start,'k-',iter_stop,'k.dat'
+  write(fiter_start, '(i0)') iter_start
+  write(fiter_stop, '(i0)') iter_stop
+  write(ftec,*) 'uvw_avg-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
 
 $if ($MPI)
 !  For MPI implementation     
