@@ -8,6 +8,7 @@ $endif
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, USE_MPI
+use cylinder_skew_base_ls, only : phi
 
 implicit none
 
@@ -18,8 +19,8 @@ character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
 integer :: nf,ndirs
-real(rprec) :: favg, sum_z
-real(rprec), allocatable, dimension(:,:,:) :: phi
+real(rprec) :: favg, rcount
+real(rprec), allocatable :: sum_z(:)
 
 $if ($MPI)
 call initialize_mpi()
@@ -188,31 +189,30 @@ $endif
     1,'", DATAPACKING=POINT, k=', Nz
   write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
+!  Allocate mem for Reynolds stress summation
   allocate(sum_z(6))
-
   do k=1,nz
     sum_z = 0._rprec
-    icount = 0
+    rcount = 0.
     do j=1,ny
       do i=1,nx
         if(phi(i,j,k) >= 0._rprec) then
-          icount = icount + 1
-          sum_z(1) = sum1_z(1) + rs_t%up2(i,j,k)
-          sum_z(2) = sum1_z(2) + rs_t%vp2(i,j,k)
-          sum_z(3) = sum1_z(3) + rs_t%wp2(i,j,k)
-          sum_z(4) = sum1_z(4) + rs_t%upwp(i,j,k)
-          sum_z(5) = sum1_z(5) + rs_t%vpwp(i,j,k)
-          sum_z(6) = sum1_z(6) + rs_t%upvp(i,j,k)
+          rcount = rcount + 1.
+          sum_z(1) = sum_z(1) + rs_t%up2(i,j,k)
+          sum_z(2) = sum_z(2) + rs_t%vp2(i,j,k)
+          sum_z(3) = sum_z(3) + rs_t%wp2(i,j,k)
+          sum_z(4) = sum_z(4) + rs_t%upwp(i,j,k)
+          sum_z(5) = sum_z(5) + rs_t%vpwp(i,j,k)
+          sum_z(6) = sum_z(6) + rs_t%upvp(i,j,k)
         endif
       enddo
     enddo
-    sum_z = sum_z / icount
+    sum_z = sum_z / rcount
 
   !  Write spatially averaged, temporally averaged quantities
     write(7,*) z(k), sum_z
   enddo
   close(7)
-
 
   deallocate(rs_t%up2, rs_t%vp2, rs_t%wp2, &
     rs_t%upwp, rs_t%vpwp, rs_t%upvp)
@@ -247,6 +247,7 @@ $endif
   enddo
   close(7)
 
+!  Perform z plane averaging
   write(fiter_start, '(i0)') iter_start
   write(fiter_stop, '(i0)') iter_stop
   write(ftec,*) 'uvw_avg_z-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
@@ -265,13 +266,29 @@ $endif
     1,'", DATAPACKING=POINT, k=', Nz
   write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
-
-
-
+!  Allocate mem for Velocity average stress summation
+  allocate(sum_z(3))
   do k=1,nz
-    write(7,*) z(k), sum(tavg_t%u(:,:,k))/(nx*ny), sum(tavg_t%v(:,:,k))/(nx*ny), sum(tavg_t%w(:,:,k))/(nx*ny)
+    sum_z = 0._rprec
+    rcount = 0.
+    do j=1,ny
+      do i=1,nx
+        if(phi(i,j,k) >= 0._rprec) then
+          rcount = rcount + 1.
+          sum_z(1) = sum_z(1) + tavg_t%u(i,j,k)
+          sum_z(2) = sum_z(2) + tavg_t%v(i,j,k)
+          sum_z(3) = sum_z(3) + tavg_t%w(i,j,k)
+        endif
+      enddo
+    enddo
+    sum_z = sum_z / rcount
+
+  !  Write spatially averaged, temporally averaged quantities
+    write(7,*) z(k), sum_z
+
   enddo
   close(7)
+  deallocate(sum_z)
 
 endif
 
@@ -306,6 +323,7 @@ $endif
 use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
+use cylinder_skew_base_ls, only : phi
 
 implicit none
 
@@ -329,30 +347,29 @@ open(unit = 7,file = fname, status='old',form='unformatted', &
 
 if(fbase == 'tsum.out') then
 !  Read data from input data file
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-      read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-        tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-        tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
-        tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
-        tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+  do k=1,nz
+    do j=1,ny
+      do i=1,nx
+        read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
+          tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
+          tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+      enddo
     enddo
   enddo
-enddo
-close(7)
-elseif(fbase == 'phi.out') then
+  close(7)
+elseif(fbase  == 'phi.out') then
 
-allocate(phi(nx+2,ny,0:nz))
 !  Read binary data for lesgo
-open (unit=1, file=fname, status='old', form='unformatted', &
-  action='read', position='rewind')
+  open (unit=7, file=fname, status='old', form='unformatted', &
+    action='read', position='rewind')
 
-read(7) phi
-close (7)
+  read(7) phi
+  close (7)
 
 else
- write(*,*) 'Error: file name not specified correctly.
+ write(*,*) 'Error: file name not specified correctly.'
  stop
 endif
 
