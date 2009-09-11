@@ -13,7 +13,7 @@ implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=200, iter_stop=200, iter_skip=1 ! In thousands
+integer, parameter :: iter_start=200, iter_stop=200, iter_skip=200 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -27,7 +27,7 @@ $endif
 ndirs = (iter_stop - iter_start)/iter_skip + 1 ! # of iteration sets
 
 favg = 1._rprec/(ndirs * iter_skip * 1000._rprec ) ! 1/(total # of iterations)
-
+write(*,*) '1/favg : ', 1./favg
 !  Allocate and initialize
 allocate(x(nx),y(ny),z(nz));
 
@@ -162,6 +162,33 @@ $endif
   enddo
   close(7)
 
+  write(fiter_start, '(i0)') iter_start
+  write(fiter_stop, '(i0)') iter_stop
+  write(ftec,*) 'rs_z-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
+  ftec = trim(adjustl(ftec))
+
+$if ($MPI)
+!  For MPI implementation
+  write (temp, '(".c",i0)') mpirank
+  ftec = trim (ftec) // temp
+$endif
+
+!  Create tecplot formatted velocity field file
+  open (unit = 7,file = ftec, status='unknown',form='formatted', &
+    action='write',position='rewind')
+  write(7,*) 'variables= "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+  write(7,"(1a,i3,1a,i3)") 'ZONE T="', &
+    1,'", DATAPACKING=POINT, k=', Nz
+  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  do k=1,nz
+  !  Write spatially averaged, temporally averaged quantities
+    write(7,*) z(k), sum(rs_t%up2(:,:,k))/(nx*ny), sum(rs_t%vp2(:,:,k))/(nx*ny), &
+      sum(rs_t%wp2(:,:,k))/(nx*ny), sum(rs_t%upwp(:,:,k))/(nx*ny), &
+      sum(rs_t%vpwp(:,:,k))/(nx*ny), sum(rs_t%upvp(:,:,k))/(nx*ny)
+  enddo
+  close(7)
+
+
   deallocate(rs_t%up2, rs_t%vp2, rs_t%wp2, &
     rs_t%upwp, rs_t%vpwp, rs_t%upvp)
 
@@ -194,6 +221,30 @@ $endif
     enddo
   enddo
   close(7)
+
+  write(fiter_start, '(i0)') iter_start
+  write(fiter_stop, '(i0)') iter_stop
+  write(ftec,*) 'uvw_avg_z-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
+
+$if ($MPI)
+!  For MPI implementation
+  write (temp, '(".c",i0)') mpirank
+  ftec = trim (ftec) // temp
+$endif
+
+  open (unit = 7,file = ftec, status='unknown',form='formatted', &
+    action='write',position='rewind')
+
+  write(7,*) 'variables= "z", "<u>", "<v>", "<w>"'
+  write(7,"(1a,i9,1a,i3)") 'ZONE T="', &
+    1,'", DATAPACKING=POINT, k=', Nz
+  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+
+  do k=1,nz
+    write(7,*) z(k), sum(tavg_t%u(:,:,k))/(nx*ny), sum(tavg_t%v(:,:,k))/(nx*ny), sum(tavg_t%w(:,:,k))/(nx*ny)
+  enddo
+  close(7)
+
 endif
 
 
