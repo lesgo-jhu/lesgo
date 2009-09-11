@@ -230,7 +230,7 @@ if(uvw_avg_output) then
   write(fiter_start, '(i0)') iter_start
   write(fiter_stop, '(i0)') iter_stop
   write(ftec,*) 'uvw_avg-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
-
+  ftec = trim(adjustl(ftec))
 $if ($MPI)
 !  For MPI implementation     
   write (temp, '(".c",i0)') mpirank
@@ -258,7 +258,7 @@ $endif
   write(fiter_start, '(i0)') iter_start
   write(fiter_stop, '(i0)') iter_stop
   write(ftec,*) 'uvw_avg_z-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
-
+  ftec = trim(adjustl(ftec))
 $if ($MPI)
 !  For MPI implementation
   write (temp, '(".c",i0)') mpirank
