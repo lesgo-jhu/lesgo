@@ -592,14 +592,11 @@ contains
 !**********************************************************************
 subroutine write_output()
 !**********************************************************************
-
+use cylinder_skew_base_ls, only : brindex, phi
 implicit none
 
 character (64) :: fname, temp
 integer :: i,j,k
-
-integer, pointer, dimension(:,:,:) :: brindex
-double precision, pointer, dimension(:,:,:) :: phi
 
 if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
 
