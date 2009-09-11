@@ -73,7 +73,7 @@ module param
   logical, parameter :: ic_const = .false.
   real (rprec), parameter :: u_ic = 0./u_star, v_ic=0., w_ic=0.
 
-  real (rprec), parameter :: dt = 1.e-4
+  real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
@@ -98,9 +98,9 @@ module param
   
   
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .false.
+  logical, parameter :: initu = .true.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .true.
+  logical, parameter :: inilag = .false.
 
   ! nu_molec is dimensional m^2/s
   real(rprec),parameter::nu_molec=1.14e-5_rprec

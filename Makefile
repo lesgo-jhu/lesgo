@@ -152,7 +152,7 @@ SRCS =  \
 	bottombc.f90 \
         convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
-        dealias1.f90 dealias2.f90 debug_mod.f90 defs.f90 \
+        dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
         energy.f90 \
         fft.f90 filt_da.f90 forcing.f90 functions.f90 grid.f90 \
@@ -220,16 +220,16 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-tsum_post: utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
+tsum_post: utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
 	$(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
-	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/mpi_defs.o $(OPATH)/grid.o
+	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/mpi_defs.o $(OPATH)/grid.o $(OPATH)/cylinder_skew_base_ls.o
 
 cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
 	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \
-	-lgeometry t.cylinder_skew_pre_ls.f90 $(OPATH)/mpi_defs.o
+	-lgeometry t.cylinder_skew_pre_ls.f90 $(OPATH)/mpi_defs.o $(OPATH)/cylinder_skew_base_ls.o
 
 cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
 	$(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o 

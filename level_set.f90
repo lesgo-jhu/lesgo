@@ -4524,79 +4524,7 @@ end if
 
 if (VERBOSE) call exit_sub (sub_name)
 
-$if ($CYLINDER_SKEW)
-call cylinder_skew_init ()
-$endif
-
 end subroutine level_set_init
-
-!**********************************************************************
-subroutine cylinder_skew_init()
-!**********************************************************************
-use param, only : coord
-use cylinder_skew_defs
-implicit none
-
-character(64) :: fname, temp
-integer :: i,j,k,ng
-integer :: ngen
-
-!  Open file which to write global data
-fname = path // 'cylinder_skew_gen.out'
-$if ($MPI)
-  write (temp, '(".c",i0)') coord
-  fname = trim (fname) // temp
-$endif
-
-!  Read in cylinder_skew_gen.dat file
-open (unit = 2,file = fname, status='old',form='formatted', &
-  action='read',position='rewind')
-read(2,*) cylinder_skew_t%ngen
-
-ngen = cylinder_skew_t%ngen
-
-allocate(cylinder_skew_t%igen(ngen))
-allocate(cylinder_skew_t%kbottom_inside(ngen))
-allocate(cylinder_skew_t%kbottom(ngen))
-allocate(cylinder_skew_t%dz_bottom(ngen))
-allocate(cylinder_skew_t%ktop_inside(ngen))
-allocate(cylinder_skew_t%ktop(ngen))
-allocate(cylinder_skew_t%dz_top(ngen))
-allocate(cylinder_skew_t%itype(nx+2,ny,nz))
-
-do ng=1,cylinder_skew_t%ngen
-  read(2,*) cylinder_skew_t%igen(ng), cylinder_skew_t%kbottom_inside(ng), cylinder_skew_t%kbottom(ng), &
-    cylinder_skew_t%dz_bottom(ng), cylinder_skew_t%ktop_inside(ng), cylinder_skew_t%ktop(ng), &
-    cylinder_skew_t%dz_top(ng)
-enddo
-close(2)
-
-!  Check 1st generation only for need ground association
-if(cylinder_skew_t%igen(1) /= -1) then
-  !  Open file which to write global data
-  fname = path // 'cylinder_skew_point.out'
-  $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
-  $endif
-
-  !  Read in cylinder_skew_gen.dat file
-  open (unit = 2,file = fname, status='old',form='formatted', &
-    action='read',position='rewind')
-  do k=1,nz
-    do j = 1,ny
-      do i = 1,nx+2
-        read(2,*) cylinder_skew_t%itype(i,j,k)
-      enddo
-    enddo
-  enddo
-   
-  close(2)
-endif
-
-return
-end subroutine cylinder_skew_init
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function cross_product (a, b)

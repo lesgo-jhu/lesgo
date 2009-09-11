@@ -6,7 +6,7 @@ implicit none
 save
 private
 public x, y, z, zw, grid_build
-real(rprec), allocatable, dimension(:) :: x,y,z,zw
+real(rprec), allocatable, dimension(:) :: x, y, z, zw
 
 contains
 

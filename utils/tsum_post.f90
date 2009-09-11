@@ -8,17 +8,19 @@ $endif
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, USE_MPI
+use cylinder_skew_base_ls, only : phi
 
 implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=200, iter_stop=200, iter_skip=200 ! In thousands
+integer, parameter :: iter_start=50, iter_stop=150, iter_skip=50 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
 integer :: nf,ndirs
-real(rprec) :: favg
+real(rprec) :: favg, rcount
+real(rprec), allocatable :: sum_z(:)
 
 $if ($MPI)
 call initialize_mpi()
@@ -52,6 +54,12 @@ allocate(tsum_t%uw(nx, ny, nz))
 allocate(tsum_t%vw(nx, ny, nz))
 allocate(tsum_t%uv(nx, ny, nz))
 allocate(tsum_t%dudz(nx, ny, nz))
+
+$if ($MPI)
+allocate(phi(nx+2,ny,0:nz))
+$else
+allocate(phi(nx+2,ny,1:nz))
+$endif
 
 tavg_t%u=0.
 tavg_t%v=0.
@@ -180,18 +188,35 @@ $endif
   write(7,"(1a,i3,1a,i3)") 'ZONE T="', &
     1,'", DATAPACKING=POINT, k=', Nz
   write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+
+!  Allocate mem for Reynolds stress summation
+  allocate(sum_z(6))
   do k=1,nz
+    sum_z = 0._rprec
+    rcount = 0.
+    do j=1,ny
+      do i=1,nx
+        if(phi(i,j,k) >= 0._rprec) then
+          rcount = rcount + 1.
+          sum_z(1) = sum_z(1) + rs_t%up2(i,j,k)
+          sum_z(2) = sum_z(2) + rs_t%vp2(i,j,k)
+          sum_z(3) = sum_z(3) + rs_t%wp2(i,j,k)
+          sum_z(4) = sum_z(4) + rs_t%upwp(i,j,k)
+          sum_z(5) = sum_z(5) + rs_t%vpwp(i,j,k)
+          sum_z(6) = sum_z(6) + rs_t%upvp(i,j,k)
+        endif
+      enddo
+    enddo
+    sum_z = sum_z / rcount
+
   !  Write spatially averaged, temporally averaged quantities
-    write(7,*) z(k), sum(rs_t%up2(:,:,k))/(nx*ny), sum(rs_t%vp2(:,:,k))/(nx*ny), &
-      sum(rs_t%wp2(:,:,k))/(nx*ny), sum(rs_t%upwp(:,:,k))/(nx*ny), &
-      sum(rs_t%vpwp(:,:,k))/(nx*ny), sum(rs_t%upvp(:,:,k))/(nx*ny)
+    write(7,*) z(k), sum_z
   enddo
   close(7)
 
-
   deallocate(rs_t%up2, rs_t%vp2, rs_t%wp2, &
     rs_t%upwp, rs_t%vpwp, rs_t%upvp)
-
+  deallocate(sum_z)
 endif
 
 if(uvw_avg_output) then
@@ -222,6 +247,7 @@ $endif
   enddo
   close(7)
 
+!  Perform z plane averaging
   write(fiter_start, '(i0)') iter_start
   write(fiter_stop, '(i0)') iter_stop
   write(ftec,*) 'uvw_avg_z-'//trim(fiter_start)//'k-'//trim(fiter_stop)//'k.dat'
@@ -229,7 +255,7 @@ $endif
 $if ($MPI)
 !  For MPI implementation
   write (temp, '(".c",i0)') mpirank
-  ftec = trim (ftec) // temp
+  ftec=trim(ftec) // temp
 $endif
 
   open (unit = 7,file = ftec, status='unknown',form='formatted', &
@@ -240,10 +266,29 @@ $endif
     1,'", DATAPACKING=POINT, k=', Nz
   write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
+!  Allocate mem for Velocity average stress summation
+  allocate(sum_z(3))
   do k=1,nz
-    write(7,*) z(k), sum(tavg_t%u(:,:,k))/(nx*ny), sum(tavg_t%v(:,:,k))/(nx*ny), sum(tavg_t%w(:,:,k))/(nx*ny)
+    sum_z = 0._rprec
+    rcount = 0.
+    do j=1,ny
+      do i=1,nx
+        if(phi(i,j,k) >= 0._rprec) then
+          rcount = rcount + 1.
+          sum_z(1) = sum_z(1) + tavg_t%u(i,j,k)
+          sum_z(2) = sum_z(2) + tavg_t%v(i,j,k)
+          sum_z(3) = sum_z(3) + tavg_t%w(i,j,k)
+        endif
+      enddo
+    enddo
+    sum_z = sum_z / rcount
+
+  !  Write spatially averaged, temporally averaged quantities
+    write(7,*) z(k), sum_z
+
   enddo
   close(7)
+  deallocate(sum_z)
 
 endif
 
@@ -278,6 +323,7 @@ $endif
 use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
+use cylinder_skew_base_ls, only : phi
 
 implicit none
 
@@ -299,19 +345,34 @@ write(*,"(1a,1a)") ' Processing File : ', fname
 open(unit = 7,file = fname, status='old',form='unformatted', &
   action='read',position='rewind') 
 
+if(fbase == 'tsum.out') then
 !  Read data from input data file
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-      read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-        tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
-        tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
-        tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
-        tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+  do k=1,nz
+    do j=1,ny
+      do i=1,nx
+        read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
+          tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
+          tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+      enddo
     enddo
   enddo
-enddo
-close(7)
+  close(7)
+elseif(fbase  == 'phi.out') then
+
+!  Read binary data for lesgo
+  open (unit=7, file=fname, status='old', form='unformatted', &
+    action='read', position='rewind')
+
+  read(7) phi
+  close (7)
+
+else
+ write(*,*) 'Error: file name not specified correctly.'
+ stop
+endif
+
 
 return
 end subroutine load_data

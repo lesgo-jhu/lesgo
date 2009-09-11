@@ -53,4 +53,7 @@ type vector
   real(rprec), dimension(3) :: xyz
 end type vector
 
+integer, pointer, dimension(:,:,:) :: brindex
+real(rprec), pointer, dimension(:,:,:) :: phi
+
 end module cylinder_skew_base_ls
