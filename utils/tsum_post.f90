@@ -14,7 +14,7 @@ implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=50, iter_stop=150, iter_skip=50 ! In thousands
+integer, parameter :: iter_start=50, iter_stop=200, iter_skip=50 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -82,6 +82,9 @@ tsum_t%uw=0.
 tsum_t%vw=0.
 tsum_t%uv=0.
 tsum_t%dudz=0.
+
+!  Load phi data
+call load_data('phi.out')
 
 do nf=1,ndirs
   write(ci,'(i0)') iter_start + (nf - 1)*iter_skip
@@ -207,7 +210,11 @@ $endif
         endif
       enddo
     enddo
-    sum_z = sum_z / rcount
+    if(rcount > 0.5) then
+      sum_z = sum_z / rcount
+    else
+      sum_z = 0._rprec
+    endif
 
   !  Write spatially averaged, temporally averaged quantities
     write(7,*) z(k), sum_z
@@ -281,7 +288,12 @@ $endif
         endif
       enddo
     enddo
-    sum_z = sum_z / rcount
+!  Make sure there is at least 1 point to be averaged 
+    if(rcount > 0.5) then
+      sum_z = sum_z / rcount
+    else
+      sum_z = 0._rprec
+    endif
 
   !  Write spatially averaged, temporally averaged quantities
     write(7,*) z(k), sum_z
@@ -345,7 +357,16 @@ write(*,"(1a,1a)") ' Processing File : ', fname
 open(unit = 7,file = fname, status='old',form='unformatted', &
   action='read',position='rewind') 
 
-if(fbase == 'tsum.out') then
+if(fbase  == 'phi.out') then
+
+!  Read binary data for lesgo
+  open (unit=7, file=fname, status='old', form='unformatted', &
+    action='read', position='rewind')
+
+  read(7) phi
+  close (7)
+
+else
 !  Read data from input data file
   do k=1,nz
     do j=1,ny
@@ -359,18 +380,6 @@ if(fbase == 'tsum.out') then
     enddo
   enddo
   close(7)
-elseif(fbase  == 'phi.out') then
-
-!  Read binary data for lesgo
-  open (unit=7, file=fname, status='old', form='unformatted', &
-    action='read', position='rewind')
-
-  read(7) phi
-  close (7)
-
-else
- write(*,*) 'Error: file name not specified correctly.'
- stop
 endif
 
 
