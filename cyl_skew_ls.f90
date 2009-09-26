@@ -108,6 +108,7 @@ integer :: kstart, kend
 
 real(rprec) :: dz_start, dz_end
 real(rprec) :: dz_p
+real(rprec) :: gen_thck
 
 !---------------------------------------------------------------------
 
@@ -212,10 +213,21 @@ do ng=1,ngen
     open (lun, file=fname, position='append')
 
     if (.not. file_init(ng)) then  !--set up file for output
-
+    !  Compute thickness of generation associated with proc
+      gen_thck=0._rprec
+      do k=kstart,kend
+        if(k==kstart) then
+          dz_p = dz_start
+        elseif(k==kend) then
+          dz_p = dz_end
+        else
+          dz_p = dz
+        endif
+        gen_thck = gen_thck + dz_p
+      enddo
     !--write a header
       write (lun, '(a,es12.5)') '# Ap = ', Ap
-      write (lun, '(a,es12.5)') '# Gen thickness = ', dz_start+(kend - kstart - 2)*dz+dz_end
+      write (lun, '(a,es12.5)') '# Gen thickness = ', gen_thck
       write (lun, '(a)') '# t, CD, fD, Uinf' 
 
       file_init(ng) = .true.
