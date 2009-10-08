@@ -117,8 +117,8 @@ if(ntr == 1) then
     clen(ng) = gen_scale_fact*l
     rad_offset(ng) = gen_scale_fact*offset
   enddo
-  a = crad/dcos(skew_angle)
-  b = crad
+  a = crad/dcos(skew_angle) ! Ellipse major axis
+  b = crad                  ! Ellipse minor axis
 
   if(DEBUG .and. mpirank == 0) then
     write(*,*) 'skew_angle : ', skew_angle
@@ -197,15 +197,15 @@ if(ngen > 1) then
       iend   = istart + (ntrunk -1)
 
       if(DEBUG) then
-	write(*,*) 
-	write(*,*) 'istart : ', istart
-	write(*,*) 'iend   : ', iend
+        write(*,*) 
+        write(*,*) 'istart : ', istart
+        write(*,*) 'iend   : ', iend
       endif
 
       do i=istart,iend
-	lgcs_t(ng)%xyz(:,i) = etgcs_t(ng-1)%xyz(:,j)
-	lgcs_t(ng)%xyz(1,i) = lgcs_t(ng)%xyz(1,i) + rad_offset(ng)*dcos(zrot_t(ng)%angle(i))
-	lgcs_t(ng)%xyz(2,i) = lgcs_t(ng)%xyz(2,i) + rad_offset(ng)*dsin(zrot_t(ng)%angle(i))
+        lgcs_t(ng)%xyz(:,i) = etgcs_t(ng-1)%xyz(:,j)
+        lgcs_t(ng)%xyz(1,i) = lgcs_t(ng)%xyz(1,i) + rad_offset(ng)*dcos(zrot_t(ng)%angle(i))
+        lgcs_t(ng)%xyz(2,i) = lgcs_t(ng)%xyz(2,i) + rad_offset(ng)*dsin(zrot_t(ng)%angle(i))
       enddo
 
     enddo
@@ -453,9 +453,7 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
-!endif
 else
-  !elseif(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
   if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
 
     vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ng)%xyz(:,nt)
@@ -511,25 +509,6 @@ if(in_cyl_bottom) then
     call set_iset(i,j,k)
   endif
 endif
-
-! if(ng == 1) then
-!   if(use_bottom_surf .and. ebgcs_t(ng)%xyz(3,nt) .ne. z_bottom_surf) then
-!     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
-!     if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!       gcs_t(i,j,k)%phi = dist
-!       gcs_t(i,j,k)%itype = 1
-!       call set_iset(i,j,k)
-!     endif
-!   elseif(.not. use_bottom_surf .and. in_cyl_bottom) then
-!     dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane(ng))
-!     if(dist < dabs(gcs_t(i,j,k)%phi)) then
-!       gcs_t(i,j,k)%phi = dist
-!       gcs_t(i,j,k)%itype = 1
-!       call set_iset(i,j,k)
-!     endif
-!   endif
-! endif
- 
 
 return
 end subroutine point_dist
