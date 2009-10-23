@@ -14,7 +14,8 @@ implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
-integer, parameter :: iter_start=50, iter_stop=200, iter_skip=50 ! In thousands
+logical, parameter :: tecio=.false.
+integer, parameter :: iter_start=200, iter_stop=400, iter_skip=200 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -158,10 +159,14 @@ $endif
 !  Create tecplot formatted velocity field file  
   open (unit = 7,file = ftec, status='unknown',form='formatted', &
     action='write',position='rewind')
-  write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
-  write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+  
+  if(tecio) then
+    write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+    write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+      1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+    write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+  endif
+
   do k=1,nz
     do j=1,ny
       do i=1,nx
@@ -187,10 +192,13 @@ $endif
 !  Create tecplot formatted velocity field file
   open (unit = 7,file = ftec, status='unknown',form='formatted', &
     action='write',position='rewind')
-  write(7,*) 'variables= "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
-  write(7,"(1a,i3,1a,i3)") 'ZONE T="', &
-    1,'", DATAPACKING=POINT, k=', Nz
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+ 
+  if(tecio) then
+    write(7,*) 'variables= "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+    write(7,"(1a,i3,1a,i3)") 'ZONE T="', &
+      1,'", DATAPACKING=POINT, k=', Nz
+    write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  endif
 
 !  Allocate mem for Reynolds stress summation
   allocate(sum_z(6))
@@ -240,10 +248,12 @@ $endif
   open (unit = 7,file = ftec, status='unknown',form='formatted', &
     action='write',position='rewind')
 
-  write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
-  write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+  if(tecio) then
+    write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+    write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+      1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+    write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+  endif
 
   do k=1,nz
     do j=1,ny
@@ -268,11 +278,12 @@ $endif
   open (unit = 7,file = ftec, status='unknown',form='formatted', &
     action='write',position='rewind')
 
-  write(7,*) 'variables= "z", "<u>", "<v>", "<w>"'
-  write(7,"(1a,i9,1a,i3)") 'ZONE T="', &
-    1,'", DATAPACKING=POINT, k=', Nz
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-
+  if(tecio) then
+    write(7,*) 'variables= "z", "<u>", "<v>", "<w>"'
+    write(7,"(1a,i9,1a,i3)") 'ZONE T="', &
+      1,'", DATAPACKING=POINT, k=', Nz
+    write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  endif
 !  Allocate mem for Velocity average stress summation
   allocate(sum_z(3))
   do k=1,nz
