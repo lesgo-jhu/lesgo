@@ -114,22 +114,23 @@ do ng=1,ngen
   fD_tot = fD_tot + fD_avg
   Ap_tot = Ap_tot + Ap
 
-  if(ng==1) then
-  !  Open output file
-    fname ='cylinder_skew_CD_inst_ls.dat'
-    open (unit = 12,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
+!  Open output file // append generation number
+  fname ='cylinder_skew_CD_inst_ls.dat.g'
+  write (temp, '(i0)') ng
+  fname = trim (fname) // temp
+  write(*,*) 'Checking if file exists : ', fname
+  open (unit = 12,file = fname, status='unknown',form='formatted', &
+    action='write',position='rewind')
     
-    if(tecio) then
-      write(12,*) 'variables= "t", "CD", "fD", "Uinf"'
-    endif
-
-    do n=1,nsamples_tot
-      write(12,*) time(n), CD(n)/Ap, fD(n), Uinf(n)
-    enddo
-    close(12)
-  
+  if(tecio) then
+    write(12,*) 'variables= "t", "CD", "fD", "Uinf"'
   endif
+
+  do n=1,nsamples_tot
+    write(12,*) time(n), CD(n)/Ap, fD(n), Uinf(n)
+  enddo
+  close(12)
+  
 
   deallocate(time)
   deallocate(CD)
