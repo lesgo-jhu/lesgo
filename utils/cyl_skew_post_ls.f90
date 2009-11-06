@@ -12,7 +12,7 @@ integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
 integer :: iter, iter_count, n,ng, np, nsamples, nsamples_tot, nstart
-real(rprec) :: Ap, CD_avg, fD_avg, Uinf_avg, Ap_tot, CD_tot, fD_tot, Uinf_tot
+real(rprec) :: Ap, CD_avg, fD_avg, Uinf_avg, Ap_tot, CD_tot, fD_tot
 real(rprec), dimension(:), allocatable :: time, CD, fD, Uinf
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
@@ -143,7 +143,7 @@ do ng=1,ngen
 enddo
 CD_tot = CD_tot/Ap_tot
 !  Just using the last Uinf_avg; it is a global quantity so Uinf_avg is the same for all generations
-write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot, Uinf_tot : ',ngen, Ap_tot, CD_tot, fD_tot, Uinf_avg
+write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot, Uinf_avg : ',ngen, Ap_tot, CD_tot, fD_tot, Uinf_avg
 close(11)
 
 stop
