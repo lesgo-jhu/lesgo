@@ -18,7 +18,7 @@ real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
 character(8), parameter :: dfmt4='(4f12.9)'
-character(8), parameter :: dfmt5='(5f12.9)'
+character(8), parameter :: c1fmt5='(i5,4f12.9)'
 
 !  Check that all directories are present
 do iter=iter_start,iter_end,iter_step
@@ -111,7 +111,7 @@ do ng=1,ngen
   CD_avg = sum(CD)/nsamples_tot/Ap
   fD_avg = sum(fD)/nsamples_tot
   Uinf_avg = sum(Uinf)/nsamples_tot
-  write(11,dfmt5) 'Gen, Ap, CD, fD, Uinf : ', ng, Ap, CD_avg, fD_avg, Uinf_avg
+  write(11,c1fmt5) 'Gen, Ap, CD, fD, Uinf : ', ng, Ap, CD_avg, fD_avg, Uinf_avg
 
   CD_tot = CD_tot + Ap*CD_avg
   fD_tot = fD_tot + fD_avg
