@@ -5,9 +5,9 @@ implicit none
 
 logical, parameter :: tecio=.false.
 !  in thousands
-integer, parameter :: iter_start=4000; 
+integer, parameter :: iter_start=200; 
 integer, parameter :: iter_step=200;
-integer, parameter :: iter_end=4000; 
+integer, parameter :: iter_end=1000; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
@@ -16,9 +16,6 @@ real(rprec) :: Ap, CD_avg, fD_avg, Uinf_avg, Ap_tot, CD_tot, fD_tot
 real(rprec), dimension(:), allocatable :: time, CD, fD, Uinf
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
-
-character(8), parameter :: dfmt4='(4f12.9)'
-character(8), parameter :: c1fmt5='(i5,4f12.9)'
 
 !  Check that all directories are present
 do iter=iter_start,iter_end,iter_step
@@ -111,7 +108,7 @@ do ng=1,ngen
   CD_avg = sum(CD)/nsamples_tot/Ap
   fD_avg = sum(fD)/nsamples_tot
   Uinf_avg = sum(Uinf)/nsamples_tot
-  write(11,c1fmt5) 'Gen, Ap, CD, fD, Uinf : ', ng, Ap, CD_avg, fD_avg, Uinf_avg
+  write(11,'(a24,i3,4f12.6)') 'Gen, Ap, CD, fD, Uinf : ', ng, Ap, CD_avg, fD_avg, Uinf_avg
 
   CD_tot = CD_tot + Ap*CD_avg
   fD_tot = fD_tot + fD_avg
@@ -130,7 +127,7 @@ do ng=1,ngen
   endif
 
   do n=1,nsamples_tot
-    write(12,dfmt4) time(n), CD(n)/Ap, fD(n), Uinf(n)
+    write(12,'(4f18.9)') time(n), CD(n)/Ap, fD(n), Uinf(n)
   enddo
   close(12)
   
@@ -143,7 +140,7 @@ do ng=1,ngen
 enddo
 CD_tot = CD_tot/Ap_tot
 !  Just using the last Uinf_avg; it is a global quantity so Uinf_avg is the same for all generations
-write(11,*) 'Gen_tot, Ap_tot, CD_tot, fD_tot, Uinf_avg : ',ngen, Ap_tot, CD_tot, fD_tot, Uinf_avg
+write(11,'(a44,i3,4f12.6)') 'Gen_tot, Ap_tot, CD_tot, fD_tot, Uinf_avg : ',ngen, Ap_tot, CD_tot, fD_tot, Uinf_avg
 close(11)
 
 stop
