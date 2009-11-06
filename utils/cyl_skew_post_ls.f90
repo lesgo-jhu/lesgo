@@ -3,16 +3,17 @@ use types, only : rprec
 use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,nproc
 implicit none
 
+logical, parameter :: tecio=.false.
 !  in thousands
-integer, parameter :: iter_start=10; 
-integer, parameter :: iter_step=10;
-integer, parameter :: iter_end=10; 
+integer, parameter :: iter_start=4000; 
+integer, parameter :: iter_step=200;
+integer, parameter :: iter_end=4000; 
 integer, parameter :: niter=(iter_end - iter_start)/iter_step + 1
 
 character(200) :: fdir, fname, temp
 integer :: iter, iter_count, n,ng, np, nsamples, nsamples_tot, nstart
 real(rprec) :: Ap, CD_avg, fD_avg, Uinf_avg, Ap_tot, CD_tot, fD_tot, Uinf_tot
-real(rprec), dimension(:), allocatable :: CD, fD, Uinf
+real(rprec), dimension(:), allocatable :: time, CD, fD, Uinf
 real(rprec), dimension(:,:), allocatable :: dat
 logical :: exst
 
@@ -72,8 +73,9 @@ do ng=1,ngen
         write(*,*) 'nstart   : ', nstart
  
         if(.not. allocated(CD)) then
-          write(*,*) 'Allocating CD and fD'
+          write(*,*) 'Allocating time, CD, fD, and Uinf'
           nsamples_tot = niter*nsamples
+          allocate(time(nsamples_tot))
           allocate(CD(nsamples_tot))
           allocate(fD(nsamples_tot))
           allocate(Uinf(nsamples_tot))
@@ -90,12 +92,16 @@ do ng=1,ngen
         endif
 
         do n=1,nsamples
+          time(nstart + n) = dat(1,n) ! time for all procs is the same; just over writing
           CD(nstart + n) = CD(nstart + n) + dat(2,n) ! Sum proc contributions
           fD(nstart + n) = fD(nstart + n) + dat(3,n) ! Sum proc contributions
-          Uinf(nstart + n) = dat(4,n) ! Uinf for all procs is the same; just over writting
+          Uinf(nstart + n) = dat(4,n) ! Uinf for all procs is the same; just over writing
         enddo
+
         write(*,*) 'Summed proc', np, ' contribution for gen ', ng
+
         deallocate(dat)
+    
       endif        
     enddo
   enddo
@@ -113,12 +119,19 @@ do ng=1,ngen
     fname ='cylinder_skew_CD_inst_ls.dat'
     open (unit = 12,file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
+    
+    if(tecio) then
+      write(12,*) 'variables= "t", "CD", "fD", "Uinf"'
+    endif
+
     do n=1,nsamples_tot
-      write(12,*) CD(n)/Ap
+      write(12,*) time(n), CD(n)/Ap, fD(n), Uinf(n)
     enddo
     close(12)
+  
   endif
 
+  deallocate(time)
   deallocate(CD)
   deallocate(fD)
   deallocate(Uinf)
