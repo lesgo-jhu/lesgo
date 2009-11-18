@@ -24,7 +24,9 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 
 double precision, dimension(3,ntree) :: origin
 
+logical :: DIST=.false.
 logical :: DEBUG=.false.
+logical :: RNS=.true.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -53,7 +55,8 @@ integer :: ntr
 do ntr = 1,ntree
   if(DEBUG .and. mpirank == 0) write(*,*) 'Tree id : ', ntr
   call initialize(ntr) 
-  call main_loop()
+  if(RNS .and. mpirank == 0) call RNS_plane(ntr)
+  if(DIST) call main_loop()
 enddo 
 
 call finalize()
@@ -306,6 +309,64 @@ return
 end subroutine generate_grid
 
 end subroutine initialize
+
+!**********************************************************************
+subroutine rns_planes(ntr)
+!**********************************************************************
+use types, only : rprec
+use cylinder_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad,lgcs_t
+implicit none
+
+integer, intent(IN) :: ntr
+
+real(rprec), parameter :: alpha=1._prec
+
+character (64) :: fname, temp
+
+integer :: ng,ntc,icount
+integer :: ntrunk_cluster
+
+real(rprec) :: h,w
+real(rprec), dimension(3) :: corigin
+
+!  Open file which to write rns plane data
+write (fname,*) 'cylinder_skew_rns_planes_ls.out'
+fname = trim(adjustl(fname)) 
+write (temp, '(".t",i0)') ntr
+fname = trim (fname) // temp
+
+icount = 0
+do ng=1,ngen
+  !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
+  h = clen(ng)*cos(skew_angle) ! height
+  w = 2._rprec*crad(ng)*ntrunk ! width
+
+  ntrunk_cluster=ntrunk**(ng-1)
+
+  do ntc=1,ntrunk_cluster
+    if(ng == 1) then
+      corigin = origin(:,ntr) !  Use tree origin
+    else 
+      corigin = etgcs_t(ng-1)%xyz(:,ntc)  ! Use top of ellipse below
+    enddo 
+    xmin = corigin(1) - alpha*w 
+    ymin = corigin(2) - w/2._rprec
+    ymax = corigin(2) + w/2._rprec
+    zmin = corigin(3) 
+    zmax = corigin(3) + h
+
+    icount = icount + 1
+
+    open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='rewind')
+    write(2,*) icount, xmin, ymin, ymax, zmin, zmax
+
+  enddo
+enddo
+close(2)
+
+return
+end subroutine rns_planes
 
 !**********************************************************************
 subroutine main_loop()
