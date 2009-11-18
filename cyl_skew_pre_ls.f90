@@ -24,7 +24,7 @@ double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 
 double precision, dimension(3,ntree) :: origin
 
-logical :: DIST=.false.
+logical :: DIST_CALC=.false.
 logical :: DEBUG=.false.
 logical :: RNS=.true.
 
@@ -47,7 +47,7 @@ end module cylinder_skew_param
 program cylinder_skew_pre_ls
 !***************************************************************
 use mpi_defs, only : mpirank
-use cylinder_skew_param, only : DEBUG,ntree
+use cylinder_skew_param, only : DEBUG,DIST_CALC,RNS,ntree
 implicit none
 
 integer :: ntr
@@ -55,8 +55,8 @@ integer :: ntr
 do ntr = 1,ntree
   if(DEBUG .and. mpirank == 0) write(*,*) 'Tree id : ', ntr
   call initialize(ntr) 
-  if(RNS .and. mpirank == 0) call RNS_plane(ntr)
-  if(DIST) call main_loop()
+  if(RNS .and. mpirank == 0) call rns_planes(ntr)
+  if(DIST_CALC) call main_loop()
 enddo 
 
 call finalize()
@@ -314,19 +314,20 @@ end subroutine initialize
 subroutine rns_planes(ntr)
 !**********************************************************************
 use types, only : rprec
-use cylinder_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad,lgcs_t
+use cylinder_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad, &
+  lgcs_t, etgcs_t
 implicit none
 
 integer, intent(IN) :: ntr
 
-real(rprec), parameter :: alpha=1._prec
+real(rprec), parameter :: alpha=1._rprec
 
 character (64) :: fname, temp
 
 integer :: ng,ntc,icount
 integer :: ntrunk_cluster
 
-real(rprec) :: h,w
+real(rprec) :: h,w,xmin,ymin,ymax,zmin,zmax
 real(rprec), dimension(3) :: corigin
 
 !  Open file which to write rns plane data
@@ -348,7 +349,7 @@ do ng=1,ngen
       corigin = origin(:,ntr) !  Use tree origin
     else 
       corigin = etgcs_t(ng-1)%xyz(:,ntc)  ! Use top of ellipse below
-    enddo 
+    endif 
     xmin = corigin(1) - alpha*w 
     ymin = corigin(2) - w/2._rprec
     ymax = corigin(2) + w/2._rprec
