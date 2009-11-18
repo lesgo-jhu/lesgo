@@ -336,6 +336,9 @@ fname = trim(adjustl(fname))
 write (temp, '(".t",i0)') ntr
 fname = trim (fname) // temp
 
+open (unit = 2, file = fname, status='unknown',form='formatted', &
+      action='write',position='rewind')
+
 icount = 0
 do ng=1,ngen
   !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
@@ -358,9 +361,7 @@ do ng=1,ngen
 
     icount = icount + 1
 
-    open (unit = 2,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) icount, xmin, ymin, ymax, zmin, zmax
+    write(2,'(i0,5f12.6)') icount, xmin, ymin, ymax, zmin, zmax
 
   enddo
 enddo
@@ -622,7 +623,7 @@ use cylinder_skew_param
 
 implicit none
 
-call write_output()
+if(DIST_CALC) call write_output()
 
 !  Finalize mpi communication
 call finalize_mpi()
