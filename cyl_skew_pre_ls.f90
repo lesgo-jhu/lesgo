@@ -324,7 +324,7 @@ real(rprec), parameter :: alpha=1._rprec
 
 character (64) :: fname, temp
 
-integer :: ng,ntc,icount
+integer :: ng,ntc
 integer :: ntrunk_cluster
 
 real(rprec) :: h,w,xmin,ymin,ymax,zmin,zmax
@@ -339,7 +339,6 @@ fname = trim (fname) // temp
 open (unit = 2, file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
 
-icount = 0
 do ng=1,ngen
   !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
   h = clen(ng)*cos(skew_angle) ! height
@@ -359,9 +358,7 @@ do ng=1,ngen
     zmin = corigin(3) 
     zmax = corigin(3) + h
 
-    icount = icount + 1
-
-    write(2,'(i0,5f12.6)') icount, xmin, ymin, ymax, zmin, zmax
+    write(2,'(2i6,5f12.6)') ng, ntc, xmin, ymin, ymax, zmin, zmax
 
   enddo
 enddo
