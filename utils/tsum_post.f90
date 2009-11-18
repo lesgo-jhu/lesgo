@@ -2,12 +2,12 @@
 program tsum_post
 !**********************************************************************
 use types, only : rprec
-$if ($MPI)
-use mpi_defs
-$endif
+! $if ($MPI)
+! use mpi_defs
+! $endif
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
-use param, only : nx, ny, nz, USE_MPI
+use param, only : nx, ny, nz, nproc, USE_MPI
 use cylinder_skew_base_ls, only : phi
 
 implicit none
@@ -23,10 +23,11 @@ integer :: nf,ndirs
 real(rprec) :: favg, rcount
 real(rprec), allocatable :: sum_z(:)
 
-$if ($MPI)
-call initialize_mpi()
-$endif
+! $if ($MPI)
+! call initialize_mpi()
+! $endif
 
+do np=1,nproc
 ndirs = (iter_stop - iter_start)/iter_skip + 1 ! # of iteration sets
 
 favg = 1._rprec/(ndirs * iter_skip * 1000._rprec ) ! 1/(total # of iterations)
@@ -84,10 +85,11 @@ tsum_t%vw=0.
 tsum_t%uv=0.
 tsum_t%dudz=0.
 
-!  Load phi data
-call load_data('phi.out')
 
-do nf=1,ndirs
+!  Load phi data
+  call load_data('phi.out')
+
+  do nf=1,ndirs
   write(ci,'(i0)') iter_start + (nf - 1)*iter_skip
   fdir =  'output.' // trim(adjustl(ci)) // 'k'
   fname =  trim(adjustl(fdir)) // '/tsum.out'
@@ -107,7 +109,8 @@ do nf=1,ndirs
   tavg_t%uv = tavg_t%uv + favg*tsum_t%uv
   tavg_t%dudz = tavg_t%dudz + favg*tsum_t%dudz
 
-enddo
+  enddo
+
 
 deallocate(tsum_t%u, &
 tsum_t%v, &
@@ -326,23 +329,25 @@ tavg_t%uw, &
 tavg_t%vw, &
 tavg_t%uv, &
 tavg_t%dudz)
-$if ($MPI)
-call finalize_mpi()
-$endif
+! $if ($MPI)
+! call finalize_mpi()
+! $endif
+
+enddo
 
 stop
 end program tsum_post
 
 !**********************************************************************
-subroutine load_data(fbase) 
+subroutine load_data(fbase,np) 
 !**********************************************************************
 !
 !  This subroutine loads binary formatted data files for both
 !  serial and parallel cases
 !
-$if ($MPI)
-use mpi_defs, only : mpirank
-$endif
+! $if ($MPI)
+! use mpi_defs, only : mpirank
+! $endif
 use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
@@ -351,6 +356,7 @@ use cylinder_skew_base_ls, only : phi
 implicit none
 
 character(*), intent(IN) :: fbase
+integer, intent(IN) :: np
 character(50) :: fname
 character(15) :: temp
 integer :: i,j,k
@@ -358,7 +364,7 @@ integer :: i,j,k
 fname = trim(fbase)
 
 $if ($MPI)
-  write (temp, '(".c",i0)') mpirank
+  write (temp, '(".c",i0)') np
   fname = trim (fname) // temp
 $endif
 
