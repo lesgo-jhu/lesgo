@@ -19,7 +19,7 @@ integer, parameter :: iter_start=200, iter_stop=400, iter_skip=200 ! In thousand
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
-integer :: nf,ndirs
+integer :: nf,ndirs,np
 real(rprec) :: favg, rcount
 real(rprec), allocatable :: sum_z(:)
 
@@ -155,7 +155,7 @@ if(rs_output) then
 
 $if ($MPI)
 !  For MPI implementation     
-  write (temp, '(".c",i0)') mpirank
+  write (temp, '(".c",i0)') np
   ftec = trim (ftec) // temp
 $endif
 
@@ -188,7 +188,7 @@ $endif
 
 $if ($MPI)
 !  For MPI implementation
-  write (temp, '(".c",i0)') mpirank
+  write (temp, '(".c",i0)') np
   ftec = trim (ftec) // temp
 $endif
 
@@ -244,7 +244,7 @@ if(uvw_avg_output) then
   ftec = trim(adjustl(ftec))
 $if ($MPI)
 !  For MPI implementation     
-  write (temp, '(".c",i0)') mpirank
+  write (temp, '(".c",i0)') np
   ftec = trim (ftec) // temp
 $endif
 
@@ -274,7 +274,7 @@ $endif
   ftec = trim(adjustl(ftec))
 $if ($MPI)
 !  For MPI implementation
-  write (temp, '(".c",i0)') mpirank
+  write (temp, '(".c",i0)') np
   ftec=trim(ftec) // temp
 $endif
 
