@@ -17,16 +17,16 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
+logical :: RNS=.true.
+logical :: DIST_CALC=.true.
+logical :: DEBUG=.false.
+
 double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
 double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 
 double precision, dimension(3,ntree) :: origin
-
-logical :: DIST_CALC=.false.
-logical :: DEBUG=.false.
-logical :: RNS=.true.
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -56,7 +56,7 @@ do ntr = 1,ntree
   if(DEBUG .and. mpirank == 0) write(*,*) 'Tree id : ', ntr
   call initialize(ntr) 
   if(RNS .and. mpirank == 0) call rns_planes(ntr)
-  if(DIST_CALC) call main_loop()
+  if(DIST_CALC) call main()
 enddo 
 
 call finalize()
@@ -327,7 +327,7 @@ character (64) :: fname, temp
 integer :: ng,ntc
 integer :: ntrunk_cluster
 
-real(rprec) :: h,w,xmin,ymin,ymax,zmin,zmax
+real(rprec) :: h,w,xmin,xmax,ymin,ymax,zmin,zmax
 real(rprec), dimension(3) :: corigin
 
 !  Open file which to write rns plane data
@@ -353,12 +353,13 @@ do ng=1,ngen
       corigin = etgcs_t(ng-1)%xyz(:,ntc)  ! Use top of ellipse below
     endif 
     xmin = corigin(1) - alpha*w 
+    xmax = xmin
     ymin = corigin(2) - w/2._rprec
     ymax = corigin(2) + w/2._rprec
     zmin = corigin(3) 
     zmax = corigin(3) + h
 
-    write(2,'(2i6,5f12.6)') ng, ntc, xmin, ymin, ymax, zmin, zmax
+    write(2,'(2i6,6f12.6)') ng, ntc, xmin, xmax, ymin, ymax, zmin, zmax
 
   enddo
 enddo
@@ -368,7 +369,7 @@ return
 end subroutine rns_planes
 
 !**********************************************************************
-subroutine main_loop()
+subroutine main()
 !**********************************************************************
 use cylinder_skew_param
 
@@ -405,7 +406,7 @@ do k=0,Nz
 enddo
 
 return
-end subroutine main_loop
+end subroutine main
 
 
 !**********************************************************************
