@@ -11,10 +11,10 @@ public
 
 character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 
-double precision, parameter :: zrot_angle = 180._rprec*pi/180._rprec
+double precision, parameter :: zrot_angle = -90._rprec*pi/180._rprec
 double precision, parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 5
+integer, parameter :: ntree = 7
 integer, parameter :: ntrunk = 3
 integer, parameter :: ngen = 1
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
@@ -23,7 +23,7 @@ real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 4._rprec*dz
+real(rprec), parameter :: z_bottom_surf = 4.*dz
 
 integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside, lun
 integer, dimension(:,:,:), allocatable :: itype
