@@ -712,6 +712,7 @@ do k = 1, nz - 1
         !call interp_scal (txx, x2, txx2)
         !call interp_scal (txy, x2, txy2)
         !call interp_scal (tyy, x2, tyy2)
+
         !call interp_scal (tzz, x2, tzz2)
 
         !--now extrapolate
@@ -1595,19 +1596,30 @@ end if
 
 ks = floor (x(3) / dz + s)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
+! Autowrap i
+if (i < 1) then
+  i = nx + i - 1
+elseif (i > nx) then
+  i = i - nx + 1
+endif
+
 if ((i < 1) .or. (i > nx)) then
-  write (msg, *) 'i out of range, i = ', i, n_l,  &
-                 'x = ', x, n_l,                  &
-                 '(i, j, ks) = ', i, j, ks
-  call error (sub_name, msg)
+  call error (sub_name, 'i out of range, i =', i)
 end if
+
+! Autowrap j
+if (j < 1) then
+  j = ny + j - 1
+elseif (j > ny) then
+  j = j - ny + 1
+endif
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+
+!--need to bounds check ku, kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
@@ -1733,16 +1745,29 @@ j = floor (x(2) / dy + 1._rp)
 s = 0.5_rp
 ku = floor (x(3) / dz + s)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
+! Autowrap i
+if (i < 1) then
+  i = nx + i - 1
+elseif (i > nx) then
+  i = i - nx + 1
+endif
+
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
+
+! Autowrap j
+if (j < 1) then
+  j = ny + j - 1
+elseif (j > ny) then
+  j = j - ny + 1
+endif
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+!--need to bounds check i, j, ku, kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
@@ -1914,16 +1939,21 @@ j = floor (x(2) / dy + 1._rp)
 s = 1._rp
 kw = floor (x(3) / dz + s)
 
+! Autowrap i
+if (i < 1) then
+  i = nx + i - 1
+elseif (i > nx) then
+  i = i - nx + 1
+endif
+
+! Autowrap j
+if (j < 1) then
+  j = ny + j - 1
+elseif (j > ny) then
+  j = j - ny + 1
+endif
+
 !--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
-if ((i < 1) .or. (i > nx)) then
-  call error (sub_name, 'i out of range, i =', i)
-end if
-
-if ((j < 1) .or. (j > ny)) then
-  call error (sub_name, 'j out of range, j =', j)
-end if
-
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
@@ -2069,22 +2099,29 @@ i = floor (x(1) / dx + 1._rp)
 j = floor (x(2) / dy + 1._rp)
 ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
-if ((i < 1) .or. (i > nx)) then
-  write (msg, *) 'i out of range', n_l,            &
-                 '(i, j, ku) = ', i, j, ku, n_l,   &
-                 'x = ', x
-  call error (sub_name, msg)
+! Autowrap i
+if (i < 1) then
+  i = nx + i - 1
+elseif (i > nx) then
+  i = i - nx + 1
+endif
+
+if ((i < 1) .or. (i > nx)) then                                     
+  call error (sub_name, 'i out of range, i =', i)                   
 end if
+
+! Autowrap j
+if (j < 1) then
+  j = ny + j - 1
+elseif (j > ny) then
+  j = j - ny + 1
+endif
 
 if ((j < 1) .or. (j > ny)) then
-  write (msg, *) 'j out of range', n_l,            &
-                 '(i, j, ku) = ', i, j, ku, n_l,   &
-                 'x = ', x
-  call error (sub_name, msg)
+  call error (sub_name, 'j out of range, j =', j)
 end if
 
+!--need to bounds check ku, kw
 !--non-MPI has 0-sized nphibot, nphitop
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
@@ -2214,16 +2251,21 @@ j = floor (x(2) / dy + 1._rp)
 ku = floor (x(3) / dz + 0.5_rp)
 kw = floor (x(3) / dz + 1._rp)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
-if ((i < 1) .or. (i > nx)) then
-  call error (sub_name, 'i out of range, i =', i)
-end if
+! Autowrap i
+if (i < 1) then
+  i = nx + i - 1
+elseif (i > nx) then
+  i = i - nx + 1
+endif
 
-if ((j < 1) .or. (j > ny)) then
-  call error (sub_name, 'j out of range, j =', j)
-end if
+! Autowrap j
+if (j < 1) then
+  j = ny + j - 1
+elseif (j > ny) then
+  j = j - ny + 1
+endif
 
+!--need to bounds check ku, kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
