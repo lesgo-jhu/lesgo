@@ -117,80 +117,80 @@ enddo
 return
 end subroutine rs_compute
 
-!**********************************************************************
-subroutine plane_avg_compute(jt)
-!**********************************************************************
-use functions, only : linear_interp, interp_to_uv_grid
-use grid_defs, only : z
-use param, only : dx, dy, dz, Nx, Ny, Nz,coord
-use stat_defs,only:yplane_t, zplane_t
-use sim_param, only : u, v, w
-
-implicit none
-
-integer,intent(in)::jt
-
-integer :: i,j,k
-double precision :: ui, vi ,wi
-
-!  Determine if y-plane averaging should be performed
-if(yplane_t%calc .and. jt >= yplane_t%nstart .and. jt <= yplane_t%nend) then
-  
-!  Compute average for each y-plane (jya)
-  do j=1,yplane_t%nloc
-    do k=1,Nz
-      do i=1,Nx
-        ui = linear_interp(u(i,yplane_t%istart(j),k), &
-          u(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
-        vi = linear_interp(v(i,yplane_t%istart(j),k), &
-          v(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
-        wi = linear_interp(interp_to_uv_grid('w',i,yplane_t%istart(j),k), &
-          interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
-          yplane_t%ldiff(j))
-        yplane_t%ua(i,j,k) = yplane_t%ua(i,j,k) + yplane_t%fa*ui 
-        yplane_t%va(i,j,k) = yplane_t%va(i,j,k) + yplane_t%fa*vi
-        yplane_t%wa(i,j,k) = yplane_t%wa(i,j,k) + yplane_t%fa*wi
-
-      enddo
-    enddo
-  enddo
-endif 
-
-!  Determine if y-plane averaging should be performed
-if(zplane_t%calc .and. jt >= zplane_t%nstart .and. jt <= zplane_t%nend) then
-!  Compute average for each y-plane (jya)
-
-  do k=1,zplane_t%nloc
-
-  $if ($MPI)
-  if(zplane_t%coord(k) == coord) then
-  $endif
-
-    do j=1,Ny
-      do i=1,Nx
-
-        ui = linear_interp(u(i,j,zplane_t%istart(k)),u(i,j,zplane_t%istart(k)+1), &
-          dz, zplane_t%ldiff(k))
-        vi = linear_interp(v(i,j,zplane_t%istart(k)),v(i,j,zplane_t%istart(k)+1), &
-          dz, zplane_t%ldiff(k))
-        wi = linear_interp(interp_to_uv_grid('w',i,j,zplane_t%istart(k)), &
-          interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1), &
-          dz, zplane_t%ldiff(k))
-
-        zplane_t%ua(i,j,k) = zplane_t%ua(i,j,k) + zplane_t%fa*ui
-        zplane_t%va(i,j,k) = zplane_t%va(i,j,k) + zplane_t%fa*vi
-        zplane_t%wa(i,j,k) = zplane_t%wa(i,j,k) + zplane_t%fa*wi
-
-      enddo
-    enddo
-
-    $if ($MPI)
-    endif
-    $endif
-
-  enddo
-
-endif
-
-return
-end subroutine plane_avg_compute
+! !**********************************************************************
+! subroutine plane_avg_compute(jt)
+! !**********************************************************************
+! use functions, only : linear_interp, interp_to_uv_grid
+! use grid_defs, only : z
+! use param, only : dx, dy, dz, Nx, Ny, Nz,coord
+! use stat_defs,only:yplane_t, zplane_t
+! use sim_param, only : u, v, w
+! 
+! implicit none
+! 
+! integer,intent(in)::jt
+! 
+! integer :: i,j,k
+! double precision :: ui, vi ,wi
+! 
+! !  Determine if y-plane averaging should be performed
+! if(yplane_t%calc .and. jt >= yplane_t%nstart .and. jt <= yplane_t%nend) then
+!   
+! !  Compute average for each y-plane (jya)
+!   do j=1,yplane_t%nloc
+!     do k=1,Nz
+!       do i=1,Nx
+!         ui = linear_interp(u(i,yplane_t%istart(j),k), &
+!           u(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+!         vi = linear_interp(v(i,yplane_t%istart(j),k), &
+!           v(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+!         wi = linear_interp(interp_to_uv_grid('w',i,yplane_t%istart(j),k), &
+!           interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
+!           yplane_t%ldiff(j))
+!         yplane_t%ua(i,j,k) = yplane_t%ua(i,j,k) + yplane_t%fa*ui 
+!         yplane_t%va(i,j,k) = yplane_t%va(i,j,k) + yplane_t%fa*vi
+!         yplane_t%wa(i,j,k) = yplane_t%wa(i,j,k) + yplane_t%fa*wi
+! 
+!       enddo
+!     enddo
+!   enddo
+! endif 
+! 
+! !  Determine if y-plane averaging should be performed
+! if(zplane_t%calc .and. jt >= zplane_t%nstart .and. jt <= zplane_t%nend) then
+! !  Compute average for each y-plane (jya)
+! 
+!   do k=1,zplane_t%nloc
+! 
+!   $if ($MPI)
+!   if(zplane_t%coord(k) == coord) then
+!   $endif
+! 
+!     do j=1,Ny
+!       do i=1,Nx
+! 
+!         ui = linear_interp(u(i,j,zplane_t%istart(k)),u(i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+!         vi = linear_interp(v(i,j,zplane_t%istart(k)),v(i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+!         wi = linear_interp(interp_to_uv_grid('w',i,j,zplane_t%istart(k)), &
+!           interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+! 
+!         zplane_t%ua(i,j,k) = zplane_t%ua(i,j,k) + zplane_t%fa*ui
+!         zplane_t%va(i,j,k) = zplane_t%va(i,j,k) + zplane_t%fa*vi
+!         zplane_t%wa(i,j,k) = zplane_t%wa(i,j,k) + zplane_t%fa*wi
+! 
+!       enddo
+!     enddo
+! 
+!     $if ($MPI)
+!     endif
+!     $endif
+! 
+!   enddo
+! 
+! endif
+! 
+! return
+! end subroutine plane_avg_compute

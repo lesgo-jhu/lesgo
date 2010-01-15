@@ -321,7 +321,7 @@ if(domain_t%calc) then
   endif
 endif 
 
-!  Determine if instantaneous domain velocities are to be recorded
+!  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_t%calc) then
   if(jt >= yplane_t%nstart .and. jt <= yplane_t%nend .and. mod(jt,yplane_t%nskip)==0) then
     if(.not. yplane_t%started) then
@@ -337,6 +337,22 @@ if(yplane_t%calc) then
   endif
 endif    
 
+!  Determine if instantaneous z-plane velocities are to be recorded
+if(zplane_t%calc) then
+  if(jt >= zplane_t%nstart .and. jt <= zplane_t%nend .and. mod(jt,zplane_t%nskip)==0) then
+    if(.not. zplane_t%started) then
+      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+        write(*,*) '-------------------------------'
+        write(*,"(1a,i9,1a,i9)") 'Writing instantaneous z-plane velocities from ', zplane_t%nstart, ' to ', zplane_t%nend
+        write(*,"(1a,i9)") 'Iteration skip:', zplane_t%nskip
+        write(*,*) '-------------------------------'
+      endif
+      zplane_t%started=.true.
+    endif
+    call inst_write(4)
+  endif
+endif 
+
 !if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
 
 return
@@ -348,7 +364,7 @@ subroutine inst_write(itype)
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
-use stat_defs, only : point_t, domain_t, yplane_t
+use stat_defs, only : point_t, domain_t, yplane_t, zplane_t
 use grid_defs, only : x,y,z
 use sim_param, only : u,v,w
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
@@ -440,9 +456,9 @@ elseif(itype==3) then
 
     open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
-    write(2,*) 'variables = "x", "z", "u", "v", "w"';
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      j,'", DATAPACKING=POINT, i=', Nx,', j=',Nz
+    write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+      j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
     write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
     write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
     do k=1,nz
@@ -456,11 +472,65 @@ elseif(itype==3) then
           interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
           yplane_t%ldiff(j))
 
-        write(2,*) x(i), z(k), ui, vi, wi
+        write(2,*) x(i), yplane_t%loc(j), z(k), ui, vi, wi
       enddo
     enddo
     close(2)
   enddo  
+
+!  Write instantaneous z-plane values
+elseif(itype==4) then
+
+!  Loop over all zplane locations
+  do k=1,zplane_t%nloc
+  
+    $if ($MPI)
+    if(zplane_t%coord(k) == coord) then
+    $endif
+
+    write(cl,'(F9.4)') zplane_t%loc(k)
+    !  Convert total iteration time to string
+    write(ct,*) jt_total
+    write(fname,*) 'output/uvw.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.out'
+    fname=trim(adjustl(fname))
+
+!     $if ($MPI)
+! !  For MPI implementation
+!       write (temp, '(".c",i0)') coord
+!       fname = trim (fname) // temp
+!     $endif
+
+    open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='rewind')
+    write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+      j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
+    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+
+    do j=1,Ny
+      do i=1,Nx
+
+        ui = linear_interp(u(i,j,zplane_t%istart(k)),u(i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+        vi = linear_interp(v(i,j,zplane_t%istart(k)),v(i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+        wi = linear_interp(interp_to_uv_grid('w',i,j,zplane_t%istart(k)), &
+          interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+
+        write(2,*) x(i), y(j), zplane_t%loc(k), ui, vi, wi
+
+      enddo
+    enddo
+    close(2)
+
+    $if ($MPI)
+    endif
+    $endif
+
+  enddo  
+
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'
   stop
@@ -700,89 +770,89 @@ if(point_t%calc) then
 
 endif
 
-!  Write averaged yplane data
-if(yplane_t%calc .or. zplane_t%calc) call plane_write()
+! !  Write averaged yplane data
+! if(yplane_t%calc .or. zplane_t%calc) call plane_write()
 
 return
 end subroutine output_final
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine plane_write()
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  This subroutine is used to write yplane data to a formatted Fortran
-!  file in Tecplot format
-use grid_defs, only : x,y,z
-use stat_defs, only : yplane_t, zplane_t
-use param, only : Nx, Ny, Nz, dx, dy, dz
-implicit none
-character(50) :: ct
-character (64) :: fname, temp
-integer :: i,j,k
-
-if(yplane_t%calc) then
-  do j=1,yplane_t%nloc
-    write(ct,'(F9.4)') yplane_t%loc(j)
-    write(fname,*) 'output/uvw_avg.y-',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
-
-    $if ($MPI)
-!  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-    $endif
-
-    open (unit = 2,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) 'variables = "x", "z", "u", "v", "w"';
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      j,'", DATAPACKING=POINT, i=', Nx,', j=',Nz
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-    do k=1,nz
-      do i=1,nx
-        write(2,*) x(i), z(k), yplane_t%ua(i,j,k), yplane_t%va(i,j,k), yplane_t%wa(i,j,k)
-      enddo
-    enddo
-    close(2)
-  enddo
-endif
-
-if(zplane_t%calc) then
-
-  do k=1,zplane_t%nloc
-
-  $if ($MPI)
-  if(zplane_t%coord(k) == coord) then
-  $endif
-
-    write(ct,'(F9.4)') zplane_t%loc(k)
-    write(fname,*) 'output/uvw_avg.z-',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
-
-    open (unit = 2,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) 'variables = "x", "y", "u", "v", "w"';
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-!  Write uvw for each jyp plane
-    do j=1,ny
-      do i=1,nx
-        write(2,*) x(i), y(j), zplane_t%ua(i,j,k), zplane_t%va(i,j,k), zplane_t%wa(i,j,k)
-      enddo
-    enddo
-    close(2)
-
-    $if ($MPI)
-    endif
-    $endif
-
-  enddo
-
-endif
-
-
-return
-end subroutine plane_write
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! subroutine plane_write()
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! !  This subroutine is used to write yplane data to a formatted Fortran
+! !  file in Tecplot format
+! use grid_defs, only : x,y,z
+! use stat_defs, only : yplane_t, zplane_t
+! use param, only : Nx, Ny, Nz, dx, dy, dz
+! implicit none
+! character(50) :: ct
+! character (64) :: fname, temp
+! integer :: i,j,k
+! 
+! if(yplane_t%calc) then
+!   do j=1,yplane_t%nloc
+!     write(ct,'(F9.4)') yplane_t%loc(j)
+!     write(fname,*) 'output/uvw_avg.y-',trim(adjustl(ct)),'.dat'
+!     fname=trim(adjustl(fname))
+! 
+!     $if ($MPI)
+! !  For MPI implementation
+!       write (temp, '(".c",i0)') coord
+!       fname = trim (fname) // temp
+!     $endif
+! 
+!     open (unit = 2,file = fname, status='unknown',form='formatted', &
+!       action='write',position='rewind')
+!     write(2,*) 'variables = "x", "z", "u", "v", "w"';
+!     write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!       j,'", DATAPACKING=POINT, i=', Nx,', j=',Nz
+!     write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+!     do k=1,nz
+!       do i=1,nx
+!         write(2,*) x(i), z(k), yplane_t%ua(i,j,k), yplane_t%va(i,j,k), yplane_t%wa(i,j,k)
+!       enddo
+!     enddo
+!     close(2)
+!   enddo
+! endif
+! 
+! if(zplane_t%calc) then
+! 
+!   do k=1,zplane_t%nloc
+! 
+!   $if ($MPI)
+!   if(zplane_t%coord(k) == coord) then
+!   $endif
+! 
+!     write(ct,'(F9.4)') zplane_t%loc(k)
+!     write(fname,*) 'output/uvw_avg.z-',trim(adjustl(ct)),'.dat'
+!     fname=trim(adjustl(fname))
+! 
+!     open (unit = 2,file = fname, status='unknown',form='formatted', &
+!       action='write',position='rewind')
+!     write(2,*) 'variables = "x", "y", "u", "v", "w"';
+!     write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!       j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny
+!     write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+! !  Write uvw for each jyp plane
+!     do j=1,ny
+!       do i=1,nx
+!         write(2,*) x(i), y(j), zplane_t%ua(i,j,k), zplane_t%va(i,j,k), zplane_t%wa(i,j,k)
+!       enddo
+!     enddo
+!     close(2)
+! 
+!     $if ($MPI)
+!     endif
+!     $endif
+! 
+!   enddo
+! 
+! endif
+! 
+! 
+! return
+! end subroutine plane_write
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine inflow_write ()

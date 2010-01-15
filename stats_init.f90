@@ -25,7 +25,7 @@ point_t%xyz=-1.
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .true.
+tsum_t%calc = .false.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
@@ -38,24 +38,28 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/3., 2., 0.5/)
 point_t%xyz(:,2) = (/1., 2., 0.5/)
 
-domain_t%calc = .true.
+domain_t%calc = .false.
 domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc=.false.
-yplane_t%nstart = 1
+yplane_t%calc   = .true.
+yplane_t%nstart = 100
 yplane_t%nend   = nsteps
-yplane_t%nloc     = 1
-yplane_t%loc(1)  = 2.0
+yplane_t%nskip  = 100
+yplane_t%nloc   = 2
+yplane_t%loc(1) = 1.0
+yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc=.true.
+zplane_t%calc   = .true.
 zplane_t%nstart = 100
 zplane_t%nend   = nsteps
-zplane_t%nloc   = 1 
-zplane_t%loc(1)  = 0.5
+zplane_t%nskip  = 100
+zplane_t%nloc   = 2
+zplane_t%loc(1) = 0.5
+zplane_t%loc(2) = 1.5
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -109,14 +113,14 @@ endif
 
 ! Initialize information for y-planar stats/data
 if(yplane_t%calc) then
-  allocate(yplane_t%ua(Nx,yplane_t%nloc,Nz))
-  allocate(yplane_t%va(Nx,yplane_t%nloc,Nz))
-  allocate(yplane_t%wa(Nx,yplane_t%nloc,Nz))
+!   allocate(yplane_t%ua(Nx,yplane_t%nloc,Nz))
+!   allocate(yplane_t%va(Nx,yplane_t%nloc,Nz))
+!   allocate(yplane_t%wa(Nx,yplane_t%nloc,Nz))
   
-  yplane_t%fa = 1./(dble(yplane_t%nend - yplane_t%nstart + 1))
-  yplane_t%ua = 0.
-  yplane_t%va = 0.
-  yplane_t%wa = 0.
+!   yplane_t%fa = 1./(dble(yplane_t%nend - yplane_t%nstart + 1))
+!   yplane_t%ua = 0.
+!   yplane_t%va = 0.
+!   yplane_t%wa = 0.
   yplane_t%istart = -1
   yplane_t%ldiff = 0.
 !  Not really needed
@@ -131,13 +135,13 @@ endif
 
 ! Initialize information for y-planar stats/data
 if(zplane_t%calc) then
-  allocate(zplane_t%ua(Nx,Ny,zplane_t%nloc))
-  allocate(zplane_t%va(Nx,Ny,zplane_t%nloc))
-  allocate(zplane_t%wa(Nx,Ny,zplane_t%nloc))
-  zplane_t%fa = 1./(dble(zplane_t%nend - zplane_t%nstart + 1))
-  zplane_t%ua = 0.
-  zplane_t%va = 0.
-  zplane_t%wa = 0.
+!   allocate(zplane_t%ua(Nx,Ny,zplane_t%nloc))
+!   allocate(zplane_t%va(Nx,Ny,zplane_t%nloc))
+!   allocate(zplane_t%wa(Nx,Ny,zplane_t%nloc))
+!   zplane_t%fa = 1./(dble(zplane_t%nend - zplane_t%nstart + 1))
+!   zplane_t%ua = 0.
+!   zplane_t%va = 0.
+!   zplane_t%wa = 0.
 
 !  Initialize 
   zplane_t%istart = -1

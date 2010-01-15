@@ -41,9 +41,9 @@ type plane
   logical :: calc, started
   integer :: nloc, nstart, nend, nskip
   integer, dimension(10) :: istart, coord
-  real(rprec) :: fa
+!   real(rprec) :: fa
   real(rprec), dimension (10) :: loc, ldiff
-  real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
+!   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
   
 type(rs)            :: rs_t
