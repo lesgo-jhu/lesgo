@@ -1,6 +1,6 @@
-!***************************************************************
+!**********************************************************************
 module functions
-!***************************************************************
+!**********************************************************************
 use messages
 implicit none
 save
@@ -12,9 +12,9 @@ character (*), parameter :: mod_name = 'functions'
 
 contains
 
-!***************************************************************
+!**********************************************************************
 double precision function trilinear_interp(cvar,istart,jstart,kstart,xyz)
-!***************************************************************
+!**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
 !  exists in the cell with lower dimension: istart,jstart,kstart
@@ -87,9 +87,9 @@ trilinear_interp = linear_interp(u5,u6,dz,zdiff)
 return
 end function trilinear_interp
 
-!***************************************************************
+!**********************************************************************
 double precision function linear_interp(u1,u2,dx,xdiff)
-!***************************************************************
+!**********************************************************************
 !
 !  This function performs linear interpolation 
 !  
@@ -109,9 +109,9 @@ linear_interp = u1 + (xdiff) * (u2 - u1) / dx
 return
 end function linear_interp
 
-!***************************************************************
+!**********************************************************************
 double precision function interp_to_uv_grid(cvar,i,j,k)
-!***************************************************************
+!**********************************************************************
 !  This function computes any values the read in value u(k) and
 !  u(k+1) to the uv grid location k
 use param,only : nz,ld
@@ -140,9 +140,9 @@ endif
 return
 end function interp_to_uv_grid
 
-!----------------------------------------------------------------------
+!**********************************************************************
 function autowrap(i,imin,imax,itype)
-!----------------------------------------------------------------------
+!**********************************************************************
 !
 !  This function autowraps indices (i and j) to maintain perodicity
 !
