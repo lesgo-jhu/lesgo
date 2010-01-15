@@ -70,10 +70,6 @@ module param
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
   
-  !  U intialization for non-log profile IC
-  logical, parameter :: ic_const = .false.
-  real (rprec), parameter :: u_ic = 0./u_star, v_ic=0., w_ic=0.
-
   real (rprec), parameter :: dt = 2.e-4
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
