@@ -27,11 +27,7 @@ subroutine ic()
      u = face_avg 
      v = 0._rprec
      w = 0._rprec
-  elseif(ic_const) then
-    write(*,*) 'Constant Velocity IC'
-    u = u_ic
-    v = v_ic
-    w = w_ic
+
   else 
 
      w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
