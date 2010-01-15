@@ -1549,6 +1549,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
+use functions, only : autowrap
 implicit none
 
 integer, intent (in) :: albz
@@ -1596,11 +1597,7 @@ end if
 ks = floor (x(3) / dz + s)
 
 ! Autowrap i
-if (i < 1) then
-  i = nx + i - 1
-elseif (i > nx) then
-  i = i - nx + 1
-endif
+i=autowrap(i,1,Nx,'i')
 
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range, i = ', i, n_l,  &
@@ -1610,11 +1607,7 @@ if ((i < 1) .or. (i > nx)) then
 end if
 
 ! Autowrap j
-if (j < 1) then
-  j = ny + j - 1
-elseif (j > ny) then
-  j = j - ny + 1
-endif
+j= autowrap(j,1,Ny,'j')
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
@@ -2246,6 +2239,7 @@ end subroutine interp_phi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
+use functions, only : autowrap
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2264,37 +2258,16 @@ real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
 !---------------------------------------------------------------------
 
-!--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+!--calculate indices (autowrapping for i and j)
+i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
+j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
+
 ku = floor (x(3) / dz + 0.5_rp)
 kw = floor (x(3) / dz + 1._rp)
-
-! Autowrap i
-if (i < 1) then
-  iold=i
-  i = nx + i - 1
-  call mesg (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
-elseif (i > nx) then
-  iold=i
-  i = i - nx + 1
-  call mesg (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
-endif
 
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
-
-! Autowrap j
-if (j < 1) then
-  jold=j
-  j = ny + j - 1
-  call mesg (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
-elseif (j > ny) then
-  jold=j
-  j = j - ny + 1
-  call mesg (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
-endif
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)

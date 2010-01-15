@@ -5,6 +5,7 @@ module functions
 save
 private
 public trilinear_interp, linear_interp, interp_to_uv_grid
+public autowrap
 
 contains
 
@@ -135,5 +136,45 @@ else
 endif
 return
 end function interp_to_uv_grid
+
+!----------------------------------------------------------------------
+function autowrap(i,imin,imax,itype)
+!
+!  This function autowraps indices (i and j) to maintain perodicity when
+!  interpolating
+!
+
+integer :: autowrap
+
+character (*), intent (in), optional :: itype
+integer, intent(IN) :: i, imin, imax
+
+logical :: ispeak
+character (*), parameter :: sub_name = mod_name // '.autowrap'
+
+ispeak=.false.
+
+! Autowrap j
+if (i < imin) then
+  autowrap = (imax - imin) + i
+  ispeak=.true.
+elseif (i > imax) then
+  autowrap = i - (imax-imin)
+  ispeak=.true.
+else
+  autowrap = i
+endif
+
+if (present (itype) .and. ispeak) then
+
+  select case (itype)
+    case ('i'); call mesg (sub_name, 'Autowrapping point : From i = ', i, 'to i = ', autowrap)
+    case ('j'); call mesg (sub_name, 'Autowrapping point : From j = ', iold, 'to j = ', autowrap)
+    case default; call error (sub_name, 'invalid itype = ' // itype)
+  end select
+  
+end if
+
+end function autowrap
 
 end module functions
