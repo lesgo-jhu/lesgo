@@ -15,7 +15,7 @@ implicit none
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
 logical, parameter :: tecio=.true.
-integer, parameter :: iter_start=100, iter_stop=1000, iter_skip=100 ! In thousands
+integer, parameter :: iter_start=1000, iter_stop=1000, iter_skip=1000 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -30,7 +30,7 @@ real(rprec), allocatable :: sum_z(:)
 do np=0,nproc-1
   ndirs = (iter_stop - iter_start)/iter_skip + 1 ! # of iteration sets
 
-  favg = 1._rprec/(ndirs * iter_skip * 1000._rprec ) ! 1/(total # of iterations)
+  favg = 1._rprec/(ndirs * iter_skip ) ! 1/(total # of iterations)
   write(*,*) '1/favg : ', 1./favg
 !  Allocate and initialize
   allocate(x(nx),y(ny),z(nz));
@@ -95,7 +95,7 @@ do np=0,nproc-1
 
   do nf=1,ndirs
     write(ci,'(i0)') iter_start + (nf - 1)*iter_skip
-    fdir =  'output.' // trim(adjustl(ci)) // 'k'
+    fdir =  'output.' // trim(adjustl(ci))
     fname =  trim(adjustl(fdir)) // '/tsum.out'
  
     write(*,*) fname 
