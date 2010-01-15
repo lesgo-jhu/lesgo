@@ -361,7 +361,7 @@ character(25) :: ct
 character (64) :: fname, temp
 integer :: n, fid, i, j, k
 
-double precision :: dnx, dny, dnz
+! double precision :: dnx, dny, dnz
 
 !  Write point data; assumes files have been opened properly
 !  in stats_init
@@ -394,9 +394,9 @@ if(itype==1) then
 elseif(itype==2) then
 !  Convert integer quantities to double precision
 
-  dnx=dble(nx)
-  dny=dble(ny)
-  dnz=dble(nz)
+!   dnx=dble(nx)
+!   dny=dble(ny)
+!   dnz=dble(nz)
 
 !  Convert total iteration time to string
   write(ct,*) jt_total
