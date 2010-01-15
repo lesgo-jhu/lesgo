@@ -2274,11 +2274,11 @@ kw = floor (x(3) / dz + 1._rp)
 if (i < 1) then
   iold=i
   i = nx + i - 1
-  call message_aiai (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
+  call mesg (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
 elseif (i > nx) then
   iold=i
   i = i - nx + 1
-  call message_aiai (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
+  call mesg (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
 endif
 
 if ((i < 1) .or. (i > nx)) then
@@ -2289,11 +2289,11 @@ end if
 if (j < 1) then
   jold=j
   j = ny + j - 1
-  call message_aiai (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
+  call mesg (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
 elseif (j > ny) then
   jold=j
   j = j - ny + 1
-  call message_aiai (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
+  call mesg (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
 endif
 
 if ((j < 1) .or. (j > ny)) then
