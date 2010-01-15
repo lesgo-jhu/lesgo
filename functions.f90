@@ -1,11 +1,14 @@
 !***************************************************************
 module functions
 !***************************************************************
-
+use messages
+implicit none
 save
 private
 public trilinear_interp, linear_interp, interp_to_uv_grid
 public autowrap
+
+character (*), parameter :: mod_name = 'functions'
 
 contains
 
@@ -144,6 +147,7 @@ function autowrap(i,imin,imax,itype)
 !  interpolating
 !
 
+implicit none 
 integer :: autowrap
 
 character (*), intent (in), optional :: itype
