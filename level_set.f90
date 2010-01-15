@@ -712,7 +712,6 @@ do k = 1, nz - 1
         !call interp_scal (txx, x2, txx2)
         !call interp_scal (txy, x2, txy2)
         !call interp_scal (tyy, x2, tyy2)
-
         !call interp_scal (tzz, x2, tzz2)
 
         !--now extrapolate
@@ -1604,7 +1603,10 @@ elseif (i > nx) then
 endif
 
 if ((i < 1) .or. (i > nx)) then
-  call error (sub_name, 'i out of range, i =', i)
+  write (msg, *) 'i out of range, i = ', i, n_l,  &
+                 'x = ', x, n_l,                  &
+                 '(i, j, ks) = ', i, j, ks
+  call error (sub_name, msg)
 end if
 
 ! Autowrap j
@@ -1619,7 +1621,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 
-!--need to bounds check ku, kw
+!--need to bounds check ks
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
@@ -1767,7 +1769,7 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
-!--need to bounds check i, j, ku, kw
+!--need to bounds check ku
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
@@ -1946,6 +1948,10 @@ elseif (i > nx) then
   i = i - nx + 1
 endif
 
+if ((i < 1) .or. (i > nx)) then
+  call error (sub_name, 'i out of range, i =', i)
+end if
+
 ! Autowrap j
 if (j < 1) then
   j = ny + j - 1
@@ -1953,7 +1959,12 @@ elseif (j > ny) then
   j = j - ny + 1
 endif
 
-!--need to bounds check i, j, ku, kw
+
+if ((j < 1) .or. (j > ny)) then
+  call error (sub_name, 'j out of range, j =', j)
+end if
+
+!--need to bounds check kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
@@ -2106,8 +2117,11 @@ elseif (i > nx) then
   i = i - nx + 1
 endif
 
-if ((i < 1) .or. (i > nx)) then                                     
-  call error (sub_name, 'i out of range, i =', i)                   
+if ((i < 1) .or. (i > nx)) then
+  write (msg, *) 'i out of range', n_l,            &
+                 '(i, j, ku) = ', i, j, ku, n_l,   &
+                 'x = ', x
+  call error (sub_name, msg)
 end if
 
 ! Autowrap j
@@ -2118,10 +2132,13 @@ elseif (j > ny) then
 endif
 
 if ((j < 1) .or. (j > ny)) then
-  call error (sub_name, 'j out of range, j =', j)
+  write (msg, *) 'j out of range', n_l,            &
+                 '(i, j, ku) = ', i, j, ku, n_l,   &
+                 'x = ', x
+  call error (sub_name, msg)
 end if
 
-!--need to bounds check ku, kw
+!--need to bounds check ku
 !--non-MPI has 0-sized nphibot, nphitop
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
@@ -2239,6 +2256,8 @@ character (*), parameter :: sub_name = mod_name // '.interp_vel'
 integer :: i, j, k, ku, kw
 integer :: i1, j1, k1, ku1, kw1
 
+integer :: iold, jold ! Used only for autowrapping messages
+
 real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
@@ -2253,17 +2272,33 @@ kw = floor (x(3) / dz + 1._rp)
 
 ! Autowrap i
 if (i < 1) then
+  iold=i
   i = nx + i - 1
+  call message_aiai (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
 elseif (i > nx) then
+  iold=i
   i = i - nx + 1
+  call message_aiai (sub_name, 'Autowrapping point : From i = ', iold, 'to i = ', i)
 endif
+
+if ((i < 1) .or. (i > nx)) then
+  call error (sub_name, 'i out of range, i =', i)
+end if
 
 ! Autowrap j
 if (j < 1) then
+  jold=j
   j = ny + j - 1
+  call message_aiai (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
 elseif (j > ny) then
+  jold=j
   j = j - ny + 1
+  call message_aiai (sub_name, 'Autowrapping point : From j = ', jold, 'to j = ', j)
 endif
+
+if ((j < 1) .or. (j > ny)) then
+  call error (sub_name, 'j out of range, j =', j)
+end if
 
 !--need to bounds check ku, kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
