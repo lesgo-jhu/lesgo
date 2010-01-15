@@ -57,10 +57,12 @@ do np=0,nproc-1
   allocate(tsum_t%uv(nx, ny, nz))
   allocate(tsum_t%dudz(nx, ny, nz))
 
+  $if ($LVLSET)
   $if ($MPI)
   allocate(phi(nx+2,ny,0:nz))
   $else
   allocate(phi(nx+2,ny,1:nz))
+  $endif
   $endif
 
   tavg_t%u=0.
@@ -86,8 +88,10 @@ do np=0,nproc-1
   tsum_t%dudz=0.
 
 
+  $if ($LVLSET)
 !  Load phi data
   call load_data('phi.out',np)
+  $endif
 
   do nf=1,ndirs
     write(ci,'(i0)') iter_start + (nf - 1)*iter_skip
@@ -164,18 +168,27 @@ do np=0,nproc-1
       action='write',position='rewind')
   
     if(tecio) then
-      write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+      write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp", "phi"'
       write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
         1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+      $if ($LVLSET)
+      write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+      $else
       write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+      $endif
     endif
 
     do k=1,nz
       do j=1,ny
         do i=1,nx
-  !  Write spatially averaged, temporally averaged quantities   
+  !  Write spatially averaged, temporally averaged quantities
+          $if ($LVLSET)   
+          write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
+            rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k), phi(i,j,k)
+          $else
           write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
             rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
+          $endif
         enddo
       enddo
     enddo
@@ -252,16 +265,28 @@ do np=0,nproc-1
       action='write',position='rewind')
 
     if(tecio) then
+      $if ($LVLSET)
+      write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>", "phi"'
+      $else
       write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+      $endif
       write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
         1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+      $if ($LVLSET)
+      write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+      $else
       write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+      $endif
     endif
 
     do k=1,nz
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
+          write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k), phi(i,j,k)
+          $else
           write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k)
+          $endif         
         enddo
       enddo
     enddo
