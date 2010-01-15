@@ -1577,8 +1577,8 @@ real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 !---------------------------------------------------------------------
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+i=autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
+j=autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
 
 if (present (node)) then
 
@@ -1596,18 +1596,12 @@ end if
 
 ks = floor (x(3) / dz + s)
 
-! Autowrap i
-i=autowrap(i,1,Nx,'i')
-
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range, i = ', i, n_l,  &
                  'x = ', x, n_l,                  &
                  '(i, j, ks) = ', i, j, ks
   call error (sub_name, msg)
 end if
-
-! Autowrap j
-j= autowrap(j,1,Ny,'j')
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
@@ -1714,6 +1708,7 @@ end subroutine interp_scal
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
+use functions, only : autowrap
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -1734,29 +1729,15 @@ real (rp) :: f(8)
 !---------------------------------------------------------------------
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
+j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
 
 s = 0.5_rp
 ku = floor (x(3) / dz + s)
 
-! Autowrap i
-if (i < 1) then
-  i = nx + i - 1
-elseif (i > nx) then
-  i = i - nx + 1
-endif
-
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
-
-! Autowrap j
-if (j < 1) then
-  j = ny + j - 1
-elseif (j > ny) then
-  j = j - ny + 1
-endif
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
@@ -1908,6 +1889,7 @@ end subroutine interp_tij_u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
+use functions, only : autowrap
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -1928,30 +1910,15 @@ real (rp) :: f(8)
 !---------------------------------------------------------------------
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
+j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
 
 s = 1._rp
 kw = floor (x(3) / dz + s)
 
-! Autowrap i
-if (i < 1) then
-  i = nx + i - 1
-elseif (i > nx) then
-  i = i - nx + 1
-endif
-
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
-
-! Autowrap j
-if (j < 1) then
-  j = ny + j - 1
-elseif (j > ny) then
-  j = j - ny + 1
-endif
-
 
 if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
@@ -2082,6 +2049,7 @@ end subroutine interp_tij_w
 !--assumes phi is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_phi (x, phi_x)
+use functions, only : autowrap
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2099,16 +2067,10 @@ real (rp) :: w(8), f(8)
 !---------------------------------------------------------------------
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
-ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
+j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
 
-! Autowrap i
-if (i < 1) then
-  i = nx + i - 1
-elseif (i > nx) then
-  i = i - nx + 1
-endif
+ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range', n_l,            &
@@ -2116,13 +2078,6 @@ if ((i < 1) .or. (i > nx)) then
                  'x = ', x
   call error (sub_name, msg)
 end if
-
-! Autowrap j
-if (j < 1) then
-  j = ny + j - 1
-elseif (j > ny) then
-  j = j - ny + 1
-endif
 
 if ((j < 1) .or. (j > ny)) then
   write (msg, *) 'j out of range', n_l,            &
@@ -2249,8 +2204,6 @@ character (*), parameter :: sub_name = mod_name // '.interp_vel'
 
 integer :: i, j, k, ku, kw
 integer :: i1, j1, k1, ku1, kw1
-
-integer :: iold, jold ! Used only for autowrapping messages
 
 real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
