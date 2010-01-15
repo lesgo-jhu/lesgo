@@ -29,9 +29,6 @@ tsum_t%calc = .true.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
-! !  Turns Reynolds stresses calculations on or off 
-! rs_t%calc = .false.
-
 !  Turns instantaneous velocity recording on or off
 point_t%calc = .false.
 point_t%nstart = 1
@@ -41,7 +38,7 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/3., 2., 0.5/)
 point_t%xyz(:,2) = (/1., 2., 0.5/)
 
-domain_t%calc = .false.
+domain_t%calc = .true.
 domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
@@ -54,16 +51,11 @@ yplane_t%nloc     = 1
 yplane_t%loc(1)  = 2.0
 
 !  z-plane stats/data
-zplane_t%calc=.false.
-zplane_t%nstart = 1
+zplane_t%calc=.true.
+zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nloc   = 1 
 zplane_t%loc(1)  = 0.5
-
-!  Set time summation calculations based on
-!  dependants. Don't touch, depends on above
-!  information
-if(rs_t%calc) tsum_t%calc = .true.
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
