@@ -173,7 +173,7 @@ if (present (itype) .and. ispeak) then
 
   select case (itype)
     case ('i'); call mesg (sub_name, 'Autowrapping point : From i = ', i, 'to i = ', autowrap)
-    case ('j'); call mesg (sub_name, 'Autowrapping point : From j = ', iold, 'to j = ', autowrap)
+    case ('j'); call mesg (sub_name, 'Autowrapping point : From j = ', i, 'to j = ', autowrap)
     case default; call error (sub_name, 'invalid itype = ' // itype)
   end select
   
