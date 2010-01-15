@@ -14,7 +14,7 @@ character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 double precision, parameter :: zrot_angle = -90._rprec*pi/180._rprec
 double precision, parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 7
+integer, parameter :: ntree = 1
 integer, parameter :: ntrunk = 3
 integer, parameter :: ngen = 1
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec

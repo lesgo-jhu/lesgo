@@ -17,7 +17,7 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-logical :: RNS=.true.
+logical :: RNS=.false.
 logical :: DIST_CALC=.true.
 logical :: DEBUG=.false.
 
@@ -81,10 +81,12 @@ double precision :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
-origin(:,2)=(/ -L_x/2., L_y/2., z_bottom_surf /)
-origin(:,3)=(/ 3.*L_x/2., L_y/2., z_bottom_surf /)
-origin(:,4)=(/ L_x/2., -L_y/2., z_bottom_surf /)
-origin(:,5)=(/ L_x/2., 3.*L_y/2., z_bottom_surf /)
+!origin(:,2)=(/ L_x, 0., z_bottom_surf /)
+!origin(:,3)=(/ 0., 0., z_bottom_surf /)
+!origin(:,4)=(/ 0., L_y, z_bottom_surf /)
+!origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
+!origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+!origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
