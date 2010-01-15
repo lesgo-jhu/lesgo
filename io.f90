@@ -289,23 +289,6 @@ if(tsum_t%calc) then
   endif 
 endif
 
-! !  Determine if stats are to be calculated
-! if(tavg_t%calc) then
-! !  Check if we are in the time interval for running summations
-!   if(jt >= tavg_t%nstart .and. jt <= tavg_t%nend) then
-!     if(.not. tavg_t%started) then
-!       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-!         write(*,*) '-------------------------------'   
-!         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_t%nstart, ' to ', tavg_t%nend
-!         write(*,*) '-------------------------------'   
-!       endif
-!       tavg_t%started=.true.
-!     endif
-! !  Compute running summations
-!   call tavg_compute ()
-!   endif 
-! endif
-
 !  Determine if instantaneous point velocities are to be recorded
 if(point_t%calc) then
   if(jt >= point_t%nstart .and. jt <= point_t%nend .and. mod(jt,point_t%nskip)==0) then
@@ -336,9 +319,25 @@ if(domain_t%calc) then
     endif
     call inst_write(2)
   endif
+endif 
+
+!  Determine if instantaneous domain velocities are to be recorded
+if(yplane_t%calc) then
+  if(jt >= yplane_t%nstart .and. jt <= yplane_t%nend .and. mod(jt,yplane_t%nskip)==0) then
+    if(.not. yplane_t%started) then
+      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+        write(*,*) '-------------------------------'
+        write(*,"(1a,i9,1a,i9)") 'Writing instantaneous y-plane velocities from ', yplane_t%nstart, ' to ', yplane_t%nend
+        write(*,"(1a,i9)") 'Iteration skip:', yplane_t%nskip
+        write(*,*) '-------------------------------'
+      endif
+      yplane_t%started=.true.
+    endif
+    call inst_write(3)
+  endif
 endif    
 
-if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
+!if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
 
 return
 end subroutine output_loop
@@ -348,8 +347,8 @@ subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
-use functions, only : trilinear_interp, interp_to_uv_grid
-use stat_defs, only : point_t, domain_t
+use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
+use stat_defs, only : point_t, domain_t, yplane_t
 use grid_defs, only : x,y,z
 use sim_param, only : u,v,w
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
@@ -357,9 +356,11 @@ implicit none
 
 integer, intent(IN) :: itype
 
-character(25) :: ct
+character(25) :: cl, ct
 character (64) :: fname, temp
 integer :: n, fid, i, j, k
+
+real(rprec) :: ui, vi, wi
 
 ! double precision :: dnx, dny, dnz
 
@@ -377,14 +378,12 @@ if(itype==1) then
     $endif
 
       fid=3000*n
-!     write(*,*) 'point_t%istart(n) = ', point_t%istart(n)
-!     write(*,*) 'point_t%jstart(n) = ', point_t%jstart(n)
-!     write(*,*) 'point_t%kstart(n) = ', point_t%kstart(n)
+
       write(fid,*) jt_total*dt_dim, &
       trilinear_interp('u',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp('v',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp('w',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
-!     write(fid,*) jt_total*dt_dim, u(ip,jp,kp), v(ip,jp,kp) , interp_to_uv_grid('w',ip,jp,kp)
+
 
     $if ($MPI)
     endif
@@ -421,6 +420,47 @@ elseif(itype==2) then
   enddo
   
   close(7)
+!  Write instantaneous y-plane values
+elseif(itype==3) then
+
+!  Loop over all yplane locations
+  do j=1,yplane_t%nloc
+
+    write(cl,'(F9.4)') yplane_t%loc(j)
+    !  Convert total iteration time to string
+    write(ct,*) jt_total
+    write(fname,*) 'output/uvw.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.out'
+    fname=trim(adjustl(fname))
+
+    $if ($MPI)
+!  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
+
+    open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='rewind')
+    write(2,*) 'variables = "x", "z", "u", "v", "w"';
+    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+      j,'", DATAPACKING=POINT, i=', Nx,', j=',Nz
+    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+    do k=1,nz
+      do i=1,nx
+
+        ui = linear_interp(u(i,yplane_t%istart(j),k), &
+          u(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+        vi = linear_interp(v(i,yplane_t%istart(j),k), &
+          v(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+        wi = linear_interp(interp_to_uv_grid('w',i,yplane_t%istart(j),k), &
+          interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
+          yplane_t%ldiff(j))
+
+        write(2,*) x(i), z(k), ui, vi, wi
+      enddo
+    enddo
+    close(2)
+  enddo  
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'
   stop

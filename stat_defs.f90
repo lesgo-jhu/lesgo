@@ -32,14 +32,14 @@ end type
 
 !  Instantaneous velocity global declarations
 type domain
-  logical :: calc,started
+  logical :: calc, started
   integer :: nstart, nend, nskip
 end type domain  
   
 !  Planar stats/data
 type plane
-  logical :: calc
-  integer :: nloc, nstart, nend
+  logical :: calc, started
+  integer :: nloc, nstart, nend, nskip
   integer, dimension(10) :: istart, coord
   real(rprec) :: fa
   real(rprec), dimension (10) :: loc, ldiff
