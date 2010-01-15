@@ -142,9 +142,9 @@ end function interp_to_uv_grid
 
 !----------------------------------------------------------------------
 function autowrap(i,imin,imax,itype)
+!----------------------------------------------------------------------
 !
-!  This function autowraps indices (i and j) to maintain perodicity when
-!  interpolating
+!  This function autowraps indices (i and j) to maintain perodicity
 !
 
 implicit none 
