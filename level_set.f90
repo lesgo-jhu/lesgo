@@ -613,7 +613,8 @@ if (output) then
   write (lun, *) 'dphi = ', dphi
 end if
 
-!--initial values for _used variables
+!  initial values for _used variables
+!  setting to non-previously used values
 imn_used = nx
 imx_used = 1
 jmn_used = ny
@@ -632,6 +633,7 @@ do k = 1, nz - 1
 
       if ((-phi_c <= phi_x) .and. (phi_x < phi_0)) then
 
+	! Find bounding box for all "banded" points"
         imn_used = min (imn_used, i)
         imx_used = max (imx_used, i)
         jmn_used = min (jmn_used, j)
@@ -649,6 +651,8 @@ do k = 1, nz - 1
         dphi = dphi0
         x1 = x + dphi * n_hat  !--this pt is supposed to be in fluid
                                !--this means dphi >= phi_c
+			       
+	
 
         !--check phi(x1) >= 0
         call interp_phi (x1, phi1)
@@ -2069,9 +2073,9 @@ integer :: l  !--debug
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
-!---------------------------------------------------------------------
 call mesg(sub_name,'x(1) = ', x(1))
-!--calculate indices
+
+!--calculate indices starting indices of cell containing x
 i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
 j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
 
@@ -2117,6 +2121,8 @@ j1 = modulo (j, ny) + 1
 ku1 = ku + 1
 
 !--calculate interpolation weights
+!  Computes fraction of dx,dy,dz that point exists from 
+!  starting i,j,k of cell
 x1 = modulo (x(1), dx) / dx
 x2 = modulo (x(2), dy) / dy
 x3 = x(3) / dz - (floor (x(3) / dz + 0.5_rp) - 0.5_rp)
