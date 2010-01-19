@@ -2075,7 +2075,7 @@ real (rp) :: w(8), f(8)
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 !---------------------------------------------------------------------
-xmod=x
+xmod=x ! Initialize
 xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
