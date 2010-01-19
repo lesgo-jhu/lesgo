@@ -293,7 +293,7 @@ do k = 1, nz - 1
   else
     s = 1  !--w-nodes
   end if
-  
+
   do j = 1, ny
     do i = 1, nx
 
@@ -1578,11 +1578,16 @@ real (rp) :: x1, x2, x3
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i=autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
-j=autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
+i = floor (xmod(1) / dx + 1._rp)
+j = floor (xmod(2) / dy + 1._rp)
 
 if (present (node)) then
 
@@ -1598,7 +1603,7 @@ else  !-default to u-nodes
 
 end if
 
-ks = floor (x(3) / dz + s)
+ks = floor (xmod(3) / dz + s)
 
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range, i = ', i, n_l,  &
@@ -1636,9 +1641,9 @@ j1 = modulo (j, ny) + 1
 ks1 = ks + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w1 = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w2 = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -1730,14 +1735,19 @@ real (rp) :: x1, x2, x3
 real (rp) :: w(8)
 real (rp) :: f(8)
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
-j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
+i = floor (xmod(1) / dx + 1._rp)
+j = floor (xmod(2) / dy + 1._rp)
 
 s = 0.5_rp
-ku = floor (x(3) / dz + s)
+ku = floor (xmod(3) / dz + s)
 
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
@@ -1772,9 +1782,9 @@ j1 = modulo (j, ny) + 1
 ku1 = ku + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -1911,14 +1921,19 @@ real (rp) :: x1, x2, x3
 real (rp) :: w(8)
 real (rp) :: f(8)
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
-j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
+i = floor (xmod(1) / dx + 1._rp)
+j = floor (xmod(2) / dy + 1._rp)
 
 s = 1._rp
-kw = floor (x(3) / dz + s)
+kw = floor (xmod(3) / dz + s)
 
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
@@ -1953,9 +1968,9 @@ j1 = modulo (j, ny) + 1
 kw1 = kw + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -2224,14 +2239,18 @@ real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
-!--calculate indices (autowrapping for i and j)
-i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
-j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
-
-ku = floor (x(3) / dz + 0.5_rp)
-kw = floor (x(3) / dz + 1._rp)
+!--calculate indices
+i = floor (xmod(1) / dx + 1._rp)
+j = floor (xmod(2) / dy + 1._rp)
+ku = floor (xmod(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+kw = floor (xmod(3) / dz + 1._rp)
 
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
@@ -2274,10 +2293,10 @@ ku1 = ku + 1
 kw1 = kw + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3u = x(3) / dz - (floor (x(3) / dz + 0.5_rp) - 0.5_rp)
-x3w = modulo (x(3), dz) / dz
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3u = xmod(3) / dz - (floor (xmod(3) / dz + 0.5_rp) - 0.5_rp)
+x3w = modulo (xmod(3), dz) / dz
 
 w1 = (1._rp - x1) * (1._rp - x2) * (1._rp - x3u)
 w2 = (    x1    ) * (1._rp - x2) * (1._rp - x3u)
