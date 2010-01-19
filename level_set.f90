@@ -2058,7 +2058,6 @@ subroutine interp_phi (x, phi_x)
 !--performs tri-linear interpolation to obtain phi at point x
 !--assumes phi is on u-nodes
 !
-use functions, only : autowrap
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2073,14 +2072,19 @@ integer :: l  !--debug
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
-call mesg(sub_name,'x(1) = ', x(1))
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
-!--calculate indices starting indices of cell containing x
-i = autowrap(floor (x(1) / dx + 1._rp), 1, Nx, 'i')
-j = autowrap(floor (x(2) / dy + 1._rp), 1, Ny, 'j')
+!---------------------------------------------------------------------
+xmod=x
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
-ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+!--calculate indices
+i = floor (xmod(1) / dx + 1._rp)
+j = floor (xmod(2) / dy + 1._rp)
+ku = floor (xmod(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 
+!--need to bounds check i, j, ku, kw
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range', n_l,            &
                  '(i, j, ku) = ', i, j, ku, n_l,   &
@@ -2123,9 +2127,9 @@ ku1 = ku + 1
 !--calculate interpolation weights
 !  Computes fraction of dx,dy,dz that point exists from 
 !  starting i,j,k of cell
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + 0.5_rp) - 0.5_rp)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + 0.5_rp) - 0.5_rp)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
