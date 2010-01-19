@@ -13,7 +13,7 @@ module param
   !--mpi stuff
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 8
+  $define $NPROC 64
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
