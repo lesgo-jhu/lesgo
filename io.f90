@@ -459,7 +459,7 @@ elseif(itype==3) then
     write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
     write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
       j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
     write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
     do k=1,nz
       do i=1,nx
@@ -505,7 +505,7 @@ elseif(itype==4) then
     write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
     write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
       j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
     write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
 
     do j=1,Ny
