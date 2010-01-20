@@ -1553,7 +1553,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-use functions, only : autowrap
+
 implicit none
 
 integer, intent (in) :: albz
@@ -1717,7 +1717,7 @@ end subroutine interp_scal
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
-use functions, only : autowrap
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -1903,7 +1903,7 @@ end subroutine interp_tij_u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
-use functions, only : autowrap
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2224,7 +2224,7 @@ end subroutine interp_phi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
-use functions, only : autowrap
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
