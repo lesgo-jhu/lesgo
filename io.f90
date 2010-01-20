@@ -367,7 +367,6 @@ use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
 use stat_defs, only : point_t, domain_t, yplane_t, zplane_t
 use grid_defs, only : x,y,z
 use sim_param, only : u,v,w
-use level_set, only : phi
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
 implicit none
 
@@ -431,7 +430,7 @@ elseif(itype==2) then
   $endif
 
   write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
+    j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', Nz
 
   $if($LVLSET)
   write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
