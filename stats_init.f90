@@ -4,7 +4,7 @@ subroutine stats_init ()
 !  This subroutine allocates the memory for arrays
 !  used for statistical calculations 
 
-use param, only : dy,dz,nx,ny,nz,nsteps,coord
+use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord
 use stat_defs
 use grid_defs
 implicit none
@@ -25,18 +25,18 @@ point_t%xyz=-1.
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .false.
-tsum_t%nstart = 1
+tsum_t%calc = .true.
+tsum_t%nstart = 5000
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .false.
-point_t%nstart = 1
+point_t%calc = .true.
+point_t%nstart = 5000
 point_t%nend   = nsteps
 point_t%nskip = 1
 point_t%nloc = 2
-point_t%xyz(:,1) = (/3., 2., 0.5/)
-point_t%xyz(:,2) = (/1., 2., 0.5/)
+point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
+point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .false.
 domain_t%nstart = 100
@@ -45,7 +45,7 @@ domain_t%nskip = 100
 
 !  y-plane stats/data
 yplane_t%calc   = .true.
-yplane_t%nstart = 100
+yplane_t%nstart = 8000
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
 yplane_t%nloc   = 2
@@ -54,7 +54,7 @@ yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
 zplane_t%calc   = .true.
-zplane_t%nstart = 100
+zplane_t%nstart = 8000
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
 zplane_t%nloc   = 2
