@@ -6,7 +6,6 @@ implicit none
 save
 private
 public trilinear_interp, linear_interp, interp_to_uv_grid
-public autowrap
 
 character (*), parameter :: mod_name = 'functions'
 
