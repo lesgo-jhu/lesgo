@@ -406,17 +406,13 @@ if(itype==1) then
     $endif
 
   enddo
+!  Instantaneous write for entire domain
 elseif(itype==2) then
-!  Convert integer quantities to double precision
-
-!   dnx=dble(nx)
-!   dny=dble(ny)
-!   dnz=dble(nz)
 
 !  Convert total iteration time to string
   write(ct,*) jt_total
 !  Open file which to write global data
-  write (fname,*) 'output/uvw.', trim(adjustl(ct)),'.out'
+  write (fname,*) 'output/uvw.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
 
   $if ($MPI)
@@ -424,13 +420,34 @@ elseif(itype==2) then
     fname = trim (fname) // temp
   $endif
   
-  open(unit = 7,file = fname, status='unknown',form='unformatted', &
+  open(unit = 7,file = fname, status='unknown',form='formatted', &
         action='write',position='rewind')
+
+  $if($LVLSET)
+  write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
+  $else
+  write(7,*) 'variables = "x", "y", "z", "u", "v", "w"';
+  $endif
+
+  write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
+
+  $if($LVLSET)
+  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  $else
+  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  $endif
+
+  write(7,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
   
   do k=1,nz
     do j=1,ny
       do i=1,nx
-        write(7) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k)
+        $if($LVLSET)
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k), phi(i,j,k)
+        $else
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k)
+        $endif
       enddo
     enddo
   enddo
