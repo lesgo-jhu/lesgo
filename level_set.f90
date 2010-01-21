@@ -2674,10 +2674,9 @@ end subroutine smooth
 !--also calculates CL (coeff. of lift)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_cylinder_CD ()
-use param, only : jt, dt, L_y, L_z
+use param, only : jt, jt_total, dt, L_y, L_z
 use immersedbc, only : fx, fy, fz
 use sim_param, only : u
-use io, only : jt_total
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_cylinder_CD'
