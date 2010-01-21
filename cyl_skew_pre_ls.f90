@@ -17,9 +17,21 @@ type(rot), allocatable, dimension(:) :: zrot_t
 !  coordinate system
 type(vector) :: vgcs_t
 
-logical :: RNS=.true.
 logical :: DIST_CALC=.true.
-logical :: DEBUG=.false.
+
+!~ $if ($RNS) 
+!~ define $RNS_LOGICAL=.true.
+!~ $else
+!~ define $RNS_LOGICAL=.false.
+!~ $ENDif
+
+!~ $IF ($DEBUG)
+!~ logical :: DEBUG=.true.
+!~ $ELSE
+!~ LOGICAL :: DEBUG=.false.
+!~ $ENDIF
+LOGical :: DEBUG=.false.
+LOGICAL :: RNS=.true.
 
 double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
@@ -869,4 +881,3 @@ return
 end subroutine point_assoc
 
 end subroutine finalize
-
