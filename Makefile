@@ -16,6 +16,8 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
+USE_DEBUG=yes
+
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
@@ -26,10 +28,15 @@ USE_DYNALLOC = no
 
 USE_LVLSET = yes
 USE_CYLINDER_SKEW_LS = yes
+USE_RNS = yes
 
 USE_TREES_LS = no
 
 FPP = fpx3
+
+ifeq ($(USE_DEBUG), yes)
+  FPP += -DDEBUG
+endif
 
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
@@ -50,6 +57,10 @@ endif
 
 ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   FPP += -DCYLINDER_SKEW_LS
+endif
+
+ifeq ($(USE_RNS), yes)
+  FPP += -DRNS
 endif
 
 # Directory for the .o files
@@ -89,12 +100,13 @@ ifeq ($(FCOMP),gfortran)
   else
     FC = gfortran
   endif
-  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
+  FFLAGS = -O0 -fbounds-check
+#  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
   LDFLAGS = -static 
-  MODDIR = -I$(MPATH) -J$(MPATH)  
+  MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR)  
   CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif
