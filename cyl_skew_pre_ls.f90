@@ -19,20 +19,6 @@ type(vector) :: vgcs_t
 
 logical :: DIST_CALC=.true.
 
-!~ $if ($RNS) 
-!~ define $RNS_LOGICAL=.true.
-!~ $else
-!~ define $RNS_LOGICAL=.false.
-!~ $ENDif
-
-!~ $IF ($DEBUG)
-!~ logical :: DEBUG=.true.
-!~ $ELSE
-!~ LOGICAL :: DEBUG=.false.
-!~ $ENDIF
-LOGical :: DEBUG=.false.
-LOGICAL :: RNS=.true.
-
 double precision, parameter :: BOGUS = 1234567890._rprec
 double precision, parameter :: iBOGUS = 1234567890
 double precision, parameter :: eps = 1.e-12
@@ -59,16 +45,25 @@ end module cylinder_skew_param
 program cylinder_skew_pre_ls
 !***************************************************************
 use mpi_defs, only : mpirank
-use cylinder_skew_param, only : DEBUG,DIST_CALC,RNS,ntree
+use cylinder_skew_param, only : DIST_CALC, ntree
 implicit none
 
 integer :: ntr
 
 do ntr = 1,ntree
-  if(DEBUG .and. mpirank == 0) write(*,*) 'Tree id : ', ntr
+  
+  $if ($DEBUG)
+  if(mpirank == 0) write(*,*) 'Tree id : ', ntr
+  $endif
+  
   call initialize(ntr) 
-  if(RNS .and. mpirank == 0) call rns_planes(ntr)
+  
+  $if ($RNS)
+   if(mpirank == 0) call rns_planes(ntr)
+  $endif
+   
   if(DIST_CALC) call main()
+  
 enddo 
 
 call finalize()
@@ -129,7 +124,11 @@ if(ntr == 1) then
 !  Set cylinder parameters for all generations
   do ng=1,ngen
     gen_scale_fact = scale_fact**(ng-1)
-    if(DEBUG) write(*,*) 'gen_scale_fact : ', gen_scale_fact
+    
+    $if ($DEBUG) 
+    write(*,*) 'gen_scale_fact : ', gen_scale_fact
+    $endif
+    
     crad(ng) = gen_scale_fact*d/2.
     clen(ng) = gen_scale_fact*l
     rad_offset(ng) = gen_scale_fact*offset
@@ -137,7 +136,8 @@ if(ntr == 1) then
   a = crad/dcos(skew_angle) ! Ellipse major axis
   b = crad                  ! Ellipse minor axis
 
-  if(DEBUG .and. mpirank == 0) then
+  $if ($DEBUG)
+  if (mpirank == 0) then
     write(*,*) 'skew_angle : ', skew_angle
     write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
     write(*,*) 'ntrunk 	 : ', ntrunk
@@ -145,6 +145,7 @@ if(ntr == 1) then
     write(*,*) 'clen 	 : ', clen
     write(*,*) 'rad_offset : ', rad_offset
   endif
+  $endif
 
 !  Set rotation angle about z-axis with which the skew angle is applied 
   do ng=1,ngen
@@ -155,10 +156,14 @@ if(ntr == 1) then
   do nt=1,ntrunk
     zrot_t(1)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
     zrot_t(1)%axis(:,nt) = (/dcos(zrot_t(1)%angle(nt)+pi/2.),dsin(zrot_t(1)%angle(nt)+pi/2.),0./)
-    if(DEBUG .and. mpirank == 0) then
+    
+    $if ($DEBUG)
+    if(mpirank == 0) then
       write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(1)%angle(nt)*180./pi
       write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(1)%axis(:,nt)
     endif
+    $endif
+    
   enddo
 endif
 
@@ -169,12 +174,14 @@ do nt=1,ntrunk
   lgcs_t(1)%xyz(1,nt) = lgcs_t(1)%xyz(1,nt) + rad_offset(1)*dcos(zrot_t(1)%angle(nt))
   lgcs_t(1)%xyz(2,nt) = lgcs_t(1)%xyz(2,nt) + rad_offset(1)*dsin(zrot_t(1)%angle(nt))
 
-  if(DEBUG .and. mpirank == 0 ) then
+  $if ($DEBUG)
+  if(mpirank == 0 ) then
     write(*,*) ''
     write(*,*) 'nt = ', nt
     write(*,*) 'origin : ', origin(:,ntr)
     write(*,*) 'lgcs_t(1)%xyz(:,nt) : ', lgcs_t(1)%xyz(:,nt)
   endif
+  $endif
 
   !  Set the center point of the bottom ellipse
   ebgcs_t(1)%xyz(:,nt)=lgcs_t(1)%xyz(:,nt)
@@ -185,10 +192,10 @@ do nt=1,ntrunk
     etgcs_t(1)%xyz(:,nt))
   etgcs_t(1)%xyz(:,nt) = etgcs_t(1)%xyz(:,nt) + ebgcs_t(1)%xyz(:,nt)
   
-  if(DEBUG) then
+  $if ($DEBUG)
     write(*,*) 'ebgcs_t(1)%xyz(:,nt) : ', ebgcs_t(1)%xyz(:,nt)
     write(*,*) 'etgcs_t(1)%xyz(:,nt) : ', etgcs_t(1)%xyz(:,nt)
-  endif
+  $endif
 
 enddo
 
@@ -213,11 +220,11 @@ if(ngen > 1) then
       istart = (j-1)*ntrunk + 1
       iend   = istart + (ntrunk -1)
 
-      if(DEBUG) then
+      $if ($DEBUG)
         write(*,*) 
         write(*,*) 'istart : ', istart
         write(*,*) 'iend   : ', iend
-      endif
+      $endif
 
       do i=istart,iend
         lgcs_t(ng)%xyz(:,i) = etgcs_t(ng-1)%xyz(:,j)

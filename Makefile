@@ -16,7 +16,8 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
-USE_DEBUG=yes
+#--Set global DEBUG flag; not all routines use this yet
+DEBUG=no
 
 # watch the whitespace here
 USE_MPI = yes
@@ -34,7 +35,7 @@ USE_TREES_LS = no
 
 FPP = fpx3
 
-ifeq ($(USE_DEBUG), yes)
+ifeq ($(DEBUG), yes)
   FPP += -DDEBUG
 endif
 
