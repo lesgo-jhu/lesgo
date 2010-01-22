@@ -1409,7 +1409,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 do i = 1, nd
@@ -1419,7 +1419,7 @@ do i = 1, nd
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine cartesian_correction

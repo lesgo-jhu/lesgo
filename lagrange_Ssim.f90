@@ -73,7 +73,7 @@ logical, save :: F_LM_MM_init = .false.
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
@@ -373,7 +373,7 @@ $if ($LVLSET)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub(sub_name)
+call exit_sub(sub_name)
 $endif
 
 end subroutine lagrange_Ssim

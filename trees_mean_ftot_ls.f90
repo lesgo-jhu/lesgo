@@ -36,7 +36,7 @@ type (branch_type), pointer :: b => NULL ()
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 ftot = 0._rp
@@ -64,7 +64,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine mean_ftot

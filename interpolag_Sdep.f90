@@ -33,7 +33,7 @@ real(kind=rprec), save, dimension(nx+2,ny+2,nz+2) :: Beta_t
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'started interpolag_Sdep'
+write (*, *) 'started interpolag_Sdep'
 $endif
 
 !     creates dummy arrays FF_LM and FF_MM to use in the subroutine
@@ -361,7 +361,7 @@ v_lag = 0._rprec
 w_lag = 0._rprec
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'finished interpolag_Sdep'
+write (*, *) 'finished interpolag_Sdep'
 $endif
 
 end subroutine interpolag_Sdep

@@ -3,10 +3,6 @@ subroutine divstress_uv (divt, tx, ty, tz)
 use types,only:rprec
 use param,only:ld,ny,nz, BOGUS
 
-$if ($VERBOSE)
-use param, only : VERBOSE
-$endif
-
 implicit none
 $if ($MPI)
   $define $lbz 0
@@ -24,7 +20,7 @@ logical, parameter :: DEBUG = .true.
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'started divstress_uv'
+write (*, *) 'started divstress_uv'
 $endif
  
 !if (DEBUG) then
@@ -75,7 +71,7 @@ $endif
 divt(:, :, nz) = BOGUS
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'finished divstress_uv'
+write (*, *) 'finished divstress_uv'
 $endif
 
 end subroutine divstress_uv

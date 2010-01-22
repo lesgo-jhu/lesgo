@@ -37,7 +37,7 @@ logical :: opn, ext
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 inquire (unit=lun, opened=opn, exist=ext)
@@ -57,7 +57,7 @@ end do
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine write_CD
@@ -85,7 +85,7 @@ real (rp) :: num, den
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (br % resolved) then
@@ -127,7 +127,7 @@ if (br % resolved) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine write_CD_br
@@ -146,7 +146,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--check 0 <= gen <= ngen
@@ -159,7 +159,7 @@ do i = 1, n_tree
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine
@@ -186,7 +186,7 @@ real (rp) :: drag, lift, side
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (br % gen == gen) then
@@ -230,7 +230,7 @@ else  !--br % gen > gen
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine write_drag_lift_br
@@ -252,7 +252,7 @@ real (rp) :: d_hat(nd), l_hat(nd), y_hat(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 degen = .false.
@@ -286,7 +286,7 @@ else
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine decompose_drag_lift
@@ -313,7 +313,7 @@ type (branch_type), pointer :: b => NULL ()
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 ftot = 0._rp
@@ -341,7 +341,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine mean_ftot

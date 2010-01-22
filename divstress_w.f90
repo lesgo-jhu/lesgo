@@ -5,9 +5,6 @@ subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
 use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS
 
-$if ($VERBOSE)
-use param, only : VERBOSE
-$endif
 implicit none
 $if ($MPI)
   $define $lbz 0
@@ -20,7 +17,7 @@ real(kind=rprec),dimension(ld,ny,$lbz:nz)::dtxdx,dtydy, dtzdz
 integer::jx,jy,jz
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'started divstress_w'
+write (*, *) 'started divstress_w'
 $endif
 
 ! compute stress gradients      
@@ -88,7 +85,7 @@ else
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'finished divstress_w'
+write (*, *) 'finished divstress_w'
 $endif
 
 end subroutine divstress_w

@@ -19,12 +19,6 @@ module param
   $define $NPROC 1
   $endif
 
-  $if ($VERBOSE)
-  $define $VERBOSE_LOGICAL .true.
-  $else
-  $define $VERBOSE_LOGICAL .false.
-  $endif
-
   logical, parameter :: USE_MPI = $MPI_LOGICAL
 
   $undefine $MPI_LOGICAL
@@ -47,11 +41,6 @@ module param
   integer :: coord = -1  !--same here
   integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
   !--end mpi stuff
-
-  logical, parameter :: VERBOSE = $VERBOSE_LOGICAL
-  $undefine $VERBOSE_LOGICAL
-  !--prints small stuff to screen
-  !--use DEBUG to write lots of data/files
 
   integer,parameter:: nx=32,ny=32,nz=(32+4-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1

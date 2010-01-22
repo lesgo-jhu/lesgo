@@ -62,7 +62,7 @@ integer :: jz_min
 ! S23=0.
 
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
@@ -421,7 +421,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 return

@@ -42,7 +42,7 @@ integer :: jxaddx, jyaddy, jzaddz
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !     creates dummy arrays FF_LM and FF_MM to use in the subroutine
@@ -310,7 +310,7 @@ v_lag = 0._rprec
 w_lag = 0._rprec
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine interpolag_Ssim

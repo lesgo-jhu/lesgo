@@ -133,7 +133,7 @@ logical, save :: first_call = .true.
 sn = trim ( sub_name ) // trim ( chcoord )
 
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sn )
+call enter_sub ( sn )
 $endif
 
 if (.not. tree_array_initialized) then
@@ -167,7 +167,7 @@ if (first_call) then
 end if
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sn )
+call exit_sub ( sn )
 $endif
 
 end subroutine trees_ls_calc_init
@@ -184,7 +184,7 @@ logical, save :: first_call = .true.
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if ( first_call ) then
@@ -202,7 +202,7 @@ case default
 end select
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine trees_ls_calc
@@ -322,7 +322,7 @@ if ((modulo (jt, noutput) == 0) .or. (jt == nsteps)) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine aposteriori
@@ -359,7 +359,7 @@ real (rp), allocatable, save :: num(:, :, :), den(:, :, :),  &
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name // trim (chcoord))
+ call enter_sub (sub_name // trim (chcoord))
 $endif
 
 ngen = tree_array(n_tree) % n_gen  !--assumes all trees are same here
@@ -475,7 +475,7 @@ if ( modulo (jt, nfxyz_write) == 0 ) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name // trim (chcoord))
+ call exit_sub (sub_name // trim (chcoord))
 $endif
 
 end subroutine apriori
@@ -490,7 +490,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 do i = 1, n_tree
@@ -513,7 +513,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_nrespt_ta
@@ -530,7 +530,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (br % resolved) then
@@ -550,7 +550,7 @@ if (br % resolved) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_nrespt_br
@@ -568,7 +568,7 @@ integer :: n
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !--possible to loop over bounding box?
@@ -607,7 +607,7 @@ $else
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_nrespt
@@ -630,7 +630,7 @@ logical :: opn, exst
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 inquire (unit=lun, opened=opn, exist=exst)
@@ -653,7 +653,7 @@ end do
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine output_ftot
@@ -674,7 +674,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !write (lun, fmt) br % ident, br % ftot
@@ -689,7 +689,7 @@ if (associated (br % sub_branch)) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine output_ftot_br
@@ -710,7 +710,7 @@ logical :: opn, exst
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 inquire (unit=lun, opened=opn, exist=exst)
@@ -733,7 +733,7 @@ end do
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine read_ftot
@@ -756,7 +756,7 @@ integer :: ident
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !read (lun, *) ident, br % ftot
@@ -779,7 +779,7 @@ if (associated (br % sub_branch)) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine read_ftot_br
@@ -1085,7 +1085,7 @@ $endif
 sn = trim ( sub_name ) // trim ( chcoord )
 
 $if ($VERBOSE)
-if ( VERBOSE) call enter_sub ( sn )
+call enter_sub ( sn )
 $endif
 
 if ( nd /= 3 ) call error ( sn, 'expecting nd=3' )
@@ -1106,7 +1106,7 @@ $if ($MPI)
 $endif
     
 $if ($VERBOSE)
-if ( VERBOSE) call exit_sub ( sn )
+call exit_sub ( sn )
 $endif
     
 end subroutine calc_Uinf
@@ -1248,7 +1248,7 @@ logical, save :: do_init_global_fmask = .true.
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 if ( use_global_fmask ) then
@@ -1273,7 +1273,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
 
 end subroutine calc_fnorm_ta
@@ -1290,7 +1290,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 if ( .not. br % resolved ) then
@@ -1310,7 +1310,7 @@ else
 end if
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
     
 end subroutine calc_fnorm_br
@@ -1326,9 +1326,6 @@ implicit none
 type (branch_type), intent (in out) :: br
 
 character (*), parameter :: sn = mod_name // '.calc_fnorm'
-
-!logical, parameter :: DEBUG = .true.
-!logical, parameter :: VERBOSE = .true.
 
 real (rp), parameter :: eps = epsilon (eps)
 
@@ -1346,7 +1343,7 @@ real (rp) :: vvmag(nfcoeff)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sn )
+call enter_sub ( sn )
 $endif
 
 if ( .not. associated ( br % bboxpt ) ) call bboxpt_init ( br )
@@ -1480,7 +1477,7 @@ $else
 $endif
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sn )
+call exit_sub ( sn )
 $endif
 
 end subroutine calc_fnorm
@@ -1498,7 +1495,7 @@ integer :: j, k
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 !--this is an experiment
@@ -1551,7 +1548,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
 
 end subroutine apply_unresf_ta
@@ -1821,7 +1818,7 @@ character (*), parameter :: sn = mod_name // '.local_vel_fdist_coeff'
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sn)
+ call enter_sub (sn)
 $endif
 
 select case ( flocal )
@@ -1834,7 +1831,7 @@ case default
 end select
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sn)
+ call exit_sub (sn)
 $endif
 
 end function local_vel_fdist_coeff
@@ -1857,7 +1854,7 @@ real (rp) :: Q
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sn)
+ call enter_sub (sn)
 $endif
 
 dV = dx * dy * dz
@@ -1876,7 +1873,7 @@ end if
 coeff(2:) = BOGUS
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sn)
+ call exit_sub (sn)
 $endif
 
 end function local_vel_fdist_coeff_unresf_dir
@@ -1914,7 +1911,7 @@ real (rp) :: F(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sn)
+ call enter_sub (sn)
 $endif
 
 dV = dx * dy * dz
@@ -2062,7 +2059,7 @@ if ( any ( coeff > 0.0_rp ) ) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sn)
+ call exit_sub (sn)
 $endif
 
 end function local_vel_fdist_coeff_fmodel
@@ -2208,7 +2205,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name // trim (chcoord))
+ call enter_sub (sub_name // trim (chcoord))
 $endif
 
 do i = 1, n_tree
@@ -2216,7 +2213,7 @@ do i = 1, n_tree
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name // trim (chcoord))
+ call exit_sub (sub_name // trim (chcoord))
 $endif
 
 end subroutine fill_ftot_ta
@@ -2307,7 +2304,7 @@ character (*), parameter :: sub_name = mod_name // '.fill_unresf_ta'
 integer :: i
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 do i = 1, n_tree
@@ -2315,7 +2312,7 @@ do i = 1, n_tree
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_unresf_ta
@@ -2373,7 +2370,7 @@ allocate ( fdist_mask(wksp_size(1), wksp_size(2), wksp_size(3)) )
 call mask_init (fdist_mask)
 
 $if ($VERBOSE)
-if (VERBOSE) call mesg (sub_name, 'fdist_wksp, fdist_mask initialized')
+ call mesg (sub_name, 'fdist_wksp, fdist_mask initialized')
 $endif
   
 end subroutine fdist_init
@@ -2400,7 +2397,7 @@ real (rp) :: total
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 if ( do_fdist_init ) then
@@ -2463,7 +2460,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine update_fdist
@@ -2490,7 +2487,7 @@ real (rp) :: den(nzone)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 call fdist_num_den_ta (wksp_size, fdist_wksp, den)
@@ -2547,7 +2544,7 @@ do iz = 1, nzone
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine dynamic_fdist
@@ -2564,7 +2561,7 @@ logical :: exst
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 inquire (file=file_fdist_last, exist=exst)
@@ -2578,7 +2575,7 @@ read (lun) fdist_wksp
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine read_fdist_file
@@ -2635,7 +2632,7 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 l0 = tree_array(n_tree) % l
@@ -2691,7 +2688,7 @@ end do
 close (1)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine mask_init
@@ -2823,7 +2820,7 @@ real (rp), allocatable :: tmp(:), ftmp(:)
     
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 m1 = size (mask, 1)
@@ -3047,7 +3044,7 @@ deallocate ( tmp )
 if (zero_k1) filtmask(:, :, 1) = 0._rp  !--avoid interference w/ resolved f
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine mask_filter
@@ -3474,7 +3471,7 @@ real (rp) :: margin
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 margin = 1.5_rp * dx  !--add extra space around the boundaries
@@ -3510,7 +3507,7 @@ wksp_size(3) = ceiling (height / dx)
 call mesg (sub_name, 'wksp_size =', wksp_size)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine eval_wksp_size
@@ -3545,7 +3542,7 @@ real (rp) :: r
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 gen = tree_array(n_tree) % max_res_gen
@@ -3582,7 +3579,7 @@ length = (r**gen) * (tree_array(n_tree) % trunk % d)
 !
 !end select
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine set_tavg_timescale
@@ -3689,7 +3686,7 @@ logical :: exst
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if ((.not. init_from_file) .and. (jt < jt_min)) then
@@ -3732,7 +3729,7 @@ else
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine init_fcoeff
@@ -3774,7 +3771,7 @@ logical :: opn, exst
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 inquire (unit=lun, exist=exst, opened=opn)
@@ -3789,7 +3786,7 @@ call write_fcoeff_line (lun)
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine write_fcoeff
@@ -3812,7 +3809,7 @@ logical :: opn
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !--make sure this lun is not already open
@@ -3827,7 +3824,7 @@ write (lun, fmt) dt * (jt_total - 1), tscale
 close (lun)
 
 $if ($VERBOSE) 
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine write_tscale
@@ -3848,7 +3845,7 @@ real (rp) :: num(nfcoeff, nzone), den(nfcoeff, nzone)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !--determination of whether or not to update is somewhat complex
@@ -3899,7 +3896,7 @@ if ((modulo (jt, nCDupdate) == 0) .or. update) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine update_fcoeff
@@ -3933,7 +3930,7 @@ real (rp) :: wgt
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (.not. init) then
@@ -4012,7 +4009,7 @@ end do
 call fcoeff_divide (num_fcoeff, den_fcoeff)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine tavg_fcoeff
@@ -4053,7 +4050,7 @@ real (rp) :: wgt
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (do_init) then
@@ -4115,7 +4112,7 @@ do z = 1, nzone
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine tavg_fdist
@@ -4296,7 +4293,7 @@ integer :: i
 sn = trim ( sub_name ) // trim ( chcoord )
 
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sn )
+call enter_sub ( sn )
 $endif
 
 br % velscale = velscale
@@ -4315,7 +4312,7 @@ if ( associated ( br % sub_branch ) ) then
 end if
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sn )
+call exit_sub ( sn )
 $endif
     
 end subroutine set_velscale_br
@@ -4351,7 +4348,7 @@ real (rp) :: Uinf(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name // trim (chcoord))
+ call enter_sub (sub_name // trim (chcoord))
 $endif
 
 $if ($MPI)
@@ -4425,7 +4422,7 @@ else  !--use a locally defined branch velocity scale
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name // trim (chcoord))
+ call exit_sub (sub_name // trim (chcoord))
 $endif
 
 end subroutine fill_velscale_ta
@@ -4501,7 +4498,7 @@ real (rp) :: vel(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 !--option check
 if ( use_local_vel .and. ( .not. include_solid_pts ) )  &
@@ -4619,7 +4616,7 @@ $else
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine velscale_br
@@ -4676,7 +4673,7 @@ logical :: ext, opn
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 !--need to check init in case velscale_br has not been called yet
@@ -4727,7 +4724,7 @@ end do
 close (lun)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine write_velscale_mask_br
@@ -4762,7 +4759,7 @@ real (rp) :: zeta(nd), zeta_p(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
     
 !--do we need absolute k here?
@@ -4976,7 +4973,7 @@ case default
 end select
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
     
 end function velscale_mask
@@ -5001,7 +4998,7 @@ real (rp) :: height, width
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 height = br % height_bbox
@@ -5056,10 +5053,8 @@ do pass = 1, 2
     br % nbboxpt = ipt
 
     $if ($VERBOSE)
-    if (VERBOSE) then
-      call mesg (sub_name, 'br % ident = ', br % ident)
-      call mesg (sub_name, 'set br % nbboxpt = ', br % nbboxpt)
-    endif
+    call mesg (sub_name, 'br % ident = ', br % ident)
+    call mesg (sub_name, 'set br % nbboxpt = ', br % nbboxpt)
     $endif
 
     if (.not. associated (br % bboxpt)) then
@@ -5073,7 +5068,7 @@ do pass = 1, 2
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine bboxpt_init
@@ -5091,7 +5086,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name // trim (chcoord))
+ call enter_sub (sub_name // trim (chcoord))
 $endif
 
 $if ($DEBUG)
@@ -5118,7 +5113,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name // trim (chcoord))
+ call exit_sub (sub_name // trim (chcoord))
 $endif
 
 end subroutine fill_resf_ta
@@ -5177,7 +5172,7 @@ real (rp) :: rf(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (.not. br % resolved) call error (sub_name, 'expecting resolved branch')
@@ -5222,7 +5217,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine resf_br

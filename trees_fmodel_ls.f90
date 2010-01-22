@@ -114,7 +114,7 @@ real (rp) :: RHSvector(nzone)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (nfcoeff /= 1) then
@@ -145,7 +145,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fcoeff_d_germano
@@ -166,7 +166,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (br % gen == tree_array(br % itree) % max_res_gen) then
@@ -198,7 +198,7 @@ else
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_RHSvector
@@ -217,7 +217,7 @@ integer :: i, j
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (br % gen == tree_array(br % itree) % max_res_gen) then
@@ -250,7 +250,7 @@ else
 end if
   
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fill_LHSmatrix 
@@ -324,7 +324,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (br % gen /= tree_array (br % itree) % max_res_gen) then
@@ -367,7 +367,7 @@ do i = 1, br % n_sub_branch
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine Mdyn_br
@@ -391,7 +391,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 active = .false.
@@ -411,7 +411,7 @@ do i = 1, nc
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine clip_fcoeff
@@ -606,7 +606,7 @@ integer :: nbr(nzone)  !--counter for number of branches in each zone
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--only used in the averaging process
@@ -656,7 +656,7 @@ call fcoeff_divide (num, den)
 !end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine fcoeff_ta
@@ -965,13 +965,13 @@ character (*), parameter :: sub_name = mod_name // '.vel_nba'
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 call vel_3fcoeff( vin, dir, vmag, v )
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine vel_nba
@@ -992,12 +992,12 @@ character (*), parameter :: sub_name = mod_name // '.vel_dls'
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 call vel_3fcoeff( vin, dir, vmag, v )
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine vel_dls
@@ -1019,7 +1019,7 @@ integer :: i
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+ call enter_sub (sub_name)
 $endif
 
 if (nfcoeff /= 3) call error (sub_name, 'expecting nfcoeff = 3')
@@ -1053,7 +1053,7 @@ case default
 end select
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+ call exit_sub (sub_name)
 $endif
 
 end subroutine vel_3fcoeff

@@ -65,7 +65,7 @@ real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'started press_stag_array'
+write (*, *) 'started press_stag_array'
 $endif
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
@@ -374,7 +374,7 @@ dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'finished press_stag_array'
+write (*, *) 'finished press_stag_array'
 $endif
 
 end subroutine press_stag_array

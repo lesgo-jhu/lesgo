@@ -47,7 +47,7 @@ real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
 real(kind=rprec)::ignore_me,const
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'started convec'
+write (*, *) 'started convec'
 $endif
 !...Recall dudz, and dvdz are on UVP node for k=1 only
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
@@ -267,7 +267,7 @@ endif
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) write (*, *) 'finished convec'
+write (*, *) 'finished convec'
 $endif
 
 end subroutine convec

@@ -116,7 +116,7 @@ real (rp) :: phix
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 do k = 1, nz
@@ -141,7 +141,7 @@ do k = 1, nz
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_Cs_lag_dyn
@@ -169,7 +169,7 @@ real (rp) :: phi_c
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--part 1: smooth variables
@@ -196,7 +196,7 @@ call neumann_F_MM ()
 if (lag_dyn_modify_beta) call modify_beta ()
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_lag_dyn
@@ -221,7 +221,7 @@ real (rp) :: z
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
@@ -259,7 +259,7 @@ do k = 1, nz
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine modify_beta
@@ -289,7 +289,7 @@ real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 phi1 = -sqrt (dx**2 + dy**2 + dz**2)
@@ -346,7 +346,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 $if ($MPI)
@@ -400,7 +400,7 @@ real (rp) :: phi_F_LM
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !phi_F_LM = 0._rp
@@ -438,7 +438,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine zero_F_LM
@@ -469,7 +469,7 @@ real (rp) :: phi_min
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 A(1, :) = x_hat
@@ -542,7 +542,7 @@ else
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine modify_dutdn
@@ -592,7 +592,7 @@ real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (use_output) then
@@ -960,7 +960,7 @@ if (output) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine extrap_tau_simple
@@ -997,7 +997,7 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--assumes phi_cutoff is set. CAREFUL
@@ -1227,7 +1227,7 @@ do k = 2, nz
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine extrap_tau_log
@@ -1254,7 +1254,7 @@ real (rp) :: vel1_n, vel2_n
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--need to experiment with these values
@@ -1397,7 +1397,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine enforce_un
@@ -2530,7 +2530,7 @@ character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !if (phi_cutoff_is_set) then
@@ -2552,7 +2552,7 @@ call smooth (phi_c, $lbz, tyz, node='w')
 call smooth (phi_c, $lbz, tzz)
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine smooth_tau
@@ -2574,7 +2574,7 @@ real (rp) :: phi_c
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 phi_c = 0._rp  !--any pt with phi < 0 is smoothed
@@ -2584,7 +2584,7 @@ call smooth (phi_c, lbound (v, 3), v)
 call smooth (phi_c, lbound (w, 3), w, node='w')
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_smooth_vel
@@ -2621,7 +2621,7 @@ real (rp) :: update
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (present (node)) then
@@ -2690,7 +2690,7 @@ do iter = 1, niter
 end do
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine smooth
@@ -2830,7 +2830,7 @@ real (rp) :: phi_tmp
 
 !----------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (.not. initialized) then
@@ -2907,7 +2907,7 @@ if (.not. initialized) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_Cs
@@ -2937,7 +2937,7 @@ logical, save :: norm_synced = .false.
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--this logic MUST match that in level_set_BC
@@ -3020,7 +3020,7 @@ if (.not. use_log_profile) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine mpi_sync
@@ -3161,7 +3161,7 @@ $endif
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 $if ($MPI)
@@ -3255,7 +3255,7 @@ if (use_smooth_tau) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_BC
@@ -3293,7 +3293,7 @@ real (rp) :: normw(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (phi_cutoff_is_set) then
@@ -3560,7 +3560,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine extrap_tau
@@ -3607,7 +3607,7 @@ real (rp) :: x(nd), xv(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 if (use_output) then
@@ -3950,7 +3950,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine interp_tau
@@ -3987,7 +3987,7 @@ real (rp) :: dxi(nd-1)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 if (nl < 3) call error (sub_name, 'nl should be >= 3')
 
@@ -4088,7 +4088,7 @@ if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine fit3
@@ -4115,7 +4115,7 @@ real (rp) :: Rx, Ry, Rz
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 !--this is experimental
@@ -4232,7 +4232,7 @@ end if
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_forcing
@@ -4420,7 +4420,7 @@ real (rp) :: ntmp(nd)
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 nbad = 0
@@ -4495,7 +4495,7 @@ $if ($MPI)
 $endif
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine fill_norm
@@ -4583,7 +4583,7 @@ real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if (VERBOSE) call enter_sub (sub_name)
+call enter_sub (sub_name)
 $endif
 
 inquire (unit=lun, exist=exst, opened=opn)
@@ -4656,7 +4656,7 @@ if (do_write_norm) then
 end if
 
 $if ($VERBOSE)
-if (VERBOSE) call exit_sub (sub_name)
+call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_init

@@ -44,11 +44,6 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-! Looks like this VERBOSE controls all the stuff in trees
-$if ($VERBOSE)
-logical, parameter :: VERBOSE = .false.
-$endif
-
 !--beware, some of these are no longer in use
 logical, parameter :: use_tecplot = .true.
 !logical, parameter :: use_Cd_dynamic = .true.

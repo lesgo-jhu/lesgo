@@ -53,7 +53,7 @@ type (branch_type) :: br  !--to simplify argument passing
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 !--set module copies
@@ -94,7 +94,7 @@ call write_global_fmask ()
 call write_fmt_global_fmask ()
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
 
 end subroutine calc_global_fmask_ta
@@ -240,7 +240,7 @@ type ( branch_type ) :: sbr
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 if ( br % gen <= gen_max ) call calc_global_fmask ( br )
@@ -312,7 +312,7 @@ if ( br % gen < gen_max ) then  !--recursion
 end if
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
     
 end subroutine calc_global_fmask_br
@@ -380,10 +380,6 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.filter_global_fmask'
 
-$if ($VERBOSE)
-logical, parameter :: VERBOSE = .true.
-$endif
-
 integer :: i, j, k
 integer :: ii, jj, kk
 integer :: iimin, jjmin, kkmin
@@ -396,7 +392,7 @@ real (rp), allocatable :: wksp( :, :, : )
     
 !---------------------------------------------------------------------
 $if ($VERBOSE)
-if ( VERBOSE ) call enter_sub ( sub_name )
+call enter_sub ( sub_name )
 $endif
 
 allocate ( wksp(ld, ny, nz) )
@@ -408,7 +404,7 @@ total_in = sum ( wksp )  !--to calculate normalization factor
 do k = 1, nz - 1
 
   $if ($VERBOSE)
-  if ( VERBOSE ) call mesg ( sub_name, 'starting k =', k )
+  call mesg ( sub_name, 'starting k =', k )
   $endif
   !x(3) = pt_of_grid ( k, 3, 1 )
 
@@ -469,7 +465,7 @@ global_fmask = global_fmask * total_in / total
 deallocate ( wksp )
 
 $if ($VERBOSE)
-if ( VERBOSE ) call exit_sub ( sub_name )
+call exit_sub ( sub_name )
 $endif
     
 end subroutine filter_global_fmask
