@@ -97,7 +97,9 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'divtx, divty, divtz,' //     &
                                              'theta, q'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
+$endif
 
 character (narray_name_len * narray_max) :: array_list
 character (narray_name_len) :: array(narray_max)
@@ -363,6 +365,7 @@ sim_param_initialized = .true.
     !--beware this does NOT guarentee that a particular set of arrays
     !  was initialized!
 
+$if ($DEBUG)
 if ( DEBUG ) then
 
     write (*, *) 'sim_param_init: the following arrays were initialized'
@@ -373,6 +376,7 @@ if ( DEBUG ) then
     end do
     
 end if
+$endif
 
 $endif
     !--do nothing if not using dynamic allocation

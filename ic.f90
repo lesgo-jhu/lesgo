@@ -6,7 +6,9 @@ subroutine ic()
   use bottombc,only:zo_avg
   implicit none
 
+  $if ($DEBUG)
   logical, parameter :: DEBUG = .false.
+  $endif 
 
   integer::jx,jy,jz,seed
   integer :: jz_abs

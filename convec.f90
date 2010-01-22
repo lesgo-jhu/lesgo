@@ -12,7 +12,11 @@ use param
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
 use fft
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 implicit none
 $if ($MPI)
   $define $lbz 0
@@ -21,7 +25,9 @@ $else
 $endif
 real (rprec), dimension (ld, ny, $lbz:nz), intent (out) :: cx, cy, cz
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer::jz
 integer :: jz_min
@@ -40,8 +46,9 @@ real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
 !--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
 real(kind=rprec)::ignore_me,const
 
+$if ($VERBOSE)
 if (VERBOSE) write (*, *) 'started convec'
-
+$endif
 !...Recall dudz, and dvdz are on UVP node for k=1 only
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
 
@@ -251,10 +258,16 @@ cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
 cz(:, :, nz) = BOGUS
 
-if (DEBUG) call DEBUG_write (cx(:, :, 1:nz), 'convec.z.cx')
-if (DEBUG) call DEBUG_write (cy(:, :, 1:nz), 'convec.z.cy')
-if (DEBUG) call DEBUG_write (cz(:, :, 1:nz), 'convec.z.cz')
+$if ($DEBUG)
+if (DEBUG) then
+  call DEBUG_write (cx(:, :, 1:nz), 'convec.z.cx')
+  call DEBUG_write (cy(:, :, 1:nz), 'convec.z.cy')
+  call DEBUG_write (cz(:, :, 1:nz), 'convec.z.cz')
+endif
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) write (*, *) 'finished convec'
+$endif
 
 end subroutine convec

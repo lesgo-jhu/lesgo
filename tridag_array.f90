@@ -10,7 +10,9 @@ complex(kind=rprec),dimension(lh, ny, nz+1),intent(out):: u
 
 integer, parameter :: n = nz+1
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 character (64) :: fmt
 integer::jx, jy, j, j_min, j_max
@@ -81,6 +83,7 @@ do j = 2, j_max
 
   end do
 
+  $if ($DEBUG)
   if (DEBUG) then
      fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
      write (*, fmt) coord, ': P1: j, u(2,2,j) = ', j, u(2, 2, j)
@@ -93,6 +96,7 @@ do j = 2, j_max
      fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
      write (*, fmt) coord, ': P1: j, r(2,2,j) = ', j, r(2, 2, j)
   end if
+  $endif
 
 end do
 
@@ -108,6 +112,7 @@ $if ($MPI)
   call mpi_recv (gam(1, 1, n), lh*ny, MPI_RPREC, up, 5, comm, status, ierr)
 $endif
 
+$if ($DEBUG)
 if (DEBUG) then
   fmt = '(i0,a,1x,"(",es12.5,", ",es12.5,")")'
   write (*, fmt) coord, ': P2: u(2,2,n) = ', u(2, 2, n)
@@ -115,6 +120,7 @@ if (DEBUG) then
   fmt = '(i0,a,1x,es12.5)'
   write (*, fmt) coord, ': P2: gam(2,2,n) = ', gam(2, 2, n)
 end if
+$endif
 
 !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 !  j_max = n-1
@@ -124,6 +130,7 @@ end if
 
 do j = n-1, j_min, -1
 
+  $if ($DEBUG)
   if (DEBUG) then
     fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
     write (*, fmt) coord, ': P2: j, u_i(2,2,j) = ', j, u(2, 2, j)
@@ -131,6 +138,7 @@ do j = n-1, j_min, -1
     fmt = '(i0,a,i0,1x,es12.5)'
     write (*, fmt) coord, ': P2: j, gam(2,2,j+1) = ', j, gam(2, 2, j+1)
   end if
+  $endif
 
   !--intend on removing cycle statements/repl with something faster
   do jy = 1, ny
@@ -147,10 +155,12 @@ do j = n-1, j_min, -1
 
   end do
 
+  $if ($DEBUG)
   if (DEBUG) then
     fmt = '(i0,a,i0,"(",es12.5,", ",es12.5,")")'
     write (*, fmt) coord, ': P2: j, u_f(2,2,j) = ', j, u(2, 2, j)
-  end if
+  end if 
+  $endif
 
 end do
 

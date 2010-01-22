@@ -17,7 +17,8 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 q64 = no
 
 #--Set global DEBUG flag; not all routines use this yet
-DEBUG=no
+DEBUG=yes
+VERBOSE=yes
 
 # watch the whitespace here
 USE_MPI = yes
@@ -37,6 +38,10 @@ FPP = fpx3
 
 ifeq ($(DEBUG), yes)
   FPP += -DDEBUG
+endif
+
+ifeq ($(VERBOSE), yes)
+  FPP += -DVERBOSE
 endif
 
 ifeq ($(USE_MPI), yes)

@@ -6,7 +6,11 @@ use param
 !                  comm, ierr, MPI_RPREC, 
 use test_filtermodule, only : filter_size
 use messages
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 use level_set_base
 implicit none
 
@@ -56,7 +60,10 @@ real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
 real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
 real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
+
 logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
                                        !  level set BC
 logical, parameter :: use_log_profile = .false.
@@ -108,8 +115,9 @@ integer :: s
 real (rp) :: phix
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 do k = 1, nz
 
@@ -132,7 +140,9 @@ do k = 1, nz
 
 end do
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_Cs_lag_dyn
 
@@ -158,8 +168,9 @@ logical, parameter :: lag_dyn_modify_beta = .true.
 real (rp) :: phi_c
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--part 1: smooth variables
 phi_c = 0._rp
@@ -184,7 +195,9 @@ call neumann_F_MM ()
 !--part 4 (optional): modify beta
 if (lag_dyn_modify_beta) call modify_beta ()
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_lag_dyn
 
@@ -207,8 +220,9 @@ real (rp) :: dmin
 real (rp) :: z
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
@@ -244,7 +258,9 @@ do k = 1, nz
 
 end do
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine modify_beta
 
@@ -272,8 +288,9 @@ real (rp) :: x(nd), xp(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 phi1 = -sqrt (dx**2 + dy**2 + dz**2)
 phi2 = 0._rp
@@ -328,7 +345,9 @@ $if ($MPI)
                      comm, status, ierr)
 $endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 $if ($MPI)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -380,8 +399,9 @@ real (rp) :: phix
 real (rp) :: phi_F_LM
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !phi_F_LM = 0._rp
 phi_F_LM = filter_size * dx  !--experimental
@@ -417,7 +437,9 @@ $if ($MPI)
                      comm, status, ierr)
 $endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine zero_F_LM
 
@@ -446,8 +468,9 @@ real (rp) :: grad
 real (rp) :: phi_min
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 A(1, :) = x_hat
 A(2, :) = y_hat
@@ -518,7 +541,9 @@ else
   dwdy(i, j, k) = G(3, 2)
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine modify_dutdn
 
@@ -566,8 +591,9 @@ real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (use_output) then
 
@@ -641,10 +667,12 @@ do k = 1, nz - 1
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
 
-        !if (DEBUG) then
-        !  call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
-        !  call mesg (sub_name, 'x =', x)
-        !end if
+        $if ($DEBUG)
+        if (DEBUG) then
+          call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
+          call mesg (sub_name, 'x =', x)
+        end if
+        $endif
         
         n_hat = norm(:, i, j, k)
 
@@ -776,7 +804,9 @@ do k = 1, nz - 1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, '# u bad points =', nbad)
+$endif
 nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
@@ -915,7 +945,9 @@ do k = kmn, nz - 1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, '# w bad points =', nbad)
+$endif
 
 imn = imn_used
 imx = imx_used
@@ -927,7 +959,9 @@ if (output) then
   close (lun)
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau_simple
 
@@ -962,8 +996,9 @@ real (rp) :: v1(nd), v1t(nd)
 real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--assumes phi_cutoff is set. CAREFUL
 !--set phi_a
@@ -1191,7 +1226,9 @@ do k = 2, nz
   end do
 end do
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau_log
 
@@ -1216,8 +1253,9 @@ real (rp) :: vel1(nd), vel2(nd)
 real (rp) :: vel1_n, vel2_n
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--need to experiment with these values
 if (phi_0_is_set) then
@@ -1358,17 +1396,9 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
   end do
 end do
 
-!if (DEBUG) then
-!
-!  fname = 
-!  open (1, file=fname)
-!  write (1, *) 'variables = "jx" "jy" "jz" "udes" "vdes" "wdes"'
-!  write (1, *) 'zone, f=point, i=', nx, ', j=', ny, 'k=', nz
-!  close (1)
-!
-!end if
-
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine enforce_un
 
@@ -1535,16 +1565,6 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
     end do
   end do
 end do
-
-!if (DEBUG) then
-!
-!  fname = 
-!  open (1, file=fname)
-!  write (1, *) 'variables = "jx" "jy" "jz" "udes" "vdes" "wdes"'
-!  write (1, *) 'zone, f=point, i=', nx, ', j=', ny, 'k=', nz
-!  close (1)
-!
-!end if
 
 end subroutine enforce_log_profile
 
@@ -2509,8 +2529,9 @@ real (rp), intent (in out), dimension (ld, ny, $lbz:nz) ::  &
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !if (phi_cutoff_is_set) then
 !  phi_c = -phi_cutoff - 10._rp * epsilon (0._rp)
@@ -2530,7 +2551,9 @@ call smooth (phi_c, $lbz, tyy)
 call smooth (phi_c, $lbz, tyz, node='w')
 call smooth (phi_c, $lbz, tzz)
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine smooth_tau
 
@@ -2550,8 +2573,9 @@ character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 real (rp) :: phi_c
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 phi_c = 0._rp  !--any pt with phi < 0 is smoothed
 
@@ -2559,7 +2583,9 @@ call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
 call smooth (phi_c, lbound (w, 3), w, node='w')
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_smooth_vel
 
@@ -2594,8 +2620,9 @@ real (rp) :: phi1
 real (rp) :: update
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (present (node)) then
 
@@ -2662,7 +2689,9 @@ do iter = 1, niter
 
 end do
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine smooth
 
@@ -2764,7 +2793,9 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
   end if
 
+  $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
+  $endif
 
   !--output to file
   write (lun, '(6(es12.5,1x))') (jt_total * dt), CD, fD_global,  &
@@ -2798,8 +2829,9 @@ real (rp) :: dmin, z
 real (rp) :: phi_tmp
 
 !----------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (.not. initialized) then
 
@@ -2874,7 +2906,9 @@ if (.not. initialized) then
 
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_Cs
 
@@ -2902,8 +2936,9 @@ logical, save :: phi_synced = .false.
 logical, save :: norm_synced = .false.
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--this logic MUST match that in level_set_BC
 if (.not. use_log_profile) then
@@ -2984,7 +3019,9 @@ if (.not. use_log_profile) then
   
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine mpi_sync
 $endif
@@ -3118,11 +3155,14 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 $if ($MPI)
   call mpi_sync ()
@@ -3153,6 +3193,7 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
 
   else
   
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.a.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.a.txy')
@@ -3161,9 +3202,11 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.a.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.a.tzz')
     end if
+    $endif
 
     call interp_tau ()
 
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.b.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.b.txy')
@@ -3172,13 +3215,14 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.b.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.b.tzz')
     end if
-
+    $endif
     if (use_extrap_tau_simple) then
       call extrap_tau_simple ()
     else
       call extrap_tau ()
     end if
 
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.c.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.c.txy')
@@ -3186,7 +3230,8 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.c.tyy')
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.c.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.c.tzz')
-    end if
+    end if 
+    $endif
 
   end if
 
@@ -3196,6 +3241,7 @@ if (use_smooth_tau) then
   !--phi_cutoff is set at start of this routine, so no need to check is_set
   call smooth_tau (-phi_cutoff, txx, txy, txz, tyy, tyz, tzz)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.d.txx')
     call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.d.txy')
@@ -3204,10 +3250,13 @@ if (use_smooth_tau) then
     call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.d.tyz')
     call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.d.tzz')
   end if
+  $endif
 
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_BC
 
@@ -3224,8 +3273,9 @@ character (*), parameter :: sub_name = mod_name // '.extrap_tau'
 character (*), parameter :: fmt1 = '(4(i0,1x))'
 integer, parameter :: lun1 = 1
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-
+$endif
 !real (rp), parameter :: phi_0 = 0._rp * z0  !--should be consistent with interp
 
 integer :: i, j, k, m, id
@@ -3242,8 +3292,9 @@ real (rp) :: sphi
 real (rp) :: normw(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (phi_cutoff_is_set) then
   phi_c = phi_cutoff
@@ -3257,6 +3308,7 @@ end if
 
 nxi = (/ nx, ny, nz /)
 
+$if ($DEBUG)
 if (DEBUG) then
   if (first_call) then
     open (lun1, file='level_set_extrap-u.dat')
@@ -3264,13 +3316,15 @@ if (DEBUG) then
     write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
   end if
 end if
-
+$endif
 !--u-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) nlist = 0
+      $endif
 
       if ((phi(i, j, k) < phi_0) .and. (phi(i, j, k) >= -phi_c)) then
 
@@ -3289,7 +3343,7 @@ do k = 2, nz-1
 
           indx(:, m) = pt + d_2 * s
 
-          !if (DEBUG) then
+          $if ($DEBUG)
           if (DEBUG .and. jt >= 615) then
             call mesg (sub_name, '(i, j, k)=', (/ i, j, k /))
             call mesg (sub_name, 'pt=', pt)
@@ -3297,6 +3351,7 @@ do k = 2, nz-1
             call mesg (sub_name, 's=', s)
             call mesg (sub_name, 'indx(:,', m, ') =', indx(:, m))
           end if
+          $endif
 
           do id = 1, nd
             if ( (indx(id, m) < 1) .or. (indx(id, m) > nxi(id)) ) then
@@ -3360,6 +3415,7 @@ do k = 2, nz-1
 
       end if
  
+      $if ($DEBUG)
       if (DEBUG) then
         if (jt >= 615) then
           call mesg (sub_name, 'pt =', pt)
@@ -3369,31 +3425,39 @@ do k = 2, nz-1
           call mesg (sub_name, 'tzz =', tzz(pt(1), pt(2), pt(3)))
         end if
       end if
-
+      $endif
+ 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
+      $endif
 
     end do
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG .and. first_call) then
   close (lun1)
   open (lun1, file='level_set_extrap-w.dat')
   write (lun1, *) 'variables = "i" "j" "k" "nlist"'
   write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
 end if
+$endif
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done extrapolation (u)')
+$endif
 
 !--w-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) nlist = 0
-
+      $endif
       phiw = (phi(i, j, k) + phi(i, j, k-1)) / 2._rp
       
       if ((phiw < phi_0) .and. (phiw >= -phi_c)) then
@@ -3465,6 +3529,7 @@ do k = 2, nz-1
        
       end if
       
+      $if ($DEBUG)
       if (DEBUG) then
         if (jt >= 615) then
           call mesg (sub_name, 'pt =', pt)
@@ -3472,23 +3537,31 @@ do k = 2, nz-1
           call mesg (sub_name, 'tyz =', tyz(pt(1), pt(2), pt(3)))
         end if
       end if
+      $endif
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
-
+      $endif
     end do
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done extrapolation (w)')
+$endif
 
+$if ($DEBUG)
 if (DEBUG .and. first_call) then
   close (lun1)
   first_call = .false.
 end if
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau
 
@@ -3533,8 +3606,9 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 real (rp) :: x(nd), xv(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (use_output) then
 
@@ -3716,7 +3790,9 @@ do k = 1, nz-1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done interpolation (u)')
+$endif
 
 if (output) write (lun, *) 'w-node pass'
 
@@ -3873,7 +3949,9 @@ $if ($MPI)
   call mpi_sync_tau ()
 $endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine interp_tau
 
@@ -3891,7 +3969,9 @@ real (rp), intent (in out) :: t(ld, ny, nz)
 
 character (*), parameter :: sub_name = mod_name // '.fit3'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: counter
 integer :: m, q
@@ -3906,9 +3986,9 @@ real (rp) :: A(3, 3), coeff(3), t_known(3)
 real (rp) :: dxi(nd-1)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
-
+$endif
 if (nl < 3) call error (sub_name, 'nl should be >= 3')
 
 counter = 0
@@ -3973,6 +4053,7 @@ if (.not. failed) then
 
   call solve_linear (A, t_known, coeff)
 
+  $if ($DEBUG)
   if (DEBUG) then
     if (coeff(1) > 1.e7_rp) then
       call mesg (sub_name, 'A(1, :) =', A(1, :))
@@ -3983,6 +4064,7 @@ if (.not. failed) then
       call error (sub_name, 'coeff(1) too big')
     end if
   end if
+  $endif
 
   !--we only need coeff(1)
   t(p(1), p(2), p(3)) = coeff(1)
@@ -4001,9 +4083,13 @@ else  !--just average all the points, for now
 
 end if
 
-!if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
+$if ($DEBUG)
+if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine fit3
 
@@ -4018,7 +4104,9 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: i, j, k
 integer :: k_min
@@ -4026,8 +4114,9 @@ integer :: k_min
 real (rp) :: Rx, Ry, Rz
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--this is experimental
 if (vel_BC) then
@@ -4131,6 +4220,7 @@ fx(:, :, nz) = BOGUS
 fy(:, :, nz) = BOGUS
 fz(:, :, nz) = BOGUS
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
   call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
@@ -4139,8 +4229,11 @@ if (DEBUG) then
   call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
   call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
 end if
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_forcing
 
@@ -4326,8 +4419,9 @@ integer :: ierr
 real (rp) :: ntmp(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 nbad = 0
 bad = iBOGUS
@@ -4400,7 +4494,9 @@ $if ($MPI)
 
 $endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine fill_norm
 
@@ -4486,8 +4582,9 @@ logical :: exst, opn
 real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 inquire (unit=lun, exist=exst, opened=opn)
 
@@ -4558,7 +4655,9 @@ if (do_write_norm) then
 
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_init
 

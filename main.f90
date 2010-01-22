@@ -25,7 +25,10 @@ $if ($TREES_LS)
 use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
+$if ($DEBUG)
 use debug_mod  !--just for debugging
+$endif
+
 use messages
 implicit none
 
@@ -34,7 +37,9 @@ integer, parameter :: nenergy = 1  !--frequency of writes to check_ke.dat
 
 character (*), parameter :: sub_name = 'main'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 !--for trees_CV, we need the SGS stress, so it was moved to sim_params
 !  also, the equivalence was removed, since this overwrites what we need
@@ -49,8 +54,9 @@ real(kind=rprec) rmsdivvel,ke
 real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
+
 $if ($MPI)
-  integer :: ip, np, coords(1)
+integer :: ip, np, coords(1)
 $endif
 
 !  Start wall clock
@@ -205,11 +211,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   if (molec) print*, 'molecular viscosity (dimensional) ', nu_molec
 end if
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
+$endif
 
 !--MPI: u,v,w should be set at jz = 0:nz before getting here, except
 !  bottom process which is BOGUS (starts at 1)
@@ -218,8 +226,10 @@ end if
 do jt=1,nsteps   
 
   jt_total = jt_total + 1  !--moved from io.f90
-
+  
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
+  $endif
 
   ! advance total time
   tt=tt+dt
@@ -246,11 +256,13 @@ do jt=1,nsteps
     call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
   end if
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.p.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
   end if
+  $endif
 
   ! kill oddballs and calculate horizontal derivatives
   !--MPI: all these arrays are 0:nz
@@ -268,6 +280,7 @@ do jt=1,nsteps
    !  has 0:nz, and bottom process has 1:nz-1
    call ddz_w(dwdz,w)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.q.v')
@@ -282,6 +295,7 @@ do jt=1,nsteps
     call DEBUG_write (dwdy(:, :, 1:nz), 'main.q.dwdy')
     call DEBUG_write (dwdz(:, :, 1:nz), 'main.q.dwdz')
   end if
+  $endif
 
 !TS calculate wall stress and calculate derivatives at wall
    if (dns_bc) then
@@ -331,6 +345,7 @@ do jt=1,nsteps
 ! compute divergence of SGS shear stresses     
 ! note: the divt's and the diagonal elements of t are equivalenced!
 !--actually, they are not equivalenced in this version
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
     call DEBUG_write (divty(:, :, 1:nz), 'main.r.divty')
@@ -342,6 +357,7 @@ do jt=1,nsteps
     call DEBUG_write (tyz(:, :, 1:nz), 'main.r.tyz')
     call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
   end if
+  $endif
 
   !--provides divtz 1:nz-1
   call divstress_uv(divtx, txx, txy, txz)
@@ -355,25 +371,23 @@ do jt=1,nsteps
  !  a segmentation fault is recieved somewhere 
  !  just be for this section (JSG - 1/23/09)
  !
- 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
     call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
     call DEBUG_write (divtz(:, :, 1:nz), 'main.s.divtz')
-  end if
-
-  if (DEBUG) then
     call DEBUG_write (RHSx(:, :, 1:nz), 'main.preconvec.RHSx')
   end if
-
-  if (VERBOSE) write (*, *) 'main about to call convec'
+  $endif
 
   !--provides RHS{x,y,z} 1:nz-1
   call convec(RHSx,RHSy,RHSz)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
   end if
+  $endif
 
   if (use_bldg) call building_mask (u, v, w)
 
@@ -420,6 +434,7 @@ do jt=1,nsteps
     RHSz_f=RHSz
   end if
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.a.v')
@@ -436,6 +451,7 @@ do jt=1,nsteps
     call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
     call DEBUG_write (force, 'main.a.force')
   end if
+  $endif
 
    !--only 1:nz-1 are valid
    u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                           &
@@ -469,21 +485,20 @@ do jt=1,nsteps
   !  is supposed to zero anyway?
   !--this has to do with what bc are imposed on intermediate velocity
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
   end if
+  $endif
 
-  if (DEBUG) write (*, *) 'main: before press_stag'
   !--solve Poisson equation for pressure
   !--do we ever need p itself, or only its gradient? -> probably
   !  do not need to store p
   !call press_stag (p, dpdx, dpdy)
   !--provides p, dpdx, dpdy at 0:nz-1
   call press_stag_array (p, dpdx, dpdy)
-
-  if (DEBUG) write (*, *) 'main: after press_stag'
 
   !--calculate dpdz here
   !--careful, p is not dimensioned the same as the others
@@ -497,20 +512,24 @@ do jt=1,nsteps
   RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
   RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
+  $if ($DEBUG)
   if (DEBUG) then
     !--note: only 1:nz-1 valid here
     call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
     call DEBUG_write (dpdy(:, :, 1:nz), 'main.dpdy')
     call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
   end if
+  $endif
 
   call forcing ()
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.d.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
   end if
+  $endif
 
   !--provides u, v, w at 1:nz 
   call project ()
@@ -572,7 +591,9 @@ do jt=1,nsteps
 
   if (write_inflow_file) call inflow_write () !--for creating inflow_BC file
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
+  $endif
 
 end do  !--end time loop
 close(2)

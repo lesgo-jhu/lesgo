@@ -35,8 +35,9 @@ integer :: z
 type (branch_type), pointer :: b => NULL ()
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 ftot = 0._rp
 navg = 0
@@ -54,13 +55,17 @@ do z = 1, nzo
   
 end do
 
+$if ($DEBUG)
 if (DEBUG) then
   do z = 1, nzo
     call mesg (sub_name, 'ftot =', ftot(:, z))
   end do
 end if
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine mean_ftot
 
@@ -114,6 +119,7 @@ if (br % gen == gen) then
 
   navg(br % zone) = navg(br % zone) + 1
 
+  $if ($DEBUG)
   if (DEBUG) then
 
     call mesg (sub_name, 'br % ident =', br % ident)
@@ -124,6 +130,7 @@ if (br % gen == gen) then
     call mesg (sub_name, 'br % Ap_bbox =', br % Ap_bbox)
     
   end if
+  $endif
   
 else
 

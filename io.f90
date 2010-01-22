@@ -4,6 +4,7 @@ use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total
 implicit none
 private
+
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
@@ -887,8 +888,9 @@ character (*), parameter :: MPI_suffix = '.c'
 integer, parameter :: lun = 80
 integer, parameter :: field_lun = 81
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-
+$endif
 character (64) :: fname
 
 integer, save :: rec = 0
@@ -979,7 +981,9 @@ end if
 if (jt_total >= jt_start_write) then
   rec = rec + 1
   write (unit=lun, rec=rec) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
+  $if ($DEBUG)
   if ( DEBUG ) write (*, *) sub // ': wrote record ', rec
+  $endif
 end if
 
 end subroutine inflow_write
@@ -1003,8 +1007,9 @@ integer, parameter :: l_blend = 300  !--length of blending zone (recycling)
                                      !--this is number of t-steps
 logical, parameter :: recycle = .false.
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-
+$endif
 character (32) :: fmt
 character (64) :: fname
 
@@ -1113,7 +1118,9 @@ end if
 
 read ( unit=lun, rec=rec ) u(iend_w, :, :), v(iend_w, :, :), w(iend_w, :, :)
 
+$if ($DEBUG)
 if ( DEBUG ) write (*, *) sub // ' : read record ', rec
+$endif
     
 if ( recycle ) then
 
@@ -1136,6 +1143,7 @@ if ( recycle ) then
 
 end if
 
+$if ($DEBUG)
 if ( DEBUG ) then  !--write out slices as an ascii time series
 
     if ( .not. init_DEBUG ) then
@@ -1173,6 +1181,7 @@ if ( DEBUG ) then  !--write out slices as an ascii time series
     end do
 
 end if
+$endif
 
 end subroutine inflow_read
 

@@ -67,8 +67,9 @@ logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) write (*, *) 'started lagrange_Sdep'
+$endif
 
 delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
 
@@ -445,7 +446,8 @@ endif
 !!$         !write(96)real(jt*dt),real(Cs_opt2_2d(1:NX,NY/2+1,1:NZ))
 !!$         !write(97)real(jt*dt),real(Cs_opt2_4d(1:NX,NY/2+1,1:NZ))
 !!$end if
-
+$if ($VERBOSE)
 if (VERBOSE) write (*, *) 'finished lagrange_Sdep'
+$endif
 
 end subroutine lagrange_Sdep

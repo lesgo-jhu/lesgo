@@ -198,7 +198,9 @@ use sim_param
 use immersedbc
 implicit none
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: jx, jy, jz
 integer :: jz_min

@@ -15,7 +15,10 @@ integer, parameter :: NAN_MAX = 10
                       !--write this many NAN's before calling error (to aid
                       !  diagnosis of problem)
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
+$endif
+
 logical, parameter :: flush = .false.
 
 integer :: jx, jy, jz
@@ -42,7 +45,8 @@ z_loop: do jz=1,nz-1
 !            temp_w=.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
 !            ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)/denom
             ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+interp_to_uv_grid('w',jx,jy,jz)**2)/denom
- 
+            
+            $if ($DEBUG)
             if (DEBUG) then
                 $if ($IFORT || $IFC)
                     nan = isnan (ke)
@@ -63,7 +67,7 @@ z_loop: do jz=1,nz-1
                     if ( nan_count >= NAN_MAX ) exit z_loop
                 end if
             end if
- 
+            $endif 
         end do
     end do
 end do z_loop

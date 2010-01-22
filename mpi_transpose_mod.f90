@@ -31,7 +31,9 @@ complex (rp), intent (out) :: b(:, :, :)
 !complex (rp), intent (in) :: a(mx, my, mz)
 !complex (rp), intent (out) :: b(mz*np, my, mx/np)
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: bs
 integer :: ip
@@ -47,6 +49,7 @@ complex (rp) :: tmpout(mx/np, my, mz), tmpin(mx/np, my, mz)
 
 !---------------------------------------------------------------------
 
+$if ($DEBUG)
 if (DEBUG) then
   write (*, *) $str($context_doc)
   write (*, *) 'lbound (a) = ', lbound (a)
@@ -54,6 +57,7 @@ if (DEBUG) then
   write (*, *) 'lbound (b) = ', lbound (b)
   write (*, *) 'ubound (b) = ', ubound (b)
 end if
+$endif
 
 if (.not. init) then
   do ip = 1, np-1

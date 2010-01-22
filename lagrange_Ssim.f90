@@ -11,7 +11,10 @@ use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime
 use test_filtermodule
 use immersedbc,only:n_bldg,bldg_pts,building_interp
 use messages
+
+$if ($DEBUG)
 use debug_mod
+$endif
 $if ($LVLSET)
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 $endif
@@ -21,7 +24,9 @@ real (rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
 
 character (*), parameter :: sub_name = 'lagrange_Ssim'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 real (rprec), parameter :: eps = 1.e-32_rprec
 
@@ -67,8 +72,9 @@ logical, parameter :: write_output = .false.
 logical, save :: F_LM_MM_init = .false.
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
 !TS Add the opftdelta
@@ -334,11 +340,13 @@ do jz = 1,nz
 ! this ends the main jz=1-nz loop          
 end do
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (F_LM(:, :, 1:nz), 'lagrange_Ssim.F_LM')
   call DEBUG_write (F_MM(:, :, 1:nz), 'lagrange_Ssim.F_MM')
   call DEBUG_write (Cs_opt2(:, :, 1:nz), 'lagrange_Ssim.Cs_opt2')
 end if
+$endif
 
 !TS
 if(use_bldg)then
@@ -364,6 +372,8 @@ $if ($LVLSET)
   call level_set_Cs_lag_dyn ()
 $endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub(sub_name)
+$endif
 
 end subroutine lagrange_Ssim

@@ -13,7 +13,9 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = 'interpolag_Ssim'
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: jx, jy, jz
 integer :: jjx, jjy, jjz
@@ -39,8 +41,9 @@ integer :: addx, addy, addz
 integer :: jxaddx, jyaddy, jzaddz
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !     creates dummy arrays FF_LM and FF_MM to use in the subroutine
 !$omp parallel do default(shared) private(jx,jy,jz)	
@@ -121,7 +124,9 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 end if
 ! end of witch craft
 
+$if ($DEBUG)
 if (DEBUG) write (*, *) 'interpolag_Ssim: after FF setup'
+$endif
 
 !--removed u_temp to save mem.
 !!	puts u_lag and and v_lag on w nodes
@@ -304,6 +309,8 @@ u_lag = 0._rprec
 v_lag = 0._rprec
 w_lag = 0._rprec
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine interpolag_Ssim

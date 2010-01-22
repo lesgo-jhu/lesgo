@@ -36,8 +36,9 @@ integer :: i
 logical :: opn, ext
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 inquire (unit=lun, opened=opn, exist=ext)
 if (opn .or. (.not.ext)) then
@@ -55,7 +56,9 @@ end do
 
 close (lun)
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine write_CD
 
@@ -81,8 +84,9 @@ real (rp) :: F(nd)
 real (rp) :: num, den
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (br % resolved) then
   
@@ -122,7 +126,9 @@ if (br % resolved) then
   
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine write_CD_br
 
@@ -139,8 +145,9 @@ logical :: exst, opn
 integer :: i
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 !--check 0 <= gen <= ngen
 if ((gen < 0) .or. (gen > tree_array (n_tree) % n_gen)) then
@@ -151,7 +158,9 @@ do i = 1, n_tree
   call write_drag_lift_br (gen, tree_array(i) % trunk)
 end do
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine
 
@@ -176,8 +185,9 @@ integer :: lun = 1
 real (rp) :: drag, lift, side
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 if (br % gen == gen) then
 
@@ -219,7 +229,9 @@ else  !--br % gen > gen
   
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine write_drag_lift_br
 
@@ -239,8 +251,9 @@ logical :: degen  !--will indicate if there is a problem with decomposition
 real (rp) :: d_hat(nd), l_hat(nd), y_hat(nd)
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 degen = .false.
 
@@ -272,7 +285,9 @@ else
   side = BOGUS
 end if
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine decompose_drag_lift
 
@@ -297,8 +312,9 @@ integer :: z
 type (branch_type), pointer :: b => NULL ()
 
 !---------------------------------------------------------------------
-
+$if ($VERBOSE)
 if (VERBOSE) call enter_sub (sub_name)
+$endif
 
 ftot = 0._rp
 navg = 0
@@ -316,13 +332,17 @@ do z = 1, nzo
   
 end do
 
+$if ($DEBUG)
 if (DEBUG) then
   do z = 1, nzo
     call mesg (sub_name, 'ftot =', ftot(:, z))
   end do
 end if
+$endif
 
+$if ($VERBOSE)
 if (VERBOSE) call exit_sub (sub_name)
+$endif
 
 end subroutine mean_ftot
 
@@ -376,6 +396,7 @@ if (br % gen == gen) then
 
   navg(br % zone) = navg(br % zone) + 1
 
+  $if ($DEBUG)
   if (DEBUG) then
 
     call mesg (sub_name, 'br % ident =', br % ident)
@@ -386,6 +407,7 @@ if (br % gen == gen) then
     call mesg (sub_name, 'br % A(:) =', br % A(:))
     
   end if
+  $endif
   
 else
 

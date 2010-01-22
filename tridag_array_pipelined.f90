@@ -12,7 +12,9 @@ complex(kind=rprec),dimension(lh, ny, nz+1),intent(out):: u
 integer, parameter :: n = nz+1
 integer, parameter :: nchunks = ny  !--need to experiment to get right value
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 character (64) :: fmt
 
@@ -104,6 +106,7 @@ do q = 1, nchunks
 
     end do
 
+    $if ($DEBUG)
     if (DEBUG) then
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P1: j, u(2,2,j) = ', j, u(2, 2, j)
@@ -116,6 +119,7 @@ do q = 1, nchunks
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P1: j, r(2,2,j) = ', j, r(2, 2, j)
     end if
+    $endif
 
   end do
 
@@ -167,6 +171,7 @@ do q = 1, nchunks
 
   do j = n-1, j_min, -1
 
+    $if ($DEBUG)
     if (DEBUG) then
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P2: j, u_i(2,2,j) = ', j, u(2, 2, j)
@@ -174,6 +179,7 @@ do q = 1, nchunks
       fmt = '(i0,a,i0,1x,es12.5)'
       write (*, fmt) coord, ': P2: j, gam(2,2,j+1) = ', j, gam(2, 2, j+1)
     end if
+    $endif
 
     !--intend on removing cycle statements/repl with something faster
     do jy = cstart, cend
@@ -189,11 +195,13 @@ do q = 1, nchunks
       end do
 
     end do
-
+  
+    $if ($DEBUG)
     if (DEBUG) then
       fmt = '(i0,a,i0,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P2: j, u_f(2,2,j) = ', j, u(2, 2, j)
     end if
+    $endif
 
   end do
 
