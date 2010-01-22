@@ -16,9 +16,11 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
-#--Set global DEBUG flag; not all routines use this yet
-DEBUG=yes
-VERBOSE=yes
+#--Set global DEBUG flag;
+#--Still have to set DEBUG in individual routines
+DEBUG=no
+#--Set global VERBOSE flag;
+VERBOSE=no
 
 # watch the whitespace here
 USE_MPI = yes
