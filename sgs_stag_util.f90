@@ -106,11 +106,7 @@ $endif
 !$else
   call calc_Sij (dudx, dudy, dudz,  &
                  dvdx, dvdy, dvdz,  &
-                 dwdx, dwdy, dwdz, &
-                 S11,S12,S13,S22, &
-                 S23,S33)
-
-
+                 dwdx, dwdy, dwdz)
 !$endif
 
 $if ($DEBUG)
@@ -424,17 +420,10 @@ $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
 
-return
-end subroutine sgs_stag
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! contains
-
-!**********************************************************************
-subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,S11,&
-  S12,S13,S22,S23,S33)
-!**********************************************************************
-use types,only:rprec
-use param
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+contains
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz)
 implicit none
 
 $if ($MPI)
@@ -446,9 +435,7 @@ $endif
 real (rprec), dimension (ld, ny, $lbz:nz), intent(IN) :: dudx, dudy, dudz,  &
                                              dvdx, dvdy, dvdz,  &
                                              dwdx, dwdy, dwdz
-real (rprec), dimension (ld, ny, nz),intent(OUT) :: S11, S12, S22, S33, S13, S23
 
-integer :: jx,jy,jz,jz_min
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 
 !---------------------------------------------------------------------                                     
@@ -562,6 +549,7 @@ end do
 end do
 end do
 !$ffohmygod end parallel do
-return
+
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+end subroutine sgs_stag
