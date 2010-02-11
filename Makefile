@@ -201,8 +201,15 @@ LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
 CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
 
+TSUM_POST_DEPS = utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
+ 
+TSUM_POST_COMP2 = $(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
+	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
+
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
+  TSUM_POST_COMP1 = $(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90; 
+  TSUM_POST_COMP2 += $(OPATH)/mpi_defs.o
 endif
 
 ifeq ($(USE_TREES_LS), yes)
@@ -215,6 +222,8 @@ endif
 
 ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   SRCS += $(CYLINDER_SKEW_LS_SRCS)
+  TSUM_POST_DEPS += $(OPATH)/cylinder_skew_base_ls.o
+  TSUM_POST_COMP2 += $(OPATH)/cylinder_skew_base_ls.o
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
@@ -240,10 +249,10 @@ debug:
 prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
-tsum_post: utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o $(OPATH)/cylinder_skew_base_ls.o
-	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
-	$(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
-	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/mpi_defs.o $(OPATH)/grid.o $(OPATH)/cylinder_skew_base_ls.o
+# Other support programs are listed below this point
+tsum_post: $(TSUM_POST_DEPS)
+	$(TSUM_POST_COMP1)
+	$(TSUM_POST_COMP2)
 
 cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
@@ -256,7 +265,6 @@ cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
 	$(FPP) $< > t.cylinder_skew_post_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cylinder_skew_post_ls.f90
 
-# Other support programs are listed below this point
 interp: utils/interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
