@@ -9,7 +9,9 @@ use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, nproc, USE_MPI
 $if ($LVLSET)
+$if ($CYLINDER_SKEW_LS)
 use cylinder_skew_base_ls, only : phi
+$endif
 $endif
 implicit none
 
@@ -392,7 +394,9 @@ use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
 $if ($LVLSET)
+$if ($CYLINDER_SKEW_LS)
 use cylinder_skew_base_ls, only : phi
+$endif
 $endif
 implicit none
 
