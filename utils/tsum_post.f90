@@ -10,7 +10,7 @@ use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, nproc, USE_MPI
 $if ($LVLSET)
 $if ($CYLINDER_SKEW_LS)
-use cylinder_skew_base_ls, only : phi
+use cylinder_skew_base_ls, only : phi ! Used to only average over fluid nodes
 $endif
 $endif
 implicit none
@@ -412,7 +412,6 @@ $if ($MPI)
   write (temp, '(".c",i0)') np
   fname = trim (fname) // temp
 $endif
-
 
 write(*,"(1a,1a)") ' Processing File : ', fname
  
