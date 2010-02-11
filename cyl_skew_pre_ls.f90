@@ -90,7 +90,7 @@ double precision :: gen_scale_fact
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
 origin(:,2)=(/ 0., L_y, z_bottom_surf /)
 origin(:,3)=(/ 0., 0., z_bottom_surf /)
-origin(:,4)=(/ 0., L_y, z_bottom_surf /)
+origin(:,4)=(/ L_x, 0., z_bottom_surf /)
 origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
 origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
 origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
