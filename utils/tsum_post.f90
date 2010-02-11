@@ -8,14 +8,15 @@ use types, only : rprec
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, nproc, USE_MPI
+$if ($LVLSET)
 use cylinder_skew_base_ls, only : phi
-
+$endif
 implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
 logical, parameter :: tecio=.true.
-integer, parameter :: iter_start=1000, iter_stop=1000, iter_skip=1000 ! In thousands
+integer, parameter :: iter_start=1000000, iter_stop=1000000, iter_skip=1000000 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -168,7 +169,11 @@ do np=0,nproc-1
       action='write',position='rewind')
   
     if(tecio) then
+      $if ($LVLSET)
       write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp", "phi"'
+      $else
+       write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+      $endif
       write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
         1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
       $if ($LVLSET)
@@ -223,15 +228,19 @@ do np=0,nproc-1
       rcount = 0.
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
           if(phi(i,j,k) >= 0._rprec) then
             rcount = rcount + 1.
+          $endif
             sum_z(1) = sum_z(1) + rs_t%up2(i,j,k)
             sum_z(2) = sum_z(2) + rs_t%vp2(i,j,k)
             sum_z(3) = sum_z(3) + rs_t%wp2(i,j,k)
             sum_z(4) = sum_z(4) + rs_t%upwp(i,j,k)
             sum_z(5) = sum_z(5) + rs_t%vpwp(i,j,k)
             sum_z(6) = sum_z(6) + rs_t%upvp(i,j,k)
+          $if ($LVLSET)
           endif
+          $endif
         enddo
       enddo
       if(rcount > 0.5) then
@@ -319,12 +328,16 @@ do np=0,nproc-1
       rcount = 0.
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
           if(phi(i,j,k) >= 0._rprec) then
+          $endif
             rcount = rcount + 1.
             sum_z(1) = sum_z(1) + tavg_t%u(i,j,k)
             sum_z(2) = sum_z(2) + tavg_t%v(i,j,k)
             sum_z(3) = sum_z(3) + tavg_t%w(i,j,k)
+          $if ($LVLSET)
           endif
+          $endif
         enddo
       enddo
 !  Make sure there is at least 1 point to be averaged 
@@ -378,8 +391,9 @@ subroutine load_data(fbase,np)
 use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
+$if ($LVLSET)
 use cylinder_skew_base_ls, only : phi
-
+$endif
 implicit none
 
 character(*), intent(IN) :: fbase
@@ -401,6 +415,7 @@ write(*,"(1a,1a)") ' Processing File : ', fname
 open(unit = 7,file = fname, status='old',form='unformatted', &
   action='read',position='rewind') 
 
+$if ($LVLSET)
 if(fbase  == 'phi.out') then
 
 !  Read binary data for lesgo
@@ -409,8 +424,8 @@ if(fbase  == 'phi.out') then
 
   read(7) phi
   close (7)
-
 else
+
 !  Read data from input data file
   do k=1,nz
     do j=1,ny
@@ -425,6 +440,21 @@ else
   enddo
   close(7)
 endif
+$else
+!  Read data from input data file
+  do k=1,nz
+    do j=1,ny
+      do i=1,nx
+        read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
+          tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
+          tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+      enddo
+    enddo
+  enddo
+  close(7)
+$endif
 
 
 return
