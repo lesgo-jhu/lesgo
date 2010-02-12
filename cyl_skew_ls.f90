@@ -212,7 +212,7 @@ do ng=1,ngen
     fname = trim (fname) // temp
     $endif
 
-    open (lun, file=fname, position='append')
+    open (lun, file=fname, position='rewind')
 
     if (.not. file_init(ng)) then  !--set up file for output
     !  Compute thickness of generation associated with proc
