@@ -42,7 +42,7 @@ module param
   integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
   !--end mpi stuff
 
-  integer,parameter:: nx=32,ny=32,nz=(32+4-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(96+4-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -50,12 +50,12 @@ module param
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   
-  integer, parameter :: nsteps = 100
+  integer, parameter :: nsteps = 200000
 
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i
+  real(rprec),parameter::L_x=5.*z_i
   real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x ! ensure dy=dx
 !  real(rprec),parameter::L_y=4.*z_i/sqrt(0.75);
   real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x ! ensure dz = dx
@@ -92,9 +92,9 @@ module param
   
   
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .false.
+  logical, parameter :: initu = .true.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .true.
+  logical, parameter :: inilag = .false.
 
   ! nu_molec is dimensional m^2/s
   real(rprec),parameter::nu_molec=1.14e-5_rprec
