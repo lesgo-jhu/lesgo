@@ -292,7 +292,7 @@ endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_t%calc) then
-  if(jt >= point_t%nstart .and. jt <= point_t%nend .and. mod(jt,point_t%nskip)==0) then
+  if(jt >= point_t%nstart .and. jt <= point_t%nend .and. ( jt == point_t%nstart .or. mod(jt,point_t%nskip)==0) ) then
     if(.not. point_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then   
         write(*,*) '-------------------------------'   
@@ -308,7 +308,7 @@ endif
   
 !  Determine if instantaneous domain velocities are to be recorded
 if(domain_t%calc) then
-  if(jt >= domain_t%nstart .and. jt <= domain_t%nend .and. mod(jt,domain_t%nskip)==0) then
+  if(jt >= domain_t%nstart .and. jt <= domain_t%nend .and. ( jt == domain_t%nstart .or. mod(jt,domain_t%nskip)==0) ) then
     if(.not. domain_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
         write(*,*) '-------------------------------'
@@ -324,7 +324,7 @@ endif
 
 !  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_t%calc) then
-  if(jt >= yplane_t%nstart .and. jt <= yplane_t%nend .and. mod(jt,yplane_t%nskip)==0) then
+  if(jt >= yplane_t%nstart .and. jt <= yplane_t%nend .and. ( jt == yplane_t%nstart .or. mod(jt,yplane_t%nskip)==0) ) then
     if(.not. yplane_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
         write(*,*) '-------------------------------'
@@ -340,7 +340,7 @@ endif
 
 !  Determine if instantaneous z-plane velocities are to be recorded
 if(zplane_t%calc) then
-  if(jt >= zplane_t%nstart .and. jt <= zplane_t%nend .and. mod(jt,zplane_t%nskip)==0) then
+  if(jt >= zplane_t%nstart .and. jt <= zplane_t%nend .and. ( jt == zplane_t%nstart .or. mod(jt,zplane_t%nskip)==0) ) then
     if(.not. zplane_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
         write(*,*) '-------------------------------'
