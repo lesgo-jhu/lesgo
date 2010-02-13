@@ -212,10 +212,10 @@ do ng=1,ngen
     fname = trim (fname) // temp
     $endif
 
-    open (lun, file=fname, position='rewind')
-
     if (.not. file_init(ng)) then  !--set up file for output
     !  Compute thickness of generation associated with proc
+      open (lun, file=fname, position='rewind')
+
       gen_thck=0._rprec
       do k=kstart,kend
         if(k==kstart) then
@@ -233,6 +233,9 @@ do ng=1,ngen
       write (lun, '(a)') '# t, CD, fD, Uinf' 
 
       file_init(ng) = .true.
+    else
+   
+      open (lun, file=fname, position='append')
 
     end if
 
