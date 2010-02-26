@@ -21,6 +21,8 @@ q64 = no
 DEBUG=no
 #--Set global VERBOSE flag;
 VERBOSE=no
+#--Sets inclusion of development sections
+DEVEL=no
 
 # watch the whitespace here
 USE_MPI = yes
@@ -44,6 +46,10 @@ endif
 
 ifeq ($(VERBOSE), yes)
   FPP += -DVERBOSE
+endif
+
+ifeq ($(DEVEL), yes)
+  FPP += -DDEVEL
 endif
 
 ifeq ($(USE_MPI), yes)
