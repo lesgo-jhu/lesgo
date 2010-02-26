@@ -139,4 +139,92 @@ endif
 return
 end function interp_to_uv_grid
 
+$if ($DEVEL)
+!**********************************************************************
+subroutine plane_avg_3D(bound_points, nzeta, neta, var, var_avg)
+!**********************************************************************
+!
+!  This subroutine computes the average of a specified quantity on an arbitrary
+!  plane in 3D space. 
+!
+
+use types, only : rprec
+implicit none
+
+real(RPREC), intent(IN), dimension(:,:) :: bound_points
+INTEGER, INTENT(IN) :: nzeta, neta
+REAL(RPREC), intent(IN), DIMENSION(:,:,:) :: var
+
+REAL(RPREC), intent(OUT) :: var_avg
+
+REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag
+
+real(RPREC), dimension(3) :: zeta_vec, eta_vec
+real(RPREC), allocatable, dimension(3,nzeta,neta) :: cell_centers
+
+!  Attempt for cache friendliness
+bp1 = bound_points(:,1)
+bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
+bp3 = bound_points(:,3)
+
+!  vector in zeta direction
+zeta_vec = bp1 - bp2
+!  vector in eta direction
+eta_vec   = bp3 - bp2
+
+dzeta = zeta_vec/nzeta
+deta   = eta_vec/neta
+
+!  Normalize to create unit vector
+vec_mag = sqrt(zeta_vec(1)*zeta_vec(1) + zeta_vec(2)*zeta_vec(2) + zeta_vec(3)*zeta_vec(3))
+zeta_vec = zeta_vec / vec_mag
+vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_vec(3))
+eta_vec = zeta_vec / vec_mag
+
+do j=1,neta
+  !  Attempt for cache friendliness
+  eta = (j - 0.5)*deta*eta_vec
+  do i=1,nzeta
+    cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
+    zmax = max(cell_centers(3,i,j), zmax)
+    zmin = min(cell_centers(3,i,j), zmin)
+  enddo
+enddo
+
+if(z(nz) <= zmax .or. z(1) >= zmin) then
+
+  if(zmax > z(nz)) then
+    isum_recieve = 1
+    iavg_send = 1
+  endif
+
+  if(zmin < z(1)) then
+    isum_send = 1
+    iavg_recieve = 1
+  endif
+
+  do j=1,neta
+    do i=1,nzeta
+      if(cell_centers(3,i,j) > z(1) .and. cell_centers(3,i,j) < z(nz)) then
+        !  Perform trilinear interpolation
+	istart = 
+	jstart = 
+	kstart = 
+	var_sum = 
+      endif
+      
+
+    enddo
+  enddo
+    
+  
+
+
+
+return
+
+end subroutine plane_avg_3D
+
+$endif
+
 end module functions
