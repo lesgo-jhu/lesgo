@@ -9,7 +9,7 @@ integer,parameter::filter_size=1
 real(kind=rprec),dimension(lh,ny)::G_test,G_test_test
 end module test_filtermodule
 
-!--THIS IS NOT IN THE MODULE
+!--Add the following subroutines to the module:
 subroutine test_filter(f,G_test)
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
