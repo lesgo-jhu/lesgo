@@ -5,11 +5,39 @@ use messages
 implicit none
 save
 private
-public trilinear_interp, linear_interp, interp_to_uv_grid
+public trilinear_interp, linear_interp, interp_to_uv_grid, &
+       find_istart
 
 character (*), parameter :: mod_name = 'functions'
 
 contains
+
+!**********************************************************************
+subroutine find_istart(x,nx,px,istart,xdiff)
+!**********************************************************************
+! This routine should be setup to directly compute istart, xdiff from
+! modulo function
+!
+implicit none
+
+integer, intent(IN) :: nx
+double precision, dimension(nx), intent(IN) :: x
+double precision, intent(IN) :: px
+integer, intent(OUT) :: istart
+double precision, intent(OUT) :: xdiff
+
+integer :: i
+
+isearch: do i=1,nx
+  if(x(i) >= px) then
+    istart = i-1
+    xdiff = px - x(istart)
+    exit isearch
+  endif
+enddo isearch
+
+return
+end subroutine find_istart
 
 !**********************************************************************
 double precision function trilinear_interp(cvar,istart,jstart,kstart,xyz)

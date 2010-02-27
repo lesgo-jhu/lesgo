@@ -7,6 +7,7 @@ subroutine stats_init ()
 use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord
 use stat_defs
 use grid_defs
+use functions, only : find_istart
 implicit none
 
 character(120) :: cx,cy,cz
@@ -41,7 +42,7 @@ point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 domain_t%calc = .true.
 domain_t%nstart = 1
 domain_t%nend   = nsteps
-domain_t%nskip = nsteps
+domain_t%nskip = 50000
 
 !  y-plane stats/data
 yplane_t%calc   = .false.
@@ -213,29 +214,3 @@ endif
 return
 end subroutine stats_init
 
-!**********************************************************************
-subroutine find_istart(x,nx,px,istart,xdiff)
-!**********************************************************************
-! This routine should be setup to directly compute istart, xdiff from
-! modulo function
-!
-implicit none
-
-integer, intent(IN) :: nx
-double precision, dimension(nx), intent(IN) :: x
-double precision, intent(IN) :: px
-integer, intent(OUT) :: istart
-double precision, intent(OUT) :: xdiff
-
-integer :: i
-
-isearch: do i=1,nx
-  if(x(i) >= px) then
-    istart = i-1
-    xdiff = px - x(istart)
-    exit isearch
-  endif
-enddo isearch
-
-return
-end subroutine find_istart
