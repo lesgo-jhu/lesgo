@@ -31,7 +31,7 @@ use param, only : nz, dx, dy, dz, coord
 implicit none
 
 character(*), intent(IN) :: cvar
-double precision, dimension(istart:istart+1,jstart:jstart+1,kstart:kstart+1) :: uvar
+double precision, dimension(2,2,2) :: uvar
 integer, intent(IN) :: istart, jstart, kstart
 double precision, intent(IN), dimension(3) :: xyz
 integer, parameter :: nvar = 3
@@ -51,13 +51,13 @@ u6=0.
 uvar = 0.
 
 if(cvar == 'u') then
-  uvar = u(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
+  uvar(:,:,:) = u(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
 elseif(cvar == 'v') then
-  uvar = v(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
+  uvar(:,:,:) = v(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
 elseif(cvar == 'w') then
 !  Put w node values on uv grid
-  do k=kstart,kstart+1; do j=jstart,jstart+1; do i=istart,istart+1
-   uvar(i,j,k) = interp_to_uv_grid('w',i,j,k)
+  do k=1,2; do j=1,2; do i=1,2
+   uvar(i,j,k) = interp_to_uv_grid('w', i + istart - 1, j + jstart - 1, k + kstart - 1)
   enddo; enddo; enddo
 else
   write(*,*) 'Error: variable specification not specified properly!'
@@ -73,10 +73,10 @@ zdiff = xyz(3) - z(kstart)
 
 !  Perform the 7 linear interpolations
 !  Perform interpolations in x-direction 
-u1 = linear_interp(uvar(istart,jstart,kstart),uvar(istart+1,jstart,kstart),dx,xdiff)
-u2 = linear_interp(uvar(istart,jstart+1,kstart),uvar(istart+1,jstart+1,kstart),dx,xdiff)
-u3 = linear_interp(uvar(istart,jstart,kstart+1),uvar(istart+1,jstart,kstart+1),dx,xdiff)
-u4 = linear_interp(uvar(istart,jstart+1,kstart+1),uvar(istart+1,jstart+1,kstart+1),dx,xdiff)
+u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
+u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
+u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
+u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
 !  Perform interpolations in y-direction
 u5 = linear_interp(u1,u2,dy,ydiff)
 u6 = linear_interp(u3,u4,dy,ydiff)
