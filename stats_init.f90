@@ -26,26 +26,26 @@ point_t%xyz=-1.
 !  All nstart and nend values are based
 !  on jt and not jt_total
 tsum_t%calc = .true.
-tsum_t%nstart = 5000
+tsum_t%nstart = 100000
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .true.
-point_t%nstart = 5000
+point_t%calc = .false.
+point_t%nstart = 50000
 point_t%nend   = nsteps
-point_t%nskip = 1
+point_t%nskip = 10
 point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .false.
-domain_t%nstart = 100
+domain_t%calc = .true.
+domain_t%nstart = 1
 domain_t%nend   = nsteps
-domain_t%nskip = 100
+domain_t%nskip = nsteps
 
 !  y-plane stats/data
-yplane_t%calc   = .true.
-yplane_t%nstart = 8000
+yplane_t%calc   = .false.
+yplane_t%nstart = 990000
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
 yplane_t%nloc   = 2
@@ -53,7 +53,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
+zplane_t%calc   = .false.
 zplane_t%nstart = 8000
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
@@ -216,6 +216,9 @@ end subroutine stats_init
 !**********************************************************************
 subroutine find_istart(x,nx,px,istart,xdiff)
 !**********************************************************************
+! This routine should be setup to directly compute istart, xdiff from
+! modulo function
+!
 implicit none
 
 integer, intent(IN) :: nx
