@@ -169,7 +169,7 @@ end function interp_to_uv_grid
 
 $if ($DEVEL)
 !**********************************************************************
-subroutine plane_avg_3D(bound_points, nzeta, neta, var, var_avg)
+double precision function plane_avg_3D(cvar, bound_points, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
@@ -177,18 +177,47 @@ subroutine plane_avg_3D(bound_points, nzeta, neta, var, var_avg)
 !
 
 use types, only : rprec
+use param, only : Nx, Ny, Nz
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status
+$endif
+use grid_defs
+
 implicit none
+
+character(*), intent(IN) :: cvar
 
 real(RPREC), intent(IN), dimension(:,:) :: bound_points
 INTEGER, INTENT(IN) :: nzeta, neta
-REAL(RPREC), intent(IN), DIMENSION(:,:,:) :: var
 
-REAL(RPREC), intent(OUT) :: var_avg
+integer :: i, j, istart, jstart, kstart, nsum
 
-REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag
+$if ($MPI)
+integer :: isum_send, isum_recieve, iavg_send, iavg_recieve
+integer :: nsum_up
+REAL(RPREC) :: var_sum_up
+$endif
 
-real(RPREC), dimension(3) :: zeta_vec, eta_vec
-real(RPREC), allocatable, dimension(3,nzeta,neta) :: cell_centers
+REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag, zmin, zmax
+REAL(RPREC) :: xdiff, ydiff, zdiff, var_sum
+
+real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
+real(RPREC), dimension(3) :: bp1, bp2, bp3, bp4
+
+real(RPREC), dimension(3,nzeta,neta) :: pnodes ! nodes of plane
+
+!  Build computational mesh if needed
+if(.not. grid_built) call grid_build()
+
+$if ($MPI)
+isum_send    = .false.
+isum_recieve = .false.
+iavg_send    = .false.
+iavg_recieve = .false.
+$endif
+
+nsum = 0
 
 !  Attempt for cache friendliness
 bp1 = bound_points(:,1)
@@ -200,58 +229,100 @@ zeta_vec = bp1 - bp2
 !  vector in eta direction
 eta_vec   = bp3 - bp2
 
-dzeta = zeta_vec/nzeta
-deta   = eta_vec/neta
+!  Compute fourth point of plane
+bp4 = bp2 + zeta_vec + eta_vec
+
+zmin = min(bp1(3), bp2(3), bp3(3), bp4(3))
+zmax = max(bp1(3), bp2(3), bp3(3), bp4(3))
 
 !  Normalize to create unit vector
 vec_mag = sqrt(zeta_vec(1)*zeta_vec(1) + zeta_vec(2)*zeta_vec(2) + zeta_vec(3)*zeta_vec(3))
+dzeta = vec_mag/(nzeta-1)
 zeta_vec = zeta_vec / vec_mag
+
 vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_vec(3))
+deta = vec_mag/(neta-1)
 eta_vec = zeta_vec / vec_mag
 
+!  Compute cell centers
 do j=1,neta
   !  Attempt for cache friendliness
-  eta = (j - 0.5)*deta*eta_vec
+  eta = (j - 1)*deta*eta_vec
   do i=1,nzeta
-    cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
-    zmax = max(cell_centers(3,i,j), zmax)
-    zmin = min(cell_centers(3,i,j), zmin)
+    ! Simple vector addition
+    pnodes(:,i,j) = bp2 + (i - 1)*dzeta*zeta_vec + eta
   enddo
 enddo
 
+!  Check if plane is associated with processor
 if(z(nz) <= zmax .or. z(1) >= zmin) then
 
-  if(zmax > z(nz)) then
-    isum_recieve = 1
-    iavg_send = 1
+  $if ($MPI)
+  !  Check if points lie below current proc
+  if(zmin < z(1)) then
+    isum_send = .true.
+    iavg_recieve = .true.
   endif
 
-  if(zmin < z(1)) then
-    isum_send = 1
-    iavg_recieve = 1
+  !  Check if points lie above current proc
+  if(zmax > z(nz)) then
+    isum_recieve = .true.
+    iavg_send = .true.
   endif
+  
+  $endif
 
   do j=1,neta
     do i=1,nzeta
-      if(cell_centers(3,i,j) > z(1) .and. cell_centers(3,i,j) < z(nz)) then
-        !  Perform trilinear interpolation
-	istart = 
-	jstart = 
-	kstart = 
-	var_sum = 
-      endif
-      
 
+      if(pnodes(3,i,j) > z(1) .and. pnodes(3,i,j) < z(nz)) then
+        !  Perform trilinear interpolation
+        call find_istart(x,Nx,pnodes(1,i,j),istart,xdiff)
+        call find_istart(y,Ny,pnodes(2,i,j),jstart,ydiff)
+        call find_istart(z,Nz,pnodes(3,i,j),kstart,zdiff)
+
+        var_sum = var_sum + trilinear_interp(cvar,istart,jstart,kstart,pnodes(:,i,j))
+        nsum = nsum + 1
+ 
+      endif
     enddo
   enddo
-    
+
+  $if ($MPI)
+  if(isum_recieve) then
+    CALL MPI_Recv(var_sum_up, 1, MPI_RPREC, up, 1, MPI_COMM_WORLD, status, ierr)
+	CALL MPI_Recv(nsum_up, 1, MPI_RPREC, up, 2, MPI_COMM_WORLD, status, ierr)
+	
+	var_sum = var_sum + var_sum_up
+	nsum = nsum + nsum_up
+	
+  endif
   
-
-
+  if(isum_send) then
+    CALL MPI_Send(var_sum, 1, MPI_RPREC, down, 1, MPI_COMM_WORLD, ierr)
+	CALL MPI_Send(nsum, 1, MPI_RPREC, down, 2, MPI_COMM_WORLD, ierr)
+	
+  else
+    ! Should be the bottom most proc 
+	plane_avg_3D = var_sum / nsum
+  endif
+  
+  if(iavg_recieve) CALL MPI_Recv(plane_avg_3D, 1, MPI_RPREC, down, 3, MPI_COMM_WORLD, status, ierr)
+  if(iavg_send) CALL MPI_Send(plane_avg_3D, 1, MPI_RPREC, up, 3, MPI_COMM_WORLD, ierr)
+  
+  $else
+  
+  plane_avg_3D = var_sum / nsum
+  
+  $endif
+   
+else
+  write(*,*) 'need to put message here'  
+endif
 
 return
 
-end subroutine plane_avg_3D
+end function plane_avg_3D
 
 $endif
 
