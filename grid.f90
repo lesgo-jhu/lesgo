@@ -1,3 +1,4 @@
+
 !**********************************************************************
 module grid_defs
 !**********************************************************************
@@ -5,7 +6,9 @@ use types, only : rprec
 implicit none
 save
 private
-public x, y, z, zw, grid_build
+public x, y, z, zw, grid_build, grid_built
+
+logical :: grid_built
 real(rprec), allocatable, dimension(:) :: x, y, z, zw
 
 contains
@@ -27,6 +30,8 @@ implicit none
 
 integer :: i,j,k
 
+grid_built = .false.
+
 allocate(x(nx),y(ny),z(nz),zw(nz))
 
 do k=1,nz
@@ -44,6 +49,8 @@ do k=1,nz
 enddo
 zw = z - dz/2._rprec
      
+grid_built = .true. 
+
 return
 end subroutine grid_build 
 
