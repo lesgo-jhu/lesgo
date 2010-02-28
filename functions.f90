@@ -5,7 +5,7 @@ use messages
 implicit none
 save
 private
-public trilinear_interp, linear_interp, interp_to_uv_grid, &
+public trilinear_interp, linear_interp, interp_to_uv_grid, interp_to_uv_grid_buf, &
        index_start, plane_avg_3D, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
@@ -167,6 +167,98 @@ else
 endif
 return
 end function interp_to_uv_grid
+
+!**********************************************************************
+real(rprec) function interp_to_uv_grid_buf(cvar,i,j,k)
+!**********************************************************************
+!  This function computes any values the read in value u(k) and
+!  u(k+1) to the uv grid location k
+use types, only : rprec
+use param,only : nz,ld
+use sim_param, only : w, dudz
+$if ($MPI)
+use mpi
+use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
+  coord, coord_of_rank, rank
+$endif
+
+implicit none
+
+character(*), intent(IN) :: cvar
+integer,intent(IN) :: i,j,k
+real(rprec), dimension(2) :: var
+
+$if ($MPI)
+real(rprec) :: buf
+$endif
+
+if(trim(adjustl(cvar)) == 'w') then
+  
+  $if ($MPI)
+  if(coord_of_rank(rank) < nproc - 1) then
+    call mpi_recv (buf, 1, MPI_RPREC, up, 100, comm, status, ierr)
+  endif
+  if(coord_of_rank(rank) > 0) then
+    call mpi_send (w(1, 1, 2), 1, MPI_RPREC, down, 100, comm, ierr)
+  endif
+  $endif
+
+  if(k==nz) then
+  
+    $if ($MPI)
+    if (coord == nproc - 1) then
+      var = (/ w(i,j,k), w(i,j,k) /)
+    else
+      var = (/buf, w(i,j,k) /)
+	endif
+    $else
+
+    var = (/ w(i,j,k), w(i,j,k) /)    
+
+    $endif
+  else
+    var = (/ w(i,j,k+1), w(i,j,k)/)
+  endif
+
+elseif(trim(adjustl(cvar)) == 'dudz') then 
+
+  $if ($MPI)
+  
+  if(coord_of_rank(rank) < nproc - 1) then
+    call mpi_recv (buf, 1, MPI_RPREC, up, 200, comm, status, ierr)
+  endif
+  
+  if(coord_of_rank(rank) > 0) then
+    call mpi_send (dudz(1, 1, 2), 1, MPI_RPREC, down, 200, comm, ierr)
+  endif
+  $endif
+
+  if(k==nz) then
+  
+    $if ($MPI) 
+    if (coord == nproc - 1) then
+      var = (/ dudz(i,j,k), dudz(i,j,k) /)
+    else
+      var = (/buf, dudz(i,j,k) /)
+	endif
+    $else
+
+    var = (/ dudz(i,j,k), dudz(i,j,k) /)    
+
+    $endif
+  else
+    var = (/ dudz(i,j,k+1), dudz(i,j,k)/)
+  endif
+else
+  write(*,*) 'Error: variable specification not specified properly!'
+  stop
+endif
+
+interp_to_uv_grid_buf = 0.5*(var(1) + var(2))
+
+return
+end function interp_to_uv_grid_buf
+
 
 !**********************************************************************
 real(rprec) function interp_to_w_grid(cvar,i,j,k)
