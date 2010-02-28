@@ -6,41 +6,39 @@ implicit none
 save
 private
 public trilinear_interp, linear_interp, interp_to_uv_grid, &
-       find_istart, plane_avg_3D
+       index_start, plane_avg_3D
 
 character (*), parameter :: mod_name = 'functions'
 
 contains
 
 !**********************************************************************
-subroutine find_istart(x,nx,px,istart,xdiff)
+real(rprec) function index_start(indx,dx,px)
 !**********************************************************************
 ! This routine should be setup to directly compute istart, xdiff from
 ! modulo function
 !
+use types, only : rprec
 implicit none
 
-integer, intent(IN) :: nx
-double precision, dimension(nx), intent(IN) :: x
-double precision, intent(IN) :: px
-integer, intent(OUT) :: istart
-double precision, intent(OUT) :: xdiff
+character (*), intent (in) :: indx
+real(rprec), intent(IN) :: dx
+real(rprec), intent(IN) :: px
 
-integer :: i
+character (*), parameter :: func_name = mod_name // '.index_start'
 
-isearch: do i=2,nx
-  if(x(i) >= px) then
-    istart = i-1
-    xdiff = px - x(istart)
-    exit isearch
-  endif
-enddo isearch
+select case (indx)
+    case ('i'); index_start = floor (px / dx + 1._rprec)
+    case ('j'); index_start = floor (px / dx + 1._rprec)
+	case ('k'); index_start = floor (px / dx + 0.5_rprec)
+    case default; call error (func_name, 'invalid indx =' // indx)
+end select
 
 return
-end subroutine find_istart
+end function index_start
 
 !**********************************************************************
-double precision function trilinear_interp(cvar,istart,jstart,kstart,xyz)
+real(rprec) function trilinear_interp(cvar,istart,jstart,kstart,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -115,7 +113,7 @@ return
 end function trilinear_interp
 
 !**********************************************************************
-double precision function linear_interp(u1,u2,dx,xdiff)
+real(rprec) function linear_interp(u1,u2,dx,xdiff)
 !**********************************************************************
 !
 !  This function performs linear interpolation 
@@ -126,7 +124,7 @@ double precision function linear_interp(u1,u2,dx,xdiff)
 !  dx           - length delta for the grid in the correct direction
 !  xdiff        - distance from the point of interest to the u1 node
 !
-
+use types, only : rprec
 implicit none
 
 double precision, intent(IN) :: u1, u2, dx, xdiff
@@ -137,10 +135,11 @@ return
 end function linear_interp
 
 !**********************************************************************
-double precision function interp_to_uv_grid(cvar,i,j,k)
+real(rprec) function interp_to_uv_grid(cvar,i,j,k)
 !**********************************************************************
 !  This function computes any values the read in value u(k) and
 !  u(k+1) to the uv grid location k
+use types, only : rprec
 use param,only : nz,ld
 use sim_param, only : w, dudz
 
@@ -167,9 +166,36 @@ endif
 return
 end function interp_to_uv_grid
 
+!**********************************************************************
+real(rprec) function interp_to_w_grid(cvar,i,j,k)
+!**********************************************************************
+!  This function computes any values the read in value u(k) and
+!  u(k-1) to the w grid location k
+use types, only : rprec
+use param,only : nz,ld
+use sim_param, only : u, v
+
+character(*), intent(IN) :: cvar
+integer,intent(IN) :: i,j,k
+real(rprec), dimension(2) :: var
+
+if(trim(adjustl(cvar)) == 'u') then
+  var = (/u(i,j,k), u(i,j,k-1)/)
+elseif(trim(adjustl(cvar)) == 'v') then
+  var = (/v(i,j,k), v(i,j,k-1)/)
+else
+  write(*,*) 'Error: variable specification not specified properly!'
+  stop
+endif  
+
+interp_to_w_grid = 0.5*(var(1) + var(2))
+
+return
+end function interp_to_w_grid
+
 $if ($DEVEL)
 !**********************************************************************
-double precision function plane_avg_3D(cvar, bound_points, nzeta, neta)
+real(rprec) function plane_avg_3D(cvar, bound_points, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
@@ -177,10 +203,10 @@ double precision function plane_avg_3D(cvar, bound_points, nzeta, neta)
 !
 
 use types, only : rprec
-use param, only : Nx, Ny, Nz
+use param, only : Nx, Ny, Nz, dx, dy, dz
 $if ($MPI)
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, rank_of_coord, coord, comm
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 $endif
 use grid_defs
 
@@ -224,6 +250,7 @@ var_sum=0.
 bp1 = bound_points(:,1)
 bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
 bp3 = bound_points(:,3)
+
 if(coord == 0) then
   write(*,'(1a,3f12.6)') 'bp1 : ', bp1
   write(*,'(1a,3f12.6)') 'bp2 : ', bp2
@@ -250,26 +277,26 @@ zmax = max(bp1(3), bp2(3), bp3(3), bp4(3))
 
 !  Normalize to create unit vector
 vec_mag = sqrt(zeta_vec(1)*zeta_vec(1) + zeta_vec(2)*zeta_vec(2) + zeta_vec(3)*zeta_vec(3))
-dzeta = vec_mag/(nzeta-1)
+dzeta = vec_mag/nzeta
 zeta_vec = zeta_vec / vec_mag
 
 vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_vec(3))
-deta = vec_mag/(neta-1)
+deta = vec_mag/neta
 eta_vec = eta_vec / vec_mag
 
 if(coord == 0) then
   write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-  write(*,'(1a,3f12.6)') 'eta_vec : ', eta_vec
+  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
   !stop
 endif
 
 !  Compute cell centers
 do j=1,neta
   !  Attempt for cache friendliness
-  eta = (j - 1)*deta*eta_vec
+  eta = (j - 0.5)*deta*eta_vec
   do i=1,nzeta
     ! Simple vector addition
-    cell_centers(:,i,j) = bp2 + (i - 1)*dzeta*zeta_vec + eta
+    cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
 	
 !	if(coord == 0) write(*,'(1a,3i,3f12.6)') 'i, j, x, y, z : ', i, j, cell_centers(1,i,j), cell_centers(2,i,j), cell_centers(3,i,j)
   enddo
@@ -298,13 +325,11 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
 
       if(cell_centers(3,i,j) > z(1) .and. cell_centers(3,i,j) < z(nz)) then
         !  Perform trilinear interpolation
-        call find_istart(x,Nx,cell_centers(1,i,j),istart,xdiff)
-        call find_istart(y,Ny,cell_centers(2,i,j),jstart,ydiff)
-        call find_istart(z,Nz,cell_centers(3,i,j),kstart,zdiff)
+        istart = index_start('i',dx,cell_centers(1,i,j))
+		jstart = index_start('j',dy,cell_centers(2,i,j))
+		kstart = index_start('k',dz,cell_centers(3,i,j))
 
-        var_interp = trilinear_interp(cvar,istart,jstart,kstart,cell_centers(:,i,j))
-        !if(cvar == 'u') write(*,*) 'var_interp : ', cvar, var_interp
-        var_sum = var_sum + var_interp
+        var_sum = var_sum + trilinear_interp(cvar,istart,jstart,kstart,cell_centers(:,i,j))
         nsum = nsum + 1
  
       endif
