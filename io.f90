@@ -364,9 +364,10 @@ subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
-use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
+use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid, &
+  interp_to_uv_grid_buf,interp_to_w_grid
 use stat_defs, only : point_t, domain_t, yplane_t, zplane_t
-use grid_defs, only : x,y,z
+use grid_defs, only : x,y,z,zw
 use sim_param, only : u,v,w
 
 $if($LVLSET)
@@ -450,10 +451,15 @@ elseif(itype==2) then
     do j=1,ny
       do i=1,nx
         $if($LVLSET)
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k), phi(i,j,k)
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid_buf('w',i,j,k), phi(i,j,k)
         $else
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid('w',i,j,k)
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid_buf('w',i,j,k)
         $endif
+        !!$if($LVLSET)
+        !!write(7,*) x(i), y(j), zw(k), interp_to_w_grid('u',i,j,k), interp_to_w_grid('v',i,j,k), w(i,j,k), interp_to_w_grid('phi',i,j,k)
+        !!$else
+        !!write(7,*) x(i), y(j), zw(k), interp_to_w_grid('u',i,j,k), interp_to_w_grid('v',i,j,k), w(i,j,k)
+        !!$endif		
       enddo
     enddo
   enddo
