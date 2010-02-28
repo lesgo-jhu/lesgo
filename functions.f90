@@ -13,24 +13,26 @@ character (*), parameter :: mod_name = 'functions'
 contains
 
 !**********************************************************************
-real(rprec) function index_start(indx,dx,px)
+integer function index_start(indx,dx,px)
 !**********************************************************************
 ! This routine should be setup to directly compute istart, xdiff from
 ! modulo function
 !
 use types, only : rprec
+use grid_defs, only : z
 implicit none
 
 character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
-real(rprec), intent(IN) :: px
+real(rprec), intent(IN) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.index_start'
 
 select case (indx)
     case ('i'); index_start = floor (px / dx + 1._rprec)
     case ('j'); index_start = floor (px / dx + 1._rprec)
-	case ('k'); index_start = floor (px / dx + 0.5_rprec)
+	!  Need to compute local distance to get local k index
+	case ('k'); index_start = floor ((px - z(1)) / dx + 0.5_rprec)
     case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
@@ -216,6 +218,8 @@ character(*), intent(IN) :: cvar
 
 real(RPREC), intent(IN), dimension(:,:) :: bound_points
 INTEGER, INTENT(IN) :: nzeta, neta
+
+character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
 
 integer :: i, j, istart, jstart, kstart, nsum
 
