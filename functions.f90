@@ -18,7 +18,7 @@ integer function index_start(indx,dx,px)
 ! This routine does ...
 !
 use types, only : rprec
-use grid_defs, only : z
+use grid_defs, only : z, grid_built, grid_build
 implicit none
 
 character (*), intent (in) :: indx
@@ -27,11 +27,13 @@ real(rprec), intent(IN) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.index_start'
 
+if(.not. grid_built) call grid_build()
+
 select case (indx)
     case ('i'); index_start = floor (px / dx + 1._rprec)
     case ('j'); index_start = floor (px / dx + 1._rprec)
 	!  Need to compute local distance to get local k index
-	case ('k'); index_start = floor ((px - z(1)) / dx + 0.5_rprec)
+	case ('k'); index_start = floor ((px - z(1)) / dx + 1._rprec)
     case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
@@ -309,7 +311,7 @@ real(rprec) function plane_avg_3D(var, bound_points, nzeta, neta)
 !
 
 use types, only : rprec
-use param, only : Nx, Ny, Nz, dx, dy, dz
+use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
 $if ($MPI)
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
@@ -429,11 +431,12 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
   do j=1,neta
     do i=1,nzeta
 
-      if(cell_centers(3,i,j) > z(1) .and. cell_centers(3,i,j) < z(nz)) then
+      if(cell_centers(3,i,j) >= z(1) .and. cell_centers(3,i,j) < z(nz)) then
         !  Perform trilinear interpolation
-        istart = index_start('i',dx,cell_centers(1,i,j))
-		jstart = index_start('j',dy,cell_centers(2,i,j))
-		kstart = index_start('k',dz,cell_centers(3,i,j))
+		!  Include autowrapping for x and y directions
+        istart = index_start('i', dx, modulo(cell_centers(1,i,j),L_x))
+		jstart = index_start('j', dy, modulo(cell_centers(2,i,j),L_y))
+		kstart = index_start('k', dz, cell_centers(3,i,j))
 
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_centers(:,i,j))
         nsum = nsum + 1
