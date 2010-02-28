@@ -311,7 +311,6 @@ interp_to_w_grid = 0.5*(var(1) + var(2))
 return
 end function interp_to_w_grid
 
-$if ($DEVEL)
 !**********************************************************************
 real(rprec) function plane_avg_3D(cvar, bound_points, nzeta, neta)
 !**********************************************************************
@@ -504,7 +503,5 @@ $endif
 return
 
 end function plane_avg_3D
-
-$endif
 
 end module functions
