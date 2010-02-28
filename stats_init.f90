@@ -7,7 +7,7 @@ subroutine stats_init ()
 use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord
 use stat_defs
 use grid_defs
-use functions, only : find_istart
+use functions, only : index_start
 implicit none
 
 character(120) :: cx,cy,cz
@@ -129,7 +129,8 @@ if(yplane_t%calc) then
   
 !  Compute istart and ldiff
   do j=1,yplane_t%nloc
-    call find_istart(y,ny,yplane_t%loc(j),yplane_t%istart(j), yplane_t%ldiff(j))
+	yplane_t%istart(j) = index_start('j',dy,yplane_t%loc(j))
+	yplane_t%ldiff(j) = y(yplane_t%istart(j)) - yplane_t%loc(j)
   enddo
     
 endif
@@ -155,7 +156,9 @@ if(zplane_t%calc) then
     $if ($MPI)
     if(zplane_t%loc(k) >= z(1) .and. zplane_t%loc(k) < z(nz)) then
       zplane_t%coord(k) = coord
-      call find_istart(z,nz,zplane_t%loc(k),zplane_t%istart(k), zplane_t%ldiff(k))
+
+	  zplane_t%istart(k) = index_start('k',dz,zplane_t%loc(k))
+	  zplane_t%ldiff(k) = z(zplane_t%istart(k)) - zplane_t%loc(k)
     endif
     $else
     zplane_t%coord(k) = 0
@@ -177,13 +180,19 @@ if(point_t%calc) then
   $if ($MPI)
     if(point_t%xyz(3,i) >= z(1) .and. point_t%xyz(3,i) < z(nz)) then
       point_t%coord(i) = coord
-      call find_istart(x,nx,point_t%xyz(1,i),point_t%istart(i), point_t%xdiff(i))
-      call find_istart(y,ny,point_t%xyz(2,i),point_t%jstart(i), point_t%ydiff(i))
-      call find_istart(z,nz,point_t%xyz(3,i),point_t%kstart(i), point_t%zdiff(i))
+	  
+	  point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
+	  point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
+	  point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	  
+	  point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
+	  point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
+	  point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
 
       write(cx,'(F9.4)') point_t%xyz(1,i)
       write(cy,'(F9.4)') point_t%xyz(2,i)
       write(cz,'(F9.4)') point_t%xyz(3,i)
+	  
       write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
         trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
       fname=trim(adjustl(fname))
@@ -193,9 +202,13 @@ if(point_t%calc) then
     endif
   $else
     point_t%coord(i) = 0
-    call find_istart(x,nx,point_t%xyz(1,i),point_t%istart(i), point_t%xdiff(i))
-    call find_istart(y,ny,point_t%xyz(2,i),point_t%jstart(i), point_t%ydiff(i))
-    call find_istart(z,nz,point_t%xyz(3,i),point_t%kstart(i), point_t%zdiff(i))
+	point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
+	point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
+	point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	
+	point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
+	point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
+	point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
 
     write(cx,'(F9.4)') point_t%xyz(1,i)
     write(cy,'(F9.4)') point_t%xyz(2,i)
