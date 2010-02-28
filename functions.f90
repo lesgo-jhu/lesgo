@@ -6,7 +6,7 @@ implicit none
 save
 private
 public trilinear_interp, linear_interp, interp_to_uv_grid, &
-       index_start, plane_avg_3D
+       index_start, plane_avg_3D, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -174,17 +174,41 @@ real(rprec) function interp_to_w_grid(cvar,i,j,k)
 !  This function computes any values the read in value u(k) and
 !  u(k-1) to the w grid location k
 use types, only : rprec
-use param,only : nz,ld
+use param,only : nz,ld,USE_MPI,coord
 use sim_param, only : u, v
+$if ($LVLSET)
+use level_set, only : phi
+$endif
 
 character(*), intent(IN) :: cvar
 integer,intent(IN) :: i,j,k
 real(rprec), dimension(2) :: var
 
 if(trim(adjustl(cvar)) == 'u') then
-  var = (/u(i,j,k), u(i,j,k-1)/)
+  if(k == 1) then
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+	  var = (/ 0., 0./)
+	else
+	  var = (/u(i,j,k), u(i,j,k-1)/);
+	endif
+  else
+    var = (/u(i,j,k), u(i,j,k-1)/);
+  endif
+
 elseif(trim(adjustl(cvar)) == 'v') then
-  var = (/v(i,j,k), v(i,j,k-1)/)
+  if(k == 1) then
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+	  var = (/ 0., 0./)
+	else
+	  var = (/v(i,j,k), v(i,j,k-1)/);
+	endif
+  else
+    var = (/v(i,j,k), v(i,j,k-1)/);
+  endif
+$if ($LVLSET)
+elseif(trim(adjustl(cvar)) == 'phi') then
+  var = (/phi(i,j,k), phi(i,j,k-1)/);
+$endif
 else
   write(*,*) 'Error: variable specification not specified properly!'
   stop
