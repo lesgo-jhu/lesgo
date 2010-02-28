@@ -142,14 +142,14 @@ $if ($MPI)
   call mpi_allreduce(Ainf, Ainf_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   !  Average over all procs; assuming distribution is even
   Uinf_global = UAinf_global / Ainf_global
+  
+  if(coord==2) write(*,'(1a,1i,1f12.6)') 'jt, Uinf_global : ', jt, Uinf_global
 
 $else
 
   Uinf_global = UAinf/Ainf
 
 $endif
-
-$
 
 do ng=1,ngen
   if(igen(ng) /= -1) then
