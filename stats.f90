@@ -7,12 +7,16 @@ subroutine tsum_compute()
 !  This subroutine collects the stats for each flow 
 !  variable quantity
 use types, only : rprec
-use functions, only : interp_to_uv_grid
 use stat_defs, only : tsum_t
 use param, only : nx,ny,nz
 use sim_param, only : u,v,w, dudz
+use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p, dudz_p
+
+!  Make sure w has been interpolated to uv-grid
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
 
 do k=1,nz
   do j=1,ny
@@ -21,8 +25,8 @@ do k=1,nz
       u_p = u(i,j,k)
       v_p = v(i,j,k)
 !  Interpolate each w and dudz to uv grid
-      w_p = interp_to_uv_grid('w',i,j,k)  
-      dudz_p = interp_to_uv_grid('dudz',i,j,k)
+      w_p = w_uv(i,j,k)  
+      dudz_p = dudz_uv(i,j,k)
       
       tsum_t%u(i,j,k)=tsum_t%u(i,j,k) + u_p
       tsum_t%v(i,j,k)=tsum_t%v(i,j,k) + v_p
@@ -47,12 +51,17 @@ subroutine tavg_compute()
 !***************************************************************
 !  This subroutine collects the stats for each flow 
 !  variable quantity
-use functions, only : interp_to_uv_grid
 use stat_defs, only : tavg_t
 use param, only : nx,ny,nz
 use sim_param, only : u,v,w, dudz
+use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
+implicit none
 integer :: i,j,k, navg
 double precision :: w_interp, dudz_interp, fa
+
+!  Make sure w has been interpolated to uv-grid
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
 
 !  Initialize w_interp and dudz_interp
 w_interp = 0.
@@ -67,8 +76,8 @@ do k=1,nz
   do j=1,ny
     do i=1,nx
 !  Interpolate each w and dudz to uv grid
-      w_interp = interp_to_uv_grid('w',i,j,k)  
-      dudz_interp = interp_to_uv_grid('dudz',i,j,k)
+      w_interp = w_uv(i,j,k)  
+      dudz_interp = dudz_uv(i,j,k)
       
       tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
       tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)

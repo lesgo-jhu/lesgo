@@ -2,19 +2,24 @@ module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total
+use sim_param, only : w, dudz				 
 implicit none
+save
 private
 
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
+public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
 !!$
 logical, parameter :: cumulative_time = .true.
 character (*), parameter :: fcumulative_time = path // 'total_time.dat'
+
+character (*), parameter :: mod_name = 'level_set'
 !!$
 !!$logical, parameter :: use_avg_stats = .false.
 !!$integer, parameter :: n_avg_stats = 5000
@@ -62,9 +67,99 @@ real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
 !!$!!!!  io_lambda2
 !!$!logical,parameter::io_lambda2=.false.
 !!$!real(kind=rprec),dimension(nx,ny,nz)::lam2  !--commented to save mem.
+
+real(rprec), dimension(lbound(w,1):ubound(w,1),lbound(w,2):ubound(w,2),lbound(w,3):ubound(w,3)) :: w_uv
+real(rprec), dimension(lbound(dudz,1):ubound(dudz,1),lbound(dudz,2):ubound(dudz,2),lbound(dudz,3):ubound(dudz,3)) :: dudz_uv ! on the uv grid
+integer :: w_uv_tag, dudz_uv_tag  
                    
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 contains
+!**********************************************************************
+
+!**********************************************************************
+subroutine interp_to_uv_grid(var,var_uv,tag)
+!**********************************************************************
+!  This function computes any values the read in value u(k) and
+!  u(k+1) to the uv grid location k
+use types, only : rprec
+use param,only : nz,ld,jt
+use sim_param, only : w, dudz
+use messages
+$if ($MPI)
+use mpi
+use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
+  coord, coord_of_rank, rank
+$endif
+
+implicit none
+
+real(rprec), dimension(:,:,:), intent(IN) :: var
+real(rprec), dimension(:,:,:), intent(OUT) :: var_uv
+integer, intent(INOUT) :: tag
+!real(rprec), dimension(2) :: var
+integer :: lbx,ubx,lby,uby,lbz,ubz
+integer :: i,j,k
+
+$if ($MPI)
+integer :: mpi_datasize
+real(rprec), allocatable, dimension(:,:) :: buf
+$endif
+
+character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
+
+if(tag == jt) then
+  call mesg(sub_name, 'Interpolation already performed for current time step')
+  return
+endif
+  
+lbx=lbound(var,1); ubx=ubound(var,1)
+lby=lbound(var,2); uby=ubound(var,2)
+lbz=lbound(var,3); ubz=ubound(var,3)
+
+mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
+
+allocate(buf(lbx:ubx,lby:uby))
+
+!if(.not. allocated(var_uv)) allocate(var_uv(lbx:ubx,lby:uby,lbz:ubz))
+
+$if ($MPI)
+  !  Need to get all buffer regions
+if(coord_of_rank(rank) > 0) then
+  call mpi_send (var(1, 1, 2), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
+endif
+
+if(coord_of_rank(rank) < nproc - 1) then
+  call mpi_recv (buf(1,1), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
+endif
+
+$endif
+  
+do k=lbz,ubz-1; do j=lby,uby; do i=lbx,ubx
+  var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+enddo; enddo; enddo
+  
+!  set k=nz
+k=ubz
+do j=lby,uby; do i=lbx,ubx
+  $if ($MPI)
+!  Check for top "physical" boundary
+  if (coord == nproc - 1) then
+    var_uv(i,j,k) = var(i,j,k) 
+  else
+    var_uv(i,j,k) = 0.5*(buf(i,j) + var(i,j,k))
+  endif
+  $else
+  var_uv(i,j,k) = var(i,j,k)
+  $endif
+enddo; enddo
+
+tag = jt ! Set identifying tag 
+
+return 
+
+deallocate(buf)
+
+end subroutine interp_to_uv_grid
 
 !!$ Commented by JSG
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -364,8 +459,7 @@ subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
-use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid, &
-  interp_to_uv_grid_buf,interp_to_w_grid
+use functions, only : linear_interp, trilinear_interp
 use stat_defs, only : point_t, domain_t, yplane_t, zplane_t
 use grid_defs, only : x,y,z,zw
 use sim_param, only : u,v,w
@@ -390,6 +484,9 @@ real(rprec) :: ui, vi, wi
 !  Write point data; assumes files have been opened properly
 !  in stats_init
 
+!  Make sure w has been interpolated to uv-grid
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+
 if(itype==1) then
 
   do n=1,point_t%nloc
@@ -403,9 +500,9 @@ if(itype==1) then
       fid=3000*n
 
       write(fid,*) jt_total*dt_dim, &
-      trilinear_interp('u',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-      trilinear_interp('v',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-      trilinear_interp('w',point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
+      trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+      trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
 
 
     $if ($MPI)
@@ -451,9 +548,9 @@ elseif(itype==2) then
     do j=1,ny
       do i=1,nx
         $if($LVLSET)
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid_buf('w',i,j,k), phi(i,j,k)
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k), phi(i,j,k)
         $else
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), interp_to_uv_grid_buf('w',i,j,k)
+        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k)
         $endif
         !!$if($LVLSET)
         !!write(7,*) x(i), y(j), zw(k), interp_to_w_grid('u',i,j,k), interp_to_w_grid('v',i,j,k), w(i,j,k), interp_to_w_grid('phi',i,j,k)
@@ -497,8 +594,8 @@ elseif(itype==3) then
           u(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
         vi = linear_interp(v(i,yplane_t%istart(j),k), &
           v(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
-        wi = linear_interp(interp_to_uv_grid('w',i,yplane_t%istart(j),k), &
-          interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
+        wi = linear_interp(w_uv(i,yplane_t%istart(j),k), &
+          w_uv(i,yplane_t%istart(j)+1,k), dy, &
           yplane_t%ldiff(j))
 
         write(2,*) x(i), yplane_t%loc(j), z(k), ui, vi, wi
@@ -544,8 +641,8 @@ elseif(itype==4) then
           dz, zplane_t%ldiff(k))
         vi = linear_interp(v(i,j,zplane_t%istart(k)),v(i,j,zplane_t%istart(k)+1), &
           dz, zplane_t%ldiff(k))
-        wi = linear_interp(interp_to_uv_grid('w',i,j,zplane_t%istart(k)), &
-          interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1), &
+        wi = linear_interp(w_uv(i,j,zplane_t%istart(k)), &
+          w_uv(i,j,zplane_t%istart(k)+1), &
           dz, zplane_t%ldiff(k))
 
         write(2,*) x(i), y(j), zplane_t%loc(k), ui, vi, wi

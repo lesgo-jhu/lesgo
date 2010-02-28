@@ -5,8 +5,8 @@ use messages
 implicit none
 save
 private
-public trilinear_interp, linear_interp, interp_to_uv_grid, interp_to_uv_grid_buf, &
-       index_start, plane_avg_3D, interp_to_w_grid
+public trilinear_interp, linear_interp, index_start, plane_avg_3D
+	   !interp_to_uv_grid, interp_to_uv_grid_buf, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -15,11 +15,10 @@ contains
 !**********************************************************************
 integer function index_start(indx,dx,px)
 !**********************************************************************
-! This routine should be setup to directly compute istart, xdiff from
-! modulo function
+! This routine does ...
 !
 use types, only : rprec
-use grid_defs, only : zw
+use grid_defs, only : z
 implicit none
 
 character (*), intent (in) :: indx
@@ -32,7 +31,7 @@ select case (indx)
     case ('i'); index_start = floor (px / dx + 1._rprec)
     case ('j'); index_start = floor (px / dx + 1._rprec)
 	!  Need to compute local distance to get local k index
-	case ('k'); index_start = floor ((px - zw(1)) / dx + 0.5_rprec)
+	case ('k'); index_start = floor ((px - z(1)) / dx + 0.5_rprec)
     case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
@@ -40,32 +39,34 @@ return
 end function index_start
 
 !**********************************************************************
-real(rprec) function trilinear_interp(cvar,istart,jstart,kstart,xyz)
+real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
 !  exists in the cell with lower dimension: istart,jstart,kstart
 !  for the point xyz
 !  
-!  istart, jstart, kstart are used to determine the cell location;
-!  these are defined in stats_init
+!  istart, jstart, kstart are used to determine the cell location on the
+!  uv-grid; these are defined in stats_init
 !
-!  Takes care of putting w on uv grid
+!  Takes care of putting w-grid variables onto the uv-grid; this assumes
+!  that var is on the uv-grid
 !
 use grid_defs, only : x,y,z
 use types, only : rprec
-use sim_param, only : u,v,w
+use sim_param, only : u,v
 use param, only : nz, dx, dy, dz, coord
 implicit none
 
-character(*), intent(IN) :: cvar
-double precision, dimension(2,2,2) :: uvar
+real(rprec), dimension(:,:,:), intent(IN) :: var
 integer, intent(IN) :: istart, jstart, kstart
-double precision, intent(IN), dimension(3) :: xyz
+real(rprec), intent(IN), dimension(3) :: xyz
+
+real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
 integer :: i,j,k
-double precision :: u1,u2,u3,u4,u5,u6
-double precision :: xdiff, ydiff, zdiff
+real(rprec) :: u1,u2,u3,u4,u5,u6
+real(rprec) :: xdiff, ydiff, zdiff
 
 !  Initialize stuff
 u1=0.
@@ -78,19 +79,7 @@ u6=0.
 !  Contains the 6 points that make of the cube
 uvar = 0.
 
-if(cvar == 'u') then
-  uvar(:,:,:) = u(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
-elseif(cvar == 'v') then
-  uvar(:,:,:) = v(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
-elseif(cvar == 'w') then
-!  Put w node values on uv grid
-  do k=1,2; do j=1,2; do i=1,2
-   uvar(i,j,k) = interp_to_uv_grid('w', i + istart - 1, j + jstart - 1, k + kstart - 1)
-  enddo; enddo; enddo
-else
-  write(*,*) 'Error: variable specification not specified properly!'
-  stop
-endif
+uvar(:,:,:) = var(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
@@ -136,183 +125,183 @@ linear_interp = u1 + (xdiff) * (u2 - u1) / dx
 return
 end function linear_interp
 
+!!!**********************************************************************
+!!real(rprec) function interp_to_uv_grid(cvar,i,j,k)
+!!!**********************************************************************
+!!!  This function computes any values the read in value u(k) and
+!!!  u(k+1) to the uv grid location k
+!!use types, only : rprec
+!!use param,only : nz,ld
+!!use sim_param, only : w, dudz
+
+!!character(*), intent(IN) :: cvar
+!!integer,intent(IN) :: i,j,k
+
+
+!!if(trim(adjustl(cvar)) == 'w') then
+!!  if(k==nz) then
+!!    interp_to_uv_grid = 3./2.*w(i,j,k) - 0.5*w(i,j,k-1)
+!!  else
+!!    interp_to_uv_grid = 0.5*(w(i,j,k)+w(i,j,k+1))
+!!  endif
+!!elseif(trim(adjustl(cvar)) == 'dudz') then 
+!!  if(k==nz) then
+!!    interp_to_uv_grid = 3./2.*dudz(i,j,k) - 0.5*dudz(i,j,k-1)
+!!  else
+!!    interp_to_uv_grid = 0.5*(dudz(i,j,k)+dudz(i,j,k+1))
+!!  endif
+!!else
+!!  write(*,*) 'Error: variable specification not specified properly!'
+!!  stop
+!!endif
+!!return
+!!end function interp_to_uv_grid
+
+!!!**********************************************************************
+!!real(rprec) function interp_to_uv_grid_buf(cvar,i,j,k)
+!!!**********************************************************************
+!!!  This function computes any values the read in value u(k) and
+!!!  u(k+1) to the uv grid location k
+!!use types, only : rprec
+!!use param,only : nz,ld
+!!use sim_param, only : w, dudz
+!!$if ($MPI)
+!!use mpi
+!!use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
+!!  coord, coord_of_rank, rank
+!!$endif
+
+!!implicit none
+
+!!character(*), intent(IN) :: cvar
+!!integer,intent(IN) :: i,j,k
+!!real(rprec), dimension(2) :: var
+
+!!$if ($MPI)
+!!real(rprec) :: buf
+!!$endif
+
+!!if(trim(adjustl(cvar)) == 'w') then
+!!  
+!!  $if ($MPI)
+!!  if(coord_of_rank(rank) < nproc - 1) then
+!!    call mpi_recv (buf, 1, MPI_RPREC, up, 100, comm, status, ierr)
+!!  endif
+!!  if(coord_of_rank(rank) > 0) then
+!!    call mpi_send (w(1, 1, 2), 1, MPI_RPREC, down, 100, comm, ierr)
+!!  endif
+!!  $endif
+
+!!  if(k==nz) then
+!!  
+!!    $if ($MPI)
+!!    if (coord == nproc - 1) then
+!!      var = (/ w(i,j,k), w(i,j,k) /)
+!!    else
+!!      var = (/buf, w(i,j,k) /)
+!!	endif
+!!    $else
+
+!!    var = (/ w(i,j,k), w(i,j,k) /)    
+
+!!    $endif
+!!  else
+!!    var = (/ w(i,j,k+1), w(i,j,k)/)
+!!  endif
+
+!!elseif(trim(adjustl(cvar)) == 'dudz') then 
+
+!!  $if ($MPI)
+!!  
+!!  if(coord_of_rank(rank) < nproc - 1) then
+!!    call mpi_recv (buf, 1, MPI_RPREC, up, 200, comm, status, ierr)
+!!  endif
+!!  
+!!  if(coord_of_rank(rank) > 0) then
+!!    call mpi_send (dudz(1, 1, 2), 1, MPI_RPREC, down, 200, comm, ierr)
+!!  endif
+!!  $endif
+
+!!  if(k==nz) then
+!!  
+!!    $if ($MPI) 
+!!    if (coord == nproc - 1) then
+!!      var = (/ dudz(i,j,k), dudz(i,j,k) /)
+!!    else
+!!      var = (/buf, dudz(i,j,k) /)
+!!	endif
+!!    $else
+
+!!    var = (/ dudz(i,j,k), dudz(i,j,k) /)    
+
+!!    $endif
+!!  else
+!!    var = (/ dudz(i,j,k+1), dudz(i,j,k)/)
+!!  endif
+!!else
+!!  write(*,*) 'Error: variable specification not specified properly!'
+!!  stop
+!!endif
+
+!!interp_to_uv_grid_buf = 0.5*(var(1) + var(2))
+
+!!return
+!!end function interp_to_uv_grid_buf
+
+
+!!!**********************************************************************
+!!real(rprec) function interp_to_w_grid(cvar,i,j,k)
+!!!**********************************************************************
+!!!  This function computes any values the read in value u(k) and
+!!!  u(k-1) to the w grid location k
+!!use types, only : rprec
+!!use param,only : nz,ld,USE_MPI,coord
+!!use sim_param, only : u, v
+!!$if ($LVLSET)
+!!use level_set, only : phi
+!!$endif
+
+!!character(*), intent(IN) :: cvar
+!!integer,intent(IN) :: i,j,k
+!!real(rprec), dimension(2) :: var
+
+!!if(trim(adjustl(cvar)) == 'u') then
+!!  if(k == 1) then
+!!    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!!	  var = (/ 0., 0./)
+!!	else
+!!	  var = (/u(i,j,k), u(i,j,k-1)/);
+!!	endif
+!!  else
+!!    var = (/u(i,j,k), u(i,j,k-1)/);
+!!  endif
+
+!!elseif(trim(adjustl(cvar)) == 'v') then
+!!  if(k == 1) then
+!!    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!!	  var = (/ 0., 0./)
+!!	else
+!!	  var = (/v(i,j,k), v(i,j,k-1)/);
+!!	endif
+!!  else
+!!    var = (/v(i,j,k), v(i,j,k-1)/);
+!!  endif
+!!$if ($LVLSET)
+!!elseif(trim(adjustl(cvar)) == 'phi') then
+!!  var = (/phi(i,j,k), phi(i,j,k-1)/);
+!!$endif
+!!else
+!!  write(*,*) 'Error: variable specification not specified properly!'
+!!  stop
+!!endif  
+
+!!interp_to_w_grid = 0.5*(var(1) + var(2))
+
+!!return
+!!end function interp_to_w_grid
+
 !**********************************************************************
-real(rprec) function interp_to_uv_grid(cvar,i,j,k)
-!**********************************************************************
-!  This function computes any values the read in value u(k) and
-!  u(k+1) to the uv grid location k
-use types, only : rprec
-use param,only : nz,ld
-use sim_param, only : w, dudz
-
-character(*), intent(IN) :: cvar
-integer,intent(IN) :: i,j,k
-
-
-if(trim(adjustl(cvar)) == 'w') then
-  if(k==nz) then
-    interp_to_uv_grid = 3./2.*w(i,j,k) - 0.5*w(i,j,k-1)
-  else
-    interp_to_uv_grid = 0.5*(w(i,j,k)+w(i,j,k+1))
-  endif
-elseif(trim(adjustl(cvar)) == 'dudz') then 
-  if(k==nz) then
-    interp_to_uv_grid = 3./2.*dudz(i,j,k) - 0.5*dudz(i,j,k-1)
-  else
-    interp_to_uv_grid = 0.5*(dudz(i,j,k)+dudz(i,j,k+1))
-  endif
-else
-  write(*,*) 'Error: variable specification not specified properly!'
-  stop
-endif
-return
-end function interp_to_uv_grid
-
-!**********************************************************************
-real(rprec) function interp_to_uv_grid_buf(cvar,i,j,k)
-!**********************************************************************
-!  This function computes any values the read in value u(k) and
-!  u(k+1) to the uv grid location k
-use types, only : rprec
-use param,only : nz,ld
-use sim_param, only : w, dudz
-$if ($MPI)
-use mpi
-use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
-  coord, coord_of_rank, rank
-$endif
-
-implicit none
-
-character(*), intent(IN) :: cvar
-integer,intent(IN) :: i,j,k
-real(rprec), dimension(2) :: var
-
-$if ($MPI)
-real(rprec) :: buf
-$endif
-
-if(trim(adjustl(cvar)) == 'w') then
-  
-  $if ($MPI)
-  if(coord_of_rank(rank) < nproc - 1) then
-    call mpi_recv (buf, 1, MPI_RPREC, up, 100, comm, status, ierr)
-  endif
-  if(coord_of_rank(rank) > 0) then
-    call mpi_send (w(1, 1, 2), 1, MPI_RPREC, down, 100, comm, ierr)
-  endif
-  $endif
-
-  if(k==nz) then
-  
-    $if ($MPI)
-    if (coord == nproc - 1) then
-      var = (/ w(i,j,k), w(i,j,k) /)
-    else
-      var = (/buf, w(i,j,k) /)
-	endif
-    $else
-
-    var = (/ w(i,j,k), w(i,j,k) /)    
-
-    $endif
-  else
-    var = (/ w(i,j,k+1), w(i,j,k)/)
-  endif
-
-elseif(trim(adjustl(cvar)) == 'dudz') then 
-
-  $if ($MPI)
-  
-  if(coord_of_rank(rank) < nproc - 1) then
-    call mpi_recv (buf, 1, MPI_RPREC, up, 200, comm, status, ierr)
-  endif
-  
-  if(coord_of_rank(rank) > 0) then
-    call mpi_send (dudz(1, 1, 2), 1, MPI_RPREC, down, 200, comm, ierr)
-  endif
-  $endif
-
-  if(k==nz) then
-  
-    $if ($MPI) 
-    if (coord == nproc - 1) then
-      var = (/ dudz(i,j,k), dudz(i,j,k) /)
-    else
-      var = (/buf, dudz(i,j,k) /)
-	endif
-    $else
-
-    var = (/ dudz(i,j,k), dudz(i,j,k) /)    
-
-    $endif
-  else
-    var = (/ dudz(i,j,k+1), dudz(i,j,k)/)
-  endif
-else
-  write(*,*) 'Error: variable specification not specified properly!'
-  stop
-endif
-
-interp_to_uv_grid_buf = 0.5*(var(1) + var(2))
-
-return
-end function interp_to_uv_grid_buf
-
-
-!**********************************************************************
-real(rprec) function interp_to_w_grid(cvar,i,j,k)
-!**********************************************************************
-!  This function computes any values the read in value u(k) and
-!  u(k-1) to the w grid location k
-use types, only : rprec
-use param,only : nz,ld,USE_MPI,coord
-use sim_param, only : u, v
-$if ($LVLSET)
-use level_set, only : phi
-$endif
-
-character(*), intent(IN) :: cvar
-integer,intent(IN) :: i,j,k
-real(rprec), dimension(2) :: var
-
-if(trim(adjustl(cvar)) == 'u') then
-  if(k == 1) then
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-	  var = (/ 0., 0./)
-	else
-	  var = (/u(i,j,k), u(i,j,k-1)/);
-	endif
-  else
-    var = (/u(i,j,k), u(i,j,k-1)/);
-  endif
-
-elseif(trim(adjustl(cvar)) == 'v') then
-  if(k == 1) then
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-	  var = (/ 0., 0./)
-	else
-	  var = (/v(i,j,k), v(i,j,k-1)/);
-	endif
-  else
-    var = (/v(i,j,k), v(i,j,k-1)/);
-  endif
-$if ($LVLSET)
-elseif(trim(adjustl(cvar)) == 'phi') then
-  var = (/phi(i,j,k), phi(i,j,k-1)/);
-$endif
-else
-  write(*,*) 'Error: variable specification not specified properly!'
-  stop
-endif  
-
-interp_to_w_grid = 0.5*(var(1) + var(2))
-
-return
-end function interp_to_w_grid
-
-!**********************************************************************
-real(rprec) function plane_avg_3D(cvar, bound_points, nzeta, neta)
+real(rprec) function plane_avg_3D(var, bound_points, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
@@ -329,9 +318,9 @@ use grid_defs
 
 implicit none
 
-character(*), intent(IN) :: cvar
-
+real(rprec), intent(IN), dimension(:,:,:) :: var
 real(RPREC), intent(IN), dimension(:,:) :: bound_points
+
 INTEGER, INTENT(IN) :: nzeta, neta
 
 character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
@@ -355,12 +344,12 @@ real(RPREC), dimension(3,nzeta,neta) :: cell_centers ! nodes of plane
 !  Build computational mesh if needed
 if(.not. grid_built) call grid_build()
 
-$if ($MPI)
-isum_send    = .false.
-isum_recieve = .false.
-iavg_send    = .false.
-iavg_recieve = .false.
-$endif
+!!$if ($MPI)
+!!isum_send    = .false.
+!!isum_recieve = .false.
+!!iavg_send    = .false.
+!!iavg_recieve = .false.
+!!$endif
 
 nsum = 0
 var_sum=0.
@@ -385,7 +374,6 @@ eta_vec   = bp3 - bp2
 if(coord == 0) then
   write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
   write(*,'(1a,3f12.6)') 'eta_vec : ', eta_vec
-  !stop  stop
 endif
 
 !  Compute fourth point of plane
@@ -406,7 +394,6 @@ eta_vec = eta_vec / vec_mag
 if(coord == 0) then
   write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
   write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
-  !stop
 endif
 
 !  Compute cell centers
@@ -448,7 +435,7 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
 		jstart = index_start('j',dy,cell_centers(2,i,j))
 		kstart = index_start('k',dz,cell_centers(3,i,j))
 
-        var_sum = var_sum + trilinear_interp(cvar,istart,jstart,kstart,cell_centers(:,i,j))
+        var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_centers(:,i,j))
         nsum = nsum + 1
  
       endif
@@ -490,7 +477,7 @@ else
 endif
 
 $if ($MPI)
-!  Perform averaging and scatter to all procs
+!  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INT, MPI_SUM, comm, ierr)
 
