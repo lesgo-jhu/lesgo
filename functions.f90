@@ -19,7 +19,7 @@ integer function index_start(indx,dx,px)
 ! modulo function
 !
 use types, only : rprec
-use grid_defs, only : z
+use grid_defs, only : zw
 implicit none
 
 character (*), intent (in) :: indx
@@ -32,7 +32,7 @@ select case (indx)
     case ('i'); index_start = floor (px / dx + 1._rprec)
     case ('j'); index_start = floor (px / dx + 1._rprec)
 	!  Need to compute local distance to get local k index
-	case ('k'); index_start = floor ((px - z(1)) / dx + 0.5_rprec)
+	case ('k'); index_start = floor ((px - zw(1)) / dx + 0.5_rprec)
     case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
