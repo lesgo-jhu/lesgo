@@ -32,9 +32,18 @@ integer :: i,j,k
 
 grid_built = .false.
 
-allocate(x(nx),y(ny),z(nz),zw(nz))
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
 
-do k=1,nz
+allocate(x(nx),y(ny),z($lbz:nz),zw($lbz:nz))
+
+do k=$lbz,nz
   $if ($MPI)
   z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
   $else
