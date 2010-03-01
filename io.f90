@@ -2,7 +2,7 @@ module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total
-use sim_param, only : w, dudz				 
+use sim_param, only : w, dudz
 implicit none
 save
 private
@@ -107,12 +107,12 @@ $endif
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
-$if ($VERBOSE)
 if(tag == jt) then
+$if ($VERBOSE)
   call mesg(sub_name, 'Interpolation already performed for current time step')
+$endif
   return
 endif
-$endif
   
 lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)
