@@ -88,7 +88,7 @@ use messages
 $if ($MPI)
 use mpi
 use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
-  coord, coord_of_rank, rank
+  coord
 $endif
 
 implicit none
@@ -126,11 +126,11 @@ allocate(buf(lbx:ubx,lby:uby))
 
 $if ($MPI)
   !  Need to get all buffer regions
-if(coord_of_rank(rank) > 0) then
+if(coord > 0) then
   call mpi_send (var(1, 1, 2), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
 endif
 
-if(coord_of_rank(rank) < nproc - 1) then
+if(coord < nproc - 1) then
   call mpi_recv (buf(1,1), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
 endif
 
