@@ -361,22 +361,22 @@ bp1 = bound_points(:,1)
 bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
 bp3 = bound_points(:,3)
 
-if(coord == 0) then
-  write(*,'(1a,3f12.6)') 'bp1 : ', bp1
-  write(*,'(1a,3f12.6)') 'bp2 : ', bp2
-  write(*,'(1a,3f12.6)') 'bp3 : ', bp3
-  !stop
-endif
+!if(coord == 0) then
+!  write(*,'(1a,3f12.6)') 'bp1 : ', bp1
+!  write(*,'(1a,3f12.6)') 'bp2 : ', bp2
+!  write(*,'(1a,3f12.6)') 'bp3 : ', bp3
+!  !stop
+!endif
 
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
 !  vector in eta direction
 eta_vec   = bp3 - bp2
 
-if(coord == 0) then
-  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-  write(*,'(1a,3f12.6)') 'eta_vec : ', eta_vec
-endif
+!if(coord == 0) then
+!  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
+!  write(*,'(1a,3f12.6)') 'eta_vec : ', eta_vec
+!endif
 
 !  Compute fourth point of plane
 bp4 = bp2 + zeta_vec + eta_vec
@@ -393,25 +393,23 @@ vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_ve
 deta = vec_mag/neta
 eta_vec = eta_vec / vec_mag
 
-if(coord == 0) then
-  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
-endif
-
-!  Compute cell centers
-do j=1,neta
-  !  Attempt for cache friendliness
-  eta = (j - 0.5)*deta*eta_vec
-  do i=1,nzeta
-    ! Simple vector addition
-    cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
-	
-!	if(coord == 0) write(*,'(1a,3i,3f12.6)') 'i, j, x, y, z : ', i, j, cell_centers(1,i,j), cell_centers(2,i,j), cell_centers(3,i,j)
-  enddo
-enddo
+!if(coord == 0) then
+!  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
+!  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
+!endif
 
 !  Check if plane is associated with processor
 if(z(nz) <= zmax .or. z(1) >= zmin) then
+
+!  Compute cell centers
+  do j=1,neta
+  !  Attempt for cache friendliness
+    eta = (j - 0.5)*deta*eta_vec
+    do i=1,nzeta
+    ! Simple vector addition
+      cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
+    enddo
+  enddo
 
 !  $if ($MPI)
 !  !  Check if points lie below current proc
@@ -479,13 +477,12 @@ else
   write(*,*) 'need to put message here'  
 endif
 
+!  Still need to send and recieve summation info
 $if ($MPI)
 !  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INT, MPI_SUM, comm, ierr)
 
- !write(*,*) 'coord, var_sum : ', coord, var_sum
-  !if(coord==0) write(*,*) 'coord, nsum_global : ', coord, nsum_global
   !  Average over all procs; assuming distribution is even
   plane_avg_3D = var_sum_global / nsum_global
 $endif
