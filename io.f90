@@ -19,7 +19,7 @@ public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid
 logical, parameter :: cumulative_time = .true.
 character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 
-character (*), parameter :: mod_name = 'level_set'
+character (*), parameter :: mod_name = 'io'
 !!$
 !!$logical, parameter :: use_avg_stats = .false.
 !!$integer, parameter :: n_avg_stats = 5000
@@ -107,10 +107,12 @@ $endif
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
+!!$if ($VERBOSE)
 if(tag == jt) then
   call mesg(sub_name, 'Interpolation already performed for current time step')
   return
 endif
+!!$endif
   
 lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)
