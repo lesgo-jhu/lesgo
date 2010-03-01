@@ -107,12 +107,12 @@ $endif
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
-!!$if ($VERBOSE)
+$if ($VERBOSE)
 if(tag == jt) then
   call mesg(sub_name, 'Interpolation already performed for current time step')
   return
 endif
-!!$endif
+$endif
   
 lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)

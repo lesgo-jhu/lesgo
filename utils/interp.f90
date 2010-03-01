@@ -19,15 +19,15 @@ character (*), parameter :: fsave = path // 'save.vel.out'
 character (*), parameter :: MPI_suffix = '.c'  !--must be proc number
 
 logical, parameter :: DEBUG = .true.
-logical, parameter :: MPI_s = .false.
-logical, parameter :: MPI_b = .false.
+logical, parameter :: MPI_s = .true.
+logical, parameter :: MPI_b = .true.
 
-integer, parameter :: np_s = 1  !--must be 1 when MPI_s is false
-integer, parameter :: np_b = 1  !--must to 1 when MPI_b is false
+integer, parameter :: np_s = 8  !--must be 1 when MPI_s is false
+integer, parameter :: np_b = 4  !--must to 1 when MPI_b is false
 
 !--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx_s = 64, ny_s = 64, nz_s = 65
-integer, parameter :: nx_b = 64, ny_b = 64, nz_b = 56
+integer, parameter :: nx_s = 64, ny_s = 64, nz_s = 97
+integer, parameter :: nx_b = 64, ny_b = 64, nz_b = 97
 
 character (64) :: fmt
 character (128) :: fname

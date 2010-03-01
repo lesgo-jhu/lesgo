@@ -152,9 +152,11 @@ call grid_build()
 !  Initialized statics arrays
 call stats_init()
 
-write(*,*) 'dz = ', dz
-write(*,*) 'nz = ', nz
-write(*,*) 'nz_tot = ', nz_tot
+if(coord == 0) then
+  write(*,*) 'dz = ', dz
+  write(*,*) 'nz = ', nz
+  write(*,*) 'nz_tot = ', nz_tot
+endif
 
 tt=0
 
