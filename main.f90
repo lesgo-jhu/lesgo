@@ -5,7 +5,7 @@ use sim_param
 use grid_defs, only : grid_build
 !!$use io, only : output_loop, output_final, inflow_write,  &
 !!$            avg_stats
-use io, only : openfiles, output_loop, output_final, jt_total, inflow_write
+use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
 use immersedbc
 use test_filtermodule
