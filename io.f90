@@ -11,7 +11,7 @@ private
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
-public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid
+public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -74,6 +74,25 @@ integer :: w_uv_tag, dudz_uv_tag
                    
 !**********************************************************************
 contains
+! interp_to_uv_grid(var,var_uv,tag)
+! **vel_slice ()
+! openfiles()
+! output_loop(jt)
+! inst_write(itype)
+! **rs_write()
+! tsum_write()
+! **tavg_write()
+! checkpoint (lun)
+! output_final(jt, lun_opt)
+! **plane_write()
+! inflow_write ()
+! inflow_read ()
+! len_da_file(fname, lenrec, length)
+! stats_init ()
+! tsum_compute()
+! tavg_compute()
+! rs_compute()
+! **plane_avg_compute(jt)
 !**********************************************************************
 
 !**********************************************************************
@@ -1355,4 +1374,440 @@ close(unit=lunit)
 return
 end subroutine len_da_file
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
+subroutine stats_init ()
+!***************************************************************
+!  This subroutine allocates the memory for arrays
+!  used for statistical calculations 
+
+use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc
+use stat_defs
+use grid_defs
+use functions, only : index_start
+implicit none
+
+character(120) :: cx,cy,cz
+character(120) :: fname
+integer :: fid, i,j,k
+
+! ------ These values are not to be changed ------
+!  Don't change from false
+tsum_t%calc     = .false.
+tsum_t%started  = .false.
+point_t%started = .false.
+domain_t%started = .false.
+!  Initialize with non used integer 
+point_t%xyz=-1.
+! ------ These values are not to be changed ------
+
+!  All nstart and nend values are based
+!  on jt and not jt_total
+tsum_t%calc = .true.
+tsum_t%nstart = 1
+tsum_t%nend = nsteps
+
+!  Turns instantaneous velocity recording on or off
+point_t%calc = .true.
+point_t%nstart = 1
+point_t%nend   = nsteps
+point_t%nskip = 10
+point_t%nloc = 2
+point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
+point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
+
+domain_t%calc = .true.
+domain_t%nstart = 1
+domain_t%nend   = nsteps
+domain_t%nskip = 100
+
+!  y-plane stats/data
+yplane_t%calc   = .true.
+yplane_t%nstart = 100
+yplane_t%nend   = nsteps
+yplane_t%nskip  = 100
+yplane_t%nloc   = 2
+yplane_t%loc(1) = 1.0
+yplane_t%loc(2) = 3.0
+
+!  z-plane stats/data
+zplane_t%calc   = .true.
+zplane_t%nstart = 100
+zplane_t%nend   = nsteps
+zplane_t%nskip  = 100
+zplane_t%nloc   = 3
+zplane_t%loc(1) = 0.5
+zplane_t%loc(2) = 1.5
+zplane_t%loc(3) = L_z*nproc
+
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
+!  Allocate arrays for variable summation for Reynolds
+!  stress calculations
+if(tsum_t%calc) then 
+  allocate(tsum_t%u(nx, ny, $lbz:nz))
+  allocate(tsum_t%v(nx, ny, $lbz:nz))
+  allocate(tsum_t%w(nx, ny, $lbz:nz))
+  allocate(tsum_t%u2(nx, ny, $lbz:nz))
+  allocate(tsum_t%v2(nx, ny, $lbz:nz))
+  allocate(tsum_t%w2(nx, ny, $lbz:nz))
+  allocate(tsum_t%uw(nx, ny, $lbz:nz))
+  allocate(tsum_t%vw(nx, ny, $lbz:nz))
+  allocate(tsum_t%uv(nx, ny, $lbz:nz))
+  allocate(tsum_t%dudz(nx, ny, $lbz:nz))
+  !  Initialize arrays
+  tsum_t%u=0.
+  tsum_t%v=0.
+  tsum_t%w=0.
+  tsum_t%u2=0.
+  tsum_t%v2=0.
+  tsum_t%w2=0.
+  tsum_t%uw=0.
+  tsum_t%vw=0.
+  tsum_t%uv=0.
+  tsum_t%dudz=0.
+endif
+
+! if(rs_t%calc) then
+!   allocate(rs_t%up2(nx, ny, $lbz:nz))
+!   allocate(rs_t%vp2(nx, ny, $lbz:nz))
+!   allocate(rs_t%wp2(nx, ny, $lbz:nz))
+!   allocate(rs_t%upwp(nx, ny, $lbz:nz))
+!   allocate(rs_t%vpwp(nx, ny, $lbz:nz))
+!   allocate(rs_t%upvp(nx, ny, $lbz:nz))
+!   rs_t%up2=0.
+!   rs_t%vp2=0.
+!   rs_t%wp2=0.
+!   rs_t%upwp=0.
+!   rs_t%vpwp=0.
+!   rs_t%upvp=0.
+! endif
+
+! Initialize information for y-planar stats/data
+if(yplane_t%calc) then
+!   allocate(yplane_t%ua(Nx,yplane_t%nloc,Nz))
+!   allocate(yplane_t%va(Nx,yplane_t%nloc,Nz))
+!   allocate(yplane_t%wa(Nx,yplane_t%nloc,Nz))
+  
+!   yplane_t%fa = 1./(dble(yplane_t%nend - yplane_t%nstart + 1))
+!   yplane_t%ua = 0.
+!   yplane_t%va = 0.
+!   yplane_t%wa = 0.
+  yplane_t%istart = -1
+  yplane_t%ldiff = 0.
+!  Not really needed
+  yplane_t%coord = -1
+  
+!  Compute istart and ldiff
+  do j=1,yplane_t%nloc
+	yplane_t%istart(j) = index_start('j',dy,yplane_t%loc(j))
+	yplane_t%ldiff(j) = y(yplane_t%istart(j)) - yplane_t%loc(j)
+  enddo
+    
+endif
+
+! Initialize information for y-planar stats/data
+if(zplane_t%calc) then
+!   allocate(zplane_t%ua(Nx,Ny,zplane_t%nloc))
+!   allocate(zplane_t%va(Nx,Ny,zplane_t%nloc))
+!   allocate(zplane_t%wa(Nx,Ny,zplane_t%nloc))
+!   zplane_t%fa = 1./(dble(zplane_t%nend - zplane_t%nstart + 1))
+!   zplane_t%ua = 0.
+!   zplane_t%va = 0.
+!   zplane_t%wa = 0.
+
+!  Initialize 
+  zplane_t%istart = -1
+  zplane_t%ldiff = 0. 
+  zplane_t%coord=-1 
+  
+!  Compute istart and ldiff
+  do k=1,zplane_t%nloc
+
+    $if ($MPI)
+    if(zplane_t%loc(k) >= z(1) .and. zplane_t%loc(k) < z(nz)) then
+      zplane_t%coord(k) = coord
+
+	  zplane_t%istart(k) = index_start('k',dz,zplane_t%loc(k))
+	  zplane_t%ldiff(k) = z(zplane_t%istart(k)) - zplane_t%loc(k)
+    endif
+    $else
+    zplane_t%coord(k) = 0
+    call find_istart(z,nz,zplane_t%loc(k),zplane_t%istart(k), zplane_t%ldiff(k))
+    $endif
+
+  enddo  
+  
+endif
+
+!  Intialize the coord values (-1 shouldn't be used as coord so initialize to this)
+point_t%coord=-1
+
+!  Open files for instantaneous writing
+if(point_t%calc) then
+
+  do i=1,point_t%nloc
+!  Find the processor in which this point lives
+  $if ($MPI)
+    if(point_t%xyz(3,i) >= z(1) .and. point_t%xyz(3,i) < z(nz)) then
+      point_t%coord(i) = coord
+	  
+	  point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
+	  point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
+	  point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	  
+	  point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
+	  point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
+	  point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
+
+      write(cx,'(F9.4)') point_t%xyz(1,i)
+      write(cy,'(F9.4)') point_t%xyz(2,i)
+      write(cz,'(F9.4)') point_t%xyz(3,i)
+	  
+      write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+        trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+      fname=trim(adjustl(fname))
+      fid=3000*i
+      open(unit = fid,file = fname,status="unknown",position="rewind")
+      write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+    endif
+  $else
+    point_t%coord(i) = 0
+	point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
+	point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
+	point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	
+	point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
+	point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
+	point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
+
+    write(cx,'(F9.4)') point_t%xyz(1,i)
+    write(cy,'(F9.4)') point_t%xyz(2,i)
+    write(cz,'(F9.4)') point_t%xyz(3,i)
+    write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+      trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+    fname=trim(adjustl(fname))
+    fid=3000*i
+    open(unit = fid,file = fname,status="unknown",position="rewind")
+    write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+  $endif
+  
+  enddo
+endif
+
+return
+end subroutine stats_init
+
+!***************************************************************
+subroutine tsum_compute()
+!***************************************************************
+!  This subroutine collects the stats for each flow 
+!  variable quantity
+use types, only : rprec
+use stat_defs, only : tsum_t
+use param, only : nx,ny,nz
+use sim_param, only : u,v,w, dudz
+!use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
+integer :: i,j,k
+real(rprec) :: u_p, v_p, w_p, dudz_p
+
+!  Make sure w has been interpolated to uv-grid
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+!  Being cache friendly
+      u_p = u(i,j,k)
+      v_p = v(i,j,k)
+!  Interpolate each w and dudz to uv grid
+      w_p = w_uv(i,j,k)  
+      dudz_p = dudz_uv(i,j,k)
+      
+      tsum_t%u(i,j,k)=tsum_t%u(i,j,k) + u_p
+      tsum_t%v(i,j,k)=tsum_t%v(i,j,k) + v_p
+      tsum_t%w(i,j,k)=tsum_t%w(i,j,k) + w_p
+      tsum_t%u2(i,j,k)=tsum_t%u2(i,j,k) + u_p*u_p
+      tsum_t%v2(i,j,k)=tsum_t%v2(i,j,k) + v_p*v_p
+      tsum_t%w2(i,j,k)=tsum_t%w2(i,j,k) + w_p*w_p
+      tsum_t%uw(i,j,k)=tsum_t%uw(i,j,k) + u_p*w_p
+      tsum_t%vw(i,j,k)=tsum_t%vw(i,j,k) + v_p*w_p
+      tsum_t%uv(i,j,k)=tsum_t%uv(i,j,k) + u_p*v_p
+      tsum_t%dudz(i,j,k)=tsum_t%dudz(i,j,k) + dudz_p
+    enddo
+  enddo
+enddo
+
+return
+
+end subroutine tsum_compute
+
+!***************************************************************
+subroutine tavg_compute()
+!***************************************************************
+!  This subroutine collects the stats for each flow 
+!  variable quantity
+use stat_defs, only : tavg_t
+use param, only : nx,ny,nz
+use sim_param, only : u,v,w, dudz
+!use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
+implicit none
+integer :: i,j,k, navg
+double precision :: w_interp, dudz_interp, fa
+
+!  Make sure w has been interpolated to uv-grid
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
+
+!  Initialize w_interp and dudz_interp
+w_interp = 0.
+dudz_interp = 0. 
+
+!  Compute number of times to average over
+navg = tavg_t%nend - tavg_t%nstart + 1
+!  Averaging factor
+fa=1./dble(navg)
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+!  Interpolate each w and dudz to uv grid
+      w_interp = w_uv(i,j,k)  
+      dudz_interp = dudz_uv(i,j,k)
+      
+      tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
+      tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
+      tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
+      tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
+      tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
+      tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
+      tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
+      tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
+      tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
+      tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
+    enddo
+  enddo
+enddo
+
+return
+
+end subroutine tavg_compute
+
+!***************************************************************
+subroutine rs_compute()
+!***************************************************************
+!  This subroutine computes Reynolds stresses from tavg_t u,v,w
+!  values
+use stat_defs, only : rs_t, tavg_t
+use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+use sim_param, only : u,v,w
+
+implicit none
+
+integer :: i,j,k
+
+do k=1,nz
+  do j=1,ny
+    do i=1,nx
+      rs_t%up2(i,j,k)=tavg_t%u2(i,j,k) - tavg_t%u(i,j,k)*tavg_t%u(i,j,k)
+      rs_t%vp2(i,j,k)=tavg_t%v2(i,j,k) - tavg_t%v(i,j,k)*tavg_t%v(i,j,k)
+	  rs_t%wp2(i,j,k)=tavg_t%w2(i,j,k) - tavg_t%w(i,j,k)*tavg_t%w(i,j,k)
+	  rs_t%upwp(i,j,k)=tavg_t%uw(i,j,k) - tavg_t%u(i,j,k)*tavg_t%w(i,j,k)
+	  rs_t%vpwp(i,j,k)=tavg_t%vw(i,j,k) - tavg_t%v(i,j,k)*tavg_t%w(i,j,k)
+	  rs_t%upvp(i,j,k)=tavg_t%uv(i,j,k) - tavg_t%u(i,j,k)*tavg_t%v(i,j,k)
+	enddo
+  enddo
+enddo
+  
+return
+end subroutine rs_compute
+
+! !**********************************************************************
+! subroutine plane_avg_compute(jt)
+! !**********************************************************************
+! use functions, only : linear_interp, interp_to_uv_grid
+! use grid_defs, only : z
+! use param, only : dx, dy, dz, Nx, Ny, Nz,coord
+! use stat_defs,only:yplane_t, zplane_t
+! use sim_param, only : u, v, w
+! 
+! implicit none
+! 
+! integer,intent(in)::jt
+! 
+! integer :: i,j,k
+! double precision :: ui, vi ,wi
+! 
+! !  Determine if y-plane averaging should be performed
+! if(yplane_t%calc .and. jt >= yplane_t%nstart .and. jt <= yplane_t%nend) then
+!   
+! !  Compute average for each y-plane (jya)
+!   do j=1,yplane_t%nloc
+!     do k=1,Nz
+!       do i=1,Nx
+!         ui = linear_interp(u(i,yplane_t%istart(j),k), &
+!           u(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+!         vi = linear_interp(v(i,yplane_t%istart(j),k), &
+!           v(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+!         wi = linear_interp(interp_to_uv_grid('w',i,yplane_t%istart(j),k), &
+!           interp_to_uv_grid('w',i,yplane_t%istart(j)+1,k), dy, &
+!           yplane_t%ldiff(j))
+!         yplane_t%ua(i,j,k) = yplane_t%ua(i,j,k) + yplane_t%fa*ui 
+!         yplane_t%va(i,j,k) = yplane_t%va(i,j,k) + yplane_t%fa*vi
+!         yplane_t%wa(i,j,k) = yplane_t%wa(i,j,k) + yplane_t%fa*wi
+! 
+!       enddo
+!     enddo
+!   enddo
+! endif 
+! 
+! !  Determine if y-plane averaging should be performed
+! if(zplane_t%calc .and. jt >= zplane_t%nstart .and. jt <= zplane_t%nend) then
+! !  Compute average for each y-plane (jya)
+! 
+!   do k=1,zplane_t%nloc
+! 
+!   $if ($MPI)
+!   if(zplane_t%coord(k) == coord) then
+!   $endif
+! 
+!     do j=1,Ny
+!       do i=1,Nx
+! 
+!         ui = linear_interp(u(i,j,zplane_t%istart(k)),u(i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+!         vi = linear_interp(v(i,j,zplane_t%istart(k)),v(i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+!         wi = linear_interp(interp_to_uv_grid('w',i,j,zplane_t%istart(k)), &
+!           interp_to_uv_grid('w',i,j,zplane_t%istart(k)+1), &
+!           dz, zplane_t%ldiff(k))
+! 
+!         zplane_t%ua(i,j,k) = zplane_t%ua(i,j,k) + zplane_t%fa*ui
+!         zplane_t%va(i,j,k) = zplane_t%va(i,j,k) + zplane_t%fa*vi
+!         zplane_t%wa(i,j,k) = zplane_t%wa(i,j,k) + zplane_t%fa*wi
+! 
+!       enddo
+!     enddo
+! 
+!     $if ($MPI)
+!     endif
+!     $endif
+! 
+!   enddo
+! 
+! endif
+! 
+! return
+! end subroutine plane_avg_compute
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 end module io
