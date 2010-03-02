@@ -1,4 +1,4 @@
-! This file used to contain the following subroutines:
+! This file formerly contained the following subroutines:
 !   tsum_compute()
 !   tavg_compute()
 !   rs_compute()
