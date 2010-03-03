@@ -12,6 +12,9 @@ $endif
 $if ($LVLSET)
   use level_set, only : level_set_forcing
 $endif
+$if ($TURBINES)
+  use turbines
+$endif
 implicit none
 
 !integer,intent(in)::jt
@@ -58,6 +61,10 @@ $if ($TREES_LS)
   !--in /a posteriori/ test, this adds SGS branch force
   !--in /a priori/ test, this does not modify force
   call trees_ls_calc ()
+$endif
+
+$if ($TURBINES)
+  call turbines_forcing ()
 $endif
 
 if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
