@@ -341,17 +341,8 @@ REAL(RPREC) :: xdiff, ydiff, zdiff, var_sum, var_interp
 real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
 real(RPREC), dimension(3) :: bp1, bp2, bp3, bp4
 
-real(RPREC), dimension(3,nzeta,neta) :: cell_centers ! nodes of plane
-
 !  Build computational mesh if needed
 if(.not. grid_built) call grid_build()
-
-!!$if ($MPI)
-!!isum_send    = .false.
-!!isum_recieve = .false.
-!!iavg_send    = .false.
-!!iavg_recieve = .false.
-!!$endif
 
 nsum = 0
 var_sum=0.
@@ -361,22 +352,10 @@ bp1 = bound_points(:,1)
 bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
 bp3 = bound_points(:,3)
 
-!if(coord == 0) then
-!  write(*,'(1a,3f12.6)') 'bp1 : ', bp1
-!  write(*,'(1a,3f12.6)') 'bp2 : ', bp2
-!  write(*,'(1a,3f12.6)') 'bp3 : ', bp3
-!  !stop
-!endif
-
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
 !  vector in eta direction
 eta_vec   = bp3 - bp2
-
-!if(coord == 0) then
-!  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-!  write(*,'(1a,3f12.6)') 'eta_vec : ', eta_vec
-!endif
 
 !  Compute fourth point of plane
 bp4 = bp2 + zeta_vec + eta_vec
@@ -407,39 +386,20 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
     eta = (j - 0.5)*deta*eta_vec
     do i=1,nzeta
     ! Simple vector addition
-      cell_centers(:,i,j) = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
-    enddo
-  enddo
+      cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
 
-!  $if ($MPI)
-!  !  Check if points lie below current proc
-!  if(zmin < z(1)) then
-!    isum_send = .true.
-!    iavg_recieve = .true.
-!  endif
-
-  !  Check if points lie above current proc
-!  if(zmax > z(nz)) then
-!    isum_recieve = .true.
-!    iavg_send = .true.
-!  endif
-  
-!  $endif
-
-  do j=1,neta
-    do i=1,nzeta
-
-      if(cell_centers(3,i,j) >= z(1) .and. cell_centers(3,i,j) < z(nz)) then
+      if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
         !  Perform trilinear interpolation
-		!  Include autowrapping for x and y directions
-        istart = index_start('i', dx, modulo(cell_centers(1,i,j),L_x))
-		jstart = index_start('j', dy, modulo(cell_centers(2,i,j),L_y))
-		kstart = index_start('k', dz, cell_centers(3,i,j))
+        !  Include autowrapping for x and y directions
+        istart = index_start('i', dx, modulo(cell_center(1),L_x))
+        jstart = index_start('j', dy, modulo(cell_center(2),L_y))
+        kstart = index_start('k', dz, cell_center(3))
 
-        var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_centers(:,i,j))
+        var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
         nsum = nsum + 1
- 
+
       endif
+
     enddo
   enddo
 
@@ -447,16 +407,13 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
 !  if(isum_recieve) then
 !    CALL MPI_Recv(var_sum_up, 1, MPI_RPREC, up, 1, MPI_COMM_WORLD, status, ierr)
 !    CALL MPI_Recv(nsum_up, 1, MPI_RPREC, up, 2, MPI_COMM_WORLD, status, ierr)
-	
 !     var_sum = var_sum + var_sum_up
 !     nsum = nsum + nsum_up
-	
 !  endif
   
 !  if(isum_send) then
 !    CALL MPI_Send(var_sum, 1, MPI_RPREC, down, 1, MPI_COMM_WORLD, ierr)
 !    CALL MPI_Send(nsum, 1, MPI_RPREC, down, 2, MPI_COMM_WORLD, ierr)
-	
 !  else
 !    ! Should be the bottom most proc 
 !	plane_avg_3D = var_sum / nsum
