@@ -38,6 +38,8 @@ USE_RNS = yes
 
 USE_TREES_LS = no
 
+USE_TURBINES = no
+
 FPP = fpx3
 
 ifeq ($(DEBUG), yes)
@@ -75,6 +77,10 @@ endif
 
 ifeq ($(USE_RNS), yes)
   FPP += -DRNS
+endif
+
+ifeq ($(USE_TURBINES), yes)
+  FPP += -DTURBINES
 endif
 
 # Directory for the .o files
@@ -207,6 +213,8 @@ LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
 CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
 
+TURBINES_SRCS = turbines.f90
+
 TSUM_POST_DEPS = utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
  
 TSUM_POST_COMP2 = $(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
@@ -230,6 +238,10 @@ ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   SRCS += $(CYLINDER_SKEW_LS_SRCS)
   TSUM_POST_DEPS += $(OPATH)/cylinder_skew_base_ls.o
   TSUM_POST_COMP2 += $(OPATH)/cylinder_skew_base_ls.o
+endif
+
+ifeq ($(USE_TURBINES), yes)
+  SRCS += $(TURBINES_SRCS)
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
