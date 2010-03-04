@@ -17,7 +17,7 @@ use scalars_module2,only:patch_or_remote
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
   
-$if ($CYLINDER_SKEW_LS)
+  $if ($CYLINDER_SKEW_LS)
   use cylinder_skew_ls, only : cylinder_skew_init_ls, cylinder_skew_CD_ls
   $endif
   

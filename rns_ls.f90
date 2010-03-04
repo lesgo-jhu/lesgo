@@ -19,7 +19,29 @@ subroutine rns_init_ls()
 
 implicit none
 
+character(64), parameter :: fbase= path // 'cylinder_skew_gen_ls.out'
+
 character(64) :: fname, temp
+
+integer :: nt, np
+
+rns_t % ntrees = 1
+
+do nt=1, rns_t % ntrees
+  write(temp, '(".t",i0)') nt
+  fname = trim (fbase) // temp
+  
+  open (unit = 2,file = fname, status='old',form='unformatted', &
+    action='read',position='rewind')
+ 
+  !  Get the number of planes 
+  read(2) rns_t % nplanes
+  
+  close(2)
+enddo
+  
+  
+
 
 !!!  Open file which to write global data
 !!fname = path // 'cylinder_skew_gen_ls.out'

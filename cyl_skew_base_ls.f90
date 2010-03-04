@@ -11,8 +11,8 @@ public
 
 character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 
-double precision, parameter :: zrot_angle = -90._rprec*pi/180._rprec
-double precision, parameter :: skew_angle = 45._rprec*pi/180._rprec
+real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
+real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 integer, parameter :: ntree = 7
 integer, parameter :: ntrunk = 3
