@@ -361,7 +361,7 @@ open (unit = 2, file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
 
 !  Open file which to write rns plane data
-write (fname,*) 'rns_planes.out'
+write (fname,*) 'rns_planes_ls.out'
 fname = trim(adjustl(fname)) 
 write (temp, '(".t",i0)') ntr
 fname = trim (fname) // temp
