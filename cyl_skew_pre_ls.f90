@@ -360,6 +360,15 @@ fname = trim (fname) // temp
 open (unit = 2, file = fname, status='unknown',form='formatted', &
       action='write',position='rewind')
 
+!  Open file which to write rns plane data
+write (fname,*) 'rns_planes.out'
+fname = trim(adjustl(fname)) 
+write (temp, '(".t",i0)') ntr
+fname = trim (fname) // temp
+
+open (unit = 3, file = fname, status='unknown',form='unformatted', &
+      action='write',position='rewind')
+
 do ng=1,ngen
   !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
   h = clen(ng)*cos(skew_angle) ! height
@@ -381,6 +390,7 @@ do ng=1,ngen
     zmax = corigin(3) + h
 
     write(2,'(2i6,6f12.6)') ng, ntc, xmin, xmax, ymin, ymax, zmin, zmax
+    write(3) ng, ntc, xmin, ymin, zmin, xmin, ymin, zmax, xmin, ymax, zmax
 
   enddo
 enddo
