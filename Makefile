@@ -33,10 +33,10 @@ USE_DYNALLOC = no
 #--still experimental
 
 USE_LVLSET = yes
-USE_CYLINDER_SKEW_LS = yes
-USE_RNS = yes
 
 USE_TREES_LS = no
+USE_CYLINDER_SKEW_LS = yes
+USE_RNS_LS = yes
 
 USE_TURBINES = no
 
@@ -75,8 +75,8 @@ ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   FPP += -DCYLINDER_SKEW_LS
 endif
 
-ifeq ($(USE_RNS), yes)
-  FPP += -DRNS
+ifeq ($(USE_RNS_LS), yes)
+  FPP += -DRNS_LS
 endif
 
 ifeq ($(USE_TURBINES), yes)
@@ -213,6 +213,8 @@ LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
 CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
 
+RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
+
 TURBINES_SRCS = turbines.f90
 
 TSUM_POST_DEPS = utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
@@ -238,6 +240,10 @@ ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   SRCS += $(CYLINDER_SKEW_LS_SRCS)
   TSUM_POST_DEPS += $(OPATH)/cylinder_skew_base_ls.o
   TSUM_POST_COMP2 += $(OPATH)/cylinder_skew_base_ls.o
+endif
+
+ifeq ($(USE_RNS_LS), yes)
+	SRCS += $(RNS_LS_SRCS)
 endif
 
 ifeq ($(USE_TURBINES), yes)
