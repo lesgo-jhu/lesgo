@@ -28,6 +28,7 @@ type point
   integer, dimension(10) :: coord, istart, jstart, kstart
   real(rprec), dimension(10) :: xdiff, ydiff, zdiff
   real(rprec), dimension(3,10) :: xyz
+  character(64), dimension(10) :: fname
 end type
 
 !  Instantaneous velocity global declarations
