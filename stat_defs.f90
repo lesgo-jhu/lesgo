@@ -15,7 +15,7 @@ end type rs
 !  Sums performed over time
 type tstats
   logical :: calc, started
-  integer :: nstart, nend
+  integer :: nstart, nend, nskip
   real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
 end type tstats	
@@ -46,12 +46,14 @@ type plane
 !   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
   
-type(rs)            :: rs_t
-type(tstats)        :: tavg_t
-type(tstats)        :: tsum_t
-type(point), target :: point_t
-type(domain)        :: domain_t
-type(plane)         :: yplane_t, zplane_t
+type(rs)            		:: rs_t
+type(tstats)        		:: tavg_t
+type(tstats)        	 	:: tsum_t
+type(point), target 	:: point_t
+type(domain)        		:: domain_t
+type(plane)         		:: yplane_t, zplane_t
+
+type(tstats) 	    		:: zplane_avg_t
 
 end module stat_defs
 
