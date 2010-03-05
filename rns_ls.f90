@@ -85,8 +85,6 @@ integer :: np
 
 do np = 1, rns_t%nplanes
   rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,20,20)
-  write(*,*) 'rns_planes_t(np)%bp : ', rns_planes_t(np)%bp
-  write(*,*) 'rns_planes_t(np)%u : ', rns_planes_t(np)%u
 enddo
 
 if(coord == 0) then

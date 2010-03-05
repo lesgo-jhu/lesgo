@@ -347,10 +347,6 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
-if(coord == 0) then
-write(*,*) 'from plane_avg_3D, bound_points : ', bound_points
-endif
-
 !  Attempt for cache friendliness
 bp1 = bound_points(:,1)
 bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
