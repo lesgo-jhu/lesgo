@@ -3,6 +3,7 @@ use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total
 use sim_param, only : w, dudz
+use messages
 implicit none
 save
 private
@@ -103,7 +104,7 @@ subroutine interp_to_uv_grid(var,var_uv,tag)
 use types, only : rprec
 use param,only : nz,ld,jt
 use sim_param, only : w, dudz
-use messages
+
 $if ($MPI)
 use mpi
 use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
@@ -531,13 +532,11 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-      fid=3000*n
-
-      write(fid,*) jt_total*dt_dim, &
-      trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+	call write_real_data_append(point_t%fname(n), (/ jt_total*dt_dim, &
+	  trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n))
-
+      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /), &
+	  4)
 
     $if ($MPI)
     endif
@@ -586,11 +585,7 @@ elseif(itype==2) then
         $else
         write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k)
         $endif
-        !!$if($LVLSET)
-        !!write(7,*) x(i), y(j), zw(k), interp_to_w_grid('u',i,j,k), interp_to_w_grid('v',i,j,k), w(i,j,k), interp_to_w_grid('phi',i,j,k)
-        !!$else
-        !!write(7,*) x(i), y(j), zw(k), interp_to_w_grid('u',i,j,k), interp_to_w_grid('v',i,j,k), w(i,j,k)
-        !!$endif		
+
       enddo
     enddo
   enddo
@@ -698,6 +693,81 @@ else
 endif
 return
 end subroutine inst_write
+
+!*************************************************************
+subroutine write_real_data_append(fname,vars,nvars)
+!*************************************************************
+! 
+!  This subroutine appends the variables given by vars to the
+!  specified file, fname. The number of variables can be arbitrary
+!  but must be specified by nvars. The output will be of the form
+!  
+!  vars(1) vars(2) ... vars(nvars-1) vars(nvars)
+!
+!  The primary purpose of this routine is to write instantaneous data
+!  to a file
+!
+!  Inputs:
+!  fname - file to write to
+!  vars  - vector contaning variables to write
+!  nvars - number of variables contained in vars
+!
+implicit none
+
+character(*), intent(in) :: fname
+real(rprec), intent(in), dimension(:) :: vars
+integer, intent(in) :: nvars
+
+character(64) :: frmt
+logical :: exst
+
+character(*), parameter :: sub_name = mod_name // '.write_real_data_append'
+
+!  Check if file exists
+!inquire ( file=fname, exist=exst)
+!if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='append')
+  
+!  Specify output format; may want to use a global setting
+write (frmt, '("(",i0,"f12.6)")') nvars
+  
+!  Write the data
+write(2,frmt) vars
+
+close(2)
+  
+return
+end subroutine write_real_data_append
+
+!*************************************************************
+subroutine write_tecplot_header_xyline(fname, var_list)
+!*************************************************************
+!  The purpose of this routine is to write Tecplot header information
+!  for xy-line formatted files
+! 
+!  Inputs:
+!  fname    - file name to write to
+!  var_list - string contaning variable names
+!
+
+implicit none
+
+character(*), intent(in) :: fname, var_list
+character(64) :: var_strg
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+  
+var_strg = 'variables = ' // var_list
+write(2,'(1a)') var_strg
+
+close(2)
+
+return
+end subroutine write_tecplot_header_xyline
+
 
 ! !**********************************************************************
 ! subroutine rs_write()
@@ -1402,7 +1472,7 @@ use functions, only : index_start
 implicit none
 
 character(120) :: cx,cy,cz
-character(120) :: fname
+character(120) :: fname, var_list
 integer :: fid, i,j,k
 
 ! ------ These values are not to be changed ------
@@ -1425,7 +1495,7 @@ tsum_t%nend = nsteps
 point_t%calc = .true.
 point_t%nstart = 1
 point_t%nend   = nsteps
-point_t%nskip = 10
+point_t%nskip = 1
 point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
@@ -1585,12 +1655,13 @@ if(point_t%calc) then
       write(cy,'(F9.4)') point_t%xyz(2,i)
       write(cz,'(F9.4)') point_t%xyz(3,i)
 	  
-      write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
-        trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-      fname=trim(adjustl(fname))
       fid=3000*i
-      open(unit = fid,file = fname,status="unknown",position="rewind")
-      write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+      write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+      trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+	  
+	  var_list = '"t (s)", "u", "v", "w"'
+	  call write_tecplot_header_xyline(point_t%fname(i),var_list)
+	  
     endif
   $else
     point_t%coord(i) = 0
@@ -1605,12 +1676,13 @@ if(point_t%calc) then
     write(cx,'(F9.4)') point_t%xyz(1,i)
     write(cy,'(F9.4)') point_t%xyz(2,i)
     write(cz,'(F9.4)') point_t%xyz(3,i)
-    write (fname,*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+	
+	fid=3000*i
+    write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
       trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-    fname=trim(adjustl(fname))
-    fid=3000*i
-    open(unit = fid,file = fname,status="unknown",position="rewind")
-    write(fid,*) 'variables= "t (s)", "u", "v", "w"'
+	var_list = '"t (s)", "u", "v", "w"'
+	call write_tecplot_header_xyline(point_t%fname(i),var_list)
+	
   $endif
   
   enddo
