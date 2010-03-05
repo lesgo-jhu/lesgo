@@ -58,7 +58,7 @@ do ntr = 1,ntree
   
   call initialize(ntr) 
   
-  $if ($RNS)
+  $if ($RNS_LS)
    if(mpirank == 0) call rns_planes(ntr)
   $endif
    
@@ -346,10 +346,11 @@ real(rprec), parameter :: alpha=1._rprec
 character (64) :: fname, temp
 
 integer :: ng,ntc
-integer :: ntrunk_cluster
+integer :: ntrunk_cluster, indx, nplanes
 
 real(rprec) :: h,w,xmin,xmax,ymin,ymax,zmin,zmax
 real(rprec), dimension(3) :: corigin
+real(rprec), dimension(9) :: bp
 
 !  Open file which to write rns plane data
 write (fname,*) 'cylinder_skew_rns_planes_ls.out'
@@ -369,6 +370,18 @@ fname = trim (fname) // temp
 open (unit = 3, file = fname, status='unknown',form='unformatted', &
       action='write',position='rewind')
 
+nplanes = 0
+do ng=1,ngen
+  ntrunk_cluster=ntrunk**(ng-1)
+  do ntc=1,ntrunk_cluster
+    nplanes = nplanes + 1
+  enddo
+enddo
+
+!write(3,'(1i)') nplanes
+write(3) nplanes
+
+indx = 0
 do ng=1,ngen
   !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
   h = clen(ng)*cos(skew_angle) ! height
@@ -376,7 +389,9 @@ do ng=1,ngen
 
   ntrunk_cluster=ntrunk**(ng-1)
 
+
   do ntc=1,ntrunk_cluster
+    indx = indx + 1
     if(ng == 1) then
       corigin = origin(:,ntr) !  Use tree origin
     else 
@@ -390,11 +405,15 @@ do ng=1,ngen
     zmax = corigin(3) + h
 
     write(2,'(2i6,6f12.6)') ng, ntc, xmin, xmax, ymin, ymax, zmin, zmax
-    write(3) ng, ntc, xmin, ymin, zmin, xmin, ymin, zmax, xmin, ymax, zmax
+
+    bp = (/ xmin, ymin, zmin, xmin, ymin, zmax, xmin, ymax, zmax /)
+    !write(3,'(1i,9f12.6)') indx, bp
+	write(3) indx, bp
 
   enddo
 enddo
 close(2)
+close(3)
 
 return
 end subroutine rns_planes

@@ -9,11 +9,13 @@ public
 
 type rns
   integer :: ntrees, nplanes
+  logical :: plane_u_calc
 end type rns
 
 type rns_planes
-  integer :: pindex
-  real(rprec) :: bpoints(3,3)
+  integer :: indx
+  real(rprec) :: bp(3,3)
+  real(rprec) :: u, v, w
 end type rns_planes
 
 type(rns) :: rns_t

@@ -372,6 +372,11 @@ subroutine output_loop(jt)
 use param, only : dx, dy, dz
 use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t
 use sim_param, only : u, v, w
+
+$if ($RNS_LS)
+use rns_base_ls
+use rns_ls, only : rns_u_write_ls
+$endif
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
 !!$     RHSx,RHSy,RHSz,theta, txx, txy, txz, tyy, tyz, tzz
@@ -404,6 +409,7 @@ if(tsum_t%calc) then
 !  Compute running summations
     call tsum_compute ()
   endif 
+  
 endif
 
 !  Determine if instantaneous point velocities are to be recorded
@@ -468,7 +474,14 @@ if(zplane_t%calc) then
     endif
     call inst_write(4)
   endif
-endif 
+endif
+
+$if ($RNS_LS)
+!  Determine if instantaneous plane velocities are to be recorded
+if(rns_t%plane_u_calc) then
+  call rns_u_write_ls()
+endif
+$endif
 
 !if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
 
@@ -677,6 +690,7 @@ elseif(itype==4) then
     $endif
 
   enddo  
+
 
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'

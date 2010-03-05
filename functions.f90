@@ -347,6 +347,10 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
+if(coord == 0) then
+write(*,*) 'from plane_avg_3D, bound_points : ', bound_points
+endif
+
 !  Attempt for cache friendliness
 bp1 = bound_points(:,1)
 bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
@@ -377,8 +381,8 @@ eta_vec = eta_vec / vec_mag
 !  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
 !endif
 
-!  Check if plane is associated with processor
-if(z(nz) <= zmax .or. z(1) >= zmin) then
+!!  Check if plane is associated with processor
+!if(z(nz) <= zmax .or. z(1) >= zmin) then
 
 !  Compute cell centers
   do j=1,neta
@@ -422,7 +426,16 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
   
 !  if(iavg_recieve) CALL MPI_Recv(plane_avg_3D, 1, MPI_RPREC, down, 3, MPI_COMM_WORLD, status, ierr)
 !  if(iavg_send) CALL MPI_Send(plane_avg_3D, 1, MPI_RPREC, up, 3, MPI_COMM_WORLD, ierr)
+
+!  Perform averaging; all procs have this info
+ call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+ call mpi_allreduce(nsum, nsum_global, 1, MPI_INT, MPI_SUM, comm, ierr)
+
+  !  Average over all procs; assuming distribution is even
+  plane_avg_3D = var_sum_global / nsum_global
   
+  !write(*,*) 'nsum_global : ', nsum_global
+  !write(*,*) 'var_sum_global : ', var_sum_global
   
  $else
   
@@ -430,19 +443,11 @@ if(z(nz) <= zmax .or. z(1) >= zmin) then
   
  $endif
    
-else
-  write(*,*) 'need to put message here'  
-endif
+!else
+!  write(*,*) 'need to put message here'
+!  stop
+!endif
 
-!  Still need to send and recieve summation info
-$if ($MPI)
-!  Perform averaging; all procs have this info
- call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
- call mpi_allreduce(nsum, nsum_global, 1, MPI_INT, MPI_SUM, comm, ierr)
-
-  !  Average over all procs; assuming distribution is even
-  plane_avg_3D = var_sum_global / nsum_global
-$endif
 
 return
 
