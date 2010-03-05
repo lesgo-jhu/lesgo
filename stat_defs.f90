@@ -53,7 +53,5 @@ type(point), target 	:: point_t
 type(domain)        		:: domain_t
 type(plane)         		:: yplane_t, zplane_t
 
-type(tstats) 	    		:: zplane_avg_t
-
 end module stat_defs
 
