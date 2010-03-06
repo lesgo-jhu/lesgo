@@ -22,7 +22,8 @@ use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_ve
   $endif
   
   $if ($RNS_LS)
-  use rns_ls, only : rns_init_ls
+  use rns_ls
+  use rns_base_ls
   $endif
   
 $endif
@@ -600,6 +601,14 @@ do jt=1,nsteps
 
 !  Check if master switch for outputing data is turned on           
   if(output) call output_loop (jt)
+  
+  $if ($RNS_LS)
+!  Determine if instantaneous plane velocities are to be recorded
+  if(rns_t%plane_u_calc) then
+  call rns_u_write_ls()
+  
+endif
+$endif
 
   if (write_inflow_file) call inflow_write () !--for creating inflow_BC file
 
