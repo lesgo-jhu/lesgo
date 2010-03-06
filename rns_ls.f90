@@ -41,7 +41,8 @@ rns_t % plane_u_calc = .true.
 
 do nt=1, rns_t % ntrees
   
-  fname=fbase//'.t'
+  fname=fbase
+  call strcat(fname,'.t')
   call strcat(fname,nt)
   
   !open (unit = 2,file = fname, status='old',form='formatted', &
@@ -88,7 +89,8 @@ call interp_to_uv_grid(w, w_uv, w_uv_tag)
 
 do np = 1, rns_t%nplanes
   
-  fname = fbase//'.p'
+  fname = fbase
+  call strcat(fname,'.p')
   call strcat(fname,np)
   
   rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,20,20)
