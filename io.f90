@@ -4,6 +4,7 @@ use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total
 use sim_param, only : w, dudz
 use messages
+use strmod
 implicit none
 save
 private
@@ -374,10 +375,6 @@ use param, only : dx, dy, dz
 use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t
 use sim_param, only : u, v, w
 
-$if ($RNS_LS)
-use rns_base_ls
-use rns_ls, only : rns_u_write_ls
-$endif
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
 !!$     RHSx,RHSy,RHSz,theta, txx, txy, txz, tyy, tyz, tzz
@@ -476,13 +473,6 @@ if(zplane_t%calc) then
     call inst_write(4)
   endif
 endif
-
-$if ($RNS_LS)
-!  Determine if instantaneous plane velocities are to be recorded
-if(rns_t%plane_u_calc) then
-  call rns_u_write_ls()
-endif
-$endif
 
 !if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
 
@@ -610,7 +600,7 @@ elseif(itype==3) then
     write(cl,'(F9.4)') yplane_t%loc(j)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/uvw.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.out'
+    write(fname,*) 'output/uvw.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -660,7 +650,7 @@ elseif(itype==4) then
     write(cl,'(F9.4)') zplane_t%loc(k)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/uvw.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.out'
+    write(fname,*) 'output/uvw.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
 !     $if ($MPI)
@@ -1621,7 +1611,7 @@ use grid_defs
 use functions, only : index_start
 implicit none
 
-character(120) :: cx,cy,cz
+!character(120) :: cx,cy,cz
 character(120) :: fname, var_list
 integer :: fid, i,j,k
 
@@ -1801,14 +1791,24 @@ if(point_t%calc) then
 	  point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
 	  point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
 
-      write(cx,'(F9.4)') point_t%xyz(1,i)
-      write(cy,'(F9.4)') point_t%xyz(2,i)
-      write(cz,'(F9.4)') point_t%xyz(3,i)
 	  
       fid=3000*i
-      write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
-      trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	  
+	  !  Can't concatenate an empty string
+    point_t%fname(i)=''
+	call strcat(point_t%fname(i),'output/uvw_inst-')
+	call strcat(point_t%fname(i), point_t%xyz(1,i))
+	call strcat(point_t%fname(i),'-')
+	call strcat(point_t%fname(i),point_t%xyz(2,i))
+	call strcat(point_t%fname(i),'-')
+	call strcat(point_t%fname(i),point_t%xyz(3,i))
+	call strcat(point_t%fname(i),'.dat')
+	
+	  
+	  !call strcat(point_t%fname(i),point_t%xyz(1,i))
+      !write (point_t%fname(i),*) ,trim(adjustl(cx)),'-',  &
+      !trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+	   
 	  var_list = '"t (s)", "u", "v", "w"'
 	  call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
 	  
@@ -1823,13 +1823,22 @@ if(point_t%calc) then
 	point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
 	point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
 
-    write(cx,'(F9.4)') point_t%xyz(1,i)
-    write(cy,'(F9.4)') point_t%xyz(2,i)
-    write(cz,'(F9.4)') point_t%xyz(3,i)
+    !write(cx,'(F9.4)') point_t%xyz(1,i)
+    !write(cy,'(F9.4)') point_t%xyz(2,i)
+    !write(cz,'(F9.4)') point_t%xyz(3,i)
 	
 	fid=3000*i
-    write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
-      trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
+	
+	call strcat(point_t%fname(i),'output/uvw_inst-')
+	call strcat(point_t%fname(i), point_t%xyz(1,i))
+	call strcat(point_t%fname(i),'-')
+	call strcat(point_t%fname(i),point_t%xyz(2,i))
+	call strcat(point_t%fname(i),'-')
+	call strcat(point_t%fname(i),point_t%xyz(3,i))
+	call strcat(point_t%fname(i),'.dat')
+	
+    !write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
+    !  trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	var_list = '"t (s)", "u", "v", "w"'
 	call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
 	
@@ -2046,16 +2055,16 @@ end subroutine rs_compute
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine strcat(str1, str2)
-implicit none
+!subroutine strcat(str1, str2)
+!implicit none
 
-character(*), intent(INOUT) :: str1
-character(*), intent(IN) :: str2
+!character(*), intent(INOUT) :: str1
+!character(*), intent(IN) :: str2
 
-str1 = trim(adjustl(str1)) // str2
+!str1 = trim(adjustl(str1)) // str2
 
-return
-end subroutine strcat
+!return
+!end subroutine strcat
 
 
 end module io
