@@ -523,11 +523,11 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-	call write_real_data_append(point_t%fname(n), (/ jt_total*dt_dim, &
-	  trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
+    call write_real_data_append(point_t%fname(n), (/ jt_total*dt_dim, &
+      trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /), &
-	  4)
+      4)
 
     $if ($MPI)
     endif

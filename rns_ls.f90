@@ -41,8 +41,7 @@ rns_t % plane_u_calc = .true.
 
 do nt=1, rns_t % ntrees
   
-  fname=fbase
-  call strcat(fname,'.t')
+  fname=fbase//'.t'
   call strcat(fname,nt)
   
   !open (unit = 2,file = fname, status='old',form='formatted', &
@@ -56,7 +55,7 @@ do nt=1, rns_t % ntrees
   if(.not. allocated(rns_planes_t)) allocate(rns_planes_t(rns_t % nplanes))
 
   do np=1,rns_t % nplanes
-	read(2) rns_planes_t(np)%indx, rns_planes_t(np)%bp
+    read(2) rns_planes_t(np)%indx, rns_planes_t(np)%bp
   enddo
 
   close(2)
@@ -89,8 +88,7 @@ call interp_to_uv_grid(w, w_uv, w_uv_tag)
 
 do np = 1, rns_t%nplanes
   
-  fname = fbase
-  call strcat(fname,'.p')
+  fname = fbase//'.p'
   call strcat(fname,np)
   
   rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,20,20)
