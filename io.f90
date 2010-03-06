@@ -618,7 +618,7 @@ elseif(itype==3) then
     !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
-	  nvars, coord, 2, (/ Nx, 1, Nz/), jt_total*dt_dim)
+	  6, coord, 2, (/ Nx, 1, Nz/), jt_total*dt_dim)
 	  
 	open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')
@@ -670,7 +670,7 @@ elseif(itype==4) then
     !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
-	  nvars, coord, 2, (/ Nx, Ny, 1/), jt_total*dt_dim)
+	  6, coord, 2, (/ Nx, Ny, 1/), jt_total*dt_dim)
 	  
     open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')	  
@@ -754,8 +754,7 @@ return
 end subroutine write_real_data_append
 
 !*************************************************************
-subroutine write_tecplot_header_xyline(fname, write_pos, var_list, &
-  nvars, data_type)
+subroutine write_tecplot_header_xyline(fname, write_pos, var_list)
 !*************************************************************
 !  The purpose of this routine is to write Tecplot header information
 !  for xy-line formatted files
@@ -764,14 +763,11 @@ subroutine write_tecplot_header_xyline(fname, write_pos, var_list, &
 !  fname (char)     - file name to write to
 !  write_pos (char) - position in file to write data: append or rewind
 !  var_list	(char)  - string containing variable names: Ex. "x", "u"
-!  nvars (int)      - number of variables
-!  date_type (int) 	- specify Tecplot data type (precision): 1 - single, 2 - double
 !
 
 implicit none
 
 character(*), intent(in) :: fname, write_pos, var_list
-integer, intent(in) :: nvars, data_type
 character(120) :: tec_dt_str
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
@@ -786,14 +782,10 @@ select case(write_pos)
     call error(sub_name, 'Incorrect write position : ' // write_pos)
 end select	
 
-!  Create Tecplot DT string
-call tecplot_data_type_str(data_type, nvars, tec_dt_str)
-
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position=write_pos)
 
 write(2,'(1a)') 'variables = ' // var_list
-write(2,'(1a)') tec_dt_str
 
 close(2)
 
@@ -1815,7 +1807,7 @@ if(point_t%calc) then
       !trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	   
 	  var_list = '"t (s)", "u", "v", "w"'
-	  call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
+	  call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list)
 	  
     endif
   $else
@@ -1845,7 +1837,7 @@ if(point_t%calc) then
     !write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
     !  trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	var_list = '"t (s)", "u", "v", "w"'
-	call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
+	call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list)
 	
   $endif
   

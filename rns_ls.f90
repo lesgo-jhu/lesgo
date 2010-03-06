@@ -101,7 +101,7 @@ do np = 1, rns_t%nplanes
   
     inquire (file=fname, exist=exst)
 	if(.not. exst) call write_tecplot_header_xyline(fname, 'rewind', &
-	    '"t (s)", "u", "v", "w"', 3, 2)
+	    '"t (s)", "u", "v", "w"')
     
 	call write_real_data_append(fname, (/ jt_total*dt_dim, &
 	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /), &
