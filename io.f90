@@ -509,8 +509,8 @@ implicit none
 integer, intent(IN) :: itype
 
 character(25) :: cl, ct
-character (64) :: fname, temp
-integer :: n, fid, i, j, k
+character (64) :: fname, temp, var_list
+integer :: n, fid, i, j, k, nvars
 
 real(rprec) :: ui, vi, wi
 
@@ -557,26 +557,36 @@ elseif(itype==2) then
     fname = trim (fname) // temp
   $endif
   
-  open(unit = 7,file = fname, status='unknown',form='formatted', &
-        action='write',position='rewind')
+
 
   $if($LVLSET)
-  write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
+  !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
+  var_list = '"x", "y", "z", "u", "v", "w", "phi"'
+  nvars = 7
   $else
-  write(7,*) 'variables = "x", "y", "z", "u", "v", "w"';
+  !write(7,*) 'variables = "x", "y", "z", "u", "v", "w"';
+  var_list = '"x", "y", "z", "u", "v", "w"'
+  nvars = 6
   $endif
-
-  write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', Nz
-
-  $if($LVLSET)
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-  $else
-  write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-  $endif
-
-  write(7,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
   
+  
+  call write_tecplot_header_ND(fname, 'rewind', var_list, nvars, coord, 2, (/ Nx, Ny, Nz/), jt_total*dt_dim)
+  !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
+  
+
+  !write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+  !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', Nz
+
+  !!$if($LVLSET)
+  !!write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  !!$else
+  !!write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+  !!$endif
+
+  !!write(7,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+  open(unit = 7,file = fname, status='old',form='formatted', &
+    action='write',position='append')
+	
   do k=1,nz
     do j=1,ny
       do i=1,nx
@@ -609,13 +619,17 @@ elseif(itype==3) then
       fname = trim (fname) // temp
     $endif
 
-    open (unit = 2,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-    write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+    !open (unit = 2,file = fname, status='unknown',form='formatted', &
+    !  action='write',position='rewind')
+    !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    !  j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
+    !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+	
+    call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
+	  nvars, coord, 2, (/ Nx, 1, Nz/), jt_total*dt_dim)
+	  
     do k=1,nz
       do i=1,nx
 
@@ -655,13 +669,16 @@ elseif(itype==4) then
 !       fname = trim (fname) // temp
 !     $endif
 
-    open (unit = 2,file = fname, status='unknown',form='formatted', &
-      action='write',position='rewind')
-    write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
-    write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-      j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
-    write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-    write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+    !open (unit = 2,file = fname, status='unknown',form='formatted', &
+    !  action='write',position='rewind')
+    !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
+    !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+	
+    call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
+	  nvars, coord, 2, (/ Nx, Ny, 1/), jt_total*dt_dim)
 
     do j=1,Ny
       do i=1,Nx
@@ -742,31 +759,164 @@ return
 end subroutine write_real_data_append
 
 !*************************************************************
-subroutine write_tecplot_header_xyline(fname, var_list)
+subroutine write_tecplot_header_xyline(fname, write_pos, var_list, &
+  nvars, data_type)
 !*************************************************************
 !  The purpose of this routine is to write Tecplot header information
 !  for xy-line formatted files
 ! 
 !  Inputs:
-!  fname    - file name to write to
-!  var_list - string contaning variable names
+!  fname (char)     - file name to write to
+!  write_pos (char) - position in file to write data: append or rewind
+!  var_list	(char)  - string containing variable names: Ex. "x", "u"
+!  nvars (int)      - number of variables
+!  date_type (int) 	- specify Tecplot data type (precision): 1 - single, 2 - double
 !
 
 implicit none
 
-character(*), intent(in) :: fname, var_list
-character(64) :: var_strg
+character(*), intent(in) :: fname, write_pos, var_list
+integer, intent(in) :: nvars, data_type
+character(120) :: tec_dt_str
+
+character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
+
+!  Check if write position has been specified correctly
+select case(write_pos)
+  case('append')
+  !  do nothing
+  case('rewind')
+  !  do nothing
+  case default
+    call error(sub_name, 'Incorrect write position : ' // write_pos)
+end select	
+
+!  Create Tecplot DT string
+call tecplot_data_type_str(data_type, nvars, tec_dt_str)
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='rewind')
-  
-var_strg = 'variables = ' // var_list
-write(2,'(1a)') var_strg
+  action='write',position=write_pos)
+
+write(2,'(1a)') 'variables = ' // var_list
+write(2,'(1a)') tec_dt_str
 
 close(2)
 
 return
 end subroutine write_tecplot_header_xyline
+
+
+!*************************************************************
+subroutine write_tecplot_header_ND(fname, write_pos, var_list, &
+  nvars, zone, data_type, domain_size, soln_time)
+!*************************************************************
+!  The purpose of this routine is to write Tecplot header information
+!  for 1D, 2D, and 3D data files.
+! 
+!  Inputs:
+!  fname (char)     - file name to write to
+!  write_pos (char) - position in file to write data: append or rewind
+!  var_list	(char)  - string containing variable names: Ex. "x", "u"
+!  nvars (int)      - number of variables
+!  zone (int)       - zone number
+!  date_type (int) 	- specify Tecplot data type (precision): 1 - single, 2 - double
+!  domain_size (int,vector) - vector containing the diminsions of the data.
+!  soln_time (real, optional) - time stamp
+!
+
+implicit none
+
+character(*), intent(in) :: fname, write_pos
+character(*), intent(in) :: var_list
+integer, intent(in) :: nvars, zone, data_type
+integer, dimension(:), intent(in) :: domain_size
+real(rprec), optional, intent(in) :: soln_time
+
+character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_ND'
+character(64) :: tec_dt, posn
+character(120) :: tec_dt_str, tec_dat_str
+integer :: ndims, n
+
+!  Check if write position has been specified correctly
+select case(write_pos)
+  case('append')
+  !  do nothing
+  case('rewind')
+  !  do nothing
+  case default
+    call error(sub_name, 'Incorrect write position : ' // write_pos)
+end select	
+
+!  Get number of dimensions for data
+ndims = size(domain_size,1)
+
+if(ndims == 1) then
+  write(tec_dat_str,"(1a,i9,1a,i3,1a,i3)") 'ZONE T="', &
+    zone,'", DATAPACKING=POINT, i=', domain_size(1)
+elseif(ndims == 2) then
+  write(tec_dat_str,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    zone,'", DATAPACKING=POINT, i=', domain_size(1),', j=', domain_size(2)
+elseif(ndims == 3) then
+  write(tec_dat_str,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    zone,'", DATAPACKING=POINT, i=', domain_size(1),', j=', domain_size(2),', k=', domain_size(3)
+else
+  call error(sub_name, 'Incorrect number of dimensions : ', ndims)
+endif
+
+!  Create Tecplot DT string
+call tecplot_data_type_str(data_type, nvars, tec_dt_str)
+
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position=write_pos)
+
+!  Write variable list
+write(2,'(1a)') 'variables = ' // var_list
+!  Write data layout size information
+write(2,'(1a)') tec_dat_str
+!  Write Tecplot data type for each variable
+write(2,'(1a)') tec_dt_str
+
+if (present (soln_time)) then
+write(2,'(1a,f18.6)') 'solutiontime=', soln_time
+endif
+
+close(2)
+
+  
+return
+end subroutine write_tecplot_header_ND
+
+!*************************************************************
+subroutine tecplot_data_type_str(data_type, nvars, tec_dt_str)
+!*************************************************************
+implicit none
+
+integer, intent(in) :: data_type, nvars
+character(120), intent(OUT) :: tec_dt_str
+character(7) :: tec_dt
+
+character(*), parameter :: sub_name = mod_name // '.tecplot_data_type_str'
+
+integer :: n
+
+!  Specify single or double precision
+if(data_type == 1) then
+  tec_dt = ' SINGLE'
+elseif(data_type == 2) then
+  tec_dt = ' DOUBLE'
+else
+  call error(sub_name, 'Incorrect data type : ', data_type)
+endif
+
+!  Create DT string
+tec_dt_str = 'DT=('
+do n=1, nvars
+  call strcat(tec_dt_str,tec_dt)
+enddo
+call strcat(tec_dt_str,')')
+
+return
+end subroutine tecplot_data_type_str
 
 
 ! !**********************************************************************
@@ -1501,7 +1651,7 @@ point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
-domain_t%nstart = 1
+domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
@@ -1660,7 +1810,7 @@ if(point_t%calc) then
       trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	  
 	  var_list = '"t (s)", "u", "v", "w"'
-	  call write_tecplot_header_xyline(point_t%fname(i),var_list)
+	  call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
 	  
     endif
   $else
@@ -1681,7 +1831,7 @@ if(point_t%calc) then
     write (point_t%fname(i),*) 'output/uvw_inst-',trim(adjustl(cx)),'-',  &
       trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
 	var_list = '"t (s)", "u", "v", "w"'
-	call write_tecplot_header_xyline(point_t%fname(i),var_list)
+	call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list, 4, 2)
 	
   $endif
   
@@ -1895,5 +2045,17 @@ end subroutine rs_compute
 ! end subroutine plane_avg_compute
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine strcat(str1, str2)
+implicit none
+
+character(*), intent(INOUT) :: str1
+character(*), intent(IN) :: str2
+
+str1 = trim(adjustl(str1)) // str2
+
+return
+end subroutine strcat
+
 
 end module io
