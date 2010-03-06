@@ -69,10 +69,10 @@ end subroutine rns_init_ls
 subroutine rns_u_write_ls()
 !**********************************************************************
 use sim_param, only : u, v, w
-use functions, only : plane_avg_3D, interp_to_uv_grid
+use functions, only : plane_avg_3D
 use param, only : jt_total, dt_dim
-use sim_param, only : w, dudz, w_uv, w_uv_tag, dudz_uv, dudz_uv_tag
-use io, only : write_tecplot_header_xyline, write_real_data_append
+use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag
+use io, only : write_tecplot_header_xyline, write_real_data_append, interp_to_uv_grid
 implicit none
 
 character(*), parameter :: fbase= path // 'output/uvw_rns_planes.dat'
@@ -101,7 +101,7 @@ do np = 1, rns_t%nplanes
   
     inquire (file=fname, exist=exst)
 	if(.not. exst) call write_tecplot_header_xyline(fname, 'rewind', &
-	    '"u", "v", "w"', 3, 2)
+	    '"t (s)", "u", "v", "w"', 3, 2)
     
 	call write_real_data_append(fname, (/ jt_total*dt_dim, &
 	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /), &

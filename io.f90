@@ -14,6 +14,7 @@ private
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
+public write_tecplot_header_xyline, write_real_data_append
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -609,8 +610,7 @@ elseif(itype==3) then
       fname = trim (fname) // temp
     $endif
 
-    !open (unit = 2,file = fname, status='unknown',form='formatted', &
-    !  action='write',position='rewind')
+
     !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
     !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
     !  j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
@@ -619,6 +619,9 @@ elseif(itype==3) then
 	
     call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
 	  nvars, coord, 2, (/ Nx, 1, Nz/), jt_total*dt_dim)
+	  
+	open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='append')
 	  
     do k=1,nz
       do i=1,nx
@@ -659,8 +662,7 @@ elseif(itype==4) then
 !       fname = trim (fname) // temp
 !     $endif
 
-    !open (unit = 2,file = fname, status='unknown',form='formatted', &
-    !  action='write',position='rewind')
+
     !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
     !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
     !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
@@ -669,6 +671,9 @@ elseif(itype==4) then
 	
     call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
 	  nvars, coord, 2, (/ Nx, Ny, 1/), jt_total*dt_dim)
+	  
+    open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='append')	  
 
     do j=1,Ny
       do i=1,Nx
