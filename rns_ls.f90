@@ -74,16 +74,10 @@ character(*), parameter :: fname= path // 'output/rns_planes_u.out'
 character(64) :: fmt
 
 integer :: np
-
-
-!fmt2 = "'(" // fmt1 // ")'"
-!fmt1 = trim(adjustl(fmt1))
-
-!write(*,*) 'fmt1 ', fmt1
-
-!stop
+logical :: exst
 
 do np = 1, rns_t%nplanes
+  
   rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,20,20)
 enddo
 
