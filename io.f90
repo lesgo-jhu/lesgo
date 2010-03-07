@@ -716,7 +716,7 @@ end subroutine inst_write
 subroutine write_real_data(fname, write_pos, nvars, vars)
 !*************************************************************
 ! 
-!  This subroutine appends the variables given by vars to the
+!  This subroutine writes the variables given by vars to the
 !  specified file, fname. The number of variables can be arbitrary
 !  but must be specified by nvars. The output will be of the form
 !  
