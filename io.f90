@@ -14,8 +14,8 @@ private
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
-public write_tecplot_header_xyline, write_tecplot_header_ND, write_real_data
-public write_real_data_1D, write_real_data_2D, write_real_data_3D
+public write_tecplot_header_xyline, write_tecplot_header_ND
+public write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
 !interface write_real_data_ND
 !  module procedure write_real_data_1D, write_real_data_2D, write_real_data_3D
