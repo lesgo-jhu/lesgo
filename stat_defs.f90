@@ -27,9 +27,9 @@ type point
   logical :: calc=.false.
   logical :: started=.false.
   integer :: nstart, nend, nloc, nskip
-  integer, dimension(10) :: coord, istart, jstart, kstart
+  integer, dimension(10) :: coord=-1, istart=-1, jstart=-1, kstart=-1
   real(rprec), dimension(10) :: xdiff, ydiff, zdiff
-  real(rprec), dimension(3,10) :: xyz
+  real(rprec), dimension(3,10) :: xyz=-1._rprec
   character(64), dimension(10) :: fname
 end type
 
@@ -45,7 +45,7 @@ type plane
   logical :: calc=.false.
   logical :: started=.false.
   integer :: nloc, nstart, nend, nskip
-  integer, dimension(10) :: istart, coord
+  integer, dimension(10) :: istart=-1, coord=-1
 !   real(rprec) :: fa
   real(rprec), dimension (10) :: loc, ldiff
 !   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa

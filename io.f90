@@ -581,23 +581,31 @@ elseif(itype==2) then
   !!$endif
 
   !!write(7,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
-  open(unit = 7,file = fname, status='old',form='formatted', &
-    action='write',position='append')
+  !open(unit = 7,file = fname, status='old',form='formatted', &
+  !  action='write',position='append')
 	
-  do k=1,nz
-    do j=1,ny
-      do i=1,nx
-        $if($LVLSET)
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k), phi(i,j,k)
-        $else
-        write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k)
-        $endif
+  $if($LVLSET)
+  call write_real_data_3D(fname, 'append', 'formatted', 4, nx,ny,nz, &
+    (/ u, v, w_uv, phi /), x, y, z)
+  $else
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+    (/ u, v, w_uv /), x, y, z)
+  $endif
+	
+  !do k=1,nz
+  !  do j=1,ny
+  !    do i=1,nx
+  !      
+  !      write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k), phi(i,j,k)
+  !      $else
+  !      write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k)
+  !      $endif
 
-      enddo
-    enddo
-  enddo
+  !    enddo
+  !  enddo
+  !enddo
   
-  close(7)
+  !close(7)
 !  Write instantaneous y-plane values
 elseif(itype==3) then
 
@@ -628,6 +636,15 @@ elseif(itype==3) then
 	  
 	open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')
+	  
+	!call write_real_data_2D(fname, 'rewind', 'formatted', 3, nx, nz, &
+	!  (/ linear_interp(u(:,yplane_t%istart(j),:), &
+    !      u(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(v(:,yplane_t%istart(j),:), &
+    !      v(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(w_uv(:,yplane_t%istart(j),:), &
+    !      w_uv(:,yplane_t%istart(j)+1,:), dy, &
+    !      yplane_t%ldiff(j)) /), x, z
 	  
     do k=1,nz
       do i=1,nx
@@ -2023,24 +2040,14 @@ implicit none
 character(120) :: fname, var_list
 integer :: fid, i,j,k
 
-! ------ These values are not to be changed ------
-!  Don't change from false
-tsum_t%calc     = .false.
-tsum_t%started  = .false.
-point_t%started = .false.
-domain_t%started = .false.
-!  Initialize with non used integer 
-point_t%xyz=-1.
-! ------ These values are not to be changed ------
-
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .false.
+tsum_t%calc = .true.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .false.
+point_t%calc = .true.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -2048,13 +2055,13 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .false.
+domain_t%calc = .true.
 domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc   = .false.
+yplane_t%calc   = .true.
 yplane_t%nstart = 100
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
@@ -2063,7 +2070,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .false.
+zplane_t%calc   = .true.
 zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
