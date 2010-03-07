@@ -72,7 +72,7 @@ use sim_param, only : u, v, w
 use functions, only : plane_avg_3D
 use param, only : jt_total, dt_dim, Ny, Nz_tot, L_y, L_z, nproc
 use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag
-use io, only : write_tecplot_header_ND, write_real_data_array, interp_to_uv_grid
+use io, only : write_tecplot_header_ND, write_real_data, interp_to_uv_grid
 implicit none
 
 character(*), parameter :: fbase= path // 'output/uvw_rns_planes.dat'
@@ -110,7 +110,7 @@ do np = 1, rns_t%nplanes
 	if (.not. exst) call write_tecplot_header_ND(fname, 'rewind', 4, (/ Nx /), '"t (s)", "u", "v", "w"', &
 		  np, 2)
 
-	call write_real_data_array(fname, 'append', 4, (/ jt_total*dt_dim, &
+	call write_real_data(fname, 'append', 4, (/ jt_total*dt_dim, &
 	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /))
 
   endif

@@ -14,7 +14,7 @@ private
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
-public write_tecplot_header_xyline, write_tecplot_header_ND, write_real_data_array
+public write_tecplot_header_xyline, write_tecplot_header_ND, write_real_data
 public write_real_data_1D, write_real_data_2D, write_real_data_3D
 
 !interface write_real_data_ND
@@ -528,7 +528,7 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-    call write_real_data_array(point_t%fname(n), 'append', 4, (/ jt_total*dt_dim, &
+    call write_real_data(point_t%fname(n), 'append', 4, (/ jt_total*dt_dim, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))
@@ -713,7 +713,7 @@ return
 end subroutine inst_write
 
 !*************************************************************
-subroutine write_real_data_array(fname, write_pos, nvars, vars)
+subroutine write_real_data(fname, write_pos, nvars, vars)
 !*************************************************************
 ! 
 !  This subroutine appends the variables given by vars to the
@@ -741,7 +741,7 @@ real(rprec), intent(in), dimension(:) :: vars
 character(64) :: frmt
 logical :: exst
 
-character(*), parameter :: sub_name = mod_name // '.write_real_data_array'
+character(*), parameter :: sub_name = mod_name // '.write_real_data'
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -761,7 +761,7 @@ write(2,frmt) vars
 close(2)
   
 return
-end subroutine write_real_data_array
+end subroutine write_real_data
 
 !*************************************************************
 subroutine write_real_data_3D(fname, write_pos, write_fmt, nvars, &
