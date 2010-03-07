@@ -14,7 +14,12 @@ private
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
-public write_tecplot_header_xyline, write_real_data_append
+public write_tecplot_header_xyline, write_tecplot_header_ND, write_real_data_array
+public write_real_data_1D, write_real_data_2D, write_real_data_3D
+
+!interface write_real_data_ND
+!  module procedure write_real_data_1D, write_real_data_2D, write_real_data_3D
+!end interface
 
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
@@ -523,11 +528,12 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-    call write_real_data_append(point_t%fname(n), (/ jt_total*dt_dim, &
+    call write_real_data_array(point_t%fname(n), 'append', 4, (/ jt_total*dt_dim, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /), &
-      4)
+      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))
+	  
+
 
     $if ($MPI)
     endif
@@ -561,7 +567,7 @@ elseif(itype==2) then
   $endif
   
   
-  call write_tecplot_header_ND(fname, 'rewind', var_list, nvars, coord, 2, (/ Nx, Ny, Nz/), jt_total*dt_dim)
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, jt_total*dt_dim)
   !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
   
 
@@ -617,8 +623,8 @@ elseif(itype==3) then
     !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
     !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
 	
-    call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
-	  6, coord, 2, (/ Nx, 1, Nz/), jt_total*dt_dim)
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
+	  '"x", "y", "z", "u", "v", "w"', coord, 2, jt_total*dt_dim)  
 	  
 	open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')
@@ -669,9 +675,9 @@ elseif(itype==4) then
     !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
     !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
 	
-    call write_tecplot_header_ND(fname, 'rewind', '"x", "y", "z", "u", "v", "w"', &
-	  6, coord, 2, (/ Nx, Ny, 1/), jt_total*dt_dim)
-	  
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
+	 '"x", "y", "z", "u", "v", "w"', coord, 2, jt_total*dt_dim)
+	  	  
     open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')	  
 
@@ -707,7 +713,7 @@ return
 end subroutine inst_write
 
 !*************************************************************
-subroutine write_real_data_append(fname,vars,nvars)
+subroutine write_real_data_array(fname, write_pos, nvars, vars)
 !*************************************************************
 ! 
 !  This subroutine appends the variables given by vars to the
@@ -717,27 +723,31 @@ subroutine write_real_data_append(fname,vars,nvars)
 !  vars(1) vars(2) ... vars(nvars-1) vars(nvars)
 !
 !  The primary purpose of this routine is to write instantaneous data
-!  to a file
+!  or something similar to file
 !
 !  Inputs:
-!  fname - file to write to
-!  vars  - vector contaning variables to write
-!  nvars - number of variables contained in vars
+!  fname (char) - file to write to
+!  write_pos (char) - position to write in file : 'append' or 'rewind'
+!  nvars (int) - number of variables contained in vars
+!  vars (real,vector) - vector contaning variables to write
 !
 implicit none
 
-character(*), intent(in) :: fname
-real(rprec), intent(in), dimension(:) :: vars
+character(*), intent(in) :: fname, write_pos
 integer, intent(in) :: nvars
+real(rprec), intent(in), dimension(:) :: vars
+
 
 character(64) :: frmt
 logical :: exst
 
-character(*), parameter :: sub_name = mod_name // '.write_real_data_append'
+character(*), parameter :: sub_name = mod_name // '.write_real_data_array'
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
 !if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
+
+call check_write_pos(write_pos, sub_name)
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='append')
@@ -751,7 +761,366 @@ write(2,frmt) vars
 close(2)
   
 return
-end subroutine write_real_data_append
+end subroutine write_real_data_array
+
+!*************************************************************
+subroutine write_real_data_3D(fname, write_pos, write_fmt, nvars, &
+  imax, jmax, kmax, vars, x,y,z)
+!*************************************************************
+! 
+!  This subroutine variables the variables given by vars to the
+!  specified file, fname. The number of variables can be arbitrary
+!  but must be specified by nvars. An example in which vars 
+!  is to be specified as:
+!    (/ u, v, w /)
+!  
+!  Inputs:
+!  fname (char) - file to write to
+!  write_pos (char) - postition to write in file : 'append' or 'rewind'
+!  write_fmt (char) - Fotran format flag : 'formatted' or 'unformatted'
+!  nvars (int) - number of variables contained in vars
+!  imax (int) - size of 1st dimension of variables in vars
+!  jmax (int) - size of 2nd dimension of variables in vars  
+!  kmax (int)- size of 3rd dimension of variables in vars
+!  vars (real, vector) - vector contaning variables to write
+!  x,y,z (real, vector, optional) - vectors containing x,y,z coordinates 
+!
+implicit none
+
+character(*), intent(in) :: fname, write_pos, write_fmt
+integer, intent(in) :: nvars, imax, jmax, kmax
+real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(:), optional :: x,y,z
+
+character(64) :: frmt
+logical :: exst, xpres
+
+character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
+
+integer :: i,j,k,n
+real(rprec), allocatable, dimension(:,:,:,:) :: vars_dim
+
+!  Check if file exists
+!inquire ( file=fname, exist=exst)
+!if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
+call check_write_pos(write_pos, sub_name)
+call check_write_fmt(write_fmt, sub_name)
+
+!  Check if spatial coordinates specified
+xpres=.false.
+if(present(x) .and. present(y) .and. present(z)) xpres = .true.
+
+!  Put data in correct shape for sequential reads/writes
+allocate(vars_dim(nvars,imax,jmax,kmax)) 
+do n=1,nvars
+  do k=1,kmax
+    do j=1,jmax
+	  do i=1,imax
+	    vars_dim(n,i,j,k) = vars((n-1)*nvars + (k-1)*kmax + (j-1)*jmax + i)
+	  enddo
+	enddo
+  enddo
+enddo
+
+open (unit = 2,file = fname, status='unknown',form=write_fmt, &
+  action='write',position=write_pos)
+  
+!  Write the data
+select case(write_fmt)
+  case('formatted')
+  
+    !  Specify output format; may want to use a global setting
+    	
+    if (xpres) then
+	  
+	  write (frmt, '("(3f12.6,",i0,"f12.6)")') nvars
+	  
+	  do k=1, kmax
+	    do j=1, jmax
+  	      do i=1, imax
+            write(2,frmt) x(i), y(j), z(k), vars_dim(:,i,j,k)
+	      enddo 
+	    enddo
+	  enddo
+	  
+	else
+	  
+	  write (frmt, '("(",i0,"f12.6)")') nvars
+	 
+	  do k=1, kmax
+	    do j=1, jmax
+  	      do i=1, imax
+            write(2,frmt) vars_dim(:,i,j,k)
+	      enddo 
+	    enddo
+	  enddo
+	  
+	endif
+
+  case('unformatted')
+  
+    if (xpres) then
+	  
+	  do k=1, kmax
+	    do j=1, jmax
+  	      do i=1, imax
+            write(2) x(i), y(j), z(k), vars_dim(:,i,j,k)
+	      enddo 
+	    enddo
+	  enddo
+	  
+	else
+	
+	  do k=1, kmax
+	    do j=1, jmax
+  	      do i=1, imax
+            write(2) vars_dim(:,i,j,k)
+	      enddo 
+	    enddo
+	  enddo
+	  
+	endif
+	
+  !case default
+  
+  !  call error(sub_name, 'Incorrect write format : ' // write_pos)
+	
+end select
+
+
+
+close(2)
+  
+deallocate(vars_dim)
+
+return
+end subroutine write_real_data_3D
+
+!*************************************************************
+subroutine write_real_data_2D(fname, write_pos, write_fmt, nvars, &
+  imax, jmax, vars, x, y)
+!*************************************************************
+! 
+!  This subroutine variables the variables given by vars to the
+!  specified file, fname. The number of variables can be arbitrary
+!  but must be specified by nvars. An example in which vars 
+!  is to be specified as:
+!    (/ u, v, w /)
+!  
+!  Inputs:
+!  fname (char) - file to write to
+!  write_pos (char) - postition to write in file : 'append' or 'rewind'
+!  write_fmt (char) - Fotran format flag : 'formatted' or 'unformatted'
+!  nvars (int) - number of variables contained in vars
+!  imax (int) - size of 1st dimension of variables in vars
+!  jmax (int) - size of 2nd dimension of variables in vars 
+!  vars (real, vector) - vector contaning variables to write
+!  x,y (real, vector, optional) - vectors containing x,y coordinates 
+!
+
+implicit none
+
+character(*), intent(in) :: fname, write_pos, write_fmt
+integer, intent(in) :: nvars, imax, jmax
+real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(:), optional :: x, y
+
+character(64) :: frmt
+logical :: exst, xpres
+
+character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
+
+integer :: i,j,n
+  
+real(rprec), allocatable, dimension(:,:,:) :: vars_dim
+
+!  Check if file exists
+!inquire ( file=fname, exist=exst)
+!if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
+call check_write_pos(write_pos, sub_name)
+call check_write_fmt(write_fmt, sub_name)
+
+!  Check if spatial coordinates specified
+xpres=.false.
+if(present(x) .and. present(y)) xpres = .true.
+
+open (unit = 2,file = fname, status='unknown',form=write_fmt, &
+  action='write',position=write_pos)
+
+!  Put data in correct shape for sequential reads/writes
+allocate(vars_dim(nvars,imax,jmax)) 
+do n=1,nvars
+  do j=1,jmax
+    do i=1,imax
+	  vars_dim(n,i,j) = vars((n-1)*nvars + (j-1)*jmax + i)
+	enddo
+  enddo
+enddo
+  
+  
+!  Write the data
+select case(write_fmt)
+  case('formatted')
+  
+    !  Specify output format; may want to use a global setting
+    	
+    if (xpres) then
+	  
+	  write (frmt, '("(2f12.6,",i0,"f12.6)")') nvars
+	  
+	  do j=1, jmax
+	    do i=1,imax
+          write(2,frmt) x(i), y(j), vars_dim(:,i,j)
+	    enddo 
+	  enddo
+	  
+	else
+	  
+	  write (frmt, '("(",i0,"f12.6)")') nvars
+	 
+	  do j=1, jmax
+	    do i=1,imax
+          write(2,frmt) vars_dim(:,i,j)
+	    enddo 
+	  enddo
+	  
+	endif
+
+  case('unformatted')
+  
+    if (xpres) then
+	  
+	  do j=1, jmax
+	    do i=1,imax
+          write(2) x(i), y(j), vars_dim(:,i,j)
+	    enddo 
+	  enddo
+	  
+	else
+	
+	  do j=1,jmax
+	    do i=1,imax
+          write(2) vars_dim(:,i,j)
+	    enddo 
+      enddo
+	  
+	endif
+	
+  !case default
+  !  call error(sub_name, 'Incorrect write format : ' // write_pos)
+end select
+
+close(2)
+
+deallocate(vars_dim)
+
+return
+end subroutine write_real_data_2D
+
+!*************************************************************
+subroutine write_real_data_1D(fname, write_pos, write_fmt, nvars, &
+  imax, vars, x)
+!*************************************************************
+! 
+!  This subroutine variables the variables given by vars to the
+!  specified file, fname. The number of variables can be arbitrary
+!  but must be specified by nvars. An example in which vars 
+!  is to be specified as:
+!    (/ u, v, w /)
+!  
+!  Inputs:
+!  fname (char) - file to write to
+!  write_pos (char) - postition to write in file : 'append' or 'rewind'
+!  write_fmt (char) - Fotran format flag : 'formatted' or 'unformatted'
+!  nvars (int) - number of variables contained in vars
+!  imax (int) - size of 1st dimension of variables in vars
+!  vars (real, vector) - vector contaning variables to write
+!  x (real,vector,optional) - vectors containing x coordinates 
+!
+implicit none
+
+character(*), intent(in) :: fname, write_pos, write_fmt
+integer, intent(in) :: nvars, imax
+real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(:), optional :: x
+
+character(64) :: frmt
+logical :: exst, xpres
+
+character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
+
+integer :: i,n
+
+real(rprec), allocatable, dimension(:,:) :: vars_dim
+
+!  Check if file exists
+!inquire ( file=fname, exist=exst)
+!if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
+call check_write_pos(write_pos, sub_name)
+call check_write_fmt(write_fmt, sub_name)
+
+!  Check if spatial coordinates specified
+if(present(x)) xpres = .true.
+
+!  Put data in correct shape for sequential reads/writes
+allocate(vars_dim(nvars,imax)) 
+do n=1,nvars
+  do i=1,imax
+     vars_dim(n,i) = vars((n-1)*nvars + i)
+  enddo
+enddo
+
+open (unit = 2,file = fname, status='unknown',form=write_fmt, &
+  action='write',position=write_pos)
+   
+!  Write the data
+select case(write_fmt)
+  case('formatted')
+  
+    if (xpres) then
+	
+      write (frmt, '("(1f12.6,",i0,"f12.6)")') nvars
+	  
+	  do i=1,imax
+        write(2,frmt) x(i), vars_dim(:,i)
+	  enddo 
+	  
+	else
+	
+	  write (frmt, '("(",i0,"f12.6)")') nvars
+	  
+	  do i=1,imax
+        write(2,frmt) vars_dim(:,i)
+	  enddo 
+	  
+	endif
+
+  case('unformatted')
+  
+    if (xpres) then
+	  
+	  do i=1,imax
+        write(2) x(i), vars_dim(:,i)
+	  enddo 
+	  
+	else
+	
+	  do i=1,imax
+        write(2) x(i), vars_dim(:,i)
+	  enddo 
+	  
+	endif
+	
+  !case default
+  !  call error(sub_name, 'Incorrect write format : ' // write_pos)
+end select
+
+close(2)
+
+deallocate(vars_dim)
+
+return
+end subroutine write_real_data_1D
 
 !*************************************************************
 subroutine write_tecplot_header_xyline(fname, write_pos, var_list)
@@ -773,14 +1142,7 @@ character(120) :: tec_dt_str
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
 
 !  Check if write position has been specified correctly
-select case(write_pos)
-  case('append')
-  !  do nothing
-  case('rewind')
-  !  do nothing
-  case default
-    call error(sub_name, 'Incorrect write position : ' // write_pos)
-end select	
+call check_write_pos(write_pos, sub_name)	
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position=write_pos)
@@ -794,29 +1156,35 @@ end subroutine write_tecplot_header_xyline
 
 
 !*************************************************************
-subroutine write_tecplot_header_ND(fname, write_pos, var_list, &
-  nvars, zone, data_type, domain_size, soln_time)
+subroutine write_tecplot_header_ND(fname, write_pos, nvars, &
+  domain_size, var_list, zone, data_type, soln_time)
 !*************************************************************
 !  The purpose of this routine is to write Tecplot header information
 !  for 1D, 2D, and 3D data files.
+!
+!  NOTE: domain_size needs to be specified as a vector even for 1D data.
+!  Ex: 
+!    1D : (/ Nx /)
+!    2D : (/ Nx, Ny /)
+!    3D : (/ Nx, Ny, Nz /)
 ! 
 !  Inputs:
 !  fname (char)     - file name to write to
 !  write_pos (char) - position in file to write data: append or rewind
-!  var_list	(char)  - string containing variable names: Ex. "x", "u"
 !  nvars (int)      - number of variables
+!  domain_size (int, vector) - vector containing the diminsions of the data.
+!  var_list	(char)  - string containing variable names: Ex. '"x", "u"'
 !  zone (int)       - zone number
 !  date_type (int) 	- specify Tecplot data type (precision): 1 - single, 2 - double
-!  domain_size (int,vector) - vector containing the diminsions of the data.
 !  soln_time (real, optional) - time stamp
 !
-
 implicit none
 
 character(*), intent(in) :: fname, write_pos
-character(*), intent(in) :: var_list
-integer, intent(in) :: nvars, zone, data_type
+integer, intent(in) :: nvars
 integer, dimension(:), intent(in) :: domain_size
+character(*), intent(in) :: var_list
+integer, intent(in) :: zone, data_type
 real(rprec), optional, intent(in) :: soln_time
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_ND'
@@ -825,14 +1193,7 @@ character(120) :: tec_dt_str, tec_dat_str
 integer :: ndims, n
 
 !  Check if write position has been specified correctly
-select case(write_pos)
-  case('append')
-  !  do nothing
-  case('rewind')
-  !  do nothing
-  case default
-    call error(sub_name, 'Incorrect write position : ' // write_pos)
-end select	
+call check_write_pos(write_pos, sub_name)
 
 !  Get number of dimensions for data
 ndims = size(domain_size,1)
@@ -851,7 +1212,7 @@ else
 endif
 
 !  Create Tecplot DT string
-call tecplot_data_type_str(data_type, nvars, tec_dt_str)
+call tecplot_data_type_str(nvars, data_type, sub_name, tec_dt_str)
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position=write_pos)
@@ -874,15 +1235,16 @@ return
 end subroutine write_tecplot_header_ND
 
 !*************************************************************
-subroutine tecplot_data_type_str(data_type, nvars, tec_dt_str)
+subroutine tecplot_data_type_str(nvars, data_type, sub_name, tec_dt_str)
 !*************************************************************
 implicit none
 
-integer, intent(in) :: data_type, nvars
+integer, intent(in) ::  nvars, data_type
+character, intent(IN) :: sub_name
 character(120), intent(OUT) :: tec_dt_str
 character(7) :: tec_dt
 
-character(*), parameter :: sub_name = mod_name // '.tecplot_data_type_str'
+!character(*), parameter :: sub_name = mod_name // '.tecplot_data_type_str'
 
 integer :: n
 
@@ -904,6 +1266,52 @@ call strcat(tec_dt_str,')')
 
 return
 end subroutine tecplot_data_type_str
+
+!*************************************************************
+subroutine check_write_pos(write_pos, sub_name)
+!*************************************************************
+!  This subroutine checks whether the write position has been
+!  specified properly
+!
+implicit none
+
+character(*), intent(IN) :: write_pos, sub_name
+
+!  Check if write position has been specified correctly
+select case(write_pos)
+  case('append')
+  !  do nothing
+  case('rewind')
+  !  do nothing
+  case default
+    call error(sub_name, 'Incorrect write position : ' // write_pos)
+end select
+
+return
+end subroutine check_write_pos
+
+!*************************************************************
+subroutine check_write_fmt(write_fmt, sub_name)
+!*************************************************************
+!  This subroutine checks whether the write position has been
+!  specified properly
+!
+implicit none
+
+character(*), intent(IN) :: write_fmt, sub_name
+
+!  Check if write position has been specified correctly
+select case(write_fmt)
+  case('formatted')
+  !  do nothing
+  case('unformatted')
+  !  do nothing
+  case default
+    call error(sub_name, 'Incorrect write position : ' // write_fmt)
+end select
+
+return
+end subroutine check_write_fmt
 
 
 ! !**********************************************************************
@@ -965,25 +1373,28 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-open (unit = 7,file = fname, status='unknown',form='unformatted', &
-  action='write',position='rewind')
-! write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
-! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
-!  write(8,*) 'variables= "z", "<dudz>/u*"'
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-       write(7) x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), &
-         tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), tsum_t%u2(i,j,k), &
-         tsum_t%v2(i,j,k), tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), &
-         tsum_t%vw(i,j,k), tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
-    enddo
-  enddo
-enddo
-close(7)
+!open (unit = 7,file = fname, status='unknown',form='unformatted', &
+!  action='write',position='rewind')
+!! write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+!! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+!!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+!! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+!!  write(8,*) 'variables= "z", "<dudz>/u*"'
+!do k=1,nz
+!  do j=1,ny
+!    do i=1,nx
+!       write(7) x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), &
+!         tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), tsum_t%u2(i,j,k), &
+!         tsum_t%v2(i,j,k), tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), &
+!         tsum_t%vw(i,j,k), tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+!    enddo
+!  enddo
+!enddo
+!close(7)
 !  close(8)
+call write_real_data_3D(fname,'rewind', 'unformatted', 10, nx, ny, nz, (/ tsum_t%u, tsum_t%v, &
+  tsum_t%w, tsum_t%u2, tsum_t%v2, tsum_t%w2, tsum_t%uw, tsum_t%vw, tsum_t%uv, &
+  tsum_t%dudz /), x, y, z)
 
 return
 end subroutine tsum_write
@@ -1624,12 +2035,12 @@ point_t%xyz=-1.
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .true.
+tsum_t%calc = .false.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .true.
+point_t%calc = .false.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -1637,13 +2048,13 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .true.
+domain_t%calc = .false.
 domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc   = .true.
+yplane_t%calc   = .false.
 yplane_t%nstart = 100
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
@@ -1652,7 +2063,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
+zplane_t%calc   = .false.
 zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
@@ -1808,7 +2219,7 @@ if(point_t%calc) then
 	   
 	  var_list = '"t (s)", "u", "v", "w"'
 	  call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list)
-	  
+	    
     endif
   $else
     point_t%coord(i) = 0

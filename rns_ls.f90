@@ -37,7 +37,7 @@ call mesg ( sub_name, 'reading rns_planes' )
 !  Set the number of trees to use
 rns_t % ntrees = 1
 !  Set plane average write
-rns_t % plane_u_calc = .true.
+rns_t % plane_u_calc = .false.
 
 do nt=1, rns_t % ntrees
   
@@ -70,9 +70,9 @@ subroutine rns_u_write_ls()
 !**********************************************************************
 use sim_param, only : u, v, w
 use functions, only : plane_avg_3D
-use param, only : jt_total, dt_dim
+use param, only : jt_total, dt_dim, Ny, Nz_tot, L_y, L_z, nproc
 use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag
-use io, only : write_tecplot_header_xyline, write_real_data_append, interp_to_uv_grid
+use io, only : write_tecplot_header_ND, write_real_data_array, interp_to_uv_grid
 implicit none
 
 character(*), parameter :: fbase= path // 'output/uvw_rns_planes.dat'
@@ -80,7 +80,7 @@ character(*), parameter :: fbase= path // 'output/uvw_rns_planes.dat'
 character(64) :: fmt
 character(120) :: fname
 
-integer :: np
+integer :: np, nzeta, neta
 logical :: exst
 
 fmt=''
@@ -92,20 +92,26 @@ do np = 1, rns_t%nplanes
   fname = fbase
   call strcat(fname,'.p')
   call strcat(fname,np)
-  
-  rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,20,20)
-  rns_planes_t(np)%v = plane_avg_3D(v,rns_planes_t(np)%bp,20,20)
-  rns_planes_t(np)%w = plane_avg_3D(w,rns_planes_t(np)%bp,20,20)
+ 
+!  nzeta = abs(rns_planes_t(np)%bp(1,1)-rns_planes_t(np)%bp(1,2))/L_y*Ny
+!  neta  = abs(rns_planes_t(np)%bp(3,3)-rns_planes_t(np)%bp(3,2))/L_z*nproc*Nz_tot 
+  nzeta=100
+  neta=100
+
+  rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,nzeta,neta)
+  rns_planes_t(np)%v = plane_avg_3D(v,rns_planes_t(np)%bp,nzeta,neta)
+  rns_planes_t(np)%w = plane_avg_3D(w_uv,rns_planes_t(np)%bp,nzeta,neta)
 
   if(coord == 0) then
   
     inquire (file=fname, exist=exst)
-	if(.not. exst) call write_tecplot_header_xyline(fname, 'rewind', &
-	    '"t (s)", "u", "v", "w"')
-    
-	call write_real_data_append(fname, (/ jt_total*dt_dim, &
-	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /), &
-	  4)
+	!if(.not. exst) call write_tecplot_header_xyline(fname, 'rewind', &
+	    !'"t (s)", "u", "v", "w"')
+	if (.not. exst) call write_tecplot_header_ND(fname, 'rewind', 4, (/ Nx /), '"t (s)", "u", "v", "w"', &
+		  np, 2)
+
+	call write_real_data_array(fname, 'append', 4, (/ jt_total*dt_dim, &
+	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /))
 
   endif
   
