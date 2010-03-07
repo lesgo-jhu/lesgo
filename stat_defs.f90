@@ -7,14 +7,15 @@ public
 
 !  Reynolds stresses
 type rs
-  logical :: calc
+  logical :: calc=.false.
   real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
                                                      upwp, vpwp, upvp
 end type rs
 
 !  Sums performed over time
 type tstats
-  logical :: calc, started
+  logical :: calc=.false.
+  logical :: started=.false.
   integer :: nstart, nend, nskip
   real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
@@ -23,7 +24,8 @@ end type tstats
 !  Instantaneous Variables Storage (Parameters for storing velocity 
 !  component values each time step)
 type point
-  logical :: calc,started
+  logical :: calc=.false.
+  logical :: started=.false.
   integer :: nstart, nend, nloc, nskip
   integer, dimension(10) :: coord, istart, jstart, kstart
   real(rprec), dimension(10) :: xdiff, ydiff, zdiff
@@ -33,13 +35,15 @@ end type
 
 !  Instantaneous velocity global declarations
 type domain
-  logical :: calc, started
+  logical :: calc=.false.
+  logical :: started=.false.
   integer :: nstart, nend, nskip
 end type domain  
   
 !  Planar stats/data
 type plane
-  logical :: calc, started
+  logical :: calc=.false.
+  logical :: started=.false.
   integer :: nloc, nstart, nend, nskip
   integer, dimension(10) :: istart, coord
 !   real(rprec) :: fa
