@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 8
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -119,16 +119,14 @@ module param
   integer :: jt_total  !--used for cumulative time (see io module)
 
   ! time advance parameters (AB2)
-  real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1								  
-								  
-								  
+  real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
 !---------------------------------------------------
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
 !---------------------------------------------------  
   !--initu = true to read from a file; false to create with random noise
   logical, parameter :: initu = .true.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.								  
+  logical, parameter :: inilag = .false.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
