@@ -82,25 +82,6 @@ integer :: w_uv_tag, dudz_uv_tag
                    
 !**********************************************************************
 contains
-! interp_to_uv_grid(var,var_uv,tag)
-! **vel_slice ()
-! openfiles()
-! output_loop(jt)
-! inst_write(itype)
-! **rs_write()
-! tsum_write()
-! **tavg_write()
-! checkpoint (lun)
-! output_final(jt, lun_opt)
-! **plane_write()
-! inflow_write ()
-! inflow_read ()
-! len_da_file(fname, lenrec, length)
-! stats_init ()
-! tsum_compute()
-! tavg_compute()
-! rs_compute()
-! **plane_avg_compute(jt)
 !**********************************************************************
 
 !**********************************************************************
@@ -380,8 +361,9 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz
-use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t
+use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t, zplane_avg_t
 use sim_param, only : u, v, w
+use grid_defs, only: z
 
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
@@ -395,7 +377,7 @@ integer,intent(in)::jt
 !real(kind=rprec),dimension(ld,ny,nz)::usp,vsp  !--not used
 real(kind=rprec),dimension(nz)::u_ndim
 
-character (64) :: fname, temp
+character (64) :: fname, temp, fname2, temp2
 
 integer :: i,j,k
 integer::jx,jy,jz
@@ -479,6 +461,41 @@ if(zplane_t%calc) then
       zplane_t%started=.true.
     endif
     call inst_write(4)
+  endif
+endif
+
+!  Determine if time-averaged z-plane data are to be recorded
+if(zplane_avg_t%calc) then
+  if(jt >= zplane_avg_t%nstart .and. jt <= zplane_avg_t%nend) then
+    if(.not. zplane_avg_t%started) then
+      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+        write(*,*) '-------------------------------'
+        write(*,"(1a,i9,1a,i9)") 'Writing time-averaged z-plane data from ', zplane_avg_t%nstart, ' to ', zplane_avg_t%nend
+        write(*,"(1a,i9)") 'Iteration skip:', zplane_avg_t%nskip
+        write(*,*) '-------------------------------'
+      endif
+      zplane_avg_t%started=.true.	  
+    endif
+  !Calculate the averaged data for each time step
+    do k=1,nz-1
+	    !call interp_to_uv_grid(w, w_uv, w_uv_tag)
+	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w_uv(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	enddo
+	
+    if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
+	  !Write the averaged data to file and reset the variables	
+	  fname2 = 'output/avg_uvw.out'
+	    $if ($MPI)
+	      write (temp2, '(".c",i0)') coord
+	      fname2 = trim (fname2) // temp2
+	    $endif	 
+	  call write_real_data_1D(fname2,'append','formatted',3,(nz-1),(/ zplane_avg_t%u_avg,  zplane_avg_t%v_avg,  zplane_avg_t%w_avg /),z(1:nz-1))
+	  zplane_avg_t%u_avg(:) = 0.
+	  zplane_avg_t%v_avg(:) = 0.
+	  zplane_avg_t%w_avg(:) = 0.
+	endif
   endif
 endif
 
@@ -835,7 +852,7 @@ do n=1,nvars
   do k=1,kmax
     do j=1,jmax
 	  do i=1,imax
-	    vars_dim(n,i,j,k) = vars((n-1)*nvars + (k-1)*kmax + (j-1)*jmax + i)
+	    vars_dim(n,i,j,k) = vars((n-1)*nvars + (k-1)*kmax + (j-1)*jmax + i)  !should nvars be imax??
 	  enddo
 	enddo
   enddo
@@ -971,7 +988,7 @@ allocate(vars_dim(nvars,imax,jmax))
 do n=1,nvars
   do j=1,jmax
     do i=1,imax
-	  vars_dim(n,i,j) = vars((n-1)*nvars + (j-1)*jmax + i)
+	  vars_dim(n,i,j) = vars((n-1)*nvars + (j-1)*jmax + i)  !should nvars be imax instead??
 	enddo
   enddo
 enddo
@@ -1085,7 +1102,7 @@ if(present(x)) xpres = .true.
 allocate(vars_dim(nvars,imax)) 
 do n=1,nvars
   do i=1,imax
-     vars_dim(n,i) = vars((n-1)*nvars + i)
+     vars_dim(n,i) = vars((n-1)*imax + i)
   enddo
 enddo
 
@@ -2049,7 +2066,7 @@ tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .true.
+point_t%calc = .false.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -2057,13 +2074,13 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .true.
+domain_t%calc = .false.
 domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc   = .true.
+yplane_t%calc   = .false.
 yplane_t%nstart = 100
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
@@ -2072,7 +2089,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
+zplane_t%calc   = .false.
 zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
@@ -2080,6 +2097,13 @@ zplane_t%nloc   = 3
 zplane_t%loc(1) = 0.5
 zplane_t%loc(2) = 1.5
 zplane_t%loc(3) = L_z*nproc
+
+!  z-plane TIME-AVERAGED stats/data
+zplane_avg_t%calc   = .true.
+zplane_avg_t%nstart = 200
+zplane_avg_t%nend   = nsteps
+zplane_avg_t%nskip  = 100
+
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -2263,6 +2287,18 @@ if(point_t%calc) then
   $endif
   
   enddo
+endif
+
+! Initialize for zplane_avg calculations
+if(zplane_avg_t%calc) then 
+  allocate(zplane_avg_t%u_avg(nz-1))
+  allocate(zplane_avg_t%v_avg(nz-1))
+  allocate(zplane_avg_t%w_avg(nz-1))
+
+  !  Initialize arrays
+  zplane_avg_t%u_avg(:)=0.
+  zplane_avg_t%v_avg(:)=0.
+  zplane_avg_t%w_avg(:)=0.
 endif
 
 return
