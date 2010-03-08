@@ -44,7 +44,9 @@ end module cylinder_skew_param
 !**************************************************************
 program cylinder_skew_pre_ls
 !***************************************************************
+$if ($MPI)
 use mpi_defs, only : mpirank
+$endif
 use cylinder_skew_param, only : DIST_CALC, ntree
 implicit none
 
@@ -76,7 +78,9 @@ end program cylinder_skew_pre_ls
 !**********************************************************************
 subroutine initialize(ntr)
 !**********************************************************************
+$if ($MPI)
 use mpi_defs
+$endif
 use cylinder_skew_param
 
 implicit none
@@ -666,7 +670,9 @@ end subroutine set_sign
 !**********************************************************************
 subroutine finalize()
 !**********************************************************************
+$if ($MPI)
 use mpi_defs
+$endif
 use cylinder_skew_param
 
 implicit none
