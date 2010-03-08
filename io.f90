@@ -185,8 +185,9 @@ enddo; enddo
 tag = jt ! Set identifying tag 
 
 return 
+
 $if($MPI)
-deallocat(buf)
+deallocate(buf)
 $endif
 
 end subroutine interp_to_uv_grid
