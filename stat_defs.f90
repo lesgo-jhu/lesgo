@@ -19,6 +19,7 @@ type tstats
   integer :: nstart, nend, nskip
   real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
+  real(rprec), pointer, dimension(:) :: u_avg, v_avg, w_avg
 end type tstats	
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
@@ -52,8 +53,8 @@ type plane
 end type plane
   
 type(rs)            		:: rs_t
-type(tstats)        		:: tavg_t
-type(tstats)        	 	:: tsum_t
+type(tstats)        		:: tavg_t, tsum_t
+type(tstats)        	 	:: zplane_avg_t
 type(point), target 	:: point_t
 type(domain)        		:: domain_t
 type(plane)         		:: yplane_t, zplane_t
