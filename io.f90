@@ -145,13 +145,13 @@ lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)
 lbz=lbound(var,3); ubz=ubound(var,3)
 
+$if ($MPI)
 mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
 allocate(buf(lbx:ubx,lby:uby))
 
 !if(.not. allocated(var_uv)) allocate(var_uv(lbx:ubx,lby:uby,lbz:ubz))
 
-$if ($MPI)
   !  Need to get all buffer regions
 if(coord > 0) then
   call mpi_send (var(1, 1, 2), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
@@ -185,8 +185,9 @@ enddo; enddo
 tag = jt ! Set identifying tag 
 
 return 
-
-deallocate(buf)
+$if($MPI)
+deallocat(buf)
+$endif
 
 end subroutine interp_to_uv_grid
 
@@ -2179,7 +2180,8 @@ if(zplane_t%calc) then
     endif
     $else
     zplane_t%coord(k) = 0
-    call find_istart(z,nz,zplane_t%loc(k),zplane_t%istart(k), zplane_t%ldiff(k))
+    zplane_t%istart(k) = index_start('k',dz,zplane_t%loc(k))
+    zplane_t%ldiff(k) = z(zplane_t%istart(k)) - zplane_t%loc(k)
     $endif
 
   enddo  
