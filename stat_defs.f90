@@ -9,7 +9,7 @@ public
 type rs
   logical :: calc=.false.
   real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
-                                                     upwp, vpwp, upvp
+                                            upwp, vpwp, upvp
 end type rs
 
 !  Sums performed over time
