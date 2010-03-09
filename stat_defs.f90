@@ -19,7 +19,9 @@ type tstats
   integer :: nstart, nend, nskip
   real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
     u2, v2, w2, uw, vw, uv, dudz
-  real(rprec), pointer, dimension(:) :: u_avg, v_avg, w_avg
+  real(rprec), pointer, dimension(:) :: u_avg, v_avg, w_avg, u2_avg, v2_avg, w2_avg
+  real(rprec), pointer, dimension(:) :: txx_avg, txy_avg, tyy_avg, txz_avg, tyz_avg, tzz_avg
+  real(rprec), pointer, dimension(:) :: dudz_avg, dvdz_avg
 end type tstats	
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
