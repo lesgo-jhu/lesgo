@@ -360,9 +360,9 @@ end subroutine openfiles
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
-use param, only : dx, dy, dz
+use param, only : dx, dy, dz, jt_total, dt_dim
 use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t, zplane_avg_t
-use sim_param, only : u, v, w
+use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
 use grid_defs, only: z
 
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
@@ -377,7 +377,7 @@ integer,intent(in)::jt
 !real(kind=rprec),dimension(ld,ny,nz)::usp,vsp  !--not used
 real(kind=rprec),dimension(nz)::u_ndim
 
-character (64) :: fname, temp, fname2, temp2
+character (64) :: fname, temp
 
 integer :: i,j,k
 integer::jx,jy,jz
@@ -474,27 +474,17 @@ if(zplane_avg_t%calc) then
         write(*,"(1a,i9)") 'Iteration skip:', zplane_avg_t%nskip
         write(*,*) '-------------------------------'
       endif
-      zplane_avg_t%started=.true.	  
-    endif
-  !Calculate the averaged data for each time step
-    do k=1,nz-1
-	    !call interp_to_uv_grid(w, w_uv, w_uv_tag)
-	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w_uv(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	enddo
-	
+      zplane_avg_t%started=.true.	
+	  !Write Tecplot header files
+	  call zplane_avg_compute(1)
+	endif
+
+	!Calculate the averaged data for each time step
+	  call zplane_avg_compute(2)
+
     if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
 	  !Write the averaged data to file and reset the variables	
-	  fname2 = 'output/avg_uvw.out'
-	    $if ($MPI)
-	      write (temp2, '(".c",i0)') coord
-	      fname2 = trim (fname2) // temp2
-	    $endif	 
-	  call write_real_data_1D(fname2,'append','formatted',3,(nz-1),(/ zplane_avg_t%u_avg,  zplane_avg_t%v_avg,  zplane_avg_t%w_avg /),z(1:nz-1))
-	  zplane_avg_t%u_avg(:) = 0.
-	  zplane_avg_t%v_avg(:) = 0.
-	  zplane_avg_t%w_avg(:) = 0.
+	  call zplane_avg_compute(3)	  
 	endif
   endif
 endif
@@ -2294,11 +2284,33 @@ if(zplane_avg_t%calc) then
   allocate(zplane_avg_t%u_avg(nz-1))
   allocate(zplane_avg_t%v_avg(nz-1))
   allocate(zplane_avg_t%w_avg(nz-1))
+  allocate(zplane_avg_t%u2_avg(nz-1))
+  allocate(zplane_avg_t%v2_avg(nz-1))
+  allocate(zplane_avg_t%w2_avg(nz-1))  
+  allocate(zplane_avg_t%txx_avg(nz-1))
+  allocate(zplane_avg_t%txy_avg(nz-1))
+  allocate(zplane_avg_t%tyy_avg(nz-1))
+  allocate(zplane_avg_t%txz_avg(nz-1))
+  allocate(zplane_avg_t%tyz_avg(nz-1))
+  allocate(zplane_avg_t%tzz_avg(nz-1))  
+  allocate(zplane_avg_t%dudz_avg(nz-1))
+  allocate(zplane_avg_t%dvdz_avg(nz-1))
 
   !  Initialize arrays
   zplane_avg_t%u_avg(:)=0.
   zplane_avg_t%v_avg(:)=0.
   zplane_avg_t%w_avg(:)=0.
+  zplane_avg_t%u2_avg(:)=0.
+  zplane_avg_t%v2_avg(:)=0.
+  zplane_avg_t%w2_avg(:)=0.  
+  zplane_avg_t%txx_avg(:)=0.
+  zplane_avg_t%txy_avg(:)=0.
+  zplane_avg_t%tyy_avg(:)=0.
+  zplane_avg_t%txz_avg(:)=0.
+  zplane_avg_t%tyz_avg(:)=0.
+  zplane_avg_t%tzz_avg(:)=0.  
+  zplane_avg_t%dudz_avg(:)=0.
+  zplane_avg_t%dvdz_avg(:)=0.  
 endif
 
 return
@@ -2519,6 +2531,117 @@ end subroutine rs_compute
 
 !return
 !end subroutine strcat
+
+
+!***************************************************************
+subroutine zplane_avg_compute(ipart)
+!***************************************************************
+!  This subroutine averages the following parameters over z-planes:
+!  u, v, w, u^2, v^2, w^2, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+!  and writes them to files avg_*.dat
+
+! ipart=1 to create files and write Tecplot headers
+! ipart=2 to compute averages
+! ipart=3 to write averages and reset
+
+
+use param, only : dx, dy, dz, jt_total, dt_dim
+use stat_defs, only: zplane_avg_t
+use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+use grid_defs, only: z
+
+implicit none
+
+integer :: k, ipart
+
+character (64) :: fname, temp, fname2, temp2, fname3, temp3, fname4, temp4, fname5, temp5
+
+if (ipart==1) then
+!Create files and write Tecplot headers
+		!u-v-w file  
+		  fname2 = 'output/avg_uvw.dat'
+			$if ($MPI)
+			  write (temp2, '(".c",i0)') coord
+			  fname2 = trim (fname2) // temp2
+			$endif	 	  
+		  call write_tecplot_header_ND(fname2, 'rewind', 4, (/ Nz/),'"z", "u_avg", "v_avg", "w_avg"', coord, 2, jt_total*dt_dim)  
+		!txx-txy,etc file
+		  fname3 = 'output/avg_tau.dat'
+			$if ($MPI)
+			  write (temp3, '(".c",i0)') coord
+			  fname3 = trim (fname3) // temp3
+			$endif	 	  
+		  call write_tecplot_header_ND(fname3, 'rewind', 7, (/ Nz/), &
+		  '"z", "txx_avg", "txy_avg", "tyy_avg", "txz_avg", "tyz_avg", "tzz_avg"', coord, 2, jt_total*dt_dim)  
+		 !ddz file  
+		  fname4 = 'output/avg_ddz.dat'
+			$if ($MPI)
+			  write (temp4, '(".c",i0)') coord
+			  fname4 = trim (fname4) // temp4
+			$endif	 	  
+		  call write_tecplot_header_ND(fname4, 'rewind', 3, (/ Nz/),'"z", "dudz_avg", "dvdz_avg"', coord, 2, jt_total*dt_dim) 
+		!u2-v2-w2 file  
+		  fname5 = 'output/avg_uvw2.dat'
+			$if ($MPI)
+			  write (temp5, '(".c",i0)') coord
+			  fname5 = trim (fname5) // temp5
+			$endif	 	  
+		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, jt_total*dt_dim) 		  
+
+elseif (ipart==2) then
+!Compute averages
+    do k=1,nz-1
+	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		
+		zplane_avg_t%txx_avg(k) = zplane_avg_t%txx_avg(k) + sum(txx(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%txy_avg(k) = zplane_avg_t%txy_avg(k) + sum(txy(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%tyy_avg(k) = zplane_avg_t%tyy_avg(k) + sum(tyy(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%txz_avg(k) = zplane_avg_t%txz_avg(k) + sum(txz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%tyz_avg(k) = zplane_avg_t%tyz_avg(k) + sum(tyz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%tzz_avg(k) = zplane_avg_t%tzz_avg(k) + sum(tzz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		
+		zplane_avg_t%dudz_avg(k) = zplane_avg_t%dudz_avg(k) + sum(dudz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%dvdz_avg(k) = zplane_avg_t%dvdz_avg(k) + sum(dvdz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		
+		zplane_avg_t%u2_avg(k) = zplane_avg_t%u2_avg(k) + sum(u(:,:,k)*u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%v2_avg(k) = zplane_avg_t%v2_avg(k) + sum(v(:,:,k)*v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%w2_avg(k) = zplane_avg_t%w2_avg(k) + sum(w(:,:,k)*w(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	enddo
+elseif (ipart==3) then
+!Write averages and reset
+	  !u-v-w file
+		  call write_real_data_1D(fname2,'append','formatted',3,(nz-1),(/ zplane_avg_t%u_avg,  zplane_avg_t%v_avg,  zplane_avg_t%w_avg /),z(1:nz-1))
+		  zplane_avg_t%u_avg(:) = 0.
+		  zplane_avg_t%v_avg(:) = 0.
+		  zplane_avg_t%w_avg(:) = 0.
+	  !tau file
+		  call write_real_data_1D(fname3,'append','formatted',6,(nz-1),(/ zplane_avg_t%txx_avg,  &
+		  zplane_avg_t%txy_avg, zplane_avg_t%tyy_avg,  zplane_avg_t%txz_avg,  zplane_avg_t%tyz_avg,  zplane_avg_t%tzz_avg /),z(1:nz-1))
+		  zplane_avg_t%txx_avg(:) = 0.
+		  zplane_avg_t%txy_avg(:) = 0.
+		  zplane_avg_t%tyy_avg(:) = 0.
+		  zplane_avg_t%txz_avg(:) = 0.
+		  zplane_avg_t%tyz_avg(:) = 0.
+		  zplane_avg_t%tzz_avg(:) = 0.	 
+	  !ddz file
+		  call write_real_data_1D(fname4,'append','formatted',2,(nz-1),(/ zplane_avg_t%dudz_avg,  zplane_avg_t%dvdz_avg /),z(1:nz-1))
+		  zplane_avg_t%dudz_avg(:) = 0.
+		  zplane_avg_t%dvdz_avg(:) = 0.	
+	  !u2-v2-w2 file
+		  call write_real_data_1D(fname5,'append','formatted',3,(nz-1),(/ zplane_avg_t%u2_avg,  zplane_avg_t%v2_avg,  zplane_avg_t%w2_avg /),z(1:nz-1))
+		  zplane_avg_t%u2_avg(:) = 0.
+		  zplane_avg_t%v2_avg(:) = 0.
+		  zplane_avg_t%w2_avg(:) = 0.	
+else 
+!error
+	write(*,*) 'ERROR: Incorrect call zplane_avg_compute(ipart)'
+endif
+
+
+return
+end subroutine zplane_avg_compute
 
 
 end module io
