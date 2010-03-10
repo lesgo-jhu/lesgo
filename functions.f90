@@ -430,7 +430,6 @@ eta_vec = eta_vec / vec_mag
   !  Average over all procs; assuming distribution is even
   plane_avg_3D = var_sum_global / nsum_global
   
-  !write(*,*) 'nsum_global : ', nsum_global
   !write(*,*) 'var_sum_global : ', var_sum_global
   
  $else
