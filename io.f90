@@ -1399,25 +1399,6 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-!open (unit = 7,file = fname, status='unknown',form='unformatted', &
-!  action='write',position='rewind')
-!! write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
-!! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-!!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-!! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
-!!  write(8,*) 'variables= "z", "<dudz>/u*"'
-!do k=1,nz
-!  do j=1,ny
-!    do i=1,nx
-!       write(7) x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), &
-!         tsum_t%u(i,j,k), tsum_t%v(i,j,k), tsum_t%w(i,j,k), tsum_t%u2(i,j,k), &
-!         tsum_t%v2(i,j,k), tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), &
-!         tsum_t%vw(i,j,k), tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
-!    enddo
-!  enddo
-!enddo
-!close(7)
-!  close(8)
 call write_real_data_3D(fname,'rewind', 'unformatted', 10, nx, ny, nz, (/ tsum_t%u, tsum_t%v, &
   tsum_t%w, tsum_t%u2, tsum_t%v2, tsum_t%w2, tsum_t%uw, tsum_t%vw, tsum_t%uv, &
   tsum_t%dudz /), x, y, z)
@@ -2056,7 +2037,7 @@ tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .false.
+point_t%calc = .true.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -2064,14 +2045,14 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .false.
-domain_t%nstart = 100
+domain_t%calc = .true.
+domain_t%nstart = 1
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc   = .false.
-yplane_t%nstart = 100
+yplane_t%calc   = .true.
+yplane_t%nstart = 1
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
 yplane_t%nloc   = 2
@@ -2079,8 +2060,8 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .false.
-zplane_t%nstart = 100
+zplane_t%calc   = .true.
+zplane_t%nstart = 1
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
 zplane_t%nloc   = 3
@@ -2090,7 +2071,7 @@ zplane_t%loc(3) = L_z*nproc
 
 !  z-plane TIME-AVERAGED stats/data
 zplane_avg_t%calc   = .true.
-zplane_avg_t%nstart = 200
+zplane_avg_t%nstart = 1
 zplane_avg_t%nend   = nsteps
 zplane_avg_t%nskip  = 100
 
