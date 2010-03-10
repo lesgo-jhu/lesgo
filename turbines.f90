@@ -1,6 +1,7 @@
 module turbines
 use types,only:rprec
 use param
+use stat_defs, only:turbine_t
 !use test_filtermodule --subroutines are not actually part of this module (yet)
 
 implicit none
@@ -8,22 +9,44 @@ implicit none
 save
 private
 
-public :: turbines_forcing
-
-!Filter type: 1->cut off 2->Gaussian 3->Top-hat
-integer,parameter::turbines_filter_type=2
-real (rprec) :: turbines_filter_size=1.5
+public :: turbines_init, turbines_forcing
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine turbines_init(ifilter,alpha)
+!initialize filter
+!locate applicable nodes (turbine_nodes)
+
+!Filter type: 1->cut off 2->Gaussian 3->Top-hat
+integer,parameter::ifilter
+real (rprec) :: alpha
+
+call turbines_nodes()
+
+end subroutine turbines_init
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine turbines_forcing()
-!locate applicable nodes (another subroutine, probably)
 !calculate forcing
 !filter forcing
 !apply forcing
-end subroutine
+end subroutine turbines_forcing
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine turbines_nodes()
+! use the following to give all nodes 0/1 - where 1 means there is a turbine there
+	!turbine_t%dia    
+	!turbine_t%height  
+	!turbine_t%nloc       
+	!turbine_t%xloc(1)  !and more
+	!turbine_t%yloc(1)  !and more
+end subroutine turbines_nodes
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module turbines
