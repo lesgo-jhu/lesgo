@@ -471,7 +471,6 @@ if(zplane_avg_t%calc) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing time-averaged z-plane data from ', zplane_avg_t%nstart, ' to ', zplane_avg_t%nend
-        write(*,"(1a,i9)") 'Iteration skip:', zplane_avg_t%nskip
         write(*,*) '-------------------------------'
       endif
       zplane_avg_t%started=.true.	
@@ -482,7 +481,8 @@ if(zplane_avg_t%calc) then
 	!Calculate the averaged data for each time step
 	  call zplane_avg_compute(2)
 
-    if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
+    !if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
+	if(jt == zplane_avg_t%nend) then
 	  !Write the averaged data to file and reset the variables	
 	  call zplane_avg_compute(3)	  
 	endif
@@ -2073,7 +2073,6 @@ zplane_t%loc(3) = L_z*nproc
 zplane_avg_t%calc   = .true.
 zplane_avg_t%nstart = 1
 zplane_avg_t%nend   = nsteps
-zplane_avg_t%nskip  = 100
 
 
 $if ($MPI)
@@ -2276,6 +2275,9 @@ if(zplane_avg_t%calc) then
   allocate(zplane_avg_t%tzz_avg(nz-1))  
   allocate(zplane_avg_t%dudz_avg(nz-1))
   allocate(zplane_avg_t%dvdz_avg(nz-1))
+  allocate(zplane_avg_t%uv_avg(nz-1))
+  allocate(zplane_avg_t%uw_avg(nz-1))
+  allocate(zplane_avg_t%vw_avg(nz-1))  
 
   !  Initialize arrays
   zplane_avg_t%u_avg(:)=0.
@@ -2292,6 +2294,9 @@ if(zplane_avg_t%calc) then
   zplane_avg_t%tzz_avg(:)=0.  
   zplane_avg_t%dudz_avg(:)=0.
   zplane_avg_t%dvdz_avg(:)=0.  
+  zplane_avg_t%uv_avg(:)=0.
+  zplane_avg_t%uw_avg(:)=0.
+  zplane_avg_t%vw_avg(:)=0.    
 endif
 
 return
@@ -2533,12 +2538,22 @@ use grid_defs, only: z
 
 implicit none
 
-integer :: k, ipart
-
-character (64) :: fname, temp, fname2, temp2, fname3, temp3, fname4, temp4, fname5, temp5
+integer :: k, ipart, nt_z
+character(64) :: frmt
+character (64) :: fname, temp, fname2, temp2, fname3, temp3, fname4, temp4, fname5, temp5, fname6, temp6
 
 if (ipart==1) then
-!Create files and write Tecplot headers
+!Create files and write Tecplot headers         
+		!parameter file
+		  if(coord==0) then 
+		    fname='output/avg.dat'
+			open (unit = 2,file = fname, status='unknown',form='formatted', action='write',position='rewind')
+			write (frmt, '("(",i0,"i9)")') 3
+			write(2,*) 'nz, nstart, nend'
+			write(2,frmt) nz,zplane_avg_t%nstart, zplane_avg_t%nend
+			close(2)
+			!call write_real_data(fname, 'append', 3, (/ zplane_avg_t%nstart, zplane_avg_t%nend, zplane_avg_t%nskip /))
+		  endif
 		!u-v-w file  
 		  fname2 = 'output/avg_uvw.dat'
 			$if ($MPI)
@@ -2568,27 +2583,39 @@ if (ipart==1) then
 			  fname5 = trim (fname5) // temp5
 			$endif	 	  
 		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, jt_total*dt_dim) 		  
+		!uv-uw-vw file  
+		  fname6 = 'output/avg_uv_uw_vw.dat'
+			$if ($MPI)
+			  write (temp6, '(".c",i0)') coord
+			  fname6 = trim (fname6) // temp6
+			$endif	 	  
+		  call write_tecplot_header_ND(fname6, 'rewind', 4, (/ Nz/),'"z", "uv_avg", "uw_avg", "vw_avg"', coord, 2, jt_total*dt_dim) 		  
 
 elseif (ipart==2) then
 !Compute averages
+	nt_z = zplane_avg_t%nend - zplane_avg_t%nstart + 1
     do k=1,nz-1
-	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w(:,:,k))/(nx*ny*nt_z)
 		
-		zplane_avg_t%txx_avg(k) = zplane_avg_t%txx_avg(k) + sum(txx(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-		zplane_avg_t%txy_avg(k) = zplane_avg_t%txy_avg(k) + sum(txy(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-		zplane_avg_t%tyy_avg(k) = zplane_avg_t%tyy_avg(k) + sum(tyy(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-		zplane_avg_t%txz_avg(k) = zplane_avg_t%txz_avg(k) + sum(txz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-		zplane_avg_t%tyz_avg(k) = zplane_avg_t%tyz_avg(k) + sum(tyz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-		zplane_avg_t%tzz_avg(k) = zplane_avg_t%tzz_avg(k) + sum(tzz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%txx_avg(k) = zplane_avg_t%txx_avg(k) + sum(txx(:,:,k))/(nx*ny*nt_z)
+		zplane_avg_t%txy_avg(k) = zplane_avg_t%txy_avg(k) + sum(txy(:,:,k))/(nx*ny*nt_z)
+		zplane_avg_t%tyy_avg(k) = zplane_avg_t%tyy_avg(k) + sum(tyy(:,:,k))/(nx*ny*nt_z)
+		zplane_avg_t%txz_avg(k) = zplane_avg_t%txz_avg(k) + sum(txz(:,:,k))/(nx*ny*nt_z)
+		zplane_avg_t%tyz_avg(k) = zplane_avg_t%tyz_avg(k) + sum(tyz(:,:,k))/(nx*ny*nt_z)
+		zplane_avg_t%tzz_avg(k) = zplane_avg_t%tzz_avg(k) + sum(tzz(:,:,k))/(nx*ny*nt_z)
 		
-		zplane_avg_t%dudz_avg(k) = zplane_avg_t%dudz_avg(k) + sum(dudz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%dvdz_avg(k) = zplane_avg_t%dvdz_avg(k) + sum(dvdz(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%dudz_avg(k) = zplane_avg_t%dudz_avg(k) + sum(dudz(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%dvdz_avg(k) = zplane_avg_t%dvdz_avg(k) + sum(dvdz(:,:,k))/(nx*ny*nt_z)
 		
-		zplane_avg_t%u2_avg(k) = zplane_avg_t%u2_avg(k) + sum(u(:,:,k)*u(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%v2_avg(k) = zplane_avg_t%v2_avg(k) + sum(v(:,:,k)*v(:,:,k))/(nx*ny*zplane_avg_t%nskip)
-	    zplane_avg_t%w2_avg(k) = zplane_avg_t%w2_avg(k) + sum(w(:,:,k)*w(:,:,k))/(nx*ny*zplane_avg_t%nskip)
+		zplane_avg_t%u2_avg(k) = zplane_avg_t%u2_avg(k) + sum(u(:,:,k)*u(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%v2_avg(k) = zplane_avg_t%v2_avg(k) + sum(v(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%w2_avg(k) = zplane_avg_t%w2_avg(k) + sum(w(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
+		
+		zplane_avg_t%uv_avg(k) = zplane_avg_t%uv_avg(k) + sum(u(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%uw_avg(k) = zplane_avg_t%uw_avg(k) + sum(u(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
+	    zplane_avg_t%vw_avg(k) = zplane_avg_t%vw_avg(k) + sum(v(:,:,k)*w(:,:,k))/(nx*ny*nt_z)		
 	enddo
 elseif (ipart==3) then
 !Write averages and reset
@@ -2615,6 +2642,11 @@ elseif (ipart==3) then
 		  zplane_avg_t%u2_avg(:) = 0.
 		  zplane_avg_t%v2_avg(:) = 0.
 		  zplane_avg_t%w2_avg(:) = 0.	
+	  !uv-uw-vw file
+		  call write_real_data_1D(fname6,'append','formatted',3,(nz-1),(/ zplane_avg_t%uv_avg,  zplane_avg_t%uw_avg,  zplane_avg_t%vw_avg /),z(1:nz-1))
+		  zplane_avg_t%uv_avg(:) = 0.
+		  zplane_avg_t%uw_avg(:) = 0.
+		  zplane_avg_t%vw_avg(:) = 0.			  
 else 
 !error
 	write(*,*) 'ERROR: Incorrect call zplane_avg_compute(ipart)'
