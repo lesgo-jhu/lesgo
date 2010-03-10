@@ -53,6 +53,17 @@ type plane
   real(rprec), dimension (10) :: loc, ldiff
 !   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
 end type plane
+
+$if ($TURBINES)
+	! Turbines data - currently all turbines will have -x as their normal dir.
+	type turbine 
+		real(rprec) :: dia     !turbine diameter  [m]  (same for all)
+		real(rprec) :: height  !turbine height    [m]  (same for all)
+		integer :: nloc        !number of locations (max set by size of xloc,yloc)
+		real(rprec), dimension (4) :: xloc, yloc  !x,y locations [dimensionless - usually in terms of Lx,Ly]
+	end type turbine
+$endif
+
   
 type(rs)            		:: rs_t
 type(tstats)        		:: tavg_t, tsum_t
@@ -60,6 +71,10 @@ type(tstats)        	 	:: zplane_avg_t
 type(point), target 	:: point_t
 type(domain)        		:: domain_t
 type(plane)         		:: yplane_t, zplane_t
+
+$if ($TURBINES)
+	type(turbine)        	:: turbine_t
+$endif
 
 end module stat_defs
 
