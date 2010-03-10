@@ -331,8 +331,8 @@ integer :: i, j, istart, jstart, kstart, nsum
 
 $if ($MPI)
 integer :: isum_send, isum_recieve, iavg_send, iavg_recieve
-!integer :: nsum_global
-REAL(RPREC) :: var_sum_global, nsum_global
+integer :: nsum_global
+REAL(RPREC) :: var_sum_global
 $endif
 
 REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag, zmin, zmax
@@ -425,7 +425,7 @@ eta_vec = eta_vec / vec_mag
 
 !  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
- call mpi_allreduce(1.*nsum, nsum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+ call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
 
   !  Average over all procs; assuming distribution is even
   plane_avg_3D = var_sum_global / nsum_global
