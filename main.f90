@@ -186,7 +186,9 @@ $if ($LVLSET)
   
 $endif
 
-
+$if ($TURBINES)
+  call turbines_init()
+$endif
 
 $if ($TREES_LS)
   !--this must come after initial, since fx, fy, fz are set 0 there
