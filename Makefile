@@ -32,7 +32,7 @@ USE_OPENMP = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
 
 USE_TREES_LS = no
 USE_CYLINDER_SKEW_LS = yes
