@@ -29,11 +29,11 @@ call rfftwnd_f77_one_complex_to_real(back,f,ignore_me)
 !f=real(f_c,kind=rprec)
 end subroutine test_filter
 
-subroutine test_filter_init(alpha,G_test)
+subroutine test_filter_init(alpha,G_test,ifilter)
 ! spectral cutoff filter at width alpha*delta
 ! note the normalization for FFT's is already in G! (see 1/(nx*ny))
 use types,only:rprec
-use param,only:lh,nx,ny,dx,dy,pi,ifilter,model
+use param,only:lh,nx,ny,dx,dy,pi,model
 use fft
 implicit none
 real(kind=rprec):: alpha, delta, kc2
@@ -41,10 +41,6 @@ real(kind=rprec),dimension(lh,ny) :: G_test
 G_test=1._rprec/(nx*ny)  ! normalization for the forward FFT
 delta = alpha*sqrt(dx*dy)  ! "2d-delta", not full 3d one
 if(ifilter==1) then ! spectral cutoff filter
-   if (model==6.OR.model==7) then
-      print *, 'Use Gaussian or Top-hat filter for mixed models'
-      stop
-   endif
 ! alpha is ratio of test filter to grid filter widths
    kc2 = (pi/(delta))**2
    where (real(k2, rprec) >= kc2) G_test = 0._rprec
