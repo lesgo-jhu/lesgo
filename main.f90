@@ -204,17 +204,12 @@ call openfiles()
 
 !--initialize test filter
 !--this is used for lower BC, even if no dynamic model
-if (ifilter==1 .AND. (model==6.OR.model==7)) then
-	print *, 'Use Gaussian or Top-hat filter for mixed models'
-else
+call test_filter_init (2._rprec * filter_size, G_test)
 
-	call test_filter_init (2._rprec * filter_size, G_test, ifilter)
+if (model == 3 .or. model == 5) then  !--scale dependent dynamic
 
-	if (model == 3 .or. model == 5) then  !--scale dependent dynamic
-		call test_filter_init (4._rprec * filter_size, G_test_test, ifilter)
-	end if
-
-endif
+  call test_filter_init (4._rprec * filter_size, G_test_test)
+end if
 
 if (ubc == 1) call setsponge()
 
