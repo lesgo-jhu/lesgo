@@ -6,9 +6,10 @@ use param, only : pi
 use cylinder_skew_base_ls
 use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
 use io, only : write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
-save 
 
 implicit none
+
+save 
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -23,7 +24,8 @@ $endif
 !  corresponding coordinate system
 type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
-type(cs2), allocatable, dimension(:,:) :: lgcs_t, ebgcs_t, etgcs_t ! Shape (ntree, ngen)
+type(cs2), allocatable, dimension(:) :: lgcs_t
+type(cs2), allocatable, dimension(:,:) ::  ebgcs_t, etgcs_t ! Shape (ntree, ngen)
 type(rot), allocatable, dimension(:) :: zrot_t
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
@@ -77,7 +79,7 @@ do ntr = 1,ntree
    if(mpirank == 0) call rns_planes(ntr)
   $endif
    
-  if(DIST_CALC) call main()
+  if(DIST_CALC) call main(ntr)
   
 enddo 
 
@@ -318,15 +320,14 @@ allocate(a(ngen), &
 
 do ng=1,ngen
   gen_ntrunk(ng) = ntrunk**ng
-  gen_ncluster(ng) = ntrunk**(ng-1)
 enddo
 
 do ng=1,ngen
   allocate(lgcs_t(ng)%xyz(3,gen_ntrunk(ng)))
   
-  do ntr=1,ntree
-    allocate(ebgcs_t(ntr,ng)%xyz(3,gen_ntrunk(ng)))
-    allocate(etgcs_t(ntr,ng)%xyz(3,gen_ntrunk(ng)))
+  do nt=1,ntree
+    allocate(ebgcs_t(nt,ng)%xyz(3,gen_ntrunk(ng)))
+    allocate(etgcs_t(nt,ng)%xyz(3,gen_ntrunk(ng)))
   enddo
   
   allocate(zrot_t(ng)%angle(gen_ntrunk(ng)))
@@ -426,7 +427,7 @@ do ng=1,ngen
     if(ng == 1) then
       corigin = origin(:,ntr) !  Use tree origin
     else 
-      corigin = etgcs_t(ng-1)%xyz(:,ntc)  ! Use top of ellipse below
+      corigin = etgcs_t(ntr,ng-1)%xyz(:,ntc)  ! Use top of ellipse below
     endif 
     xmin = corigin(1) - alpha*w 
     xmax = xmin
@@ -450,11 +451,13 @@ return
 end subroutine rns_planes
 
 !**********************************************************************
-subroutine main()
+subroutine main(ntr)
 !**********************************************************************
 use cylinder_skew_param
 
 implicit none
+
+integer, intent(IN) :: ntr
 
 integer :: ng,nt,i,j,k
 !  Loop over all global coordinates
@@ -465,12 +468,12 @@ do k=$lbz,Nz
     do i=1,nx+2
 
       !  Only loop over resolved generations
-      do ng=1,ngen_rslv
+      do ng=1,ngen_reslv
         do nt=1,gen_ntrunk(ng)
 
 	      if(gcs_t(i,j,k)%phi > 0) then
-	        call pt_loc(ng,nt,i,j,k)
-	        call point_dist(ng,nt,i,j,k)
+	        call pt_loc(ntr,ng,nt,i,j,k)
+	        call point_dist(ntr,ng,nt,i,j,k)
 	        call set_sign(i,j,k)
 	      endif
 		  
@@ -536,7 +539,7 @@ if(circk <= crad(ng)**2) in_cir = .true.
 if(btw_planes .and. in_cir) in_cyl = .true.
 
 !  Check if point lies in top ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ng)%xyz(:,nt)
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ntr,ng)%xyz(:,nt)
 call rotation_axis_vector_3d(zrot_axis, &
   -zrot_t(ng)%angle(nt), &
   vgcs_t%xyz, &
@@ -557,13 +560,13 @@ return
 end subroutine pt_loc
 
 !**********************************************************************
-subroutine point_dist(ng,nt,i,j,k)
+subroutine point_dist(ntr,ng,nt,i,j,k)
 !**********************************************************************
 use cylinder_skew_param
 
 implicit none
 
-integer, intent(IN) :: ng,nt,i,j,k
+integer, intent(IN) :: ntr,ng,nt,i,j,k
 real(rprec) :: atan4
 
 !  Compute theta value on lcs using geometry.atan4
@@ -592,7 +595,7 @@ if(sgcs_t%xyz(3) >= bplane(ng) .and. sgcs_t%xyz(3) <= tplane(ng)) then
 else
   if(sgcs_t%xyz(3) >= tplane(ng) .and. .not. in_cyl_top) then
 
-    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ng)%xyz(:,nt)
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - etgcs_t(ntr,ng)%xyz(:,nt)
 
   !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
@@ -697,7 +700,7 @@ implicit none
 
 real(rprec), dimension(:), allocatable :: gcs_w ! Used for checking vertical locations
 
-integer :: i,j,k
+integer :: i,j,k, id_gen, iface
 
 allocate(gcs_w($lbz:nz))
 

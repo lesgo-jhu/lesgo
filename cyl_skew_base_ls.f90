@@ -18,7 +18,7 @@ integer, parameter :: ntree = 7
 integer, parameter :: ntrunk = 3
 
 integer, parameter :: ngen = 5
-integer, parameter :: ngen_resloved = 2
+integer, parameter :: ngen_reslv = 2
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
@@ -34,7 +34,7 @@ real(rprec), dimension(:), allocatable :: dz_bottom, dz_top
 
 type cs0
      integer :: brindex, iset, itype
-     real(rprec) :: phi
+     real(rprec) :: phi, chi
      real(rprec), dimension(3) :: xyz
 end type cs0
 
@@ -56,6 +56,6 @@ type vector
 end type vector
 
 integer, pointer, dimension(:,:,:) :: brindex
-real(rprec), pointer, dimension(:,:,:) :: phi, chi
+real(rprec), pointer, dimension(:,:,:) :: phi
 
 end module cylinder_skew_base_ls

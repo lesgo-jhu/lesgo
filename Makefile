@@ -25,7 +25,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 #--not fully supported by all parts of the code
