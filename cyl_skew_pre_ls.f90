@@ -916,16 +916,26 @@ if(mpisize > 1) then
   write (temp, '(".c",i0)') mpirank
   fname = trim (fname) // temp
 endif
+!  Create tecplot formatted phi and brindex field file
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
 
-if(.not. grid_built) call grid_build()
+write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
 
-!  Create tecplot header 
-call write_tecplot_header_ND(fname, 'rewind', 4, (/ Nx, Ny, Nz /), &
-  '"x", "y", "z", "phi", "brindex", "itype", "chi"', 1, 1)
-!  Write data
-call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-  (/ gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi /), &
-  x, y, z)
+write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
+
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+
+do k=0,nz
+  do j=1,ny
+    do i=1,nx
+      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi
+    enddo
+  enddo
+enddo
+close(2)
 
 nullify(phi,brindex)
 allocate(phi(nx+2,ny,$lbz:nz))
@@ -1072,11 +1082,12 @@ if(mpisize > 1) then
   write (temp, '(".c",i0)') mpirank
   fname = trim (fname) // temp
 endif
-  
-call write_real_data_1D(fname, 'rewind', 'formatted', 7, &
-  ngen, (/ igen, kbottom_inside, kbottom, dz_bottom, &
-  ktop_inside, ktop, dz_top /))
 
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+do ng=1,ngen
+  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
+enddo
 close(2)
 
 deallocate(gcs_w)
