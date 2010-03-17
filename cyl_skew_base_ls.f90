@@ -17,8 +17,8 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 integer, parameter :: ntree = 7
 integer, parameter :: ntrunk = 3
 
-integer, parameter :: ngen = 2
-integer, parameter :: ngen_reslv = 1
+integer, parameter :: ngen = 5
+integer, parameter :: ngen_reslv = 2
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
@@ -28,7 +28,7 @@ real(rprec), parameter :: scale_fact = 0.5_rprec
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 real(rprec), parameter :: z_bottom_surf = 4.*dz
 
-real(rprec), parameter :: filt_width = 2.*dx  !  Filter width for filtered indicator function
+real(rprec), parameter :: filt_width = (2.*dx)**2  !  Filter width for filtered indicator function
 
 integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside, lun
 integer, dimension(:,:,:), allocatable :: itype
@@ -54,6 +54,7 @@ type rot
 end type rot
 
 type vector
+  real(rprec) :: mag
   real(rprec), dimension(3) :: xyz
 end type vector
 

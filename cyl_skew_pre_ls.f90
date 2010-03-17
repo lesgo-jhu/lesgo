@@ -110,12 +110,12 @@ real(rprec) :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
-!origin(:,2)=(/ 0., L_y, z_bottom_surf /)
-!origin(:,3)=(/ 0., 0., z_bottom_surf /)
-!origin(:,4)=(/ L_x, 0., z_bottom_surf /)
-!origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
-!origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
-!origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+origin(:,2)=(/ 0., L_y, z_bottom_surf /)
+origin(:,3)=(/ 0., 0., z_bottom_surf /)
+origin(:,4)=(/ L_x, 0., z_bottom_surf /)
+origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
+origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
@@ -702,18 +702,18 @@ use cylinder_skew_param
 
 implicit none
 
-real(rprec), dimension(:), allocatable :: gcs_w ! Used for checking vertical locations
+real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
 integer :: i,j,k, id_gen, iface
 real(rprec) :: chi_sum
 
-allocate(gcs_w($lbz:nz+1))
+allocate(z_w($lbz:nz+1))
 
 !  Create w-grid (physical grid)
 do k=$lbz,nz
-  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
+  z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
-gcs_w(nz+1) = gcs_w(nz) + dz
+z_w(nz+1) = z_w(nz) + dz
 
 do k=$lbz,nz
   do j=1,ny
@@ -732,45 +732,43 @@ do k=$lbz,nz
         stop
       endif
 	  
-	  if (id_gen == -1) then
+	  if (iface == -1) then
 	  
 	    gcs_t(i,j,k)%chi = 0.
 		
-	  elseif( 0 <= id_gen .and. id_gen <= 3) then
+	  elseif( 0 <= iface .and. iface <= 3) then
 	
-	  
-	      !------------------------------
   	    if(iface == 0) then
 		
  	      call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
           
 	    elseif(iface == 1) then
 	    
+		  !  Set z location to bottom plane of generation
 	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	      gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
+	      gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane(id_gen))/dz
   		
         elseif(iface == 2) then
 	  
   	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
 		!  Normalize by volume fraction
-		  chi_sum = chi_sum * (tplane(id_gen) - gcs_w(k))/dz
+		  chi_sum = chi_sum * (tplane(id_gen) - z_w(k))/dz
 		
 		  call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	      gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(id_gen))/dz
+	      gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane(id_gen))/dz
 	
 	    elseif(iface == 3) then
 	  
 	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-		  gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - gcs_w(k))/dz
-					
+		  gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - z_w(k))/dz
 	    endif
 	  
 	  else
 		   
-	    write(*,*) 'id_gen not calculated correctly.'
+	    write(*,*) 'iface not calculated correctly : iface ', iface
 	    stop
 	      !------------------------------
 	    
@@ -779,6 +777,8 @@ do k=$lbz,nz
     enddo
   enddo
 enddo
+
+deallocate(z_w)
 
 return
 
@@ -805,8 +805,6 @@ real(rprec) :: zcell_bot, zcell_top
 
 id_gen=-1
 iface=-1 
-
-
 
 zcell_bot = z - dz/2.
 zcell_top = z + dz/2.
@@ -863,18 +861,18 @@ real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
 integer :: ntr, nt, nc, n
-real(rprec) :: delta2, chi_int, vec_mag, ds
+real(rprec) :: delta2, chi_int, ds
 real(rprec), dimension(3) :: xyz_c, xyz_rot
 
-type(vector) :: lvec_t
+type(vector) :: lvec_t, svec_t
 
 chi=0.
 
 delta2 = delta*delta
 
 
-write(*,*) ' '
-write(*,*) 'id_gen, gen_ncluster(id_gen) : ', id_gen, gen_ncluster(id_gen)
+!write(*,*) ' '
+!write(*,*) 'id_gen, gen_ncluster(id_gen) : ', id_gen, gen_ncluster(id_gen)
 do ntr=1, ntree
   
   nt=0 !  Global trunk counter for tree
@@ -882,43 +880,48 @@ do ntr=1, ntree
   !  Loop over all branch clusters
   do nc=1,gen_ncluster(id_gen)
     !  Loop over all trunks within branch cluster	
-  	do n=1,ntrunk
-	
-	  nt=nt+1
-	  write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
-	  write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
-	  !  Compute center of ellipse to average over
+    do n=1,ntrunk
+
+      nt=nt+1
+ !     write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
+ !     write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
+      !  Compute center of ellipse to average over
+  
+	  svec_t%xyz = etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt)
 	  
-	  call vector_magnitude_3d(etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt), vec_mag)
-	  ds = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) / (vec_mag * cos(skew_angle))
-	  xyz_c = ds * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
+      call vector_magnitude_3d(svec_t%xyz, svec_t%mag)
+      
+	  ds = ( xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) ) / (svec_t%mag * cos(skew_angle))
+	  
+      xyz_c = ds * svec_t%xyz
+	  
       xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
-	  
-	  write(*,'(1a,3f12.6)') 'xyz ', xyz
-	  write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
-	  
-	  !  Compute local vector
-	  lvec_t%xyz = xyz - xyz_c
-	  
-	  
-	  
-	  write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
-	  !  Perform rotation of local vector about z-axis
+  
+  !    write(*,'(1a,3f12.6)') 'xyz ', xyz
+  !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
+   
+      !  Compute local vector
+      lvec_t%xyz = xyz - xyz_c
+   
+  
+  
+   !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
+      !  Perform rotation of local vector about z-axis
       call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t%xyz, xyz_rot)
-	  
-	  !!  Point in rotated coordinate system
-	  !xyz_rot = lvec_t%xyz + xyz_c
-	  
-	  write(*,'(1a,3f12.6)') 'xyz_rot : ', xyz_rot
-	  
+  
+      !!  Point in rotated coordinate system
+      !xyz_rot = lvec_t%xyz + xyz_c
+  
+    !  write(*,'(1a,3f12.6)') 'xyz_rot : ', xyz_rot
+  
       !dist2 = (xyz_rot(1) - xyz_p(1))**2 + (xyz_rot(2) - xyz_p(2))**2 + (xyz_rot(3) - xyz_p(3))**2
-	  
-	  !  Perform weighted integration over ellipse
-	  call weighted_chi_int(a(id_gen), b(id_gen), xyz_rot(1), xyz_rot(2), delta, chi_int)
+  
+      !  Perform weighted integration over ellipse
+      call weighted_chi_int(a(id_gen), b(id_gen), xyz_rot(1), xyz_rot(2), delta, chi_int)
 
       chi = chi + chi_int
-	  
-	enddo
+  
+    enddo
 
   enddo
 enddo
@@ -940,7 +943,7 @@ implicit none
 real(rprec), intent(in) :: a,b,x,y, delta
 real(rprec), intent(out) :: chi
 
-integer, parameter :: Nx=25, Ny=25
+integer, parameter :: Nx=10, Ny=10
 
 integer :: i,j
 real(rprec) :: dx, dy, a2, b2, xc, yc, delta2, dist2, ellps_val

@@ -47,7 +47,8 @@ module param
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
-  integer,parameter:: nx=64,ny=64,nz=(96+4-1)/nproc + 1
+
+  integer,parameter:: nx=256,ny=148,nz=(192+8-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -58,7 +59,7 @@ module param
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=5.*z_i
+  real(rprec),parameter::L_x=8.*z_i
   real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x ! ensure dy=dx
 !  real(rprec),parameter::L_y=4.*z_i/sqrt(0.75);
   real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x ! ensure dz = dx
