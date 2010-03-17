@@ -47,7 +47,7 @@ logical :: in_bottom_surf, btw_planes
 
 integer, dimension(3) :: cyl_loc
 
-integer, allocatable, dimension(:) :: gen_ntrunk
+integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tplane, bplane
 
 real(rprec) :: circk, dist, theta
@@ -316,10 +316,12 @@ allocate(a(ngen), &
   rad_offset(ngen), &
   tplane(ngen), &
   bplane(ngen), &
-  gen_ntrunk(ngen))
+  gen_ntrunk(ngen), &
+  gen_ncluster(ngen))
 
 do ng=1,ngen
   gen_ntrunk(ng) = ntrunk**ng
+  gen_ncluster(ng) = ntrunk**(ng-1)
 enddo
 
 do ng=1,ngen
@@ -734,7 +736,7 @@ do k=$lbz,nz
 	  
 	  gcs_t(i,j,k)%chi = 0.
 		
-	elseif( 0 <= id_gen <= 3) then
+	elseif( 0 <= id_gen .and. id_gen <= 3) then
 	
 	  
 	      !------------------------------
@@ -861,10 +863,11 @@ integer, intent(in) :: id_gen
 real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
-integer :: ntr, nt
-real(rprec) :: icount
-real(rprec) :: dist2, delta2
-real(rprec) :: xyz_p(3)
+integer :: ntr, nt, nc, n
+real(rprec) :: delta2, chi_int
+real(rprec), dimension(3) :: xyz_c, xyz_rot
+
+type(vector) :: lvec_t
 
 chi=0.
 
@@ -873,15 +876,34 @@ delta2 = delta*delta
 write(*,*) 'id_gen : ', id_gen
 do ntr=1, ntree
   
-  do nt=1,gen_ntrunk(id_gen)
-  !  Compute xyz_p
-    xyz_p = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) / cos(skew_angle) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
-    xyz_p = xyz_p + ebgcs_t(ntr,id_gen)%xyz(:,nt)
+  do nc=1,gen_ncluster(id_gen)
+  
+    nt=0
+	
+	do n=1,ntrunk
+	
+	  nt=nt+1
+	  
+	  !  Compute center of ellipse to average over
+	  xyz_c = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) / cos(skew_angle) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
+      xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
+	  
+	  !  Compute local vector
+	  lvec_t%xyz = xyz_c - xyz
+	  !  Perform rotation of local vector about z-axis
+      call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t%xyz, lvec_t%xyz)
+	  
+	  !  Point in rotated coordinate system
+	  xyz_rot = lvec_t%xyz + xyz_c
+	  
+      !dist2 = (xyz_rot(1) - xyz_p(1))**2 + (xyz_rot(2) - xyz_p(2))**2 + (xyz_rot(3) - xyz_p(3))**2
+	  
+	  !  Perform weighted integration over ellipse
+	  call weighted_chi_int(a(id_gen), b(id_gen), xyz_rot(1), xyz_rot(2), delta, chi_int)
 
-    dist2 = (xyz(1) - xyz_p(1))**2 + (xyz(2) - xyz_p(2))**2 + (xyz(3) - xyz_p(3))**2
-
-    ! Area_of_ellipse*gaussian_filter
-    chi = chi + pi*a(id_gen)*b(id_gen)*exp(-dist2/(2._rprec*delta2))
+      chi = chi + chi_int
+	  
+	enddo
 
   enddo
 enddo
@@ -890,7 +912,64 @@ enddo
 chi = chi/(2._rprec*pi*delta2)
 
 return
+
 end subroutine filter_chi
+
+!**********************************************************************
+subroutine weighted_chi_int(a,b,x,y,delta,chi)
+!**********************************************************************
+use types, only : rprec
+!  Does not normalize
+implicit none
+
+real(rprec), intent(in) :: a,b,x,y, delta
+real(rprec), intent(out) :: chi
+
+integer, parameter :: Nx=100, Ny=100
+
+integer :: i,j
+real(rprec) :: dx, dy, a2, b2, xc, yc, delta2, dist2, ellps_val
+
+a2 = a*a
+b2 = b*b
+
+dx = 2._rprec*a / Nx
+dy = 2._rprec*b / Ny 
+
+delta2 = delta*delta
+
+chi=0.
+do j=1,ny
+
+  !  y-value of cell center
+  yc = -b + (j - 0.5)*dy
+  
+  do i=1,nx
+  
+    !  x-value of cell center
+    xc = -a + (i - 0.5)*dx 
+  
+	!  Compute test value for ellipse
+    ellps_val = xc*xc/a2 + yc*yc/b2
+  
+	!  Check if cell center is inside ellipse
+    if(ellps_val <= 1.) then
+  
+	  !  distance from cell center and specified point
+      dist2 = ((xc - x)**2 + (yc - y)**2)
+
+	  chi = chi + dx*dy*exp(-dist2/(2._rprec*delta2))
+	  
+	endif
+	
+  enddo
+	
+enddo
+
+return
+end subroutine weighted_chi_int
+
+
 !############################################################################################################
 
 !############################################################################################################
