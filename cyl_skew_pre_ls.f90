@@ -703,49 +703,57 @@ real(rprec), dimension(:), allocatable :: gcs_w ! Used for checking vertical loc
 integer :: i,j,k, id_gen, iface
 real(rprec) :: chi_sum
 
-allocate(gcs_w($lbz:nz))
+allocate(gcs_w($lbz:nz+1))
 
 !  Create w-grid (physical grid)
 do k=$lbz,nz
   gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
+gcs_w(nz+1) = gcs_w(nz) + dz
 
 do k=$lbz,nz
   do j=1,ny
     do i=1,nx
 	
-	  if(gcs_t(i,j,k)%phi <= 0.) then
-  	    gcs_t(i,j,k)%chi=1.
-	  else
+      if(gcs_t(i,j,k)%phi <= 0.) then
+  	gcs_t(i,j,k)%chi=1.
+      else
 	  
 	  !  See if points have a generation association
         call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
+
+       !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
+       if(id_gen > ngen ) then
+         write(*,*) 'id_gen > ngen'
+         stop
+       endif
 	  
-	    if (id_gen == -1) then
+	if (id_gen == -1) then
 	  
-	      gcs_t(i,j,k)%chi = 0.
+	  gcs_t(i,j,k)%chi = 0.
 		
-	    elseif( 0 <= id_gen <= 3) then
+	elseif( 0 <= id_gen <= 3) then
 	
 	  
 	      !------------------------------
-	      if(iface == 0) then
+	  if(iface == 0) then
 		
- 		    call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
+ 	    call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
+          
 	  
-  	      elseif(iface == 1) then
+  	   elseif(iface == 1) then
 	    
-	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+	     call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	        gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
+	     gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
   		
-          elseif(iface == 2) then
+            elseif(iface == 2) then
 	  
   	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
 		!  Normalize by volume fraction
 		    chi_sum = chi_sum * (tplane(id_gen) - gcs_w(k))/dz
 		
-		    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
+		 call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
 	        gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(id_gen))/dz
 	
@@ -795,37 +803,40 @@ real(rprec) :: zcell_bot, zcell_top
 id_gen=-1
 iface=-1 
 
+
+
 zcell_bot = z - dz/2.
 zcell_top = z + dz/2.
 
 isearch_gen : do ng=1,ngen
   ! Check if bottom of generation is within cell
-  if(zcell_bot < bplane(ng) < zcell_top) then
+  if(zcell_bot < bplane(ng) .and. bplane(ng) < zcell_top) then
     if(ng==1) then
-	  id_gen = ng
-	  iface = 1
-	  exit isearch_gen
-	else
+      id_gen = ng
+      iface = 1
+      exit isearch_gen
+    else
       id_gen = ng-1
-	  iface = 2
-	  exit isearch_gen
-	endif
+      iface = 2
+      exit isearch_gen
+    endif
   ! Check if top of generation is within cell
-  elseif (zcell_bot < tplane(ng) < zcell_top ) then
-    if(ng == ngen) then
-	  id_gen = ng
-	  iface = 3
-	  exit isearch_gen
-	else
-	  id_gen = ng
-	  iface = 2
-	  exit isearch_gen
-	endif
-  elseif(bplane(ng) < z < tplane(ng)) then
+  elseif (zcell_bot < tplane(ng) .and. tplane(ng) < zcell_top ) then
+    if(ng < ngen) then
+      id_gen = ng
+      iface = 2
+      exit isearch_gen
+    else
+      id_gen = ng
+      iface = 3
+      exit isearch_gen
+   endif
+  elseif(bplane(ng) < z .and. z < tplane(ng)) then
 	id_gen = ng
 	iface = 0
 	exit isearch_gen
   endif
+
 enddo isearch_gen
 
 
@@ -849,6 +860,7 @@ real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
 integer :: ntr, nt
+real(rprec) :: icount
 real(rprec) :: dist2, delta2
 real(rprec) :: xyz_p(3)
 
@@ -856,19 +868,19 @@ chi=0.
 
 delta2 = delta*delta
 
+write(*,*) 'id_gen : ', id_gen
 do ntr=1, ntree
   
   do nt=1,gen_ntrunk(id_gen)
-    
   !  Compute xyz_p
     xyz_p = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
     xyz_p = xyz_p + ebgcs_t(ntr,id_gen)%xyz(:,nt)
-	
-	dist2 = (xyz(1) - xyz_p(1))**2 + (xyz(2) - xyz_p(2))**2 + (xyz(3) - xyz_p(3))**2
-	
-	! Area_of_ellipse*gaussian_filter
-	chi = chi + pi*a(id_gen)*b(id_gen)*exp(-dist2/(2._rprec*delta2))
-	
+
+    dist2 = (xyz(1) - xyz_p(1))**2 + (xyz(2) - xyz_p(2))**2 + (xyz(3) - xyz_p(3))**2
+
+    ! Area_of_ellipse*gaussian_filter
+    chi = chi + pi*a(id_gen)*b(id_gen)*exp(-dist2/(2._rprec*delta2))
+
   enddo
 enddo
 
@@ -920,7 +932,7 @@ endif
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
-write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
+write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype", "chi"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
@@ -928,7 +940,7 @@ write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
-do k=0,nz
+do k=$lbz,nz
   do j=1,ny
     do i=1,nx
       write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi
