@@ -719,9 +719,9 @@ do k=$lbz,nz
   do j=1,ny
     do i=1,nx
 	
-    !  if(gcs_t(i,j,k)%phi <= 0.) then
-  	!gcs_t(i,j,k)%chi=1.
-    !  else
+!      if(gcs_t(i,j,k)%phi <= 0.) then
+!  	gcs_t(i,j,k)%chi=1.
+!      else
 	  
 	  !  See if points have a generation association
         call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
@@ -873,10 +873,6 @@ chi=0.
 
 delta2 = delta*delta
 
-write(*,*) 'id_gen : ', id_gen
-
-
-
 do ntr=1, ntree
   
   nt=0
@@ -889,8 +885,8 @@ do ntr=1, ntree
 	  nt=nt+1
 	  
 	  !  Compute center of ellipse to average over
-	  xyz_c = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) / cos(skew_angle) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
-      xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
+	  xyz_c = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt)) / cos(skew_angle)
+          xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
 	  
 	  !  Compute local vector
 	  lvec_t%xyz = xyz_c - xyz
@@ -929,7 +925,7 @@ implicit none
 real(rprec), intent(in) :: a,b,x,y, delta
 real(rprec), intent(out) :: chi
 
-integer, parameter :: Nx=100, Ny=100
+integer, parameter :: Nx=25, Ny=25
 
 integer :: i,j
 real(rprec) :: dx, dy, a2, b2, xc, yc, delta2, dist2, ellps_val
