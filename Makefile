@@ -99,11 +99,11 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
 
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
