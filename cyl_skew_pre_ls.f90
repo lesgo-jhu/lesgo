@@ -701,6 +701,7 @@ implicit none
 real(rprec), dimension(:), allocatable :: gcs_w ! Used for checking vertical locations
 
 integer :: i,j,k, id_gen, iface
+real(rprec) :: chi_sum
 
 allocate(gcs_w($lbz:nz))
 
@@ -718,45 +719,45 @@ do k=$lbz,nz
 	  else
 	  
 	  !  See if points have a generation association
-        call find_assoc_gen(gcs_t(i,j,k)%xyz(3), igen, iface)
+        call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
 	  
-	    if (igen == -1) then
+	    if (id_gen == -1) then
 	  
 	      gcs_t(i,j,k)%chi = 0.
 		
-	    elseif( 0 <= igen <= 3) then
+	    elseif( 0 <= id_gen <= 3) then
 	
 	  
 	      !------------------------------
 	      if(iface == 0) then
 		
- 		    call filter_chi(gcs_t(i,j,k)%xyz, igen, delta, gcs_t(i,j,k)%chi)
+ 		    call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
 	  
   	      elseif(iface == 1) then
 	    
-	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(igen)/), igen, 2.*dx, gcs_t(i,j,k)%chi)
+	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	        gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(igen))/dz
+	        gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
   		
           elseif(iface == 2) then
 	  
-  	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen, 2.*dx, chi_sum)
+  	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
 		!  Normalize by volume fraction
-		    chi_sum = chi_sum * (tplane(igen) - gcs_w(k))/dz
+		    chi_sum = chi_sum * (tplane(id_gen) - gcs_w(k))/dz
 		
-		    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen+1, 2.*dx, gcs_t(i,j,k)%chi)
+		    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	        gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(igen))/dz
+	        gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(id_gen))/dz
 	
 	      elseif(iface == 3) then
 	  
-	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen, 2.*dx, gcs_t(i,j,k)%chi)
+	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-		    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(igen) - gcs_w(k))/dz
+		    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - gcs_w(k))/dz
 			
 		  else
 		   
-		    write(*,*) 'igen not calculated correctly.'
+		    write(*,*) 'id_gen not calculated correctly.'
 			stop
 		
 	      endif
@@ -773,7 +774,7 @@ return
 end subroutine compute_chi
 
 !**********************************************************************
-subroutine find_assoc_gen(z,igen,iface)
+subroutine find_assoc_gen(z,id_gen,iface)
 !**********************************************************************
 !  This subroutine finds the generation associated with a given point
 !  on the uv grid (i.e. cell center). This routine biases the bottom
@@ -786,10 +787,12 @@ use cylinder_skew_param
 implicit none
 
 real(rprec), intent(in) :: z ! on uv grid
-integer, intent(out) :: igen, imesg
+integer, intent(out) :: id_gen, iface
+
+integer :: ng
 real(rprec) :: zcell_bot, zcell_top
 
-igen=-1
+id_gen=-1
 iface=-1 
 
 zcell_bot = z - dz/2.
@@ -799,38 +802,38 @@ isearch_gen : do ng=1,ngen
   ! Check if bottom of generation is within cell
   if(zcell_bot < bplane(ng) < zcell_top) then
     if(ng==1) then
-	  igen = ng
+	  id_gen = ng
 	  iface = 1
 	  exit isearch_gen
 	else
-      igen = ng-1
+      id_gen = ng-1
 	  iface = 2
 	  exit isearch_gen
 	endif
   ! Check if top of generation is within cell
-  elseif (zcell_bot. < tplane(ng) < zcell_top ) then
+  elseif (zcell_bot < tplane(ng) < zcell_top ) then
     if(ng == ngen) then
-	  igen = ng
+	  id_gen = ng
 	  iface = 3
 	  exit isearch_gen
 	else
-	  igen = ng
+	  id_gen = ng
 	  iface = 2
 	  exit isearch_gen
 	endif
   elseif(bplane(ng) < z < tplane(ng)) then
-	igen = ng
+	id_gen = ng
 	iface = 0
 	exit isearch_gen
   endif
-enddo
+enddo isearch_gen
 
 
 return
 end subroutine find_assoc_gen
 
 !**********************************************************************
-subroutine filter_chi(xyz, igen, delta, chi)
+subroutine filter_chi(xyz, id_gen, delta, chi)
 !**********************************************************************
 !  This subroutine performs filtering in the horizontal planes
 !
@@ -841,12 +844,13 @@ use cylinder_skew_param
 implicit none
 
 real(rprec), intent(in), dimension(3) :: xyz
-integer, intent(in) :: igen
+integer, intent(in) :: id_gen
 real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
 integer :: ntr, nt
 real(rprec) :: dist2, delta2
+real(rprec) :: xyz_p(3)
 
 chi=0.
 
@@ -854,16 +858,16 @@ delta2 = delta*delta
 
 do ntr=1, ntree
   
-  do nt=1,gen_ntrunk(igen)
+  do nt=1,gen_ntrunk(id_gen)
     
   !  Compute xyz_p
-    xyz_p = (xyz(3) - ebgcs_t(ntr,igen)%xyz(3,nt)) * (etgcs_t(ntr,igen)%xyz(:,nt) - ebgcs_t(ntr,igen)%xyz(:,nt))
-    xyz_p = xyz_p + ebgcs_t(ntr,igen)%xyz(:,nt)
+    xyz_p = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
+    xyz_p = xyz_p + ebgcs_t(ntr,id_gen)%xyz(:,nt)
 	
 	dist2 = (xyz(1) - xyz_p(1))**2 + (xyz(2) - xyz_p(2))**2 + (xyz(3) - xyz_p(3))**2
 	
 	! Area_of_ellipse*gaussian_filter
-	chi = chi + pi*a(igen)*b(igen)*exp(-dist2/(2._rprec*delta2))
+	chi = chi + pi*a(id_gen)*b(id_gen)*exp(-dist2/(2._rprec*delta2))
 	
   enddo
 enddo
@@ -1069,7 +1073,7 @@ if(mpisize > 1) then
   fname = trim (fname) // temp
 endif
   
-call write_real_data_1D(fname, 'rewind', 'formatted', 7,
+call write_real_data_1D(fname, 'rewind', 'formatted', 7, &
   ngen, (/ igen, kbottom_inside, kbottom, dz_bottom, &
   ktop_inside, ktop, dz_top /))
 
