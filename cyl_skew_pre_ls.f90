@@ -4,14 +4,26 @@ module cylinder_skew_param
 use types, only : rprec
 use param, only : pi
 use cylinder_skew_base_ls
+use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
+use io, only : write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
+save 
 
 implicit none
+
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
 
 !  cs{0,1} all correspond to vectors with the origin at the
 !  corresponding coordinate system
 type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
-type(cs2), allocatable, dimension(:) :: lgcs_t, ebgcs_t, etgcs_t
+type(cs2), allocatable, dimension(:,:) :: lgcs_t, ebgcs_t, etgcs_t ! Shape (ntree, ngen)
 type(rot), allocatable, dimension(:) :: zrot_t
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
@@ -19,12 +31,12 @@ type(vector) :: vgcs_t
 
 logical :: DIST_CALC=.true.
 
-double precision, parameter :: BOGUS = 1234567890._rprec
-double precision, parameter :: iBOGUS = 1234567890
-double precision, parameter :: eps = 1.e-12
-double precision, parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
+real(rprec), parameter :: BOGUS = 1234567890._rprec
+real(rprec), parameter :: iBOGUS = 1234567890
+real(rprec), parameter :: eps = 1.e-12
+real(rprec), parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
 
-double precision, dimension(3,ntree) :: origin
+real(rprec), dimension(3,ntree) :: origin
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -34,10 +46,10 @@ logical :: in_bottom_surf, btw_planes
 integer, dimension(3) :: cyl_loc
 
 integer, allocatable, dimension(:) :: gen_ntrunk
-double precision, allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tplane, bplane
+real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset, a,b, tplane, bplane
 
-double precision :: circk, dist, theta
-double precision :: eck
+real(rprec) :: circk, dist, theta
+real(rprec) :: eck
 
 end module cylinder_skew_param
 
@@ -52,13 +64,14 @@ implicit none
 
 integer :: ntr
 
+!  Loop over all trees
 do ntr = 1,ntree
   
   $if ($DEBUG)
   if(mpirank == 0) write(*,*) 'Tree id : ', ntr
   $endif
   
-  call initialize(ntr) 
+  call initialize(ntr)
   
   $if ($RNS_LS)
    if(mpirank == 0) call rns_planes(ntr)
@@ -67,6 +80,9 @@ do ntr = 1,ntree
   if(DIST_CALC) call main()
   
 enddo 
+
+!  Uses global tree info from ebgcs_t and etgcs_t to
+call compute_chi()
 
 call finalize()
 
@@ -85,10 +101,10 @@ use cylinder_skew_param
 
 implicit none
 
-integer, intent(IN) :: ntr
+integer, intent(IN) :: ntr ! Tree id
 
 integer :: ng,nt,i,j,k,istart,iend
-double precision :: gen_scale_fact
+real(rprec) :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
@@ -119,10 +135,13 @@ if(ntr == 1) then
   if(use_bottom_surf) then
     gcs_t(:,:,:)%itype=0
 !  Loop over all global coordinates
-    do k=0,Nz
-      gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
-      if(gcs_t(1,1,k)%phi <= 0.) gcs_t(:,:,k)%brindex = -1
-    enddo
+    do k=$lbz,Nz
+      gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
+	  if(gcs_t(1,1,k)%phi <= 0.) then 
+	    gcs_t(:,:,k)%brindex = -1
+	  endif
+    
+	enddo
   endif
 
 !  Set cylinder parameters for all generations
@@ -188,17 +207,17 @@ do nt=1,ntrunk
   $endif
 
   !  Set the center point of the bottom ellipse
-  ebgcs_t(1)%xyz(:,nt)=lgcs_t(1)%xyz(:,nt)
+  ebgcs_t(ntr,1)%xyz(:,nt)=lgcs_t(1)%xyz(:,nt)
   !  Compute the center point of the top ellipse in the gcs
   call rotation_axis_vector_3d(zrot_t(1)%axis(:,nt), &
     skew_angle, &
     (/0., 0., clen(1)/), &
-    etgcs_t(1)%xyz(:,nt))
-  etgcs_t(1)%xyz(:,nt) = etgcs_t(1)%xyz(:,nt) + ebgcs_t(1)%xyz(:,nt)
+    etgcs_t(ntr,1)%xyz(:,nt))
+  etgcs_t(ntr,1)%xyz(:,nt) = etgcs_t(ntr,1)%xyz(:,nt) + ebgcs_t(ntr,1)%xyz(:,nt)
   
   $if ($DEBUG)
-    write(*,*) 'ebgcs_t(1)%xyz(:,nt) : ', ebgcs_t(1)%xyz(:,nt)
-    write(*,*) 'etgcs_t(1)%xyz(:,nt) : ', etgcs_t(1)%xyz(:,nt)
+    write(*,*) 'ebgcs_t(1,1)%xyz(:,nt) : ', ebgcs_t(ntr,1)%xyz(:,nt)
+    write(*,*) 'etgcs_t(1,1)%xyz(:,nt) : ', etgcs_t(ntr,1)%xyz(:,nt)
   $endif
 
 enddo
@@ -231,7 +250,7 @@ if(ngen > 1) then
       $endif
 
       do i=istart,iend
-        lgcs_t(ng)%xyz(:,i) = etgcs_t(ng-1)%xyz(:,j)
+        lgcs_t(ng)%xyz(:,i) = etgcs_t(ntr,ng-1)%xyz(:,j)
         lgcs_t(ng)%xyz(1,i) = lgcs_t(ng)%xyz(1,i) + rad_offset(ng)*dcos(zrot_t(ng)%angle(i))
         lgcs_t(ng)%xyz(2,i) = lgcs_t(ng)%xyz(2,i) + rad_offset(ng)*dsin(zrot_t(ng)%angle(i))
       enddo
@@ -241,13 +260,13 @@ if(ngen > 1) then
     !  Set top and bottom of the cylinder
     do nt=1,gen_ntrunk(ng)
       !  Set the center point of the bottom ellipse
-      ebgcs_t(ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
+      ebgcs_t(ntr,ng)%xyz(:,nt)=lgcs_t(ng)%xyz(:,nt)
       !  Compute the center point of the top ellipse in the gcs
       call rotation_axis_vector_3d (zrot_t(ng)%axis(:,nt), &
-	skew_angle, &
-	(/0., 0., clen(ng)/),&
-	etgcs_t(ng)%xyz(:,nt))
-      etgcs_t(ng)%xyz(:,nt) = etgcs_t(ng)%xyz(:,nt) + ebgcs_t(ng)%xyz(:,nt)
+	    skew_angle, &
+	    (/0., 0., clen(ng)/),&
+	    etgcs_t(ntr,ng)%xyz(:,nt))
+        etgcs_t(ntr,ng)%xyz(:,nt) = etgcs_t(ntr,ng)%xyz(:,nt) + ebgcs_t(ntr,ng)%xyz(:,nt)
     enddo
 
   enddo
@@ -257,8 +276,8 @@ endif
 
 !  Top and bottom z-plane in gcs (same for all cylinders in generation)
 do ng=1,ngen
-  bplane(ng)=ebgcs_t(ng)%xyz(3,1)
-  tplane(ng)=etgcs_t(ng)%xyz(3,1)
+  bplane(ng)=ebgcs_t(ntr,ng)%xyz(3,1)
+  tplane(ng)=etgcs_t(ntr,ng)%xyz(3,1)
 
   if(mpirank == 0) then
     write(*,*) 'generation # : ', ng
@@ -279,12 +298,14 @@ subroutine allocate_arrays()
 implicit none
 
 !  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx+2,ny,0:nz))
+allocate(gcs_t(nx+2,ny,$lbz:nz))
 
 allocate(lgcs_t(ngen), &
-  ebgcs_t(ngen), &
-  etgcs_t(ngen), &
   zrot_t(ngen))
+
+!  Center of bottom and top ellipse of each cylinder
+allocate(ebgcs_t(ntree,ngen), &
+  etgcs_t(ntree, ngen))
 
 allocate(a(ngen), &
   b(ngen), &
@@ -297,12 +318,17 @@ allocate(a(ngen), &
 
 do ng=1,ngen
   gen_ntrunk(ng) = ntrunk**ng
+  gen_ncluster(ng) = ntrunk**(ng-1)
 enddo
 
 do ng=1,ngen
   allocate(lgcs_t(ng)%xyz(3,gen_ntrunk(ng)))
-  allocate(ebgcs_t(ng)%xyz(3,gen_ntrunk(ng)))
-  allocate(etgcs_t(ng)%xyz(3,gen_ntrunk(ng)))
+  
+  do ntr=1,ntree
+    allocate(ebgcs_t(ntr,ng)%xyz(3,gen_ntrunk(ng)))
+    allocate(etgcs_t(ntr,ng)%xyz(3,gen_ntrunk(ng)))
+  enddo
+  
   allocate(zrot_t(ng)%angle(gen_ntrunk(ng)))
   allocate(zrot_t(ng)%axis(3,gen_ntrunk(ng)))
 enddo
@@ -316,15 +342,15 @@ subroutine generate_grid()
 
 implicit none
 
-do k=0,nz
+do k=$lbz,nz
   do j=1,ny
     do i=1,nx+2
       gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
       gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
       if (mpisize == 1) then
-	gcs_t(i,j,k)%xyz(3) = (k - 0.5) * dz
+	    gcs_t(i,j,k)%xyz(3) = (k - 0.5) * dz
       else
-	gcs_t(i,j,k)%xyz(3) = (mpirank*(nz-1) + k - 0.5) * dz
+	    gcs_t(i,j,k)%xyz(3) = (mpirank*(nz-1) + k - 0.5) * dz
       endif
     enddo
   enddo
@@ -386,6 +412,7 @@ enddo
 write(3) nplanes
 
 indx = 0
+
 do ng=1,ngen
   !  Compute projected area to be that of a single trunk-cluster (Ap = h*w)
   h = clen(ng)*cos(skew_angle) ! height
@@ -431,32 +458,26 @@ implicit none
 
 integer :: ng,nt,i,j,k
 !  Loop over all global coordinates
-do k=0,Nz
+do k=$lbz,Nz
 
   do j=1,ny
 
     do i=1,nx+2
 
-
-      do ng=1,ngen
+      !  Only loop over resolved generations
+      do ng=1,ngen_rslv
         do nt=1,gen_ntrunk(ng)
 
-	  if(gcs_t(i,j,k)%phi > 0) then
-
-	    call pt_loc(ng,nt,i,j,k)
-
-	    call point_dist(ng,nt,i,j,k)
-
-	    call set_sign(i,j,k)
-
-	  endif
-
-	enddo
+	      if(gcs_t(i,j,k)%phi > 0) then
+	        call pt_loc(ng,nt,i,j,k)
+	        call point_dist(ng,nt,i,j,k)
+	        call set_sign(i,j,k)
+	      endif
+		  
+        enddo
       enddo
     enddo
-
   enddo
-
 enddo
 
 return
@@ -464,14 +485,14 @@ end subroutine main
 
 
 !**********************************************************************
-subroutine pt_loc(ng,nt,i,j,k)
+subroutine pt_loc(ntr,ng,nt,i,j,k)
 !**********************************************************************
 
 use cylinder_skew_param
 
 implicit none
 
-integer, intent(IN) :: ng,nt,i,j,k
+integer, intent(IN) :: ntr,ng,nt,i,j,k
 
 !  Intialize flags
 btw_planes=.false.
@@ -524,7 +545,7 @@ eck = ecs_t%xyz(1)**2/a(ng)**2 + ecs_t%xyz(2)**2/b(ng)**2
 if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > (tplane(ng) + bplane(ng))/2.) in_cyl_top=.true. !  Could be below or above
 
 !  Check if point lies in bottom ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ntr,ng)%xyz(:,nt)
 call rotation_axis_vector_3d(zrot_axis, &
   -zrot_t(ng)%angle(nt), &
   vgcs_t%xyz, &
@@ -543,7 +564,7 @@ use cylinder_skew_param
 implicit none
 
 integer, intent(IN) :: ng,nt,i,j,k
-double precision :: atan4
+real(rprec) :: atan4
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -587,7 +608,7 @@ else
     endif
 
   elseif(sgcs_t%xyz(3) <= bplane(ng) .and. .not. in_cyl_bottom) then
-    vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ng)%xyz(:,nt)
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - ebgcs_t(ntr,ng)%xyz(:,nt)
 
   !  Get vector in ellipse coordinate system
     call rotation_axis_vector_3d(zrot_axis, -zrot_t(ng)%angle(nt), vgcs_t%xyz, ecs_t%xyz)
@@ -658,14 +679,197 @@ integer, intent(IN) :: i,j,k
 !if(gcs_t(i,j,k)%phi > 0) then
   if(in_cyl .or. in_bottom_surf) then
     gcs_t(i,j,k)%phi = -dabs(gcs_t(i,j,k)%phi)
-    gcs_t(i,j,k)%brindex = -1
-  else    
     gcs_t(i,j,k)%brindex = 1
+  else    
+    gcs_t(i,j,k)%brindex = 0
   endif
 !endif
 return
 end subroutine set_sign
 
+!**********************************************************************
+subroutine compute_chi()
+!**********************************************************************
+!  This subroutine filters the indicator function chi
+use cylinder_skew_param
+
+implicit none
+
+real(rprec), dimension(:), allocatable :: gcs_w ! Used for checking vertical locations
+
+integer :: i,j,k
+
+allocate(gcs_w($lbz:nz))
+
+!  Create w-grid (physical grid)
+do k=$lbz,nz
+  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
+enddo
+
+do k=$lbz,nz
+  do j=1,ny
+    do i=1,nx
+	
+	  if(gcs_t(i,j,k)%phi <= 0.) then
+  	    gcs_t(i,j,k)%chi=1.
+	  else
+	  
+	  !  See if points have a generation association
+        call find_assoc_gen(gcs_t(i,j,k)%xyz(3), igen, iface)
+	  
+	    if (igen == -1) then
+	  
+	      gcs_t(i,j,k)%chi = 0.
+		
+	    elseif( 0 <= igen <= 3) then
+	
+	  
+	      !------------------------------
+	      if(iface == 0) then
+		
+ 		    call filter_chi(gcs_t(i,j,k)%xyz, igen, delta, gcs_t(i,j,k)%chi)
+	  
+  	      elseif(iface == 1) then
+	    
+	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(igen)/), igen, 2.*dx, gcs_t(i,j,k)%chi)
+		!  Normalize by volume fraction
+	        gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(igen))/dz
+  		
+          elseif(iface == 2) then
+	  
+  	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen, 2.*dx, chi_sum)
+		!  Normalize by volume fraction
+		    chi_sum = chi_sum * (tplane(igen) - gcs_w(k))/dz
+		
+		    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen+1, 2.*dx, gcs_t(i,j,k)%chi)
+		!  Normalize by volume fraction
+	        gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(igen))/dz
+	
+	      elseif(iface == 3) then
+	  
+	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(igen)/), igen, 2.*dx, gcs_t(i,j,k)%chi)
+		!  Normalize by volume fraction
+		    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(igen) - gcs_w(k))/dz
+			
+		  else
+		   
+		    write(*,*) 'igen not calculated correctly.'
+			stop
+		
+	      endif
+	      !------------------------------
+	    
+	    endif
+      endif
+	enddo
+  enddo
+enddo
+
+return
+
+end subroutine compute_chi
+
+!**********************************************************************
+subroutine find_assoc_gen(z,igen,iface)
+!**********************************************************************
+!  This subroutine finds the generation associated with a given point
+!  on the uv grid (i.e. cell center). This routine biases the bottom
+!  generation when an interior interface falls within a cell
+
+!  iface - 0 (no interface), 1 (bottom of tree), 
+!          2 (inter-generation interface), 3 (top of tree)
+
+use cylinder_skew_param
+implicit none
+
+real(rprec), intent(in) :: z ! on uv grid
+integer, intent(out) :: igen, imesg
+real(rprec) :: zcell_bot, zcell_top
+
+igen=-1
+iface=-1 
+
+zcell_bot = z - dz/2.
+zcell_top = z + dz/2.
+
+isearch_gen : do ng=1,ngen
+  ! Check if bottom of generation is within cell
+  if(zcell_bot < bplane(ng) < zcell_top) then
+    if(ng==1) then
+	  igen = ng
+	  iface = 1
+	  exit isearch_gen
+	else
+      igen = ng-1
+	  iface = 2
+	  exit isearch_gen
+	endif
+  ! Check if top of generation is within cell
+  elseif (zcell_bot. < tplane(ng) < zcell_top ) then
+    if(ng == ngen) then
+	  igen = ng
+	  iface = 3
+	  exit isearch_gen
+	else
+	  igen = ng
+	  iface = 2
+	  exit isearch_gen
+	endif
+  elseif(bplane(ng) < z < tplane(ng)) then
+	igen = ng
+	iface = 0
+	exit isearch_gen
+  endif
+enddo
+
+
+return
+end subroutine find_assoc_gen
+
+!**********************************************************************
+subroutine filter_chi(xyz, igen, delta, chi)
+!**********************************************************************
+!  This subroutine performs filtering in the horizontal planes
+!
+!  delta - filter width
+!  chi   - filtered indicator function
+!
+use cylinder_skew_param
+implicit none
+
+real(rprec), intent(in), dimension(3) :: xyz
+integer, intent(in) :: igen
+real(rprec), intent(in) :: delta
+real(rprec), intent(out) :: chi
+
+integer :: ntr, nt
+real(rprec) :: dist2, delta2
+
+chi=0.
+
+delta2 = delta*delta
+
+do ntr=1, ntree
+  
+  do nt=1,gen_ntrunk(igen)
+    
+  !  Compute xyz_p
+    xyz_p = (xyz(3) - ebgcs_t(ntr,igen)%xyz(3,nt)) * (etgcs_t(ntr,igen)%xyz(:,nt) - ebgcs_t(ntr,igen)%xyz(:,nt))
+    xyz_p = xyz_p + ebgcs_t(ntr,igen)%xyz(:,nt)
+	
+	dist2 = (xyz(1) - xyz_p(1))**2 + (xyz(2) - xyz_p(2))**2 + (xyz(3) - xyz_p(3))**2
+	
+	! Area_of_ellipse*gaussian_filter
+	chi = chi + pi*a(igen)*b(igen)*exp(-dist2/(2._rprec*delta2))
+	
+  enddo
+enddo
+
+!  Normalize 
+chi = chi/(2._rprec*pi*delta2)
+
+return
+end subroutine filter_chi
 
 !**********************************************************************
 subroutine finalize()
@@ -689,12 +893,13 @@ contains
 subroutine write_output()
 !**********************************************************************
 use cylinder_skew_base_ls, only : brindex, phi
+use grid_defs
 implicit none
 
 character (64) :: fname, temp
 integer :: i,j,k
 
-if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,0)%phi = -BOGUS
+if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'cylinder_skew_ls.dat'
@@ -704,31 +909,21 @@ if(mpisize > 1) then
   write (temp, '(".c",i0)') mpirank
   fname = trim (fname) // temp
 endif
-!  Create tecplot formatted phi and brindex field file
-open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='rewind')
 
-write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype"';
+if(.not. grid_built) call grid_build()
 
-write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
-
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-
-do k=0,nz
-  do j=1,ny
-    do i=1,nx
-      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype
-    enddo
-  enddo
-enddo
-close(2)
+!  Create tecplot header 
+call write_tecplot_header_ND(fname, 'rewind', 4, (/ Nx, Ny, Nz /), &
+  '"x", "y", "z", "phi", "brindex", "itype", "chi"', 1, 1)
+!  Write data
+call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
+  (/ gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi /), &
+  x, y, z)
 
 nullify(phi,brindex)
-allocate(phi(nx+2,ny,0:nz))
-allocate(brindex(nx+2,ny,0:nz))
-do k=0,nz
+allocate(phi(nx+2,ny,$lbz:nz))
+allocate(brindex(nx+2,ny,$lbz:nz))
+do k=$lbz,nz
   do j = 1,ny
     do i = 1,nx+2
       phi(i,j,k) = gcs_t(i,j,k)%phi
@@ -737,7 +932,7 @@ do k=0,nz
   enddo
 enddo
 
-if(mpirank == 0) phi(:,:,0) = -BOGUS
+if(mpirank == 0) phi(:,:,$lbz) = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'phi.out'
@@ -750,7 +945,7 @@ endif
 !  Write binary data for lesgo
 open (1, file=fname, form='unformatted')
 if(mpisize > 1) then
-  write(1) phi(:,:,0:nz)
+  write(1) phi(:,:,$lbz:nz)
 else
   write(1) phi(:,:,1:nz)
 endif
@@ -790,14 +985,13 @@ subroutine gen_assoc()
 !  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
 !           
 use param, only : nz,dz
-!use cylinder_skew_param, only : ngen, gcs_t, bplane, tplane
 
 implicit none
 character(64) :: fname, temp
 integer :: ng, k
 
 integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
-double precision, dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
+real(rprec), dimension(:), allocatable :: gcs_w, dz_bottom, dz_top
 
 allocate(gcs_w(nz))
 allocate(igen(ngen))
@@ -808,7 +1002,7 @@ allocate(dz_bottom(ngen), dz_top(ngen))
 
 !  Create w-grid (physical grid)
 do k=1,nz
-  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz
+  gcs_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
 
 do ng=1,ngen
@@ -871,12 +1065,11 @@ if(mpisize > 1) then
   write (temp, '(".c",i0)') mpirank
   fname = trim (fname) // temp
 endif
+  
+call write_real_data_1D(fname, 'rewind', 'formatted', 7,
+  ngen, (/ igen, kbottom_inside, kbottom, dz_bottom, &
+  ktop_inside, ktop, dz_top /))
 
-open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='rewind')
-do ng=1,ngen
-  write(2,*) igen(ng), kbottom_inside(ng), kbottom(ng), dz_bottom(ng), ktop_inside(ng), ktop(ng), dz_top(ng)
-enddo
 close(2)
 
 deallocate(gcs_w)

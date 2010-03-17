@@ -25,7 +25,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 #--not fully supported by all parts of the code
@@ -279,7 +279,7 @@ tsum_post: $(TSUM_POST_DEPS)
 	$(TSUM_POST_COMP1)
 	$(TSUM_POST_COMP2)
 
-cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o
+cylinder_skew_pre_ls: utils/cylinder_skew_pre_ls.f90 $(OPATH)/param.o $(OPATH)/grid.o $(OPATH)/io.o $(OPATH)/cylinder_skew_base_ls.o
 	$(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90
 	$(FPP) $< > t.cylinder_skew_pre_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) \

@@ -519,7 +519,7 @@ integer :: n, fid, i, j, k, nvars
 
 real(rprec) :: ui, vi, wi
 
-! double precision :: dnx, dny, dnz
+! real(rprec) :: dnx, dny, dnz
 
 !  Write point data; assumes files have been opened properly
 !  in stats_init

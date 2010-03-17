@@ -9,6 +9,7 @@ private
 public x, y, z, zw, grid_build, grid_built
 
 logical :: grid_built
+
 real(rprec), allocatable, dimension(:) :: x, y, z, zw
 
 contains
