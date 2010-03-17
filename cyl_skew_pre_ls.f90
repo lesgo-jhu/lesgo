@@ -110,12 +110,12 @@ real(rprec) :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
-origin(:,2)=(/ 0., L_y, z_bottom_surf /)
-origin(:,3)=(/ 0., 0., z_bottom_surf /)
-origin(:,4)=(/ L_x, 0., z_bottom_surf /)
-origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
-origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
-origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+!origin(:,2)=(/ 0., L_y, z_bottom_surf /)
+!origin(:,3)=(/ 0., 0., z_bottom_surf /)
+!origin(:,4)=(/ L_x, 0., z_bottom_surf /)
+!origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
+!origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+!origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
 if(ntr == 1) then
   call initialize_mpi ()
@@ -724,60 +724,59 @@ do k=$lbz,nz
 !      else
 	  
 	  !  See if points have a generation association
-        call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
+      call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
 
        !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
-       if(id_gen > ngen ) then
-         write(*,*) 'id_gen > ngen'
-         stop
-       endif
+      if(id_gen > ngen ) then
+        write(*,*) 'id_gen > ngen'
+        stop
+      endif
 	  
-	if (id_gen == -1) then
+	  if (id_gen == -1) then
 	  
-	  gcs_t(i,j,k)%chi = 0.
+	    gcs_t(i,j,k)%chi = 0.
 		
-	elseif( 0 <= id_gen .and. id_gen <= 3) then
+	  elseif( 0 <= id_gen .and. id_gen <= 3) then
 	
 	  
 	      !------------------------------
-	  if(iface == 0) then
+  	    if(iface == 0) then
 		
- 	    call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
+ 	      call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
           
-	  
-  	   elseif(iface == 1) then
+	    elseif(iface == 1) then
 	    
-	     call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	     gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
+	      gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (gcs_w(k+1) - bplane(id_gen))/dz
   		
-            elseif(iface == 2) then
+        elseif(iface == 2) then
 	  
-  	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
+  	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
 		!  Normalize by volume fraction
-		    chi_sum = chi_sum * (tplane(id_gen) - gcs_w(k))/dz
+		  chi_sum = chi_sum * (tplane(id_gen) - gcs_w(k))/dz
 		
-		 call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
+		  call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-	        gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(id_gen))/dz
+	      gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (gcs_w(k+1) - tplane(id_gen))/dz
 	
-	      elseif(iface == 3) then
+	    elseif(iface == 3) then
 	  
-	        call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
-		    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - gcs_w(k))/dz
-			
-		  else
+		  gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - gcs_w(k))/dz
+					
+	    endif
+	  
+	  else
 		   
-		    write(*,*) 'id_gen not calculated correctly.'
-			stop
-		
-	      endif
+	    write(*,*) 'id_gen not calculated correctly.'
+	    stop
 	      !------------------------------
 	    
 	    !endif
       endif
-	enddo
+    enddo
   enddo
 enddo
 
@@ -864,7 +863,7 @@ real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
 integer :: ntr, nt, nc, n
-real(rprec) :: delta2, chi_int
+real(rprec) :: delta2, chi_int, vec_mag, ds
 real(rprec), dimension(3) :: xyz_c, xyz_rot
 
 type(vector) :: lvec_t
@@ -873,28 +872,44 @@ chi=0.
 
 delta2 = delta*delta
 
+
+write(*,*) ' '
+write(*,*) 'id_gen, gen_ncluster(id_gen) : ', id_gen, gen_ncluster(id_gen)
 do ntr=1, ntree
   
-  nt=0
-  do nc=1,gen_ncluster(id_gen)
+  nt=0 !  Global trunk counter for tree
   
-
-	
-	do n=1,ntrunk
+  !  Loop over all branch clusters
+  do nc=1,gen_ncluster(id_gen)
+    !  Loop over all trunks within branch cluster	
+  	do n=1,ntrunk
 	
 	  nt=nt+1
-	  
+	  write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
+	  write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
 	  !  Compute center of ellipse to average over
-	  xyz_c = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt)) / cos(skew_angle)
-          xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
+	  
+	  call vector_magnitude_3d(etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt), vec_mag)
+	  ds = (xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)) / (vec_mag * cos(skew_angle))
+	  xyz_c = ds * (etgcs_t(ntr,id_gen)%xyz(:,nt) - ebgcs_t(ntr,id_gen)%xyz(:,nt))
+      xyz_c = xyz_c + ebgcs_t(ntr,id_gen)%xyz(:,nt)
+	  
+	  write(*,'(1a,3f12.6)') 'xyz ', xyz
+	  write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
 	  
 	  !  Compute local vector
-	  lvec_t%xyz = xyz_c - xyz
-	  !  Perform rotation of local vector about z-axis
-      call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t%xyz, lvec_t%xyz)
+	  lvec_t%xyz = xyz - xyz_c
 	  
-	  !  Point in rotated coordinate system
-	  xyz_rot = lvec_t%xyz + xyz_c
+	  
+	  
+	  write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
+	  !  Perform rotation of local vector about z-axis
+      call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t%xyz, xyz_rot)
+	  
+	  !!  Point in rotated coordinate system
+	  !xyz_rot = lvec_t%xyz + xyz_c
+	  
+	  write(*,'(1a,3f12.6)') 'xyz_rot : ', xyz_rot
 	  
       !dist2 = (xyz_rot(1) - xyz_p(1))**2 + (xyz_rot(2) - xyz_p(2))**2 + (xyz_rot(3) - xyz_p(3))**2
 	  
