@@ -719,9 +719,9 @@ do k=$lbz,nz
   do j=1,ny
     do i=1,nx
 	
-      if(gcs_t(i,j,k)%phi <= 0.) then
-  	gcs_t(i,j,k)%chi=1.
-      else
+    !  if(gcs_t(i,j,k)%phi <= 0.) then
+  	!gcs_t(i,j,k)%chi=1.
+    !  else
 	  
 	  !  See if points have a generation association
         call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
@@ -775,7 +775,7 @@ do k=$lbz,nz
 	      endif
 	      !------------------------------
 	    
-	    endif
+	    !endif
       endif
 	enddo
   enddo
@@ -874,11 +874,15 @@ chi=0.
 delta2 = delta*delta
 
 write(*,*) 'id_gen : ', id_gen
+
+
+
 do ntr=1, ntree
   
+  nt=0
   do nc=1,gen_ncluster(id_gen)
   
-    nt=0
+
 	
 	do n=1,ntrunk
 	
