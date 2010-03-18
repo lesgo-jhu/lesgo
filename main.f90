@@ -32,6 +32,10 @@ $if ($TREES_LS)
 use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
+$if ($TURBINES)
+use turbines, only : turbines_init, turbines_forcing
+$endif
+
 $if ($DEBUG)
 use debug_mod  !--just for debugging
 $endif
