@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 8
+  $define $NPROC 32
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -48,7 +48,7 @@ module param
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
 
-  integer,parameter:: nx=256,ny=148,nz=(192+8-1)/nproc + 1
+  integer,parameter:: nx=128,ny=74,nz=(96+6-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big

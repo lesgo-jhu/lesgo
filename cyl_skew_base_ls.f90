@@ -26,9 +26,9 @@ real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 4.*dz
+real(rprec), parameter :: z_bottom_surf = 0.125490193552785_rprec
 
-real(rprec), parameter :: filt_width = (2.*dx)**2  !  Filter width for filtered indicator function
+real(rprec), parameter :: filt_width = 2.*dx  !  Filter width for filtered indicator function
 
 integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside, lun
 integer, dimension(:,:,:), allocatable :: itype
