@@ -1,6 +1,6 @@
 module turbines
 use types,only:rprec
-use param
+use param, only: dx
 use stat_defs, only:turbine_t
 
 implicit none
@@ -40,12 +40,15 @@ turbine_t%ifilter_v = 4			!Filter type: 4->Truncated Gaussian
 turbine_t%alpha_h = 1.5			!filter size is alpha*(grid spacing)
 turbine_t%alpha_v = 1.5  			!h=horizontal (xy), v=vertical (xz,yz)
 
-real(rprec) :: Ct = 1.33		!thrust coefficient
+real(rprec), parameter :: Ct = 1.33		!thrust coefficient
 !#########################################################################################
 
 integer, dimension(turbine_t%nloc) :: num_nodes		!number of nodes associated with each turbine
 integer, dimension(100*turbine_t%nloc,3) ::nodes	!(i,j,k) of each included node
 real, dimension (turbine_t%nloc) :: n_hat			!(nx,ny,nz) of unit normal for each turbine
+real, dimension(turbine_t%nloc) :: u_d_T			!running time-average of mean disk velocity
+integer :: flag										!indicates fist time step (where u_d_T = u_d)
+real :: eps											!epsilon used for disk velocity time-averaging
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -53,27 +56,33 @@ contains
 
 subroutine turbines_init()
 !PROBLEMS WITH MPI - MAKE SURE TURBINES ARE COMPLETELY WITHIN ONE PROC'S DOMAIN
+use param, only: dt, L_z, u_star
+
+!locate applicable nodes
+	call turbines_nodes()
 
 !initialize filter	
 	call turbines_filter_init(turbine_t%alpha_xy,G_turbines_xy,turbine_t%ifilter_xy)
 
-!locate applicable nodes (turbine_nodes)
-	call turbines_nodes()
-
+!initialize variables
+	u_d_T = 0.
+	flag = 1
+	eps = dt/(0.27*L_z/u_star) / (1 + dt/(0.27*L_z/u_star))
+	
 end subroutine turbines_init
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_forcing()
-use param, only: nx,ny,nz,pi,dx,dy,dz
+use param, only: nx,ny,nz,pi,dx,dy,dz,dt
 use sim_param, only: u,v,w
 use io, only: w_uv, w_uv_tag
 
-real, dimension(nx,ny,nz) :: f_x=0., f_y=0., f_z=0.
-real, dimension(turbine_t%nloc) :: u_d, f_t
+real, dimension(nx,ny,nz) :: f_x=0., f_y=0., f_z=0.   !only initialized during first call?
+real, dimension(turbine_t%nloc) :: u_d, f_t, cf
 integer :: i,j,k,m,l,i2,j2,k2,count_i
 
-!calculate total disk-averaged velocity for each turbine (not time avg, yet)
+!calculate total disk-averaged velocity for each turbine (current,instantaneous)
 	call interp_to_uv_grid(w, w_uv, w_uv_tag)
 	count_i = 0		!index count - used for reading array "nodes"
 	do m=1,turbine_t%nloc
@@ -87,22 +96,30 @@ integer :: i,j,k,m,l,i2,j2,k2,count_i
 		enddo
 		count_i = count_i + num_nodes(m)
 	enddo
+!add this current value to the "running average" (first order relaxation, T=0.27*H/u_star)
+	if (flag) then
+		u_d_T = u_d
+		flag = 0
+	else
+		u_d_T = (1.-eps)*u_d_T + eps*u_d
+	endif
 
-!calculate total thrust force per unit mass for each turbine (includes volume/mass correction factor)
+!calculate total thrust force (per unit mass) for each turbine (includes volume/mass correction factor)
 	do m=1,turbine_t%nloc
-		f_t(m) = -0.5*Ct*u_d(m)*u_d(m)/dx * pi/4.*turbine_t%dia(m)*turbine_t%dia(m)*turbine_t%thk(m) / (dx*dy*dz*num_nodes(m))
+		cf(m) = pi/4.*turbine_t%dia(m)*turbine_t%dia(m)*turbine_t%thk(m) / (dx*dy*dz*num_nodes(m))
+		f_t(m) = -0.5*Ct*u_d_T(m)*u_d_T(m)/turbine_t%thk(m) * cf(m)
 	enddo
 	
-!distribute forcing evenly among nodes 
+!apply forcing to each node
 	count_i = 0		!index count
 	do m=1,turbine_t%nloc
 		do l=1,num_nodes(m)
 			i2 = nodes(count_i+l,1)
 			j2 = nodes(count_i+l,2)
 			k2 = nodes(count_i+l,3)			
-			f_x(i2,j2,k2) = f_t(m)*n_hat(m,1) / turbine_t%nloc
-			f_y(i2,j2,k2) = f_t(m)*n_hat(m,2) / turbine_t%nloc
-			f_z(i2,j2,k2) = f_t(m)*n_hat(m,3) / turbine_t%nloc
+			f_x(i2,j2,k2) = f_t(m)*n_hat(m,1) 
+			f_y(i2,j2,k2) = f_t(m)*n_hat(m,2) 
+			f_z(i2,j2,k2) = f_t(m)*n_hat(m,3) 
 		enddo
 		count_i = count_i + num_nodes(m)
 	enddo
@@ -169,8 +186,7 @@ do m=1,turbine_t%nloc
 	num_nodes(m) = count_n
 	count_n = 0
 enddo
-	
-	
+		
 end subroutine turbines_nodes
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
