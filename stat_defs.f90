@@ -55,12 +55,16 @@ type plane
 end type plane
 
 $if ($TURBINES)
-	! Turbines data - currently all turbines will have -x as their normal dir.
 	type turbine 
-		real(rprec) :: dia     !turbine diameter  [m]  (same for all)
-		real(rprec) :: height  !turbine height    [m]  (same for all)
-		integer :: nloc        !number of locations (max set by size of xloc,yloc)
-		real(rprec), dimension (4) :: xloc, yloc  !x,y locations [dimensionless - usually in terms of Lx,Ly]
+		real(rprec), dimension (:) :: dia, thk 
+		real(rprec), dimension (:) :: height 
+		integer :: nloc       				  
+		real(rprec), dimension (:) :: xloc, yloc  
+		real(rprec), dimension (:) :: theta1, theta2	  
+		integer,parameter::ifilter_xy  
+		integer,parameter::ifilter_z  
+		real (rprec) :: alpha_xy      
+		real (rprec) :: alpha_z 
 	end type turbine
 $endif
 
