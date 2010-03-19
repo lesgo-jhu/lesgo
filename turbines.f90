@@ -1,6 +1,6 @@
 module turbines
 use types,only:rprec
-use param, only: dx
+use param, only: dx,lh,ny
 use stat_defs, only:turbine_t
 
 implicit none
@@ -9,6 +9,28 @@ save
 private
 
 public :: turbines_init, turbines_forcing
+
+real(rprec) :: Ct									!thrust coefficient
+integer :: flag										!indicates fist time step (where u_d_T = u_d)
+real :: eps											!epsilon used for disk velocity time-averaging
+
+real, pointer, dimension(:) :: u_d_T				!running time-average of mean disk velocity
+integer, pointer, dimension(:) :: num_nodes			!number of nodes associated with each turbine
+integer, pointer, dimension(:,:) ::nodes			!(i,j,k) of each included node
+real, pointer, dimension (:,:) :: n_hat				!(nx,ny,nz) of unit normal for each turbine
+
+real, dimension(lh,ny) :: G_turbines_xy				!for filtering forces (transfer function)
+integer*8::forw_xy,back_xy							!FFT plans
+real, dimension(lh,ny)::kxT,kyT,k2T					!wavenumbers
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+contains
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine turbines_init()
+!PROBLEMS WITH MPI - MAKE SURE TURBINES ARE COMPLETELY WITHIN ONE PROC'S DOMAIN
+use param, only: dt, L_x, L_y, L_z, u_star
+
 
 !##############################  SET BY USER  ############################################
 
@@ -40,37 +62,20 @@ turbine_t%ifilter_z = 4				!Filter type: 4->Truncated Gaussian
 turbine_t%alpha_xy = 1.5			!filter size is alpha*(grid spacing)
 turbine_t%alpha_z = 1.5  			!h=horizontal (xy), v=vertical (xz,yz)
 
-real(rprec), parameter :: Ct = 1.33		!thrust coefficient
+Ct = 1.33		!thrust coefficient
 !#########################################################################################
 
-integer, dimension(turbine_t%nloc) :: num_nodes		!number of nodes associated with each turbine
-integer, dimension(100*turbine_t%nloc,3) ::nodes	!(i,j,k) of each included node
-real, dimension (turbine_t%nloc) :: n_hat			!(nx,ny,nz) of unit normal for each turbine
-real, dimension(turbine_t%nloc) :: u_d_T			!running time-average of mean disk velocity
-integer :: flag										!indicates fist time step (where u_d_T = u_d)
-real :: eps											!epsilon used for disk velocity time-averaging
-
-real, dimension(nx/2+1,ny) :: G_turbines_xy			!for filtering forces (transfer function)
-integer*8::forw_xy,back_xy							!FFT plans
-real, dimension(nx/2+1,ny)::kxT,kyT,k2T				!wavenumbers
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-subroutine turbines_init()
-!PROBLEMS WITH MPI - MAKE SURE TURBINES ARE COMPLETELY WITHIN ONE PROC'S DOMAIN
-use param, only: dt, L_z, u_star
+allocate(u_d_T(turbine_t%nloc))
+allocate(num_nodes(turbine_t%nloc))
+allocate(nodes(100*turbine_t%nloc,3))
+allocate(n_hat(turbine_t%nloc,3))
 
 !locate applicable nodes
 	call turbines_nodes()
-
 !initialize FFT (create plans and initialize wavenumbers)
 	call turbines_fft()	
-	
 !initialize filter	
 	call turbines_filter_init()
-
 !initialize variables
 	u_d_T = 0.
 	flag = 1
@@ -83,7 +88,7 @@ end subroutine turbines_init
 subroutine turbines_forcing()
 use param, only: nx,ny,nz,pi,dx,dy,dz,dt
 use sim_param, only: u,v,w
-use io, only: w_uv, w_uv_tag
+use io, only: w_uv, w_uv_tag, interp_to_uv_grid
 
 real, dimension(nx,ny,nz) :: f_x=0., f_y=0., f_z=0.   !only initialized during first call?
 real, dimension(turbine_t%nloc) :: u_d, f_t, cf
@@ -147,6 +152,7 @@ end subroutine turbines_forcing
 subroutine turbines_nodes()
 !This subroutine locates nodes for each turbine and builds the arrays: n_hat, num_nodes, and nodes
 use param, only:dx,dy,dz,pi	
+use grid_defs, only:x,y,z
 	
 integer :: imax,jmax,kmax,count_i,count_n,m,icp,jcp,kcp,i,j,k
 real :: R_t,rx,ry,rz,r,r_norm,r_disk
@@ -284,11 +290,11 @@ integer :: jx,jy
     kyT(:,ny/2+1)=0._rprec
 	  
 	! for the aspect ratio change
-    kxT=2._rprec*pi/L_x*kx
-    kyT=2._rprec*pi/L_y*ky
+    kxT=2._rprec*pi/L_x*kxT
+    kyT=2._rprec*pi/L_y*kyT
 	  
 	! magnitude squared: will have 0's around the edge
-    k2T = kx*kx + ky*ky
+    k2T = kxT*kxT + kyT*kyT
 
 end subroutine turbines_fft
 
