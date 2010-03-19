@@ -110,7 +110,7 @@ integer :: i,j,k
 
 $if ($MPI)
 integer :: mpi_datasize
-real(rprec), allocatable, dimension(:,:) :: buf
+!real(rprec), allocatable, dimension(:,:) :: buf
 $endif
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
@@ -129,47 +129,61 @@ lbz=lbound(var,3); ubz=ubound(var,3)
 $if ($MPI)
 mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
-allocate(buf(lbx:ubx,lby:uby))
+!allocate(buf(lbx:ubx,lby:uby))
 
 !if(.not. allocated(var_uv)) allocate(var_uv(lbx:ubx,lby:uby,lbz:ubz))
 
-  !  Need to get all buffer regions
+do k=lbz,ubz-1
+  do j=lby,uby
+    do i=lbx,ubx
+      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    enddo
+  enddo 
+enddo
+
+  !  Need to get all overlapping values
 if(coord > 0) then
-  call mpi_send (var(1, 1, 2), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
+  call mpi_send (var_uv(1, 1, 1), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
 endif
 
 if(coord < nproc - 1) then
-  call mpi_recv (buf(1,1), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
+  call mpi_recv (var_uv(1,1,ubz), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
 endif
+
+$else
+  
+do k=lbz,ubz
+  do j=lby,uby
+    do i=lbx,ubx
+      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    enddo
+  enddo
+enddo
 
 $endif
   
-do k=lbz,ubz-1; do j=lby,uby; do i=lbx,ubx
-  var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-enddo; enddo; enddo
-  
 !  set k=nz
-k=ubz
-do j=lby,uby; do i=lbx,ubx
-  $if ($MPI)
-!  Check for top "physical" boundary
-  if (coord == nproc - 1) then
-    var_uv(i,j,k) = var(i,j,k) 
-  else
-    var_uv(i,j,k) = 0.5*(buf(i,j) + var(i,j,k))
-  endif
-  $else
-  var_uv(i,j,k) = var(i,j,k)
-  $endif
-enddo; enddo
+!k=ubz
+!do j=lby,uby; do i=lbx,ubx
+!  $if ($MPI)
+!!  Check for top "physical" boundary
+!  if (coord == nproc - 1) then
+!    var_uv(i,j,ubz) = var(i,j,ubz) 
+!  else
+!    var_uv(i,j,k) = 0.5*(buf(i,j) + var(i,j,k))
+!  endif
+!  $else
+!  var_uv(i,j,k) = var(i,j,k)
+!  $endif
+!enddo; enddo
 
 tag = jt ! Set identifying tag 
 
 return 
 
-$if($MPI)
-deallocate(buf)
-$endif
+!$if($MPI)
+!deallocate(buf)
+!$endif
 
 end subroutine interp_to_uv_grid
 
