@@ -132,6 +132,14 @@ lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)
 lbz=lbound(var,3); ubz=ubound(var,3)
 
+do k=lbz,ubz-1
+  do j=lby,uby
+    do i=lbx,ubx
+      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    enddo
+  enddo
+enddo
+
 $if ($MPI)
 mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
@@ -139,32 +147,20 @@ mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
 !if(.not. allocated(var_uv)) allocate(var_uv(lbx:ubx,lby:uby,lbz:ubz))
 
-do k=lbz,ubz-1
-  do j=lby,uby
-    do i=lbx,ubx
-      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-    enddo
-  enddo 
-enddo
-
   !  Need to get all overlapping values
-if(coord > 0) then
-  call mpi_send (var_uv(1, 1, 1), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
-endif
+if(coord > 0) call mpi_send (var_uv(1, 1, 1), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
 
 if(coord < nproc - 1) then
   call mpi_recv (var_uv(1,1,ubz), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
+else
+  !  Take care of top "physical" boundary
+  var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 endif
 
 $else
-  
-do k=lbz,ubz
-  do j=lby,uby
-    do i=lbx,ubx
-      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-    enddo
-  enddo
-enddo
+
+!  Take care of top "physical" boundary
+var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 $endif
   
