@@ -87,8 +87,14 @@ contains
 !**********************************************************************
 subroutine interp_to_uv_grid(var,var_uv,tag)
 !**********************************************************************
-!  This function computes any values the read in value u(k) and
-!  u(k+1) to the uv grid location k
+!  This function interpolates the array var, which resides on the w-grid,
+!  onto the uv-grid variable var_uv using linear interpolation. It is 
+!  important to note that message passing is required for MPI cases and 
+!  all processors must call this routine. If this subroutine is call from a 
+!  only a subset of the total processors, the code will hang due to the usage
+!  of the syncronous send/recv functions and certain processors waiting
+!  to recv data but it never gets there.
+!
 use types, only : rprec
 use param,only : nz,ld,jt
 use sim_param, only : w, dudz
