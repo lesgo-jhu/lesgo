@@ -55,7 +55,7 @@ TSUM_POST_COMP2 = $(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) 
 	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
 
 ifeq ($(USE_MPI), yes)
-  SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90
+  SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
   TSUM_POST_COMP1 = $(FPP) utils/mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90; 
   TSUM_POST_COMP2 += $(OPATH)/mpi_defs.o
 endif
