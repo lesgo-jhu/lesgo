@@ -1,0 +1,180 @@
+# This is the settings makefile.
+# Use with GNU make.
+# Relies on makedepf90 to do dependency lists:
+# You can obtain this free program from:
+#   http://www.helsinki.fi/~eedelman/makedepf90.html
+# New $ARCH entries may be required, depending on your compiler.
+# Also requires fpx3 fortran preprocessor available at
+#   http://wwwuser.gwdg.de/~jbehren/fpx3.html
+
+SHELL = /bin/bash
+FCOMP = ifort
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+
+#--64-bit mode: may want to do export OBJECT_MODE=64
+q64 = no
+
+#--Set global DEBUG flag;
+#--Still have to set DEBUG in individual routines
+DEBUG=no
+#--Set global VERBOSE flag;
+VERBOSE=no
+#--Sets inclusion of development sections
+DEVEL=no
+
+# watch the whitespace here
+USE_MPI = yes
+USE_OPENMP = no
+
+#--not fully supported by all parts of the code
+USE_DYNALLOC = no
+#--still experimental
+
+USE_LVLSET = yes
+
+USE_TREES_LS = no
+USE_CYLINDER_SKEW_LS = yes
+USE_RNS_LS = yes
+
+USE_TURBINES = no
+
+FPP = fpx3
+
+ifeq ($(DEBUG), yes)
+  FPP += -DDEBUG
+endif
+
+ifeq ($(VERBOSE), yes)
+  FPP += -DVERBOSE
+endif
+
+ifeq ($(DEVEL), yes)
+  FPP += -DDEVEL
+endif
+
+ifeq ($(USE_MPI), yes)
+  FPP += -DMPI
+  LIBS += -lmpichf90 -lfmpich -lmpich
+endif
+
+ifeq ($(USE_DYNALLOC),yes)
+  FPP += -DDYNALLOC
+endif
+
+ifeq ($(USE_TREES_LS), yes)
+  FPP += -DTREES_LS
+endif
+
+ifeq ($(USE_LVLSET), yes)
+  FPP += -DLVLSET
+endif
+
+ifeq ($(USE_CYLINDER_SKEW_LS), yes)
+  FPP += -DCYLINDER_SKEW_LS
+endif
+
+ifeq ($(USE_RNS_LS), yes)
+  FPP += -DRNS_LS
+endif
+
+ifeq ($(USE_TURBINES), yes)
+  FPP += -DTURBINES
+endif
+
+# Directory for the .o files
+OPATH = obj
+# Directory for the .mod files, if your compiler generates them
+# May want to just make this 'obj' as well
+MPATH = mod
+
+ifeq ($(FCOMP),ifort)
+  
+  FPP += -DIFORT
+  
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = ifort
+  endif
+
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
+  #FFLAGS = -fast
+  #FFLAGS = -O3 -ipo
+  #FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  FFLAGS += -warn all -mcmodel=medium
+  #FDEBUG = -g -debug all
+  FPROF = -p
+  LDFLAGS = -threads -shared-intel
+  MODDIR = -I$(MPATH) -module $(MPATH)
+  FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
+endif
+
+ifeq ($(FCOMP),gfortran)
+  FPP += -DGFORTRAN
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = gfortran
+  endif
+  FFLAGS = -O0 -fbounds-check
+#  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
+  FFLAGS += -Wall
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS = -static 
+  MODDIR = -I$(MPATH) -J$(MPATH)
+  FFLAGS += $(MODDIR)  
+  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
+endif
+
+ifeq ($(FCOMP),xlf)
+  FPP += -DXLF
+  ifeq ($(USE_MPI), yes)
+    FC = mpxlf95_r
+  else
+    FC = xlf95_r
+  endif
+  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
+  FFLAGS = -qstrict -qsuffix=f=f90 -O3
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
+  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
+  #find out details of how things are stored
+  #FFLAGS += -qsource -qattr=full -qxref=full
+  #ifeq ($(USE_OPENMP), yes)
+    #FFLAGS += -qsmp=omp
+  #endif
+  #FDEBUG = -g
+  #FPROF = -p
+  ifeq ($(q64),yes)
+    FFLAGS += -q64 -qarch
+    LDFLAGS =
+    LIBPATH =
+    LIBS =
+  else
+    #LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000
+    ## NOTE: you'll need to modify this!
+    ## or specify on command line
+    #LIBPATH = -L${HOME}/fftw/fftw2/lib
+    #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
+    LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+  endif
+  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
+  FFLAGS += $(MODDIR)
+  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) 
+  #-qautodbl=dbl4 -qrealsize=8
+endif
+
+ifeq ($(FCOMP),g95)
+  FPP += -DG95
+  FC = g95
+  FFLAGS = -O0
+  FDEBUG = -g
+  FPROF = -p
+  LDFLAGS =
+  MODDIR =
+  FFLAGS += $(MODDIR)
+endif
+
