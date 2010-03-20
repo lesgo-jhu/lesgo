@@ -703,7 +703,7 @@ use cylinder_skew_param
 
 $if($MPI)
 use param, only : coord, nproc
-use io, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array
 $endif
 
 implicit none
