@@ -3,6 +3,7 @@ module cylinder_skew_base_ls
 !**********************************************************************
 use types, only : rprec
 use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+
 implicit none
 
 save
@@ -17,8 +18,8 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 integer, parameter :: ntree = 7
 integer, parameter :: ntrunk = 3
 
-integer, parameter :: ngen = 5
-integer, parameter :: ngen_reslv = 2
+integer, parameter :: ngen = 2
+integer, parameter :: ngen_reslv = 1
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec

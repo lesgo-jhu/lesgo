@@ -6,6 +6,7 @@ use sim_param, only : w, dudz
 use messages
 use strmod
 implicit none
+
 save
 private
 
@@ -16,6 +17,10 @@ public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
 public write_tecplot_header_xyline, write_tecplot_header_ND
 public write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
+
+$if ($MPI)
+public mpi_sync_real_array
+$endif
 
 !interface write_real_data_ND
 !  module procedure write_real_data_1D, write_real_data_2D, write_real_data_3D
@@ -99,12 +104,6 @@ use types, only : rprec
 use param,only : nz,ld,jt
 use sim_param, only : w, dudz
 
-$if ($MPI)
-use mpi
-use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, &
-  coord
-$endif
-
 implicit none
 
 real(rprec), dimension(:,:,:), intent(IN) :: var
@@ -113,11 +112,6 @@ integer, intent(INOUT) :: tag
 !real(rprec), dimension(2) :: var
 integer :: lbx,ubx,lby,uby,lbz,ubz
 integer :: i,j,k
-
-$if ($MPI)
-integer :: mpi_datasize
-!real(rprec), allocatable, dimension(:,:) :: buf
-$endif
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
@@ -141,21 +135,12 @@ do k=lbz,ubz-1
 enddo
 
 $if ($MPI)
-mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
-!allocate(buf(lbx:ubx,lby:uby))
+!  Take care of top "physical" boundary
+if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
-!if(.not. allocated(var_uv)) allocate(var_uv(lbx:ubx,lby:uby,lbz:ubz))
-
-  !  Need to get all overlapping values
-if(coord > 0) call mpi_send (var_uv(1, 1, 1), mpi_datasize , MPI_RPREC, down, 1, comm, ierr)
-
-if(coord < nproc - 1) then
-  call mpi_recv (var_uv(1,1,ubz), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
-else
-  !  Take care of top "physical" boundary
-  var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
-endif
+!  Sync all overlapping data
+call mpi_sync_real_array(var_uv)
 
 $else
 
@@ -183,11 +168,55 @@ tag = jt ! Set identifying tag
 
 return 
 
-!$if($MPI)
+!!$if($MPI)
 !deallocate(buf)
-!$endif
+!!$endif
 
 end subroutine interp_to_uv_grid
+
+$if ($MPI)
+!**********************************************************************
+subroutine mpi_sync_real_array(var)
+!**********************************************************************
+!  This subroutine syncs data for the:
+!    k = nz-1 at coord to k=0 at coord+1
+!    k = 1 at coord+1  to k=nz at coord
+!  nodes; these are the ghost and interprocessor overlap nodes. 
+
+use mpi
+use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord
+
+implicit none
+
+real(rprec), dimension(:,:,:), intent(INOUT) :: var
+
+integer :: lbx,ubx,lby,uby,lbz,ubz
+integer :: i,j,k
+real(rprec) :: mpi_datasize
+
+!  Get bounds of var array
+lbx=lbound(var,1); ubx=ubound(var,1)
+lby=lbound(var,2); uby=ubound(var,2)
+lbz=lbound(var,3); ubz=ubound(var,3)
+
+!  Set mpi data size
+mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
+
+!  ----- Need to get all overlapping values -----
+if(coord < nproc - 1) then
+  call mpi_send (var(1, 1, ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
+  call mpi_recv (var(1,1, ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
+endif
+
+if(coord > 0) then
+  call mpi_recv(var(1, 1, lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
+  call mpi_send (var(1, 1, lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
+endif
+
+return
+
+end subroutine mpi_sync_real_array
+$endif
 
 !!$ Commented by JSG
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -59,7 +59,7 @@ end module cylinder_skew_param
 program cylinder_skew_pre_ls
 !***************************************************************
 $if ($MPI)
-use mpi_defs, only : mpirank
+use param, only : coord
 $endif
 use cylinder_skew_param, only : DIST_CALC, ntree
 implicit none
@@ -70,13 +70,13 @@ integer :: ntr
 do ntr = 1,ntree
   
   $if ($DEBUG)
-  if(mpirank == 0) write(*,*) 'Tree id : ', ntr
+  if(coord == 0) write(*,*) 'Tree id : ', ntr
   $endif
   
   call initialize(ntr)
   
   $if ($RNS_LS)
-   if(mpirank == 0) call rns_planes(ntr)
+   if(coord == 0) call rns_planes(ntr)
   $endif
    
   if(DIST_CALC) call main(ntr)
@@ -98,6 +98,7 @@ subroutine initialize(ntr)
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
+use param, only : coord
 $endif
 use cylinder_skew_param
 
@@ -110,9 +111,9 @@ real(rprec) :: gen_scale_fact
 
 !  Set tree origins
 origin(:,1)=(/ L_x/2., L_y/2., z_bottom_surf /)
-origin(:,2)=(/ 0., L_y, z_bottom_surf /)
-origin(:,3)=(/ 0., 0., z_bottom_surf /)
-origin(:,4)=(/ L_x, 0., z_bottom_surf /)
+origin(:,2)=(/ 0._rprec, L_y, z_bottom_surf /)
+origin(:,3)=(/ 0._rprec, 0._rprec, z_bottom_surf /)
+origin(:,4)=(/ L_x, 0._rprec, z_bottom_surf /)
 origin(:,5)=(/ L_x, L_y, z_bottom_surf /)
 origin(:,6)=(/ L_x/2, 3./2.*L_y, z_bottom_surf /)
 origin(:,7)=(/ L_x/2, -1./2.*L_y, z_bottom_surf /)
@@ -162,7 +163,7 @@ if(ntr == 1) then
   b = crad                  ! Ellipse minor axis
 
   $if ($DEBUG)
-  if (mpirank == 0) then
+  if (coord == 0) then
     write(*,*) 'skew_angle : ', skew_angle
     write(*,*) 'skew_anlge (deg) : ', skew_angle*180./pi
     write(*,*) 'ntrunk 	 : ', ntrunk
@@ -174,16 +175,16 @@ if(ntr == 1) then
 
 !  Set rotation angle about z-axis with which the skew angle is applied 
   do ng=1,ngen
-    zrot_t(ng)%angle(:)=0.
+    zrot_t(ng)%angle(:)=0._rprec
   enddo
 
 !  Do for the 1st generation (ng = 1)
   do nt=1,ntrunk
     zrot_t(1)%angle(nt) = zrot_angle + 2.*pi*(nt-1)/ntrunk
-    zrot_t(1)%axis(:,nt) = (/dcos(zrot_t(1)%angle(nt)+pi/2.),dsin(zrot_t(1)%angle(nt)+pi/2.),0./)
+    zrot_t(1)%axis(:,nt) = (/dcos(zrot_t(1)%angle(nt)+pi/2.),dsin(zrot_t(1)%angle(nt)+pi/2.),0._rprec/)
     
     $if ($DEBUG)
-    if(mpirank == 0) then
+    if(coord == 0) then
       write(*,*) 'zrot_t(1)%angle(nt) : ', zrot_t(1)%angle(nt)*180./pi
       write(*,*) 'zrot_t(1)%axis(:,nt) : ', zrot_t(1)%axis(:,nt)
     endif
@@ -200,7 +201,7 @@ do nt=1,ntrunk
   lgcs_t(1)%xyz(2,nt) = lgcs_t(1)%xyz(2,nt) + rad_offset(1)*dsin(zrot_t(1)%angle(nt))
 
   $if ($DEBUG)
-  if(mpirank == 0 ) then
+  if(coord == 0 ) then
     write(*,*) ''
     write(*,*) 'nt = ', nt
     write(*,*) 'origin : ', origin(:,ntr)
@@ -213,7 +214,7 @@ do nt=1,ntrunk
   !  Compute the center point of the top ellipse in the gcs
   call rotation_axis_vector_3d(zrot_t(1)%axis(:,nt), &
     skew_angle, &
-    (/0., 0., clen(1)/), &
+    (/0._rprec, 0._rprec, clen(1)/), &
     etgcs_t(ntr,1)%xyz(:,nt))
   etgcs_t(ntr,1)%xyz(:,nt) = etgcs_t(ntr,1)%xyz(:,nt) + ebgcs_t(ntr,1)%xyz(:,nt)
   
@@ -233,7 +234,7 @@ if(ngen > 1) then
     do nt=1,gen_ntrunk(ng)
       zrot_t(ng)%angle(nt) = zrot_t(1)%angle(i)
       if(mod(ng,2)==0) zrot_t(ng)%angle(nt) = zrot_t(ng)%angle(nt) + pi
-      zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0./)
+      zrot_t(ng)%axis(:,nt) = (/dcos(zrot_t(ng)%angle(nt)+pi/2.),dsin(zrot_t(ng)%angle(nt)+pi/2.),0._rprec/)
       i = i + 1
       if(i > ntrunk) i = 1
     enddo
@@ -266,7 +267,7 @@ if(ngen > 1) then
       !  Compute the center point of the top ellipse in the gcs
       call rotation_axis_vector_3d (zrot_t(ng)%axis(:,nt), &
 	    skew_angle, &
-	    (/0., 0., clen(ng)/),&
+	    (/0._rprec, 0._rprec, clen(ng)/),&
 	    etgcs_t(ntr,ng)%xyz(:,nt))
         etgcs_t(ntr,ng)%xyz(:,nt) = etgcs_t(ntr,ng)%xyz(:,nt) + ebgcs_t(ntr,ng)%xyz(:,nt)
     enddo
@@ -281,7 +282,7 @@ do ng=1,ngen
   bplane(ng)=ebgcs_t(ntr,ng)%xyz(3,1)
   tplane(ng)=etgcs_t(ntr,ng)%xyz(3,1)
 
-  if(mpirank == 0) then
+  if(coord == 0) then
     write(*,*) 'generation # : ', ng
     write(*,*) 'bplane and tplane = ', bplane(ng), tplane(ng)
   endif
@@ -342,7 +343,7 @@ end subroutine allocate_arrays
 !**********************************************************************
 subroutine generate_grid()
 !**********************************************************************
-
+use param, only : nproc, coord
 implicit none
 
 do k=$lbz,nz
@@ -350,10 +351,10 @@ do k=$lbz,nz
     do i=1,nx+2
       gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
       gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
-      if (mpisize == 1) then
+      if (nproc == 1) then
 	    gcs_t(i,j,k)%xyz(3) = (k - 0.5) * dz
       else
-	    gcs_t(i,j,k)%xyz(3) = (mpirank*(nz-1) + k - 0.5) * dz
+	    gcs_t(i,j,k)%xyz(3) = (coord*(nz-1) + k - 0.5) * dz
       endif
     enddo
   enddo
@@ -692,7 +693,7 @@ integer, intent(IN) :: i,j,k
 return
 end subroutine set_sign
 
-!############################################################################################################
+!######################################################################
 
 !**********************************************************************
 subroutine compute_chi()
@@ -700,22 +701,38 @@ subroutine compute_chi()
 !  This subroutine filters the indicator function chi
 use cylinder_skew_param
 
+$if($MPI)
+use param, only : coord, nproc
+use io, only : mpi_sync_real_array
+$endif
+
 implicit none
 
 real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
-integer :: i,j,k, id_gen, iface
+integer :: i,j,k, id_gen, iface, ubz
 real(rprec) :: chi_sum
 
-allocate(z_w($lbz:nz+1))
+allocate(z_w($lbz:nz))
+
+$if ($MPI)
+  if(coord == nproc - 1) then
+    ubz = nz
+  else
+    ubz = nz - 1
+  endif
+$else
+  ubz = nz
+$endif
 
 !  Create w-grid (physical grid)
 do k=$lbz,nz
   z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
-z_w(nz+1) = z_w(nz) + dz
 
-do k=$lbz,nz
+!  Do not set top most chi value; for MPI jobs
+!  this is the overlap node and must be sync'd
+do k=$lbz,ubz
   do j=1,ny
     do i=1,nx
 	
@@ -764,6 +781,7 @@ do k=$lbz,nz
 	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
 		!  Normalize by volume fraction
 		  gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - z_w(k))/dz
+		  
 	    endif
 	  
 	  else
@@ -779,6 +797,11 @@ do k=$lbz,nz
 enddo
 
 deallocate(z_w)
+
+!  Now must sync all overlapping nodes
+$if ($MPI)
+call mpi_sync_real_array(gcs_t(:,:,:)%chi)
+$endif
 
 return
 
@@ -996,6 +1019,7 @@ subroutine finalize()
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
+use param, only : nproc, coord, ierr
 $endif
 use cylinder_skew_param
 
@@ -1004,7 +1028,7 @@ implicit none
 if(DIST_CALC) call write_output()
 
 !  Finalize mpi communication
-call finalize_mpi()
+call MPI_FINALIZE(ierr)
 
 return
 contains
@@ -1019,14 +1043,14 @@ implicit none
 character (64) :: fname, temp
 integer :: i,j,k
 
-if(mpisize > 1 .and. mpirank == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
+if(nproc > 1 .and. coord == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'cylinder_skew_ls.dat'
 fname = trim(adjustl(fname)) 
 
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
 !  Create tecplot formatted phi and brindex field file
@@ -1062,19 +1086,19 @@ do k=$lbz,nz
   enddo
 enddo
 
-if(mpirank == 0) phi(:,:,$lbz) = -BOGUS
+if(coord == 0) phi(:,:,$lbz) = -BOGUS
 
 !  Open file which to write global data
 write (fname,*) 'phi.out'
 fname = trim(adjustl(fname)) 
 
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
 !  Write binary data for lesgo
 open (1, file=fname, form='unformatted')
-if(mpisize > 1) then
+if(nproc > 1) then
   write(1) phi(:,:,$lbz:nz)
 else
   write(1) phi(:,:,1:nz)
@@ -1085,13 +1109,13 @@ close (1)
 write (fname,*) 'brindex.out'
 fname = trim(adjustl(fname)) 
 
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
 
 open (1, file=fname, form='unformatted')
-if(mpisize > 1) then
+if(nproc > 1) then
   write(1) brindex(:,:,1:nz-1)
 else
   write(1) brindex(:,:,1:nz)
@@ -1191,8 +1215,8 @@ enddo
 write (fname,*) 'cylinder_skew_gen_ls.out'
 fname = trim(adjustl(fname)) 
 
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
 
@@ -1216,7 +1240,9 @@ end subroutine gen_assoc
 !**********************************************************************
 subroutine point_assoc()
 !**********************************************************************
-
+$if ($MPI)
+use param, only : nproc, coord
+$endif
 implicit none
 
 character(64) :: fname, temp
@@ -1226,8 +1252,8 @@ integer :: i,j,k
 write (fname,*) 'cylinder_skew_point_ls.out'
 fname = trim(adjustl(fname)) 
 
-if(mpisize > 1) then
-  write (temp, '(".c",i0)') mpirank
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
 
