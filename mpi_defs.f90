@@ -91,7 +91,7 @@ real(rprec), dimension(:,:,:), intent(INOUT) :: var
 
 integer :: lbx,ubx,lby,uby,lbz,ubz
 integer :: i,j,k
-real(rprec) :: mpi_datasize
+integer :: mpi_datasize
 
 !  Get bounds of var array
 lbx=lbound(var,1); ubx=ubound(var,1)
@@ -103,13 +103,13 @@ mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
 !  ----- Need to get all overlapping values -----
 if(coord < nproc - 1) then
-  call mpi_send (var(1, 1, ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
-  call mpi_recv (var(1,1, ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
+  call mpi_send (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
+  call mpi_recv (var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
 endif
 
 if(coord > 0) then
-  call mpi_recv(var(1, 1, lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
-  call mpi_send (var(1, 1, lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
+  call mpi_recv(var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
+  call mpi_send (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
 endif
 
 return
