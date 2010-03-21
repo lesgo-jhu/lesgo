@@ -700,14 +700,14 @@ subroutine compute_chi()
 !**********************************************************************
 !  This subroutine filters the indicator function chi
 use cylinder_skew_param
-
+use messages
 $if($MPI)
 use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array
 $endif
 
 implicit none
-
+character (*), parameter :: sub_name = 'compute_chi'
 real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
 integer :: i,j,k, id_gen, iface, ubz
@@ -735,62 +735,57 @@ enddo
 do k=$lbz,ubz
   do j=1,ny
     do i=1,nx
-	
 !      if(gcs_t(i,j,k)%phi <= 0.) then
 !  	gcs_t(i,j,k)%chi=1.
 !      else
-	  
-	  !  See if points have a generation association
+  
+  !  See if points have a generation association
       call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
 
        !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
       if(id_gen > ngen ) then
-        write(*,*) 'id_gen > ngen'
-        stop
+        call error(sub_name,'id_gen > ngen')
       endif
-	  
-	  if (iface == -1) then
-	  
-	    gcs_t(i,j,k)%chi = 0.
-		
-	  elseif( 0 <= iface .and. iface <= 3) then
-	
-  	    if(iface == 0) then
-		
- 	      call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
+  
+      if (iface == -1) then
+  
+        gcs_t(i,j,k)%chi = 0.
+
+      elseif( 0 <= iface .and. iface <= 3) then
+
+        if(iface == 0) then
+
+          call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
           
-	    elseif(iface == 1) then
-	    
-		  !  Set z location to bottom plane of generation
-	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
-		!  Normalize by volume fraction
-	      gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane(id_gen))/dz
-  		
+        elseif(iface == 1) then
+    
+          !  Set z location to bottom plane of generation
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+          !  Normalize by volume fraction
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane(id_gen))/dz
+
         elseif(iface == 2) then
-	  
-  	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
-		!  Normalize by volume fraction
-		  chi_sum = chi_sum * (tplane(id_gen) - z_w(k))/dz
-		
-		  call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
-		!  Normalize by volume fraction
-	      gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane(id_gen))/dz
-	
-	    elseif(iface == 3) then
-	  
-	      call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
-		!  Normalize by volume fraction
-		  gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - z_w(k))/dz
-		  
-	    endif
-	  
-	  else
-		   
-	    write(*,*) 'iface not calculated correctly : iface ', iface
-	    stop
-	      !------------------------------
-	    
-	    !endif
+  
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, chi_sum)
+          !  Normalize by volume fraction
+          chi_sum = chi_sum * (tplane(id_gen) - z_w(k))/dz
+
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
+          !  Normalize by volume fraction
+          gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane(id_gen))/dz
+
+        elseif(iface == 3) then
+  
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane(id_gen)/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+          !  Normalize by volume fraction
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane(id_gen) - z_w(k))/dz
+  
+        endif
+  
+      else
+   
+        call error(sub_name,' iface not calculated correctly : ', iface)
+
       endif
     enddo
   enddo
