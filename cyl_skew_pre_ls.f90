@@ -343,19 +343,23 @@ end subroutine allocate_arrays
 !**********************************************************************
 subroutine generate_grid()
 !**********************************************************************
+! This subroutine generates the xyz values on all the points in the domain
+! (global coordinate system) in gcs_t using the grid generation routine
+! grid_build()
+!
 use param, only : nproc, coord
+use grid_defs
+
 implicit none
+
+if(.not. grid_built) call grid_build()
 
 do k=$lbz,nz
   do j=1,ny
     do i=1,nx+2
-      gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
-      gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
-      if (nproc == 1) then
-	    gcs_t(i,j,k)%xyz(3) = (k - 0.5) * dz
-      else
-	    gcs_t(i,j,k)%xyz(3) = (coord*(nz-1) + k - 0.5) * dz
-      endif
+      gcs_t(i,j,k)%xyz(1) = x(i)
+      gcs_t(i,j,k)%xyz(2) = y(j)
+      gcs_t(i,j,k)%xyz(3) = z(k)
     enddo
   enddo
 enddo
