@@ -883,15 +883,13 @@ real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
 integer :: ntr, nt, nc, n
-real(rprec) :: delta2, chi_int, ds
+real(rprec) :: chi_int, ds
 real(rprec), dimension(3) :: xyz_c, xyz_rot
 
-type(vector) :: lvec_t, svec_t
+type(vector) :: svec_t
+type(vector), dimension(ntrunk) :: lvec_t
 
 chi=0.
-
-delta2 = delta*delta
-
 
 !write(*,*) ' '
 !write(*,*) 'id_gen, gen_ncluster(id_gen) : ', id_gen, gen_ncluster(id_gen)
@@ -905,6 +903,8 @@ do ntr=1, ntree
     do n=1,ntrunk
 
       nt=nt+1
+	  
+
  !     write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
  !     write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
       !  Compute center of ellipse to average over
@@ -922,14 +922,12 @@ do ntr=1, ntree
   !    write(*,'(1a,3f12.6)') 'xyz ', xyz
   !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
    
-      !  Compute local vector
-      lvec_t%xyz = xyz - xyz_c
-   
-  
-  
+      !  Compute local vectors
+      lvec_t(n)%xyz = xyz - xyz_c
+    
    !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
       !  Perform rotation of local vector about z-axis
-      call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t%xyz, xyz_rot)
+      call rotation_axis_vector_3d(zrot_axis, -zrot_t(id_gen)%angle(n), lvec_t(n)%xyz, lvec_t(n)%xyz)
   
       !!  Point in rotated coordinate system
       !xyz_rot = lvec_t%xyz + xyz_c
@@ -937,38 +935,48 @@ do ntr=1, ntree
     !  write(*,'(1a,3f12.6)') 'xyz_rot : ', xyz_rot
   
       !dist2 = (xyz_rot(1) - xyz_p(1))**2 + (xyz_rot(2) - xyz_p(2))**2 + (xyz_rot(3) - xyz_p(3))**2
+	  
+	enddo	  
   
-      !  Perform weighted integration over ellipse
-      call weighted_chi_int(a(id_gen), b(id_gen), xyz_rot(1), xyz_rot(2), delta, chi_int)
+      !  Perform weighted integration over ellipses of branch cluster
+    call weighted_chi_int(a(id_gen), b(id_gen), lvec_t%xyz(1), lvec_t%xyz(2), delta, chi_int)
 
-      chi = chi + chi_int
+    chi = chi + chi_int
   
-    enddo
+
 
   enddo
 enddo
 
 !  Normalize 
-chi = chi/(2._rprec*pi*delta2)
+chi = chi/(2._rprec*pi*delta*delta)
 
 return
 
 end subroutine filter_chi
 
 !**********************************************************************
-subroutine weighted_chi_int(a,b,x,y,delta,chi)
+subroutine weighted_chi_int(a,b,xy_c,xy_p,delta,chi)
 !**********************************************************************
 use types, only : rprec
+use cylinder_skew_base_ls, only : ntrunk
 !  Does not normalize
 implicit none
 
-real(rprec), intent(in) :: a,b,x,y, delta
+real(rprec), intent(in) :: a,b,delta
+real(rprec), intent(in), dimension(2,:) :: xy_c, xy_p
 real(rprec), intent(out) :: chi
 
 integer, parameter :: Nx=10, Ny=10
 
 integer :: i,j
 real(rprec) :: dx, dy, a2, b2, xc, yc, delta2, dist2, ellps_val
+
+!!  Check length of x, y
+!if(size(x) .ne. size(y) .and. size(x) .ne. ntrunk) then
+!  write(*,*) 'error in weighted_chi_int with size of x'
+!  stop
+!endif
 
 a2 = a*a
 b2 = b*b
