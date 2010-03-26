@@ -843,7 +843,7 @@ do n=1,nvars
   do k=1,kmax
     do j=1,jmax
 	  do i=1,imax
-	    vars_dim(n,i,j,k) = vars((n-1)*nvars + (k-1)*kmax + (j-1)*jmax + i)  !should nvars be imax??
+	    vars_dim(n,i,j,k) = vars((n-1)*imax*jmax*kmax + (k-1)*imax*jmax + (j-1)*imax + i)
 	  enddo
 	enddo
   enddo
@@ -979,7 +979,7 @@ allocate(vars_dim(nvars,imax,jmax))
 do n=1,nvars
   do j=1,jmax
     do i=1,imax
-	  vars_dim(n,i,j) = vars((n-1)*nvars + (j-1)*jmax + i)  !should nvars be imax instead??
+	  vars_dim(n,i,j) = vars((n-1)*jmax*imax + (j-1)*imax + i) 
 	enddo
   enddo
 enddo
@@ -1093,7 +1093,7 @@ if(present(x)) xpres = .true.
 allocate(vars_dim(nvars,imax)) 
 do n=1,nvars
   do i=1,imax
-     vars_dim(n,i) = vars((n-1)*imax + i)
+     vars_dim(n,i) = vars((n-1)*imax + i)   
   enddo
 enddo
 
