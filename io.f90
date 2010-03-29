@@ -598,7 +598,7 @@ elseif(itype==2) then
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z)
   $else
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx+2,ny,nz, &
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z)
   $endif
 	
