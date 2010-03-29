@@ -595,11 +595,11 @@ elseif(itype==2) then
   !  action='write',position='append')
 	
   $if($LVLSET)
-  call write_real_data_3D(fname, 'append', 'formatted', 4, nx,ny,nz, &
-    (/ u, v, w_uv, phi /), x, y, z)
+  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z)
   $else
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u, v, w_uv /), x, y, z)
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx+2,ny,nz, &
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z)
   $endif
 	
   !do k=1,nz
@@ -780,7 +780,7 @@ open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='append')
   
 !  Specify output format; may want to use a global setting
-write (frmt, '("(",i0,"f12.6)")') nvars
+write (frmt, '("(",i0,"e)")') nvars
   
 !  Write the data
 write(2,frmt) vars
@@ -816,7 +816,7 @@ implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax, jmax, kmax
-real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(nvars*imax*jmax*kmax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x,y,z
 
 character(64) :: frmt
@@ -860,7 +860,7 @@ select case(write_fmt)
     	
     if (xpres) then
 	  
-	  write (frmt, '("(3f12.6,",i0,"f12.6)")') nvars
+	  write (frmt, '("(3e,",i0,"e)")') nvars
 	  
 	  do k=1, kmax
 	    do j=1, jmax
@@ -872,7 +872,7 @@ select case(write_fmt)
 	  
 	else
 	  
-	  write (frmt, '("(",i0,"f12.6)")') nvars
+	  write (frmt, '("(",i0,"e)")') nvars
 	 
 	  do k=1, kmax
 	    do j=1, jmax
@@ -949,7 +949,7 @@ implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax, jmax
-real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(nvars*imax*jmax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x, y
 
 character(64) :: frmt
@@ -993,7 +993,7 @@ select case(write_fmt)
     	
     if (xpres) then
 	  
-	  write (frmt, '("(2f12.6,",i0,"f12.6)")') nvars
+	  write (frmt, '("(2e,",i0,"e)")') nvars
 	  
 	  do j=1, jmax
 	    do i=1,imax
@@ -1003,7 +1003,7 @@ select case(write_fmt)
 	  
 	else
 	  
-	  write (frmt, '("(",i0,"f12.6)")') nvars
+	  write (frmt, '("(",i0,"e)")') nvars
 	 
 	  do j=1, jmax
 	    do i=1,imax
@@ -1068,7 +1068,7 @@ implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax
-real(rprec), intent(in), dimension(:) :: vars
+real(rprec), intent(in), dimension(nvars*imax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x
 
 character(64) :: frmt
@@ -1093,7 +1093,7 @@ if(present(x)) xpres = .true.
 allocate(vars_dim(nvars,imax)) 
 do n=1,nvars
   do i=1,imax
-     vars_dim(n,i) = vars((n-1)*imax + i)   
+     vars_dim(n,i) = vars((n-1)*imax + i)
   enddo
 enddo
 
@@ -1106,7 +1106,7 @@ select case(write_fmt)
   
     if (xpres) then
 	
-      write (frmt, '("(1f12.6,",i0,"f12.6)")') nvars
+      write (frmt, '("(1e,",i0,"e)")') nvars
 	  
 	  do i=1,imax
         write(2,frmt) x(i), vars_dim(:,i)
@@ -1114,7 +1114,7 @@ select case(write_fmt)
 	  
 	else
 	
-	  write (frmt, '("(",i0,"f12.6)")') nvars
+	  write (frmt, '("(",i0,"e)")') nvars
 	  
 	  do i=1,imax
         write(2,frmt) vars_dim(:,i)
@@ -1252,7 +1252,7 @@ write(2,'(1a)') tec_dat_str
 write(2,'(1a)') tec_dt_str
 
 if (present (soln_time)) then
-write(2,'(1a,f18.6)') 'solutiontime=', soln_time
+write(2,'(1a,e)') 'solutiontime=', soln_time
 endif
 
 close(2)
@@ -2033,12 +2033,12 @@ integer :: fid, i,j,k
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .true.
+tsum_t%calc = .false.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .true.
+point_t%calc = .false.
 point_t%nstart = 1
 point_t%nend   = nsteps
 point_t%nskip = 1
@@ -2047,12 +2047,12 @@ point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
-domain_t%nstart = 1
+domain_t%nstart = 100
 domain_t%nend   = nsteps
 domain_t%nskip = 100
 
 !  y-plane stats/data
-yplane_t%calc   = .true.
+yplane_t%calc   = .false.
 yplane_t%nstart = 1
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
@@ -2061,7 +2061,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
+zplane_t%calc   = .false.
 zplane_t%nstart = 1
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
@@ -2071,7 +2071,7 @@ zplane_t%loc(2) = 1.5
 zplane_t%loc(3) = L_z*nproc
 
 !  z-plane TIME-AVERAGED stats/data
-zplane_avg_t%calc   = .true.
+zplane_avg_t%calc   = .false.
 zplane_avg_t%nstart = 1
 zplane_avg_t%nend   = nsteps
 
