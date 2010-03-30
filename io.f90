@@ -596,10 +596,10 @@ elseif(itype==2) then
 	
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z)
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
   $else
   call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z)
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
   $endif
 	
   !do k=1,nz
@@ -1400,9 +1400,22 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-call write_real_data_3D(fname,'rewind', 'unformatted', 10, nx, ny, nz, (/ tsum_t%u, tsum_t%v, &
-  tsum_t%w, tsum_t%u2, tsum_t%v2, tsum_t%w2, tsum_t%uw, tsum_t%vw, tsum_t%uv, &
-  tsum_t%dudz /), x, y, z)
+ ! call write_real_data_3D(fname,'rewind', 'formatted', 10, nx, ny, nz, (/ tsum_t%u(1:nx,1:ny,1:nz), &
+ ! tsum_t%v(1:nx,1:ny,1:nz), tsum_t%w(1:nx,1:ny,1:nz), tsum_t%u2(1:nx,1:ny,1:nz), &
+ ! tsum_t%v2(1:nx,1:ny,1:nz), tsum_t%w2(1:nx,1:ny,1:nz), tsum_t%uw(1:nx,1:ny,1:nz), &
+ ! tsum_t%vw(1:nx,1:ny,1:nz), tsum_t%uv(1:nx,1:ny,1:nz), tsum_t%dudz(1:nx,1:ny,1:nz) /), &
+ ! x, y, z(1:nz))
+
+ call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tsum_t%u(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%u2(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v2(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w2(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uw(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%vw(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uv(1:nx,1:ny,1:nz))
+ call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%dudz(1:nx,1:ny,1:nz))
 
 return
 end subroutine tsum_write
@@ -2033,7 +2046,7 @@ integer :: fid, i,j,k
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .false.
+tsum_t%calc = .true.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
