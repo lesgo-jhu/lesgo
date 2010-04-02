@@ -107,11 +107,12 @@ implicit none
 integer :: ng,nt,i,j,k,istart,iend
 
 call initialize_mpi ()
+call allocate_arrays()
 call cylinder_skew_fill_tree_array_ls()
 call generate_grid()
 
-!  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx+2,ny,$lbz:nz))
+!!  Allocate x,y,z for all coordinate systems
+!allocate(gcs_t(nx+2,ny,$lbz:nz))
 
 !  Initialize the distance function
 gcs_t(:,:,:)%phi = BOGUS
@@ -132,7 +133,7 @@ if(use_bottom_surf) then
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
     if(gcs_t(1,1,k)%phi <= 0.) then 
         gcs_t(:,:,k)%brindex = -1
-	endif
+    endif
    
   enddo
 endif
@@ -280,7 +281,8 @@ subroutine allocate_arrays()
 
 implicit none
 
-
+!  Allocate x,y,z for all coordinate systems
+allocate(gcs_t(nx+2,ny,$lbz:nz))
 
 !allocate(lgcs_t(ngen), zrot_t(ngen))
 
@@ -486,7 +488,9 @@ implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
 
-real(rprec) :: a, b, bplane, tplane
+real(rprec), pointer :: a => null(), b=> null()
+real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
+real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
 
 !  Intialize flags
 btw_planes=.false.
@@ -496,11 +500,16 @@ in_bottom_surf = .false.
 in_cyl_top=.false.
 in_cyl_bottom=.false.
 
-!  Set temporary values
-a = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
-b = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
-tplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
+!  Associate values
+a => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
+b => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
+bplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
+tplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
+bot => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
+top => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
+skw_angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
+skw_axis => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis
+angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle
 
 !  Also check if point is below bottom surface
 if(use_bottom_surf .and. ng == 1) then
@@ -522,11 +531,9 @@ else
 endif
       
 !  Compute vector to point in the gcs from the lcs 
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - bot
 !  Rotate gcs vector into local coordinate system
-call rotation_axis_vector_3d(tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis, &
-  -tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle, &
-  vgcs_t%xyz, lcs_t%xyz)
+call rotation_axis_vector_3d(skw_axis, -skw_angle, vgcs_t%xyz, lcs_t%xyz)
 
 !  Check if the point lies in the cylinder circle
  circk = lcs_t%xyz(1)**2 + lcs_t%xyz(2)**2
@@ -536,24 +543,21 @@ if(circk <= (tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % d / 2._rprec)**2) in_c
 if(btw_planes .and. in_cir) in_cyl = .true.
 
 !  Check if point lies in top ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
-call rotation_axis_vector_3d(zrot_axis, &
-  -tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle, &
-  vgcs_t%xyz, &
-  ecs_t%xyz)
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - top
+call rotation_axis_vector_3d(zrot_axis, -angle, vgcs_t%xyz, ecs_t%xyz)
   
 eck = ecs_t%xyz(1)**2/(a**2) + ecs_t%xyz(2)**2/(b**2)
     
 if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) > (tplane + bplane)/2.) in_cyl_top=.true. !  Could be below or above
 
 !  Check if point lies in bottom ellipse
-vgcs_t%xyz = gcs_t(i,j,k)%xyz - tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
-call rotation_axis_vector_3d(zrot_axis, &
-  -tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle, &
-  vgcs_t%xyz, &
-  ecs_t%xyz)
+vgcs_t%xyz = gcs_t(i,j,k)%xyz - bot
+call rotation_axis_vector_3d(zrot_axis, -angle, vgcs_t%xyz, ecs_t%xyz)
 eck = ecs_t%xyz(1)**2/(a**2) + ecs_t%xyz(2)**2/(b**2)
 if(eck <= 1 .and. gcs_t(i,j,k)%xyz(3) < (tplane + bplane)/2.) in_cyl_bottom=.true. !  Could be below or above
+
+!  Nullify pointers
+nullify(a,b,bplane,tplane,bot,top,skw_angle,skw_axis)
 
 return
 end subroutine pt_loc
@@ -566,13 +570,21 @@ use cylinder_skew_param
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
-real(rprec) :: atan4, a, b, bplane, tplane
+real(rprec) :: atan4
+real(rprec), pointer :: a => null(), b=> null()
+real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
+real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
 
 !  Set temporary values
-a = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
-b = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
-tplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
+a => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
+b => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
+bplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
+tplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
+bot => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
+top => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
+skw_angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
+skw_axis => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis
+angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -582,10 +594,9 @@ slcs_t%xyz(2) = b*dsin(theta)
 slcs_t%xyz(3) = lcs_t%xyz(3)
 
 !  Rotate the surface vector in the lcs back into the gcs
-call rotation_axis_vector_3d(tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis, & 
-  tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle,slcs_t%xyz,vgcs_t%xyz)
+call rotation_axis_vector_3d(skw_axis, skw_angle, slcs_t%xyz, vgcs_t%xyz)
 
-sgcs_t%xyz = vgcs_t%xyz + tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot !  Vector now corresponds with origin of gcs
+sgcs_t%xyz = vgcs_t%xyz + bot !  Vector now corresponds with origin of gcs
 
 !  Check if point on cylinder surface is between cutting planes
 if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
@@ -600,11 +611,10 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 else
   if(sgcs_t%xyz(3) >= tplane .and. .not. in_cyl_top) then
 
-    vgcs_t%xyz = gcs_t(i,j,k)%xyz - tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - top
 
   !  Get vector in ellipse coordinate system
-    call rotation_axis_vector_3d(zrot_axis, -tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle, &
-        vgcs_t%xyz, ecs_t%xyz)
+    call rotation_axis_vector_3d(zrot_axis, -angle, vgcs_t%xyz, ecs_t%xyz)
 
     call ellipse_point_dist_2D_3(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
@@ -617,11 +627,10 @@ else
     endif
 
   elseif(sgcs_t%xyz(3) <= bplane .and. .not. in_cyl_bottom) then
-    vgcs_t%xyz = gcs_t(i,j,k)%xyz - tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
+    vgcs_t%xyz = gcs_t(i,j,k)%xyz - bot
 
   !  Get vector in ellipse coordinate system
-    call rotation_axis_vector_3d(zrot_axis, -tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle, &
-        vgcs_t%xyz, ecs_t%xyz)
+    call rotation_axis_vector_3d(zrot_axis, -angle, vgcs_t%xyz, ecs_t%xyz)
 
     call ellipse_point_dist_2D_3(a,b,ecs_t%xyz(1),ecs_t%xyz(2),eps, dist)
 
@@ -655,6 +664,9 @@ if(in_cyl_bottom) then
     call set_iset(i,j,k)
   endif
 endif
+
+!  Nullify pointers
+nullify(a,b,bplane,tplane,bot,top,skw_angle,skw_axis)
 
 return
 end subroutine point_dist
@@ -715,7 +727,8 @@ character (*), parameter :: sub_name = 'compute_chi'
 real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
 integer :: i,j,k, id_gen, iface, ubz
-real(rprec) :: chi_sum, bplane, tplane
+real(rprec) :: chi_sum
+real(rprec), pointer :: bplane => null(), tplane=> null()
 
 allocate(z_w($lbz:nz))
 
@@ -745,10 +758,12 @@ do k=$lbz,ubz
   
   !  See if points have a generation association
       call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
+	  
+	  nullify(bplane,tplane)
       
       !  Assume all trees have same bplane and tplane values for all generations
-      bplane = tr_t(1)%gen_t(id_gen)%bplane
-      tplane = tr_t(1)%gen_t(id_gen)%tplane
+      bplane => tr_t(1)%gen_t(id_gen)%bplane
+      tplane => tr_t(1)%gen_t(id_gen)%tplane
       
        !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
       if(id_gen > ngen ) then
@@ -804,8 +819,16 @@ deallocate(z_w)
 
 !  Now must sync all overlapping nodes
 $if ($MPI)
+if(coord == 4) gcs_t(64,37,1)%chi=10.
+if(coord == 3) write(*,*) 'gcs_t(64,37,ubz)%chi : ', gcs_t(64,37,nz)%chi 
 call mpi_sync_real_array(gcs_t(:,:,:)%chi)
+if(coord == 3) then
+  write(*,*) 'gcs_t(64,37,nz)%chi : ', gcs_t(64,37,nz)%chi 
+endif
 $endif
+
+!  Ensure all pointers are nullified
+nullify(bplane,tplane)
 
 return
 
@@ -828,7 +851,8 @@ real(rprec), intent(in) :: z ! on uv grid
 integer, intent(out) :: id_gen, iface
 
 integer :: ng
-real(rprec) :: zcell_bot, zcell_top, bplane, tplane
+real(rprec) :: zcell_bot, zcell_top
+real(rprec), pointer :: bplane => null(), tplane=> null() 
 
 id_gen=-1
 iface=-1 
@@ -837,9 +861,10 @@ zcell_bot = z - dz/2.
 zcell_top = z + dz/2.
 
 isearch_gen : do ng=1,ngen
+    nullify(bplane, tplane)
     !  Assume all trees have same bplane and tplane values for all generations
-    bplane = tr_t(1)%gen_t(ng)%bplane
-    tplane = tr_t(1)%gen_t(ng)%tplane
+    bplane => tr_t(1)%gen_t(ng)%bplane
+    tplane => tr_t(1)%gen_t(ng)%tplane
   ! Check if bottom of generation is within cell
   if(zcell_bot < bplane .and. bplane < zcell_top) then
     if(ng==1) then
@@ -870,6 +895,7 @@ isearch_gen : do ng=1,ngen
 
 enddo isearch_gen
 
+nullify(bplane, tplane)
 
 return
 end subroutine find_assoc_gen
@@ -894,6 +920,9 @@ integer :: nt, ng, nc, nb
 real(rprec) :: delta2, chi_int, ds
 real(rprec), dimension(3) :: xyz_c, xyz_rot
 
+real(rprec), pointer :: a, b, skw_angle, angle
+real(rprec), pointer, dimension(:) :: bot, top
+
 type(vector) :: lvec_t, svec_t
 
 chi=0.
@@ -914,43 +943,38 @@ do nt=1, ntree
  !     write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
  !     write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
       !  Compute center of ellipse to average over
+	  
+	  nullify(a,b, bot,top,skw_angle, angle)
+	  !  Associate all pointers
+	  a => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%a
+	  b => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%b
+	  top => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%top
+	  bot => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot
+	  skw_angle => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%skew_angle
+	  angle => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%angle
   
-	  svec_t%xyz = tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%top - &
-        tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot
+	  svec_t%xyz =  top - bot
 	  
       call vector_magnitude_3d(svec_t%xyz, svec_t%mag)
       
-	  ds = ( xyz(3) - tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot(3) ) / &
-        (svec_t%mag * dcos(tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%skew_angle))
+	  ds = ( xyz(3) - bot(3) ) / (svec_t%mag * dcos(skw_angle))
 	  
       xyz_c = ds * svec_t%xyz
 	  
-      xyz_c = xyz_c + tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot
+      xyz_c = xyz_c + bot
   
   !    write(*,'(1a,3f12.6)') 'xyz ', xyz
   !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
    
       !  Compute local vector
-      lvec_t%xyz = xyz - xyz_c
-   
-  
+      lvec_t%xyz = xyz - xyz_c 
   
    !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
       !  Perform rotation of local vector about z-axis
-      call rotation_axis_vector_3d(zrot_axis, -tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%angle, &
-        lvec_t%xyz, xyz_rot)
-  
-      !!  Point in rotated coordinate system
-      !xyz_rot = lvec_t%xyz + xyz_c
-  
-    !  write(*,'(1a,3f12.6)') 'xyz_rot : ', xyz_rot
-  
-      !dist2 = (xyz_rot(1) - xyz_p(1))**2 + (xyz_rot(2) - xyz_p(2))**2 + (xyz_rot(3) - xyz_p(3))**2
+      call rotation_axis_vector_3d(zrot_axis, -angle, lvec_t%xyz, xyz_rot)
   
       !  Perform weighted integration over ellipse
-      call weighted_chi_int(tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a, &
-        tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b, &
-        xyz_rot(1), xyz_rot(2), delta, chi_int)
+      call weighted_chi_int(a,b, xyz_rot(1), xyz_rot(2), delta, chi_int)
 
       chi = chi + chi_int
   
@@ -961,6 +985,8 @@ enddo
 
 !  Normalize 
 chi = chi/(2._rprec*pi*delta2)
+
+nullify(a,b,bot,top,skw_angle, angle)
 
 return
 

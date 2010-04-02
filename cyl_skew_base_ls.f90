@@ -15,7 +15,7 @@ character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 1
+integer, parameter :: ntree = 7
 
 integer, parameter :: ngen = 2
 integer, parameter :: ngen_reslv = 2
@@ -62,11 +62,7 @@ end type vector
 
 type branch
     integer :: indx
-    real(rprec) :: d
-    real(rprec) :: l
-    real(rprec) :: a, b
-    real(rprec) :: offset
-    real(rprec) :: skew_angle, angle
+    real(rprec) :: d, l, a, b, offset, skew_angle, angle
     real(rprec), dimension(3) :: skew_axis, bot, top
 end type branch
 
@@ -91,20 +87,37 @@ end type tree
 integer, pointer, dimension(:,:,:) :: brindex
 real(rprec), pointer, dimension(:,:,:) :: phi
 
-type(tree), allocatable, dimension(:) :: tr_t ! Tree type
+type(tree), pointer, dimension(:) :: tr_t ! Tree type
 integer, allocatable, dimension(:,:) :: clindx_to_gen_cl, brindx_to_gen_cl_br
 
-!contains 
+contains 
 
-!!**********************************************************************
-!subroutine set_tree_origin()
-!!**********************************************************************
+!**********************************************************************
+subroutine set_tree_origin(nt,origin_out)
+!**********************************************************************
 
-!implicit none
+implicit none
 
+integer, intent(in) :: nt
+real(rprec),  dimension(3), intent(out) :: origin_out
+real(rprec), allocatable, dimension(:,:) :: origin
 
+allocate(origin(3,ntree))
 
-!return
-!end subroutine set_tree_origin
+origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
+origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
+origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
+origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
+origin(:,6) = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+origin(:,7) = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+
+origin_out = origin(:,nt)
+
+deallocate(origin)
+
+return
+
+end subroutine set_tree_origin
 
 end module cylinder_skew_base_ls

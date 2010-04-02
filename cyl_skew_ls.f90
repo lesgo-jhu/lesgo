@@ -444,13 +444,13 @@ write(*,*) 'ntree : ', ntree
 
 allocate(tr_t(ntree))
 
-tr_t(1)%origin = (/ L_x/2., L_y/2., z_bottom_surf /)
-tr_t(2)%origin = (/ 0._rprec, L_y, z_bottom_surf /)
-tr_t(3)%origin = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-tr_t(4)%origin = (/ L_x, 0._rprec, z_bottom_surf /)
-tr_t(5)%origin = (/ L_x, L_y, z_bottom_surf /)
-tr_t(6)%origin = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
-tr_t(7)%origin = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+!tr_t(1)%origin = (/ L_x/2., L_y/2., z_bottom_surf /)
+!tr_t(2)%origin = (/ 0._rprec, L_y, z_bottom_surf /)
+!tr_t(3)%origin = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+!tr_t(4)%origin = (/ L_x, 0._rprec, z_bottom_surf /)
+!tr_t(5)%origin = (/ L_x, L_y, z_bottom_surf /)
+!tr_t(6)%origin = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+!tr_t(7)%origin = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
 !!  This sets the origin of each tree; defined in cylinder_skew_base_ls
 !call set_tree_origin()
@@ -486,6 +486,12 @@ do nt=1,ntree
  
 enddo
 
+!  Must allocate all arrays before setting data; may be that
+!  memory addresses move as needed during the allocation of 
+!  sub types
+do nt=1, ntree
+  call set_tree_origin(nt,tr_t(nt)%origin)
+enddo
 
 do nt = 1, ntree
     
@@ -499,13 +505,6 @@ do nt = 1, ntree
             
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % d = gen_scale_fact*d
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % l = gen_scale_fact*l
-
-            !  Test
-            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l = &
-            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(1) % l*1.2_rprec
-            
-            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(3) % l = &
-            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l*1.2_rprec
             
             ! Ellipse minor axis
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b = &
