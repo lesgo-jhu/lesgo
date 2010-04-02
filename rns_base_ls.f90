@@ -7,18 +7,17 @@ implicit none
 save
 public
 
-type rns
-  integer :: ntrees, nplanes
-  logical :: plane_u_calc
-end type rns
+!type rns
+!  integer :: ntrees, nplanes
+!  logical :: plane_u_calc
+!end type rns
 
-type rns_planes
-  integer :: indx
-  real(rprec) :: bp(3,3)
-  real(rprec) :: u, v, w
-end type rns_planes
+type ref_plane
+  integer :: nzeta, neta ! discretization
+  real(rprec), dimension(3) :: p1, p2, p3 !  3 ordered points
+  real(rprec) :: u, v, w ! reference values
+end type ref_plane
 
-type(rns) :: rns_t
-type(rns_planes), allocatable, dimension(:) :: rns_planes_t
+type(ref_plane), pointer, dimension(:) :: ref_plane_t
 
 end module rns_base_ls

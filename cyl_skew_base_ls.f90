@@ -88,7 +88,7 @@ integer, pointer, dimension(:,:,:) :: brindex
 real(rprec), pointer, dimension(:,:,:) :: phi
 
 type(tree), pointer, dimension(:) :: tr_t ! Tree type
-integer, allocatable, dimension(:,:) :: clindx_to_gen_cl, brindx_to_gen_cl_br
+integer, pointer, dimension(:,:) :: clindx_to_loc_id, brindx_to_loc_id
 
 contains 
 
