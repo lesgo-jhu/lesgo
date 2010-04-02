@@ -448,4 +448,18 @@ return
 
 end function plane_avg_3D
 
+!**********************************************************************
+real(rprec) function fractal_scale(var, scale_fact, ng)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+real(rprec), intent(in) :: var, scale_fact
+integer, intent(in) :: ng
+
+fractal_scale = var * scale_fact ** ( ng - 1 )
+
+return
+end function fractal_scale
+
 end module functions
