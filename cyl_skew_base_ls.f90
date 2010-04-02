@@ -15,10 +15,10 @@ character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 7
-integer, parameter :: ntrunk = 3
+integer, parameter :: ntree = 1
+integer, parameter :: nbranch = 3
 
-integer, parameter :: ngen = 5
+integer, parameter :: ngen = 2
 integer, parameter :: ngen_reslv = 2
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
@@ -60,24 +60,35 @@ type vector
 end type vector
 
 type branch
-    real(rprec) :: dia
-    real(rprec) :: h
-    real(rprec) :: skew_angle
+    real(rprec) :: d
+    real(rprec) :: l
+    real(rprec) :: a, b
+    real(rprec) :: offset
+    real(rprec) :: skew_angle, angle
+    real(rprec), dimension(3) :: skew_axis, bot, top
 end type branch
 
 type cluster
-    real(rprec) :: nbranch
-    type(cs1) :: origin_t ! origin of center (at bottom)
-    type(branch) :: br_t
+    integer :: nbranch, indx
+    real(rprec), dimension(3) :: origin ! origin of center (at bottom)
+    type(branch), pointer, dimension(:) :: br_t
 end type cluster
 
-type tree
-    real(rprec) :: ncluster
-    type(cluster) :: cl_t
-end type tree
+type generation
+    integer :: ncluster
+    real(rprec) :: bplane, tplane !  assume all branches are the same height
+    type(cluster), pointer, dimension(:) :: cl_t
+end type generation    
 
+type tree
+    real(rprec), dimension(3) :: origin
+    integer :: ngen, ngen_reslv
+    type(generation), pointer, dimension(:) :: gen_t 
+end type tree
 
 integer, pointer, dimension(:,:,:) :: brindex
 real(rprec), pointer, dimension(:,:,:) :: phi
+
+type(tree), allocatable, dimension(:) :: tr_t ! Tree type
 
 end module cylinder_skew_base_ls
