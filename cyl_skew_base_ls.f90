@@ -16,10 +16,11 @@ real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 integer, parameter :: ntree = 1
-integer, parameter :: nbranch = 3
 
 integer, parameter :: ngen = 2
 integer, parameter :: ngen_reslv = 2
+
+integer, parameter :: nbranch = 3
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
@@ -60,6 +61,7 @@ type vector
 end type vector
 
 type branch
+    integer :: indx
     real(rprec) :: d
     real(rprec) :: l
     real(rprec) :: a, b
@@ -90,5 +92,19 @@ integer, pointer, dimension(:,:,:) :: brindex
 real(rprec), pointer, dimension(:,:,:) :: phi
 
 type(tree), allocatable, dimension(:) :: tr_t ! Tree type
+integer, allocatable, dimension(:,:) :: clindx_to_gen_cl, brindx_to_gen_cl_br
+
+!contains 
+
+!!**********************************************************************
+!subroutine set_tree_origin()
+!!**********************************************************************
+
+!implicit none
+
+
+
+!return
+!end subroutine set_tree_origin
 
 end module cylinder_skew_base_ls

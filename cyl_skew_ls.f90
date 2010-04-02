@@ -10,6 +10,7 @@ save
 private
 
 public :: cylinder_skew_init_ls, cylinder_skew_CD_ls
+public :: cylinder_skew_fill_tree_array_ls
 
 contains
 
@@ -426,6 +427,206 @@ enddo
 return
 end subroutine cylinder_skew_RNS_CD_ls
 $endif
+
+!**********************************************************************
+subroutine cylinder_skew_fill_tree_array_ls()
+!**********************************************************************
+
+implicit none
+
+integer :: nt, ng, nc, nb, nc_g1
+integer :: clindx, brindx
+
+real(rprec) :: angle
+real(rprec) :: gen_scale_fact
+
+write(*,*) 'ntree : ', ntree
+
+allocate(tr_t(ntree))
+
+tr_t(1)%origin = (/ L_x/2., L_y/2., z_bottom_surf /)
+tr_t(2)%origin = (/ 0._rprec, L_y, z_bottom_surf /)
+tr_t(3)%origin = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+tr_t(4)%origin = (/ L_x, 0._rprec, z_bottom_surf /)
+tr_t(5)%origin = (/ L_x, L_y, z_bottom_surf /)
+tr_t(6)%origin = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+tr_t(7)%origin = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+
+!!  This sets the origin of each tree; defined in cylinder_skew_base_ls
+!call set_tree_origin()
+
+!  Set the number of generations in the tree
+tr_t%ngen = ngen
+tr_t%ngen_reslv = ngen_reslv
+
+!  Allocate the number of clusters in the generation
+do nt=1,ntree
+
+  write(*,*) 'im here'
+  write(*,*) 'tr_t(nt)%ngen : ', tr_t(nt)%ngen
+  
+  allocate(tr_t(nt)%gen_t( tr_t(nt)%ngen ))
+
+  do ng=1, tr_t(nt)%ngen
+    
+    !  Set the number of clusters for the generation
+    tr_t(nt)%gen_t(ng)%ncluster = nbranch**(ng - 1)
+    
+    allocate( tr_t(nt)%gen_t(ng)%cl_t( tr_t(nt)%gen_t(ng)%ncluster ))
+    
+    do nc=1, tr_t(nt)%gen_t(ng)%ncluster
+    
+        tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch = nbranch
+        
+        allocate( tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t( tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch ))
+     
+    enddo
+    
+  enddo
+ 
+enddo
+
+
+do nt = 1, ntree
+    
+    do ng = 1, tr_t(nt)%ngen
+    
+        gen_scale_fact = scale_fact**(ng-1)
+            
+        do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % offset = gen_scale_fact*offset
+            
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % d = gen_scale_fact*d
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % l = gen_scale_fact*l
+
+            !  Test
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(1) % l*1.2_rprec
+            
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(3) % l = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l*1.2_rprec
+            
+            ! Ellipse minor axis
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % d / 2._rprec 
+            
+            ! Ellipse major axis
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % a = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b/dcos(skew_angle) 
+            
+            do nb = 1, tr_t(nt) % gen_t(ng) % cl_t(nc) % nbranch
+
+                angle =  zrot_angle + &
+                    2.*pi*(nb-1)/(tr_t(nt) % gen_t(ng) % cl_t(nc) % nbranch) + &
+                    (ng - 1)*pi ! Rotate 180 degrees for each generation
+                    
+                tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % angle = angle
+                   
+                
+                tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_axis = &
+                    (/ dcos(angle +pi/2.), dsin(angle + pi/2.), 0._rprec/)
+                        
+                tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_angle = skew_angle         
+                  
+                 
+                 
+            enddo
+        
+        enddo
+        
+    enddo
+    
+enddo
+
+!  Get a global count of clusters and branches (all may not be the same; tree are assume to be identical)
+clindx = 0
+brindx = 0
+do ng = 1, tr_t(1)%ngen
+    do nc = 1, tr_t(1)%gen_t(ng)%ncluster
+        clindx = clindx + 1
+        do nb = 1, tr_t(1)%gen_t(ng)%cl_t(nc)%nbranch
+            brindx = brindx + 1
+        enddo
+    enddo
+enddo
+
+allocate(clindx_to_gen_cl(2,clindx))
+allocate(brindx_to_gen_cl_br(3,brindx))
+
+
+do nt = 1, ntree
+    !  Initialize global indexes for clusters and branches
+    clindx = 0
+    brindx = 0
+    do ng=1, tr_t(nt)%ngen
+ 
+        !  Set cluster id for ng+1 generation
+        nc_g1 = 0
+        
+        do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+        
+            !  Update global cluster index
+            clindx = clindx + 1  
+            tr_t(nt)%gen_t(ng)%cl_t(nc)%indx = clindx
+            clindx_to_gen_cl(:,clindx) = (/ ng, nc /)
+            
+            !  Set cluster origin to tree origin
+            if( ng == 1 ) tr_t(nt) % gen_t(ng) % cl_t(nc) % origin = tr_t(nt) % origin
+            
+            do nb = 1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+                !  Update global branch index
+                brindx = brindx + 1
+                tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % indx = brindx
+                brindx_to_gen_cl_br(:,brindx) = (/ ng, nc, nb /)
+                
+                !  Update cluster id for ng+1 generation
+                nc_g1 = nc_g1 + 1
+                    
+                tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot = &
+                    tr_t(nt) % gen_t(ng) % cl_t(nc) % origin
+                
+                tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot(1) = &
+                    tr_t(nt) % gen_t(ng) % cl_t(nc) % origin(1) + &          
+                    tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % offset * &
+                    dcos(tr_t(nt) % gen_t(ng) %cl_t(nc) % br_t(nb) % angle)
+                
+                tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot(2) = &
+                    tr_t(nt) % gen_t(ng) % cl_t(nc) % origin(2) + &
+                    tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % offset * &
+                    dsin(tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % angle)
+                   
+                call rotation_axis_vector_3d( tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % skew_axis, &
+                    tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % skew_angle, &
+                    (/ 0._rprec, 0._rprec, tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % l /), &
+                    tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % top )
+                
+                tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % top = & 
+                    tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % top + &
+                    tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot
+                
+            !  Now set the cluster origin of the ng+1 cluster (with nc = nb)
+                if ( ng < tr_t(nt)%ngen ) then
+                    tr_t(nt) % gen_t(ng+1) % cl_t(nc_g1) % origin = &
+                    tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % top
+                endif
+
+ 
+            enddo
+                   
+        enddo
+        
+        !  Set the top and bottom plane of the generation - this assumes that all 
+        !  branches are the same height!      
+        tr_t(nt) % gen_t(ng) % bplane = tr_t(nt) % gen_t(ng) % cl_t(1) % br_t(1) % bot(3)
+        tr_t(nt) % gen_t(ng) % tplane = tr_t(nt) % gen_t(ng) % cl_t(1) % br_t(1) % top(3)
+    
+    enddo
+    
+enddo
+
+return
+end subroutine cylinder_skew_fill_tree_array_ls
 
 
 end module cylinder_skew_ls
