@@ -450,28 +450,28 @@ integer :: ng, nc, nb,i,j,k
 !  Loop over all global coordinates
 do k=$lbz,Nz
 
-    do j=1,ny
+  do j=1,ny
 
-        do i=1,nx+2
+    do i=1,nx+2
 
-            do ng = 1, tr_t(nt)%ngen_reslv
+      do ng = 1, tr_t(nt)%ngen_reslv
         
-                do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+        do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
 
-                    do nb=1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+          do nb=1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
 
-                        if(gcs_t(i,j,k)%phi > 0) then
-                            call pt_loc(nt,ng,nc,nb,i,j,k)
-                            call point_dist(nt,ng,nc,nb,i,j,k)
-                            call set_sign(i,j,k)
-                        endif
+            if(gcs_t(i,j,k)%phi > 0) then
+              call pt_loc(nt,ng,nc,nb,i,j,k)
+              call point_dist(nt,ng,nc,nb,i,j,k)
+              call set_sign(i,j,k)
+            endif
                 
-                    enddo
+          enddo
             
-                enddo
-            enddo
         enddo
+      enddo
     enddo
+  enddo
 enddo
 
 return
@@ -501,15 +501,15 @@ in_cyl_top=.false.
 in_cyl_bottom=.false.
 
 !  Associate values
-a => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
-b => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
-tplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
-bot => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
-top => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
-skw_angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
-skw_axis => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis
-angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle
+a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
+b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
+bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot(3)
+tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top(3)
+bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot
+top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top
+skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_angle
+skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_axis
+angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%angle
 
 !  Also check if point is below bottom surface
 if(use_bottom_surf .and. ng == 1) then
