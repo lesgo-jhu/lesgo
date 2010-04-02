@@ -491,6 +491,7 @@ integer, intent(IN) :: nt,ng,nc,nb,i,j,k
 real(rprec), pointer :: a => null(), b=> null()
 real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
 real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
+type(branch), pointer :: br_t_p => null()
 
 !  Intialize flags
 btw_planes=.false.
@@ -500,16 +501,31 @@ in_bottom_surf = .false.
 in_cyl_top=.false.
 in_cyl_bottom=.false.
 
-!  Associate values
-a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
-b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
-bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot(3)
-tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top(3)
-bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot
-top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top
-skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_angle
-skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_axis
-angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%angle
+
+
+!  Set branch pointer to correct branch
+br_t_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)
+
+a         => br_t_p % a
+b         => br_t_p % b
+bplane    => br_t_p % bot(3)
+tplane    => br_t_p % top(3)
+bot       => br_t_p % bot
+top       => br_t_p % top
+skw_angle => br_t_p % skew_angle
+skw_axis  => br_t_p % skew_axis
+angle     => br_t_p % angle
+
+!!  Associate values
+!a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
+!b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
+!bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot(3)
+!tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top(3)
+!bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot
+!top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top
+!skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_angle
+!skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_axis
+!angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%angle
 
 !  Also check if point is below bottom surface
 if(use_bottom_surf .and. ng == 1) then
@@ -571,20 +587,37 @@ implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
 real(rprec) :: atan4
+integer, pointer :: brindx_p => null()
 real(rprec), pointer :: a => null(), b=> null()
 real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
 real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
 
-!  Set temporary values
-a => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
-b => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
-tplane => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
-bot => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot
-top => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top
-skw_angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
-skw_axis => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_axis
-angle => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%angle
+type(branch), pointer :: br_t_p => null()
+
+!  Set branch pointer to correct branch
+br_t_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)
+
+a         => br_t_p % a
+b         => br_t_p % b
+bplane    => br_t_p % bot(3)
+tplane    => br_t_p % top(3)
+bot       => br_t_p % bot
+top       => br_t_p % top
+skw_angle => br_t_p % skew_angle
+skw_axis  => br_t_p % skew_axis
+angle     => br_t_p % angle
+brindx_p  => br_t_p % indx
+
+!a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
+!b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
+!bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % bot(3)
+!tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % top(3)
+!bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % bot
+!top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % top
+!skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_angle
+!skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_axis
+!angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % angle
+!brindx_p  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % indx
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -605,6 +638,7 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
+    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -622,6 +656,7 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
+      if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -638,6 +673,7 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
+      if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -651,6 +687,7 @@ if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
+    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -660,13 +697,14 @@ if(in_cyl_bottom) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
+    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 endif
 
 !  Nullify pointers
-nullify(a,b,bplane,tplane,bot,top,skw_angle,skw_axis)
+nullify(br_t_p, a,b,bplane,tplane,bot,top,skw_angle,skw_axis,brindx_p)
 
 return
 end subroutine point_dist
