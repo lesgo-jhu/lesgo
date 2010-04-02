@@ -332,6 +332,13 @@ do nt = 1, ntree
             
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % d = gen_scale_fact*d
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % l = gen_scale_fact*l
+
+            !  Test
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(1) % l*1.2_rprec
+            
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(3) % l = &
+            tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(2) % l*1.2_rprec
             
             ! Ellipse minor axis
             tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b = &
@@ -655,8 +662,8 @@ in_cyl_bottom=.false.
 !  Set temporary values
 a = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
 b = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane = tr_t(nt)%gen_t(ng)%bplane
-tplane = tr_t(nt)%gen_t(ng)%tplane
+bplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
+tplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
 
 !  Also check if point is below bottom surface
 if(use_bottom_surf .and. ng == 1) then
@@ -727,8 +734,8 @@ real(rprec) :: atan4, a, b, bplane, tplane
 !  Set temporary values
 a = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%a
 b = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%b
-bplane = tr_t(nt)%gen_t(ng)%bplane
-tplane = tr_t(nt)%gen_t(ng)%tplane
+bplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%bot(3)
+tplane = tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%top(3)
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -1076,7 +1083,8 @@ do nt=1, ntree
 	  
       call vector_magnitude_3d(svec_t%xyz, svec_t%mag)
       
-	  ds = ( xyz(3) - tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot(3) ) / (svec_t%mag * cos(skew_angle))
+	  ds = ( xyz(3) - tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot(3) ) / &
+        (svec_t%mag * dcos(tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%skew_angle))
 	  
       xyz_c = ds * svec_t%xyz
 	  
