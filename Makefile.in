@@ -104,10 +104,10 @@ ifeq ($(FCOMP),ifort)
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel=medium
+  FFLAGS += -warn all
   #FDEBUG = -g -debug all
   FPROF = -p
-  LDFLAGS = -threads -shared-intel
+  #LDFLAGS = -threads -shared-intel
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
   CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8

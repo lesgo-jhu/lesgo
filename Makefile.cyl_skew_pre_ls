@@ -10,7 +10,6 @@
 include Makefile.in
 
 EXE = cylinder_skew_pre_ls
-LIBS += -lgeometry
 
 SRCS =  \
 	cylinder_skew_base_ls.f90 cylinder_skew_ls.f90 \
@@ -23,8 +22,14 @@ SRCS =  \
 	dealias1.f90 dealias2.f90 ddx.f90 ddz_uv.f90 \
 	ddy.f90 ddz_w.f90 padd.f90 unpadd.f90
 
+RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
+
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_defs.f90
+endif
+
+ifeq ($(USE_RNS_LS), yes)
+        SRCS += $(RNS_LS_SRCS)
 endif
 
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
