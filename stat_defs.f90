@@ -56,14 +56,14 @@ end type plane
 
 $if ($TURBINES)
 	type turbine 
-		real(rprec), dimension (:) :: dia, thk 
-		real(rprec), dimension (:) :: height 
+		real(rprec), pointer, dimension (:) :: dia, thk 
+		real(rprec), pointer, dimension (:) :: height 
 		integer :: nloc       				  
-		real(rprec), dimension (:) :: xloc, yloc  
-		real(rprec), dimension (:) :: theta1, theta2	  
-		integer,parameter::ifilter_xy  
-		integer,parameter::ifilter_z  
-		real (rprec) :: alpha_xy      
+		real(rprec), pointer, dimension (:) :: xloc, yloc  
+		real(rprec), pointer, dimension (:) :: theta1, theta2	  
+		integer ::ifilter_xy  
+		integer ::ifilter_z  
+		real (rprec) :: alpha_xy    
 		real (rprec) :: alpha_z 
 	end type turbine
 $endif
