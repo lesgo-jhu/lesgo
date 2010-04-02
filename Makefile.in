@@ -72,6 +72,7 @@ endif
 
 ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   FPP += -DCYLINDER_SKEW_LS
+  LIBS += -lgeometry
 endif
 
 ifeq ($(USE_RNS_LS), yes)
