@@ -59,6 +59,24 @@ type vector
   real(rprec), dimension(3) :: xyz
 end type vector
 
+type branch
+    real(rprec) :: dia
+    real(rprec) :: h
+    real(rprec) :: skew_angle
+end type branch
+
+type cluster
+    real(rprec) :: nbranch
+    type(cs1) :: origin_t ! origin of center (at bottom)
+    type(branch) :: br_t
+end type cluster
+
+type tree
+    real(rprec) :: ncluster
+    type(cluster) :: cl_t
+end type tree
+
+
 integer, pointer, dimension(:,:,:) :: brindex
 real(rprec), pointer, dimension(:,:,:) :: phi
 
