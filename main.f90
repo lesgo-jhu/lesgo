@@ -131,6 +131,7 @@ tt=0
 call initial()
 !--could move this into something like initial ()
 $if ($LVLSET)
+
   call level_set_init ()
   
   $if ($CYLINDER_SKEW_LS)
@@ -534,6 +535,10 @@ do jt=1,nsteps
     
     $if ($CYLINDER_SKEW_LS)
       call cylinder_skew_CD_ls()
+    $endif
+    
+    $if ($RNS_LS)
+    call rns_CD_ls()
     $endif
 
   $endif
