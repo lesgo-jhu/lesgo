@@ -303,7 +303,7 @@ end function linear_interp
 !!end function interp_to_w_grid
 
 !**********************************************************************
-real(rprec) function plane_avg_3D(var, bound_points, nzeta, neta)
+real(rprec) function plane_avg_3D(var, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
@@ -321,7 +321,7 @@ use grid_defs
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
-real(RPREC), intent(IN), dimension(:,:) :: bound_points
+real(RPREC), intent(IN), dimension(:) :: b1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
 
@@ -339,7 +339,7 @@ REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag, zmin, zmax
 REAL(RPREC) :: xdiff, ydiff, zdiff, var_sum, var_interp
 
 real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
-real(RPREC), dimension(3) :: bp1, bp2, bp3, bp4
+real(RPREC), dimension(3) :: bp4
 
 !  Build computational mesh if needed
 if(.not. grid_built) call grid_build()
@@ -347,10 +347,6 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
-!  Attempt for cache friendliness
-bp1 = bound_points(:,1)
-bp2 = bound_points(:,2) !  Serves as local origin of (zeta,eta) plane
-bp3 = bound_points(:,3)
 
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
