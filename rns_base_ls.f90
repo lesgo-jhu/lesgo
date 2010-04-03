@@ -24,7 +24,7 @@ type force
   real(rprec) :: CD
 end type force
 
-type(ref_plane), pointer, dimension(:) :: ref_plane_t
+type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t
 type(force), pointer, dimension(:) :: brforce_t, clforce_t
 
 end module rns_base_ls

@@ -10,8 +10,8 @@ use strmod
 $if($CYLINDER_SKEW_LS)
 use cylinder_skew_base_ls
 use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
-use cylinder_skew_ls, only : cylinder_skew_fill_ref_plane_array_ls
-use cylinder_skew_ls, only : cylinder_skew_get_branch_id_ls
+!use cylinder_skew_ls, only : cylinder_skew_fill_cl_ref_plane_array_ls
+!use cylinder_skew_ls, only : cylinder_skew_get_branch_id_ls
 $endif
 
 implicit none
@@ -19,15 +19,16 @@ implicit none
 save
 private
 
-$if($CYLINDER_SKEW_LS)
-logical, parameter :: brindx_based = .false.
-logical, parameter :: clindx_based = .true.
-$endif
+!----- Parameters -----
+logical, parameter :: brindx_calc = .false.
+logical, parameter :: clindx_calc = .true.
+!----------------------
 
 logical :: brindx_initialized = .false.
 integer :: brindx(ld, ny, nz)
 
 public :: rns_init_ls !, rns_u_write_ls
+public :: rns_CD_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
@@ -51,10 +52,11 @@ integer :: nt, np
 call mesg ( sub_name, 'setting reference planes' )
 
 $if($CYLINDER_SKEW_LS)
-
 call cylinder_skew_fill_tree_array_ls()
-!  Create reference value planes
-call cylinder_skew_fill_ref_plane_array_ls()
+$endif
+
+!  Create cluster reference value plane
+call rns_fill_cl_ref_plane_array_ls()
 
 !  Allocate the branch force to the number of representative branches
 if (.not. USE_MPI .or. (USE_MPI .and. coord == 0) then
@@ -62,157 +64,178 @@ if(clforce_calc) allocate( clforce_t( tr_t(1)%ncluster ))
 if(clforce_calc) allocate( brforce_t( tr_t(1)%nbranch ))
 endif
 
-$endif
-
 !  Load the brindx file
 call brindx_init()
   
 return
 end subroutine rns_init_ls
 
-!!**********************************************************************
-!subroutine rns_u_write_ls()
-!!**********************************************************************
-!use sim_param, only : u, v, w
-!use functions, only : plane_avg_3D
-!use param, only : jt_total, dt_dim, Ny, Nz_tot, L_y, L_z, nproc
-!use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag
-!use io, only : write_tecplot_header_xyline, write_real_data, interp_to_uv_grid
-!implicit none
+!**********************************************************************
+subroutine rns_fill_cl_ref_plane_array_ls()
+!**********************************************************************
 
-!character(*), parameter :: fbase= path // 'output/uvw_rns_planes.dat'
+use param, only : dy, dz
 
-!character(64) :: fmt
-!character(120) :: fname
+implicit none
 
-!integer :: np, nzeta, neta
-!logical :: exst
+real(rprec), parameter :: alpha=1._rprec
 
-!fmt=''
+integer :: nt, ng, nc, nb
 
-!call interp_to_uv_grid(w, w_uv, w_uv_tag)
+real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 
-!do np = 1, rns_t%nplanes
-!  
-!  fname = fbase
-!  call strcat(fname,'.p')
-!  call strcat(fname,np)
-! 
-!!  nzeta = abs(rns_planes_t(np)%bp(1,1)-rns_planes_t(np)%bp(1,2))/L_y*Ny
-!!  neta  = abs(rns_planes_t(np)%bp(3,3)-rns_planes_t(np)%bp(3,2))/L_z*nproc*Nz_tot 
-!  nzeta=100
-!  neta=100
+integer, pointer :: clindx_p, nbranch_p
+real(rprec), pointer :: d_p, l_p, skew_angle_p
+real(rprec), pointer, dimension(:) :: origin_p
 
-!  rns_planes_t(np)%u = plane_avg_3D(u,rns_planes_t(np)%bp,nzeta,neta)
-!  rns_planes_t(np)%v = plane_avg_3D(v,rns_planes_t(np)%bp,nzeta,neta)
-!  rns_planes_t(np)%w = plane_avg_3D(w_uv,rns_planes_t(np)%bp,nzeta,neta)
+nullify(d_p, l_p, skew_angle_p, clindx_p)
 
-!  if(coord == 0) then
-!  
-!    inquire (file=fname, exist=exst)
-!	if(.not. exst) call write_tecplot_header_xyline(fname, 'rewind', &
-!	    '"t (s)", "u", "v", "w"')
-!	!if (.not. exst) call write_tecplot_header_ND(fname, 'rewind', 4, (/ Nx /), '"t (s)", "u", "v", "w"', &
-!	!	  np, 2)
+!  allocate ref_array_t
+allocate(cl_ref_plane_t( size(clindx_to_loc_id,2) ))
 
-!	call write_real_data(fname, 'append', 4, (/ jt_total*dt_dim, &
-!	  rns_planes_t(np)%u, rns_planes_t(np)%v, rns_planes_t(np)%w /))
+do nt=1, ntree
 
-!  endif
-!  
-!enddo
+  do ng=1, tr_t(nt)%ngen
+  
+    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+    
+      nbranch_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+      
+      clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
+           
+      do nb = 1, nbranch
 
-!return
-!end subroutine rns_u_write_ls
+        d_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%d
+        l_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%l
+        skew_angle_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
+        
+        h         = l_p * dcos(skew_angle_p)
+        h_m       = h_m + h
+        area_proj = area_proj + d_p * h
+        
+        nullify(d_p, l_p, skew_angle_p)
+      
+      enddo
+      
+      !  Mean height of branch cluster  and height of reference area
+      h_m = h_m / nbranch_p
+      !  width of reference area
+      w   = area_proj / h_m     
+
+      cl_ref_plane_t(clindx_p) % area = area_proj
+      !  These are defined to be x - planes (no not the NASA experimental planes)
+      cl_ref_plane_t(clindx_p) % nzeta = ceiling( w / dy + 1)
+      cl_ref_plane_t(clindx_p) % neta  = ceiling( h_m / dz + 1)
+      
+      origin_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%origin
+      
+      !  Offset in the upstream x-direction
+      zeta_c = origin_p + (/ -alpha * w, 0._rprec, 0._rprec /)
+      
+      cl_ref_plane_t(clindx_p) % p1    = zeta_c 
+      cl_ref_plane_t(clindx_p) % p1(2) = cl_ref_plane_t(clindx_p) % p1(2) + w / 2._rprec
+      
+      cl_ref_plane_t(clindx_p) % p2    = cl_ref_plane_t(clindx_p) % p1
+      cl_ref_plane_t(clindx_p) % p2(2) = cl_ref_plane_t(clindx_p) % p2(2) - w
+      
+      cl_ref_plane_t(clindx_p) % p3    = cl_ref_plane_t(clindx_p) % p2
+      cl_ref_plane_t(clindx_p) % p3(3) = cl_ref_plane_t(clindx_p) % p3(3) + h_m
+      
+      nullify(clindx_p, origin_p)
+      
+    enddo
+    
+  enddo
+ 
+enddo
+      
+return
+
+end subroutine rns_fill_cl_ref_plane_array_ls
 
 !**********************************************************************
 subroutine rns_CD_ls()
 !**********************************************************************
-!  This subroutine computes the CD associated with each region dictated
-!  by the brindx value; this could be a branch, cluster of branches, etc.
-!  Depends only on brindx.
+!  This subroutine handles all CD calculation within the RNS module; 
+!  all CD and force calculations associated with
+!
+!  tree -> generation -> cluster -> branch
+!
+!  are handled here
+!
+
+implicit none
+
+if(clforce_calc) then
+  call rns_cl_CD_ls()
+  call rns_write_cl_CD_ls()
+endif
+
+return
+end subroutine rns_CD_ls
+
+
+!**********************************************************************
+subroutine rns_cl_CD_ls()
+!**********************************************************************
+!  This subroutine computes the CD of the branch cluster (cl) associated
+!  with each region dictated by the brindx value. The cl is mapped from 
+!  brindex
 !
 use param, only : dx, dy, dz
 use sim_param, only : u
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_cl_CD_ls'
 
 integer, pointer :: brindx_p => null(), clindx_p => null()
-integer, pointer :: ncluster => null(), nbranch => null()
+integer :: ncluster_tot
 real(rprec), pointer :: fx_p => null()
+$if ($MPI)
+real(rprec), pointer, dimension(:) :: cl_fD
+$endif
+!ncluster_p => tr_t(1)%ncluster
 
-ncluster => tr_t(1)%ncluster
-nbranch  => tr_t(1)%nbranch
+!  Get the total number of clusters; needs to match the
+!  size of cl_ref_plane_t
+ncluster_tot = size( cl_ref_plane_t )
+
+!ncluster_tot = 0
+!do n=1, ntree
+!  ncluster_tot = ncluster_tot + tr_t(n) % ncluster
+!enddo
 
 $if ($MPI)
-allocate (cl_fD(ncluster))
-allocate (br_fD(nbranch))
+allocate (cl_fD( ncluster_tot ))
 
 cl_fD = 0._rprec
-bf_fD = 0._rprec
 
 $endif
 
 !  Get reference velocity for all reference planes
-do n = 1, size(ref_plane_t)
-  ref_plane_t(n) % u = plane_avg_3D( u, ref_plane_t(n) % p1, ref_plane_t(n) % p2, &
-    ref_plane_t(n) % p3, ref_plane_t(n) % nzeta, ref_plane_t(n) % neta )
+do n = 1, ncluster_tot
+  cl_ref_plane_t(n) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(n) % p1, cl_ref_plane_t(n) % p2, &
+    cl_ref_plane_t(n) % p3, cl_ref_plane_t(n) % nzeta, cl_ref_plane_t(n) % neta )
 enddo
 
-if(clforce_calc) clforce_t % fx = 0._rprec
-if(brforce_calc) brforce_t % fx = 0._rprec
-
+clforce_t % fx = 0._rprec
 
 do k=1, nz - 1 ! since nz over laps
   do j = 1, ny
     do i = 1, nx
 
-       if ( brindx(i,j,k) > 0 ) then
+       if ( brindx(i,j,k) > 0 .and. phi(i,j,k) <= 0._rprec ) then 
        
          fx_p => fx(i,j,k)
-       
-         $if ($CYLINDER_SKEW_LS)
-         !  Map branch id if using clindx)
-         if(clforce_calc) then
-         
-           ! map brindx to clindx
-           brindx_p => brindx_to_loc_id(:,brindx(i,j,k))
-           clindx_p => tr_t(branch_id(branch_id(1)) % gen_t(branch_id(2)) % cl_t (branch_id(3)) % indx
+     
+         ! map brindx to clindx
+         brindx_p => brindx_to_loc_id(:,brindx(i,j,k))
+         clindx_p => tr_t(branch_id(branch_id(1)) % gen_t(branch_id(2)) % cl_t (branch_id(3)) % indx
            
-           $if($MPI)
-           cl_fD(clindx_p) = cl_fD(clindx_p) - fx_p * dx * dy * dz
-           $else
-           clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx_p * dx * dy * dz
-           $endif
-           
-           nullify(brindx_p)
-
-         elseif(brforce_calc) then
-         
-           brindx_p => brindx(i,j,k)
-           
-           $if($MPI)
-           br_fD(brindx_p) = br_fD(brindx_p) - fx_p * dx * dy * dz
-           $else
-           brforce_t(brindx_p)%fD = brforce_t(brindx_p)%fD - fx_p * dx * dy * dz
-           $endif
-           
-         endif
-         
+         $if($MPI)
+         cl_fD(clindx_p) = cl_fD(clindx_p) - fx_p * dx * dy * dz
          $else
-         
-         if(brforce_calc) then
-           brindx_p => brindx(i,j,k)
-           
-           $if($MPI)
-           br_fD(brindx_p) = br_fD(brindx_p) - fx_p * dx * dy * dz
-           $else
-           brforce_t(brindx_p)%fD = brforce_t(brindx_p)%fD - fx_p * dx * dy * dz
-           $endif
-           
-         endif
-         
+         clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx_p * dx * dy * dz
          $endif
          
          nullify(brindx_p, clindx_p, fx_p)
@@ -221,82 +244,41 @@ do k=1, nz - 1 ! since nz over laps
     enddo
   enddo
 enddo
-
-
-
-if(clforce_calc) then
   
-  $if($MPI)
-  !  Need to sync forces
-  call mpi_reduce (cl_fD, clforce_t%fD, ncluster, MPI_RPREC, MPI_SUM, rank_of_coord(0), comm, ierr)
-  deallocate(cl_fD)
-  $endif 
+$if($MPI)
+!  Need to sum forces 
+call mpi_reduce (cl_fD, clforce_t%fD, ncluster_tot , MPI_RPREC, MPI_SUM, rank_of_coord(0), comm, ierr)
+deallocate(cl_fD)
+$endif 
 
-  $if($MPI)
-  if(coord == 0) then
-  $endif 
-  
-    do n = 1, ncluster
-    
-      clforce_t(n)%CD = clforce_t(n)%fD / (0.5_rprec * ref_plane_t(n)%area * (ref_plane_t(n)%u)**2)
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
+
+  do n = 1, ncluster_tot 
+   
+    clforce_t(n)%CD = clforce_t(n)%fD / (0.5_rprec * cl_ref_plane_t(n)%area * (cl_ref_plane_t(n)%u)**2)
       
-    enddo
+  enddo
     
-  $if($MPI)
-  endif
-  $endif    
-    
-endif
-
-if(brforce_calc) then
-
-  $if($MPI)
-  call mpi_reduce (br_fD, brforce_t%fD, nbranch, MPI_RPREC, MPI_SUM, rank_of_coord(0), comm, ierr)
-  deallocate(br_fD)
-  $endif
-  
-  $if($MPI)
-  if(coord == 0) then
-  $endif
-    
-    do n = 1, nbranch
-    
-      ! map brindx to clindx
-      brindx_p => brindx_to_loc_id(:,n)
-      clindx_p => tr_t(branch_id(branch_id(1)) % gen_t(branch_id(2)) % cl_t (branch_id(3)) % indx      
-    
-      brforce_t(n)%CD = brforce_t(n)%fD / (0.5_rprec * ref_plane_t(clindx_p)%area * (ref_plane_t(clindx_p)%u)**2)
-      
-      nullify(brindx_p, clindx_p)
-      
-    enddo
-  
-  $if($MPI)
-  endif
-  $endif 
-  
 endif
 
 return
-end subroutine rns_CD_ls
+end subroutine rns_cl_CD_ls
 
 !**********************************************************************
-subroutine rns_write_CD_ls(jt)
+subroutine rns_write_cl_CD_ls()
 !**********************************************************************
-use io, only : write_tecplot_header_xyline, write_real_data
+use io, only : write_real_data
+use param, only : jt_total, dt
 
 implicit none
 
 integer, intent(in) :: jt
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_CD_ls'
-character(*), parameter :: fname = 'rns_CD_ls.dat'
+character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
+character(*), parameter :: fname = 'rns_cl_CD_ls.dat'
 
-
-call write_tecplot_header_xyline(point_t%fname(i), 'rewind', var_list)
-
-
-
+nvars = size( cl_ref_planes_t, 1 ) + 1
+call write_real_data(fname, write_pos, nvars, (/ jt_total*dt, clforce_t%CD /))
 
 
 return
