@@ -321,7 +321,7 @@ use grid_defs
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
-real(RPREC), intent(IN), dimension(:) :: b1, bp2, bp3
+real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
 
