@@ -521,6 +521,8 @@ skw_angle => br_t_p % skew_angle
 skw_axis  => br_t_p % skew_axis
 angle     => br_t_p % angle
 
+!write(*,*) 'nt, ng, nc, nb, top : ', nt, ng, nc, nb, top(3)
+
 !!  Associate values
 !a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
 !b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
