@@ -11,6 +11,7 @@ private
 
 public :: cylinder_skew_init_ls, cylinder_skew_CD_ls
 public :: cylinder_skew_fill_tree_array_ls
+
 $if($RNS_LS)
 public :: cylinder_skew_fill_ref_plane_array_ls
 $endif
@@ -439,7 +440,7 @@ subroutine cylinder_skew_fill_tree_array_ls()
 !  defines the key arrays clindex_to_loc_id and brindx_to_loc_id 
 !  which are used to get the local id of a global index. This subroutine
 !  should be called any time the tree struct and its settings as defined
-!  in cylinder_skew_base_ls are needed
+!  in cylinder_skew_base_ls are needed (only once though)
 !
 implicit none
 
@@ -552,6 +553,9 @@ do nt = 1, ntree
     enddo
   enddo
 enddo
+
+!  Set the total number of clusters and branches of the tree
+tr_t = tree ( ncluster = clindx, nbranch = brindx )
 
 allocate(clindx_to_loc_id(3,clindx))
 allocate(brindx_to_loc_id(4,brindx))
@@ -686,6 +690,7 @@ do nt=1, ntree
       !  width of reference area
       w   = area_proj / h_m     
 
+      ref_plane_t(clindx_p) % area = area_proj
       !  These are defined to be x - planes (no not the NASA experimental planes)
       ref_plane_t(clindx_p) % nzeta = ceiling( w / dy + 1)
       ref_plane_t(clindx_p) % neta  = ceiling( h_m / dz + 1)
@@ -709,12 +714,24 @@ do nt=1, ntree
     enddo
     
   enddo
-  
+ 
 enddo
       
 return
 
 end subroutine cylinder_skew_fill_ref_plane_array_ls
 $endif
+
+!**********************************************************************
+subroutine cylinder_skew_branch_id_ls( indx_based , indx,  branch_id)
+!**********************************************************************
+implicit none
+
+logical, intent(in) :: indx_based
+integer, intent(in) :: indx
+integer, dimension
+
+return
+end subroutine cylinder_skew_branch_id_ls
 
 end module cylinder_skew_ls

@@ -63,9 +63,14 @@ $if ($MPI)
 use param, only : coord
 $endif
 use cylinder_skew_param, only : DIST_CALC, ntree
+use cylinder_skew_base_ls, only : ngen, ngen_reslv
+use messages
 implicit none
 
+character (*), parameter :: prog_name = 'cylinder_skew_pre_ls'
 integer :: nt
+
+if(ngen_reslv > ngen) call error(prog_name, ' ngen_reslv > ngen ')    
 
 call initialize()
 !  Loop over all trees
@@ -118,7 +123,8 @@ call generate_grid()
 gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindex=1
+gcs_t(:,:,:)%brindx=0
+gcs_t % clindx = 0
 
 !  Initialize the iset flag
 gcs_t(:,:,:)%iset=0
@@ -132,7 +138,8 @@ if(use_bottom_surf) then
   do k=$lbz,Nz
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
     if(gcs_t(1,1,k)%phi <= 0.) then 
-        gcs_t(:,:,k)%brindex = -1
+        gcs_t(:,:,k)%brindx = -1
+        gcs_t(:,:,k)%clindx = -1
     endif
    
   enddo
@@ -460,7 +467,7 @@ do k=$lbz,Nz
 
           do nb=1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
 
-            if(gcs_t(i,j,k)%phi > 0) then
+            if(gcs_t(i,j,k)%phi > 0._rprec) then
               call pt_loc(nt,ng,nc,nb,i,j,k)
               call point_dist(nt,ng,nc,nb,i,j,k)
               call set_sign(i,j,k)
@@ -500,8 +507,6 @@ in_cyl=.false.
 in_bottom_surf = .false.
 in_cyl_top=.false.
 in_cyl_bottom=.false.
-
-
 
 !  Set branch pointer to correct branch
 br_t_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)
@@ -587,7 +592,7 @@ implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
 real(rprec) :: atan4
-integer, pointer :: brindx_p => null()
+integer, pointer :: brindx_p => null(), clindx_p => null()
 real(rprec), pointer :: a => null(), b=> null()
 real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
 real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
@@ -607,6 +612,8 @@ skw_angle => br_t_p % skew_angle
 skw_axis  => br_t_p % skew_axis
 angle     => br_t_p % angle
 brindx_p  => br_t_p % indx
+
+clindx_p  => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
 
 !a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
 !b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
@@ -638,7 +645,8 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
+    gcs_t(i,j,k)%brindx = brindx_p
+    gcs_t(i,j,k)%clindx = clindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -656,7 +664,8 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
+      gcs_t(i,j,k)%brindx = brindx_p
+      gcs_t(i,j,k)%clindx = clindx_p
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -673,7 +682,8 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
+      gcs_t(i,j,k)%brindx = brindx_p
+      gcs_t(i,j,k)%clindx = clindx_p
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -687,7 +697,8 @@ if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
+    gcs_t(i,j,k)%brindx = brindx_p
+    gcs_t(i,j,k)%clindx = clindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -697,14 +708,15 @@ if(in_cyl_bottom) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(dist <= 0._rprec) brindex(i,j,k) = brindx_p
+    gcs_t(i,j,k)%brindx = brindx_p
+    gcs_t(i,j,k)%clindx = clindx_p
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
 endif
 
 !  Nullify pointers
-nullify(br_t_p, a,b,bplane,tplane,bot,top,skw_angle,skw_axis,brindx_p)
+nullify(br_t_p, a,b,bplane,tplane,bot,top,skw_angle,skw_axis,brindx_p, clindx_p)
 
 return
 end subroutine point_dist
@@ -739,9 +751,9 @@ integer, intent(IN) :: i,j,k
 !if(gcs_t(i,j,k)%phi > 0) then
   if(in_cyl .or. in_bottom_surf) then
     gcs_t(i,j,k)%phi = -dabs(gcs_t(i,j,k)%phi)
-    gcs_t(i,j,k)%brindex = 1
+ !   gcs_t(i,j,k)%brindx = 1
   else    
-    gcs_t(i,j,k)%brindex = 0
+ !   gcs_t(i,j,k)%brindx = 0
   endif
 !endif
 return
@@ -1110,8 +1122,9 @@ contains
 !**********************************************************************
 subroutine write_output()
 !**********************************************************************
-use cylinder_skew_base_ls, only : brindex, phi
+use cylinder_skew_base_ls, only : brindx, phi
 use grid_defs
+use param, only : ld
 implicit none
 
 character (64) :: fname, temp
@@ -1127,35 +1140,37 @@ if(nproc > 1) then
   write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 endif
-!  Create tecplot formatted phi and brindex field file
+!  Create tecplot formatted phi and brindx field file
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
-write(2,*) 'variables = "x", "y", "z", "phi", "brindex", "itype", "chi"';
+write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "itype", "chi"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
 1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
 
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
 do k=$lbz,nz
   do j=1,ny
     do i=1,nx
-      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindex, gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi
+      write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), &
+        gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindx, gcs_t(i,j,k)%clindx, &
+        gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi
     enddo
   enddo
 enddo
 close(2)
 
-nullify(phi,brindex)
-allocate(phi(nx+2,ny,$lbz:nz))
-allocate(brindex(nx+2,ny,$lbz:nz))
+nullify(phi,brindx)
+allocate(phi(ld,ny,$lbz:nz))
+allocate(brindx(ld,ny,$lbz:nz))
 do k=$lbz,nz
   do j = 1,ny
-    do i = 1,nx+2
+    do i = 1,ld
       phi(i,j,k) = gcs_t(i,j,k)%phi
-      brindex(i,j,k) = gcs_t(i,j,k)%brindex
+      brindx(i,j,k) = gcs_t(i,j,k)%brindx
     enddo
   enddo
 enddo
@@ -1172,15 +1187,16 @@ if(nproc > 1) then
 endif
 !  Write binary data for lesgo
 open (1, file=fname, form='unformatted')
-if(nproc > 1) then
-  write(1) phi(:,:,$lbz:nz)
-else
-  write(1) phi(:,:,1:nz)
-endif
+!if(nproc > 1) then
+!  write(1) phi(:,:,$lbz:nz)
+!else
+!  write(1) phi(:,:,1:nz)
+!endif
+write(1) phi
 close (1)
 
 !  Open file which to write global data
-write (fname,*) 'brindex.out'
+write (fname,*) 'brindx.out'
 fname = trim(adjustl(fname)) 
 
 if(nproc > 1) then
@@ -1189,11 +1205,12 @@ if(nproc > 1) then
 endif
 
 open (1, file=fname, form='unformatted')
-if(nproc > 1) then
-  write(1) brindex(:,:,1:nz-1)
-else
-  write(1) brindex(:,:,1:nz)
-endif
+!if(nproc > 1) then
+!  write(1) brindx(:,:,1:nz-1)
+!else
+!  write(1) brindx(:,:,1:nz)
+!endif
+write(1) brindx
 close (1)
 
 !  Generate generation associations to be used in drag force calculations
