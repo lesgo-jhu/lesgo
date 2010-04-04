@@ -2,13 +2,13 @@
 module rns_ls
 !**********************************************************************
 use types, only : rprec
-use param
+use param, only : USE_MPI, coord, path
 use rns_base_ls
 use messages
 use strmod
 
 $if($CYLINDER_SKEW_LS)
-use cylinder_skew_base_ls
+use cylinder_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
 use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
 !use cylinder_skew_ls, only : cylinder_skew_fill_cl_ref_plane_array_ls
 !use cylinder_skew_ls, only : cylinder_skew_get_branch_id_ls
@@ -18,14 +18,6 @@ implicit none
 
 save
 private
-
-!----- Parameters -----
-logical, parameter :: brindx_calc = .false.
-logical, parameter :: clindx_calc = .true.
-!----------------------
-
-logical :: brindx_initialized = .false.
-integer :: brindx(ld, ny, nz)
 
 public :: rns_init_ls !, rns_u_write_ls
 public :: rns_CD_ls
@@ -43,9 +35,6 @@ subroutine rns_init_ls()
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
-character(64), parameter :: fbase= path // 'rns_planes_ls.out'
-
-character(64) :: fname
 
 integer :: nt, np
 
@@ -59,9 +48,9 @@ $endif
 call rns_fill_cl_ref_plane_array_ls()
 
 !  Allocate the branch force to the number of representative branches
-if (.not. USE_MPI .or. (USE_MPI .and. coord == 0) then
-if(clforce_calc) allocate( clforce_t( tr_t(1)%ncluster ))
-if(clforce_calc) allocate( brforce_t( tr_t(1)%nbranch ))
+if (.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if(clforce_calc) allocate( clforce_t( size(cl_ref_plane_t, 1 ))) !  Assuming they are the same size
+if(brforce_calc) allocate( brforce_t( tr_t(1)%nbranch ))
 endif
 
 !  Load the brindx file
@@ -103,7 +92,7 @@ do nt=1, ntree
       
       clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
            
-      do nb = 1, nbranch
+      do nb = 1, nbranch_p
 
         d_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%d
         l_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%l
@@ -141,7 +130,7 @@ do nt=1, ntree
       cl_ref_plane_t(clindx_p) % p3    = cl_ref_plane_t(clindx_p) % p2
       cl_ref_plane_t(clindx_p) % p3(3) = cl_ref_plane_t(clindx_p) % p3(3) + h_m
       
-      nullify(clindx_p, origin_p)
+      nullify(nbranch_p, clindx_p, origin_p)
       
     enddo
     
@@ -163,12 +152,16 @@ subroutine rns_CD_ls()
 !
 !  are handled here
 !
-
+use param, only : jt
 implicit none
 
 if(clforce_calc) then
-  call rns_cl_CD_ls()
-  call rns_write_cl_CD_ls()
+  if(modulo (jt, clforce_nskip) == 0) then
+    call rns_cl_CD_ls()
+    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
+      call rns_write_cl_CD_ls()
+    endif
+  endif
 endif
 
 return
@@ -182,15 +175,22 @@ subroutine rns_cl_CD_ls()
 !  with each region dictated by the brindx value. The cl is mapped from 
 !  brindex
 !
-use param, only : dx, dy, dz
+use param, only : nx, ny, nz, dx, dy, dz
+$if($MPI)
+use param, only : MPI_RPREC, MPI_SUM, rank_of_coord, comm, ierr
+$endif
 use sim_param, only : u
+use functions, only : plane_avg_3D
+use level_set_base, only : phi
+use immersedbc, only : fx
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_cl_CD_ls'
 
-integer, pointer :: brindx_p => null(), clindx_p => null()
-integer :: ncluster_tot
-real(rprec), pointer :: fx_p => null()
+integer, pointer, dimension(:) :: br_loc_id_p => null()
+integer, pointer :: clindx_p => null()
+integer :: i, j, k
+integer :: nc, ncluster_tot
 $if ($MPI)
 real(rprec), pointer, dimension(:) :: cl_fD
 $endif
@@ -213,32 +213,30 @@ cl_fD = 0._rprec
 $endif
 
 !  Get reference velocity for all reference planes
-do n = 1, ncluster_tot
-  cl_ref_plane_t(n) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(n) % p1, cl_ref_plane_t(n) % p2, &
-    cl_ref_plane_t(n) % p3, cl_ref_plane_t(n) % nzeta, cl_ref_plane_t(n) % neta )
+do nc = 1, ncluster_tot
+  cl_ref_plane_t(nc) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(nc) % p1, cl_ref_plane_t(nc) % p2, &
+    cl_ref_plane_t(nc) % p3, cl_ref_plane_t(nc) % nzeta, cl_ref_plane_t(nc) % neta )
 enddo
 
-clforce_t % fx = 0._rprec
+clforce_t % fD = 0._rprec
 
 do k=1, nz - 1 ! since nz over laps
   do j = 1, ny
     do i = 1, nx
 
        if ( brindx(i,j,k) > 0 .and. phi(i,j,k) <= 0._rprec ) then 
-       
-         fx_p => fx(i,j,k)
      
          ! map brindx to clindx
-         brindx_p => brindx_to_loc_id(:,brindx(i,j,k))
-         clindx_p => tr_t(branch_id(branch_id(1)) % gen_t(branch_id(2)) % cl_t (branch_id(3)) % indx
+         br_loc_id_p => brindx_to_loc_id(:,brindx(i,j,k))
+         clindx_p => tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t (br_loc_id_p(3)) % indx
            
          $if($MPI)
-         cl_fD(clindx_p) = cl_fD(clindx_p) - fx_p * dx * dy * dz
+         cl_fD(clindx_p) = cl_fD(clindx_p) - fx(i,j,k) * dx * dy * dz
          $else
-         clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx_p * dx * dy * dz
+         clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx(i,j,k) * dx * dy * dz
          $endif
          
-         nullify(brindx_p, clindx_p, fx_p)
+         nullify(br_loc_id_p, clindx_p)
          
        endif
     enddo
@@ -253,9 +251,9 @@ $endif
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
-  do n = 1, ncluster_tot 
+  do nc = 1, ncluster_tot 
    
-    clforce_t(n)%CD = clforce_t(n)%fD / (0.5_rprec * cl_ref_plane_t(n)%area * (cl_ref_plane_t(n)%u)**2)
+    clforce_t(nc) % CD = clforce_t(nc)%fD / (0.5_rprec * cl_ref_plane_t(nc)%area * (cl_ref_plane_t(nc)%u)**2)
       
   enddo
     
@@ -272,17 +270,22 @@ use param, only : jt_total, dt
 
 implicit none
 
-integer, intent(in) :: jt
-
 character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
-character(*), parameter :: fname = 'rns_cl_CD_ls.dat'
+character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
-nvars = size( cl_ref_planes_t, 1 ) + 1
-call write_real_data(fname, write_pos, nvars, (/ jt_total*dt, clforce_t%CD /))
+integer :: nvars
+
+nvars = size( clforce_t, 1 ) + 1
+
+!write(*,*) '----------------'
+!write(*,*) '(/ jt_total*dt, clforce_t%CD /) ', (/ jt_total*dt, clforce_t%CD /)
+!write(*,*) '----------------'
+call write_real_data(fname, 'append', nvars, (/ jt_total*dt, clforce_t%CD /))
+
 
 
 return
-end subroutine rns_write_CD_ls
+end subroutine rns_write_cl_CD_ls
 
 !**********************************************************************
 subroutine brindx_init ()

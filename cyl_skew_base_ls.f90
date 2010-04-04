@@ -7,8 +7,9 @@ use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
 implicit none
 
 save
+
 public
-!private :: mod_name
+private :: mod_name
 
 character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 
@@ -17,8 +18,8 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 integer, parameter :: ntree = 2
 
-integer, parameter :: ngen = 1
-integer, parameter :: ngen_reslv = 1
+integer, parameter :: ngen = 2
+integer, parameter :: ngen_reslv = 2
 
 integer, parameter :: nbranch = 3
 

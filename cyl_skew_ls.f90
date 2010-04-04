@@ -12,6 +12,8 @@ private
 public :: cylinder_skew_init_ls, cylinder_skew_CD_ls
 public :: cylinder_skew_fill_tree_array_ls
 
+character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
+
 contains
 
 !**********************************************************************
@@ -643,9 +645,6 @@ do nt = 1, ntree
     enddo
     
 enddo
-
-write(*,*) 'tr_t(1) % gen_t(1) % cl_t(1) % br_t % l : ', tr_t(1) % gen_t(1) % cl_t(1) % br_t % l
-write(*,*) 'tr_t(2) % gen_t(1) % cl_t(1) % br_t % l : ', tr_t(2) % gen_t(1) % cl_t(1) % br_t % l
 
 return
 end subroutine cylinder_skew_fill_tree_array_ls

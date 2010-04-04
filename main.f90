@@ -26,8 +26,7 @@ use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_ve
   $endif
   
   $if ($RNS_LS)
-  use rns_ls
-  use rns_base_ls
+  use rns_ls, only : rns_init_ls, rns_CD_ls
   $endif
   
 $endif
