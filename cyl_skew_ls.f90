@@ -501,7 +501,6 @@ do nt = 1, ntree
   do ng = 1, tr_t(nt)%ngen
     
     gen_scale_fact = scale_fact**(ng-1)
-    write(*,*) 'gen_scale_fact : ', gen_scale_fact
           
     do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
 
