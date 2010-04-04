@@ -327,7 +327,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar)%CD /))
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%CD /))
 
 return
 end subroutine rns_write_cl_CD_ls
