@@ -293,7 +293,9 @@ if(write_tree_1_only) then
     if(cl_loc_id_p(1) == 1) then
     
       nvar_count = nvar_count + 1
-      exit nv_search 
+    else
+    
+      exit nv_search
       
     endif
     
