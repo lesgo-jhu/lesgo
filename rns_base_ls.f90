@@ -12,6 +12,8 @@ logical, parameter :: clforce_calc = .true.
 logical, parameter :: brforce_calc = .false.
 
 integer, parameter :: clforce_nskip = 2
+
+logical, parameter :: write_tree_1_only = .true.
 !type rns
 !  integer :: ntrees, nplanes
 !  logical :: plane_u_calc

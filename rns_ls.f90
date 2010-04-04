@@ -274,15 +274,39 @@ character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: nc, nvars
+integer :: nc, nvar, nvar_count
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
-nvars = size( clforce_t, 1 ) + 1
+real(rprec), pointer, dimension(:) :: cl_CD_p
+
+!  Write cluster force (CD) for all trees + time step
+nvar = size( clforce_t, 1 ) + 1
+
+if(write_tree_1_only) then
+
+  nvar_count = 0
+  
+  nv_search : do nc = 1, nvar - 1
+  
+    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    
+    if(cl_loc_id_p(1) == 1) then
+    
+      nvar_count = nvar_count + 1
+      exit nv_search 
+      
+    endif
+    
+  enddo nv_search
+  
+  nvar = nvar_count + 1
+  
+endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   var_list = '"jt"'
-  do nc = 1, nvars-1
+  do nc = 1, nvar-1
   
     cl_loc_id_p => clindx_to_loc_id(:,nc)
     !  Create variable list name:
@@ -301,7 +325,7 @@ endif
 !write(*,*) '----------------'
 !write(*,*) '(/ jt_total*dt, clforce_t%CD /) ', (/ jt_total*dt, clforce_t%CD /)
 !write(*,*) '----------------'
-call write_real_data(fname, 'append', nvars, (/ jt_total*dt, clforce_t%CD /))
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar)%CD /))
 
 
 
