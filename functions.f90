@@ -30,11 +30,11 @@ character (*), parameter :: func_name = mod_name // '.index_start'
 if(.not. grid_built) call grid_build()
 
 select case (indx)
-    case ('i'); index_start = ceiling (px / dx - 1._rprec) + 1
-    case ('j'); index_start = ceiling (px / dx - 1._rprec) + 1
-	!  Need to compute local distance to get local k index
-	case ('k'); index_start = ceiling ((px - z(1)) / dx - 1._rprec) + 1
-    case default; call error (func_name, 'invalid indx =' // indx)
+  case ('i'); index_start = floor (px / dx) + 1
+  case ('j'); index_start = floor (px / dx) + 1
+  !  Need to compute local distance to get local k index
+  case ('k'); index_start = floor ((px - z(1)) / dx) + 1
+  case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
 return
