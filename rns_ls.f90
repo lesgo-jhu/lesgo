@@ -1,12 +1,7 @@
 !**********************************************************************
 module rns_ls
 !**********************************************************************
-use types, only : rprec
-use param, only : USE_MPI, coord, path
 use rns_base_ls
-use messages
-use strmod
-
 $if($CYLINDER_SKEW_LS)
 use cylinder_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
 use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
@@ -31,6 +26,8 @@ contains
 !**********************************************************************
 subroutine rns_init_ls()
 !**********************************************************************
+use messages
+use param, only : USE_MPI, coord
 
 implicit none
 
@@ -62,7 +59,7 @@ end subroutine rns_init_ls
 !**********************************************************************
 subroutine rns_fill_cl_ref_plane_array_ls()
 !**********************************************************************
-
+use types, only : rprec
 use param, only : dy, dz
 
 implicit none
@@ -152,7 +149,7 @@ subroutine rns_CD_ls()
 !
 !  are handled here
 !
-use param, only : jt
+use param, only : jt, USE_MPI, coord
 implicit none
 
 if(clforce_calc) then
@@ -175,7 +172,9 @@ subroutine rns_cl_CD_ls()
 !  with each region dictated by the brindx value. The cl is mapped from 
 !  brindex
 !
+use types, only : rprec
 use param, only : nx, ny, nz, dx, dy, dz
+use param, only : USE_MPI, coord
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, rank_of_coord, comm, ierr
 $endif
@@ -244,7 +243,7 @@ do k=1, nz - 1 ! since nz over laps
 enddo
   
 $if($MPI)
-!  Need to sum forces 
+!  Need to sum forces over all processors
 call mpi_reduce (cl_fD, clforce_t%fD, ncluster_tot , MPI_RPREC, MPI_SUM, rank_of_coord(0), comm, ierr)
 deallocate(cl_fD)
 $endif 
@@ -265,17 +264,39 @@ end subroutine rns_cl_CD_ls
 !**********************************************************************
 subroutine rns_write_cl_CD_ls()
 !**********************************************************************
-use io, only : write_real_data
-use param, only : jt_total, dt
-
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : jt_total, dt, path
+use strmod
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
 character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
-integer :: nvars
+logical :: exst
+character(1000) :: var_list
+integer :: nc, nvars
+integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 nvars = size( clforce_t, 1 ) + 1
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  var_list = '"jt"'
+  do nc = 1, nvars-1
+  
+    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    !  Create variable list name:
+    call strcat(var_list, ',"CD<sub>')
+    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, ',')
+    call strcat(var_list, cl_loc_id_p(2))
+    call strcat(var_list, ',')
+    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, '</sub>"')
+  enddo
+  nullify(cl_loc_id_p)
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
 
 !write(*,*) '----------------'
 !write(*,*) '(/ jt_total*dt, clforce_t%CD /) ', (/ jt_total*dt, clforce_t%CD /)
@@ -290,7 +311,8 @@ end subroutine rns_write_cl_CD_ls
 !**********************************************************************
 subroutine brindx_init ()
 !**********************************************************************
-use param, only : iBOGUS
+use param, only : iBOGUS, coord
+use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.brindx_init'
