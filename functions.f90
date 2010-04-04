@@ -30,10 +30,10 @@ character (*), parameter :: func_name = mod_name // '.index_start'
 if(.not. grid_built) call grid_build()
 
 select case (indx)
-    case ('i'); index_start = floor (px / dx + 1._rprec)
-    case ('j'); index_start = floor (px / dx + 1._rprec)
+    case ('i'); index_start = ceiling (px / dx - 1._rprec) + 1
+    case ('j'); index_start = ceiling (px / dx - 1._rprec) + 1
 	!  Need to compute local distance to get local k index
-	case ('k'); index_start = floor ((px - z(1)) / dx + 1._rprec)
+	case ('k'); index_start = ceiling ((px - z(1)) / dx - 1._rprec) + 1
     case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
@@ -390,7 +390,10 @@ eta_vec = eta_vec / vec_mag
         istart = index_start('i', dx, modulo(cell_center(1),L_x))
         jstart = index_start('j', dy, modulo(cell_center(2),L_y))
         kstart = index_start('k', dz, cell_center(3))
-
+        if(jstart == Ny) then
+          write(*,*) 'j will be out of bounds'
+          jstart = jstart - 1
+        endif
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
         nsum = nsum + 1
 
