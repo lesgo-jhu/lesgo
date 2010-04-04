@@ -273,7 +273,7 @@ character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
 character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
 logical :: exst
-character(1000) :: var_list
+character(5000) :: var_list
 integer :: nc, nvars
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 

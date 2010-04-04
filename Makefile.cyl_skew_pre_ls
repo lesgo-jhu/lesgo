@@ -28,9 +28,9 @@ ifeq ($(USE_MPI), yes)
   SRCS += mpi_defs.f90
 endif
 
-ifeq ($(USE_RNS_LS), yes)
-        SRCS += $(RNS_LS_SRCS)
-endif
+#ifeq ($(USE_RNS_LS), yes)
+#        SRCS += $(RNS_LS_SRCS)
+#endif
 
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
