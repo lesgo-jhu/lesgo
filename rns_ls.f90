@@ -60,7 +60,7 @@ end subroutine rns_init_ls
 subroutine rns_fill_cl_ref_plane_array_ls()
 !**********************************************************************
 use types, only : rprec
-use param, only : dy, dz
+use param, only : dy, dz, USE_MPI, coord
 
 implicit none
 
@@ -88,7 +88,10 @@ do nt=1, ntree
       nbranch_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
       
       clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
-           
+      
+      h_m = 0._rprec
+      area_proj = 0._rprec
+      
       do nb = 1, nbranch_p
 
         d_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%d
@@ -134,6 +137,26 @@ do nt=1, ntree
   enddo
  
 enddo
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) 'Reference Plane Values for Tree 1 : '
+  nt=1
+    do ng = 1, tr_t(nt)%ngen
+      do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+        write(*,*) '-------------------------'
+        write(*,*) 'nt, ng, nc : ', nt, ng, nc
+        write(*,*) 'nzeta, neta : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % nzeta, &
+          cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % neta
+        write(*,*) 'p1 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p1
+        write(*,*) 'p2 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p2
+        write(*,*) 'p3 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p3
+        write(*,*) 'area : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % area
+        write(*,*) '-------------------------'
+      enddo
+    enddo
+
+endif
+          
       
 return
 
