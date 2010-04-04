@@ -157,7 +157,9 @@ if(clforce_calc) then
     call rns_cl_CD_ls()
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
       call rns_write_cl_CD_ls()
+      if(clforce_vel_write) call rns_write_cl_vel_ls()
     endif
+    
   endif
 endif
 
@@ -331,6 +333,77 @@ call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%
 
 return
 end subroutine rns_write_cl_CD_ls
+
+!**********************************************************************
+subroutine rns_write_cl_vel_ls()
+!**********************************************************************
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : jt_total, dt, path
+use strmod
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.rns_write_cl_vel_ls'
+character(*), parameter :: fname = path // 'output/rns_cl_vel_ls.dat'
+
+logical :: exst
+character(5000) :: var_list
+integer :: nc, nvar, nvar_count
+integer, pointer, dimension(:) :: cl_loc_id_p => null()
+
+real(rprec), pointer, dimension(:) :: cl_CD_p
+
+!  Write cluster velocity for all trees + time step
+nvar = size( cl_ref_plane_t, 1 ) + 1
+
+if(write_tree_1_only) then
+
+  nvar_count = 0
+  
+  nv_search : do nc = 1, nvar - 1
+  
+    !  cl_loc_id_p : tree -> gen -> cluster
+    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    
+    !  Check if tree 1
+    if(cl_loc_id_p(1) == 1) then
+    
+      nvar_count = nvar_count + 1
+      
+    else
+    
+      exit nv_search
+      
+    endif
+    
+  enddo nv_search
+  
+  nvar = nvar_count + 1
+  
+endif
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  var_list = '"jt"'
+  do nc = 1, nvar-1
+  
+    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    !  Create variable list name:
+    call strcat(var_list, ',"u<sub>')
+    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, ',')
+    call strcat(var_list, cl_loc_id_p(2))
+    call strcat(var_list, ',')
+    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, '</sub>"')
+  enddo
+  nullify(cl_loc_id_p)
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, cl_ref_plane_t(1:nvar-1)%u /))
+
+return
+end subroutine rns_write_cl_vel_ls
 
 !**********************************************************************
 subroutine brindx_init ()

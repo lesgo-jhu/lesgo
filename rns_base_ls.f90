@@ -9,6 +9,8 @@ save
 public
 
 logical, parameter :: clforce_calc = .true.
+logical, parameter :: clforce_vel_write = .true.
+
 logical, parameter :: brforce_calc = .false.
 
 integer, parameter :: clforce_nskip = 10
