@@ -9,11 +9,13 @@ save
 public
 
 logical, parameter :: clforce_calc = .true.
+integer, parameter :: clforce_nskip = 10
 logical, parameter :: clforce_vel_write = .true.
+
 
 logical, parameter :: brforce_calc = .false.
 
-integer, parameter :: clforce_nskip = 10
+
 
 !  Flag for writing info (forces, velocity, etc.) on tree 1 (main) only
 logical, parameter :: write_tree_1_only = .true.
