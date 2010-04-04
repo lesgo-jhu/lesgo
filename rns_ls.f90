@@ -288,11 +288,14 @@ if(write_tree_1_only) then
   
   nv_search : do nc = 1, nvar - 1
   
+    !  cl_loc_id_p : tree -> gen -> cluster
     cl_loc_id_p => clindx_to_loc_id(:,nc)
     
+    !  Check if tree 1
     if(cl_loc_id_p(1) == 1) then
     
       nvar_count = nvar_count + 1
+      
     else
     
       exit nv_search
@@ -324,12 +327,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-!write(*,*) '----------------'
-!write(*,*) '(/ jt_total*dt, clforce_t%CD /) ', (/ jt_total*dt, clforce_t%CD /)
-!write(*,*) '----------------'
 call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar)%CD /))
-
-
 
 return
 end subroutine rns_write_cl_CD_ls
