@@ -35,7 +35,7 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
 integer :: nt, np
 
-call mesg ( sub_name, 'setting reference planes' )
+if(coord == 0) call mesg ( sub_name, 'setting reference planes' )
 
 $if($CYLINDER_SKEW_LS)
 call cylinder_skew_fill_tree_array_ls()
@@ -49,7 +49,6 @@ if (.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 if(clforce_calc) allocate( clforce_t( size(cl_ref_plane_t, 1 ))) !  Assuming they are the same size
 if(brforce_calc) allocate( brforce_t( tr_t(1)%nbranch ))
 endif
-
 !  Load the brindx file
 call brindx_init()
   
@@ -173,7 +172,10 @@ subroutine rns_CD_ls()
 !  are handled here
 !
 use param, only : jt, USE_MPI, coord
+use messages
 implicit none
+
+character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
 if(clforce_calc) then
   if(modulo (jt, clforce_nskip) == 0) then
