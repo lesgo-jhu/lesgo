@@ -28,7 +28,7 @@ logical, parameter :: write_tree_1_only = .true.
 type ref_plane
   integer :: nzeta, neta ! discretization
   real(rprec), dimension(3) :: p1, p2, p3 !  3 ordered points
-  real(rprec) :: u, v, w ! reference values
+  real(rprec) :: u ! reference values
   real(rprec) :: area
 end type ref_plane
 
