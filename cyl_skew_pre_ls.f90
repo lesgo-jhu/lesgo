@@ -84,7 +84,7 @@ do nt = 1, ntree
   !! if(coord == 0) call rns_planes(nt)
   !!$endif
    
-  if(DIST_CALC) call main(nt)
+  if(DIST_CALC) call main_loop(nt)
   
 enddo 
 
@@ -445,7 +445,7 @@ end subroutine initialize
 !end subroutine rns_planes
 
 !**********************************************************************
-subroutine main(nt)
+subroutine main_loop(nt)
 !**********************************************************************
 use cylinder_skew_param
 
@@ -482,7 +482,7 @@ do k=$lbz,Nz
 enddo
 
 return
-end subroutine main
+end subroutine main_loop
 
 
 !**********************************************************************
