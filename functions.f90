@@ -390,10 +390,7 @@ eta_vec = eta_vec / vec_mag
         istart = index_start('i', dx, modulo(cell_center(1),L_x))
         jstart = index_start('j', dy, modulo(cell_center(2),L_y))
         kstart = index_start('k', dz, cell_center(3))
-        if(jstart == Ny) then
-          write(*,*) 'j will be out of bounds'
-          jstart = jstart - 1
-        endif
+        
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
         nsum = nsum + 1
 
