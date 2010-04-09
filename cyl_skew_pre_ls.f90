@@ -860,12 +860,7 @@ deallocate(z_w)
 
 !  Now must sync all overlapping nodes
 $if ($MPI)
-if(coord == 4) gcs_t(64,37,1)%chi=10.
-if(coord == 3) write(*,*) 'gcs_t(64,37,ubz)%chi : ', gcs_t(64,37,nz)%chi 
 call mpi_sync_real_array(gcs_t(:,:,:)%chi)
-if(coord == 3) then
-  write(*,*) 'gcs_t(64,37,nz)%chi : ', gcs_t(64,37,nz)%chi 
-endif
 $endif
 
 !  Ensure all pointers are nullified
