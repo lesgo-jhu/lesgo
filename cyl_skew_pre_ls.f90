@@ -955,10 +955,10 @@ use cylinder_skew_param
 implicit none
 
 real(rprec), intent(in), dimension(3) :: xyz
-integer, intent(in) :: id_gen
-real(rprec), intent(in) :: delta
+integer,     intent(in)               :: id_gen
+real(rprec), intent(in)               :: delta
 
-real(rprec), intent(out) :: chi
+real(rprec), intent(out)              :: chi
 
 integer :: nt, nc
 
@@ -1003,28 +1003,29 @@ use cylinder_skew_base_ls, only : cluster, vector, branch, point_2d
 use cylinder_skew_param, only : zrot_axis
 implicit none
 
-real(rprec), intent(in), dimension(3) :: xyz
-type(cluster), target, intent(in) :: cl_t
-real(rprec), intent(in) :: delta
-real(rprec), intent(inout) :: chi
+real(rprec),  intent(in), dimension(3) :: xyz
+type(cluster), target, intent(in)      :: cl_t
+real(rprec), intent(in)                :: delta
+real(rprec), intent(inout)             :: chi
 
-integer :: nb
+integer     :: nb
 real(rprec) :: chi_int, ds
 
-integer, pointer :: nbranch_p
-real(rprec), pointer :: skew_angle_p, angle_p
+integer, pointer                   :: nbranch_p
+real(rprec), pointer               :: skew_angle_p, angle_p
 real(rprec), pointer, dimension(:) :: angle2_p
 real(rprec), pointer, dimension(:) :: a_p, b_p
 real(rprec), pointer, dimension(:) :: bot_p, top_p, cl_origin_p
 
 
 type(point_2d), allocatable, dimension(:) :: lpnt_t, cpnt_t
-real(rprec), dimension(3) :: xyz_rot !  point used for rotatations
+real(rprec), dimension(3) :: xyz_rot !  point used for rotatations 
 
-type(vector), allocatable, dimension(:) :: svec_t
+type(vector) :: svec_t
 
 type(branch), pointer, dimension(:) :: br_t_p
 
+! Nullify all pointers
 nullify(nbranch_p, cl_origin_p, br_t_p)
 nullify(top_p, bot_p, skew_angle_p, angle_p)
 
@@ -1032,7 +1033,6 @@ nbranch_p   => cl_t % nbranch
 cl_origin_p => cl_t % origin
 br_t_p      => cl_t % br_t
       
-allocate(svec_t(nbranch_p))
 allocate(lpnt_t(nbranch_p), cpnt_t(nbranch_p))
 
 !  Set all branch settings
@@ -1043,31 +1043,32 @@ do nb = 1, nbranch_p
   skew_angle_p => br_t_p(nb) % skew_angle
   angle_p      => br_t_p(nb) % angle
 
-  svec_t(nb) % xyz = top_p - bot_p
+  svec_t % xyz = top_p - bot_p
 
-  call vector_magnitude_3d(svec_t(nb) % xyz, svec_t(nb) % mag)
-      
-  ds = ( xyz(3) - bot_p(3) ) / (svec_t(nb) % mag * dcos( skew_angle_p ))
+  call vector_magnitude_3d(svec_t % xyz, svec_t % mag)
   
-  cpnt_t(nb) % xy = bot_p(1:2) + ds * svec_t(nb)%xyz(1:2) ! center point of area to integrate over in z-plane
+  ! find the projection length along the branch axis      
+  ds = ( xyz(3) - bot_p(3) ) / (svec_t % mag * dcos( skew_angle_p )) 
+  
+  ! center point of area to integrate over in z-plane
+  cpnt_t(nb) % xy = bot_p(1:2) + ds * svec_t%xyz(1:2) 
   
   !    write(*,'(1a,3f12.6)') 'xyz ', xyz
   !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
    
-  !  Compute local vector to branch coordinate system (must be in 3D)
+  !  Compute local vector to branch coordinate system (must be in 3D); project to z=0
   xyz_rot = (/ xyz(1), xyz(2), 0._rprec /) - (/ cpnt_t(nb) % xy(1), cpnt_t(nb) % xy(2), 0._rprec /)
  
   !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
   !  Perform rotation of local vector about z-axis into ellipse coordinate system
   call rotation_axis_vector_3d(zrot_axis, -angle_p, xyz_rot, xyz_rot)
   
-  lpnt_t(nb) % xy = xyz_rot(1:2) ! 2d local point relative to ellipse
+  ! 2d local point relative to ellipse coordinate system
+  lpnt_t(nb) % xy = xyz_rot(1:2) 
   
   nullify(top_p, bot_p, skew_angle_p, angle_p)
   
 enddo
-
-deallocate(svec_t)
 
 a_p => br_t_p % a
 b_p => br_t_p % b
@@ -1110,8 +1111,10 @@ integer :: i, j, n, nm
 real(rprec) :: delta2, dist, dist2
 real(rprec), allocatable, dimension(:) :: dx, dy
 
-type(point_2d) :: cell_center_t
+type(point_2d) :: cell_t
+type(point_3d) :: cell_gcs_t
 type(point_3d) :: test_point_t ! used for test if integrand points lie in multiple elipses
+
 
 ! we assume a, b, etc. are the same length
 
@@ -1134,50 +1137,57 @@ do n = 1, nbranch
   do j = 1, ny
 
   !  y-value of i,j cell center for each branch (relative to ellipse coordinate system)
-    cell_center_t % xy(2) = -b(n) + (j - 0.5)*dy(n)
+    cell_t % xy(2) = -b(n) + (j - 0.5)*dy(n)
   
     do i = 1, nx
   
-      cell_center_t % xy(1) = -a(n) + (i - 0.5)*dx(n) ! (relative to ellipse coordinate system)
+      cell_t % xy(1) = -a(n) + (i - 0.5)*dx(n) ! (relative to ellipse coordinate system)
 
       inside_self = .false.
       inside_other = .false.
 
-      !call ellipse_contains_point_2d(a(n), b(n), cell_center_t % xy, (/ 0._rprec, 0._rprec /), inside_self)
-      if((cell_center_t%xy(1)/a(n))**2 + (cell_center_t%xy(2)/b(n))**2 <= 1._rprec) inside_self = .true.
+      call ellipse_contains_point_2d(a(n), b(n), cell_t % xy, (/ 0._rprec, 0._rprec /), inside_self)
+      !if((cell_t%xy(1)/a(n))**2 + (cell_t%xy(2)/b(n))**2 <= 1._rprec) inside_self = .true.
       
       if(inside_self) then
-
-        nm = n ! should skip inside_other_chk if n = 1
         
-        ! Need to rotate cell_center_t vector into global coordinate system
-        call rotation_axis_vector_3d(zrot_axis, angle(n), &
-          (/ cell_center_t % xy(1), cell_center_t %xy(2), 0._rprec /), test_point_t % xyz)
+        if(n > 1) then
         
-        inside_other_chk : do while ( nm > 1 )
-        
-          nm = nm - 1
+          nm = n ! should skip inside_other_chk if n = 1
           
-          !  xc, yc is relative to each ellipse center (cpnt_t)
-          !  compute center relative to previous ellipse center
-          test_point_t % xyz(1:2) = test_point_t % xyz(1:2) + cpnt_t(n) % xy - cpnt_t(nm) % xy 
-          test_point_t % xyz(3) = 0._rprec 
+          ! Need to rotate cell_center_t vector into global coordinate system
+          call rotation_axis_vector_3d(zrot_axis, angle(n), &
+            (/ cell_t % xy(1), cell_t %xy(2), 0._rprec /), cell_gcs_t % xyz)
+             
+          inside_other_chk : do while ( nm > 1 )
+        
+            nm = nm - 1
+                        
+            !  xc, yc is relative to each ellipse center (cpnt_t)
+            !  compute center relative to previous ellipse center
+            test_point_t % xyz(1:2) = cell_gcs_t % xyz(1:2) + cpnt_t(n) % xy - cpnt_t(nm) % xy 
+            test_point_t % xyz(3) = 0._rprec 
           
           !  Rotate test point in to ellipse nm's coordinate system
-          call rotation_axis_vector_3d(zrot_axis, -angle(nm), test_point_t % xyz, test_point_t % xyz)
+            call rotation_axis_vector_3d(zrot_axis, -angle(nm), test_point_t % xyz, test_point_t % xyz)
 
-          !call ellipse_contains_point_2d(a(nm), b(nm), test_point_t % xyz(1:2), (/ 0._rprec, 0._rprec /), inside_other)
-          if((test_point_t % xyz(1)/a(nm))**2 + (test_point_t % xyz(2)/b(nm))**2 <= 1._rprec) inside_other = .true.       
+            call ellipse_contains_point_2d(a(nm), b(nm), test_point_t % xyz(1:2), (/ 0._rprec, 0._rprec /), inside_other)
+            !if((test_point_t % xyz(1)/a(nm))**2 + (test_point_t % xyz(2)/b(nm))**2 <= 1._rprec) inside_other = .true.       
           
-          if(inside_other) exit inside_other_chk
+            if(inside_other) then
+
+              exit inside_other_chk
+            endif
           
-        enddo inside_other_chk
-        
+          enddo inside_other_chk
+          
+        endif
+       
         if (.not. inside_other) then
         
-        	!  distance from cell center and specified point
-          call vector_magnitude_2d((/ cell_center_t % xy(1) - lpnt_t(n)%xy(1), &
-            cell_center_t % xy(2) - lpnt_t(n)%xy(2) /), dist)
+        !  distance from cell center and specified point
+          call vector_magnitude_2d((/ lpnt_t(n)%xy(1) - cell_t % xy(1), &
+            lpnt_t(n)%xy(2) - cell_t % xy(2) /), dist)
                    
           dist2 = dist*dist
 
