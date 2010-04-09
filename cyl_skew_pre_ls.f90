@@ -51,9 +51,6 @@ integer, dimension(3) :: cyl_loc
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
 
-real(rprec) :: circk, dist, theta
-real(rprec) :: eck
-
 end module cylinder_skew_param
 
 !**************************************************************
@@ -89,7 +86,7 @@ do nt = 1, ntree
 enddo 
 
 !  Uses global tree info from ebgcs_t and etgcs_t to
-!call compute_chi()
+call compute_chi()
 
 call finalize()
 
@@ -105,11 +102,15 @@ $if ($MPI)
 use mpi_defs
 use param, only : coord
 $endif
-use cylinder_skew_param
+
+use param, only : nz
+use cylinder_skew_param, only : gcs_t, BOGUS, tr_t
+use cylinder_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen
+use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
 
 implicit none
 
-integer :: ng,nt,i,j,k,istart,iend
+integer :: ng,i,j,k
 
 call initialize_mpi ()
 call allocate_arrays()
@@ -285,7 +286,7 @@ contains
 !**********************************************************************
 subroutine allocate_arrays()
 !**********************************************************************
-
+use param, only : nx, ny
 implicit none
 
 !  Allocate x,y,z for all coordinate systems
@@ -334,7 +335,7 @@ subroutine generate_grid()
 ! (global coordinate system) in gcs_t using the grid generation routine
 ! grid_build()
 !
-use param, only : nproc, coord
+use param, only : nproc, coord, nx, ny, nz
 use grid_defs
 
 implicit none
@@ -447,8 +448,10 @@ end subroutine initialize
 !**********************************************************************
 subroutine main_loop(nt)
 !**********************************************************************
-use cylinder_skew_param
-
+use types, only : rprec
+use param, only : nx, ny, nz
+use cylinder_skew_base_ls, only : tr_t
+use cylinder_skew_param, only : gcs_t
 implicit none
 
 integer, intent(IN) :: nt
@@ -488,13 +491,17 @@ end subroutine main_loop
 !**********************************************************************
 subroutine pt_loc(nt,ng,nc,nb,i,j,k)
 !**********************************************************************
-
-use cylinder_skew_param
-
+use types, only : rprec
+use cylinder_skew_base_ls, only : tr_t, branch
+use cylinder_skew_base_ls, only : z_bottom_surf, use_bottom_surf
+use cylinder_skew_param, only : btw_planes, in_cir, &
+  in_cyl, in_bottom_surf, in_cyl_top, in_cyl_bottom, above_cyl, below_cyl
+use cylinder_skew_param, only : gcs_t, vgcs_t, lcs_t, zrot_axis, ecs_t
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
 
+real(rprec) :: circk, eck
 real(rprec), pointer :: a => null(), b=> null()
 real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
 real(rprec), pointer, dimension(:) :: bot=>null(), top=>null(), skw_axis=> null()
@@ -520,19 +527,6 @@ top       => br_t_p % top
 skw_angle => br_t_p % skew_angle
 skw_axis  => br_t_p % skew_axis
 angle     => br_t_p % angle
-
-!write(*,*) 'nt, ng, nc, nb, top : ', nt, ng, nc, nb, top(3)
-
-!!  Associate values
-!a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
-!b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
-!bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot(3)
-!tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top(3)
-!bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%bot
-!top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%top
-!skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_angle
-!skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%skew_axis
-!angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb)%angle
 
 !  Also check if point is below bottom surface
 if(use_bottom_surf .and. ng == 1) then
@@ -588,12 +582,15 @@ end subroutine pt_loc
 !**********************************************************************
 subroutine point_dist(nt,ng,nc,nb,i,j,k)
 !**********************************************************************
-use cylinder_skew_param
-
+use types, only : rprec
+use cylinder_skew_base_ls, only : branch, tr_t
+use cylinder_skew_param, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
+use cylinder_skew_param, only : in_cyl_top, zrot_axis, ecs_t, eps
+use cylinder_skew_param, only : in_cyl_bottom
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
-real(rprec) :: atan4
+real(rprec) :: atan4, theta, dist
 integer, pointer :: brindx_p => null(), clindx_p => null()
 real(rprec), pointer :: a => null(), b=> null()
 real(rprec), pointer :: bplane => null(), tplane=> null(), skw_angle => null(), angle=>null()
@@ -616,17 +613,6 @@ angle     => br_t_p % angle
 brindx_p  => br_t_p % indx
 
 clindx_p  => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
-
-!a         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % a
-!b         => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % b
-!bplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % bot(3)
-!tplane    => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % top(3)
-!bot       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % bot
-!top       => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % top
-!skw_angle => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_angle
-!skw_axis  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_axis
-!angle     => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % angle
-!brindx_p  => tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % indx
 
 !  Compute theta value on lcs using geometry.atan4
 theta = atan4(lcs_t%xyz(2),lcs_t%xyz(1))
@@ -745,8 +731,7 @@ end subroutine set_iset
 !**********************************************************************
 subroutine set_sign(i,j,k)
 !**********************************************************************
-use cylinder_skew_param
-
+use cylinder_skew_param, only : in_cyl, in_bottom_surf, gcs_t
 implicit none
 
 integer, intent(IN) :: i,j,k
@@ -767,8 +752,11 @@ end subroutine set_sign
 subroutine compute_chi()
 !**********************************************************************
 !  This subroutine filters the indicator function chi
-use cylinder_skew_param
+use types, only : rprec
+use param, only : nx, ny, nz, dz
 use messages
+use cylinder_skew_param, only : gcs_t
+use cylinder_skew_base_ls, only : tr_t, ngen, filt_width
 $if($MPI)
 use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array
@@ -811,22 +799,23 @@ do k=$lbz,ubz
   !  See if points have a generation association
       call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
 	  
-	  nullify(bplane,tplane)
-      
-      !  Assume all trees have same bplane and tplane values for all generations
-      bplane => tr_t(1)%gen_t(id_gen)%bplane
-      tplane => tr_t(1)%gen_t(id_gen)%tplane
-      
+       
        !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
       if(id_gen > ngen ) then
         call error(sub_name,'id_gen > ngen')
       endif
-  
+
       if (iface == -1) then
   
         gcs_t(i,j,k)%chi = 0.
 
       elseif( 0 <= iface .and. iface <= 3) then
+      
+        nullify(bplane,tplane)
+      
+      !  Assume all trees have same bplane and tplane values for all generations
+        bplane => tr_t(1)%gen_t(id_gen)%bplane
+        tplane => tr_t(1)%gen_t(id_gen)%tplane
 
         if(iface == 0) then
 
@@ -887,7 +876,7 @@ return
 end subroutine compute_chi
 
 !**********************************************************************
-subroutine find_assoc_gen(z,id_gen,iface)
+subroutine find_assoc_gen(z, id_gen, iface)
 !**********************************************************************
 !  This subroutine finds the generation associated with a given point
 !  on the uv grid (i.e. cell center). This routine biases the bottom
@@ -895,11 +884,13 @@ subroutine find_assoc_gen(z,id_gen,iface)
 
 !  iface - 0 (no interface), 1 (bottom of tree), 
 !          2 (inter-generation interface), 3 (top of tree)
-
-use cylinder_skew_param
+use types, only : rprec
+use param, only : dz
+use cylinder_skew_base_ls, only : ngen, tr_t
 implicit none
 
 real(rprec), intent(in) :: z ! on uv grid
+
 integer, intent(out) :: id_gen, iface
 
 integer :: ng
@@ -966,137 +957,244 @@ implicit none
 real(rprec), intent(in), dimension(3) :: xyz
 integer, intent(in) :: id_gen
 real(rprec), intent(in) :: delta
+
 real(rprec), intent(out) :: chi
 
-integer :: nt, ng, nc, nb
-real(rprec) :: delta2, chi_int, ds
-real(rprec), dimension(3) :: xyz_c, xyz_rot
+integer :: nt, nc
 
-real(rprec), pointer :: a, b, skw_angle, angle
-real(rprec), pointer, dimension(:) :: bot, top
+real(rprec) :: delta2 
 
-type(vector) :: lvec_t, svec_t
+integer, pointer :: ncluster_p
+type(cluster), pointer, dimension(:) :: cl_t_p
 
 chi=0.
 
 delta2 = delta*delta
 
-
-!write(*,*) ' '
-!write(*,*) 'id_gen, gen_ncluster(id_gen) : ', id_gen, gen_ncluster(id_gen)
 do nt=1, ntree
   
   !  Loop over all branch clusters
-  do nc=1,tr_t(nt)%gen_t(id_gen)%ncluster
-    !  Loop over all branches within cluster
-    do nb=1,tr_t(nt)%gen_t(id_gen)%cl_t(nc)%nbranch
-        
-
- !     write(*,'(1a,3f12.6)') 'ebgcs_t(ntr,id_gen)%xyz(:,nt) : ', ebgcs_t(ntr,id_gen)%xyz(:,nt)
- !     write(*,'(1a,f12.6)') 'xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt) : ', xyz(3) - ebgcs_t(ntr,id_gen)%xyz(3,nt)
-      !  Compute center of ellipse to average over
-	  
-	  nullify(a,b, bot,top,skw_angle, angle)
-	  !  Associate all pointers
-	  a => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%a
-	  b => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%b
-	  top => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%top
-	  bot => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%bot
-	  skw_angle => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%skew_angle
-	  angle => tr_t(nt)%gen_t(id_gen)%cl_t(nc)%br_t(nb)%angle
+  cl_t_p => tr_t(nt) % gen_t(id_gen) % cl_t
+  ncluster_p => tr_t(nt)%gen_t(id_gen)%ncluster
   
-	  svec_t%xyz =  top - bot
-	  
-      call vector_magnitude_3d(svec_t%xyz, svec_t%mag)
-      
-	  ds = ( xyz(3) - bot(3) ) / (svec_t%mag * dcos(skw_angle))
-	  
-      xyz_c = ds * svec_t%xyz
-	  
-      xyz_c = xyz_c + bot
+  do nc = 1, ncluster_p
   
-  !    write(*,'(1a,3f12.6)') 'xyz ', xyz
-  !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
-   
-      !  Compute local vector
-      lvec_t%xyz = xyz - xyz_c 
-  
-   !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
-      !  Perform rotation of local vector about z-axis
-      call rotation_axis_vector_3d(zrot_axis, -angle, lvec_t%xyz, xyz_rot)
-  
-      !  Perform weighted integration over ellipse
-      call weighted_chi_int(a,b, xyz_rot(1), xyz_rot(2), delta, chi_int)
-
-      chi = chi + chi_int
-  
-    enddo
+    !  Filter over cluster
+    call filter_cl_chi(xyz, cl_t_p(nc), delta, chi) 
 
   enddo
+  
+  nullify(cl_t_p, ncluster_p)
+  
 enddo
 
-!  Normalize 
+!  Normalize after completing integration
 chi = chi/(2._rprec*pi*delta2)
-
-nullify(a,b,bot,top,skw_angle, angle)
 
 return
 
 end subroutine filter_chi
 
 !**********************************************************************
-subroutine weighted_chi_int(a,b,x,y,delta,chi)
+subroutine filter_cl_chi(xyz, cl_t, delta, chi)
 !**********************************************************************
 use types, only : rprec
+use cylinder_skew_base_ls, only : cluster, vector, branch, point_2d
+use cylinder_skew_param, only : zrot_axis
+implicit none
+
+real(rprec), intent(in), dimension(3) :: xyz
+type(cluster), target, intent(in) :: cl_t
+real(rprec), intent(in) :: delta
+real(rprec), intent(inout) :: chi
+
+integer :: nb
+real(rprec) :: chi_int, ds
+
+integer, pointer :: nbranch_p
+real(rprec), pointer :: skew_angle_p, angle_p
+real(rprec), pointer, dimension(:) :: angle2_p
+real(rprec), pointer, dimension(:) :: a_p, b_p
+real(rprec), pointer, dimension(:) :: bot_p, top_p, cl_origin_p
+
+
+type(point_2d), allocatable, dimension(:) :: lpnt_t, cpnt_t
+real(rprec), dimension(3) :: xyz_rot !  point used for rotatations
+
+type(vector), allocatable, dimension(:) :: svec_t
+
+type(branch), pointer, dimension(:) :: br_t_p
+
+nullify(nbranch_p, cl_origin_p, br_t_p)
+nullify(top_p, bot_p, skew_angle_p, angle_p)
+
+nbranch_p   => cl_t % nbranch
+cl_origin_p => cl_t % origin
+br_t_p      => cl_t % br_t
+      
+allocate(svec_t(nbranch_p))
+allocate(lpnt_t(nbranch_p), cpnt_t(nbranch_p))
+
+!  Set all branch settings
+do nb = 1, nbranch_p
+
+  top_p        => br_t_p(nb) % top
+  bot_p        => br_t_p(nb) % bot
+  skew_angle_p => br_t_p(nb) % skew_angle
+  angle_p      => br_t_p(nb) % angle
+
+  svec_t(nb) % xyz = top_p - bot_p
+
+  call vector_magnitude_3d(svec_t(nb) % xyz, svec_t(nb) % mag)
+      
+  ds = ( xyz(3) - bot_p(3) ) / (svec_t(nb) % mag * dcos( skew_angle_p ))
+  
+  cpnt_t(nb) % xy = bot_p(1:2) + ds * svec_t(nb)%xyz(1:2) ! center point of area to integrate over in z-plane
+  
+  !    write(*,'(1a,3f12.6)') 'xyz ', xyz
+  !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
+   
+  !  Compute local vector to branch coordinate system (must be in 3D)
+  xyz_rot = (/ xyz(1), xyz(2), 0._rprec /) - (/ cpnt_t(nb) % xy(1), cpnt_t(nb) % xy(2), 0._rprec /)
+ 
+  !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
+  !  Perform rotation of local vector about z-axis into ellipse coordinate system
+  call rotation_axis_vector_3d(zrot_axis, -angle_p, xyz_rot, xyz_rot)
+  
+  lpnt_t(nb) % xy = xyz_rot(1:2) ! 2d local point relative to ellipse
+  
+  nullify(top_p, bot_p, skew_angle_p, angle_p)
+  
+enddo
+
+deallocate(svec_t)
+
+a_p => br_t_p % a
+b_p => br_t_p % b
+angle2_p => br_t_p % angle
+
+!  Perform weighted integration over branch cluster
+call weighted_cl_chi_int(a_p, b_p, angle2_p, cpnt_t, lpnt_t, nbranch_p, delta, chi_int)
+
+nullify(a_p, b_p, angle2_p)
+deallocate(cpnt_t, lpnt_t)
+
+chi = chi + chi_int
+
+return
+
+end subroutine filter_cl_chi
+
+!**********************************************************************
+subroutine weighted_cl_chi_int(a, b, angle, cpnt_t, lpnt_t, nbranch, delta, chi)
+!**********************************************************************
+use types, only : rprec
+use cylinder_skew_base_ls, only : point_2d, point_3d
+use cylinder_skew_param, only : zrot_axis
 !  Does not normalize
 implicit none
 
-real(rprec), intent(in) :: a,b,x,y, delta
+integer, intent(in) :: nbranch
+real(rprec), dimension(nbranch), intent(in) :: a, b, angle
+type(point_2d), dimension(nbranch), intent(in) :: cpnt_t ! center of ellipse (in global coordinate system)
+type(point_2d), dimension(nbranch), intent(in) :: lpnt_t ! local point relative to ellipse
+real(rprec), intent(in) :: delta
 real(rprec), intent(out) :: chi
 
-integer, parameter :: Nx=10, Ny=10
+integer, parameter :: Nx=20, Ny=20
 
-integer :: i,j
-real(rprec) :: dx, dy, a2, b2, xc, yc, delta2, dist2, ellps_val
+logical :: inside_self, inside_other
 
-a2 = a*a
-b2 = b*b
+integer :: i, j, n, nm
 
-dx = 2._rprec*a / Nx
-dy = 2._rprec*b / Ny 
+real(rprec) :: delta2, dist, dist2
+real(rprec), allocatable, dimension(:) :: dx, dy
+
+type(point_2d) :: cell_center_t
+type(point_3d) :: test_point_t ! used for test if integrand points lie in multiple elipses
+
+! we assume a, b, etc. are the same length
+
+allocate(dx(nbranch), dy(nbranch)) ! Each branch recieves its own
+!allocate(cell_center_t(nbranch)) ! center of integration cells
+
+do n = 1, nbranch
+  dx(n) = 2._rprec*a(n) / Nx
+  dy(n) = 2._rprec*b(n) / Ny 
+enddo
 
 delta2 = delta*delta
 
 chi=0.
-do j=1,ny
 
-  !  y-value of cell center
-  yc = -b + (j - 0.5)*dy
-  
-  do i=1,nx
-  
-    !  x-value of cell center
-    xc = -a + (i - 0.5)*dx 
-  
-	!  Compute test value for ellipse
-    ellps_val = xc*xc/a2 + yc*yc/b2
-  
-	!  Check if cell center is inside ellipse
-    if(ellps_val <= 1.) then
-  
-	  !  distance from cell center and specified point
-      dist2 = ((xc - x)**2 + (yc - y)**2)
+    
+    !  Now for each branch check if inside itself and other
+do n = 1, nbranch
 
-	  chi = chi + dx*dy*exp(-dist2/(2._rprec*delta2))
-	  
-	endif
-	
+  do j = 1, ny
+
+  !  y-value of i,j cell center for each branch (relative to ellipse coordinate system)
+    cell_center_t % xy(2) = -b(n) + (j - 0.5)*dy(n)
+  
+    do i = 1, nx
+  
+      cell_center_t % xy(1) = -a(n) + (i - 0.5)*dx(n) ! (relative to ellipse coordinate system)
+
+      inside_self = .false.
+      inside_other = .false.
+
+      !call ellipse_contains_point_2d(a(n), b(n), cell_center_t % xy, (/ 0._rprec, 0._rprec /), inside_self)
+      if((cell_center_t%xy(1)/a(n))**2 + (cell_center_t%xy(2)/b(n))**2 <= 1._rprec) inside_self = .true.
+      
+      if(inside_self) then
+
+        nm = n ! should skip inside_other_chk if n = 1
+        
+        ! Need to rotate cell_center_t vector into global coordinate system
+        call rotation_axis_vector_3d(zrot_axis, angle(n), &
+          (/ cell_center_t % xy(1), cell_center_t %xy(2), 0._rprec /), test_point_t % xyz)
+        
+        inside_other_chk : do while ( nm > 1 )
+        
+          nm = nm - 1
+          
+          !  xc, yc is relative to each ellipse center (cpnt_t)
+          !  compute center relative to previous ellipse center
+          test_point_t % xyz(1:2) = test_point_t % xyz(1:2) + cpnt_t(n) % xy - cpnt_t(nm) % xy 
+          test_point_t % xyz(3) = 0._rprec 
+          
+          !  Rotate test point in to ellipse nm's coordinate system
+          call rotation_axis_vector_3d(zrot_axis, -angle(nm), test_point_t % xyz, test_point_t % xyz)
+
+          !call ellipse_contains_point_2d(a(nm), b(nm), test_point_t % xyz(1:2), (/ 0._rprec, 0._rprec /), inside_other)
+          if((test_point_t % xyz(1)/a(nm))**2 + (test_point_t % xyz(2)/b(nm))**2 <= 1._rprec) inside_other = .true.       
+          
+          if(inside_other) exit inside_other_chk
+          
+        enddo inside_other_chk
+        
+        if (.not. inside_other) then
+        
+        	!  distance from cell center and specified point
+          call vector_magnitude_2d((/ cell_center_t % xy(1) - lpnt_t(n)%xy(1), &
+            cell_center_t % xy(2) - lpnt_t(n)%xy(2) /), dist)
+                   
+          dist2 = dist*dist
+
+          chi = chi + dx(n)*dy(n)*exp(-dist2/(2._rprec*delta2))
+          
+        endif
+        
+      endif
+      
+    enddo
+    
   enddo
-	
+  
 enddo
 
 return
-end subroutine weighted_chi_int
+end subroutine weighted_cl_chi_int
 
 
 !############################################################################################################

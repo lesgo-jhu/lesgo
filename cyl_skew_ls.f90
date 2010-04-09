@@ -452,8 +452,6 @@ integer :: nbcount, nbcount_tot, nccount, nccount_tot
 real(rprec) :: angle
 real(rprec) :: gen_scale_fact
 
-write(*,*) 'ntree : ', ntree
-
 allocate(tr_t(ntree))
 
 !  Set the number of generations in the tree; for now 

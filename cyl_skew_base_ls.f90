@@ -16,16 +16,17 @@ character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 7
+integer, parameter :: ntree = 1
 
-integer, parameter :: ngen = 3
-integer, parameter :: ngen_reslv = 3
+integer, parameter :: ngen = 1
+integer, parameter :: ngen_reslv = 1
 
-integer, parameter :: nbranch = 3
+integer, parameter :: nbranch = 2
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
 real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
+
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
@@ -55,6 +56,14 @@ type rot
   real(rprec), pointer, dimension(:) :: angle
   real(rprec), pointer, dimension(:,:) :: axis
 end type rot
+
+type point_2d
+    real(rprec), dimension(2) :: xy
+end type point_2d
+
+type point_3d
+    real(rprec), dimension(3) :: xyz
+end type point_3d
 
 type vector
   real(rprec) :: mag
@@ -106,12 +115,12 @@ real(rprec), allocatable, dimension(:,:) :: origin
 allocate(origin(3,ntree))
 
 origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
-origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
-origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
-origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
-origin(:,6) = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
-origin(:,7) = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
+!origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
+!origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+!origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
+!origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
+!origin(:,6) = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
+!origin(:,7) = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
 origin_out = origin(:,nt)
 
