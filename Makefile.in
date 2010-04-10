@@ -72,7 +72,6 @@ endif
 
 ifeq ($(USE_CYLINDER_SKEW_LS), yes)
   FPP += -DCYLINDER_SKEW_LS
-  LIBS += -lgeometry
 endif
 
 ifeq ($(USE_RNS_LS), yes)
@@ -98,19 +97,19 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
-
-  FFLAGS = -O0 -check bounds -g -debug all -traceback
+  LIBS += -lfcgaml-intel
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -fast
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all
   #FDEBUG = -g -debug all
   FPROF = -p
-  #LDFLAGS = -threads -shared-intel
+  LDFLAGS = -threads -shared-intel
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
-  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
+#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
 endif
 
 ifeq ($(FCOMP),gfortran)
@@ -128,7 +127,7 @@ ifeq ($(FCOMP),gfortran)
   LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR)  
-  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
+#  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif
 
 ifeq ($(FCOMP),xlf)
