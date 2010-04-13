@@ -1,5 +1,5 @@
 !**********************************************************************
-module cyl_skew_param
+module cyl_skew_pre_base_ls
 !**********************************************************************
 use types, only : rprec
 use param, only : pi
@@ -51,7 +51,7 @@ integer, dimension(3) :: cyl_loc
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
 
-end module cyl_skew_param
+end module cyl_skew_pre_base_ls
 
 !**************************************************************
 program cyl_skew_pre_ls
@@ -59,7 +59,7 @@ program cyl_skew_pre_ls
 $if ($MPI)
 use param, only : coord
 $endif
-use cyl_skew_param, only : DIST_CALC, ntree
+use cyl_skew_pre_base_ls, only : DIST_CALC, ntree
 use cyl_skew_base_ls, only : ngen, ngen_reslv
 use messages
 implicit none
@@ -104,7 +104,7 @@ use param, only : coord
 $endif
 
 use param, only : nz
-use cyl_skew_param, only : gcs_t, BOGUS, tr_t
+use cyl_skew_pre_base_ls, only : gcs_t, BOGUS, tr_t
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen
 use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
 
@@ -361,7 +361,7 @@ end subroutine initialize
 !subroutine rns_planes(ntr)
 !!**********************************************************************
 !use types, only : rprec
-!use cyl_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad, &
+!use cyl_skew_pre_base_ls, only : ngen,ntrunk,origin,skew_angle,clen,crad, &
 !  lgcs_t, etgcs_t
 !implicit none
 
@@ -451,7 +451,7 @@ subroutine main_loop(nt)
 use types, only : rprec
 use param, only : nx, ny, nz
 use cyl_skew_base_ls, only : tr_t
-use cyl_skew_param, only : gcs_t
+use cyl_skew_pre_base_ls, only : gcs_t
 implicit none
 
 integer, intent(IN) :: nt
@@ -494,9 +494,9 @@ subroutine pt_loc(nt,ng,nc,nb,i,j,k)
 use types, only : rprec
 use cyl_skew_base_ls, only : tr_t, branch
 use cyl_skew_base_ls, only : z_bottom_surf, use_bottom_surf
-use cyl_skew_param, only : btw_planes, in_cir, &
+use cyl_skew_pre_base_ls, only : btw_planes, in_cir, &
   in_cyl, in_bottom_surf, in_cyl_top, in_cyl_bottom, above_cyl, below_cyl
-use cyl_skew_param, only : gcs_t, vgcs_t, lcs_t, zrot_axis, ecs_t
+use cyl_skew_pre_base_ls, only : gcs_t, vgcs_t, lcs_t, zrot_axis, ecs_t
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -584,9 +584,9 @@ subroutine point_dist(nt,ng,nc,nb,i,j,k)
 !**********************************************************************
 use types, only : rprec
 use cyl_skew_base_ls, only : branch, tr_t
-use cyl_skew_param, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
-use cyl_skew_param, only : in_cyl_top, zrot_axis, ecs_t, eps
-use cyl_skew_param, only : in_cyl_bottom
+use cyl_skew_pre_base_ls, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
+use cyl_skew_pre_base_ls, only : in_cyl_top, zrot_axis, ecs_t, eps
+use cyl_skew_pre_base_ls, only : in_cyl_bottom
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -712,7 +712,7 @@ end subroutine point_dist
 !**********************************************************************
 subroutine set_iset(i,j,k)
 !**********************************************************************
-use cyl_skew_param, only : gcs_t
+use cyl_skew_pre_base_ls, only : gcs_t
 
 implicit none
 
@@ -731,7 +731,7 @@ end subroutine set_iset
 !**********************************************************************
 subroutine set_sign(i,j,k)
 !**********************************************************************
-use cyl_skew_param, only : in_cyl, in_bottom_surf, gcs_t
+use cyl_skew_pre_base_ls, only : in_cyl, in_bottom_surf, gcs_t
 implicit none
 
 integer, intent(IN) :: i,j,k
@@ -755,7 +755,7 @@ subroutine compute_chi()
 use types, only : rprec
 use param, only : nx, ny, nz, dz
 use messages
-use cyl_skew_param, only : gcs_t
+use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width
 $if($MPI)
 use param, only : coord, nproc
@@ -946,7 +946,7 @@ subroutine filter_chi(xyz, id_gen, delta, chi)
 !  delta - filter width
 !  chi   - filtered indicator function
 !
-use cyl_skew_param
+use cyl_skew_pre_base_ls
 implicit none
 
 real(rprec), intent(in), dimension(3) :: xyz
@@ -995,7 +995,7 @@ subroutine filter_cl_chi(xyz, cl_t, delta, chi)
 !**********************************************************************
 use types, only : rprec
 use cyl_skew_base_ls, only : cluster, vector, branch, point_2d
-use cyl_skew_param, only : zrot_axis
+use cyl_skew_pre_base_ls, only : zrot_axis
 implicit none
 
 real(rprec),  intent(in), dimension(3) :: xyz
@@ -1086,7 +1086,7 @@ subroutine weighted_cl_chi_int(a, b, angle, cpnt_t, lpnt_t, nbranch, delta, chi)
 !**********************************************************************
 use types, only : rprec
 use cyl_skew_base_ls, only : point_2d, point_3d
-use cyl_skew_param, only : zrot_axis
+use cyl_skew_pre_base_ls, only : zrot_axis
 !  Does not normalize
 implicit none
 
@@ -1212,7 +1212,7 @@ $if ($MPI)
 use mpi_defs
 use param, only : nproc, coord, ierr
 $endif
-use cyl_skew_param
+use cyl_skew_pre_base_ls
 
 implicit none
 
