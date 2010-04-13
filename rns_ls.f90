@@ -35,9 +35,8 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
 integer :: nt, np
 
-if(coord == 0) call mesg ( sub_name, 'setting reference planes' )
-
 $if($CYL_SKEW_LS)
+if(coord == 0) call mesg ( sub_name, 'setting reference planes' )
 call cyl_skew_fill_tree_array_ls()
 $endif
 
@@ -309,7 +308,7 @@ real(rprec), pointer, dimension(:) :: cl_CD_p
 !  Write cluster force (CD) for all trees + time step
 nvar = size( clforce_t, 1 ) + 1
 
-if(write_tree_1_only) then
+if(use_main_tree_only) then
 
   nvar_count = 0
   
@@ -380,7 +379,7 @@ real(rprec), pointer, dimension(:) :: cl_CD_p
 !  Write cluster velocity for all trees + time step
 nvar = size( cl_ref_plane_t, 1 ) + 1
 
-if(write_tree_1_only) then
+if(use_main_tree_only) then
 
   nvar_count = 0
   
@@ -464,7 +463,7 @@ $if ($MPI)
 
   open (1, file=fbrindx_in_MPI, action='read', position='rewind',  &
          form='unformatted')
-  read (1) brindx(:, :, 1:nz-1)
+  read (1) brindx
   close (1)
 
   brindx(:, :, nz) = iBOGUS
@@ -484,6 +483,61 @@ $endif
 brindx_initialized = .true.
 
 end subroutine brindx_init
+
+!**********************************************************************
+subroutine chi_init ()
+!**********************************************************************
+use param, only : iBOGUS, coord
+use messages
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.chi_init'
+character (*), parameter :: fchi_in = 'chi.out'
+$if ($MPI)
+  character (*), parameter :: MPI_suffix = '.c'
+
+  character (128) :: fchi_in_MPI
+$endif
+
+integer :: ip
+
+logical :: opn, exst
+
+!---------------------------------------------------------------------
+
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($MPI)
+
+  write (fchi_in_MPI, '(a,a,i0)') fchi_in, MPI_suffix, coord
+    
+  inquire (file=fchi_in_MPI, exist=exst)
+  if (.not. exst) call error (sub_name,                             &
+                              'cannot find file ' // fchi_in_MPI)
+
+  open (1, file=fchi_in_MPI, action='read', position='rewind',  &
+         form='unformatted')
+  read (1) chi
+  close (1)
+
+  chi(:, :, nz) = iBOGUS
+
+$else
+
+  inquire (file=fchi_in, exist=exst)
+  if (.not. exst) call error (sub_name, 'cannot find file ' // fchi_in)
+
+  open (1, file=fchi_in, action='read', position='rewind',  &
+         form='unformatted')
+  read (1) chi
+  close (1)
+
+$endif
+
+chi_initialized = .true.
+
+end subroutine chi_init
 
 end module rns_ls
 

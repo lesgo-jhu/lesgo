@@ -8,6 +8,12 @@ implicit none
 save
 public
 
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
 logical, parameter :: clforce_vel_write = .true.
@@ -18,7 +24,7 @@ logical, parameter :: brforce_calc = .false.
 
 
 !  Flag for writing info (forces, velocity, etc.) on tree 1 (main) only
-logical, parameter :: write_tree_1_only = .true.
+logical, parameter :: use_main_tree_only = .true.
 
 !type rns
 !  integer :: ntrees, nplanes
@@ -40,7 +46,10 @@ end type force
 type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t
 type(force), pointer, dimension(:) :: brforce_t, clforce_t
 
+integer :: brindx(ld, ny, $lbz:nz)
 logical :: brindx_initialized = .false.
-integer :: brindx(ld, ny, nz)
+
+real (rprep) :: chi(ld, ny, $lbz:nz)
+logical :: chi_initialized = .false.
 
 end module rns_base_ls
