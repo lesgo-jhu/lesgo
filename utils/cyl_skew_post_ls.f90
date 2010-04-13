@@ -1,6 +1,6 @@
-program cylinder_skew_post
+program cyl_skew_post
 use types, only : rprec
-use cylinder_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,nproc
+use cyl_skew_base_ls, only : skew_angle, d, l, scale_fact, ntrunk,ngen,nproc
 implicit none
 
 logical, parameter :: tecio=.false.
@@ -36,7 +36,7 @@ CD_tot = 0._rprec
 fD_tot = 0._rprec
 
 !  Open output file
-fname ='cylinder_skew_CD_ls.dat'
+fname ='cyl_skew_CD_ls.dat'
 open (unit = 11,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
 
@@ -55,7 +55,7 @@ do ng=1,ngen
     write(*,*) 'Checking for files in directory : ', fdir
     do np=0,nproc-1 ! Sum over all processors
 
-      fname = trim(fdir) // '/cylinder_skew_CD_ls.dat.g'
+      fname = trim(fdir) // '/cyl_skew_CD_ls.dat.g'
       write (temp, '(i0)') ng
       fname = trim (fname) // temp
       fname = trim(fname) // '.c'
@@ -115,7 +115,7 @@ do ng=1,ngen
   Ap_tot = Ap_tot + Ap
 
 !  Open output file // append generation number
-  fname ='cylinder_skew_CD_inst_ls.dat.g'
+  fname ='cyl_skew_CD_inst_ls.dat.g'
   write (temp, '(i0)') ng
   fname = trim (fname) // temp
   write(*,*) 'Checking if file exists : ', fname
@@ -181,4 +181,4 @@ close(10)
 return
 end subroutine load_data
 
-end program cylinder_skew_post
+end program cyl_skew_post

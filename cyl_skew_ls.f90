@@ -1,23 +1,23 @@
 !**********************************************************************
-module cylinder_skew_ls
+module cyl_skew_ls
 !**********************************************************************
 use types, only : rprec
 use param
-use cylinder_skew_base_ls
+use cyl_skew_base_ls
 implicit none
 
 save
 private
 
-public :: cylinder_skew_init_ls, cylinder_skew_CD_ls
-public :: cylinder_skew_fill_tree_array_ls
+public :: cyl_skew_init_ls, cyl_skew_CD_ls
+public :: cyl_skew_fill_tree_array_ls
 
-character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
+character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 
 contains
 
 !**********************************************************************
-subroutine cylinder_skew_init_ls()
+subroutine cyl_skew_init_ls()
 !**********************************************************************
 
 implicit none
@@ -26,13 +26,13 @@ character(64) :: fname, temp
 integer :: i,j,k,ng
 
 !  Open file which to write global data
-fname = path // 'cylinder_skew_gen_ls.out'
+fname = path // 'cyl_skew_gen_ls.out'
 $if ($MPI)
   write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
 $endif
 
-!  Read in cylinder_skew_gen.dat file
+!  Read in cyl_skew_gen.dat file
 open (unit = 2,file = fname, status='old',form='formatted', &
   action='read',position='rewind')
 
@@ -55,13 +55,13 @@ close(2)
 !  Check 1st generation only for need ground association
 if(igen(1) /= -1) then
   !  Open file which to write global data
-  fname = path // 'cylinder_skew_point_ls.out'
+  fname = path // 'cyl_skew_point_ls.out'
   $if ($MPI)
     write (temp, '(".c",i0)') coord
     fname = trim (fname) // temp
   $endif
 
-  !  Read in cylinder_skew_gen.dat file
+  !  Read in cyl_skew_gen.dat file
   open (unit = 2,file = fname, status='old',form='formatted', &
     action='read',position='rewind')
   do k=1,nz
@@ -76,10 +76,10 @@ if(igen(1) /= -1) then
 endif
 
 return
-end subroutine cylinder_skew_init_ls
+end subroutine cyl_skew_init_ls
 
 !**********************************************************************
-subroutine cylinder_skew_CD_ls ()
+subroutine cyl_skew_CD_ls ()
 !**********************************************************************
 use immersedbc, only : fx
 use sim_param, only : u
@@ -88,8 +88,8 @@ use messages
 use grid_defs, only : zw
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.cylinder_skew_CD_ls'
-character (*), parameter :: fCD_out = 'output/cylinder_skew_CD_ls.dat'
+character (*), parameter :: sub_name = mod_name // '.cyl_skew_CD_ls'
+character (*), parameter :: fCD_out = 'output/cyl_skew_CD_ls.dat'
 character(64) :: fname, temp
 
 integer, parameter :: lun = 991  !--keep open between calls
@@ -251,11 +251,11 @@ do ng=1,ngen
 enddo
 
 return
-end subroutine cylinder_skew_CD_ls
+end subroutine cyl_skew_CD_ls
 
 $if ($DEVEL)
 !**********************************************************************
-subroutine cylinder_skew_RNS_CD_ls ()
+subroutine cyl_skew_RNS_CD_ls ()
 !**********************************************************************
 use immersedbc, only : fx
 use sim_param, only : u
@@ -264,8 +264,8 @@ use messages
 use grid_defs, only : zw
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.cylinder_skew_CD_ls'
-character (*), parameter :: fCD_out = 'output/cylinder_skew_CD_ls.dat'
+character (*), parameter :: sub_name = mod_name // '.cyl_skew_CD_ls'
+character (*), parameter :: fCD_out = 'output/cyl_skew_CD_ls.dat'
 character(64) :: fname, temp
 
 integer, parameter :: lun = 991  !--keep open between calls
@@ -427,18 +427,18 @@ do ng=1,ngen
 enddo
 
 return
-end subroutine cylinder_skew_RNS_CD_ls
+end subroutine cyl_skew_RNS_CD_ls
 $endif
 
 !**********************************************************************
-subroutine cylinder_skew_fill_tree_array_ls()
+subroutine cyl_skew_fill_tree_array_ls()
 !**********************************************************************
 !
 !  This subroutine sets all values for the tree struct - tr_t; it also
 !  defines the key arrays clindex_to_loc_id and brindx_to_loc_id 
 !  which are used to get the local id of a global index. This subroutine
 !  should be called any time the tree struct and its settings as defined
-!  in cylinder_skew_base_ls are needed (only once though)
+!  in cyl_skew_base_ls are needed (only once though)
 !
 
 implicit none
@@ -644,10 +644,10 @@ do nt = 1, ntree
 enddo
 
 return
-end subroutine cylinder_skew_fill_tree_array_ls
+end subroutine cyl_skew_fill_tree_array_ls
 
 !!**********************************************************************
-!subroutine cylinder_skew_branch_id_ls( indx_based , indx,  branch_id)
+!subroutine cyl_skew_branch_id_ls( indx_based , indx,  branch_id)
 !!**********************************************************************
 !implicit none
 
@@ -656,6 +656,6 @@ end subroutine cylinder_skew_fill_tree_array_ls
 !integer, dimension
 
 !return
-!end subroutine cylinder_skew_branch_id_ls
+!end subroutine cyl_skew_branch_id_ls
 
-end module cylinder_skew_ls
+end module cyl_skew_ls

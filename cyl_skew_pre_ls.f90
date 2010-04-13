@@ -1,10 +1,10 @@
 !**********************************************************************
-module cylinder_skew_param
+module cyl_skew_param
 !**********************************************************************
 use types, only : rprec
 use param, only : pi
-use cylinder_skew_base_ls
-use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
+use cyl_skew_base_ls
+use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
 use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
 use io, only : write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
@@ -51,20 +51,20 @@ integer, dimension(3) :: cyl_loc
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
 
-end module cylinder_skew_param
+end module cyl_skew_param
 
 !**************************************************************
-program cylinder_skew_pre_ls
+program cyl_skew_pre_ls
 !***************************************************************
 $if ($MPI)
 use param, only : coord
 $endif
-use cylinder_skew_param, only : DIST_CALC, ntree
-use cylinder_skew_base_ls, only : ngen, ngen_reslv
+use cyl_skew_param, only : DIST_CALC, ntree
+use cyl_skew_base_ls, only : ngen, ngen_reslv
 use messages
 implicit none
 
-character (*), parameter :: prog_name = 'cylinder_skew_pre_ls'
+character (*), parameter :: prog_name = 'cyl_skew_pre_ls'
 integer :: nt
 
 if(ngen_reslv > ngen) call error(prog_name, ' ngen_reslv > ngen ')    
@@ -93,7 +93,7 @@ call finalize()
 write(*,*) 'Program completed successfully.'
 stop
 
-end program cylinder_skew_pre_ls
+end program cyl_skew_pre_ls
 
 !**********************************************************************
 subroutine initialize()
@@ -104,9 +104,9 @@ use param, only : coord
 $endif
 
 use param, only : nz
-use cylinder_skew_param, only : gcs_t, BOGUS, tr_t
-use cylinder_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen
-use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
+use cyl_skew_param, only : gcs_t, BOGUS, tr_t
+use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen
+use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
 
 implicit none
 
@@ -114,7 +114,7 @@ integer :: ng,i,j,k
 
 call initialize_mpi ()
 call allocate_arrays()
-call cylinder_skew_fill_tree_array_ls()
+call cyl_skew_fill_tree_array_ls()
 call generate_grid()
 
 !!  Allocate x,y,z for all coordinate systems
@@ -361,7 +361,7 @@ end subroutine initialize
 !subroutine rns_planes(ntr)
 !!**********************************************************************
 !use types, only : rprec
-!use cylinder_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad, &
+!use cyl_skew_param, only : ngen,ntrunk,origin,skew_angle,clen,crad, &
 !  lgcs_t, etgcs_t
 !implicit none
 
@@ -379,7 +379,7 @@ end subroutine initialize
 !real(rprec), dimension(9) :: bp
 
 !!  Open file which to write rns plane data
-!write (fname,*) 'cylinder_skew_rns_planes_ls.out'
+!write (fname,*) 'cyl_skew_rns_planes_ls.out'
 !fname = trim(adjustl(fname)) 
 !write (temp, '(".t",i0)') ntr
 !fname = trim (fname) // temp
@@ -450,8 +450,8 @@ subroutine main_loop(nt)
 !**********************************************************************
 use types, only : rprec
 use param, only : nx, ny, nz
-use cylinder_skew_base_ls, only : tr_t
-use cylinder_skew_param, only : gcs_t
+use cyl_skew_base_ls, only : tr_t
+use cyl_skew_param, only : gcs_t
 implicit none
 
 integer, intent(IN) :: nt
@@ -492,11 +492,11 @@ end subroutine main_loop
 subroutine pt_loc(nt,ng,nc,nb,i,j,k)
 !**********************************************************************
 use types, only : rprec
-use cylinder_skew_base_ls, only : tr_t, branch
-use cylinder_skew_base_ls, only : z_bottom_surf, use_bottom_surf
-use cylinder_skew_param, only : btw_planes, in_cir, &
+use cyl_skew_base_ls, only : tr_t, branch
+use cyl_skew_base_ls, only : z_bottom_surf, use_bottom_surf
+use cyl_skew_param, only : btw_planes, in_cir, &
   in_cyl, in_bottom_surf, in_cyl_top, in_cyl_bottom, above_cyl, below_cyl
-use cylinder_skew_param, only : gcs_t, vgcs_t, lcs_t, zrot_axis, ecs_t
+use cyl_skew_param, only : gcs_t, vgcs_t, lcs_t, zrot_axis, ecs_t
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -583,10 +583,10 @@ end subroutine pt_loc
 subroutine point_dist(nt,ng,nc,nb,i,j,k)
 !**********************************************************************
 use types, only : rprec
-use cylinder_skew_base_ls, only : branch, tr_t
-use cylinder_skew_param, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
-use cylinder_skew_param, only : in_cyl_top, zrot_axis, ecs_t, eps
-use cylinder_skew_param, only : in_cyl_bottom
+use cyl_skew_base_ls, only : branch, tr_t
+use cyl_skew_param, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
+use cyl_skew_param, only : in_cyl_top, zrot_axis, ecs_t, eps
+use cyl_skew_param, only : in_cyl_bottom
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -712,7 +712,7 @@ end subroutine point_dist
 !**********************************************************************
 subroutine set_iset(i,j,k)
 !**********************************************************************
-use cylinder_skew_param, only : gcs_t
+use cyl_skew_param, only : gcs_t
 
 implicit none
 
@@ -731,7 +731,7 @@ end subroutine set_iset
 !**********************************************************************
 subroutine set_sign(i,j,k)
 !**********************************************************************
-use cylinder_skew_param, only : in_cyl, in_bottom_surf, gcs_t
+use cyl_skew_param, only : in_cyl, in_bottom_surf, gcs_t
 implicit none
 
 integer, intent(IN) :: i,j,k
@@ -755,8 +755,8 @@ subroutine compute_chi()
 use types, only : rprec
 use param, only : nx, ny, nz, dz
 use messages
-use cylinder_skew_param, only : gcs_t
-use cylinder_skew_base_ls, only : tr_t, ngen, filt_width
+use cyl_skew_param, only : gcs_t
+use cyl_skew_base_ls, only : tr_t, ngen, filt_width
 $if($MPI)
 use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array
@@ -881,7 +881,7 @@ subroutine find_assoc_gen(z, id_gen, iface)
 !          2 (inter-generation interface), 3 (top of tree)
 use types, only : rprec
 use param, only : dz
-use cylinder_skew_base_ls, only : ngen, tr_t
+use cyl_skew_base_ls, only : ngen, tr_t
 implicit none
 
 real(rprec), intent(in) :: z ! on uv grid
@@ -946,7 +946,7 @@ subroutine filter_chi(xyz, id_gen, delta, chi)
 !  delta - filter width
 !  chi   - filtered indicator function
 !
-use cylinder_skew_param
+use cyl_skew_param
 implicit none
 
 real(rprec), intent(in), dimension(3) :: xyz
@@ -994,8 +994,8 @@ end subroutine filter_chi
 subroutine filter_cl_chi(xyz, cl_t, delta, chi)
 !**********************************************************************
 use types, only : rprec
-use cylinder_skew_base_ls, only : cluster, vector, branch, point_2d
-use cylinder_skew_param, only : zrot_axis
+use cyl_skew_base_ls, only : cluster, vector, branch, point_2d
+use cyl_skew_param, only : zrot_axis
 implicit none
 
 real(rprec),  intent(in), dimension(3) :: xyz
@@ -1085,8 +1085,8 @@ end subroutine filter_cl_chi
 subroutine weighted_cl_chi_int(a, b, angle, cpnt_t, lpnt_t, nbranch, delta, chi)
 !**********************************************************************
 use types, only : rprec
-use cylinder_skew_base_ls, only : point_2d, point_3d
-use cylinder_skew_param, only : zrot_axis
+use cyl_skew_base_ls, only : point_2d, point_3d
+use cyl_skew_param, only : zrot_axis
 !  Does not normalize
 implicit none
 
@@ -1212,7 +1212,7 @@ $if ($MPI)
 use mpi_defs
 use param, only : nproc, coord, ierr
 $endif
-use cylinder_skew_param
+use cyl_skew_param
 
 implicit none
 
@@ -1227,7 +1227,7 @@ contains
 !**********************************************************************
 subroutine write_output()
 !**********************************************************************
-use cylinder_skew_base_ls, only : brindx, phi
+use cyl_skew_base_ls, only : brindx, phi
 use grid_defs
 use param, only : ld
 implicit none
@@ -1238,7 +1238,7 @@ integer :: i,j,k
 if(nproc > 1 .and. coord == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_ls.dat'
+write (fname,*) 'cyl_skew_ls.dat'
 fname = trim(adjustl(fname)) 
 
 if(nproc > 1) then
@@ -1414,7 +1414,7 @@ do ng=1,ngen
 enddo
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_gen_ls.out'
+write (fname,*) 'cyl_skew_gen_ls.out'
 fname = trim(adjustl(fname)) 
 
 if(nproc > 1) then
@@ -1451,7 +1451,7 @@ character(64) :: fname, temp
 integer :: i,j,k
 
 !  Open file which to write global data
-write (fname,*) 'cylinder_skew_point_ls.out'
+write (fname,*) 'cyl_skew_point_ls.out'
 fname = trim(adjustl(fname)) 
 
 if(nproc > 1) then

@@ -43,7 +43,7 @@ TREES_LS_SRCS = string_util.f90 \
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
-CYLINDER_SKEW_LS_SRCS = cylinder_skew_base_ls.f90 cylinder_skew_ls.f90
+CYL_SKEW_LS_SRCS = cyl_skew_base_ls.f90 cyl_skew_ls.f90
 
 RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
 
@@ -68,10 +68,10 @@ ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
 endif
 
-ifeq ($(USE_CYLINDER_SKEW_LS), yes)
-  SRCS += $(CYLINDER_SKEW_LS_SRCS)
-  TSUM_POST_DEPS += $(OPATH)/cylinder_skew_base_ls.o
-  TSUM_POST_COMP2 += $(OPATH)/cylinder_skew_base_ls.o
+ifeq ($(USE_CYL_SKEW_LS), yes)
+  SRCS += $(CYL_SKEW_LS_SRCS)
+  TSUM_POST_DEPS += $(OPATH)/cyl_skew_base_ls.o
+  TSUM_POST_COMP2 += $(OPATH)/cyl_skew_base_ls.o
 endif
 
 ifeq ($(USE_RNS_LS), yes)
@@ -103,10 +103,10 @@ tsum_post: $(TSUM_POST_DEPS)
 	$(TSUM_POST_COMP1)
 	$(TSUM_POST_COMP2)
 
-cylinder_skew_post_ls: utils/cylinder_skew_post_ls.f90 $(OPATH)/types.o \
-	$(OPATH)/param.o $(OPATH)/cylinder_skew_base_ls.o 
-	$(FPP) $< > t.cylinder_skew_post_ls.f90; $(FC) -o $@ \
-	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cylinder_skew_post_ls.f90
+cyl_skew_post_ls: utils/cyl_skew_post_ls.f90 $(OPATH)/types.o \
+	$(OPATH)/param.o $(OPATH)/cyl_skew_base_ls.o 
+	$(FPP) $< > t.cyl_skew_post_ls.f90; $(FC) -o $@ \
+	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cyl_skew_post_ls.f90
 
 interp: utils/interp.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<

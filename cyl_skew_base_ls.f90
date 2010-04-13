@@ -1,5 +1,5 @@
 !**********************************************************************
-module cylinder_skew_base_ls
+module cyl_skew_base_ls
 !**********************************************************************
 use types, only : rprec
 use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
@@ -11,14 +11,14 @@ save
 public
 private :: mod_name
 
-character (*), parameter :: mod_name = 'cylinder_skew_base_ls'
+character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 1
+integer, parameter :: ntree = 5
 
-integer, parameter :: ngen = 2
+integer, parameter :: ngen = 5
 integer, parameter :: ngen_reslv = 2
 
 integer, parameter :: nbranch = 3
@@ -30,7 +30,7 @@ real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 0.125490193552785_rprec
+real(rprec), parameter :: z_bottom_surf = 0.125490193552785_rprec+dx
 
 real(rprec), parameter :: filt_width = 2.*dx  !  Filter width for filtered indicator function
 
@@ -115,10 +115,10 @@ real(rprec), allocatable, dimension(:,:) :: origin
 allocate(origin(3,ntree))
 
 origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
-!origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
-!origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-!origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
-!origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
+origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
+origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
+origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
 !origin(:,6) = (/ L_x/2, 3./2.*L_y, z_bottom_surf /)
 !origin(:,7) = (/ L_x/2, -1./2.*L_y, z_bottom_surf /)
 
@@ -130,4 +130,4 @@ return
 
 end subroutine set_tree_origin
 
-end module cylinder_skew_base_ls
+end module cyl_skew_base_ls

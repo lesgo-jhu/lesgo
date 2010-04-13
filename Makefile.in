@@ -34,7 +34,7 @@ USE_DYNALLOC = no
 USE_LVLSET = yes
 
 USE_TREES_LS = no
-USE_CYLINDER_SKEW_LS = yes
+USE_CYL_SKEW_LS = yes
 USE_RNS_LS = yes
 
 USE_TURBINES = no
@@ -70,8 +70,8 @@ ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
 endif
 
-ifeq ($(USE_CYLINDER_SKEW_LS), yes)
-  FPP += -DCYLINDER_SKEW_LS
+ifeq ($(USE_CYL_SKEW_LS), yes)
+  FPP += -DCYL_SKEW_LS
 endif
 
 ifeq ($(USE_RNS_LS), yes)

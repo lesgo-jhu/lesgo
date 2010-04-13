@@ -1,5 +1,5 @@
 #!/bin/bash
-FBASE="cylinder_skew_CD.dat"
+FBASE="cyl_skew_CD.dat"
 FCASE="$1";#"ngen2.200k"
 NPROC=$2;#128;
 NGEN=$3;#2;

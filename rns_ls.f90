@@ -2,11 +2,11 @@
 module rns_ls
 !**********************************************************************
 use rns_base_ls
-$if($CYLINDER_SKEW_LS)
-use cylinder_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
-use cylinder_skew_ls, only : cylinder_skew_fill_tree_array_ls
-!use cylinder_skew_ls, only : cylinder_skew_fill_cl_ref_plane_array_ls
-!use cylinder_skew_ls, only : cylinder_skew_get_branch_id_ls
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
+use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
+!use cyl_skew_ls, only : cyl_skew_fill_cl_ref_plane_array_ls
+!use cyl_skew_ls, only : cyl_skew_get_branch_id_ls
 $endif
 
 implicit none
@@ -37,8 +37,8 @@ integer :: nt, np
 
 if(coord == 0) call mesg ( sub_name, 'setting reference planes' )
 
-$if($CYLINDER_SKEW_LS)
-call cylinder_skew_fill_tree_array_ls()
+$if($CYL_SKEW_LS)
+call cyl_skew_fill_tree_array_ls()
 $endif
 
 !  Create cluster reference value plane
@@ -337,7 +337,7 @@ endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
-  var_list = '"jt"'
+  var_list = '"t"'
   do nc = 1, nvar-1
   
     cl_loc_id_p => clindx_to_loc_id(:,nc)
@@ -408,7 +408,7 @@ endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
-  var_list = '"jt"'
+  var_list = '"t"'
   do nc = 1, nvar-1
   
     cl_loc_id_p => clindx_to_loc_id(:,nc)

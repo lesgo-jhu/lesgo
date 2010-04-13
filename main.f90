@@ -21,8 +21,8 @@ $endif
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
   
-  $if ($CYLINDER_SKEW_LS)
-  use cylinder_skew_ls, only : cylinder_skew_init_ls, cylinder_skew_CD_ls
+  $if ($CYL_SKEW_LS)
+  use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
   $endif
   
   $if ($RNS_LS)
@@ -133,8 +133,8 @@ $if ($LVLSET)
 
   call level_set_init ()
   
-  $if ($CYLINDER_SKEW_LS)
-  call cylinder_skew_init_ls ()
+  $if ($CYL_SKEW_LS)
+  call cyl_skew_init_ls ()
   $endif
   
   $if ($RNS_LS)
@@ -532,8 +532,8 @@ do jt=1,nsteps
   $if ($LVLSET)
     call level_set_cylinder_CD ()
     
-    $if ($CYLINDER_SKEW_LS)
-      call cylinder_skew_CD_ls()
+    $if ($CYL_SKEW_LS)
+      call cyl_skew_CD_ls()
     $endif
     
     $if ($RNS_LS)
