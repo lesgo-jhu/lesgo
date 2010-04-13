@@ -94,9 +94,6 @@ type tree
     type(generation), pointer, dimension(:) :: gen_t 
 end type tree
 
-integer, pointer, dimension(:,:,:) :: brindx
-real(rprec), pointer, dimension(:,:,:) :: phi
-
 type(tree), pointer, dimension(:) :: tr_t ! Tree type
 integer, pointer, dimension(:,:) :: clindx_to_loc_id, brindx_to_loc_id
 

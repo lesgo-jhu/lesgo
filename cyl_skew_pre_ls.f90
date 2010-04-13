@@ -984,13 +984,15 @@ contains
 !**********************************************************************
 subroutine write_output()
 !**********************************************************************
-use cyl_skew_base_ls, only : brindx, phi
 use grid_defs
 use param, only : ld
 implicit none
 
 character (64) :: fname, temp
 integer :: i,j,k
+
+integer, pointer, dimension(:,:,:) :: brindx
+real(rprec), pointer, dimension(:,:,:) :: phi, chi
 
 if(nproc > 1 .and. coord == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
 
@@ -1028,16 +1030,21 @@ close(2)
 nullify(phi,brindx)
 allocate(phi(ld,ny,$lbz:nz))
 allocate(brindx(ld,ny,$lbz:nz))
+allocate(chi(ld,ny,$lbz:nz))
+
 do k=$lbz,nz
   do j = 1,ny
     do i = 1,ld
       phi(i,j,k) = gcs_t(i,j,k)%phi
       brindx(i,j,k) = gcs_t(i,j,k)%brindx
+      chi(i,j,k) = gcs_t(i,j,k)%chi
     enddo
   enddo
 enddo
 
-if(coord == 0) phi(:,:,$lbz) = -BOGUS
+$if ($MPI) 
+  if(coord == 0) phi(:,:,$lbz) = -BOGUS
+$endif
 
 !  Open file which to write global data
 write (fname,*) 'phi.out'
@@ -1049,10 +1056,6 @@ if(nproc > 1) then
 endif
 !  Write binary data for lesgo
 open (1, file=fname, form='unformatted')
-!if(nproc > 1) then
-!  write(1) phi(:,:,$lbz:nz)
-!else
-!  write(1) phi(:,:,1:nz)
 !endif
 write(1) phi
 close (1)
@@ -1067,12 +1070,19 @@ if(nproc > 1) then
 endif
 
 open (1, file=fname, form='unformatted')
-!if(nproc > 1) then
-!  write(1) brindx(:,:,1:nz-1)
-!else
-!  write(1) brindx(:,:,1:nz)
-!endif
 write(1) brindx
+close (1)
+
+write (fname,*) 'chi.out'
+fname = trim(adjustl(fname)) 
+
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
+  fname = trim (fname) // temp
+endif
+
+open (1, file=fname, form='unformatted')
+write(1) chi
 close (1)
 
 !  Generate generation associations to be used in drag force calculations
