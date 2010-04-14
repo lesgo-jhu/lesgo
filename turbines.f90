@@ -1,27 +1,31 @@
 module turbines
 use types,only:rprec
-use param, only: dx,lh,ny
-use stat_defs, only:turbine_t
+use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld
+use stat_defs, only:wind_farm_t
+use grid_defs, only:x,y,z
+use io, only: write_tecplot_header_ND,write_real_data_3D,w_uv, w_uv_tag, interp_to_uv_grid
 
 implicit none
 
 save
 private
 
-public :: turbines_init, turbines_forcing
+public :: turbines_init, turbines_forcing  
 
-real(rprec) :: Ct									!thrust coefficient
-integer :: flag										!indicates fist time step (where u_d_T = u_d)
+integer :: nloc
+integer :: num_x,num_y
+real :: space_x,space_y
+real :: height_all,dia_all,thk_all,theta1_all,theta2_all
+real :: Ct									        !thrust coefficient
+
+character (64) :: fname0, fname, fname3
+real(rprec), dimension(nx,ny,nz) :: large_node_array       !used for visualizing node locations
+
 real :: eps											!epsilon used for disk velocity time-averaging
 
-real, pointer, dimension(:) :: u_d_T				!running time-average of mean disk velocity
-integer, pointer, dimension(:) :: num_nodes			!number of nodes associated with each turbine
-integer, pointer, dimension(:,:) ::nodes			!(i,j,k) of each included node
-real, pointer, dimension (:,:) :: n_hat				!(nx,ny,nz) of unit normal for each turbine
-
-real, dimension(lh,ny) :: G_turbines_xy				!for filtering forces (transfer function)
-integer*8::forw_xy,back_xy							!FFT plans
-real, dimension(lh,ny)::kxT,kyT,k2T					!wavenumbers
+integer :: i,j,k,i2,j2,k2,b,l,s,nn,sx,sy,sz
+integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
+integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -29,275 +33,502 @@ contains
 
 subroutine turbines_init()
 !PROBLEMS WITH MPI - MAKE SURE TURBINES ARE COMPLETELY WITHIN ONE PROC'S DOMAIN
-use param, only: dt, L_x, L_y, L_z, u_star
-
 
 !##############################  SET BY USER  ############################################
+!set turbine parameters
+!turbines are numbered as follows:
+!   #1 = turbine nearest (x,y)=(0,0)
+!   #2 = next turbine in the x-direction, etc.
 
-turbine_t%nloc = 2      		!number of locations 
-allocate(turbine_t%dia(turbine_t%nloc))
-allocate(turbine_t%thk(turbine_t%nloc))
-allocate(turbine_t%height(turbine_t%nloc))
-allocate(turbine_t%xloc(turbine_t%nloc))
-allocate(turbine_t%yloc(turbine_t%nloc))
-allocate(turbine_t%theta1(turbine_t%nloc))
-allocate(turbine_t%theta2(turbine_t%nloc))
-	turbine_t%dia(1) = 100./1000. 		!turbine diameter  [norm by z_i]  
-	turbine_t%thk(1) = dx				!turbine disk thickness 
-	turbine_t%height(1) = 100./1000.	!turbine height    [norm by z_i] 
-	turbine_t%xloc(1) = L_x*1./4.   !x locations [dimensionless - usually in terms of L_x]
-	turbine_t%yloc(1) = L_y/2.    	!y locations [dimensionless - usually in terms of L_y]
-	turbine_t%theta1(1) = 0.			!angle CCW(from above) from -x direction [degrees]
-	turbine_t%theta2(1) = 0.			!angle above the horizontal [degrees]	
+	nloc = 6      		!number of turbines (locations) 
+	allocate(wind_farm_t%turbine_t(nloc))
 
-	turbine_t%dia(2) = 100./1000. 
-	turbine_t%thk(2) = dx	
-	turbine_t%height(2) = 100./1000.		
-	turbine_t%xloc(2) = L_x*3./4.
-	turbine_t%yloc(2) = L_y/2.
-	turbine_t%theta1(2) = 0.
-	turbine_t%theta2(2) = 0.
-turbine_t%ifilter_xy = 2			!Filter type: 1->cut off 2->Gaussian 3->Top-hat
-turbine_t%ifilter_z = 4				!Filter type: 4->Truncated Gaussian		
-turbine_t%alpha_xy = 1.5			!filter size is alpha*(grid spacing)
-turbine_t%alpha_z = 1.5  			!h=horizontal (xy), v=vertical (xz,yz)
+    !x,y-locations
+        !for evenly-spaced turbines, not staggered
+        if(.true.) then
+            num_x = 3           !number of turbines in x-direction
+            space_x = 7.        !spacing in x-dir, multiple of DIA
+            num_y = nloc/num_x  !number of turbines in y-direction
+            space_y = 5.        !spacing in y-dir, multiple of DIA
+            
+            k=1
+            do j=1,num_y
+                do i=1,num_x
+                    wind_farm_t%turbine_t(k)%xloc = L_x*real(2*i-1)/real(2*num_x)
+                    wind_farm_t%turbine_t(k)%yloc = L_y*real(2*j-1)/real(2*num_y)
+                    k = k + 1
+                enddo
+            enddo
+        !for other orientation
+        else
+            !** set individual locations here
+        endif
 
-Ct = 1.33		!thrust coefficient
+    !height, diameter, and thickness
+        !same values for all
+        if(.true.) then
+            height_all = 100./1000.             !turbine height    [m]
+            dia_all = 100./1000.	            !turbine diameter  [m] 
+            thk_all = max(10./1000.,dx*1.01)	!turbine disk thickness [m]
+            
+            do k=1,nloc
+                wind_farm_t%turbine_t(k)%height = height_all
+                wind_farm_t%turbine_t(k)%dia = dia_all
+                wind_farm_t%turbine_t(k)%thk = thk_all
+            enddo
+        !for varying height and/or diameter and/or thickness
+        else
+            !** set individual values here
+        endif          
+
+    !orientation (angles)
+        !same values for all
+        if(.true.) then
+            theta1_all = 0.     !angle CCW(from above) from -x direction [degrees]
+            theta2_all = 0.     !angle above the horizontal, from -x dir [degrees]
+            
+            do k=1,nloc
+                wind_farm_t%turbine_t(k)%theta1 = theta1_all
+                wind_farm_t%turbine_t(k)%theta2 = theta2_all
+            enddo
+        !for varying angles
+        else
+            !** set individual values here
+        endif     
+
+    !filtering operation
+        wind_farm_t%ifilter = 2			    !Filter type: 0-> none 1->cut off 2->Gaussian 3->Top-hat	
+        wind_farm_t%alpha = 1.5			    !filter size is alpha*(grid spacing)
+        wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
+        wind_farm_t%filter_cutoff = 0.      !ind only includes values above this cutoff
+
+    !other
+	    Ct = 1.33		!thrust coefficient
 !#########################################################################################
 
-allocate(u_d_T(turbine_t%nloc))
-allocate(num_nodes(turbine_t%nloc))
-allocate(nodes(100*turbine_t%nloc,3))
-allocate(n_hat(turbine_t%nloc,3))
+!find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
+	large_node_array = 0.
+	call turbines_nodes(large_node_array)
 
-!locate applicable nodes
-	call turbines_nodes()
-!initialize FFT (create plans and initialize wavenumbers)
-	call turbines_fft()	
-!initialize filter	
-	call turbines_filter_init()
-!initialize variables
-	u_d_T = 0.
-	flag = 1
-	eps = dt/(0.27*L_z/u_star) / (1 + dt/(0.27*L_z/u_star))
+	!to write the node locations to file
+	  fname0 = 'node_loc_turbine.dat'
+	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "nodes"', 0, 1)
+	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz, (/large_node_array/),x,y,z)
+
+!1.smooth/filter indicator function                     
+!2.associate new nodes with turbines                               
+!3.normalize such that each turbine's ind integrates to turbine volume
+    call turbines_filter_ind()
+
+!set variables for time-averaging velocity 
+    do k=1,nloc
+	    wind_farm_t%turbine_t(k)%u_d_T = 0.
+        wind_farm_t%turbine_t(k)%u_d_flag = 1
+    enddo
+	eps = 0.05 / (1 + 0.05)
+	!time average over T(sec) = dt_dim/0.05 so that eps~0.05
+	!T_min = dt_dim/0.05*1./60.	
 	
 end subroutine turbines_init
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine turbines_forcing()
-use param, only: nx,ny,nz,pi,dx,dy,dz,dt
-use sim_param, only: u,v,w
-use io, only: w_uv, w_uv_tag, interp_to_uv_grid
-
-real, dimension(nx,ny,nz) :: f_x=0., f_y=0., f_z=0.   !only initialized during first call?
-real, dimension(turbine_t%nloc) :: u_d, f_t, cf
-integer :: i,j,k,m,l,i2,j2,k2,count_i
-
-!calculate total disk-averaged velocity for each turbine (current,instantaneous)
-	call interp_to_uv_grid(w, w_uv, w_uv_tag)
-	count_i = 0		!index count - used for reading array "nodes"
-	do m=1,turbine_t%nloc
-		u_d(m) = 0.
-		do l=1,num_nodes(m)
-			i2 = nodes(count_i+l,1)
-			j2 = nodes(count_i+l,2)
-			k2 = nodes(count_i+l,3)			
-			u_d(m) = u_d(m) + (n_hat(m,1)*u(i2,j2,k2) + &
-			n_hat(m,2)*v(i2,j2,k2) + n_hat(m,3)*w_uv(i2,j2,k2))/num_nodes(m)
-		enddo
-		count_i = count_i + num_nodes(m)
-	enddo
-!add this current value to the "running average" (first order relaxation, T=0.27*H/u_star)
-	if (flag) then
-		u_d_T = u_d
-		flag = 0
-	else
-		u_d_T = (1.-eps)*u_d_T + eps*u_d
-	endif
-
-!calculate total thrust force (per unit mass) for each turbine (includes volume/mass correction factor)
-	do m=1,turbine_t%nloc
-		cf(m) = pi/4.*turbine_t%dia(m)*turbine_t%dia(m)*turbine_t%thk(m) / (dx*dy*dz*num_nodes(m))
-		f_t(m) = -0.5*Ct*u_d_T(m)*u_d_T(m)/turbine_t%thk(m) * cf(m)
-	enddo
-	
-!apply forcing to each node
-	count_i = 0		!index count
-	do m=1,turbine_t%nloc
-		do l=1,num_nodes(m)
-			i2 = nodes(count_i+l,1)
-			j2 = nodes(count_i+l,2)
-			k2 = nodes(count_i+l,3)			
-			f_x(i2,j2,k2) = f_t(m)*n_hat(m,1) 
-			f_y(i2,j2,k2) = f_t(m)*n_hat(m,2) 
-			f_z(i2,j2,k2) = f_t(m)*n_hat(m,3) 
-		enddo
-		count_i = count_i + num_nodes(m)
-	enddo
-		
-!filter forcing (currently only in the x-y planes)
-	do k=1,nz
-		call turbines_filter_xy(f_x(:,:,k))		!filters in place so input is ruined
-		call turbines_filter_xy(f_y(:,:,k)) 
-		call turbines_filter_xy(f_z(:,:,k)) 
-	enddo
-
-!apply forcing to RHS
-
-end subroutine turbines_forcing
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-subroutine turbines_nodes()
-!This subroutine locates nodes for each turbine and builds the arrays: n_hat, num_nodes, and nodes
-use param, only:dx,dy,dz,pi	
-use grid_defs, only:x,y,z
+subroutine turbines_nodes(array)
+!This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 	
-integer :: imax,jmax,kmax,count_i,count_n,m,icp,jcp,kcp,i,j,k
 real :: R_t,rx,ry,rz,r,r_norm,r_disk
+real(rprec), dimension(nx,ny,nz) :: array
 
-count_i = 1		!index count - used for writing to array "nodes"
-count_n = 0		!used for counting nodes for each turbine
+real, pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
+real, pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
+real, pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
-do m=1,turbine_t%nloc
-	R_t = turbine_t%dia(m)/2.
-	imax = R_t/dx + 1
-	jmax = R_t/dy + 1
-	kmax = R_t/dz + 1
-!determine unit normal vector for each turbine	
-	n_hat(m,1) = -cos(pi*turbine_t%theta1(m)/180.)*cos(pi*turbine_t%theta2(m)/180.)
-	n_hat(m,2) = -sin(pi*turbine_t%theta1(m)/180.)*cos(pi*turbine_t%theta2(m)/180.)
-	n_hat(m,3) = sin(pi*turbine_t%theta2(m)/180.)
-!determine nearest (i,j,k) to turbine center
-	icp = nint(turbine_t%xloc(m)/dx)
-	jcp = nint(turbine_t%yloc(m)/dy)
-	kcp = nint(turbine_t%height(m)/dz + 0.5)
-!check neighboring grid points	
-	do i=(icp-imax),(icp+imax)
-		do j=(jcp-jmax),(jcp+jmax)
-			do k=(kcp-kmax),(kcp+kmax)
+logical :: verbose
+verbose = .false.
+
+do s=1,nloc
+    count_n = 0		!used for counting nodes for each turbine
+    count_i = 1		!index count - used for writing to array "nodes"
+
+    !set pointers
+        p_xloc => wind_farm_t%turbine_t(s)%xloc     
+        p_yloc => wind_farm_t%turbine_t(s)%yloc  
+        p_height => wind_farm_t%turbine_t(s)%height 
+        p_dia => wind_farm_t%turbine_t(s)%dia 
+        p_thk => wind_farm_t%turbine_t(s)%thk
+        p_theta1 => wind_farm_t%turbine_t(s)%theta1
+        p_theta2 => wind_farm_t%turbine_t(s)%theta2
+        p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
+        p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
+        p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
+
+    !identify "search area"
+    	R_t = p_dia/2.
+    		if (verbose) then
+    		  write(*,*) 'R_t,dx,dy,dz,dthk',R_t,dx,dy,dz,p_thk
+    		endif
+    	imax = R_t/dx + 1
+    	jmax = R_t/dy + 1
+    	kmax = R_t/dz + 1
+
+    !determine unit normal vector for each turbine	
+    	p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
+    	p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
+    	p_nhat3 = sin(pi*p_theta2/180.)
+    		if (verbose) then
+    		  write(*,*) 'n_hat', p_nhat1, p_nhat2, p_nhat3
+    		endif
+
+    !determine nearest (i,j,k) to turbine center
+    	icp = nint(p_xloc/dx)
+    	jcp = nint(p_yloc/dy)
+    	kcp = nint(p_height/dz + 0.5)
+    		if (verbose) then
+    		  write(*,*) 'turbine center',icp,jcp,kcp
+    		  write(*,*) 'turbine center',x(icp),y(jcp),z(kcp)
+    		endif
+
+    !determine limits for checking i,j,k
+    	min_i = max((icp-imax),1)
+    	max_i = min((icp+imax),nx)
+    	min_j = max((jcp-jmax),1)
+    	max_j = min((jcp+jmax),ny)
+    	min_k = max((kcp-kmax),1)
+    	max_k = min((kcp+kmax),nz)
+    		if (verbose) then
+    		  write(*,*) 'i limits', min_i, max_i, dx*(max_i-min_i)
+    		  write(*,*) 'j limits', min_j, max_j, dy*(max_j-min_j)
+    		  write(*,*) 'k limits', min_k, max_k, dz*(max_k-min_k)
+    		endif
+            wind_farm_t%turbine_t(s)%nodes_max(1) = min_i
+            wind_farm_t%turbine_t(s)%nodes_max(2) = max_i
+            wind_farm_t%turbine_t(s)%nodes_max(3) = min_j
+            wind_farm_t%turbine_t(s)%nodes_max(4) = max_j
+            wind_farm_t%turbine_t(s)%nodes_max(5) = min_k
+            wind_farm_t%turbine_t(s)%nodes_max(6) = max_k            
+
+    !check neighboring grid points	
+	do k=min_k,max_k
+		do j=min_j,max_j
+			do i=min_i,max_i
 			!vector from center point to this node is (rx,ry,rz) with length r
-				rx = x(i) - turbine_t%xloc(m)
-				ry = y(j) - turbine_t%yloc(m)
-				rz = z(k) - turbine_t%height(m)
+				rx = x(i) - p_xloc
+				ry = y(j) - p_yloc
+				rz = z(k) - p_height
 				r = sqrt(rx*rx + ry*ry + rz*rz)
 			!length projected onto unit normal for this turbine
-				r_norm = abs(rx*n_hat(m,1) + ry*n_hat(m,2) + rz*n_hat(m,3))
+				r_norm = abs(rx*p_nhat1 + ry*p_nhat2 + rz*p_nhat3)
 			!(remaining) length projected onto turbine disk
 				r_disk = sqrt(r*r - r_norm*r_norm)
 			!if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
-				if ( (r <= R_t) .AND. (r_norm <= turbine_t%thk(m)/2.) ) then
-					count_n = count_n + 1
-					nodes(count_i,1) = i
-					nodes(count_i,2) = j
-					nodes(count_i,3) = k
+				if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
+					if (verbose) then
+					  write(*,*) 'FOUND NODE', i,j,k
+					endif
+					array(i,j,k) = 1.
+                    wind_farm_t%turbine_t(s)%ind(count_i) = 1.		
+					wind_farm_t%turbine_t(s)%nodes(count_i,1) = i
+					wind_farm_t%turbine_t(s)%nodes(count_i,2) = j
+					wind_farm_t%turbine_t(s)%nodes(count_i,3) = k
+                    count_n = count_n + 1
 					count_i = count_i + 1
 				endif
 			enddo
 		enddo
 	enddo
-	num_nodes(m) = count_n
-	count_n = 0
+	wind_farm_t%turbine_t(s)%num_nodes = count_n
+
+    if (verbose) then
+        write(*,*) 'Turbine ',s,': ',count_n,' nodes'
+    endif
+
 enddo
 		
 end subroutine turbines_nodes
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine turbines_filter_init()
-! G_turbines should take care of normalization and Nyquist
-! note the normalization for FFT's is already in G! (see 1/(nx*ny))
-! currently: only prepares G_turbines_xy (not "_z)
-use param, only: nx,ny,dx,dy,pi
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_filter_ind()
+! This subroutine takes ind and nodes for each turbine and filters according to
+! alpha and ifilter from wind_farm
+!       1.smooth/filter indicator function                                  CHANGE IND
+!       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
+!       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 
-real(kind=rprec):: delta, kc2
+real(rprec), dimension(nx,ny,nz) :: out_a, g, g_shift, fg
+real, dimension(nx,ny,nz) :: temp_array
+real :: sumG,delta2,r2,sumA
+real :: turbine_vol
 
-	G_turbines_xy=1._rprec/(nx*ny)  		! normalization for the forward FFT
-	delta = turbine_t%alpha_xy*sqrt(dx*dy)  ! "2d-delta", not full 3d one
+logical :: verbose
+verbose = .false.
 
-! 1. Spectral cutoff filter
-	if(turbine_t%ifilter_xy==1) then 
-		kc2 = (pi/(delta))**2
-		where (real(k2T, rprec) >= kc2) G_turbines_xy = 0._rprec
-! 2. Gaussian filter
-	else if(turbine_t%ifilter_xy==2) then 
-		G_turbines_xy=exp(-(2._rprec*delta)**2*k2T/(4._rprec*6._rprec))*G_turbines_xy       
-! 3. Top-hat (Box) filter
-	else if(turbine_t%ifilter_xy==3) then 
-		G_turbines_xy= (sin(kxT*delta/2._rprec)*sin(kyT*delta/2._rprec)+1E-8)/&
-        (kxT*delta/2._rprec*kyT*delta/2._rprec+1E-8)*G_turbines_xy
+!create convolution function, centered at (nx/2,ny/2,nz/2) and normalized
+	if(wind_farm_t%ifilter==0) then		!0-> none
+	  !
+	elseif(wind_farm_t%ifilter==1) then  	!1-> cutoff/sharp spectral
+	  !
+	elseif(wind_farm_t%ifilter==2) then		!2-> Gaussian
+	  delta2 = wind_farm_t%alpha**2 * (dx**2 + dy**2 + dz**2)
+      do k=1,nz
+    	  do j=1,ny
+    	    do i=1,nx
+    	      r2 = ((real(i)-nx/2.)*dx)**2 + ((real(j)-ny/2.)*dy)**2 + ((real(k)-nz/2.)*dz)**2
+    	      g(i,j,k) = sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
+    	    enddo
+    	  enddo
+      enddo
+	elseif(wind_farm_t%ifilter==3) then		!3-> box/tophat
+	  !
+	elseif(wind_farm_t%ifilter==4) then
+	  !g = ??    insert any function here
 	endif
-
-! since our k2T has zero at Nyquist, we have to do this by hand
-	G_turbines_xy(nx/2+1,:) = 0._rprec
-	G_turbines_xy(:,ny/2+1) = 0._rprec
-
-end subroutine turbines_filter_init
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-subroutine turbines_filter_xy(real_a)
-use param,only:nx,ny
-
-real, dimension(nx,ny), intent(inout) :: real_a
-complex, dimension(nx/2+1,ny) :: complex_a
-
-!perform FFT (physical to wavenumber space)
-	call rfftwnd_f77_one_real_to_complex(forw_xy, real_a, complex_a)
-!perform filter convolution
-	complex_a = complex_a * G_turbines_xy
-!perform FFT (wavenumber to physical space)
-	call rfftwnd_f77_one_complex_to_real(back_xy, complex_a, real_a)
 	
-!normalization is part of G_turbines (check that it is done correctly)
+!normalize the convolution function
+	sumG = 0.
+    do k=1,nz-1         !since k=1 and k=nz are the same point
+	  do j=1,ny-1		!since j=1 and j=ny are the same point
+	    do i=1,nx-1		!since i=1 and i=nx are the same point
+	      sumG = sumG + g(i,j,k)*dx*dy*dz
+	    enddo
+	  enddo
+    enddo
+	g = g/sumG
 
-end subroutine turbines_filter_xy
+    if (verbose) then
+        write(*,*) 'Convolution function created.'
+    endif
 
+!display the convolution function
+	if(.false.) then
+	  write(*,*) 'Convolution function'
+	  write(*,*) g
+	endif
+	write(*,*) 'integral of g(i,j,k): ',sumG
+
+	!to write the data to file, centered at (i,j,k=nz/2)
+	i=nx/2
+	j=ny/2
+    do k2=1,nz
+	  do j2=1,ny
+	    do i2=1,nx
+	    g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+(nx-1)-1,(nx-1))+1 , mod(j2-j+ny/2+(ny-1)-1,(ny-1))+1, k2)
+	    enddo
+	  enddo
+    enddo
+	  fname0 = 'convolution_function.dat'
+	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz/), '"x","y","z","g"', 1, 1)
+	  call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz, (/g_shift/),x,y,z)
+
+    if (verbose) then
+        write(*,*) 'Convolution function written to Tecplot file.'
+    endif
+
+!filter indicator function for each turbine
+do b=1,nloc
+
+    if (verbose) then
+        write(*,*) 'Turbine Number ',b
+    endif
+
+    !create the input array (nx,ny,nz) from a list of included nodes
+        temp_array = 0.
+        do l=1,wind_farm_t%turbine_t(b)%num_nodes
+            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
+            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
+            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)	
+            temp_array(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
+
+            if (verbose) then
+                write(*,*) 'Writing node to temp_array ',i2,j2,k2
+            endif
+        enddo
+
+    !perform convolution on temp_array --> out_a    
+        out_a=0.
+
+        min_i = wind_farm_t%turbine_t(b)%nodes_max(1) 
+        max_i = wind_farm_t%turbine_t(b)%nodes_max(2) 
+        min_j = wind_farm_t%turbine_t(b)%nodes_max(3) 
+        max_j = wind_farm_t%turbine_t(b)%nodes_max(4) 
+        min_k = wind_farm_t%turbine_t(b)%nodes_max(5)
+        max_k = wind_farm_t%turbine_t(b)%nodes_max(6) 
+        cut = wind_farm_t%trunc   
+
+        if (verbose) then
+            write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
+        endif
+
+        do k=max(min_k-cut,1),min(max_k+cut,nz)    !only compute for nodes near the turbine
+    	do j=max(min_j-cut,1),min(max_j+cut,ny)
+    	do i=max(min_i-cut,1),min(max_i+cut,nx)
+		
+          do k2=k-wind_farm_t%trunc,k+wind_farm_t%trunc     !currently using truncated Gaussian
+    	  do j2=j-wind_farm_t%trunc,j+wind_farm_t%trunc
+    	  do i2=i-wind_farm_t%trunc,i+wind_farm_t%trunc
+
+            if ( (i2>0).and.(j2>0).and.(k2>0).and.(i2<=nx).and.(j2<=ny).and.(k2<=nz) ) then
+                sx = mod(i2-i+nx/2+(nx-1)-1,(nx-1))+1
+    	        sy = mod(j2-j+ny/2+(ny-1)-1,(ny-1))+1       
+                sz = k2-k+nz/2       !since no spectral BCs in z-direction
+            
+                if (sx < 1) then
+                    fg(i2,j2,k2) = 0.
+                elseif (sx > nx) then
+                    fg(i2,j2,k2) = 0.
+                elseif( sy < 1 ) then
+                    fg(i2,j2,k2) = 0.
+                elseif( sy > ny) then
+                    fg(i2,j2,k2) = 0.
+                elseif( sz < 1) then
+                    fg(i2,j2,k2) = 0.
+                elseif( sz > nz ) then
+                    fg(i2,j2,k2) = 0.
+                else
+                    fg(i2,j2,k2) = temp_array(i2,j2,k2)*g(sx,sy,sz)
+                    out_a(i,j,k) = out_a(i,j,k) + fg(i2,j2,k2)*dx*dy*dz
+                endif    
+
+            endif	
+    	    
+    	  enddo
+    	  enddo
+          enddo
+    	enddo
+    	enddo
+        enddo
+
+        if (verbose) then
+            write(*,*) 'Convolution complete for turbine ',b
+        endif
+
+    !normalize this "indicator function" such that it integrates to turbine volume
+	sumA = 0.
+    do k=1,nz-1         !since k=1 and k=nz are the same point
+	  do j=1,ny-1		!since j=1 and j=ny are the same point
+	    do i=1,nx-1		!since i=1 and i=nx are the same point
+            if (out_a(i,j,k) < wind_farm_t%filter_cutoff) then
+	            out_a(i,j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
+            else
+                sumA = sumA + out_a(i,j,k)*dx*dy*dz
+            endif            
+	    enddo
+	  enddo
+    enddo
+    turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
+	out_a = turbine_vol/sumA*out_a
+
+    if (verbose) then
+        write(*,*) 'sumA,turbine_vol = ',sumA,turbine_vol
+            if (b==1) then
+        	  fname3 = 'convolution_out.dat'
+        	  call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","out"', 1, 1)
+        	  call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/out_a/),x,y,z)
+            endif
+    endif
+
+    !update num_nodes, nodes, and ind for this turbine
+    wind_farm_t%turbine_t(b)%ind = 0.
+    wind_farm_t%turbine_t(b)%nodes = 0.
+    wind_farm_t%turbine_t(b)%num_nodes = 0.
+    count_n = 0
+    count_i = 1
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				if (out_a(i,j,k) > wind_farm_t%filter_cutoff) then
+                    wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)		
+					wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
+					wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
+					wind_farm_t%turbine_t(b)%nodes(count_i,3) = k
+                    count_n = count_n + 1
+					count_i = count_i + 1
+				endif
+			enddo
+		enddo
+	enddo
+	wind_farm_t%turbine_t(b)%num_nodes = count_n
+    if (verbose) then
+        write(*,*) 'Turbine number ',b,' has ',count_n,' nodes' 
+    endif
+
+enddo
+
+end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine turbines_fft()
-!arrays should be in column-major order
-use param,only:nx,ny,L_x,L_y,pi
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_forcing()
+use sim_param, only: u,v,w
+use immersedbc, only: fx,fy,fz
 
-integer, parameter :: FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1
-integer, parameter :: FFTW_ESTIMATE=0,FFTW_MEASURE=1
-integer, parameter :: FFTW_OUT_OF_PLACE=0
-integer, parameter :: FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16
-integer, parameter :: FFTW_THREADSAFE=128
+real, pointer :: p_u_d => null(), p_nhat1=> null(), p_nhat2=> null(), p_nhat3=> null()
+real, pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
+integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 
-integer :: jx,jy
+real :: ind2
 
-!create my own plans for FFT (that don't filter in place)
-	call rfftw2d_f77_create_plan(forw_xy,nx,ny,FFTW_REAL_TO_COMPLEX,&
-     FFTW_MEASURE+FFTW_THREADSAFE)
-	call rfftw2d_f77_create_plan(back_xy,nx,ny,FFTW_COMPLEX_TO_REAL,&
-     FFTW_MEASURE+FFTW_THREADSAFE)
+!for each turbine:        
+    do s=1,nloc            
+         
+    !set pointers
+        p_u_d => wind_farm_t%turbine_t(s)%u_d   
+        p_u_d_T => wind_farm_t%turbine_t(s)%u_d_T   
+        p_num_nodes => wind_farm_t%turbine_t(s)%num_nodes
+        p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
+        p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
+        p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
+        p_u_d_flag => wind_farm_t%turbine_t(s)%u_d_flag
+        p_f_n => wind_farm_t%turbine_t(s)%f_n               
+        p_dia => wind_farm_t%turbine_t(s)%dia 
+        p_thk => wind_farm_t%turbine_t(s)%thk
 
-!also initialize wavenumber arrays - to be used during filtering?
-	do jx=1,(nx/2+1)-1
-		kxT(jx,:) = real(jx-1,kind=rprec)
-	end do
+    !calculate total disk-averaged velocity for each turbine (current,instantaneous)    
+    !u_d and u_d_T are velocities in the normal direction	 
+    !for calculating average velocity, nodes are weighted equally    
+        call interp_to_uv_grid(w, w_uv, w_uv_tag) 
+        p_u_d = 0.
+        do l=1,p_num_nodes
+            i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
+            j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
+            k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
+            p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2))/p_num_nodes
+        enddo  
 
-	do jy=1,ny
-	kyT(:,jy) = real(modulo(jy - 1 + ny/2,ny) - ny/2,kind=rprec)
-	end do
+    !add this current value to the "running average" (first order relaxation)
+        if (p_u_d_flag) then
+            p_u_d_T = p_u_d
+            p_u_d_flag = 0
+        else
+            p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
+        endif
 
-	! Nyquist: makes doing derivatives easier
-    kxT(nx/2+1,:)=0._rprec
-    kyT(nx/2+1,:)=0._rprec
-    kxT(:,ny/2+1)=0._rprec
-    kyT(:,ny/2+1)=0._rprec
-	  
-	! for the aspect ratio change
-    kxT=2._rprec*pi/L_x*kxT
-    kyT=2._rprec*pi/L_y*kyT
-	  
-	! magnitude squared: will have 0's around the edge
-    k2T = kxT*kxT + kyT*kyT
+    !calculate total thrust force for each turbine  (per unit mass)
+    !force is normal to the surface (calc from u_d_T, normal to surface)
+        p_f_n = -0.5*Ct*p_u_d_T*p_u_d_T/p_thk
 
-end subroutine turbines_fft
+    !apply forcing to each node
+        do l=1,p_num_nodes
+            i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
+            j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
+            k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
+            ind2 = wind_farm_t%turbine_t(s)%ind(l)			
+            fx(i2,j2,k2) = fx(i2,j2,k2) + p_f_n*p_nhat1*ind2   !<<<< which was is fx oriented?
+            fy(i2,j2,k2) = fy(i2,j2,k2) + p_f_n*p_nhat2*ind2   !<< ditto
+            fz(i2,j2,k2) = fz(i2,j2,k2) + p_f_n*p_nhat3*ind2   !<< ditto
+        enddo
 
+    enddo
+	
+    if(.false.) then        !need to make this occur only at last time step
+    !to write the data to file
+        fname = 'force_turbine.dat'
+        call write_tecplot_header_ND(fname,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "force_x"', 1, 1)
+        call write_real_data_3D(fname, 'append','formatted', 1, nx, ny, nz, (/fx(1:nx,:,:)/),x(1:nx),y,z)
+    endif
+
+end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module turbines
