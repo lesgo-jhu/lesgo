@@ -13,7 +13,7 @@ $if ($LVLSET)
   use level_set, only : level_set_forcing
 $endif
 $if ($TURBINES)
-  use turbines
+  use turbines, only:turbines_forcing
 $endif
 implicit none
 
