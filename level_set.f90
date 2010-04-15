@@ -28,8 +28,8 @@ character (*), parameter :: mod_name = 'level_set'
 integer, parameter :: nd = 3
 
 $if ($MPI)
-  integer, parameter :: nphitop = 3
-  integer, parameter :: nphibot = 2
+  integer, parameter :: nphitop = 2
+  integer, parameter :: nphibot = 1
   integer, parameter :: nveltop = 1
   integer, parameter :: nvelbot = 1
   integer, parameter :: ntautop = 3
@@ -2117,7 +2117,7 @@ xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 !--calculate indices
 i = floor (xmod(1) / dx + 1._rp)
 j = floor (xmod(2) / dy + 1._rp)
-ku = floor (xmod(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+ku = floor (xmod(3) / dz + 0.5_rp) !--assumes phi on u-nodes
 
 !--need to bounds check i, j, ku, kw
 if ((i < 1) .or. (i > nx)) then
