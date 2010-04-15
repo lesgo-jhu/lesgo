@@ -443,7 +443,7 @@ subroutine cyl_skew_fill_tree_array_ls()
 
 implicit none
 
-integer :: nt, ng, nc, nb, nc_g1
+integer :: nt, ng, nc, nb, nc_g1, nb_cl
 integer :: clindx, brindx
 integer :: nbcount, nbcount_tot, nccount, nccount_tot
 
@@ -451,6 +451,14 @@ integer :: nbcount, nbcount_tot, nccount, nccount_tot
 
 real(rprec) :: angle
 real(rprec) :: gen_scale_fact
+
+integer, pointer :: pclindx_p
+integer, pointer, dimension(:) :: br_loc_id_p
+type(cluster), pointer :: cl_t_p, pcl_t_p, ccl_t_p
+
+!  Nullify all pointers
+nullify(pclindx_p, cl_t_p)
+nullify(pcl_t_p, ccl_t_p)
 
 allocate(tr_t(ntree))
 
@@ -642,6 +650,132 @@ do nt = 1, ntree
     enddo
     
 enddo
+
+
+!  Now compute the parent cluster of each cluster
+!  setting all generation 1 to have no parent
+do nt = 1, ntree
+
+  do nc = 1, tr_t(nt) % gen_t(1) % ncluster
+  
+    tr_t(nt) % gen_t(1) % cl_t(nc) % parent = 0
+    
+  enddo
+  
+enddo
+
+!  Loop over all trees and set parent for generations > 1
+if(ngen > 1) then
+
+  
+  do nt = 1, ntree
+
+    if(coord == 0) write(*,*) 'tr_t(nt) % ncluster : ', tr_t(nt) % ncluster
+
+    do ng=1, tr_t(nt)%ngen - 1
+    
+      nb_cl = 0 ! number of branches in g = number of clusters in g + 1
+      
+      do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+      
+        !  Parent cluster
+        pcl_t_p => tr_t(nt) % gen_t(ng) % cl_t(nc)
+      
+        do nb = 1, pcl_t_p % nbranch
+        
+          nb_cl = nb_cl + 1
+      
+          !  Child cluster of the parent
+          ccl_t_p => tr_t(nt) % gen_t(ng+1) % cl_t(nb_cl)
+        
+          ccl_t_p % parent = pcl_t_p % indx
+        
+          nullify(ccl_t_p)
+        
+        enddo
+      
+        nullify(pcl_t_p)
+      
+      enddo
+    
+    enddo
+
+  enddo
+  
+endif
+        
+!        
+!      
+!      !write(*,*) 'tr_t(nt) % gen_t(ng) % cl_t(nc) %indx : ', tr_t(nt) % gen_t(ng) % cl_t(nc) %indx
+!      
+!      !write(*,*) 'cl_t_p % indx : ', cl_t_p % indx
+!      
+!      if(ng == 1) then
+!      
+!        cl_t_p % parent = 0 ! i.e. has no parent
+!        
+!      else 
+!      
+!        !  we know that clindx(ng) to brindx(ng-1) + (nt - 1)*tr_t(nt)%nbranch + 1 => brindx(ng-1) = clindx(ng) - 1
+!        br_loc_id_p => brindx_to_loc_id(:, cl_t_p % indx - 1) ! this is the branch that the cluster sits on top of
+!      
+!        !  Parent cluster index
+!        pclindx_p => tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+!      
+!        if(br_loc_id_p(2) == ng - 1) then
+!        
+!          cl_t_p % parent = pclindx_p
+!          
+!          !if(ng == 3 .and. nc == 2) write(*,*) 'br_loc_id_p(2), br_loc_id_p(3), br_loc_id_p(4) : ', br_loc_id_p(2), br_loc_id_p(3), br_loc_id_p(4)
+!        
+!        else 
+!        
+!          if(coord == 0) then
+!          write(*,'(a,4i)') 'coord, nt, ng, nc : ', coord, nt, ng, nc
+!          write(*,*) 'cl_t_p % indx : ', cl_t_p % indx
+!        
+!          write(*,*) 'ng - 1, br_loc_id_p : ', ng-1, br_loc_id_p
+!      
+!          write(*,*) 'Error in cluster parent calculation.'
+!          endif
+!          call mpi_finalize()
+!          stop
+!        
+!        endif
+!      
+!        nullify(pclindx_p)
+!        
+!      endif
+!      
+!      nullify(cl_t_p)
+!      
+!    enddo
+!    
+!  enddo
+
+!enddo
+if(coord == 0) then
+do nt = 1, ntree
+
+  do ng=1, tr_t(nt)%ngen
+   
+    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+    
+    cl_t_p => tr_t(nt)%gen_t(ng)%cl_t(nc)
+    write(*,'(a,5i)') 'nt, ng, nc, cl_t_p % indx, cl_t_p % parent : ', nt, ng, nc, cl_t_p % indx, cl_t_p % parent
+      
+    nullify(cl_t_p)
+    
+    enddo
+    
+  enddo
+  
+enddo
+endif
+!call mpi_finalize()
+!stop
+
+      
 
 return
 end subroutine cyl_skew_fill_tree_array_ls
