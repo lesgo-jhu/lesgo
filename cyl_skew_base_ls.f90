@@ -77,7 +77,7 @@ type branch
 end type branch
 
 type cluster
-    integer :: nbranch, indx
+    integer :: nbranch, indx, parent
     real(rprec), dimension(3) :: origin ! origin of center (at bottom)
     type(branch), pointer, dimension(:) :: br_t
 end type cluster
