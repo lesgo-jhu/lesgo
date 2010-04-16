@@ -446,6 +446,8 @@ implicit none
 integer :: nt, ng, nc, nb, nc_g1, nb_cl
 integer :: clindx, brindx
 integer :: nbcount, nbcount_tot, nccount, nccount_tot
+integer :: nreslv_ccount_tot, reslv_clindx
+integer :: nunreslv_ccount_tot, unreslv_clindx
 
 !integer, pointer, dimension(:) :: cl_loc_id
 
@@ -550,11 +552,21 @@ enddo
 !  Get a global count of clusters and branches (all may not be the same)
 nccount_tot = 0
 nbcount_tot = 0
+nreslv_ccount_tot = 0
+nunreslv_ccount_tot = 0
+
 do nt = 1, ntree
   nccount = 0
   nbcount = 0
   do ng = 1, tr_t(nt)%ngen
     do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+    
+      if(ng <= tr_t(nt) % ngen_reslv) then
+        nreslv_ccount_tot = nreslv_ccount_tot + 1
+      elseif(ng <= tr_t(nt) % ngen) then
+        nunreslv_ccount_tot = nunreslv_ccount_tot + 1
+      endif      
+      
       nccount_tot = nccount_tot + 1
       nccount = nccount + 1
 
@@ -567,19 +579,20 @@ do nt = 1, ntree
   !  Set the total number of clusters and branches of the trees
   tr_t(nt) % ncluster = nccount
   tr_t(nt) % nbranch  = nbcount
-  
-!  write(*,*) 'nccount : ', nccount
-!  write(*,*) 'nbcount : ', nbcount
 
 enddo
 
 allocate(clindx_to_loc_id(3,nccount_tot))
 allocate(brindx_to_loc_id(4,nbcount_tot))
+allocate(reslv_clindx_to_loc_id(3,nreslv_ccount_tot))
+allocate(unreslv_clindx_to_loc_id(3,nunreslv_ccount_tot))
 
 
 !  Initialize global indexes for clusters and branches
 clindx = 0
 brindx = 0
+reslv_clindx = 0
+unreslv_clindx = 0
 do nt = 1, ntree
 
     do ng=1, tr_t(nt)%ngen
@@ -593,6 +606,14 @@ do nt = 1, ntree
             clindx = clindx + 1  
             tr_t(nt)%gen_t(ng)%cl_t(nc)%indx = clindx
             clindx_to_loc_id(:,clindx) = (/ nt, ng, nc /)
+            
+            if(ng <= tr_t(nt) % ngen_reslv) then
+              reslv_clindx = reslv_clindx + 1
+              reslv_clindx_to_loc_id(:, reslv_clindx) = (/ nt, ng, nc /)
+            elseif(ng <= tr_t(nt) % ngen) then
+              unreslv_clindx = unreslv_clindx + 1
+              unreslv_clindx_to_loc_id(:, unreslv_clindx) = (/ nt, ng, nc /)
+            endif
             
             !nullify(cl_loc_id)
             !cl_loc_id => clindx_to_loc_id(:,clindx)

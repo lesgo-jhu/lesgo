@@ -96,6 +96,7 @@ end type tree
 
 type(tree), pointer, dimension(:) :: tr_t ! Tree type
 integer, pointer, dimension(:,:) :: clindx_to_loc_id, brindx_to_loc_id
+integer, pointer, dimension(:,:) :: reslv_clindx_to_loc_id, unreslv_clindx_to_loc_id
 
 contains 
 

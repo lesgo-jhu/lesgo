@@ -58,7 +58,12 @@ type(force), pointer, dimension(:) :: brforce_t, clforce_t
 
 type(force), pointer, dimension(:) :: clforce _t ! Unresolved cluster force
 
-integer :: ncluster_reslv  !  assumed the same for all trees
+integer :: ncluster_unreslv ! total number of unresolved clusters
+integer :: ncluster_reslv ! total number of resolved clusters
+integer :: ncluster_reslv_ref
+integer :: ncluster_ref ! number of clusters used for computing reference quantities (size of cl_ref_plane_t)
+integer :: ncluster_tot ! total number of clusters for all trees
+integer :: ntree_ref !  number of trees used in reference calculations 
 integer :: brindx(ld, ny, $lbz:nz)
 logical :: brindx_initialized = .false.
 
