@@ -582,7 +582,7 @@ implicit none
 
 integer, pointer :: i, j, k
 
-type(tree), pointer :: tr_t_p
+type(tree),    pointer :: tr_t_p
 type(cluster), pointer :: cl_t_p
 
 nullify(i,j,k)
@@ -605,7 +605,7 @@ do ng = ngen_reslv+1, ngen
       j => cl_indx_array( clindx_p ) % iarray(2,np)
       k => cl_indx_array( clindx_p ) % iarray(3,np)
       
-      fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % CD * abs( u(i,j,k) ) * u(i,j,k)
+      fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % CD * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
       
       nullify(i,j,k)
     
