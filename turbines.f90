@@ -533,11 +533,11 @@ real :: ind2
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
-            fx(i2,j2,k2) = fx(i2,j2,k2) + p_f_n*p_nhat1*ind2                            
-            fy(i2,j2,k2) = fy(i2,j2,k2) + p_f_n*p_nhat2*ind2   
-            fz(i2,j2,k2) = fz(i2,j2,k2) + p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
-            !fz(i2,j2,k2) = fz(i2,j2,k2) + 0.5*p_f_n*p_nhat3*ind2
-            !fz(i2,j2,k2+1) = fz(i2,j2,k2) + 0.5*p_f_n*p_nhat3*ind2
+            fx(i2,j2,k2) = p_f_n*p_nhat1*ind2                            
+            fy(i2,j2,k2) = p_f_n*p_nhat2*ind2   
+            fz(i2,j2,k2) = p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
+            !fz(i2,j2,k2) = 0.5*p_f_n*p_nhat3*ind2
+            !fz(i2,j2,k2+1) = 0.5*p_f_n*p_nhat3*ind2
             
             !if (s==1) then
             !    a0 = jt_total*dt_dim
