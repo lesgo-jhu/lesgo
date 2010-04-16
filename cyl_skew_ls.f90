@@ -440,7 +440,7 @@ subroutine cyl_skew_fill_tree_array_ls()
 !  should be called any time the tree struct and its settings as defined
 !  in cyl_skew_base_ls are needed (only once though)
 !
-
+use param, only : coord
 implicit none
 
 integer :: nt, ng, nc, nb, nc_g1, nb_cl
@@ -465,8 +465,10 @@ allocate(tr_t(ntree))
 
 !  Set the number of generations in the tree; for now 
 !  they are all the same
-tr_t%ngen = ngen
-tr_t%ngen_reslv = ngen_reslv
+do nt=1, ntree
+  tr_t(nt) % ngen = ngen
+  tr_t(nt) % ngen_reslv = ngen_reslv
+enddo
 
 !  Allocate the number of clusters in the generation
 do nt=1, ntree
@@ -483,10 +485,10 @@ do nt=1, ntree
     
     do nc=1, tr_t(nt)%gen_t(ng)%ncluster
     
-        !  Set the number of branches for the cluster - here they are all the same
-        tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch = nbranch
-        !  Allocate space for the branches
-        allocate( tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t( tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch ))
+      !  Set the number of branches for the cluster - here they are all the same
+      tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch = nbranch
+      !  Allocate space for the branches
+      allocate( tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t( tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch ))
      
     enddo
     
@@ -494,6 +496,17 @@ do nt=1, ntree
  
 enddo
 
+if(coord == 0) then
+do nt=1, ntree
+  write(*,*) 'tr_t(nt)%ngen : ', tr_t(nt)%ngen
+  do ng=1, tr_t(nt)%ngen
+    write(*,*) 'tr_t(nt)%gen_t(ng)%ncluster : ', tr_t(nt)%gen_t(ng)%ncluster
+    do nc=1, tr_t(nt)%gen_t(ng)%ncluster
+      write(*,*) 'tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch : ', tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+    enddo
+  enddo
+enddo
+endif
 !  ----- Start setting values for the tree struc -----
 
 !  Must allocate all arrays before setting data; may be that
@@ -557,8 +570,8 @@ nunreslv_ccount_tot = 0
 do nt = 1, ntree
   nccount = 0
   nbcount = 0
-  do ng = 1, tr_t(nt)%ngen
-    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+  do ng = 1, tr_t(nt) % ngen
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster
     
       if(ng <= tr_t(nt) % ngen_reslv) then
         nreslv_ccount_tot = nreslv_ccount_tot + 1
@@ -671,6 +684,9 @@ do nt = 1, ntree
     
 enddo
 
+!do nb = 1, brindx
+!  write(*,'(a,5i)') 'coord, brindx_to_loc_id(:,nb) : ', coord, brindx_to_loc_id(:,nb)
+!enddo
 
 !  Now compute the parent cluster of each cluster
 !  setting all generation 1 to have no parent
@@ -774,24 +790,26 @@ endif
 !  enddo
 
 !enddo
-if(coord == 0) then
-do nt = 1, ntree
 
-  do ng=1, tr_t(nt)%ngen
-   
-    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
-    
-    cl_t_p => tr_t(nt)%gen_t(ng)%cl_t(nc)
-    write(*,'(a,5i)') 'nt, ng, nc, cl_t_p % indx, cl_t_p % parent : ', nt, ng, nc, cl_t_p % indx, cl_t_p % parent
-      
-    nullify(cl_t_p)
-    
-    enddo
-    
-  enddo
-  
-enddo
-endif
+!if(coord == 0) then
+!do nt = 1, ntree
+
+!  do ng=1, tr_t(nt)%ngen
+!   
+!    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+!    
+!    cl_t_p => tr_t(nt)%gen_t(ng)%cl_t(nc)
+!    write(*,'(a,5i)') 'nt, ng, nc, cl_t_p % indx, cl_t_p % parent : ', nt, ng, nc, cl_t_p % indx, cl_t_p % parent
+!      
+!    nullify(cl_t_p)
+!    
+!    enddo
+!    
+!  enddo
+!  
+!enddo
+!endif
+
 !call mpi_finalize()
 !stop
 

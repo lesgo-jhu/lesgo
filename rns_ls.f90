@@ -49,8 +49,9 @@ call brindx_init()
 call chi_init()
 
 $if($CYL_SKEW_LS)
-if(coord == 0) call mesg ( sub_name, 'setting reference planes' )
+if(coord == 0) call mesg ( sub_name, 'filling tree array' )
 call cyl_skew_fill_tree_array_ls()
+if(coord == 0) call mesg ( sub_name, 'tree array filled' )
 $endif
 
 !  Get the total number of clusters 
@@ -80,6 +81,8 @@ do nt = 1, ntree
   enddo
 enddo
 
+ncluster_unreslv = ncluster_tot - ncluster_reslv
+
 ncluster_reslv_ref = 0
 do nt = 1, ntree_ref
   do ng = 1, tr_t(nt) % ngen
@@ -88,6 +91,14 @@ do nt = 1, ntree_ref
     enddo    
   enddo
 enddo
+
+!if(coord == 0) then
+
+!  write(*,*) 'ncluster_tot : ', ncluster_tot
+!  write(*,*) 'ncluster_reslv : ', ncluster_reslv
+!  write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
+!  
+!endif
 
 !!  Set the number of resolved clusters
 !if(use_main_tree_only) then
@@ -257,7 +268,7 @@ subroutine rns_fill_cl_indx_array_ls()
 !  branches
 !
 use types, only : rprec
-use param, only : nx,ny,nz
+use param, only : nx,ny,nz, coord
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
 $endif
@@ -268,7 +279,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_indx_array_ls'
 
 integer :: i,j,k, nc, np
-integer, pointer :: clindx_p, ng_p
+integer, pointer :: clindx_p, ng_p, brindx_p
 integer, pointer, dimension(:) :: br_loc_id_p
 type(indx_array), pointer, dimension(:) :: cl_pre_indx_array
 
@@ -283,6 +294,8 @@ enddo
 !  Intialize the number of points assigned to the cluster
 cl_pre_indx_array % npoint = 0
 
+if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
+
 do k=1, nz - 1
 
   do j=1, ny
@@ -290,42 +303,67 @@ do k=1, nz - 1
     do i = 1, nx
     
       ! map brindx to clindx
-      br_loc_id_p => brindx_to_loc_id(:,brindx(i,j,k))
-      clindx_p => tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t (br_loc_id_p(3)) % indx
+      brindx_p => brindx(i,j,k)
       
-      ng_p => br_loc_id_p(2)
+      !write(*,*) 'brindx_p : ', brindx_p
       
-      if( ng_p <= ngen_reslv ) then
+      if ( brindx_p > 0 ) then
       
-        if ( brindx(i,j,k) > 0 .and. phi(i,j,k) <= 0._rprec ) then 
-        
-          cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
-        
-          cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
-          cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
-          cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k
-          
-        endif
-        
-      elseif ( ng_p <= ngen ) then
+        br_loc_id_p => brindx_to_loc_id(:, brindx_p)
       
-        if( brindx(i,j,k) > 0 .and. chi(i,j,k) > chi_cutoff) then
-        
-          cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
-          
-          cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
-          cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
-          cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k          
-          
+        if(br_loc_id_p(1) < 1) then
+          call error(sub_name, 'brindx(i,j,k) : ', brindx_p)
+          call mesg(sub_name, 'coord : ', coord)
+          call error(sub_name, 'br_loc_id_p(1) : ', br_loc_id_p(1))
         endif
       
-      else
+        clindx_p => tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t (br_loc_id_p(3)) % indx
+ 
+        ng_p => br_loc_id_p(2)
+        
+        !write(*,*) 'coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3) : ', coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3)
       
-        call error(sub_name, 'Generation number not computed correctly.')
+        if( ng_p <= ngen_reslv ) then
+      
+          if ( phi(i,j,k) <= 0._rprec ) then 
+          
+            write(*,*) 'setting resolved point'
+        
+            cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
+        
+            cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
+            cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
+            cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k
+          
+          endif
+        
+        elseif ( ng_p <= ngen ) then
+        
+          write(*,*) 'setting unresolved point'
+                  
+          !write(*,*) 'chi(i,j,k) : ', chi(i,j,k)
+          
+          if( chi(i,j,k) > chi_cutoff) then
+        
+            cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
+          
+            cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
+            cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
+            cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k          
+          
+          endif
+      
+        else
+      
+          call error(sub_name, 'Generation number not computed correctly.')
+        
+        endif
+      
+        nullify(br_loc_id_p, clindx_p, ng_p)
         
       endif
       
-      nullify(br_loc_id_p, clindx_p, ng_p)
+      nullify(brindx_p)
       
     enddo
     
@@ -351,6 +389,11 @@ do nc=1, ncluster_tot
   enddo
   
 enddo
+
+!do nc = 1, ncluster_tot
+
+!  write(*,*) 'cl_indx_array(nc) % npoint : ', cl_indx_array(nc) % npoint
+!enddo
 
 !  No longer needed
 deallocate(cl_pre_indx_array)
@@ -622,6 +665,7 @@ subroutine rns_cl_unreslv_CD_ls()
 !  with each region dictated by the brindx value. 
 !
 use types, only : rprec
+use param, only : coord
 use messages
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : unreslv_clindx_to_loc_id, tr_t
@@ -638,13 +682,22 @@ integer :: nc
 
 nullify(unreslv_cl_loc_id_p, clindx_p, parent_p)
 
+!if(coord == 0) write(*,*) 'called rns_cl_unreslv_CD_ls '
+
+!if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
+
 !  All unresolved branches get a CD 
 do nc = 1, ncluster_unreslv
 
   unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
+
   clindx_p            => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
+ ! if(coord == 0) call mesg(sub_name, 'clindx_p ', clindx_p)
+  
   parent_p => clforce_t(clindx_p) % parent
+  
+ ! if(coord == 0) call mesg(sub_name, 'parent_p ', parent_p)
 
   clforce_t(clindx_p) % CD = clforce_t( parent_p ) % CD
   
@@ -667,6 +720,7 @@ use immersedbc, only : fx
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ngen, ngen_reslv, tr_t, unreslv_clindx_to_loc_id
 $endif
+use param, only : dx, dy, dz, coord
 
 implicit none
 
@@ -682,6 +736,8 @@ integer, pointer, dimension(:) :: unreslv_cl_loc_id_p
 nullify(i,j,k)
 nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
 
+
+
 !  Compute force due to unresolved clusters
 do nc = 1, ncluster_unreslv
 
@@ -692,14 +748,18 @@ do nc = 1, ncluster_unreslv
   !  Loop over number of points used in cluster calc
   npoint_p => cl_indx_array( clindx_p ) % npoint
   
+  !write(*,*) 'coord, npoint_p : ', coord, npoint_p
+  
   do np = 1, npoint_p
+  
+    !write(*,*) 'coord, nc, np : ', coord, nc, np
   
     i => cl_indx_array( clindx_p ) % iarray(1,np)
     j => cl_indx_array( clindx_p ) % iarray(2,np)
     k => cl_indx_array( clindx_p ) % iarray(3,np)
-      
-    fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % CD * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
-      
+    
+    fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % CD * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) / (dx*dy*dz)
+ 
     nullify(i,j,k)
     
   enddo
@@ -813,7 +873,7 @@ end subroutine rns_write_cl_vel_ls
 !**********************************************************************
 subroutine brindx_init ()
 !**********************************************************************
-use param, only : iBOGUS, coord
+use param, only : iBOGUS, coord, ld, ny, nz
 use messages
 implicit none
 
@@ -825,7 +885,7 @@ $if ($MPI)
   character (128) :: fbrindx_in_MPI
 $endif
 
-integer :: ip
+integer :: ip, i,j,k, brindx_max
 
 logical :: opn, exst
 
@@ -861,6 +921,22 @@ $else
 
 $endif
 
+!brindx_max = -100
+!do k=0,nz
+!  do j=1,ny
+!    do i=1,ld
+!    
+!      if(brindx(i,j,k) > brindx_max) brindx_max = brindx(i,j,k)
+
+!    enddo
+!  enddo
+!enddo
+
+brindx_max = maxval(brindx)
+write(*,*) 'coord, brindx_max : ', coord, brindx_max
+
+
+
 brindx_initialized = .true.
 
 end subroutine brindx_init
@@ -881,6 +957,7 @@ $if ($MPI)
 $endif
 
 integer :: ip
+real(rprec) :: chi_max
 
 logical :: opn, exst
 
@@ -915,6 +992,9 @@ $else
   close (1)
 
 $endif
+
+chi_max = maxval(chi)
+write(*,*) 'coord, chi_max : ', coord, chi_max
 
 chi_initialized = .true.
 

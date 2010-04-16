@@ -48,6 +48,8 @@ logical :: in_bottom_surf, btw_planes
 
 integer, dimension(3) :: cyl_loc
 
+logical :: brindx_set = .false.
+
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
 
@@ -59,7 +61,7 @@ program cyl_skew_pre_ls
 $if ($MPI)
 use param, only : coord
 $endif
-use cyl_skew_pre_base_ls, only : DIST_CALC, ntree
+use cyl_skew_pre_base_ls, only : DIST_CALC, ntree, brindx_set
 use cyl_skew_base_ls, only : ngen, ngen_reslv
 use messages
 implicit none
@@ -71,6 +73,20 @@ if(ngen_reslv > ngen) call error(prog_name, ' ngen_reslv > ngen ')
 
 call initialize()
 !  Loop over all trees
+do nt = 1, ntree
+  
+  $if ($DEBUG)
+  if(coord == 0) write(*,*) 'Tree id : ', nt
+  $endif
+    
+  if(DIST_CALC) call main_loop(nt)
+  
+enddo 
+
+brindx_set = .true.
+
+call initialize()
+
 do nt = 1, ntree
   
   $if ($DEBUG)
@@ -104,18 +120,20 @@ use param, only : coord
 $endif
 
 use param, only : nz
-use cyl_skew_pre_base_ls, only : gcs_t, BOGUS, tr_t
-use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen
+use cyl_skew_pre_base_ls, only : gcs_t, BOGUS, brindx_set
+use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
 
 implicit none
 
 integer :: ng,i,j,k
 
+if(.not. brindx_set) then
 call initialize_mpi ()
 call allocate_arrays()
 call cyl_skew_fill_tree_array_ls()
 call generate_grid()
+endif
 
 !!  Allocate x,y,z for all coordinate systems
 !allocate(gcs_t(nx+2,ny,$lbz:nz))
@@ -124,8 +142,10 @@ call generate_grid()
 gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
-gcs_t(:,:,:)%brindx=0
-gcs_t % clindx = 0
+if(.not. brindx_set) then
+  gcs_t(:,:,:)%brindx=0
+  gcs_t % clindx = 0
+endif
 
 !  Initialize the iset flag
 gcs_t(:,:,:)%iset=0
@@ -139,8 +159,10 @@ if(use_bottom_surf) then
   do k=$lbz,Nz
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
     if(gcs_t(1,1,k)%phi <= 0.) then 
-        gcs_t(:,:,k)%brindx = -1
-        gcs_t(:,:,k)%clindx = -1
+        if(.not. brindx_set) then
+          gcs_t(:,:,k)%brindx = -1
+          gcs_t(:,:,k)%clindx = -1
+        endif
     endif
    
   enddo
@@ -208,20 +230,34 @@ subroutine main_loop(nt)
 use types, only : rprec
 use param, only : nx, ny, nz
 use cyl_skew_base_ls, only : tr_t
-use cyl_skew_pre_base_ls, only : gcs_t
+use cyl_skew_pre_base_ls, only : gcs_t, brindx_set
 implicit none
 
 integer, intent(IN) :: nt
+integer, pointer :: ngen_p => null()
 
 integer :: ng, nc, nb,i,j,k
 !  Loop over all global coordinates
+
+
 do k=$lbz,Nz
 
   do j=1,ny
 
     do i=1,nx+2
 
-      do ng = 1, tr_t(nt)%ngen_reslv
+    
+      if(.not. brindx_set) then
+      
+        ngen_p => tr_t(nt) % ngen
+        
+      else
+       
+        ngen_p => tr_t(nt) % ngen_reslv
+        
+      endif
+        
+      do ng = 1, ngen_p
         
         do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
 
@@ -240,6 +276,8 @@ do k=$lbz,Nz
     enddo
   enddo
 enddo
+
+
 
 return
 end subroutine main_loop
@@ -343,7 +381,7 @@ use types, only : rprec
 use cyl_skew_base_ls, only : branch, tr_t
 use cyl_skew_pre_base_ls, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
 use cyl_skew_pre_base_ls, only : in_cyl_top, zrot_axis, ecs_t, eps
-use cyl_skew_pre_base_ls, only : in_cyl_bottom
+use cyl_skew_pre_base_ls, only : in_cyl_bottom, brindx_set
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -390,8 +428,10 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%brindx = brindx_p
-    gcs_t(i,j,k)%clindx = clindx_p
+    if(.not. brindx_set) then
+      gcs_t(i,j,k)%brindx = brindx_p
+      gcs_t(i,j,k)%clindx = clindx_p
+    endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -409,8 +449,10 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%brindx = brindx_p
-      gcs_t(i,j,k)%clindx = clindx_p
+      if(.not. brindx_set) then
+        gcs_t(i,j,k)%brindx = brindx_p
+        gcs_t(i,j,k)%clindx = clindx_p
+      endif
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -427,8 +469,10 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      gcs_t(i,j,k)%brindx = brindx_p
-      gcs_t(i,j,k)%clindx = clindx_p
+      if(.not. brindx_set) then
+        gcs_t(i,j,k)%brindx = brindx_p
+        gcs_t(i,j,k)%clindx = clindx_p
+      endif
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -442,8 +486,10 @@ if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%brindx = brindx_p
-    gcs_t(i,j,k)%clindx = clindx_p
+    if(.not. brindx_set) then
+      gcs_t(i,j,k)%brindx = brindx_p
+      gcs_t(i,j,k)%clindx = clindx_p
+    endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -453,8 +499,10 @@ if(in_cyl_bottom) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    gcs_t(i,j,k)%brindx = brindx_p
-    gcs_t(i,j,k)%clindx = clindx_p
+    if(.not. brindx_set) then
+      gcs_t(i,j,k)%brindx = brindx_p
+      gcs_t(i,j,k)%clindx = clindx_p
+    endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif

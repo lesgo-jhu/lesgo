@@ -63,7 +63,7 @@ integer :: ncluster_ref ! number of clusters used for computing reference quanti
 integer :: ncluster_tot ! total number of clusters for all trees
 integer :: ntree_ref !  number of trees used in reference calculations 
 
-integer :: brindx(ld, ny, $lbz:nz)
+integer, target :: brindx(ld, ny, $lbz:nz)
 logical :: brindx_initialized = .false.
 
 real (rprec) :: chi(ld, ny, $lbz:nz)
