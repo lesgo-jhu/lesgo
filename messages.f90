@@ -268,7 +268,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -290,7 +290,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -318,7 +318,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -339,7 +339,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -361,7 +361,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -382,7 +382,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -403,7 +403,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
@@ -431,7 +431,7 @@ write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
 $if ($MPI)
-  !call mpi_finalize (ierr)
+  call mpi_finalize (ierr)
 $endif
 
 stop
