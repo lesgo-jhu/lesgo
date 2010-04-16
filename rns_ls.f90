@@ -2,12 +2,12 @@
 module rns_ls
 !**********************************************************************
 use rns_base_ls
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
-use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
-!use cyl_skew_ls, only : cyl_skew_fill_cl_ref_plane_array_ls
-!use cyl_skew_ls, only : cyl_skew_get_branch_id_ls
-$endif
+!!$if($CYL_SKEW_LS)
+!!use cyl_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
+!!use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls, ngen, ngen_reslv
+!!!use cyl_skew_ls, only : cyl_skew_fill_cl_ref_plane_array_ls
+!!!use cyl_skew_ls, only : cyl_skew_get_branch_id_ls
+!!$endif
 
 implicit none
 
@@ -16,6 +16,7 @@ private
 
 public :: rns_init_ls !, rns_u_write_ls
 public :: rns_CD_ls
+public :: rns_forcing_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
@@ -28,7 +29,10 @@ subroutine rns_init_ls()
 !**********************************************************************
 use messages
 use param, only : USE_MPI, coord
-
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : tree, tr_t, ntree
+use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
+$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
@@ -115,13 +119,14 @@ if(clforce_calc) then
   call rns_fill_cl_ref_plane_array_ls()
   !  Create cluster index array
   call rns_fill_cl_indx_array_ls()
-
-  !  
-
   !  Set parent used for assigning CD's on unresolved branches
+  if(coord == 0) write(*,*) ' calling rns_set_cl_parent_ls'
   call rns_set_cl_parent_ls()
+  if(coord == 0) write(*,*) 'called rns_set_cl_parent_ls'
 
 endif
+
+write(*,*) 'exiting rns_init_ls'
  
 return
 end subroutine rns_init_ls
@@ -131,12 +136,16 @@ subroutine rns_fill_cl_ref_plane_array_ls()
 !**********************************************************************
 use types, only : rprec
 use param, only : dy, dz, USE_MPI, coord
-
+use messages
+$if($CYL_SKEW_LS) 
+use cyl_skew_base_ls, only : tr_t
+$endif
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
 real(rprec), parameter :: alpha=1._rprec
 
-integer :: nt, ng, nc, nb, ntree_ref
+integer :: nt, ng, nc, nb
 
 real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 
@@ -146,7 +155,11 @@ real(rprec), pointer, dimension(:) :: origin_p
 
 nullify(d_p, l_p, skew_angle_p, clindx_p)
 
-allocate(cl_ref_plane_t( ncluster_ref )
+allocate(cl_ref_plane_t( ncluster_ref ))
+
+call mesg(sub_name, 'ncluster_ref - tr_t(1) % ncluster : ', ncluster_ref - tr_t(1) % ncluster)
+
+if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
 
 do nt=1, ntree_ref
 
@@ -157,6 +170,12 @@ do nt=1, ntree_ref
       nbranch_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
       
       clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
+      
+      if(clindx_p > ncluster_ref) then
+        call mesg(sub_name, 'clindx_p : ', clindx_p)
+        call mesg(sub_name, 'ncluster_ref : ', ncluster_ref)
+        call error(sub_name, 'clindx_p > ncluster_ref')
+      endif
       
       h_m = 0._rprec
       area_proj = 0._rprec
@@ -238,13 +257,22 @@ subroutine rns_fill_cl_indx_array_ls()
 !  branches
 !
 use types, only : rprec
-
+use param, only : nx,ny,nz
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
+$endif
+use level_set_base, only : phi
+use messages
 implicit none
 
-integer :: i,j,k, ncl
+character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_indx_array_ls'
 
+integer :: i,j,k, nc, np
+integer, pointer :: clindx_p, ng_p
+integer, pointer, dimension(:) :: br_loc_id_p
 type(indx_array), pointer, dimension(:) :: cl_pre_indx_array
 
+nullify(ng_p, clindx_p, br_loc_id_p, cl_pre_indx_array)
 
 allocate(cl_pre_indx_array( ncluster_tot ) )
 
@@ -327,12 +355,12 @@ enddo
 !  No longer needed
 deallocate(cl_pre_indx_array)
 
-!  Sort each cl_indx_array into column major order on the iarray output
-do nc=1, ncluster_tot
+!!  Sort each cl_indx_array into column major order on the iarray output
+!do nc=1, ncluster_tot
 
-  call isortcm(cl_indx_array(nc) % iarray, 3, cl_indx_array(nc) % npoint)
-  
-enddo
+!  call isortcm(cl_indx_array(nc) % iarray, 3, cl_indx_array(nc) % npoint)
+!  
+!enddo
 
 return
 end subroutine rns_fill_cl_indx_array_ls
@@ -344,7 +372,13 @@ subroutine rns_set_cl_parent_ls()
 !  cluster which will be used for the CD calculations
 !
 use types, only : rprec
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : tree, cluster, tr_t, ntree
+$endif
+use messages
 implicit none
+
+character (*), parameter :: sub_name = mod_name // '.rns_set_cl_parent_ls'
 
 integer :: nt, ng, nc
 
@@ -355,6 +389,8 @@ nullify(tr_t_p, cl_t_p)
 
 !if(.not. use_main_tree_only) call error(sub_name,'use_main_tree_only must be true')
 allocate( clforce_t ( ncluster_tot ) ) 
+
+clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec)
 
 do nt = 1, ntree
 
@@ -381,6 +417,8 @@ do nt = 1, ntree
       endif
       
       nullify(cl_t_p)
+      
+    enddo
   
   enddo
   
@@ -403,6 +441,9 @@ subroutine rns_CD_ls()
 !
 use param, only : jt, USE_MPI, coord
 use messages
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : ngen, ngen_reslv
+$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
@@ -446,23 +487,35 @@ use types, only : rprec
 !!use level_set_base, only : phi
 !!use immersedbc, only : fx
 $if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : unreslv_clindx_to_loc_id
+use cyl_skew_base_ls, only : reslv_clindx_to_loc_id, ntree, tr_t
 $endif
 use messages
+use param, only : nx, ny, nz, dx, dy, dz
+$if($MPI)
+use param, only : MPI_RPREC, MPI_SUM, comm, ierr
+$endif
+use sim_param, only : u
+use functions, only : plane_avg_3D
+use immersedbc, only : fx
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_cl_reslv_CD_ls'
 
 integer, pointer, dimension(:) :: reslv_cl_loc_id_p 
 integer, pointer :: clindx_p, clindx_other_p
+integer, pointer :: npoint_p
+integer, pointer, dimension(:,:) :: iarray_p
 integer, pointer :: i, j, k
-integer :: nc, ncluster_tot
+
+integer :: ncluster_tot
+integer :: nt, ng, nc, np
 $if ($MPI)
 real(rprec), pointer, dimension(:) :: cl_fD
 $endif
 
 nullify(reslv_cl_loc_id_p, clindx_p)
 nullify(clindx_other_p)
+nullify(npoint_p, iarray_p)
 nullify(i,j,k)
 
 $if ($MPI)
@@ -570,6 +623,9 @@ subroutine rns_cl_unreslv_CD_ls()
 !
 use types, only : rprec
 use messages
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : unreslv_clindx_to_loc_id, tr_t
+$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_cl_unreslv_CD_ls'
@@ -586,7 +642,7 @@ nullify(unreslv_cl_loc_id_p, clindx_p, parent_p)
 do nc = 1, ncluster_unreslv
 
   unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-  clindx_p            => tr_t(unreslv_cl_loc_id(1)) % gen_t(unreslv_cl_loc_id(2)) % cl_t(unreslv_cl_loc_id(3)) % indx
+  clindx_p            => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
   parent_p => clforce_t(clindx_p) % parent
 
@@ -606,7 +662,7 @@ subroutine rns_forcing_ls()
 !  This subroutine computes the forces on the unresolved branches
 !
 use types, only : rprec
-use sim_parm, only : u
+use sim_param, only : u
 use immersedbc, only : fx
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ngen, ngen_reslv, tr_t, unreslv_clindx_to_loc_id
@@ -615,6 +671,8 @@ $endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_forcing_ls'
+
+integer :: nc, np
 
 integer, pointer :: i, j, k
 
@@ -629,7 +687,7 @@ do nc = 1, ncluster_unreslv
 
   !  Get the global cluster index
   unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-  clindx_p => tr_t(unreslv_cl_loc_id(1)) % gen_t(unreslv_cl_loc_id(2)) % cl_t(unreslv_cl_loc_id(3)) % indx
+  clindx_p => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
   !  Loop over number of points used in cluster calc
   npoint_p => cl_indx_array( clindx_p ) % npoint
@@ -661,6 +719,10 @@ subroutine rns_write_cl_CD_ls()
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only :  clindx_to_loc_id
+$endif
+
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
@@ -706,6 +768,9 @@ subroutine rns_write_cl_vel_ls()
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only :  clindx_to_loc_id
+$endif
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.rns_write_cl_vel_ls'

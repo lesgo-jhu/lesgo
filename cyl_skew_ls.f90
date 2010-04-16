@@ -455,7 +455,6 @@ real(rprec) :: angle
 real(rprec) :: gen_scale_fact
 
 integer, pointer :: pclindx_p
-integer, pointer, dimension(:) :: br_loc_id_p
 type(cluster), pointer :: cl_t_p, pcl_t_p, ccl_t_p
 
 !  Nullify all pointers
