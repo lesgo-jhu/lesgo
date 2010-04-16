@@ -505,7 +505,7 @@ real :: ind2
 
     !calculate total thrust force for each turbine  (per unit mass)
     !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*Ct*p_u_d_T*p_u_d_T/p_thk
+        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T/p_thk ! Need abs (maybe dabs?) on one to pick-up correct direction 
 
     !apply forcing to each node
         do l=1,p_num_nodes
