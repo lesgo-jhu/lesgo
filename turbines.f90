@@ -1,9 +1,9 @@
 module turbines
 use types,only:rprec
-use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld
+use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld,jt_total,dt_dim
 use stat_defs, only:wind_farm_t
 use grid_defs, only:x,y,z
-use io, only: write_tecplot_header_ND,write_real_data_3D,w_uv, w_uv_tag, interp_to_uv_grid
+use io
 
 implicit none
 
@@ -18,7 +18,7 @@ real :: space_x,space_y
 real :: height_all,dia_all,thk_all,theta1_all,theta2_all
 real :: Ct									        !thrust coefficient
 
-character (64) :: fname0, fname, fname3
+character (64) :: fname0, fname, fname3, var_list
 real(rprec), dimension(nx,ny,nz) :: large_node_array       !used for visualizing node locations
 
 real :: eps											!epsilon used for disk velocity time-averaging
@@ -26,6 +26,7 @@ real :: eps											!epsilon used for disk velocity time-averaging
 integer :: i,j,k,i2,j2,k2,b,l,s,nn,sx,sy,sz
 integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
 integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
+real(rprec) :: a0,a1,a2,a3,a4,a5
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -40,16 +41,16 @@ subroutine turbines_init()
 !   #1 = turbine nearest (x,y)=(0,0)
 !   #2 = next turbine in the x-direction, etc.
 
-	nloc = 6      		!number of turbines (locations) 
+	nloc = 4      		!number of turbines (locations) 
 	allocate(wind_farm_t%turbine_t(nloc))
 
     !x,y-locations
         !for evenly-spaced turbines, not staggered
         if(.true.) then
-            num_x = 3           !number of turbines in x-direction
-            space_x = 7.        !spacing in x-dir, multiple of DIA
-            num_y = nloc/num_x  !number of turbines in y-direction
-            space_y = 5.        !spacing in y-dir, multiple of DIA
+            num_x = 2           !number of turbines in x-direction
+            !space_x = 7.        !spacing in x-dir, multiple of DIA
+            num_y = nloc/num_x  !number of turbines in y-direction            
+            !space_y = 5.        !spacing in y-dir, multiple of DIA
             
             k=1
             do j=1,num_y
@@ -100,7 +101,7 @@ subroutine turbines_init()
         wind_farm_t%ifilter = 2			    !Filter type: 0-> none 1->cut off 2->Gaussian 3->Top-hat	
         wind_farm_t%alpha = 1.5			    !filter size is alpha*(grid spacing)
         wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
-        wind_farm_t%filter_cutoff = 0.      !ind only includes values above this cutoff
+        wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
 
     !other
 	    Ct = 1.33		!thrust coefficient
@@ -128,6 +129,11 @@ subroutine turbines_init()
 	eps = 0.05 / (1 + 0.05)
 	!time average over T(sec) = dt_dim/0.05 so that eps~0.05
 	!T_min = dt_dim/0.05*1./60.	
+    
+    var_list = '"t (s)", "u_d", "u_d_T", "f_n"'
+    call write_tecplot_header_xyline('turbine1_forcing.dat','rewind', var_list)   
+    call write_tecplot_header_xyline('turbine2_forcing.dat','rewind', var_list) 
+    call write_tecplot_header_xyline('turbine3_forcing.dat','rewind', var_list) 
 	
 end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -144,7 +150,7 @@ real, pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null()
 real, pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
 logical :: verbose
-verbose = .false.
+verbose = .true.
 
 do s=1,nloc
     count_n = 0		!used for counting nodes for each turbine
@@ -261,7 +267,7 @@ real :: sumG,delta2,r2,sumA
 real :: turbine_vol
 
 logical :: verbose
-verbose = .false.
+verbose = .true.
 
 !create convolution function, centered at (nx/2,ny/2,nz/2) and normalized
 	if(wind_farm_t%ifilter==0) then		!0-> none
@@ -339,9 +345,9 @@ do b=1,nloc
             k2 = wind_farm_t%turbine_t(b)%nodes(l,3)	
             temp_array(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
 
-            if (verbose) then
-                write(*,*) 'Writing node to temp_array ',i2,j2,k2
-            endif
+            !if (verbose) then
+                !write(*,*) 'Writing node to temp_array ',i2,j2,k2
+            !endif
         enddo
 
     !perform convolution on temp_array --> out_a    
@@ -505,17 +511,39 @@ real :: ind2
 
     !calculate total thrust force for each turbine  (per unit mass)
     !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T/p_thk ! Need abs (maybe dabs?) on one to pick-up correct direction 
+        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T   !/p_thk            !<<<<<< try using p_u_d instead of p_u_d_T
 
+        if (s<4) then
+            a0 = jt_total*dt_dim
+            a1 = p_u_d
+            a2 = p_u_d_T
+            a3 = p_f_n
+        endif
+        if (s==1) then
+            call write_real_data('turbine1_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))  
+        elseif (s==2) then
+            call write_real_data('turbine2_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))          
+        elseif (s==3) then
+            call write_real_data('turbine3_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))    
+        endif
+        
     !apply forcing to each node
         do l=1,p_num_nodes
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
-            fx(i2,j2,k2) = fx(i2,j2,k2) + p_f_n*p_nhat1*ind2   !<<<< which was is fx oriented?
-            fy(i2,j2,k2) = fy(i2,j2,k2) + p_f_n*p_nhat2*ind2   !<< ditto
-            fz(i2,j2,k2) = fz(i2,j2,k2) + p_f_n*p_nhat3*ind2   !<< ditto
+            fx(i2,j2,k2) = fx(i2,j2,k2) + p_f_n*p_nhat1*ind2                            
+            fy(i2,j2,k2) = fy(i2,j2,k2) + p_f_n*p_nhat2*ind2   
+            fz(i2,j2,k2) = fz(i2,j2,k2) + p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
+            !fz(i2,j2,k2) = fz(i2,j2,k2) + 0.5*p_f_n*p_nhat3*ind2
+            !fz(i2,j2,k2+1) = fz(i2,j2,k2) + 0.5*p_f_n*p_nhat3*ind2
+            
+            !if (s==1) then
+            !    a0 = jt_total*dt_dim
+            !    a4 = l
+            !    a5 = p_f_n*p_nhat1*ind2             
+            !endif
         enddo
 
     enddo
