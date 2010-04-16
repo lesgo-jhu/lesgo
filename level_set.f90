@@ -29,7 +29,7 @@ integer, parameter :: nd = 3
 
 $if ($MPI)
   integer, parameter :: nphitop = 2
-  integer, parameter :: nphibot = 1
+  integer, parameter :: nphibot = 2
   integer, parameter :: nveltop = 1
   integer, parameter :: nvelbot = 1
   integer, parameter :: ntautop = 3
