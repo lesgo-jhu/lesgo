@@ -21,6 +21,8 @@ logical, parameter :: clforce_vel_write = .true.
 
 logical, parameter :: brforce_calc = .false.
 
+real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
+
 
 
 !  Flag for writing info (forces, velocity, etc.) on tree 1 (main) only
@@ -39,13 +41,24 @@ type ref_plane
 end type ref_plane
 
 type force
+  integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fD
   real(rprec) :: CD
 end type force
 
+type indx_array
+  integer :: npoint
+  integer, pointer, dimension(:,:) :: iarray
+end type
+
+type(indx_array), pointer, dimension(:) :: cl_indx_array
+
 type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t
 type(force), pointer, dimension(:) :: brforce_t, clforce_t
 
+type(force), pointer, dimension(:) :: clforce _t ! Unresolved cluster force
+
+integer :: ncluster_reslv  !  assumed the same for all trees
 integer :: brindx(ld, ny, $lbz:nz)
 logical :: brindx_initialized = .false.
 

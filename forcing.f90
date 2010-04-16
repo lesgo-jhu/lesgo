@@ -11,6 +11,9 @@ $if ($TREES_LS)
 $endif
 $if ($LVLSET)
   use level_set, only : level_set_forcing
+  $if ($RNS_LS)
+  use rns_ls, only : rns_forcing_ls
+  $endif
 $endif
 $if ($TURBINES)
   use turbines, only:turbines_forcing
@@ -54,6 +57,9 @@ endif
 
 $if ($LVLSET)
   call level_set_forcing ()
+  $if ($RNS_LS)
+  call rns_forcing_ls()
+  $endif
 $endif
 
 $if ($TREES_LS)
