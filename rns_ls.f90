@@ -749,7 +749,8 @@ do nc = 1, ncluster_unreslv_ref
 
   elseif( jt < 10000 ) then
 
-    CD_p = dble(1._rprec * (jt-1000)/10000._rprec) * clforce_t( parent_p ) % CD
+    CD_p = 1._rprec * (jt-1000)/10000._rprec * clforce_t( parent_p ) % CD
+    write(*,*) 'CD_p : ', CD_p
 
   else
 
@@ -788,6 +789,7 @@ do nc = 1, ncluster_unreslv_ref
   $if($MPI)
   call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   if(u2chi_sum_global <= 0._rprec) call error(sub_name, 'Volume integration for kappa not correct.')
+  write(*,'(a,7f9.4)') 'CD_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz : ', CD_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz
   kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum_global * dx * dy * dz )
   $else
   if(u2chi_sum <= 0._rprec) call error(sub_name, 'Volume integration for kappa not correct.')
@@ -839,7 +841,7 @@ $if($MPI)
 use mpi
 use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
 $endif
-use param, only : dx, dy, dz, coord
+use param, only : dx, dy, dz, coord, jt
 
 implicit none
 
@@ -878,6 +880,8 @@ do nc = 1, ncluster_unreslv
     i => cl_indx_array( clindx_p ) % iarray(1,np)
     j => cl_indx_array( clindx_p ) % iarray(2,np)
     k => cl_indx_array( clindx_p ) % iarray(3,np)
+    
+    !if( jt >= 1000 ) write(*,'(a,2i,f9.4)') 'coord, clindx_p, kappa : ', coord, clindx_p, clforce_t( clindx_p ) % kappa
     
     fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % kappa * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) / (dx*dy*dz) ! / 100000._rprec
     
