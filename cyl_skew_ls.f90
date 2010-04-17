@@ -496,17 +496,17 @@ do nt=1, ntree
  
 enddo
 
-if(coord == 0) then
-do nt=1, ntree
-  write(*,*) 'tr_t(nt)%ngen : ', tr_t(nt)%ngen
-  do ng=1, tr_t(nt)%ngen
-    write(*,*) 'tr_t(nt)%gen_t(ng)%ncluster : ', tr_t(nt)%gen_t(ng)%ncluster
-    do nc=1, tr_t(nt)%gen_t(ng)%ncluster
-      write(*,*) 'tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch : ', tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
-    enddo
-  enddo
-enddo
-endif
+!if(coord == 0) then
+!do nt=1, ntree
+!  write(*,*) 'tr_t(nt)%ngen : ', tr_t(nt)%ngen
+!  do ng=1, tr_t(nt)%ngen
+!    write(*,*) 'tr_t(nt)%gen_t(ng)%ncluster : ', tr_t(nt)%gen_t(ng)%ncluster
+!    do nc=1, tr_t(nt)%gen_t(ng)%ncluster
+!      write(*,*) 'tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch : ', tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+!    enddo
+!  enddo
+!enddo
+!endif
 !  ----- Start setting values for the tree struc -----
 
 !  Must allocate all arrays before setting data; may be that
