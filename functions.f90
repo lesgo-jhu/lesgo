@@ -317,7 +317,7 @@ use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 $endif
 use grid_defs
-
+use messages
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
@@ -423,6 +423,7 @@ eta_vec = eta_vec / vec_mag
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
 
+ if(nsum_global == 0) call error(func_name, 'nsum_global = 0')
   !  Average over all procs; assuming distribution is even
   plane_avg_3D = var_sum_global / nsum_global
   
