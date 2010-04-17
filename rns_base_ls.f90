@@ -21,7 +21,7 @@ logical, parameter :: clforce_vel_write = .true.
 
 logical, parameter :: brforce_calc = .false.
 
-real(rprec), parameter :: chi_cutoff = 1.e-6_rprec
+real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
 
 
@@ -44,6 +44,7 @@ type force
   integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fD
   real(rprec) :: CD
+  real(rprec) :: kappa ! Used for unresolved branches
 end type force
 
 type indx_array
@@ -57,6 +58,7 @@ type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t
 type(force), pointer, dimension(:) :: brforce_t, clforce_t
 
 integer :: ncluster_unreslv ! total number of unresolved clusters
+integer :: ncluster_unreslv_ref ! number of unresolved clusters used for reference calculations
 integer :: ncluster_reslv ! total number of resolved clusters
 integer :: ncluster_reslv_ref
 integer :: ncluster_ref ! number of clusters used for computing reference quantities (size of cl_ref_plane_t)
