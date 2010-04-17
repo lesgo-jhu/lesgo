@@ -21,7 +21,7 @@ logical, parameter :: clforce_vel_write = .true.
 
 logical, parameter :: brforce_calc = .false.
 
-real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
+real(rprec), parameter :: chi_cutoff = 1.e-6_rprec
 
 
 

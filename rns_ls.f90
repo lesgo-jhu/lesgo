@@ -39,10 +39,6 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
 integer :: nt, np, ng, nc
 
-type(tree), pointer :: tr_t_p
-
-nullify(tr_t_p)
-
 ! Load brindx
 call brindx_init()
 ! Load filtered indicator function (chi)
@@ -168,8 +164,6 @@ nullify(d_p, l_p, skew_angle_p, clindx_p)
 
 allocate(cl_ref_plane_t( ncluster_ref ))
 
-call mesg(sub_name, 'ncluster_ref - tr_t(1) % ncluster : ', ncluster_ref - tr_t(1) % ncluster)
-
 if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
 
 do nt=1, ntree_ref
@@ -292,7 +286,9 @@ do nc=1, ncluster_tot !  same for all clusters
 enddo
 
 !  Intialize the number of points assigned to the cluster
-cl_pre_indx_array % npoint = 0
+do nc=1, ncluster_tot
+  cl_pre_indx_array(nc) % npoint = 0
+enddo
 
 if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
 
@@ -324,10 +320,10 @@ do k=1, nz - 1
         !write(*,*) 'coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3) : ', coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3)
       
         if( ng_p <= ngen_reslv ) then
-      
+          !  Use only inside points
           if ( phi(i,j,k) <= 0._rprec ) then 
           
-            write(*,*) 'setting resolved point'
+            !write(*,*) 'setting resolved point'
         
             cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
         
@@ -339,7 +335,7 @@ do k=1, nz - 1
         
         elseif ( ng_p <= ngen ) then
         
-          write(*,*) 'setting unresolved point'
+          !write(*,*) 'setting unresolved point'
                   
           !write(*,*) 'chi(i,j,k) : ', chi(i,j,k)
           
@@ -372,7 +368,7 @@ do k=1, nz - 1
 enddo
 
 !  Allocate true indx_array
-allocate(cl_indx_array(ncluster_tot))
+allocate(cl_indx_array( ncluster_tot ) )
 
 do nc=1, ncluster_tot
   allocate(cl_indx_array(nc) % iarray(3, cl_pre_indx_array(nc) % npoint))
@@ -556,81 +552,91 @@ $if ($MPI)
 real(rprec), pointer, dimension(:) :: cl_fD
 $endif
 
-nullify(reslv_cl_loc_id_p, clindx_p)
-nullify(clindx_other_p)
-nullify(npoint_p, iarray_p)
-nullify(i,j,k)
+!!!  Comment starts here 
+!!nullify(reslv_cl_loc_id_p, clindx_p)
+!!nullify(clindx_other_p)
+!!nullify(npoint_p, iarray_p)
+!!nullify(i,j,k)
 
-$if ($MPI)
-allocate (cl_fD ( ncluster_reslv_ref ) )
-cl_fD = 0._rprec
-$endif
+!!$if ($MPI)
+!!allocate (cl_fD ( ncluster_reslv_ref ) )
+!!cl_fD = 0._rprec
+!!$endif
 
-!  Get reference velocity for only the resolved reference planes reference planes
+!!!  Get reference velocity for only the resolved reference planes reference planes
+!!do nc = 1, ncluster_reslv_ref
+
+!!  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+!!  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
+!!  
+!!  cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(nc) % p2, &
+!!    cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
+!!    
+!!  nullify(reslv_cl_loc_id_p, clindx_p)
+!!enddo
+
+!!clforce_t % fD = 0._rprec
+
+!!do nc = 1, ncluster_reslv_ref
+
+!!  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+!!  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
+!!  
+!!  npoint_p => cl_indx_array(clindx_p) % npoint
+!!  iarray_p => cl_indx_array(clindx_p) % iarray
+!!  
+!!  do np=1, npoint_p
+!!  
+!!    i => iarray_p(1,np)
+!!    j => iarray_p(2,np)
+!!    k => iarray_p(3,np)
+!!  
+!!    $if($MPI)
+!!    cl_fD(clindx_p) = cl_fD(clindx_p) - fx(i,j,k) * dx * dy * dz
+!!    $else
+!!    clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx(i,j,k) * dx * dy * dz
+!!    $endif
+!!    
+!!    nullify(i,j,k)
+!!    
+!!  enddo
+!!  
+!!  nullify(reslv_cl_loc_id_p, clindx_p)
+!!  nullify(npoint_p, iarray_p)
+!!  
+!!enddo
+!! 
+!!$if($MPI)
+!!!  Need to sum forces over all processors
+!!do nc=1, ncluster_reslv_ref
+
+!!  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+!!  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
+!!  
+!!  call mpi_allreduce (cl_fD(clindx_p), clforce_t(clindx_p)%fD, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+!!  
+!!  nullify(reslv_cl_loc_id_p, clindx_p)
+!!enddo
+
+!!deallocate(cl_fD)
+!!$endif 
+
+!!do nc = 1, ncluster_reslv_ref
+
+!!  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+!!  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
+
+!!  clforce_t(clindx_p) % CD = clforce_t(clindx_p)%fD / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
+!!  
+!!  nullify(reslv_cl_loc_id_p, clindx_p)
+!!      
+!!enddo
+!!  Comment ends here
+
 do nc = 1, ncluster_reslv_ref
-
   reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
   clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-  
-  cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(nc) % p2, &
-    cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
-    
-  nullify(reslv_cl_loc_id_p, clindx_p)
-enddo
-
-clforce_t % fD = 0._rprec
-
-do nc = 1, ncluster_reslv_ref
-
-  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-  
-  npoint_p => cl_indx_array(clindx_p) % npoint
-  iarray_p => cl_indx_array(clindx_p) % iarray
-  
-  do np=1, npoint_p
-  
-    i => iarray_p(1,np)
-    j => iarray_p(2,np)
-    k => iarray_p(3,np)
-  
-    $if($MPI)
-    cl_fD(clindx_p) = cl_fD(clindx_p) - fx(i,j,k) * dx * dy * dz
-    $else
-    clforce_t(clindx_p)%fD = clforce_t(clindx_p)%fD - fx(i,j,k) * dx * dy * dz
-    $endif
-    
-    nullify(i,j,k)
-    
-  enddo
-  
-  nullify(reslv_cl_loc_id_p, clindx_p)
-  nullify(npoint_p, iarray_p)
-  
-enddo
- 
-$if($MPI)
-!  Need to sum forces over all processors
-do nc=1, ncluster_reslv_ref
-
-  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-  
-  call mpi_allreduce (cl_fD(clindx_p), clforce_t(clindx_p)%fD, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  
-  nullify(reslv_cl_loc_id_p, clindx_p)
-enddo
-
-deallocate(cl_fD)
-$endif 
-
-do nc = 1, ncluster_reslv_ref
-
-  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-
-  clforce_t(clindx_p) % CD = clforce_t(clindx_p)%fD / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  
+  clforce_t(clindx_p) % CD = 1._rprec
   nullify(reslv_cl_loc_id_p, clindx_p)
       
 enddo
@@ -653,6 +659,9 @@ if(use_main_tree_only) then
   enddo
   
 endif
+
+
+
         
 
 return
@@ -682,16 +691,12 @@ integer :: nc
 
 nullify(unreslv_cl_loc_id_p, clindx_p, parent_p)
 
-!if(coord == 0) write(*,*) 'called rns_cl_unreslv_CD_ls '
-
-!if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
-
 !  All unresolved branches get a CD 
 do nc = 1, ncluster_unreslv
 
   unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
 
-  clindx_p            => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
+  clindx_p => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
  ! if(coord == 0) call mesg(sub_name, 'clindx_p ', clindx_p)
   
@@ -735,8 +740,6 @@ integer, pointer, dimension(:) :: unreslv_cl_loc_id_p
 
 nullify(i,j,k)
 nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
-
-
 
 !  Compute force due to unresolved clusters
 do nc = 1, ncluster_unreslv
