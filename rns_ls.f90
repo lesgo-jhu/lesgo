@@ -763,6 +763,11 @@ do nc = 1, ncluster_unreslv
   
 enddo
 
+$if($MPI)
+!  Sync data at overlap nodes
+call mpi_sync_real_array(fx)
+$endif
+
 return
 
 end subroutine rns_forcing_ls
