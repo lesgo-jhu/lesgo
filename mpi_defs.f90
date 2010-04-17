@@ -90,7 +90,6 @@ implicit none
 real(rprec), dimension(:,:,:), intent(INOUT) :: var
 
 integer :: lbx,ubx,lby,uby,lbz,ubz
-integer :: i,j,k
 integer :: mpi_datasize
 
 !  Get bounds of var array
