@@ -717,6 +717,10 @@ use immersedbc, only : fx
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ngen, ngen_reslv, tr_t, unreslv_clindx_to_loc_id
 $endif
+$if($MPI)
+use mpi
+use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
+$endif
 use param, only : dx, dy, dz, coord
 
 implicit none
@@ -765,7 +769,12 @@ enddo
 
 $if($MPI)
 !  Sync data at overlap nodes
-call mpi_sync_real_array(fx)
+if(coord < nproc - 1) then
+  call mpi_recv (fx(:,:,nz), ld*ny, MPI_RPREC, up, 1, comm, status, ierr)
+endif
+if(coord > 0) then
+  call mpi_send (fx(:,:,1), ld*ny, MPI_RPREC, down, 1, comm, ierr)
+endif
 $endif
 
 return
