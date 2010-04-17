@@ -637,24 +637,24 @@ enddo
 !      
 !enddo
 
-!if(use_main_tree_only) then
-!!  Need to put CD on other resolved clusters (on other trees)
-!  do nt = 2, ntree
-!    do ng = 1, tr_t(nt) % ngen_reslv
-!      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
+if(use_main_tree_only) then
+!  Need to put CD on other resolved clusters (on other trees)
+  do nt = 2, ntree
+    do ng = 1, tr_t(nt) % ngen_reslv
+      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
 
-!        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
-!        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
-!        
-!        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
-!        
-!        nullify(clindx_p, clindx_other_p)
-!        
-!      enddo
-!    enddo
-!  enddo
-!  
-!endif
+        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
+        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
+        
+        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
+        
+        nullify(clindx_p, clindx_other_p)
+        
+      enddo
+    enddo
+  enddo
+  
+endif
 
 return
 end subroutine rns_cl_reslv_CD_ls
