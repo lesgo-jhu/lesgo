@@ -626,10 +626,7 @@ do nt = 1, ntree
               unreslv_clindx = unreslv_clindx + 1
               unreslv_clindx_to_loc_id(:, unreslv_clindx) = (/ nt, ng, nc /)
             endif
-            
-            !nullify(cl_loc_id)
-            !cl_loc_id => clindx_to_loc_id(:,clindx)
-            
+                       
             !  Set cluster origin to tree origin
             if( ng == 1 ) tr_t(nt) % gen_t(ng) % cl_t(nc) % origin = tr_t(nt) % origin
             

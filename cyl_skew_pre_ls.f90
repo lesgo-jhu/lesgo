@@ -48,7 +48,7 @@ logical :: in_bottom_surf, btw_planes
 
 integer, dimension(3) :: cyl_loc
 
-logical :: brindx_set = .false.
+logical :: brindx_set = .false. !  Used for finding branch closest to each point
 
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
@@ -273,6 +273,9 @@ do k=$lbz,Nz
             
         enddo
       enddo
+      
+      nullify(ngen_p)
+      
     enddo
   enddo
 enddo
