@@ -792,7 +792,8 @@ do nt=1, ntree
 enddo
 
 !  Normalize after completing integration
-chi = chi/(2._rprec*pi*delta2)
+!chi = chi/(2._rprec*pi*delta2)
+chi = 6._rprec/(pi*delta2) * chi
 
 return
 
@@ -994,7 +995,7 @@ do n = 1, nbranch
                    
           dist2 = dist*dist
 
-          chi = chi + dx(n)*dy(n)*exp(-dist2/(2._rprec*delta2))
+          chi = chi + dx(n)*dy(n)*exp(-6._rprec*dist2/delta2)
           
         endif
         
