@@ -530,10 +530,10 @@ do jt=1,nsteps
 !!$  call avg_stats ()  !--only does something once every n_avg_stats steps
 
   $if ($LVLSET)
-    call level_set_cylinder_CD ()
+    ! call level_set_cylinder_CD ()
     
     $if ($CYL_SKEW_LS)
-      call cyl_skew_CD_ls()
+    !  call cyl_skew_CD_ls()
     $endif
     
     $if ($RNS_LS)
