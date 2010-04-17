@@ -423,9 +423,18 @@ eta_vec = eta_vec / vec_mag
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
 
- if(nsum_global == 0) call error(func_name, 'nsum_global = 0')
+ if(nsum_global == 0) then
+ 
+  write(*,'(1a,1i,3f9.4)') 'coord, bp1 : ', coord, bp1
+  write(*,'(1a,1i,3f9.4)') 'coord, bp2 : ', coord, bp2
+  write(*,'(1a,1i,3f9.4)') 'coord, bp3 : ', coord, bp3
+  
+  call error(func_name, 'nsum_global = 0')
+  
+ endif
+ 
   !  Average over all procs; assuming distribution is even
-  plane_avg_3D = var_sum_global / nsum_global
+ plane_avg_3D = var_sum_global / nsum_global
   
   !write(*,*) 'var_sum_global : ', var_sum_global
   
