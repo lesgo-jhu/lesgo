@@ -722,7 +722,7 @@ nullify(clindx_other_p)
 ! ---------- START LOCAL KAPPA ------------
 !----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
 !  All unresolved branches get a CD 
-if(.not. global_kappa) then
+if(use_local_kappa) then
 do nc = 1, ncluster_unreslv_ref
 
   unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
@@ -852,10 +852,6 @@ do nc = 1, ncluster_unreslv_ref
  
   parent_p => clforce_t( clindx_p ) % parent
 
-  !if( jt < 100) then
-
-  !  CD_p = 0._rprec
-
   if( jt < nstep_ramp ) then
 
     CD_p = dble(jt)/dble(nstep_ramp) * clforce_t( parent_p ) % CD
@@ -885,7 +881,6 @@ do nc = 1, ncluster_unreslv_ref
    
   do np = 1, npoint_p
 
-  
   !!  !write(*,*) 'coord, nc, np : ', coord, nc, np
   
     i => cl_indx_array( clindx_p ) % iarray(1,np)

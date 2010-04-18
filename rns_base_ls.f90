@@ -18,7 +18,7 @@ logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
 logical, parameter :: clforce_vel_write = .true.
 integer, parameter :: nstep_ramp = 10
-logical, parameter :: global_kappa = .false.
+logical, parameter :: use_local_kappa = .false.
 
 
 logical, parameter :: brforce_calc = .false.
