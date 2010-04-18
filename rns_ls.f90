@@ -608,7 +608,7 @@ do nc = 1, ncluster_reslv_ref
   $endif
   !clforce_t(clindx_p) % fD = 0._rprec
   
-  fD_p => clforce_t(clindx_p) % fD
+  fD_p => clforce_t( clindx_p ) % fD
   fD_p = 0._rprec
   
   do np=1, npoint_p
@@ -632,10 +632,12 @@ do nc = 1, ncluster_reslv_ref
   $endif
   
   clforce_t(clindx_p) % CD = fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  
+  if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
   nullify(reslv_cl_loc_id_p, clindx_p)
   nullify(npoint_p, iarray_p)
   nullify(fD_p)
+  
+
   
 enddo
 
@@ -697,8 +699,9 @@ integer, pointer :: clindx_p, npoint_p, clindx_other_p
 integer, pointer, dimension(:) :: unreslv_cl_loc_id_p
 integer, pointer :: parent_p
 integer, pointer :: i,j,k
+real(rprec) :: kappa, fD_tot, u2chi_sum_tot
 
-real(rprec), pointer :: kappa_p, CD_p, area_ref_p, uref_p
+real(rprec), pointer :: CD_p, area_ref_p, uref_p
 
 real(rprec), pointer, dimension(:) :: p1_p, p2_p, p3_p
 integer, pointer :: nzeta_p, neta_p 
@@ -710,11 +713,14 @@ real(rprec) :: u2chi_sum_global
 $endif
 
 nullify(unreslv_cl_loc_id_p, clindx_p, parent_p, npoint_p)
-nullify(kappa_p, CD_p, area_ref_p, uref_p)
+nullify(CD_p, area_ref_p, uref_p)
 nullify(i,j,k)
 nullify(clindx_other_p)
 
 
+fD_tot = 0._rprec
+kappa=0._rprec !  Will be assigned to all clusters
+u2chi_sum_tot = 0._rprec
 
 !----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
 !  All unresolved branches get a CD 
@@ -724,8 +730,8 @@ do nc = 1, ncluster_unreslv_ref
 
   clindx_p   => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
-  kappa_p    => clforce_t(clindx_p) % kappa
-  CD_p       => clforce_t(clindx_p) % CD
+  !kappa_p    => clforce_t( clindx_p ) % kappa
+  CD_p       => clforce_t( clindx_p ) % CD
   
   uref_p     => cl_ref_plane_t(clindx_p) % u
   area_ref_p => cl_ref_plane_t(clindx_p) % area
@@ -738,40 +744,41 @@ do nc = 1, ncluster_unreslv_ref
  
   !  Get reference plane velocity
   uref_p = plane_avg_3D( u(1:nx,:,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p )
-    
+     
   nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)
  
   parent_p => clforce_t( clindx_p ) % parent
 
-  if( jt < 1000) then
+  !if( jt < 100) then
 
-    CD_p = 0._rprec
+  !  CD_p = 0._rprec
 
-  elseif( jt < 10000 ) then
+  if( jt < nstep_ramp ) then
 
-    CD_p = 1._rprec * (jt-1000)/10000._rprec * clforce_t( parent_p ) % CD
-    write(*,*) 'CD_p : ', CD_p
+    CD_p = dble(jt)/dble(nstep_ramp) * clforce_t( parent_p ) % CD
 
   else
 
     CD_p = clforce_t( parent_p ) % CD
 
   endif
+  
+  !  All procs have this
+  fD_tot = fD_tot + CD_p * area_ref_p * uref_p**2
 
   !  Loop over number of points used in cluster calc
   npoint_p => cl_indx_array( clindx_p ) % npoint
 
   !  Total force
-  ! F = 0.5 * rho * CD * A_p * U**2 = \sum { 0.5 * kappa * rho * u**2 * \chi * dV}  
-  ! kappa = CD * A_p * U**2 / ( \sum{u**2 * \chi } * dV )
+  ! F = 0.5 * rho * \sum {CD * A_p * U**2} = 0.5 * rho * kappa \sum { u**2 * \chi * dV }  
+  ! kappa = \sum {CD * A_p * U**2} / ( \sum{u**2 * \chi } * dV )
   
   u2chi_sum = 0._rprec
+  
   $if($MPI)
   u2chi_sum_global = 0._rprec
   $endif
-  kappa_p = 0._rprec
-  
-  
+   
   do np = 1, npoint_p
   
     !write(*,*) 'coord, nc, np : ', coord, nc, np
@@ -780,25 +787,54 @@ do nc = 1, ncluster_unreslv_ref
     j => cl_indx_array( clindx_p ) % iarray(2,np)
     k => cl_indx_array( clindx_p ) % iarray(3,np)
     
-    u2chi_sum = u2chi_sum + u(i,j,k) * u(i,j,k) * chi(i,j,k)
+    u2chi_sum = u2chi_sum + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
  
     nullify(i,j,k)
     
   enddo
+  
  
   $if($MPI)
+  
   call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  if(u2chi_sum_global <= 0._rprec) call error(sub_name, 'Volume integration for kappa not correct.')
-  write(*,'(a,7f9.4)') 'CD_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz : ', CD_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz
-  kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum_global * dx * dy * dz )
+  
+  if(u2chi_sum_global <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
+  
+  u2chi_sum_tot = u2chi_sum_tot + u2chi_sum_global
+  
+  !write(*,'(a,8f9.4)') 'CD_p, kappa_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz : ', CD_p, kappa_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz
   $else
-  if(u2chi_sum <= 0._rprec) call error(sub_name, 'Volume integration for kappa not correct.')
-  kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum * dx * dy * dz )
+  
+  if(u2chi_sum <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
+  !kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum * dx * dy * dz )
+  u2chi_sum_tot = u2chi_sum_tot + u2chi_sum
+  
   $endif
  
   nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
   nullify(parent_p)
-  nullify(kappa_p, CD_p, area_ref_p, uref_p)
+  nullify(CD_p, area_ref_p, uref_p)
+  
+enddo
+
+! kappa for the entire support of chi
+kappa = dabs( fD_tot / ( u2chi_sum_tot * dx * dy * dz) ) 
+
+!if( jt < 1000 ) then
+
+!  kappa = ( dble(jt) / 1000._rprec ) * kappa 
+
+!endif
+
+do nc = 1, ncluster_unreslv_ref
+
+  unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
+
+  clindx_p   => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
+  
+  clforce_t(clindx_p) % kappa = kappa
+  
+  nullify(unreslv_cl_loc_id_p,clindx_p)
   
 enddo
 
@@ -883,7 +919,7 @@ do nc = 1, ncluster_unreslv
     
     !if( jt >= 1000 ) write(*,'(a,2i,f9.4)') 'coord, clindx_p, kappa : ', coord, clindx_p, clforce_t( clindx_p ) % kappa
     
-    fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % kappa * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) / (dx*dy*dz) ! / 100000._rprec
+    fx(i,j,k) = - 0.5_rprec * clforce_t( clindx_p ) % kappa * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) / (dx*dy*dz) 
     
     clforce_t( clindx_p ) % fD = clforce_t( clindx_p ) % fD + fx(i,j,k)
  

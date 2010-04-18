@@ -17,6 +17,7 @@ $endif
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
 logical, parameter :: clforce_vel_write = .true.
+integer, parameter :: nstep_ramp = 100000
 
 
 logical, parameter :: brforce_calc = .false.
