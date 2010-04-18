@@ -17,8 +17,9 @@ $endif
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
 logical, parameter :: clforce_vel_write = .true.
-integer, parameter :: nstep_ramp = 10
+integer, parameter :: nstep_ramp = 1
 logical, parameter :: use_local_kappa = .true.
+real(rprec), parameter :: kappa_cap = 200._rprec
 
 
 logical, parameter :: brforce_calc = .false.

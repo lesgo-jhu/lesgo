@@ -811,6 +811,8 @@ do nc = 1, ncluster_unreslv_ref
   kappa_p = 0.5_rprec * fD / ( u2chi_sum * dx * dy * dz) 
   
   $endif
+  
+  if(kappa_p > kappa_cap) kappa_p = kappa_cap
  
   nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
   nullify(parent_p)
@@ -918,6 +920,8 @@ enddo
 
 ! kappa for the entire support of chi
 kappa = 0.5_rprec * fD_tot / ( u2chi_sum_tot * dx * dy * dz) 
+
+if(kappa > kappa_cap) kappa = kappa_cap
 
 do nc = 1, ncluster_unreslv_ref
 
