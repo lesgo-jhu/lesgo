@@ -48,7 +48,7 @@ logical :: in_bottom_surf, btw_planes
 
 integer, dimension(3) :: cyl_loc
 
-logical :: brindx_set = .false. !  Used for finding branch closest to each point
+!logical :: brindx_set = .false. !  Used for finding branch closest to each point
 
 !integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
 !real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
@@ -61,7 +61,7 @@ program cyl_skew_pre_ls
 $if ($MPI)
 use param, only : coord
 $endif
-use cyl_skew_pre_base_ls, only : DIST_CALC, ntree, brindx_set
+use cyl_skew_pre_base_ls, only : DIST_CALC, ntree
 use cyl_skew_base_ls, only : ngen, ngen_reslv
 use messages
 implicit none
@@ -79,24 +79,6 @@ do nt = 1, ntree
   if(coord == 0) write(*,*) 'Tree id : ', nt
   $endif
     
-  if(DIST_CALC) call main_loop(nt)
-  
-enddo 
-
-brindx_set = .true.
-
-call initialize()
-
-do nt = 1, ntree
-  
-  $if ($DEBUG)
-  if(coord == 0) write(*,*) 'Tree id : ', nt
-  $endif
-  
-  !!$if ($RNS_LS)
-  !! if(coord == 0) call rns_planes(nt)
-  !!$endif
-   
   if(DIST_CALC) call main_loop(nt)
   
 enddo 
@@ -120,7 +102,7 @@ use param, only : coord
 $endif
 
 use param, only : nz
-use cyl_skew_pre_base_ls, only : gcs_t, BOGUS, brindx_set
+use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
 
@@ -128,12 +110,10 @@ implicit none
 
 integer :: ng,i,j,k
 
-if(.not. brindx_set) then
 call initialize_mpi ()
 call allocate_arrays()
 call cyl_skew_fill_tree_array_ls()
 call generate_grid()
-endif
 
 !!  Allocate x,y,z for all coordinate systems
 !allocate(gcs_t(nx+2,ny,$lbz:nz))
@@ -142,10 +122,10 @@ endif
 gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
-if(.not. brindx_set) then
+
   gcs_t(:,:,:)%brindx=0
   gcs_t % clindx = 0
-endif
+
 
 !  Initialize the iset flag
 gcs_t(:,:,:)%iset=0
@@ -159,10 +139,10 @@ if(use_bottom_surf) then
   do k=$lbz,Nz
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
     if(gcs_t(1,1,k)%phi <= 0.) then 
-        if(.not. brindx_set) then
-          gcs_t(:,:,k)%brindx = -1
-          gcs_t(:,:,k)%clindx = -1
-        endif
+        !if(.not. brindx_set) then
+        !  gcs_t(:,:,k)%brindx = -1
+        !  gcs_t(:,:,k)%clindx = -1
+        !endif
     endif
    
   enddo
@@ -230,11 +210,10 @@ subroutine main_loop(nt)
 use types, only : rprec
 use param, only : nx, ny, nz
 use cyl_skew_base_ls, only : tr_t
-use cyl_skew_pre_base_ls, only : gcs_t, brindx_set
+use cyl_skew_pre_base_ls, only : gcs_t
 implicit none
 
 integer, intent(IN) :: nt
-integer, pointer :: ngen_p => null()
 
 integer :: ng, nc, nb,i,j,k
 !  Loop over all global coordinates
@@ -245,19 +224,8 @@ do k=$lbz,Nz
   do j=1,ny
 
     do i=1,nx+2
-
-    
-      if(.not. brindx_set) then
-      
-        ngen_p => tr_t(nt) % ngen
         
-      else
-       
-        ngen_p => tr_t(nt) % ngen_reslv
-        
-      endif
-        
-      do ng = 1, ngen_p
+      do ng = 1, tr_t(nt) % ngen_reslv
         
         do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
 
@@ -273,8 +241,6 @@ do k=$lbz,Nz
             
         enddo
       enddo
-      
-      nullify(ngen_p)
       
     enddo
   enddo
@@ -384,7 +350,7 @@ use types, only : rprec
 use cyl_skew_base_ls, only : branch, tr_t
 use cyl_skew_pre_base_ls, only : lcs_t, slcs_t, vgcs_t, sgcs_t, gcs_t
 use cyl_skew_pre_base_ls, only : in_cyl_top, zrot_axis, ecs_t, eps
-use cyl_skew_pre_base_ls, only : in_cyl_bottom, brindx_set
+use cyl_skew_pre_base_ls, only : in_cyl_bottom
 implicit none
 
 integer, intent(IN) :: nt,ng,nc,nb,i,j,k
@@ -431,10 +397,10 @@ if(sgcs_t%xyz(3) >= bplane .and. sgcs_t%xyz(3) <= tplane) then
 
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(.not. brindx_set) then
-      gcs_t(i,j,k)%brindx = brindx_p
-      gcs_t(i,j,k)%clindx = clindx_p
-    endif
+    !if(.not. brindx_set) then
+    !  gcs_t(i,j,k)%brindx = brindx_p
+    !  gcs_t(i,j,k)%clindx = clindx_p
+    !endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -452,10 +418,10 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      if(.not. brindx_set) then
-        gcs_t(i,j,k)%brindx = brindx_p
-        gcs_t(i,j,k)%clindx = clindx_p
-      endif
+      !if(.not. brindx_set) then
+      !  gcs_t(i,j,k)%brindx = brindx_p
+      !  gcs_t(i,j,k)%clindx = clindx_p
+      !endif
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -472,10 +438,10 @@ else
 
     if(dist <= dabs(gcs_t(i,j,k)%phi)) then
       gcs_t(i,j,k)%phi = dist
-      if(.not. brindx_set) then
-        gcs_t(i,j,k)%brindx = brindx_p
-        gcs_t(i,j,k)%clindx = clindx_p
-      endif
+      !if(.not. brindx_set) then
+      !  gcs_t(i,j,k)%brindx = brindx_p
+      !  gcs_t(i,j,k)%clindx = clindx_p
+      !endif
       gcs_t(i,j,k)%itype = 1
       call set_iset(i,j,k)
     endif
@@ -489,10 +455,10 @@ if(in_cyl_top) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - tplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(.not. brindx_set) then
-      gcs_t(i,j,k)%brindx = brindx_p
-      gcs_t(i,j,k)%clindx = clindx_p
-    endif
+    !if(.not. brindx_set) then
+    !  gcs_t(i,j,k)%brindx = brindx_p
+    !  gcs_t(i,j,k)%clindx = clindx_p
+    !endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -502,10 +468,10 @@ if(in_cyl_bottom) then
   dist = dabs(gcs_t(i,j,k)%xyz(3) - bplane)
   if(dist <= dabs(gcs_t(i,j,k)%phi)) then
     gcs_t(i,j,k)%phi = dist
-    if(.not. brindx_set) then
-      gcs_t(i,j,k)%brindx = brindx_p
-      gcs_t(i,j,k)%clindx = clindx_p
-    endif
+    !if(.not. brindx_set) then
+    !  gcs_t(i,j,k)%brindx = brindx_p
+    !  gcs_t(i,j,k)%clindx = clindx_p
+    !endif
     gcs_t(i,j,k)%itype = 1
     call set_iset(i,j,k)
   endif
@@ -564,7 +530,7 @@ use types, only : rprec
 use param, only : nx, ny, nz, dz
 use messages
 use cyl_skew_pre_base_ls, only : gcs_t
-use cyl_skew_base_ls, only : tr_t, ngen, filt_width
+use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
 $if($MPI)
 use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array
@@ -577,6 +543,10 @@ real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locat
 integer :: i,j,k, id_gen, iface, ubz
 real(rprec) :: chi_sum
 real(rprec), pointer :: bplane => null(), tplane=> null()
+integer :: dumb_brindx
+integer, pointer, dimension(:) :: brindx_loc_id_p
+
+nullify(brindx_loc_id_p)
 
 allocate(z_w($lbz:nz))
 
@@ -627,29 +597,29 @@ do k=$lbz,ubz
 
         if(iface == 0) then
 
-          call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi)
+          call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           
         elseif(iface == 1) then
     
           !  Set z location to bottom plane of generation
           call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane/), &
-            id_gen, filt_width, gcs_t(i,j,k)%chi)
+            id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           !  Normalize by volume fraction
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane)/dz
 
         elseif(iface == 2) then
   
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, chi_sum)
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, chi_sum, dumb_brindx)
           !  Normalize by volume fraction
           chi_sum = chi_sum * (tplane - z_w(k))/dz
 
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen+1, filt_width, gcs_t(i,j,k)%chi)
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen+1, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           !  Normalize by volume fraction
           gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane)/dz
 
         elseif(iface == 3) then
   
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, gcs_t(i,j,k)%chi)
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           !  Normalize by volume fraction
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane - z_w(k))/dz
   
@@ -673,6 +643,23 @@ $endif
 
 !  Ensure all pointers are nullified
 nullify(bplane,tplane)
+
+!  Set clindx based on brindx
+do k=$lbz,ubz
+  do j=1,ny
+    do i=1,nx
+    
+      if(gcs_t(i,j,k) % brindx > 0) then
+      brindx_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k) % brindx )
+
+      gcs_t(i,j,k) % clindx = tr_t(brindx_loc_id_p(1)) % gen_t(brindx_loc_id_p(2)) % cl_t(brindx_loc_id_p(3)) % indx
+      nullify(brindx_loc_id_p)
+      endif
+    enddo
+    
+  enddo
+  
+enddo
 
 return
 
@@ -747,7 +734,7 @@ return
 end subroutine find_assoc_gen
 
 !**********************************************************************
-subroutine filter_chi(xyz, id_gen, delta, chi)
+subroutine filter_chi(xyz, id_gen, delta, chi, brindx)
 !**********************************************************************
 !  This subroutine performs filtering in the horizontal planes
 !
@@ -762,10 +749,11 @@ integer,     intent(in)               :: id_gen
 real(rprec), intent(in)               :: delta
 
 real(rprec), intent(out)              :: chi
+integer, intent(out)                  :: brindx
 
 integer :: nt, nc
 
-real(rprec) :: delta2 
+real(rprec) :: delta2, brdist
 
 integer, pointer :: ncluster_p
 type(cluster), pointer, dimension(:) :: cl_t_p
@@ -773,6 +761,9 @@ type(cluster), pointer, dimension(:) :: cl_t_p
 chi=0.
 
 delta2 = delta*delta
+
+brdist = 10._rprec
+brindx = -1
 
 do nt=1, ntree
   
@@ -783,7 +774,7 @@ do nt=1, ntree
   do nc = 1, ncluster_p
   
     !  Filter over cluster
-    call filter_cl_chi(xyz, cl_t_p(nc), delta, chi) 
+    call filter_cl_chi(xyz, cl_t_p(nc), delta, chi, brdist, brindx) 
 
   enddo
   
@@ -800,8 +791,10 @@ return
 end subroutine filter_chi
 
 !**********************************************************************
-subroutine filter_cl_chi(xyz, cl_t, delta, chi)
+subroutine filter_cl_chi(xyz, cl_t, delta, chi, brdist, brindx)
 !**********************************************************************
+!  Also assigns branch index consistent with filtering of chi
+!
 use types, only : rprec
 use cyl_skew_base_ls, only : cluster, vector, branch, point_2d
 use cyl_skew_pre_base_ls, only : zrot_axis
@@ -811,15 +804,19 @@ real(rprec),  intent(in), dimension(3) :: xyz
 type(cluster), target, intent(in)      :: cl_t
 real(rprec), intent(in)                :: delta
 real(rprec), intent(inout)             :: chi
+real(rprec), intent(inout)             :: brdist
+integer, intent(inout)                 :: brindx
 
 integer     :: nb
 real(rprec) :: chi_int, ds
+real(rprec) :: brdist_check
 
 integer, pointer                   :: nbranch_p
 real(rprec), pointer               :: skew_angle_p, angle_p
 real(rprec), pointer, dimension(:) :: angle2_p
 real(rprec), pointer, dimension(:) :: a_p, b_p
 real(rprec), pointer, dimension(:) :: bot_p, top_p, cl_origin_p
+integer, pointer                   :: indx_p
 
 
 type(point_2d), allocatable, dimension(:) :: lpnt_t, cpnt_t
@@ -832,6 +829,7 @@ type(branch), pointer, dimension(:) :: br_t_p
 ! Nullify all pointers
 nullify(nbranch_p, cl_origin_p, br_t_p)
 nullify(top_p, bot_p, skew_angle_p, angle_p)
+nullify(indx_p)
 
 nbranch_p   => cl_t % nbranch
 cl_origin_p => cl_t % origin
@@ -846,6 +844,7 @@ do nb = 1, nbranch_p
   bot_p        => br_t_p(nb) % bot
   skew_angle_p => br_t_p(nb) % skew_angle
   angle_p      => br_t_p(nb) % angle
+  indx_p      => br_t_p(nb) % indx
 
   svec_t % xyz = top_p - bot_p
 
@@ -856,12 +855,20 @@ do nb = 1, nbranch_p
   
   ! center point of area to integrate over in z-plane
   cpnt_t(nb) % xy = bot_p(1:2) + ds * svec_t%xyz(1:2) 
-  
+    
   !    write(*,'(1a,3f12.6)') 'xyz ', xyz
   !    write(*,'(1a,3f12.6)') 'xyz_c : ', xyz_c
    
   !  Compute local vector to branch coordinate system (must be in 3D); project to z=0
   xyz_rot = (/ xyz(1), xyz(2), 0._rprec /) - (/ cpnt_t(nb) % xy(1), cpnt_t(nb) % xy(2), 0._rprec /)
+  
+  !  Compute magnitude of distance from point to center of ellipse
+  call vector_magnitude_3d(xyz_rot, brdist_check)
+  !write(*,*) 'brdist_check : ', brdist_check
+  if( brdist_check < brdist ) then
+    brdist = brdist_check
+    brindx = indx_p ! This is the new closest branch
+  endif
  
   !   write(*,'(1a,f12.6)') 'zrot_t(id_gen)%angle(n)*180/pi : ', zrot_t(id_gen)%angle(n)*180./pi
   !  Perform rotation of local vector about z-axis into ellipse coordinate system
@@ -871,6 +878,7 @@ do nb = 1, nbranch_p
   lpnt_t(nb) % xy = xyz_rot(1:2) 
   
   nullify(top_p, bot_p, skew_angle_p, angle_p)
+  nullify(indx_p)
   
 enddo
 
