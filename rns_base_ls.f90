@@ -16,25 +16,21 @@ $endif
 
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
-logical, parameter :: clforce_vel_write = .true.
-integer, parameter :: nstep_ramp = 1
+!logical, parameter :: clforce_vel_write = .true.
+
+integer, parameter :: nstep_ramp = 1000
+
 logical, parameter :: use_local_kappa = .true.
-real(rprec), parameter :: kappa_cap = 200._rprec
+real(rprec), parameter :: kappa_cap = 10000._rprec
 
 
 logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
-
-
-!  Flag for writing info (forces, velocity, etc.) on tree 1 (main) only
-logical, parameter :: use_main_tree_only = .true.
-
-!type rns
-!  integer :: ntrees, nplanes
-!  logical :: plane_u_calc
-!end type rns
+!  Flag for ...
+logical, parameter :: use_main_tree_ref = .false.
+logical, parameter :: write_main_tree_only = .true.
 
 type ref_plane
   integer :: nzeta, neta ! discretization
@@ -66,6 +62,7 @@ integer :: ncluster_reslv ! total number of resolved clusters
 integer :: ncluster_reslv_ref
 integer :: ncluster_ref ! number of clusters used for computing reference quantities (size of cl_ref_plane_t)
 integer :: ncluster_tot ! total number of clusters for all trees
+integer :: ncluster_write_ref ! number of clusters to write reference data for
 integer :: ntree_ref !  number of trees used in reference calculations 
 
 integer, target :: brindx(ld, ny, $lbz:nz)

@@ -60,12 +60,18 @@ do nt = 1, ntree
   enddo
 enddo
 
-if(use_main_tree_only) then
+if(use_main_tree_ref) then
   ncluster_ref = tr_t(1) % ncluster
   ntree_ref = 1
 else
   ncluster_ref = ncluster_tot
   ntree_ref = ntree
+endif
+
+if(write_main_tree_only) then
+  ncluster_write_ref = tr_t(1) % ncluster
+else
+  ncluster_write_ref = ncluster_tot
 endif
 
 ncluster_reslv = 0
@@ -88,7 +94,7 @@ do nt = 1, ntree_ref
   enddo
 enddo
 
-if(use_main_tree_only) then
+if(use_main_tree_ref) then
   ncluster_unreslv_ref = ncluster_ref - ncluster_reslv_ref
 else
   ncluster_unreslv_ref = ncluster_unreslv
@@ -168,7 +174,7 @@ real(rprec), pointer, dimension(:) :: origin_p
 
 nullify(d_p, l_p, skew_angle_p, clindx_p)
 
-allocate(cl_ref_plane_t( ncluster_ref ))
+allocate(cl_ref_plane_t( ncluster_ref ) )
 
 if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
 
@@ -283,7 +289,7 @@ integer, pointer :: clindx_p, ng_p, brindx_p
 integer, pointer, dimension(:) :: br_loc_id_p
 type(indx_array), pointer, dimension(:) :: cl_pre_indx_array
 
-nullify(ng_p, clindx_p, br_loc_id_p, cl_pre_indx_array)
+nullify(ng_p, clindx_p, br_loc_id_p, cl_pre_indx_array, brindx_p)
 
 allocate(cl_pre_indx_array( ncluster_tot ) )
 
@@ -313,7 +319,7 @@ do k=1, nz - 1
       
         br_loc_id_p => brindx_to_loc_id(:, brindx_p)
       
-        if(br_loc_id_p(1) < 1) then
+        if(br_loc_id_p(1) < 1) then ! nt < 1
           call error(sub_name, 'brindx(i,j,k) : ', brindx_p)
           call mesg(sub_name, 'coord : ', coord)
           call error(sub_name, 'br_loc_id_p(1) : ', br_loc_id_p(1))
@@ -325,7 +331,7 @@ do k=1, nz - 1
         
         !write(*,*) 'coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3) : ', coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3)
       
-        if( ng_p <= ngen_reslv ) then
+        if( ng_p <= tr_t( br_loc_id_p(1) ) % ngen_reslv ) then
           !  Use only inside points
           if ( phi(i,j,k) <= 0._rprec ) then 
           
@@ -339,7 +345,7 @@ do k=1, nz - 1
           
           endif
         
-        elseif ( ng_p <= ngen ) then
+        elseif ( ng_p <= tr_t( br_loc_id_p(1) ) % ngen ) then
 
           !write(*,*) 'chi(i,j,k) : ', chi(i,j,k)
           
@@ -436,9 +442,9 @@ type(cluster), pointer :: cl_t_p
 
 nullify(tr_t_p, cl_t_p)
 
+!  Allocate and initialize forces
 !if(.not. use_main_tree_only) call error(sub_name,'use_main_tree_only must be true')
 allocate( clforce_t ( ncluster_tot ) ) 
-
 clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
 
 do nt = 1, ntree
@@ -651,7 +657,7 @@ enddo
 !      
 !enddo
 
-if(use_main_tree_only) then
+if(use_main_tree_ref) then
 !  Need to put CD on other resolved clusters (on other trees)
   do nt = 2, ntree
     do ng = 1, tr_t(nt) % ngen_reslv
@@ -938,7 +944,7 @@ enddo
 endif
 
 !  This assumes kappa for all clusters are the same on all trees
-if(use_main_tree_only) then
+if(use_main_tree_ref) then
 !  Need to put CD on other resolved clusters (on other trees)
   do nt = 2, ntree
     do ng = 1, tr_t(nt) % ngen_reslv
@@ -1018,9 +1024,9 @@ do nc = 1, ncluster_unreslv
     
     !if( jt >= 1000 ) write(*,'(a,2i,f9.4)') 'coord, clindx_p, kappa : ', coord, clindx_p, clforce_t( clindx_p ) % kappa
     
-    fx(i,j,k) = - clforce_t( clindx_p ) % kappa * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
+    fx(i,j,k) = - dabs(clforce_t( clindx_p ) % kappa *  u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
     
-    clforce_t( clindx_p ) % fD = clforce_t( clindx_p ) % fD + fx(i,j,k)
+    clforce_t( clindx_p ) % fD = clforce_t( clindx_p ) % fD - fx(i,j,k)
  
     nullify(i,j,k)
     
@@ -1066,7 +1072,8 @@ integer :: nc, nvar, nvar_count
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
-nvar = ncluster_ref + 1
+
+nvar = ncluster_write_ref + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
@@ -1112,7 +1119,7 @@ integer :: nc, nvar, nvar_count
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 !  Write cluster velocity for all trees + time step
-nvar = ncluster_ref + 1
+nvar = ncluster_write_ref + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
@@ -1159,7 +1166,7 @@ integer :: nc, nvar, nvar_count
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
-nvar = ncluster_ref + 1
+nvar = ncluster_write_ref + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
@@ -1206,7 +1213,7 @@ integer :: nc, nvar, nvar_count
 integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
-nvar = ncluster_ref + 1
+nvar = ncluster_write_ref + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
