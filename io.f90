@@ -1405,17 +1405,25 @@ $endif
  ! tsum_t%v2(1:nx,1:ny,1:nz), tsum_t%w2(1:nx,1:ny,1:nz), tsum_t%uw(1:nx,1:ny,1:nz), &
  ! tsum_t%vw(1:nx,1:ny,1:nz), tsum_t%uv(1:nx,1:ny,1:nz), tsum_t%dudz(1:nx,1:ny,1:nz) /), &
  ! x, y, z(1:nz))
+ call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx, Ny, Nz/), &
+   '"u","v","w","u2","v2","w2","uw","vw","uv","dudz"', coord, 2)
 
- call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tsum_t%u(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%u2(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v2(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w2(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uw(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%vw(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uv(1:nx,1:ny,1:nz))
- call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%dudz(1:nx,1:ny,1:nz))
+  
+  call write_real_data_3D(fname,'append', 'formatted', 10, nx, ny, nz, (/ tsum_t%u(1:nx,1:ny,1:nz), &
+  tsum_t%v(1:nx,1:ny,1:nz), tsum_t%w(1:nx,1:ny,1:nz), tsum_t%u2(1:nx,1:ny,1:nz), &
+  tsum_t%v2(1:nx,1:ny,1:nz), tsum_t%w2(1:nx,1:ny,1:nz), tsum_t%uw(1:nx,1:ny,1:nz), &
+  tsum_t%vw(1:nx,1:ny,1:nz), tsum_t%uv(1:nx,1:ny,1:nz), tsum_t%dudz(1:nx,1:ny,1:nz) /), &
+  x(1:nx), y(1:ny), z(1:nz))
+ !call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tsum_t%u(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%u2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uw(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%vw(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uv(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%dudz(1:nx,1:ny,1:nz))
 
 return
 end subroutine tsum_write
@@ -2046,7 +2054,7 @@ integer :: fid, i,j,k
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .true.
+tsum_t%calc = .false.
 tsum_t%nstart = 1
 tsum_t%nend = nsteps
 
@@ -2060,9 +2068,9 @@ point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
-domain_t%nstart = 100
+domain_t%nstart = 1000
 domain_t%nend   = nsteps
-domain_t%nskip = 100
+domain_t%nskip = 1000
 
 !  y-plane stats/data
 yplane_t%calc   = .false.
@@ -2074,14 +2082,14 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .false.
-zplane_t%nstart = 1
+zplane_t%calc   = .true.
+zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
 zplane_t%nloc   = 3
-zplane_t%loc(1) = 0.5
-zplane_t%loc(2) = 1.5
-zplane_t%loc(3) = L_z*nproc
+zplane_t%loc(1) = 1.95925
+zplane_t%loc(2) = 2.1636
+zplane_t%loc(3) = 2.26515
 
 !  z-plane TIME-AVERAGED stats/data
 zplane_avg_t%calc   = .false.
