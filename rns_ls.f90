@@ -818,12 +818,13 @@ do nc = 1, ncluster_unreslv_ref
   
   call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   
-  if(u2chi_sum_global <= 0._rprec) then
-    kappa_p = 0._rprec
+ ! if(u2chi_sum_global <= 0._rprec) then
+ 
+!   kappa_p = 0._rprec
     !call mesg(sub_name, 'Volume integration for kappa not correct.')
-  else 
+!  else 
     kappa_p = 0.5_rprec * dabs( fD / ( u2chi_sum_global * dx * dy * dz) )
-  endif
+!  endif
   
   $else
   
@@ -940,12 +941,12 @@ do nc = 1, ncluster_unreslv_ref
   
 enddo
 
-if(u2chi_sum_tot <= 0._rprec) then
-  kappa = 0._rprec
-else  
+!if(u2chi_sum_tot <= 0._rprec) then
+!  kappa = 0._rprec
+!else  
 ! kappa for the entire support of chi
   kappa = 0.5_rprec * dabs ( fD_tot / ( u2chi_sum_tot * dx * dy * dz) )
-endif
+!endif
 
 if(kappa > kappa_cap) kappa = kappa_cap
 
