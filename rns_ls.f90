@@ -626,7 +626,7 @@ do nc = 1, ncluster_reslv_ref
     $if($MPI)
     cl_fD = cl_fD - fx(i,j,k) * dx * dy * dz
     $else
-    fD_p = fD_p - fx(i,j,k) * dx * dy * dz
+    fD_p = fD_p - fx(i,j,k)
     $endif
     
     nullify(i,j,k)
