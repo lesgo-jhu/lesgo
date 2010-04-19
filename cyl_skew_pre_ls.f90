@@ -762,7 +762,7 @@ chi=0.
 
 delta2 = delta*delta
 
-brdist = 10._rprec
+brdist = huge(1.)
 brindx = -1
 
 do nt=1, ntree
