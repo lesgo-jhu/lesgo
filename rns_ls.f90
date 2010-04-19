@@ -822,7 +822,7 @@ do nc = 1, ncluster_unreslv_ref
     kappa_p = 0._rprec
     !call mesg(sub_name, 'Volume integration for kappa not correct.')
   else 
-    kappa_p = 0.5_rprec * fD / ( u2chi_sum_global * dx * dy * dz) 
+    kappa_p = 0.5_rprec * dabs( fD / ( u2chi_sum_global * dx * dy * dz) )
   endif
   
   $else
@@ -830,7 +830,7 @@ do nc = 1, ncluster_unreslv_ref
   if(u2chi_sum <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
   !kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum * dx * dy * dz )
   
-  kappa_p = 0.5_rprec * fD / ( u2chi_sum * dx * dy * dz) 
+  kappa_p = 0.5_rprec * dabs ( fD / ( u2chi_sum * dx * dy * dz) )
   
   $endif
   
@@ -944,7 +944,7 @@ if(u2chi_sum_tot <= 0._rprec) then
   kappa = 0._rprec
 else  
 ! kappa for the entire support of chi
-  kappa = 0.5_rprec * fD_tot / ( u2chi_sum_tot * dx * dy * dz) 
+  kappa = 0.5_rprec * dabs ( fD_tot / ( u2chi_sum_tot * dx * dy * dz) )
 endif
 
 if(kappa > kappa_cap) kappa = kappa_cap
@@ -1041,9 +1041,8 @@ do nc = 1, ncluster_unreslv
     j => cl_indx_array( clindx_p ) % iarray(2,np)
     k => cl_indx_array( clindx_p ) % iarray(3,np)
     
-    !if( jt >= 1000 ) write(*,'(a,2i,f9.4)') 'coord, clindx_p, kappa : ', coord, clindx_p, clforce_t( clindx_p ) % kappa
-    
-    fx(i,j,k) = - dabs(clforce_t( clindx_p ) % kappa *  u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
+    !  kappa > 0 always
+    fx(i,j,k) = - clforce_t( clindx_p ) % kappa *  u(i,j,k) * u(i,j,k) * chi(i,j,k)
     
     clforce_t( clindx_p ) % fD = clforce_t( clindx_p ) % fD - fx(i,j,k)
  
