@@ -490,16 +490,19 @@ real :: ind2
         p_thk => wind_farm_t%turbine_t(s)%thk
 
     !calculate total disk-averaged velocity for each turbine (current,instantaneous)    
-    !u_d and u_d_T are velocities in the normal direction	 
-    !for calculating average velocity, nodes are weighted equally    
+    !u_d and u_d_T are velocities in the normal direction	  
+    !weighted average using "ind"
         call interp_to_uv_grid(w, w_uv, w_uv_tag) 
         p_u_d = 0.
         do l=1,p_num_nodes
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
-            p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2))/p_num_nodes
+            p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2)) &
+                * wind_farm_t%turbine_t(s)%ind(l)
         enddo  
+        !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
+        p_u_d = p_u_d *dx*dy*dz/(pi/4.*(wind_farm_t%turbine_t(s)%dia)**2 * wind_farm_t%turbine_t(s)%thk)
 
     !add this current value to the "running average" (first order relaxation)
         if (p_u_d_flag) then
@@ -511,7 +514,7 @@ real :: ind2
 
     !calculate total thrust force for each turbine  (per unit mass)
     !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T   !/p_thk            !<<<<<< try using p_u_d instead of p_u_d_T
+        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T/p_thk        
 
         if (s<4) then
             a0 = jt_total*dt_dim
@@ -528,6 +531,9 @@ real :: ind2
         endif
         
     !apply forcing to each node
+    fx = 0.
+    fy = 0.
+    fz = 0.
         do l=1,p_num_nodes
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
@@ -535,9 +541,9 @@ real :: ind2
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
             fx(i2,j2,k2) = p_f_n*p_nhat1*ind2                            
             fy(i2,j2,k2) = p_f_n*p_nhat2*ind2   
-            fz(i2,j2,k2) = p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
-            !fz(i2,j2,k2) = 0.5*p_f_n*p_nhat3*ind2
-            !fz(i2,j2,k2+1) = 0.5*p_f_n*p_nhat3*ind2
+            !fz(i2,j2,k2) = p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
+            fz(i2,j2,k2) = 0.5*p_f_n*p_nhat3*ind2
+            fz(i2,j2,k2+1) = 0.5*p_f_n*p_nhat3*ind2
             
             !if (s==1) then
             !    a0 = jt_total*dt_dim
