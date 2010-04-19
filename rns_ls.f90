@@ -60,6 +60,8 @@ do nt = 1, ntree
   enddo
 enddo
 
+if(coord == 0) write(*,*) 'ncluster_tot : ', ncluster_tot
+
 if(use_main_tree_ref) then
   ncluster_ref = tr_t(1) % ncluster
   ntree_ref = 1
@@ -68,11 +70,15 @@ else
   ntree_ref = ntree
 endif
 
+if(coord == 0) write(*,*) 'ncluster_ref, ntree_ref : ', ncluster_ref, ntree_ref
+
 if(write_main_tree_only) then
   ncluster_write_ref = tr_t(1) % ncluster
 else
   ncluster_write_ref = ncluster_tot
 endif
+
+if(coord == 0) write(*,*) 'ncluster_write_ref : ', ncluster_write_ref
 
 ncluster_reslv = 0
 do nt = 1, ntree
@@ -85,6 +91,8 @@ enddo
 
 ncluster_unreslv = ncluster_tot - ncluster_reslv
 
+if(coord == 0) write(*,*) 'ncluster_reslv : ', ncluster_reslv
+
 ncluster_reslv_ref = 0
 do nt = 1, ntree_ref
   do ng = 1, tr_t(nt) % ngen
@@ -94,11 +102,15 @@ do nt = 1, ntree_ref
   enddo
 enddo
 
+if(coord == 0) write(*,*) 'ncluster_reslv_ref : ', ncluster_reslv_ref
+
 if(use_main_tree_ref) then
   ncluster_unreslv_ref = ncluster_ref - ncluster_reslv_ref
 else
   ncluster_unreslv_ref = ncluster_unreslv
 endif
+
+if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
 
 !if(coord == 0) then
 
@@ -638,7 +650,8 @@ do nc = 1, ncluster_reslv_ref
   $endif
   
   clforce_t(clindx_p) % CD = fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
+  !if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
+  
   nullify(reslv_cl_loc_id_p, clindx_p)
   nullify(npoint_p, iarray_p)
   nullify(fD_p)
@@ -805,9 +818,12 @@ do nc = 1, ncluster_unreslv_ref
   
   call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   
-  if(u2chi_sum_global <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
-  
-  kappa_p = 0.5_rprec * fD / ( u2chi_sum_global * dx * dy * dz) 
+  if(u2chi_sum_global <= 0._rprec) then
+    kappa_p = 0._rprec
+    !call mesg(sub_name, 'Volume integration for kappa not correct.')
+  else 
+    kappa_p = 0.5_rprec * fD / ( u2chi_sum_global * dx * dy * dz) 
+  endif
   
   $else
   
@@ -905,7 +921,7 @@ do nc = 1, ncluster_unreslv_ref
   
   call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   
-  if(u2chi_sum_global <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
+  !if(u2chi_sum_global <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
   
   u2chi_sum_tot = u2chi_sum_tot + u2chi_sum_global
   
@@ -924,8 +940,12 @@ do nc = 1, ncluster_unreslv_ref
   
 enddo
 
+if(u2chi_sum_tot <= 0._rprec) then
+  kappa = 0._rprec
+else  
 ! kappa for the entire support of chi
-kappa = 0.5_rprec * fD_tot / ( u2chi_sum_tot * dx * dy * dz) 
+  kappa = 0.5_rprec * fD_tot / ( u2chi_sum_tot * dx * dy * dz) 
+endif
 
 if(kappa > kappa_cap) kappa = kappa_cap
 
@@ -999,7 +1019,6 @@ nullify(i,j,k)
 nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
 
 !----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
-
 !  Compute force due to unresolved clusters
 do nc = 1, ncluster_unreslv
 
