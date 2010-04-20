@@ -331,9 +331,9 @@ enddo
 if(.not. use_beta_sub_regions) then
 
   !  Define entire unresolved region of tree as a beta region
-  allocate( beta_ref_plane_t( rns_ntree ) )
+  allocate( beta_ref_plane_t( nbeta ) )
   
-  do nt = 1, rns_ntree
+  do nt = 1, nbeta
 
    hbot_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv ) % tplane
    htop_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % tplane
@@ -417,7 +417,7 @@ use level_set_base, only : phi
 use messages
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_indx_array_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_fill_indx_array_ls'
 
 integer :: i,j,k, nc, np, nb
 integer, pointer :: clindx_p, brindx_p
@@ -425,6 +425,8 @@ integer, pointer :: nt_p, ng_p, nc_p
 
 integer, pointer, dimension(:) :: br_loc_id_p
 type(indx_array), pointer, dimension(:) :: cl_pre_indx_array_t, beta_pre_indx_array_t
+
+if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
 ! ---- Nullify all pointers ----
 nullify(clindx_p, br_loc_id_p, brindx_p)
@@ -454,8 +456,6 @@ enddo
 do nb=1, nbeta
   beta_pre_indx_array_t(nb) % npoint = 0
 enddo
-
-
 
 if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
 
@@ -595,6 +595,8 @@ deallocate(beta_pre_indx_array_t)
 !  
 !enddo
 
+if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
+
 return
 end subroutine rns_fill_indx_array_ls
 
@@ -681,6 +683,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
 
+!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
+
 !if(clforce_calc) then
 
   call rns_cl_force_ls()     !  Get CD, force etc for resolved regions
@@ -707,6 +711,8 @@ character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
   
 !endif
 
+!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
+
 return
 end subroutine rns_CD_ls
 
@@ -732,7 +738,7 @@ $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ntree, tr_t
 $endif
 use messages
-use param, only : nx, ny, nz, dx, dy, dz
+use param, only : nx, ny, nz, dx, dy, dz, coord
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -741,7 +747,7 @@ use functions, only : plane_avg_3D
 use immersedbc, only : fx
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_cl_reslv_CD_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_cl_force_ls'
 
 integer, pointer :: clindx_p
 integer, pointer :: npoint_p
@@ -755,6 +761,8 @@ integer :: nt, ng, nc, np
 $if ($MPI)
 real(rprec) :: cl_fD
 $endif
+
+!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
 !  Comment starts here 
 nullify(clindx_p)
@@ -796,9 +804,9 @@ do nt = 1, rns_ntree
         k => iarray_p(3,np)
   
         $if($MPI)
-        cl_fD = cl_fD - fx(i,j,k) * dx * dy * dz
+        cl_fD = cl_fD + fx(i,j,k) * dx * dy * dz
         $else
-        fD_p = fD_p - fx(i,j,k) * dx * dy * dz
+        fD_p = fD_p + fx(i,j,k) * dx * dy * dz
         $endif
     
         nullify(i,j,k)
@@ -809,7 +817,7 @@ do nt = 1, rns_ntree
       call mpi_allreduce (cl_fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
       $endif
   
-      clforce_t(clindx_p) % CD = fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
+      clforce_t(clindx_p) % CD = -fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
   !if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
   
       nullify(clindx_p)
@@ -852,6 +860,8 @@ enddo
 !  
 !endif
 
+!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
+
 return
 end subroutine rns_cl_force_ls
 
@@ -862,7 +872,7 @@ subroutine rns_beta_force_ls()
 !  with each region dictated by the brindx value. 
 !
 use types, only : rprec
-use param, only : dx, dy, dz, nx, ny, nz, jt
+use param, only : dx, dy, dz, nx, ny, nz, jt, coord
 use messages
 use sim_param, only : u
 use immersedbc, only : fx
@@ -900,6 +910,8 @@ $if($MPI)
 real(rprec) :: fD
 $endif
 
+!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
+
 nullify(i,j,k)
 nullify(npoint_p)
 nullify(clindx_p)
@@ -920,9 +932,9 @@ do nb = 1, nbeta
   
   $if($MPI)
   fD = 0._rprec
-  $else
-  beta_force_t(nb) % fD = 0._rprec
   $endif
+  
+  beta_force_t(nb) % fD = 0._rprec
   
   do np = 1, npoint_p
   
@@ -931,9 +943,9 @@ do nb = 1, nbeta
     k => beta_indx_array_t( nb ) % iarray(3,np)
     
     $if($MPI)
-    fD = 0._rprec
+    fD = fD + fx(i,j,k) * dx * dy * dz
     $else    
-    beta_force_t(nb) % fD = beta_force_t(nb) % fD - fx(i,j,k) * dx * dy * dz
+    beta_force_t(nb) % fD = beta_force_t(nb) % fD + fx(i,j,k) * dx * dy * dz
     $endif
  
     nullify(i,j,k)
@@ -973,7 +985,7 @@ if(use_single_beta_CD) then
     
     do nc = 1, gen_t_p % ncluster
       
-      clindx_p =>  rns_reslv_cl_iarray(gen_t_p % cl_t(nc) % indx)
+      clindx_p =>  rns_reslv_cl_iarray( gen_t_p % cl_t(nc) % indx )
       
       fD_tot = fD_tot + clforce_t(clindx_p) % fD
       
@@ -1005,8 +1017,21 @@ if(use_single_beta_CD) then
     
   enddo
   
-  !  Compute L_int over each region beta
+  !  Compute kappa
+  !  Compute Lint over each region beta
   do nb = 1, nbeta 
+  
+    p1_p    => beta_ref_plane_t (nb) % p1
+    p2_p    => beta_ref_plane_t (nb) % p2
+    p3_p    => beta_ref_plane_t (nb) % p3
+    nzeta_p => beta_ref_plane_t (nb) % nzeta
+    neta_p  => beta_ref_plane_t (nb) % neta
+    area_p  => beta_ref_plane_t (nb) % area
+    u_p     => beta_ref_plane_t (nb) % u
+    
+    u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
+  
+    nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)  
  
     !  Loop over number of points used in beta region
     npoint_p => beta_indx_array_t( nb ) % npoint
@@ -1039,10 +1064,9 @@ if(use_single_beta_CD) then
     kappa_p => beta_force_t(nb) % kappa
     CD_p    => beta_force_t(nb) % CD
     
-    u_p     => beta_ref_plane_t(nb) % u
-    area_p  => beta_ref_plane_t(nb) % area
-    
     kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
+    
+    if(coord == 0) write(*,'(1a,i,3f12.6)') 'nb, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
     
     nullify(kappa_p, CD_p)
     nullify(u_p, area_p)
