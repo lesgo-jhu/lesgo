@@ -15,7 +15,7 @@ save
 private
 
 public :: rns_init_ls !, rns_u_write_ls
-public :: rns_force_ls
+public :: rns_CD_ls
 public :: rns_forcing_ls ! Apply forcing
 
 character (*), parameter :: mod_name = 'rns_ls'
@@ -157,6 +157,12 @@ if(clforce_calc) then
   !if(coord == 0) write(*,*) ' calling rns_set_cl_parent_ls'
   !call rns_set_cl_parent_ls()
   !if(coord == 0) write(*,*) 'called rns_set_cl_parent_ls'
+  
+  allocate( clforce_t ( ncluster_reslv ) ) 
+  clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
+  
+  allocate( beta_force_t( nbeta ) )
+  beta_force_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
 
 endif
 
@@ -636,7 +642,7 @@ end subroutine rns_fill_indx_array_ls
 !end subroutine rns_set_cl_parent_ls
 
 !**********************************************************************
-subroutine rns_force_ls()
+subroutine rns_CD_ls()
 !**********************************************************************
 !  This subroutine handles all CD calculation within the RNS module; 
 !  all CD and force calculations associated with
@@ -652,7 +658,7 @@ use messages
 !!$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_force_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
 
 !if(clforce_calc) then
 
@@ -669,9 +675,9 @@ character (*), parameter :: sub_name = mod_name // '.rns_force_ls'
       call rns_write_cl_fD_ls()
       call rns_write_cl_vel_ls()
       
-      !call rns_write_beta_CD_ls()
-      !call rns_write_beta_fD_ls()
-      !call rns_write_beta_vel_ls()
+      call rns_write_beta_CD_ls()
+      call rns_write_beta_fD_ls()
+      call rns_write_beta_vel_ls()
       call rns_write_beta_kappa_ls()
       
     endif
@@ -681,7 +687,7 @@ character (*), parameter :: sub_name = mod_name // '.rns_force_ls'
 !endif
 
 return
-end subroutine rns_force_ls
+end subroutine rns_CD_ls
 
 
 !**********************************************************************
@@ -835,7 +841,7 @@ subroutine rns_beta_force_ls()
 !  with each region dictated by the brindx value. 
 !
 use types, only : rprec
-use param, only : dx, dy, dz, nx, ny, nz
+use param, only : dx, dy, dz, nx, ny, nz, jt
 use messages
 use sim_param, only : u
 use immersedbc, only : fx
@@ -968,6 +974,8 @@ if(use_single_beta_CD) then
 
   !  Compute CD
   CD = -2._rprec * CD_num / CD_denom
+  
+  if( jt < CD_ramp_nstep ) CD = dble(jt)/dble(CD_ramp_nstep) * CD
   
   !  This CD goes with the regions beta on all trees ! and is the new CD
   do nb = 1, nbeta
@@ -1200,6 +1208,46 @@ return
 end subroutine rns_write_cl_vel_ls
 
 !**********************************************************************
+subroutine rns_write_beta_vel_ls()
+!**********************************************************************
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : jt_total, dt, path
+use strmod
+
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.rns_write_beta_vel_ls'
+character(*), parameter :: fname = path // 'output/rns_beta_vel_ls.dat'
+
+logical :: exst
+character(5000) :: var_list
+integer :: nc, nvar, nvar_count
+
+!  Write cluster force (CD) for all trees + time step
+nvar = nbeta + 1
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do nc = 1, nvar-1
+  
+    !  Create variable list name:
+    call strcat(var_list, ',"u<sub>')
+    call strcat(var_list, nc)
+    call strcat(var_list, ',')
+    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, '</sub>"')
+  enddo
+
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_ref_plane_t(1:nvar-1) % u /))
+
+return
+end subroutine rns_write_beta_vel_ls
+
+!**********************************************************************
 subroutine rns_write_cl_fD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
@@ -1246,6 +1294,86 @@ call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%
 
 return
 end subroutine rns_write_cl_fD_ls
+
+!**********************************************************************
+subroutine rns_write_beta_fD_ls()
+!**********************************************************************
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : jt_total, dt, path
+use strmod
+
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.rns_write_beta_fD_ls'
+character(*), parameter :: fname = path // 'output/rns_beta_fD_ls.dat'
+
+logical :: exst
+character(5000) :: var_list
+integer :: nc, nvar, nvar_count
+
+!  Write cluster force (CD) for all trees + time step
+nvar = nbeta + 1
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do nc = 1, nvar-1
+  
+    !  Create variable list name:
+    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, nc)
+    call strcat(var_list, ',')
+    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, '</sub>"')
+  enddo
+
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % fD /))
+
+return
+end subroutine rns_write_beta_fD_ls
+
+!**********************************************************************
+subroutine rns_write_beta_CD_ls()
+!**********************************************************************
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : jt_total, dt, path
+use strmod
+
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.rns_write_beta_CD_ls'
+character(*), parameter :: fname = path // 'output/rns_beta_CD_ls.dat'
+
+logical :: exst
+character(5000) :: var_list
+integer :: nc, nvar, nvar_count
+
+!  Write cluster force (CD) for all trees + time step
+nvar = nbeta + 1
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do nc = 1, nvar-1
+  
+    !  Create variable list name:
+    call strcat(var_list, ',"CD<sub>')
+    call strcat(var_list, nc)
+    call strcat(var_list, ',')
+    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, '</sub>"')
+  enddo
+
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % CD /))
+
+return
+end subroutine rns_write_beta_CD_ls
 
 !**********************************************************************
 subroutine rns_write_beta_kappa_ls()
