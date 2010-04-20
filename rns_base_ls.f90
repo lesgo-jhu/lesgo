@@ -19,16 +19,17 @@ $endif
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
 
-integer, parameter :: CD_ramp_nstep = 1000
+integer, parameter :: CD_ramp_nstep = 1
 
 logical, parameter :: use_beta_sub_regions = .false.
 logical, parameter :: use_single_beta_CD = .true.
+logical, parameter :: constrain_kappa = .true.
 
 logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
-integer, parameter :: rns_ntree = 2
+integer, parameter :: rns_ntree = 1
 integer, parameter :: rns_tree_layout = 1
 !---------------------------------------------------
 ! 
