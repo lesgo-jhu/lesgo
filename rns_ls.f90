@@ -50,38 +50,46 @@ call cyl_skew_fill_tree_array_ls()
 if(coord == 0) call mesg ( sub_name, 'tree array filled' )
 $endif
 
-!  Get the total number of clusters 
-ncluster_tot = 0
-do nt = 1, ntree
-  do ng = 1, tr_t(nt) % ngen
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-      ncluster_tot = ncluster_tot + 1   
-    enddo    
+!!  Get the total number of clusters 
+!ncluster_tot = 0
+!do nt = 1, ntree
+!  do ng = 1, tr_t(nt) % ngen
+!    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
+!      ncluster_tot = ncluster_tot + 1   
+!    enddo    
+!  enddo
+!enddo
+
+!if(coord == 0) write(*,*) 'ncluster_tot : ', ncluster_tot
+
+!if(use_main_tree_ref) then
+!  !ncluster_ref = tr_t(1) % ncluster
+!  ntree_ref = 1
+!else
+!  !ncluster_ref = ncluster_tot
+!  ntree_ref = ntree
+!endif
+if ( rns_ntree > ntree ) call error ( sub_name, 'rns_ntree > ntree ')
+!  this is used to map the brindx to correct rns tree
+allocate( rns_tree_iarray( ntree ) )
+
+if(rns_tree_layout == 1) then 
+  do nt = 1, ntree
+  
+    if( nt < rns_ntree ) then
+        rns_tree_iarray( nt ) = nt
+    else
+        rns_tree_iarray(nt) = rns_ntree
+    endif
+    
   enddo
-enddo
-
-if(coord == 0) write(*,*) 'ncluster_tot : ', ncluster_tot
-
-if(use_main_tree_ref) then
-  ncluster_ref = tr_t(1) % ncluster
-  ntree_ref = 1
-else
-  ncluster_ref = ncluster_tot
-  ntree_ref = ntree
 endif
 
-if(coord == 0) write(*,*) 'ncluster_ref, ntree_ref : ', ncluster_ref, ntree_ref
 
-if(write_main_tree_only) then
-  ncluster_write_ref = tr_t(1) % ncluster
-else
-  ncluster_write_ref = ncluster_tot
-endif
-
-if(coord == 0) write(*,*) 'ncluster_write_ref : ', ncluster_write_ref
+!if(coord == 0) write(*,*) 'ncluster_ref, ntree_ref : ', ncluster_ref, ntree_ref
 
 ncluster_reslv = 0
-do nt = 1, ntree
+do nt = 1, rns_ntree
   do ng = 1, tr_t(nt) % ngen
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
       if(ng <= tr_t(nt) % ngen_reslv) ncluster_reslv = ncluster_reslv + 1   
@@ -89,28 +97,21 @@ do nt = 1, ntree
   enddo
 enddo
 
-ncluster_unreslv = ncluster_tot - ncluster_reslv
+!ncluster_unreslv = ncluster_tot - ncluster_reslv
 
 if(coord == 0) write(*,*) 'ncluster_reslv : ', ncluster_reslv
 
-ncluster_reslv_ref = 0
-do nt = 1, ntree_ref
-  do ng = 1, tr_t(nt) % ngen
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-      if(ng <= tr_t(nt) % ngen_reslv) ncluster_reslv_ref = ncluster_reslv_ref + 1   
-    enddo    
-  enddo
-enddo
-
-if(coord == 0) write(*,*) 'ncluster_reslv_ref : ', ncluster_reslv_ref
-
-if(use_main_tree_ref) then
-  ncluster_unreslv_ref = ncluster_ref - ncluster_reslv_ref
-else
-  ncluster_unreslv_ref = ncluster_unreslv
+if ( .not. use_beta_sub_regions ) then
+  nbeta = rns_trees
 endif
 
-if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
+!if(use_main_tree_ref) then
+!  ncluster_unreslv_ref = ncluster_ref - ncluster_reslv_ref
+!else
+!  ncluster_unreslv_ref = ncluster_unreslv
+!endif
+
+!if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
 
 !if(coord == 0) then
 
@@ -147,7 +148,7 @@ if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
 
 if(clforce_calc) then
   !  Create cluster reference value plane
-  call rns_fill_cl_ref_plane_array_ls()
+  call rns_fill_ref_plane_array_ls()
   !  Create cluster index array
   call rns_fill_cl_indx_array_ls()
   !  Set parent used for assigning CD's on unresolved branches
@@ -163,8 +164,10 @@ return
 end subroutine rns_init_ls
 
 !**********************************************************************
-subroutine rns_fill_cl_ref_plane_array_ls()
+subroutine rns_fill_ref_plane_array_ls()
 !**********************************************************************
+!  This subroutine fills all reference plane arrays
+!
 use types, only : rprec
 use param, only : dy, dz, USE_MPI, coord
 use messages
@@ -175,6 +178,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
 real(rprec), parameter :: alpha=1._rprec
+real(rprec), parameter :: alpha_rbeta = 1.25_rprec
 
 integer :: nt, ng, nc, nb
 
@@ -182,17 +186,19 @@ real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 
 integer, pointer :: clindx_p, nbranch_p
 real(rprec), pointer :: d_p, l_p, skew_angle_p
+real(rprec), pointer :: hbot_p, htop_p
 real(rprec), pointer, dimension(:) :: origin_p
 
 nullify(d_p, l_p, skew_angle_p, clindx_p)
 
-allocate(cl_ref_plane_t( ncluster_ref ) )
+allocate( cl_ref_plane_t( ncluster_reslv ) )
+allocate( rbeta_ref_plane_t ( rns_ntree ) )
 
-if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
+!if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
 
-do nt=1, ntree_ref
+do nt=1, rns_ntree
 
-  do ng=1, tr_t(nt)%ngen
+  do ng=1, tr_t(nt) % ngen_reslv
   
     do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
     
@@ -200,11 +206,11 @@ do nt=1, ntree_ref
       
       clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
       
-      if(clindx_p > ncluster_ref) then
-        call mesg(sub_name, 'clindx_p : ', clindx_p)
-        call mesg(sub_name, 'ncluster_ref : ', ncluster_ref)
-        call error(sub_name, 'clindx_p > ncluster_ref')
-      endif
+      !if(clindx_p > ncluster_ref) then
+      !  call mesg(sub_name, 'clindx_p : ', clindx_p)
+      !  call mesg(sub_name, 'ncluster_ref : ', ncluster_ref)
+      !  call error(sub_name, 'clindx_p > ncluster_ref')
+      !endif
       
       h_m = 0._rprec
       area_proj = 0._rprec
@@ -255,10 +261,97 @@ do nt=1, ntree_ref
  
 enddo
 
+!  Need to set rbeta_ref_plane_t
+do nt = 1, rns_ntree
+  
+   hbot_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv ) % bplane
+   htop_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % tplane
+   
+   origin_p => tr_t(nt) % origin
+   
+   h = htop_p - hbot_p
+   
+   !  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
+   rvec_t % xy = tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % cl_t(1) % origin(1:2)
+   
+   rvec_t % xy = rvec_t % xy - origin_p(1:2)
+   
+   call vector_magnitude_2d( rvec_t % xy, rvec_t % mag )
+   
+   w = 2._rprec * rvec_t % mag
+   
+   rbeta_ref_plane_t(nt) % area = h * w 
+   
+   rbeta_ref_plane_t( nt ) % nzeta = ceiling( w / dy + 1)
+   rbeta_ref_plane_t( nt ) % neta  = ceiling( h / dz + 1)
+      
+      !  Offset in the upstream x-direction and displace in z
+    zeta_c = origin_p + (/ -alpha_rbeta * rvec_t % mag, 0._rprec, hbot_p /)  
+    
+    rbeta_ref_plane_t(nt) % p1    = zeta_c 
+    rbeta_ref_plane_t(nt) % p1(2) = rbeta_ref_plane_t(nt) % p1(2) + w / 2._rprec
+      
+    rbeta_ref_plane_t(nt) % p2    = rbeta_ref_plane_t(nt) % p1
+    rbeta_ref_plane_t(nt) % p2(2) = rbeta_ref_plane_t(nt) % p2(2) - w
+      
+    rbeta_ref_plane_t(nt) % p3    = rbeta_ref_plane_t(nt) % p2
+    rbeta_ref_plane_t(nt) % p3(3) = rbeta_ref_plane_t(nt) % p3(3) + h
+    
+    nullify(hbot_p, htop_p, origin_p)
+    
+enddo 
+
+!  Now need to define beta_ref_plane_t; needs to be consistent with corresponding volume of beta_indx_array
+if(.not. use_beta_sub_regions) then
+
+  !  Define entire unresolved region of tree as a beta region
+  allocate( beta_ref_plane_t( rns_ntree ) )
+  
+  do nt = 1, rns_ntree
+
+   hbot_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv ) % tplane
+   htop_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % tplane
+   
+   origin_p => tr_t(nt) % origin
+   
+   h = htop_p - hbot_p
+   
+   !  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
+   rvec_t % xy = tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % cl_t(1) % origin(1:2)
+   
+   rvec_t % xy = rvec_t % xy - origin_p(1:2)
+   
+   call vector_magnitude_2d( rvec_t % xy, rvec_t % mag )
+   
+   w = 2._rprec * rvec_t % mag
+   
+   beta_ref_plane_t(nt) % area = h * w 
+   
+   beta_ref_plane_t( nt ) % nzeta = ceiling( w / dy + 1)
+   beta_ref_plane_t( nt ) % neta  = ceiling( h / dz + 1)
+      
+      !  Offset in the upstream x-direction and displace in z
+    zeta_c = origin_p + (/ -alpha_beta * rvec_t % mag, 0._rprec, hbot_p /)  
+    
+    beta_ref_plane_t(nt) % p1    = zeta_c 
+    beta_ref_plane_t(nt) % p1(2) = beta_ref_plane_t(nt) % p1(2) + w / 2._rprec
+      
+    beta_ref_plane_t(nt) % p2    = beta_ref_plane_t(nt) % p1
+    beta_ref_plane_t(nt) % p2(2) = beta_ref_plane_t(nt) % p2(2) - w
+      
+    beta_ref_plane_t(nt) % p3    = beta_ref_plane_t(nt) % p2
+    beta_ref_plane_t(nt) % p3(3) = beta_ref_plane_t(nt) % p3(3) + h
+    
+    nullify(hbot_p, htop_p, origin_p)
+    
+  enddo
+  
+endif
+    
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) 'Reference Plane Values for Tree 1 : '
   nt=1
-    do ng = 1, tr_t(nt)%ngen
+    do ng = 1, tr_t(nt)%ngen_reslv
       do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
         write(*,*) '-------------------------'
         write(*,*) 'nt, ng, nc : ', nt, ng, nc
@@ -280,10 +373,10 @@ return
 end subroutine rns_fill_cl_ref_plane_array_ls
 
 !**********************************************************************
-subroutine rns_fill_cl_indx_array_ls()
+subroutine rns_fill_indx_array_ls()
 !**********************************************************************
 !  This subroutine sets the indx_array for both resolved and unresolved 
-!  branches
+!  regions
 !
 use types, only : rprec
 use param, only : nx,ny,nz, coord
@@ -297,21 +390,39 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_indx_array_ls'
 
 integer :: i,j,k, nc, np
-integer, pointer :: clindx_p, ng_p, brindx_p
+integer, pointer :: clindx_p, brindx_p
+integer, pointer :: nt_p, ng_p, nc_p
+
 integer, pointer, dimension(:) :: br_loc_id_p
-type(indx_array), pointer, dimension(:) :: cl_pre_indx_array
+type(indx_array), pointer, dimension(:) :: cl_pre_indx_array_t, beta_pre_indx_array_t
 
-nullify(ng_p, clindx_p, br_loc_id_p, cl_pre_indx_array, brindx_p)
+! ---- Nullify all pointers ----
+nullify(clindx_p, br_loc_id_p, brindx_p)
+nullify(nt_p, ng_p, nc_p)
+nullify(cl_pre_indx_array_t, beta_pre_indx_array_t)
 
-allocate(cl_pre_indx_array( ncluster_tot ) )
+! ---- Allocate all arrays ----
+allocate(cl_pre_indx_array( ncluster_reslv ) )
 
-do nc=1, ncluster_tot !  same for all clusters
-  allocate(cl_pre_indx_array(nc) % iarray(3,nx*ny*(nz-1)))
+if (.not. use_beta_sub_regions ) then
+  allocate(beta_pre_indx_array_t ( nbeta ) )
+endif
+
+do nc=1, ncluster_reslv
+  allocate(cl_pre_indx_array_t(nc) % iarray(3,nx*ny*(nz-1)))
+enddo
+
+do nb=1, nbeta
+  allocate(beta_pre_indx_array_t(nb) % iarray(3,nx*ny*(nz-1)))
 enddo
 
 !  Intialize the number of points assigned to the cluster
-do nc=1, ncluster_tot
-  cl_pre_indx_array(nc) % npoint = 0
+do nc=1, ncluster_reslv
+  cl_pre_indx_array_t(nc) % npoint = 0
+enddo
+
+do nb=1, nbeta
+  beta_pre_indx_array_t(nb) % npoint = 0
 enddo
 
 if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
@@ -330,20 +441,21 @@ do k=1, nz - 1
       if ( brindx_p > 0 ) then
       
         br_loc_id_p => brindx_to_loc_id(:, brindx_p)
+        
+        nt_p => rns_tree_array( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
+        ng_p => br_loc_id_p(2)
+        nc_p => br_loc_id_p(3)
       
-        if(br_loc_id_p(1) < 1) then ! nt < 1
+        if( nt_p < 1) then ! nt < 1
           call error(sub_name, 'brindx(i,j,k) : ', brindx_p)
           call mesg(sub_name, 'coord : ', coord)
           call error(sub_name, 'br_loc_id_p(1) : ', br_loc_id_p(1))
         endif
+
+        !  Setting cluster id it belongs to
+        clindx_p => tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( ng_p ) % indx
       
-        clindx_p => tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t (br_loc_id_p(3)) % indx
- 
-        ng_p => br_loc_id_p(2)
-        
-        !write(*,*) 'coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3) : ', coord, br_loc_id_p(1), br_loc_id_p(2), br_loc_id_p(3)
-      
-        if( ng_p <= tr_t( br_loc_id_p(1) ) % ngen_reslv ) then
+        if( ng_p <= tr_t( nt_p ) % ngen_reslv ) then
           !  Use only inside points
           if ( phi(i,j,k) <= 0._rprec ) then 
           
@@ -357,29 +469,33 @@ do k=1, nz - 1
           
           endif
         
-        elseif ( ng_p <= tr_t( br_loc_id_p(1) ) % ngen ) then
+        elseif ( ng_p <= tr_t( nt_p ) % ngen ) then
 
           !write(*,*) 'chi(i,j,k) : ', chi(i,j,k)
           
           if( chi(i,j,k) > chi_cutoff) then
           
             !write(*,*) 'setting unresolved point'
-        
-            cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
+            if( .not. use_beta_sub_regions) then
+            
+              beta_pre_indx_array_t( nt_p ) % npoint = beta_pre_indx_array_t( nt_p ) % npoint + 1
           
-            cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
-            cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
-            cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k          
+              beta_pre_indx_array_t( nt_p ) % iarray(1, beta_pre_indx_array_t( nt_p ) % npoint) = i
+              beta_pre_indx_array_t( nt_p ) % iarray(2, beta_pre_indx_array_t( nt_p ) % npoint) = j
+              beta_pre_indx_array_t( nt_p ) % iarray(3, beta_pre_indx_array_t( nt_p ) % npoint) = k 
+              
+            endif
           
           endif
       
         else
-      
-          call error(sub_name, 'Generation number not computed correctly.')
+          
+          call error(sub_name, 'Total number of generations in tree exceeded.')
         
         endif
       
-        nullify(br_loc_id_p, clindx_p, ng_p)
+        nullify(br_loc_id_p, clindx_p, brindx_p)
+        nullify(nt_p, ng_p, nc_p)
         
       endif
       
@@ -392,20 +508,37 @@ do k=1, nz - 1
 enddo
 
 !  Allocate true indx_array
-allocate(cl_indx_array( ncluster_tot ) )
+allocate(cl_indx_array_t( ncluster_reslv ) )
 
-do nc=1, ncluster_tot
-  allocate(cl_indx_array(nc) % iarray(3, cl_pre_indx_array(nc) % npoint))
+
+do nc=1, ncluster_reslv
+  allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
 enddo
 
-do nc=1, ncluster_tot
+
+do nc=1, ncluster_reslv
   
-  cl_indx_array(nc) % npoint = cl_pre_indx_array(nc) % npoint
+  cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
   
-  do np = 1, cl_indx_array(nc) % npoint
+  do np = 1, cl_indx_array_t(nc) % npoint
   
-    cl_indx_array(nc) % iarray(:,np) = cl_pre_indx_array(nc) % iarray(:,np)
+    cl_indx_array_t(nc) % iarray(:,np) = cl_pre_indx_array_t(nc) % iarray(:,np)
     
+  enddo
+  
+enddo
+
+allocate(beta_indx_array_t ( nbeta ) )
+
+do nb = 1, nbeta
+  allocate( beta_indx_array_t(nb) % iarray(3, beta_pre_indx_array_t(nb) % npoint))
+enddo
+
+do nb = 1, nbeta
+  beta_indx_array_t(nb) % npoint = beta_pre_indx_array_t(nb) % npoint
+  
+  do np = 1, beta_indx_array_t(nb) % npoint
+    beta_indx_array_t(nb) % iarray(:,np) = beta_pre_indx_array_t(nb) % iarray(:,np)
   enddo
   
 enddo
@@ -414,87 +547,88 @@ enddo
 !  write(*,*) 'Number of points per cluster : '
 !  do nc = 1, ncluster_tot
 !    write(*,*) '-------------------------'
-!    write(*,*) 'nc, cl_indx_array(nc) % npoint : ', nc, cl_indx_array(nc) % npoint
+!    write(*,*) 'nc, cl_indx_array_t(nc) % npoint : ', nc, cl_indx_array_t(nc) % npoint
 !    write(*,*) '-------------------------'
 !  enddo
 !endif
 
 !  No longer needed
-deallocate(cl_pre_indx_array)
+deallocate(cl_pre_indx_array_t)
+deallocate(beta_pre_indx_array_t)
 
-!!  Sort each cl_indx_array into column major order on the iarray output
+!!  Sort each cl_indx_array_t into column major order on the iarray output
 !do nc=1, ncluster_tot
 
-!  call isortcm(cl_indx_array(nc) % iarray, 3, cl_indx_array(nc) % npoint)
+!  call isortcm(cl_indx_array_t(nc) % iarray, 3, cl_indx_array_t(nc) % npoint)
 !  
 !enddo
 
 return
-end subroutine rns_fill_cl_indx_array_ls
+end subroutine rns_fill_indx_array_ls
 
-!**********************************************************************
-subroutine rns_set_cl_parent_ls()
-!**********************************************************************
-!  This subroutine sets the parent (a resolved cluster) to each unresolved
-!  cluster which will be used for the CD calculations
-!
-use types, only : rprec
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : tree, cluster, tr_t, ntree
-$endif
-use messages
-implicit none
+!!**********************************************************************
+!subroutine rns_set_cl_parent_ls()
+!!**********************************************************************
+!!  This subroutine sets the parent (a resolved cluster) to each unresolved
+!!  cluster which will be used for the CD calculations
+!!
+!use types, only : rprec
+!$if($CYL_SKEW_LS)
+!use cyl_skew_base_ls, only : tree, cluster, tr_t, ntree
+!$endif
+!use messages
+!implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_set_cl_parent_ls'
+!character (*), parameter :: sub_name = mod_name // '.rns_set_cl_parent_ls'
 
-integer :: nt, ng, nc
+!integer :: nt, ng, nc
 
-type(tree), pointer :: tr_t_p
-type(cluster), pointer :: cl_t_p
+!type(tree), pointer :: tr_t_p
+!type(cluster), pointer :: cl_t_p
 
-nullify(tr_t_p, cl_t_p)
+!nullify(tr_t_p, cl_t_p)
 
-!  Allocate and initialize forces
-!if(.not. use_main_tree_only) call error(sub_name,'use_main_tree_only must be true')
-allocate( clforce_t ( ncluster_tot ) ) 
-clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
+!!  Allocate and initialize forces
+!!if(.not. use_main_tree_only) call error(sub_name,'use_main_tree_only must be true')
+!allocate( clforce_t ( ncluster_tot ) ) 
+!clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
 
-do nt = 1, ntree
+!do nt = 1, ntree
 
-  tr_t_p => tr_t(nt) 
+!  tr_t_p => tr_t(nt) 
 
-  do ng = 1, tr_t_p % ngen
-  
-    do nc = 1, tr_t_p % gen_t(ng) % ncluster
-    
-      cl_t_p  => tr_t_p % gen_t(ng) % cl_t(nc)
-    
-      if(ng <= tr_t_p % ngen_reslv) then
-       !  is itself
-        clforce_t(cl_t_p % indx) % parent = cl_t_p % indx
-      
-      elseif (ng <= tr_t_p % ngen) then
-    
-        clforce_t(cl_t_p % indx) % parent = clforce_t(cl_t_p % parent) % parent
-      
-      else
-     
-        call error(sub_name, 'Generation number not computed correctly.')
-      
-      endif
-      
-      nullify(cl_t_p)
-      
-    enddo
-  
-  enddo
-  
-  nullify(tr_t_p)
-  
-enddo
+!  do ng = 1, tr_t_p % ngen
+!  
+!    do nc = 1, tr_t_p % gen_t(ng) % ncluster
+!    
+!      cl_t_p  => tr_t_p % gen_t(ng) % cl_t(nc)
+!    
+!      if(ng <= tr_t_p % ngen_reslv) then
+!       !  is itself
+!        clforce_t(cl_t_p % indx) % parent = cl_t_p % indx
+!      
+!      elseif (ng <= tr_t_p % ngen) then
+!    
+!        clforce_t(cl_t_p % indx) % parent = clforce_t(cl_t_p % parent) % parent
+!      
+!      else
+!     
+!        call error(sub_name, 'Generation number not computed correctly.')
+!      
+!      endif
+!      
+!      nullify(cl_t_p)
+!      
+!    enddo
+!  
+!  enddo
+!  
+!  nullify(tr_t_p)
+!  
+!enddo
 
-return
-end subroutine rns_set_cl_parent_ls
+!return
+!end subroutine rns_set_cl_parent_ls
 
 !**********************************************************************
 subroutine rns_CD_ls()
@@ -515,31 +649,40 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
-if(clforce_calc) then
+!if(clforce_calc) then
 
-  call rns_cl_reslv_CD_ls()
+  call rns_cl_force_ls()     !  Get CD, force etc for resolved regions
+  call rns_rbeta_force_ls()  !  Get 
     
-  if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
+  !if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
     
   if(modulo (jt, clforce_nskip) == 0) then
     
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
+
       call rns_write_cl_CD_ls()
       call rns_write_cl_fD_ls()
-      call rns_write_cl_kappa_ls()
       call rns_write_cl_vel_ls()
+      
+      call rns_write_rbeta_CD_ls()
+      call rns_write_rbeta_fD_ls()
+      call rns_write_rbeta_vel_ls()
+      
+      call rns_write_beta_fD_ls()
+      call rns_write_beta_vel_ls()
+      
     endif
     
   endif
   
-endif
+!endif
 
 return
 end subroutine rns_CD_ls
 
 
 !**********************************************************************
-subroutine rns_cl_reslv_CD_ls()
+subroutine rns_cl_force_ls()
 !**********************************************************************
 !  This subroutine computes the CD of the branch cluster (cl) associated
 !  with each region dictated by the brindx value. The cl is mapped from 
@@ -556,7 +699,7 @@ use types, only : rprec
 !!use level_set_base, only : phi
 !!use immersedbc, only : fx
 $if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : reslv_clindx_to_loc_id, ntree, tr_t
+use cyl_skew_base_ls, only : ntree, tr_t
 $endif
 use messages
 use param, only : nx, ny, nz, dx, dy, dz
@@ -570,11 +713,10 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_cl_reslv_CD_ls'
 
-integer, pointer, dimension(:) :: reslv_cl_loc_id_p 
-integer, pointer :: clindx_p, clindx_other_p
+integer, pointer :: clindx_p
 integer, pointer :: npoint_p
 integer, pointer, dimension(:,:) :: iarray_p
-integer, pointer :: i, j, k
+integer, pointer :: i, j, k, nt_p
 real(rprec), pointer :: fD_p
 
 integer :: ncluster_tot
@@ -585,78 +727,72 @@ real(rprec) :: cl_fD
 $endif
 
 !  Comment starts here 
-nullify(reslv_cl_loc_id_p, clindx_p)
-nullify(clindx_other_p)
+nullify(clindx_p)
 nullify(npoint_p, iarray_p)
 nullify(i,j,k)
 nullify(fD_p)
+nullify(nt_p)
 
 !!$if ($MPI)
 !!allocate (cl_fD ( ncluster_reslv_ref ) )
 !!cl_fD = 0._rprec
 !!$endif
 
-!  Get reference velocity for only the resolved reference planes reference planes
-do nc = 1, ncluster_reslv_ref
+do nt = 1, rns_ntree
 
-  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
+  do ng = 1, tr_t(nt) % ngen_reslv
   
-  !write(*,*) 'cl_ref_plane_t(clindx_p) % p1 : ', cl_ref_plane_t(clindx_p) % p1
-  !write(*,*) 'cl_ref_plane_t(clindx_p) % p2 : ', cl_ref_plane_t(clindx_p) % p2
-  !write(*,*) 'cl_ref_plane_t(clindx_p) % p3 : ', cl_ref_plane_t(clindx_p) % p3
-  
-  cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(nc) % p2, &
-    cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster
     
-  nullify(reslv_cl_loc_id_p, clindx_p)
+      clindx_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
+   
+      cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(clindx_p) % p2, &
+        cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
+     
+      npoint_p => cl_indx_array_t(clindx_p) % npoint
+      iarray_p => cl_indx_array_t(clindx_p) % iarray
   
-enddo
-
-do nc = 1, ncluster_reslv_ref
-
-  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-  
-  npoint_p => cl_indx_array(clindx_p) % npoint
-  iarray_p => cl_indx_array(clindx_p) % iarray
-  
-  $if($MPI)
-  cl_fD = 0._rprec
-  $endif
+      $if($MPI)
+      cl_fD = 0._rprec
+      $endif
   !clforce_t(clindx_p) % fD = 0._rprec
   
-  fD_p => clforce_t( clindx_p ) % fD
-  fD_p = 0._rprec
+      fD_p => clforce_t( clindx_p ) % fD
+      fD_p = 0._rprec
   
-  do np=1, npoint_p
+      do np=1, npoint_p
   
-    i => iarray_p(1,np)
-    j => iarray_p(2,np)
-    k => iarray_p(3,np)
+        i => iarray_p(1,np)
+        j => iarray_p(2,np)
+        k => iarray_p(3,np)
   
-    $if($MPI)
-    cl_fD = cl_fD - fx(i,j,k) * dx * dy * dz
-    $else
-    fD_p = fD_p - fx(i,j,k)
-    $endif
+        $if($MPI)
+        cl_fD = cl_fD - fx(i,j,k) * dx * dy * dz
+        $else
+        fD_p = fD_p - fx(i,j,k) * dx * dy * dz
+        $endif
     
-    nullify(i,j,k)
+        nullify(i,j,k)
+    
+      enddo
+  
+      $if($MPI)
+      call mpi_allreduce (cl_fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+      $endif
+  
+      clforce_t(clindx_p) % CD = fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
+  !if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
+  
+      nullify(clindx_p)
+      nullify(npoint_p, iarray_p)
+      nullify(fD_p)
+ 
+      
+    enddo
     
   enddo
   
-  $if($MPI)
-  call mpi_allreduce (cl_fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  $endif
-  
-  clforce_t(clindx_p) % CD = fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  !if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
-  
-  nullify(reslv_cl_loc_id_p, clindx_p)
-  nullify(npoint_p, iarray_p)
-  nullify(fD_p)
-  
-
+  nullify(nt_p)
   
 enddo
 
@@ -670,24 +806,24 @@ enddo
 !      
 !enddo
 
-if(use_main_tree_ref) then
-!  Need to put CD on other resolved clusters (on other trees)
-  do nt = 2, ntree
-    do ng = 1, tr_t(nt) % ngen_reslv
-      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
+!if(use_main_tree_ref) then
+!!  Need to put CD on other resolved clusters (on other trees)
+!  do nt = 2, ntree
+!    do ng = 1, tr_t(nt) % ngen_reslv
+!      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
 
-        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
-        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
-        
-        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
-        
-        nullify(clindx_p, clindx_other_p)
-        
-      enddo
-    enddo
-  enddo
-  
-endif
+!        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
+!        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
+!        
+!        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
+!        
+!        nullify(clindx_p, clindx_other_p)
+!        
+!      enddo
+!    enddo
+!  enddo
+!  
+!endif
 
 return
 end subroutine rns_cl_reslv_CD_ls
@@ -786,7 +922,7 @@ do nc = 1, ncluster_unreslv_ref
   fD = CD_p * area_ref_p * dabs(uref_p) * uref_p
 
   !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array( clindx_p ) % npoint
+  npoint_p => cl_indx_array_t( clindx_p ) % npoint
 
   !  Total force
   ! F = 0.5 * rho * \sum {CD * A_p * U**2} = 0.5 * rho * kappa \sum { u**2 * \chi * dV }  
@@ -804,9 +940,9 @@ do nc = 1, ncluster_unreslv_ref
   
   !!  !write(*,*) 'coord, nc, np : ', coord, nc, np
   
-    i => cl_indx_array( clindx_p ) % iarray(1,np)
-    j => cl_indx_array( clindx_p ) % iarray(2,np)
-    k => cl_indx_array( clindx_p ) % iarray(3,np)
+    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
+    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
+    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
     
     u2chi_sum = u2chi_sum + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
  
@@ -891,7 +1027,7 @@ do nc = 1, ncluster_unreslv_ref
   fD_tot = fD_tot + CD_p * area_ref_p * dabs(uref_p) * uref_p
 
   !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array( clindx_p ) % npoint
+  npoint_p => cl_indx_array_t( clindx_p ) % npoint
 
   !  Total force
   ! F = 0.5 * rho * \sum {CD * A_p * U**2} = 0.5 * rho * kappa \sum { u**2 * \chi * dV }  
@@ -908,9 +1044,9 @@ do nc = 1, ncluster_unreslv_ref
 
   !!  !write(*,*) 'coord, nc, np : ', coord, nc, np
   
-    i => cl_indx_array( clindx_p ) % iarray(1,np)
-    j => cl_indx_array( clindx_p ) % iarray(2,np)
-    k => cl_indx_array( clindx_p ) % iarray(3,np)
+    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
+    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
+    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
     
     u2chi_sum = u2chi_sum + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
  
@@ -1028,7 +1164,7 @@ do nc = 1, ncluster_unreslv
   clindx_p => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
   
   !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array( clindx_p ) % npoint
+  npoint_p => cl_indx_array_t( clindx_p ) % npoint
   
   !write(*,*) 'coord, npoint_p : ', coord, npoint_p
   
@@ -1038,9 +1174,9 @@ do nc = 1, ncluster_unreslv
   
     !write(*,*) 'coord, nc, np : ', coord, nc, np
   
-    i => cl_indx_array( clindx_p ) % iarray(1,np)
-    j => cl_indx_array( clindx_p ) % iarray(2,np)
-    k => cl_indx_array( clindx_p ) % iarray(3,np)
+    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
+    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
+    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
     
     !  kappa > 0 always
     fx(i,j,k) = - clforce_t( clindx_p ) % kappa *  u(i,j,k) * u(i,j,k) * chi(i,j,k)

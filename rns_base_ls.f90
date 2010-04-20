@@ -23,14 +23,21 @@ integer, parameter :: nstep_ramp = 1000
 logical, parameter :: use_local_kappa = .true.
 real(rprec), parameter :: kappa_cap = 10000._rprec
 
+logical, parameter :: use_beta_sub_regions = .false.
+
 
 logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
 !  Flag for ...
-logical, parameter :: use_main_tree_ref = .false.
-logical, parameter :: write_main_tree_only = .true.
+!logical, parameter :: use_main_tree_ref = .false.
+!logical, parameter :: write_main_tree_only = .true.
+
+integer, parameter :: rns_ntree = 2 
+integer, parameter :: rns_tree_layout = 1
+
+integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
 type ref_plane
   integer :: nzeta, neta ! discretization
@@ -51,17 +58,22 @@ type indx_array
   integer, pointer, dimension(:,:) :: iarray
 end type
 
-type(indx_array), pointer, dimension(:) :: cl_indx_array
+type(indx_array), pointer, dimension(:) :: cl_indx_array_t
+type(indx_array), pointer, dimension(:) :: beta_indx_array_t
 
-type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t
-type(force), pointer, dimension(:) :: brforce_t, clforce_t
+type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t 	! For resolved clusters only
+type(ref_plane), pointer, dimension(:) :: rbeta_ref_plane_t 	! 
+type(ref_plane), pointer, dimension(:) :: beta_ref_plane_t  ! For unresolved regions
+
+type(force), pointer, dimension(:) :: brforce_t, clforce_t 	!  For resolved objects only
+type(force), pointer, dimension(:) :: beta_force_t          ! For unresolved regions
 
 integer :: ncluster_unreslv ! total number of unresolved clusters
-integer :: ncluster_unreslv_ref ! number of unresolved clusters used for reference calculations
+!integer :: ncluster_unreslv_ref ! number of unresolved clusters used for reference calculations
 integer :: ncluster_reslv ! total number of resolved clusters
 integer :: ncluster_reslv_ref
-integer :: ncluster_ref ! number of clusters used for computing reference quantities (size of cl_ref_plane_t)
-integer :: ncluster_tot ! total number of clusters for all trees
+!integer :: ncluster_ref ! number of clusters used for computing reference quantities (size of cl_ref_plane_t)
+!integer :: ncluster_tot ! total number of clusters for all trees
 integer :: ncluster_write_ref ! number of clusters to write reference data for
 integer :: ntree_ref !  number of trees used in reference calculations 
 
