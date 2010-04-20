@@ -1,7 +1,7 @@
 !**********************************************************************
 module cyl_skew_pre_base_ls
 !**********************************************************************
-use types, only : rprec
+use types, only : rprec, vec3d
 use param, only : pi
 use cyl_skew_base_ls
 use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
@@ -30,7 +30,7 @@ type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
 !type(rot), allocatable, dimension(:) :: zrot_t
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
-type(vector) :: vgcs_t
+type(vec3d) :: vgcs_t
 
 logical :: DIST_CALC=.true.
 
@@ -795,8 +795,8 @@ subroutine filter_cl_chi(xyz, cl_t, delta, chi, brdist, brindx)
 !**********************************************************************
 !  Also assigns branch index consistent with filtering of chi
 !
-use types, only : rprec
-use cyl_skew_base_ls, only : cluster, vector, branch, point_2d
+use types, only : rprec, vec3d
+use cyl_skew_base_ls, only : cluster, branch, point_2d
 use cyl_skew_pre_base_ls, only : zrot_axis
 implicit none
 
@@ -822,7 +822,7 @@ integer, pointer                   :: indx_p
 type(point_2d), allocatable, dimension(:) :: lpnt_t, cpnt_t
 real(rprec), dimension(3) :: xyz_rot !  point used for rotatations 
 
-type(vector) :: svec_t
+type(vec3d) :: svec_t
 
 type(branch), pointer, dimension(:) :: br_t_p
 
