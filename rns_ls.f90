@@ -39,6 +39,8 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
 integer :: nt, np, ng, nc
 
+integer :: ncluster_tot, ncount
+
 ! Load brindx
 call brindx_init()
 ! Load filtered indicator function (chi)
@@ -49,16 +51,6 @@ if(coord == 0) call mesg ( sub_name, 'filling tree array' )
 call cyl_skew_fill_tree_array_ls()
 if(coord == 0) call mesg ( sub_name, 'tree array filled' )
 $endif
-
-!!  Get the total number of clusters 
-!ncluster_tot = 0
-!do nt = 1, ntree
-!  do ng = 1, tr_t(nt) % ngen
-!    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-!      ncluster_tot = ncluster_tot + 1   
-!    enddo    
-!  enddo
-!enddo
 
 !if(coord == 0) write(*,*) 'ncluster_tot : ', ncluster_tot
 
@@ -93,6 +85,27 @@ do nt = 1, rns_ntree
   do ng = 1, tr_t(nt) % ngen
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
       if(ng <= tr_t(nt) % ngen_reslv) ncluster_reslv = ncluster_reslv + 1   
+    enddo    
+  enddo
+enddo
+
+!  Get the total number of clusters 
+ncluster_tot = 0
+do nt = 1, ntree
+  do ng = 1, tr_t(nt) % ngen
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
+      ncluster_tot = ncluster_tot + 1   
+    enddo    
+  enddo
+enddo
+
+allocate( rns_reslv_cl_iarray( ncluster_tot ) )
+ncount=0
+do nt = 1, rns_ntree
+  do ng = 1, tr_t(nt) % ngen_reslv
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
+      ncount = ncount + 1
+      rns_reslv_cl_iarray( tr_t(nt) % gen_t (ng) % cl_t (nc) %indx ) = ncount 
     enddo    
   enddo
 enddo
@@ -189,7 +202,7 @@ real(rprec), parameter :: alpha=1._rprec
 real(rprec), parameter :: alpha_rbeta = 1.25_rprec
 real(rprec), parameter :: alpha_beta = alpha_rbeta
 
-integer :: nt, ng, nc, nb
+integer :: nt, ng, nc, nb, rns_clindx
 
 real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 
@@ -215,7 +228,9 @@ do nt=1, rns_ntree
     
       nbranch_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
       
-      clindx_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%indx
+      clindx_p => rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )
+      
+      rns_clindx = rns_clindx + 1
       
       !if(clindx_p > ncluster_ref) then
       !  call mesg(sub_name, 'clindx_p : ', clindx_p)
@@ -360,20 +375,24 @@ if(.not. use_beta_sub_regions) then
 endif
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) 'Reference Plane Values for Tree 1 : '
-  nt=1
+  write(*,*) 'Reference Plane Values For All Trees : '
+  do nt=1, rns_ntree
+
     do ng = 1, tr_t(nt)%ngen_reslv
       do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+
         write(*,*) '-------------------------'
-        write(*,*) 'nt, ng, nc : ', nt, ng, nc
-        write(*,*) 'nzeta, neta : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % nzeta, &
-          cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % neta
-        write(*,*) 'p1 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p1
-        write(*,*) 'p2 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p2
-        write(*,*) 'p3 : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % p3
-        write(*,*) 'area : ', cl_ref_plane_t(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx) % area
-        write(*,*) '-------------------------'
+        write(*,*) 'nt, ng, nc : ', nt, ng, nc  
+        write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
+           cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
+         write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
+         write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
+         write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
+         write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
+        
+         write(*,*) '-------------------------'
       enddo
+    enddo
     enddo
 
 endif
@@ -436,6 +455,8 @@ do nb=1, nbeta
   beta_pre_indx_array_t(nb) % npoint = 0
 enddo
 
+
+
 if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
 
 do k=1, nz - 1
@@ -464,7 +485,7 @@ do k=1, nz - 1
         endif
 
         !  Setting cluster id it belongs to
-        clindx_p => tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( ng_p ) % indx
+        clindx_p => rns_reslv_cl_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( ng_p ) % indx )
       
         if( ng_p <= tr_t( nt_p ) % ngen_reslv ) then
           !  Use only inside points
@@ -583,11 +604,11 @@ end subroutine rns_fill_indx_array_ls
 !!  This subroutine sets the parent (a resolved cluster) to each unresolved
 !!  cluster which will be used for the CD calculations
 !!
-!use types, only : rprec
-!$if($CYL_SKEW_LS)
-!use cyl_skew_base_ls, only : tree, cluster, tr_t, ntree
-!$endif
-!use messages
+!!use types, only : rprec
+!!$if($CYL_SKEW_LS)
+!!use cyl_skew_base_ls, only : tree, cluster, tr_t, ntree
+!!$endif
+!!use messages
 !implicit none
 
 !character (*), parameter :: sub_name = mod_name // '.rns_set_cl_parent_ls'
@@ -752,7 +773,7 @@ do nt = 1, rns_ntree
   
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster
     
-      clindx_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
+      clindx_p => rns_reslv_cl_iarray(tr_t(nt) % gen_t(ng) % cl_t(nc) % indx)
    
       cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(clindx_p) % p2, &
         cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
@@ -952,7 +973,7 @@ if(use_single_beta_CD) then
     
     do nc = 1, gen_t_p % ncluster
       
-      clindx_p =>  gen_t_p % cl_t(nc) % indx
+      clindx_p =>  rns_reslv_cl_iarray(gen_t_p % cl_t(nc) % indx)
       
       fD_tot = fD_tot + clforce_t(clindx_p) % fD
       
