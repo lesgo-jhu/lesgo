@@ -595,7 +595,7 @@ deallocate(beta_pre_indx_array_t)
 !  
 !enddo
 
-if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
+!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
 
 return
 end subroutine rns_fill_indx_array_ls
