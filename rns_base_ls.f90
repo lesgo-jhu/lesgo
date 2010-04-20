@@ -13,30 +13,26 @@ $if ($MPI)
 $else
   $define $lbz 1
 $endif
-
+!---------------------------------------------------
+! RNS PARAMETERS
+!---------------------------------------------------  
 logical, parameter :: clforce_calc = .true.
 integer, parameter :: clforce_nskip = 10
-!logical, parameter :: clforce_vel_write = .true.
 
 integer, parameter :: nstep_ramp = 1000
 
-!logical, parameter :: use_local_kappa = .false.
-!real(rprec), parameter :: kappa_cap = 10000._rprec
-
 logical, parameter :: use_beta_sub_regions = .false.
 logical, parameter :: use_single_beta_CD = .true.
-
 
 logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
-!  Flag for ...
-!logical, parameter :: use_main_tree_ref = .false.
-!logical, parameter :: write_main_tree_only = .true.
-
 integer, parameter :: rns_ntree = 2 
 integer, parameter :: rns_tree_layout = 1
+!---------------------------------------------------
+! 
+!---------------------------------------------------  
 
 integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
