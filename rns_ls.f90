@@ -899,6 +899,9 @@ integer, pointer :: nzeta_p, neta_p
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer :: kappa_p, CD_p
 
+real(rprec) :: sigma
+real(rprec), allocatable, dimension(:) :: fD_dir
+
 real(rprec) :: CD_num, CD_denom, fD_tot, CD, Lint
 $if($MPI)
 real(rprec) :: Lint_global
@@ -922,6 +925,8 @@ nullify(area_p, u_p)
 nullify(kappa_p, CD_p)
 
 nullify(gen_t_p)
+
+allocate(fD_dir(nbeta))
 
 !  Compute total drag force all unresolved (beta) regions
 !  Need more work to have beta as sub regions
@@ -957,6 +962,16 @@ do nb = 1, nbeta
   $endif
   
   nullify(npoint_p)
+
+  if(beta_force_t(nb) % fD < 0._rprec) then
+
+    fD_dir(nb) = -1._rprec
+
+  else
+
+    fD_dir(nb) = 1._rprec
+
+  endif
   
 enddo
 
@@ -999,7 +1014,7 @@ if(use_single_beta_CD) then
     fD_tot = fD_tot + beta_force_t(nt) % fD ! Computed in rns_beta_force_ls
     
     CD_num = CD_num + fD_tot * u_p * dabs( u_p ) * area_p
-    CD_denom = CD_denom + u_p * u_p * u_p * u_p * area_p
+    CD_denom = CD_denom + u_p * u_p * u_p * u_p * area_p**2
     
     nullify(area_p, u_p)
     
@@ -1080,9 +1095,8 @@ else
   
 endif
   
-  
+deallocate(fD_dir)
 
-return
 end subroutine rns_beta_force_ls
 
 !**********************************************************************
