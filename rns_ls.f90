@@ -15,8 +15,8 @@ save
 private
 
 public :: rns_init_ls !, rns_u_write_ls
-public :: rns_CD_ls
-public :: rns_forcing_ls
+public :: rns_force_ls
+public :: rns_forcing_ls ! Apply forcing
 
 character (*), parameter :: mod_name = 'rns_ls'
 
@@ -102,7 +102,9 @@ enddo
 if(coord == 0) write(*,*) 'ncluster_reslv : ', ncluster_reslv
 
 if ( .not. use_beta_sub_regions ) then
-  nbeta = rns_trees
+  nbeta = rns_ntree
+else
+  call error(sub_name, 'use_beta_sub_regions must be false')  
 endif
 
 !if(use_main_tree_ref) then
@@ -150,11 +152,11 @@ if(clforce_calc) then
   !  Create cluster reference value plane
   call rns_fill_ref_plane_array_ls()
   !  Create cluster index array
-  call rns_fill_cl_indx_array_ls()
+  call rns_fill_indx_array_ls()
   !  Set parent used for assigning CD's on unresolved branches
-  if(coord == 0) write(*,*) ' calling rns_set_cl_parent_ls'
-  call rns_set_cl_parent_ls()
-  if(coord == 0) write(*,*) 'called rns_set_cl_parent_ls'
+  !if(coord == 0) write(*,*) ' calling rns_set_cl_parent_ls'
+  !call rns_set_cl_parent_ls()
+  !if(coord == 0) write(*,*) 'called rns_set_cl_parent_ls'
 
 endif
 
@@ -168,7 +170,7 @@ subroutine rns_fill_ref_plane_array_ls()
 !**********************************************************************
 !  This subroutine fills all reference plane arrays
 !
-use types, only : rprec
+use types, only : rprec, vec2d
 use param, only : dy, dz, USE_MPI, coord
 use messages
 $if($CYL_SKEW_LS) 
@@ -179,6 +181,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
 real(rprec), parameter :: alpha=1._rprec
 real(rprec), parameter :: alpha_rbeta = 1.25_rprec
+real(rprec), parameter :: alpha_beta = alpha_rbeta
 
 integer :: nt, ng, nc, nb
 
@@ -188,6 +191,8 @@ integer, pointer :: clindx_p, nbranch_p
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
 real(rprec), pointer, dimension(:) :: origin_p
+
+type(vec2d) :: rvec_t
 
 nullify(d_p, l_p, skew_angle_p, clindx_p)
 
@@ -370,7 +375,7 @@ endif
       
 return
 
-end subroutine rns_fill_cl_ref_plane_array_ls
+end subroutine rns_fill_ref_plane_array_ls
 
 !**********************************************************************
 subroutine rns_fill_indx_array_ls()
@@ -389,7 +394,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_indx_array_ls'
 
-integer :: i,j,k, nc, np
+integer :: i,j,k, nc, np, nb
 integer, pointer :: clindx_p, brindx_p
 integer, pointer :: nt_p, ng_p, nc_p
 
@@ -402,7 +407,7 @@ nullify(nt_p, ng_p, nc_p)
 nullify(cl_pre_indx_array_t, beta_pre_indx_array_t)
 
 ! ---- Allocate all arrays ----
-allocate(cl_pre_indx_array( ncluster_reslv ) )
+allocate(cl_pre_indx_array_t( ncluster_reslv ) )
 
 if (.not. use_beta_sub_regions ) then
   allocate(beta_pre_indx_array_t ( nbeta ) )
@@ -442,7 +447,7 @@ do k=1, nz - 1
       
         br_loc_id_p => brindx_to_loc_id(:, brindx_p)
         
-        nt_p => rns_tree_array( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
+        nt_p => rns_tree_iarray( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
         ng_p => br_loc_id_p(2)
         nc_p => br_loc_id_p(3)
       
@@ -461,11 +466,11 @@ do k=1, nz - 1
           
             !write(*,*) 'setting resolved point'
         
-            cl_pre_indx_array(clindx_p) % npoint = cl_pre_indx_array(clindx_p) % npoint + 1
+            cl_pre_indx_array_t(clindx_p) % npoint = cl_pre_indx_array_t(clindx_p) % npoint + 1
         
-            cl_pre_indx_array(clindx_p) % iarray(1, cl_pre_indx_array(clindx_p) % npoint) = i
-            cl_pre_indx_array(clindx_p) % iarray(2, cl_pre_indx_array(clindx_p) % npoint) = j
-            cl_pre_indx_array(clindx_p) % iarray(3, cl_pre_indx_array(clindx_p) % npoint) = k
+            cl_pre_indx_array_t(clindx_p) % iarray(1, cl_pre_indx_array_t(clindx_p) % npoint) = i
+            cl_pre_indx_array_t(clindx_p) % iarray(2, cl_pre_indx_array_t(clindx_p) % npoint) = j
+            cl_pre_indx_array_t(clindx_p) % iarray(3, cl_pre_indx_array_t(clindx_p) % npoint) = k
           
           endif
         
@@ -631,7 +636,7 @@ end subroutine rns_fill_indx_array_ls
 !end subroutine rns_set_cl_parent_ls
 
 !**********************************************************************
-subroutine rns_CD_ls()
+subroutine rns_force_ls()
 !**********************************************************************
 !  This subroutine handles all CD calculation within the RNS module; 
 !  all CD and force calculations associated with
@@ -642,17 +647,17 @@ subroutine rns_CD_ls()
 !
 use param, only : jt, USE_MPI, coord
 use messages
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : ngen, ngen_reslv
-$endif
+!!$if($CYL_SKEW_LS)
+!!use cyl_skew_base_ls, only : ngen, ngen_reslv
+!!$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_force_ls'
 
 !if(clforce_calc) then
 
   call rns_cl_force_ls()     !  Get CD, force etc for resolved regions
-  call rns_rbeta_force_ls()  !  Get 
+  call rns_beta_force_ls()  !  Get force of 
     
   !if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
     
@@ -664,12 +669,10 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
       call rns_write_cl_fD_ls()
       call rns_write_cl_vel_ls()
       
-      call rns_write_rbeta_CD_ls()
-      call rns_write_rbeta_fD_ls()
-      call rns_write_rbeta_vel_ls()
-      
-      call rns_write_beta_fD_ls()
-      call rns_write_beta_vel_ls()
+      !call rns_write_beta_CD_ls()
+      !call rns_write_beta_fD_ls()
+      !call rns_write_beta_vel_ls()
+      call rns_write_beta_kappa_ls()
       
     endif
     
@@ -678,7 +681,7 @@ character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 !endif
 
 return
-end subroutine rns_CD_ls
+end subroutine rns_force_ls
 
 
 !**********************************************************************
@@ -716,7 +719,7 @@ character (*), parameter :: sub_name = mod_name // '.rns_cl_reslv_CD_ls'
 integer, pointer :: clindx_p
 integer, pointer :: npoint_p
 integer, pointer, dimension(:,:) :: iarray_p
-integer, pointer :: i, j, k, nt_p
+integer, pointer :: i, j, k
 real(rprec), pointer :: fD_p
 
 integer :: ncluster_tot
@@ -731,7 +734,6 @@ nullify(clindx_p)
 nullify(npoint_p, iarray_p)
 nullify(i,j,k)
 nullify(fD_p)
-nullify(nt_p)
 
 !!$if ($MPI)
 !!allocate (cl_fD ( ncluster_reslv_ref ) )
@@ -791,9 +793,7 @@ do nt = 1, rns_ntree
     enddo
     
   enddo
-  
-  nullify(nt_p)
-  
+ 
 enddo
 
 !  Comment ends here
@@ -826,303 +826,211 @@ enddo
 !endif
 
 return
-end subroutine rns_cl_reslv_CD_ls
+end subroutine rns_cl_force_ls
 
 !**********************************************************************
-subroutine rns_cl_unreslv_CD_ls()
+subroutine rns_beta_force_ls()
 !**********************************************************************
 !  This subroutine computes the CD of the branch cluster (cl) associated
 !  with each region dictated by the brindx value. 
 !
 use types, only : rprec
-use param, only : coord, jt, dx, dy, dz, nx, ny, nz
-use sim_param, only : u
+use param, only : dx, dy, dz, nx, ny, nz
 use messages
+use sim_param, only : u
+use immersedbc, only : fx
 use functions, only : plane_avg_3D
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : unreslv_clindx_to_loc_id, tr_t, ntree
-$endif
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : generation, tr_t
+$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_cl_unreslv_CD_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_beta_force_ls'
 
-integer, pointer :: clindx_p, npoint_p, clindx_other_p
-integer, pointer, dimension(:) :: unreslv_cl_loc_id_p
-integer, pointer :: parent_p
+integer :: nb, np, nt, nc
+
 integer, pointer :: i,j,k
-real(rprec) :: kappa, fD_tot, u2chi_sum_tot, fD
+integer, pointer :: npoint_p
+integer, pointer :: clindx_p
 
-real(rprec), pointer :: CD_p, area_ref_p, uref_p, kappa_p
-
-real(rprec), pointer, dimension(:) :: p1_p, p2_p, p3_p
+real(rprec), pointer, dimension(:) :: p1_p, p2_p, p3_p   
 integer, pointer :: nzeta_p, neta_p 
+real(rprec), pointer :: area_p, u_p
+real(rprec), pointer :: kappa_p, CD_p
 
-integer :: nc, np, nt, ng
-real(rprec) :: u2chi_sum
+real(rprec) :: CD_num, CD_denom, fD_tot, CD, Lint
 $if($MPI)
-real(rprec) :: u2chi_sum_global
+real(rprec) :: Lint_global
 $endif
 
-nullify(unreslv_cl_loc_id_p, clindx_p, parent_p, npoint_p)
+type(generation), pointer :: gen_t_p
 
-nullify(kappa_p, CD_p, area_ref_p, uref_p)
+$if($MPI)
+real(rprec) :: fD
+$endif
+
 nullify(i,j,k)
-nullify(clindx_other_p)
+nullify(npoint_p)
+nullify(clindx_p)
 
+nullify(p1_p, p2_p, p3_p)
+nullify(nzeta_p, neta_p)
+nullify(area_p, u_p)
+nullify(kappa_p, CD_p)
 
-! ---------- START LOCAL KAPPA ------------
-!----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
-!  All unresolved branches get a CD 
-if(use_local_kappa) then
-do nc = 1, ncluster_unreslv_ref
+nullify(gen_t_p)
 
-  unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-
-  clindx_p   => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
-  
-  kappa_p    => clforce_t( clindx_p ) % kappa
-  CD_p       => clforce_t( clindx_p ) % CD
-  
-  uref_p     => cl_ref_plane_t(clindx_p) % u
-  area_ref_p => cl_ref_plane_t(clindx_p) % area
-  
-  p1_p       => cl_ref_plane_t(clindx_p) % p1
-  p2_p       => cl_ref_plane_t(clindx_p) % p2
-  p3_p       => cl_ref_plane_t(clindx_p) % p3
-  nzeta_p    => cl_ref_plane_t(clindx_p) % nzeta
-  neta_p     => cl_ref_plane_t(clindx_p) % neta
+!  Compute total drag force all unresolved (beta) regions
+!  Need more work to have beta as sub regions
+do nb = 1, nbeta 
  
-  !  Get reference plane velocity
-  uref_p = plane_avg_3D( u(1:nx,:,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p )
-     
-  nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)
- 
-  parent_p => clforce_t( clindx_p ) % parent
-
-  !if( jt < 100) then
-
-  !  CD_p = 0._rprec
-
-  !  Set CD
-  if( jt < nstep_ramp ) then
-
-    CD_p = dble(jt)/dble(nstep_ramp) * clforce_t( parent_p ) % CD
-
-  else
-
-    CD_p = clforce_t( parent_p ) % CD
-
-  endif
-  
-  !  All procs have this
-  fD = CD_p * area_ref_p * dabs(uref_p) * uref_p
-
-  !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array_t( clindx_p ) % npoint
-
-  !  Total force
-  ! F = 0.5 * rho * \sum {CD * A_p * U**2} = 0.5 * rho * kappa \sum { u**2 * \chi * dV }  
-  ! kappa = \sum {CD * A_p * U**2} / ( \sum{u**2 * \chi } * dV )
-  
-  u2chi_sum = 0._rprec
+    !  Loop over number of points used in beta region
+  npoint_p => beta_indx_array_t( nb ) % npoint
   
   $if($MPI)
-  u2chi_sum_global = 0._rprec
+  fD = 0._rprec
+  $else
+  beta_force_t(nb) % fD = 0._rprec
   $endif
-
-   
+  
   do np = 1, npoint_p
-
   
-  !!  !write(*,*) 'coord, nc, np : ', coord, nc, np
-  
-    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
-    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
-    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
+    i => beta_indx_array_t( nb ) % iarray(1,np)
+    j => beta_indx_array_t( nb ) % iarray(2,np)
+    k => beta_indx_array_t( nb ) % iarray(3,np)
     
-    u2chi_sum = u2chi_sum + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
+    $if($MPI)
+    fD = 0._rprec
+    $else    
+    beta_force_t(nb) % fD = beta_force_t(nb) % fD - fx(i,j,k) * dx * dy * dz
+    $endif
  
     nullify(i,j,k)
     
   enddo
-
+  
   $if($MPI)
-  
-  call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  
- ! if(u2chi_sum_global <= 0._rprec) then
- 
-!   kappa_p = 0._rprec
-    !call mesg(sub_name, 'Volume integration for kappa not correct.')
-!  else 
-    kappa_p = 0.5_rprec * dabs( fD / ( u2chi_sum_global * dx * dy * dz) )
-!  endif
-  
-  $else
-  
-  if(u2chi_sum <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
-  !kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum * dx * dy * dz )
-  
-  kappa_p = 0.5_rprec * dabs ( fD / ( u2chi_sum * dx * dy * dz) )
-  
+  call mpi_allreduce (fD, beta_force_t(nb) % fD, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   $endif
   
-  if(kappa_p > kappa_cap) kappa_p = kappa_cap
- 
-  nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
-  nullify(parent_p)
-  nullify(kappa_p, CD_p, area_ref_p, uref_p)
+  nullify(npoint_p)
   
 enddo
-! ---------- END LOCAL KAPPA ------------
 
+if(use_single_beta_CD) then
+  
+  CD_num = 0._rprec
+  CD_denom = 0._rprec
+
+  do nt = 1, rns_ntree
+  
+    fD_tot = 0._rprec
+  
+    p1_p    => rbeta_ref_plane_t (nt) % p1
+    p2_p    => rbeta_ref_plane_t (nt) % p2
+    p3_p    => rbeta_ref_plane_t (nt) % p3
+    nzeta_p => rbeta_ref_plane_t (nt) % nzeta
+    neta_p  => rbeta_ref_plane_t (nt) % neta
+    area_p  => rbeta_ref_plane_t (nt) % area
+    u_p     => rbeta_ref_plane_t (nt) % u
+    
+    u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
+  
+    nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)  
+    
+    gen_t_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv )
+    
+    do nc = 1, gen_t_p % ncluster
+      
+      clindx_p =>  gen_t_p % cl_t(nc) % indx
+      
+      fD_tot = fD_tot + clforce_t(clindx_p) % fD
+      
+      nullify(clindx_p)
+      
+    enddo
+    
+    nullify(gen_t_p)
+    
+    !  Should sum over all beta regions of tree
+    fD_tot = fD_tot + beta_force_t(nt) % fD ! Computed in rns_beta_force_ls
+    
+    CD_num = CD_num + fD_tot * u_p * dabs( u_p ) * area_p
+    CD_denom = CD_denom + u_p * u_p * u_p * u_p * area_p
+    
+    nullify(area_p, u_p)
+    
+  enddo
+
+  !  Compute CD
+  CD = -2._rprec * CD_num / CD_denom
+  
+  !  This CD goes with the regions beta on all trees ! and is the new CD
+  do nb = 1, nbeta
+  
+    beta_force_t( nb ) % CD = CD
+    
+  enddo
+  
+  !  Compute L_int over each region beta
+  do nb = 1, nbeta 
+ 
+    !  Loop over number of points used in beta region
+    npoint_p => beta_indx_array_t( nb ) % npoint
+    
+    Lint = 0._rprec
+    
+    $if($MPI)
+    Lint_global = 0._rprec
+    $endif
+  
+    do np = 1, npoint_p
+  
+      i => beta_indx_array_t( nb ) % iarray(1,np)
+      j => beta_indx_array_t( nb ) % iarray(2,np)
+      k => beta_indx_array_t( nb ) % iarray(3,np)
+    
+      Lint = Lint + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+ 
+      nullify(i,j,k)
+      
+    enddo
+    
+    nullify( npoint_p )
+    
+    $if($MPI)
+    call mpi_allreduce (Lint, Lint_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    Lint = Lint_global
+    $endif
+    
+    kappa_p => beta_force_t(nb) % kappa
+    CD_p    => beta_force_t(nb) % CD
+    
+    u_p     => beta_ref_plane_t(nb) % u
+    area_p  => beta_ref_plane_t(nb) % area
+    
+    kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
+    
+    nullify(kappa_p, CD_p)
+    nullify(u_p, area_p)
+        
+  enddo
+   
+  
 else
 
-fD_tot = 0._rprec
-kappa=0._rprec !  Will be assigned to all clusters
-u2chi_sum_tot = 0._rprec
-
-
-!----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
-!  All unresolved branches get a CD 
-do nc = 1, ncluster_unreslv_ref
-
-  unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-
-  clindx_p   => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
-  
-  CD_p       => clforce_t( clindx_p ) % CD
-  
-  uref_p     => cl_ref_plane_t(clindx_p) % u
-  area_ref_p => cl_ref_plane_t(clindx_p) % area
-  
-  p1_p       => cl_ref_plane_t(clindx_p) % p1
-  p2_p       => cl_ref_plane_t(clindx_p) % p2
-  p3_p       => cl_ref_plane_t(clindx_p) % p3
-  nzeta_p    => cl_ref_plane_t(clindx_p) % nzeta
-  neta_p     => cl_ref_plane_t(clindx_p) % neta
- 
-  !  Get reference plane velocity
-  uref_p = plane_avg_3D( u(1:nx,:,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p )
-     
-  nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)
- 
-  parent_p => clforce_t( clindx_p ) % parent
-
-  if( jt < nstep_ramp ) then
-
-    CD_p = dble(jt)/dble(nstep_ramp) * clforce_t( parent_p ) % CD
-
-  else
-
-    CD_p = clforce_t( parent_p ) % CD
-
-  endif
-  
-  !  All procs have this
-  fD_tot = fD_tot + CD_p * area_ref_p * dabs(uref_p) * uref_p
-
-  !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array_t( clindx_p ) % npoint
-
-  !  Total force
-  ! F = 0.5 * rho * \sum {CD * A_p * U**2} = 0.5 * rho * kappa \sum { u**2 * \chi * dV }  
-  ! kappa = \sum {CD * A_p * U**2} / ( \sum{u**2 * \chi } * dV )
-  
-  u2chi_sum = 0._rprec
-  
-  $if($MPI)
-  u2chi_sum_global = 0._rprec
-  $endif
-
-   
-  do np = 1, npoint_p
-
-  !!  !write(*,*) 'coord, nc, np : ', coord, nc, np
-  
-    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
-    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
-    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
-    
-    u2chi_sum = u2chi_sum + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k)
- 
-    nullify(i,j,k)
-    
-  enddo
-
-  $if($MPI)
-  
-  call mpi_allreduce (u2chi_sum, u2chi_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  
-  !if(u2chi_sum_global <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
-  
-  u2chi_sum_tot = u2chi_sum_tot + u2chi_sum_global
-  
-  !write(*,'(a,8f9.4)') 'CD_p, kappa_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz : ', CD_p, kappa_p, area_ref_p, uref_p, u2chi_sum_global, dx, dy, dz
-  $else
-  
-  if(u2chi_sum <= 0._rprec) call mesg(sub_name, 'Volume integration for kappa not correct.')
-  !kappa_p = CD_p * area_ref_p * uref_p * uref_p / ( u2chi_sum * dx * dy * dz )
-  u2chi_sum_tot = u2chi_sum_tot + u2chi_sum
-  
-  $endif
- 
-  nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
-  nullify(parent_p)
-  nullify(CD_p, area_ref_p, uref_p)
-  
-enddo
-
-!if(u2chi_sum_tot <= 0._rprec) then
-!  kappa = 0._rprec
-!else  
-! kappa for the entire support of chi
-  kappa = 0.5_rprec * dabs ( fD_tot / ( u2chi_sum_tot * dx * dy * dz) )
-!endif
-
-if(kappa > kappa_cap) kappa = kappa_cap
-
-do nc = 1, ncluster_unreslv_ref
-
-  unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-
-  clindx_p   => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
-  
-  clforce_t(clindx_p) % kappa = kappa
-  
-  nullify(unreslv_cl_loc_id_p,clindx_p)
-  
-enddo
-
-endif
-
-!  This assumes kappa for all clusters are the same on all trees
-if(use_main_tree_ref) then
-!  Need to put CD on other resolved clusters (on other trees)
-  do nt = 2, ntree
-    do ng = 1, tr_t(nt) % ngen_reslv
-      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
-
-        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
-        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
-        
-        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
-        clforce_t(clindx_other_p) % kappa = clforce_t(clindx_p) % kappa
-        
-        nullify(clindx_p, clindx_other_p)
-        
-      enddo
-    enddo
-  enddo
+  call error(sub_name, 'use_single_beta_CD must be true')
   
 endif
+  
+  
 
 return
-end subroutine rns_cl_unreslv_CD_ls
+end subroutine rns_beta_force_ls
 
 !**********************************************************************
 subroutine rns_forcing_ls()
@@ -1132,9 +1040,6 @@ subroutine rns_forcing_ls()
 use types, only : rprec
 use sim_param, only : u
 use immersedbc, only : fx
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : ngen, ngen_reslv, tr_t, unreslv_clindx_to_loc_id
-$endif
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
@@ -1145,50 +1050,40 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_forcing_ls'
 
-integer :: nc, np
+integer :: nb, np
 
 integer, pointer :: i, j, k
 
-integer, pointer :: clindx_p, npoint_p
-integer, pointer, dimension(:) :: unreslv_cl_loc_id_p
+integer, pointer :: npoint_p
+
+real(rprec), pointer :: kappa_p
 
 nullify(i,j,k)
-nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
+nullify(npoint_p)
+nullify(kappa_p)
 
-!----------------- CURRENTLY EXPLICIT TREATMENT OF KAPPA ---------------------
-!  Compute force due to unresolved clusters
-do nc = 1, ncluster_unreslv
 
-  !  Get the global cluster index
-  unreslv_cl_loc_id_p => unreslv_clindx_to_loc_id(:, nc)
-  clindx_p => tr_t(unreslv_cl_loc_id_p(1)) % gen_t(unreslv_cl_loc_id_p(2)) % cl_t(unreslv_cl_loc_id_p(3)) % indx
-  
-  !  Loop over number of points used in cluster calc
-  npoint_p => cl_indx_array_t( clindx_p ) % npoint
-  
-  !write(*,*) 'coord, npoint_p : ', coord, npoint_p
-  
-  clforce_t( clindx_p ) % fD = 0._rprec
-  
-  do np = 1, npoint_p
-  
-    !write(*,*) 'coord, nc, np : ', coord, nc, np
-  
-    i => cl_indx_array_t( clindx_p ) % iarray(1,np)
-    j => cl_indx_array_t( clindx_p ) % iarray(2,np)
-    k => cl_indx_array_t( clindx_p ) % iarray(3,np)
-    
-    !  kappa > 0 always
-    fx(i,j,k) = - clforce_t( clindx_p ) % kappa *  u(i,j,k) * u(i,j,k) * chi(i,j,k)
-    
-    clforce_t( clindx_p ) % fD = clforce_t( clindx_p ) % fD - fx(i,j,k)
+do nb = 1, nbeta 
  
-    nullify(i,j,k)
+    !  Loop over number of points used in beta region
+    npoint_p => beta_indx_array_t( nb ) % npoint
     
-  enddo
+    kappa_p  => beta_force_t( nb ) % kappa
   
-  nullify(unreslv_cl_loc_id_p, clindx_p, npoint_p)
+    do np = 1, npoint_p
   
+      i => beta_indx_array_t( nb ) % iarray(1,np)
+      j => beta_indx_array_t( nb ) % iarray(2,np)
+      k => beta_indx_array_t( nb ) % iarray(3,np)
+    
+      fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+ 
+      nullify(i,j,k)
+      
+    enddo
+    
+    nullify( npoint_p, kappa_p )
+    
 enddo
 
 $if($MPI)
@@ -1213,7 +1108,7 @@ use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
 $if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  clindx_to_loc_id
+use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
 $endif
 
 implicit none
@@ -1224,28 +1119,28 @@ character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 logical :: exst
 character(5000) :: var_list
 integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: cl_loc_id_p => null()
+integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
 
-nvar = ncluster_write_ref + 1
+nvar = ncluster_reslv + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
   do nc = 1, nvar-1
   
-    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
     !  Create variable list name:
     call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, reslv_cl_loc_id_p(1))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(2))
+    call strcat(var_list, reslv_cl_loc_id_p(2))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, reslv_cl_loc_id_p(3))
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(cl_loc_id_p)
+  nullify(reslv_cl_loc_id_p)
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
@@ -1254,6 +1149,8 @@ call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%
 return
 end subroutine rns_write_cl_CD_ls
 
+
+
 !**********************************************************************
 subroutine rns_write_cl_vel_ls()
 !**********************************************************************
@@ -1261,8 +1158,9 @@ use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
 $if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  clindx_to_loc_id
+use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
 $endif
+
 implicit none
 
 character(*), parameter :: sub_name = mod_name // '.rns_write_cl_vel_ls'
@@ -1271,27 +1169,28 @@ character(*), parameter :: fname = path // 'output/rns_cl_vel_ls.dat'
 logical :: exst
 character(5000) :: var_list
 integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: cl_loc_id_p => null()
+integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
 
-!  Write cluster velocity for all trees + time step
-nvar = ncluster_write_ref + 1
+!  Write cluster force (CD) for all trees + time step
+
+nvar = ncluster_reslv + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
   do nc = 1, nvar-1
   
-    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
     !  Create variable list name:
     call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, reslv_cl_loc_id_p(1))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(2))
+    call strcat(var_list, reslv_cl_loc_id_p(2))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, reslv_cl_loc_id_p(3))
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(cl_loc_id_p)
+  nullify(reslv_cl_loc_id_p)
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
@@ -1307,7 +1206,7 @@ use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
 $if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  clindx_to_loc_id
+use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
 $endif
 
 implicit none
@@ -1318,27 +1217,28 @@ character(*), parameter :: fname = path // 'output/rns_cl_fD_ls.dat'
 logical :: exst
 character(5000) :: var_list
 integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: cl_loc_id_p => null()
+integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
-nvar = ncluster_write_ref + 1
+
+nvar = ncluster_reslv + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
   do nc = 1, nvar-1
   
-    cl_loc_id_p => clindx_to_loc_id(:,nc)
+    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
     !  Create variable list name:
     call strcat(var_list, ',"fD<sub>')
-    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, reslv_cl_loc_id_p(1))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(2))
+    call strcat(var_list, reslv_cl_loc_id_p(2))
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, reslv_cl_loc_id_p(3))
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(cl_loc_id_p)
+  nullify(reslv_cl_loc_id_p)
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
@@ -1348,51 +1248,44 @@ return
 end subroutine rns_write_cl_fD_ls
 
 !**********************************************************************
-subroutine rns_write_cl_kappa_ls()
+subroutine rns_write_beta_kappa_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : jt_total, dt, path
 use strmod
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  clindx_to_loc_id
-$endif
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_cl_kappa_ls'
-character(*), parameter :: fname = path // 'output/rns_cl_kappa_ls.dat'
+character(*), parameter :: sub_name = mod_name // '.rns_write_beta_kappa_ls'
+character(*), parameter :: fname = path // 'output/rns_beta_kappa_ls.dat'
 
 logical :: exst
-character(10000) :: var_list
+character(5000) :: var_list
 integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: cl_loc_id_p => null()
 
 !  Write cluster force (CD) for all trees + time step
-nvar = ncluster_write_ref + 1
+nvar = nbeta + 1
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
   do nc = 1, nvar-1
   
-    cl_loc_id_p => clindx_to_loc_id(:,nc)
     !  Create variable list name:
     call strcat(var_list, ',"<greek>k</greek><sub>')
-    call strcat(var_list, cl_loc_id_p(1))
+    call strcat(var_list, nc)
     call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(2))
-    call strcat(var_list, ',')
-    call strcat(var_list, cl_loc_id_p(3))
+    call strcat(var_list, 1) ! Need ability to specify beta region
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(cl_loc_id_p)
+
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%kappa /))
+call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % kappa /))
 
 return
-end subroutine rns_write_cl_kappa_ls
+end subroutine rns_write_beta_kappa_ls
 
 !**********************************************************************
 subroutine brindx_init ()
