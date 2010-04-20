@@ -65,11 +65,6 @@ type point_3d
     real(rprec), dimension(3) :: xyz
 end type point_3d
 
-type vector
-  real(rprec) :: mag
-  real(rprec), dimension(3) :: xyz
-end type vector
-
 type branch
     integer :: indx
     real(rprec) :: d, l, a, b, offset, skew_angle, angle
