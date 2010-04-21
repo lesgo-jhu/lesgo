@@ -347,6 +347,12 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
+!write(*,*) '-------------------------'
+!write(*,*) 'From plane_avg_3D : '
+!write(*,'(1a,3f12.6)') 'bp1 : ', bp1
+!write(*,'(1a,3f12.6)') 'bp3 : ', bp2
+!write(*,'(1a,3f12.6)') 'bp2 : ', bp3
+!write(*,'(1a,3i3)') 'nzeta, neta : ', nzeta, nzeta
 
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
@@ -385,10 +391,14 @@ eta_vec = eta_vec / vec_mag
       cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
 
       if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
-        !  Perform trilinear interpolation
+      
         !  Include autowrapping for x and y directions
-        istart = index_start('i', dx, modulo(cell_center(1),L_x))
-        jstart = index_start('j', dy, modulo(cell_center(2),L_y))
+        cell_center(1) = modulo(cell_center(1), L_x)
+        cell_center(2) = modulo(cell_center(2), L_y)
+        
+        !  Perform trilinear interpolation
+        istart = index_start('i', dx, cell_center(1))
+        jstart = index_start('j', dy, cell_center(2))
         kstart = index_start('k', dz, cell_center(3))
         
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
