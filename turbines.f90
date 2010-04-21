@@ -1,6 +1,6 @@
 module turbines
 use types,only:rprec
-use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld,jt_total,dt_dim
+use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld,jt_total,dt_dim,USE_MPI,coord,rank,nproc
 use stat_defs, only:wind_farm_t
 use grid_defs, only:x,y,z
 use io
