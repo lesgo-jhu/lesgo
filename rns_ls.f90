@@ -1081,7 +1081,7 @@ if(use_single_beta_CD) then
     
     kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
     
-    if(coord == 0) write(*,'(1a,i,3f12.6)') 'nb, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
+    if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i,3f12.6)') 'nb, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
     
     nullify(kappa_p, CD_p)
     nullify(u_p, area_p)
