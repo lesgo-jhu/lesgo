@@ -111,10 +111,12 @@ subroutine turbines_init()
 	large_node_array = 0.
 	call turbines_nodes(large_node_array)
 
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 	!to write the node locations to file
 	  fname0 = 'node_loc_turbine.dat'
 	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "nodes"', 0, 1)
 	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz, (/large_node_array/),x,y,z)
+    endif
 
 !1.smooth/filter indicator function                     
 !2.associate new nodes with turbines                               
@@ -130,10 +132,12 @@ subroutine turbines_init()
 	!time average over T(sec) = dt_dim/0.05 so that eps~0.05
 	!T_min = dt_dim/0.05*1./60.	
     
-    var_list = '"t (s)", "u_d", "u_d_T", "f_n"'
-    call write_tecplot_header_xyline('turbine1_forcing.dat','rewind', var_list)   
-    call write_tecplot_header_xyline('turbine2_forcing.dat','rewind', var_list) 
-    call write_tecplot_header_xyline('turbine3_forcing.dat','rewind', var_list) 
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        !var_list = '"t (s)", "u_d", "u_d_T", "f_n"'
+        !call write_tecplot_header_xyline('turbine1_forcing.dat','rewind', var_list)   
+        !call write_tecplot_header_xyline('turbine2_forcing.dat','rewind', var_list) 
+        !call write_tecplot_header_xyline('turbine3_forcing.dat','rewind', var_list) 
+    endif
 	
 end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -170,9 +174,11 @@ do s=1,nloc
 
     !identify "search area"
     	R_t = p_dia/2.
-    		if (verbose) then
-    		  write(*,*) 'R_t,dx,dy,dz,dthk',R_t,dx,dy,dz,p_thk
-    		endif
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (verbose) then
+                  write(*,*) 'R_t,dx,dy,dz,dthk',R_t,dx,dy,dz,p_thk
+                endif
+            endif
     	imax = R_t/dx + 1
     	jmax = R_t/dy + 1
     	kmax = R_t/dz + 1
@@ -181,18 +187,22 @@ do s=1,nloc
     	p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     	p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     	p_nhat3 = sin(pi*p_theta2/180.)
-    		if (verbose) then
-    		  write(*,*) 'n_hat', p_nhat1, p_nhat2, p_nhat3
-    		endif
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (verbose) then
+                  write(*,*) 'n_hat', p_nhat1, p_nhat2, p_nhat3
+                endif
+            endif
 
     !determine nearest (i,j,k) to turbine center
     	icp = nint(p_xloc/dx)
     	jcp = nint(p_yloc/dy)
     	kcp = nint(p_height/dz + 0.5)
-    		if (verbose) then
-    		  write(*,*) 'turbine center',icp,jcp,kcp
-    		  write(*,*) 'turbine center',x(icp),y(jcp),z(kcp)
-    		endif
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (verbose) then
+                  write(*,*) 'turbine center',icp,jcp,kcp
+                  write(*,*) 'turbine center',x(icp),y(jcp),z(kcp)
+                endif
+            endif
 
     !determine limits for checking i,j,k
     	min_i = max((icp-imax),1)
@@ -201,11 +211,13 @@ do s=1,nloc
     	max_j = min((jcp+jmax),ny)
     	min_k = max((kcp-kmax),1)
     	max_k = min((kcp+kmax),nz)
-    		if (verbose) then
-    		  write(*,*) 'i limits', min_i, max_i, dx*(max_i-min_i)
-    		  write(*,*) 'j limits', min_j, max_j, dy*(max_j-min_j)
-    		  write(*,*) 'k limits', min_k, max_k, dz*(max_k-min_k)
-    		endif
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (verbose) then
+                  write(*,*) 'i limits', min_i, max_i, dx*(max_i-min_i)
+                  write(*,*) 'j limits', min_j, max_j, dy*(max_j-min_j)
+                  write(*,*) 'k limits', min_k, max_k, dz*(max_k-min_k)
+                endif
+            endif
             wind_farm_t%turbine_t(s)%nodes_max(1) = min_i
             wind_farm_t%turbine_t(s)%nodes_max(2) = max_i
             wind_farm_t%turbine_t(s)%nodes_max(3) = min_j
@@ -228,9 +240,11 @@ do s=1,nloc
 				r_disk = sqrt(r*r - r_norm*r_norm)
 			!if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
 				if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
-					if (verbose) then
-					  write(*,*) 'FOUND NODE', i,j,k
-					endif
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                        if (verbose) then
+                          write(*,*) 'FOUND NODE', i,j,k
+                        endif
+                    endif
 					array(i,j,k) = 1.
                     wind_farm_t%turbine_t(s)%ind(count_i) = 1.		
 					wind_farm_t%turbine_t(s)%nodes(count_i,1) = i
@@ -301,16 +315,20 @@ verbose = .true.
     enddo
 	g = g/sumG
 
-    if (verbose) then
-        write(*,*) 'Convolution function created.'
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (verbose) then
+            write(*,*) 'Convolution function created.'
+        endif
     endif
 
 !display the convolution function
-	if(.false.) then
-	  write(*,*) 'Convolution function'
-	  write(*,*) g
-	endif
-	write(*,*) 'integral of g(i,j,k): ',sumG
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if(.false.) then
+          write(*,*) 'Convolution function'
+          write(*,*) g
+        endif
+        write(*,*) 'integral of g(i,j,k): ',sumG
+    endif
 
 	!to write the data to file, centered at (i,j,k=nz/2)
 	i=nx/2
@@ -322,19 +340,24 @@ verbose = .true.
 	    enddo
 	  enddo
     enddo
+    
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 	  fname0 = 'convolution_function.dat'
 	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz/), '"x","y","z","g"', 1, 1)
 	  call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz, (/g_shift/),x,y,z)
 
-    if (verbose) then
-        write(*,*) 'Convolution function written to Tecplot file.'
+        if (verbose) then
+            write(*,*) 'Convolution function written to Tecplot file.'
+        endif
     endif
 
 !filter indicator function for each turbine
 do b=1,nloc
-
-    if (verbose) then
-        write(*,*) 'Turbine Number ',b
+    
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (verbose) then
+            write(*,*) 'Turbine Number ',b
+        endif
     endif
 
     !create the input array (nx,ny,nz) from a list of included nodes
@@ -361,8 +384,10 @@ do b=1,nloc
         max_k = wind_farm_t%turbine_t(b)%nodes_max(6) 
         cut = wind_farm_t%trunc   
 
-        if (verbose) then
-            write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            if (verbose) then
+                write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
+            endif
         endif
 
         do k=max(min_k-cut,1),min(max_k+cut,nz)    !only compute for nodes near the turbine
@@ -404,8 +429,10 @@ do b=1,nloc
     	enddo
         enddo
 
-        if (verbose) then
-            write(*,*) 'Convolution complete for turbine ',b
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            if (verbose) then
+                write(*,*) 'Convolution complete for turbine ',b
+            endif
         endif
 
     !normalize this "indicator function" such that it integrates to turbine volume
@@ -424,13 +451,15 @@ do b=1,nloc
     turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
 	out_a = turbine_vol/sumA*out_a
 
-    if (verbose) then
-        write(*,*) 'sumA,turbine_vol = ',sumA,turbine_vol
-            if (b==1) then
-        	  fname3 = 'convolution_out.dat'
-        	  call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","out"', 1, 1)
-        	  call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/out_a/),x,y,z)
-            endif
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (verbose) then
+            write(*,*) 'sumA,turbine_vol = ',sumA,turbine_vol
+                if (b==1) then
+                  fname3 = 'convolution_out.dat'
+                  call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","out"', 1, 1)
+                  call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/out_a/),x,y,z)
+                endif
+        endif
     endif
 
     !update num_nodes, nodes, and ind for this turbine
@@ -454,8 +483,10 @@ do b=1,nloc
 		enddo
 	enddo
 	wind_farm_t%turbine_t(b)%num_nodes = count_n
-    if (verbose) then
-        write(*,*) 'Turbine number ',b,' has ',count_n,' nodes' 
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (verbose) then
+            write(*,*) 'Turbine number ',b,' has ',count_n,' nodes' 
+        endif
     endif
 
 enddo
@@ -473,6 +504,11 @@ real, pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => nu
 integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 
 real :: ind2
+
+!initialize forces to zero (new timestep)
+fx = 0.
+fy = 0.
+fz = 0.
 
 !for each turbine:        
     do s=1,nloc            
@@ -516,24 +552,23 @@ real :: ind2
     !force is normal to the surface (calc from u_d_T, normal to surface)
         p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T/p_thk        
 
-        if (s<4) then
-            a0 = jt_total*dt_dim
-            a1 = p_u_d
-            a2 = p_u_d_T
-            a3 = p_f_n
-        endif
-        if (s==1) then
-            call write_real_data('turbine1_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))  
-        elseif (s==2) then
-            call write_real_data('turbine2_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))          
-        elseif (s==3) then
-            call write_real_data('turbine3_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))    
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            if (s<4) then
+                a0 = jt_total*dt_dim
+                a1 = p_u_d
+                a2 = p_u_d_T
+                a3 = p_f_n
+            endif
+            if (s==1) then
+                call write_real_data('turbine1_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))  
+            elseif (s==2) then
+                call write_real_data('turbine2_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))          
+            elseif (s==3) then
+                call write_real_data('turbine3_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))    
+            endif
         endif
         
     !apply forcing to each node
-    fx = 0.
-    fy = 0.
-    fz = 0.
         do l=1,p_num_nodes
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
@@ -554,11 +589,13 @@ real :: ind2
 
     enddo
 	
-    if(.false.) then        !need to make this occur only at last time step
-    !to write the data to file
-        fname = 'force_turbine.dat'
-        call write_tecplot_header_ND(fname,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "force_x"', 1, 1)
-        call write_real_data_3D(fname, 'append','formatted', 1, nx, ny, nz, (/fx(1:nx,:,:)/),x(1:nx),y,z)
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if(.false.) then        !need to make this occur only at last time step
+        !to write the data to file
+            fname = 'force_turbine.dat'
+            call write_tecplot_header_ND(fname,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "force_x"', 1, 1)
+            call write_real_data_3D(fname, 'append','formatted', 1, nx, ny, nz, (/fx(1:nx,:,:)/),x(1:nx),y,z)
+        endif
     endif
 
 end subroutine turbines_forcing
