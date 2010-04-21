@@ -199,7 +199,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
 real(rprec), parameter :: alpha=1._rprec
-real(rprec), parameter :: alpha_rbeta = 1.25_rprec
+real(rprec), parameter :: alpha_rbeta = 1.5_rprec
 real(rprec), parameter :: alpha_beta = alpha_rbeta
 
 integer :: nt, ng, nc, nb, rns_clindx
@@ -296,9 +296,9 @@ do nt = 1, rns_ntree
    origin_p => tr_t(nt) % origin
    
    h = htop_p - hbot_p
-   
+  
    !  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
-   rvec_t % xy = tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % cl_t(1) % origin(1:2)
+   rvec_t % xy = tr_t(nt) % gen_t (2) % cl_t(1) % origin(1:2)
    
    rvec_t % xy = rvec_t % xy - origin_p(1:2)
    
@@ -341,9 +341,9 @@ if(.not. use_beta_sub_regions) then
    origin_p => tr_t(nt) % origin
    
    h = htop_p - hbot_p
-   
+
    !  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
-   rvec_t % xy = tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % cl_t(1) % origin(1:2)
+   rvec_t % xy = tr_t(nt) % gen_t ( 2 ) % cl_t(1) % origin(1:2)
    
    rvec_t % xy = rvec_t % xy - origin_p(1:2)
    
@@ -375,7 +375,7 @@ if(.not. use_beta_sub_regions) then
 endif
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) 'Reference Plane Values For All Trees : '
+  write(*,*) 'Reference Plane Values For All Tree Clusters : '
   do nt=1, rns_ntree
 
     do ng = 1, tr_t(nt)%ngen_reslv
@@ -394,6 +394,32 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
       enddo
     enddo
     enddo
+    
+  write(*,*) 'Reference Plane Values For RBETA Regions : '
+  do nt=1, rns_ntree
+
+    write(*,*) '-------------------------'
+    write(*,*) 'nt : ', nt  
+    write(*,*) 'nzeta, neta : ', rbeta_ref_plane_t(nt) % nzeta, rbeta_ref_plane_t(nt) % neta
+    write(*,*) 'p1 : ', rbeta_ref_plane_t(nt) % p1
+    write(*,*) 'p2 : ', rbeta_ref_plane_t(nt) % p2
+    write(*,*) 'p3 : ', rbeta_ref_plane_t(nt) % p3
+    write(*,*) 'area : ', rbeta_ref_plane_t(nt) % area
+    write(*,*) '-------------------------'
+  enddo
+  
+  write(*,*) 'Reference Plane Values For BETA Regions : '
+  do nb=1, nbeta
+
+    write(*,*) '-------------------------'
+    write(*,*) 'nb : ', nb
+    write(*,*) 'nzeta, neta : ', beta_ref_plane_t(nb) % nzeta, beta_ref_plane_t(nb) % neta
+    write(*,*) 'p1 : ', beta_ref_plane_t(nb) % p1
+    write(*,*) 'p2 : ', beta_ref_plane_t(nb) % p2
+    write(*,*) 'p3 : ', beta_ref_plane_t(nb) % p3
+    write(*,*) 'area : ', beta_ref_plane_t(nb) % area
+    write(*,*) '-------------------------'
+  enddo  
 
 endif
           
@@ -932,7 +958,7 @@ allocate(fD_dir(nbeta))
 !  Need more work to have beta as sub regions
 do nb = 1, nbeta 
  
-    !  Loop over number of points used in beta region
+  !  Loop over number of points used in beta region
   npoint_p => beta_indx_array_t( nb ) % npoint
   
   $if($MPI)
@@ -991,7 +1017,7 @@ if(use_single_beta_CD) then
     neta_p  => rbeta_ref_plane_t (nt) % neta
     area_p  => rbeta_ref_plane_t (nt) % area
     u_p     => rbeta_ref_plane_t (nt) % u
-    
+   !if(coord == 0) write(*,*) 'calling plane_avg_3D, p1_p(1) : ', p1_p(1) 
     u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
   
     nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)  
@@ -1081,7 +1107,7 @@ if(use_single_beta_CD) then
     
     kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
     
-    if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i,3f12.6)') 'nb, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
+    if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
     
     nullify(kappa_p, CD_p)
     nullify(u_p, area_p)
