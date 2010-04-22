@@ -291,6 +291,7 @@ enddo
 do nt = 1, rns_ntree
   
    hbot_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv ) % bplane
+
    htop_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % tplane
    
    origin_p => tr_t(nt) % origin
@@ -312,7 +313,7 @@ do nt = 1, rns_ntree
    rbeta_ref_plane_t( nt ) % neta  = ceiling( h / dz + 1)
       
       !  Offset in the upstream x-direction and displace in z
-    zeta_c = origin_p + (/ -alpha_rbeta * rvec_t % mag, 0._rprec, hbot_p /)  
+    zeta_c = origin_p + (/ -alpha_rbeta * rvec_t % mag, 0._rprec, hbot_p - origin_p(3) /)  
     
     rbeta_ref_plane_t(nt) % p1    = zeta_c 
     rbeta_ref_plane_t(nt) % p1(2) = rbeta_ref_plane_t(nt) % p1(2) + w / 2._rprec
@@ -357,7 +358,7 @@ if(.not. use_beta_sub_regions) then
    beta_ref_plane_t( nt ) % neta  = ceiling( h / dz + 1)
       
       !  Offset in the upstream x-direction and displace in z
-    zeta_c = origin_p + (/ -alpha_beta * rvec_t % mag, 0._rprec, hbot_p /)  
+    zeta_c = origin_p + (/ -alpha_beta * rvec_t % mag, 0._rprec, hbot_p - origin_p(3) /)  
     
     beta_ref_plane_t(nt) % p1    = zeta_c 
     beta_ref_plane_t(nt) % p1(2) = beta_ref_plane_t(nt) % p1(2) + w / 2._rprec
