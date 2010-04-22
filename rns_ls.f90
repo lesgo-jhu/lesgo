@@ -41,15 +41,21 @@ integer :: nt, np, ng, nc
 
 integer :: ncluster_tot, ncount
 
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Initializing RNS Data Structure'
+  write(*,*) ' '
+endif
+
 ! Load brindx
 call brindx_init()
 ! Load filtered indicator function (chi)
 call chi_init()
 
 $if($CYL_SKEW_LS)
-if(coord == 0) call mesg ( sub_name, 'filling tree array' )
+!if(coord == 0) call mesg ( sub_name, 'filling tree array' )
 call cyl_skew_fill_tree_array_ls()
-if(coord == 0) call mesg ( sub_name, 'tree array filled' )
+!if(coord == 0) call mesg ( sub_name, 'tree array filled' )
 $endif
 
 !if(coord == 0) write(*,*) 'ncluster_tot : ', ncluster_tot
@@ -106,13 +112,17 @@ do nt = 1, rns_ntree
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
       ncount = ncount + 1
       rns_reslv_cl_iarray( tr_t(nt) % gen_t (ng) % cl_t (nc) %indx ) = ncount 
+      if(coord == 0) then
+        write(*,'(1a,5i4)') 'nt, ng, nc, tr_t_indx, rns_reslv_cl_indx : ', nt, ng, nc, tr_t(nt) % gen_t (ng) % cl_t (nc) %indx, ncount
+      endif
     enddo    
   enddo
 enddo
 
 !ncluster_unreslv = ncluster_tot - ncluster_reslv
-
-if(coord == 0) write(*,*) 'ncluster_reslv : ', ncluster_reslv
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) 'ncluster_reslv : ', ncluster_reslv
+endif
 
 if ( .not. use_beta_sub_regions ) then
   nbeta = rns_ntree
@@ -179,8 +189,11 @@ if(clforce_calc) then
 
 endif
 
-write(*,*) 'exiting rns_init_ls'
- 
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'RNS Data Structure Initialized'
+  write(*,*) ' '
+endif 
 return
 end subroutine rns_init_ls
 
@@ -220,6 +233,12 @@ allocate( rbeta_ref_plane_t ( rns_ntree ) )
 
 !if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
 
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling Reference Plane Arrays'
+  write(*,*) ' '
+endif
+
 do nt=1, rns_ntree
 
   do ng=1, tr_t(nt) % ngen_reslv
@@ -231,12 +250,6 @@ do nt=1, rns_ntree
       clindx_p => rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )
       
       rns_clindx = rns_clindx + 1
-      
-      !if(clindx_p > ncluster_ref) then
-      !  call mesg(sub_name, 'clindx_p : ', clindx_p)
-      !  call mesg(sub_name, 'ncluster_ref : ', ncluster_ref)
-      !  call error(sub_name, 'clindx_p > ncluster_ref')
-      !endif
       
       h_m = 0._rprec
       area_proj = 0._rprec
@@ -436,7 +449,7 @@ subroutine rns_fill_indx_array_ls()
 !  regions
 !
 use types, only : rprec
-use param, only : nx,ny,nz, coord
+use param, only : nx,ny,nz, coord, USE_MPI
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
 $endif
@@ -453,7 +466,11 @@ integer, pointer :: nt_p, ng_p, nc_p
 integer, pointer, dimension(:) :: br_loc_id_p
 type(indx_array), pointer, dimension(:) :: cl_pre_indx_array_t, beta_pre_indx_array_t
 
-if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling Cluster Index Arrays'
+  write(*,*) ' '
+endif
 
 ! ---- Nullify all pointers ----
 nullify(clindx_p, br_loc_id_p, brindx_p)
@@ -500,11 +517,11 @@ do k=1, nz - 1
       if ( brindx_p > 0 ) then
       
         br_loc_id_p => brindx_to_loc_id(:, brindx_p)
-        
+
         nt_p => rns_tree_iarray( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
         ng_p => br_loc_id_p(2)
         nc_p => br_loc_id_p(3)
-      
+
         if( nt_p < 1) then ! nt < 1
           call error(sub_name, 'brindx(i,j,k) : ', brindx_p)
           call mesg(sub_name, 'coord : ', coord)
@@ -512,7 +529,7 @@ do k=1, nz - 1
         endif
 
         !  Setting cluster id it belongs to
-        clindx_p => rns_reslv_cl_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( ng_p ) % indx )
+        clindx_p => rns_reslv_cl_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( nc_p ) % indx )
       
         if( ng_p <= tr_t( nt_p ) % ngen_reslv ) then
           !  Use only inside points
@@ -809,12 +826,16 @@ do nt = 1, rns_ntree
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster
     
       clindx_p => rns_reslv_cl_iarray(tr_t(nt) % gen_t(ng) % cl_t(nc) % indx)
+
+!      write(*,'(1a,5i4)') 'coord, nt, ng, nc, clindx : ', coord, nt, ng, nc, clindx_p
    
       cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(clindx_p) % p2, &
         cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
      
       npoint_p => cl_indx_array_t(clindx_p) % npoint
       iarray_p => cl_indx_array_t(clindx_p) % iarray
+
+!     write(*,'(1a,2i4)') 'coord, npoint : ', coord, npoint_p
   
       $if($MPI)
       cl_fD = 0._rprec
@@ -845,7 +866,6 @@ do nt = 1, rns_ntree
       $endif
   
       clforce_t(clindx_p) % CD = -fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  !if(clforce_t(clindx_p) % CD <= 0._rprec) call mesg(sub_name,'CD < 0')
   
       nullify(clindx_p)
       nullify(npoint_p, iarray_p)
@@ -957,11 +977,12 @@ allocate(fD_dir(nbeta))
 
 !  Compute total drag force all unresolved (beta) regions
 !  Need more work to have beta as sub regions
+
 do nb = 1, nbeta 
  
   !  Loop over number of points used in beta region
   npoint_p => beta_indx_array_t( nb ) % npoint
-  
+
   $if($MPI)
   fD = 0._rprec
   $endif
