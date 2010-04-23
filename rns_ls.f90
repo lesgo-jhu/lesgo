@@ -1220,7 +1220,7 @@ end subroutine rns_forcing_ls
 subroutine rns_write_cl_CD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
@@ -1259,7 +1259,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%CD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, clforce_t(1:nvar-1)%CD /))
 
 return
 end subroutine rns_write_cl_CD_ls
@@ -1270,7 +1270,7 @@ end subroutine rns_write_cl_CD_ls
 subroutine rns_write_cl_vel_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
@@ -1309,7 +1309,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, cl_ref_plane_t(1:nvar-1)%u /))
+call write_real_data(fname, 'append', nvar, (/ total_time, cl_ref_plane_t(1:nvar-1)%u /))
 
 return
 end subroutine rns_write_cl_vel_ls
@@ -1318,7 +1318,7 @@ end subroutine rns_write_cl_vel_ls
 subroutine rns_write_beta_vel_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 
 implicit none
@@ -1349,7 +1349,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_ref_plane_t(1:nvar-1) % u /))
+call write_real_data(fname, 'append', nvar, (/ total_time, beta_ref_plane_t(1:nvar-1) % u /))
 
 return
 end subroutine rns_write_beta_vel_ls
@@ -1358,7 +1358,7 @@ end subroutine rns_write_beta_vel_ls
 subroutine rns_write_cl_fD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
@@ -1397,7 +1397,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, clforce_t(1:nvar-1)%fD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, clforce_t(1:nvar-1)%fD /))
 
 return
 end subroutine rns_write_cl_fD_ls
@@ -1406,7 +1406,7 @@ end subroutine rns_write_cl_fD_ls
 subroutine rns_write_beta_fD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 
 implicit none
@@ -1437,7 +1437,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % fD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % fD /))
 
 return
 end subroutine rns_write_beta_fD_ls
@@ -1446,7 +1446,7 @@ end subroutine rns_write_beta_fD_ls
 subroutine rns_write_beta_CD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 
 implicit none
@@ -1477,7 +1477,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % CD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % CD /))
 
 return
 end subroutine rns_write_beta_CD_ls
@@ -1486,7 +1486,7 @@ end subroutine rns_write_beta_CD_ls
 subroutine rns_write_beta_kappa_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : jt_total, dt, path
+use param, only : total_time, dt, path
 use strmod
 
 implicit none
@@ -1517,7 +1517,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ jt_total*dt, beta_force_t(1:nvar-1) % kappa /))
+call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % kappa /))
 
 return
 end subroutine rns_write_beta_kappa_ls
@@ -1583,11 +1583,6 @@ $endif
 !    enddo
 !  enddo
 !enddo
-
-brindx_max = maxval(brindx)
-write(*,*) 'coord, brindx_max : ', coord, brindx_max
-
-
 
 brindx_initialized = .true.
 

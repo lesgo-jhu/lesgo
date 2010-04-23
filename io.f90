@@ -1,7 +1,7 @@
 module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
-                  USE_MPI, coord, rank, nproc, jt_total
+                  USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
 use sim_param, only : w, dudz
 use messages
 use strmod
@@ -287,12 +287,14 @@ if (cumulative_time) then
   inquire (file=fcumulative_time, exist=exst)
   if (exst) then
     open (1, file=fcumulative_time)
-    read (1, *) jt_total
+    read (1, *) jt_total, total_time, total_time_dim
     close (1)
   else  !--assume this is the first run on cumulative time
     write (*, *) 'file ', fcumulative_time, ' not found'
-    write (*, *) 'assuming jt_total = 0'
+    write (*, *) 'assuming jt_total = 0, total_time = 0., total_time_dim = 0.'
     jt_total = 0
+    total_time = 0.
+    total_time_dim = 0._rprec
   end if
 
 end if
@@ -362,7 +364,7 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz, jt_total, dt_dim
-use stat_defs, only: tsum_t, point_t, domain_t, yplane_t, zplane_t, zplane_avg_t
+use stat_defs, only: tstats_t, point_t, domain_t, yplane_t, zplane_t, zplane_avg_t
 use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
 use grid_defs, only: z
 
@@ -384,19 +386,21 @@ integer :: i,j,k
 integer::jx,jy,jz
 
 !  Determine if time summations are to be calculated
-if(tsum_t%calc) then
+if(tstats_t%calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tsum_t%nstart .and. jt <= tsum_t%nend) then
-    if(.not. tsum_t%started) then
+  if(jt >= tstats_t%nstart .and. jt <= tstats_t%nend) then
+    if(.not. tstats_t%started) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(*,*) '-------------------------------'   
-        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tsum_t%nstart, ' to ', tsum_t%nend
+        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tstats_t%nstart, ' to ', tstats_t%nend
         write(*,*) '-------------------------------'   
       endif
-      tsum_t%started=.true.
+
+      call tstats_init()
+
     endif
 !  Compute running summations
-    call tsum_compute ()
+    call tstats_compute ()
   endif 
   
 endif
@@ -496,6 +500,100 @@ return
 end subroutine output_loop
 
 !**********************************************************************
+subroutine tstats_init()
+!**********************************************************************
+
+!  Load tstats.out files
+
+use param, only : coord, dt
+use messages
+use stat_defs, only : tstats_t
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.tstats_init'
+character (*), parameter :: ftstats_in = 'tstats.out'
+$if ($MPI)
+character (*), parameter :: MPI_suffix = '.c'
+character (128) :: fname
+$endif
+
+logical :: opn, exst
+
+!---------------------------------------------------------------------
+
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($MPI)
+write (fname, '(a,a,i0)') ftstats_in, MPI_suffix, coord
+$else
+fname = trim(adjustl(ftstats_in))
+$endif
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+  !  Nothing to read in
+  call mesg(sub_name, 'No previous time statistical data - starting from scratch.')
+
+  tstats_t % total_time = dble(tstats_t % nend - tstats_t % nstart + 1) * dt
+
+  tstats_t % started = .true.
+  return
+endif
+  
+open (1, file=fname, action='read', position='rewind', form='unformatted')
+
+read (1) tstats_t % total_time
+read (1) tstats_t % u 
+read (1) tstats_t % v
+read (1) tstats_t % w
+read (1) tstats_t % u2
+read (1) tstats_t % v2
+read (1) tstats_t % w2
+read (1) tstats_t % uw
+read (1) tstats_t % vw
+read (1) tstats_t % uv
+read (1) tstats_t % dudz
+
+$if($LVLSET)
+$if(RNS_LS)
+read (1) tstats_t % fx
+read (1) tstats_t % fy
+read (1) tstats_t % fz
+$endif
+$endif
+
+close(1)
+
+! Now initialize all quantities for summation
+tstats_t % u = tstats_t % u * tstats_t % total_time
+tstats_t % v = tstats_t % v * tstats_t % total_time
+tstats_t % w = tstats_t % w * tstats_t % total_time
+tstats_t % u2 = tstats_t % u2 * tstats_t % total_time
+tstats_t % v2 = tstats_t % v2 * tstats_t % total_time
+tstats_t % w2 = tstats_t % w2 * tstats_t % total_time
+tstats_t % uw = tstats_t % uw * tstats_t % total_time
+tstats_t % vw = tstats_t % vw * tstats_t % total_time
+tstats_t % uv = tstats_t % uv * tstats_t % total_time
+tstats_t % dudz = tstats_t % dudz * tstats_t % total_time
+
+$if($LVLSET)
+$if(RNS_LS)
+tstats_t % fx = tstats_t % fx * tstats_t % total_time
+tstats_t % fy = tstats_t % fy * tstats_t % total_time
+tstats_t % fz = tstats_t % fz * tstats_t % total_time
+$endif
+$endif
+
+tstats_t % total_time = tstats_t%total_time + dble(tstats_t % nend - tstats_t % nstart + 1) * dt
+
+
+tstats_t%started=.true.
+
+return
+end subroutine tstats_init
+
+!**********************************************************************
 subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
@@ -538,7 +636,7 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-    call write_real_data(point_t%fname(n), 'append', 4, (/ jt_total*dt_dim, &
+    call write_real_data(point_t%fname(n), 'append', 4, (/ total_time_dim, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))
@@ -577,7 +675,7 @@ elseif(itype==2) then
   $endif
   
   
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, jt_total*dt_dim)
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time_dim)
   !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
   
 
@@ -590,7 +688,7 @@ elseif(itype==2) then
   !!write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
   !!$endif
 
-  !!write(7,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+  !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
 	
@@ -639,10 +737,10 @@ elseif(itype==3) then
     !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
     !  j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
     !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-    !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+    !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, jt_total*dt_dim)  
+	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time_dim)  
 	  
 	open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')
@@ -700,10 +798,10 @@ elseif(itype==4) then
     !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
     !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
     !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-    !write(2,"(1a,f18.6)") 'solutiontime=', jt_total*dt_dim
+    !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
-	 '"x", "y", "z", "u", "v", "w"', coord, 2, jt_total*dt_dim)
+	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time_dim)
 	  	  
     open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')	  
@@ -1382,51 +1480,124 @@ end subroutine check_write_fmt
 ! end subroutine rs_write
 
 !**********************************************************************
-subroutine tsum_write()
+subroutine tstats_finalize()
 !**********************************************************************
 use grid_defs, only : x,y,z
-use stat_defs, only : tsum_t
+use stat_defs, only : tstats_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
 implicit none
 
-character (64) :: fname, temp
+character (*), parameter :: sub_name = mod_name // '.tstats_finalize'
+character (64) :: fname, temp, fname_dat
 integer :: i,j,k
 
-fname = 'output/tsum.out'
+logical :: opn
+
+fname = 'tstats.out'
+fname_dat = 'output/tstats.dat'
 
 $if ($MPI)
 !  For MPI implementation     
   write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
+  fname_dat = trim (fname_dat) // temp
 $endif
 
- ! call write_real_data_3D(fname,'rewind', 'formatted', 10, nx, ny, nz, (/ tsum_t%u(1:nx,1:ny,1:nz), &
- ! tsum_t%v(1:nx,1:ny,1:nz), tsum_t%w(1:nx,1:ny,1:nz), tsum_t%u2(1:nx,1:ny,1:nz), &
- ! tsum_t%v2(1:nx,1:ny,1:nz), tsum_t%w2(1:nx,1:ny,1:nz), tsum_t%uw(1:nx,1:ny,1:nz), &
- ! tsum_t%vw(1:nx,1:ny,1:nz), tsum_t%uv(1:nx,1:ny,1:nz), tsum_t%dudz(1:nx,1:ny,1:nz) /), &
+!  Perform Averaging operation
+tstats_t % u = tstats_t % u / tstats_t % total_time
+tstats_t % v = tstats_t % v / tstats_t % total_time
+tstats_t % w = tstats_t % w / tstats_t % total_time
+tstats_t % u2 = tstats_t % u2 / tstats_t % total_time
+tstats_t % v2 = tstats_t % v2 / tstats_t % total_time
+tstats_t % w2 = tstats_t % w2 / tstats_t % total_time
+tstats_t % uw = tstats_t % uw / tstats_t % total_time
+tstats_t % vw = tstats_t % vw / tstats_t % total_time
+tstats_t % uv = tstats_t % uv / tstats_t % total_time
+tstats_t % dudz = tstats_t % dudz / tstats_t % total_time
+
+$if($LVLSET)
+$if(RNS_LS)
+tstats_t % fx = tstats_t % fx / tstats_t % total_time
+tstats_t % fy = tstats_t % fy / tstats_t % total_time
+tstats_t % fz = tstats_t % fz / tstats_t % total_time
+$endif
+$endif
+
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+open (1, file=fname, action='write', position='rewind', form='unformatted')
+
+write (1) tstats_t % total_time
+write (1) tstats_t % u 
+write (1) tstats_t % v
+write (1) tstats_t % w
+write (1) tstats_t % u2
+write (1) tstats_t % v2
+write (1) tstats_t % w2
+write (1) tstats_t % uw
+write (1) tstats_t % vw
+write (1) tstats_t % uv
+write (1) tstats_t % dudz
+
+$if($LVLSET)
+$if(RNS_LS)
+write (1) tstats_t % fx
+write (1) tstats_t % fy
+write (1) tstats_t % fz
+$endif
+$endif
+
+close(1)
+
+ ! call write_real_data_3D(fname,'rewind', 'formatted', 10, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
+ ! tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
+ ! tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
+ ! tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz) /), &
  ! x, y, z(1:nz))
- call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx, Ny, Nz/), &
+ 
+$if($LVLSET)
+$if(RNS_LS)
+
+call write_tecplot_header_ND(fname_dat, 'rewind', 13, (/ Nx, Ny, Nz/), &
+   '"u","v","w","u2","v2","w2","uw","vw","uv","dudz", "fx", "fy", "fz"', coord, 2)
+
+call write_real_data_3D(fname_dat,'append', 'formatted', 13, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
+tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
+tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
+tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz), &
+tstats_t%fx(1:nx,1:ny,1:nz), tstats_t%fy(1:nx,1:ny,1:nz), tstats_t%fz(1:nx,1:ny,1:nz) /), &
+x(1:nx), y(1:ny), z(1:nz))
+
+$endif
+
+$else
+
+call write_tecplot_header_ND(fname_dat, 'rewind', 10, (/ Nx, Ny, Nz/), &
    '"u","v","w","u2","v2","w2","uw","vw","uv","dudz"', coord, 2)
 
-  
-  call write_real_data_3D(fname,'append', 'formatted', 10, nx, ny, nz, (/ tsum_t%u(1:nx,1:ny,1:nz), &
-  tsum_t%v(1:nx,1:ny,1:nz), tsum_t%w(1:nx,1:ny,1:nz), tsum_t%u2(1:nx,1:ny,1:nz), &
-  tsum_t%v2(1:nx,1:ny,1:nz), tsum_t%w2(1:nx,1:ny,1:nz), tsum_t%uw(1:nx,1:ny,1:nz), &
-  tsum_t%vw(1:nx,1:ny,1:nz), tsum_t%uv(1:nx,1:ny,1:nz), tsum_t%dudz(1:nx,1:ny,1:nz) /), &
-  x(1:nx), y(1:ny), z(1:nz))
- !call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tsum_t%u(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%u2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%v2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%w2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uw(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%vw(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%uv(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tsum_t%dudz(1:nx,1:ny,1:nz))
+call write_real_data_3D(fname_dat,'append', 'formatted', 10, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
+tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
+tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
+tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz) /), &
+x(1:nx), y(1:ny), z(1:nz))
+
+
+$endif
+ 
+ !call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tstats_t%u(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%v(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%w(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%u2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%v2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%w2(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%uw(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%vw(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%uv(1:nx,1:ny,1:nz))
+ !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%dudz(1:nx,1:ny,1:nz))
 
 return
-end subroutine tsum_write
+end subroutine tstats_finalize
 
 ! !**********************************************************************
 ! subroutine tavg_write()
@@ -1503,7 +1674,7 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : rs_t, tsum_t, point_t, yplane_t, zplane_t
+use stat_defs, only : rs_t, tstats_t, point_t, yplane_t, zplane_t
 
 implicit none
 
@@ -1542,7 +1713,7 @@ if ((cumulative_time) .and. (lun == lun_default)) then
   if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
-    write (1, *) jt_total
+    write (1, *) jt_total, total_time, total_time_dim
     close (1)
   end if
 end if
@@ -1557,7 +1728,7 @@ end if
 ! if(tavg_t%calc) call tavg_write()
 
 !  Check if average quantities are to be recorded
-if(tsum_t%calc) call tsum_write()
+if(tstats_t%calc) call tstats_finalize()
  
 !  Close instantaneous velocity files
 if(point_t%calc) then
@@ -2054,9 +2225,9 @@ integer :: fid, i,j,k
 
 !  All nstart and nend values are based
 !  on jt and not jt_total
-tsum_t%calc = .false.
-tsum_t%nstart = 1
-tsum_t%nend = nsteps
+tstats_t%calc = .true.
+tstats_t%nstart = 1
+tstats_t%nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
 point_t%calc = .false.
@@ -2067,7 +2238,7 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .true.
+domain_t%calc = .false.
 domain_t%nstart = 1000
 domain_t%nend   = nsteps
 domain_t%nskip = 1000
@@ -2082,7 +2253,7 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
+zplane_t%calc   = .false.
 zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
@@ -2108,28 +2279,45 @@ $endif
 
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
-if(tsum_t%calc) then 
-  allocate(tsum_t%u(nx, ny, $lbz:nz))
-  allocate(tsum_t%v(nx, ny, $lbz:nz))
-  allocate(tsum_t%w(nx, ny, $lbz:nz))
-  allocate(tsum_t%u2(nx, ny, $lbz:nz))
-  allocate(tsum_t%v2(nx, ny, $lbz:nz))
-  allocate(tsum_t%w2(nx, ny, $lbz:nz))
-  allocate(tsum_t%uw(nx, ny, $lbz:nz))
-  allocate(tsum_t%vw(nx, ny, $lbz:nz))
-  allocate(tsum_t%uv(nx, ny, $lbz:nz))
-  allocate(tsum_t%dudz(nx, ny, $lbz:nz))
+if(tstats_t%calc) then 
+
+  allocate(tstats_t%u(nx, ny, nz))
+  allocate(tstats_t%v(nx, ny, nz))
+  allocate(tstats_t%w(nx, ny, nz))
+  allocate(tstats_t%u2(nx, ny, nz))
+  allocate(tstats_t%v2(nx, ny, nz))
+  allocate(tstats_t%w2(nx, ny, nz))
+  allocate(tstats_t%uw(nx, ny, nz))
+  allocate(tstats_t%vw(nx, ny, nz))
+  allocate(tstats_t%uv(nx, ny, nz))
+  allocate(tstats_t%dudz(nx, ny, nz))
+  
   !  Initialize arrays
-  tsum_t%u=0.
-  tsum_t%v=0.
-  tsum_t%w=0.
-  tsum_t%u2=0.
-  tsum_t%v2=0.
-  tsum_t%w2=0.
-  tsum_t%uw=0.
-  tsum_t%vw=0.
-  tsum_t%uv=0.
-  tsum_t%dudz=0.
+  tstats_t%u=0.
+  tstats_t%v=0.
+  tstats_t%w=0.
+  tstats_t%u2=0.
+  tstats_t%v2=0.
+  tstats_t%w2=0.
+  tstats_t%uw=0.
+  tstats_t%vw=0.
+  tstats_t%uv=0.
+  tstats_t%dudz=0.
+  
+  $if($LVLSET)
+  $if($RNS_LS)
+  
+  allocate(tstats_t%fx(nx,ny,nz))
+  allocate(tstats_t%fy(nx,ny,nz))
+  allocate(tstats_t%fz(nx,ny,nz))
+  
+  tstats_t%fx = 0._rprec
+  tstats_t%fx = 0._rprec
+  tstats_t%fx = 0._rprec
+  
+  $endif
+  $endif
+  
 endif
 
 ! if(rs_t%calc) then
@@ -2164,8 +2352,8 @@ if(yplane_t%calc) then
   
 !  Compute istart and ldiff
   do j=1,yplane_t%nloc
-	yplane_t%istart(j) = index_start('j',dy,yplane_t%loc(j))
-	yplane_t%ldiff(j) = y(yplane_t%istart(j)) - yplane_t%loc(j)
+	  yplane_t%istart(j) = index_start('j', dy, yplane_t%loc(j))
+	  yplane_t%ldiff(j) = y(yplane_t%istart(j)) - yplane_t%loc(j)
   enddo
     
 endif
@@ -2215,7 +2403,7 @@ if(point_t%calc) then
 !  Find the processor in which this point lives
   $if ($MPI)
     if(point_t%xyz(3,i) >= z(1) .and. point_t%xyz(3,i) < z(nz)) then
-      point_t%coord(i) = coord
+    point_t%coord(i) = coord
 	  
 	  point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
 	  point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
@@ -2226,17 +2414,17 @@ if(point_t%calc) then
 	  point_t%zdiff(i) = z(point_t%kstart(i)) - point_t%xyz(3,i)
 
 	  
-      fid=3000*i
+    fid=3000*i
 	  
 	  !  Can't concatenate an empty string
     point_t%fname(i)=''
-	call strcat(point_t%fname(i),'output/uvw_inst-')
-	call strcat(point_t%fname(i), point_t%xyz(1,i))
-	call strcat(point_t%fname(i),'-')
-	call strcat(point_t%fname(i),point_t%xyz(2,i))
-	call strcat(point_t%fname(i),'-')
-	call strcat(point_t%fname(i),point_t%xyz(3,i))
-	call strcat(point_t%fname(i),'.dat')
+	  call strcat(point_t%fname(i),'output/uvw_inst-')
+	  call strcat(point_t%fname(i), point_t%xyz(1,i))
+	  call strcat(point_t%fname(i),'-')
+	  call strcat(point_t%fname(i),point_t%xyz(2,i))
+	  call strcat(point_t%fname(i),'-')
+	  call strcat(point_t%fname(i),point_t%xyz(3,i))
+	  call strcat(point_t%fname(i),'.dat')
 	
 	  
 	  !call strcat(point_t%fname(i),point_t%xyz(1,i))
@@ -2325,14 +2513,20 @@ return
 end subroutine stats_init
 
 !***************************************************************
-subroutine tsum_compute()
+subroutine tstats_compute()
+
 !***************************************************************
 !  This subroutine collects the stats for each flow 
 !  variable quantity
 use types, only : rprec
-use stat_defs, only : tsum_t
-use param, only : nx,ny,nz
+use stat_defs, only : tstats_t
+use param, only : nx,ny,nz, dt
 use sim_param, only : u,v,w, dudz
+$if($LVLSET)
+$if($RNS_LS)
+use immersedbc, only : fx, fy, fz
+$endif
+$endif
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p, dudz_p
@@ -2345,109 +2539,119 @@ do k=1,nz
   do j=1,ny
     do i=1,nx
 !  Being cache friendly
-      u_p = u(i,j,k)
-      v_p = v(i,j,k)
+      u_p = u(i,j,k) * dt * tstats_t % nskip
+      v_p = v(i,j,k) * dt * tstats_t % nskip
 !  Interpolate each w and dudz to uv grid
-      w_p = w_uv(i,j,k)  
-      dudz_p = dudz_uv(i,j,k)
+      w_p = w_uv(i,j,k) * dt * tstats_t % nskip
+      dudz_p = dudz_uv(i,j,k) * dt * tstats_t % nskip
+          
+      tstats_t%u(i,j,k)=tstats_t%u(i,j,k) + u_p 
+      tstats_t%v(i,j,k)=tstats_t%v(i,j,k) + v_p 
+      tstats_t%w(i,j,k)=tstats_t%w(i,j,k) + w_p 
+      tstats_t%u2(i,j,k)=tstats_t%u2(i,j,k) + u_p*u_p 
+      tstats_t%v2(i,j,k)=tstats_t%v2(i,j,k) + v_p*v_p 
+      tstats_t%w2(i,j,k)=tstats_t%w2(i,j,k) + w_p*w_p 
+      tstats_t%uw(i,j,k)=tstats_t%uw(i,j,k) + u_p*w_p 
+      tstats_t%vw(i,j,k)=tstats_t%vw(i,j,k) + v_p*w_p 
+      tstats_t%uv(i,j,k)=tstats_t%uv(i,j,k) + u_p*v_p 
+      tstats_t%dudz(i,j,k)=tstats_t%dudz(i,j,k) + dudz_p 
       
-      tsum_t%u(i,j,k)=tsum_t%u(i,j,k) + u_p
-      tsum_t%v(i,j,k)=tsum_t%v(i,j,k) + v_p
-      tsum_t%w(i,j,k)=tsum_t%w(i,j,k) + w_p
-      tsum_t%u2(i,j,k)=tsum_t%u2(i,j,k) + u_p*u_p
-      tsum_t%v2(i,j,k)=tsum_t%v2(i,j,k) + v_p*v_p
-      tsum_t%w2(i,j,k)=tsum_t%w2(i,j,k) + w_p*w_p
-      tsum_t%uw(i,j,k)=tsum_t%uw(i,j,k) + u_p*w_p
-      tsum_t%vw(i,j,k)=tsum_t%vw(i,j,k) + v_p*w_p
-      tsum_t%uv(i,j,k)=tsum_t%uv(i,j,k) + u_p*v_p
-      tsum_t%dudz(i,j,k)=tsum_t%dudz(i,j,k) + dudz_p
+      $if($LVLSET)
+      $if($RNS_LS)
+      tstats_t % fx(i,j,k) = tstats_t % fx(i,j,k) + fx(i,j,k) * dt * tstats_t % nskip
+      tstats_t % fy(i,j,k) = tstats_t % fy(i,j,k) + fy(i,j,k) * dt * tstats_t % nskip
+      tstats_t % fz(i,j,k) = tstats_t % fz(i,j,k) + fz(i,j,k) * dt * tstats_t % nskip
+      $endif
+      $endif
+      
+      
     enddo
   enddo
 enddo
 
 return
 
-end subroutine tsum_compute
+end subroutine tstats_compute
 
-!***************************************************************
-subroutine tavg_compute()
-!***************************************************************
-!  This subroutine collects the stats for each flow 
-!  variable quantity
-use stat_defs, only : tavg_t
-use param, only : nx,ny,nz
-use sim_param, only : u,v,w, dudz
-!use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
-implicit none
-integer :: i,j,k, navg
-double precision :: w_interp, dudz_interp, fa
+!!***************************************************************
+!subroutine tavg_compute()
+!!***************************************************************
+!!  This subroutine collects the stats for each flow 
+!!  variable quantity
+!use stat_defs, only : tavg_t
+!use param, only : nx,ny,nz
+!use sim_param, only : u,v,w, dudz
+!!use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
+!implicit none
+!integer :: i,j,k, navg
+!double precision :: w_interp, dudz_interp, fa
 
-!  Make sure w has been interpolated to uv-grid
-call interp_to_uv_grid(w, w_uv, w_uv_tag)
-call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
+!!  Make sure w has been interpolated to uv-grid
+!call interp_to_uv_grid(w, w_uv, w_uv_tag)
+!call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
 
-!  Initialize w_interp and dudz_interp
-w_interp = 0.
-dudz_interp = 0. 
+!!  Initialize w_interp and dudz_interp
+!w_interp = 0.
+!dudz_interp = 0. 
 
-!  Compute number of times to average over
-navg = tavg_t%nend - tavg_t%nstart + 1
-!  Averaging factor
-fa=1./dble(navg)
+!!  Compute number of times to average over
+!navg = tavg_t%nend - tavg_t%nstart + 1
+!!  Averaging factor
+!fa=1./dble(navg)
 
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-!  Interpolate each w and dudz to uv grid
-      w_interp = w_uv(i,j,k)  
-      dudz_interp = dudz_uv(i,j,k)
-      
-      tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
-      tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
-      tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
-      tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
-      tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
-      tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
-      tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
-      tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
-      tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
-      tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
-    enddo
-  enddo
-enddo
+!do k=1,nz
+!  do j=1,ny
+!    do i=1,nx
+!!  Interpolate each w and dudz to uv grid
+!      w_interp = w_uv(i,j,k)  
+!      dudz_interp = dudz_uv(i,j,k)
+!      
+!      tavg_t%u(i,j,k)=tavg_t%u(i,j,k) + fa*u(i,j,k)
+!      tavg_t%v(i,j,k)=tavg_t%v(i,j,k) + fa*v(i,j,k)
+!      tavg_t%w(i,j,k)=tavg_t%w(i,j,k) + fa*w_interp
+!      tavg_t%u2(i,j,k)=tavg_t%u2(i,j,k) + fa*u(i,j,k)*u(i,j,k)
+!      tavg_t%v2(i,j,k)=tavg_t%v2(i,j,k) + fa*v(i,j,k)*v(i,j,k)
+!      tavg_t%w2(i,j,k)=tavg_t%w2(i,j,k) + fa*w_interp*w_interp
+!      tavg_t%uw(i,j,k)=tavg_t%uw(i,j,k) + fa*u(i,j,k)*w_interp
+!      tavg_t%vw(i,j,k)=tavg_t%vw(i,j,k) + fa*v(i,j,k)*w_interp
+!      tavg_t%uv(i,j,k)=tavg_t%uv(i,j,k) + fa*u(i,j,k)*v(i,j,k)
+!      tavg_t%dudz(i,j,k)=tavg_t%dudz(i,j,k) + fa*dudz_interp
+!    enddo
+!  enddo
+!enddo
 
-return
+!return
 
-end subroutine tavg_compute
+!end subroutine tavg_compute
 
-!***************************************************************
-subroutine rs_compute()
-!***************************************************************
-!  This subroutine computes Reynolds stresses from tavg_t u,v,w
-!  values
-use stat_defs, only : rs_t, tavg_t
-use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
-use sim_param, only : u,v,w
+!!***************************************************************
+!subroutine rs_compute()
+!!***************************************************************
+!!  This subroutine computes Reynolds stresses from tavg_t u,v,w
+!!  values
+!use stat_defs, only : rs_t, tavg_t
+!use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+!use sim_param, only : u,v,w
 
-implicit none
+!implicit none
 
-integer :: i,j,k
+!integer :: i,j,k
 
-do k=1,nz
-  do j=1,ny
-    do i=1,nx
-      rs_t%up2(i,j,k)=tavg_t%u2(i,j,k) - tavg_t%u(i,j,k)*tavg_t%u(i,j,k)
-      rs_t%vp2(i,j,k)=tavg_t%v2(i,j,k) - tavg_t%v(i,j,k)*tavg_t%v(i,j,k)
-	  rs_t%wp2(i,j,k)=tavg_t%w2(i,j,k) - tavg_t%w(i,j,k)*tavg_t%w(i,j,k)
-	  rs_t%upwp(i,j,k)=tavg_t%uw(i,j,k) - tavg_t%u(i,j,k)*tavg_t%w(i,j,k)
-	  rs_t%vpwp(i,j,k)=tavg_t%vw(i,j,k) - tavg_t%v(i,j,k)*tavg_t%w(i,j,k)
-	  rs_t%upvp(i,j,k)=tavg_t%uv(i,j,k) - tavg_t%u(i,j,k)*tavg_t%v(i,j,k)
-	enddo
-  enddo
-enddo
-  
-return
-end subroutine rs_compute
+!do k=1,nz
+!  do j=1,ny
+!    do i=1,nx
+!      rs_t%up2(i,j,k)=tavg_t%u2(i,j,k) - tavg_t%u(i,j,k)*tavg_t%u(i,j,k)
+!      rs_t%vp2(i,j,k)=tavg_t%v2(i,j,k) - tavg_t%v(i,j,k)*tavg_t%v(i,j,k)
+!	  rs_t%wp2(i,j,k)=tavg_t%w2(i,j,k) - tavg_t%w(i,j,k)*tavg_t%w(i,j,k)
+!	  rs_t%upwp(i,j,k)=tavg_t%uw(i,j,k) - tavg_t%u(i,j,k)*tavg_t%w(i,j,k)
+!	  rs_t%vpwp(i,j,k)=tavg_t%vw(i,j,k) - tavg_t%v(i,j,k)*tavg_t%w(i,j,k)
+!	  rs_t%upvp(i,j,k)=tavg_t%uv(i,j,k) - tavg_t%u(i,j,k)*tavg_t%v(i,j,k)
+!	enddo
+!  enddo
+!enddo
+!  
+!return
+!end subroutine rs_compute
 
 ! !**********************************************************************
 ! subroutine plane_avg_compute(jt)
@@ -2582,7 +2786,7 @@ if (ipart==1) then
 			  write (temp2, '(".c",i0)') coord
 			  fname2 = trim (fname2) // temp2
 			$endif	 	  
-		  call write_tecplot_header_ND(fname2, 'rewind', 4, (/ Nz/),'"z", "u_avg", "v_avg", "w_avg"', coord, 2, jt_total*dt_dim)  
+		  call write_tecplot_header_ND(fname2, 'rewind', 4, (/ Nz/),'"z", "u_avg", "v_avg", "w_avg"', coord, 2, total_time_dim)  
 		!txx-txy,etc file
 		  fname3 = 'output/avg_tau.dat'
 			$if ($MPI)
@@ -2590,28 +2794,28 @@ if (ipart==1) then
 			  fname3 = trim (fname3) // temp3
 			$endif	 	  
 		  call write_tecplot_header_ND(fname3, 'rewind', 7, (/ Nz/), &
-		  '"z", "txx_avg", "txy_avg", "tyy_avg", "txz_avg", "tyz_avg", "tzz_avg"', coord, 2, jt_total*dt_dim)  
+		  '"z", "txx_avg", "txy_avg", "tyy_avg", "txz_avg", "tyz_avg", "tzz_avg"', coord, 2, total_time_dim)  
 		 !ddz file  
 		  fname4 = 'output/avg_ddz.dat'
 			$if ($MPI)
 			  write (temp4, '(".c",i0)') coord
 			  fname4 = trim (fname4) // temp4
 			$endif	 	  
-		  call write_tecplot_header_ND(fname4, 'rewind', 3, (/ Nz/),'"z", "dudz_avg", "dvdz_avg"', coord, 2, jt_total*dt_dim) 
+		  call write_tecplot_header_ND(fname4, 'rewind', 3, (/ Nz/),'"z", "dudz_avg", "dvdz_avg"', coord, 2, total_time_dim) 
 		!u2-v2-w2 file  
 		  fname5 = 'output/avg_uvw2.dat'
 			$if ($MPI)
 			  write (temp5, '(".c",i0)') coord
 			  fname5 = trim (fname5) // temp5
 			$endif	 	  
-		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, jt_total*dt_dim) 		  
+		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, total_time_dim) 		  
 		!uv-uw-vw file  
 		  fname6 = 'output/avg_uv_uw_vw.dat'
 			$if ($MPI)
 			  write (temp6, '(".c",i0)') coord
 			  fname6 = trim (fname6) // temp6
 			$endif	 	  
-		  call write_tecplot_header_ND(fname6, 'rewind', 4, (/ Nz/),'"z", "uv_avg", "uw_avg", "vw_avg"', coord, 2, jt_total*dt_dim) 		  
+		  call write_tecplot_header_ND(fname6, 'rewind', 4, (/ Nz/),'"z", "uv_avg", "uw_avg", "vw_avg"', coord, 2, total_time_dim) 		  
 
 elseif (ipart==2) then
 !Compute averages

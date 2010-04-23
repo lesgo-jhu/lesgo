@@ -198,6 +198,8 @@ $endif
 do jt=1,nsteps   
 
   jt_total = jt_total + 1  !--moved from io.f90
+  total_time = total_time + jt*dt
+  total_time_dim = total_time_dim + jt*dt_dim
   
   $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
