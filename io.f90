@@ -1559,8 +1559,8 @@ close(1)
 $if($LVLSET)
 $if(RNS_LS)
 
-call write_tecplot_header_ND(fname_dat, 'rewind', 13, (/ Nx, Ny, Nz/), &
-   '"u","v","w","u2","v2","w2","uw","vw","uv","dudz", "fx", "fy", "fz"', coord, 2)
+call write_tecplot_header_ND(fname_dat, 'rewind', 16, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "u","v","w","u2","v2","w2","uw","vw","uv","dudz", "fx", "fy", "fz"', coord, 2)
 
 call write_real_data_3D(fname_dat,'append', 'formatted', 13, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
 tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
