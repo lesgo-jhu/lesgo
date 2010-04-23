@@ -2527,6 +2527,9 @@ $if($RNS_LS)
 use immersedbc, only : fx, fy, fz
 $endif
 $endif
+
+implicit none
+
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p, dudz_p
@@ -2539,11 +2542,11 @@ do k=1,nz
   do j=1,ny
     do i=1,nx
 !  Being cache friendly
-      u_p = u(i,j,k) * dt * tstats_t % nskip
-      v_p = v(i,j,k) * dt * tstats_t % nskip
+      u_p = u(i,j,k) * dt 
+      v_p = v(i,j,k) * dt 
 !  Interpolate each w and dudz to uv grid
-      w_p = w_uv(i,j,k) * dt * tstats_t % nskip
-      dudz_p = dudz_uv(i,j,k) * dt * tstats_t % nskip
+      w_p = w_uv(i,j,k) * dt
+      dudz_p = dudz_uv(i,j,k) * dt 
           
       tstats_t%u(i,j,k)=tstats_t%u(i,j,k) + u_p 
       tstats_t%v(i,j,k)=tstats_t%v(i,j,k) + v_p 
@@ -2558,9 +2561,9 @@ do k=1,nz
       
       $if($LVLSET)
       $if($RNS_LS)
-      tstats_t % fx(i,j,k) = tstats_t % fx(i,j,k) + fx(i,j,k) * dt * tstats_t % nskip
-      tstats_t % fy(i,j,k) = tstats_t % fy(i,j,k) + fy(i,j,k) * dt * tstats_t % nskip
-      tstats_t % fz(i,j,k) = tstats_t % fz(i,j,k) + fz(i,j,k) * dt * tstats_t % nskip
+      tstats_t % fx(i,j,k) = tstats_t % fx(i,j,k) + fx(i,j,k) * dt 
+      tstats_t % fy(i,j,k) = tstats_t % fy(i,j,k) + fy(i,j,k) * dt 
+      tstats_t % fz(i,j,k) = tstats_t % fz(i,j,k) + fz(i,j,k) * dt 
       $endif
       $endif
       
