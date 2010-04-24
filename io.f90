@@ -2843,12 +2843,8 @@ subroutine tavg_compute()
 use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t
 use param, only : nx,ny,nz, dt
-use sim_param, only : u,v,w, dudz, txx, txy, tyy, txz, tyz, tzz
-$if($LVLSET)
-$if($RNS_LS)
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 use immersedbc, only : fx, fy, fz
-$endif
-$endif
 
 implicit none
 
