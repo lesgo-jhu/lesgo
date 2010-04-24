@@ -12,6 +12,10 @@ public
 !                                            upwp, vpwp, upvp
 !end type rs
 
+type rs
+        real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
+end type rs
+
 real(rprec) :: tavg_total_time
 !  Sums performed over time
 
@@ -85,6 +89,17 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_t
 type(point), target 	  :: point_t
 type(domain)        		:: domain_t
 type(plane)         		:: yplane_t, zplane_t
+
+type(rs), pointer, dimension(:,:,:) :: rs_t
+type(rs), pointer, dimension(:) :: rs_zplane_t
+
+$if($MPI)
+type(rs), pointer, dimension(:) :: rs_zplane_tot_t
+type(rs), pointer, dimension(:) :: rs_zplane_buf_t
+
+type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
+$endif
 
 end module stat_defs
 

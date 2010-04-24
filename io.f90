@@ -1516,10 +1516,13 @@ subroutine tavg_finalize()
 !**********************************************************************
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg, tavg_total_time
+use stat_defs, only : rs, rs_t, rs_zplane_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, rank_of_coord, comm, ierr
+use stat_defs, only : rs_zplane_buf_t, rs_zplane_tot_t
+use stat_defs, only : tavg_zplane_buf_t, tavg_zplane_tot_t
 $endif
 implicit none
 
@@ -1544,20 +1547,20 @@ $endif
 logical :: opn
 
 
-type rs
-real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
-end type rs
+!type rs
+!real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
+!end type rs
 
-type(rs), pointer, dimension(:,:,:) :: rs_t
-type(rs), pointer, dimension(:) :: rs_zplane_t
+!type(rs), pointer, dimension(:,:,:) :: rs_t
+!type(rs), pointer, dimension(:) :: rs_zplane_t
 
-$if($MPI)
-type(rs), pointer, dimension(:) :: rs_zplane_tot_t
-type(rs), pointer, dimension(:) :: rs_zplane_buf_t
+!!$if($MPI)
+!type(rs), pointer, dimension(:) :: rs_zplane_tot_t
+!type(rs), pointer, dimension(:) :: rs_zplane_buf_t
 
-type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
-type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
-$endif
+!type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
+!type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
+!!$endif
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 
