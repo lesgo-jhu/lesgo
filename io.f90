@@ -668,7 +668,7 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-    call write_real_data(point_t%fname(n), 'append', 4, (/ total_time_dim, &
+    call write_real_data(point_t%fname(n), 'append', 4, (/ total_time, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))
@@ -707,7 +707,7 @@ elseif(itype==2) then
   $endif
   
   
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time_dim)
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time)
   !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
   
 
@@ -772,7 +772,7 @@ elseif(itype==3) then
     !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time_dim)  
+	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
 	  
 	open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')
@@ -833,7 +833,7 @@ elseif(itype==4) then
     !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
 	
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
-	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time_dim)
+	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)
 	  	  
     open (unit = 2,file = fname, status='unknown',form='formatted', &
       action='write',position='append')	  
@@ -1535,8 +1535,8 @@ integer :: i,j,k
 $if($MPI)
 real(rprec), allocatable, dimension(:) :: z_tot
 integer :: MPI_RS, MPI_TSTATS
-integer :: rs_type, rs_block, rs_disp
-integer :: tavg_type, tavg_block, tavg_disp
+integer :: rs_type(1), rs_block(1), rs_disp(1)
+integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 
 integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
 $endif
@@ -2540,6 +2540,7 @@ implicit none
 character(120) :: fname, var_list
 integer :: fid, i,j,k
 
+! --- ALL TIME AVERAGING CONTROLLED IN PARAM ---
 !!  All nstart and nend values are based
 !!  on jt and not jt_total
 !tavg_t%calc = .true.
@@ -2556,9 +2557,9 @@ point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .false.
-domain_t%nstart = 1000
+domain_t%nstart = 10000
 domain_t%nend   = nsteps
-domain_t%nskip = 1000
+domain_t%nskip = 10000
 
 !  y-plane stats/data
 yplane_t%calc   = .false.
@@ -2570,10 +2571,10 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .false.
-zplane_t%nstart = 100
+zplane_t%calc   = .true.
+zplane_t%nstart = 1000
 zplane_t%nend   = nsteps
-zplane_t%nskip  = 100
+zplane_t%nskip  = 1000
 zplane_t%nloc   = 3
 zplane_t%loc(1) = 0.733
 zplane_t%loc(2) = 1.5505
