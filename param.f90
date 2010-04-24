@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -47,7 +47,6 @@ module param
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
-
   integer,parameter:: nx=32,ny=32,nz=(33-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
@@ -109,7 +108,7 @@ module param
 !---------------------------------------------------   
   integer, parameter :: nsteps = 100
  
-  real (rprec), parameter :: dt = 2.e-5
+  real (rprec), parameter :: dt = 2.e-4_rprec
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
@@ -166,7 +165,10 @@ module param
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
-!---------------------------------------------------  
+!--------------------------------------------------- 
+  logical, parameter :: tavg_calc = .true.
+  integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
+   
   logical,parameter:: output=.true.
   logical, parameter :: use_avgslice = .false.
   !  Set minimum time step to write averaged slices

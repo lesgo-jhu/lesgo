@@ -5,32 +5,23 @@ use types, only : rprec
 save
 public
 
-!  Reynolds stresses
-type rs
-  logical :: calc=.false.
-  real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
-                                            upwp, vpwp, upvp
-end type rs
+!!  Reynolds stresses
+!type rs
+!  logical :: calc=.false.
+!  real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
+!                                            upwp, vpwp, upvp
+!end type rs
 
+real(rprec) :: tavg_total_time
 !  Sums performed over time
-type tstats
-  logical :: calc=.false.
-  logical :: started=.false.
-  integer :: nstart, nend, nskip
-  real(rprec) :: total_time
-  real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
-    u2, v2, w2, uw, vw, uv, dudz
-    
-  $if($LVLSET)
-  $if($RNS_LS)
-  real(rprec), pointer, dimension(:,:,:) :: fx, fy, fz
-  $endif
-  $endif
-  
-  real(rprec), pointer, dimension(:) :: u_avg, v_avg, w_avg, u2_avg, v2_avg, w2_avg
-  real(rprec), pointer, dimension(:) :: txx_avg, txy_avg, tyy_avg, txz_avg, tyz_avg, tzz_avg
-  real(rprec), pointer, dimension(:) :: dudz_avg, dvdz_avg, uv_avg, uw_avg, vw_avg
-end type tstats	
+
+type tavg
+  real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
+  real(rprec) :: dudz, dvdz
+  real(rprec) :: txx, txy, tyy, txz, tyz, tzz
+  real(rprec) :: fx, fy, fz
+end type tavg
+
   
 !  Instantaneous Variables Storage (Parameters for storing velocity 
 !  component values each time step)
@@ -88,10 +79,9 @@ $if ($TURBINES)
     type(wind_farm)	        :: wind_farm_t	
 $endif
 
-  
-type(rs)            		:: rs_t
-type(tstats)        		:: tavg_t, tstats_t
-type(tstats)        	 	:: zplane_avg_t
+type(tavg), pointer, dimension(:,:,:) :: tavg_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_t
+
 type(point), target 	  :: point_t
 type(domain)        		:: domain_t
 type(plane)         		:: yplane_t, zplane_t

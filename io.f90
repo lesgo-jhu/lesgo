@@ -2,7 +2,7 @@ module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
-use sim_param, only : w, dudz
+use sim_param, only : w, dudz, dvdz
 use messages
 use strmod
 
@@ -80,7 +80,8 @@ real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
 
 real(rprec), dimension(lbound(w,1):ubound(w,1),lbound(w,2):ubound(w,2),lbound(w,3):ubound(w,3)) :: w_uv
 real(rprec), dimension(lbound(dudz,1):ubound(dudz,1),lbound(dudz,2):ubound(dudz,2),lbound(dudz,3):ubound(dudz,3)) :: dudz_uv ! on the uv grid
-integer :: w_uv_tag, dudz_uv_tag  
+real(rprec), dimension(lbound(dvdz,1):ubound(dvdz,1),lbound(dvdz,2):ubound(dvdz,2),lbound(dvdz,3):ubound(dvdz,3)) :: dvdz_uv ! on the uv grid
+integer :: w_uv_tag, dudz_uv_tag, dvdz_uv_tag
                    
 !**********************************************************************
 contains
@@ -364,7 +365,8 @@ end subroutine openfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
 use param, only : dx, dy, dz, jt_total, dt_dim
-use stat_defs, only: tstats_t, point_t, domain_t, yplane_t, zplane_t, zplane_avg_t
+use param, only : tavg_calc, tavg_nstart, tavg_nend
+use stat_defs, only: tavg_t, point_t, domain_t, yplane_t, zplane_t
 use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
 use grid_defs, only: z
 
@@ -386,21 +388,21 @@ integer :: i,j,k
 integer::jx,jy,jz
 
 !  Determine if time summations are to be calculated
-if(tstats_t%calc) then
+if(tavg_calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tstats_t%nstart .and. jt <= tstats_t%nend) then
-    if(.not. tstats_t%started) then
+  if(jt >= tavg_nstart .and. jt <= tavg_nend) then
+    if(jt == tavg_nstart) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(*,*) '-------------------------------'   
-        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tstats_t%nstart, ' to ', tstats_t%nend
+        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
         write(*,*) '-------------------------------'   
       endif
 
-      call tstats_init()
+      call tavg_init()
 
     endif
 !  Compute running summations
-    call tstats_compute ()
+    call tavg_compute ()
   endif 
   
 endif
@@ -469,30 +471,30 @@ if(zplane_t%calc) then
   endif
 endif
 
-!  Determine if time-averaged z-plane data are to be recorded
-if(zplane_avg_t%calc) then
-  if(jt >= zplane_avg_t%nstart .and. jt <= zplane_avg_t%nend) then
-    if(.not. zplane_avg_t%started) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
-        write(*,*) '-------------------------------'
-        write(*,"(1a,i9,1a,i9)") 'Writing time-averaged z-plane data from ', zplane_avg_t%nstart, ' to ', zplane_avg_t%nend
-        write(*,*) '-------------------------------'
-      endif
-      zplane_avg_t%started=.true.	
-	  !Write Tecplot header files
-	  call zplane_avg_compute(1)
-	endif
+!!  Determine if time-averaged z-plane data are to be recorded
+!if(zplane_avg_t%calc) then
+!  if(jt >= zplane_avg_t%nstart .and. jt <= zplane_avg_t%nend) then
+!    if(.not. zplane_avg_t%started) then
+!      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+!        write(*,*) '-------------------------------'
+!        write(*,"(1a,i9,1a,i9)") 'Writing time-averaged z-plane data from ', zplane_avg_t%nstart, ' to ', zplane_avg_t%nend
+!        write(*,*) '-------------------------------'
+!      endif
+!      zplane_avg_t%started=.true.	
+!	  !Write Tecplot header files
+!	  call zplane_avg_compute(1)
+!	endif
 
-	!Calculate the averaged data for each time step
-	  call zplane_avg_compute(2)
+!	!Calculate the averaged data for each time step
+!	  call zplane_avg_compute(2)
 
-    !if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
-	if(jt == zplane_avg_t%nend) then
-	  !Write the averaged data to file and reset the variables	
-	  call zplane_avg_compute(3)	  
-	endif
-  endif
-endif
+!    !if(jt > zplane_avg_t%nstart .and. mod(jt,zplane_avg_t%nskip)==0) then
+!	if(jt == zplane_avg_t%nend) then
+!	  !Write the averaged data to file and reset the variables	
+!	  call zplane_avg_compute(3)	  
+!	endif
+!  endif
+!endif
 
 !if(yplane_t%calc .or. zplane_t%calc) call plane_avg_compute(jt)
 
@@ -500,18 +502,19 @@ return
 end subroutine output_loop
 
 !**********************************************************************
-subroutine tstats_init()
+subroutine tavg_init()
 !**********************************************************************
 
-!  Load tstats.out files
+!  Load tavg.out files
 
-use param, only : coord, dt
+use param, only : coord, dt, USE_MPI
 use messages
-use stat_defs, only : tstats_t
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
+use param, only : tavg_nstart, tavg_nend
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.tstats_init'
-character (*), parameter :: ftstats_in = 'tstats.out'
+character (*), parameter :: sub_name = mod_name // '.tavg_init'
+character (*), parameter :: ftavg_in = 'tavg.out'
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
 character (128) :: fname
@@ -525,73 +528,102 @@ inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($MPI)
-write (fname, '(a,a,i0)') ftstats_in, MPI_suffix, coord
+write (fname, '(a,a,i0)') ftavg_in, MPI_suffix, coord
 $else
-fname = trim(adjustl(ftstats_in))
+fname = trim(adjustl(ftavg_in))
 $endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   !  Nothing to read in
-  call mesg(sub_name, 'No previous time statistical data - starting from scratch.')
+  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+    write(*,*) ' '
+    write(*,*)'No previous time averaged data - starting from scratch.'
+  endif
+  tavg_total_time = dble(tavg_nend - tavg_nstart + 1) * dt
 
-  tstats_t % total_time = dble(tstats_t % nend - tstats_t % nstart + 1) * dt
-
-  tstats_t % started = .true.
+  !tavg_started = .true.
+  
   return
 endif
   
 open (1, file=fname, action='read', position='rewind', form='unformatted')
 
-read (1) tstats_t % total_time
-read (1) tstats_t % u 
-read (1) tstats_t % v
-read (1) tstats_t % w
-read (1) tstats_t % u2
-read (1) tstats_t % v2
-read (1) tstats_t % w2
-read (1) tstats_t % uw
-read (1) tstats_t % vw
-read (1) tstats_t % uv
-read (1) tstats_t % dudz
+read (1) tavg_total_time
+read (1) tavg_t
+read (1) tavg_zplane_t
+!!read (1) tavg_t % u 
+!!read (1) tavg_t % v
+!!read (1) tavg_t % w
+!!read (1) tavg_t % u2
+!!read (1) tavg_t % v2
+!!read (1) tavg_t % w2
+!!read (1) tavg_t % uw
+!!read (1) tavg_t % vw
+!!read (1) tavg_t % uv
+!!read (1) tavg_t % dudz
 
-$if($LVLSET)
-$if(RNS_LS)
-read (1) tstats_t % fx
-read (1) tstats_t % fy
-read (1) tstats_t % fz
-$endif
-$endif
+!!$if($LVLSET)
+!!$if(RNS_LS)
+!!read (1) tavg_t % fx
+!!read (1) tavg_t % fy
+!!read (1) tavg_t % fz
+!!$endif
+!!$endif
 
 close(1)
 
 ! Now initialize all quantities for summation
-tstats_t % u = tstats_t % u * tstats_t % total_time
-tstats_t % v = tstats_t % v * tstats_t % total_time
-tstats_t % w = tstats_t % w * tstats_t % total_time
-tstats_t % u2 = tstats_t % u2 * tstats_t % total_time
-tstats_t % v2 = tstats_t % v2 * tstats_t % total_time
-tstats_t % w2 = tstats_t % w2 * tstats_t % total_time
-tstats_t % uw = tstats_t % uw * tstats_t % total_time
-tstats_t % vw = tstats_t % vw * tstats_t % total_time
-tstats_t % uv = tstats_t % uv * tstats_t % total_time
-tstats_t % dudz = tstats_t % dudz * tstats_t % total_time
+tavg_t % u = tavg_t % u * tavg_total_time
+tavg_t % v = tavg_t % v * tavg_total_time
+tavg_t % w = tavg_t % w * tavg_total_time
+tavg_t % u2 = tavg_t % u2 * tavg_total_time
+tavg_t % v2 = tavg_t % v2 * tavg_total_time
+tavg_t % w2 = tavg_t % w2 * tavg_total_time
+tavg_t % uw = tavg_t % uw * tavg_total_time
+tavg_t % vw = tavg_t % vw * tavg_total_time
+tavg_t % uv = tavg_t % uv * tavg_total_time
+tavg_t % dudz = tavg_t % dudz * tavg_total_time
+tavg_t % dvdz = tavg_t % dvdz * tavg_total_time
 
-$if($LVLSET)
-$if(RNS_LS)
-tstats_t % fx = tstats_t % fx * tstats_t % total_time
-tstats_t % fy = tstats_t % fy * tstats_t % total_time
-tstats_t % fz = tstats_t % fz * tstats_t % total_time
-$endif
-$endif
+tavg_t % txx = tavg_t % txx * tavg_total_time
+tavg_t % txy = tavg_t % txy * tavg_total_time
+tavg_t % tyy = tavg_t % tyy * tavg_total_time
+tavg_t % txz = tavg_t % txz * tavg_total_time
+tavg_t % tyz = tavg_t % tyz * tavg_total_time
+tavg_t % tzz = tavg_t % tzz * tavg_total_time
 
-tstats_t % total_time = tstats_t%total_time + dble(tstats_t % nend - tstats_t % nstart + 1) * dt
+tavg_t % fx = tavg_t % fx * tavg_total_time
+tavg_t % fy = tavg_t % fy * tavg_total_time
+tavg_t % fz = tavg_t % fz * tavg_total_time
 
+tavg_zplane_t % u = tavg_zplane_t % u * tavg_total_time
+tavg_zplane_t % v = tavg_zplane_t % v * tavg_total_time
+tavg_zplane_t % w = tavg_zplane_t % w * tavg_total_time
+tavg_zplane_t % u2 = tavg_zplane_t % u2 * tavg_total_time
+tavg_zplane_t % v2 = tavg_zplane_t % v2 * tavg_total_time
+tavg_zplane_t % w2 = tavg_zplane_t % w2 * tavg_total_time
+tavg_zplane_t % uw = tavg_zplane_t % uw * tavg_total_time
+tavg_zplane_t % vw = tavg_zplane_t % vw * tavg_total_time
+tavg_zplane_t % uv = tavg_zplane_t % uv * tavg_total_time
+tavg_zplane_t % dudz = tavg_zplane_t % dudz * tavg_total_time
+tavg_zplane_t % dvdz = tavg_zplane_t % dvdz * tavg_total_time
 
-tstats_t%started=.true.
+tavg_zplane_t % txx = tavg_zplane_t % txx * tavg_total_time
+tavg_zplane_t % txy = tavg_zplane_t % txy * tavg_total_time
+tavg_zplane_t % tyy = tavg_zplane_t % tyy * tavg_total_time
+tavg_zplane_t % txz = tavg_zplane_t % txz * tavg_total_time
+tavg_zplane_t % tyz = tavg_zplane_t % tyz * tavg_total_time
+tavg_zplane_t % tzz = tavg_zplane_t % tzz * tavg_total_time
+
+tavg_zplane_t % fx = tavg_zplane_t % fx * tavg_total_time
+tavg_zplane_t % fy = tavg_zplane_t % fy * tavg_total_time
+tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
+
+tavg_total_time = tavg_total_time + dble(tavg_nend - tavg_nstart + 1) * dt
 
 return
-end subroutine tstats_init
+end subroutine tavg_init
 
 !**********************************************************************
 subroutine inst_write(itype)
@@ -1480,124 +1512,407 @@ end subroutine check_write_fmt
 ! end subroutine rs_write
 
 !**********************************************************************
-subroutine tstats_finalize()
+subroutine tavg_finalize()
 !**********************************************************************
 use grid_defs, only : x,y,z
-use stat_defs, only : tstats_t
-use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg, tavg_total_time
+use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+$if($MPI)
+use mpi
+use param, only : MPI_RPREC, rank_of_coord, comm, ierr
+$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.tstats_finalize'
-character (64) :: fname, temp, fname_dat
+character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
+character (64) :: temp
+character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
+  fname_tau, fname_f, fname_rs
+character(64) :: fname_vel_zplane, fname_vel2_zplane, &
+  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane
+
 integer :: i,j,k
+
+$if($MPI)
+real(rprec), allocatable, dimension(:) :: z_tot
+integer :: MPI_RS, MPI_TSTATS
+integer :: rs_type, rs_block, rs_disp
+integer :: tavg_type, tavg_block, tavg_disp
+
+integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
+$endif
 
 logical :: opn
 
-fname = 'tstats.out'
-fname_dat = 'output/tstats.dat'
+
+type rs
+real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
+end type rs
+
+type(rs), pointer, dimension(:,:,:) :: rs_t
+type(rs), pointer, dimension(:) :: rs_zplane_t
+
+$if($MPI)
+type(rs), pointer, dimension(:) :: rs_zplane_tot_t
+type(rs), pointer, dimension(:) :: rs_zplane_buf_t
+
+type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
+$endif
+
+allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
+
+$if($MPI)
+
+rs_type = MPI_RPREC
+rs_block = 6
+rs_disp = 0
+
+tavg_type = MPI_RPREC
+tavg_block = 20
+tavg_disp = 0
+
+if(coord == 0) then
+  allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
+  allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
+  allocate(z_tot(nz_tot))
+    
+  do k=1, nz_tot
+  
+    z_tot(k) = (dble(k) - 0.5_rprec) * dz
+    
+  enddo
+  
+elseif(coord == nproc - 1) then
+
+  !  Set fx,fy,fz to 0 as these are bogus
+  tavg_t(:,:,nz) % fx = 0._rprec
+  tavg_t(:,:,nz) % fy = 0._rprec
+  tavg_t(:,:,nz) % fz = 0._rprec
+  
+  tavg_t(:,:,nz) % txx = 0._rprec
+  tavg_t(:,:,nz) % txy = 0._rprec
+  tavg_t(:,:,nz) % tyy = 0._rprec
+  tavg_t(:,:,nz) % txz = 0._rprec
+  tavg_t(:,:,nz) % tyz = 0._rprec
+  tavg_t(:,:,nz) % tzz = 0._rprec
+  
+  tavg_zplane_t(nz) % fx = 0._rprec
+  tavg_zplane_t(nz) % fy = 0._rprec
+  tavg_zplane_t(nz) % fz = 0._rprec
+  
+  tavg_zplane_t(nz) % txx = 0._rprec
+  tavg_zplane_t(nz) % txy = 0._rprec
+  tavg_zplane_t(nz) % tyy = 0._rprec  
+  tavg_zplane_t(nz) % txz = 0._rprec
+  tavg_zplane_t(nz) % tyz = 0._rprec
+  tavg_zplane_t(nz) % tzz = 0._rprec
+  
+endif
+
+$else
+
+  !  Set fx,fy,fz to 0 as these are bogus
+  tavg_t(:,:,nz) % fx = 0._rprec
+  tavg_t(:,:,nz) % fy = 0._rprec
+  tavg_t(:,:,nz) % fz = 0._rprec
+  
+  tavg_t(:,:,nz) % txx = 0._rprec
+  tavg_t(:,:,nz) % txy = 0._rprec
+  tavg_t(:,:,nz) % tyy = 0._rprec
+  tavg_t(:,:,nz) % txz = 0._rprec
+  tavg_t(:,:,nz) % tyz = 0._rprec
+  tavg_t(:,:,nz) % tzz = 0._rprec
+  
+  tavg_zplane_t(nz) % fx = 0._rprec
+  tavg_zplane_t(nz) % fy = 0._rprec
+  tavg_zplane_t(nz) % fz = 0._rprec
+  
+  tavg_zplane_t(nz) % txx = 0._rprec
+  tavg_zplane_t(nz) % txy = 0._rprec
+  tavg_zplane_t(nz) % tyy = 0._rprec  
+  tavg_zplane_t(nz) % txz = 0._rprec
+  tavg_zplane_t(nz) % tyz = 0._rprec
+  tavg_zplane_t(nz) % tzz = 0._rprec
+
+$endif
+
+!  Set file names
+fname_out = 'tavg.out'
+
+fname_vel = 'output/vel_avg.dat'
+fname_vel2 = 'output/vel2_avg.dat'
+fname_ddz = 'output/ddz_avg.dat'
+fname_tau = 'output/tau_avg.dat'
+fname_f = 'output/f_avg.dat'
+fname_rs = 'output/rs.dat'
+
+fname_vel_zplane = 'output/vel_zplane_avg.dat'
+fname_vel2_zplane = 'output/vel2_zplane_avg.dat'
+fname_ddz_zplane = 'output/ddz_zplane_avg.dat'
+fname_tau_zplane = 'output/tau_zplane_avg.dat'
+fname_f_zplane = 'output/f_zplane_avg.dat'
+fname_rs_zplane = 'output/rs_zplane.dat'
 
 $if ($MPI)
 !  For MPI implementation     
   write (temp, '(".c",i0)') coord
-  fname = trim (fname) // temp
-  fname_dat = trim (fname_dat) // temp
+  fname_out = trim (fname_out) // temp
+  
+  fname_vel = trim (fname_vel) // temp
+  fname_vel2 = trim (fname_vel2) // temp
+  fname_ddz = trim (fname_ddz) // temp
+  fname_tau = trim (fname_tau) // temp
+  fname_f = trim (fname_f) // temp
+  fname_rs = trim (fname_rs) // temp
+   
 $endif
 
 !  Perform Averaging operation
-tstats_t % u = tstats_t % u / tstats_t % total_time
-tstats_t % v = tstats_t % v / tstats_t % total_time
-tstats_t % w = tstats_t % w / tstats_t % total_time
-tstats_t % u2 = tstats_t % u2 / tstats_t % total_time
-tstats_t % v2 = tstats_t % v2 / tstats_t % total_time
-tstats_t % w2 = tstats_t % w2 / tstats_t % total_time
-tstats_t % uw = tstats_t % uw / tstats_t % total_time
-tstats_t % vw = tstats_t % vw / tstats_t % total_time
-tstats_t % uv = tstats_t % uv / tstats_t % total_time
-tstats_t % dudz = tstats_t % dudz / tstats_t % total_time
+tavg_t % u = tavg_t % u / tavg_total_time
+tavg_t % v = tavg_t % v / tavg_total_time
+tavg_t % w = tavg_t % w / tavg_total_time
+tavg_t % u2 = tavg_t % u2 / tavg_total_time
+tavg_t % v2 = tavg_t % v2 / tavg_total_time
+tavg_t % w2 = tavg_t % w2 / tavg_total_time
+tavg_t % uw = tavg_t % uw / tavg_total_time
+tavg_t % vw = tavg_t % vw / tavg_total_time
+tavg_t % uv = tavg_t % uv / tavg_total_time
+tavg_t % dudz = tavg_t % dudz / tavg_total_time
+tavg_t % dvdz = tavg_t % dvdz / tavg_total_time
 
-$if($LVLSET)
-$if(RNS_LS)
-tstats_t % fx = tstats_t % fx / tstats_t % total_time
-tstats_t % fy = tstats_t % fy / tstats_t % total_time
-tstats_t % fz = tstats_t % fz / tstats_t % total_time
-$endif
-$endif
+tavg_t % txx = tavg_t % txx / tavg_total_time
+tavg_t % txy = tavg_t % txy / tavg_total_time
+tavg_t % tyy = tavg_t % tyy / tavg_total_time
+tavg_t % txz = tavg_t % txz / tavg_total_time
+tavg_t % tyz = tavg_t % tyz / tavg_total_time
+tavg_t % tzz = tavg_t % tzz / tavg_total_time
 
+tavg_t % fx = tavg_t % fx / tavg_total_time
+tavg_t % fy = tavg_t % fy / tavg_total_time
+tavg_t % fz = tavg_t % fz / tavg_total_time
+
+!  Average zplane values
+tavg_zplane_t % u = tavg_zplane_t % u / tavg_total_time
+tavg_zplane_t % v = tavg_zplane_t % v / tavg_total_time
+tavg_zplane_t % w = tavg_zplane_t % w / tavg_total_time
+tavg_zplane_t % u2 = tavg_zplane_t % u2 / tavg_total_time
+tavg_zplane_t % v2 = tavg_zplane_t % v2 / tavg_total_time
+tavg_zplane_t % w2 = tavg_zplane_t % w2 / tavg_total_time
+tavg_zplane_t % uw = tavg_zplane_t % uw / tavg_total_time
+tavg_zplane_t % vw = tavg_zplane_t % vw / tavg_total_time
+tavg_zplane_t % uv = tavg_zplane_t % uv / tavg_total_time
+tavg_zplane_t % dudz = tavg_zplane_t % dudz / tavg_total_time
+tavg_zplane_t % dvdz = tavg_zplane_t % dvdz / tavg_total_time
+
+tavg_zplane_t % txx = tavg_zplane_t % txx / tavg_total_time
+tavg_zplane_t % txy = tavg_zplane_t % txy / tavg_total_time
+tavg_zplane_t % tyy = tavg_zplane_t % tyy / tavg_total_time
+tavg_zplane_t % txz = tavg_zplane_t % txz / tavg_total_time
+tavg_zplane_t % tyz = tavg_zplane_t % tyz / tavg_total_time
+tavg_zplane_t % tzz = tavg_zplane_t % tzz / tavg_total_time
+
+tavg_zplane_t % fx = tavg_zplane_t % fx / tavg_total_time
+tavg_zplane_t % fy = tavg_zplane_t % fy / tavg_total_time
+tavg_zplane_t % fz = tavg_zplane_t % fz / tavg_total_time
+
+!  Compute the Reynolds Stresses
+do k = 1, nz
+
+  rs_zplane_t(k) % up2 = tavg_zplane_t(k) % u2 - tavg_zplane_t(k) % u * tavg_zplane_t(k) % u
+  rs_zplane_t(k) % vp2 = tavg_zplane_t(k) % v2 - tavg_zplane_t(k) % v * tavg_zplane_t(k) % v
+  rs_zplane_t(k) % wp2 = tavg_zplane_t(k) % w2 - tavg_zplane_t(k) % w * tavg_zplane_t(k) % w
+  rs_zplane_t(k) % upwp = tavg_zplane_t(k) % uw - tavg_zplane_t(k) % u * tavg_zplane_t(k) % w
+  rs_zplane_t(k) % vpwp = tavg_zplane_t(k) % vw - tavg_zplane_t(k) % v * tavg_zplane_t(k) % w
+  rs_zplane_t(k) % upvp = tavg_zplane_t(k) % uv - tavg_zplane_t(k) % u * tavg_zplane_t(k) % v
+  
+  do j = 1, ny
+
+    do i = 1, nx
+    
+      rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
+      rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
+      rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
+      rs_t(i,j,k) % upwp = tavg_t(i,j,k) % uw - tavg_t(i,j,k) % u * tavg_t(i,j,k) % w
+      rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
+      rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
+      
+    enddo
+    
+  enddo
+  
+enddo
+
+!  Write data to tavg.out
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-open (1, file=fname, action='write', position='rewind', form='unformatted')
+open (1, file=fname_out, action='write', position='rewind', form='unformatted')
 
-write (1) tstats_t % total_time
-write (1) tstats_t % u 
-write (1) tstats_t % v
-write (1) tstats_t % w
-write (1) tstats_t % u2
-write (1) tstats_t % v2
-write (1) tstats_t % w2
-write (1) tstats_t % uw
-write (1) tstats_t % vw
-write (1) tstats_t % uv
-write (1) tstats_t % dudz
-
-$if($LVLSET)
-$if(RNS_LS)
-write (1) tstats_t % fx
-write (1) tstats_t % fy
-write (1) tstats_t % fz
-$endif
-$endif
+write (1) tavg_total_time
+write (1) tavg_t          ! write the entire structures
+write (1) tavg_zplane_t
 
 close(1)
 
- ! call write_real_data_3D(fname,'rewind', 'formatted', 10, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
- ! tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
- ! tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
- ! tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz) /), &
- ! x, y, z(1:nz))
+! Construct zplane data 
+$if($MPI)
  
-$if($LVLSET)
-$if(RNS_LS)
+  call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
+  Call MPI_Type_commit(MPI_RS,ierr)
 
-call write_tecplot_header_ND(fname_dat, 'rewind', 16, (/ Nx, Ny, Nz/), &
-   '"x", "y", "z", "u","v","w","u2","v2","w2","uw","vw","uv","dudz", "fx", "fy", "fz"', coord, 2)
+  call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
+  Call MPI_Type_commit(MPI_TSTATS,ierr)
 
-call write_real_data_3D(fname_dat,'append', 'formatted', 13, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
-tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
-tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
-tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz), &
-tstats_t%fx(1:nx,1:ny,1:nz), tstats_t%fy(1:nx,1:ny,1:nz), tstats_t%fz(1:nx,1:ny,1:nz) /), &
-x(1:nx), y(1:ny), z(1:nz))
+  call mpi_gather( rs_zplane_t, nz, MPI_RS, rs_zplane_buf_t, nz, &
+    MPI_RS, rank_of_coord(0), comm, ierr)
+    
+  call mpi_gather( tavg_zplane_t, nz, MPI_TSTATS, tavg_zplane_buf_t, nz, &
+    MPI_TSTATS, rank_of_coord(0), comm, ierr)    
+  
+  call MPI_Type_free (MPI_RS, ierr)
+  call mpi_type_free (MPI_TSTATS, ierr)
+  
+  if(coord == 0) then
+  
+  !  Need to remove overlapping nodes
+  ! Set initial block of data  
+    rs_zplane_tot_t(1:nz) = rs_zplane_buf_t(1:nz)
+    tavg_zplane_tot_t(1:nz) = tavg_zplane_buf_t(1:nz)
+    
+    ktot_end = nz 
+    kbuf_end = nz
+    
+    do ip=1, nproc-1
+      
+      ktot_start = ktot_end
+      ktot_end = ktot_start + nz - 1
+      
+      kbuf_start = kbuf_end + 1
+      kbuf_end   = kbuf_start + nz - 1
+          
+      rs_zplane_tot_t(ktot_start:ktot_end) = rs_zplane_buf_t(kbuf_start:kbuf_end)
+      tavg_zplane_tot_t(ktot_start:ktot_end) = tavg_zplane_buf_t(kbuf_start:kbuf_end)
+      
+    enddo   
+    
+    call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
+      '"z", "<u>","<v>","<w>"', coord, 2)
+    call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
+      (/ tavg_zplane_tot_t % u, tavg_zplane_tot_t % v, tavg_zplane_tot_t % w /), z_tot)
 
-$endif
+    call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz_tot/), &
+      '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
+    call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, Nz_tot, &
+      (/ tavg_zplane_tot_t % u2, tavg_zplane_tot_t % v2, tavg_zplane_tot_t % w2, &
+      tavg_zplane_tot_t % uw, tavg_zplane_tot_t % vw, tavg_zplane_tot_t % uv /), &
+      z_tot) 
+  
+    call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz_tot/), &
+      '"z", "<dudz>","<dvdz>"', coord, 2)
+    call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, Nz_tot, &
+      (/ tavg_zplane_tot_t % dudz, tavg_zplane_tot_t % dvdz /), z_tot)
+  
+    call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
+      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+    call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
+      (/ tavg_zplane_tot_t % txx, tavg_zplane_tot_t % txy, tavg_zplane_tot_t % tyy, &
+      tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), z_tot) 
+  
+    call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
+      '"z", "<fx>","<fy>","<fz>"', coord, 2)
+    call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
+      (/ tavg_zplane_tot_t % fx, tavg_zplane_tot_t % fy, tavg_zplane_tot_t % fz /), z_tot)  
+  
+    call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz_tot/), &
+      '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+    call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, Nz_tot, &
+      (/ rs_zplane_tot_t % up2, rs_zplane_tot_t%vp2, rs_zplane_tot_t%wp2, &
+      rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), z_tot)    
+ 
+  deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
+  deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
+  deallocate(z_tot)
+  
+  endif
 
 $else
 
-call write_tecplot_header_ND(fname_dat, 'rewind', 10, (/ Nx, Ny, Nz/), &
-   '"u","v","w","u2","v2","w2","uw","vw","uv","dudz"', coord, 2)
+call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
+   '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
+call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
+  (/ tavg_zplane_t % u, tavg_zplane_t % v, tavg_zplane_t % w /), z(1:nz))
 
-call write_real_data_3D(fname_dat,'append', 'formatted', 10, nx, ny, nz, (/ tstats_t%u(1:nx,1:ny,1:nz), &
-tstats_t%v(1:nx,1:ny,1:nz), tstats_t%w(1:nx,1:ny,1:nz), tstats_t%u2(1:nx,1:ny,1:nz), &
-tstats_t%v2(1:nx,1:ny,1:nz), tstats_t%w2(1:nx,1:ny,1:nz), tstats_t%uw(1:nx,1:ny,1:nz), &
-tstats_t%vw(1:nx,1:ny,1:nz), tstats_t%uv(1:nx,1:ny,1:nz), tstats_t%dudz(1:nx,1:ny,1:nz) /), &
-x(1:nx), y(1:ny), z(1:nz))
-
+call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz/), &
+   '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
+call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
+  (/ tavg_zplane_t % u2, tavg_zplane_t % v2, tavg_zplane_t % w2, &
+  tavg_zplane_t % uw, tavg_zplane_t % vw, tavg_zplane_t % uv /), z(1:nz)) 
+  
+call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3 (/ Nz/), &
+   '"z", "<dudz>","<dvdz>"', coord, 2)
+call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
+  (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), z(1:nz))
+  
+call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
+   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
+  (/ tavg_zplane_t % txx, tavg_zplane_t % txy, tavg_zplane_t % tyy, &
+  tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), z(1:nz)) 
+  
+call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
+   '"z", "<fx>","<fy>","<fz>"', coord, 2)
+call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
+  (/ tavg_zplane_t % fx, tavg_zplane_t % fy, tavg_zplane_t % fz /), z(1:nz))  
+  
+call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz/), &
+   '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
+  (/ rs_zplane_t % up2, rs_zplane_t%vp2, rs_zplane_t%wp2, &
+  rs_zplane_t%upwp, rs_zplane_t%vpwp, rs_zplane_t%upvp /), z(1:nz))
 
 $endif
- 
- !call write_real_data_3D(fname,'rewind', 'unformatted', 1, nx, ny, nz, tstats_t%u(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%v(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%w(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%u2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%v2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%w2(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%uw(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%vw(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%uv(1:nx,1:ny,1:nz))
- !call write_real_data_3D(fname,'append', 'unformatted', 1, nx, ny, nz, tstats_t%dudz(1:nx,1:ny,1:nz))
+
+! ----- Write all the 3D data -----
+
+call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
+call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % u, tavg_t % v, tavg_t % w /), &
+  x, y, z(1:nz))
+
+call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
+call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
+  (/ tavg_t % u2, tavg_t % v2, tavg_t % w2, tavg_t % uw, tavg_t % vw, tavg_t % uv /), &
+  x, y, z(1:nz)) 
+  
+call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<dudz>","<dvdz>"', coord, 2)
+call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
+  (/ tavg_t % dudz, tavg_t % dvdz /), x, y, z(1:nz))
+  
+call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
+  (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy, tavg_t % txz, tavg_t % tyz, tavg_t % tzz /), &
+  x, y, z(1:nz)) 
+  
+call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<fx>","<fy>","<fz>"', coord, 2)
+call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), &
+  x, y, z(1:nz))  
+  
+call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx, Ny, Nz/), &
+   '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
+  (/ rs_t % up2, rs_t%vp2, rs_t%wp2, rs_t%upwp, rs_t%vpwp, rs_t%upvp /), &
+  x, y, z(1:nz))   
+
+deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t)
 
 return
-end subroutine tstats_finalize
+end subroutine tavg_finalize
 
 ! !**********************************************************************
 ! subroutine tavg_write()
@@ -1674,7 +1989,8 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : rs_t, tstats_t, point_t, yplane_t, zplane_t
+use stat_defs, only : tavg_t, point_t, yplane_t, zplane_t
+use param, only : tavg_calc
 
 implicit none
 
@@ -1728,7 +2044,7 @@ end if
 ! if(tavg_t%calc) call tavg_write()
 
 !  Check if average quantities are to be recorded
-if(tstats_t%calc) call tstats_finalize()
+if(tavg_calc) call tavg_finalize()
  
 !  Close instantaneous velocity files
 if(point_t%calc) then
@@ -2214,6 +2530,7 @@ subroutine stats_init ()
 !  used for statistical calculations 
 
 use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc
+use param, only : tavg_calc
 use stat_defs
 use grid_defs
 use functions, only : index_start
@@ -2223,11 +2540,11 @@ implicit none
 character(120) :: fname, var_list
 integer :: fid, i,j,k
 
-!  All nstart and nend values are based
-!  on jt and not jt_total
-tstats_t%calc = .true.
-tstats_t%nstart = 1
-tstats_t%nend = nsteps
+!!  All nstart and nend values are based
+!!  on jt and not jt_total
+!tavg_t%calc = .true.
+!tavg_nstart = 1
+!tavg_nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
 point_t%calc = .false.
@@ -2258,14 +2575,15 @@ zplane_t%nstart = 100
 zplane_t%nend   = nsteps
 zplane_t%nskip  = 100
 zplane_t%nloc   = 3
-zplane_t%loc(1) = 1.95925
-zplane_t%loc(2) = 2.1636
-zplane_t%loc(3) = 2.26515
+zplane_t%loc(1) = 0.733
+zplane_t%loc(2) = 1.5505
+zplane_t%loc(3) = 1.95925
 
-!  z-plane TIME-AVERAGED stats/data
-zplane_avg_t%calc   = .false.
-zplane_avg_t%nstart = 1
-zplane_avg_t%nend   = nsteps
+
+!!  z-plane TIME-AVERAGED stats/data
+!zplane_avg_t%calc   = .false.
+!zplane_avg_t%nstart = 1
+!zplane_avg_t%nend   = nsteps
 
 
 $if ($MPI)
@@ -2279,44 +2597,47 @@ $endif
 
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
-if(tstats_t%calc) then 
+if(tavg_calc) then 
 
-  allocate(tstats_t%u(nx, ny, nz))
-  allocate(tstats_t%v(nx, ny, nz))
-  allocate(tstats_t%w(nx, ny, nz))
-  allocate(tstats_t%u2(nx, ny, nz))
-  allocate(tstats_t%v2(nx, ny, nz))
-  allocate(tstats_t%w2(nx, ny, nz))
-  allocate(tstats_t%uw(nx, ny, nz))
-  allocate(tstats_t%vw(nx, ny, nz))
-  allocate(tstats_t%uv(nx, ny, nz))
-  allocate(tstats_t%dudz(nx, ny, nz))
+  !allocate(tavg_t%u(nx, ny, nz))
+  !allocate(tavg_t%v(nx, ny, nz))
+  !allocate(tavg_t%w(nx, ny, nz))
+  !allocate(tavg_t%u2(nx, ny, nz))
+  !allocate(tavg_t%v2(nx, ny, nz))
+  !allocate(tavg_t%w2(nx, ny, nz))
+  !allocate(tavg_t%uw(nx, ny, nz))
+  !allocate(tavg_t%vw(nx, ny, nz))
+  !allocate(tavg_t%uv(nx, ny, nz))
+  !allocate(tavg_t%dudz(nx, ny, nz))
+  allocate(tavg_t(nx,ny,nz))
+  allocate(tavg_zplane_t(nz))
   
   !  Initialize arrays
-  tstats_t%u=0.
-  tstats_t%v=0.
-  tstats_t%w=0.
-  tstats_t%u2=0.
-  tstats_t%v2=0.
-  tstats_t%w2=0.
-  tstats_t%uw=0.
-  tstats_t%vw=0.
-  tstats_t%uv=0.
-  tstats_t%dudz=0.
+  tavg_t(:,:,:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec)
+    
+  tavg_zplane_t(:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec, 0._rprec, 0._rprec)
   
-  $if($LVLSET)
-  $if($RNS_LS)
+  !!$if($LVLSET)
+  !!$if($RNS_LS)
   
-  allocate(tstats_t%fx(nx,ny,nz))
-  allocate(tstats_t%fy(nx,ny,nz))
-  allocate(tstats_t%fz(nx,ny,nz))
+  !!allocate(tavg_t%fx(nx,ny,nz))
+  !!allocate(tavg_t%fy(nx,ny,nz))
+  !!allocate(tavg_t%fz(nx,ny,nz))
   
-  tstats_t%fx = 0._rprec
-  tstats_t%fx = 0._rprec
-  tstats_t%fx = 0._rprec
+  !!tavg_t%fx = 0._rprec
+  !!tavg_t%fx = 0._rprec
+  !!tavg_t%fx = 0._rprec
   
-  $endif
-  $endif
+  !!$endif
+  !!$endif
   
 endif
 
@@ -2469,59 +2790,59 @@ if(point_t%calc) then
   enddo
 endif
 
-! Initialize for zplane_avg calculations
-if(zplane_avg_t%calc) then 
-  allocate(zplane_avg_t%u_avg(nz-1))
-  allocate(zplane_avg_t%v_avg(nz-1))
-  allocate(zplane_avg_t%w_avg(nz-1))
-  allocate(zplane_avg_t%u2_avg(nz-1))
-  allocate(zplane_avg_t%v2_avg(nz-1))
-  allocate(zplane_avg_t%w2_avg(nz-1))  
-  allocate(zplane_avg_t%txx_avg(nz-1))
-  allocate(zplane_avg_t%txy_avg(nz-1))
-  allocate(zplane_avg_t%tyy_avg(nz-1))
-  allocate(zplane_avg_t%txz_avg(nz-1))
-  allocate(zplane_avg_t%tyz_avg(nz-1))
-  allocate(zplane_avg_t%tzz_avg(nz-1))  
-  allocate(zplane_avg_t%dudz_avg(nz-1))
-  allocate(zplane_avg_t%dvdz_avg(nz-1))
-  allocate(zplane_avg_t%uv_avg(nz-1))
-  allocate(zplane_avg_t%uw_avg(nz-1))
-  allocate(zplane_avg_t%vw_avg(nz-1))  
+!! Initialize for zplane_avg calculations
+!if(zplane_avg_t%calc) then 
+!  allocate(zplane_avg_t%u_avg(nz-1))
+!  allocate(zplane_avg_t%v_avg(nz-1))
+!  allocate(zplane_avg_t%w_avg(nz-1))
+!  allocate(zplane_avg_t%u2_avg(nz-1))
+!  allocate(zplane_avg_t%v2_avg(nz-1))
+!  allocate(zplane_avg_t%w2_avg(nz-1))  
+!  allocate(zplane_avg_t%txx_avg(nz-1))
+!  allocate(zplane_avg_t%txy_avg(nz-1))
+!  allocate(zplane_avg_t%tyy_avg(nz-1))
+!  allocate(zplane_avg_t%txz_avg(nz-1))
+!  allocate(zplane_avg_t%tyz_avg(nz-1))
+!  allocate(zplane_avg_t%tzz_avg(nz-1))  
+!  allocate(zplane_avg_t%dudz_avg(nz-1))
+!  allocate(zplane_avg_t%dvdz_avg(nz-1))
+!  allocate(zplane_avg_t%uv_avg(nz-1))
+!  allocate(zplane_avg_t%uw_avg(nz-1))
+!  allocate(zplane_avg_t%vw_avg(nz-1))  
 
-  !  Initialize arrays
-  zplane_avg_t%u_avg(:)=0.
-  zplane_avg_t%v_avg(:)=0.
-  zplane_avg_t%w_avg(:)=0.
-  zplane_avg_t%u2_avg(:)=0.
-  zplane_avg_t%v2_avg(:)=0.
-  zplane_avg_t%w2_avg(:)=0.  
-  zplane_avg_t%txx_avg(:)=0.
-  zplane_avg_t%txy_avg(:)=0.
-  zplane_avg_t%tyy_avg(:)=0.
-  zplane_avg_t%txz_avg(:)=0.
-  zplane_avg_t%tyz_avg(:)=0.
-  zplane_avg_t%tzz_avg(:)=0.  
-  zplane_avg_t%dudz_avg(:)=0.
-  zplane_avg_t%dvdz_avg(:)=0.  
-  zplane_avg_t%uv_avg(:)=0.
-  zplane_avg_t%uw_avg(:)=0.
-  zplane_avg_t%vw_avg(:)=0.    
-endif
+!  !  Initialize arrays
+!  zplane_avg_t%u_avg(:)=0.
+!  zplane_avg_t%v_avg(:)=0.
+!  zplane_avg_t%w_avg(:)=0.
+!  zplane_avg_t%u2_avg(:)=0.
+!  zplane_avg_t%v2_avg(:)=0.
+!  zplane_avg_t%w2_avg(:)=0.  
+!  zplane_avg_t%txx_avg(:)=0.
+!  zplane_avg_t%txy_avg(:)=0.
+!  zplane_avg_t%tyy_avg(:)=0.
+!  zplane_avg_t%txz_avg(:)=0.
+!  zplane_avg_t%tyz_avg(:)=0.
+!  zplane_avg_t%tzz_avg(:)=0.  
+!  zplane_avg_t%dudz_avg(:)=0.
+!  zplane_avg_t%dvdz_avg(:)=0.  
+!  zplane_avg_t%uv_avg(:)=0.
+!  zplane_avg_t%uw_avg(:)=0.
+!  zplane_avg_t%vw_avg(:)=0.    
+!endif
 
 return
 end subroutine stats_init
 
 !***************************************************************
-subroutine tstats_compute()
+subroutine tavg_compute()
 
 !***************************************************************
 !  This subroutine collects the stats for each flow 
 !  variable quantity
 use types, only : rprec
-use stat_defs, only : tstats_t
+use stat_defs, only : tavg_t, tavg_zplane_t
 use param, only : nx,ny,nz, dt
-use sim_param, only : u,v,w, dudz
+use sim_param, only : u,v,w, dudz, txx, txy, tyy, txz, tyz, tzz
 $if($LVLSET)
 $if($RNS_LS)
 use immersedbc, only : fx, fy, fz
@@ -2532,41 +2853,74 @@ implicit none
 
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
-real(rprec) :: u_p, v_p, w_p, dudz_p
+real(rprec) :: u_p, v_p, w_p, dudz_p, dvdz_p, fa
 
-!  Make sure w has been interpolated to uv-grid
+!  Make sure w stuff has been interpolated to uv-grid
 call interp_to_uv_grid(w, w_uv, w_uv_tag)
 call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
+call interp_to_uv_grid(dvdz, dvdz_uv, dvdz_uv_tag)
 
 do k=1,nz
+
+  !  Include dt for current weighting
+  fa = dt / (nx * ny)
+  
+  tavg_zplane_t(k)%u = tavg_zplane_t(k)%u + fa * sum(u(1:nx,1:ny,k))
+  tavg_zplane_t(k)%v = tavg_zplane_t(k)%v + fa * sum(v(1:nx,1:ny,k))
+  tavg_zplane_t(k)%w = tavg_zplane_t(k)%w + fa * sum(w(1:nx,1:ny,k))
+  tavg_zplane_t(k)%u2 = tavg_zplane_t(k)%u2 + fa * sum(u(1:nx,1:ny,k)*u(1:nx,1:ny,k))
+  tavg_zplane_t(k)%v2 = tavg_zplane_t(k)%v2 + fa * sum(v(1:nx,1:ny,k)*v(1:nx,1:ny,k)) 
+  tavg_zplane_t(k)%w2 = tavg_zplane_t(k)%w2 + fa * sum(w_uv(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
+  tavg_zplane_t(k)%uw = tavg_zplane_t(k)%uw+ fa * sum(u(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k))
+  tavg_zplane_t(k)%vw = tavg_zplane_t(k)%vw + fa * sum(v(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
+  tavg_zplane_t(k)%uv = tavg_zplane_t(k)%uv + fa * sum(u(1:nx,1:ny,k)*v(1:nx,1:ny,k))
+  tavg_zplane_t(k)%dudz = tavg_zplane_t(k)%dudz + fa * sum(dudz_uv(1:nx,1:ny,k)) 
+  tavg_zplane_t(k)%dvdz = tavg_zplane_t(k)%dvdz + fa * sum(dvdz_uv(1:nx,1:ny,k))
+      
+  tavg_zplane_t(k)%txx = tavg_zplane_t(k)%txx + fa * sum(txx(1:nx,1:ny,k))
+  tavg_zplane_t(k)%txy = tavg_zplane_t(k)%txy + fa * sum(txy(1:nx,1:ny,k))
+  tavg_zplane_t(k)%tyy = tavg_zplane_t(k)%tyy + fa * sum(tyy(1:nx,1:ny,k))
+  tavg_zplane_t(k)%txz = tavg_zplane_t(k)%txz + fa * sum(txz(1:nx,1:ny,k))
+  tavg_zplane_t(k)%tyz = tavg_zplane_t(k)%tyz + fa * sum(tyz(1:nx,1:ny,k))
+  tavg_zplane_t(k)%tzz = tavg_zplane_t(k)%tzz + fa * sum(tzz(1:nx,1:ny,k))
+      
+  tavg_zplane_t(k)%fx = tavg_zplane_t(k)%fx + fa * sum(fx(1:nx,1:ny,k)) 
+  tavg_zplane_t(k)%fy = tavg_zplane_t(k)%fy + fa * sum(fy(1:nx,1:ny,k))
+  tavg_zplane_t(k)%fz = tavg_zplane_t(k)%fz + fa * sum(fz(1:nx,1:ny,k)) 
+  
   do j=1,ny
     do i=1,nx
-!  Being cache friendly
-      u_p = u(i,j,k) * dt 
-      v_p = v(i,j,k) * dt 
-!  Interpolate each w and dudz to uv grid
-      w_p = w_uv(i,j,k) * dt
-      dudz_p = dudz_uv(i,j,k) * dt 
+      
+      !  Being cache friendly
+      u_p = u(i,j,k)
+      v_p = v(i,j,k) 
+      w_p = w_uv(i,j,k)
+      dudz_p = dudz_uv(i,j,k) 
+      dvdz_p = dvdz_uv(i,j,k) 
           
-      tstats_t%u(i,j,k)=tstats_t%u(i,j,k) + u_p 
-      tstats_t%v(i,j,k)=tstats_t%v(i,j,k) + v_p 
-      tstats_t%w(i,j,k)=tstats_t%w(i,j,k) + w_p 
-      tstats_t%u2(i,j,k)=tstats_t%u2(i,j,k) + u_p*u_p 
-      tstats_t%v2(i,j,k)=tstats_t%v2(i,j,k) + v_p*v_p 
-      tstats_t%w2(i,j,k)=tstats_t%w2(i,j,k) + w_p*w_p 
-      tstats_t%uw(i,j,k)=tstats_t%uw(i,j,k) + u_p*w_p 
-      tstats_t%vw(i,j,k)=tstats_t%vw(i,j,k) + v_p*w_p 
-      tstats_t%uv(i,j,k)=tstats_t%uv(i,j,k) + u_p*v_p 
-      tstats_t%dudz(i,j,k)=tstats_t%dudz(i,j,k) + dudz_p 
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt
+      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p*u_p * dt
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p*v_p * dt
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p*w_p * dt
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p*w_p * dt
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p*w_p * dt
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p*v_p * dt
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz_p * dt
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz_p * dt
       
-      $if($LVLSET)
-      $if($RNS_LS)
-      tstats_t % fx(i,j,k) = tstats_t % fx(i,j,k) + fx(i,j,k) * dt 
-      tstats_t % fy(i,j,k) = tstats_t % fy(i,j,k) + fy(i,j,k) * dt 
-      tstats_t % fz(i,j,k) = tstats_t % fz(i,j,k) + fz(i,j,k) * dt 
-      $endif
-      $endif
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt
       
+      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + fx(i,j,k) * dt 
+      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + fy(i,j,k) * dt 
+      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + fz(i,j,k) * dt 
+ 
       
     enddo
   enddo
@@ -2574,7 +2928,7 @@ enddo
 
 return
 
-end subroutine tstats_compute
+end subroutine tavg_compute
 
 !!***************************************************************
 !subroutine tavg_compute()
@@ -2748,142 +3102,142 @@ end subroutine tstats_compute
 !end subroutine strcat
 
 
-!***************************************************************
-subroutine zplane_avg_compute(ipart)
-!***************************************************************
-!  This subroutine averages the following parameters over z-planes:
-!  u, v, w, u^2, v^2, w^2, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
-!  and writes them to files avg_*.dat
+!!***************************************************************
+!subroutine zplane_avg_compute(ipart)
+!!***************************************************************
+!!  This subroutine averages the following parameters over z-planes:
+!!  u, v, w, u^2, v^2, w^2, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+!!  and writes them to files avg_*.dat
 
-! ipart=1 to create files and write Tecplot headers
-! ipart=2 to compute averages
-! ipart=3 to write averages and reset
-
-
-use param, only : dx, dy, dz, jt_total, dt_dim
-use stat_defs, only: zplane_avg_t
-use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
-use grid_defs, only: z
-
-implicit none
-
-integer :: k, ipart, nt_z
-character(64) :: frmt
-character (64) :: fname, temp, fname2, temp2, fname3, temp3, fname4, temp4, fname5, temp5, fname6, temp6
-
-if (ipart==1) then
-!Create files and write Tecplot headers         
-		!parameter file
-		  if(coord==0) then 
-		    fname='output/avg.dat'
-			open (unit = 2,file = fname, status='unknown',form='formatted', action='write',position='rewind')
-			write (frmt, '("(",i0,"i9)")') 3
-			write(2,*) 'nz, nstart, nend'
-			write(2,frmt) nz,zplane_avg_t%nstart, zplane_avg_t%nend
-			close(2)
-			!call write_real_data(fname, 'append', 3, (/ zplane_avg_t%nstart, zplane_avg_t%nend, zplane_avg_t%nskip /))
-		  endif
-		!u-v-w file  
-		  fname2 = 'output/avg_uvw.dat'
-			$if ($MPI)
-			  write (temp2, '(".c",i0)') coord
-			  fname2 = trim (fname2) // temp2
-			$endif	 	  
-		  call write_tecplot_header_ND(fname2, 'rewind', 4, (/ Nz/),'"z", "u_avg", "v_avg", "w_avg"', coord, 2, total_time_dim)  
-		!txx-txy,etc file
-		  fname3 = 'output/avg_tau.dat'
-			$if ($MPI)
-			  write (temp3, '(".c",i0)') coord
-			  fname3 = trim (fname3) // temp3
-			$endif	 	  
-		  call write_tecplot_header_ND(fname3, 'rewind', 7, (/ Nz/), &
-		  '"z", "txx_avg", "txy_avg", "tyy_avg", "txz_avg", "tyz_avg", "tzz_avg"', coord, 2, total_time_dim)  
-		 !ddz file  
-		  fname4 = 'output/avg_ddz.dat'
-			$if ($MPI)
-			  write (temp4, '(".c",i0)') coord
-			  fname4 = trim (fname4) // temp4
-			$endif	 	  
-		  call write_tecplot_header_ND(fname4, 'rewind', 3, (/ Nz/),'"z", "dudz_avg", "dvdz_avg"', coord, 2, total_time_dim) 
-		!u2-v2-w2 file  
-		  fname5 = 'output/avg_uvw2.dat'
-			$if ($MPI)
-			  write (temp5, '(".c",i0)') coord
-			  fname5 = trim (fname5) // temp5
-			$endif	 	  
-		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, total_time_dim) 		  
-		!uv-uw-vw file  
-		  fname6 = 'output/avg_uv_uw_vw.dat'
-			$if ($MPI)
-			  write (temp6, '(".c",i0)') coord
-			  fname6 = trim (fname6) // temp6
-			$endif	 	  
-		  call write_tecplot_header_ND(fname6, 'rewind', 4, (/ Nz/),'"z", "uv_avg", "uw_avg", "vw_avg"', coord, 2, total_time_dim) 		  
-
-elseif (ipart==2) then
-!Compute averages
-	nt_z = zplane_avg_t%nend - zplane_avg_t%nstart + 1
-    do k=1,nz-1
-	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w(:,:,k))/(nx*ny*nt_z)
-		
-		zplane_avg_t%txx_avg(k) = zplane_avg_t%txx_avg(k) + sum(txx(:,:,k))/(nx*ny*nt_z)
-		zplane_avg_t%txy_avg(k) = zplane_avg_t%txy_avg(k) + sum(txy(:,:,k))/(nx*ny*nt_z)
-		zplane_avg_t%tyy_avg(k) = zplane_avg_t%tyy_avg(k) + sum(tyy(:,:,k))/(nx*ny*nt_z)
-		zplane_avg_t%txz_avg(k) = zplane_avg_t%txz_avg(k) + sum(txz(:,:,k))/(nx*ny*nt_z)
-		zplane_avg_t%tyz_avg(k) = zplane_avg_t%tyz_avg(k) + sum(tyz(:,:,k))/(nx*ny*nt_z)
-		zplane_avg_t%tzz_avg(k) = zplane_avg_t%tzz_avg(k) + sum(tzz(:,:,k))/(nx*ny*nt_z)
-		
-		zplane_avg_t%dudz_avg(k) = zplane_avg_t%dudz_avg(k) + sum(dudz(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%dvdz_avg(k) = zplane_avg_t%dvdz_avg(k) + sum(dvdz(:,:,k))/(nx*ny*nt_z)
-		
-		zplane_avg_t%u2_avg(k) = zplane_avg_t%u2_avg(k) + sum(u(:,:,k)*u(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%v2_avg(k) = zplane_avg_t%v2_avg(k) + sum(v(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%w2_avg(k) = zplane_avg_t%w2_avg(k) + sum(w(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
-		
-		zplane_avg_t%uv_avg(k) = zplane_avg_t%uv_avg(k) + sum(u(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%uw_avg(k) = zplane_avg_t%uw_avg(k) + sum(u(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
-	    zplane_avg_t%vw_avg(k) = zplane_avg_t%vw_avg(k) + sum(v(:,:,k)*w(:,:,k))/(nx*ny*nt_z)		
-	enddo
-elseif (ipart==3) then
-!Write averages and reset
-	  !u-v-w file
-		  call write_real_data_1D(fname2,'append','formatted',3,(nz-1),(/ zplane_avg_t%u_avg,  zplane_avg_t%v_avg,  zplane_avg_t%w_avg /),z(1:nz-1))
-		  zplane_avg_t%u_avg(:) = 0.
-		  zplane_avg_t%v_avg(:) = 0.
-		  zplane_avg_t%w_avg(:) = 0.
-	  !tau file
-		  call write_real_data_1D(fname3,'append','formatted',6,(nz-1),(/ zplane_avg_t%txx_avg,  &
-		  zplane_avg_t%txy_avg, zplane_avg_t%tyy_avg,  zplane_avg_t%txz_avg,  zplane_avg_t%tyz_avg,  zplane_avg_t%tzz_avg /),z(1:nz-1))
-		  zplane_avg_t%txx_avg(:) = 0.
-		  zplane_avg_t%txy_avg(:) = 0.
-		  zplane_avg_t%tyy_avg(:) = 0.
-		  zplane_avg_t%txz_avg(:) = 0.
-		  zplane_avg_t%tyz_avg(:) = 0.
-		  zplane_avg_t%tzz_avg(:) = 0.	 
-	  !ddz file
-		  call write_real_data_1D(fname4,'append','formatted',2,(nz-1),(/ zplane_avg_t%dudz_avg,  zplane_avg_t%dvdz_avg /),z(1:nz-1))
-		  zplane_avg_t%dudz_avg(:) = 0.
-		  zplane_avg_t%dvdz_avg(:) = 0.	
-	  !u2-v2-w2 file
-		  call write_real_data_1D(fname5,'append','formatted',3,(nz-1),(/ zplane_avg_t%u2_avg,  zplane_avg_t%v2_avg,  zplane_avg_t%w2_avg /),z(1:nz-1))
-		  zplane_avg_t%u2_avg(:) = 0.
-		  zplane_avg_t%v2_avg(:) = 0.
-		  zplane_avg_t%w2_avg(:) = 0.	
-	  !uv-uw-vw file
-		  call write_real_data_1D(fname6,'append','formatted',3,(nz-1),(/ zplane_avg_t%uv_avg,  zplane_avg_t%uw_avg,  zplane_avg_t%vw_avg /),z(1:nz-1))
-		  zplane_avg_t%uv_avg(:) = 0.
-		  zplane_avg_t%uw_avg(:) = 0.
-		  zplane_avg_t%vw_avg(:) = 0.			  
-else 
-!error
-	write(*,*) 'ERROR: Incorrect call zplane_avg_compute(ipart)'
-endif
+!! ipart=1 to create files and write Tecplot headers
+!! ipart=2 to compute averages
+!! ipart=3 to write averages and reset
 
 
-return
-end subroutine zplane_avg_compute
+!use param, only : dx, dy, dz, jt_total, dt_dim
+!use stat_defs, only: zplane_avg_t
+!use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+!use grid_defs, only: z
+
+!implicit none
+
+!integer :: k, ipart, nt_z
+!character(64) :: frmt
+!character (64) :: fname, temp, fname2, temp2, fname3, temp3, fname4, temp4, fname5, temp5, fname6, temp6
+
+!if (ipart==1) then
+!!Create files and write Tecplot headers         
+!		!parameter file
+!		  if(coord==0) then 
+!		    fname='output/avg.dat'
+!			open (unit = 2,file = fname, status='unknown',form='formatted', action='write',position='rewind')
+!			write (frmt, '("(",i0,"i9)")') 3
+!			write(2,*) 'nz, nstart, nend'
+!			write(2,frmt) nz,zplane_avg_t%nstart, zplane_avg_t%nend
+!			close(2)
+!			!call write_real_data(fname, 'append', 3, (/ zplane_avg_t%nstart, zplane_avg_t%nend, zplane_avg_t%nskip /))
+!		  endif
+!		!u-v-w file  
+!		  fname2 = 'output/avg_uvw.dat'
+!			$if ($MPI)
+!			  write (temp2, '(".c",i0)') coord
+!			  fname2 = trim (fname2) // temp2
+!			$endif	 	  
+!		  call write_tecplot_header_ND(fname2, 'rewind', 4, (/ Nz/),'"z", "u_avg", "v_avg", "w_avg"', coord, 2, total_time_dim)  
+!		!txx-txy,etc file
+!		  fname3 = 'output/avg_tau.dat'
+!			$if ($MPI)
+!			  write (temp3, '(".c",i0)') coord
+!			  fname3 = trim (fname3) // temp3
+!			$endif	 	  
+!		  call write_tecplot_header_ND(fname3, 'rewind', 7, (/ Nz/), &
+!		  '"z", "txx_avg", "txy_avg", "tyy_avg", "txz_avg", "tyz_avg", "tzz_avg"', coord, 2, total_time_dim)  
+!		 !ddz file  
+!		  fname4 = 'output/avg_ddz.dat'
+!			$if ($MPI)
+!			  write (temp4, '(".c",i0)') coord
+!			  fname4 = trim (fname4) // temp4
+!			$endif	 	  
+!		  call write_tecplot_header_ND(fname4, 'rewind', 3, (/ Nz/),'"z", "dudz_avg", "dvdz_avg"', coord, 2, total_time_dim) 
+!		!u2-v2-w2 file  
+!		  fname5 = 'output/avg_uvw2.dat'
+!			$if ($MPI)
+!			  write (temp5, '(".c",i0)') coord
+!			  fname5 = trim (fname5) // temp5
+!			$endif	 	  
+!		  call write_tecplot_header_ND(fname5, 'rewind', 4, (/ Nz/),'"z", "u2_avg", "v2_avg", "w2_avg"', coord, 2, total_time_dim) 		  
+!		!uv-uw-vw file  
+!		  fname6 = 'output/avg_uv_uw_vw.dat'
+!			$if ($MPI)
+!			  write (temp6, '(".c",i0)') coord
+!			  fname6 = trim (fname6) // temp6
+!			$endif	 	  
+!		  call write_tecplot_header_ND(fname6, 'rewind', 4, (/ Nz/),'"z", "uv_avg", "uw_avg", "vw_avg"', coord, 2, total_time_dim) 		  
+
+!elseif (ipart==2) then
+!!Compute averages
+!	nt_z = zplane_avg_t%nend - zplane_avg_t%nstart + 1
+!    do k=1,nz-1
+!	    zplane_avg_t%u_avg(k) = zplane_avg_t%u_avg(k) + sum(u(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%v_avg(k) = zplane_avg_t%v_avg(k) + sum(v(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%w_avg(k) = zplane_avg_t%w_avg(k) + sum(w(:,:,k))/(nx*ny*nt_z)
+!		
+!		zplane_avg_t%txx_avg(k) = zplane_avg_t%txx_avg(k) + sum(txx(:,:,k))/(nx*ny*nt_z)
+!		zplane_avg_t%txy_avg(k) = zplane_avg_t%txy_avg(k) + sum(txy(:,:,k))/(nx*ny*nt_z)
+!		zplane_avg_t%tyy_avg(k) = zplane_avg_t%tyy_avg(k) + sum(tyy(:,:,k))/(nx*ny*nt_z)
+!		zplane_avg_t%txz_avg(k) = zplane_avg_t%txz_avg(k) + sum(txz(:,:,k))/(nx*ny*nt_z)
+!		zplane_avg_t%tyz_avg(k) = zplane_avg_t%tyz_avg(k) + sum(tyz(:,:,k))/(nx*ny*nt_z)
+!		zplane_avg_t%tzz_avg(k) = zplane_avg_t%tzz_avg(k) + sum(tzz(:,:,k))/(nx*ny*nt_z)
+!		
+!		zplane_avg_t%dudz_avg(k) = zplane_avg_t%dudz_avg(k) + sum(dudz(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%dvdz_avg(k) = zplane_avg_t%dvdz_avg(k) + sum(dvdz(:,:,k))/(nx*ny*nt_z)
+!		
+!		zplane_avg_t%u2_avg(k) = zplane_avg_t%u2_avg(k) + sum(u(:,:,k)*u(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%v2_avg(k) = zplane_avg_t%v2_avg(k) + sum(v(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%w2_avg(k) = zplane_avg_t%w2_avg(k) + sum(w(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
+!		
+!		zplane_avg_t%uv_avg(k) = zplane_avg_t%uv_avg(k) + sum(u(:,:,k)*v(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%uw_avg(k) = zplane_avg_t%uw_avg(k) + sum(u(:,:,k)*w(:,:,k))/(nx*ny*nt_z)
+!	    zplane_avg_t%vw_avg(k) = zplane_avg_t%vw_avg(k) + sum(v(:,:,k)*w(:,:,k))/(nx*ny*nt_z)		
+!	enddo
+!elseif (ipart==3) then
+!!Write averages and reset
+!	  !u-v-w file
+!		  call write_real_data_1D(fname2,'append','formatted',3,(nz-1),(/ zplane_avg_t%u_avg,  zplane_avg_t%v_avg,  zplane_avg_t%w_avg /),z(1:nz-1))
+!		  zplane_avg_t%u_avg(:) = 0.
+!		  zplane_avg_t%v_avg(:) = 0.
+!		  zplane_avg_t%w_avg(:) = 0.
+!	  !tau file
+!		  call write_real_data_1D(fname3,'append','formatted',6,(nz-1),(/ zplane_avg_t%txx_avg,  &
+!		  zplane_avg_t%txy_avg, zplane_avg_t%tyy_avg,  zplane_avg_t%txz_avg,  zplane_avg_t%tyz_avg,  zplane_avg_t%tzz_avg /),z(1:nz-1))
+!		  zplane_avg_t%txx_avg(:) = 0.
+!		  zplane_avg_t%txy_avg(:) = 0.
+!		  zplane_avg_t%tyy_avg(:) = 0.
+!		  zplane_avg_t%txz_avg(:) = 0.
+!		  zplane_avg_t%tyz_avg(:) = 0.
+!		  zplane_avg_t%tzz_avg(:) = 0.	 
+!	  !ddz file
+!		  call write_real_data_1D(fname4,'append','formatted',2,(nz-1),(/ zplane_avg_t%dudz_avg,  zplane_avg_t%dvdz_avg /),z(1:nz-1))
+!		  zplane_avg_t%dudz_avg(:) = 0.
+!		  zplane_avg_t%dvdz_avg(:) = 0.	
+!	  !u2-v2-w2 file
+!		  call write_real_data_1D(fname5,'append','formatted',3,(nz-1),(/ zplane_avg_t%u2_avg,  zplane_avg_t%v2_avg,  zplane_avg_t%w2_avg /),z(1:nz-1))
+!		  zplane_avg_t%u2_avg(:) = 0.
+!		  zplane_avg_t%v2_avg(:) = 0.
+!		  zplane_avg_t%w2_avg(:) = 0.	
+!	  !uv-uw-vw file
+!		  call write_real_data_1D(fname6,'append','formatted',3,(nz-1),(/ zplane_avg_t%uv_avg,  zplane_avg_t%uw_avg,  zplane_avg_t%vw_avg /),z(1:nz-1))
+!		  zplane_avg_t%uv_avg(:) = 0.
+!		  zplane_avg_t%uw_avg(:) = 0.
+!		  zplane_avg_t%vw_avg(:) = 0.			  
+!else 
+!!error
+!	write(*,*) 'ERROR: Incorrect call zplane_avg_compute(ipart)'
+!endif
+
+
+!return
+!end subroutine zplane_avg_compute
 
 
 end module io
