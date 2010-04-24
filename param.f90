@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 12
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -47,7 +47,7 @@ module param
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
-  integer,parameter:: nx=32,ny=32,nz=(33-1)/nproc + 1
+  integer,parameter:: nx=128,ny=74,nz=(96+6-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -58,7 +58,7 @@ module param
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
     !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=4.*z_i
+  real(rprec),parameter::L_x=8.*z_i
   real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x ! ensure dy=dx
 !  real(rprec),parameter::L_y=4.*z_i/sqrt(0.75);
   real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x ! ensure dz = dx
@@ -80,7 +80,7 @@ module param
   real(kind=rprec),parameter::Co=0.16_rprec
 
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
-  integer,parameter::ifilter=2	 
+  integer,parameter::ifilter=2
 
   ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
@@ -106,9 +106,9 @@ module param
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
-  integer, parameter :: nsteps = 100
+  integer, parameter :: nsteps = 100000
  
-  real (rprec), parameter :: dt = 2.e-4_rprec
+  real (rprec), parameter :: dt = 2.e-5
   real (rprec), parameter :: dt_dim = dt*z_i/u_star
   
 !  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
