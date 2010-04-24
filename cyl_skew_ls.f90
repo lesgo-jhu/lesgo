@@ -605,6 +605,9 @@ clindx = 0
 brindx = 0
 reslv_clindx = 0
 unreslv_clindx = 0
+
+if(coord == 0) write(*,*) 'Filling Tree Array'
+
 do nt = 1, ntree
 
     do ng=1, tr_t(nt)%ngen
