@@ -2575,13 +2575,18 @@ yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
 zplane_t%calc   = .true.
-zplane_t%nstart = 1000
+zplane_t%nstart = 500
 zplane_t%nend   = nsteps
-zplane_t%nskip  = 1000
-zplane_t%nloc   = 3
-zplane_t%loc(1) = 0.733
-zplane_t%loc(2) = 1.5505
-zplane_t%loc(3) = 1.95925
+zplane_t%nskip  = 500
+zplane_t%nloc   = 7
+zplane_t%loc(1) = 0.733347
+zplane_t%loc(2) = 1.550644
+zplane_t%loc(3) = 1.959293
+zplane_t%loc(4) = 2.163617
+zplane_t%loc(5) = 2.265780
+zplane_t%loc(6) = 2.316861
+zplane_t%loc(7) = 2.342401
+
 
 
 !!  z-plane TIME-AVERAGED stats/data
