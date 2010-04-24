@@ -107,9 +107,11 @@ enddo
 
 allocate( rns_reslv_cl_iarray( ncluster_tot ) )
 ncount=0
+if(coord == 0) write(*,*) 'Setting rns_reslv_cl_iarray'
 do nt = 1, rns_ntree
   do ng = 1, tr_t(nt) % ngen_reslv
     do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
+      if(coord == 0) write(*,'(a,3i)') 'nt, ng, nc : ', nt, ng, nc
       ncount = ncount + 1
       rns_reslv_cl_iarray( tr_t(nt) % gen_t (ng) % cl_t (nc) %indx ) = ncount 
       if(coord == 0) then
@@ -519,6 +521,7 @@ do k=1, nz - 1
         br_loc_id_p => brindx_to_loc_id(:, brindx_p)
 
         nt_p => rns_tree_iarray( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
+        !nt_p => br_loc_id_p(1)
         ng_p => br_loc_id_p(2)
         nc_p => br_loc_id_p(3)
 
@@ -532,6 +535,7 @@ do k=1, nz - 1
         clindx_p => rns_reslv_cl_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( nc_p ) % indx )
       
         if( ng_p <= tr_t( nt_p ) % ngen_reslv ) then
+        
           !  Use only inside points
           if ( phi(i,j,k) <= 0._rprec ) then 
           
@@ -591,10 +595,16 @@ do nc=1, ncluster_reslv
   allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
 enddo
 
+if(coord == 0) then
+write(*,*) '------------------------'
+write(*,*) 'Setting cluster point array'
+endif
 
 do nc=1, ncluster_reslv
-  
+
   cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
+  
+  if(coord == 0) write(*,*) 'Number of points (nc, npoint) : ', nc, cl_indx_array_t(nc) % npoint
   
   do np = 1, cl_indx_array_t(nc) % npoint
   
@@ -604,6 +614,10 @@ do nc=1, ncluster_reslv
   
 enddo
 
+if(coord == 0) then
+write(*,*) '------------------------'
+write(*,*) 'Setting BETA point array'
+endif
 allocate(beta_indx_array_t ( nbeta ) )
 
 do nb = 1, nbeta
@@ -612,6 +626,8 @@ enddo
 
 do nb = 1, nbeta
   beta_indx_array_t(nb) % npoint = beta_pre_indx_array_t(nb) % npoint
+  
+  if(coord == 0) write(*,*) 'Number of points (nc, npoint) : ', nb, beta_indx_array_t(nb) % npoint
   
   do np = 1, beta_indx_array_t(nb) % npoint
     beta_indx_array_t(nb) % iarray(:,np) = beta_pre_indx_array_t(nb) % iarray(:,np)
@@ -982,7 +998,7 @@ do nb = 1, nbeta
  
   !  Loop over number of points used in beta region
   npoint_p => beta_indx_array_t( nb ) % npoint
-
+  
   $if($MPI)
   fD = 0._rprec
   $endif
@@ -1397,7 +1413,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, clforce_t(1:nvar-1)%fD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, -clforce_t(1:nvar-1)%fD /))
 
 return
 end subroutine rns_write_cl_fD_ls
@@ -1437,7 +1453,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % fD /))
+call write_real_data(fname, 'append', nvar, (/ total_time, -beta_force_t(1:nvar-1) % fD /))
 
 return
 end subroutine rns_write_beta_fD_ls
