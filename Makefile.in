@@ -33,9 +33,9 @@ USE_DYNALLOC = no
 
 USE_LVLSET = yes
 
-USE_TREES_LS = no
 USE_CYL_SKEW_LS = yes
 USE_RNS_LS = yes
+USE_TREES_LS = no
 
 USE_TURBINES = no
 
