@@ -1554,6 +1554,7 @@ integer :: rs_type(1), rs_block(1), rs_disp(1)
 integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 
 integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
+integer, allocatable, dimension(:) :: gather_coord
 $endif
 
 logical :: opn
@@ -1590,6 +1591,7 @@ if(coord == 0) then
   allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
   allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
   allocate(z_tot(nz_tot))
+  allocate(gather_coord(nproc))
     
   do k=1, nz_tot
   
@@ -1782,7 +1784,12 @@ $if($MPI)
     MPI_RS, rank_of_coord(0), comm, ierr)
     
   call mpi_gather( tavg_zplane_t, nz, MPI_TSTATS, tavg_zplane_buf_t, nz, &
-    MPI_TSTATS, rank_of_coord(0), comm, ierr)    
+    MPI_TSTATS, rank_of_coord(0), comm, ierr)   
+    
+  !  Get the rank that was used for mpi_gather (ensure that assembly of {rs,tavg}_zplane_tot_t is
+  !  done in increasing coord
+  call mpi_gather( coord, 1, MPI_INTEGER, gather_coord, 1, &
+  MPI_INTEGER, rank_of_coord(0), comm, ierr)
   
   call MPI_Type_free (MPI_RS, ierr)
   call mpi_type_free (MPI_TSTATS, ierr)
@@ -1790,21 +1797,18 @@ $if($MPI)
   if(coord == 0) then
   
   !  Need to remove overlapping nodes
-  ! Set initial block of data  
-    rs_zplane_tot_t(1:nz) = rs_zplane_buf_t(1:nz)
-    tavg_zplane_tot_t(1:nz) = tavg_zplane_buf_t(1:nz)
+  !! Set initial block of data  
+  !  rs_zplane_tot_t(1:nz) = rs_zplane_buf_t(1:nz)
+  !  tavg_zplane_tot_t(1:nz) = tavg_zplane_buf_t(1:nz)
     
-    ktot_end = nz 
-    kbuf_end = nz
-    
-    do ip=1, nproc-1
+    do ip=1, nproc
       
-      ktot_start = ktot_end
-      ktot_end = ktot_start + nz - 1
-      
-      kbuf_start = kbuf_end + 1
+      kbuf_start = gather_coord(ip)*nz + 1
       kbuf_end   = kbuf_start + nz - 1
-          
+      
+      ktot_start = kbuf_start - gather_coord(ip)
+      ktot_end = ktot_start + nz - 1
+                
       rs_zplane_tot_t(ktot_start:ktot_end) = rs_zplane_buf_t(kbuf_start:kbuf_end)
       tavg_zplane_tot_t(ktot_start:ktot_end) = tavg_zplane_buf_t(kbuf_start:kbuf_end)
       
@@ -1844,9 +1848,9 @@ $if($MPI)
       (/ rs_zplane_tot_t % up2, rs_zplane_tot_t%vp2, rs_zplane_tot_t%wp2, &
       rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), z_tot)    
  
-  deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
-  deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
-  deallocate(z_tot)
+    deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
+    deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
+    deallocate(z_tot, gather_coord)
   
   endif
 
