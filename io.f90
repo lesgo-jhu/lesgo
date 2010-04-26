@@ -637,6 +637,9 @@ use sim_param, only : u,v,w
 
 $if($LVLSET)
 use level_set, only : phi
+$if($RNS_LS)
+use immersedbc, only : fx, fy, fz
+$endif
 $endif
 
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
@@ -686,7 +689,7 @@ elseif(itype==2) then
 !  Convert total iteration time to string
   write(ct,*) jt_total
 !  Open file which to write global data
-  write (fname,*) 'output/uvw.', trim(adjustl(ct)),'.dat'
+  write (fname,*) 'output/vel.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
 
   $if ($MPI)
@@ -731,21 +734,30 @@ elseif(itype==2) then
   call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
   $endif
-	
-  !do k=1,nz
-  !  do j=1,ny
-  !    do i=1,nx
-  !      
-  !      write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k), phi(i,j,k)
-  !      $else
-  !      write(7,*) x(i), y(j), z(k), u(i,j,k), v(i,j,k), w_uv(i,j,k)
-  !      $endif
-
-  !    enddo
-  !  enddo
-  !enddo
   
-  !close(7)
+  !  Output Instantaneous Force Field for RNS Simulations
+  !  Still need to put fz on uv grid may need a better way
+  $if($LVLSET)
+  $if($RNS_LS)
+  !  Open file which to write global data
+  write (fname,*) 'output/f.', trim(adjustl(ct)),'.dat'
+  fname = trim(adjustl(fname))
+
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+  $endif
+  
+  !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
+  var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
+  nvars = 7
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time)
+	call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
+  (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
+  
+  $endif
+  $endif
+
 !  Write instantaneous y-plane values
 elseif(itype==3) then
 
@@ -755,7 +767,7 @@ elseif(itype==3) then
     write(cl,'(F9.4)') yplane_t%loc(j)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/uvw.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) 'output/vel.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -816,7 +828,7 @@ elseif(itype==4) then
     write(cl,'(F9.4)') zplane_t%loc(k)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/uvw.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
 !     $if ($MPI)
@@ -2559,7 +2571,7 @@ point_t%nloc = 2
 point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
-domain_t%calc = .false.
+domain_t%calc = .true.
 domain_t%nstart = 10000
 domain_t%nend   = nsteps
 domain_t%nskip = 10000
