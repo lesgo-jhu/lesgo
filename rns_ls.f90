@@ -17,6 +17,7 @@ private
 public :: rns_init_ls !, rns_u_write_ls
 public :: rns_CD_ls
 public :: rns_forcing_ls ! Apply forcing
+public :: rns_finalize_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
@@ -72,6 +73,7 @@ if ( rns_ntree > ntree ) call error ( sub_name, 'rns_ntree > ntree ')
 allocate( rns_tree_iarray( ntree ) )
 
 if(rns_tree_layout == 1) then 
+
   do nt = 1, ntree
   
     if( nt < rns_ntree ) then
@@ -81,6 +83,11 @@ if(rns_tree_layout == 1) then
     endif
     
   enddo
+  
+else
+ 
+  call error(sub_name, 'rns_tree_layout must be 1 for now')
+  
 endif
 
 
@@ -132,56 +139,11 @@ else
   call error(sub_name, 'use_beta_sub_regions must be false')  
 endif
 
-!if(use_main_tree_ref) then
-!  ncluster_unreslv_ref = ncluster_ref - ncluster_reslv_ref
-!else
-!  ncluster_unreslv_ref = ncluster_unreslv
-!endif
-
-!if(coord == 0) write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
-
-!if(coord == 0) then
-
-!  write(*,*) 'ncluster_tot : ', ncluster_tot
-!  write(*,*) 'ncluster_reslv : ', ncluster_reslv
-!  write(*,*) 'ncluster_unreslv : ', ncluster_unreslv
-!  
-!endif
-
-!!  Set the number of resolved clusters
-!if(use_main_tree_only) then
-
-!  ncluster_reslv = 0
-!  
-!  tr_t_p => tr_t(1)
-!  
-!  do ng = 1, ngen_reslv
-!  
-!    do nc = 1, tr_t_p % gen_t(ng) % ncluster
-!    
-!      ncluster_reslv = ncluster_reslv + 1
-!      
-!    enddo
-!    
-!  enddo
-!  
-!  nullify(tr_t_p)
-!  
-!else
-
-!  call error(sub_name, 'Not set up yet for multiple trees')
-!  
-!endif
-
 if(clforce_calc) then
   !  Create cluster reference value plane
   call rns_fill_ref_plane_array_ls()
   !  Create cluster index array
   call rns_fill_indx_array_ls()
-  !  Set parent used for assigning CD's on unresolved branches
-  !if(coord == 0) write(*,*) ' calling rns_set_cl_parent_ls'
-  !call rns_set_cl_parent_ls()
-  !if(coord == 0) write(*,*) 'called rns_set_cl_parent_ls'
   
   allocate( clforce_t ( ncluster_reslv ) ) 
   clforce_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
@@ -604,8 +566,6 @@ do nc=1, ncluster_reslv
 
   cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
   
-  if(coord == 0) write(*,*) 'Number of points (nc, npoint) : ', nc, cl_indx_array_t(nc) % npoint
-  
   do np = 1, cl_indx_array_t(nc) % npoint
   
     cl_indx_array_t(nc) % iarray(:,np) = cl_pre_indx_array_t(nc) % iarray(:,np)
@@ -627,22 +587,11 @@ enddo
 do nb = 1, nbeta
   beta_indx_array_t(nb) % npoint = beta_pre_indx_array_t(nb) % npoint
   
-  if(coord == 0) write(*,*) 'Number of points (nc, npoint) : ', nb, beta_indx_array_t(nb) % npoint
-  
   do np = 1, beta_indx_array_t(nb) % npoint
     beta_indx_array_t(nb) % iarray(:,np) = beta_pre_indx_array_t(nb) % iarray(:,np)
   enddo
   
 enddo
-
-!if(.not. USE_MPI .or. (USE_MPI .and. coord == 2)) then
-!  write(*,*) 'Number of points per cluster : '
-!  do nc = 1, ncluster_tot
-!    write(*,*) '-------------------------'
-!    write(*,*) 'nc, cl_indx_array_t(nc) % npoint : ', nc, cl_indx_array_t(nc) % npoint
-!    write(*,*) '-------------------------'
-!  enddo
-!endif
 
 !  No longer needed
 deallocate(cl_pre_indx_array_t)
@@ -1280,8 +1229,6 @@ call write_real_data(fname, 'append', nvar, (/ total_time, clforce_t(1:nvar-1)%C
 return
 end subroutine rns_write_cl_CD_ls
 
-
-
 !**********************************************************************
 subroutine rns_write_cl_vel_ls()
 !**********************************************************************
@@ -1662,6 +1609,97 @@ write(*,*) 'coord, chi_max : ', coord, chi_max
 chi_initialized = .true.
 
 end subroutine chi_init
+
+!**********************************************************************
+subroutine rns_force_init_ls ()
+!**********************************************************************
+!  
+!  This subroutine reads the last BETA force data from a previous simulation
+!
+use param, only : coord, USE_MPI
+use messages
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.rns_force_init_ls'
+character (*), parameter :: fname_in = 'rns_force_ls.out'
+$if ($MPI)
+  character (*), parameter :: MPI_suffix = '.c'
+
+  character (128) :: fname
+$endif
+
+integer :: ip
+
+logical :: opn, exst
+
+!---------------------------------------------------------------------
+
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($MPI)
+write (fname, '(a,a,i0)') fname_in, MPI_suffix, coord
+$else
+fname = trim(adjustl(fname_in))
+$endif
+
+inquire (file=fname, exist=exst)
+
+if (.not. exst) then
+  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+    write(*,*) ' '
+    write(*,*)'No previous RNS force data - starting from scratch.'
+  endif
+  return ! Do nothing if not present
+endif 
+
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted')
+read (1) beta_force_t
+close (1)
+
+end subroutine rns_force_init_ls
+
+!**********************************************************************
+subroutine rns_finalize_ls()
+!**********************************************************************
+! 
+!  This subroutine writes all restart data to file
+!
+use param, only : coord
+use messages
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
+character (*), parameter :: fname_out = 'rns_force_ls.out'
+$if ($MPI)
+  character (*), parameter :: MPI_suffix = '.c'
+
+  character (128) :: fname
+$endif
+
+integer :: ip
+
+logical :: opn, exst
+
+!---------------------------------------------------------------------
+
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($MPI)
+write (fname, '(a,a,i0)') fname_out, MPI_suffix, coord
+$else
+fname = trim(adjustl(fname_out))
+$endif
+
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted')
+write (1) beta_force_t
+close (1)
+
+return
+end subroutine rns_finalize_ls
 
 end module rns_ls
 
