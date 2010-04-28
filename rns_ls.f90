@@ -295,7 +295,7 @@ use types, only : rprec, vec2d
 use param, only : dy, dz, USE_MPI, coord
 use messages
 $if($CYL_SKEW_LS) 
-use cyl_skew_base_ls, only : tr_t, tree
+use cyl_skew_base_ls, only : tr_t, tree, generation
 $endif
 implicit none
 
@@ -318,12 +318,13 @@ real(rprec), pointer, dimension(:) :: origin_p
 
 type(vec2d) :: rvec_t
 
-type(tree) :: tr_t_p
+type(tree), pointer :: tr_t_p
+type(generation), pointer :: gen_t_p
 
 nullify(d_p, l_p, skew_angle_p)
 nullify(clindx_p, nbranch_p)
 nullify(rbeta_indx_p, beta_indx_p)
-nullify(tr_t_p)
+nullify(tr_t_p, gen_t_p)
 
 allocate( cl_ref_plane_t( ncluster_reslv ) )
 
@@ -416,7 +417,7 @@ do nt = 1, rns_ntree
 
   do nc = 1, gen_t_p % ncluster
   
-    clindx_p => tr_t_p % gen_t_p % cl_t(nc) % indx
+    clindx_p => gen_t_p % cl_t(nc) % indx
     
     rbeta_indx_p => rns_rbeta_iarray( clindx_p )
   
@@ -424,7 +425,7 @@ do nt = 1, rns_ntree
 
     htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
    
-    origin_p => tr_t_p % gen_t_p % cl_t(nc) % origin
+    origin_p => gen_t_p % cl_t(nc) % origin
    
     h = htop_p - hbot_p
   
@@ -473,7 +474,7 @@ do nt = 1, rns_ntree
 
   do nc = 1, gen_t_p % ncluster
   
-    clindx_p => tr_t_p % gen_t_p % cl_t(nc) % indx
+    clindx_p => gen_t_p % cl_t(nc) % indx
     
     beta_indx_p => rns_beta_iarray( clindx_p )
   
@@ -481,7 +482,7 @@ do nt = 1, rns_ntree
 
     htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
    
-    origin_p => tr_t_p % gen_t_p % cl_t(nc) % origin
+    origin_p => gen_t_p % cl_t(nc) % origin
    
     h = htop_p - hbot_p
   
@@ -636,6 +637,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_fill_indx_array_ls'
 
 integer :: i,j,k, nc, np, nb
+integer :: ib
 integer, pointer :: clindx_p, brindx_p, beta_indx_p
 integer, pointer :: nt_p, ng_p, nc_p
 
@@ -1149,7 +1151,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_beta_force_ls'
 
-integer :: nb, np, nt, nc, ib
+integer :: nb, np, nt, nc
+integer :: ib, irb
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -1164,7 +1167,8 @@ real(rprec), pointer :: kappa_p, CD_p
 !real(rprec) :: sigma
 !real(rprec), allocatable, dimension(:) :: fD_dir
 
-real(rprec) :: CD_num, CD_denom, fD_tot, CD, Lint
+real(rprec) :: CD_num, CD_denom, CD, Lint
+real(rprec), allocatable, dimension(:) ::  fD_tot
 $if($MPI)
 real(rprec) :: Lint_global
 $endif
@@ -1269,7 +1273,7 @@ if(use_single_beta_CD) then
    
     do nc = 1, gen_t_p % ncluster
     
-      clindx_p => tr_t_p % gen_t_p % cl_t (nc) % indx
+      clindx_p => gen_t_p % cl_t (nc) % indx
       
       rbeta_indx_p => rns_rbeta_iarray( clindx_p )
       rns_clindx_p => rns_reslv_cl_iarray( clindx_p ) 
@@ -1292,7 +1296,7 @@ if(use_single_beta_CD) then
     
     !do nc = 1, gen_t_p % ncluster
     
-    !  clindx_p => tr_t_p % gen_t_p % cl_t (nc) % indx
+    !  clindx_p => gen_t_p % cl_t (nc) % indx
     !  
     !  rbeta_indx_p => rns_rbeta_iarray(clindx_p)
   
