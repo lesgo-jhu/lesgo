@@ -127,6 +127,11 @@ tt=0
   call patch_or_remote ()
 !end if
 
+
+$if ($TURBINES)
+  call turbines_init()    !must occur before initial is called
+$endif
+
 call initial()
 !--could move this into something like initial ()
 $if ($LVLSET)
@@ -143,9 +148,6 @@ $if ($LVLSET)
   
 $endif
 
-$if ($TURBINES)
-  call turbines_init()
-$endif
 
 $if ($TREES_LS)
   !--this must come after initial, since fx, fy, fz are set 0 there
