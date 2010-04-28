@@ -36,7 +36,7 @@ integer, parameter :: rns_tree_layout = 1
 ! 
 !---------------------------------------------------  
 
-integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+
 
 type ref_plane
   integer :: nzeta, neta ! discretization
@@ -70,8 +70,12 @@ type(force), pointer, dimension(:) :: beta_force_t          ! For unresolved reg
 
 integer :: ncluster_reslv ! total number of resolved clusters
 integer :: nbeta ! number of total beta regions
+integer :: nrbeta ! number of 
 
 integer, pointer, dimension(:) :: rns_reslv_cl_iarray
+integer, pointer, dimension(:) :: rns_beta_iarray
+integer, pointer, dimension(:) :: rns_rbeta_iarray
+integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
 
 integer, target :: brindx(ld, ny, $lbz:nz)
