@@ -49,7 +49,7 @@ if(ifilter==1) then ! spectral cutoff filter
    kc2 = (pi/(delta))**2
    where (real(k2, rprec) >= kc2) G_test = 0._rprec
 else if(ifilter==2) then ! Gaussian filter
-   G_test=exp(-(2._rprec*delta)**2*k2/(4._rprec*6._rprec))*G_test       
+   G_test=exp(-(delta)**2*k2/(4._rprec*6._rprec))*G_test       
 else if(ifilter==3) then ! Top-hat (Box) filter
    G_test= (sin(kx*delta/2._rprec)*sin(ky*delta/2._rprec)+1E-8)/&
         (kx*delta/2._rprec*ky*delta/2._rprec+1E-8)*G_test
