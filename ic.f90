@@ -4,6 +4,10 @@ subroutine ic()
   use param
   use sim_param,only:u,v,w
   use bottombc,only:zo_avg
+  $if ($TURBINES)
+    use turbines, only: turbine_vel_init
+  $endif 
+  
   implicit none
 
   $if ($DEBUG)
@@ -54,6 +58,10 @@ subroutine ic()
         arg2=z/zo_avg
         arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
+        $if ($TURBINES)
+          call turbine_vel_init (z,arg,arg2)
+        $endif        
+        
         !ubar(jz)=arg
 
         ! Added by VK for making the u less than 1...need to change this
