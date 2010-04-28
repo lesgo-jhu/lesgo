@@ -88,7 +88,7 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_t
 
 type(point), target 	  :: point_t
 type(domain)        		:: domain_t
-type(plane)         		:: yplane_t, zplane_t
+type(plane)         		:: xplane_t, yplane_t, zplane_t
 
 type(rs), pointer, dimension(:,:,:) :: rs_t
 type(rs), pointer, dimension(:) :: rs_zplane_t

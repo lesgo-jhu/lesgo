@@ -366,7 +366,7 @@ end subroutine openfiles
 subroutine output_loop(jt)
 use param, only : dx, dy, dz, jt_total, dt_dim
 use param, only : tavg_calc, tavg_nstart, tavg_nend
-use stat_defs, only: tavg_t, point_t, domain_t, yplane_t, zplane_t
+use stat_defs, only: tavg_t, point_t, domain_t, xplane_t, yplane_t, zplane_t
 use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
 use grid_defs, only: z
 
@@ -438,6 +438,22 @@ if(domain_t%calc) then
     call inst_write(2)
   endif
 endif 
+
+!  Determine if instantaneous x-plane velocities are to be recorded
+if(xplane_t%calc) then
+  if(jt >= xplane_t%nstart .and. jt <= xplane_t%nend .and. ( jt == xplane_t%nstart .or. mod(jt,xplane_t%nskip)==0) ) then
+    if(.not. xplane_t%started) then
+      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+        write(*,*) '-------------------------------'
+        write(*,"(1a,i9,1a,i9)") 'Writing instantaneous x-plane velocities from ', xplane_t%nstart, ' to ', xplane_t%nend
+        write(*,"(1a,i9)") 'Iteration skip:', xplane_t%nskip
+        write(*,*) '-------------------------------'
+      endif
+      xplane_t%started=.true.
+    endif
+    call inst_write(5)
+  endif
+endif  
 
 !  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_t%calc) then
@@ -631,7 +647,7 @@ subroutine inst_write(itype)
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
 use functions, only : linear_interp, trilinear_interp
-use stat_defs, only : point_t, domain_t, yplane_t, zplane_t
+use stat_defs, only : point_t, domain_t, xplane_t, yplane_t, zplane_t
 use grid_defs, only : x,y,z,zw
 use sim_param, only : u,v,w
 
@@ -873,6 +889,62 @@ elseif(itype==4) then
 
   enddo  
 
+!  Write instantaneous x-plane values
+elseif(itype==5) then
+
+!  Loop over all xplane locations
+  do j=1,xplane_t%nloc
+
+    write(cl,'(F9.4)') xplane_t%loc(j)
+    !  Convert total iteration time to string
+    write(ct,*) jt_total
+    write(fname,*) 'output/vel.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    fname=trim(adjustl(fname))
+
+    $if ($MPI)
+!  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
+
+
+    !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    !  j,'", DATAPACKING=POINT, i=', Nx,', j=',1,', k=', Nz
+    !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
+	
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny, Nz/), &
+	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
+	  
+	open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='append')
+	  
+	!call write_real_data_2D(fname, 'rewind', 'formatted', 3, nx, nz, &
+	!  (/ linear_interp(u(:,yplane_t%istart(j),:), &
+    !      u(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(v(:,yplane_t%istart(j),:), &
+    !      v(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(w_uv(:,yplane_t%istart(j),:), &
+    !      w_uv(:,yplane_t%istart(j)+1,:), dy, &
+    !      yplane_t%ldiff(j)) /), x, z
+	  
+    do k=1,nz
+      do i=1,ny
+
+        ui = linear_interp(u(xplane_t%istart(j),i,k), &
+          u(xplane_t%istart(j)+1,i,k), dx, xplane_t%ldiff(j))
+        vi = linear_interp(v(xplane_t%istart(j),i,k), &
+          v(xplane_t%istart(j)+1,i,k), dx, xplane_t%ldiff(j))
+        wi = linear_interp(w_uv(xplane_t%istart(j),i,k), &
+          w_uv(xplane_t%istart(j)+1,i,k), dx, &
+          xplane_t%ldiff(j))
+
+        write(2,*) xplane_t%loc(j), y(i), z(k), ui, vi, wi
+      enddo
+    enddo
+    close(2)
+  enddo  
 
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'
@@ -2580,6 +2652,15 @@ domain_t%nstart = 10000
 domain_t%nend   = nsteps
 domain_t%nskip = 10000
 
+!  x-plane stats/data
+xplane_t%calc   = .false.
+xplane_t%nstart = 1
+xplane_t%nend   = nsteps
+xplane_t%nskip  = 100
+xplane_t%nloc   = 2
+xplane_t%loc(1) = 1.0
+xplane_t%loc(2) = 3.0
+
 !  y-plane stats/data
 yplane_t%calc   = .false.
 yplane_t%nstart = 1
@@ -2681,6 +2762,21 @@ endif
 !   rs_t%upvp=0.
 ! endif
 
+! Initialize information for x-planar stats/data
+if(xplane_t%calc) then
+  xplane_t%istart = -1
+  xplane_t%ldiff = 0.
+!  Not really needed
+  xplane_t%coord = -1
+  
+!  Compute istart and ldiff
+  do j=1,xplane_t%nloc
+	  xplane_t%istart(j) = index_start('j', dx, xplane_t%loc(j))
+	  xplane_t%ldiff(j) = x(xplane_t%istart(j)) - xplane_t%loc(j)
+  enddo
+    
+endif
+
 ! Initialize information for y-planar stats/data
 if(yplane_t%calc) then
 !   allocate(yplane_t%ua(Nx,yplane_t%nloc,Nz))
@@ -2704,7 +2800,7 @@ if(yplane_t%calc) then
     
 endif
 
-! Initialize information for y-planar stats/data
+! Initialize information for z-planar stats/data
 if(zplane_t%calc) then
 !   allocate(zplane_t%ua(Nx,Ny,zplane_t%nloc))
 !   allocate(zplane_t%va(Nx,Ny,zplane_t%nloc))
