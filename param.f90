@@ -166,6 +166,8 @@ module param
   logical, parameter :: tavg_calc = .true.
   integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
  
+  logical,parameter:: output=.true.  
+  
  ! COMING SOON: parameters from subroutine stats_init()
   
  
