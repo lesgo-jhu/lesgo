@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 12
+  $define $NPROC 2
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -47,24 +47,28 @@ module param
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
-! characteristic length is H=z_i_dim (1 km) and characteristic velocity is u_star  
+! characteristic length is H=z_i and characteristic velocity is u_star  
 !   L_x, L_y, L_z, dx, dy, dz are non-dim. using H
-  real(rprec),parameter::z_i_dim=1000._rprec    !dimensions in meters, height of ABL
 
-  integer,parameter:: nx=128,ny=74,nz=(96+6-1)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
-  real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=8.*z_i     !set as multiple of ABL height
-  !real(rprec),parameter::L_y=1.*z_i
-  !real(rprec),parameter::L_z=1.*z_i/nproc
-  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
-  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
+  !this value is dimensional [m]:
+    real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+    
+  !these values should be non-dimensionalized by z_i: 
+  !set as multiple of BL height (z_i) then non-dimensionalized by z_i
+    real(rprec),parameter::L_x=1.*z_i/z_i           
+    !real(rprec),parameter::L_y=1.*z_i/z_i          
+    !real(rprec),parameter::L_z=1./nproc * z_i/z_i
+    real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
+    real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
 
-  real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
-  real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
+  !these values are also non-dimensionalized by z_i:
+    real(rprec),parameter::dz=nproc*L_z/(nz_tot-1./2.)
+    real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
@@ -107,10 +111,10 @@ module param
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
-  integer, parameter :: nsteps = 100000
+  integer, parameter :: nsteps = 50000
  
-  real (rprec), parameter :: dt = 2e-5      !dt=2.e-4 usually works for 64^3
-  real (rprec), parameter :: dt_dim = dt*z_i_dim/u_star     !dimensional time step in seconds                                 
+  real (rprec), parameter :: dt = 5e-5      !dt=2.e-4 usually works for 64^3
+  real (rprec), parameter :: dt_dim = dt*z_i/u_star     !dimensional time step in seconds                                 
   
   integer :: jt                 ! global time-step counter
   integer :: jt_total           !--used for cumulative time (see io module)
@@ -163,7 +167,7 @@ module param
 ! DATA OUTPUT PARAMETERS
 !--------------------------------------------------- 
   !records time-averaged data to files ./output/*_avg.dat
-  logical, parameter :: tavg_calc = .true.
+  logical, parameter :: tavg_calc = .false.
   integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
  
   logical,parameter:: output=.true.  
