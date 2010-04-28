@@ -1,6 +1,6 @@
 module turbines
 use types,only:rprec
-use param, only: nx,ny,nz,pi,L_x,L_y,L_z,dx,dy,dz,ld,jt_total,dt_dim,USE_MPI,coord,rank,nproc
+use param, only: nx,ny,nz,pi,z_i,L_x,L_y,L_z,dx,dy,dz,ld,jt_total,dt_dim,USE_MPI,coord,rank,nproc,vonk
 use stat_defs, only:wind_farm_t
 use grid_defs, only:x,y,z
 use io
@@ -10,16 +10,16 @@ implicit none
 save
 private
 
-public :: turbines_init, turbines_forcing  
+public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 
 integer :: nloc
 integer :: num_x,num_y
-real :: space_x,space_y
 real :: height_all,dia_all,thk_all,theta1_all,theta2_all
-real :: Ct									        !thrust coefficient
+real :: Ct_prime,Ct_noprime   					        !thrust coefficient
+real :: T_avg_dim
 
-character (64) :: fname0, fname, fname3, var_list
-real(rprec), dimension(nx,ny,nz) :: large_node_array       !used for visualizing node locations
+character (64) :: fname0, fname, fname3, fname4, var_list
+real(rprec), dimension(nx,ny,nz) :: large_node_array    !used for visualizing node locations
 
 real :: eps											!epsilon used for disk velocity time-averaging
 
@@ -41,16 +41,14 @@ subroutine turbines_init()
 !   #1 = turbine nearest (x,y)=(0,0)
 !   #2 = next turbine in the x-direction, etc.
 
-	nloc = 4      		!number of turbines (locations) 
+    num_x = 2               !number of turbines in x-direction
+    num_y = 2               !number of turbines in y-direction  
+	nloc = num_x*num_y      !number of turbines (locations) 
 	allocate(wind_farm_t%turbine_t(nloc))
 
     !x,y-locations
         !for evenly-spaced turbines, not staggered
         if(.true.) then
-            num_x = 2           !number of turbines in x-direction
-            !space_x = 7.        !spacing in x-dir, multiple of DIA
-            num_y = nloc/num_x  !number of turbines in y-direction            
-            !space_y = 5.        !spacing in y-dir, multiple of DIA
             
             k=1
             do j=1,num_y
@@ -68,9 +66,15 @@ subroutine turbines_init()
     !height, diameter, and thickness
         !same values for all
         if(.true.) then
-            height_all = 100./1000.             !turbine height    [m]
-            dia_all = 100./1000.	            !turbine diameter  [m] 
-            thk_all = max(10./1000.,dx*1.01)	!turbine disk thickness [m]
+            height_all = 100.       !turbine height, dimensional [m]
+            dia_all = 100.	        !turbine diameter, dimensional [m]
+            thk_all = 10.	        !turbine disk thickness, dimensional [m]
+            
+            !non-dimensionalize values by z_i
+            height_all = height_all/z_i
+            dia_all = dia_all/z_i
+            thk_all = thk_all/z_i
+            thk_all = max(thk_all,dx*1.01)	
             
             do k=1,nloc
                 wind_farm_t%turbine_t(k)%height = height_all
@@ -104,7 +108,9 @@ subroutine turbines_init()
         wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
 
     !other
-	    Ct = 1.33		!thrust coefficient
+	    Ct_prime = 1.33		!thrust coefficient
+        Ct_noprime = 0.75   !a=1/4
+        T_avg_dim = 60.     !time-averaging 'window' for one-sided exp. weighting (seconds)
 !#########################################################################################
 
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
@@ -128,15 +134,15 @@ subroutine turbines_init()
 	    wind_farm_t%turbine_t(k)%u_d_T = 0.
         wind_farm_t%turbine_t(k)%u_d_flag = 1
     enddo
-	eps = 0.05 / (1 + 0.05)
-	!time average over T(sec) = dt_dim/0.05 so that eps~0.05
-	!T_min = dt_dim/0.05*1./60.	
     
+    eps = dt_dim/T_avg_dim / (1. + dt_dim/T_avg_dim)
+  
+!create files to store turbine forcing data
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-        !var_list = '"t (s)", "u_d", "u_d_T", "f_n"'
-        !call write_tecplot_header_xyline('turbine1_forcing.dat','rewind', var_list)   
-        !call write_tecplot_header_xyline('turbine2_forcing.dat','rewind', var_list) 
-        !call write_tecplot_header_xyline('turbine3_forcing.dat','rewind', var_list) 
+        var_list = '"t (s)", "u_d", "u_d_T", "f_n"'
+        call write_tecplot_header_xyline('turbine1_forcing.dat','rewind', var_list)   
+        call write_tecplot_header_xyline('turbine2_forcing.dat','rewind', var_list) 
+        call write_tecplot_header_xyline('turbine3_forcing.dat','rewind', var_list) 
     endif
 	
 end subroutine turbines_init
@@ -550,7 +556,7 @@ fz = 0.
 
     !calculate total thrust force for each turbine  (per unit mass)
     !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*Ct*abs(p_u_d_T)*p_u_d_T/p_thk        
+        p_f_n = -0.5*Ct_prime*abs(p_u_d_T)*p_u_d_T/p_thk        
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             if (s<4) then
@@ -600,6 +606,44 @@ fz = 0.
 
 end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbine_vel_init(z,arg,arg2)
+!  called from ic.f90 if initu, dns_bc, S_FLAG are all false.
+!  this accounts for the turbines when creating the initial velocity profile.
 
+use bottombc, only: zo_avg
+
+real(rprec):: z,arg, arg2
+real :: sx,sy,cft,nu_w,zo_high
+
+!friction coefficient, cft
+    sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
+    sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
+    cft = pi*Ct_noprime/(4.*sx*sy)
+!wake viscosity
+    nu_w = 28.*sqrt(0.5*cft)
+!turbine friction height, Calaf, Phys. Fluids 22, 2010
+    zo_high = height_all*(1.+0.5*dia_all/height_all)**(nu_w/(1.+nu_w))* &
+      exp(-1.*(0.5*cft/(vonk**2) + (log(height_all/zo_avg* &
+      (1.-0.5*dia_all/height_all)**(nu_w/(1.+nu_w))) )**(-2) )**(-0.5) )
+
+! IC in equilibrium with rough surface (rough dominates in effective zo)
+    arg2=z/zo_high
+    arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z      
+    
+end subroutine turbine_vel_init
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_finalize()
+
+!write disk-averaged velocity to file along with T_avg_dim
+!useful if simulation has multiple runs   >> may not make a large difference
+!>>>>>>>>>>>> not yet called
+    fname4 = 'turbine_u_d_T.dat'
+    open (unit = 2,file = fname, status='unknown',form='formatted', action='write',position='rewind')
+    do i=1,nloc
+        write(2,*) wind_farm_t%turbine_t(i)%u_d_T   
+    enddo    
+    write(2,*) T_avg_dim
+    
+end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module turbines
