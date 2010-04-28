@@ -333,6 +333,8 @@ if(use_beta_sub_regions) then
   allocate( rbeta_ref_plane_t ( nrbeta ) )
     !  Define entire unresolved region of tree as a beta region
   allocate( beta_ref_plane_t( nbeta ) )
+
+  call mesg(sub_name, 'allocating rbeta, beta ref plane array')
   
 else
 
@@ -407,8 +409,14 @@ do nt=1, rns_ntree
  
 enddo
 
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filled Resolved Cluster Reference Plane Array'
+  write(*,*) ' '
+endif
+
 !  Need to set rbeta_ref_plane_t
-irb = 0
+
 do nt = 1, rns_ntree
 
   tr_t_p => tr_t(rns_tree_iarray(nt))
@@ -463,12 +471,20 @@ do nt = 1, rns_ntree
   
 enddo 
 
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filled RBETA Reference Plane Array'
+  write(*,*) ' '
+endif
+
 !  Now need to define beta_ref_plane_t; needs to be consistent with corresponding volume of beta_indx_array
 if(use_beta_sub_regions) then
 
 do nt = 1, rns_ntree
 
   tr_t_p => tr_t(rns_tree_iarray(nt))
+  
+  if(tr_t_p % ngen_reslv + 1 > tr_t_p % ngen) call error(sub_name, 'helpppp')
   
   gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
 
@@ -477,15 +493,21 @@ do nt = 1, rns_ntree
     clindx_p => gen_t_p % cl_t(nc) % indx
     
     beta_indx_p => rns_beta_iarray( clindx_p )
+    
+    write(*,*) 'coord, beta_indx_p', coord, beta_indx_p
   
     hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv ) % tplane
+    
+    write(*,*) 'coord, hbot_p : ', coord, hbot_p
 
     htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
+    
+    write(*,*) 'coord, htop_p : ', coord, htop_p
    
     origin_p => gen_t_p % cl_t(nc) % origin
    
     h = htop_p - hbot_p
-  
+
    !!  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
    !rvec_t % xy = tr_t(nt) % gen_t (2) % cl_t(1) % origin(1:2)
    
@@ -495,24 +517,24 @@ do nt = 1, rns_ntree
    
     w = alpha_beta_width * h
    
-    rbeta_ref_plane_t( rbeta_indx_p ) % area = h * w 
+    beta_ref_plane_t( beta_indx_p ) % area = h * w 
    
-    rbeta_ref_plane_t( rbeta_indx_p ) % nzeta = ceiling( w / dy + 1)
-    rbeta_ref_plane_t( rbeta_indx_p ) % neta  = ceiling( h / dz + 1)
+    beta_ref_plane_t( beta_indx_p ) % nzeta = ceiling( w / dy + 1)
+    beta_ref_plane_t( beta_indx_p ) % neta  = ceiling( h / dz + 1)
       
       !  Offset in the upstream x-direction 
     zeta_c = origin_p + (/ -alpha_beta_dist * h, 0._rprec, 0._rprec /)  
     
-    rbeta_ref_plane_t(rbeta_indx_p) % p1    = zeta_c 
-    rbeta_ref_plane_t(rbeta_indx_p) % p1(2) = rbeta_ref_plane_t(rbeta_indx_p) % p1(2) + w / 2._rprec
+    beta_ref_plane_t(beta_indx_p) % p1    = zeta_c 
+    beta_ref_plane_t(beta_indx_p) % p1(2) = beta_ref_plane_t(beta_indx_p) % p1(2) + w / 2._rprec
       
-    rbeta_ref_plane_t(rbeta_indx_p) % p2    = rbeta_ref_plane_t(rbeta_indx_p) % p1
-    rbeta_ref_plane_t(rbeta_indx_p) % p2(2) = rbeta_ref_plane_t(rbeta_indx_p) % p2(2) - w
+    beta_ref_plane_t(beta_indx_p) % p2    = beta_ref_plane_t(beta_indx_p) % p1
+    beta_ref_plane_t(beta_indx_p) % p2(2) = beta_ref_plane_t(beta_indx_p) % p2(2) - w
       
-    rbeta_ref_plane_t(rbeta_indx_p) % p3    = rbeta_ref_plane_t(rbeta_indx_p) % p2
-    rbeta_ref_plane_t(rbeta_indx_p) % p3(3) = rbeta_ref_plane_t(rbeta_indx_p) % p3(3) + h
+    beta_ref_plane_t(beta_indx_p) % p3    = beta_ref_plane_t(beta_indx_p) % p2
+    beta_ref_plane_t(beta_indx_p) % p3(3) = beta_ref_plane_t(beta_indx_p) % p3(3) + h
     
-    nullify(hbot_p, htop_p, origin_p, clindx_p, rbeta_indx_p)
+    nullify(hbot_p, htop_p, origin_p, clindx_p, beta_indx_p)
     
   enddo
    
@@ -564,9 +586,15 @@ else
   !enddo
   
 endif
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filled BETA Reference Plane Array'
+  write(*,*) ' '
+endif
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) 'Reference Plane Values For All Tree Clusters : '
+  write(*,*) '--> Reference Plane Values For All Tree Clusters : '
   do nt=1, rns_ntree
 
     do ng = 1, tr_t(nt)%ngen_reslv
@@ -586,7 +614,7 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
     enddo
     enddo
     
-  write(*,*) 'Reference Plane Values For RBETA Regions : '
+  write(*,*) ' --> Reference Plane Values For RBETA Regions : '
   do irb=1, nrbeta
 
     write(*,*) '-------------------------'
@@ -599,16 +627,16 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
     write(*,*) '-------------------------'
   enddo
   
-  write(*,*) 'Reference Plane Values For BETA Regions : '
+  write(*,*) ' --> Reference Plane Values For BETA Regions : '
   do ib=1, nbeta
 
     write(*,*) '-------------------------'
-    write(*,*) 'nb : ', nb
-    write(*,*) 'nzeta, neta : ', beta_ref_plane_t(nb) % nzeta, beta_ref_plane_t(nb) % neta
-    write(*,*) 'p1 : ', beta_ref_plane_t(nb) % p1
-    write(*,*) 'p2 : ', beta_ref_plane_t(nb) % p2
-    write(*,*) 'p3 : ', beta_ref_plane_t(nb) % p3
-    write(*,*) 'area : ', beta_ref_plane_t(nb) % area
+    write(*,*) 'ib : ', ib
+    write(*,*) 'nzeta, neta : ', beta_ref_plane_t(ib) % nzeta, beta_ref_plane_t(ib) % neta
+    write(*,*) 'p1 : ', beta_ref_plane_t(ib) % p1
+    write(*,*) 'p2 : ', beta_ref_plane_t(ib) % p2
+    write(*,*) 'p3 : ', beta_ref_plane_t(ib) % p3
+    write(*,*) 'area : ', beta_ref_plane_t(ib) % area
     write(*,*) '-------------------------'
   enddo  
 
@@ -850,7 +878,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_set_parent_ls'
 
-integer :: nc, nt, ib
+integer :: nc, nt
 
 integer, pointer :: beta_indx_p
 type(tree), pointer :: tr_t_p
@@ -869,7 +897,7 @@ do nt = 1, rns_ntree
     
     beta_indx_p => rns_beta_iarray( gen_t_p % cl_t(nc) % indx )
   
-    beta_force_t(ib) % parent = rns_rbeta_iarray( gen_t_p % cl_t(nc) % parent )
+    beta_force_t(beta_indx_p) % parent = rns_rbeta_iarray( gen_t_p % cl_t(nc) % parent )
     
     nullify(beta_indx_p)
     
@@ -1382,7 +1410,7 @@ if(use_single_beta_CD) then
     
     kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
     
-    if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta, kappa, CD, Lint : ', nb, kappa_p, CD_p, Lint
+    if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta, kappa, CD, Lint : ', ib, kappa_p, CD_p, Lint
     
     nullify(kappa_p, CD_p)
     nullify(u_p, area_p)
@@ -1981,7 +2009,7 @@ $else
 fname = trim(adjustl(fname_out))
 $endif
 
-open (1, file=fname, action='read', position='rewind',  &
+open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
 write (1) beta_force_t
 close (1)

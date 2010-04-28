@@ -21,7 +21,7 @@ integer, parameter :: clforce_nskip = 10
 
 integer, parameter :: CD_ramp_nstep = 1
 
-logical, parameter :: use_beta_sub_regions = .false.
+logical, parameter :: use_beta_sub_regions = .true.
 logical, parameter :: use_single_beta_CD = .true.
 
 logical, parameter :: constrain_kappa = .true.
