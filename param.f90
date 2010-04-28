@@ -47,26 +47,28 @@ module param
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
 !---------------------------------------------------  
+! characteristic length is H=z_i_dim (1 km) and characteristic velocity is u_star  
+!   L_x, L_y, L_z, dx, dy, dz are non-dim. using H
+  real(rprec),parameter::z_i_dim=1000._rprec    !dimensions in meters, height of ABL
+
   integer,parameter:: nx=128,ny=74,nz=(96+6-1)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
-  integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
-  real (rprec), parameter :: BOGUS = -1234567890._rprec
-
-  real(rprec),parameter::pi=3.1415926535897932384626433_rprec
-    !real(rprec),parameter::z_i=1._rprec, L_z=(1._rprec * z_i)/nproc
   real(rprec),parameter::z_i=1._rprec
-  real(rprec),parameter::L_x=8.*z_i
-  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x ! ensure dy=dx
-!  real(rprec),parameter::L_y=4.*z_i/sqrt(0.75);
-  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x ! ensure dz = dx
-  !--L_z is not nondimensionalized by z_i yet
-  ! set the aspect ratio of the box, already nondimensional
+  real(rprec),parameter::L_x=8.*z_i     !set as multiple of ABL height
+  !real(rprec),parameter::L_y=1.*z_i
+  !real(rprec),parameter::L_z=1.*z_i/nproc
+  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
+  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
+
   real(rprec),parameter::dz=nproc*L_z/z_i/(nz_tot-1./2.)
   real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1)
 
+  integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
+  real (rprec), parameter :: BOGUS = -1234567890._rprec
+  real(rprec),parameter::pi=3.1415926535897932384626433_rprec
   
 !---------------------------------------------------
 ! MODEL PARAMETERS
@@ -82,7 +84,7 @@ module param
   !Test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=2
 
-  ! u_star=0.45 if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
+  ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
 
   !--Coriolis stuff
@@ -94,7 +96,6 @@ module param
 	   
   real(rprec),parameter::vonk=0.4_rprec 
   integer,parameter::c_count=10000,p_count=10000
- !integer, parameter :: cs_count = 1  !--tsteps between dynamic Cs updates
   integer, parameter :: cs_count = 5  !--tsteps between dynamic Cs updates	   
   
   ! nu_molec is dimensional m^2/s
@@ -108,19 +109,16 @@ module param
 !---------------------------------------------------   
   integer, parameter :: nsteps = 100000
  
-  real (rprec), parameter :: dt = 2.e-5
-  real (rprec), parameter :: dt_dim = dt*z_i/u_star
+  real (rprec), parameter :: dt = 2e-5      !dt=2.e-4 usually works for 64^3
+  real (rprec), parameter :: dt_dim = dt*z_i_dim/u_star     !dimensional time step in seconds                                 
   
-!  real(rprec),parameter::dt_dim=0.1 !dimensional time step in seconds
-!  real(rprec),parameter::dt=dt_dim*u_star/z_i
-                                  !--dt=2.e-4 usually works for 64^3
-  
-  integer :: jt  ! global time-step counter
-  integer :: jt_total  !--used for cumulative time (see io module)
+  integer :: jt                 ! global time-step counter
+  integer :: jt_total           !--used for cumulative time (see io module)
   real(rprec) :: total_time, total_time_dim
 
   ! time advance parameters (AB2)
   real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
+  
 !---------------------------------------------------
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
 !---------------------------------------------------  
@@ -132,26 +130,25 @@ module param
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
 
+  !'wall', 'stress free'
   character (*), parameter :: lbc_mom = 'wall'
-  !--'wall', 'stress free'
-  
-  !--prescribed inflow: constant or read from file
-  !  read from file is not working properly
+
+  ! prescribed inflow: constant or read from file
+  ! read from file is not working properly
   logical,parameter::inflow=.false.
   logical, parameter :: use_fringe_forcing = .false.  
   
+  ! position of right end of buffer region, as a fraction of L_x
   real (rprec), parameter :: buff_end = 1._rprec
-  !--position of right end of buffer region,
-  !  as a fraction of L_x
+  ! length of buffer region as a fraction of L_x
   real (rprec), parameter :: buff_len = 0.25_rprec
-  !--length of buffer region as a fraction of L_x
-  !real (rprec), parameter :: face_avg = 0.0_rprec
+  
   real (rprec), parameter :: face_avg = 1.0_rprec
 
   logical, parameter :: read_inflow_file = .false.
   logical, parameter :: write_inflow_file = .false.
 
-  !--records at position jx_s
+  ! records at position jx_s
   integer, parameter :: jt_start_write = 6
 
   ! forcing along top and bottom bdrys
@@ -161,21 +158,17 @@ module param
 
   logical, parameter :: use_mean_p_force = .true.
   real (rprec), parameter :: mean_p_force = 1._rprec * z_i/(nproc*L_z)
-  !--usually just z_i/L_z  
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !--------------------------------------------------- 
+  !records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
   integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
-   
-  logical,parameter:: output=.true.
-  logical, parameter :: use_avgslice = .false.
-  !  Set minimum time step to write averaged slices
-  integer, parameter :: avgslice_start = 0
  
  ! COMING SOON: parameters from subroutine stats_init()
   
+ 
   
   !------xxxxxxxxx--SCALARS_PARAMETERS--xxxxxxxxx---------------
   ! S_FLAG=1 for Theta and q, =0 for no scalars
