@@ -42,7 +42,7 @@ $else
   $define $lbz 1
 $endif
 
-allocate(x(nx+2),y(ny),z($lbz:nz),zw($lbz:nz))
+allocate(x(nx),y(ny),z($lbz:nz),zw($lbz:nz))
 
 do k=$lbz,nz
   $if ($MPI)
@@ -50,12 +50,12 @@ do k=$lbz,nz
   $else
   z(k) = (k - 0.5_rprec) * dz
   $endif
-  do j=1,ny
-    y(j) = (j-1)*dy
-    do i=1,nx+2
-      x(i) = (i - 1)*dx
-    enddo
-  enddo
+enddo
+do j=1,ny
+  y(j) = (j-1)*dy
+enddo
+do i=1,nx
+  x(i) = (i - 1)*dx
 enddo
 zw = z - dz/2._rprec
      
