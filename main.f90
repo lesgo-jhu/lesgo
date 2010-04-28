@@ -36,7 +36,7 @@ use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_init, turbines_forcing
+use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 $endif
 
 $if ($DEBUG)
@@ -596,6 +596,9 @@ $if ($RNS_LS)
 $endif
 $endif
 
+$if ($TURBINES)
+  call turbines_finalize ()
+$endif
 
 !  Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
