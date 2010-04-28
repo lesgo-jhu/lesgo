@@ -690,8 +690,7 @@ if(itype==1) then
     call write_real_data(point_t%fname(n), 'append', 4, (/ total_time, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
-      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))
-	  
+      trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))	  
 
 
     $if ($MPI)
@@ -712,8 +711,6 @@ elseif(itype==2) then
     write (temp, '(".c",i0)') coord
     fname = trim (fname) // temp
   $endif
-  
-
 
   $if($LVLSET)
   !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
@@ -756,7 +753,7 @@ elseif(itype==2) then
   $if($LVLSET)
   $if($RNS_LS)
   !  Open file which to write global data
-  write (fname,*) 'output/f.', trim(adjustl(ct)),'.dat'
+  write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
 
   $if ($MPI)
@@ -764,6 +761,8 @@ elseif(itype==2) then
     fname = trim (fname) // temp
   $endif
   
+  
+    
   !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
   var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
   nvars = 7
@@ -1732,14 +1731,14 @@ fname_vel = 'output/vel_avg.dat'
 fname_vel2 = 'output/vel2_avg.dat'
 fname_ddz = 'output/ddz_avg.dat'
 fname_tau = 'output/tau_avg.dat'
-fname_f = 'output/f_avg.dat'
+fname_f = 'output/force_avg.dat'
 fname_rs = 'output/rs.dat'
 
 fname_vel_zplane = 'output/vel_zplane_avg.dat'
 fname_vel2_zplane = 'output/vel2_zplane_avg.dat'
 fname_ddz_zplane = 'output/ddz_zplane_avg.dat'
 fname_tau_zplane = 'output/tau_zplane_avg.dat'
-fname_f_zplane = 'output/f_zplane_avg.dat'
+fname_f_zplane = 'output/force_zplane_avg.dat'
 fname_rs_zplane = 'output/rs_zplane.dat'
 
 $if ($MPI)
@@ -2648,7 +2647,7 @@ point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
 point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
-domain_t%nstart = 10000
+domain_t%nstart = nsteps
 domain_t%nend   = nsteps
 domain_t%nskip = 10000
 
@@ -2683,8 +2682,6 @@ zplane_t%loc(4) = 2.163617
 zplane_t%loc(5) = 2.265780
 zplane_t%loc(6) = 2.316861
 zplane_t%loc(7) = 2.342401
-
-
 
 !!  z-plane TIME-AVERAGED stats/data
 !zplane_avg_t%calc   = .false.
