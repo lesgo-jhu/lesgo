@@ -462,7 +462,7 @@ endif
 !VK For example, the first if block refers to a condition with humidity while the
 !VK second and third statements are focussed to temperature
 
-if (scalar(2,2,2)<2.and. nproc*L_z>z_i) then ! for temperature and non-neutral case
+if (scalar(2,2,2)<2.and. nproc*L_z>1.) then ! for temperature and non-neutral case
      scalar(:,:,Nz)=scalar(:,:,Nz-1)+inv_strength/T_scale*z_i*dz !ubc 
 ! inv_strength - refers to the slope of the inversion ~ 0.003K/Km for temperature
 else ! for everything else - neutral and passive scalars (may be modified depending on need)
