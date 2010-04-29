@@ -59,24 +59,24 @@ end type plane
 
 $if ($TURBINES)
 	type turbine 
-		real :: xloc, yloc, height, dia, thk		  
-		real :: theta1                              !angle CCW(from above) from -x direction [degrees]
-        real :: theta2	                            !angle above the horizontal, from -x dir [degrees]
-		real, dimension(3) :: nhat                  !(nx,ny,nz) of unit normal for each turbine
+		real(rprec) :: xloc, yloc, height, dia, thk		  
+		real(rprec) :: theta1                       !angle CCW(from above) from -x direction [degrees]
+        real(rprec) :: theta2	                    !angle above the horizontal, from -x dir [degrees]
+		real(rprec), dimension(3) :: nhat           !(nx,ny,nz) of unit normal for each turbine
 		integer :: num_nodes                        !number of nodes associated with each turbine
 		integer, dimension(1500,3) :: nodes         !(i,j,k) of each included node
         integer, dimension(6) :: nodes_max          !search area for nearby nodes
-		real :: u_d, u_d_T                          !running time-average of mean disk velocity
-        real :: f_n                                 !normal force on turbine disk
+		real(rprec) :: u_d, u_d_T                   !running time-average of mean disk velocity
+        real(rprec) :: f_n                          !normal force on turbine disk
         integer :: u_d_flag
-		real, dimension(1500) :: ind                !indicator function - weighting of each node
+		real(rprec), dimension(1500) :: ind                !indicator function - weighting of each node
 	end type turbine
 
 	type wind_farm
 		integer ::ifilter                           !Filter type: 2->Gaussian
-		real :: alpha                               !filter size is alpha*(grid spacing)
+		real(rprec) :: alpha                        !filter size is alpha*(grid spacing)
         integer :: trunc                            !truncated - # grid points to include in each dir.
-        real :: filter_cutoff                       !ind only includes values above this cutoff
+        real(rprec) :: filter_cutoff                !ind only includes values above this cutoff
 		type(turbine), pointer, dimension(:) :: turbine_t
 	end type wind_farm	
     
