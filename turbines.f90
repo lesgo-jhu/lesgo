@@ -14,14 +14,14 @@ public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 
 integer :: nloc
 integer :: num_x,num_y
-real :: height_all,dia_all,thk_all,theta1_all,theta2_all
-real :: Ct_prime,Ct_noprime   					        !thrust coefficient
-real :: T_avg_dim
+real(rprec) :: height_all,dia_all,thk_all,theta1_all,theta2_all
+real(rprec) :: Ct_prime,Ct_noprime   					        !thrust coefficient
+real(rprec) :: T_avg_dim
 
 character (64) :: fname0, fname, fname3, fname4, var_list
 real(rprec), dimension(nx,ny,nz) :: large_node_array    !used for visualizing node locations
 
-real :: eps											!epsilon used for disk velocity time-averaging
+real(rprec) :: eps											!epsilon used for disk velocity time-averaging
 
 integer :: i,j,k,i2,j2,k2,b,l,s,nn,sx,sy,sz
 integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
@@ -110,7 +110,7 @@ subroutine turbines_init()
     !other
 	    Ct_prime = 1.33		!thrust coefficient
         Ct_noprime = 0.75   !a=1/4
-        T_avg_dim = 60.     !time-averaging 'window' for one-sided exp. weighting (seconds)
+        T_avg_dim = 10.     !time-averaging 'window' for one-sided exp. weighting (seconds)
 !#########################################################################################
 
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
@@ -152,12 +152,12 @@ end subroutine turbines_init
 subroutine turbines_nodes(array)
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 	
-real :: R_t,rx,ry,rz,r,r_norm,r_disk
+real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
 real(rprec), dimension(nx,ny,nz) :: array
 
-real, pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
-real, pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
-real, pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
+real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
+real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
+real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
 logical :: verbose
 verbose = .true.
@@ -282,9 +282,9 @@ subroutine turbines_filter_ind()
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 
 real(rprec), dimension(nx,ny,nz) :: out_a, g, g_shift, fg
-real, dimension(nx,ny,nz) :: temp_array
-real :: sumG,delta2,r2,sumA
-real :: turbine_vol
+real(rprec), dimension(nx,ny,nz) :: temp_array
+real(rprec) :: sumG,delta2,r2,sumA
+real(rprec) :: turbine_vol
 
 logical :: verbose
 verbose = .true.
@@ -505,11 +505,11 @@ subroutine turbines_forcing()
 use sim_param, only: u,v,w
 use immersedbc, only: fx,fy,fz
 
-real, pointer :: p_u_d => null(), p_nhat1=> null(), p_nhat2=> null(), p_nhat3=> null()
-real, pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
+real(rprec), pointer :: p_u_d => null(), p_nhat1=> null(), p_nhat2=> null(), p_nhat3=> null()
+real(rprec), pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
 integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 
-real :: ind2
+real(rprec) :: ind2
 
 !initialize forces to zero (new timestep)
 fx = 0.
@@ -606,31 +606,7 @@ fz = 0.
 
 end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_vel_init(z,arg,arg2)
-!  called from ic.f90 if initu, dns_bc, S_FLAG are all false.
-!  this accounts for the turbines when creating the initial velocity profile.
 
-use bottombc, only: zo_avg
-
-real(rprec):: z,arg, arg2
-real :: sx,sy,cft,nu_w,zo_high
-
-!friction coefficient, cft
-    sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
-    sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
-    cft = pi*Ct_noprime/(4.*sx*sy)
-!wake viscosity
-    nu_w = 28.*sqrt(0.5*cft)
-!turbine friction height, Calaf, Phys. Fluids 22, 2010
-    zo_high = height_all*(1.+0.5*dia_all/height_all)**(nu_w/(1.+nu_w))* &
-      exp(-1.*(0.5*cft/(vonk**2) + (log(height_all/zo_avg* &
-      (1.-0.5*dia_all/height_all)**(nu_w/(1.+nu_w))) )**(-2) )**(-0.5) )
-
-! IC in equilibrium with rough surface (rough dominates in effective zo)
-    arg2=z/zo_high
-    arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z      
-    
-end subroutine turbine_vel_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize()
 
@@ -638,12 +614,46 @@ subroutine turbines_finalize()
 !useful if simulation has multiple runs   >> may not make a large difference
 !>>>>>>>>>>>> not yet called
     fname4 = 'turbine_u_d_T.dat'
-    open (unit = 2,file = fname, status='unknown',form='formatted', action='write',position='rewind')
+    open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
     do i=1,nloc
         write(2,*) wind_farm_t%turbine_t(i)%u_d_T   
     enddo    
     write(2,*) T_avg_dim
     
 end subroutine turbines_finalize
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbine_vel_init(zo_high)
+!  called from ic.f90 if initu, dns_bc, S_FLAG are all false.
+!  this accounts for the turbines when creating the initial velocity profile.
+
+use bottombc, only: zo_avg
+implicit none
+
+real(rprec), intent(inout) :: zo_high
+real(rprec) :: sx,sy,cft,nu_w
+
+!friction coefficient, cft
+write(*,*) 'L_x,num_x,dia_all',L_x,num_x,dia_all
+    sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
+    sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
+    cft = pi*Ct_noprime/(4.*sx*sy)
+       
+!wake viscosity
+    nu_w = 28.*sqrt(0.5*cft)
+
+!turbine friction height, Calaf, Phys. Fluids 22, 2010
+    zo_high = height_all*(1.+0.5*dia_all/height_all)**(nu_w/(1.+nu_w))* &
+      exp(-1.*(0.5*cft/(vonk**2) + (log(height_all/zo_avg* &
+      (1.-0.5*dia_all/height_all)**(nu_w/(1.+nu_w))) )**(-2) )**(-0.5) )
+
+    if(.true.) then
+      write(*,*) 'sx,sy,cft',sx,sy,cft
+      write(*,*) 'nu_w',nu_w    
+      write(*,*) 'zo_high', zo_high
+    endif
+
+end subroutine turbine_vel_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module turbines
