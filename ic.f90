@@ -25,7 +25,9 @@ subroutine ic()
   real(kind=rprec)::rms, noise, arg, arg2
   real(kind=rprec)::z,w_star,T_star,q_star,ran3
 
-zo_turbines = 0._rprec
+  $if ($TURBINES)
+  zo_turbines = 0._rprec
+  $endif
 
 
   !if (DEBUG) then
