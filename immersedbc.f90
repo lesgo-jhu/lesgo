@@ -133,7 +133,7 @@ integer::jx,jy,jz,i,j
 integer::px,py,lx,ly,lz
 real(kind=rprec)::u1,v1,ustar,u_avg,u_aver
 real(kind=rprec)::const,dz1,zo,zo_s
-zo=zo_avg/z_i
+zo=zo_avg/z_i       !zo_avg and z_i have dimensions, zo does not
 zo_s=zo_avg/z_i
 do i=1,n_bldg
    px=bldg_pts(1,i)
@@ -264,7 +264,7 @@ integer::px,py,lx,ly,lz
 real(kind=rprec),dimension(ld,ny,nz),intent(out)::txz,tyz,txy
 real(kind=rprec)::u1,v1,ustar,u_avg,u_aver
 real(kind=rprec)::const,dz1,zo,zo_s
-zo=zo_avg/z_i
+zo=zo_avg/z_i       !zo_avg and z_i have dimensions, zo does not
 zo_s=zo_avg/z_i
 do i=1,n_bldg
    px=bldg_pts(1,i)
