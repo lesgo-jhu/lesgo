@@ -60,9 +60,9 @@ module param
     
   !these values should be non-dimensionalized by z_i: 
   !set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x=1.*z_i/z_i           
-    !real(rprec),parameter::L_y=1.*z_i/z_i          
-    !real(rprec),parameter::L_z=1./nproc * z_i/z_i
+    real(rprec),parameter::L_x= 1.
+    !real(rprec),parameter::L_y= pi    
+    !real(rprec),parameter::L_z= 1. /nproc
     real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
     real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
 
@@ -111,7 +111,7 @@ module param
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
-  integer, parameter :: nsteps = 50000
+  integer, parameter :: nsteps = 200000
  
   real (rprec), parameter :: dt = 5e-5      !dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     !dimensional time step in seconds                                 
@@ -127,9 +127,9 @@ module param
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
 !---------------------------------------------------  
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
@@ -161,7 +161,7 @@ module param
   logical, parameter :: force_top_bot = .false.
 
   logical, parameter :: use_mean_p_force = .true.
-  real (rprec), parameter :: mean_p_force = 1._rprec * z_i/(nproc*L_z)
+  real (rprec), parameter :: mean_p_force = 1._rprec * 1./(nproc*L_z)
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
