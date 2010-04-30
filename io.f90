@@ -828,6 +828,53 @@ elseif(itype==3) then
       enddo
     enddo
     close(2)
+  
+  $if($LVLSET)
+  $if($RNS_LS)
+  
+    write(fname,*) 'output/force.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    fname=trim(adjustl(fname))
+
+    $if ($MPI)
+!  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
+  
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
+	  '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
+	  
+	open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='append')
+	  
+	!call write_real_data_2D(fname, 'rewind', 'formatted', 3, nx, nz, &
+	!  (/ linear_interp(u(:,yplane_t%istart(j),:), &
+    !      u(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(v(:,yplane_t%istart(j),:), &
+    !      v(:,yplane_t%istart(j)+1,:), dy, yplane_t%ldiff(j)), &
+	!	  linear_interp(w_uv(:,yplane_t%istart(j),:), &
+    !      w_uv(:,yplane_t%istart(j)+1,:), dy, &
+    !      yplane_t%ldiff(j)) /), x, z
+	  
+    do k=1,nz
+      do i=1,nx
+
+        ui = linear_interp(fx(i,yplane_t%istart(j),k), &
+          fx(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+        vi = linear_interp(fy(i,yplane_t%istart(j),k), &
+          fy(i,yplane_t%istart(j)+1,k), dy, yplane_t%ldiff(j))
+        wi = linear_interp(fz(i,yplane_t%istart(j),k), &
+          fz(i,yplane_t%istart(j)+1,k), dy, &
+          yplane_t%ldiff(j))
+
+        write(2,*) x(i), yplane_t%loc(j), z(k), ui, vi, wi
+      enddo
+    enddo
+    close(2)
+    
+    $endif
+    $endif
+    
   enddo  
 
 !  Write instantaneous z-plane values
@@ -881,6 +928,51 @@ elseif(itype==4) then
       enddo
     enddo
     close(2)
+    
+    $if($LVLSET)
+    $if($RNS_LS)
+    
+    write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    fname=trim(adjustl(fname))
+
+!     $if ($MPI)
+! !  For MPI implementation
+!       write (temp, '(".c",i0)') coord
+!       fname = trim (fname) // temp
+!     $endif
+
+
+    !write(2,*) 'variables = "x", "y", "z", "u", "v", "w"';
+    !write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+    !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', 1
+    !write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+    !write(2,"(1a,f18.6)") 'solutiontime=', total_time_dim
+	
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
+	 '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
+	  	  
+    open (unit = 2,file = fname, status='unknown',form='formatted', &
+      action='write',position='append')	  
+
+    do j=1,Ny
+      do i=1,Nx
+
+        ui = linear_interp(fx(i,j,zplane_t%istart(k)),fx(i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+        vi = linear_interp(fy(i,j,zplane_t%istart(k)),fy(i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+        wi = linear_interp(fz(i,j,zplane_t%istart(k)), &
+          fz(i,j,zplane_t%istart(k)+1), &
+          dz, zplane_t%ldiff(k))
+
+        write(2,*) x(i), y(j), zplane_t%loc(k), ui, vi, wi
+
+      enddo
+    enddo
+    close(2)
+    
+    $endif
+    $endif
 
     $if ($MPI)
     endif
