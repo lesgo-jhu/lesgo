@@ -1309,8 +1309,6 @@ do nt = 1, rns_ntree
     
 enddo
 
-write(*,*) 'fD_tot : ', fD_tot
-
 if(use_single_beta_CD) then  
 
   CD_num = 0._rprec
