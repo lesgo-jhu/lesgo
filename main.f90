@@ -584,8 +584,16 @@ end do  !--end time loop
 close(2)
 if (output) call output_final (jt)
 
+$if ($LVLSET)
+
 $if ($TREES_LS)
   call trees_ls_finalize ()
+$endif
+
+$if($RNS_LS)
+  call rns_finalize_ls ()
+$endif 
+ 
 $endif
 
 $if ($MPI)
