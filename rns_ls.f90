@@ -1360,6 +1360,7 @@ if(use_single_beta_CD) then
 else
 
   allocate(CD_rbeta(nrbeta))
+  CD_rbeta=0._rprec
 
 !  Each rbeta region will get a CD
     
