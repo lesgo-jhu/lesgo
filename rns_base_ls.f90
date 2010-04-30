@@ -22,11 +22,11 @@ integer, parameter :: clforce_nskip = 10
 integer, parameter :: CD_ramp_nstep = 10
 
 logical, parameter :: use_beta_sub_regions = .true.
-logical, parameter :: use_single_beta_CD = .true.
+logical, parameter :: use_single_beta_CD = .false.
 
-logical, parameter :: constrain_kappa = .true.
+!logical, parameter :: constrain_kappa = .true.
 
-logical, parameter :: brforce_calc = .false.
+!logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
