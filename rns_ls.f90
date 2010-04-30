@@ -806,7 +806,7 @@ do nc=1, ncluster_reslv
   allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
 enddo
 
-if(coord == 0) then
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 write(*,*) '------------------------'
 write(*,*) 'Setting cluster point array'
 endif
@@ -823,7 +823,7 @@ do nc=1, ncluster_reslv
   
 enddo
 
-if(coord == 0) then
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 write(*,*) '------------------------'
 write(*,*) 'Setting BETA point array'
 endif
@@ -1020,7 +1020,7 @@ $if($CYL_SKEW_LS)
 use cyl_skew_base_ls, only : ntree, tr_t
 $endif
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord
+use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -1157,7 +1157,7 @@ subroutine rns_beta_force_ls()
 !  with each region dictated by the brindx value. 
 !
 use types, only : rprec
-use param, only : dx, dy, dz, nx, ny, nz, jt, coord
+use param, only : dx, dy, dz, nx, ny, nz, jt, coord, USE_MPI
 use messages
 use sim_param, only : u
 use immersedbc, only : fx
@@ -1418,6 +1418,7 @@ deallocate(fD_tot)
   
 !  Compute kappa
 !  Compute Lint over each region beta
+
 do ib = 1, nbeta 
   
   p1_p    => beta_ref_plane_t (ib) % p1
@@ -1491,7 +1492,7 @@ $if($MPI)
 use mpi
 use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
 $endif
-use param, only : dx, dy, dz, coord, jt
+use param, only : dx, dy, dz, coord, jt, USE_MPI
 
 implicit none
 
