@@ -301,8 +301,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
 real(rprec), parameter :: alpha=1._rprec
-real(rprec), parameter :: alpha_beta_width = 1.5_rprec
-real(rprec), parameter :: alpha_beta_dist = 1.5_rprec
+real(rprec), parameter :: alpha_beta_width = 2.0_rprec
+real(rprec), parameter :: alpha_beta_dist = 1.25_rprec
 
 integer :: nt, ng, nc, nb
 integer :: ib, irb
