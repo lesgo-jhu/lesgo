@@ -274,6 +274,8 @@ if(clforce_calc) then
   allocate( beta_force_t( nbeta ) )
   beta_force_t = force(parent = 0, CD = 0._rprec, fD = 0._rprec, kappa=0._rprec)
   
+  call rns_force_init_ls()
+  
   call rns_set_parent_ls()
 
 endif
