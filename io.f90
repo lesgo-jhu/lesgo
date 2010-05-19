@@ -1645,47 +1645,6 @@ end select
 return
 end subroutine check_write_fmt
 
-
-! !**********************************************************************
-! subroutine rs_write()
-! !**********************************************************************
-! use grid_defs, only : x,y,z
-! use stat_defs, only : rs_t
-! use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z
-! implicit none
-! 
-! character (64) :: fname, temp
-! integer i,j,k
-! 
-! !  Set default output file name
-! fname = 'output/rs.dat'
-! 
-! $if ($MPI)
-! !  Update fname for MPI implementation     
-!   write (temp, '(".c",i0)') coord
-!   fname = trim (fname) // temp
-! $endif
-! 
-! !  Add temporary output information
-! open(unit = 7,file = fname)
-! write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
-! write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-!   1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
-! write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
-! do k=1,nz
-!   do j=1,ny
-!     do i=1,nx
-! !  Write spatially averaged, temporally averaged quantities   
-!      write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
-!        rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
-!     enddo
-!   enddo
-! enddo
-! close(7)
-!   
-! return
-! end subroutine rs_write
-
 !**********************************************************************
 subroutine tavg_finalize()
 !**********************************************************************
@@ -1743,17 +1702,24 @@ allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 $if($MPI)
 
 rs_type = MPI_RPREC
-rs_block = 6
+rs_block = 6 ! Number of rs subtypes
 rs_disp = 0
 
 tavg_type = MPI_RPREC
-tavg_block = 20
+tavg_block = 20 ! Number of tavg subtypes
 tavg_disp = 0
 
 if(coord == 0) then
+
+  !  Allocate space only on base processor for assembled z-plane data
+  ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
+  ! *_buf_t contains the overlap data and is used to recieve the z-plane data from all other nodes
   allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
   allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
+  
   allocate(z_tot(nz_tot))
+  ! In order to ensure that *_tot_t is assembled correctly we make sure that the processor number 
+  ! is consistent with the spatial location
   allocate(gather_coord(nproc))
     
   do k=1, nz_tot
@@ -1815,7 +1781,7 @@ $else
   tavg_zplane_t(nz) % tzz = 0._rprec
 
 $endif
-
+! All processors need not do this
 !  Set file names
 fname_out = 'tavg.out'
 
@@ -1937,6 +1903,7 @@ close(1)
 ! Construct zplane data 
 $if($MPI)
  
+  !  Create MPI type structures consistent with the derived types
   call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
   Call MPI_Type_commit(MPI_RS,ierr)
 
