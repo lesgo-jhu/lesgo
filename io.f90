@@ -1125,7 +1125,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax*kmax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x,y,z
 
 character(64) :: frmt
-logical :: exst, xpres
+logical :: exst, coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
 
@@ -1139,8 +1139,8 @@ call check_write_pos(write_pos, sub_name)
 call check_write_fmt(write_fmt, sub_name)
 
 !  Check if spatial coordinates specified
-xpres=.false.
-if(present(x) .and. present(y) .and. present(z)) xpres = .true.
+coord_pres=.false.
+if(present(x) .and. present(y) .and. present(z)) coord_pres = .true.
 
 !  Put data in correct shape for sequential reads/writes
 allocate(vars_dim(nvars,imax,jmax,kmax)) 
@@ -1163,7 +1163,7 @@ select case(write_fmt)
   
     !  Specify output format; may want to use a global setting
     	
-    if (xpres) then
+    if (coord_pres) then
 	  
 	  write (frmt, '("(3e,",i0,"e)")') nvars
 	  
@@ -1191,7 +1191,7 @@ select case(write_fmt)
 
   case('unformatted')
   
-    if (xpres) then
+    if (coord_pres) then
 	  
 	  do k=1, kmax
 	    do j=1, jmax
@@ -1258,7 +1258,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x, y
 
 character(64) :: frmt
-logical :: exst, xpres
+logical :: exst, coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
 
@@ -1273,8 +1273,8 @@ call check_write_pos(write_pos, sub_name)
 call check_write_fmt(write_fmt, sub_name)
 
 !  Check if spatial coordinates specified
-xpres=.false.
-if(present(x) .and. present(y)) xpres = .true.
+coord_pres=.false.
+if(present(x) .and. present(y)) coord_pres = .true.
 
 open (unit = 2,file = fname, status='unknown',form=write_fmt, &
   action='write',position=write_pos)
@@ -1296,7 +1296,7 @@ select case(write_fmt)
   
     !  Specify output format; may want to use a global setting
     	
-    if (xpres) then
+    if (coord_pres) then
 	  
 	  write (frmt, '("(2e,",i0,"e)")') nvars
 	  
@@ -1320,7 +1320,7 @@ select case(write_fmt)
 
   case('unformatted')
   
-    if (xpres) then
+    if (coord_pres) then
 	  
 	  do j=1, jmax
 	    do i=1,imax
@@ -1377,7 +1377,7 @@ real(rprec), intent(in), dimension(nvars*imax) :: vars
 real(rprec), intent(in), dimension(:), optional :: x
 
 character(64) :: frmt
-logical :: exst, xpres
+logical :: exst, coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
 
@@ -1392,7 +1392,7 @@ call check_write_pos(write_pos, sub_name)
 call check_write_fmt(write_fmt, sub_name)
 
 !  Check if spatial coordinates specified
-if(present(x)) xpres = .true.
+if(present(x)) coord_pres = .true.
 
 !  Put data in correct shape for sequential reads/writes
 allocate(vars_dim(nvars,imax)) 
@@ -1409,7 +1409,7 @@ open (unit = 2,file = fname, status='unknown',form=write_fmt, &
 select case(write_fmt)
   case('formatted')
   
-    if (xpres) then
+    if (coord_pres) then
 	
       write (frmt, '("(1e,",i0,"e)")') nvars
 	  
@@ -1429,7 +1429,7 @@ select case(write_fmt)
 
   case('unformatted')
   
-    if (xpres) then
+    if (coord_pres) then
 	  
 	  do i=1,imax
         write(2) x(i), vars_dim(:,i)
@@ -2730,13 +2730,13 @@ integer :: fid, i,j,k
 !tavg_nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-point_t%calc = .false.
+point_t%calc = .true.
 point_t%nstart = 1
 point_t%nend   = nsteps
-point_t%nskip = 1
-point_t%nloc = 2
-point_t%xyz(:,1) = (/L_x/2., L_y/2., 1.5_rprec/)
-point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
+point_t%nskip = 10
+point_t%nloc = 1
+point_t%xyz(:,1) = (/L_x/2. + 2.162162_rprec, L_y/2., 4.461996_rprec/)
+!point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
 domain_t%nstart = nsteps
@@ -2762,10 +2762,10 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .true.
-zplane_t%nstart = 500
+zplane_t%calc   = .false.
+zplane_t%nstart = 50
 zplane_t%nend   = nsteps
-zplane_t%nskip  = 500
+zplane_t%nskip  = 50
 zplane_t%nloc   = 7
 zplane_t%loc(1) = 0.733347
 zplane_t%loc(2) = 1.550644
