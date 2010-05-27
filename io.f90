@@ -533,8 +533,8 @@ character (*), parameter :: sub_name = mod_name // '.tavg_init'
 character (*), parameter :: ftavg_in = 'tavg.out'
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
-character (128) :: fname
 $endif
+character (128) :: fname
 
 logical :: opn, exst
 
@@ -1997,7 +1997,7 @@ call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
   (/ tavg_zplane_t % u2, tavg_zplane_t % v2, tavg_zplane_t % w2, &
   tavg_zplane_t % uw, tavg_zplane_t % vw, tavg_zplane_t % uv /), z(1:nz)) 
   
-call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3 (/ Nz/), &
+call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz/), &
    '"z", "<dudz>","<dvdz>"', coord, 2)
 call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
   (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), z(1:nz))
