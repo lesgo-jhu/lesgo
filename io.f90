@@ -1212,42 +1212,7 @@ endif
 
 allocate(ikey_vars(nvars,imax_buff,jmax_buff,kmax_buff)) 
 
-!if(coord_pres) then
 
-!  allocate(ikey_x(imax_buff), ikey_y(jmax_buff), ikey_z(kmax_buff))
-!  
-!  do i=1, imax_buff
-!  
-!    i0 = buff_indx(i,imax)
-!    
-!    ikey_x(i) = i0
-!    
-!  enddo
-!  
-!  if(coord == 0) then
-!    do i=1,imax_buff
-!      write(*,*) 'i, x(ikey_x(i)) ', i, x(ikey_x(i))
-!    enddo
-!  endif
-!  
-!  do j=1, jmax_buff
-
-!    j0 = buff_indx(j,jmax)
-!  
-!    ikey_y(j) = j0
-!    
-!  enddo
-!  
-!  do k=1, kmax_buff
-
-!    k0 = buff_indx(k,kmax)
-!  
-!    ikey_z(k) = k0
-!    
-!  enddo  
-
-!endif
-  
 do n=1,nvars
 
   do k=1,kmax_buff
@@ -1283,54 +1248,82 @@ select case(write_fmt)
     !  Specify output format; may want to use a global setting
     	
     if (coord_pres) then
-	  
-	    write (frmt, '("(3e,",i0,"e)")') nvars
+	    
+	    do k=1, kmax_buff
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2,'(1e)') x(i)
+	        enddo 
+	      enddo
+	    enddo
+      
+      do k=1, kmax_buff
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2,'(1e)') y(j)
+	        enddo 
+	      enddo
+	    enddo
+      
+	    do k=1, kmax_buff
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2,'(1e)') z(k)
+	        enddo 
+	      enddo
+	    enddo      
+      
+    endif      
+    
+    do n=1, nvars
+	    do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e)') vars(ikey_vars(n,i,j,k))
+	        enddo 
+	      enddo
+	    enddo 
+    enddo
+
+  case('unformatted')
+  
+    if (coord_pres) then
 	  
 	    do k=1, kmax_buff
   	    do j=1, jmax_buff
     	    do i=1, imax_buff
-            write(2,frmt) x(i), y(j), z(k), vars(ikey_vars(:,i,j,k))
+            write(2) x(i)
 	        enddo 
 	      enddo
 	    enddo
-	  
-	  else
-	  
-      write (frmt, '("(",i0,"e)")') nvars
-	 
+      
+      do k=1, kmax_buff
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2) y(j)
+	        enddo 
+	      enddo
+	    enddo
+      
 	    do k=1, kmax_buff
-	      do j=1, jmax_buff
-  	      do i=1, imax_buff
-            write(2,frmt) vars(ikey_vars(:,i,j,k))
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2) z(k)
 	        enddo 
 	      enddo
-	    enddo
+	    enddo  
 	  
-	  endif
-
-  case('unformatted')
-  
-  if (coord_pres) then
-	  
-    do k=1, kmax_buff
-      do j=1, jmax_buff
-        do i=1, imax_buff
-          write(2) x(i), y(j), z(k), vars(ikey_vars(:,i,j,k))
-        enddo 
-      enddo
+    endif
+    
+    do n=1, nvars
+	    do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2) vars(ikey_vars(n,i,j,k))
+	        enddo 
+	      enddo
+	    enddo 
     enddo
-	  
-  else
-	
-    do k=1, kmax_buff
-      do j=1, jmax_buff
-        do i=1, imax_buff
-          write(2) vars(ikey_vars(:,i,j,k))
-        enddo 
-      enddo
-    enddo
-	  
-  endif
 	
 end select
 
@@ -1473,47 +1466,56 @@ select case(write_fmt)
   
     !  Specify output format; may want to use a global setting
     	
-  if (coord_pres) then
+    if (coord_pres) then
+
+	    do j=1, jmax_buff
+  	    do i=1,imax_buff
+          write(2,'(1e)') x(i)
+	      enddo 
+	    enddo
+    	  
+      do j=1, jmax_buff
+  	    do i=1,imax_buff
+          write(2,'(1e)') y(j)
+	      enddo 
+	    enddo
+ 
+    endif
 	  
-	  write (frmt, '("(2e,",i0,"e)")') nvars
-	  
-	  do j=1, jmax_buff
-	    do i=1,imax_buff
-          write(2,frmt) x(i), y(j), vars(ikey_vars(:,i,j))
-	    enddo 
-	  enddo
-	  
-	else
-	  
-	  write (frmt, '("(",i0,"e)")') nvars
-	 
-	  do j=1, jmax_buff
-	    do i=1,imax_buff
-          write(2,frmt) vars(ikey_vars(:,i,j))
-	    enddo 
-	  enddo
-	  
-	endif
+    do n=1, nvars
+      do j=1, jmax_buff
+	      do i=1,imax_buff
+          write(2,'(1e)') vars(ikey_vars(n,i,j))
+	      enddo 
+	    enddo
+    enddo
 
   case('unformatted')
   
-  if (coord_pres) then
+    if (coord_pres) then
 	  
-	  do j=1, jmax_buff
-	    do i=1,imax_buff
-          write(2) x(i), y(j), vars(ikey_vars(:,i,j))
-	    enddo 
-	  enddo
 	  
-	else
-	
-	  do j=1,jmax_buff
-	    do i=1,imax_buff
-        write(2) vars(ikey_vars(:,i,j))
-	    enddo 
-    enddo
-	  
-	endif
+	    do j=1, jmax_buff
+  	    do i=1,imax_buff
+          write(2) x(i)
+	      enddo 
+	    enddo
+    	  
+      do j=1, jmax_buff
+  	    do i=1,imax_buff
+          write(2) y(j)
+	      enddo 
+	    enddo
+ 
+    endif
+
+    do n=1, nvars
+      do j=1, jmax_buff
+	      do i=1,imax_buff
+          write(2) vars(ikey_vars(n,i,j))
+	      enddo 
+	    enddo
+    enddo    
 	
   !case default
   !  call error(sub_name, 'Incorrect write format : ' // write_pos)
@@ -1592,20 +1594,6 @@ else
 endif
 
 allocate(ikey_vars(nvars,imax_buff)) 
-
-!if(coord_pres) then
-
-!  allocate(ikey_x(imax_buff))
-!  
-!  do i=1, imax_buff
-!  
-!    i0 = buff_indx(i,imax)
-!    
-!    ikey_x(i) = i0
-!    
-!  enddo
-
-!endif
   
 do n=1,nvars
  
@@ -1626,39 +1614,35 @@ open (unit = 2,file = fname, status='unknown',form=write_fmt, &
 select case(write_fmt)
   case('formatted')
   
-  if (coord_pres) then
-	
-    write (frmt, '("(1e,",i0,"e)")') nvars
+    if (coord_pres) then
 	  
-	  do i=1,imax_buff
-        write(2,frmt) x(i), vars(ikey_vars(:,i))
+      do i=1,imax_buff
+        write(2,'(1e)') x(i)
+      enddo 
+	  
+    endif
+    
+    do n=1, nvars
+      do i=1,imax_buff
+        write(2,'(1e)') vars(ikey_vars(n,i))
+      enddo
 	  enddo 
-	  
-	else
-	
-	  write (frmt, '("(",i0,"e)")') nvars
-	  
-	  do i=1,imax_buff
-        write(2,frmt) vars(ikey_vars(:,i))
-	  enddo 
-	  
-	endif
 
   case('unformatted')
   
-  if (coord_pres) then
+    if (coord_pres) then
 	  
-	  do i=1,imax_buff
-      write(2) x(i), vars(ikey_vars(:,i))
+      do i=1,imax_buff
+        write(2) x(i)
+      enddo 
+	  
+    endif
+    
+    do n=1, nvars
+      do i=1,imax_buff
+        write(2) vars(ikey_vars(n,i))
+      enddo
 	  enddo 
-	  
-	else
-	
-	  do i=1,imax_buff
-      write(2) vars(ikey_vars(:,i))
-	  enddo 
-	  
-	endif
 
 end select
 
@@ -1747,13 +1731,13 @@ ndims = size(domain_size,1)
 
 if(ndims == 1) then
   write(tec_dat_str,"(1a,i9,1a,i3,1a,i3)") 'ZONE T="', &
-    zone,'", DATAPACKING=POINT, i=', domain_size(1)
+    zone,'", DATAPACKING=BLOCK, i=', domain_size(1)
 elseif(ndims == 2) then
   write(tec_dat_str,"(1a,i9,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    zone,'", DATAPACKING=POINT, i=', domain_size(1),', j=', domain_size(2)
+    zone,'", DATAPACKING=BLOCK, i=', domain_size(1),', j=', domain_size(2)
 elseif(ndims == 3) then
   write(tec_dat_str,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    zone,'", DATAPACKING=POINT, i=', domain_size(1),', j=', domain_size(2),', k=', domain_size(3)
+    zone,'", DATAPACKING=BLOCK, i=', domain_size(1),', j=', domain_size(2),', k=', domain_size(3)
 else
   call error(sub_name, 'Incorrect number of dimensions : ', ndims)
 endif
@@ -1869,6 +1853,7 @@ use stat_defs, only : rs, rs_t, rs_zplane_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
+use mpi_defs, only : mpi_sync_real_array
 use param, only : MPI_RPREC, rank_of_coord, comm, ierr
 use stat_defs, only : rs_zplane_buf_t, rs_zplane_tot_t
 use stat_defs, only : tavg_zplane_buf_t, tavg_zplane_tot_t
@@ -2237,6 +2222,16 @@ call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
 
 $endif
 
+$if ($MPI)
+!  Sync data across all nodes for a subset of varibles which contain bogus initialization
+!call mpi_sync_real_array(  tavg_t % txx )
+!call mpi_sync_real_array(  tavg_t % txy )
+!call mpi_sync_real_array(  tavg_t % tyy )
+!call mpi_sync_real_array(  tavg_t % txz )
+!call mpi_sync_real_array(  tavg_t % tyz )
+!call mpi_sync_real_array(  tavg_t % tzz )
+$endif
+
 ! ----- Write all the 3D data -----
 
 call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
@@ -2255,7 +2250,7 @@ call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<dudz>","<dvdz>"', coord, 2)
 call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
   (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
-  
+
 call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
