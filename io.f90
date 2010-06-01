@@ -19,10 +19,6 @@ public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
 public write_tecplot_header_xyline, write_tecplot_header_ND
 public write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
-!interface write_real_data_ND
-!  module procedure write_real_data_1D, write_real_data_2D, write_real_data_3D
-!end interface
-
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
 !!$
@@ -723,7 +719,7 @@ elseif(itype==2) then
   $endif
   
   
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time)
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
   !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
   
 
@@ -741,11 +737,13 @@ elseif(itype==2) then
   !  action='write',position='append')
 	
   $if($LVLSET)
-  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
+    4, x, y, z(1:nz))
   $else
   call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
+    4, x, y, z(1:nz))
   $endif
   
   !  Output Instantaneous Force Field for RNS Simulations
@@ -766,9 +764,10 @@ elseif(itype==2) then
   !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
   var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
   nvars = 7
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx, Ny, Nz/), var_list, coord, 2, total_time)
-	call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-  (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), x, y, z(1:nz))
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
+  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
+  (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), &
+  4, x, y, z(1:nz))
   
   $endif
   $endif
@@ -1097,7 +1096,7 @@ end subroutine write_real_data
 
 !*************************************************************
 subroutine write_real_data_3D(fname, write_pos, write_fmt, nvars, &
-  imax, jmax, kmax, vars, x,y,z)
+  imax, jmax, kmax, vars, ibuff, x,y,z)
 !*************************************************************
 ! 
 !  This subroutine variables the variables given by vars to the
@@ -1115,13 +1114,24 @@ subroutine write_real_data_3D(fname, write_pos, write_fmt, nvars, &
 !  jmax (int) - size of 2nd dimension of variables in vars  
 !  kmax (int)- size of 3rd dimension of variables in vars
 !  vars (real, vector) - vector contaning variables to write
+!  ibuff (int) - flag for adding buffer region due to periodicity
+!     0 - no buffer region
+!     1 - buffer on i direction
+!     2 - buffer on j direction
+!     3 - buffer on k direction
+!     4 - buffer on i,j direction
+!     5 - buffer on i,k direction
+!     6 - buffer on j,k direction
+!     7 - buffer on i,j,k directions
 !  x,y,z (real, vector, optional) - vectors containing x,y,z coordinates 
 !
+use functions, only : buff_indx
 implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax, jmax, kmax
 real(rprec), intent(in), dimension(nvars*imax*jmax*kmax) :: vars
+integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x,y,z
 
 character(64) :: frmt
@@ -1130,7 +1140,11 @@ logical :: exst, coord_pres
 character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
 
 integer :: i,j,k,n
-real(rprec), allocatable, dimension(:,:,:,:) :: vars_dim
+integer :: i0, j0, k0, imax_buff, jmax_buff, kmax_buff
+
+integer, allocatable, dimension(:) :: ikey_x, ikey_y, ikey_z
+integer, allocatable, dimension(:,:,:,:) :: ikey_vars
+!real(rprec), allocatable, dimension(:,:,:,:) :: vars_dim
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -1138,20 +1152,118 @@ real(rprec), allocatable, dimension(:,:,:,:) :: vars_dim
 call check_write_pos(write_pos, sub_name)
 call check_write_fmt(write_fmt, sub_name)
 
-!  Check if spatial coordinates specified
+!  Check if spatial coordinates are specified
 coord_pres=.false.
 if(present(x) .and. present(y) .and. present(z)) coord_pres = .true.
 
-!  Put data in correct shape for sequential reads/writes
-allocate(vars_dim(nvars,imax,jmax,kmax)) 
-do n=1,nvars
-  do k=1,kmax
-    do j=1,jmax
-	  do i=1,imax
-	    vars_dim(n,i,j,k) = vars((n-1)*imax*jmax*kmax + (k-1)*imax*jmax + (j-1)*imax + i)
-	  enddo
-	enddo
+if( ibuff == 0 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax
+  kmax_buff = kmax
+  
+elseif( ibuff == 1 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax
+  kmax_buff = kmax
+
+elseif( ibuff == 2 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax + 1
+  kmax_buff = kmax
+  
+elseif( ibuff == 3 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax
+  kmax_buff = kmax + 1
+  
+elseif( ibuff == 4 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax + 1
+  kmax_buff = kmax  
+  
+elseif( ibuff == 5 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax
+  kmax_buff = kmax + 1  
+  
+elseif( ibuff == 6 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax + 1
+  kmax_buff = kmax + 1  
+  
+elseif( ibuff == 7 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax + 1
+  kmax_buff = kmax + 1  
+  
+else 
+
+  call error(sub_name, 'ibuff not specified correctly')
+  
+endif
+
+allocate(ikey_vars(nvars,imax_buff,jmax_buff,kmax)) 
+
+if(coord_pres) then
+
+  allocate(ikey_x(imax_buff), ikey_y(jmax_buff), ikey_z(kmax_buff))
+  
+  do i=1, imax_buff
+  
+    i0 = buff_indx(i,imax)
+    
+    ikey_x(i) = i0
+    
   enddo
+  
+  do j=1, jmax_buff
+
+    j0 = buff_indx(j,jmax)
+  
+    ikey_y(j) = j0
+    
+  enddo
+  
+  do k=1, kmax_buff
+
+    k0 = buff_indx(k,kmax)
+  
+    ikey_z(k) = k0
+    
+  enddo  
+
+endif
+  
+do n=1,nvars
+
+  do k=1,kmax_buff
+  
+    k0 = buff_indx(k,kmax)
+    
+    do j = 1, jmax_buff
+  
+      j0 = buff_indx(j,jmax)
+    
+      do i = 1, imax_buff
+
+        i0 = buff_indx(i,imax)
+      
+        ikey_vars(n,i,j,k) = (n-1)*imax*jmax*kmax + (k0-1)*imax*jmax + (j0-1)*imax + i0
+        
+      enddo
+    
+    enddo
+    
+  enddo
+  
 enddo
 
 open (unit = 2,file = fname, status='unknown',form=write_fmt, &
@@ -1159,6 +1271,7 @@ open (unit = 2,file = fname, status='unknown',form=write_fmt, &
   
 !  Write the data
 select case(write_fmt)
+
   case('formatted')
   
     !  Specify output format; may want to use a global setting
@@ -1168,69 +1281,64 @@ select case(write_fmt)
 	  write (frmt, '("(3e,",i0,"e)")') nvars
 	  
 	  do k=1, kmax
-	    do j=1, jmax
-  	      do i=1, imax
-            write(2,frmt) x(i), y(j), z(k), vars_dim(:,i,j,k)
+	    do j=1, jmax_buff
+  	    do i=1, imax_buff
+            write(2,frmt) x(ikey_x(i)), y(ikey_y(j)), z(ikey_z(k)), vars(ikey_vars(:,i,j,k))
 	      enddo 
 	    enddo
 	  enddo
 	  
 	else
 	  
-	  write (frmt, '("(",i0,"e)")') nvars
+    write (frmt, '("(",i0,"e)")') nvars
 	 
 	  do k=1, kmax
-	    do j=1, jmax
-  	      do i=1, imax
-            write(2,frmt) vars_dim(:,i,j,k)
+	    do j=1, jmax_buff
+  	    do i=1, imax_buff
+          write(2,frmt) vars(ikey_vars(:,i,j,k))
 	      enddo 
 	    enddo
 	  enddo
 	  
 	endif
 
-  case('unformatted')
+case('unformatted')
   
-    if (coord_pres) then
+  if (coord_pres) then
 	  
-	  do k=1, kmax
-	    do j=1, jmax
-  	      do i=1, imax
-            write(2) x(i), y(j), z(k), vars_dim(:,i,j,k)
-	      enddo 
-	    enddo
-	  enddo
+    do k=1, kmax
+      do j=1, jmax_buff
+        do i=1, imax_buff
+          write(2) x(ikey_x(i)), y(ikey_y(j)), z(ikey_z(k)), vars(ikey_vars(:,i,j,k))
+        enddo 
+      enddo
+    enddo
 	  
-	else
+  else
 	
-	  do k=1, kmax
-	    do j=1, jmax
-  	      do i=1, imax
-            write(2) vars_dim(:,i,j,k)
-	      enddo 
-	    enddo
-	  enddo
+    do k=1, kmax
+      do j=1, jmax_buff
+        do i=1, imax_buff
+          write(2) vars(ikey_vars(:,i,j,k))
+        enddo 
+      enddo
+    enddo
 	  
-	endif
-	
-  !case default
-  
-  !  call error(sub_name, 'Incorrect write format : ' // write_pos)
+  endif
 	
 end select
 
-
-
 close(2)
   
-deallocate(vars_dim)
+if(coord_pres) deallocate(ikey_x,ikey_y,ikey_z)
+deallocate(ikey_vars)
 
 return
 end subroutine write_real_data_3D
 
 !*************************************************************
 subroutine write_real_data_2D(fname, write_pos, write_fmt, nvars, &
-  imax, jmax, vars, x, y)
+  imax, jmax, vars, ibuff, x, y)
 !*************************************************************
 ! 
 !  This subroutine variables the variables given by vars to the
@@ -1247,14 +1355,20 @@ subroutine write_real_data_2D(fname, write_pos, write_fmt, nvars, &
 !  imax (int) - size of 1st dimension of variables in vars
 !  jmax (int) - size of 2nd dimension of variables in vars 
 !  vars (real, vector) - vector contaning variables to write
+!  ibuff (int) - flag for adding buffer region due to periodicity
+!     0 - no buffer region
+!     1 - buffer on i direction
+!     2 - buffer on j direction
+!     3 - buffer on i and j directions
 !  x,y (real, vector, optional) - vectors containing x,y coordinates 
 !
-
+use functions, only : buff_indx
 implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax, jmax
 real(rprec), intent(in), dimension(nvars*imax*jmax) :: vars
+integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x, y
 
 character(64) :: frmt
@@ -1263,8 +1377,9 @@ logical :: exst, coord_pres
 character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
 
 integer :: i,j,n
-  
-real(rprec), allocatable, dimension(:,:,:) :: vars_dim
+integer :: i0, j0, imax_buff, jmax_buff
+integer, allocatable, dimension(:) :: ikey_x, ikey_y
+integer, allocatable, dimension(:,:,:) :: ikey_vars
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -1276,33 +1391,90 @@ call check_write_fmt(write_fmt, sub_name)
 coord_pres=.false.
 if(present(x) .and. present(y)) coord_pres = .true.
 
+if( ibuff == 0 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax
+  
+elseif( ibuff == 1 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax
+
+elseif( ibuff == 2 ) then
+
+  imax_buff = imax
+  jmax_buff = jmax + 1
+  
+elseif( ibuff == 3 ) then
+
+  imax_buff = imax + 1
+  jmax_buff = jmax + 1
+  
+else 
+
+  call error(sub_name, 'ibuff not specified correctly')
+  
+endif
+
+allocate(ikey_vars(nvars,imax_buff,jmax_buff)) 
+
+if(coord_pres) then
+
+  allocate(ikey_x(imax_buff), ikey_y(jmax_buff))
+  
+  do i=1, imax_buff
+  
+    i0 = buff_indx(i,imax)
+    
+    ikey_x(i) = i0
+    
+  enddo
+  
+  do j=1, jmax_buff
+
+    j0 = buff_indx(j,jmax)
+  
+    ikey_y(j) = j0
+    
+  enddo
+
+endif
+  
+do n=1,nvars
+
+  do j = 1, jmax_buff
+  
+    j0 = buff_indx(j,jmax)
+    
+    do i = 1, imax_buff
+
+      i0 = buff_indx(i,imax)
+      
+      ikey_vars(n,i,j) = (n-1)*imax*jmax + (j0-1)*imax + i0
+    
+    enddo
+    
+  enddo
+  
+enddo
+
 open (unit = 2,file = fname, status='unknown',form=write_fmt, &
   action='write',position=write_pos)
 
-!  Put data in correct shape for sequential reads/writes
-allocate(vars_dim(nvars,imax,jmax)) 
-do n=1,nvars
-  do j=1,jmax
-    do i=1,imax
-	  vars_dim(n,i,j) = vars((n-1)*jmax*imax + (j-1)*imax + i) 
-	enddo
-  enddo
-enddo
-  
-  
 !  Write the data
 select case(write_fmt)
   case('formatted')
   
     !  Specify output format; may want to use a global setting
     	
-    if (coord_pres) then
+  if (coord_pres) then
 	  
 	  write (frmt, '("(2e,",i0,"e)")') nvars
 	  
-	  do j=1, jmax
-	    do i=1,imax
-          write(2,frmt) x(i), y(j), vars_dim(:,i,j)
+	  do j=1, jmax_buff
+	    do i=1,imax_buff
+          write(2,frmt) x(ikey_x(i)), y(ikey_y(j)), vars(ikey_vars(:,i,j))
 	    enddo 
 	  enddo
 	  
@@ -1310,9 +1482,9 @@ select case(write_fmt)
 	  
 	  write (frmt, '("(",i0,"e)")') nvars
 	 
-	  do j=1, jmax
-	    do i=1,imax
-          write(2,frmt) vars_dim(:,i,j)
+	  do j=1, jmax_buff
+	    do i=1,imax_buff
+          write(2,frmt) vars(ikey_vars(:,i,j))
 	    enddo 
 	  enddo
 	  
@@ -1320,21 +1492,21 @@ select case(write_fmt)
 
   case('unformatted')
   
-    if (coord_pres) then
+  if (coord_pres) then
 	  
-	  do j=1, jmax
-	    do i=1,imax
-          write(2) x(i), y(j), vars_dim(:,i,j)
+	  do j=1, jmax_buff
+	    do i=1,imax_buff
+          write(2) x(ikey_x(i)), y(ikey_y(j)), vars(ikey_vars(:,i,j))
 	    enddo 
 	  enddo
 	  
 	else
 	
-	  do j=1,jmax
-	    do i=1,imax
-          write(2) vars_dim(:,i,j)
+	  do j=1,jmax_buff
+	    do i=1,imax_buff
+        write(2) vars(ikey_vars(:,i,j))
 	    enddo 
-      enddo
+    enddo
 	  
 	endif
 	
@@ -1344,17 +1516,18 @@ end select
 
 close(2)
 
-deallocate(vars_dim)
+if(coord_pres) deallocate(ikey_x, ikey_y)
+deallocate(ikey_vars)
 
 return
 end subroutine write_real_data_2D
 
 !*************************************************************
 subroutine write_real_data_1D(fname, write_pos, write_fmt, nvars, &
-  imax, vars, x)
+  imax, vars, ibuff, x)
 !*************************************************************
 ! 
-!  This subroutine variables the variables given by vars to the
+!  This subroutine writes the variables given by vars to the
 !  specified file, fname. The number of variables can be arbitrary
 !  but must be specified by nvars. An example in which vars 
 !  is to be specified as:
@@ -1367,13 +1540,18 @@ subroutine write_real_data_1D(fname, write_pos, write_fmt, nvars, &
 !  nvars (int) - number of variables contained in vars
 !  imax (int) - size of 1st dimension of variables in vars
 !  vars (real, vector) - vector contaning variables to write
-!  x (real,vector,optional) - vectors containing x coordinates 
+!  ibuff (int) - flag for adding buffer region due to periodicity
+!     0 - no buffer region
+!     1 - buffer on i direction (i = 1 = imax + 1)
+!  x (real,vector,optional) - vector containing x coordinates 
 !
+use functions, only : buff_indx
 implicit none
 
 character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars, imax
 real(rprec), intent(in), dimension(nvars*imax) :: vars
+integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x
 
 character(64) :: frmt
@@ -1382,8 +1560,9 @@ logical :: exst, coord_pres
 character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
 
 integer :: i,n
-
-real(rprec), allocatable, dimension(:,:) :: vars_dim
+integer :: i0, imax_buff
+integer, allocatable, dimension(:) :: ikey_x
+integer, allocatable, dimension(:,:) :: ikey_vars
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -1394,12 +1573,46 @@ call check_write_fmt(write_fmt, sub_name)
 !  Check if spatial coordinates specified
 if(present(x)) coord_pres = .true.
 
-!  Put data in correct shape for sequential reads/writes
-allocate(vars_dim(nvars,imax)) 
-do n=1,nvars
-  do i=1,imax
-     vars_dim(n,i) = vars((n-1)*imax + i)
+if( ibuff == 0 ) then
+
+  imax_buff = imax
+  
+elseif( ibuff == 1 ) then
+
+  imax_buff = imax + 1
+ 
+else 
+
+  call error(sub_name, 'ibuff not specified correctly')
+  
+endif
+
+allocate(ikey_vars(nvars,imax_buff)) 
+
+if(coord_pres) then
+
+  allocate(ikey_x(imax_buff))
+  
+  do i=1, imax_buff
+  
+    i0 = buff_indx(i,imax)
+    
+    ikey_x(i) = i0
+    
   enddo
+
+endif
+  
+do n=1,nvars
+ 
+  do i = 1, imax_buff
+
+    i0 = buff_indx(i,imax)
+      
+    ikey_vars(n,i) = (n-1)*imax + i0
+    
+  enddo
+  
 enddo
 
 open (unit = 2,file = fname, status='unknown',form=write_fmt, &
@@ -1409,47 +1622,46 @@ open (unit = 2,file = fname, status='unknown',form=write_fmt, &
 select case(write_fmt)
   case('formatted')
   
-    if (coord_pres) then
+  if (coord_pres) then
 	
-      write (frmt, '("(1e,",i0,"e)")') nvars
+    write (frmt, '("(1e,",i0,"e)")') nvars
 	  
-	  do i=1,imax
-        write(2,frmt) x(i), vars_dim(:,i)
+	  do i=1,imax_buff
+        write(2,frmt) x(ikey_x(i)), vars(ikey_vars(:,i))
 	  enddo 
 	  
 	else
 	
 	  write (frmt, '("(",i0,"e)")') nvars
 	  
-	  do i=1,imax
-        write(2,frmt) vars_dim(:,i)
+	  do i=1,imax_buff
+        write(2,frmt) vars(ikey_vars(:,i))
 	  enddo 
 	  
 	endif
 
   case('unformatted')
   
-    if (coord_pres) then
+  if (coord_pres) then
 	  
-	  do i=1,imax
-        write(2) x(i), vars_dim(:,i)
+	  do i=1,imax_buff
+      write(2) x(ikey_x(i)), vars(ikey_vars(:,i))
 	  enddo 
 	  
 	else
 	
-	  do i=1,imax
-        write(2) x(i), vars_dim(:,i)
+	  do i=1,imax_buff
+      write(2) vars(ikey_vars(:,i))
 	  enddo 
 	  
 	endif
-	
-  !case default
-  !  call error(sub_name, 'Incorrect write format : ' // write_pos)
+
 end select
 
 close(2)
 
-deallocate(vars_dim)
+if(coord_pres) deallocate(ikey_x)
+deallocate(ikey_vars)
 
 return
 end subroutine write_real_data_1D
@@ -1894,8 +2106,9 @@ if (opn) call error (sub_name, 'unit 1 already open')
 
 open (1, file=fname_out, action='write', position='rewind', form='unformatted')
 
+! write the entire structures
 write (1) tavg_total_time
-write (1) tavg_t          ! write the entire structures
+write (1) tavg_t          
 write (1) tavg_zplane_t
 
 close(1)
@@ -1947,36 +2160,36 @@ $if($MPI)
     call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
       '"z", "<u>","<v>","<w>"', coord, 2)
     call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
-      (/ tavg_zplane_tot_t % u, tavg_zplane_tot_t % v, tavg_zplane_tot_t % w /), z_tot)
+      (/ tavg_zplane_tot_t % u, tavg_zplane_tot_t % v, tavg_zplane_tot_t % w /), 0, z_tot)
 
     call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz_tot/), &
       '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
     call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, Nz_tot, &
       (/ tavg_zplane_tot_t % u2, tavg_zplane_tot_t % v2, tavg_zplane_tot_t % w2, &
       tavg_zplane_tot_t % uw, tavg_zplane_tot_t % vw, tavg_zplane_tot_t % uv /), &
-      z_tot) 
+      0, z_tot) 
   
     call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz_tot/), &
       '"z", "<dudz>","<dvdz>"', coord, 2)
     call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, Nz_tot, &
-      (/ tavg_zplane_tot_t % dudz, tavg_zplane_tot_t % dvdz /), z_tot)
+      (/ tavg_zplane_tot_t % dudz, tavg_zplane_tot_t % dvdz /), 0, z_tot)
   
     call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
       '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
     call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
       (/ tavg_zplane_tot_t % txx, tavg_zplane_tot_t % txy, tavg_zplane_tot_t % tyy, &
-      tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), z_tot) 
+      tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), 0, z_tot) 
   
     call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
       '"z", "<fx>","<fy>","<fz>"', coord, 2)
     call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
-      (/ tavg_zplane_tot_t % fx, tavg_zplane_tot_t % fy, tavg_zplane_tot_t % fz /), z_tot)  
+      (/ tavg_zplane_tot_t % fx, tavg_zplane_tot_t % fy, tavg_zplane_tot_t % fz /), 0, z_tot)  
   
     call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz_tot/), &
       '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
     call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, Nz_tot, &
       (/ rs_zplane_tot_t % up2, rs_zplane_tot_t%vp2, rs_zplane_tot_t%wp2, &
-      rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), z_tot)    
+      rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), 0, z_tot)    
  
     deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
     deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
@@ -1989,74 +2202,74 @@ $else
 call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
    '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
 call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
-  (/ tavg_zplane_t % u, tavg_zplane_t % v, tavg_zplane_t % w /), z(1:nz))
+  (/ tavg_zplane_t % u, tavg_zplane_t % v, tavg_zplane_t % w /), 0, z(1:nz))
 
 call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz/), &
    '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
 call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
   (/ tavg_zplane_t % u2, tavg_zplane_t % v2, tavg_zplane_t % w2, &
-  tavg_zplane_t % uw, tavg_zplane_t % vw, tavg_zplane_t % uv /), z(1:nz)) 
+  tavg_zplane_t % uw, tavg_zplane_t % vw, tavg_zplane_t % uv /), 0, z(1:nz)) 
   
 call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz/), &
    '"z", "<dudz>","<dvdz>"', coord, 2)
 call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
-  (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), z(1:nz))
+  (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), 0, z(1:nz))
   
 call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
    '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
   (/ tavg_zplane_t % txx, tavg_zplane_t % txy, tavg_zplane_t % tyy, &
-  tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), z(1:nz)) 
+  tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), 0, z(1:nz)) 
   
 call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
    '"z", "<fx>","<fy>","<fz>"', coord, 2)
 call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
-  (/ tavg_zplane_t % fx, tavg_zplane_t % fy, tavg_zplane_t % fz /), z(1:nz))  
+  (/ tavg_zplane_t % fx, tavg_zplane_t % fy, tavg_zplane_t % fz /), 0, z(1:nz))  
   
 call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz/), &
    '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
 call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
   (/ rs_zplane_t % up2, rs_zplane_t%vp2, rs_zplane_t%wp2, &
-  rs_zplane_t%upwp, rs_zplane_t%vpwp, rs_zplane_t%upvp /), z(1:nz))
+  rs_zplane_t%upwp, rs_zplane_t%vpwp, rs_zplane_t%upvp /), 0, z(1:nz))
 
 $endif
 
 ! ----- Write all the 3D data -----
 
-call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
 call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % u, tavg_t % v, tavg_t % w /), &
-  x, y, z(1:nz))
+  4, x, y, z(1:nz))
 
-call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
 call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
   (/ tavg_t % u2, tavg_t % v2, tavg_t % w2, tavg_t % uw, tavg_t % vw, tavg_t % uv /), &
-  x, y, z(1:nz)) 
+  4, x, y, z(1:nz)) 
   
-call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<dudz>","<dvdz>"', coord, 2)
 call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
-  (/ tavg_t % dudz, tavg_t % dvdz /), x, y, z(1:nz))
+  (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
   
-call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
   (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy, tavg_t % txz, tavg_t % tyz, tavg_t % tzz /), &
-  x, y, z(1:nz)) 
+  4, x, y, z(1:nz)) 
   
-call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<fx>","<fy>","<fz>"', coord, 2)
 call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), &
-  x, y, z(1:nz))  
+  4, x, y, z(1:nz))  
   
-call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx, Ny, Nz/), &
+call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
 call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
   (/ rs_t % up2, rs_t%vp2, rs_t%wp2, rs_t%upwp, rs_t%vpwp, rs_t%upvp /), &
-  x, y, z(1:nz))   
+  4, x, y, z(1:nz))   
 
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t)
 
@@ -2682,7 +2895,7 @@ use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc
 use param, only : tavg_calc
 use stat_defs
 use grid_defs
-use functions, only : index_start
+use functions, only : cell_indx
 implicit none
 
 !character(120) :: cx,cy,cz
@@ -2706,13 +2919,13 @@ point_t%xyz(:,1) = (/L_x/2. + 2.162162_rprec, L_y/2., 4.461996_rprec/)
 !point_t%xyz(:,2) = (/L_x/2., L_y/2., 2.5_rprec/)
 
 domain_t%calc = .true.
-domain_t%nstart = nsteps
+domain_t%nstart = 100
 domain_t%nend   = nsteps
-domain_t%nskip = 10000
+domain_t%nskip = 100
 
 !  x-plane stats/data
-xplane_t%calc   = .false.
-xplane_t%nstart = 1
+xplane_t%calc   = .true.
+xplane_t%nstart = 100
 xplane_t%nend   = nsteps
 xplane_t%nskip  = 100
 xplane_t%nloc   = 2
@@ -2720,8 +2933,8 @@ xplane_t%loc(1) = 1.0
 xplane_t%loc(2) = 3.0
 
 !  y-plane stats/data
-yplane_t%calc   = .false.
-yplane_t%nstart = 1
+yplane_t%calc   = .true.
+yplane_t%nstart = 100
 yplane_t%nend   = nsteps
 yplane_t%nskip  = 100
 yplane_t%nloc   = 2
@@ -2729,10 +2942,10 @@ yplane_t%loc(1) = 1.0
 yplane_t%loc(2) = 3.0
 
 !  z-plane stats/data
-zplane_t%calc   = .false.
-zplane_t%nstart = 50
+zplane_t%calc   = .true.
+zplane_t%nstart = 100
 zplane_t%nend   = nsteps
-zplane_t%nskip  = 50
+zplane_t%nskip  = 100
 zplane_t%nloc   = 7
 zplane_t%loc(1) = 0.733347
 zplane_t%loc(2) = 1.550644
@@ -2741,12 +2954,6 @@ zplane_t%loc(4) = 2.163617
 zplane_t%loc(5) = 2.265780
 zplane_t%loc(6) = 2.316861
 zplane_t%loc(7) = 2.342401
-
-!!  z-plane TIME-AVERAGED stats/data
-!zplane_avg_t%calc   = .false.
-!zplane_avg_t%nstart = 1
-!zplane_avg_t%nend   = nsteps
-
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -2827,7 +3034,7 @@ if(xplane_t%calc) then
   
 !  Compute istart and ldiff
   do j=1,xplane_t%nloc
-	  xplane_t%istart(j) = index_start('j', dx, xplane_t%loc(j))
+	  xplane_t%istart(j) = cell_indx('j', dx, xplane_t%loc(j))
 	  xplane_t%ldiff(j) = x(xplane_t%istart(j)) - xplane_t%loc(j)
   enddo
     
@@ -2850,7 +3057,7 @@ if(yplane_t%calc) then
   
 !  Compute istart and ldiff
   do j=1,yplane_t%nloc
-	  yplane_t%istart(j) = index_start('j', dy, yplane_t%loc(j))
+	  yplane_t%istart(j) = cell_indx('j', dy, yplane_t%loc(j))
 	  yplane_t%ldiff(j) = y(yplane_t%istart(j)) - yplane_t%loc(j)
   enddo
     
@@ -2878,12 +3085,12 @@ if(zplane_t%calc) then
     if(zplane_t%loc(k) >= z(1) .and. zplane_t%loc(k) < z(nz)) then
       zplane_t%coord(k) = coord
 
-	  zplane_t%istart(k) = index_start('k',dz,zplane_t%loc(k))
+	  zplane_t%istart(k) = cell_indx('k',dz,zplane_t%loc(k))
 	  zplane_t%ldiff(k) = z(zplane_t%istart(k)) - zplane_t%loc(k)
     endif
     $else
     zplane_t%coord(k) = 0
-    zplane_t%istart(k) = index_start('k',dz,zplane_t%loc(k))
+    zplane_t%istart(k) = cell_indx('k',dz,zplane_t%loc(k))
     zplane_t%ldiff(k) = z(zplane_t%istart(k)) - zplane_t%loc(k)
     $endif
 
@@ -2903,9 +3110,9 @@ if(point_t%calc) then
     if(point_t%xyz(3,i) >= z(1) .and. point_t%xyz(3,i) < z(nz)) then
     point_t%coord(i) = coord
 	  
-	  point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
-	  point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
-	  point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	  point_t%istart(i) = cell_indx('i',dx,point_t%xyz(1,i))
+	  point_t%jstart(i) = cell_indx('j',dy,point_t%xyz(2,i))
+	  point_t%kstart(i) = cell_indx('k',dz,point_t%xyz(3,i))
 	  
 	  point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
 	  point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
@@ -2935,9 +3142,9 @@ if(point_t%calc) then
     endif
   $else
     point_t%coord(i) = 0
-	point_t%istart(i) = index_start('i',dx,point_t%xyz(1,i))
-	point_t%jstart(i) = index_start('j',dy,point_t%xyz(2,i))
-	point_t%kstart(i) = index_start('k',dz,point_t%xyz(3,i))
+	point_t%istart(i) = cell_indx('i',dx,point_t%xyz(1,i))
+	point_t%jstart(i) = cell_indx('j',dy,point_t%xyz(2,i))
+	point_t%kstart(i) = cell_indx('k',dz,point_t%xyz(3,i))
 	
 	point_t%xdiff(i) = x(point_t%istart(i)) - point_t%xyz(1,i)
 	point_t%ydiff(i) = y(point_t%jstart(i)) - point_t%xyz(2,i)
