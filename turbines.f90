@@ -120,8 +120,8 @@ subroutine turbines_init()
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 	!to write the node locations to file
 	  fname0 = 'node_loc_turbine.dat'
-	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "nodes"', 0, 1)
-	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz, (/large_node_array/),x,y,z)
+	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz/), '"x", "y", "z", "nodes"', 0, 1)
+	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz, (/large_node_array/), 4, x,y,z)
     endif
 
 !1.smooth/filter indicator function                     
@@ -349,8 +349,8 @@ verbose = .true.
     
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 	  fname0 = 'convolution_function.dat'
-	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz/), '"x","y","z","g"', 1, 1)
-	  call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz, (/g_shift/),x,y,z)
+	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1,ny+1,nz/), '"x","y","z","g"', 1, 1)
+	  call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz, (/g_shift/), 4, x,y,z)
 
         if (verbose) then
             write(*,*) 'Convolution function written to Tecplot file.'
@@ -462,8 +462,8 @@ do b=1,nloc
             write(*,*) 'sumA,turbine_vol = ',sumA,turbine_vol
                 if (b==1) then
                   fname3 = 'convolution_out.dat'
-                  call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","out"', 1, 1)
-                  call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/out_a/),x,y,z)
+                  call write_tecplot_header_ND(fname3,'rewind', 4, (/nx+1,ny+1,nz/), '"x","y","z","out"', 1, 1)
+                  call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/out_a/), 4, x,y,z)
                 endif
         endif
     endif
@@ -599,8 +599,8 @@ fz = 0.
         if(.false.) then        !need to make this occur only at last time step
         !to write the data to file
             fname = 'force_turbine.dat'
-            call write_tecplot_header_ND(fname,'rewind', 4, (/nx, ny, nz/), '"x", "y", "z", "force_x"', 1, 1)
-            call write_real_data_3D(fname, 'append','formatted', 1, nx, ny, nz, (/fx(1:nx,:,:)/),x(1:nx),y,z)
+            call write_tecplot_header_ND(fname,'rewind', 4, (/nx+1, ny+1, nz/), '"x", "y", "z", "force_x"', 1, 1)
+            call write_real_data_3D(fname, 'append','formatted', 1, nx, ny, nz, (/fx(1:nx,:,:)/), 4, x(1:nx),y,z)
         endif
     endif
 
