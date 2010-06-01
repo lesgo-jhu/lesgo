@@ -5,7 +5,8 @@ use messages
 implicit none
 save
 private
-public trilinear_interp, linear_interp, index_start, plane_avg_3D
+public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
+public buff_indx
 	   !interp_to_uv_grid, interp_to_uv_grid_buf, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
@@ -13,7 +14,7 @@ character (*), parameter :: mod_name = 'functions'
 contains
 
 !**********************************************************************
-integer function index_start(indx,dx,px)
+integer function cell_indx(indx,dx,px)
 !**********************************************************************
 ! This routine does ...
 !
@@ -25,20 +26,20 @@ character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
 real(rprec), intent(IN) :: px ! Global value
 
-character (*), parameter :: func_name = mod_name // '.index_start'
+character (*), parameter :: func_name = mod_name // '.cell_indx'
 
 if(.not. grid_built) call grid_build()
 
 select case (indx)
-  case ('i'); index_start = floor (px / dx) + 1
-  case ('j'); index_start = floor (px / dx) + 1
+  case ('i'); cell_indx = floor (px / dx) + 1
+  case ('j'); cell_indx = floor (px / dx) + 1
   !  Need to compute local distance to get local k index
-  case ('k'); index_start = floor ((px - z(1)) / dx) + 1
+  case ('k'); cell_indx = floor ((px - z(1)) / dx) + 1
   case default; call error (func_name, 'invalid indx =' // indx)
 end select
 
 return
-end function index_start
+end function cell_indx
 
 !**********************************************************************
 real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
@@ -397,9 +398,9 @@ eta_vec = eta_vec / vec_mag
         cell_center(2) = modulo(cell_center(2), L_y)
         
         !  Perform trilinear interpolation
-        istart = index_start('i', dx, cell_center(1))
-        jstart = index_start('j', dy, cell_center(2))
-        kstart = index_start('k', dz, cell_center(3))
+        istart = cell_indx('i', dx, cell_center(1))
+        jstart = cell_indx('j', dy, cell_center(2))
+        kstart = cell_indx('k', dz, cell_center(3))
         
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
         nsum = nsum + 1
@@ -477,5 +478,24 @@ fractal_scale = var * scale_fact ** ( ng - 1 )
 
 return
 end function fractal_scale
+
+!**********************************************************************
+integer function buff_indx(i,imax)
+!**********************************************************************
+!  This function returns the physical index associated with the buffer 
+!  region for the specified i and imax. 
+!  For i = imax + 1 -> 1 is returned otherwise i is returned
+implicit none
+
+integer, intent(in) :: i,imax
+
+if(i == imax + 1) then
+  buff_indx = 1
+else
+  buff_indx = i
+endif
+  
+return
+end function buff_indx
 
 end module functions
