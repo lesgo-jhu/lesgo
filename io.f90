@@ -1142,7 +1142,7 @@ character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
 integer :: i,j,k,n
 integer :: i0, j0, k0, imax_buff, jmax_buff, kmax_buff
 
-integer, allocatable, dimension(:) :: ikey_x, ikey_y, ikey_z
+!integer, allocatable, dimension(:) :: ikey_x, ikey_y, ikey_z
 integer, allocatable, dimension(:,:,:,:) :: ikey_vars
 !real(rprec), allocatable, dimension(:,:,:,:) :: vars_dim
 
@@ -1210,37 +1210,43 @@ else
   
 endif
 
-allocate(ikey_vars(nvars,imax_buff,jmax_buff,kmax)) 
+allocate(ikey_vars(nvars,imax_buff,jmax_buff,kmax_buff)) 
 
-if(coord_pres) then
+!if(coord_pres) then
 
-  allocate(ikey_x(imax_buff), ikey_y(jmax_buff), ikey_z(kmax_buff))
-  
-  do i=1, imax_buff
-  
-    i0 = buff_indx(i,imax)
-    
-    ikey_x(i) = i0
-    
-  enddo
-  
-  do j=1, jmax_buff
+!  allocate(ikey_x(imax_buff), ikey_y(jmax_buff), ikey_z(kmax_buff))
+!  
+!  do i=1, imax_buff
+!  
+!    i0 = buff_indx(i,imax)
+!    
+!    ikey_x(i) = i0
+!    
+!  enddo
+!  
+!  if(coord == 0) then
+!    do i=1,imax_buff
+!      write(*,*) 'i, x(ikey_x(i)) ', i, x(ikey_x(i))
+!    enddo
+!  endif
+!  
+!  do j=1, jmax_buff
 
-    j0 = buff_indx(j,jmax)
-  
-    ikey_y(j) = j0
-    
-  enddo
-  
-  do k=1, kmax_buff
+!    j0 = buff_indx(j,jmax)
+!  
+!    ikey_y(j) = j0
+!    
+!  enddo
+!  
+!  do k=1, kmax_buff
 
-    k0 = buff_indx(k,kmax)
-  
-    ikey_z(k) = k0
-    
-  enddo  
+!    k0 = buff_indx(k,kmax)
+!  
+!    ikey_z(k) = k0
+!    
+!  enddo  
 
-endif
+!endif
   
 do n=1,nvars
 
@@ -1278,45 +1284,45 @@ select case(write_fmt)
     	
     if (coord_pres) then
 	  
-	  write (frmt, '("(3e,",i0,"e)")') nvars
+	    write (frmt, '("(3e,",i0,"e)")') nvars
 	  
-	  do k=1, kmax
-	    do j=1, jmax_buff
-  	    do i=1, imax_buff
-            write(2,frmt) x(ikey_x(i)), y(ikey_y(j)), z(ikey_z(k)), vars(ikey_vars(:,i,j,k))
-	      enddo 
+	    do k=1, kmax_buff
+  	    do j=1, jmax_buff
+    	    do i=1, imax_buff
+            write(2,frmt) x(i), y(j), z(k), vars(ikey_vars(:,i,j,k))
+	        enddo 
+	      enddo
 	    enddo
-	  enddo
 	  
-	else
+	  else
 	  
-    write (frmt, '("(",i0,"e)")') nvars
+      write (frmt, '("(",i0,"e)")') nvars
 	 
-	  do k=1, kmax
-	    do j=1, jmax_buff
-  	    do i=1, imax_buff
-          write(2,frmt) vars(ikey_vars(:,i,j,k))
-	      enddo 
+	    do k=1, kmax_buff
+	      do j=1, jmax_buff
+  	      do i=1, imax_buff
+            write(2,frmt) vars(ikey_vars(:,i,j,k))
+	        enddo 
+	      enddo
 	    enddo
-	  enddo
 	  
-	endif
+	  endif
 
-case('unformatted')
+  case('unformatted')
   
   if (coord_pres) then
 	  
-    do k=1, kmax
+    do k=1, kmax_buff
       do j=1, jmax_buff
         do i=1, imax_buff
-          write(2) x(ikey_x(i)), y(ikey_y(j)), z(ikey_z(k)), vars(ikey_vars(:,i,j,k))
+          write(2) x(i), y(j), z(k), vars(ikey_vars(:,i,j,k))
         enddo 
       enddo
     enddo
 	  
   else
 	
-    do k=1, kmax
+    do k=1, kmax_buff
       do j=1, jmax_buff
         do i=1, imax_buff
           write(2) vars(ikey_vars(:,i,j,k))
@@ -1330,7 +1336,6 @@ end select
 
 close(2)
   
-if(coord_pres) deallocate(ikey_x,ikey_y,ikey_z)
 deallocate(ikey_vars)
 
 return
@@ -1378,7 +1383,7 @@ character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
 
 integer :: i,j,n
 integer :: i0, j0, imax_buff, jmax_buff
-integer, allocatable, dimension(:) :: ikey_x, ikey_y
+!integer, allocatable, dimension(:) :: ikey_x, ikey_y
 integer, allocatable, dimension(:,:,:) :: ikey_vars
 
 !  Check if file exists
@@ -1419,27 +1424,27 @@ endif
 
 allocate(ikey_vars(nvars,imax_buff,jmax_buff)) 
 
-if(coord_pres) then
+!if(coord_pres) then
 
-  allocate(ikey_x(imax_buff), ikey_y(jmax_buff))
-  
-  do i=1, imax_buff
-  
-    i0 = buff_indx(i,imax)
-    
-    ikey_x(i) = i0
-    
-  enddo
-  
-  do j=1, jmax_buff
+!  allocate(ikey_x(imax_buff), ikey_y(jmax_buff))
+!  
+!  do i=1, imax_buff
+!  
+!    i0 = buff_indx(i,imax)
+!    
+!    ikey_x(i) = i0
+!    
+!  enddo
+!  
+!  do j=1, jmax_buff
 
-    j0 = buff_indx(j,jmax)
-  
-    ikey_y(j) = j0
-    
-  enddo
+!    j0 = buff_indx(j,jmax)
+!  
+!    ikey_y(j) = j0
+!    
+!  enddo
 
-endif
+!endif
   
 do n=1,nvars
 
@@ -1474,7 +1479,7 @@ select case(write_fmt)
 	  
 	  do j=1, jmax_buff
 	    do i=1,imax_buff
-          write(2,frmt) x(ikey_x(i)), y(ikey_y(j)), vars(ikey_vars(:,i,j))
+          write(2,frmt) x(i), y(j), vars(ikey_vars(:,i,j))
 	    enddo 
 	  enddo
 	  
@@ -1496,7 +1501,7 @@ select case(write_fmt)
 	  
 	  do j=1, jmax_buff
 	    do i=1,imax_buff
-          write(2) x(ikey_x(i)), y(ikey_y(j)), vars(ikey_vars(:,i,j))
+          write(2) x(i), y(j), vars(ikey_vars(:,i,j))
 	    enddo 
 	  enddo
 	  
@@ -1516,7 +1521,6 @@ end select
 
 close(2)
 
-if(coord_pres) deallocate(ikey_x, ikey_y)
 deallocate(ikey_vars)
 
 return
@@ -1561,7 +1565,7 @@ character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
 
 integer :: i,n
 integer :: i0, imax_buff
-integer, allocatable, dimension(:) :: ikey_x
+!integer, allocatable, dimension(:) :: ikey_x
 integer, allocatable, dimension(:,:) :: ikey_vars
 
 !  Check if file exists
@@ -1589,19 +1593,19 @@ endif
 
 allocate(ikey_vars(nvars,imax_buff)) 
 
-if(coord_pres) then
+!if(coord_pres) then
 
-  allocate(ikey_x(imax_buff))
-  
-  do i=1, imax_buff
-  
-    i0 = buff_indx(i,imax)
-    
-    ikey_x(i) = i0
-    
-  enddo
+!  allocate(ikey_x(imax_buff))
+!  
+!  do i=1, imax_buff
+!  
+!    i0 = buff_indx(i,imax)
+!    
+!    ikey_x(i) = i0
+!    
+!  enddo
 
-endif
+!endif
   
 do n=1,nvars
  
@@ -1627,7 +1631,7 @@ select case(write_fmt)
     write (frmt, '("(1e,",i0,"e)")') nvars
 	  
 	  do i=1,imax_buff
-        write(2,frmt) x(ikey_x(i)), vars(ikey_vars(:,i))
+        write(2,frmt) x(i), vars(ikey_vars(:,i))
 	  enddo 
 	  
 	else
@@ -1645,7 +1649,7 @@ select case(write_fmt)
   if (coord_pres) then
 	  
 	  do i=1,imax_buff
-      write(2) x(ikey_x(i)), vars(ikey_vars(:,i))
+      write(2) x(i), vars(ikey_vars(:,i))
 	  enddo 
 	  
 	else
@@ -1660,7 +1664,6 @@ end select
 
 close(2)
 
-if(coord_pres) deallocate(ikey_x)
 deallocate(ikey_vars)
 
 return
