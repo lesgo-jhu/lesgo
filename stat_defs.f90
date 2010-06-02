@@ -2,15 +2,9 @@
 module stat_defs
 !**********************************************************************
 use types, only : rprec
+
 save
 public
-
-!!  Reynolds stresses
-!type rs
-!  logical :: calc=.false.
-!  real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
-!                                            upwp, vpwp, upvp
-!end type rs
 
 type rs
         real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
@@ -27,35 +21,37 @@ type tavg
 end type tavg
 
   
-!  Instantaneous Variables Storage (Parameters for storing velocity 
-!  component values each time step)
-type point
-  logical :: calc=.false.
-  logical :: started=.false.
-  integer :: nstart, nend, nloc, nskip
-  integer, dimension(10) :: coord=-1, istart=-1, jstart=-1, kstart=-1
-  real(rprec), dimension(10) :: xdiff, ydiff, zdiff
-  real(rprec), dimension(3,10) :: xyz=-1._rprec
-  character(64), dimension(10) :: fname
-end type
+!!  Instantaneous Variables Storage (Parameters for storing velocity 
+!!  component values each time step)
+!type point
+!  logical :: calc=.false.
+!  logical :: started=.false.
+!  integer :: nstart, nend, nloc, nskip
+!  integer, dimension(10) :: coord=-1, istart=-1, jstart=-1, kstart=-1
+!  real(rprec), dimension(10) :: xdiff, ydiff, zdiff
+!  real(rprec), dimension(3,10) :: xyz=-1._rprec
+!  character(64), dimension(10) :: fname
+!end type
 
-!  Instantaneous velocity global declarations
-type domain
-  logical :: calc=.false.
-  logical :: started=.false.
-  integer :: nstart, nend, nskip
-end type domain  
+
+
+!!  Instantaneous velocity global declarations
+!type domain
+!  logical :: calc=.false.
+!  logical :: started=.false.
+!  integer :: nstart, nend, nskip
+!end type domain  
   
-!  Planar stats/data
-type plane
-  logical :: calc=.false.
-  logical :: started=.false.
-  integer :: nloc, nstart, nend, nskip
-  integer, dimension(10) :: istart=-1, coord=-1
-!   real(rprec) :: fa
-  real(rprec), dimension (10) :: loc, ldiff
-!   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
-end type plane
+!!  Planar stats/data
+!type plane
+!  logical :: calc=.false.
+!  logical :: started=.false.
+!  integer :: nloc, nstart, nend, nskip
+!  integer, dimension(10) :: istart=-1, coord=-1
+!!   real(rprec) :: fa
+!  real(rprec), dimension (10) :: loc, ldiff
+!!   real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
+!end type plane
 
 $if ($TURBINES)
 	type turbine 
@@ -85,10 +81,6 @@ $endif
 
 type(tavg), pointer, dimension(:,:,:) :: tavg_t
 type(tavg), pointer, dimension(:) :: tavg_zplane_t
-
-type(point), target 	  :: point_t
-type(domain)        		:: domain_t
-type(plane)         		:: xplane_t, yplane_t, zplane_t
 
 type(rs), pointer, dimension(:,:,:) :: rs_t
 type(rs), pointer, dimension(:) :: rs_zplane_t
