@@ -566,11 +566,11 @@ fz = 0.
                 a3 = p_f_n
             endif
             if (s==1) then
-                call write_real_data('turbine1_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))  
+                call write_real_data('turbine1_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))  
             elseif (s==2) then
-                call write_real_data('turbine2_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))          
+                call write_real_data('turbine2_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))          
             elseif (s==3) then
-                call write_real_data('turbine3_forcing.dat', 'append', 4, (/a0,a1,a2,a3/))    
+                call write_real_data('turbine3_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))    
             endif
         endif
         

@@ -683,7 +683,7 @@ if(itype==1) then
     if(point_t%coord(n) == coord) then
     $endif
 
-    call write_real_data(point_t%fname(n), 'append', 4, (/ total_time, &
+    call write_real_data(point_t%fname(n), 'append', 'formatted', 4, (/ total_time, &
       trilinear_interp(u,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(v,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)), &
       trilinear_interp(w,point_t%istart(n),point_t%jstart(n), point_t%kstart(n), point_t%xyz(:,n)) /))	  
@@ -1044,7 +1044,7 @@ return
 end subroutine inst_write
 
 !*************************************************************
-subroutine write_real_data(fname, write_pos, nvars, vars)
+subroutine write_real_data(fname, write_pos, write_fmt, nvars, vars)
 !*************************************************************
 ! 
 !  This subroutine writes the variables given by vars to the
@@ -1059,12 +1059,13 @@ subroutine write_real_data(fname, write_pos, nvars, vars)
 !  Inputs:
 !  fname (char) - file to write to
 !  write_pos (char) - position to write in file : 'append' or 'rewind'
+!  write_fmt (char) - Fotran format flag : 'formatted' or 'unformatted'
 !  nvars (int) - number of variables contained in vars
 !  vars (real,vector) - vector contaning variables to write
 !
 implicit none
 
-character(*), intent(in) :: fname, write_pos
+character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars
 real(rprec), intent(in), dimension(:) :: vars
 
@@ -1079,16 +1080,28 @@ character(*), parameter :: sub_name = mod_name // '.write_real_data'
 !if (.not. exst) call mesg(sub_name, 'Creating : ' // fname)
 
 call check_write_pos(write_pos, sub_name)
-
-open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='append')
+call check_write_fmt(write_fmt, sub_name)
   
-!  Specify output format; may want to use a global setting
-write (frmt, '("(",i0,"e)")') nvars
+open (unit = 2,file = fname, status='unknown',form=write_fmt, &
+  action='write',position=write_pos)  
   
 !  Write the data
-write(2,frmt) vars
+select case(write_fmt)
 
+  case('formatted')
+
+  !  Specify output format; may want to use a global setting
+    write (frmt, '("(",i0,"e)")') nvars
+  
+!  Write the data
+    write(2,frmt) vars  
+
+  case('unformatted')
+  
+    write(2) vars
+	
+end select
+  
 close(2)
   
 return

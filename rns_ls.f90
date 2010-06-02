@@ -1594,7 +1594,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, clforce_t(1:nvar-1)%CD /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, clforce_t(1:nvar-1)%CD /))
 
 return
 end subroutine rns_write_cl_CD_ls
@@ -1642,7 +1642,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, cl_ref_plane_t(1:nvar-1)%u /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, cl_ref_plane_t(1:nvar-1)%u /))
 
 return
 end subroutine rns_write_cl_vel_ls
@@ -1682,7 +1682,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, beta_ref_plane_t(1:nvar-1) % u /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_ref_plane_t(1:nvar-1) % u /))
 
 return
 end subroutine rns_write_beta_vel_ls
@@ -1730,7 +1730,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, -clforce_t(1:nvar-1)%fD /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -clforce_t(1:nvar-1)%fD /))
 
 return
 end subroutine rns_write_cl_fD_ls
@@ -1770,7 +1770,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, -beta_force_t(1:nvar-1) % fD /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -beta_force_t(1:nvar-1) % fD /))
 
 return
 end subroutine rns_write_beta_fD_ls
@@ -1810,7 +1810,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % CD /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_force_t(1:nvar-1) % CD /))
 
 return
 end subroutine rns_write_beta_CD_ls
@@ -1850,7 +1850,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', nvar, (/ total_time, beta_force_t(1:nvar-1) % kappa /))
+call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_force_t(1:nvar-1) % kappa /))
 
 return
 end subroutine rns_write_beta_kappa_ls
