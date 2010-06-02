@@ -565,9 +565,8 @@ do jt=1,nsteps
 7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
-
-!  Check if master switch for outputing data is turned on           
-  if(output) call output_loop (jt)
+          
+  call output_loop (jt)
   
 !  $if ($RNS_LS)
 !!  Determine if instantaneous plane velocities are to be recorded
@@ -582,7 +581,7 @@ do jt=1,nsteps
 
 end do  !--end time loop
 close(2)
-if (output) call output_final (jt)
+call output_final (jt)
 
 $if ($LVLSET)
 
