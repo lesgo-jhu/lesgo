@@ -57,7 +57,7 @@ do ip = 0, np-1
   call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
 end do
 
-write (*, *) 'Hello! from process with coord = ', coord
+!write (*, *) 'Hello! from process with coord = ', coord
 
   !--set the MPI_RPREC variable
 if (rprec == kind (1.e0)) then

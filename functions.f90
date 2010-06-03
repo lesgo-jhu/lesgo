@@ -489,7 +489,7 @@ real(rprec), intent(IN), dimension(:,:) :: points
 character (*), parameter :: func_name = mod_name // '.points_avg_3D'
 
 integer :: istart, jstart, kstart, nsum
-integer :: n, npoints
+integer :: n, npoint
 
 $if ($MPI)
 integer :: nsum_global
@@ -508,13 +508,10 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
-!!  Check if plane is associated with processor
-!if(z(nz) <= zmax .or. z(1) >= zmin) then
-
 ! Get the number of specified points
-npoints = size(points,2)
+npoint = size(points,2)
 
-do n=1, npoints
+do n=1, npoint
   
   zp = points(3,n)
   
