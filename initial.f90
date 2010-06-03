@@ -11,6 +11,7 @@ use scalars_module2,only:ic_scal ! added by VK
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
+use mpi_defs, only : mpi_sync_real_array
 implicit none
 
 $if ($MPI)
@@ -129,25 +130,31 @@ if (use_bldg) then
 end if
 
 $if ($MPI)
-  !--synchronize the overlapping parts 0 <-> nz-1 and 1 <-> nz 
-  call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-                     u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-                     v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-                     w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (u(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
-                     u(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (v(1, 1, 1), ld*ny, MPI_RPREC, down, 5,  &
-                     v(1, 1, nz), ld*ny, MPI_RPREC, up, 5,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (w(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
-                     w(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
-                     comm, status, ierr)
+  !--synchronize the overlapping parts nz-1 (coord) -> 0 (coord + 1) 
+  !  and 1 (coord + 1) -> nz (coord)
+  !call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
+  !                   u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
+  !                   v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
+  !                   w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (u(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
+  !                   u(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (v(1, 1, 1), ld*ny, MPI_RPREC, down, 5,  &
+  !                   v(1, 1, nz), ld*ny, MPI_RPREC, up, 5,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (w(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
+  !                   w(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
+  !                   comm, status, ierr)   
+
+  call mpi_sync_real_array( u )
+  call mpi_sync_real_array( v ) 
+  call mpi_sync_real_array( w ) 
+  
 $endif
 
 if (USE_MPI .and. coord == 0) then
