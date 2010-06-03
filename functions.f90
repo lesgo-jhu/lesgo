@@ -466,6 +466,105 @@ return
 end function plane_avg_3D
 
 !**********************************************************************
+real(rprec) function points_avg_3D(var, points)
+!**********************************************************************
+!
+!  This subroutine computes the average of a specified quantity defined
+!  on a set of arbitrary points
+!
+
+use types, only : rprec
+use param, only : dx, dy, dz, L_x, L_y, nz
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+$endif
+use grid_defs
+use messages
+implicit none
+
+real(rprec), intent(IN), dimension(:,:,:) :: var
+real(rprec), intent(IN), dimension(:,:) :: points
+
+character (*), parameter :: func_name = mod_name // '.points_avg_3D'
+
+integer :: istart, jstart, kstart, nsum
+integer :: n, npoints
+
+$if ($MPI)
+integer :: nsum_global
+real(rprec) :: var_sum_global
+$endif
+
+real(rprec) :: var_sum, var_interp
+real(rprec) :: xp, yp, zp
+
+!  Check that points is a column major ordered array of dim-3
+if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
+
+!  Build computational mesh if needed
+if(.not. grid_built) call grid_build()
+
+nsum = 0
+var_sum=0.
+
+!!  Check if plane is associated with processor
+!if(z(nz) <= zmax .or. z(1) >= zmin) then
+
+! Get the number of specified points
+npoints = size(points,2)
+
+do n=1, npoints
+  
+  zp = points(3,n)
+  
+  if(zp >= z(1) .and. zp < z(nz)) then
+  
+    xp = points(1,n)
+    yp = points(2,n)
+    
+    !  Include autowrapping for x and y directions
+    xp = modulo(xp, L_x)
+    yp = modulo(yp, L_y)
+    
+    !  Perform trilinear interpolation
+    istart = cell_indx('i', dx, xp)
+    jstart = cell_indx('j', dy, yp)
+    kstart = cell_indx('k', dz, zp)
+        
+    var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, (/ xp, yp, zp /))
+    nsum = nsum + 1
+    
+  endif
+  
+enddo
+
+$if ($MPI)
+
+!  Perform averaging; all procs have this info
+call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
+
+if(nsum_global == 0) then
+  
+  call error(func_name, 'nsum_global = 0')
+  
+endif
+ 
+!  Average over all procs; assuming distribution is even
+points_avg_3D = var_sum_global / nsum_global
+  
+$else
+  
+points_avg_3D = var_sum / nsum
+  
+$endif
+   
+return
+
+end function points_avg_3D
+
+!**********************************************************************
 real(rprec) function fractal_scale(var, scale_fact, ng)
 !**********************************************************************
 use types, only : rprec
