@@ -110,7 +110,7 @@ $endif
 
 !  Initialize uv grid
 call grid_build()
-!  Initialized statics arrays
+!  Initialize statistics
 call stats_init()
 
 if(coord == 0) then
