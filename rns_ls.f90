@@ -47,8 +47,8 @@ character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
 
 !if(clforce_calc) then
 
-  call rns_cl_force_ls()     !  Get CD, force etc for resolved regions
-  call rns_beta_force_ls()  !  Get force of 
+  call cl_force_ls()     !  Get CD, force etc for resolved regions
+  call beta_force_ls()  !  Get force of 
     
   !if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
     
@@ -56,14 +56,14 @@ character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
     
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
-      call rns_write_cl_CD_ls()
-      call rns_write_cl_fD_ls()
-      call rns_write_cl_vel_ls()
+      call write_cl_CD_ls()
+      call write_cl_fD_ls()
+      call write_cl_vel_ls()
       
-      call rns_write_beta_CD_ls()
-      call rns_write_beta_fD_ls()
-      call rns_write_beta_vel_ls()
-      call rns_write_beta_kappa_ls()
+      call write_beta_CD_ls()
+      call write_beta_fD_ls()
+      call write_beta_vel_ls()
+      call write_beta_kappa_ls()
       
     endif
     
@@ -78,7 +78,7 @@ end subroutine rns_CD_ls
 
 
 !**********************************************************************
-subroutine rns_cl_force_ls()
+subroutine cl_force_ls()
 !**********************************************************************
 !  This subroutine computes the CD of the branch cluster (cl) associated
 !  with each region dictated by the brindx value. The cl is mapped from 
@@ -226,10 +226,10 @@ enddo
 !if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
 
 return
-end subroutine rns_cl_force_ls
+end subroutine cl_force_ls
 
 !**********************************************************************
-subroutine rns_beta_force_ls()
+subroutine beta_force_ls()
 !**********************************************************************
 !  This subroutine computes the CD of the branch cluster (cl) associated
 !  with each region dictated by the brindx value. 
@@ -556,7 +556,7 @@ enddo
   
 !deallocate(fD_dir)
 
-end subroutine rns_beta_force_ls
+end subroutine beta_force_ls
 
 !**********************************************************************
 subroutine rns_forcing_ls()
@@ -569,6 +569,7 @@ use immersedbc, only : fx
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
+use mpi_defs, only : mpi_sync_real_array
 $endif
 use param, only : dx, dy, dz, coord, jt, USE_MPI
 
@@ -614,12 +615,13 @@ enddo
 
 $if($MPI)
 !  Sync data at overlap nodes
-if(coord < nproc - 1) then
-  call mpi_recv (fx(:,:,nz), ld*ny, MPI_RPREC, up, 1, comm, status, ierr)
-endif
-if(coord > 0) then
-  call mpi_send (fx(:,:,1), ld*ny, MPI_RPREC, down, 1, comm, ierr)
-endif
+!if(coord < nproc - 1) then
+!  call mpi_recv (fx(:,:,nz), ld*ny, MPI_RPREC, up, 1, comm, status, ierr)
+!endif
+!if(coord > 0) then
+!  call mpi_send (fx(:,:,1), ld*ny, MPI_RPREC, down, 1, comm, ierr)
+!endif
+call mpi_sync_real_array( fx )
 $endif
 
 return
@@ -628,7 +630,7 @@ end subroutine rns_forcing_ls
 
 
 !**********************************************************************
-subroutine rns_write_cl_CD_ls()
+subroutine write_cl_CD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -639,7 +641,7 @@ $endif
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_cl_CD_ls'
+character(*), parameter :: sub_name = mod_name // '.write_cl_CD_ls'
 character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
 logical :: exst
@@ -673,10 +675,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, clforce_t(1:nvar-1)%CD /))
 
 return
-end subroutine rns_write_cl_CD_ls
+end subroutine write_cl_CD_ls
 
 !**********************************************************************
-subroutine rns_write_cl_vel_ls()
+subroutine write_cl_vel_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -687,7 +689,7 @@ $endif
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_cl_vel_ls'
+character(*), parameter :: sub_name = mod_name // '.write_cl_vel_ls'
 character(*), parameter :: fname = path // 'output/rns_cl_vel_ls.dat'
 
 logical :: exst
@@ -721,10 +723,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, cl_ref_plane_t(1:nvar-1)%u /))
 
 return
-end subroutine rns_write_cl_vel_ls
+end subroutine write_cl_vel_ls
 
 !**********************************************************************
-subroutine rns_write_beta_vel_ls()
+subroutine write_beta_vel_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -732,7 +734,7 @@ use strmod
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_beta_vel_ls'
+character(*), parameter :: sub_name = mod_name // '.write_beta_vel_ls'
 character(*), parameter :: fname = path // 'output/rns_beta_vel_ls.dat'
 
 logical :: exst
@@ -761,10 +763,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_ref_plane_t(1:nvar-1) % u /))
 
 return
-end subroutine rns_write_beta_vel_ls
+end subroutine write_beta_vel_ls
 
 !**********************************************************************
-subroutine rns_write_cl_fD_ls()
+subroutine write_cl_fD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -775,7 +777,7 @@ $endif
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_cl_fD_ls'
+character(*), parameter :: sub_name = mod_name // '.write_cl_fD_ls'
 character(*), parameter :: fname = path // 'output/rns_cl_fD_ls.dat'
 
 logical :: exst
@@ -809,10 +811,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -clforce_t(1:nvar-1)%fD /))
 
 return
-end subroutine rns_write_cl_fD_ls
+end subroutine write_cl_fD_ls
 
 !**********************************************************************
-subroutine rns_write_beta_fD_ls()
+subroutine write_beta_fD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -820,7 +822,7 @@ use strmod
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_beta_fD_ls'
+character(*), parameter :: sub_name = mod_name // '.write_beta_fD_ls'
 character(*), parameter :: fname = path // 'output/rns_beta_fD_ls.dat'
 
 logical :: exst
@@ -849,10 +851,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -beta_force_t(1:nvar-1) % fD /))
 
 return
-end subroutine rns_write_beta_fD_ls
+end subroutine write_beta_fD_ls
 
 !**********************************************************************
-subroutine rns_write_beta_CD_ls()
+subroutine write_beta_CD_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -860,7 +862,7 @@ use strmod
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_beta_CD_ls'
+character(*), parameter :: sub_name = mod_name // '.write_beta_CD_ls'
 character(*), parameter :: fname = path // 'output/rns_beta_CD_ls.dat'
 
 logical :: exst
@@ -889,10 +891,10 @@ endif
 call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_force_t(1:nvar-1) % CD /))
 
 return
-end subroutine rns_write_beta_CD_ls
+end subroutine write_beta_CD_ls
 
 !**********************************************************************
-subroutine rns_write_beta_kappa_ls()
+subroutine write_beta_kappa_ls()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, dt, path
@@ -900,7 +902,7 @@ use strmod
 
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.rns_write_beta_kappa_ls'
+character(*), parameter :: sub_name = mod_name // '.write_beta_kappa_ls'
 character(*), parameter :: fname = path // 'output/rns_beta_kappa_ls.dat'
 
 logical :: exst
