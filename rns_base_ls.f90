@@ -10,11 +10,6 @@ private
 
 public reslv_elem_t, beta_elem_t, rbeta_elem_t
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
@@ -89,10 +84,7 @@ type(primary_struct), pointer, dimension(:) :: rbeta_elem_t
 !integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
 
-!integer, target :: brindx(ld, ny, $lbz:nz)
-!logical :: brindx_initialized = .false.
-
-!real (rprec) :: chi(ld, ny, $lbz:nz)
-!logical :: chi_initialized = .false.
+real (rprec) :: chi(ld, ny, $lbz:nz)
+logical :: chi_initialized = .false.
 
 end module rns_base_ls
