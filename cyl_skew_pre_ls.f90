@@ -191,7 +191,7 @@ if(.not. grid_built) call grid_build()
 
 do k=$lbz,nz
   do j=1,ny
-    do i=1,nx+2
+    do i=1,nx
       gcs_t(i,j,k)%xyz(1) = x(i)
       gcs_t(i,j,k)%xyz(2) = y(j)
       gcs_t(i,j,k)%xyz(3) = z(k)

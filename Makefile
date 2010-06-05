@@ -163,6 +163,6 @@ merge_phi:  merge_phi.f90 $(OPATH)/types.o \
 # FOBJ is defined in .depend
 .PHONY : clean
 clean :
-	echo \0>./total_time.dat
+	echo \0,0.,0.>./total_time.dat
 	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
 	rm -f t.*

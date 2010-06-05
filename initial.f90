@@ -11,7 +11,10 @@ use scalars_module2,only:ic_scal ! added by VK
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
-use mpi_defs, only : mpi_sync_real_array
+$if ($MPI)
+  use mpi_defs, only : mpi_sync_real_array
+$endif
+
 implicit none
 
 $if ($MPI)
