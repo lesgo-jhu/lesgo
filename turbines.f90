@@ -31,7 +31,7 @@ integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 integer :: k_start, k_end
 real(rprec) :: a0,a1,a2,a3,a4,a5
 
-logical :: turbine_in_proc      !false if there is no turbine (partial or whole) in this processor
+logical :: turbine_in_proc=.false.      !false if there is no turbine (partial or whole) in this processor
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -502,6 +502,7 @@ do b=1,nloc
 					wind_farm_t%turbine_t(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
                     count_n = count_n + 1
 					count_i = count_i + 1
+                    turbine_in_proc = .true.                    
 				endif
 			enddo
 		enddo
@@ -517,7 +518,7 @@ do b=1,nloc
 
 enddo
 
-    !Test to make sure domain is divided correctly:
+    !test to make sure domain is divided correctly:
     if (.false.) then
         temp_array_2 = 0.
         do b=1,nloc
@@ -542,6 +543,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 4, x, y, z_tot)                       
 endif
 
+!each processor sends its value of turbine_in_proc
+!if false, disk-avg velocity will not be sent (since it will always be 0.)
+
+!##############################################
+!##############################################
+
+
 end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -555,90 +563,156 @@ real(rprec), pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_
 integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 
 real(rprec) :: ind2
+real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 
-!initialize forces to zero (new timestep)
-fx = 0.
-fy = 0.
-fz = 0.
+!Each processor calculates the weighted disk-averaged velocity
+if (turbine_in_proc == .true.) then
 
-!for each turbine:        
-    do s=1,nloc            
-         
-    !set pointers
-        p_u_d => wind_farm_t%turbine_t(s)%u_d   
-        p_u_d_T => wind_farm_t%turbine_t(s)%u_d_T   
-        p_num_nodes => wind_farm_t%turbine_t(s)%num_nodes
-        p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
-        p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
-        p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
-        p_u_d_flag => wind_farm_t%turbine_t(s)%u_d_flag
-        p_f_n => wind_farm_t%turbine_t(s)%f_n               
-        p_dia => wind_farm_t%turbine_t(s)%dia 
-        p_thk => wind_farm_t%turbine_t(s)%thk
+    !for each turbine:        
+        do s=1,nloc            
+             
+        !set pointers
+            p_u_d => wind_farm_t%turbine_t(s)%u_d   
+            p_num_nodes => wind_farm_t%turbine_t(s)%num_nodes
+            p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
+            p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
+            p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
 
-    !calculate total disk-averaged velocity for each turbine (current,instantaneous)    
-    !u_d and u_d_T are velocities in the normal direction	  
-    !weighted average using "ind"
-        call interp_to_uv_grid(w, w_uv, w_uv_tag) 
-        p_u_d = 0.
-        do l=1,p_num_nodes
-            i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
-            j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
-            p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2)) &
-                * wind_farm_t%turbine_t(s)%ind(l)
-        enddo  
-        !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
-        p_u_d = p_u_d *dx*dy*dz/(pi/4.*(wind_farm_t%turbine_t(s)%dia)**2 * wind_farm_t%turbine_t(s)%thk)
+        !calculate total disk-averaged velocity for each turbine (current,instantaneous)    
+        !u_d is the velocity in the normal direction	  
+        !weighted average using "ind"
+            call interp_to_uv_grid(w, w_uv, w_uv_tag) 
+            p_u_d = 0.
+            do l=1,p_num_nodes
+                i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
+                j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
+                k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
+                p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2)) &
+                    * wind_farm_t%turbine_t(s)%ind(l)
+            enddo              
 
-    !add this current value to the "running average" (first order relaxation)
-        if (p_u_d_flag) then
-            p_u_d_T = p_u_d
-            p_u_d_flag = 0
-        else
-            p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-        endif
-
-    !calculate total thrust force for each turbine  (per unit mass)
-    !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*Ct_prime*abs(p_u_d_T)*p_u_d_T/p_thk        
-
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-            if (s<4) then
-                a0 = jt_total*dt_dim
-                a1 = p_u_d
-                a2 = p_u_d_T
-                a3 = p_f_n
-            endif
-            if (s==1) then
-                call write_real_data('turbine1_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))  
-            elseif (s==2) then
-                call write_real_data('turbine2_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))          
-            elseif (s==3) then
-                call write_real_data('turbine3_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))    
-            endif
+        !write this value to the array (which will be sent to coord 0)
+            disk_avg_vels(s) = p_u_d
+            
+        enddo
+        
+    !send the disk-avg values to coord==0
+        if (USE_MPI .and. coord > 0) then
+        
+            !##############################################  send
+            !##############################################    
+            
         endif
         
-    !apply forcing to each node
+endif        
+
+!Coord==0 takes that info and calculates total disk force, then sends it back
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    
+    !read in disk-avg velocities from procs with turbine_in_proc==.true.
+
+        !##############################################  receive
+        !##############################################    
+        
+    !initialize forces to zero (new timestep) -- not too soon
+    fx = 0.
+    fy = 0.
+    fz = 0.        
+
+    !for each turbine:        
+        do s=1,nloc            
+             
+        !set pointers
+            p_u_d => wind_farm_t%turbine_t(s)%u_d   
+            p_u_d_T => wind_farm_t%turbine_t(s)%u_d_T   
+            p_u_d_flag => wind_farm_t%turbine_t(s)%u_d_flag
+            p_f_n => wind_farm_t%turbine_t(s)%f_n               
+            p_dia => wind_farm_t%turbine_t(s)%dia 
+            p_thk => wind_farm_t%turbine_t(s)%thk        
+        
+        !add velocities to p_u_d and do correction    
+               
+            !##############################################  depends on var names
+            ! add varname(s) to p_u_d
+            
+            !correction:
+            !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
+            p_u_d = p_u_d *dx*dy*dz/(pi/4.*(wind_farm_t%turbine_t(s)%dia)**2 * wind_farm_t%turbine_t(s)%thk)
+           
+        !add this current value to the "running average" (first order relaxation)
+            if (p_u_d_flag) then
+                p_u_d_T = p_u_d
+                p_u_d_flag = 0
+            else
+                p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
+            endif
+
+        !calculate total thrust force for each turbine  (per unit mass)
+        !force is normal to the surface (calc from u_d_T, normal to surface)
+            p_f_n = -0.5*Ct_prime*abs(p_u_d_T)*p_u_d_T/p_thk        
+
+                if (s<4) then
+                    a0 = jt_total*dt_dim
+                    a1 = p_u_d
+                    a2 = p_u_d_T
+                    a3 = p_f_n
+                endif
+                if (s==1) then
+                    call write_real_data('turbine1_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))  
+                elseif (s==2) then
+                    call write_real_data('turbine2_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))          
+                elseif (s==3) then
+                    call write_real_data('turbine3_forcing.dat', 'append', 'formatted', 4, (/a0,a1,a2,a3/))    
+                endif
+            
+            !write force to array that will be transferred via MPI    
+            disk_force(s) = p_f_n
+            
+        enddo
+       
+    !send total disk force to the necessary procs (with turbine_in_proc==.true.)
+            
+        !##############################################  send disk_force
+        !##############################################           
+        
+endif
+
+ 
+!apply forcing to each node
+if (turbine_in_proc == .true.) then
+
+    !read in disk force from coord==0
+    if (USE_MPI .and. coord > 0) then
+
+        !##############################################  receive disk_force
+        !##############################################    
+        
+    endif
+
+    do s=1,nloc
+    
+        !set pointers
+            p_num_nodes => wind_farm_t%turbine_t(s)%num_nodes
+            p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
+            p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
+            p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)    
+            
         do l=1,p_num_nodes
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
-            fx(i2,j2,k2) = p_f_n*p_nhat1*ind2                            
-            fy(i2,j2,k2) = p_f_n*p_nhat2*ind2   
-            !fz(i2,j2,k2) = p_f_n*p_nhat3*ind2   !<< different points than fx,fy... check this
-            fz(i2,j2,k2) = 0.5*p_f_n*p_nhat3*ind2
-            fz(i2,j2,k2+1) = 0.5*p_f_n*p_nhat3*ind2
+            fx(i2,j2,k2) = disk_force(s)*p_nhat1*ind2                            
+            fy(i2,j2,k2) = disk_force(s)*p_nhat2*ind2   
+            !fz(i2,j2,k2) = disk_force(s)*p_nhat3*ind2   !<< different points than fx,fy... check this
+            fz(i2,j2,k2) = 0.5*disk_force(s)*p_nhat3*ind2
+            fz(i2,j2,k2+1) = 0.5*disk_force(s)*p_nhat3*ind2
             
-            !if (s==1) then
-            !    a0 = jt_total*dt_dim
-            !    a4 = l
-            !    a5 = p_f_n*p_nhat1*ind2             
-            !endif
         enddo
 
     enddo
+    
+endif    
 	
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         if(.false.) then        !need to make this occur only at last time step
