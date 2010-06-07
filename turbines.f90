@@ -15,11 +15,11 @@ public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 integer :: nloc
 integer :: num_x,num_y
 real(rprec) :: height_all,dia_all,thk_all,theta1_all,theta2_all
-real(rprec) :: Ct_prime,Ct_noprime   					        !thrust coefficient
+real(rprec) :: Ct_prime,Ct_noprime   					    !thrust coefficient
 real(rprec) :: T_avg_dim
 real(rprec), dimension(nz_tot) :: z_tot
 
-character (64) :: fname0, fname, fname3, fname4, var_list
+character (64) :: fname0, fname, fname3, fname4, var_list, temp
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array    !used for visualizing node locations
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array_filtered
 
@@ -300,6 +300,7 @@ subroutine turbines_filter_ind()
 
 real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
 real(rprec), dimension(nx,ny,nz_tot) :: temp_array
+real(rprec), dimension(nx,ny,nz) :: temp_array_2
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
 
@@ -491,14 +492,14 @@ do b=1,nloc
         k_start = 2+coord*(nz-1)
         k_end = nz+coord*(nz-1)
     endif
-	do k=k_start,k_end      
+	do k=k_start,k_end  !global k     
 		do j=1,ny
 			do i=1,nx
 				if (out_a(i,j,k) > wind_farm_t%filter_cutoff) then
                     wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)		
 					wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
 					wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
-					wind_farm_t%turbine_t(b)%nodes(count_i,3) = k
+					wind_farm_t%turbine_t(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
                     count_n = count_n + 1
 					count_i = count_i + 1
 				endif
@@ -515,6 +516,25 @@ do b=1,nloc
     endif
 
 enddo
+
+    !Test to make sure domain is divided correctly:
+    if (.false.) then
+        temp_array_2 = 0.
+        do b=1,nloc
+        do l=1,wind_farm_t%turbine_t(b)%num_nodes
+            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
+            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
+            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)	
+            temp_array_2(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
+        enddo   
+        enddo
+        !write to file with .dat.c* extension
+            fname3 = 'nodes_filtered_c.dat'
+            write (temp, '(".c",i0)') coord
+            fname3 = trim (fname3) // temp
+            call write_tecplot_header_ND(fname3,'rewind', 4, (/nx+1,ny+1,nz/), '"x","y","z","nodes_filtered_c"', 1, 1)
+            call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 4, x, y, z(1:nz))      
+    endif
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     fname3 = 'nodes_filtered.dat'
