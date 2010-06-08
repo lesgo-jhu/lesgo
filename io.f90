@@ -2,7 +2,8 @@ module io
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
-use param, only : point_nloc, xplane_nloc, yplane_nloc, zplane_nloc               
+use param, only : point_nloc, xplane_nloc, yplane_nloc, zplane_nloc, &
+                  cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
 use messages
 use strmod
@@ -23,8 +24,6 @@ public write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_
 !!$ Region commented by JSG 
 !!$integer,parameter::base=2000,nwrite=base
 !!$
-logical, parameter :: cumulative_time = .true.
-character (*), parameter :: fcumulative_time = path // 'total_time.dat'
 
 character (*), parameter :: mod_name = 'io'
 !!$
@@ -2195,7 +2194,7 @@ $if($MPI)
 $else
 
 call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
-   '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
+   '"z", "<u>","<v>","<w>"', coord, 2)  
 call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
   (/ tavg_zplane_t % u, tavg_zplane_t % v, tavg_zplane_t % w /), 0, z(1:nz))
 
