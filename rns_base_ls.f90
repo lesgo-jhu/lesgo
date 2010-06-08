@@ -6,27 +6,20 @@ use param, only : ld, ny, nz
 implicit none
 
 save
-public
+private
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
+public reslv_elem_t, beta_elem_t, rbeta_elem_t
+
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
-logical, parameter :: clforce_calc = .true.
-integer, parameter :: clforce_nskip = 10
+!logical, parameter :: clforce_calc = .true.
+!integer, parameter :: clforce_nskip = 10
 
 integer, parameter :: CD_ramp_nstep = 1000
 
 logical, parameter :: use_beta_sub_regions = .true.
 logical, parameter :: use_single_beta_CD = .true.
-
-!logical, parameter :: constrain_kappa = .true.
-
-!logical, parameter :: brforce_calc = .false.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
@@ -70,6 +63,12 @@ type(primary_struct), pointer, dimension(:) :: rbeta_elem_t
 ! ---- Primary structures ----
 
 
+!type(indx_array), pointer, dimension(:) :: cl_indx_array_t
+!type(indx_array), pointer, dimension(:) :: beta_indx_array_t
+
+!type(ref_plane), pointer, dimension(:) :: cl_ref_plane_t 	! For resolved clusters only
+!type(ref_plane), pointer, dimension(:) :: rbeta_ref_plane_t 	! 
+!type(ref_plane), pointer, dimension(:) :: beta_ref_plane_t  ! For unresolved regions
 
 !type(force), pointer, dimension(:) :: brforce_t, clforce_t 	!  For resolved objects only
 !type(force), pointer, dimension(:) :: beta_force_t          ! For unresolved regions

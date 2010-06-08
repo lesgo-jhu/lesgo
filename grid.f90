@@ -7,10 +7,12 @@ implicit none
 save
 private
 public x, y, z, zw, grid_build, grid_built
+public autowrap_i, autowrap_j
 
 logical :: grid_built
 
 real(rprec), allocatable, dimension(:) :: x, y, z, zw
+integer, allocatable, dimension(:) :: autowrap_i, autowrap_j
 
 contains
 
@@ -43,6 +45,7 @@ $else
 $endif
 
 allocate(x(nx+1),y(ny+1),z($lbz:nz),zw($lbz:nz))
+allocate(autowrap_i(0:nx+1), autowrap_j(0:ny+1))
 
 do k=$lbz,nz
   $if ($MPI)
@@ -58,6 +61,14 @@ do i=1,nx+1
   x(i) = (i - 1)*dx
 enddo
 zw = z - dz/2._rprec
+
+! Set index autowrapping arrays
+autowrap_i(0) = nx
+autowrap_j(0) = ny
+autowrap_i(nx+1) = 1
+autowrap_j(ny+1) = 1
+do i=1,nx; autowrap_i(i) = i; enddo
+do j=1,ny; autowrap_j(j) = j; enddo
      
 grid_built = .true. 
 
