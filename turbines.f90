@@ -45,6 +45,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
+implicit none
 
 !##############################  SET BY USER  ############################################
 !set turbine parameters
@@ -170,7 +171,8 @@ end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_nodes(array)
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
-	
+implicit none
+
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
 real(rprec), dimension(nx,ny,nz_tot) :: array
 
@@ -178,8 +180,7 @@ real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_th
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
-logical :: verbose
-verbose = .false.
+logical :: verbose = .false.
 
 do s=1,nloc
     
@@ -304,6 +305,7 @@ subroutine turbines_filter_ind()
 !       1.smooth/filter indicator function                                  CHANGE IND
 !       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
+implicit none
 
 real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
 real(rprec), dimension(nx,ny,nz_tot) :: temp_array
@@ -311,8 +313,7 @@ real(rprec), dimension(nx,ny,nz) :: temp_array_2
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
 
-logical :: verbose
-verbose = .false.
+logical :: verbose = .false.
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
 	if(wind_farm_t%ifilter==0) then		!0-> none
@@ -572,7 +573,7 @@ if (rank == 0) then
         if (buffer_logical==.true.) then
             write (string3, '(i3)') i
             string3 = trim(adjustl(string3))       
-            print*,'I am coord 0 and coord= ',string3,' has turbine nodes'            
+            print*,'I am coord 0 and coord ',string3,' has turbine nodes'            
             turbine_in_proc_cnt = turbine_in_proc_cnt + 1
             turbine_in_proc_array(turbine_in_proc_cnt) = i
         endif
@@ -590,6 +591,8 @@ subroutine turbines_forcing()
 use sim_param, only: u,v,w
 use immersedbc, only: fx,fy,fz
 
+implicit none
+
 real(rprec), pointer :: p_u_d => null(), p_nhat1=> null(), p_nhat2=> null(), p_nhat3=> null()
 real(rprec), pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
 integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
@@ -597,7 +600,12 @@ integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 
-call interp_to_uv_grid(w, w_uv, w_uv_tag) 
+call interp_to_uv_grid(w, w_uv, w_uv_tag)
+!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& testing
+print*, 'I am coord ',coord,'and w_uv(1,1,0) is ',w_uv(1,1,0)
+print*, 'I am coord ',coord,'and w_uv(1,1,1) is ',w_uv(1,1,1)
+print*, 'I am coord ',coord,'and w_uv(1,1,nz-1) is ',w_uv(1,1,nz-1)
+print*, 'I am coord ',coord,'and w_uv(1,1,nz) is ',w_uv(1,1,nz)  
 disk_avg_vels = 0.
 
 !Each processor calculates the weighted disk-averaged velocity
@@ -653,12 +661,7 @@ if (USE_MPI) then
 endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-         
-    !initialize forces to zero (new timestep) -- not too soon
-    fx = 0.
-    fy = 0.
-    fz = 0.        
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then           
 
     !for each turbine:        
         do s=1,nloc            
@@ -705,27 +708,31 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
          
-        enddo
-    
-    !send total disk force to the necessary procs (with turbine_in_proc==.true.)
-        !############################################## 4
-        if (rank == 0) then
-      
-            do i=1,turbine_in_proc_cnt
-                j = turbine_in_proc_array(i)
-                call MPI_send( disk_force, nloc, MPI_rprec, j, 4, MPI_comm_world, ierr )                            
-            enddo              
-                    
-        elseif (turbine_in_proc == .true.) then
-            call MPI_recv( disk_force, nloc, MPI_rprec, 0, 4, MPI_comm_world, status, ierr )
-        endif            
-        !##############################################         
+        enddo    
         
 endif
 
+!send total disk force to the necessary procs (with turbine_in_proc==.true.)
+    !############################################## 4
+    if (rank == 0) then
+      
+        do i=1,turbine_in_proc_cnt
+            j = turbine_in_proc_array(i)
+            call MPI_send( disk_force, nloc, MPI_rprec, j, 4, MPI_comm_world, ierr )
+        enddo              
+                    
+    elseif (turbine_in_proc == .true.) then
+        call MPI_recv( disk_force, nloc, MPI_rprec, 0, 4, MPI_comm_world, status, ierr )
+    endif            
+    !##############################################     
  
 !apply forcing to each node
 if (turbine_in_proc == .true.) then
+
+    !initialize forces to zero (only local values?)
+    fx = 0.
+    fy = 0.
+    fz = 0.    
 
     do s=1,nloc
     
@@ -745,7 +752,6 @@ if (turbine_in_proc == .true.) then
             !fz(i2,j2,k2) = disk_force(s)*p_nhat3*ind2   !<< different points than fx,fy... check this
             fz(i2,j2,k2) = 0.5*disk_force(s)*p_nhat3*ind2
             fz(i2,j2,k2+1) = 0.5*disk_force(s)*p_nhat3*ind2
-            
         enddo
 
     enddo
@@ -758,7 +764,7 @@ end subroutine turbines_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize()
-
+implicit none
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
 !>>>>>>>>>>>> not yet called
