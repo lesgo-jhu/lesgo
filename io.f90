@@ -658,11 +658,7 @@ character(25) :: cl, ct
 character (64) :: fname, temp, var_list
 integer :: n, fid, i, j, k, nvars
 
-real(rprec), dimension(1,ny,nz) :: ui, vi, wi
-real(rprec), dimension(nx,1,nz) :: uj, vj, wj
-real(rprec), dimension(nx,ny,1) :: uk, vk, wk
-real(rprec), pointer, dimension(:) :: temp_loc
-allocate(temp_loc(1))
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 
 ! real(rprec) :: dnx, dny, dnz
 
@@ -772,10 +768,12 @@ elseif(itype==2) then
 !  Write instantaneous x-plane values
 elseif(itype==3) then
 
-!  Loop over all xplane locations
-  do j=1,xplane_nloc
+  allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
 
-    write(cl,'(F9.4)') xplane_loc(j)
+!  Loop over all xplane locations
+  do i=1,xplane_nloc
+
+    write(cl,'(F9.4)') xplane_loc(i)
     !  Convert total iteration time to string
     write(ct,*) jt_total
     write(fname,*) 'output/vel.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
@@ -787,32 +785,36 @@ elseif(itype==3) then
       fname = trim (fname) // temp
     $endif
 	
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny, Nz/), &
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
 	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
 	  	  
     do k=1,nz
-      do i=1,ny
+      do j=1,ny
 
-        ui(1,i,k) = linear_interp(u(xplane_istart(j),i,k), &
-          u(xplane_istart(j)+1,i,k), dx, xplane_ldiff(j))
-        vi(1,i,k) = linear_interp(v(xplane_istart(j),i,k), &
-          v(xplane_istart(j)+1,i,k), dx, xplane_ldiff(j))
-        wi(1,i,k) = linear_interp(w_uv(xplane_istart(j),i,k), &
-          w_uv(xplane_istart(j)+1,i,k), dx, &
-          xplane_ldiff(j))
+        ui(1,j,k) = linear_interp(u(xplane_istart(i),j,k), &
+          u(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i))
+        vi(1,j,k) = linear_interp(v(xplane_istart(i),j,k), &
+          v(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i))
+        wi(1,j,k) = linear_interp(w_uv(xplane_istart(i),j,k), &
+          w_uv(xplane_istart(i)+1,j,k), dx, &
+          xplane_ldiff(i))
       enddo
     enddo
 
-    temp_loc = xplane_loc(j)
-    call write_real_data_3D(fname, 'append', 'formatted', 3, 1,ny,nz, &
-    (/ ui, vi, wi /), 0, temp_loc , y, z(1:nz))      
+    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+    (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
+
     
-  enddo    
+  enddo   
+  
+  deallocate(ui,vi,wi)
 
   
 !  Write instantaneous y-plane values
 elseif(itype==4) then
-
+  
+  allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
+  
 !  Loop over all yplane locations
   do j=1,yplane_nloc
 
@@ -828,26 +830,25 @@ elseif(itype==4) then
       fname = trim (fname) // temp
     $endif
 	
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
 	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
 	  
     do k=1,nz
       do i=1,nx
 
-        uj(i,1,k) = linear_interp(u(i,yplane_istart(j),k), &
+        ui(i,1,k) = linear_interp(u(i,yplane_istart(j),k), &
           u(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
-        vj(i,1,k) = linear_interp(v(i,yplane_istart(j),k), &
+        vi(i,1,k) = linear_interp(v(i,yplane_istart(j),k), &
           v(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
-        wj(i,1,k) = linear_interp(w_uv(i,yplane_istart(j),k), &
+        wi(i,1,k) = linear_interp(w_uv(i,yplane_istart(j),k), &
           w_uv(i,yplane_istart(j)+1,k), dy, &
           yplane_ldiff(j))
           
       enddo
     enddo
     
-    temp_loc = yplane_loc(j)
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ uj, vj, wj /), 0, x, temp_loc, z(1:nz))    
+    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
   $if($LVLSET)
   $if($RNS_LS)
@@ -861,34 +862,37 @@ elseif(itype==4) then
       fname = trim (fname) // temp
     $endif
   
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, 1, Nz/), &
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
 	  '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
 	  
     do k=1,nz
       do i=1,nx
 
-        uj(i,1,k) = linear_interp(fx(i,yplane_istart(j),k), &
+        ui(i,1,k) = linear_interp(fx(i,yplane_istart(j),k), &
           fx(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
-        vj(i,1,k) = linear_interp(fy(i,yplane_istart(j),k), &
+        vi(i,1,k) = linear_interp(fy(i,yplane_istart(j),k), &
           fy(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
-        wj(i,1,k) = linear_interp(fz(i,yplane_istart(j),k), &
+        wi(i,1,k) = linear_interp(fz(i,yplane_istart(j),k), &
           fz(i,yplane_istart(j)+1,k), dy, &
           yplane_ldiff(j))
 
       enddo
     enddo
     
-    temp_loc = yplane_loc(j)
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ uj, vj, wj /), 0, x, temp_loc, z(1:nz))       
+    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
     $endif
     $endif
 
   enddo  
 
+  deallocate(ui,vi,wi)
+  
 !  Write instantaneous z-plane values
 elseif(itype==5) then
+
+  allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
 
 !  Loop over all zplane locations
   do k=1,zplane_nloc
@@ -903,26 +907,25 @@ elseif(itype==5) then
     write(fname,*) 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 	
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
 	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
 
     do j=1,Ny
       do i=1,Nx
 
-        uk(i,j,1) = linear_interp(u(i,j,zplane_istart(k)),u(i,j,zplane_istart(k)+1), &
+        ui(i,j,1) = linear_interp(u(i,j,zplane_istart(k)),u(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        vk(i,j,1) = linear_interp(v(i,j,zplane_istart(k)),v(i,j,zplane_istart(k)+1), &
+        vi(i,j,1) = linear_interp(v(i,j,zplane_istart(k)),v(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        wk(i,j,1) = linear_interp(w_uv(i,j,zplane_istart(k)), &
+        wi(i,j,1) = linear_interp(w_uv(i,j,zplane_istart(k)), &
           w_uv(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
 
       enddo
     enddo
 
-    temp_loc = zplane_loc(k)
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
-    (/ uk, vk, wk /), 0, x, y, temp_loc)        
+    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
     
     $if($LVLSET)
     $if($RNS_LS)
@@ -930,26 +933,25 @@ elseif(itype==5) then
     write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 	
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx, Ny, 1/), &
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
 	 '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)	  	 
 
     do j=1,Ny
       do i=1,Nx
 
-        uk(i,j,1) = linear_interp(fx(i,j,zplane_istart(k)),fx(i,j,zplane_istart(k)+1), &
+        ui(i,j,1) = linear_interp(fx(i,j,zplane_istart(k)),fx(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        vk(i,j,1) = linear_interp(fy(i,j,zplane_istart(k)),fy(i,j,zplane_istart(k)+1), &
+        vi(i,j,1) = linear_interp(fy(i,j,zplane_istart(k)),fy(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        wk(i,j,1) = linear_interp(fz(i,j,zplane_istart(k)), &
+        wi(i,j,1) = linear_interp(fz(i,j,zplane_istart(k)), &
           fz(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
 
       enddo
     enddo
  
-    temp_loc = zplane_loc(k)
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
-    (/ uk, vk, wk /), 0, x, y, temp_loc)     
+    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /) )      
     
     $endif
     $endif
@@ -959,6 +961,8 @@ elseif(itype==5) then
     $endif
 
   enddo  
+  
+  deallocate(ui,vi,wi)
 
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'
