@@ -153,7 +153,7 @@ $if ($MPI)
 if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 !  Sync all overlapping data
-call mpi_sync_real_array(var_uv)
+call mpi_sync_real_array( var_uv )
 
 $else
 
