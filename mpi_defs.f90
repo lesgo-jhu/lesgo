@@ -101,22 +101,22 @@ lbz=lbound(var,3); ubz=ubound(var,3)
 mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 
 !  ----- Need to get all overlapping values -----
-!if(coord < nproc - 1) then
-!  call mpi_send (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
-!  call mpi_recv (var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
-!endif
+if(coord < nproc - 1) then
+  call mpi_send (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
+  call mpi_recv (var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
+endif
 
-!if(coord > 0) then
-!  call mpi_recv(var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
-!  call mpi_send (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
-!endif
+if(coord > 0) then
+  call mpi_recv(var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
+  call mpi_send (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
+endif
 
-call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1,  &
-  var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1,   &
-  comm, status, ierr)
-call mpi_sendrecv (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2,  &
-  var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2,   &
-  comm, status, ierr)
+!call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1,  &
+!  var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1,   &
+!  comm, status, ierr)
+!call mpi_sendrecv (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2,  &
+!  var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2,   &
+!  comm, status, ierr)
 
 return
 
