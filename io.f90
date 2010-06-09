@@ -936,11 +936,11 @@ elseif(itype==5) then
     do j=1,Ny
       do i=1,Nx
 
-        uk(i,j) = linear_interp(fx(i,j,zplane_istart(k)),fx(i,j,zplane_istart(k)+1), &
+        uk(i,j,1) = linear_interp(fx(i,j,zplane_istart(k)),fx(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        vk(i,j) = linear_interp(fy(i,j,zplane_istart(k)),fy(i,j,zplane_istart(k)+1), &
+        vk(i,j,1) = linear_interp(fy(i,j,zplane_istart(k)),fy(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
-        wk(i,j) = linear_interp(fz(i,j,zplane_istart(k)), &
+        wk(i,j,1) = linear_interp(fz(i,j,zplane_istart(k)), &
           fz(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
 
