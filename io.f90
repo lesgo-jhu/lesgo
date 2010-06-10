@@ -110,6 +110,10 @@ subroutine interp_to_uv_grid(var,var_uv,tag)
 !  of the syncronous send/recv functions and certain processors waiting
 !  to recv data but it never gets there.
 !
+!  NOTE: It is assumed that the size of var and var_uv are the same as the
+!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
+!  nodes - no interpolation is performed for k=0 and k=nz
+!
 use types, only : rprec
 use param,only : nz,ld,jt
 use sim_param, only : w, dudz
@@ -139,7 +143,7 @@ lbx=lbound(var,1); ubx=ubound(var,1)
 lby=lbound(var,2); uby=ubound(var,2)
 lbz=lbound(var,3); ubz=ubound(var,3)
 
-do k=lbz,ubz-1
+do k=lbz+1,ubz-1
   do j=lby,uby
     do i=lbx,ubx
       var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
