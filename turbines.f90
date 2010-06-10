@@ -358,8 +358,8 @@ logical :: verbose = .false.
         if(.false.) then
           write(*,*) 'Convolution function'
           write(*,*) g
-        endif
-        write(*,*) 'integral of g(i,j,k): ',sumG
+          write(*,*) 'integral of g(i,j,k): ',sumG
+        endif       
     endif
 
 	!to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
@@ -600,12 +600,14 @@ integer, pointer :: p_u_d_flag=> null(), p_num_nodes=> null()
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 
-call interp_to_uv_grid(w, w_uv, w_uv_tag)
+!call interp_to_uv_grid(w, w_uv, w_uv_tag)
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& testing
-print*, 'I am coord ',coord,'and w_uv(1,1,0) is ',w_uv(1,1,0)
-print*, 'I am coord ',coord,'and w_uv(1,1,1) is ',w_uv(1,1,1)
-print*, 'I am coord ',coord,'and w_uv(1,1,nz-1) is ',w_uv(1,1,nz-1)
-print*, 'I am coord ',coord,'and w_uv(1,1,nz) is ',w_uv(1,1,nz)  
+!print*, 'I am coord ',coord,'and w_uv(1,1,0) is ',w_uv(1,1,0)
+!print*, 'I am coord ',coord,'and w_uv(1,1,1) is ',w_uv(1,1,1)
+!print*, 'I am coord ',coord,'and w_uv(1,1,nz-1) is ',w_uv(1,1,nz-1)
+!print*, 'I am coord ',coord,'and w_uv(1,1,nz) is ',w_uv(1,1,nz)  
+!in the following code, I changed "w_uv" to "w" (ok, for now)
+
 disk_avg_vels = 0.
 
 !Each processor calculates the weighted disk-averaged velocity
@@ -629,7 +631,7 @@ if (turbine_in_proc == .true.) then
                 i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
                 j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
                 k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
-                p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w_uv(i2,j2,k2)) &
+                p_u_d = p_u_d + (p_nhat1*u(i2,j2,k2) + p_nhat2*v(i2,j2,k2) + p_nhat3*w(i2,j2,k2)) &
                     * wind_farm_t%turbine_t(s)%ind(l)        
             enddo              
 
