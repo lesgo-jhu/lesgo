@@ -685,7 +685,7 @@ if(itype==1) then
     call write_real_data(point_fname(n), 'append', 'formatted', 4, (/ total_time, &
       trilinear_interp(u,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
       trilinear_interp(v,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
-      trilinear_interp(w,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)) /))	  
+      trilinear_interp(w_uv,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)) /))	  
 
 
     $if ($MPI)
