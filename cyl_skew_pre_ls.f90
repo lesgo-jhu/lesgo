@@ -882,8 +882,8 @@ do nb = 1, nbranch_p
   
 enddo
 
-a_p => br_t_p % a
-b_p => br_t_p % b
+a_p      => br_t_p % a
+b_p      => br_t_p % b
 angle2_p => br_t_p % angle
 
 !  Perform weighted integration over branch cluster
