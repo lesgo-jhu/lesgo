@@ -533,7 +533,7 @@ use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
 $if($MPI)
 use param, only : coord, nproc
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -638,7 +638,7 @@ deallocate(z_w)
 
 !  Now must sync all overlapping nodes
 $if ($MPI)
-call mpi_sync_real_array(gcs_t(:,:,:)%chi)
+call mpi_sync_real_array(gcs_t(:,:,:)%chi, MPI_SYNC_DOWNUP)
 $endif
 
 !  Ensure all pointers are nullified

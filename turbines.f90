@@ -591,7 +591,7 @@ subroutine turbines_forcing()
 use sim_param, only: u,v,w
 use immersedbc, only: fx,fy,fz
 $if ($MPI)
-    use mpi_defs, only: mpi_sync_real_array
+    use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -606,7 +606,7 @@ real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 integer :: w_uv_tag_turbines = -1
 
 $if ($MPI)
-call mpi_sync_real_array(w)     !syncing intermediate w-velocities!
+call mpi_sync_real_array(w, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
 
 call interp_to_uv_grid(w, w_uv, w_uv_tag_turbines)

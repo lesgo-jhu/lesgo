@@ -12,7 +12,7 @@ use scalars_module2,only:ic_scal ! added by VK
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
-  use mpi_defs, only : mpi_sync_real_array
+  use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -154,9 +154,9 @@ $if ($MPI)
   !                   w(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
   !                   comm, status, ierr)   
 
-  call mpi_sync_real_array( u )
-  call mpi_sync_real_array( v ) 
-  call mpi_sync_real_array( w ) 
+  call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
+  call mpi_sync_real_array( v, MPI_SYNC_DOWNUP ) 
+  call mpi_sync_real_array( w, MPI_SYNC_DOWNUP ) 
   
 $endif
 

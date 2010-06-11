@@ -569,7 +569,7 @@ use immersedbc, only : fx
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 use param, only : dx, dy, dz, coord, jt, USE_MPI
 
@@ -621,7 +621,8 @@ $if($MPI)
 !if(coord > 0) then
 !  call mpi_send (fx(:,:,1), ld*ny, MPI_RPREC, down, 1, comm, ierr)
 !endif
-call mpi_sync_real_array( fx )
+call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
+
 $endif
 
 return

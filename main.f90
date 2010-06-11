@@ -15,7 +15,7 @@ use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
 
 $if ($MPI)
-  use mpi_defs, only : initialize_mpi, mpi_sync_real_array
+  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
@@ -525,9 +525,9 @@ do jt=1,nsteps
     !call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
     !                   w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
     !                   comm, status, ierr)
-    call mpi_sync_real_array( u )
-    call mpi_sync_real_array( v )
-    call mpi_sync_real_array( w )
+    call mpi_sync_real_array( u, MPI_SYNC_UP )
+    call mpi_sync_real_array( v, MPI_SYNC_UP )
+    call mpi_sync_real_array( w, MPI_SYNC_UP )
 
   $endif
 

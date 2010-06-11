@@ -118,7 +118,7 @@ use types, only : rprec
 use param,only : nz,ld,jt
 use sim_param, only : w, dudz
 $if ($MPI)
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -157,7 +157,7 @@ $if ($MPI)
 if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 !  Sync all overlapping data
-call mpi_sync_real_array( var_uv )
+call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
 
 $else
 
@@ -1798,7 +1798,7 @@ use stat_defs, only : rs, rs_t, rs_zplane_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 use param, only : MPI_RPREC, rank_of_coord, comm, ierr
 use stat_defs, only : rs_zplane_buf_t, rs_zplane_tot_t
 use stat_defs, only : tavg_zplane_buf_t, tavg_zplane_tot_t
@@ -2169,12 +2169,12 @@ $endif
 
 $if ($MPI)
 !  Sync data across all nodes for a subset of varibles which contain bogus initialization
-!call mpi_sync_real_array(  tavg_t % txx )
-!call mpi_sync_real_array(  tavg_t % txy )
-!call mpi_sync_real_array(  tavg_t % tyy )
-!call mpi_sync_real_array(  tavg_t % txz )
-!call mpi_sync_real_array(  tavg_t % tyz )
-!call mpi_sync_real_array(  tavg_t % tzz )
+!call mpi_sync_real_array(  tavg_t % txx, MPI_SYNC_DOWNUP )
+!call mpi_sync_real_array(  tavg_t % txy, MPI_SYNC_DOWNUP )
+!call mpi_sync_real_array(  tavg_t % tyy, MPI_SYNC_DOWNUP )
+!call mpi_sync_real_array(  tavg_t % txz, MPI_SYNC_DOWNUP )
+!call mpi_sync_real_array(  tavg_t % tyz, MPI_SYNC_DOWNUP )
+!call mpi_sync_real_array(  tavg_t % tzz, MPI_SYNC_DOWNUP )
 $endif
 
 ! ----- Write all the 3D data -----
