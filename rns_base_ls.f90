@@ -57,7 +57,7 @@ end type child_elem
 
 ! ---- Primary structures ----
 type primary_struct_type_1
-  type(ref_plane)   :: ref_plane_t
+  type(ref_region)   :: ref_region_t
   type(force)       :: force_t
   type(indx_array)  :: indx_array_t
 end type primary_struct_type_1
