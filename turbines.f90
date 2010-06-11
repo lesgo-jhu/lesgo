@@ -605,7 +605,10 @@ real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 
 integer :: w_uv_tag_turbines = -1
 
+$if ($MPI)
 call mpi_sync_real_array(w)     !syncing intermediate w-velocities!
+$endif
+
 call interp_to_uv_grid(w, w_uv, w_uv_tag_turbines)
 
 disk_avg_vels = 0.
