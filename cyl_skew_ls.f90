@@ -10,7 +10,7 @@ save
 private
 
 !public :: cyl_skew_init_ls, cyl_skew_CD_ls
-public :: cyl_skew_fill_tree_array_ls
+public :: fill_tree_array_ls
 
 character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 
@@ -256,7 +256,7 @@ contains
 !end subroutine cyl_skew_CD_ls
 
 !**********************************************************************
-subroutine cyl_skew_fill_tree_array_ls()
+subroutine fill_tree_array_ls()
 !**********************************************************************
 !
 !  This subroutine sets all values for the tree struct - tr_t; it also
@@ -641,7 +641,7 @@ endif
       
 
 return
-end subroutine cyl_skew_fill_tree_array_ls
+end subroutine fill_tree_array_ls
 
 !!**********************************************************************
 !subroutine cyl_skew_branch_id_ls( indx_based , indx,  branch_id)

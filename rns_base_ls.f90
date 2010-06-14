@@ -10,6 +10,15 @@ private
 
 public r_elem_t, beta_elem_t, b_elem_t
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
@@ -51,17 +60,18 @@ type child_elem
   integer :: nelem
   integer, pointer, dimension(:) :: iarray
 end type child_elem
+
 ! ---- Secondary structures ----
 
 ! ---- Primary structures ----
 type primary_struct_type_1
-  type(ref_region)   :: ref_region_t
+  type(ref_region)  :: ref_region_t
   type(force)       :: force_t
   type(indx_array)  :: indx_array_t
 end type primary_struct_type_1
 
 type primary_struct_type_2
-  type(ref_region)   :: ref_region_t
+  type(ref_region)  :: ref_region_t
   type(force)       :: force_t
   type(indx_array)  :: indx_array_t
   type(child_elem)  :: r_child_t
@@ -73,10 +83,12 @@ type(primary_struct_type_1), pointer, dimension(:) :: beta_elem_t
 type(primary_struct_type_2), pointer, dimension(:) :: b_elem_t
 ! ---- Primary structures ----
 
-integer, pointer, dimension(:) :: reslv_to_rbeta_map
-integer, pointer, dimension(:) :: beta_to_rbeta_map
+!integer, pointer, dimension(:) :: reslv_to_rbeta_map
+!integer, pointer, dimension(:) :: beta_to_rbeta_map
 
 real (rprec) :: chi(ld, ny, $lbz:nz)
 logical :: chi_initialized = .false.
+
+integer :: nr_elem, nbeta_elem, nb_elem
 
 end module rns_base_ls

@@ -25,13 +25,10 @@ integer, parameter :: rns_ntree = 2 ! Number of unique trees
 integer, parameter :: rns_tree_layout = 1
 
 integer :: ncluster_reslv ! total number of resolved clusters
-integer :: nbeta ! number of total beta regions
-integer :: nrbeta ! number of 
+integer :: ncluster_tot
 
-integer, pointer, dimension(:) :: rns_reslv_cl_iarray
-integer, pointer, dimension(:) :: rns_beta_iarray
-integer, pointer, dimension(:) :: rns_b_iarray
-integer, pointer, dimension(:) :: rns_tree_iarray(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+integer, pointer, dimension(:) :: r_elem_to_cl_map
+integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
 contains
 
@@ -63,135 +60,144 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
 endif
 
+if ( rns_ntree > ntree ) call error ( sub_name, 'rns_ntree > ntree ')
+
+!----- Load Data -----
 ! Load clindx
 call clindx_init()
 ! Load filtered indicator function (chi)
 call chi_init()
+!----- Load Data -----
 
+!----- Fill CYL_SKEW Data Structures -----
+!  Fill the cyl_skew tree array
 call fill_tree_array_ls()
-
-if ( rns_ntree > ntree ) call error ( sub_name, 'rns_ntree > ntree ')
-
-call fill_rns_tree_iarray()
-
+!  Get the number of resolved clusters 
 call set_ncluster_reslv()
+!  Get the total number of clusters
 call set_ncluster_tot()
+!----- Fill CYL_SKEW Data Structures -----
 
-call fill_rns_reslv_cl_iarray()
+!----- Fill RNS_CYL_SKEW Data Structures -----
+!  Fill the mapping for the rns trees
+call fill_rns_tree_map()
+!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
+call fill_r_elem_to_cl_map()
+!----- Fill RNS_CYL_SKEW Data Structures -----
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) 'ncluster_reslv : ', ncluster_reslv
 endif
 
-!  Set the number of beta regions
-allocate( rns_beta_iarray( ncluster_tot ) ) 
-allocate( rns_rbeta_iarray( ncluster_tot ) )
-  
-rns_beta_iarray = -1
-rns_rbeta_iarray = -1
+!!  Set the number of beta regions
+!allocate( rns_beta_iarray( ncluster_tot ) ) 
+!allocate( rns_rbeta_iarray( ncluster_tot ) )
+!  
+!rns_beta_iarray = -1
+!rns_rbeta_iarray = -1
 
-nbeta = 0
-nrbeta = 0
-do nt = 1, rns_ntree
+!nbeta = 0
+!nrbeta = 0
+!do nt = 1, rns_ntree
 
-  ng_beta = tr_t(rns_tree_iarray(nt)) % ngen_reslv + 1
-  ng_rbeta = ng_beta - 1
-    
-  nbeta = nbeta + tr_t(rns_tree_iarray(nt)) % gen_t(ng_beta) % ncluster
-  nrbeta = nrbeta + tr_t(rns_tree_iarray(nt)) % gen_t(ng_rbeta) % ncluster
-  
-enddo
-  
-!  Assign rns_rbeta_iarray; for a given cluster at gen=g it returns the
-!  the unique rns rbeta id
-irb = 0
-do nt = 1, rns_ntree
-  
-  tr_t_p => tr_t( rns_tree_iarray( nt ) ) 
-   
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-    
-  do nc = 1, gen_t_p % ncluster ! number of clusters in the g generation
-    
-    irb = irb + 1
-      
-    clindx_p => gen_t_p % cl_t(nc) % indx
-      
-    !  So clindx_p corresponds to ib
-    rns_rbeta_iarray(clindx_p) = irb
-      
-    nullify(clindx_p)
-    
-  enddo
-    
-  nullify(gen_t_p, tr_t_p)    
-    
-enddo
-  
-!  Assign rns_beta_iarray; for a given cluster at gen=g it returns the
-!  the unique rns beta id  
-ib=0  
-do nt = 1,rns_ntree
-    
-  tr_t_p => tr_t( rns_tree_iarray( nt ) ) 
-    
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
-    
-  do nc = 1, gen_t_p % ncluster ! number of clusters in the g+1 generation
-    
-    ib = ib + 1
-      
-    clindx_p => gen_t_p % cl_t(nc) % indx
-      
-    !  So clindx_p corresponds to ib
-    rns_beta_iarray(clindx_p) = ib
-      
-    nullify(clindx_p)
-    
-  enddo
-    
-  nullify(gen_t_p)
-    
-  !  Now set the beta id for all of the descendant clusters
-  do ng = tr_t_p % ngen_reslv + 2, tr_t_p % ngen
-    
-    iparent = 0
-      
-    gen_t_p => tr_t_p % gen_t ( ng ) ! point to the current generation
-      
-    do nc = 1, gen_t_p % ncluster ! loop over all clusters of gen_t_p
-      
-      clindx_p => gen_t_p % cl_t(nc) % indx
-      iparent = gen_t_p % cl_t(nc) % parent
-        
-      ng_parent = ng - 1
-        
-      do while ( ng_parent > tr_t_p % ngen_reslv + 1)
-        
-        cl_loc_id_p => clindx_to_loc_id(:,iparent)
-          
-        iparent = tr_t(rns_tree_iarray(cl_loc_id_p(1))) % gen_t (cl_loc_id_p(2)) % &
-          cl_t(cl_loc_id_p(3)) % parent
-          
-        ng_parent = cl_loc_id_p(2) - 1
-          
-        nullify(cl_loc_id_p)
-          
-      enddo
-        
-      rns_beta_iarray(clindx_p) = rns_beta_iarray(iparent) ! rns_beta_iarray(iparent) is set from above
+!  ng_beta = tr_t(rns_tree_iarray(nt)) % ngen_reslv + 1
+!  ng_rbeta = ng_beta - 1
+!    
+!  nbeta = nbeta + tr_t(rns_tree_iarray(nt)) % gen_t(ng_beta) % ncluster
+!  nrbeta = nrbeta + tr_t(rns_tree_iarray(nt)) % gen_t(ng_rbeta) % ncluster
+!  
+!enddo
+!  
+!!  Assign rns_rbeta_iarray; for a given cluster at gen=g it returns the
+!!  the unique rns rbeta id
+!irb = 0
+!do nt = 1, rns_ntree
+!  
+!  tr_t_p => tr_t( rns_tree_iarray( nt ) ) 
+!   
+!  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
+!    
+!  do nc = 1, gen_t_p % ncluster ! number of clusters in the g generation
+!    
+!    irb = irb + 1
+!      
+!    clindx_p => gen_t_p % cl_t(nc) % indx
+!      
+!    !  So clindx_p corresponds to ib
+!    rns_rbeta_iarray(clindx_p) = irb
+!      
+!    nullify(clindx_p)
+!    
+!  enddo
+!    
+!  nullify(gen_t_p, tr_t_p)    
+!    
+!enddo
+!  
+!!  Assign rns_beta_iarray; for a given cluster at gen=g it returns the
+!!  the unique rns beta id  
+!ib=0  
+!do nt = 1,rns_ntree
+!    
+!  tr_t_p => tr_t( rns_tree_iarray( nt ) ) 
+!    
+!  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
+!    
+!  do nc = 1, gen_t_p % ncluster ! number of clusters in the g+1 generation
+!    
+!    ib = ib + 1
+!      
+!    clindx_p => gen_t_p % cl_t(nc) % indx
+!      
+!    !  So clindx_p corresponds to ib
+!    rns_beta_iarray(clindx_p) = ib
+!      
+!    nullify(clindx_p)
+!    
+!  enddo
+!    
+!  nullify(gen_t_p)
+!    
+!  !  Now set the beta id for all of the descendant clusters
+!  do ng = tr_t_p % ngen_reslv + 2, tr_t_p % ngen
+!    
+!    iparent = 0
+!      
+!    gen_t_p => tr_t_p % gen_t ( ng ) ! point to the current generation
+!      
+!    do nc = 1, gen_t_p % ncluster ! loop over all clusters of gen_t_p
+!      
+!      clindx_p => gen_t_p % cl_t(nc) % indx
+!      iparent = gen_t_p % cl_t(nc) % parent
+!        
+!      ng_parent = ng - 1
+!        
+!      do while ( ng_parent > tr_t_p % ngen_reslv + 1)
+!        
+!        cl_loc_id_p => clindx_to_loc_id(:,iparent)
+!          
+!        iparent = tr_t(rns_tree_iarray(cl_loc_id_p(1))) % gen_t (cl_loc_id_p(2)) % &
+!          cl_t(cl_loc_id_p(3)) % parent
+!          
+!        ng_parent = cl_loc_id_p(2) - 1
+!          
+!        nullify(cl_loc_id_p)
+!          
+!      enddo
+!        
+!      rns_beta_iarray(clindx_p) = rns_beta_iarray(iparent) ! rns_beta_iarray(iparent) is set from above
 
-      nullify(clindx_p)
-        
-    enddo
-      
-    nullify(gen_t_p)
-      
-  enddo
-    
-  nullify(tr_t_p)
-    
-enddo
+!      nullify(clindx_p)
+!        
+!    enddo
+!      
+!    nullify(gen_t_p)
+!      
+!  enddo
+!    
+!  nullify(tr_t_p)
+!    
+!enddo
 
 !call rns_fill_ref_plane_array_ls()
 !  Create cluster index array
@@ -962,21 +968,21 @@ chi_initialized = .true.
 end subroutine chi_init
 
 !**********************************************************************
-subroutine fill_rns_tree_iarray ()
+subroutine fill_rns_tree_map ()
 !**********************************************************************
 implicit none
 !  this is used to map the brindx to correct rns tree
-allocate( rns_tree_iarray( ntree ) )
+allocate( rns_tree_map( ntree ) )
 
-!  Assign rns_tree_iarray layout
+!  Assign rns_tree_map layout
 if(rns_tree_layout == 1) then 
 
   do nt = 1, ntree
   
     if( nt < rns_ntree ) then
-        rns_tree_iarray( nt ) = nt
+        rns_tree_map( nt ) = nt
     else
-        rns_tree_iarray(nt) = rns_ntree
+        rns_tree_map(nt) = rns_ntree
     endif
     
   enddo
@@ -989,7 +995,7 @@ endif
 
 return
 
-end subroutine fill_rns_tree_iarray
+end subroutine fill_rns_tree_map
 
 !**********************************************************************
 subroutine set_ncluster_relsv ()
@@ -998,9 +1004,9 @@ implicit none
 !  Get the number of resolved clusters 
 ncluster_reslv = 0
 do nt = 1, rns_ntree
-  do ng = 1, tr_t(rns_tree_iarray(nt)) % ngen
-    do nc = 1, tr_t(rns_tree_iarray(nt)) % gen_t(ng) % ncluster 
-      if(ng <= tr_t(rns_tree_iarray(nt)) % ngen_reslv) ncluster_reslv = ncluster_reslv + 1   
+  do ng = 1, tr_t(nt) % ngen
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
+      if(ng <= tr_t(nt) % ngen_reslv) ncluster_reslv = ncluster_reslv + 1   
     enddo    
   enddo
 enddo
@@ -1016,8 +1022,8 @@ implicit none
 !  Get the total number of clusters 
 ncluster_tot = 0
 do nt = 1, ntree
-  do ng = 1, tr_t(rns_tree_iarray(nt)) % ngen
-    do nc = 1, tr_t(rns_tree_iarray(nt)) % gen_t(ng) % ncluster 
+  do ng = 1, tr_t(nt) % ngen
+    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
       ncluster_tot = ncluster_tot + 1   
     enddo    
   enddo
@@ -1027,29 +1033,58 @@ return
 end subroutine set_ncluster_tot
 
 !**********************************************************************
-subroutine fill_rns_reslv_cl_iarray()
+subroutine fill_r_elem_to_cl_map()
 !**********************************************************************
+use cyl_skew_base_ls, only : tree, generation, tr_t, ntree, clindx_to_loc_id
 implicit none
+
+type(tree), pointer :: tr_t_p
+type(generation), pointer :: gen_t_p
+
+integer :: ncount
+
+!  Nullify all pointers
+nullify(tr_t_p, gen_t_p)
+
 !  Each resolved cluster recieves a unique id
-allocate( rns_reslv_cl_iarray( ncluster_tot ) )
-rns_reslv_cl_iarray = -1
+allocate( r_elem_to_cl_map( ncluster_reslv ) )
+r_elem_to_cl_map = -1
 
 ncount=0
-if(coord == 0) write(*,*) 'Setting rns_reslv_cl_iarray'
+if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
+
 do nt = 1, rns_ntree
-  do ng = 1, tr_t(nt) % ngen_reslv
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-      if(coord == 0) write(*,'(a,3i)') 'nt, ng, nc : ', nt, ng, nc
-      ncount = ncount + 1
-      rns_reslv_cl_iarray( tr_t(nt) % gen_t (ng) % cl_t (nc) %indx ) = ncount 
-      if(coord == 0) then
-        write(*,'(1a,5i4)') 'nt, ng, nc, tr_t_indx, rns_reslv_cl_indx : ', nt, ng, nc, tr_t(nt) % gen_t (ng) % cl_t (nc) %indx, ncount
+
+  !  Point to rns mapped tree
+  tr_t_p => tr_t( rns_tree_map( nt ) )
+  
+  do ng = 1, tr_t_p % ngen_reslv
+  
+    gen_t_p => tr_t_p % gen_t( ng )
+	
+    do nc = 1, gen_t_p % ncluster 
+	
+      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
+    
+	  ncount = ncount + 1
+      
+	  r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
+      
+	  if(coord == 0) then
+        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
       endif
-    enddo    
+    
+	enddo    
+	
+	nullify(gen_t_p)
+	
   enddo
+  
+  nullify(tr_t_p)
+  
 enddo
 
 return
-end subroutine fill_rns_reslv_cl_iarray
+end subroutine fill_r_elem_to_cl_map
 
 end module rns_cyl_skew_ls
