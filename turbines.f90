@@ -174,7 +174,7 @@ implicit none
                 close (1)
             else  
                 write (*, *) 'File ', fname4, ' not found'
-                write (*, *) 'Assuming u_d_T = -7 for all turbines'
+                write (*, *) 'Assuming u_d_T = -7. for all turbines'
                 do k=1,nloc
                     wind_farm_t%turbine_t(k)%u_d_T = -7.
                 enddo
@@ -841,7 +841,7 @@ use bottombc, only: zo_avg
 implicit none
 
 real(rprec), intent(inout) :: zo_high
-real(rprec) :: sx,sy,cft,nu_w,exp_KE
+real(rprec) :: cft,nu_w,exp_KE
 
 !friction coefficient, cft
     cft = pi*Ct_noprime/(4.*sx*sy)
