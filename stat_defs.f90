@@ -31,7 +31,6 @@ $if ($TURBINES)
     integer, dimension(6) :: nodes_max          !search area for nearby nodes
 		real(rprec) :: u_d, u_d_T                   !running time-average of mean disk velocity
     real(rprec) :: f_n                          !normal force on turbine disk
-    integer :: u_d_flag
 		real(rprec), dimension(1500) :: ind                !indicator function - weighting of each node
 	end type turbine
 
