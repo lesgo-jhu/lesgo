@@ -7,6 +7,7 @@ use param, only : point_nloc, xplane_nloc, yplane_nloc, zplane_nloc, &
 use sim_param, only : w, dudz, dvdz
 use messages
 use strmod
+use sgsmodule,only:Cs_opt2
 
 implicit none
 
@@ -605,6 +606,8 @@ tavg_t % fx = tavg_t % fx * tavg_total_time
 tavg_t % fy = tavg_t % fy * tavg_total_time
 tavg_t % fz = tavg_t % fz * tavg_total_time
 
+tavg_t % cs_opt2 = tavg_t % cs_opt2 * tavg_total_time
+
 tavg_zplane_t % u = tavg_zplane_t % u * tavg_total_time
 tavg_zplane_t % v = tavg_zplane_t % v * tavg_total_time
 tavg_zplane_t % w = tavg_zplane_t % w * tavg_total_time
@@ -627,6 +630,8 @@ tavg_zplane_t % tzz = tavg_zplane_t % tzz * tavg_total_time
 tavg_zplane_t % fx = tavg_zplane_t % fx * tavg_total_time
 tavg_zplane_t % fy = tavg_zplane_t % fy * tavg_total_time
 tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
+
+tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 * tavg_total_time
 
 tavg_total_time = tavg_total_time + dble(tavg_nend - tavg_nstart + 1) * dt
 
@@ -1808,9 +1813,9 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
 character (64) :: temp
 character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
-  fname_tau, fname_f, fname_rs
+  fname_tau, fname_f, fname_rs, fname_cs
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
-  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane
+  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane, fname_cs_zplane
 
 integer :: i,j,k
 
@@ -1887,6 +1892,8 @@ elseif(coord == nproc - 1) then
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
   
+  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
+  
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
   tavg_zplane_t(nz) % fz = 0._rprec
@@ -1897,6 +1904,8 @@ elseif(coord == nproc - 1) then
   tavg_zplane_t(nz) % txz = 0._rprec
   tavg_zplane_t(nz) % tyz = 0._rprec
   tavg_zplane_t(nz) % tzz = 0._rprec
+  
+  tavg_zplane_t(nz) % cs_opt2 = 0._rprec
   
 endif
 
@@ -1914,6 +1923,8 @@ $else
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
   
+  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
+  
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
   tavg_zplane_t(nz) % fz = 0._rprec
@@ -1924,6 +1935,8 @@ $else
   tavg_zplane_t(nz) % txz = 0._rprec
   tavg_zplane_t(nz) % tyz = 0._rprec
   tavg_zplane_t(nz) % tzz = 0._rprec
+  
+  tavg_zplane_t(nz) % cs_opt2 = 0._rprec
 
 $endif
 ! All processors need not do this
@@ -1936,6 +1949,7 @@ fname_ddz = 'output/ddz_avg.dat'
 fname_tau = 'output/tau_avg.dat'
 fname_f = 'output/force_avg.dat'
 fname_rs = 'output/rs.dat'
+fname_cs = 'output/cs_opt2.dat'
 
 fname_vel_zplane = 'output/vel_zplane_avg.dat'
 fname_vel2_zplane = 'output/vel2_zplane_avg.dat'
@@ -1943,6 +1957,7 @@ fname_ddz_zplane = 'output/ddz_zplane_avg.dat'
 fname_tau_zplane = 'output/tau_zplane_avg.dat'
 fname_f_zplane = 'output/force_zplane_avg.dat'
 fname_rs_zplane = 'output/rs_zplane.dat'
+fname_cs_zplane = 'output/cs_opt2_zplane.dat'
 
 $if ($MPI)
 !  For MPI implementation     
@@ -1955,6 +1970,7 @@ $if ($MPI)
   fname_tau = trim (fname_tau) // temp
   fname_f = trim (fname_f) // temp
   fname_rs = trim (fname_rs) // temp
+  fname_cs = trim (fname_cs) // temp
    
 $endif
 
@@ -1982,6 +1998,8 @@ tavg_t % fx = tavg_t % fx / tavg_total_time
 tavg_t % fy = tavg_t % fy / tavg_total_time
 tavg_t % fz = tavg_t % fz / tavg_total_time
 
+tavg_t % cs_opt2 = tavg_t % cs_opt2 / tavg_total_time
+
 !  Average zplane values
 tavg_zplane_t % u = tavg_zplane_t % u / tavg_total_time
 tavg_zplane_t % v = tavg_zplane_t % v / tavg_total_time
@@ -2005,6 +2023,8 @@ tavg_zplane_t % tzz = tavg_zplane_t % tzz / tavg_total_time
 tavg_zplane_t % fx = tavg_zplane_t % fx / tavg_total_time
 tavg_zplane_t % fy = tavg_zplane_t % fy / tavg_total_time
 tavg_zplane_t % fz = tavg_zplane_t % fz / tavg_total_time
+
+tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 / tavg_total_time
 
 !  Compute the Reynolds Stresses
 do k = 1, nz
@@ -2124,6 +2144,11 @@ $if($MPI)
       (/ rs_zplane_tot_t % up2, rs_zplane_tot_t%vp2, rs_zplane_tot_t%wp2, &
       rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), 0, z_tot)    
  
+    call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz_tot/), &
+      '"z", "<cs>"', coord, 2)
+    call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
+      (/ tavg_zplane_tot_t % cs_opt2 /), 0, z_tot)        
+      
     deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
     deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
     deallocate(z_tot, gather_coord)
@@ -2165,6 +2190,11 @@ call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
   (/ rs_zplane_t % up2, rs_zplane_t%vp2, rs_zplane_t%wp2, &
   rs_zplane_t%upwp, rs_zplane_t%vpwp, rs_zplane_t%upvp /), 0, z(1:nz))
 
+call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz/), &
+   '"z", "<cs>"', coord, 2)
+call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
+  (/ tavg_zplane_t % cs_opt2 /), 0, z(1:nz))    
+  
 $endif
 
 $if ($MPI)
@@ -2212,7 +2242,13 @@ call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
 call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
   (/ rs_t % up2, rs_t%vp2, rs_t%wp2, rs_t%upwp, rs_t%vpwp, rs_t%upvp /), &
-  4, x, y, z(1:nz))   
+  4, x, y, z(1:nz))  
+  
+call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<cs>"', coord, 2)
+call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
+  (/ tavg_t % cs_opt2 /), &
+  4, x, y, z(1:nz))    
 
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t)
 
@@ -2870,13 +2906,13 @@ if(tavg_calc) then
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec)
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
     
   tavg_zplane_t(:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
     0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec)
+    0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
   
   
 endif
@@ -3067,9 +3103,11 @@ do k=1,nz
   tavg_zplane_t(k)%fy = tavg_zplane_t(k)%fy + fa * sum(fy(1:nx,1:ny,k))
   tavg_zplane_t(k)%fz = tavg_zplane_t(k)%fz + fa * sum(fz(1:nx,1:ny,k)) 
   
+  tavg_zplane_t(k)%cs_opt2 = tavg_zplane_t(k)%cs_opt2 + fa * sum(Cs_opt2(1:nx,1:ny,k)) 
+  
   do j=1,ny
     do i=1,nx
-      
+   
       !  Being cache friendly
       u_p = u(i,j,k)
       v_p = v(i,j,k) 
@@ -3100,6 +3138,7 @@ do k=1,nz
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + fy(i,j,k) * dt 
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + fz(i,j,k) * dt 
  
+      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt 
       
     enddo
   enddo
