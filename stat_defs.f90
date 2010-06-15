@@ -37,8 +37,8 @@ $if ($TURBINES)
 	type wind_farm
 		integer ::ifilter                           !Filter type: 2->Gaussian
 		real(rprec) :: alpha                        !filter size is alpha*(grid spacing)
-    integer :: trunc                            !truncated - # grid points to include in each dir.
-    real(rprec) :: filter_cutoff                !ind only includes values above this cutoff
+        integer :: trunc                            !truncated - # grid points to include in each dir.
+        real(rprec) :: filter_cutoff                !ind only includes values above this cutoff
 		type(turbine), pointer, dimension(:) :: turbine_t
 	end type wind_farm	
     
