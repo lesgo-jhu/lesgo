@@ -18,6 +18,7 @@ type tavg
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, txy, tyy, txz, tyz, tzz
   real(rprec) :: fx, fy, fz
+  real(rprec) :: cs_opt2
 end type tavg
 
 $if ($TURBINES)
