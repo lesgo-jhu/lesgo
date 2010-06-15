@@ -157,28 +157,34 @@ implicit none
 !set variables for time-averaging velocity 
     eps = dt_dim/T_avg_dim / (1. + dt_dim/T_avg_dim)
     
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-        fname4 = 'turbine_u_d_T.dat'
-        inquire (file=fname4, exist=exst)
-        if (exst) then
-            write(*,*) 'Reading from file turbine_u_d_T.dat'
-            open (1, file=fname4)
-            do i=1,nloc
-                read(1,*) wind_farm_t%turbine_t(i)%u_d_T    
-            enddo    
-            read(1,*) T_avg_dim_file
-            if (T_avg_dim_file /= T_avg_dim) then
-                write(*,*) 'Time-averaging window does not match value in turbine_u_d_T.dat'
-            endif
-            close (1)
-        else  
-            write (*, *) 'file ', fname4, ' not found'
-            write (*, *) 'assuming u_d_T = -7 for all turbines'
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%u_d_T = -7.
-            enddo
-        end if            
-        
+    if (cumulative_time) then
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            fname4 = 'turbine_u_d_T.dat'
+            inquire (file=fname4, exist=exst)
+            if (exst) then
+                write(*,*) 'Reading from file turbine_u_d_T.dat'
+                open (1, file=fname4)
+                do i=1,nloc
+                    read(1,*) wind_farm_t%turbine_t(i)%u_d_T    
+                enddo    
+                read(1,*) T_avg_dim_file
+                if (T_avg_dim_file /= T_avg_dim) then
+                    write(*,*) 'Time-averaging window does not match value in turbine_u_d_T.dat'
+                endif
+                close (1)
+            else  
+                write (*, *) 'File ', fname4, ' not found'
+                write (*, *) 'Assuming u_d_T = -7 for all turbines'
+                do k=1,nloc
+                    wind_farm_t%turbine_t(k)%u_d_T = -7.
+                enddo
+            end if                 
+        endif
+    else
+        write (*, *) 'Assuming u_d_T = -7 for all turbines'
+        do k=1,nloc
+            wind_farm_t%turbine_t(k)%u_d_T = -7.
+        enddo    
     endif
     
 !create files to store turbine forcing data
