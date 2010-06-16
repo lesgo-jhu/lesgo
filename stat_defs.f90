@@ -52,13 +52,5 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_t
 type(rs), pointer, dimension(:,:,:) :: rs_t
 type(rs), pointer, dimension(:) :: rs_zplane_t
 
-$if($MPI)
-type(rs), pointer, dimension(:) :: rs_zplane_tot_t
-type(rs), pointer, dimension(:) :: rs_zplane_buf_t
-
-type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
-type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
-$endif
-
 end module stat_defs
 

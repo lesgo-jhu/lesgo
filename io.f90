@@ -1805,8 +1805,7 @@ $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 use param, only : MPI_RPREC, rank_of_coord, comm, ierr
-use stat_defs, only : rs_zplane_buf_t, rs_zplane_tot_t
-use stat_defs, only : tavg_zplane_buf_t, tavg_zplane_tot_t
+use stat_defs, only : rs, tavg
 $endif
 implicit none
 
@@ -1827,6 +1826,12 @@ integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 
 integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
 integer, allocatable, dimension(:) :: gather_coord
+
+type(rs), pointer, dimension(:) :: rs_zplane_tot_t
+type(rs), pointer, dimension(:) :: rs_zplane_buf_t
+
+type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
 $endif
 
 logical :: opn
