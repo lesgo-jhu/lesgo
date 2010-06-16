@@ -27,13 +27,15 @@ integer, parameter :: rns_tree_layout = 1
 integer :: ncluster_reslv ! total number of resolved clusters
 integer :: ncluster_tot
 
-integer, pointer, dimension(:) :: r_elem_to_cl_map
-
 integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
 integer, pointer, dimension(:) :: cl_to_b_elem_map
 
 integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+
+
+type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
+type(indx_array), pointer, dimension(:) :: pre_beta_elem_indx_array_t
 
 contains
 
@@ -88,14 +90,16 @@ call set_ncluster_tot()
 call fill_rns_tree_map()
 !  Set the number of r elements
 call set_nr_elem()
-!  Set the number of b elements
-call set_nb_elem()
 !  Set the number of beta elements
 call set_nbeta_elem()
-!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
-call fill_r_elem_to_cl_map()
-!  Fill the mapping of the beta region from which to base the reference region calculations on
-call fill_beta_elem_to_cl_map()
+!  Set the number of b elements
+call set_nb_elem()
+!!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
+!call fill_r_elem_to_cl_map()
+!!  Fill the mapping of the beta region from which to base the reference region calculations on
+!call fill_beta_elem_to_cl_map()
+!  Fill the mapping from tree clusters to r regions
+call fill_cl_to_r_elem_map()  
 !  Fill the mapping from tree clusters to beta regions
 call fill_cl_to_beta_elem_map()
 !  Fill the mapping from tree clusters to b regions
@@ -104,6 +108,8 @@ call fill_cl_to_b_elem_map()
 call fill_r_elem()
 !  Fill the beta_elem struct
 call fill_beta_elem()
+!  Fill the b_elem struct
+call fill_b_elem()
 !----- Fill RNS_CYL_SKEW Data Structures -----
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
@@ -522,60 +528,6 @@ enddo
 return
 end subroutine set_nbeta_elem
 
-!**********************************************************************
-subroutine fill_r_elem_to_cl_map()
-!**********************************************************************
-use cyl_skew_base_ls, only : tree, generation, tr_t, ntree
-implicit none
-
-type(tree), pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
-
-integer :: ncount
-
-!  Nullify all pointers
-nullify(tr_t_p, gen_t_p)
-
-!  Each resolved cluster recieves a unique id
-allocate( r_elem_to_cl_map( ncluster_reslv ) )
-r_elem_to_cl_map = -1
-
-ncount=0
-if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
-
-do nt = 1, rns_ntree
-
-  !  Point to rns mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
-  
-  do ng = 1, tr_t_p % ngen_reslv
-  
-    gen_t_p => tr_t_p % gen_t( ng )
-	
-    do nc = 1, gen_t_p % ncluster 
-	
-      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
-    
-	  ncount = ncount + 1
-      
-	  r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
-      
-	  if(coord == 0) then
-        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
-      endif
-    
-	enddo    
-	
-	nullify(gen_t_p)
-	
-  enddo
-  
-  nullify(tr_t_p)
-  
-enddo
-
-return
-end subroutine fill_r_elem_to_cl_map
 
 !**********************************************************************
 subroutine fill_beta_elem_to_cl_map()
@@ -655,6 +607,62 @@ enddo
 
 return
 end subroutine fill_beta_elem_to_cl_map
+
+!**********************************************************************
+subroutine fill_cl_to_r_elem_map()
+!**********************************************************************
+use cyl_skew_base_ls, only : tree, generation, tr_t, ntree
+implicit none
+
+type(tree), pointer :: tr_t_p
+type(generation), pointer :: gen_t_p
+
+integer :: ncount
+
+!  Nullify all pointers
+nullify(tr_t_p, gen_t_p)
+
+!  Each resolved cluster recieves a unique id
+allocate( cl_to_r_elem_map( ncluster_tot ) )
+cl_to_r_elem_map = -1
+
+ncount=0
+if(coord == 0) write(*,*) 'Setting cl_to_r_elem_map'
+
+do nt = 1, rns_ntree
+
+  !  Point to rns mapped tree
+  tr_t_p => tr_t( rns_tree_map( nt ) )
+  
+  do ng = 1, tr_t_p % ngen_reslv
+  
+    gen_t_p => tr_t_p % gen_t( ng )
+	
+    do nc = 1, gen_t_p % ncluster 
+	
+      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
+    
+	  ncount = ncount + 1
+      
+	  cl_to_r_elem_map( gen_t_p % cl_t (nc) %indx ) = ncount
+      
+	  if(coord == 0) then
+        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
+      endif
+    
+	enddo    
+	
+	nullify(gen_t_p)
+	
+  enddo
+  
+  nullify(tr_t_p)
+  
+enddo
+
+return
+end subroutine fill_cl_to_r_elem_map
+
 
 !**********************************************************************
 subroutine fill_cl_to_beta_elem_map
@@ -788,8 +796,47 @@ do nt = 1, rns_ntree
     nullify(clindx_p)
     
   enddo
+  
+  nullify( gen_t_p )
     
-  nullify(gen_t_p, tr_t_p)    
+   !  Now set the b id for all of the descendant clusters
+  do ng = tr_t_p % ngen_reslv + 1, tr_t_p % ngen
+    
+    iparent = 0
+      
+    gen_t_p => tr_t_p % gen_t ( ng ) ! point to the current generation
+      
+    do nc = 1, gen_t_p % ncluster ! loop over all clusters of gen_t_p
+      
+      clindx_p => gen_t_p % cl_t(nc) % indx
+      iparent = gen_t_p % cl_t(nc) % parent
+        
+      ng_parent = ng - 1
+        
+      do while ( ng_parent > tr_t_p % ngen_reslv)
+        
+        cl_loc_id_p => clindx_to_loc_id(:,iparent)
+          
+        iparent = tr_t(rns_tree_map( cl_loc_id_p(1)) ) % gen_t (cl_loc_id_p(2)) % &
+          cl_t(cl_loc_id_p(3)) % parent
+          
+        ng_parent = cl_loc_id_p(2) - 1
+          
+        nullify(cl_loc_id_p)
+          
+      enddo
+        
+      cl_to_b_elem_map( clindx_p ) = cl_to_b_elem_map( iparent ) ! cl_to_beta_elem_map(iparent) is set from above
+
+      nullify(clindx_p)
+        
+    enddo
+      
+    nullify(gen_t_p)
+      
+  enddo
+    
+  nullify(tr_t_p)
     
 enddo
 
@@ -1545,222 +1592,189 @@ return
 
 end subroutine rns_fill_ref_plane_array_ls
 
-!!**********************************************************************
-!subroutine rns_fill_indx_array_ls()
-!!**********************************************************************
-!!  This subroutine sets the indx_array for both resolved and unresolved 
-!!  regions
-!!
-!use types, only : rprec
-!use param, only : nx,ny,nz, coord, USE_MPI
-!$if($CYL_SKEW_LS)
-!use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
-!$endif
-!use level_set_base, only : phi
-!use messages
-!implicit none
+!**********************************************************************
+subroutine get_indx_array_ls()
+!**********************************************************************
+!  This subroutine gets the indx_array for r_elem and beta_elem. It assigns
+!  all information to temporary index structs until all secondary RNS
+!  structs can be allocated
+!
+use types, only : rprec
+use param, only : nx,ny,nz, coord, USE_MPI
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
+$endif
+use level_set_base, only : phi
+use messages
+implicit none
 
-!character (*), parameter :: sub_name = mod_name // '.rns_fill_indx_array_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_fill_indx_array_ls'
 
-!integer :: i,j,k, nc, np, nb
-!integer :: ib
-!integer, pointer :: clindx_p, brindx_p, beta_indx_p
-!integer, pointer :: nt_p, ng_p, nc_p
+integer :: i,j,k, nc, np, nb
+integer :: ib
+integer, pointer :: clindx_p, brindx_p, beta_indx_p
+integer, pointer :: nt_p, ng_p, nc_p, npoint_p
 
-!integer, pointer, dimension(:) :: br_loc_id_p
-!type(indx_array), pointer, dimension(:) :: cl_pre_indx_array_t, beta_pre_indx_array_t
+integer, pointer, dimension(:) :: cl_loc_id_p
 
-!if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-!  write(*,*) ' '
-!  write(*,*) 'Filling Cluster Index Arrays'
-!  write(*,*) ' '
-!endif
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling Cluster Index Arrays'
+  write(*,*) ' '
+endif
 
-!! ---- Nullify all pointers ----
-!nullify(clindx_p, br_loc_id_p, brindx_p, beta_indx_p)
-!nullify(nt_p, ng_p, nc_p)
-!nullify(cl_pre_indx_array_t, beta_pre_indx_array_t)
+! ---- Nullify all pointers ----
+nullify(clindx_p, cl_loc_id_p)
+nullify(nt_p, ng_p, nc_p, npoint_p)
+nullify(pre_r_elem_indx_array_t, pre_beta_elem_indx_array_t)
 
-!! ---- Allocate all arrays ----
-!allocate(cl_pre_indx_array_t( ncl_reslv ) )
+! ---- Allocate all arrays ----
+allocate( pre_r_elem_indx_array_t( nr_elem ) )
+allocate( pre_beta_elem_indx_array_t( nbeta_elem ) )
 
-!allocate(beta_pre_indx_array_t ( nbeta ) )
+do nr=1, nr_elem
+  allocate(pre_r_elem_indx_array_t(nc) % iarray(3,nx*ny*(nz-1)))
+enddo
 
-!do nc=1, ncl_reslv
-!  allocate(cl_pre_indx_array_t(nc) % iarray(3,nx*ny*(nz-1)))
-!enddo
+do nb=1, nbeta_elem
+  allocate(pre_beta_elem_indx_array_t(nb) % iarray(3,nx*ny*(nz-1)))
+enddo
 
-!do nb=1, nbeta
-!  allocate(beta_pre_indx_array_t(nb) % iarray(3,nx*ny*(nz-1)))
-!enddo
+!  Intialize the number of points assigned to the cluster
+do nr=1, nr_elem
+  pre_r_elem_indx_array_t(nc) % npoint = 0
+enddo
 
-!!  Intialize the number of points assigned to the cluster
-!do nc=1, ncl_reslv
-!  cl_pre_indx_array_t(nc) % npoint = 0
-!enddo
+do nb=1, nbeta_elem
+  pre_beta_elem_indx_array_t(nb) % npoint = 0
+enddo
 
-!do nb=1, nbeta
-!  beta_pre_indx_array_t(nb) % npoint = 0
-!enddo
+if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
 
-!if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
+do k=1, nz - 1
 
-!do k=1, nz - 1
+  do j=1, ny
 
-!  do j=1, ny
+    do i = 1, nx
 
-!    do i = 1, nx
-!    
-!      ! map brindx to clindx
-!      brindx_p => brindx(i,j,k)
-!      
-!      !write(*,*) 'brindx_p : ', brindx_p
-!      
-!      if ( brindx_p > 0 ) then
-!      
-!        br_loc_id_p => brindx_to_loc_id(:, brindx_p)
+      clindx_p => clindx(i,j,k)
+           
+      if ( clindx_p > 0 ) then
+      
+	    !  Check if cluster belongs to r_elem
+		if( cl_to_r_elem_map( clindx_p ) > 0 ) then
+		
+          !  Use only inside points
+          if ( phi(i,j,k) <= 0._rprec ) then 
+		    
+		    r_elem_indx_p => cl_to_r_elem_map( clindx_p )
 
-!        nt_p => rns_tree_iarray( br_loc_id_p(1) ) ! Map unique tree it to wrapped tree in rns domain
-!        
-!        !nt_p => br_loc_id_p(1)
-!        ng_p => br_loc_id_p(2)
-!        nc_p => br_loc_id_p(3)
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % npoint = pre_r_elem_indx_array_t( r_elem_indx_p ) % npoint + 1
+			
+			npoint_p => pre_r_elem_indx_array_t( r_elem_indx_p ) % npoint
+        
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(1, npoint_p ) = i
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(2, npoint_p ) = j
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(3, npoint_p ) = k
+          
+			nullify( r_elem_indx_p, npoint_p )
+			
+          endif
+		  
+		endif
 
-!        if( nt_p < 1) then ! nt < 1
-!          call error(sub_name, 'brindx(i,j,k) : ', brindx_p)
-!          call mesg(sub_name, 'coord : ', coord)
-!          call error(sub_name, 'br_loc_id_p(1) : ', br_loc_id_p(1))
-!        endif
+        !  Check if cluster belongs to beta_elem
+        if ( cl_to_beta_elem_map( clindx_p ) > 0 ) then
+ 
+        ! Point needs to be assigned to beta region
+          
+          if( chi(i,j,k) > chi_cutoff) then
+            
+		    beta_elem_indx_p => cl_to_beta_elem_map( clindx_p ) 
+              
+            beta_pre_indx_array_t( beta_elem_indx_p ) % npoint = beta_pre_indx_array_t( beta_elem_indx_p ) % npoint + 1
+			
+			npoint_p => beta_pre_indx_array_t( beta_elem_indx_p ) % npoint
+          
+            beta_pre_indx_array_t( beta_elem_indx_p ) % iarray(1, npoint_p ) = i
+            beta_pre_indx_array_t( beta_elem_indx_p ) % iarray(2, npoint_p ) = j
+            beta_pre_indx_array_t( beta_elem_indx_p ) % iarray(3, npoint_p ) = k 
+              
+            nullify(beta_elem_indx_p, npoint_p )
+              
+          endif
+                 
+        endif
+        
+      endif
+      
+      nullify(clindx_p)
+      
+    enddo
+    
+  enddo
+  
+enddo
 
-!     
-!        if( ng_p <= tr_t( nt_p ) % ngen_reslv ) then
-!        
-!          !  Use only inside points
-!          if ( phi(i,j,k) <= 0._rprec ) then 
-!          
-!            !write(*,*) 'setting resolved point'
-!                    !  Setting cluster id it belongs to
-!            clindx_p => rns_reslv_cl_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( nc_p ) % indx )
-!        
-!            cl_pre_indx_array_t(clindx_p) % npoint = cl_pre_indx_array_t(clindx_p) % npoint + 1
-!        
-!            cl_pre_indx_array_t(clindx_p) % iarray(1, cl_pre_indx_array_t(clindx_p) % npoint) = i
-!            cl_pre_indx_array_t(clindx_p) % iarray(2, cl_pre_indx_array_t(clindx_p) % npoint) = j
-!            cl_pre_indx_array_t(clindx_p) % iarray(3, cl_pre_indx_array_t(clindx_p) % npoint) = k
-!            
-!            nullify(clindx_p)
-!          
-!          endif
-!        
-!        elseif ( ng_p <= tr_t( nt_p ) % ngen ) then
+!  Allocate true indx_array
+allocate(cl_indx_array_t( ncl_reslv ) )
 
-!        ! Point needs to be assigned to beta region
-!          
-!          if( chi(i,j,k) > chi_cutoff) then
-!          
-!            !write(*,*) 'setting unresolved point'
-!            if( use_beta_sub_regions) then
-!            
-!              beta_indx_p => rns_beta_iarray( tr_t( nt_p ) % gen_t( ng_p ) % cl_t ( nc_p ) % indx )
-!              
-!              beta_pre_indx_array_t( beta_indx_p ) % npoint = beta_pre_indx_array_t( beta_indx_p ) % npoint + 1
-!          
-!              beta_pre_indx_array_t( beta_indx_p ) % iarray(1, beta_pre_indx_array_t( beta_indx_p ) % npoint) = i
-!              beta_pre_indx_array_t( beta_indx_p ) % iarray(2, beta_pre_indx_array_t( beta_indx_p ) % npoint) = j
-!              beta_pre_indx_array_t( beta_indx_p ) % iarray(3, beta_pre_indx_array_t( beta_indx_p ) % npoint) = k 
-!              
-!              nullify(beta_indx_p)
-!              
-!            else
-!            
-!              beta_pre_indx_array_t( nt_p ) % npoint = beta_pre_indx_array_t( nt_p ) % npoint + 1
-!          
-!              beta_pre_indx_array_t( nt_p ) % iarray(1, beta_pre_indx_array_t( nt_p ) % npoint) = i
-!              beta_pre_indx_array_t( nt_p ) % iarray(2, beta_pre_indx_array_t( nt_p ) % npoint) = j
-!              beta_pre_indx_array_t( nt_p ) % iarray(3, beta_pre_indx_array_t( nt_p ) % npoint) = k 
-!              
-!            endif
-!          
-!          endif
-!      
-!        else
-!          
-!          call error(sub_name, 'Total number of generations in tree exceeded.')
-!        
-!        endif
-!      
-!        nullify(br_loc_id_p)
-!        nullify(nt_p, ng_p, nc_p)
-!        
-!      endif
-!      
-!      nullify(brindx_p)
-!      
-!    enddo
-!    
-!  enddo
+
+do nc=1, ncl_reslv
+  allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
+enddo
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+write(*,*) '------------------------'
+write(*,*) 'Setting cluster point array'
+endif
+
+do nc=1, ncl_reslv
+
+  cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
+  
+  do np = 1, cl_indx_array_t(nc) % npoint
+  
+    cl_indx_array_t(nc) % iarray(:,np) = cl_pre_indx_array_t(nc) % iarray(:,np)
+    
+  enddo
+  
+enddo
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+write(*,*) '------------------------'
+write(*,*) 'Setting BETA point array'
+endif
+allocate(beta_indx_array_t ( nbeta ) )
+
+do ib = 1, nbeta
+  allocate( beta_indx_array_t(ib) % iarray(3, beta_pre_indx_array_t(ib) % npoint))
+enddo
+
+do ib = 1, nbeta
+  beta_indx_array_t(ib) % npoint = beta_pre_indx_array_t(ib) % npoint
+  
+  do np = 1, beta_indx_array_t(ib) % npoint
+    beta_indx_array_t(ib) % iarray(:,np) = beta_pre_indx_array_t(ib) % iarray(:,np)
+  enddo
+  
+enddo
+
+!  No longer needed
+deallocate(cl_pre_indx_array_t)
+deallocate(beta_pre_indx_array_t)
+
+!!  Sort each cl_indx_array_t into column major order on the iarray output
+!do nc=1, ncluster_tot
+
+!  call isortcm(cl_indx_array_t(nc) % iarray, 3, cl_indx_array_t(nc) % npoint)
 !  
 !enddo
 
-!!  Allocate true indx_array
-!allocate(cl_indx_array_t( ncl_reslv ) )
+!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
 
-
-!do nc=1, ncl_reslv
-!  allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
-!enddo
-
-!if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-!write(*,*) '------------------------'
-!write(*,*) 'Setting cluster point array'
-!endif
-
-!do nc=1, ncl_reslv
-
-!  cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
-!  
-!  do np = 1, cl_indx_array_t(nc) % npoint
-!  
-!    cl_indx_array_t(nc) % iarray(:,np) = cl_pre_indx_array_t(nc) % iarray(:,np)
-!    
-!  enddo
-!  
-!enddo
-
-!if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-!write(*,*) '------------------------'
-!write(*,*) 'Setting BETA point array'
-!endif
-!allocate(beta_indx_array_t ( nbeta ) )
-
-!do ib = 1, nbeta
-!  allocate( beta_indx_array_t(ib) % iarray(3, beta_pre_indx_array_t(ib) % npoint))
-!enddo
-
-!do ib = 1, nbeta
-!  beta_indx_array_t(ib) % npoint = beta_pre_indx_array_t(ib) % npoint
-!  
-!  do np = 1, beta_indx_array_t(ib) % npoint
-!    beta_indx_array_t(ib) % iarray(:,np) = beta_pre_indx_array_t(ib) % iarray(:,np)
-!  enddo
-!  
-!enddo
-
-!!  No longer needed
-!deallocate(cl_pre_indx_array_t)
-!deallocate(beta_pre_indx_array_t)
-
-!!!  Sort each cl_indx_array_t into column major order on the iarray output
-!!do nc=1, ncluster_tot
-
-!!  call isortcm(cl_indx_array_t(nc) % iarray, 3, cl_indx_array_t(nc) % npoint)
-!!  
-!!enddo
-
-!!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
-
-!return
-!end subroutine rns_fill_indx_array_ls
+return
+end subroutine get_indx_array_ls
 
 !!**********************************************************************
 !subroutine rns_set_parent_ls()
