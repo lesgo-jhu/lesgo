@@ -1910,8 +1910,6 @@ elseif(coord == nproc - 1) then
   tavg_zplane_t(nz) % tyz = 0._rprec
   tavg_zplane_t(nz) % tzz = 0._rprec
   
-  tavg_zplane_t(nz) % cs_opt2 = 0._rprec
-  
 endif
 
 $else
@@ -1940,8 +1938,6 @@ $else
   tavg_zplane_t(nz) % txz = 0._rprec
   tavg_zplane_t(nz) % tyz = 0._rprec
   tavg_zplane_t(nz) % tzz = 0._rprec
-  
-  tavg_zplane_t(nz) % cs_opt2 = 0._rprec
 
 $endif
 ! All processors need not do this
