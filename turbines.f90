@@ -125,7 +125,7 @@ implicit none
     !other
 	    Ct_prime = 1.33		!thrust coefficient
         Ct_noprime = 0.75   !a=1/4
-        T_avg_dim = 200.     !time-averaging 'window' for one-sided exp. weighting (seconds)
+        T_avg_dim = 600.     !time-averaging 'window' for one-sided exp. weighting (seconds)
         
         sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
         sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
