@@ -1861,7 +1861,7 @@ rs_block = 6 ! Number of rs subtypes
 rs_disp = 0
 
 tavg_type = MPI_RPREC
-tavg_block = 20 ! Number of tavg subtypes
+tavg_block = 21 ! Number of tavg subtypes
 tavg_disp = 0
 
 if(coord == 0) then
