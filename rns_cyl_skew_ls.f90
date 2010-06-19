@@ -33,8 +33,6 @@ integer, pointer, dimension(:) :: cl_to_b_elem_map
 
 integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
-
-type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
 type(indx_array), pointer, dimension(:) :: pre_beta_elem_indx_array_t
 
 contains
@@ -876,24 +874,24 @@ implicit none
 !  type(indx_array)  :: indx_array_t
 !end type primary_struct_type_1
 
+type(ref_region), pointer, dimension(:) :: pre_r_elem_ref_region_t
+type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
+
 allocate( r_elem_t ( nr_elem ) )
 
 contains 
 
 !======================================================================
-subroutine fill_ref_region
+subroutine get_ref_region
 !======================================================================
-
-
 use types, only : rprec, vec2d
 use param, only : dy, dz, USE_MPI, coord
 use messages
-$if($CYL_SKEW_LS) 
 use cyl_skew_base_ls, only : tr_t, tree, generation
-$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_fill_cl_ref_plane_array_ls'
+character (*), parameter :: sub_name = mod_name // '.fill_r_elem.get_ref_region'
+
 real(rprec), parameter :: alpha=1._rprec
 real(rprec), parameter :: alpha_beta_width = 2.0_rprec
 real(rprec), parameter :: alpha_beta_dist = 1.25_rprec
@@ -904,7 +902,7 @@ integer :: ib, irb
 real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 
 integer, pointer :: clindx_p, nbranch_p
-integer, pointer :: rbeta_indx_p, beta_indx_p
+integer, pointer :: r_elem_indx_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
@@ -912,32 +910,22 @@ real(rprec), pointer, dimension(:) :: origin_p
 
 type(vec2d) :: rvec_t
 
-type(tree), pointer :: tr_t_p
+type(tree),       pointer :: tr_t_p
 type(generation), pointer :: gen_t_p
+type(cluster),    pointer :: cl_t_p
+type(branch),     pointer :: br_t_p
 
 nullify(d_p, l_p, skew_angle_p)
 nullify(clindx_p, nbranch_p)
-nullify(rbeta_indx_p, beta_indx_p)
-nullify(tr_t_p, gen_t_p)
+nullify(r_elem_indx_p)
+nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
 
-allocate( cl_ref_plane_t( ncluster_reslv ) )
 
-if(use_beta_sub_regions) then
+allocate( pre_r_elem_ref_region_t( nr_elem ) )
 
-  allocate( rbeta_ref_plane_t ( nrbeta ) )
-    !  Define entire unresolved region of tree as a beta region
-  allocate( beta_ref_plane_t( nbeta ) )
-
-  call mesg(sub_name, 'allocating rbeta, beta ref plane array')
+!  Define entire unresolved region of tree as a beta region
+call mesg(sub_name, 'allocating pre_r_elem_ref_region_t')
   
-else
-
-  call error(sub_name, 'use_beta_sub_regions must be true')
-  
-endif
-
-!if(ntree_ref < 1) call error( sub_name, 'ntree_ref not specified correctly')
-
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
   write(*,*) 'Filling Reference Plane Arrays'
@@ -946,28 +934,41 @@ endif
 
 do nt=1, rns_ntree
 
-  do ng=1, tr_t(nt) % ngen_reslv
+  tr_t_p => tr_t ( rns_tree_map ( nt ) )
+
+  do ng=1, tr_t_p % ngen_reslv
+   
+    gen_t_p => tr_t_p % gen_t( ng )
   
-    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+    do nc = 1, gen_t_p % ncluster
     
-      nbranch_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
+      !  Point to cluster
+      cl_t_p => gen_t_p % cl_t(nc)
+      !  Point to number of branches
+      nbranch_p => cl_t_p % nbranch
+      !  Point to the cluster index
+      clindx_p => cl_t_p % indx
+      !  Point to the corresponding r_elem index
+      r_elem_indx_p => cl_to_r_elem_map( clindx_p )
       
-      clindx_p => rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )
+      if( r_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')
       
       h_m = 0._rprec
       area_proj = 0._rprec
       
       do nb = 1, nbranch_p
+        
+        br_t_p => cl_t_p % br_t( nb )
 
-        d_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%d
-        l_p          => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%l
-        skew_angle_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%br_t(nb)%skew_angle
+        d_p          => br_t_p % d
+        l_p          => br_t_p % l
+        skew_angle_p => br_t_p % skew_angle
         
         h         = l_p * dcos(skew_angle_p)
         h_m       = h_m + h
         area_proj = area_proj + d_p * h
         
-        nullify(d_p, l_p, skew_angle_p)
+        nullify(d_p, l_p, skew_angle_p, br_t_p)
       
       enddo
       
@@ -976,264 +977,68 @@ do nt=1, rns_ntree
       !  width of reference area
       w   = area_proj / h_m     
 
-      cl_ref_plane_t(clindx_p) % area = area_proj
+      pre_r_elem_ref_region_t( r_elem_indx_p ) % area = area_proj
       !  These are defined to be x - planes (no not the NASA experimental planes)
-      cl_ref_plane_t(clindx_p) % nzeta = ceiling( w / dy + 1)
-      cl_ref_plane_t(clindx_p) % neta  = ceiling( h_m / dz + 1)
+
+      nzeta = ceiling( w / dy + 1)
+      neta  = ceiling( h_m / dz + 1)
       
-      origin_p => tr_t(nt)%gen_t(ng)%cl_t(nc)%origin
+      pre_r_elem_ref_region_t( r_elem_indx_p ) % npoints = nzeta*neta
+
+      origin_p => cl_t_p % origin
       
       !  Offset in the upstream x-direction
       zeta_c = origin_p + (/ -alpha * w, 0._rprec, 0._rprec /)
       
-      cl_ref_plane_t(clindx_p) % p1    = zeta_c 
-      cl_ref_plane_t(clindx_p) % p1(2) = cl_ref_plane_t(clindx_p) % p1(2) + w / 2._rprec
+      !  Need to set the number of points
+      !cl_ref_plane_t(clindx_p) % p1    = zeta_c 
+      !cl_ref_plane_t(clindx_p) % p1(2) = cl_ref_plane_t(clindx_p) % p1(2) + w / 2._rprec
       
-      cl_ref_plane_t(clindx_p) % p2    = cl_ref_plane_t(clindx_p) % p1
-      cl_ref_plane_t(clindx_p) % p2(2) = cl_ref_plane_t(clindx_p) % p2(2) - w
+      !cl_ref_plane_t(clindx_p) % p2    = cl_ref_plane_t(clindx_p) % p1
+      !cl_ref_plane_t(clindx_p) % p2(2) = cl_ref_plane_t(clindx_p) % p2(2) - w
       
-      cl_ref_plane_t(clindx_p) % p3    = cl_ref_plane_t(clindx_p) % p2
-      cl_ref_plane_t(clindx_p) % p3(3) = cl_ref_plane_t(clindx_p) % p3(3) + h_m
+      !cl_ref_plane_t(clindx_p) % p3    = cl_ref_plane_t(clindx_p) % p2
+      !cl_ref_plane_t(clindx_p) % p3(3) = cl_ref_plane_t(clindx_p) % p3(3) + h_m
       
       nullify(nbranch_p, clindx_p, origin_p)
+      nullify(cl_t_p)
       
     enddo
     
+    nullify( gen_t_p )
+    
   enddo
+  
+  nullify(tr_t_p)
  
 enddo
-
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) ' '
-  write(*,*) '--> Filled Resolved Cluster Reference Plane Array'
-  write(*,*) ' '
-endif
-
-!  Need to set rbeta_ref_plane_t
-
-do nt = 1, rns_ntree
-
-  tr_t_p => tr_t(rns_tree_iarray(nt))
-  
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-
-  do nc = 1, gen_t_p % ncluster
-  
-    clindx_p => gen_t_p % cl_t(nc) % indx
-    
-    rbeta_indx_p => rns_rbeta_iarray( clindx_p )
-  
-    hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv ) % bplane
-
-    htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
-   
-    origin_p => gen_t_p % cl_t(nc) % origin
-   
-    h = htop_p - hbot_p
-  
-   !!  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
-   !rvec_t % xy = tr_t(nt) % gen_t (2) % cl_t(1) % origin(1:2)
-   
-   !rvec_t % xy = rvec_t % xy - origin_p(1:2)
-   
-   !call vector_magnitude_2d( rvec_t % xy, rvec_t % mag )
-   
-    w = alpha_beta_width * h
-   
-    rbeta_ref_plane_t( rbeta_indx_p ) % area = h * w 
-   
-    rbeta_ref_plane_t( rbeta_indx_p ) % nzeta = ceiling( w / dy + 1)
-    rbeta_ref_plane_t( rbeta_indx_p ) % neta  = ceiling( h / dz + 1)
-      
-      !  Offset in the upstream x-direction 
-    zeta_c = origin_p + (/ -alpha_beta_dist * h, 0._rprec, 0._rprec /)  
-    
-    rbeta_ref_plane_t(rbeta_indx_p) % p1    = zeta_c 
-    rbeta_ref_plane_t(rbeta_indx_p) % p1(2) = rbeta_ref_plane_t(rbeta_indx_p) % p1(2) + w / 2._rprec
-      
-    rbeta_ref_plane_t(rbeta_indx_p) % p2    = rbeta_ref_plane_t(rbeta_indx_p) % p1
-    rbeta_ref_plane_t(rbeta_indx_p) % p2(2) = rbeta_ref_plane_t(rbeta_indx_p) % p2(2) - w
-      
-    rbeta_ref_plane_t(rbeta_indx_p) % p3    = rbeta_ref_plane_t(rbeta_indx_p) % p2
-    rbeta_ref_plane_t(rbeta_indx_p) % p3(3) = rbeta_ref_plane_t(rbeta_indx_p) % p3(3) + h
-    
-    nullify(hbot_p, htop_p, origin_p, clindx_p, rbeta_indx_p)
-    
-  enddo
-   
-  nullify(tr_t_p, gen_t_p)
-  
-enddo 
-
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) ' '
-  write(*,*) '--> Filled RBETA Reference Plane Array'
-  write(*,*) ' '
-endif
-
-!  Now need to define beta_ref_plane_t; needs to be consistent with corresponding volume of beta_indx_array
-if(use_beta_sub_regions) then
-
-do nt = 1, rns_ntree
-
-  tr_t_p => tr_t( rns_tree_iarray(nt) )
-  
-  if(tr_t_p % ngen_reslv + 1 > tr_t_p % ngen) call error(sub_name, 'helpppp')
-  
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
-
-  do nc = 1, gen_t_p % ncluster
-  
-    clindx_p => gen_t_p % cl_t(nc) % indx
-    
-    beta_indx_p => rns_beta_iarray( clindx_p )
-  
-    hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv) % tplane
-    
-    htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
-   
-    origin_p => gen_t_p % cl_t(nc) % origin
-   
-    h = htop_p - hbot_p
-
-   !!  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
-   !rvec_t % xy = tr_t(nt) % gen_t (2) % cl_t(1) % origin(1:2)
-   
-   !rvec_t % xy = rvec_t % xy - origin_p(1:2)
-   
-   !call vector_magnitude_2d( rvec_t % xy, rvec_t % mag )
-   
-    w = alpha_beta_width * h
-   
-    beta_ref_plane_t( beta_indx_p ) % area = h * w 
-   
-    beta_ref_plane_t( beta_indx_p ) % nzeta = ceiling( w / dy + 1)
-    beta_ref_plane_t( beta_indx_p ) % neta  = ceiling( h / dz + 1)
-      
-      !  Offset in the upstream x-direction 
-    zeta_c = origin_p + (/ -alpha_beta_dist * h, 0._rprec, 0._rprec /)  
-    
-    beta_ref_plane_t(beta_indx_p) % p1    = zeta_c 
-    beta_ref_plane_t(beta_indx_p) % p1(2) = beta_ref_plane_t(beta_indx_p) % p1(2) + w / 2._rprec
-      
-    beta_ref_plane_t(beta_indx_p) % p2    = beta_ref_plane_t(beta_indx_p) % p1
-    beta_ref_plane_t(beta_indx_p) % p2(2) = beta_ref_plane_t(beta_indx_p) % p2(2) - w
-      
-    beta_ref_plane_t(beta_indx_p) % p3    = beta_ref_plane_t(beta_indx_p) % p2
-    beta_ref_plane_t(beta_indx_p) % p3(3) = beta_ref_plane_t(beta_indx_p) % p3(3) + h
-    
-    nullify(hbot_p, htop_p, origin_p, clindx_p, beta_indx_p)
-    
-  enddo
-   
-  nullify(tr_t_p, gen_t_p)
-  
-enddo
-
-else
-
-  call error(sub_name, 'use_beta_sub_regions must be true for now.')
-  
-  !do nt = 1, nbeta
-
-  ! hbot_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen_reslv ) % tplane
-  ! htop_p => tr_t(nt) % gen_t ( tr_t(nt) % ngen ) % tplane
-  ! 
-  ! origin_p => tr_t(nt) % origin
-  ! 
-  ! h = htop_p - hbot_p
-
-  ! !  Let w = 2 * (2D distance) from the tree origin to the center of a top most cluster
-  ! rvec_t % xy = tr_t(nt) % gen_t ( 2 ) % cl_t(1) % origin(1:2)
-  ! 
-  ! rvec_t % xy = rvec_t % xy - origin_p(1:2)
-  ! 
-  ! call vector_magnitude_2d( rvec_t % xy, rvec_t % mag )
-  ! 
-  ! w = 2._rprec * rvec_t % mag
-  ! 
-  ! beta_ref_plane_t(nt) % area = h * w 
-  ! 
-  ! beta_ref_plane_t( nt ) % nzeta = ceiling( w / dy + 1)
-  ! beta_ref_plane_t( nt ) % neta  = ceiling( h / dz + 1)
-  !    
-  !    !  Offset in the upstream x-direction and displace in z
-  !  zeta_c = origin_p + (/ -alpha_beta * rvec_t % mag, 0._rprec, hbot_p - origin_p(3) /)  
-  !  
-  !  beta_ref_plane_t(nt) % p1    = zeta_c 
-  !  beta_ref_plane_t(nt) % p1(2) = beta_ref_plane_t(nt) % p1(2) + w / 2._rprec
-  !    
-  !  beta_ref_plane_t(nt) % p2    = beta_ref_plane_t(nt) % p1
-  !  beta_ref_plane_t(nt) % p2(2) = beta_ref_plane_t(nt) % p2(2) - w
-  !    
-  !  beta_ref_plane_t(nt) % p3    = beta_ref_plane_t(nt) % p2
-  !  beta_ref_plane_t(nt) % p3(3) = beta_ref_plane_t(nt) % p3(3) + h
-  !  
-  !  nullify(hbot_p, htop_p, origin_p)
-  !  
-  !enddo
-  
-endif
-
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) ' '
-  write(*,*) '--> Filled BETA Reference Plane Array'
-  write(*,*) ' '
-endif
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Reference Plane Values For All Tree Clusters : '
-  do nt=1, rns_ntree
+  !write(*,*) '--> Reference Plane Values For All Tree Clusters : '
+  !do nt=1, rns_ntree
 
-    do ng = 1, tr_t(nt)%ngen_reslv
-      do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+  !  do ng = 1, tr_t(nt)%ngen_reslv
+  !    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
 
-        write(*,*) '-------------------------'
-        write(*,*) 'nt, ng, nc : ', nt, ng, nc  
-        write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
-           cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
-         write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
-         write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
-         write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
-         write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
-        
-         write(*,*) '-------------------------'
-      enddo
-    enddo
-    enddo
-    
-  write(*,*) ' --> Reference Plane Values For RBETA Regions : '
-  do irb=1, nrbeta
-
-    write(*,*) '-------------------------'
-    write(*,*) 'irb : ', irb
-    write(*,*) 'nzeta, neta : ', rbeta_ref_plane_t(irb) % nzeta, rbeta_ref_plane_t(irb) % neta
-    write(*,*) 'p1 : ', rbeta_ref_plane_t(irb) % p1
-    write(*,*) 'p2 : ', rbeta_ref_plane_t(irb) % p2
-    write(*,*) 'p3 : ', rbeta_ref_plane_t(irb) % p3
-    write(*,*) 'area : ', rbeta_ref_plane_t(irb) % area
-    write(*,*) '-------------------------'
-  enddo
-  
-  write(*,*) ' --> Reference Plane Values For BETA Regions : '
-  do ib=1, nbeta
-
-    write(*,*) '-------------------------'
-    write(*,*) 'ib : ', ib
-    write(*,*) 'nzeta, neta : ', beta_ref_plane_t(ib) % nzeta, beta_ref_plane_t(ib) % neta
-    write(*,*) 'p1 : ', beta_ref_plane_t(ib) % p1
-    write(*,*) 'p2 : ', beta_ref_plane_t(ib) % p2
-    write(*,*) 'p3 : ', beta_ref_plane_t(ib) % p3
-    write(*,*) 'area : ', beta_ref_plane_t(ib) % area
-    write(*,*) '-------------------------'
-  enddo  
+  !      write(*,*) '-------------------------'
+  !      write(*,*) 'nt, ng, nc : ', nt, ng, nc  
+  !      write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
+  !         cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
+  !       write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
+  !       write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
+  !       write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
+  !       write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
+  !      
+  !       write(*,*) '-------------------------'
+  !    enddo
+  !  enddo
+  !  enddo
 
 endif
           
-      
 return
 
-end subroutine fill_ref_region
+end subroutine get_ref_region
 
 end subroutine fill_r_elem
 
