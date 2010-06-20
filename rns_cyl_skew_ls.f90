@@ -874,18 +874,21 @@ implicit none
 !  type(indx_array)  :: indx_array_t
 !end type primary_struct_type_1
 
-type(ref_region), pointer, dimension(:) :: pre_r_elem_ref_region_t
-type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
+!type(ref_region), pointer, dimension(:) :: pre_r_elem_ref_region_t
+!type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
 
 allocate( r_elem_t ( nr_elem ) )
+
+call fill_ref_region()
 
 contains 
 
 !======================================================================
-subroutine get_ref_region
+subroutine fill_ref_region()
 !======================================================================
-use types, only : rprec, vec2d
+!use types, only : rprec, vec2d
 use param, only : dy, dz, USE_MPI, coord
+use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
 implicit none
@@ -897,16 +900,14 @@ real(rprec), parameter :: alpha_beta_width = 2.0_rprec
 real(rprec), parameter :: alpha_beta_dist = 1.25_rprec
 
 integer :: nt, ng, nc, nb
-integer :: ib, irb
 
 real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
+real(rprec), dimension(3) :: p1, p2, p3
 
-integer, pointer :: clindx_p, nbranch_p
 integer, pointer :: r_elem_indx_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
-real(rprec), pointer, dimension(:) :: origin_p
 
 type(vec2d) :: rvec_t
 
@@ -915,15 +916,10 @@ type(generation), pointer :: gen_t_p
 type(cluster),    pointer :: cl_t_p
 type(branch),     pointer :: br_t_p
 
-nullify(d_p, l_p, skew_angle_p)
-nullify(clindx_p, nbranch_p)
 nullify(r_elem_indx_p)
+nullify(d_p, l_p, skew_angle_p)
 nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
 
-
-allocate( pre_r_elem_ref_region_t( nr_elem ) )
-
-!  Define entire unresolved region of tree as a beta region
 call mesg(sub_name, 'allocating pre_r_elem_ref_region_t')
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
@@ -944,19 +940,17 @@ do nt=1, rns_ntree
     
       !  Point to cluster
       cl_t_p => gen_t_p % cl_t(nc)
-      !  Point to number of branches
-      nbranch_p => cl_t_p % nbranch
-      !  Point to the cluster index
-      clindx_p => cl_t_p % indx
+
       !  Point to the corresponding r_elem index
-      r_elem_indx_p => cl_to_r_elem_map( clindx_p )
+      r_elem_indx_p => cl_to_r_elem_map( cl_t_p % indx )
       
       if( r_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')
       
+      !  Initialize mean cluster height and projected area
       h_m = 0._rprec
       area_proj = 0._rprec
       
-      do nb = 1, nbranch_p
+      do nb = 1, cl_t_p % nbranch
         
         br_t_p => cl_t_p % br_t( nb )
 
@@ -968,7 +962,8 @@ do nt=1, rns_ntree
         h_m       = h_m + h
         area_proj = area_proj + d_p * h
         
-        nullify(d_p, l_p, skew_angle_p, br_t_p)
+        nullify( d_p, l_p, skew_angle_p )
+        nullify( br_t_p )
       
       enddo
       
@@ -976,31 +971,45 @@ do nt=1, rns_ntree
       h_m = h_m / nbranch_p
       !  width of reference area
       w   = area_proj / h_m     
+      
+      !  Point to ref_region_t of the resolved element
+      ref_region_t_p => r_elem_t ( r_elem_indx_p ) % ref_region_t
 
-      pre_r_elem_ref_region_t( r_elem_indx_p ) % area = area_proj
+      ref_region_t_p( r_elem_indx_p ) % area = area_proj
       !  These are defined to be x - planes (no not the NASA experimental planes)
 
       nzeta = ceiling( w / dy + 1)
       neta  = ceiling( h_m / dz + 1)
       
-      pre_r_elem_ref_region_t( r_elem_indx_p ) % npoints = nzeta*neta
-
-      origin_p => cl_t_p % origin
-      
       !  Offset in the upstream x-direction
-      zeta_c = origin_p + (/ -alpha * w, 0._rprec, 0._rprec /)
+      zeta_c = cl_t_p % origin + (/ -alpha * w, 0._rprec, 0._rprec /)
       
       !  Need to set the number of points
-      !cl_ref_plane_t(clindx_p) % p1    = zeta_c 
-      !cl_ref_plane_t(clindx_p) % p1(2) = cl_ref_plane_t(clindx_p) % p1(2) + w / 2._rprec
+      p1    = zeta_c 
+      p1(2) = p1(2) + w / 2._rprec
       
-      !cl_ref_plane_t(clindx_p) % p2    = cl_ref_plane_t(clindx_p) % p1
-      !cl_ref_plane_t(clindx_p) % p2(2) = cl_ref_plane_t(clindx_p) % p2(2) - w
+      p2    = p1
+      p2(2) = p2(2) - w
       
-      !cl_ref_plane_t(clindx_p) % p3    = cl_ref_plane_t(clindx_p) % p2
-      !cl_ref_plane_t(clindx_p) % p3(3) = cl_ref_plane_t(clindx_p) % p3(3) + h_m
+      p3    = p2
+      p3(3) = p3(3) + h_m
       
-      nullify(nbranch_p, clindx_p, origin_p)
+      ref_region_t_p % npoints = nzeta*neta
+      
+            !  Check if the element has been allocated
+      if( allocated( ref_region_t_p % points ) ) then
+        call error(sub_name, 'reference region points already allocated.')
+      else
+        allocate( ref_region_t_p % points( 3, ref_region_t_p % npoints )
+      endif
+            
+      call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+
+      !  Finally initialize velocity reference components
+      ref_region_t_p % u = 0._rprec
+      
+      nullify( ref_region_t_p )
+      nullify( r_elem_indx_p )
       nullify(cl_t_p)
       
     enddo
@@ -1038,7 +1047,7 @@ endif
           
 return
 
-end subroutine get_ref_region
+end subroutine fill_ref_region
 
 end subroutine fill_r_elem
 
@@ -1628,7 +1637,76 @@ end subroutine get_indx_array_ls
 !return
 !end subroutine rns_set_parent_ls
 
+!**********************************************************************
+subroutine get_points_in_plane(bp1, bp2, bp3, nzeta, neta, points)
+!**********************************************************************
+!
+!  This subroutine assigns the points in an arbitrary 3D plane
+!
 
+use types, only : rprec
+use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+$endif
+use grid_defs
+use messages
+implicit none
+
+real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
+
+INTEGER, INTENT(IN) :: nzeta, neta
+
+real(rprec), intent(out), dimension(3,nzeta*neta) :: points
+
+character (*), parameter :: func_name = mod_name // '.get_points_in_plane'
+
+integer :: i, j, np
+
+REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag, zmin, zmax
+
+real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta
+real(RPREC), dimension(3) :: bp4, cell_center
+
+points(:,:) = -huge(1.) ! Initialize to some bogus value
+
+!  vector in zeta direction
+zeta_vec = bp1 - bp2
+!  vector in eta direction
+eta_vec   = bp3 - bp2
+
+!  Normalize to create unit vector
+vec_mag = sqrt(zeta_vec(1)*zeta_vec(1) + zeta_vec(2)*zeta_vec(2) + zeta_vec(3)*zeta_vec(3))
+dzeta = vec_mag/nzeta
+zeta_vec = zeta_vec / vec_mag
+
+vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_vec(3))
+deta = vec_mag/neta
+eta_vec = eta_vec / vec_mag
+
+np=0
+!  Compute cell centers
+do j=1,neta
+  !  Attempt for cache friendliness
+  eta = (j - 0.5)*deta*eta_vec
+  do i=1,nzeta
+  
+    np = np + 1
+    
+    ! Simple vector addition
+    cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
+        
+    points(:,np) = cell_center
+
+    endif
+
+  enddo
+enddo
+
+return
+
+end function get_points_in_plane
 
 
 
