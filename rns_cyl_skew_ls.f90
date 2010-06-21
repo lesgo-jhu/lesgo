@@ -844,38 +844,10 @@ end subroutine fill_cl_to_b_elem_map
 !**********************************************************************
 subroutine fill_r_elem()
 !**********************************************************************
+!  This subroutine allocates and initializes all information needed to 
+!  use the resolved elements (r_elem) in the RNS module
+!
 implicit none
-!! ---- Secondary structures ----
-!type ref_region
-!  integer :: npoint
-!  real(rprec), pointer, dimension(:,:) :: points !  3 ordered points
-!  real(rprec) :: u ! reference values
-!  real(rprec) :: area
-!end type ref_region
-
-!type force
-!  integer :: parent !  parent CD; for resolved branches 
-!  real(rprec) :: fD
-!  real(rprec) :: CD
-!  real(rprec) :: kappa ! Used for unresolved branches
-!end type force
-
-!type indx_array
-!  integer :: npoint
-!  integer, pointer, dimension(:,:) :: iarray
-!end type
-
-!! ---- Secondary structures ----
-
-!! ---- Primary structures ----
-!type primary_struct_type_1
-!  type(ref_region)  :: ref_region_t
-!  type(force)       :: force_t
-!  type(indx_array)  :: indx_array_t
-!end type primary_struct_type_1
-
-!type(ref_region), pointer, dimension(:) :: pre_r_elem_ref_region_t
-!type(indx_array), pointer, dimension(:) :: pre_r_elem_indx_array_t
 
 allocate( r_elem_t ( nr_elem ) )
 
@@ -886,7 +858,6 @@ contains
 !======================================================================
 subroutine fill_ref_region()
 !======================================================================
-!use types, only : rprec, vec2d
 use param, only : dy, dz, USE_MPI, coord
 use param, only : nx, ny, nz
 use messages
@@ -908,8 +879,6 @@ integer, pointer :: r_elem_indx_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
-
-type(vec2d) :: rvec_t
 
 type(tree),       pointer :: tr_t_p
 type(generation), pointer :: gen_t_p
@@ -972,12 +941,6 @@ do nt=1, rns_ntree
       !  width of reference area
       w   = area_proj / h_m     
       
-      !  Point to ref_region_t of the resolved element
-      ref_region_t_p => r_elem_t ( r_elem_indx_p ) % ref_region_t
-
-      ref_region_t_p( r_elem_indx_p ) % area = area_proj
-      !  These are defined to be x - planes (no not the NASA experimental planes)
-
       nzeta = ceiling( w / dy + 1)
       neta  = ceiling( h_m / dz + 1)
       
@@ -992,8 +955,14 @@ do nt=1, rns_ntree
       p2(2) = p2(2) - w
       
       p3    = p2
-      p3(3) = p3(3) + h_m
+      p3(3) = p3(3) + h_m      
       
+      !  Point to ref_region_t of the resolved element
+      ref_region_t_p => r_elem_t ( r_elem_indx_p ) % ref_region_t
+
+      ref_region_t_p % area = area_proj
+      !  These are defined to be x - planes (no not the NASA experimental planes)
+
       ref_region_t_p % npoints = nzeta*neta
       
             !  Check if the element has been allocated
@@ -1010,7 +979,7 @@ do nt=1, rns_ntree
       
       nullify( ref_region_t_p )
       nullify( r_elem_indx_p )
-      nullify(cl_t_p)
+      nullify( cl_t_p )
       
     enddo
     
@@ -1050,6 +1019,164 @@ return
 end subroutine fill_ref_region
 
 end subroutine fill_r_elem
+
+!**********************************************************************
+subroutine fill_beta_elem()
+!**********************************************************************
+!  This subroutine allocates and initializes all information needed to 
+!  use the BETA elements (beta_elem) in the RNS module
+!
+implicit none
+
+allocate( beta_elem_t ( nbeta_elem ) )
+
+call fill_ref_region()
+
+contains 
+
+!======================================================================
+subroutine fill_ref_region()
+!======================================================================
+use param, only : dy, dz, USE_MPI, coord
+use param, only : nx, ny, nz
+use messages
+use cyl_skew_base_ls, only : tr_t, tree, generation
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.fill_beta_elem.fill_ref_region'
+
+real(rprec), parameter :: alpha=1._rprec
+real(rprec), parameter :: alpha_width = 2.0_rprec
+real(rprec), parameter :: alpha_dist = 1.25_rprec
+
+integer :: nt, ng, nc, nb
+
+real(rprec) :: h, h_m, w, area_proj
+real(rprec), dimension(3) :: p1, p2, p3, zeta_c
+
+integer, pointer :: beta_elem_indx_p
+
+real(rprec), pointer :: d_p, l_p, skew_angle_p
+real(rprec), pointer :: hbot_p, htop_p
+
+type(vec2d) :: rvec_t
+
+type(tree),       pointer :: tr_t_p
+type(generation), pointer :: gen_t_p
+type(cluster),    pointer :: cl_t_p
+type(branch),     pointer :: br_t_p
+
+nullify(beta_elem_indx_p)
+nullify(d_p, l_p, skew_angle_p)
+nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
+
+call mesg(sub_name, 'allocating pre_r_elem_ref_region_t')
+  
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling Reference Plane Arrays'
+  write(*,*) ' '
+endif
+
+do nt=1, rns_ntree
+
+  tr_t_p => tr_t ( rns_tree_map ( nt ) )
+  
+  if(tr_t_p % ngen_reslv + 1 > tr_t_p % ngen) call error(sub_name, 'ngen_reslv == ngen')
+  
+  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
+
+  do nc = 1, gen_t_p % ncluster
+  
+    !  Point to cluster
+    cl_t_p => gen_t_p % cl_t(nc)
+    
+    !  Point to the corresponding r_elem index
+    beta_elem_indx_p => cl_to_beta_elem_map( cl_t_p % indx )    
+    if( beta_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')    
+  
+    !  Point to the top and bottom of the plane
+    hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1) % bplane
+    htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
+   
+    origin_p => cl_t_p(nc) % origin
+   
+    h = htop_p - hbot_p
+    w = alpha_width * h
+    
+    nzeta = ceiling( w / dy + 1)
+    neta  = ceiling( h / dz + 1)     
+    
+    !  Offset in the upstream x-direction 
+    zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
+
+    !  Need to set the number of points
+    p1    = zeta_c 
+    p1(2) = p1(2) + w / 2._rprec
+      
+    p2    = p1
+    p2(2) = p2(2) - w
+      
+    p3    = p2
+    p3(3) = p3(3) + h
+
+    !  Point to ref_region_t of the resolved element
+    ref_region_t_p => beta_elem_t ( beta_elem_indx_p ) % ref_region_t
+
+    ref_region_t_p % area = h * w
+    ref_region_t_p % npoints = nzeta*neta
+      
+    !  Check if the element has been allocated
+    if( allocated( ref_region_t_p % points ) ) then
+      call error(sub_name, 'reference region points already allocated.')
+    else
+      allocate( ref_region_t_p % points( 3, ref_region_t_p % npoints )
+    endif
+            
+    call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+
+    !  Finally initialize velocity reference components
+    ref_region_t_p % u = 0._rprec
+      
+    nullify( ref_region_t_p )
+    nullify( beta_elem_indx_p )
+    nullify( cl_t_p )
+      
+  enddo
+    
+  nullify( gen_t_p )
+  nullify( tr_t_p )
+    
+enddo
+    
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  !write(*,*) '--> Reference Plane Values For All Tree Clusters : '
+  !do nt=1, rns_ntree
+
+  !  do ng = 1, tr_t(nt)%ngen_reslv
+  !    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
+
+  !      write(*,*) '-------------------------'
+  !      write(*,*) 'nt, ng, nc : ', nt, ng, nc  
+  !      write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
+  !         cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
+  !       write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
+  !       write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
+  !       write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
+  !       write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
+  !      
+  !       write(*,*) '-------------------------'
+  !    enddo
+  !  enddo
+  !  enddo
+
+endif
+          
+return
+
+end subroutine fill_ref_region
+
+end subroutine fill_beta_elem
 
 !**********************************************************************
 subroutine rns_fill_ref_plane_array_ls()
