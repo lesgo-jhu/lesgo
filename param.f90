@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 8
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -50,29 +50,29 @@ module param
 ! characteristic length is H=z_i and characteristic velocity is u_star  
 !   L_x, L_y, L_z, dx, dy, dz are non-dim. using H
 
-  integer,parameter:: nx=32,ny=32,nz=(33-1)/nproc + 1
+  integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
+  real (rprec), parameter :: BOGUS = -1234567890._rprec
+  real(rprec),parameter::pi=3.1415926535897932384626433_rprec
+
+  integer,parameter:: nx=64,ny=64,nz=(32)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
   !this value is dimensional [m]:
-  real(rprec),parameter::z_i=1._rprec   !dimensions in meters, height of BL
+  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
     
   !these values should be non-dimensionalized by z_i: 
   !set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x=4.*z_i/z_i           
-    !real(rprec),parameter::L_y=1.*z_i/z_i          
-    !real(rprec),parameter::L_z=1./nproc * z_i/z_i
-  real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
-  real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
+    real(rprec),parameter::L_x= pi
+    real(rprec),parameter::L_y= pi    
+    real(rprec),parameter::L_z= 1. /nproc
+    !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
+    !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
 
   !these values are also non-dimensionalized by z_i:
     real(rprec),parameter::dz=nproc*L_z/(nz_tot-1./2.)
-    real(rprec),parameter::dx=L_x/(nx-1),dy=L_y/(ny-1) ! Need to fix this wrt to autowrapping
-
-  integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
-  real (rprec), parameter :: BOGUS = -1234567890._rprec
-  real(rprec),parameter::pi=3.1415926535897932384626433_rprec
+    real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
   
 !---------------------------------------------------
 ! MODEL PARAMETERS
@@ -111,10 +111,13 @@ module param
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
-  integer, parameter :: nsteps = 100
+  integer, parameter :: nsteps = 3000
  
   real (rprec), parameter :: dt = 2.e-5_rprec      !dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     !dimensional time step in seconds                                 
+ 
+  logical, parameter :: cumulative_time = .true.  !to use total_time.dat
+  character (*), parameter :: fcumulative_time = path // 'total_time.dat'
   
   integer :: jt                 ! global time-step counter
   integer :: jt_total           !--used for cumulative time (see io module)
@@ -127,9 +130,9 @@ module param
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
 !---------------------------------------------------  
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .false.
+  logical, parameter :: initu = .true.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .true.
+  logical, parameter :: inilag = .false.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
@@ -166,12 +169,13 @@ module param
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !--------------------------------------------------- 
-  !records time-averaged data to files ./output/*_avg.dat
+
+!records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
   integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
 
 !  Turns instantaneous velocity recording on or off
-  logical, parameter :: point_calc = .true.
+  logical, parameter :: point_calc = .false.
   integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
   integer, parameter :: point_nloc = 2
   real(rprec), save, dimension(3,point_nloc) :: point_loc = (/ &
@@ -184,19 +188,19 @@ module param
   integer, parameter :: domain_nstart = 100, domain_nend = nsteps, domain_nskip = 100
   
   !  x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .true.
+  logical, parameter :: xplane_calc   = .false.
   integer, parameter :: xplane_nstart = 100, xplane_nend = nsteps, xplane_nskip  = 100
   integer, parameter :: xplane_nloc   = 2
   real(rprec), save, dimension(xplane_nloc) :: xplane_loc = (/ 1.0, 3.0 /)
 
   !  y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .true.
+  logical, parameter :: yplane_calc   = .false.
   integer, parameter :: yplane_nstart = 100, yplane_nend = nsteps, yplane_nskip  = 100
   integer, parameter :: yplane_nloc   = 2
   real(rprec), save, dimension(yplane_nloc) :: yplane_loc = (/ 1.0, 3.0 /)  
 
   !  z-plane instantaneous output
-  logical, parameter :: zplane_calc   = .true.
+  logical, parameter :: zplane_calc   = .false.
   integer, parameter :: zplane_nstart = 100, zplane_nend = nsteps, zplane_nskip  = 100
   integer, parameter :: zplane_nloc   = 7
   real(rprec), save, dimension(zplane_nloc) :: zplane_loc = (/ 0.733347, 1.550644, 1.959293, &

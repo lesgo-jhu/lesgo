@@ -15,7 +15,7 @@ use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
 
 $if ($MPI)
-  use mpi_defs, only : initialize_mpi
+  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
@@ -514,17 +514,21 @@ do jt=1,nsteps
     !--exchange ghost-node information
     !--send stuff up to ghost layer (0) (for z-derivs)
     !--nz should already be in sync with 1 level: done in project()
-    call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-                       u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
+    !                   u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
+    !                   comm, status, ierr)
 
-    call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-                       v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
+    !                   v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
+    !                   comm, status, ierr)
 
-    call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-                       w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
+    !                   w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
+    !                   comm, status, ierr)
+    call mpi_sync_real_array( u, MPI_SYNC_UP )
+    call mpi_sync_real_array( v, MPI_SYNC_UP )
+    call mpi_sync_real_array( w, MPI_SYNC_UP )
+
   $endif
 
   !--MPI: at this point, have u, v, w at 0:nz

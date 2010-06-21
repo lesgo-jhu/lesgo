@@ -18,6 +18,7 @@ type tavg
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, txy, tyy, txz, tyz, tzz
   real(rprec) :: fx, fy, fz
+  real(rprec) :: cs_opt2
 end type tavg
 
 $if ($TURBINES)
@@ -31,7 +32,6 @@ $if ($TURBINES)
         integer, dimension(6) :: nodes_max          !search area for nearby nodes
 		real(rprec) :: u_d, u_d_T                   !running time-average of mean disk velocity
         real(rprec) :: f_n                          !normal force on turbine disk
-        integer :: u_d_flag
 		real(rprec), dimension(1500) :: ind                !indicator function - weighting of each node
 	end type turbine
 
@@ -43,7 +43,7 @@ $if ($TURBINES)
 		type(turbine), pointer, dimension(:) :: turbine_t
 	end type wind_farm	
     
-    type(wind_farm)	        :: wind_farm_t	
+  type(wind_farm)	        :: wind_farm_t	
 $endif
 
 type(tavg), pointer, dimension(:,:,:) :: tavg_t
@@ -51,14 +51,6 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_t
 
 type(rs), pointer, dimension(:,:,:) :: rs_t
 type(rs), pointer, dimension(:) :: rs_zplane_t
-
-$if($MPI)
-type(rs), pointer, dimension(:) :: rs_zplane_tot_t
-type(rs), pointer, dimension(:) :: rs_zplane_buf_t
-
-type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
-type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
-$endif
 
 end module stat_defs
 

@@ -3030,7 +3030,7 @@ $endif
 $if ($MPI)
 subroutine mpi_sync_tau ()
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.mpi_sync_tau'
@@ -3085,12 +3085,12 @@ integer :: kstart
 !                   tzz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+66,   &
 !                   comm, status, ierr)
 
-call mpi_sync_real_array( txx )
-call mpi_sync_real_array( txy )
-call mpi_sync_real_array( txz )
-call mpi_sync_real_array( tyy )
-call mpi_sync_real_array( tyz )
-call mpi_sync_real_array( tzz )
+call mpi_sync_real_array( txx, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txy, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyy, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tzz, MPI_SYNC_DOWNUP )
 
 !--at this point, tij 0:nz are valid (1:nz at bottom, 0:nz-1 at top)
 

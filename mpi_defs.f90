@@ -8,6 +8,14 @@ save
 private
 
 public :: initialize_mpi, mpi_sync_real_array
+public :: MPI_SYNC_DOWN, MPI_SYNC_UP, MPI_SYNC_DOWNUP
+
+character (*), parameter :: mod_name = 'mpi_defs'
+
+integer, parameter :: MPI_SYNC_DOWN=1
+integer, parameter :: MPI_SYNC_UP=2
+integer, parameter :: MPI_SYNC_DOWNUP=3
+
 
 contains
 
@@ -75,7 +83,7 @@ return
 end subroutine initialize_mpi
 
 !**********************************************************************
-subroutine mpi_sync_real_array( var )
+subroutine mpi_sync_real_array( var, isync )
 !**********************************************************************
 !  This subroutine syncs data for the:
 !    k = nz-1 at coord to k=0 at coord+1
@@ -84,10 +92,14 @@ subroutine mpi_sync_real_array( var )
 use types, only : rprec
 use mpi
 use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord
+use messages
 
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.mpi_sync_real_array'
+
 real(rprec), dimension(:,:,:), intent(INOUT) :: var
+integer, intent(in) :: isync
 
 integer :: lbx,ubx,lby,uby,lbz,ubz
 integer :: mpi_datasize
@@ -110,15 +122,56 @@ mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
 !  call mpi_recv(var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
 !  call mpi_send (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
 !endif
+if(isync == MPI_SYNC_DOWN) then
+   
+  call sync_down()
+    
+elseif( isync == MPI_SYNC_UP) then
 
-call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1,  &
-  var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1,   &
+  call sync_up()
+
+elseif( isync == MPI_SYNC_DOWNUP) then
+
+  call sync_down()
+  call sync_up()
+  
+else
+
+  call error( sub_name, 'isync not specified properly')
+  
+endif
+
+if(ierr .ne. 0) call error( sub_name, 'Error occured during mpi sync; recieved mpi error code :', ierr)
+
+return
+
+contains
+
+!======================================================================
+subroutine sync_down()
+!======================================================================
+implicit none
+
+call mpi_sendrecv (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 1,  &
+  var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 1,   &
   comm, status, ierr)
-call mpi_sendrecv (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2,  &
-  var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2,   &
+    
+return
+
+end subroutine sync_down
+
+!======================================================================
+subroutine sync_up()
+!======================================================================
+implicit none
+
+call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 2,  &
+  var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 2,   &
   comm, status, ierr)
 
 return
+
+end subroutine sync_up 
 
 end subroutine mpi_sync_real_array
 

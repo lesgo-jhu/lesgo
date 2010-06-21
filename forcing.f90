@@ -209,6 +209,9 @@ subroutine project ()
 use param
 use sim_param
 use immersedbc
+$if($MPI)
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
+$endif
 implicit none
 
 $if ($DEBUG)
@@ -276,15 +279,20 @@ if ( inflow .and. (.not. use_fringe_forcing) ) call inflow_cond ()
 !  inflow_cond does
 $if ($MPI)
   !--send velocity info down & recv velocity info from above
-  call mpi_sendrecv (u(1, 1, 1), ld*ny, MPI_RPREC, down, 1,  &
-                     u(1, 1, nz), ld*ny, MPI_RPREC, up, 1,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (v(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
-                     v(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
-                     comm, status, ierr)
-  call mpi_sendrecv (w(1, 1, 1), ld*ny, MPI_RPREC, down, 3,  &
-                     w(1, 1, nz), ld*ny, MPI_RPREC, up, 3,   &
-                     comm, status, ierr)                     
+  !call mpi_sendrecv (u(1, 1, 1), ld*ny, MPI_RPREC, down, 1,  &
+  !                   u(1, 1, nz), ld*ny, MPI_RPREC, up, 1,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (v(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
+  !                   v(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
+  !                   comm, status, ierr)
+  !call mpi_sendrecv (w(1, 1, 1), ld*ny, MPI_RPREC, down, 3,  &
+  !                   w(1, 1, nz), ld*ny, MPI_RPREC, up, 3,   &
+  !                   comm, status, ierr)   
+                     
+  call mpi_sync_real_array( u, MPI_SYNC_DOWN)
+  call mpi_sync_real_array( v, MPI_SYNC_DOWN)
+  call mpi_sync_real_array( w, MPI_SYNC_DOWN)
+  
 $endif
 
 !--enfore bc at top
