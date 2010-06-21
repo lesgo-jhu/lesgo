@@ -55,19 +55,6 @@ type indx_array
   integer :: npoint
   integer, pointer, dimension(:,:) :: iarray
 end type
-! ---- Secondary structures ----
-
-! ---- Primary structures ----
-type primary_struct
-  type(ref_plane)   :: ref_plane_t
-  type(force)       :: force_t
-  type(indx_array)  :: indx_array_t
-end type primary_struct
-
-type(primary_struct), pointer, dimension(:) :: reslv_elem_t
-type(primary_struct), pointer, dimension(:) :: beta_elem_t
-type(primary_struct), pointer, dimension(:) :: rbeta_elem_t
-! ---- Primary structures ----
 
 type child_elem
   integer :: nelem
