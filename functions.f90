@@ -7,7 +7,6 @@ save
 private
 public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
 public buff_indx
-	   !interp_to_uv_grid, interp_to_uv_grid_buf, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
 
