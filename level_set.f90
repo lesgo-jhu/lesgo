@@ -1573,7 +1573,8 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-
+use grid_defs, only : autowrap_i, autowrap_j
+use functions, only : cell_indx
 implicit none
 
 integer, intent (in) :: albz
@@ -1606,8 +1607,12 @@ xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (xmod(1) / dx + 1._rp)
-j = floor (xmod(2) / dy + 1._rp)
+!  Could replace floor() with cell_indx (JSG)
+!i = autowrap_i( floor (xmod(1) / dx + 1._rp) )
+!j = autowrap_j( floor (xmod(2) / dy + 1._rp) )
+
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 if (present (node)) then
 
@@ -1623,6 +1628,7 @@ else  !-default to u-nodes
 
 end if
 
+!  This needs special treatment for u and w
 ks = floor (xmod(3) / dz + s)
 
 if ((i < 1) .or. (i > nx)) then
@@ -1655,8 +1661,10 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ks1 = ks + 1
 
@@ -1737,6 +1745,8 @@ end subroutine interp_scal
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
+use functions, only : cell_indx
+use grid_defs, only : autowrap_i, autowrap_j
 
 implicit none
 
@@ -1763,8 +1773,10 @@ xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (xmod(1) / dx + 1._rp)
-j = floor (xmod(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 s = 0.5_rp
 ku = floor (xmod(3) / dz + s)
@@ -1796,8 +1808,10 @@ end if
 
 !--try to handle boundaries nicely for the +1 indices
 
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 
@@ -1923,6 +1937,8 @@ end subroutine interp_tij_u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
+use functions, only : cell_indx
+use grid_defs, only : autowrap_i, autowrap_j
 
 implicit none
 
@@ -1949,8 +1965,10 @@ xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (xmod(1) / dx + 1._rp)
-j = floor (xmod(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 s = 1._rp
 kw = floor (xmod(3) / dz + s)
@@ -1982,8 +2000,10 @@ end if
 
 !--try to handle boundaries nicely for the +1 indices
 
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 kw1 = kw + 1
 
@@ -2093,6 +2113,8 @@ subroutine interp_phi (x, phi_x)
 !--performs tri-linear interpolation to obtain phi at point x
 !--assumes phi is on u-nodes
 !
+use functions, only : cell_indx
+use grid_defs, only : autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2115,8 +2137,11 @@ xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (xmod(1) / dx + 1._rp)
-j = floor (xmod(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx( 'i', dx, xmod(1) ) )
+j = autowrap_j( cell_indx( 'j', dy, xmod(2) ) )
+
 ku = floor (xmod(3) / dz + 0.5_rp) !--assumes phi on u-nodes
 
 !--need to bounds check i, j, ku, kw
@@ -2154,8 +2179,10 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 
@@ -2244,6 +2271,8 @@ end subroutine interp_phi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
+use functions, only : cell_indx
+use grid_defs, only : autowrap_i, autowrap_j
 
 implicit none
 
@@ -2267,8 +2296,10 @@ xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
 xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (xmod(1) / dx + 1._rp)
-j = floor (xmod(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx( 'i', dx, xmod(1) ) )
+j = autowrap_j( cell_indx( 'j', dy, xmod(2) ) )
 ku = floor (xmod(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
 kw = floor (xmod(3) / dz + 1._rp)
 
@@ -2306,8 +2337,10 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 kw1 = kw + 1

@@ -19,6 +19,8 @@ integer function cell_indx(indx,dx,px)
 !
 use types, only : rprec
 use grid_defs, only : z, grid_built, grid_build
+use messages 
+use param, only : nx, ny, nz
 implicit none
 
 character (*), intent (in) :: indx
@@ -30,11 +32,18 @@ character (*), parameter :: func_name = mod_name // '.cell_indx'
 if(.not. grid_built) call grid_build()
 
 select case (indx)
-  case ('i'); cell_indx = floor (px / dx) + 1
-  case ('j'); cell_indx = floor (px / dx) + 1
+  case ('i')
+    cell_indx = floor (px / dx) + 1
+    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+  case ('j')
+    cell_indx = floor (px / dx) + 1
+    if( cell_indx > Ny .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
   !  Need to compute local distance to get local k index
-  case ('k'); cell_indx = floor ((px - z(1)) / dx) + 1
-  case default; call error (func_name, 'invalid indx =' // indx)
+  case ('k')
+    cell_indx = floor ((px - z(1)) / dx) + 1
+    if( cell_indx > Nz .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')    
+  case default
+    call error (func_name, 'invalid indx =' // indx)
 end select
 
 return
@@ -54,7 +63,7 @@ real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
 !  Takes care of putting w-grid variables onto the uv-grid; this assumes
 !  that var is on the uv-grid
 !
-use grid_defs, only : x,y,z
+use grid_defs, only : x,y,z, autowrap_i, autowrap_j
 use types, only : rprec
 use sim_param, only : u,v
 use param, only : nz, dx, dy, dz, coord
@@ -67,6 +76,7 @@ real(rprec), intent(IN), dimension(3) :: xyz
 real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
 integer :: i,j,k
+integer, dimension(2) :: is, js, ks
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
@@ -78,10 +88,23 @@ u4=0.
 u5=0.
 u6=0.
 
+!  istart and jstart are assumed to be in the spatial domain
+is = (/ istart, autowrap_i( istart + 1 ) /)
+js = (/ jstart, autowrap_j( jstart + 1 ) /)
+ks = (/ kstart, kstart + 1 /)
+
 !  Contains the 6 points that make of the cube
 uvar = 0.
 
-uvar(:,:,:) = var(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
+!uvar(:,:,:) = var(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
+do k=1,2
+  do j=1,2
+    do i=1,2
+      uvar(i,j,k) = var(is(i), js(j), ks(k) )
+    enddo
+  enddo
+enddo
+
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
@@ -222,8 +245,9 @@ eta_vec = eta_vec / vec_mag
         cell_center(2) = modulo(cell_center(2), L_y)
         
         !  Perform trilinear interpolation
-        istart = cell_indx('i', dx, cell_center(1))
-        jstart = cell_indx('j', dy, cell_center(2))
+        !  Get the cell id (starting node id)
+        istart = autowrap_i ( cell_indx('i', dx, cell_center(1)) )
+        jstart = autowrap_j ( cell_indx('j', dy, cell_center(2)) )
         kstart = cell_indx('k', dz, cell_center(3))
         
         var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
@@ -349,8 +373,8 @@ do n=1, npoint
     yp = modulo(yp, L_y)
     
     !  Perform trilinear interpolation
-    istart = cell_indx('i', dx, xp)
-    jstart = cell_indx('j', dy, yp)
+    istart = autowrap_i( cell_indx('i', dx, xp) )
+    jstart = autowrap_j( cell_indx('j', dy, yp) )
     kstart = cell_indx('k', dz, zp)
         
     var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, (/ xp, yp, zp /))

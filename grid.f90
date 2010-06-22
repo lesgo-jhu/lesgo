@@ -12,6 +12,7 @@ public autowrap_i, autowrap_j
 logical :: grid_built
 
 real(rprec), allocatable, dimension(:) :: x, y, z, zw
+! These need to be used in conjunction with modulo
 integer, allocatable, dimension(:) :: autowrap_i, autowrap_j
 
 contains
