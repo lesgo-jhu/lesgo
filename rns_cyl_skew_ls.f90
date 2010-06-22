@@ -849,9 +849,12 @@ subroutine fill_r_elem()
 !
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.fill_r_elem'
+
 allocate( r_elem_t ( nr_elem ) )
 
 call fill_ref_region()
+call fill_indx_array()
 
 contains 
 
@@ -864,7 +867,7 @@ use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.fill_r_elem.get_ref_region'
+character (*), parameter :: sub_sub_name = mod_name // sub_name // '.get_ref_region'
 
 real(rprec), parameter :: alpha=1._rprec
 real(rprec), parameter :: alpha_beta_width = 2.0_rprec
@@ -913,7 +916,7 @@ do nt=1, rns_ntree
       !  Point to the corresponding r_elem index
       r_elem_indx_p => cl_to_r_elem_map( cl_t_p % indx )
       
-      if( r_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')
+      if( r_elem_indx_p == -1 ) call error(sub_sub_name, 'Incorrect cluster referenced')
       
       !  Initialize mean cluster height and projected area
       h_m = 0._rprec
@@ -1017,6 +1020,158 @@ endif
 return
 
 end subroutine fill_ref_region
+
+!======================================================================
+subroutine fill_indx_array
+!======================================================================
+!  This subroutine gets the indx_array for r_elem. 
+!
+use types, only : rprec
+use param, only : nx,ny,nz, coord, USE_MPI
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : ngen, ngen_reslv, brindx_to_loc_id, tr_t
+$endif
+use level_set_base, only : phi
+use messages
+implicit none
+
+character (*), parameter :: sub_sub_name = mod_name // sub_name // '.get_indx_array'
+
+integer :: i,j,k, nc, np, nb
+integer :: ib
+integer, pointer :: clindx_p, brindx_p, beta_indx_p
+integer, pointer :: nt_p, ng_p, nc_p, npoint_p
+
+integer, pointer, dimension(:) :: cl_loc_id_p
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling R_ELEM Index Arrays'
+  write(*,*) ' '
+endif
+
+! ---- Nullify all pointers ----
+nullify(clindx_p, cl_loc_id_p)
+nullify(nt_p, ng_p, nc_p, npoint_p)
+
+! ---- Allocate all arrays ----
+allocate( pre_indx_array_t( nr_elem ) )
+
+do nr=1, nr_elem
+  allocate(pre_indx_array_t(nr) % iarray(3,nx*ny*(nz-1)))
+enddo
+
+!  Intialize the number of points assigned to the cluster
+do nr=1, nr_elem
+  pre_r_elem_indx_array_t(nc) % npoint = 0
+enddo
+
+if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
+
+do k=1, nz - 1
+
+  do j=1, ny
+
+    do i = 1, nx
+
+      clindx_p => clindx(i,j,k)
+           
+      if ( clindx_p > 0 ) then
+  
+        r_elem_indx_p => cl_to_r_elem_map( clindx_p )
+      
+	    !  Check if cluster belongs to r_elem
+        if( r_elem_indx_p > 0 ) then
+		
+          !  Use only inside points
+          if ( phi(i,j,k) <= 0._rprec ) then 
+
+
+            pre_indx_array_t( r_elem_indx_p ) % npoint = pre_indx_array_t( r_elem_indx_p ) % npoint + 1
+			
+	    npoint_p => pre_r_elem_indx_array_t( r_elem_indx_p ) % npoint
+        
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(1, npoint_p ) = i
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(2, npoint_p ) = j
+            pre_r_elem_indx_array_t( r_elem_indx_p ) % iarray(3, npoint_p ) = k
+          
+	    nullify( npoint_p )
+			
+          endif
+		  
+        endif
+
+        nullify( r_elem_indx_p )
+       
+      endif
+      
+      nullify(clindx_p)
+      
+    enddo
+    
+  enddo
+  
+enddo
+
+!  Allocate true indx_array
+allocate(cl_indx_array_t( ncl_reslv ) )
+
+
+do nc=1, ncl_reslv
+  allocate(cl_indx_array_t(nc) % iarray(3, cl_pre_indx_array_t(nc) % npoint))
+enddo
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+write(*,*) '------------------------'
+write(*,*) 'Setting cluster point array'
+endif
+
+do nc=1, ncl_reslv
+
+  cl_indx_array_t(nc) % npoint = cl_pre_indx_array_t(nc) % npoint
+  
+  do np = 1, cl_indx_array_t(nc) % npoint
+  
+    cl_indx_array_t(nc) % iarray(:,np) = cl_pre_indx_array_t(nc) % iarray(:,np)
+    
+  enddo
+  
+enddo
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+write(*,*) '------------------------'
+write(*,*) 'Setting BETA point array'
+endif
+allocate(beta_indx_array_t ( nbeta ) )
+
+do ib = 1, nbeta
+  allocate( beta_indx_array_t(ib) % iarray(3, beta_pre_indx_array_t(ib) % npoint))
+enddo
+
+do ib = 1, nbeta
+  beta_indx_array_t(ib) % npoint = beta_pre_indx_array_t(ib) % npoint
+  
+  do np = 1, beta_indx_array_t(ib) % npoint
+    beta_indx_array_t(ib) % iarray(:,np) = beta_pre_indx_array_t(ib) % iarray(:,np)
+  enddo
+  
+enddo
+
+!  No longer needed
+deallocate(cl_pre_indx_array_t)
+deallocate(beta_pre_indx_array_t)
+
+!!  Sort each cl_indx_array_t into column major order on the iarray output
+!do nc=1, ncluster_tot
+
+!  call isortcm(cl_indx_array_t(nc) % iarray, 3, cl_indx_array_t(nc) % npoint)
+!  
+!enddo
+
+!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
+
+return
+end subroutine fill_indx_array
 
 end subroutine fill_r_elem
 
