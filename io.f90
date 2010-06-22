@@ -167,21 +167,6 @@ var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 $endif
   
-!  set k=nz
-!k=ubz
-!do j=lby,uby; do i=lbx,ubx
-!  $if ($MPI)
-!!  Check for top "physical" boundary
-!  if (coord == nproc - 1) then
-!    var_uv(i,j,ubz) = var(i,j,ubz) 
-!  else
-!    var_uv(i,j,k) = 0.5*(buf(i,j) + var(i,j,k))
-!  endif
-!  $else
-!  var_uv(i,j,k) = var(i,j,k)
-!  $endif
-!enddo; enddo
-
 tag = jt ! Set identifying tag 
 
 return 
@@ -193,92 +178,6 @@ return
 end subroutine interp_to_uv_grid
 
 !!$ Commented by JSG
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$!--write out velocity slices for later postprocessing (avging)
-!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!$subroutine vel_slice ()
-!!$use sim_param, only: u, v, w
-!!$
-!!$implicit none
-!!$
-!!$integer, parameter :: nx_skip = nx / 4  !--space between x-slices
-!!$integer, parameter :: ny_skip = ny / 4  !--space between y-slices
-!!$integer, parameter :: nz_skip = (nz_tot-1) / 4  !--space between z-slices
-!!$
-!!$character (128) :: fname
-!!$character (32) :: temp
-!!$
-!!$integer :: kmin, kk
-!!$
-!!$!---------------------------------------------------------------------
-!!$
-!!$!--x-direction slices
-!!$write (fname, '(a,i0,a,i6.6,a)') path // 'output/vel.xskip', nx_skip,  &
-!!$                                   '.', jt_total, '.out'
-!!$
-!!$$if ($MPI)
-!!$  write (temp, '(".c",i0)') coord
-!!$  fname = trim (fname) // temp
-!!$$endif
-!!$
-!!$open(1,file=fname,form='unformatted')
-!!$
-!!$write (1) u(1:nx:nx_skip, 1:ny, 1:nz), v(1:nx:nx_skip, 1:ny, 1:nz),  &
-!!$          w(1:nx:nx_skip, 1:ny, 1:nz)
-!!$
-!!$close(1)
-!!$
-!!$!--y-direction slices
-!!$write (fname, '(a,i0,a,i6.6,a)') path // 'output/vel.yskip', ny_skip,  &
-!!$                                   '.', jt_total, '.out'
-!!$
-!!$$if ($MPI)
-!!$  write (temp, '(".c",i0)') coord
-!!$  fname = trim (fname) // temp
-!!$$endif
-!!$
-!!$open(1,file=fname,form='unformatted')
-!!$
-!!$write (1) u(1:nx, 1:ny:ny_skip, 1:nz), v(1:nx, 1:ny:ny_skip, 1:nz),  &
-!!$          w(1:nx, 1:ny:ny_skip, 1:nz)
-!!$
-!!$close(1)
-!!$
-!!$!--z-direction slices
-!!$write (fname, '(a,i0,a,i6.6,a)') path // 'output/vel.zskip', nz_skip,  &
-!!$                                   '.', jt_total, '.out'
-!!$
-!!$$if ($MPI)
-!!$
-!!$  !--first global k for corresponding to this process
-!!$  !  kg = 1 + kk * nz_skip
-!!$  kk = ceiling (real (coord * (nz - 1), rprec) / nz_skip)
-!!$  !--this corresponds to local k of kmin:
-!!$  kmin = 1 + kk * nz_skip - coord * (nz - 1)
-!!$
-!!$  write (temp, '(".c",i0)') coord
-!!$  fname = trim (fname) // temp
-!!$  
-!!$$else
-!!$
-!!$  kmin = 1
-!!$
-!!$$endif
-!!$
-!!$if ((1 <= kmin) .and. (kmin <= nz-1)) then  !--no write if out of range
-!!$
-!!$  open (1, file=fname, form='unformatted')
-!!$
-!!$  write (1) u(1:nx, 1:ny, kmin:nz-1:nz_skip),  &
-!!$            v(1:nx, 1:ny, kmin:nz-1:nz_skip),  &
-!!$            w(1:nx, 1:ny, kmin:nz-1:nz_skip)
-!!$
-!!$  close (1)
-!!$
-!!$end if
-!!$
-!!$end subroutine vel_slice
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! file number 1-10 are used for temporary use
 ! 11-19 are basic output
