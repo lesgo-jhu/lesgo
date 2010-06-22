@@ -1,7 +1,7 @@
 ! modified this so that is just calculated the force--it does not do the
 ! time advancement
 subroutine forcing ()
-!subroutine forcing(jt)
+
 use types,only:rprec
 use param
 use sim_param
@@ -20,7 +20,6 @@ $if ($TURBINES)
 $endif
 implicit none
 
-!integer,intent(in)::jt
 integer::px,py,lx,ly,lz
 integer :: jx,jy,jz,i
 
@@ -60,13 +59,14 @@ $if ($LVLSET)
   $if ($RNS_LS)
   call rns_forcing_ls()
   $endif
-$endif
 
-$if ($TREES_LS)
+  $if ($TREES_LS)
   !--this must come after call to level_set_forcing
   !--in /a posteriori/ test, this adds SGS branch force
   !--in /a priori/ test, this does not modify force
   call trees_ls_calc ()
+  $endif
+
 $endif
 
 $if ($TURBINES)
