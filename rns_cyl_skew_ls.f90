@@ -1283,6 +1283,113 @@ return
 
 end subroutine fill_ref_region
 
+!======================================================================
+subroutine fill_indx_array
+!======================================================================
+!  This subroutine gets the indx_array for r_elem. 
+!
+use types, only : rprec
+use param, only : nx,ny,nz, coord, USE_MPI
+use level_set_base, only : phi
+use messages
+implicit none
+
+character (*), parameter :: sub_sub_name = mod_name // sub_name // '.get_indx_array'
+
+type(indx_array), allocatable, dimension(:) :: pre_indx_array_t
+
+integer :: i,j,k, n, np
+
+integer, pointer :: clindx_p, indx_p, npoint_p
+
+! ---- Nullify all pointers ----
+nullify(clindx_p)
+nullify(indx_p)
+nullify(npoint_p)
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) 'Filling BETA_ELEM Index Array'
+  write(*,*) ' '
+endif
+
+! ---- Allocate all arrays ----
+allocate( pre_indx_array_t( nbeta_elem ) )
+
+do n=1, nbeta_elem
+  allocate(pre_indx_array_t(n) % iarray(3,nx*ny*(nz-1)))
+enddo
+
+!  Intialize the number of points assigned to the cluster
+do n=1, nbeta_elem
+  pre_indx_array_t(n) % npoint = 0
+enddo
+
+if(.not. chi_initialized) call error(sub_name, 'chi not initialized')
+
+do k=1, nz - 1
+
+  do j=1, ny
+
+    do i = 1, nx
+
+      clindx_p => clindx(i,j,k)
+           
+      if ( clindx_p > 0 ) then
+  
+        indx_p => cl_to_beta_elem_map( clindx_p )
+      
+	    !  Check if cluster belongs to r_elem
+        if( indx_p > 0 ) then
+		
+          !  Use only points within cutoff
+          if ( chi(i,j,k) >= chi_cutoff ) then 
+
+
+            pre_indx_array_t( indx_p ) % npoint = pre_indx_array_t( indx_p ) % npoint + 1
+			
+	        npoint_p => pre_indx_array_t( indx_p ) % npoint
+        
+            pre_indx_array_t( indx_p ) % iarray(1, npoint_p ) = i
+            pre_indx_array_t( indx_p ) % iarray(2, npoint_p ) = j
+            pre_indx_array_t(_indx_p ) % iarray(3, npoint_p ) = k
+          
+	        nullify( npoint_p )
+			
+          endif
+		  
+        endif
+
+        nullify( indx_p )
+       
+      endif
+      
+      nullify(clindx_p)
+      
+    enddo
+    
+  enddo
+  
+enddo
+
+!  Now set set index array for each r_elem
+do n=1, nbeta_elem
+
+  beta_elem_t(n) % indx_array_t % npoint = pre_indx_array_t(n) % npoint
+  
+  allocate(beta_elem_t(n) % indx_array_t % iarray(3, beta_elem_t(n) % indx_array_t % npoint ) )
+  
+  do np=1, beta_elem_t(n) % indx_array_t % npoint
+    beta_elem_t(n) % indx_array_t % iarray(:, np) = pre_indx_array_t( n ) % iarray(:, np)
+  enddo
+    
+enddo
+
+deallocate(pre_indx_array_t)
+
+return
+end subroutine fill_indx_array
+
 end subroutine fill_beta_elem
 
 !**********************************************************************
