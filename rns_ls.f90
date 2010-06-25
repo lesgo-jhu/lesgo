@@ -30,7 +30,8 @@ subroutine rns_CD_ls()
 !  This subroutine handles all CD calculation within the RNS module; 
 !  all CD and force calculations associated with
 !
-!  tree -> generation -> cluster -> branch
+!  r_elem
+!  beta_elem
 !
 !  are handled here
 !
@@ -43,12 +44,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
 
-!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
-
-!if(clforce_calc) then
-
-  call cl_force_ls()     !  Get CD, force etc for resolved regions
-  call beta_force_ls()  !  Get force of 
+call r_elem_force_ls()     !  Get CD, force etc for resolved regions
+call beta_elem_force_ls()  !  Get force of 
     
   !if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
     
@@ -78,54 +75,44 @@ end subroutine rns_CD_ls
 
 
 !**********************************************************************
-subroutine cl_force_ls()
+subroutine r_elem_force_ls()
 !**********************************************************************
-!  This subroutine computes the CD of the branch cluster (cl) associated
-!  with each region dictated by the brindx value. The cl is mapped from 
-!  brindex
+!  This subroutine computes the CD of the all the resolved elements.
 !
 use types, only : rprec
-!!use param, only : nx, ny, nz, dx, dy, dz
-!!use param, only : USE_MPI, coord
-!!$if($MPI)
-!!use param, only : MPI_RPREC, MPI_SUM, rank_of_coord, comm, ierr
-!!$endif
-!!use sim_param, only : u
-!!use functions, only : plane_avg_3D
-!!use level_set_base, only : phi
-!!use immersedbc, only : fx
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : ntree, tr_t
-$endif
 use messages
 use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
 use sim_param, only : u
-use functions, only : plane_avg_3D
+use functions, only : points_avg_3D
 use immersedbc, only : fx
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_cl_force_ls'
 
-integer, pointer :: clindx_p
+integer, pointer :: i, j, k
 integer, pointer :: npoint_p
 integer, pointer, dimension(:,:) :: iarray_p
-integer, pointer :: i, j, k
+
 real(rprec), pointer :: fD_p
 
 integer :: ncluster_tot
 integer :: nt, ng, nc, np
 
 $if ($MPI)
-real(rprec) :: cl_fD
+real(rprec) :: fD
 $endif
+
+type(ref_region) :: ref_region_t_p
+type(indx_array) :: indx_array_t_p
 
 !if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
 !  Comment starts here 
-nullify(clindx_p)
+nullify(ref_region_t_p)
+nullify(indx_array_t_p)
 nullify(npoint_p, iarray_p)
 nullify(i,j,k)
 nullify(fD_p)
@@ -135,95 +122,53 @@ nullify(fD_p)
 !!cl_fD = 0._rprec
 !!$endif
 
-do nt = 1, rns_ntree
+do n = 1, nr_elem
 
-  do ng = 1, tr_t(nt) % ngen_reslv
+  !  Get the reference velocity
+  ref_region_t_p => r_elem_t( n ) % ref_region_t
+  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % points)
   
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster
-    
-      clindx_p => rns_reslv_cl_iarray(tr_t(nt) % gen_t(ng) % cl_t(nc) % indx)
-
-!      write(*,'(1a,5i4)') 'coord, nt, ng, nc, clindx : ', coord, nt, ng, nc, clindx_p
-   
-      cl_ref_plane_t(clindx_p) % u = plane_avg_3D( u(1:nx,:,1:nz), cl_ref_plane_t(clindx_p) % p1, cl_ref_plane_t(clindx_p) % p2, &
-        cl_ref_plane_t(clindx_p) % p3, cl_ref_plane_t(clindx_p) % nzeta, cl_ref_plane_t(clindx_p) % neta )
+  indx_array_t_p => r_elem_t( n ) % indx_array_t
      
-      npoint_p => cl_indx_array_t(clindx_p) % npoint
-      iarray_p => cl_indx_array_t(clindx_p) % iarray
+  npoint_p => indx_array_t_p % npoint
+  iarray_p => cindx_array_t_p % iarray
+  
+  $if($MPI)
+  fD = 0._rprec
+  $endif
 
-!     write(*,'(1a,2i4)') 'coord, npoint : ', coord, npoint_p
+  fD_p => r_elem_t( n ) % force_t % fD
+  fD_p = 0._rprec
   
-      $if($MPI)
-      cl_fD = 0._rprec
-      $endif
-  !clforce_t(clindx_p) % fD = 0._rprec
+  do np=1, npoint_p
   
-      fD_p => clforce_t( clindx_p ) % fD
-      fD_p = 0._rprec
+    i => iarray_p(1,np)
+    j => iarray_p(2,np)
+    k => iarray_p(3,np)
   
-      do np=1, npoint_p
-  
-        i => iarray_p(1,np)
-        j => iarray_p(2,np)
-        k => iarray_p(3,np)
-  
-        $if($MPI)
-        cl_fD = cl_fD + fx(i,j,k) * dx * dy * dz
-        $else
-        fD_p = fD_p + fx(i,j,k) * dx * dy * dz
-        $endif
+    $if($MPI)
+    fD = fD + fx(i,j,k) * dx * dy * dz
+    $else
+    fD_p = fD_p + fx(i,j,k) * dx * dy * dz
+    $endif
     
-        nullify(i,j,k)
-    
-      enddo
-  
-      $if($MPI)
-      call mpi_allreduce (cl_fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-      $endif
-  
-      clforce_t(clindx_p) % CD = -fD_p / (0.5_rprec * cl_ref_plane_t(clindx_p)%area * (cl_ref_plane_t(clindx_p)%u)**2)
-  
-      nullify(clindx_p)
-      nullify(npoint_p, iarray_p)
-      nullify(fD_p)
- 
-      
-    enddo
+    nullify(i,j,k)
     
   enddo
+  
+  $if($MPI)
+  call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  $endif
+  
+  !  Compute CD
+  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p(n)%area * (ref_region_t_p(n)%u)**2)
+  
+  nullify(fD_p)
+  nullify(npoint_p, iarray_p)
+  nullify(indx_array_t_p)
+  nullify(ref_region_t_p)
  
 enddo
-
-!  Comment ends here
-
-!do nc = 1, ncluster_reslv_ref
-!  reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-!  clindx_p => tr_t(reslv_cl_loc_id_p(1)) % gen_t(reslv_cl_loc_id_p(2)) % cl_t(reslv_cl_loc_id_p(3)) % indx
-!  clforce_t(clindx_p) % CD = 1._rprec
-!  nullify(reslv_cl_loc_id_p, clindx_p)
-!      
-!enddo
-
-!if(use_main_tree_ref) then
-!!  Need to put CD on other resolved clusters (on other trees)
-!  do nt = 2, ntree
-!    do ng = 1, tr_t(nt) % ngen_reslv
-!      do nc = 1, tr_t(nt) % gen_t (ng) % ncluster
-
-!        clindx_p       => tr_t(1) % gen_t(ng) % cl_t(nc) % indx
-!        clindx_other_p => tr_t(nt) % gen_t(ng) % cl_t(nc) % indx
-!        
-!        clforce_t(clindx_other_p) % CD = clforce_t(clindx_p) % CD
-!        
-!        nullify(clindx_p, clindx_other_p)
-!        
-!      enddo
-!    enddo
-!  enddo
-!  
-!endif
-
-!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
 
 return
 end subroutine cl_force_ls
