@@ -1711,11 +1711,11 @@ br % height_bbox = height
 br % width_bbox = width
 
 !--assumes trunk is upright (aligned with z)
-if (height > nproc * L_z) then
+if (height > L_z) then
     if ( warn_only ) then
-        call warn (sub_name, 'bbox height > nproc * L_z')
+        call warn (sub_name, 'bbox height > L_z')
     else
-        call error (sub_name, 'bbox height > nproc * L_z')
+        call error (sub_name, 'bbox height > L_z')
     end if
 else if (width > min (L_x, L_y)) then
     if ( warn_only ) then

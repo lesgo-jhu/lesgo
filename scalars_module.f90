@@ -212,7 +212,7 @@ real(kind=rprec)::wt_s2
 !TS
 integer::px,py,lx,ly,lz
 !  call ddz_uv (dsdz,scalar) 
-!  if ((scalar(2,2,2)<2.and. nproc*L_z>z_i).AND.(wt_s.ne.0.0)) then
+!  if ((scalar(2,2,2)<2.and. L_z>z_i).AND.(wt_s.ne.0.0)) then
 !  dsdz(:,:,Nz)=inv_strength/T_scale*z_i ! Valid for temperature
 !  else if (wt_s .eq. 0.0) then
 !  dsdz(:,:,Nz)=0 ! Valid if heat flux is set as zero - for neutral test with scalars
@@ -450,9 +450,9 @@ endif
 !VK Coriolis with both momentum and scalars running but decoupled.. as is the case 
 !VK for neutral conditions (wt_s=0)
 
-!if ((nproc*L_z .eq. z_i) .OR. (wt_s .eq. 0)) then
+!if ((L_z .eq. z_i) .OR. (wt_s .eq. 0)) then
 !scalar(:,:,nz)=scalar(:,:,nz-1)
-!else if ((scalar(2,2,2)<2.and. nproc*L_z>z_i) .AND. (wt_s .ne. 0)) then
+!else if ((scalar(2,2,2)<2.and. L_z>z_i) .AND. (wt_s .ne. 0)) then
 !scalar(:,:,nz)=scalar(:,:,nz-1)+0.003/T_scale*z_i*dz !ubc
 !end if
 
@@ -462,15 +462,15 @@ endif
 !VK For example, the first if block refers to a condition with humidity while the
 !VK second and third statements are focussed to temperature
 
-if (scalar(2,2,2)<2.and. nproc*L_z>1.) then ! for temperature and non-neutral case
+if (scalar(2,2,2)<2.and. L_z>1.) then ! for temperature and non-neutral case
      scalar(:,:,Nz)=scalar(:,:,Nz-1)+inv_strength/T_scale*z_i*dz !ubc 
 ! inv_strength - refers to the slope of the inversion ~ 0.003K/Km for temperature
 else ! for everything else - neutral and passive scalars (may be modified depending on need)
      scalar(:,:,Nz)=scalar(:,:,Nz-1)
 end if
-!if (scalar(2,2,2)>2.and. nproc*L_z>z_i) then
+!if (scalar(2,2,2)>2.and. L_z>z_i) then
 !     scalar(:,:,Nz)=scalar(:,:,Nz-1)
-!else if ((wt_s_current .eq. 0.0).OR.(nproc*L_z.eq.z_i)) then
+!else if ((wt_s_current .eq. 0.0).OR.(L_z.eq.z_i)) then
 !     scalar(:,:,Nz)=scalar(:,:,Nz-1)
 !else
 !     scalar(:,:,Nz)=scalar(:,:,Nz-1)+inv_strength/T_scale*z_i*dz !ubc
