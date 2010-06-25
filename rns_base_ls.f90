@@ -22,13 +22,12 @@ $endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
-!logical, parameter :: clforce_calc = .true.
-!integer, parameter :: clforce_nskip = 10
+integer, parameter :: rns_ntree = 2 ! Number of unique trees 
+
+logical, parameter :: use_explicit_formulation = .true.
+logical, parameter :: use_single_beta_CD = .true.
 
 integer, parameter :: CD_ramp_nstep = 1000
-
-!logical, parameter :: use_beta_sub_regions = .true.
-logical, parameter :: use_single_beta_CD = .true.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
@@ -45,7 +44,7 @@ type ref_region
 end type ref_region
 
 type force
-  integer :: parent !  parent CD; for resolved branches 
+  !integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fD
   real(rprec) :: CD
   real(rprec) :: kappa ! Used for unresolved branches
@@ -58,7 +57,7 @@ end type
 
 type child_elem
   integer :: nelem
-  integer, pointer, dimension(:) :: iarray
+  integer, pointer, dimension(:) :: indx
 end type child_elem
 
 ! ---- Secondary structures ----
