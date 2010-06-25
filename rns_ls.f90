@@ -174,10 +174,9 @@ return
 end subroutine cl_force_ls
 
 !**********************************************************************
-subroutine beta_force_ls()
+subroutine beta_elem_force_ls()
 !**********************************************************************
-!  This subroutine computes the CD of the branch cluster (cl) associated
-!  with each region dictated by the brindx value. 
+!  This subroutine computes the CD of the beta elements
 !
 use types, only : rprec
 use param, only : dx, dy, dz, nx, ny, nz, jt, coord, USE_MPI
@@ -203,6 +202,10 @@ integer, pointer :: i,j,k
 integer, pointer :: npoint_p
 integer, pointer :: clindx_p
 integer, pointer :: rbeta_indx_p, rns_clindx_p
+
+real(rprec), allocatable, dimension(:) :: beta_gamma
+real(rprec), allocatable, dimension(:) :: beta_gamma_sum
+real(rprec), allocatable, dimension(:) :: b_gamma
 
 real(rprec), pointer, dimension(:) :: p1_p, p2_p, p3_p   
 integer, pointer :: nzeta_p, neta_p 
@@ -245,7 +248,6 @@ nullify(gen_t_p)
 !allocate(fD_dir(nbeta))
 
 !  Compute total drag force all unresolved (beta) regions
-!  Need more work to have beta as sub regions
 
 !  Step 0: Get the total force due to each beta region
 do ib = 1, nbeta 
