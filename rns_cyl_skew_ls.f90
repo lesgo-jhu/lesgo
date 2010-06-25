@@ -21,7 +21,6 @@ private
 
 public rns_init_ls
 
-integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 integer, parameter :: rns_tree_layout = 1
 
 !  Parameters for setting reference regions
