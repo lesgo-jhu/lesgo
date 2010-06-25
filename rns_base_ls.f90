@@ -22,13 +22,12 @@ $endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
-!logical, parameter :: clforce_calc = .true.
-!integer, parameter :: clforce_nskip = 10
+integer, parameter :: rns_ntree = 2 ! Number of unique trees 
+
+logical, parameter :: use_explicit_formulation = .true.
+logical, parameter :: use_single_beta_CD = .true.
 
 integer, parameter :: CD_ramp_nstep = 1000
-
-!logical, parameter :: use_beta_sub_regions = .true.
-logical, parameter :: use_single_beta_CD = .true.
 
 real(rprec), parameter :: chi_cutoff = 1.e-9_rprec
 
