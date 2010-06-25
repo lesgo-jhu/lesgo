@@ -45,7 +45,7 @@ type ref_region
 end type ref_region
 
 type force
-  integer :: parent !  parent CD; for resolved branches 
+  !integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fD
   real(rprec) :: CD
   real(rprec) :: kappa ! Used for unresolved branches
@@ -58,7 +58,7 @@ end type
 
 type child_elem
   integer :: nelem
-  integer, pointer, dimension(:) :: iarray
+  integer, pointer, dimension(:) :: indx
 end type child_elem
 
 ! ---- Secondary structures ----
