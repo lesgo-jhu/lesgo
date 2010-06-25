@@ -66,12 +66,12 @@ module param
   !set as multiple of BL height (z_i) then non-dimensionalized by z_i
     real(rprec),parameter::L_x= pi
     real(rprec),parameter::L_y= pi    
-    real(rprec),parameter::L_z= 1. /nproc
+    real(rprec),parameter::L_z= 1.
     !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
-    !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)/nproc*L_x  ! ensure dz = dx
+    !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
   !these values are also non-dimensionalized by z_i:
-    real(rprec),parameter::dz=nproc*L_z/(nz_tot-1./2.)
+    real(rprec),parameter::dz=L_z/(nz_tot-1) ! or (L_z/nproc)/(nz - 1)
     real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
   
 !---------------------------------------------------
@@ -164,7 +164,7 @@ module param
   logical, parameter :: force_top_bot = .false.
 
   logical, parameter :: use_mean_p_force = .true.
-  real (rprec), parameter :: mean_p_force = 1._rprec * 1./(nproc*L_z)
+  real (rprec), parameter :: mean_p_force = 1._rprec * 1. / L_z
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
