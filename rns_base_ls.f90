@@ -25,7 +25,7 @@ $endif
 integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 
 logical, parameter :: use_explicit_formulation = .true.
-logical, parameter :: use_single_beta_CD = .true.
+logical, parameter :: use_local_CD = .true.
 
 integer, parameter :: CD_ramp_nstep = 1000
 

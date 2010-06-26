@@ -208,9 +208,10 @@ real(rprec), pointer, dimension(:,:) :: points_p
 !real(rprec) :: sigma
 !real(rprec), allocatable, dimension(:) :: fD_dir
 
-real(rprec) :: CD_num, CD_denom, CD, Lint
+real(rprec) :: CD, Lint
 
 real(rprec), allocatable, dimension(:) ::  fD_tot
+real(rprec), allocatable, dimension(:) ::  CD_num, CD_denom
 
 $if($MPI)
 real(rprec) :: Lint_global
@@ -292,7 +293,37 @@ if( use_explicit_formulation ) then
 	
   enddo
   
+  if( use_local_CD ) then
+  
+    do n=1, nb_elem
+	
+	  b_elem_t(n) % force_t % CD = 2._rprec * b_force(n) / b_gamma(n)
+	  
+	enddo
+	
+  else
+  
+    CD_num=0._rprec
+	CD_denom=0._rprec
+    do n=1, nb_elem
+	
+	  CD_num = CD_num + b_force(n) * b_gamma(n) 
+	  CD_denom = b_gamma(n) * b_gamma(n)
+	  
+	enddo
+
+	b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
+	
+  endif
+
+  
 else
+ 
+  do n=1, nb_elem
+  
+    b_m(n) = 0.5_rprec * ( beta_gamma_sum(n) - b_gamma(n) )
+	
+  enddo
 
 
 endif
