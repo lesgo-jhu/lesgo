@@ -174,57 +174,47 @@ return
 end subroutine cl_force_ls
 
 !**********************************************************************
-subroutine beta_elem_force_ls()
+subroutine rns_elem_force_ls()
 !**********************************************************************
 !  This subroutine computes the CD of the beta elements
 !
 use types, only : rprec
-use param, only : dx, dy, dz, nx, ny, nz, jt, coord, USE_MPI
 use messages
 use sim_param, only : u
 use immersedbc, only : fx
-use functions, only : plane_avg_3D
+use functions, only : points_avg_3D
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only : tree, generation, tr_t
-$endif
+
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_beta_force_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_elem_force_ls'
 
-integer :: nb, np, nt, nc
-integer :: ib, irb
-
-integer, pointer :: i,j,k
+integer, pointer :: i,j,k, n, ns
 integer, pointer :: npoint_p
 integer, pointer :: clindx_p
-integer, pointer :: rbeta_indx_p, rns_clindx_p
+integer, pointer :: nelem_p, indx_p
 
 real(rprec), allocatable, dimension(:) :: beta_gamma
 real(rprec), allocatable, dimension(:) :: beta_gamma_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
 
-real(rprec), pointer, dimension(:) :: p1_p, p2_p, p3_p   
-integer, pointer :: nzeta_p, neta_p 
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer :: kappa_p, CD_p
+real(rprec), pointer, dimension(:,:) :: points_p
 
 !real(rprec) :: sigma
 !real(rprec), allocatable, dimension(:) :: fD_dir
 
 real(rprec) :: CD_num, CD_denom, CD, Lint
 
-real(rprec), allocatable, dimension(:) ::  fD_tot, CD_rbeta
+real(rprec), allocatable, dimension(:) ::  fD_tot
 
 $if($MPI)
 real(rprec) :: Lint_global
 $endif
-
-type(tree), pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
 
 $if($MPI)
 real(rprec) :: fD
@@ -235,19 +225,78 @@ $endif
 nullify(i,j,k)
 nullify(npoint_p)
 nullify(clindx_p)
-nullify(rbeta_indx_p, rns_clindx_p)
+nullify(nelem_p, indx_p)
 
-nullify(p1_p, p2_p, p3_p)
-nullify(nzeta_p, neta_p)
 nullify(area_p, u_p)
 nullify(kappa_p, CD_p)
 
-nullify(tr_t_p)
-nullify(gen_t_p)
+allocate(beta_gamma(nbeta_elem))
+allocate(b_gamma(nb_elem))
+allocate(beta_gamma_sum(nb_elem))
+beta_gamma_sum=0
 
-!allocate(fD_dir(nbeta))
+do n=1, nbeta_elem
 
-!  Compute total drag force all unresolved (beta) regions
+  u_p      => beta_elem_t(n) % ref_region_t % u
+  area_p   => beta_elem_t(n) % ref_region_t % area
+  points_p => beta_elem_t(n) % ref_region_t % points
+  
+  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  
+  beta_gamma(n) = dabs( u_p ) * u_p * area_p
+  
+  nullify(u_p, area_p, points_p)
+  
+enddo
+
+do n=1, nb_elem
+
+  u_p      => b_elem_t(n) % ref_region_t % u
+  area_p   => b_elem_t(n) % ref_region_t % area
+  points_p => b_elem_t(n) % ref_region_t % points
+  
+  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  
+  b_gamma(n) = dabs( u_p ) * u_p * area_p
+  
+  nullify(u_p, area_p, points_p)
+  
+  nelem_p => b_elem_t(n) % beta_child_t % nelem
+  indx_p  => b_elem_t(n) % beta_child_t % indx
+  
+  do n1=1, nelem_p
+    beta_gamma_sum(n) = beta_gamma_sum(n) + beta_gamma( indx_p(ns) )
+  enddo
+  
+  nullify(indx_p, nelem_p)
+  
+enddo
+
+if( use_explicit_formulation ) then
+
+  allocate(b_force( nb_elem ))
+  b_force = 0._rprec
+  
+  do n=1, nb_elem
+    
+    nelem_p => b_elem_t(n) % r_child_t % nelem
+    indx_p  => b_elem_t(n) % r_child_t % indx
+  
+    do ns=1, nelem_p
+      b_force(n) = b_force(n) + r_elem_t( indx_p(ns) )% force_t % fD 
+    enddo 
+	
+	nullify(indx_p, nelem_p)
+	
+	b_force(n) = b_force(n) - 0.5_rprec* b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
+	
+  enddo
+  
+else
+
+
+endif
+  
 
 !  Step 0: Get the total force due to each beta region
 do ib = 1, nbeta 
