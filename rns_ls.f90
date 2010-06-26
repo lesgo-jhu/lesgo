@@ -264,7 +264,7 @@ do n=1, nb_elem
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
   
-  do n1=1, nelem_p
+  do ns=1, nelem_p
     beta_gamma_sum(n) = beta_gamma_sum(n) + beta_gamma( indx_p(ns) )
   enddo
   
@@ -288,7 +288,7 @@ if( use_explicit_formulation ) then
 	
 	nullify(indx_p, nelem_p)
 	
-	b_force(n) = b_force(n) - 0.5_rprec* b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
+	b_force(n) = b_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
 	
   enddo
   
