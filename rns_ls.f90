@@ -90,7 +90,7 @@ use functions, only : points_avg_3D
 use immersedbc, only : fx
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_cl_force_ls'
+character (*), parameter :: sub_name = mod_name // '.r_elem_force_ls'
 
 integer, pointer :: i, j, k
 integer, pointer :: npoint_p
@@ -171,7 +171,7 @@ do n = 1, nr_elem
 enddo
 
 return
-end subroutine cl_force_ls
+end subroutine r_elem_force_ls
 
 !**********************************************************************
 subroutine rns_elem_force_ls()
@@ -273,23 +273,30 @@ do n=1, nb_elem
   
 enddo
 
+!  Compute the total resolved force of each b_elem
+allocate(b_r_force( nb_elem )) 
+b_r_force = 0._rprec
+do n=1, nb_elem
+
+  nelem_p => b_elem_t(n) % r_child_t % nelem
+  indx_p  => b_elem_t(n) % r_child_t % indx
+  
+  do ns=1, nelem_p
+    b_r_force(n) = b_r_force(n) + r_elem_t( indx_p(ns) )% force_t % fD 
+  enddo 
+	
+  nullify(indx_p, nelem_p)
+	
+enddo
+
 if( use_explicit_formulation ) then
 
   allocate(b_force( nb_elem ))
   b_force = 0._rprec
   
   do n=1, nb_elem
-    
-    nelem_p => b_elem_t(n) % r_child_t % nelem
-    indx_p  => b_elem_t(n) % r_child_t % indx
-  
-    do ns=1, nelem_p
-      b_force(n) = b_force(n) + r_elem_t( indx_p(ns) )% force_t % fD 
-    enddo 
-	
-	nullify(indx_p, nelem_p)
-	
-	b_force(n) = b_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
+    	
+	b_force(n) = b_r_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
 	
   enddo
   
@@ -300,8 +307,8 @@ if( use_explicit_formulation ) then
 	  b_elem_t(n) % force_t % CD = 2._rprec * b_force(n) / b_gamma(n)
 	  
 	enddo
-	
-  else
+  
+  else ! compute global CD
   
     CD_num=0._rprec
 	CD_denom=0._rprec
@@ -315,275 +322,120 @@ if( use_explicit_formulation ) then
 	b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 	
   endif
+  
+  deallocate(b_force)
 
+else ! use implicit formulation
+
+  allocate( b_m( nb_elem )) 
+  do n=1, nb_elem  
+    b_m(n) = 0.5_rprec * (beta_gamma_sum(n) - b_gamma(n))
+  enddo
+
+  if( use_local_CD ) then
   
-else
- 
-  do n=1, nb_elem
-  
-    b_m(n) = 0.5_rprec * ( beta_gamma_sum(n) - b_gamma(n) )
+    do n=1, nb_elem
 	
-  enddo
-
-
-endif
+	  b_elem_t(n) % force_t % CD = b_r_force(n) / b_m(n)
+	  
+	enddo
+	
+  else
   
+    CD_num=0._rprec
+	CD_denom=0._rprec
+    do n=1, nb_elem
+	
+	  CD_num = CD_num + b_r_force(n) * b_m(n)
+	  CD_denom = b_m(n) * b_m(n)
+	  
+	enddo
 
-!  Step 0: Get the total force due to each beta region
-do ib = 1, nbeta 
+	b_elem_t(:) % force_t % CD = CD_num / CD_denom
+	
+  endif
+  
+  deallocate( b_m )
  
-  !  Loop over number of points used in beta region
-  npoint_p => beta_indx_array_t( ib ) % npoint
-  
-  $if($MPI)
-  fD = 0._rprec
-  $endif
-  
-  beta_force_t(ib) % fD = 0._rprec
-  
-  do np = 1, npoint_p
-  
-    i => beta_indx_array_t( ib ) % iarray(1,np)
-    j => beta_indx_array_t( ib ) % iarray(2,np)
-    k => beta_indx_array_t( ib ) % iarray(3,np)
-    
-    $if($MPI)
-    fD = fD + fx(i,j,k) * dx * dy * dz
-    $else    
-    beta_force_t(ib) % fD = beta_force_t(ib) % fD + fx(i,j,k) * dx * dy * dz
-    $endif
- 
-    nullify(i,j,k)
-    
-  enddo
-  
-  $if($MPI)
-  call mpi_allreduce (fD, beta_force_t(ib) % fD, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  $endif
-  
-  nullify(npoint_p)
-
-  !if(beta_force_t(nb) % fD < 0._rprec) then
-
-  !  fD_dir(nb) = -1._rprec
-
-  !else
-
-  !  fD_dir(nb) = 1._rprec
-
-  !endif
-  
-enddo
-  
-allocate(fD_tot(nrbeta))
-fD_tot = 0._rprec
-  
-! Step 1: Sum the force for each of the beta regions
-do ib = 1, nbeta
-  
-  rbeta_indx_p => beta_force_t(ib) % parent
-    
-  fD_tot( rbeta_indx_p ) = fD_tot(rbeta_indx_p) + beta_force_t(ib) % fD
-    
-  nullify(rbeta_indx_p)
-    
-enddo
-  
-  !  Step 2: Sum the force due to the resolved clusters
-do nt = 1, rns_ntree
-  
-  tr_t_p => tr_t( rns_tree_iarray(nt) )
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-   
-  do nc = 1, gen_t_p % ncluster
-    
-    clindx_p => gen_t_p % cl_t (nc) % indx
-           
-    rbeta_indx_p => rns_rbeta_iarray( clindx_p )
-    rns_clindx_p => rns_reslv_cl_iarray( clindx_p ) 
-      
-    !if(coord == 0) write(*,*) 'clindx_p, rbeta_indx_p, rns_clindx_p : ', clindx_p, rbeta_indx_p, rns_clindx_p
-      
-    fD_tot(rbeta_indx_p) = fD_tot(rbeta_indx_p) + clforce_t(rns_clindx_p) % fD
-      
-    nullify(clindx_p, rbeta_indx_p, rns_clindx_p)
-      
-  enddo
-    
-  nullify(tr_t_p, gen_t_p)
-    
-enddo
-
-if(use_single_beta_CD) then  
-
-  CD_num = 0._rprec
-  CD_denom = 0._rprec
- 
-  !  Step 3: Get reference quantities and sum  
-  do irb = 1, nrbeta
-
-    !tr_t_p => tr_t(rns_tree_iarray(nt))
-    !!gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-    
-    !do nc = 1, gen_t_p % ncluster
-    
-    !  clindx_p => gen_t_p % cl_t (nc) % indx
-    !  
-    !  rbeta_indx_p => rns_rbeta_iarray(clindx_p)
-  
-    p1_p    => rbeta_ref_plane_t (irb) % p1
-    p2_p    => rbeta_ref_plane_t (irb) % p2
-    p3_p    => rbeta_ref_plane_t (irb) % p3
-    nzeta_p => rbeta_ref_plane_t (irb) % nzeta
-    neta_p  => rbeta_ref_plane_t (irb) % neta
-    area_p  => rbeta_ref_plane_t (irb) % area
-    u_p     => rbeta_ref_plane_t (irb) % u
-
-    u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
-  
-    nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)
-      
-    CD_num = CD_num + fD_tot(irb) * u_p * dabs( u_p ) * area_p
-    CD_denom = CD_denom + u_p * u_p * u_p * u_p * area_p**2
-    
-    nullify(area_p, u_p)
-
-  enddo
-
-  !  Compute CD
-  CD = -2._rprec * CD_num / CD_denom
-  
-  if( jt < CD_ramp_nstep ) CD = dble(jt)/dble(CD_ramp_nstep) * CD
-  
-  !  This CD goes with the regions beta on all trees ! and is the new CD
-  do ib = 1, nbeta
-  
-    beta_force_t( ib ) % CD = CD
-    
-  enddo
-  
-else
-
-  allocate(CD_rbeta(nrbeta))
-  CD_rbeta=0._rprec
-
-!  Each rbeta region will get a CD
-    
-  !  Step 3: Get reference quantities and sum  
-  do irb = 1, nrbeta
-  
-    CD_num = 0._rprec
-    CD_denom = 0._rprec
-  
-    !tr_t_p => tr_t(rns_tree_iarray(nt))
-    !!gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-    
-    !do nc = 1, gen_t_p % ncluster
-    
-    !  clindx_p => gen_t_p % cl_t (nc) % indx
-    !  
-    !  rbeta_indx_p => rns_rbeta_iarray(clindx_p)
-  
-    p1_p    => rbeta_ref_plane_t (irb) % p1
-    p2_p    => rbeta_ref_plane_t (irb) % p2
-    p3_p    => rbeta_ref_plane_t (irb) % p3
-    nzeta_p => rbeta_ref_plane_t (irb) % nzeta
-    neta_p  => rbeta_ref_plane_t (irb) % neta
-    area_p  => rbeta_ref_plane_t (irb) % area
-    u_p     => rbeta_ref_plane_t (irb) % u
-
-    u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
-  
-    nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)
-      
-    CD_num = fD_tot(irb) * u_p * dabs( u_p ) * area_p
-    CD_denom = u_p * u_p * u_p * u_p * area_p**2
-    
-    CD_rbeta(irb) = -2._rprec * CD_num / CD_denom
-    
-    if( jt < CD_ramp_nstep ) CD_rbeta(irb) = dble(jt)/dble(CD_ramp_nstep) * CD_rbeta(irb)
-    
-    nullify(area_p, u_p)
-
-  enddo
-
-  !  This CD goes with the regions rbeta 
-  do ib = 1, nbeta
-
-    beta_force_t( ib ) % CD = CD_rbeta ( beta_force_t ( ib ) % parent )
-    
-  enddo
-  
-  deallocate(CD_rbeta)
-
 endif
 
-deallocate(fD_tot)
+deallocate(b_r_force)
 
-  
-!  Compute kappa
-!  Compute Lint over each region beta
+!  Now update the CD of all the beta_elem 
+do n=1, nb_elem
 
-do ib = 1, nbeta 
+  nelem_p => b_elem_t(n) % beta_child_t % nelem
+  indx_p  => b_elem_t(n) % beta_child_t % indx
   
-  p1_p    => beta_ref_plane_t (ib) % p1
-  p2_p    => beta_ref_plane_t (ib) % p2
-  p3_p    => beta_ref_plane_t (ib) % p3
-  nzeta_p => beta_ref_plane_t (ib) % nzeta
-  neta_p  => beta_ref_plane_t (ib) % neta
-  area_p  => beta_ref_plane_t (ib) % area
-  u_p     => beta_ref_plane_t (ib) % u
-    
-  u_p = plane_avg_3D(u(1:nx,1:ny,1:nz), p1_p, p2_p, p3_p, nzeta_p, neta_p)
-  
-  nullify(p1_p, p2_p, p3_p, nzeta_p, neta_p)  
- 
-  !  Loop over number of points used in beta region
-  npoint_p => beta_indx_array_t( ib ) % npoint
-    
-  Lint = 0._rprec
+  do ns=1, nelem_p
+    beta_elem_t( indx_p(ns) ) % force_t % CD = b_elem_t(n) % force_t % CD
+  enddo 
+	
+  nullify(indx_p, nelem_p)
+	
+enddo
+
+!  Compute the total force for beta_elem
+do n=1, nbeta_elem
+  beta_elem_t(n) % force_t % fD = - 0.5_rprec * beta_elem_t(n) % force_t % CD * beta_gamma(n)
+enddo
+
+!  Compute the total force for b_elem
+do n=1, nb_elem
+  b_elem_t(n) % force_t % fD = - 0.5_rprec * b_elem_t(n) % force_t % CD * b_gamma(n)
+enddo
+
+!  Now need to compute kappa
+do n = 1, nbeta_elem
+
+  !  Compute beta_int over each region beta
+  beta_int = 0._rprec
     
   $if($MPI)
-  Lint_global = 0._rprec
+  beta_int_global = 0._rprec
   $endif
   
-  do np = 1, npoint_p
+  !  Loop over number of points used in beta region
+  npoint_p => beta_elem_t(n) % indx_array_t % npoint
   
-    i => beta_indx_array_t( ib ) % iarray(1,np)
-    j => beta_indx_array_t( ib ) % iarray(2,np)
-    k => beta_indx_array_t( ib ) % iarray(3,np)
+  do ns = 1, npoint_p
+  
+    i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
+    j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
+    k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
     
-    Lint = Lint + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+    beta_int = beta_int + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
  
     nullify(i,j,k)
       
   enddo
+  
+  beta_int = beta_int * dx * dy * dz
     
   nullify( npoint_p )
     
   $if($MPI)
-  call mpi_allreduce (Lint, Lint_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  Lint = Lint_global
+  call mpi_allreduce (beta_int, beta_int_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  beta_int = beta_int_global
   $endif
     
-  kappa_p => beta_force_t(ib) % kappa
-  CD_p    => beta_force_t(ib) % CD
+  kappa_p => beta_elem_t(n) % force_t % kappa
+  CD_p    => beta_elem_t(n) % force_t % CD
     
-  kappa_p = CD_p * dabs ( u_p ) * area_p * u_p / ( 2._rprec * Lint * dx * dy * dz )
+  kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
     
-  if(coord == 0 .and. (modulo (jt, clforce_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta, kappa, CD, Lint : ', ib, kappa_p, CD_p, Lint
+  if(coord == 0 .and. (modulo (jt, 10) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   nullify(u_p, area_p)
         
 enddo
    
-  
+deallocate(beta_gamma, beta_gamma_sum)
+deallocate(b_gamma)
 
-  
-!deallocate(fD_dir)
-
-end subroutine beta_force_ls
+return
+end subroutine rns_elem_force_ls
 
 !**********************************************************************
 subroutine rns_forcing_ls()
@@ -617,18 +469,17 @@ nullify(npoint_p)
 nullify(kappa_p)
 
 
-do ib = 1, nbeta 
+do n = 1, nbeta_elem
  
     !  Loop over number of points used in beta region
-    npoint_p => beta_indx_array_t( ib ) % npoint
-    
-    kappa_p  => beta_force_t( ib ) % kappa
+    npoint_p => beta_force_t( n ) % indx_array_t % npoint    
+    kappa_p  => beta_force_t( n ) % force_t % kappa
   
     do np = 1, npoint_p
   
-      i => beta_indx_array_t( ib ) % iarray(1,np)
-      j => beta_indx_array_t( ib ) % iarray(2,np)
-      k => beta_indx_array_t( ib ) % iarray(3,np)
+      i => beta_force_t( n ) % indx_array_t % iarray(1,np)
+      j => beta_force_t( n ) % indx_array_t % iarray(2,np)
+      k => beta_force_t( n ) % indx_array_t % iarray(3,np)
     
       fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
  
@@ -641,15 +492,7 @@ do ib = 1, nbeta
 enddo
 
 $if($MPI)
-!  Sync data at overlap nodes
-!if(coord < nproc - 1) then
-!  call mpi_recv (fx(:,:,nz), ld*ny, MPI_RPREC, up, 1, comm, status, ierr)
-!endif
-!if(coord > 0) then
-!  call mpi_send (fx(:,:,1), ld*ny, MPI_RPREC, down, 1, comm, ierr)
-!endif
 call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
-
 $endif
 
 return
