@@ -499,310 +499,206 @@ return
 
 end subroutine rns_forcing_ls
 
-
 !**********************************************************************
-subroutine write_cl_CD_ls()
+subroutine write_r_elem_data()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
+use param, only : total_time, path
 use strmod
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
-$endif
 
-implicit none
+character(*), parameter :: sub_name = mod_name // '.write_r_elem_data'
+character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_r_elem_fD.dat'
+character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
 
-character(*), parameter :: sub_name = mod_name // '.write_cl_CD_ls'
-character(*), parameter :: fname = path // 'output/rns_cl_CD_ls.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
+integer :: n, nvar
 
-!  Write cluster force (CD) for all trees + time step
-
-nvar = ncluster_reslv + 1
-
-inquire (file=fname, exist=exst)
+inquire (file=fname_CD, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
-  do nc = 1, nvar-1
-  
-    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+  do n = 1, nr_elem
     !  Create variable list name:
     call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, reslv_cl_loc_id_p(1))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(2))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(3))
+    call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(reslv_cl_loc_id_p)
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, clforce_t(1:nvar-1)%CD /))
+call write_real_data(fname_CD, 'append', 'formatted', nr_elem + 1, (/ total_time, r_elem_t(:) % force_t % CD /))
 
-return
-end subroutine write_cl_CD_ls
-
-!**********************************************************************
-subroutine write_cl_vel_ls()
-!**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
-use strmod
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
-$endif
-
-implicit none
-
-character(*), parameter :: sub_name = mod_name // '.write_cl_vel_ls'
-character(*), parameter :: fname = path // 'output/rns_cl_vel_ls.dat'
-
-logical :: exst
-character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
-
-!  Write cluster force (CD) for all trees + time step
-
-nvar = ncluster_reslv + 1
-
-inquire (file=fname, exist=exst)
+inquire (file=fname_fD, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
-  do nc = 1, nvar-1
-  
-    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
-    !  Create variable list name:
-    call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, reslv_cl_loc_id_p(1))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(2))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(3))
-    call strcat(var_list, '</sub>"')
-  enddo
-  nullify(reslv_cl_loc_id_p)
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
-endif
-
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, cl_ref_plane_t(1:nvar-1)%u /))
-
-return
-end subroutine write_cl_vel_ls
-
-!**********************************************************************
-subroutine write_beta_vel_ls()
-!**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
-use strmod
-
-implicit none
-
-character(*), parameter :: sub_name = mod_name // '.write_beta_vel_ls'
-character(*), parameter :: fname = path // 'output/rns_beta_vel_ls.dat'
-
-logical :: exst
-character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-
-!  Write cluster force (CD) for all trees + time step
-nvar = nbeta + 1
-
-inquire (file=fname, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do nc = 1, nvar-1
-  
-    !  Create variable list name:
-    call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, nc)
-    call strcat(var_list, ',')
-    call strcat(var_list, 1) ! Need ability to specify beta region
-    call strcat(var_list, '</sub>"')
-  enddo
-
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
-endif
-
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_ref_plane_t(1:nvar-1) % u /))
-
-return
-end subroutine write_beta_vel_ls
-
-!**********************************************************************
-subroutine write_cl_fD_ls()
-!**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
-use strmod
-$if($CYL_SKEW_LS)
-use cyl_skew_base_ls, only :  reslv_clindx_to_loc_id
-$endif
-
-implicit none
-
-character(*), parameter :: sub_name = mod_name // '.write_cl_fD_ls'
-character(*), parameter :: fname = path // 'output/rns_cl_fD_ls.dat'
-
-logical :: exst
-character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-integer, pointer, dimension(:) :: reslv_cl_loc_id_p => null()
-
-!  Write cluster force (CD) for all trees + time step
-
-nvar = ncluster_reslv + 1
-
-inquire (file=fname, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do nc = 1, nvar-1
-  
-    reslv_cl_loc_id_p => reslv_clindx_to_loc_id(:,nc)
+  do n = 1, nr_elem
     !  Create variable list name:
     call strcat(var_list, ',"fD<sub>')
-    call strcat(var_list, reslv_cl_loc_id_p(1))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(2))
-    call strcat(var_list, ',')
-    call strcat(var_list, reslv_cl_loc_id_p(3))
+    call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  nullify(reslv_cl_loc_id_p)
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -clforce_t(1:nvar-1)%fD /))
+call write_real_data(fname_fD, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % force_t % fD /))
 
-return
-end subroutine write_cl_fD_ls
-
-!**********************************************************************
-subroutine write_beta_fD_ls()
-!**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
-use strmod
-
-implicit none
-
-character(*), parameter :: sub_name = mod_name // '.write_beta_fD_ls'
-character(*), parameter :: fname = path // 'output/rns_beta_fD_ls.dat'
-
-logical :: exst
-character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-
-!  Write cluster force (CD) for all trees + time step
-nvar = nbeta + 1
-
-inquire (file=fname, exist=exst)
+inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
-  do nc = 1, nvar-1
-  
+  do n = 1, nr_elem
     !  Create variable list name:
-    call strcat(var_list, ',"fD<sub>')
-    call strcat(var_list, nc)
-    call strcat(var_list, ',')
-    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, ',"u<sub>')
+    call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, -beta_force_t(1:nvar-1) % fD /))
+call write_real_data(fname, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine write_beta_fD_ls
+end subroutine write_r_elem_data
 
 !**********************************************************************
-subroutine write_beta_CD_ls()
+subroutine write_beta_elem_data()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
+use param, only : total_time, path
 use strmod
 
-implicit none
+character(*), parameter :: sub_name = mod_name // '.write_beta_elem_data'
+character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_fD.dat'
+character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
+character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
 
-character(*), parameter :: sub_name = mod_name // '.write_beta_CD_ls'
-character(*), parameter :: fname = path // 'output/rns_beta_CD_ls.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: nc, nvar, nvar_count
+integer :: n, nvar
 
-!  Write cluster force (CD) for all trees + time step
-nvar = nbeta + 1
-
-inquire (file=fname, exist=exst)
+inquire (file=fname_CD, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
-  do nc = 1, nvar-1
-  
+  do n = 1, nbeta_elem
     !  Create variable list name:
     call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, nc)
-    call strcat(var_list, ',')
-    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_force_t(1:nvar-1) % CD /))
+call write_real_data(fname_CD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % CD /))
 
-return
-end subroutine write_beta_CD_ls
-
-!**********************************************************************
-subroutine write_beta_kappa_ls()
-!**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
-use param, only : total_time, dt, path
-use strmod
-
-implicit none
-
-character(*), parameter :: sub_name = mod_name // '.write_beta_kappa_ls'
-character(*), parameter :: fname = path // 'output/rns_beta_kappa_ls.dat'
-
-logical :: exst
-character(5000) :: var_list
-integer :: nc, nvar, nvar_count
-
-!  Write cluster force (CD) for all trees + time step
-nvar = nbeta + 1
-
-inquire (file=fname, exist=exst)
+inquire (file=fname_fD, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
-  do nc = 1, nvar-1
-  
+  do n = 1, nbeta_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % fD /))
+
+inquire (file=fname_fD, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nbeta_elem
     !  Create variable list name:
     call strcat(var_list, ',"<greek>k</greek><sub>')
-    call strcat(var_list, nc)
-    call strcat(var_list, ',')
-    call strcat(var_list, 1) ! Need ability to specify beta region
+    call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-
   call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nvar, (/ total_time, beta_force_t(1:nvar-1) % kappa /))
+call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % kappa /))
+
+inquire (file=fname_vel, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nbeta_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"u<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', 'formatted', nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine rns_write_beta_kappa_ls
+end subroutine write_beta_elem_data
+
+!**********************************************************************
+subroutine write_b_elem_data()
+!**********************************************************************
+use io, only : write_real_data, write_tecplot_header_xyline
+use param, only : total_time, path
+use strmod
+
+character(*), parameter :: sub_name = mod_name // '.write_b_elem_data'
+character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_b_elem_fD.dat'
+character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
+
+
+logical :: exst
+character(5000) :: var_list
+integer :: n, nvar
+
+inquire (file=fname_CD, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"CD<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname_CD, 'append', 'formatted', nb_elem + 1, (/ total_time, b_elem_t(:) % force_t % CD /))
+
+inquire (file=fname_fD, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname_fD, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % fD /))
+
+inquire (file=fname_vel, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"u<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
+
+return
+end subroutine write_r_elem_data
 
 !**********************************************************************
 subroutine rns_force_init_ls ()
