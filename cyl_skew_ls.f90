@@ -386,6 +386,26 @@ do nt = 1, ntree
     
 enddo
 
+!  Get the number of resolved clusters on all trees
+ncluster_reslv = 0
+do nt = 1, ntree
+  do ng = 1, tr_t( nt ) % ngen
+    do nc = 1, tr_t( nt ) % gen_t(ng) % ncluster 
+      if(ng <= tr_t( nt ) % ngen_reslv) ncluster_reslv = ncluster_reslv + 1   
+    enddo    
+  enddo
+enddo
+
+!  Get the total number of clusters on all trees
+ncluster_tot = 0
+do nt = 1, ntree
+  do ng = 1, tr_t( nt ) % ngen
+    do nc = 1, tr_t( nt ) % gen_t(ng) % ncluster 
+      ncluster_tot = ncluster_tot + 1   
+    enddo    
+  enddo
+enddo
+
 !  Get a global count of clusters and branches (all may not be the same)
 nccount_tot = 0
 nbcount_tot = 0
