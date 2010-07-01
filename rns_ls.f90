@@ -710,8 +710,8 @@ use param, only : coord, USE_MPI
 use messages
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_force_init_ls'
-character (*), parameter :: fname_in = 'rns_force_ls.out'
+character (*), parameter :: sub_name = mod_name // '.rns_force_init'
+character (*), parameter :: fname_in = 'rns_force.out'
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
 
@@ -745,7 +745,9 @@ endif
 
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
-read (1) beta_force_t
+read (1) r_elem_t(:) % force_t 
+read (1) beta_elem_t(:) % force_t 
+read (1) b_elem_t(:) % force_t 
 close (1)
 
 end subroutine rns_force_init_ls
@@ -785,8 +787,14 @@ $endif
 
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
-write (1) beta_force_t
+write(1) r_elem_t(:) % force_t 
+write(1) beta_elem_t(:) % force_t 
+write(1) b_elem_t(:) % force_t
 close (1)
+
+deallocate(r_elem_t)
+deallocate(beta_elem_t)
+deallocate(b_elem_t)
 
 return
 end subroutine rns_finalize_ls
