@@ -110,7 +110,7 @@ end subroutine rns_CD_ls
 
 
 !**********************************************************************
-subroutine rns_elem_force_ls()
+subroutine rns_elem_force()
 !**********************************************************************
 !  This subroutine computes the CD of the beta elements
 !
@@ -126,7 +126,7 @@ $endif
 
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_elem_force_ls'
+character (*), parameter :: sub_name = mod_name // '.rns_elem_force'
 
 integer, pointer :: i,j,k, n, ns
 integer, pointer :: npoint_p
@@ -279,11 +279,11 @@ else ! use implicit formulation
   else
   
     CD_num=0._rprec
-	CD_denom=0._rprec
+	  CD_denom=0._rprec
     do n=1, nb_elem
 	
-	  CD_num = CD_num + b_r_force(n) * b_m(n)
-	  CD_denom = b_m(n) * b_m(n)
+	    CD_num = CD_num + b_r_force(n) * b_m(n)
+	    CD_denom = b_m(n) * b_m(n)
 	  
 	enddo
 
