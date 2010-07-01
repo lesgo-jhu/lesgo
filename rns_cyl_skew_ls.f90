@@ -249,6 +249,8 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
 endif 
 
+call rns_force_init_ls()
+
 return
 
 end subroutine rns_init_ls

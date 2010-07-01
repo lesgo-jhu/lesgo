@@ -2,19 +2,12 @@
 module rns_ls
 !**********************************************************************
 use rns_base_ls
-!!$if($CYL_SKEW_LS)
-!!use cyl_skew_base_ls, only : tr_t, clindx_to_loc_id, brindx_to_loc_id, ntree
-!!use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls, ngen, ngen_reslv
-!!!use cyl_skew_ls, only : cyl_skew_fill_cl_ref_plane_array_ls
-!!!use cyl_skew_ls, only : cyl_skew_get_branch_id_ls
-!!$endif
 
 implicit none
 
 save
 private
 
-public :: rns_CD_ls
 public :: rns_forcing_ls ! Apply forcing
 public :: rns_finalize_ls
 
@@ -25,15 +18,75 @@ contains
 !**********************************************************************
 
 !**********************************************************************
-subroutine rns_CD_ls()
+subroutine rns_forcing_ls()
 !**********************************************************************
-!  This subroutine handles all CD calculation within the RNS module; 
-!  all CD and force calculations associated with
+!  This subroutine computes the forces on the unresolved branches
 !
-!  r_elem
-!  beta_elem
-!
-!  are handled here
+use types, only : rprec
+use sim_param, only : u
+use immersedbc, only : fx
+$if($MPI)
+use mpi
+use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+$endif
+use param, only : dx, dy, dz, coord, jt, USE_MPI
+
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.rns_forcing_ls'
+
+integer :: ib, np
+
+integer, pointer :: i, j, k
+
+integer, pointer :: npoint_p
+
+real(rprec), pointer :: kappa_p
+
+nullify(i,j,k)
+nullify(npoint_p)
+nullify(kappa_p)
+
+!  Compute the relavent force information ( include reference quantities, CD, etc.)
+call rns_elem_force()
+
+!  Apply the RNS forcing to appropriate nodes
+do n = 1, nbeta_elem
+ 
+    !  Loop over number of points used in beta region
+    npoint_p => beta_force_t( n ) % indx_array_t % npoint    
+    kappa_p  => beta_force_t( n ) % force_t % kappa
+  
+    do np = 1, npoint_p
+  
+      i => beta_force_t( n ) % indx_array_t % iarray(1,np)
+      j => beta_force_t( n ) % indx_array_t % iarray(2,np)
+      k => beta_force_t( n ) % indx_array_t % iarray(3,np)
+    
+      fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+ 
+      nullify(i,j,k)
+      
+    enddo
+    
+    nullify( npoint_p, kappa_p )
+    
+enddo
+
+$if($MPI)
+call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
+$endif
+
+if(modulo (jt, 10) == 0) call rns_elem_output()
+
+return
+
+end subroutine rns_forcing_ls
+
+!**********************************************************************
+subroutine rns_elem_output()
+!**********************************************************************
 !
 use param, only : jt, USE_MPI, coord
 use messages
@@ -42,136 +95,19 @@ use messages
 !!$endif
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_CD_ls'
-
-call r_elem_force_ls()     !  Get CD, force etc for resolved regions
-call beta_elem_force_ls()  !  Get force of 
-    
-  !if(ngen > ngen_reslv) call rns_cl_unreslv_CD_ls()
-    
-  if(modulo (jt, clforce_nskip) == 0) then
-    
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
-
-      call write_cl_CD_ls()
-      call write_cl_fD_ls()
-      call write_cl_vel_ls()
-      
-      call write_beta_CD_ls()
-      call write_beta_fD_ls()
-      call write_beta_vel_ls()
-      call write_beta_kappa_ls()
-      
-    endif
-    
-  endif
+character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
   
-!endif
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
-!if(coord == 0) call mesg(sub_name, 'Exiting ' // sub_name)
-
+  call write_r_elem_data()
+  call write_beta_elem_data()
+  call write_b_elem_data()
+      
+endif
+    
 return
 end subroutine rns_CD_ls
 
-
-!**********************************************************************
-subroutine r_elem_force_ls()
-!**********************************************************************
-!  This subroutine computes the CD of the all the resolved elements.
-!
-use types, only : rprec
-use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI
-$if($MPI)
-use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-$endif
-use sim_param, only : u
-use functions, only : points_avg_3D
-use immersedbc, only : fx
-implicit none
-
-character (*), parameter :: sub_name = mod_name // '.r_elem_force_ls'
-
-integer, pointer :: i, j, k
-integer, pointer :: npoint_p
-integer, pointer, dimension(:,:) :: iarray_p
-
-real(rprec), pointer :: fD_p
-
-integer :: ncluster_tot
-integer :: nt, ng, nc, np
-
-$if ($MPI)
-real(rprec) :: fD
-$endif
-
-type(ref_region) :: ref_region_t_p
-type(indx_array) :: indx_array_t_p
-
-!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
-
-!  Comment starts here 
-nullify(ref_region_t_p)
-nullify(indx_array_t_p)
-nullify(npoint_p, iarray_p)
-nullify(i,j,k)
-nullify(fD_p)
-
-!!$if ($MPI)
-!!allocate (cl_fD ( ncluster_reslv_ref ) )
-!!cl_fD = 0._rprec
-!!$endif
-
-do n = 1, nr_elem
-
-  !  Get the reference velocity
-  ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % points)
-  
-  indx_array_t_p => r_elem_t( n ) % indx_array_t
-     
-  npoint_p => indx_array_t_p % npoint
-  iarray_p => cindx_array_t_p % iarray
-  
-  $if($MPI)
-  fD = 0._rprec
-  $endif
-
-  fD_p => r_elem_t( n ) % force_t % fD
-  fD_p = 0._rprec
-  
-  do np=1, npoint_p
-  
-    i => iarray_p(1,np)
-    j => iarray_p(2,np)
-    k => iarray_p(3,np)
-  
-    $if($MPI)
-    fD = fD + fx(i,j,k) * dx * dy * dz
-    $else
-    fD_p = fD_p + fx(i,j,k) * dx * dy * dz
-    $endif
-    
-    nullify(i,j,k)
-    
-  enddo
-  
-  $if($MPI)
-  call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  $endif
-  
-  !  Compute CD
-  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p(n)%area * (ref_region_t_p(n)%u)**2)
-  
-  nullify(fD_p)
-  nullify(npoint_p, iarray_p)
-  nullify(indx_array_t_p)
-  nullify(ref_region_t_p)
- 
-enddo
-
-return
-end subroutine r_elem_force_ls
 
 !**********************************************************************
 subroutine rns_elem_force_ls()
@@ -205,9 +141,6 @@ real(rprec), pointer :: area_p, u_p
 real(rprec), pointer :: kappa_p, CD_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
-!real(rprec) :: sigma
-!real(rprec), allocatable, dimension(:) :: fD_dir
-
 real(rprec) :: CD, Lint
 
 real(rprec), allocatable, dimension(:) ::  fD_tot
@@ -235,6 +168,9 @@ allocate(beta_gamma(nbeta_elem))
 allocate(b_gamma(nb_elem))
 allocate(beta_gamma_sum(nb_elem))
 beta_gamma_sum=0
+
+!  Get the force for the resolved elements
+call r_elem_force()
 
 do n=1, nbeta_elem
 
@@ -336,9 +272,9 @@ else ! use implicit formulation
   
     do n=1, nb_elem
 	
-	  b_elem_t(n) % force_t % CD = b_r_force(n) / b_m(n)
+      b_elem_t(n) % force_t % CD = b_r_force(n) / b_m(n)
 	  
-	enddo
+    enddo
 	
   else
   
@@ -435,78 +371,115 @@ deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
 
 return
-end subroutine rns_elem_force_ls
+end subroutine rns_elem_force
 
 !**********************************************************************
-subroutine rns_forcing_ls()
+subroutine r_elem_force()
 !**********************************************************************
-!  This subroutine computes the forces on the unresolved branches
+!  This subroutine computes the CD of the all the resolved elements.
 !
 use types, only : rprec
-use sim_param, only : u
-use immersedbc, only : fx
+use messages
+use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI
 $if($MPI)
-use mpi
-use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
-use param, only : dx, dy, dz, coord, jt, USE_MPI
-
+use sim_param, only : u
+use functions, only : points_avg_3D
+use immersedbc, only : fx
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_forcing_ls'
-
-integer :: ib, np
+character (*), parameter :: sub_name = mod_name // '.r_elem_force'
 
 integer, pointer :: i, j, k
-
 integer, pointer :: npoint_p
+integer, pointer, dimension(:,:) :: iarray_p
 
-real(rprec), pointer :: kappa_p
+real(rprec), pointer :: fD_p
 
-nullify(i,j,k)
-nullify(npoint_p)
-nullify(kappa_p)
+integer :: ncluster_tot
+integer :: nt, ng, nc, np
 
-
-do n = 1, nbeta_elem
- 
-    !  Loop over number of points used in beta region
-    npoint_p => beta_force_t( n ) % indx_array_t % npoint    
-    kappa_p  => beta_force_t( n ) % force_t % kappa
-  
-    do np = 1, npoint_p
-  
-      i => beta_force_t( n ) % indx_array_t % iarray(1,np)
-      j => beta_force_t( n ) % indx_array_t % iarray(2,np)
-      k => beta_force_t( n ) % indx_array_t % iarray(3,np)
-    
-      fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
- 
-      nullify(i,j,k)
-      
-    enddo
-    
-    nullify( npoint_p, kappa_p )
-    
-enddo
-
-$if($MPI)
-call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
+$if ($MPI)
+real(rprec) :: fD
 $endif
 
-return
+type(ref_region) :: ref_region_t_p
+type(indx_array) :: indx_array_t_p
 
-end subroutine rns_forcing_ls
+!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
+
+!  Comment starts here 
+nullify(ref_region_t_p)
+nullify(indx_array_t_p)
+nullify(npoint_p, iarray_p)
+nullify(i,j,k)
+nullify(fD_p)
+
+!!$if ($MPI)
+!!allocate (cl_fD ( ncluster_reslv_ref ) )
+!!cl_fD = 0._rprec
+!!$endif
+
+do n = 1, nr_elem
+
+  !  Get the reference velocity
+  ref_region_t_p => r_elem_t( n ) % ref_region_t
+  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % points)
+  
+  indx_array_t_p => r_elem_t( n ) % indx_array_t
+     
+  npoint_p => indx_array_t_p % npoint
+  iarray_p => cindx_array_t_p % iarray
+  
+  $if($MPI)
+  fD = 0._rprec
+  $endif
+
+  fD_p => r_elem_t( n ) % force_t % fD
+  fD_p = 0._rprec
+  
+  do np=1, npoint_p
+  
+    i => iarray_p(1,np)
+    j => iarray_p(2,np)
+    k => iarray_p(3,np)
+  
+    $if($MPI)
+    fD = fD + fx(i,j,k) * dx * dy * dz
+    $else
+    fD_p = fD_p + fx(i,j,k) * dx * dy * dz
+    $endif
+    
+    nullify(i,j,k)
+    
+  enddo
+  
+  $if($MPI)
+  call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  $endif
+  
+  !  Compute CD
+  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p(n)%area * (ref_region_t_p(n)%u)**2)
+  
+  nullify(fD_p)
+  nullify(npoint_p, iarray_p)
+  nullify(indx_array_t_p)
+  nullify(ref_region_t_p)
+ 
+enddo
+
+return
+end subroutine r_elem_force
 
 !**********************************************************************
-subroutine write_r_elem_data()
+subroutine r_elem_data_write()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
 
-character(*), parameter :: sub_name = mod_name // '.write_r_elem_data'
+character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_r_elem_fD.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
@@ -559,16 +532,16 @@ endif
 call write_real_data(fname, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine write_r_elem_data
+end subroutine r_elem_data_write
 
 !**********************************************************************
-subroutine write_beta_elem_data()
+subroutine beta_elem_data_write()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
 
-character(*), parameter :: sub_name = mod_name // '.write_beta_elem_data'
+character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_fD.dat'
 character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
@@ -636,16 +609,16 @@ endif
 call write_real_data(fname, 'append', 'formatted', nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine write_beta_elem_data
+end subroutine beta_elem_data_write
 
 !**********************************************************************
-subroutine write_b_elem_data()
+subroutine b_elem_data_write()
 !**********************************************************************
 use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
 
-character(*), parameter :: sub_name = mod_name // '.write_b_elem_data'
+character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_b_elem_fD.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
@@ -698,7 +671,7 @@ endif
 call write_real_data(fname, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine write_r_elem_data
+end subroutine r_elem_data_write
 
 !**********************************************************************
 subroutine rns_force_init_ls ()
