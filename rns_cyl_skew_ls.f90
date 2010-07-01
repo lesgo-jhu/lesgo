@@ -12,7 +12,7 @@ module rns_cyl_skew_ls
 !  rns definitions module may be used at a time.
 !
 use rns_base_ls
-use cyl_skew_ls, only : fill_tree_array_ls
+use cyl_skew_base_ls
 
 implicit none
 
@@ -29,16 +29,18 @@ real(rprec), parameter :: alpha_width = 2.0_rprec
 real(rprec), parameter :: alpha_dist = 1.25_rprec
 
 
-integer :: ncluster_reslv ! total number of resolved clusters
-integer :: ncluster_tot
+integer :: ncluster_reslv ! total number of resolved clusters on RNS trees
+integer :: ncluster_tot ! total number of clusters on RNS trees
 
 integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
 integer, pointer, dimension(:) :: cl_to_b_elem_map
 
-integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+!integer, pointer, dimension(:) :: r_elem_to_cl_map
+!integer, pointer, dimension(:) :: beta_elem_to_cl_map
+!integer, pointer, dimension(:) :: b_elem_to_cl_map
 
-type(indx_array), pointer, dimension(:) :: pre_beta_elem_indx_array_t
+integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
 contains
 
@@ -47,23 +49,12 @@ subroutine rns_init_ls()
 !**********************************************************************
 use messages
 use param, only : USE_MPI, coord
-use cyl_skew_base_ls, only : tree, generation, tr_t, ntree, clindx_to_loc_id
 use cyl_skew_ls, only : fill_tree_array_ls
 use rns_ls, only : rns_force_init_ls
 
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
-
-integer, pointer :: clindx_p
-integer, pointer, dimension(:) :: cl_loc_id_p
-type(tree), pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
-
-!  Nullify all pointers
-nullify(clindx_p)
-nullify(cl_loc_id_p)
-nullify(tr_t_p, gen_t_p)
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
@@ -83,6 +74,8 @@ call chi_init()
 !----- Fill CYL_SKEW Data Structures -----
 !  Fill the cyl_skew tree array
 call fill_tree_array_ls()
+!  Fill the mapping for the rns trees
+call fill_rns_tree_map()
 !  Get the number of resolved clusters 
 call set_ncluster_reslv()
 !  Get the total number of clusters
@@ -90,22 +83,25 @@ call set_ncluster_tot()
 !----- Fill CYL_SKEW Data Structures -----
 
 !----- Fill RNS_CYL_SKEW Data Structures -----
-!  Fill the mapping for the rns trees
-call fill_rns_tree_map()
 !  Set the number of r elements
 call set_nr_elem()
 !  Set the number of beta elements
 call set_nbeta_elem()
 !  Set the number of b elements
 call set_nb_elem()
-!!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
-!call fill_r_elem_to_cl_map()
-!!  Fill the mapping of the beta region from which to base the reference region calculations on
-!call fill_beta_elem_to_cl_map()
+
+
+
+!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
+call fill_r_elem_to_cl_map()
 !  Fill the mapping from tree clusters to r regions
 call fill_cl_to_r_elem_map()  
+
+!  Fill the mapping of the beta region from which to base the reference region calculations on
+call fill_beta_elem_to_cl_map()
 !  Fill the mapping from tree clusters to beta regions
 call fill_cl_to_beta_elem_map()
+
 !  Fill the mapping from tree clusters to b regions
 call fill_cl_to_b_elem_map()
 !  Fill the r_elem struct
@@ -136,7 +132,7 @@ end subroutine rns_init_ls
 !**********************************************************************
 subroutine clindx_init ()
 !**********************************************************************
-use param, only : iBOGUS, coord, ld, ny, nz
+use param, only : iBOGUS, coord, nz
 use messages
 implicit none
 
@@ -147,8 +143,6 @@ $if ($MPI)
 
   character (128) :: fname_in_MPI
 $endif
-
-integer :: ip, i,j,k, clindx_max
 
 logical :: opn, exst
 
@@ -191,8 +185,9 @@ end subroutine clindx_init
 !**********************************************************************
 subroutine chi_init ()
 !**********************************************************************
-use param, only : iBOGUS, coord
+use param, only : iBOGUS, coord, nz
 use messages
+use types, only : rprec
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.chi_init'
@@ -251,6 +246,9 @@ end subroutine chi_init
 subroutine fill_rns_tree_map ()
 !**********************************************************************
 implicit none
+
+integer :: nt
+
 !  this is used to map the brindx to correct rns tree
 allocate( rns_tree_map( ntree ) )
 
@@ -259,7 +257,7 @@ if(rns_tree_layout == 1) then
 
   do nt = 1, ntree
   
-    if( nt < rns_ntree ) then
+    if( nt <= rns_ntree ) then
         rns_tree_map( nt ) = nt
     else
         rns_tree_map(nt) = rns_ntree
@@ -278,55 +276,11 @@ return
 end subroutine fill_rns_tree_map
 
 !**********************************************************************
-subroutine set_ncluster_relsv ()
-!**********************************************************************
-implicit none
-!  Get the number of resolved clusters 
-ncl_reslv = 0
-do nt = 1, rns_ntree
-  do ng = 1, tr_t(nt) % ngen
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-      if(ng <= tr_t(nt) % ngen_reslv) ncl_reslv = ncl_reslv + 1   
-    enddo    
-  enddo
-enddo
-
-return
-
-end subroutine set_ncl_reslv
-
-!**********************************************************************
-subroutine set_ncluster_tot ()
-!**********************************************************************
-implicit none
-!  Get the total number of clusters 
-ncluster_tot = 0
-do nt = 1, ntree
-  do ng = 1, tr_t(nt) % ngen
-    do nc = 1, tr_t(nt) % gen_t(ng) % ncluster 
-      ncluster_tot = ncluster_tot + 1   
-    enddo    
-  enddo
-enddo
-return
-
-end subroutine set_ncluster_tot
-
-!**********************************************************************
 subroutine set_nr_elem()
 !**********************************************************************
 implicit none
- 
-nr_elem = ncluster_reslv
 
-return
-end subroutine set_nr_elem
-
-!**********************************************************************
-subroutine set_nb_elem()
-!**********************************************************************
-use cyl_skew_base_ls, only : tree, generation, tr_t
-implicit none
+integer :: nt, ng, nc
 
 type(tree), pointer :: tr_t_p
 type(generation), pointer :: gen_t_p
@@ -334,27 +288,59 @@ type(generation), pointer :: gen_t_p
 !  Nullify all pointers
 nullify(tr_t_p, gen_t_p)
 
-nb_elem = 0
+nr_elem = 0
 do nt = 1, rns_ntree
+  
+  !  Point to RNS mapped tree
+  tr_t_p => tr_t( rns_tree_map(nt) ) 
+  
+  do ng=1, tr_t_p % ngen_reslv
 
-  !  Point to rns mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
-  
-  do ng = 1, tr_t_p % ngen_reslv
-  
+    !  Point to the generation of the rns mapped tree  
     gen_t_p => tr_t_p % gen_t( ng )
 	
     do nc = 1, gen_t_p % ncluster 
+	
+      nr_elem = nr_elem + 1
+    
+    enddo 
+    
+	  nullify(gen_t_p)    
+    
+  enddo
+  
+  nullify( tr_t_p )
+  
+enddo
+
+return
+end subroutine set_nr_elem
+
+!**********************************************************************
+subroutine set_nb_elem()
+!**********************************************************************
+implicit none
+
+integer :: nt, nc
+
+type(generation), pointer :: gen_t_p
+
+!  Nullify all pointers
+nullify(gen_t_p)
+
+nb_elem = 0
+do nt = 1, rns_ntree
+
+  !  Point to the resolved generation of the rns mapped tree  
+  gen_t_p => tr_t( rns_tree_map( nt ) ) % gen_t( ngen_reslv )
+	
+  do nc = 1, gen_t_p % ncluster 
 	
       nb_elem = nb_elem + 1
     
 	enddo    
 	
 	nullify(gen_t_p)
-	
-  enddo
-  
-  nullify(tr_t_p)
   
 enddo
 
@@ -364,36 +350,34 @@ end subroutine set_nb_elem
 !**********************************************************************
 subroutine set_nbeta_elem()
 !**********************************************************************
-use cyl_skew_base_ls, only : tree, generation, tr_t
+use messages
 implicit none
 
-type(tree), pointer :: tr_t_p
+character (*), parameter :: sub_name = mod_name // '.set_nbeta_elem'
+
+integer :: nt, nc
+
 type(generation), pointer :: gen_t_p
 
 !  Nullify all pointers
-nullify(tr_t_p, gen_t_p)
+nullify(gen_t_p)
+
+!  First check if ngen <= ngen_reslv
+if( ngen <= ngen_reslv ) call error(sub_name, 'ngen <= ngen_reslv : RNS cannot be implemented')
 
 nbeta_elem = 0
 do nt = 1, rns_ntree
 
-  !  Point to rns mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
-  
-  do ng = 1, tr_t_p % ngen_reslv + 1
-  
-    gen_t_p => tr_t_p % gen_t( ng )
+  !  Point to the resolved generation of the rns mapped tree  
+  gen_t_p => tr_t( rns_tree_map( nt ) ) % gen_t( ngen_reslv + 1)
 	
-    do nc = 1, gen_t_p % ncluster 
-	
-      nbeta_elem = nbeta_elem + 1
+  do nc = 1, gen_t_p % ncluster 
+  
+    nbeta_elem = nbeta_elem + 1
     
 	enddo    
 	
 	nullify(gen_t_p)
-	
-  enddo
-  
-  nullify(tr_t_p)
   
 enddo
 
@@ -401,109 +385,180 @@ return
 end subroutine set_nbeta_elem
 
 
-!**********************************************************************
-subroutine fill_beta_elem_to_cl_map()
-!**********************************************************************
-use cyl_skew_base_ls, only : tree, generation, tr_t, ntree
-implicit none
+!!**********************************************************************
+!subroutine fill_beta_elem_to_cl_map()
+!!**********************************************************************
+!use cyl_skew_base_ls, only : tree, generation, tr_t, ntree
+!implicit none
 
-type(tree), pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
+!type(tree), pointer :: tr_t_p
+!type(generation), pointer :: gen_t_p
 
-integer :: ncount
+!integer :: ncount
 
-!  Nullify all pointers
-nullify(tr_t_p, gen_t_p)
+!!  Nullify all pointers
+!nullify(tr_t_p, gen_t_p)
 
-nbeta = 0
-do nt = 1, rns_ntree
+!nbeta = 0
+!do nt = 1, rns_ntree
 
-  !  Point to rns mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
-  
-  do ng = 1, tr_t_p % ngen_reslv + 1
-  
-    gen_t_p => tr_t_p % gen_t( ng )
-	
-    do nc = 1, gen_t_p % ncluster 
-	
-      nbeta = nbeta + 1
-    
-	enddo    
-	
-	nullify(gen_t_p)
-	
-  enddo
-  
-  nullify(tr_t_p)
-  
-enddo
+!  !  Point to rns mapped tree
+!  tr_t_p => tr_t( rns_tree_map( nt ) )
+!  
+!  do ng = 1, tr_t_p % ngen_reslv + 1
+!  
+!    gen_t_p => tr_t_p % gen_t( ng )
+!	
+!    do nc = 1, gen_t_p % ncluster 
+!	
+!      nbeta = nbeta + 1
+!    
+!	enddo    
+!	
+!	nullify(gen_t_p)
+!	
+!  enddo
+!  
+!  nullify(tr_t_p)
+!  
+!enddo
 
-!  Each resolved cluster recieves a unique id
-allocate( beta_elem_to_beta_map( nbeta ) )
-r_elem_to_cl_map = -1
+!!  Each resolved cluster recieves a unique id
+!allocate( beta_elem_to_beta_map( nbeta ) )
+!r_elem_to_cl_map = -1
 
-ncount=0
-if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
+!ncount=0
+!if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
 
-do nt = 1, rns_ntree
+!do nt = 1, rns_ntree
 
-  !  Point to rns mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
-  
-  do ng = 1, tr_t_p % ngen_reslv
-  
-    gen_t_p => tr_t_p % gen_t( ng )
-	
-    do nc = 1, gen_t_p % ncluster 
-	
-      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
-    
-	  ncount = ncount + 1
-      
-	  r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
-      
-	  if(coord == 0) then
-        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
-      endif
-    
-	enddo    
-	
-	nullify(gen_t_p)
-	
-  enddo
-  
-  nullify(tr_t_p)
-  
-enddo
+!  !  Point to rns mapped tree
+!  tr_t_p => tr_t( rns_tree_map( nt ) )
+!  
+!  do ng = 1, tr_t_p % ngen_reslv
+!  
+!    gen_t_p => tr_t_p % gen_t( ng )
+!	
+!    do nc = 1, gen_t_p % ncluster 
+!	
+!      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
+!    
+!	  ncount = ncount + 1
+!      
+!	  r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
+!      
+!	  if(coord == 0) then
+!        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
+!      endif
+!    
+!	enddo    
+!	
+!	nullify(gen_t_p)
+!	
+!  enddo
+!  
+!  nullify(tr_t_p)
+!  
+!enddo
 
-return
-end subroutine fill_beta_elem_to_cl_map
+!return
+!end subroutine fill_beta_elem_to_cl_map
+
+!!**********************************************************************
+!subroutine fill_r_elem_to_cl_map()
+!!**********************************************************************
+!use messages
+!implicit none
+
+!character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
+
+!integer :: nt, ng, nc
+
+!type(tree), pointer :: tr_t_p
+!type(generation), pointer :: gen_t_p
+
+!integer :: ncount
+
+!!  Nullify all pointers
+!nullify(tr_t_p, gen_t_p)
+
+!!  Each resolved cluster recieves a unique id
+!allocate( r_elem_to_cl_map( nr_elem ) )
+!r_elem_to_cl_map = -1
+
+!ncount=0
+!if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
+
+!do nt = 1, rns_ntree
+
+!  !  Point to rns mapped tree
+!  tr_t_p => tr_t( rns_tree_map( nt ) )
+!  
+!  do ng = 1, tr_t_p % ngen_reslv
+!  
+!    gen_t_p => tr_t_p % gen_t( ng )
+!	
+!    do nc = 1, gen_t_p % ncluster 
+!	
+!      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
+!    
+!      ncount = ncount + 1
+!      
+!	    r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
+!      
+!	    !if(coord == 0) then
+!      !  write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
+!      !endif
+!    
+!    enddo    
+!	
+!    nullify(gen_t_p)
+!	
+!  enddo
+!  
+!  nullify(tr_t_p)
+!  
+!enddo
+
+!if( ncount .ne. nr_elem ) call error(sub_name, 'ncount .ne. nr_elem')
+
+!return
+!end subroutine fill_r_elem_to_cl_map
 
 !**********************************************************************
 subroutine fill_cl_to_r_elem_map()
 !**********************************************************************
-use cyl_skew_base_ls, only : tree, generation, tr_t, ntree
+use messages
 implicit none
+
+integer :: nt, ng, nc
 
 type(tree), pointer :: tr_t_p
 type(generation), pointer :: gen_t_p
 
 integer :: ncount
 
+integer, pointer :: rns_clindx_p
+integer, pointer, dimension(:) :: cl_loc_id_p
+
 !  Nullify all pointers
 nullify(tr_t_p, gen_t_p)
+nullify(cl_loc_id_p)
 
-!  Each resolved cluster recieves a unique id
+!  Each cluster recieves a unique id
 allocate( cl_to_r_elem_map( ncluster_tot ) )
+allocate( pre_cl_to_r_elem_map( ncluster_tot ) )
 cl_to_r_elem_map = -1
+pre_cl_to_r_elem_map = -1
 
-ncount=0
+
 if(coord == 0) write(*,*) 'Setting cl_to_r_elem_map'
 
+!  Need to first set for all trees belonging to the RNS trees
+ncount=0
 do nt = 1, rns_ntree
 
-  !  Point to rns mapped tree
+  !  Point to RNS mapped tree
   tr_t_p => tr_t( rns_tree_map( nt ) )
   
   do ng = 1, tr_t_p % ngen_reslv
@@ -511,26 +566,56 @@ do nt = 1, rns_ntree
     gen_t_p => tr_t_p % gen_t( ng )
 	
     do nc = 1, gen_t_p % ncluster 
-	
-      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
     
-	  ncount = ncount + 1
+      ncount = ncount + 1
       
-	  cl_to_r_elem_map( gen_t_p % cl_t (nc) %indx ) = ncount
+      pre_cl_to_r_elem_map( gen_t_p % cl_t(nc) % indx ) = ncount
       
-	  if(coord == 0) then
-        write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
-      endif
+    enddo
     
-	enddo    
+    nullify( gen_t_p )
+    
+  enddo
+  
+  nullify( tr_t_p )
+  
+enddo
+
+do nt = 1, ntree
+
+  !  Point to tree
+  tr_t_p => tr_t( nt )
+  
+  do ng = 1, tr_t_p % ngen_reslv
+  
+    gen_t_p => tr_t_p % gen_t( ng )
 	
-	nullify(gen_t_p)
+    do nc = 1, gen_t_p % ncluster 
+      
+      !  Need to get clindx of mapped tree
+      cl_loc_id_p => clindx_to_loc_id(:, gen_t_p % cl_t (nc) %indx)
+      rns_clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) % cl_t(cl_loc_id_p(3) % indx
+      
+	    cl_to_r_elem_map( gen_t_p % cl_t (nc) %indx ) =  pre_cl_to_r_elem_map ( rns_clindx_p ) )
+      
+      nullify( rns_clindx_p )
+      nullify( cl_loc_id_p )
+      
+	    !if(coord == 0) then
+      !  write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
+      !endif
+    
+    enddo    
+	
+    nullify(gen_t_p)
 	
   enddo
   
   nullify(tr_t_p)
   
 enddo
+
+deallocate( pre_cl_to_r_elem_map )
 
 return
 end subroutine fill_cl_to_r_elem_map
@@ -539,7 +624,6 @@ end subroutine fill_cl_to_r_elem_map
 !**********************************************************************
 subroutine fill_cl_to_beta_elem_map
 !**********************************************************************
-use cyl_skew_base_ls, only : tr_t, tree, generation
 implicit none
 
 integer :: ib, nt, ng, nc
@@ -561,7 +645,7 @@ cl_to_beta_elem_map = -1
 !  Assign cl_to_beta_elem_map; for a given cluster at gen>=g+1 it returns the
 !  the unique rns beta id  
 ib=0  
-do nt = 1,rns_ntree
+do nt = 1, rns_ntree
     
   tr_t_p => tr_t( rns_tree_map( nt ) ) 
     
