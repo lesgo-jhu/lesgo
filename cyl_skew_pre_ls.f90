@@ -166,11 +166,11 @@ contains
 !**********************************************************************
 subroutine allocate_arrays()
 !**********************************************************************
-use param, only : nx, ny
+use param, only : ld, nx, ny
 implicit none
 
 !  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(nx+2,ny,$lbz:nz))
+allocate(gcs_t(ld,ny,$lbz:nz))
 
 return
 end subroutine allocate_arrays
@@ -1101,9 +1101,16 @@ do k=$lbz,nz
     do i = 1,ld
       phi(i,j,k) = gcs_t(i,j,k)%phi
       brindx(i,j,k) = gcs_t(i,j,k)%brindx
+     
+      if(brindx(i,j,k) > 0 ) then
+        br_loc_id_p => brindx_to_loc_id(:, brindx(i,j,k))
+     
+        clindx(i,j,k) = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+      else
       
-      br_loc_id_p => brindx_to_loc_id(:, brindx(i,j,k))
-      clindx(i,j,k) = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+        clindx(i,j,k) = -1
+        
+      endif
       
       chi(i,j,k) = gcs_t(i,j,k)%chi
       
