@@ -6,9 +6,13 @@ use param, only : ld, ny, nz
 implicit none
 
 save
-private
 
-public r_elem_t, beta_elem_t, b_elem_t
+public
+
+private :: rprec
+private :: ld, ny, nz
+
+!public r_elem_t, beta_elem_t, b_elem_t
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -55,7 +59,7 @@ end type force
 type indx_array
   integer :: npoint
   integer, pointer, dimension(:,:) :: iarray
-end type
+end type indx_array
 
 type child_elem
   integer :: nelem
