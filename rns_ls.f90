@@ -26,8 +26,6 @@ use types, only : rprec
 use sim_param, only : u
 use immersedbc, only : fx
 $if($MPI)
-use mpi
-use param, only : MPI_RPREC, up, down, comm, status, ierr, ld, ny, nz, nproc
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 use param, only : dx, dy, dz, coord, jt, USE_MPI
@@ -41,7 +39,6 @@ integer :: ib, np
 integer, pointer :: i, j, k
 
 integer, pointer :: npoint_p
-
 real(rprec), pointer :: kappa_p
 
 nullify(i,j,k)
@@ -78,7 +75,7 @@ $if($MPI)
 call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
 $endif
 
-if(modulo (jt, 10) == 0) call rns_elem_output()
+if(modulo (jt, output_nskip) == 0) call rns_elem_output()
 
 return
 
@@ -128,9 +125,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_force'
 
-integer, pointer :: i,j,k, n, ns
-integer, pointer :: npoint_p
-integer, pointer :: clindx_p
+integer ::  n, ns
 integer, pointer :: nelem_p, indx_p
 
 real(rprec), allocatable, dimension(:) :: beta_gamma
@@ -138,17 +133,10 @@ real(rprec), allocatable, dimension(:) :: beta_gamma_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
 
 real(rprec), pointer :: area_p, u_p
-real(rprec), pointer :: kappa_p, CD_p
 real(rprec), pointer, dimension(:,:) :: points_p
-
-real(rprec) :: CD, Lint
 
 real(rprec), allocatable, dimension(:) ::  fD_tot
 real(rprec), allocatable, dimension(:) ::  CD_num, CD_denom
-
-$if($MPI)
-real(rprec) :: Lint_global
-$endif
 
 $if($MPI)
 real(rprec) :: fD
@@ -156,18 +144,18 @@ $endif
 
 !if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
-nullify(i,j,k)
-nullify(npoint_p)
-nullify(clindx_p)
 nullify(nelem_p, indx_p)
 
 nullify(area_p, u_p)
-nullify(kappa_p, CD_p)
+nullify(points_p)
 
 allocate(beta_gamma(nbeta_elem))
 allocate(b_gamma(nb_elem))
 allocate(beta_gamma_sum(nb_elem))
-beta_gamma_sum=0
+
+beta_gamma=0._rprec
+b_gamma=0._rprec
+beta_gamma_sum=0._rprec
 
 !  Get the force for the resolved elements
 call r_elem_force()
@@ -251,7 +239,7 @@ if( use_explicit_formulation ) then
     do n=1, nb_elem
 	
 	  CD_num = CD_num + b_force(n) * b_gamma(n) 
-	  CD_denom = b_gamma(n) * b_gamma(n)
+	  CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
 	  
 	enddo
 
@@ -279,11 +267,12 @@ else ! use implicit formulation
   else
   
     CD_num=0._rprec
-	  CD_denom=0._rprec
-    do n=1, nb_elem
+	CD_denom=0._rprec
+    
+	do n=1, nb_elem
 	
-	    CD_num = CD_num + b_r_force(n) * b_m(n)
-	    CD_denom = b_m(n) * b_m(n)
+	  CD_num = CD_num + b_r_force(n) * b_m(n)
+	  CD_denom = b_m(n) * b_m(n)
 	  
 	enddo
 
@@ -320,6 +309,45 @@ enddo
 do n=1, nb_elem
   b_elem_t(n) % force_t % fD = - 0.5_rprec * b_elem_t(n) % force_t % CD * b_gamma(n)
 enddo
+   
+deallocate(beta_gamma, beta_gamma_sum)
+deallocate(b_gamma)
+
+call beta_elem_kappa()
+
+return
+end subroutine rns_elem_force
+
+!**********************************************************************
+subroutine beta_elem_kappa()
+!**********************************************************************
+use types, only : rprec
+use param, only : dx, dy, dz
+$if($MPI)
+use param, only : MPI_RPREC, MPI_SUM, comm, ierr
+$endif
+implicit none
+
+integer :: n
+
+integer, pointer :: i,j,k
+integer, pointer :: npoint_p
+
+real(rprec), pointer :: kappa_p, CD_p
+
+real(rprec) :: beta_int
+
+$if($MPI)
+real(rprec) :: beta_int_global
+$endif
+
+$if($MPI)
+real(rprec) :: fD
+$endif
+
+nullify(i,j,k)
+nullify(npoint_p)
+nullify(kappa_p, CD_p)
 
 !  Now need to compute kappa
 do n = 1, nbeta_elem
@@ -360,18 +388,15 @@ do n = 1, nbeta_elem
     
   kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
     
-  if(coord == 0 .and. (modulo (jt, 10) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   nullify(u_p, area_p)
         
 enddo
-   
-deallocate(beta_gamma, beta_gamma_sum)
-deallocate(b_gamma)
 
 return
-end subroutine rns_elem_force
+end subroutine beta_elem_kappa
 
 !**********************************************************************
 subroutine r_elem_force()
