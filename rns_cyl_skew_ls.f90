@@ -42,13 +42,13 @@ integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
 integer, pointer, dimension(:) :: cl_to_b_elem_map
 
-!integer, pointer, dimension(:) :: r_elem_to_cl_map
-!integer, pointer, dimension(:) :: beta_elem_to_cl_map
-!integer, pointer, dimension(:) :: b_elem_to_cl_map
+integer, pointer, dimension(:) :: r_elem_to_basecl_map
+integer, pointer, dimension(:) :: beta_elem_to_basecl_map
+integer, pointer, dimension(:) :: b_elem_to_basecl_map
 
 integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
 
-real (rprec) :: clindx(ld, ny, $lbz:nz)
+integer :: clindx(ld, ny, $lbz:nz)
 logical :: clindx_initialized = .false.
 
 contains
@@ -99,13 +99,9 @@ call set_nbeta_elem()
 !  Set the number of b elements
 call set_nb_elem()
 
-!!  Fill the mapping of resolved rns element ids to cyl_skew cluster ids
-!call fill_r_elem_to_cl_map()
 !  Fill the mapping from tree clusters to r regions
 call fill_cl_to_r_elem_map()  
 
-!!  Fill the mapping of the beta region from which to base the reference region calculations on
-!call fill_beta_elem_to_cl_map()
 !  Fill the mapping from tree clusters to beta regions
 call fill_cl_to_beta_elem_map()
 
@@ -139,7 +135,7 @@ end subroutine rns_init_ls
 !**********************************************************************
 subroutine clindx_init ()
 !**********************************************************************
-use param, only : iBOGUS, coord, nz
+use param, only : iBOGUS, coord, nz, USE_MPI
 use messages
 implicit none
 
@@ -154,6 +150,12 @@ $endif
 logical :: opn, exst
 
 !---------------------------------------------------------------------
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '----> loading clindx'
+  write(*,*) 'size(clindx,1) : ', size(clindx,1)
+endif
+
+
 
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
@@ -472,67 +474,6 @@ end subroutine set_nbeta_elem
 !!return
 !!end subroutine fill_beta_elem_to_cl_map
 
-!!!**********************************************************************
-!!subroutine fill_r_elem_to_cl_map()
-!!!**********************************************************************
-!!use messages
-!!implicit none
-
-!!character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
-
-!!integer :: nt, ng, nc
-
-!!type(tree), pointer :: tr_t_p
-!!type(generation), pointer :: gen_t_p
-
-!!integer :: ncount
-
-!!!  Nullify all pointers
-!!nullify(tr_t_p, gen_t_p)
-
-!!!  Each resolved cluster recieves a unique id
-!!allocate( r_elem_to_cl_map( nr_elem ) )
-!!r_elem_to_cl_map = -1
-
-!!ncount=0
-!!if(coord == 0) write(*,*) 'Setting r_elem_to_cl_map'
-
-!!do nt = 1, rns_ntree
-
-!!  !  Point to rns mapped tree
-!!  tr_t_p => tr_t( rns_tree_map( nt ) )
-!!  
-!!  do ng = 1, tr_t_p % ngen_reslv
-!!  
-!!    gen_t_p => tr_t_p % gen_t( ng )
-!!	
-!!    do nc = 1, gen_t_p % ncluster 
-!!	
-!!      if(coord == 0) write(*,'(a,3i)') 'rns_tree_map( nt ), ng, nc : ', rns_tree_map( nt ), ng, nc
-!!    
-!!      ncount = ncount + 1
-!!      
-!!	    r_elem_to_cl_map( ncount ) = gen_t_p % cl_t (nc) %indx
-!!      
-!!	    !if(coord == 0) then
-!!      !  write(*,'(1a,5i4)') 'rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, rns_reslv_cl_indx : ', rns_tree_map( nt ), ng, nc, gen_t_p % cl_t (nc) %indx, ncount
-!!      !endif
-!!    
-!!    enddo    
-!!	
-!!    nullify(gen_t_p)
-!!	
-!!  enddo
-!!  
-!!  nullify(tr_t_p)
-!!  
-!!enddo
-
-!!if( ncount .ne. nr_elem ) call error(sub_name, 'ncount .ne. nr_elem')
-
-!!return
-!!end subroutine fill_r_elem_to_cl_map
-
 !**********************************************************************
 subroutine fill_cl_to_r_elem_map()
 !**********************************************************************
@@ -552,6 +493,8 @@ nullify(tr_t_p, gen_t_p)
 !  Each cluster in the RNS trees recieves a unique id
 allocate( cl_to_r_elem_map( ncluster_tot ) )
 cl_to_r_elem_map = -1
+allocate( r_elem_to_basecl_map( nr_elem ) )
+r_elem_to_basecl_map=-1
 
 
 if(coord == 0) write(*,*) 'Setting cl_to_r_elem_map'
@@ -572,6 +515,7 @@ do nt = 1, rns_ntree
       ncount = ncount + 1
       
       cl_to_r_elem_map( gen_t_p % cl_t(nc) % indx ) = ncount
+      r_elem_to_basecl_map( ncount ) = gen_t_p % cl_t(nc) % indx
       
     enddo
     
@@ -607,6 +551,8 @@ nullify(clindx_p)
 
 allocate( cl_to_beta_elem_map( ncluster_tot ) ) 
 cl_to_beta_elem_map = -1
+allocate( beta_elem_to_basecl_map( nbeta_elem ) )
+beta_elem_to_basecl_map=-1
 
 !  Assign cl_to_beta_elem_map; for a given cluster at gen>=g+1 it returns the
 !  the unique rns beta id  
@@ -623,6 +569,7 @@ do nt = 1, rns_ntree
       
     !  So clindx_p corresponds to ib
     cl_to_beta_elem_map(  gen_t_p % cl_t(nc) % indx ) = ncount
+    beta_elem_to_basecl_map( ncount ) = gen_t_p % cl_t(nc) % indx
     
   enddo
     
@@ -695,6 +642,8 @@ nullify(cl_loc_id_p)
 !  Set the number of beta regions
 allocate( cl_to_b_elem_map( ncluster_tot ) )
 cl_to_b_elem_map = -1
+allocate( b_elem_to_basecl_map( nb_elem ) )
+b_elem_to_basecl_map=-1
   
 !  Assign rns_rbeta_iarray; for a given cluster at gen=g it returns the
 !  the unique rns rbeta id
@@ -713,6 +662,7 @@ do nt = 1, rns_ntree
       
     !  So clindx_p corresponds to ncount
     cl_to_b_elem_map( clindx_p ) = ncount
+    b_elem_to_basecl_map( ncount ) = clindx_p
       
     nullify(clindx_p)
     
@@ -800,154 +750,119 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_r_elem_ref_region'
 
-integer :: nt, ng, nc, nb
+integer :: n, nb
 integer :: nzeta, neta
 
 real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
 real(rprec), dimension(3) :: p1, p2, p3
 
 integer, pointer :: nbranch_p
-integer, pointer :: r_elem_indx_p
+integer, pointer, dimension(:) :: cl_loc_id_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
 
-type(tree),       pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
 type(cluster),    pointer :: cl_t_p
 type(branch),     pointer :: br_t_p
 
 type(ref_region), pointer :: ref_region_t_p
 
 nullify(nbranch_p)
-nullify(r_elem_indx_p)
+nullify(cl_loc_id_p)
 nullify(d_p, l_p, skew_angle_p)
 nullify(hbot_p, htop_p)
-nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
+nullify(cl_t_p, br_t_p)
 nullify(ref_region_t_p)
 
-call mesg(sub_name, 'allocating pre_r_elem_ref_region_t')
-  
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
   write(*,*) 'Filling R_ELEM Reference Plane Arrays'
   write(*,*) ' '
 endif
 
-do nt=1, rns_ntree
-
-  tr_t_p => tr_t ( rns_tree_map ( nt ) )
-
-  do ng=1, tr_t_p % ngen_reslv
-   
-    gen_t_p => tr_t_p % gen_t( ng )
+do n=1, nr_elem
   
-    do nc = 1, gen_t_p % ncluster
-    
-      !  Point to cluster
-      cl_t_p => gen_t_p % cl_t(nc)
-	  nbranch_p => cl_t_p % nbranch
+  !  Get the base cluster local id
+  cl_loc_id_p => clindx_to_loc_id(:, r_elem_to_basecl_map(n) )
+  
+  cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
 
-      !  Point to the corresponding r_elem index
-      r_elem_indx_p => cl_to_r_elem_map( cl_t_p % indx )
-      if( r_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')
+  nbranch_p => cl_t_p % nbranch
+    
+  !  Initialize mean cluster height and projected area
+  h_m = 0._rprec
+  area_proj = 0._rprec
       
-      !  Initialize mean cluster height and projected area
-      h_m = 0._rprec
-      area_proj = 0._rprec
-      
-      do nb = 1, cl_t_p % nbranch
+  do nb = 1, cl_t_p % nbranch
+       
+    br_t_p => cl_t_p % br_t( nb )
+
+    d_p          => br_t_p % d
+    l_p          => br_t_p % l
+    skew_angle_p => br_t_p % skew_angle
         
-        br_t_p => cl_t_p % br_t( nb )
-
-        d_p          => br_t_p % d
-        l_p          => br_t_p % l
-        skew_angle_p => br_t_p % skew_angle
+    h         = l_p * dcos(skew_angle_p)
+    h_m       = h_m + h
+    area_proj = area_proj + d_p * h
         
-        h         = l_p * dcos(skew_angle_p)
-        h_m       = h_m + h
-        area_proj = area_proj + d_p * h
-        
-        nullify( d_p, l_p, skew_angle_p )
-        nullify( br_t_p )
+    nullify( d_p, l_p, skew_angle_p )
+    nullify( br_t_p )
       
-      enddo
-      
-      !  Mean height of branch cluster  and height of reference area
-      h_m = h_m / nbranch_p
-      !  width of reference area
-      w   = area_proj / h_m     
-      
-      nzeta = ceiling( w / dy + 1)
-      neta  = ceiling( h_m / dz + 1)
-      
-      !  Offset in the upstream x-direction
-      zeta_c = cl_t_p % origin + (/ -alpha * w, 0._rprec, 0._rprec /)
-      
-      !  Set the ordered corner points of the plane
-      p1    = zeta_c 
-      p1(2) = p1(2) + w / 2._rprec
-      
-      p2    = p1
-      p2(2) = p2(2) - w
-      
-      p3    = p2
-      p3(3) = p3(3) + h_m      
-      
-      !  Point to ref_region_t of the resolved element
-      ref_region_t_p => r_elem_t ( r_elem_indx_p ) % ref_region_t
-
-      ref_region_t_p % area    = area_proj
-      ref_region_t_p % npoint = nzeta*neta
-    
-      !  Check if the element has been allocated
-      if( associated( ref_region_t_p % points ) ) then
-        call error(sub_name, 'reference region points already allocated.')
-      else
-        allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
-      endif
-            
-      call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
-
-      !  Finally initialize velocity reference components
-      ref_region_t_p % u = 0._rprec
-      
-      nullify( ref_region_t_p )
-      nullify( r_elem_indx_p )
-	  nullify( nbranch_p)
-      nullify( cl_t_p )
-      
-    enddo
-    
-    nullify( gen_t_p )
-    
   enddo
+      
+  !  Mean height of branch cluster  and height of reference area
+  h_m = h_m / nbranch_p
+  !  width of reference area
+  w   = area_proj / h_m     
+      
+  nzeta = ceiling( w / dy + 1)
+  neta  = ceiling( h_m / dz + 1)
+      
+  !  Offset in the upstream x-direction
+  zeta_c = cl_t_p % origin + (/ -alpha * w, 0._rprec, 0._rprec /)
+      
+  !  Set the ordered corner points of the plane
+  p1    = zeta_c 
+  p1(2) = p1(2) + w / 2._rprec
+    
+  p2    = p1
+  p2(2) = p2(2) - w
+      
+  p3    = p2
+  p3(3) = p3(3) + h_m      
+      
+  !  Point to ref_region_t of the resolved element
+  ref_region_t_p => r_elem_t ( n ) % ref_region_t
+
+  ref_region_t_p % area    = area_proj
+  ref_region_t_p % npoint = nzeta*neta
+    
+  !  Check if the element has been allocated
+  !if( associated( ref_region_t_p % points ) ) then
+  !  call error(sub_name, 'reference region points already allocated.')
+  !else
+  allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
+  !endif
+            
+  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+
+  !  Finally initialize velocity reference components
+  ref_region_t_p % u = 0._rprec
   
-  nullify(tr_t_p)
- 
+      
+  nullify( ref_region_t_p )
+	nullify( nbranch_p)
+  nullify( cl_t_p )
+  nullify( cl_loc_id_p )
+      
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  !write(*,*) '--> Reference Plane Values For All Tree Clusters : '
-  !do nt=1, rns_ntree
-
-  !  do ng = 1, tr_t(nt)%ngen_reslv
-  !    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
-
-  !      write(*,*) '-------------------------'
-  !      write(*,*) 'nt, ng, nc : ', nt, ng, nc  
-  !      write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
-  !         cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
-  !       write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
-  !       write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
-  !       write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
-  !       write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
-  !      
-  !       write(*,*) '-------------------------'
-  !    enddo
-  !  enddo
-  !  enddo
-
+  write(*,*) '----> Reference Region Information for R_ELEM : '
+  write(*,*) '|    ID    |  NPOINT  |  AREA  |'
+  do n=1, nr_elem
+    write(*,*) '   ', n, '    ', r_elem_t(n) % ref_region_t % npoint, '    ', r_elem_t(n) % ref_region_t % area
+  enddo
 endif
           
 return
@@ -1006,12 +921,13 @@ do k=1, nz - 1
 
     do i = 1, nx
 
-	  !  Need to map cluster to coorespond cluster in RNS tree
-	  cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
-	  clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
-
-      if ( clindx_p > 0 ) then
-  
+    
+      if ( clindx(i,j,k) > 0 ) then
+      
+        !  Need to map cluster to coorespond cluster in RNS tree
+        cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
+        clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
+ 
         indx_p => cl_to_r_elem_map( clindx_p )
       
 	    !  Check if cluster belongs to a r_elem
@@ -1097,33 +1013,30 @@ subroutine fill_beta_elem_ref_region()
 use param, only : dy, dz, USE_MPI, coord
 use param, only : nx, ny, nz
 use messages
-use cyl_skew_base_ls, only : tr_t, tree, generation
+use cyl_skew_base_ls, only : tr_t
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_beta_elem_ref_region'
 
-integer :: nt, nc
+integer :: n
 integer :: nzeta, neta
 
 real(rprec) :: h, w
 real(rprec), dimension(3) :: p1, p2, p3, zeta_c
 
-integer, pointer :: indx_p
+integer, pointer, dimension(:) :: cl_loc_id_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
 
-type(tree),       pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
 type(cluster),    pointer :: cl_t_p
-type(branch),     pointer :: br_t_p
 
 type(ref_region), pointer :: ref_region_t_p
 
-nullify(indx_p)
+nullify(cl_loc_id_p)
 nullify(d_p, l_p, skew_angle_p)
 nullify(hbot_p, htop_p)
-nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
+nullify(cl_t_p)
 nullify(ref_region_t_p)
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
@@ -1132,74 +1045,59 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
 endif
 
-do nt=1, rns_ntree
+do n=1, nbeta_elem
+  
+  !  Get the base cluster local id
+  cl_loc_id_p => clindx_to_loc_id(:, beta_elem_to_basecl_map(n) )
+  
+  cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
 
-  tr_t_p => tr_t ( rns_tree_map ( nt ) )
-  
-  if(tr_t_p % ngen_reslv + 1 > tr_t_p % ngen) call error(sub_name, 'ngen_reslv + 1 > ngen')
-  
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
-
-  do nc = 1, gen_t_p % ncluster
-  
-    !  Point to cluster
-    cl_t_p => gen_t_p % cl_t(nc)
-    
-    !  Point to the corresponding r_elem index
-    indx_p => cl_to_b_elem_map( cl_t_p % indx )    
-    if( indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')    
-  
-    !  Point to the top and bottom of the plane
-    hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1) % bplane
-    htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
+  !  Point to the top and bottom of the plane
+  hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+  htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane
    
-    h = htop_p - hbot_p
-    w = alpha_width * h
+  h = htop_p - hbot_p
+  w = alpha_width * h
     
-    nzeta = ceiling( w / dy + 1)
-    neta  = ceiling( h / dz + 1)     
+  nzeta = ceiling( w / dy + 1)
+  neta  = ceiling( h / dz + 1)     
     
-    !  Offset in the upstream x-direction 
-    zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
+  !  Offset in the upstream x-direction 
+  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
 
-    !  Need to set the number of points
-    p1    = zeta_c 
-    p1(2) = p1(2) + w / 2._rprec
+  !  Need to set the number of points
+  p1    = zeta_c 
+  p1(2) = p1(2) + w / 2._rprec
       
-    p2    = p1
-    p2(2) = p2(2) - w
+  p2    = p1
+  p2(2) = p2(2) - w
       
-    p3    = p2
-    p3(3) = p3(3) + h
+  p3    = p2
+  p3(3) = p3(3) + h
 
-    !  Point to ref_region_t of the resolved element
-    ref_region_t_p => beta_elem_t ( indx_p ) % ref_region_t
+  !  Point to ref_region_t of the resolved element
+  ref_region_t_p => beta_elem_t ( n ) % ref_region_t
 
-    ref_region_t_p % area = h * w
-    ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % area = h * w
+  ref_region_t_p % npoint = nzeta*neta
       
-    !  Check if the element has been allocated
-    if( associated( ref_region_t_p % points ) ) then
-      call error(sub_name, 'reference region points already allocated.')
-    else
-      allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
-    endif
+    !!  Check if the element has been allocated
+    !if( associated( ref_region_t_p % points ) ) then
+    !  call error(sub_name, 'reference region points already allocated.')
+    !else
+  allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
+    !endif
             
-    call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
 
-    !  Finally initialize velocity reference components
-    ref_region_t_p % u = 0._rprec
+  !  Finally initialize velocity reference components
+  ref_region_t_p % u = 0._rprec
       
-    nullify( ref_region_t_p )
-	  nullify( htop_p, hbot_p)
-    nullify( indx_p )
-    nullify( cl_t_p )
+  nullify( ref_region_t_p )
+	nullify( htop_p, hbot_p)
+  nullify( cl_t_p )
+  nullify(cl_loc_id_p)
       
-  enddo
-    
-  nullify( gen_t_p )
-  nullify( tr_t_p )
-    
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
@@ -1281,11 +1179,12 @@ do k=1, nz - 1
 
     do i = 1, nx
 
-	  !  Need to map cluster to coorespond cluster in RNS tree
-	  cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
-	  clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
            
-      if ( clindx_p > 0 ) then
+      if ( clindx(i,j,k) > 0 ) then
+      
+      	  !  Need to map cluster to coorespond cluster in RNS tree
+	      cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
+	      clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
   
         indx_p => cl_to_beta_elem_map( clindx_p )
       
@@ -1376,13 +1275,13 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_b_elem_ref_region'
 
-integer :: nt, nc
+integer :: n
 integer :: nzeta, neta
 
 real(rprec) :: h, w
 real(rprec), dimension(3) :: p1, p2, p3, zeta_c
 
-integer, pointer :: indx_p
+integer, pointer, dimension(:) :: cl_loc_id_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
 real(rprec), pointer :: hbot_p, htop_p
@@ -1394,7 +1293,7 @@ type(branch),     pointer :: br_t_p
 
 type(ref_region), pointer :: ref_region_t_p
 
-nullify(indx_p)
+nullify(cl_loc_id_p)
 nullify(d_p, l_p, skew_angle_p)
 nullify(hbot_p, htop_p)
 nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
@@ -1406,74 +1305,60 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
 endif
 
-do nt=1, rns_ntree
+do n=1, nb_elem
+  
+  !  Point to ref_region_t of the resolved element
+  ref_region_t_p => b_elem_t ( n ) % ref_region_t
 
-  tr_t_p => tr_t ( rns_tree_map ( nt ) )
+  !  Get the base cluster local id
+  cl_loc_id_p => clindx_to_loc_id(:, b_elem_to_basecl_map(n) )
   
-  if(tr_t_p % ngen_reslv > tr_t_p % ngen) call error(sub_name, 'ngen_reslv > ngen')
-  
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
+  cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
 
-  do nc = 1, gen_t_p % ncluster
-  
-    !  Point to cluster
-    cl_t_p => gen_t_p % cl_t(nc)
+  !  Point to the top and bottom of the plane
+  hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+  htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane
+
+  h = htop_p - hbot_p
+  w = alpha_width * h
     
-    !  Point to the corresponding r_elem index
-    indx_p => cl_to_b_elem_map( cl_t_p % indx )    
-    if( indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')    
-  
-    !  Point to the top and bottom of the plane
-    hbot_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv ) % bplane
-    htop_p => tr_t_p % gen_t ( tr_t_p % ngen ) % tplane
-
-    h = htop_p - hbot_p
-    w = alpha_width * h
+  nzeta = ceiling( w / dy + 1)
+  neta  = ceiling( h / dz + 1)     
     
-    nzeta = ceiling( w / dy + 1)
-    neta  = ceiling( h / dz + 1)     
-    
-    !  Offset in the upstream x-direction 
-    zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
+  !  Offset in the upstream x-direction 
+  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
 
-    !  Need to set the number of points
-    p1    = zeta_c 
-    p1(2) = p1(2) + w / 2._rprec
+  !  Need to set the number of points
+  p1    = zeta_c 
+  p1(2) = p1(2) + w / 2._rprec
       
-    p2    = p1
-    p2(2) = p2(2) - w
+  p2    = p1
+  p2(2) = p2(2) - w
       
-    p3    = p2
-    p3(3) = p3(3) + h
+  p3    = p2
+  p3(3) = p3(3) + h
 
-    !  Point to ref_region_t of the resolved element
-    ref_region_t_p => b_elem_t ( indx_p ) % ref_region_t
 
-    ref_region_t_p % area = h * w
-    ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % area = h * w
+  ref_region_t_p % npoint = nzeta*neta
       
-    !  Check if the element has been allocated
-    if( associated( ref_region_t_p % points ) ) then
-      call error(sub_name, 'reference region points already allocated.')
-    else
-      allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
-    endif
+  !  Check if the element has been allocated
+  !if( associated( ref_region_t_p % points ) ) then
+  !  call error(sub_name, 'reference region points already allocated.')
+  !else
+  allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
+  !endif
             
-    call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
 
     !  Finally initialize velocity reference components
     ref_region_t_p % u = 0._rprec
       
-    nullify( ref_region_t_p )
-	  nullify( htop_p, hbot_p )
-    nullify( indx_p )
-    nullify( cl_t_p )
-      
-  enddo
-    
-  nullify( gen_t_p )
-  nullify( tr_t_p )
-    
+  nullify( ref_region_t_p )
+	nullify( htop_p, hbot_p )
+  nullify( cl_t_p )
+  nullify( cl_loc_id_p )
+
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
@@ -1516,21 +1401,14 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.set_b_elem_children'
 
-integer :: nt, nc, n
+integer ::  n
 
-integer, pointer :: r_elem_indx_p
-integer, pointer :: beta_elem_indx_p
-integer, pointer :: b_elem_indx_p
-
-type(tree),       pointer :: tr_t_p
-type(generation), pointer :: gen_t_p
-type(cluster),    pointer :: cl_t_p
+integer, pointer :: clindx_p, b_elem_indx_p
 
 type(child_elem), allocatable, dimension(:) :: pre_r_child_t
 type(child_elem), allocatable, dimension(:) :: pre_beta_child_t
 
-nullify(r_elem_indx_p, beta_elem_indx_p, b_elem_indx_p)
-nullify(tr_t_p, gen_t_p, cl_t_p)
+nullify(clindx_p, b_elem_indx_p)
 
 allocate(pre_r_child_t( nb_elem ))
 allocate(pre_beta_child_t( nb_elem ))
@@ -1550,38 +1428,22 @@ do n=1, nb_elem
 
 enddo
 
-do nt=1, rns_ntree
+!  Loop over all r_elem
+do n=1, nr_elem
 
-  tr_t_p => tr_t ( rns_tree_map ( nt ) )
+  !  Get the base cluster id
+  clindx_p => r_elem_to_basecl_map(n) 
   
-  if(tr_t_p % ngen_reslv > tr_t_p % ngen) call error(sub_name, 'ngen_reslv > ngen')
+  !  Check if r_elem base cluster belongs to any b_elem
+  b_elem_indx_p => cl_to_b_elem_map( clindx_p )
   
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
-
-  do nc = 1, gen_t_p % ncluster
+  if( b_elem_indx_p  > 0 ) then
+    pre_r_child_t( b_elem_indx_p ) % nelem = pre_r_child_t( b_elem_indx_p ) % nelem + 1
+    pre_r_child_t( b_elem_indx_p ) % indx( pre_r_child_t( b_elem_indx_p ) % nelem ) = n 
+  endif
   
-    !  Point to cluster
-    cl_t_p => gen_t_p % cl_t(nc)
-    
-    !  Point to the corresponding r_elem index
-    r_elem_indx_p => cl_to_r_elem_map( cl_t_p % indx )   
-    if( r_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')  
-	
-    b_elem_indx_p => cl_to_beta_elem_map(  cl_t_p % indx ) 
-    if( b_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')  
-	
-	pre_r_child_t( b_elem_indx_p ) % nelem = pre_r_child_t( b_elem_indx_p ) % nelem + 1
-	pre_r_child_t( b_elem_indx_p ) % indx( pre_r_child_t( b_elem_indx_p ) % nelem ) = r_elem_indx_p
-	
-	nullify( b_elem_indx_p )
-	nullify( r_elem_indx_p ) 
-	
-	nullify( cl_t_p )
-	
-  enddo
-  
-  nullify( gen_t_p )
-  nullify( tr_t_p )
+  nullify( b_elem_indx_p )
+  nullify( clindx_p )
   
 enddo
 
@@ -1603,40 +1465,24 @@ do n=1, nb_elem
 
 enddo
 
-do nt=1, rns_ntree
+!  Loop over all beta_elem
+do n=1, nbeta_elem
 
-  tr_t_p => tr_t ( rns_tree_map ( nt ) )
+  !  Get the base cluster id
+  clindx_p => beta_elem_to_basecl_map(n) 
   
-  if(tr_t_p % ngen_reslv + 1 > tr_t_p % ngen) call error(sub_name, 'ngen_reslv + 1 > ngen')
+  !  Check if r_elem base cluster belongs to any b_elem
+  b_elem_indx_p => cl_to_b_elem_map( clindx_p )
   
-  gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1)
-
-  do nc = 1, gen_t_p % ncluster
-  
-    !  Point to cluster
-    cl_t_p => gen_t_p % cl_t(nc)
-    
-    !  Point to the corresponding r_elem index
-    beta_elem_indx_p => cl_to_beta_elem_map( cl_t_p % indx )   
-    if( beta_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')  
-	
-    b_elem_indx_p => cl_to_beta_elem_map( cl_t_p % indx ) 
-    if( b_elem_indx_p == -1 ) call error(sub_name, 'Incorrect cluster referenced')  
-	
-	pre_beta_child_t( b_elem_indx_p ) % nelem = pre_beta_child_t( b_elem_indx_p ) % nelem + 1
-	pre_beta_child_t( b_elem_indx_p ) % indx( pre_beta_child_t( b_elem_indx_p ) % nelem ) = beta_elem_indx_p
-	
-	nullify( b_elem_indx_p )
-	nullify( beta_elem_indx_p ) 
-	
-	nullify( cl_t_p )
-	
-  enddo
-  
-  nullify( gen_t_p )
-  nullify( tr_t_p )
+  if( b_elem_indx_p  > 0 ) then
+    pre_beta_child_t( b_elem_indx_p ) % nelem = pre_beta_child_t( b_elem_indx_p ) % nelem + 1
+    pre_beta_child_t( b_elem_indx_p ) % indx( pre_beta_child_t( b_elem_indx_p ) % nelem ) = n 
+  endif
+  nullify( b_elem_indx_p )
+  nullify( clindx_p )
   
 enddo
+
 
 !  Now allocate and set the actual children
 do n=1, nb_elem
