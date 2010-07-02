@@ -24,17 +24,17 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
 
-USE_CYL_SKEW_LS = no
-USE_RNS_LS = no
+USE_CYL_SKEW_LS = yes
+USE_RNS_LS = yes
 USE_TREES_LS = no
 
 USE_TURBINES = no

@@ -15,7 +15,7 @@ module param
 !---------------------------------------------------
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 8
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -54,19 +54,19 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(32)/nproc + 1
+  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
   !this value is dimensional [m]:
-  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+  real(rprec),parameter::z_i=1._rprec   !dimensions in meters, height of BL
     
   !these values should be non-dimensionalized by z_i: 
   !set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x= pi
-    real(rprec),parameter::L_y= pi    
-    real(rprec),parameter::L_z= 1.
+    real(rprec),parameter::L_x= 4.
+    real(rprec),parameter::L_y= 4.    
+    real(rprec),parameter::L_z= 4.
     !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
     !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
@@ -111,7 +111,7 @@ module param
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
-  integer, parameter :: nsteps = 3000
+  integer, parameter :: nsteps = 1000
  
   real (rprec), parameter :: dt = 2.e-5_rprec      !dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     !dimensional time step in seconds                                 
@@ -130,9 +130,9 @@ module param
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
 !---------------------------------------------------  
   !--initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   !--initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0

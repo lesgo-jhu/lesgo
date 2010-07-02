@@ -310,6 +310,9 @@ endif
 
 deallocate(b_r_force)
 
+!  Check if CD is to be modulated
+if( jt < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt / CD_ramp_nstep
+
 !  Now update the CD of all the beta_elem 
 do n=1, nb_elem
 
