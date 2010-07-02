@@ -9,6 +9,9 @@ implicit none
 save
 
 public
+
+private :: rprec
+private :: pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
 private :: mod_name
 
 character (*), parameter :: mod_name = 'cyl_skew_base_ls'
