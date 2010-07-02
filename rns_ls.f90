@@ -139,7 +139,7 @@ real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
-real(rprec), allocatable, dimension(:) ::  CD_num, CD_denom
+real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -249,13 +249,15 @@ if( use_explicit_formulation ) then
   else ! compute global CD
   
     CD_num=0._rprec
-	CD_denom=0._rprec
+	  CD_denom=0._rprec
     do n=1, nb_elem
 	
 	  CD_num = CD_num + b_force(n) * b_gamma(n) 
 	  CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
 	  
 	enddo
+  
+  if( CD_denom <= 1.0e-9_rprec) call error(sub_name, 'b_gamma**2 == 0.')
 
 	b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 	
