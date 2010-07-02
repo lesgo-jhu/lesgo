@@ -35,7 +35,8 @@ integer, parameter :: rns_tree_layout = 1
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha=1._rprec 
-real(rprec), parameter :: alpha_width = 2.0_rprec
+!real(rprec), parameter :: alpha_width = 2.0_rprec
+real(rprec), parameter :: alpha_width = 1.0_rprec
 real(rprec), parameter :: alpha_dist = 1.25_rprec
 
 integer, pointer, dimension(:) :: cl_to_r_elem_map
@@ -478,16 +479,19 @@ end subroutine set_nbeta_elem
 subroutine fill_cl_to_r_elem_map()
 !**********************************************************************
 use messages
-use param, only : coord
+use param, only : coord, USE_MPI
 implicit none
 
-integer :: nt, ng, nc
+integer :: n, nt, ng, nc
 integer :: ncount
+
+integer, pointer, dimension(:) :: cl_loc_id_p
 
 type(tree), pointer :: tr_t_p
 type(generation), pointer :: gen_t_p
 
 !  Nullify all pointers
+nullify(cl_loc_id_p)
 nullify(tr_t_p, gen_t_p)
 
 !  Each cluster in the RNS trees recieves a unique id
@@ -497,7 +501,11 @@ allocate( r_elem_to_basecl_map( nr_elem ) )
 r_elem_to_basecl_map=-1
 
 
-if(coord == 0) write(*,*) 'Setting cl_to_r_elem_map'
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filling R_ELEM and Cluster Mapping'
+  write(*,*) ' '
+endif
 
 !  Need to first set for all trees belonging to the RNS trees
 ncount=0
@@ -527,6 +535,17 @@ do nt = 1, rns_ntree
   
 enddo
 
+!  Output elem indx to cluster mapping
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '----> RNS Element Base Cluster ID : '
+  write(*,*) '| ID       | NT       | NG       | NC       |'
+  do n=1, nr_elem
+    cl_loc_id_p => clindx_to_loc_id(:,r_elem_to_basecl_map(n))
+    write(*,'(i12,3i11)') n, cl_loc_id_p(1), cl_loc_id_p(2), cl_loc_id_p(3)
+    nullify(cl_loc_id_p)
+  enddo
+endif
+
 return
 end subroutine fill_cl_to_r_elem_map
 
@@ -534,9 +553,10 @@ end subroutine fill_cl_to_r_elem_map
 !**********************************************************************
 subroutine fill_cl_to_beta_elem_map
 !**********************************************************************
+use param, only : USE_MPI, coord
 implicit none
 
-integer :: ncount, nt, ng, nc
+integer :: ncount, nt, ng, nc, n
 integer :: iparent, ng_parent
 
 integer, pointer :: clindx_p
@@ -548,11 +568,18 @@ type(generation), pointer :: gen_t_p
 ! Nullify all pointers
 nullify(tr_t_p, gen_t_p)
 nullify(clindx_p)
+nullify(cl_loc_id_p)
 
 allocate( cl_to_beta_elem_map( ncluster_tot ) ) 
 cl_to_beta_elem_map = -1
 allocate( beta_elem_to_basecl_map( nbeta_elem ) )
 beta_elem_to_basecl_map=-1
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filling BETA_ELEM and Cluster Mapping'
+  write(*,*) ' '
+endif
 
 !  Assign cl_to_beta_elem_map; for a given cluster at gen>=g+1 it returns the
 !  the unique rns beta id  
@@ -616,6 +643,17 @@ do nt = 1, rns_ntree
     
 enddo
 
+!  Output elem indx to cluster mapping
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '----> RNS Element Base Cluster ID : '
+  write(*,*) '| ID       | NT       | NG       | NC       |'
+  do n=1, nbeta_elem
+    cl_loc_id_p => clindx_to_loc_id(:,beta_elem_to_basecl_map(n))
+    write(*,'(i12,3i11)') n, cl_loc_id_p(1), cl_loc_id_p(2), cl_loc_id_p(3)
+    nullify(cl_loc_id_p)
+  enddo
+endif
+
 return
 
 end subroutine fill_cl_to_beta_elem_map
@@ -624,9 +662,10 @@ end subroutine fill_cl_to_beta_elem_map
 subroutine fill_cl_to_b_elem_map
 !**********************************************************************
 use cyl_skew_base_ls, only : tr_t, tree, generation
+use param, only : USE_MPI, coord
 implicit none
 
-integer :: ncount, nt, ng, nc
+integer :: ncount, nt, ng, nc, n
 integer :: iparent, ng_parent
 
 integer, pointer :: clindx_p => null()
@@ -644,6 +683,12 @@ allocate( cl_to_b_elem_map( ncluster_tot ) )
 cl_to_b_elem_map = -1
 allocate( b_elem_to_basecl_map( nb_elem ) )
 b_elem_to_basecl_map=-1
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) ' '
+  write(*,*) '--> Filling B_ELEM and Cluster Mapping'
+  write(*,*) ' '
+endif
   
 !  Assign rns_rbeta_iarray; for a given cluster at gen=g it returns the
 !  the unique rns rbeta id
@@ -709,6 +754,17 @@ do nt = 1, rns_ntree
   nullify(tr_t_p)
     
 enddo
+
+!  Output elem indx to cluster mapping
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '----> RNS Element Base Cluster ID : '
+  write(*,*) '| ID       | NT       | NG       | NC       |'
+  do n=1, nb_elem
+    cl_loc_id_p => clindx_to_loc_id(:,b_elem_to_basecl_map(n))
+    write(*,'(i12,3i11)') n, cl_loc_id_p(1), cl_loc_id_p(2), cl_loc_id_p(3)
+    nullify(cl_loc_id_p)
+  enddo
+endif
 
 return
 end subroutine fill_cl_to_b_elem_map
@@ -776,7 +832,7 @@ nullify(ref_region_t_p)
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Filling R_ELEM Reference Plane Arrays'
+  write(*,*) '--> Filling R_ELEM Reference Plane Arrays'
   write(*,*) ' '
 endif
 
@@ -858,7 +914,7 @@ do n=1, nr_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Reference Region Information : '
+  write(*,*) '----> Reference Region Information : '
   write(*,*) '| ID       | NPOINT   | AREA     |'
   do n=1, nr_elem
     write(*,'(i12,i11,f11.6)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area
@@ -904,7 +960,7 @@ nullify(cl_loc_id_p)
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Filling R_ELEM Index Array'
+  write(*,*) '--> Filling R_ELEM Index Array'
   write(*,*) ' '
 endif
 
@@ -993,7 +1049,7 @@ npoint_global(:) = r_elem_t(:) % indx_array_t % npoint
 $endif
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Index Array Information : '
+  write(*,*) '----> Index Array Information : '
   write(*,*) '| ID       | NPOINT   |'
   do n=1, nr_elem
     write(*,'(i12,i11)') n, npoint_global(n)
@@ -1062,7 +1118,7 @@ nullify(ref_region_t_p)
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Filling BETA_ELEM Reference Plane Arrays'
+  write(*,*) '--> Filling BETA_ELEM Reference Plane Arrays'
   write(*,*) ' '
 endif
 
@@ -1122,7 +1178,7 @@ do n=1, nbeta_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Reference Region Information : '
+  write(*,*) '----> Reference Region Information : '
   write(*,*) '| ID       | NPOINT   | AREA     |'
   do n=1, nbeta_elem
     write(*,'(i12,i11,f11.6)') n, beta_elem_t(n) % ref_region_t % npoint, beta_elem_t(n) % ref_region_t % area
@@ -1167,7 +1223,7 @@ nullify(cl_loc_id_p)
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Filling BETA_ELEM Index Array'
+  write(*,*) '--> Filling BETA_ELEM Index Array'
   write(*,*) ' '
 endif
 
@@ -1256,7 +1312,7 @@ npoint_global(:) = beta_elem_t(:) % indx_array_t % npoint
 $endif
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Index Array Information : '
+  write(*,*) '----> Index Array Information : '
   write(*,*) '| ID       | NPOINT   |'
   do n=1, nbeta_elem
     write(*,'(i12,i11)') n, npoint_global(n)
@@ -1328,7 +1384,7 @@ nullify(ref_region_t_p)
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Filling B_ELEM Reference Plane Arrays'
+  write(*,*) '--> Filling B_ELEM Reference Plane Arrays'
   write(*,*) ' '
 endif
 
@@ -1389,7 +1445,7 @@ do n=1, nb_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Reference Region Information : '
+  write(*,*) '----> Reference Region Information : '
   write(*,*) '| ID       | NPOINT   | AREA     |'
   do n=1, nb_elem
     write(*,'(i12,i11,f11.6)') n, b_elem_t(n) % ref_region_t % npoint, b_elem_t(n) % ref_region_t % area
@@ -1427,7 +1483,7 @@ allocate(pre_beta_child_t( nb_elem ))
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
-  write(*,*) 'Setting B_ELEM Children'
+  write(*,*) '--> Setting B_ELEM Children'
   write(*,*) ' '
 endif
 
@@ -1506,7 +1562,7 @@ enddo
 deallocate( pre_beta_child_t )
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '--> Children Element Information : '
+  write(*,*) '----> Children Element Information : '
   write(*,*) '| ID       | NR_ELEM  |'
   do n=1, nb_elem
     write(*,'(i12,i11)') n, b_elem_t(n) % r_child_t % nelem
