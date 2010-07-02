@@ -121,6 +121,7 @@ use param, only : nx, nz, dx, dy, dz, coord, jt
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -171,6 +172,11 @@ beta_gamma=0._rprec
 b_gamma=0._rprec
 beta_gamma_sum=0._rprec
 
+$if($MPI)
+!  Make sure intermediate velocity is sync'd
+call mpi_sync_real_array( u, MPI_SYNC_DOWNUP)
+$endif
+
 !  Get the force for the resolved elements
 call r_elem_force()
 
@@ -185,6 +191,8 @@ do n=1, nbeta_elem
   beta_gamma(n) = dabs( u_p ) * u_p * area_p
   
   nullify(u_p, area_p, points_p)
+  
+  
   
 enddo
 
