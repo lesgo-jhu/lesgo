@@ -103,7 +103,7 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 endif
     
 return
-end subroutine rns_CD_ls
+end subroutine rns_elem_output
 
 
 !**********************************************************************
@@ -696,7 +696,7 @@ endif
 call write_real_data(fname, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
-end subroutine r_elem_data_write
+end subroutine b_elem_data_write
 
 !**********************************************************************
 subroutine rns_force_init_ls ()
