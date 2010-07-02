@@ -6,7 +6,7 @@ implicit none
 save
 private
 public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
-public buff_indx
+public buff_indx, points_avg_3D
 
 character (*), parameter :: mod_name = 'functions'
 
