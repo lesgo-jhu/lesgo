@@ -33,7 +33,7 @@ logical, parameter :: use_local_CD = .true.
 
 integer, parameter :: output_nskip = 10
 
-integer, parameter :: CD_ramp_nstep = 1000
+integer, parameter :: CD_ramp_nstep = 10
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
