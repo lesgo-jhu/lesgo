@@ -858,10 +858,10 @@ do n=1, nr_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  write(*,*) '----> Reference Region Information for R_ELEM : '
-  write(*,*) '|    ID    |  NPOINT  |  AREA  |'
+  write(*,*) '--> Reference Region Information : '
+  write(*,*) '| ID       | NPOINT   | AREA     |'
   do n=1, nr_elem
-    write(*,*) '   ', n, '    ', r_elem_t(n) % ref_region_t % npoint, '    ', r_elem_t(n) % ref_region_t % area
+    write(*,'(i12,i11,f11.6)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area
   enddo
 endif
           
@@ -878,6 +878,11 @@ use types, only : rprec
 use param, only : nx,ny,nz, coord, USE_MPI
 use level_set_base, only : phi
 use messages
+$if($MPI)
+use mpi
+use param, only : comm, ierr
+$endif
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_r_elem_indx_array'
@@ -885,6 +890,8 @@ character (*), parameter :: sub_name = mod_name // '.fill_r_elem_indx_array'
 type(indx_array), target, allocatable, dimension(:) :: pre_indx_array_t
 
 integer :: i,j,k, n, np
+
+integer, allocatable, dimension(:) :: npoint_global
 
 integer, pointer :: clindx_p, indx_p, npoint_p
 integer, pointer, dimension(:) :: cl_loc_id_p
@@ -921,7 +928,6 @@ do k=1, nz - 1
 
     do i = 1, nx
 
-    
       if ( clindx(i,j,k) > 0 ) then
       
         !  Need to map cluster to coorespond cluster in RNS tree
@@ -978,6 +984,21 @@ do n=1, nr_elem
 enddo
 
 deallocate(pre_indx_array_t)
+
+allocate(npoint_global( nr_elem ))
+$if($MPI)
+call mpi_allreduce(r_elem_t(:) % indx_array_t % npoint, npoint_global(:), nr_elem, MPI_INTEGER, MPI_SUM, comm, ierr)
+$else
+npoint_global(:) = r_elem_t(:) % indx_array_t % npoint
+$endif
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '--> Index Array Information : '
+  write(*,*) '| ID       | NPOINT   |'
+  do n=1, nr_elem
+    write(*,'(i12,i11)') n, npoint_global(n)
+  enddo
+endif
 
 return
 end subroutine fill_r_elem_indx_array
@@ -1101,26 +1122,11 @@ do n=1, nbeta_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  !write(*,*) '--> Reference Plane Values For All Tree Clusters : '
-  !do nt=1, rns_ntree
-
-  !  do ng = 1, tr_t(nt)%ngen_reslv
-  !    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
-
-  !      write(*,*) '-------------------------'
-  !      write(*,*) 'nt, ng, nc : ', nt, ng, nc  
-  !      write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
-  !         cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
-  !       write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
-  !       write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
-  !       write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
-  !       write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
-  !      
-  !       write(*,*) '-------------------------'
-  !    enddo
-  !  enddo
-  !  enddo
-
+  write(*,*) '--> Reference Region Information : '
+  write(*,*) '| ID       | NPOINT   | AREA     |'
+  do n=1, nbeta_elem
+    write(*,'(i12,i11,f11.6)') n, beta_elem_t(n) % ref_region_t % npoint, beta_elem_t(n) % ref_region_t % area
+  enddo
 endif
           
 return
@@ -1136,6 +1142,10 @@ use types, only : rprec
 use param, only : nx,ny,nz, coord, USE_MPI
 use level_set_base, only : phi
 use messages
+$if($MPI)
+use mpi
+use param, only : comm, ierr
+$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_beta_elem_indx_array'
@@ -1143,6 +1153,8 @@ character (*), parameter :: sub_name = mod_name // '.fill_beta_elem_indx_array'
 type(indx_array), target, allocatable, dimension(:) :: pre_indx_array_t
 
 integer :: i,j,k, n, np
+
+integer, allocatable, dimension(:) :: npoint_global
 
 integer, pointer :: clindx_p, indx_p, npoint_p
 integer, pointer, dimension(:) :: cl_loc_id_p
@@ -1196,7 +1208,7 @@ do k=1, nz - 1
 
             pre_indx_array_t( indx_p ) % npoint = pre_indx_array_t( indx_p ) % npoint + 1
 			
-	        npoint_p => pre_indx_array_t( indx_p ) % npoint
+	          npoint_p => pre_indx_array_t( indx_p ) % npoint
         
             pre_indx_array_t( indx_p ) % iarray(1, npoint_p ) = i
             pre_indx_array_t( indx_p ) % iarray(2, npoint_p ) = j
@@ -1235,6 +1247,21 @@ do n=1, nbeta_elem
 enddo
 
 deallocate(pre_indx_array_t)
+
+allocate(npoint_global( nbeta_elem ))
+$if($MPI)
+call mpi_allreduce(beta_elem_t(:) % indx_array_t % npoint, npoint_global(:), nbeta_elem, MPI_INTEGER, MPI_SUM, comm, ierr)
+$else
+npoint_global(:) = beta_elem_t(:) % indx_array_t % npoint
+$endif
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '--> Index Array Information : '
+  write(*,*) '| ID       | NPOINT   |'
+  do n=1, nbeta_elem
+    write(*,'(i12,i11)') n, npoint_global(n)
+  enddo
+endif
 
 return
 end subroutine fill_beta_elem_indx_array
@@ -1362,26 +1389,11 @@ do n=1, nb_elem
 enddo
     
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-  !write(*,*) '--> Reference Plane Values For All Tree Clusters : '
-  !do nt=1, rns_ntree
-
-  !  do ng = 1, tr_t(nt)%ngen_reslv
-  !    do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
-
-  !      write(*,*) '-------------------------'
-  !      write(*,*) 'nt, ng, nc : ', nt, ng, nc  
-  !      write(*,*) 'nzeta, neta : ', cl_ref_plane_t(rns_reslv_cl_iarray( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx )) % nzeta, &
-  !         cl_ref_plane_t(rns_reslv_cl_iarray ( tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % neta
-  !       write(*,*) 'p1 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p1
-  !       write(*,*) 'p2 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p2
-  !       write(*,*) 'p3 : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % p3
-  !       write(*,*) 'area : ', cl_ref_plane_t(rns_reslv_cl_iarray(tr_t(nt)%gen_t(ng)%cl_t(nc)%indx)) % area
-  !      
-  !       write(*,*) '-------------------------'
-  !    enddo
-  !  enddo
-  !  enddo
-
+  write(*,*) '--> Reference Region Information : '
+  write(*,*) '| ID       | NPOINT   | AREA     |'
+  do n=1, nb_elem
+    write(*,'(i12,i11,f11.6)') n, b_elem_t(n) % ref_region_t % npoint, b_elem_t(n) % ref_region_t % area
+  enddo
 endif
           
 return
@@ -1492,6 +1504,18 @@ do n=1, nb_elem
 enddo
 
 deallocate( pre_beta_child_t )
+
+if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  write(*,*) '--> Children Element Information : '
+  write(*,*) '| ID       | NR_ELEM  |'
+  do n=1, nb_elem
+    write(*,'(i12,i11)') n, b_elem_t(n) % r_child_t % nelem
+  enddo
+  write(*,*) '| ID       | NBETA_ELEM |'
+  do n=1, nb_elem
+    write(*,'(i12,i13)') n, b_elem_t(n) % beta_child_t % nelem
+  enddo  
+endif
 
 return
 end subroutine set_b_elem_children
