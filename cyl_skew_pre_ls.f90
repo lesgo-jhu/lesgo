@@ -4,7 +4,7 @@ module cyl_skew_pre_base_ls
 use types, only : rprec, vec3d
 use param, only : pi
 use cyl_skew_base_ls
-use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
+use cyl_skew_ls, only : fill_tree_array_ls
 use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
 use io, only : write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
@@ -104,7 +104,7 @@ $endif
 use param, only : nz
 use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
-use cyl_skew_ls, only : cyl_skew_fill_tree_array_ls
+use cyl_skew_ls, only : fill_tree_array_ls
 
 implicit none
 
@@ -112,7 +112,7 @@ integer :: ng,i,j,k
 
 call initialize_mpi ()
 call allocate_arrays()
-call cyl_skew_fill_tree_array_ls()
+call fill_tree_array_ls()
 call generate_grid()
 
 !!  Allocate x,y,z for all coordinate systems
@@ -1045,14 +1045,23 @@ contains
 subroutine write_output()
 !**********************************************************************
 use grid_defs
-use param, only : ld
+use param, only : ld, Nx, Ny, Nz
 implicit none
 
 character (64) :: fname, temp
 integer :: i,j,k
 
-integer, pointer, dimension(:,:,:) :: brindx
+integer, pointer, dimension(:,:,:) :: brindx, clindx
 real(rprec), pointer, dimension(:,:,:) :: phi, chi
+
+integer, pointer, dimension(:) :: br_loc_id_p
+
+nullify(phi,brindx)
+nullify(br_loc_id_p)
+allocate(phi(ld,ny,$lbz:nz))
+allocate(brindx(ld,ny,$lbz:nz))
+allocate(clindx(ld,ny,$lbz:nz))
+allocate(chi(ld,ny,$lbz:nz))
 
 if(nproc > 1 .and. coord == 0) gcs_t(:,:,$lbz)%phi = -BOGUS
 
@@ -1087,17 +1096,18 @@ do k=$lbz,nz
 enddo
 close(2)
 
-nullify(phi,brindx)
-allocate(phi(ld,ny,$lbz:nz))
-allocate(brindx(ld,ny,$lbz:nz))
-allocate(chi(ld,ny,$lbz:nz))
-
 do k=$lbz,nz
   do j = 1,ny
     do i = 1,ld
       phi(i,j,k) = gcs_t(i,j,k)%phi
       brindx(i,j,k) = gcs_t(i,j,k)%brindx
+      
+      br_loc_id_p => brindx_to_loc_id(:, brindx(i,j,k))
+      clindx(i,j,k) = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+      
       chi(i,j,k) = gcs_t(i,j,k)%chi
+      
+      nullify(br_loc_id_p)
     enddo
   enddo
 enddo
@@ -1131,6 +1141,19 @@ endif
 
 open (1, file=fname, form='unformatted')
 write(1) brindx
+close (1)
+
+!  Open file which to write global data
+write (fname,*) 'clindx.out'
+fname = trim(adjustl(fname)) 
+
+if(nproc > 1) then
+  write (temp, '(".c",i0)') coord
+  fname = trim (fname) // temp
+endif
+
+open (1, file=fname, form='unformatted')
+write(1) clindx
 close (1)
 
 write (fname,*) 'chi.out'
@@ -1269,6 +1292,7 @@ end subroutine gen_assoc
 !**********************************************************************
 subroutine point_assoc()
 !**********************************************************************
+use param, only : nx, ny, nz
 $if ($MPI)
 use param, only : nproc, coord
 $endif
