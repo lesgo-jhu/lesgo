@@ -22,11 +22,16 @@ $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
   
   $if ($CYL_SKEW_LS)
-  use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
+  !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
   $endif
   
   $if ($RNS_LS)
-  use rns_ls, only : rns_init_ls, rns_CD_ls, rns_finalize_ls
+  use rns_ls, only : rns_finalize_ls
+  
+    $if ($CYL_SKEW_LS)
+    use rns_cyl_skew_ls, only : rns_init_ls
+    $endif
+  
   $endif
   
 $endif
@@ -139,7 +144,7 @@ $if ($LVLSET)
   call level_set_init ()
   
   $if ($CYL_SKEW_LS)
-  call cyl_skew_init_ls ()
+  !call cyl_skew_init_ls ()
   $endif
   
   $if ($RNS_LS)
@@ -545,7 +550,7 @@ do jt=1,nsteps
     $endif
     
     $if ($RNS_LS)
-    call rns_CD_ls()
+    !call rns_CD_ls()
     $endif
 
   $endif
@@ -592,10 +597,6 @@ $if ($LVLSET)
 $if ($TREES_LS)
   call trees_ls_finalize ()
 $endif
-
-$if($RNS_LS)
-  call rns_finalize_ls ()
-$endif 
  
 $endif
 
