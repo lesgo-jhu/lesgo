@@ -10,6 +10,7 @@ private
 
 public :: rns_forcing_ls ! Apply forcing
 public :: rns_finalize_ls
+public :: rns_force_init_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
@@ -34,7 +35,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_forcing_ls'
 
-integer :: ib, np
+integer :: np, n
 
 integer, pointer :: i, j, k
 
@@ -52,14 +53,14 @@ call rns_elem_force()
 do n = 1, nbeta_elem
  
     !  Loop over number of points used in beta region
-    npoint_p => beta_force_t( n ) % indx_array_t % npoint    
-    kappa_p  => beta_force_t( n ) % force_t % kappa
+    npoint_p => beta_elem_t(n) % indx_array_t % npoint    
+    kappa_p  => beta_elem_t(n) % force_t % kappa
   
     do np = 1, npoint_p
   
-      i => beta_force_t( n ) % indx_array_t % iarray(1,np)
-      j => beta_force_t( n ) % indx_array_t % iarray(2,np)
-      k => beta_force_t( n ) % indx_array_t % iarray(3,np)
+      i => beta_elem_t( n ) % indx_array_t % iarray(1,np)
+      j => beta_elem_t( n ) % indx_array_t % iarray(2,np)
+      k => beta_elem_t( n ) % indx_array_t % iarray(3,np)
     
       fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
  
@@ -96,9 +97,9 @@ character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
-  call write_r_elem_data()
-  call write_beta_elem_data()
-  call write_b_elem_data()
+  call r_elem_data_write()
+  call beta_elem_data_write()
+  call b_elem_data_write()
       
 endif
     
@@ -116,6 +117,7 @@ use messages
 use sim_param, only : u
 use immersedbc, only : fx
 use functions, only : points_avg_3D
+use param, only : nx, nz, dx, dy, dz, coord, jt
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
@@ -126,17 +128,29 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_elem_force'
 
 integer ::  n, ns
-integer, pointer :: nelem_p, indx_p
+integer, pointer :: nelem_p
+integer, pointer, dimension(:) :: indx_p
 
 real(rprec), allocatable, dimension(:) :: beta_gamma
 real(rprec), allocatable, dimension(:) :: beta_gamma_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
+real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
 
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
-real(rprec), allocatable, dimension(:) ::  fD_tot
 real(rprec), allocatable, dimension(:) ::  CD_num, CD_denom
+
+integer, pointer :: i,j,k
+integer, pointer :: npoint_p
+
+real(rprec), pointer :: kappa_p, CD_p
+
+real(rprec) :: beta_int
+
+$if($MPI)
+real(rprec) :: beta_int_global
+$endif
 
 $if($MPI)
 real(rprec) :: fD
@@ -309,45 +323,6 @@ enddo
 do n=1, nb_elem
   b_elem_t(n) % force_t % fD = - 0.5_rprec * b_elem_t(n) % force_t % CD * b_gamma(n)
 enddo
-   
-deallocate(beta_gamma, beta_gamma_sum)
-deallocate(b_gamma)
-
-call beta_elem_kappa()
-
-return
-end subroutine rns_elem_force
-
-!**********************************************************************
-subroutine beta_elem_kappa()
-!**********************************************************************
-use types, only : rprec
-use param, only : dx, dy, dz
-$if($MPI)
-use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-$endif
-implicit none
-
-integer :: n
-
-integer, pointer :: i,j,k
-integer, pointer :: npoint_p
-
-real(rprec), pointer :: kappa_p, CD_p
-
-real(rprec) :: beta_int
-
-$if($MPI)
-real(rprec) :: beta_int_global
-$endif
-
-$if($MPI)
-real(rprec) :: fD
-$endif
-
-nullify(i,j,k)
-nullify(npoint_p)
-nullify(kappa_p, CD_p)
 
 !  Now need to compute kappa
 do n = 1, nbeta_elem
@@ -394,9 +369,95 @@ do n = 1, nbeta_elem
   nullify(u_p, area_p)
         
 enddo
+   
+deallocate(beta_gamma, beta_gamma_sum)
+deallocate(b_gamma)
+
+!call beta_elem_kappa()
 
 return
-end subroutine beta_elem_kappa
+end subroutine rns_elem_force
+
+!!**********************************************************************
+!subroutine beta_elem_kappa()
+!!**********************************************************************
+!use types, only : rprec
+!use param, only : dx, dy, dz
+!use sim_param, only : u
+!$if($MPI)
+!use param, only : MPI_RPREC, MPI_SUM, comm, ierr
+!$endif
+!implicit none
+
+!integer :: n, ns
+
+!integer, pointer :: i,j,k
+!integer, pointer :: npoint_p
+
+!real(rprec), pointer :: kappa_p, CD_p
+
+!real(rprec) :: beta_int
+
+!$if($MPI)
+!real(rprec) :: beta_int_global
+!$endif
+
+!$if($MPI)
+!real(rprec) :: fD
+!$endif
+
+!nullify(i,j,k)
+!nullify(npoint_p)
+!nullify(kappa_p, CD_p)
+
+!!  Now need to compute kappa
+!do n = 1, nbeta_elem
+
+!  !  Compute beta_int over each region beta
+!  beta_int = 0._rprec
+!    
+!  $if($MPI)
+!  beta_int_global = 0._rprec
+!  $endif
+!  
+!  !  Loop over number of points used in beta region
+!  npoint_p => beta_elem_t(n) % indx_array_t % npoint
+!  
+!  do ns = 1, npoint_p
+!  
+!    i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
+!    j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
+!    k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
+!    
+!    beta_int = beta_int + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+! 
+!    nullify(i,j,k)
+!      
+!  enddo
+!  
+!  beta_int = beta_int * dx * dy * dz
+!    
+!  nullify( npoint_p )
+!    
+!  $if($MPI)
+!  call mpi_allreduce (beta_int, beta_int_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+!  beta_int = beta_int_global
+!  $endif
+!    
+!  kappa_p => beta_elem_t(n) % force_t % kappa
+!  CD_p    => beta_elem_t(n) % force_t % CD
+!    
+!  kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
+!    
+!  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+!    
+!  nullify(kappa_p, CD_p)
+!  nullify(u_p, area_p)
+!        
+!enddo
+
+!return
+!end subroutine beta_elem_kappa
 
 !**********************************************************************
 subroutine r_elem_force()
@@ -416,21 +477,20 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.r_elem_force'
 
+integer :: n, np
+
 integer, pointer :: i, j, k
 integer, pointer :: npoint_p
 integer, pointer, dimension(:,:) :: iarray_p
 
 real(rprec), pointer :: fD_p
 
-integer :: ncluster_tot
-integer :: nt, ng, nc, np
-
 $if ($MPI)
 real(rprec) :: fD
 $endif
 
-type(ref_region) :: ref_region_t_p
-type(indx_array) :: indx_array_t_p
+type(ref_region), pointer :: ref_region_t_p
+type(indx_array), pointer :: indx_array_t_p
 
 !if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
@@ -455,7 +515,7 @@ do n = 1, nr_elem
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
   npoint_p => indx_array_t_p % npoint
-  iarray_p => cindx_array_t_p % iarray
+  iarray_p => indx_array_t_p % iarray
   
   $if($MPI)
   fD = 0._rprec
@@ -485,7 +545,7 @@ do n = 1, nr_elem
   $endif
   
   !  Compute CD
-  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p(n)%area * (ref_region_t_p(n)%u)**2)
+  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
   
   nullify(fD_p)
   nullify(npoint_p, iarray_p)
@@ -512,7 +572,7 @@ character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: n, nvar
+integer :: n
 
 inquire (file=fname_CD, exist=exst)
 if (.not. exst) then
@@ -523,7 +583,7 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_CD, 'append', 'formatted', nr_elem + 1, (/ total_time, r_elem_t(:) % force_t % CD /))
@@ -537,7 +597,7 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_fD, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % force_t % fD /))
@@ -551,10 +611,10 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
 end subroutine r_elem_data_write
@@ -575,7 +635,7 @@ character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: n, nvar
+integer :: n
 
 inquire (file=fname_CD, exist=exst)
 if (.not. exst) then
@@ -586,7 +646,7 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_CD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % CD /))
@@ -600,12 +660,12 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % fD /))
 
-inquire (file=fname_fD, exist=exst)
+inquire (file=fname_kappa, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
   do n = 1, nbeta_elem
@@ -614,10 +674,10 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % kappa /))
+call write_real_data(fname_kappa, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % kappa /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
@@ -628,10 +688,10 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u /))
 
 return
 end subroutine beta_elem_data_write
@@ -651,8 +711,7 @@ character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
 
 logical :: exst
 character(5000) :: var_list
-integer :: n, nvar
-
+integer :: n
 inquire (file=fname_CD, exist=exst)
 if (.not. exst) then
   var_list = '"t"'
@@ -662,7 +721,7 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_CD, 'append', 'formatted', nb_elem + 1, (/ total_time, b_elem_t(:) % force_t % CD /))
@@ -676,7 +735,7 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
 call write_real_data(fname_fD, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % fD /))
@@ -690,10 +749,10 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
-  call write_tecplot_header_xyline(fname, 'rewind', trim(adjustl(var_list)))
+  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
 
 return
 end subroutine b_elem_data_write
@@ -710,13 +769,11 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
 character (*), parameter :: fname_in = 'rns_force.out'
+character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
 
-  character (128) :: fname
 $endif
-
-integer :: ip
 
 logical :: opn, exst
 
@@ -762,15 +819,14 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
 character (*), parameter :: fname_out = 'rns_force_ls.out'
+
+character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
 
-  character (128) :: fname
 $endif
 
-integer :: ip
-
-logical :: opn, exst
+logical :: opn
 
 !---------------------------------------------------------------------
 
