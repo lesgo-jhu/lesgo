@@ -831,7 +831,7 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
-character (*), parameter :: fname_out = 'rns_force_ls.out'
+character (*), parameter :: fname_out = 'rns_force.out'
 
 character (128) :: fname
 $if ($MPI)
