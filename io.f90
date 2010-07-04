@@ -552,9 +552,7 @@ use sim_param, only : u,v,w
 
 $if($LVLSET)
 use level_set, only : phi
-$if($RNS_LS)
 use immersedbc, only : fx, fy, fz
-$endif
 $endif
 
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
@@ -652,7 +650,6 @@ elseif(itype==2) then
   !  Output Instantaneous Force Field for RNS Simulations
   !  Still need to put fz on uv grid may need a better way
   $if($LVLSET)
-  $if($RNS_LS)
   !  Open file which to write global data
   write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
@@ -670,7 +667,6 @@ elseif(itype==2) then
   (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), &
   4, x, y, z(1:nz))
   
-  $endif
   $endif
   
 !  Write instantaneous x-plane values
@@ -759,7 +755,6 @@ elseif(itype==4) then
     (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
   $if($LVLSET)
-  $if($RNS_LS)
   
     write(fname,*) 'output/force.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
@@ -790,7 +785,6 @@ elseif(itype==4) then
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
     (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
-    $endif
     $endif
 
   enddo  
@@ -836,7 +830,6 @@ elseif(itype==5) then
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
     
     $if($LVLSET)
-    $if($RNS_LS)
     
     write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
@@ -861,7 +854,6 @@ elseif(itype==5) then
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /) )      
     
-    $endif
     $endif
 
     $if ($MPI)
