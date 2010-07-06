@@ -844,7 +844,7 @@ do nb = 1, nbranch_p
   bot_p        => br_t_p(nb) % bot
   skew_angle_p => br_t_p(nb) % skew_angle
   angle_p      => br_t_p(nb) % angle
-  indx_p      => br_t_p(nb) % indx
+  indx_p       => br_t_p(nb) % indx
 
   svec_t % xyz = top_p - bot_p
 
@@ -1088,9 +1088,23 @@ write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBL
 do k=$lbz,nz
   do j=1,ny
     do i=1,nx
+
+      !  Update clindx based on brindx
+      if(gcs_t(i,j,k)%brindx > 0 ) then
+        br_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k)%brindx)
+     
+        gcs_t(i,j,k)%clindx = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+        nullify( br_loc_id_p )
+      else
+      
+        gcs_t(i,j,k)%clindx = -1
+        
+      endif
+      
       write(2,*) gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), gcs_t(i,j,k)%xyz(3), &
         gcs_t(i,j,k)%phi, gcs_t(i,j,k)%brindx, gcs_t(i,j,k)%clindx, &
         gcs_t(i,j,k)%itype, gcs_t(i,j,k)%chi
+        
     enddo
   enddo
 enddo
@@ -1101,20 +1115,19 @@ do k=$lbz,nz
     do i = 1,ld
       phi(i,j,k) = gcs_t(i,j,k)%phi
       brindx(i,j,k) = gcs_t(i,j,k)%brindx
+      clindx(i,j,k) = gcs_t(i,j,k)%clindx
      
-      if(brindx(i,j,k) > 0 ) then
-        br_loc_id_p => brindx_to_loc_id(:, brindx(i,j,k))
+      !if(brindx(i,j,k) > 0 ) then
+      !  br_loc_id_p => brindx_to_loc_id(:, brindx(i,j,k))
      
-        clindx(i,j,k) = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
-      else
+      !  clindx(i,j,k) = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
+      !else
       
-        clindx(i,j,k) = -1
-        
-      endif
+      !  clindx(i,j,k) = -1
+      !  
+      !endif
       
       chi(i,j,k) = gcs_t(i,j,k)%chi
-      
-      nullify(br_loc_id_p)
     enddo
   enddo
 enddo
