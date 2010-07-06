@@ -26,9 +26,13 @@ subroutine rns_forcing_ls()
 use types, only : rprec
 use sim_param, only : u
 use immersedbc, only : fx
+
 $if($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+use mpi
+use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
+
 use param, only : dx, dy, dz, coord, jt, USE_MPI
 
 implicit none
@@ -49,6 +53,7 @@ nullify(kappa_p)
 !  Compute the relavent force information ( include reference quantities, CD, etc.)
 call rns_elem_force()
 
+!if(.false.) then
 !  Apply the RNS forcing to appropriate nodes
 do n = 1, nbeta_elem
  
@@ -72,9 +77,18 @@ do n = 1, nbeta_elem
     
 enddo
 
+!$if($MPI)
+!call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
+!$endif
+
 $if($MPI)
-call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
+!  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+  fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+  comm, status, ierr)
 $endif
+
+!endif
 
 if(modulo (jt, output_nskip) == 0) call rns_elem_output()
 
@@ -134,6 +148,7 @@ integer, pointer, dimension(:) :: indx_p
 
 real(rprec), allocatable, dimension(:) :: beta_gamma
 real(rprec), allocatable, dimension(:) :: beta_gamma_sum
+!real(rprec), allocatable, dimension(:) :: beta_gamma_CD_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
 real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
 
@@ -167,10 +182,12 @@ nullify(points_p)
 allocate(beta_gamma(nbeta_elem))
 allocate(b_gamma(nb_elem))
 allocate(beta_gamma_sum(nb_elem))
+!allocate(beta_gamma_CD_sum(nb_elem))
 
 beta_gamma=0._rprec
 b_gamma=0._rprec
 beta_gamma_sum=0._rprec
+!beta_gamma_CD_sum=0._rprec
 
 $if($MPI)
 !  Make sure intermediate velocity is sync'd
@@ -190,10 +207,8 @@ do n=1, nbeta_elem
   
   beta_gamma(n) = dabs( u_p ) * u_p * area_p
   
-  nullify(u_p, area_p, points_p)
-  
-  
-  
+  nullify(points_p, area_p, u_p)
+
 enddo
 
 do n=1, nb_elem
@@ -206,13 +221,14 @@ do n=1, nb_elem
   
   b_gamma(n) = dabs( u_p ) * u_p * area_p
   
-  nullify(u_p, area_p, points_p)
+  nullify(points_p, area_p, u_p)
   
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
   
   do ns=1, nelem_p
     beta_gamma_sum(n) = beta_gamma_sum(n) + beta_gamma( indx_p(ns) )
+    !beta_gamma_CD_sum(n) = beta_gamma_CD_sum(n) + beta_elem_t( indx_p(ns) ) % force_t % CD * beta_gamma( indx_p(ns) )
   enddo
   
   nullify(indx_p, nelem_p)
@@ -242,7 +258,7 @@ if( use_explicit_formulation ) then
   
   do n=1, nb_elem
     	
-	b_force(n) = b_r_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
+    b_force(n) = b_r_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
 	
   enddo
   
@@ -250,9 +266,9 @@ if( use_explicit_formulation ) then
   
     do n=1, nb_elem
 	
-	  b_elem_t(n) % force_t % CD = 2._rprec * b_force(n) / b_gamma(n)
+      b_elem_t(n) % force_t % CD = -2._rprec * b_force(n) / b_gamma(n)
 	  
-	enddo
+    enddo
   
   else ! compute global CD
   
@@ -260,14 +276,12 @@ if( use_explicit_formulation ) then
 	  CD_denom=0._rprec
     do n=1, nb_elem
 	
-	  CD_num = CD_num + b_force(n) * b_gamma(n) 
-	  CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
-	  
-	enddo
-  
-  if( CD_denom <= 1.0e-9_rprec) call error(sub_name, 'b_gamma**2 == 0.')
-
-	b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
+      CD_num = CD_num + b_force(n) * b_gamma(n) 
+      CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
+      
+    enddo
+    
+    b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
 	
   endif
   
@@ -291,16 +305,16 @@ else ! use implicit formulation
   else
   
     CD_num=0._rprec
-	CD_denom=0._rprec
+    CD_denom=0._rprec
     
-	do n=1, nb_elem
+    do n=1, nb_elem
 	
-	  CD_num = CD_num + b_r_force(n) * b_m(n)
-	  CD_denom = b_m(n) * b_m(n)
+      CD_num = CD_num + b_r_force(n) * b_m(n)
+      CD_denom = CD_denom + b_m(n) * b_m(n)
 	  
-	enddo
+    enddo
 
-	b_elem_t(:) % force_t % CD = CD_num / CD_denom
+    b_elem_t(:) % force_t % CD = CD_num / CD_denom
 	
   endif
   
@@ -375,16 +389,19 @@ do n = 1, nbeta_elem
   CD_p    => beta_elem_t(n) % force_t % CD
     
   kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
+  !kappa_p = 0._rprec
     
   if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
-  nullify(u_p, area_p)
+
         
 enddo
    
 deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
+
+endif
 
 !call beta_elem_kappa()
 
@@ -479,7 +496,7 @@ subroutine r_elem_force()
 !
 use types, only : rprec
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI
+use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -542,6 +559,8 @@ do n = 1, nr_elem
     i => iarray_p(1,np)
     j => iarray_p(2,np)
     k => iarray_p(3,np)
+    
+    if( k == nz ) call error( sub_name, 'Summing over bogus fx')
   
     $if($MPI)
     fD = fD + fx(i,j,k) * dx * dy * dz
@@ -556,10 +575,12 @@ do n = 1, nr_elem
   $if($MPI)
   call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   $endif
-  
+   
   !  Compute CD
   r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
   
+  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
+
   nullify(fD_p)
   nullify(npoint_p, iarray_p)
   nullify(indx_array_t_p)
@@ -613,7 +634,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', nr_elem+1, (/ total_time, -r_elem_t(:) % force_t % fD /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
@@ -676,7 +697,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fD /))
 
 inquire (file=fname_kappa, exist=exst)
 if (.not. exst) then
@@ -751,7 +772,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fD /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
@@ -765,7 +786,7 @@ if (.not. exst) then
   call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_vel, 'append', 'formatted', nb_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % ref_region_t % u /))
 
 return
 end subroutine b_elem_data_write
