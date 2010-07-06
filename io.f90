@@ -549,6 +549,10 @@ use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use grid_defs, only : x,y,z,zw
 use sim_param, only : u,v,w
+$if($MPI)
+use mpi
+use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
+$endif
 
 $if($LVLSET)
 use level_set, only : phi
@@ -573,6 +577,13 @@ real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 
 !  Make sure w has been interpolated to uv-grid
 call interp_to_uv_grid(w, w_uv, w_uv_tag)
+
+!$if($MPI)
+!!  Sync fx; can not use mpi_sync_real_array since its not allocated from 0 -> nz
+!call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!  fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!  comm, status, ierr)
+!$endif
 
 if(itype==1) then
 
