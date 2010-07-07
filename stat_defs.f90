@@ -50,7 +50,7 @@ type(tavg), pointer, dimension(:,:,:) :: tavg_t
 type(tavg), pointer, dimension(:) :: tavg_zplane_t
 
 type(rs), pointer, dimension(:,:,:) :: rs_t
-type(rs), pointer, dimension(:) :: rs_zplane_t
+type(rs), pointer, dimension(:) :: rs_zplane_t, cnpy_zplane_t
 
 end module stat_defs
 
