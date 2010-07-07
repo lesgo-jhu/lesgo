@@ -1701,7 +1701,7 @@ subroutine tavg_finalize()
 !**********************************************************************
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg, tavg_total_time
-use stat_defs, only : rs, rs_t, rs_zplane_t
+use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
@@ -1716,14 +1716,16 @@ character (64) :: temp
 character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
   fname_tau, fname_f, fname_rs, fname_cs
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
-  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane, fname_cs_zplane
+  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
 
+real(rprec) :: fa
 integer :: i,j,k
 
 $if($MPI)
 real(rprec), allocatable, dimension(:) :: z_tot
-integer :: MPI_RS, MPI_TSTATS
+integer :: MPI_RS, MPI_CNPY, MPI_TSTATS
 integer :: rs_type(1), rs_block(1), rs_disp(1)
+integer :: cnpy_type(1), cnpy_block(1), cnpy_disp(1)
 integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 
 integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
@@ -1731,6 +1733,9 @@ integer, allocatable, dimension(:) :: gather_coord
 
 type(rs), pointer, dimension(:) :: rs_zplane_tot_t
 type(rs), pointer, dimension(:) :: rs_zplane_buf_t
+
+type(rs), pointer, dimension(:) :: cnpy_zplane_tot_t
+type(rs), pointer, dimension(:) :: cnpy_zplane_buf_t
 
 type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
 type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
@@ -1755,12 +1760,17 @@ logical :: opn
 !!$endif
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
+allocate(cnpy_zplane_t(nz))
 
 $if($MPI)
 
 rs_type = MPI_RPREC
 rs_block = 6 ! Number of rs subtypes
 rs_disp = 0
+
+cnpy_type = MPI_RPREC
+cnpy_block = 6 ! Number of cnpy subtypes
+cnpy_disp = 0
 
 tavg_type = MPI_RPREC
 tavg_block = 21 ! Number of tavg subtypes
@@ -1772,6 +1782,7 @@ if(coord == 0) then
   ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
   ! *_buf_t contains the overlap data and is used to recieve the z-plane data from all other nodes
   allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
+  allocate(cnpy_zplane_tot_t(nz_tot), cnpy_zplane_buf_t(nz*nproc))
   allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
   
   allocate(z_tot(nz_tot))
@@ -1860,6 +1871,7 @@ fname_ddz_zplane = 'output/ddz_zplane_avg.dat'
 fname_tau_zplane = 'output/tau_zplane_avg.dat'
 fname_f_zplane = 'output/force_zplane_avg.dat'
 fname_rs_zplane = 'output/rs_zplane.dat'
+fname_cnpy_zplane = 'output/cnpy_zplane.dat'
 fname_cs_zplane = 'output/cs_opt2_zplane.dat'
 
 $if ($MPI)
@@ -1929,18 +1941,9 @@ tavg_zplane_t % fz = tavg_zplane_t % fz / tavg_total_time
 
 tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 / tavg_total_time
 
-!  Compute the Reynolds Stresses
+!  Compute the Reynolds Stresses: <bar(uw)>_xy - <bar(u)>_xy * <bar(w)>_xy
 do k = 1, nz
-
-  rs_zplane_t(k) % up2 = tavg_zplane_t(k) % u2 - tavg_zplane_t(k) % u * tavg_zplane_t(k) % u
-  rs_zplane_t(k) % vp2 = tavg_zplane_t(k) % v2 - tavg_zplane_t(k) % v * tavg_zplane_t(k) % v
-  rs_zplane_t(k) % wp2 = tavg_zplane_t(k) % w2 - tavg_zplane_t(k) % w * tavg_zplane_t(k) % w
-  rs_zplane_t(k) % upwp = tavg_zplane_t(k) % uw - tavg_zplane_t(k) % u * tavg_zplane_t(k) % w
-  rs_zplane_t(k) % vpwp = tavg_zplane_t(k) % vw - tavg_zplane_t(k) % v * tavg_zplane_t(k) % w
-  rs_zplane_t(k) % upvp = tavg_zplane_t(k) % uv - tavg_zplane_t(k) % u * tavg_zplane_t(k) % v
-  
   do j = 1, ny
-
     do i = 1, nx
     
       rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
@@ -1950,11 +1953,32 @@ do k = 1, nz
       rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
       rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
       
-    enddo
-    
+    enddo    
   enddo
   
+  fa = 1. / real(nx * ny)  
+  rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
+  rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
+  rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
+  rs_zplane_t(k) % upwp = fa * sum( rs_t(:,:,k) % upwp )
+  rs_zplane_t(k) % vpwp = fa * sum( rs_t(:,:,k) % vpwp )
+  rs_zplane_t(k) % upvp = fa * sum( rs_t(:,:,k) % upvp )
+  
 enddo
+
+
+!  Compute the Canopy/Dispersive Stresses: <bar(u)*bar(w)>_xy - <bar(u)>_xy * <bar(w)>_xy
+do k = 1, nz  
+
+  cnpy_zplane_t(k) % up2  = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%u) - (fa*sum( tavg_t(:,:,k)%u ))**2
+  cnpy_zplane_t(k) % vp2  = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%v) - (fa*sum( tavg_t(:,:,k)%v ))**2
+  cnpy_zplane_t(k) % wp2  = fa*sum(tavg_t(:,:,k)%w * tavg_t(:,:,k)%w) - (fa*sum( tavg_t(:,:,k)%w ))**2
+  cnpy_zplane_t(k) % upwp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%w )
+  cnpy_zplane_t(k) % vpwp = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%v ) * fa*sum( tavg_t(:,:,k)%w )
+  cnpy_zplane_t(k) % upvp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%v) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%v )
+  
+enddo
+
 
 !  Write data to tavg.out
 inquire (unit=1, opened=opn)
@@ -1975,12 +1999,18 @@ $if($MPI)
   !  Create MPI type structures consistent with the derived types
   call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
   Call MPI_Type_commit(MPI_RS,ierr)
+  
+  call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
+  Call MPI_Type_commit(MPI_CNPY,ierr)  
 
   call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
   Call MPI_Type_commit(MPI_TSTATS,ierr)
 
   call mpi_gather( rs_zplane_t, nz, MPI_RS, rs_zplane_buf_t, nz, &
     MPI_RS, rank_of_coord(0), comm, ierr)
+    
+  call mpi_gather( cnpy_zplane_t, nz, MPI_CNPY, cnpy_zplane_buf_t, nz, &
+    MPI_CNPY, rank_of_coord(0), comm, ierr)    
     
   call mpi_gather( tavg_zplane_t, nz, MPI_TSTATS, tavg_zplane_buf_t, nz, &
     MPI_TSTATS, rank_of_coord(0), comm, ierr)   
@@ -1991,6 +2021,7 @@ $if($MPI)
   MPI_INTEGER, rank_of_coord(0), comm, ierr)
   
   call MPI_Type_free (MPI_RS, ierr)
+  call MPI_Type_free (MPI_CNPY, ierr)
   call mpi_type_free (MPI_TSTATS, ierr)
   
   if(coord == 0) then
@@ -1998,6 +2029,7 @@ $if($MPI)
   !  Need to remove overlapping nodes
   !! Set initial block of data  
   !  rs_zplane_tot_t(1:nz) = rs_zplane_buf_t(1:nz)
+  !  cnpy_zplane_tot_t(1:nz) = cnpy_zplane_buf_t(1:nz)
   !  tavg_zplane_tot_t(1:nz) = tavg_zplane_buf_t(1:nz)
     
     do ip=1, nproc
@@ -2009,6 +2041,7 @@ $if($MPI)
       ktot_end = ktot_start + nz - 1
                 
       rs_zplane_tot_t(ktot_start:ktot_end) = rs_zplane_buf_t(kbuf_start:kbuf_end)
+      cnpy_zplane_tot_t(ktot_start:ktot_end) = cnpy_zplane_buf_t(kbuf_start:kbuf_end)
       tavg_zplane_tot_t(ktot_start:ktot_end) = tavg_zplane_buf_t(kbuf_start:kbuf_end)
       
     enddo   
@@ -2047,13 +2080,20 @@ $if($MPI)
       (/ rs_zplane_tot_t % up2, rs_zplane_tot_t%vp2, rs_zplane_tot_t%wp2, &
       rs_zplane_tot_t%upwp, rs_zplane_tot_t%vpwp, rs_zplane_tot_t%upvp /), 0, z_tot)    
  
+    call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz_tot/), &
+      '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+    call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, Nz_tot, &
+      (/ cnpy_zplane_tot_t % up2, cnpy_zplane_tot_t%vp2, cnpy_zplane_tot_t%wp2, &
+      cnpy_zplane_tot_t%upwp, cnpy_zplane_tot_t%vpwp, cnpy_zplane_tot_t%upvp /), 0, z_tot)         
+      
     call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz_tot/), &
-      '"z", "<cs>"', coord, 2)
+      '"z", "<cs2>"', coord, 2)
     call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
       (/ tavg_zplane_tot_t % cs_opt2 /), 0, z_tot)        
       
     deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
     deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
+    deallocate(cnpy_zplane_tot_t, cnpy_zplane_buf_t)
     deallocate(z_tot, gather_coord)
   
   endif
@@ -2093,8 +2133,14 @@ call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
   (/ rs_zplane_t % up2, rs_zplane_t%vp2, rs_zplane_t%wp2, &
   rs_zplane_t%upwp, rs_zplane_t%vpwp, rs_zplane_t%upvp /), 0, z(1:nz))
 
+call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz/), &
+   '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, nz, &
+  (/ cnpy_zplane_t % up2, cnpy_zplane_t%vp2, cnpy_zplane_t%wp2, &
+  cnpy_zplane_t%upwp, cnpy_zplane_t%vpwp, cnpy_zplane_t%upvp /), 0, z(1:nz))  
+  
 call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz/), &
-   '"z", "<cs>"', coord, 2)
+   '"z", "<cs2>"', coord, 2)
 call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
   (/ tavg_zplane_t % cs_opt2 /), 0, z(1:nz))    
   
@@ -2148,12 +2194,12 @@ call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
   4, x, y, z(1:nz))  
   
 call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<cs>"', coord, 2)
+   '"x", "y", "z", "<cs2>"', coord, 2)
 call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
   (/ tavg_t % cs_opt2 /), &
   4, x, y, z(1:nz))    
 
-deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t)
+deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
 
 return
 end subroutine tavg_finalize
