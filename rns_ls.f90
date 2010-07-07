@@ -401,8 +401,6 @@ enddo
 deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
 
-endif
-
 !call beta_elem_kappa()
 
 return
