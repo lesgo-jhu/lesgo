@@ -3,7 +3,8 @@
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS, VERBOSE
+use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS
+
 implicit none
 $if ($MPI)
   $define $lbz 0
@@ -15,7 +16,9 @@ real (rprec), dimension (ld, ny, $lbz:nz), intent (in) :: tx, ty, tz
 real(kind=rprec),dimension(ld,ny,$lbz:nz)::dtxdx,dtydy, dtzdz
 integer::jx,jy,jz
 
-if (VERBOSE) write (*, *) 'started divstress_w'
+$if ($VERBOSE)
+write (*, *) 'started divstress_w'
+$endif
 
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
@@ -81,6 +84,8 @@ else
   divt(:, :, nz) = BOGUS
 end if
 
-if (VERBOSE) write (*, *) 'finished divstress_w'
+$if ($VERBOSE)
+write (*, *) 'finished divstress_w'
+$endif
 
 end subroutine divstress_w

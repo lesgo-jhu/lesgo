@@ -1,7 +1,8 @@
 !--provides divt, jz=1:nz-1
 subroutine divstress_uv (divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,ny,nz, BOGUS, VERBOSE
+use param,only:ld,ny,nz, BOGUS
+
 implicit none
 $if ($MPI)
   $define $lbz 0
@@ -14,9 +15,13 @@ real (rprec), dimension (ld, ny, $lbz:nz), intent (in) :: tx, ty, tz
 ! do this by writing a divergence subroutine--then do not store derivs 
 real(kind=rprec),dimension(ld,ny,$lbz:nz)::dtxdx,dtydy, dtzdz
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
+$endif
 
-if (VERBOSE) write (*, *) 'started divstress_uv'
+$if ($VERBOSE)
+write (*, *) 'started divstress_uv'
+$endif
  
 !if (DEBUG) then
 !  if (abs (dtxdx(ld, 1, 1) - 0._rprec) > 0.0001_rprec) then
@@ -65,6 +70,8 @@ $if ($MPI)
 $endif
 divt(:, :, nz) = BOGUS
 
-if (VERBOSE) write (*, *) 'finished divstress_uv'
+$if ($VERBOSE)
+write (*, *) 'finished divstress_uv'
+$endif
 
 end subroutine divstress_uv
