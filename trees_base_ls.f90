@@ -40,8 +40,9 @@ $endif
 character (*), parameter :: fmodel = $str($fmodel)
 integer, parameter :: nfcoeff = $nfcoeff
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-logical, parameter :: VERBOSE = .false.
+$endif
 
 !--beware, some of these are no longer in use
 logical, parameter :: use_tecplot = .true.
@@ -263,8 +264,9 @@ real (rp), parameter :: thresh = 1e-6
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
 
+$if ($DEBUG)
 if (DEBUG) call enter_sub (sub_name)
-
+$endif
 !  Set grid dimensions to those of global values
 grid % nx = (/ nx, ny, nz /)
 
@@ -313,7 +315,9 @@ end do
 
 grid % initialized = .true.
 
+$if ($DEBUG)
 if (DEBUG) call exit_sub (sub_name)
+$endif
 
 end subroutine grid_initialize
 

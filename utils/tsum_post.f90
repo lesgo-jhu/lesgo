@@ -8,14 +8,17 @@ use types, only : rprec
 use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tsum_t, rs_t
 use param, only : nx, ny, nz, nproc, USE_MPI
-use cylinder_skew_base_ls, only : phi
-
+$if ($LVLSET)
+$if ($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : phi ! Used to only average over fluid nodes
+$endif
+$endif
 implicit none
 
 logical, parameter :: rs_output=.true.
 logical, parameter :: uvw_avg_output=.true.
 logical, parameter :: tecio=.true.
-integer, parameter :: iter_start=100, iter_stop=1000, iter_skip=100 ! In thousands
+integer, parameter :: iter_start=1000000, iter_stop=1000000, iter_skip=1000000 ! In thousands
 character(50) :: ci,fname,temp,fiter_start, fiter_stop
 character(50) :: ftec, fdir
 integer :: i,j,k
@@ -30,7 +33,7 @@ real(rprec), allocatable :: sum_z(:)
 do np=0,nproc-1
   ndirs = (iter_stop - iter_start)/iter_skip + 1 ! # of iteration sets
 
-  favg = 1._rprec/(ndirs * iter_skip * 1000._rprec ) ! 1/(total # of iterations)
+  favg = 1._rprec/(ndirs * iter_skip ) ! 1/(total # of iterations)
   write(*,*) '1/favg : ', 1./favg
 !  Allocate and initialize
   allocate(x(nx),y(ny),z(nz));
@@ -57,10 +60,12 @@ do np=0,nproc-1
   allocate(tsum_t%uv(nx, ny, nz))
   allocate(tsum_t%dudz(nx, ny, nz))
 
+  $if ($LVLSET)
   $if ($MPI)
   allocate(phi(nx+2,ny,0:nz))
   $else
   allocate(phi(nx+2,ny,1:nz))
+  $endif
   $endif
 
   tavg_t%u=0.
@@ -86,12 +91,14 @@ do np=0,nproc-1
   tsum_t%dudz=0.
 
 
+  $if ($LVLSET)
 !  Load phi data
   call load_data('phi.out',np)
+  $endif
 
   do nf=1,ndirs
     write(ci,'(i0)') iter_start + (nf - 1)*iter_skip
-    fdir =  'output.' // trim(adjustl(ci)) // 'k'
+    fdir =  'output.' // trim(adjustl(ci))
     fname =  trim(adjustl(fdir)) // '/tsum.out'
  
     write(*,*) fname 
@@ -164,18 +171,31 @@ do np=0,nproc-1
       action='write',position='rewind')
   
     if(tecio) then
-      write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+      $if ($LVLSET)
+      write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp", "phi"'
+      $else
+       write(7,*) 'variables= "x", "y", "z", "up2", "vp2", "wp2", "upwp", "vpwp", "upvp"'
+      $endif
       write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
         1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+      $if ($LVLSET)
+      write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+      $else
       write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''  
+      $endif
     endif
 
     do k=1,nz
       do j=1,ny
         do i=1,nx
-  !  Write spatially averaged, temporally averaged quantities   
+  !  Write spatially averaged, temporally averaged quantities
+          $if ($LVLSET)   
+          write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
+            rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k), phi(i,j,k)
+          $else
           write(7,*) x(i), y(j), z(k), rs_t%up2(i,j,k), rs_t%vp2(i,j,k), rs_t%wp2(i,j,k), &
             rs_t%upwp(i,j,k), rs_t%vpwp(i,j,k), rs_t%upvp(i,j,k)
+          $endif
         enddo
       enddo
     enddo
@@ -210,15 +230,19 @@ do np=0,nproc-1
       rcount = 0.
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
           if(phi(i,j,k) >= 0._rprec) then
             rcount = rcount + 1.
+          $endif
             sum_z(1) = sum_z(1) + rs_t%up2(i,j,k)
             sum_z(2) = sum_z(2) + rs_t%vp2(i,j,k)
             sum_z(3) = sum_z(3) + rs_t%wp2(i,j,k)
             sum_z(4) = sum_z(4) + rs_t%upwp(i,j,k)
             sum_z(5) = sum_z(5) + rs_t%vpwp(i,j,k)
             sum_z(6) = sum_z(6) + rs_t%upvp(i,j,k)
+          $if ($LVLSET)
           endif
+          $endif
         enddo
       enddo
       if(rcount > 0.5) then
@@ -252,16 +276,28 @@ do np=0,nproc-1
       action='write',position='rewind')
 
     if(tecio) then
+      $if ($LVLSET)
+      write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>", "phi"'
+      $else
       write(7,*) 'variables= "x", "y", "z", "<u>", "<v>", "<w>"'
+      $endif
       write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
         1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz
+      $if ($LVLSET)
+      write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+      $else
       write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''	
+      $endif
     endif
 
     do k=1,nz
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
+          write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k), phi(i,j,k)
+          $else
           write(7,*) x(i), y(j), z(k), tavg_t%u(i,j,k), tavg_t%v(i,j,k), tavg_t%w(i,j,k)
+          $endif         
         enddo
       enddo
     enddo
@@ -294,12 +330,16 @@ do np=0,nproc-1
       rcount = 0.
       do j=1,ny
         do i=1,nx
+          $if ($LVLSET)
           if(phi(i,j,k) >= 0._rprec) then
+          $endif
             rcount = rcount + 1.
             sum_z(1) = sum_z(1) + tavg_t%u(i,j,k)
             sum_z(2) = sum_z(2) + tavg_t%v(i,j,k)
             sum_z(3) = sum_z(3) + tavg_t%w(i,j,k)
+          $if ($LVLSET)
           endif
+          $endif
         enddo
       enddo
 !  Make sure there is at least 1 point to be averaged 
@@ -353,8 +393,11 @@ subroutine load_data(fbase,np)
 use grid_defs, only : x, y, z
 use stat_defs, only : tsum_t
 use param, only : nx, ny, nz, USE_MPI
-use cylinder_skew_base_ls, only : phi
-
+$if ($LVLSET)
+$if ($CYL_SKEW_LS)
+use cyl_skew_base_ls, only : phi
+$endif
+$endif
 implicit none
 
 character(*), intent(IN) :: fbase
@@ -370,12 +413,12 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-
 write(*,"(1a,1a)") ' Processing File : ', fname
  
 open(unit = 7,file = fname, status='old',form='unformatted', &
   action='read',position='rewind') 
 
+$if ($LVLSET)
 if(fbase  == 'phi.out') then
 
 !  Read binary data for lesgo
@@ -384,8 +427,8 @@ if(fbase  == 'phi.out') then
 
   read(7) phi
   close (7)
-
 else
+
 !  Read data from input data file
   do k=1,nz
     do j=1,ny
@@ -400,6 +443,21 @@ else
   enddo
   close(7)
 endif
+$else
+!  Read data from input data file
+  do k=1,nz
+    do j=1,ny
+      do i=1,nx
+        read(7)  x(i), y(j), z(k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u(i,j,k), tsum_t%v(i,j,k), &
+          tsum_t%w(i,j,k), tsum_t%u2(i,j,k), tsum_t%v2(i,j,k), &
+          tsum_t%w2(i,j,k), tsum_t%uw(i,j,k), tsum_t%vw(i,j,k), &
+          tsum_t%uv(i,j,k), tsum_t%dudz(i,j,k)
+      enddo
+    enddo
+  enddo
+  close(7)
+$endif
 
 
 return

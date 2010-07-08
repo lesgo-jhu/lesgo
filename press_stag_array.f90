@@ -27,7 +27,11 @@ use param
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
 use fft
 use immersedbc,only:fx,fy,fz  ! only for forcing experiment
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 !$undefine $MPI
 $if ($MPI)
   $define $lbz 0
@@ -48,8 +52,11 @@ real(kind=rprec)::const,ignore_me
 integer::jx,jy,jz,k
 
 character (64) :: fname
+
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 logical, parameter :: TRI_DEBUG = .false.
+$endif
 
 integer :: jz_min
 
@@ -57,8 +64,9 @@ complex(kind=rprec),dimension(lh, ny, nz+1)::RHS_col
 real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) write (*, *) 'started press_stag_array'
+$if ($VERBOSE)
+write (*, *) 'started press_stag_array'
+$endif
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   p_hat(:, :, 0) = (0._rprec, 0._rprec)
@@ -129,12 +137,14 @@ bottomw(:, ny/2+1)=0._rprec
 !==========================================================================
 ! Loop over (Kx,Ky) to solve for Pressure amplitudes
 
+$if ($DEBUG)
 if (TRI_DEBUG) then
   a = BOGUS
   b = BOGUS
   c = BOGUS
   RHS_col = BOGUS
 end if
+$endif
 
 !--switch order of inner/outer loops here
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
@@ -144,12 +154,14 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   c(:, :, 1) = 1._rprec
   RHS_col(:, :, 1) = -dz * bottomw(:, :)
 
+  $if ($DEBUG)
   if (TRI_DEBUG) then
     a(:, :, 1) = BOGUS  !--was 0._rprec
     b(:, :, 1) = 2._rprec
     c(:, :, 1) = 1._rprec
     RHS_col(:, :, 1) = 1._rprec
   end if
+  $endif
 
   jz_min = 2
 
@@ -167,6 +179,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   c(:, :, nz+1) = BOGUS  !--was 0._rprec
   RHS_col(:, :, nz+1) = -topw(:, :) * dz
 
+  $if ($DEBUG)
   if (TRI_DEBUG) then
     a(:, :, nz+1) = 1._rprec
     b(:, :, nz+1) = 2._rprec
@@ -177,10 +190,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
       RHS_col(:, :, nz+1) = real (nz+1, rprec)
     $endif
   end if
+  $endif
 
 end if
 
+$if ($DEBUG)
 if (DEBUG) write (*, *) coord, ' before H send/recv'
+$endif
 
 $if ($MPI)
   !--could maybe combine some of these to less communication is needed
@@ -207,15 +223,16 @@ $if ($MPI)
                      comm, status, ierr)
 $endif
 
-if (DEBUG) write (*, *) coord, ' after H send/recv'
-
+$if ($DEBUG)
 if (DEBUG) then
+  write (*, *) coord, ' after H send/recv'
   call DEBUG_write (H_x(:, :, 1:nz), 'w.H_x')
   call DEBUG_write (H_y(:, :, 1:nz), 'w.H_y')
   call DEBUG_write (H_z(:, :, 1:nz), 'w.H_z')
   call DEBUG_write (topw, 'w.topw')
   call DEBUG_write (bottomw, 'w.bottomw')
 end if
+$endif
 
 do jz = jz_min, nz
   do jy = 1, ny
@@ -233,6 +250,7 @@ do jz = jz_min, nz
                                    ky(jx, jy) * H_y(jx, jy, jz-1)) +  &
                             (H_z(jx, jy, jz) - H_z(jx, jy, jz-1)) / dz
 
+      $if ($DEBUG)
       if (TRI_DEBUG) then
         a(jx, jy, jz) = 1._rprec
         b(jx, jy, jz) = 2._rprec
@@ -243,6 +261,7 @@ do jz = jz_min, nz
           RHS_col(jx, jy, jz) = jz
         $endif
       end if
+      $endif
      
     end do
   end do
@@ -259,14 +278,15 @@ end do
 !  $endif
 !end do
 
-if (DEBUG) write (*, *) coord, ' before tridag_array'
-
+$if ($DEBUG)
 if (DEBUG) then
+  write (*, *) coord, ' before tridag_array'
   call DEBUG_write (a, 'v.a')
   call DEBUG_write (b, 'v.b')
   call DEBUG_write (c, 'v.c')
   call DEBUG_write (RHS_col, 'v.RHS_col')
 end if
+$endif
 
 !if (DEBUG) then
 !    write (*, *) 'jt, pre tridag p_hat(1,1,0) = ', jt, p_hat(1, 1, 0)
@@ -280,9 +300,12 @@ $else
   call tridag_array (a, b, c, RHS_col, p_hat)
 $endif
 
-if (DEBUG) write (*, *) coord, ' after tridag_array'
-
-if (DEBUG) call DEBUG_write (p_hat, 'press_stag_array.c.p_hat')
+$if ($DEBUG)
+if (DEBUG) then
+  write (*, *) coord, ' after tridag_array'
+  call DEBUG_write (p_hat, 'press_stag_array.c.p_hat')
+endif
+$endif
 
 !--zero-wavenumber solution
 $if ($MPI)
@@ -318,13 +341,17 @@ $endif
 p_hat(lh, :, :) = 0._rprec
 p_hat(:, ny/2+1, :) = 0._rprec
 
+$if ($DEBUG)
 if (DEBUG) call DEBUG_write (p_hat, 'press_stag_array.d.p_hat')
+$endif
 
 !=========================================================================== 
 !...Now need to get p_hat(wave,level) to physical p(jx,jy,jz)   
 !.....Loop over height levels     
 
+$if ($DEBUG)
 if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
+$endif
 
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),ignore_me)
 do jz=1,nz-1  !--used to be nz
@@ -346,6 +373,8 @@ dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
 
-if (VERBOSE) write (*, *) 'finished press_stag_array'
+$if ($VERBOSE)
+write (*, *) 'finished press_stag_array'
+$endif
 
 end subroutine press_stag_array

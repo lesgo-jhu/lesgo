@@ -9,8 +9,8 @@ scale_fact=0.5;
 Ap = scale_fact^(2*(ngen-1))*d*l*ntrunk^ngen;
 nfiles = 2;
 
-fname(1,:) = ['cylinder_skew_CD.out.g1.c0'];
-fname(2,:) = ['cylinder_skew_CD.out.g1.c1'];
+fname(1,:) = ['cyl_skew_CD.out.g1.c0'];
+fname(2,:) = ['cyl_skew_CD.out.g1.c1'];
 
 for n=1:nfiles
   data(:,:,n) = load(fname(n,:));
@@ -29,7 +29,7 @@ CD = CD/Ap;
 fD_mean=sum(fD)/nsize
 CD_mean=sum(CD)/nsize
 
-fid=fopen('cylinder_skew_CD_mean.dat.g1.c0','w');
+fid=fopen('cyl_skew_CD_mean.dat.g1.c0','w');
 fprintf(fid,'%s\t%i\t%f\t%f\t%f\n','Nsamples,Ap,fD,CD :',nsize,Ap,fD_mean,CD_mean);
 fclose(fid);
 

@@ -5,13 +5,20 @@ use types,only:rprec
 use param
 use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz
 use io, only : jt_total
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 implicit none
 integer::jx,jy,jz
 integer :: jz_max
 real(kind=rprec)::rms
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
+
 logical, parameter :: norm_magdu = .false.
 
 logical, parameter :: write_out = .false.
@@ -110,7 +117,9 @@ $if ($MPI)
   !if (rank == 0) rms = rms_global/nproc  !--its rank here, not coord
 $endif
 
+$if ($DEBUG)
 if (DEBUG) call DEBUG_write (du(1:nx, 1:ny, 1:nz) + dv(1:nx, 1:ny, 1:nz) +  &
                              dw(1:nx, 1:ny, 1:nz), 'rmsdiv')
+$endif
 
 end subroutine rmsdiv

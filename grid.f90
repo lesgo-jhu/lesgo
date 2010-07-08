@@ -1,3 +1,4 @@
+
 !**********************************************************************
 module grid_defs
 !**********************************************************************
@@ -5,8 +6,14 @@ use types, only : rprec
 implicit none
 save
 private
-public x, y, z, zw, grid_build
+public x, y, z, zw, grid_build, grid_built
+public autowrap_i, autowrap_j
+
+logical :: grid_built
+
 real(rprec), allocatable, dimension(:) :: x, y, z, zw
+! These need to be used in conjunction with modulo
+integer, allocatable, dimension(:) :: autowrap_i, autowrap_j
 
 contains
 
@@ -27,23 +34,45 @@ implicit none
 
 integer :: i,j,k
 
-allocate(x(nx),y(ny),z(nz),zw(nz))
+grid_built = .false.
 
-do k=1,nz
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
+allocate(x(nx+1),y(ny+1),z($lbz:nz),zw($lbz:nz))
+allocate(autowrap_i(0:nx+1), autowrap_j(0:ny+1))
+
+do k=$lbz,nz
   $if ($MPI)
   z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
   $else
   z(k) = (k - 0.5_rprec) * dz
   $endif
-  do j=1,ny
-    y(j) = (j-1)*dy
-    do i=1,nx
-      x(i) = (i - 1)*dx
-    enddo
-  enddo
+enddo
+do j=1,ny+1
+  y(j) = (j-1)*dy
+enddo
+do i=1,nx+1
+  x(i) = (i - 1)*dx
 enddo
 zw = z - dz/2._rprec
+
+! Set index autowrapping arrays
+autowrap_i(0) = nx
+autowrap_j(0) = ny
+autowrap_i(nx+1) = 1
+autowrap_j(ny+1) = 1
+do i=1,nx; autowrap_i(i) = i; enddo
+do j=1,ny; autowrap_j(j) = j; enddo
      
+grid_built = .true. 
+
 return
 end subroutine grid_build 
 

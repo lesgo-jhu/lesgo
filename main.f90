@@ -5,7 +5,7 @@ use sim_param
 use grid_defs, only : grid_build
 !!$use io, only : output_loop, output_final, inflow_write,  &
 !!$            avg_stats
-use io, only : openfiles, output_loop, output_final, jt_total, inflow_write
+use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
 use immersedbc
 use test_filtermodule
@@ -14,18 +14,40 @@ use bottombc,only:num_patch,avgpatch
 use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
 
+$if ($MPI)
+  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
+$endif
+
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
-  $if ($CYLINDER_SKEW_LS)
-  use cylinder_skew_ls, only : cylinder_skew_init_ls, cylinder_skew_CD_ls
+  
+  $if ($CYL_SKEW_LS)
+  !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
   $endif
+  
+  $if ($RNS_LS)
+  use rns_ls, only : rns_finalize_ls
+  
+    $if ($CYL_SKEW_LS)
+    use rns_cyl_skew_ls, only : rns_init_ls
+    $endif
+  
+  $endif
+  
 $endif
 
 $if ($TREES_LS)
 use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
+$if ($TURBINES)
+use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+$endif
+
+$if ($DEBUG)
 use debug_mod  !--just for debugging
+$endif
+
 use messages
 implicit none
 
@@ -34,7 +56,9 @@ integer, parameter :: nenergy = 1  !--frequency of writes to check_ke.dat
 
 character (*), parameter :: sub_name = 'main'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 !--for trees_CV, we need the SGS stress, so it was moved to sim_params
 !  also, the equivalence was removed, since this overwrites what we need
@@ -49,9 +73,6 @@ real(kind=rprec) rmsdivvel,ke
 real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
-$if ($MPI)
-  integer :: ip, np, coords(1)
-$endif
 
 !  Start wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
@@ -73,56 +94,9 @@ call system("mkdir -vp output")
 call sim_param_init ()
 
 $if ($MPI)
-  !--check for consistent preprocessor & param.f90 definitions of 
-  !  MPI and $MPI
-  if (.not. USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
 
-  call mpi_init (ierr)
-  call mpi_comm_size (MPI_COMM_WORLD, np, ierr)
-  call mpi_comm_rank (MPI_COMM_WORLD, global_rank, ierr)
+  call initialize_mpi()
 
-  !--check if run-time number of processes agrees with nproc parameter
-  if (np /= nproc) then
-    write (*, *) 'runtime number of procs = ', np,  &
-                 ' not equal to nproc = ', nproc
-    stop
-  end if
-
-  !--set up a 1d cartesian topology 
-  call mpi_cart_create (MPI_COMM_WORLD, 1, (/ nproc /), (/ .false. /),  &
-                        .true., comm, ierr)
-  !--slight problem here for ghost layers:
-  !  u-node info needs to be shifted up to proc w/ rank "up",
-  !  w-node info needs to be shifted down to proc w/ rank "down"
-  call mpi_cart_shift (comm, 0, 1, down, up, ierr)
-  call mpi_comm_rank (comm, rank, ierr)
-  call mpi_cart_coords (comm, rank, 1, coords, ierr)
-  coord = coords(1)  !--use coord (NOT rank) to determine global position
-
-  write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
-
-  !--rank->coord and coord->rank conversions
-  do ip = 0, np-1
-    call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
-    call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
-  end do
-
-  write (*, *) 'Hello! from process with coord = ', coord
-
-  !--set the MPI_RPREC variable
-  if (rprec == kind (1.e0)) then
-    MPI_RPREC = MPI_REAL
-    MPI_CPREC = MPI_COMPLEX
-  else if (rprec == kind (1.d0)) then
-    MPI_RPREC = MPI_DOUBLE_PRECISION
-    MPI_CPREC = MPI_DOUBLE_COMPLEX
-  else
-    write (*, *) 'error defining MPI_RPREC/MPI_CPREC'
-    stop
-  end if
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
@@ -139,16 +113,16 @@ $else
 
 $endif
 
-
-
 !  Initialize uv grid
 call grid_build()
-!  Initialized statics arrays
+!  Initialize statistics
 call stats_init()
 
-write(*,*) 'dz = ', dz
-write(*,*) 'nz = ', nz
-write(*,*) 'nz_tot = ', nz_tot
+if(coord == 0) then
+  write(*,*) 'dz = ', dz
+  write(*,*) 'nz = ', nz
+  write(*,*) 'nz_tot = ', nz_tot
+endif
 
 tt=0
 
@@ -158,15 +132,26 @@ tt=0
   call patch_or_remote ()
 !end if
 
+
+$if ($TURBINES)
+  call turbines_init()    !must occur before initial is called
+$endif
+
 call initial()
 !--could move this into something like initial ()
 $if ($LVLSET)
-  call level_set_init ()
-  $if ($CYLINDER_SKEW_LS)
-  call cylinder_skew_init_ls ()
-  $endif
-$endif
 
+  call level_set_init ()
+  
+  $if ($CYL_SKEW_LS)
+  !call cyl_skew_init_ls ()
+  $endif
+  
+  $if ($RNS_LS)
+  call rns_init_ls ()
+  $endif
+  
+$endif
 
 
 $if ($TREES_LS)
@@ -205,11 +190,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   if (molec) print*, 'molecular viscosity (dimensional) ', nu_molec
 end if
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
+$endif
 
 !--MPI: u,v,w should be set at jz = 0:nz before getting here, except
 !  bottom process which is BOGUS (starts at 1)
@@ -218,8 +205,12 @@ end if
 do jt=1,nsteps   
 
   jt_total = jt_total + 1  !--moved from io.f90
-
+  total_time = total_time + dt
+  total_time_dim = total_time_dim + dt_dim
+  
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
+  $endif
 
   ! advance total time
   tt=tt+dt
@@ -246,11 +237,13 @@ do jt=1,nsteps
     call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
   end if
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.p.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
   end if
+  $endif
 
   ! kill oddballs and calculate horizontal derivatives
   !--MPI: all these arrays are 0:nz
@@ -268,6 +261,7 @@ do jt=1,nsteps
    !  has 0:nz, and bottom process has 1:nz-1
    call ddz_w(dwdz,w)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.q.v')
@@ -282,6 +276,7 @@ do jt=1,nsteps
     call DEBUG_write (dwdy(:, :, 1:nz), 'main.q.dwdy')
     call DEBUG_write (dwdz(:, :, 1:nz), 'main.q.dwdz')
   end if
+  $endif
 
 !TS calculate wall stress and calculate derivatives at wall
    if (dns_bc) then
@@ -331,6 +326,7 @@ do jt=1,nsteps
 ! compute divergence of SGS shear stresses     
 ! note: the divt's and the diagonal elements of t are equivalenced!
 !--actually, they are not equivalenced in this version
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
     call DEBUG_write (divty(:, :, 1:nz), 'main.r.divty')
@@ -342,6 +338,7 @@ do jt=1,nsteps
     call DEBUG_write (tyz(:, :, 1:nz), 'main.r.tyz')
     call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
   end if
+  $endif
 
   !--provides divtz 1:nz-1
   call divstress_uv(divtx, txx, txy, txz)
@@ -355,25 +352,23 @@ do jt=1,nsteps
  !  a segmentation fault is recieved somewhere 
  !  just be for this section (JSG - 1/23/09)
  !
- 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
     call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
     call DEBUG_write (divtz(:, :, 1:nz), 'main.s.divtz')
-  end if
-
-  if (DEBUG) then
     call DEBUG_write (RHSx(:, :, 1:nz), 'main.preconvec.RHSx')
   end if
-
-  if (VERBOSE) write (*, *) 'main about to call convec'
+  $endif
 
   !--provides RHS{x,y,z} 1:nz-1
   call convec(RHSx,RHSy,RHSz)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
   end if
+  $endif
 
   if (use_bldg) call building_mask (u, v, w)
 
@@ -420,6 +415,7 @@ do jt=1,nsteps
     RHSz_f=RHSz
   end if
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.a.v')
@@ -436,6 +432,7 @@ do jt=1,nsteps
     call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
     call DEBUG_write (force, 'main.a.force')
   end if
+  $endif
 
    !--only 1:nz-1 are valid
    u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                           &
@@ -469,21 +466,20 @@ do jt=1,nsteps
   !  is supposed to zero anyway?
   !--this has to do with what bc are imposed on intermediate velocity
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
   end if
+  $endif
 
-  if (DEBUG) write (*, *) 'main: before press_stag'
   !--solve Poisson equation for pressure
   !--do we ever need p itself, or only its gradient? -> probably
   !  do not need to store p
   !call press_stag (p, dpdx, dpdy)
   !--provides p, dpdx, dpdy at 0:nz-1
   call press_stag_array (p, dpdx, dpdy)
-
-  if (DEBUG) write (*, *) 'main: after press_stag'
 
   !--calculate dpdz here
   !--careful, p is not dimensioned the same as the others
@@ -497,20 +493,24 @@ do jt=1,nsteps
   RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
   RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
+  $if ($DEBUG)
   if (DEBUG) then
     !--note: only 1:nz-1 valid here
     call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
     call DEBUG_write (dpdy(:, :, 1:nz), 'main.dpdy')
     call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
   end if
+  $endif
 
   call forcing ()
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
     call DEBUG_write (v(:, :, 1:nz), 'main.d.v')
     call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
   end if
+  $endif
 
   !--provides u, v, w at 1:nz 
   call project ()
@@ -519,17 +519,21 @@ do jt=1,nsteps
     !--exchange ghost-node information
     !--send stuff up to ghost layer (0) (for z-derivs)
     !--nz should already be in sync with 1 level: done in project()
-    call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-                       u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
+    !                   u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
+    !                   comm, status, ierr)
 
-    call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-                       v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
+    !                   v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
+    !                   comm, status, ierr)
 
-    call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-                       w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-                       comm, status, ierr)
+    !call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
+    !                   w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
+    !                   comm, status, ierr)
+    call mpi_sync_real_array( u, MPI_SYNC_UP )
+    call mpi_sync_real_array( v, MPI_SYNC_UP )
+    call mpi_sync_real_array( w, MPI_SYNC_UP )
+
   $endif
 
   !--MPI: at this point, have u, v, w at 0:nz
@@ -539,10 +543,14 @@ do jt=1,nsteps
 !!$  call avg_stats ()  !--only does something once every n_avg_stats steps
 
   $if ($LVLSET)
-    call level_set_cylinder_CD ()
+    ! call level_set_cylinder_CD ()
     
-    $if ($CYLINDER_SKEW_LS)
-      call cylinder_skew_CD_ls()
+    $if ($CYL_SKEW_LS)
+    !  call cyl_skew_CD_ls()
+    $endif
+    
+    $if ($RNS_LS)
+    !call rns_CD_ls()
     $endif
 
   $endif
@@ -566,31 +574,50 @@ do jt=1,nsteps
 7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
-
-!  Check if master switch for outputing data is turned on           
-  if(output) call output_loop (jt)
+          
+  call output_loop (jt)
+  
+!  $if ($RNS_LS)
+!!  Determine if instantaneous plane velocities are to be recorded
+!  if(rns_t%plane_u_calc) call rns_u_write_ls()
+!  $endif
 
   if (write_inflow_file) call inflow_write () !--for creating inflow_BC file
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
+  $endif
 
 end do  !--end time loop
 close(2)
-if (output) call output_final (jt)
+call output_final (jt)
+
+$if ($LVLSET)
 
 $if ($TREES_LS)
   call trees_ls_finalize ()
+$endif
+ 
 $endif
 
 $if ($MPI)
   call mpi_finalize (ierr)
 $endif
 
+$if ($LVLSET)
+$if ($RNS_LS)
+  call rns_finalize_ls ()
+$endif
+$endif
+
+$if ($TURBINES)
+  call turbines_finalize ()
+$endif
 
 !  Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   call cpu_time (clock_end)
-  write(*,"(a,f9.3)") 'Simulation wall time (s) : ', clock_end - clock_start
+  write(*,"(a,e)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
 
 stop

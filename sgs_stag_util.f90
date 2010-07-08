@@ -21,7 +21,11 @@ use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
 use messages
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 $if ($LVLSET)
   use level_set, only : level_set_BC, level_set_Cs, level_set_smooth_vel
 $endif
@@ -29,7 +33,9 @@ implicit none
 
 character (*), parameter :: sub_name = 'sgs_stag'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
 real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
@@ -55,11 +61,14 @@ integer :: jz_min
 ! S13=0.
 ! S23=0.
 
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (dudx(:, :, 1:nz), 'sgs_stag.dudx.a')
   call DEBUG_write (dudy(:, :, 1:nz), 'sgs_stag.dudy.a')
@@ -71,6 +80,7 @@ if (DEBUG) then
   call DEBUG_write (dwdy(:, :, 1:nz), 'sgs_stag.dwdy.a')
   call DEBUG_write (dwdz(:, :, 1:nz), 'sgs_stag.dwdz.a')
 end if
+$endif
 
 !$if (LVLSET)
   !--experimental: smooth velocity, recalculate derivatives
@@ -96,13 +106,10 @@ end if
 !$else
   call calc_Sij (dudx, dudy, dudz,  &
                  dvdx, dvdy, dvdz,  &
-                 dwdx, dwdy, dwdz, &
-                 S11,S12,S13,S22, &
-                 S23,S33)
-
-
+                 dwdx, dwdy, dwdz)
 !$endif
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (S11(:, :, 1:nz), 'sgs_stag.S11.b')
   call DEBUG_write (S12(:, :, 1:nz), 'sgs_stag.S12.b')
@@ -111,7 +118,7 @@ if (DEBUG) then
   call DEBUG_write (S23(:, :, 1:nz), 'sgs_stag.S23.b')
   call DEBUG_write (S33(:, :, 1:nz), 'sgs_stag.S33.b')
 end if
-
+$endif
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   ! save the wall level
   txzp(:,:)=txz(:,:,1)
@@ -210,9 +217,11 @@ if (sgs) then!ref01
   end if !(for model =1 or else) end ref02   
 end if ! for sgs-if end ref01
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (Cs_opt2, 'sgs_stag.Cs_opt2')
 end if
+$endif
 
 ! define |S| and viscosity on w-nodes (on uvp node for jz=1)
 !$comp parallel do default(shared) private(jx,jy,jz)
@@ -351,11 +360,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   tyz(:,:,1)=tyzp(:,:)
 end if
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.a')
   call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.a')
   call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.a')
 end if
+$endif
 
 $if ($LVLSET)
   !--at this point tij are only set for 1:nz-1
@@ -366,11 +377,13 @@ $if ($LVLSET)
   call level_set_BC ()
 $endif
 
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.b')
   call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.b')
   call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.b')
 end if
+$endif
 
 $if ($MPI)
   !--recv information for top nodes: txy, txz only
@@ -403,19 +416,14 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   tyz(:,:,nz)=0._rprec
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
-return
-end subroutine sgs_stag
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! contains
-
-!**********************************************************************
-subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz,S11,&
-  S12,S13,S22,S23,S33)
-!**********************************************************************
-use types,only:rprec
-use param
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+contains
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz)
 implicit none
 
 $if ($MPI)
@@ -427,9 +435,7 @@ $endif
 real (rprec), dimension (ld, ny, $lbz:nz), intent(IN) :: dudx, dudy, dudz,  &
                                              dvdx, dvdy, dvdz,  &
                                              dwdx, dwdy, dwdz
-real (rprec), dimension (ld, ny, nz),intent(OUT) :: S11, S12, S22, S33, S13, S23
 
-integer :: jx,jy,jz,jz_min
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 
 !---------------------------------------------------------------------                                     
@@ -543,6 +549,7 @@ end do
 end do
 end do
 !$ffohmygod end parallel do
-return
+
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+end subroutine sgs_stag

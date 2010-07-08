@@ -2,56 +2,55 @@
 module stat_defs
 !**********************************************************************
 use types, only : rprec
+
 save
 public
 
-!  Reynolds stresses
 type rs
-  logical :: calc
-  real(rprec), pointer, dimension(:,:,:) :: up2, vp2, wp2, & 
-                                                     upwp, vpwp, upvp
+  real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
 end type rs
 
+real(rprec) :: tavg_total_time
 !  Sums performed over time
-type tstats
-  logical :: calc, started
-  integer :: nstart, nend
-  real(rprec), pointer, dimension(:,:,:) :: u, v, w, &
-    u2, v2, w2, uw, vw, uv, dudz
-end type tstats	
-  
-!  Instantaneous Variables Storage (Parameters for storing velocity 
-!  component values each time step)
-type point
-  logical :: calc,started
-  integer :: nstart, nend, nloc, nskip
-  integer, dimension(10) :: coord, istart, jstart, kstart
-  real(rprec), dimension(10) :: xdiff, ydiff, zdiff
-  real(rprec), dimension(3,10) :: xyz
-end type
 
-!  Instantaneous velocity global declarations
-type domain
-  logical :: calc,started
-  integer :: nstart, nend, nskip
-end type domain  
-  
-!  Planar stats/data
-type plane
-  logical :: calc
-  integer :: nloc, nstart, nend
-  integer, dimension(10) :: istart, coord
-  real(rprec) :: fa
-  real(rprec), dimension (10) :: loc, ldiff
-  real(rprec), pointer, dimension(:,:,:) :: ua, va, wa
-end type plane
-  
-type(rs)            :: rs_t
-type(tstats)        :: tavg_t
-type(tstats)        :: tsum_t
-type(point), target :: point_t
-type(domain)        :: domain_t
-type(plane)         :: yplane_t, zplane_t
+type tavg
+  real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
+  real(rprec) :: dudz, dvdz
+  real(rprec) :: txx, txy, tyy, txz, tyz, tzz
+  real(rprec) :: fx, fy, fz
+  real(rprec) :: cs_opt2
+end type tavg
+
+$if ($TURBINES)
+	type turbine 
+		real(rprec) :: xloc, yloc, height, dia, thk		  
+		real(rprec) :: theta1                       !angle CCW(from above) from -x direction [degrees]
+        real(rprec) :: theta2	                    !angle above the horizontal, from -x dir [degrees]
+		real(rprec), dimension(3) :: nhat           !(nx,ny,nz) of unit normal for each turbine
+		integer :: num_nodes                        !number of nodes associated with each turbine
+		integer, dimension(1500,3) :: nodes         !(i,j,k) of each included node
+        integer, dimension(6) :: nodes_max          !search area for nearby nodes
+		real(rprec) :: u_d, u_d_T                   !running time-average of mean disk velocity
+        real(rprec) :: f_n                          !normal force on turbine disk
+		real(rprec), dimension(1500) :: ind                !indicator function - weighting of each node
+	end type turbine
+
+	type wind_farm
+		integer ::ifilter                           !Filter type: 2->Gaussian
+		real(rprec) :: alpha                        !filter size is alpha*(grid spacing)
+        integer :: trunc                            !truncated - # grid points to include in each dir.
+        real(rprec) :: filter_cutoff                !ind only includes values above this cutoff
+		type(turbine), pointer, dimension(:) :: turbine_t
+	end type wind_farm	
+    
+  type(wind_farm)	        :: wind_farm_t	
+$endif
+
+type(tavg), pointer, dimension(:,:,:) :: tavg_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_t
+
+type(rs), pointer, dimension(:,:,:) :: rs_t
+type(rs), pointer, dimension(:) :: rs_zplane_t, cnpy_zplane_t
 
 end module stat_defs
 

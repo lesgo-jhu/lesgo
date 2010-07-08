@@ -4,7 +4,9 @@ use param, only : ld, ny, nz
 implicit none
 
 save
-public
+
+private
+public :: phi
 
 
 !--this definition of lbz must be consistent with that in level_set module

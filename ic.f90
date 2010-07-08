@@ -4,16 +4,31 @@ subroutine ic()
   use param
   use sim_param,only:u,v,w
   use bottombc,only:zo_avg
+  $if ($TURBINES)
+    use turbines, only: turbine_vel_init
+  $endif 
+  
   implicit none
 
+  $if ($DEBUG)
   logical, parameter :: DEBUG = .false.
+  $endif 
 
+  $if ($TURBINES)
+    real(rprec) :: zo_turbines
+  $endif    
+  
   integer::jx,jy,jz,seed
   integer :: jz_abs
 
   real(kind=rprec),dimension(nz)::ubar
   real(kind=rprec)::rms, noise, arg, arg2
   real(kind=rprec)::z,w_star,T_star,q_star,ran3
+
+  $if ($TURBINES)
+  zo_turbines = 0._rprec
+  $endif
+
 
   !if (DEBUG) then
   !  u = face_avg
@@ -27,11 +42,7 @@ subroutine ic()
      u = face_avg 
      v = 0._rprec
      w = 0._rprec
-  elseif(ic_const) then
-    write(*,*) 'Constant Velocity IC'
-    u = u_ic
-    v = v_ic
-    w = w_ic
+
   else 
 
      w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
@@ -56,6 +67,12 @@ subroutine ic()
         arg2=z/zo_avg
         arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
+        $if ($TURBINES)
+          call turbine_vel_init (zo_turbines)
+          arg2=z/zo_turbines
+          arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z          
+        $endif        
+        
         !ubar(jz)=arg
 
         ! Added by VK for making the u less than 1...need to change this
@@ -67,7 +84,7 @@ subroutine ic()
           
         end if
 
-        if ((coriolis_forcing).and.(z.gt.(.5_rprec*z_i))) ubar(jz)=ug
+        if ((coriolis_forcing).and.(z.gt.(.5_rprec))) ubar(jz)=ug
 
      end do
 
@@ -84,10 +101,10 @@ subroutine ic()
      do jz=1,nz
         $if ($MPI)
         jz_abs = coord * (nz-1) + jz
-        z = (coord * (nz-1) + jz - 0.5_rprec) * dz * z_i
+        z = (coord * (nz-1) + jz - 0.5_rprec) * dz * z_i    !dimensions in meters
         $else
         jz_abs = jz
-        z = (jz-.5_rprec) * dz * z_i
+        z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
         $endif
         seed = -80 - jz_abs  !--trying to make consistent init for MPI
         do jy=1,ny
