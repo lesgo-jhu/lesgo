@@ -2828,11 +2828,14 @@ use param, only : zplane_calc, zplane_nloc, zplane_loc
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg
 use grid_defs
 use functions, only : cell_indx
+use messages
 implicit none
 
 !character(120) :: cx,cy,cz
 character(120) :: fname, var_list
 integer :: fid, i,j,k
+
+logical :: exst
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -2932,66 +2935,67 @@ if(point_calc) then
 !  Find the processor in which this point lives
   $if ($MPI)
     if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
-    point_coord(i) = coord
+      point_coord(i) = coord
 	  
-	  point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-	  point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-	  point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+      point_istart(i) = cell_indx('i',dx,point_loc(1,i))
+      point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
+      point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	  
-	  point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-	  point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-	  point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+      point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
+      point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
+      point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
 
+	    fid=3000*i
 	  
-    fid=3000*i
-	  
-	  !  Can't concatenate an empty string
-    point_fname(i)=''
-	  call strcat(point_fname(i),'output/vel.x-')
-	  call strcat(point_fname(i), point_loc(1,i))
-	  call strcat(point_fname(i),'.y-')
-	  call strcat(point_fname(i),point_loc(2,i))
-	  call strcat(point_fname(i),'.z-')
-	  call strcat(point_fname(i),point_loc(3,i))
-	  call strcat(point_fname(i),'.dat')
-	
-	  
-	  !call strcat(point_t%fname(i),point_t%xyz(1,i))
-      !write (point_t%fname(i),*) ,trim(adjustl(cx)),'-',  &
-      !trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-	   
-	  var_list = '"t (s)", "u", "v", "w"'
-	  call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
-	    
+      !  Can't concatenate an empty string
+      point_fname(i)=''
+      call strcat(point_fname(i),'output/vel.x-')
+      call strcat(point_fname(i), point_loc(1,i))
+      call strcat(point_fname(i),'.y-')
+      call strcat(point_fname(i),point_loc(2,i))
+      call strcat(point_fname(i),'.z-')
+      call strcat(point_fname(i),point_loc(3,i))
+      call strcat(point_fname(i),'.dat')
+   
+      !  Add tecplot header if file does not exist
+      inquire (file=point_fname(i), exist=exst)
+      if (.not. exst) then
+        var_list = '"t (s)", "u", "v", "w"'
+        call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+      endif 	
+
+	   	    
     endif
   $else
     point_coord(i) = 0
-	point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-	point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-	point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+    point_istart(i) = cell_indx('i',dx,point_loc(1,i))
+    point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
+    point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	
-	point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-	point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-	point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+    point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
+    point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
+    point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
 
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 	
-	fid=3000*i
+    fid=3000*i
     point_fname(i)=''
-          call strcat(point_fname(i),'output/vel.x-')
-          call strcat(point_fname(i), point_loc(1,i))
-          call strcat(point_fname(i),'.y-')
-          call strcat(point_fname(i),point_loc(2,i))
-          call strcat(point_fname(i),'.z-')
-          call strcat(point_fname(i),point_loc(3,i))
-          call strcat(point_fname(i),'.dat')
+    call strcat(point_fname(i),'output/vel.x-')
+    call strcat(point_fname(i), point_loc(1,i))
+    call strcat(point_fname(i),'.y-')
+    call strcat(point_fname(i),point_loc(2,i))
+    call strcat(point_fname(i),'.z-')
+    call strcat(point_fname(i),point_loc(3,i))
+    call strcat(point_fname(i),'.dat')
 	
-    !write (point_t%fname(i),*) 'output/vel-',trim(adjustl(cx)),'-',  &
-    !  trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-	var_list = '"t (s)", "u", "v", "w"'
-	call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+    !  Add tecplot header if file does not exist
+    inquire (file=point_fname(i), exist=exst)
+    if (.not. exst) then
+      var_list = '"t (s)", "u", "v", "w"'
+      call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+    endif 
 	
   $endif
   
