@@ -104,13 +104,15 @@ $endif
 character (narray_name_len * narray_max) :: array_list
 character (narray_name_len) :: array(narray_max)
 character (narray_name_len) :: alloced_array(narray_max)
-    
+
+
+$if ( $DYNALLOC )
+
 integer :: i
 integer :: ios
 
 !---------------------------------------------------------------------
 
-$if ( $DYNALLOC )
 
 !if ( .not. present ( arrays_to_init ) ) then
 !    !--initialize all arrays

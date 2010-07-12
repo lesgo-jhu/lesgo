@@ -23,7 +23,9 @@ logical, parameter :: flush = .false.
 integer :: jx, jy, jz
 integer :: nan_count
 
+$if($DEBUG)
 logical :: nan
+$endif
 
 real(kind=rprec)::KE,denom,temp_w
 $if ($MPI)
@@ -67,6 +69,7 @@ z_loop: do jz=1,nz-1
                 end if
             end if
             $endif 
+            
         end do
     end do
 end do z_loop

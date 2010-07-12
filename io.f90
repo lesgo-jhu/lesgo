@@ -191,11 +191,8 @@ use sim_param,only:path
 implicit none
 
 !--to hold file names
-character (64) :: temp
 !!$character (64) :: fCS1plan, fCS2plan, fCS4plan, fVISCplan,  &
 !!$                  fDISSplan, fCS1Vplan, fCS2Vplan, fCS4Vplan
-
-integer::i
 
 logical :: exst
 
@@ -280,16 +277,16 @@ end subroutine openfiles
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
-use param, only : dx, dy, dz, jt_total, dt_dim
-use param, only : tavg_calc, tavg_nstart, tavg_nend
+!use param, only : dx, dy, dz, jt_total, dt_dim
 use stat_defs, only: tavg_t
+use param, only : tavg_calc, tavg_nstart, tavg_nend
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
-use grid_defs, only: z
+!use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+!use grid_defs, only: z
 
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
@@ -298,15 +295,7 @@ use grid_defs, only: z
 !!$use scalars_module2,only:scalar_slice
 !!$use immersedbc, only : fx, fy, fz
 implicit none
-character(len=20)::req
 integer,intent(in)::jt
-!real(kind=rprec),dimension(ld,ny,nz)::usp,vsp  !--not used
-real(kind=rprec),dimension(nz)::u_ndim
-
-character (64) :: fname, temp
-
-integer :: i,j,k
-integer::jx,jy,jz
 
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
@@ -566,7 +555,7 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname, temp, var_list
-integer :: n, fid, i, j, k, nvars
+integer :: n, i, j, k, nvars
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 
@@ -908,11 +897,9 @@ character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars
 real(rprec), intent(in), dimension(:) :: vars
 
+character(*), parameter :: sub_name = mod_name // '.write_real_data'
 
 character(64) :: frmt
-logical :: exst
-
-character(*), parameter :: sub_name = mod_name // '.write_real_data'
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -986,8 +973,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax*kmax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x,y,z
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
 
@@ -1221,8 +1207,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x, y
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
 
@@ -1412,8 +1397,7 @@ real(rprec), intent(in), dimension(nvars*imax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
 
@@ -1520,7 +1504,6 @@ subroutine write_tecplot_header_xyline(fname, write_pos, var_list)
 implicit none
 
 character(*), intent(in) :: fname, write_pos, var_list
-character(120) :: tec_dt_str
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
 
@@ -1571,9 +1554,8 @@ integer, intent(in) :: zone, data_type
 real(rprec), optional, intent(in) :: soln_time
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_ND'
-character(64) :: tec_dt, posn
 character(120) :: tec_dt_str, tec_dat_str
-integer :: ndims, n
+integer :: ndims
 
 !  Check if write position has been specified correctly
 call check_write_pos(write_pos, sub_name)
@@ -2287,7 +2269,7 @@ implicit none
 integer,intent(in)::jt
 integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
 integer, parameter :: lun_default = 11
-integer::i,fid,jx,jy,jz
+integer::i,fid
 integer :: lun
 
 logical :: opn
@@ -2575,8 +2557,8 @@ logical, parameter :: recycle = .false.
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-$endif
 character (32) :: fmt
+$endif
 character (64) :: fname
 
 !--check for consistency with sim_param here
@@ -2589,15 +2571,19 @@ $else
     $define $lbz 1
 $endif
 
+$if($DEBUG)
 integer :: jy, jz
+$endif
+
 integer :: iend, iend_w
-integer :: i
 integer :: iolen
 integer, save :: rec
 integer, save :: nrec
 integer :: recp
 
+$if($DEBUG)
 logical, save :: init_DEBUG = .false.
+$endif
 logical, save :: initialized = .false.
 logical :: exst, opn
 
@@ -2832,7 +2818,7 @@ use messages
 implicit none
 
 !character(120) :: cx,cy,cz
-character(120) :: fname, var_list
+character(120) :: var_list
 integer :: fid, i,j,k
 
 logical :: exst

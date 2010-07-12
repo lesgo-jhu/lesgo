@@ -178,13 +178,12 @@ character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
 integer :: i, j, istart, jstart, kstart, nsum
 
 $if ($MPI)
-integer :: isum_send, isum_recieve, iavg_send, iavg_recieve
 integer :: nsum_global
 REAL(RPREC) :: var_sum_global
 $endif
 
-REAL(RPREC) :: dzeta, deta, Lzeta, Leta, vec_mag, zmin, zmax
-REAL(RPREC) :: xdiff, ydiff, zdiff, var_sum, var_interp
+REAL(RPREC) :: dzeta, deta, vec_mag, zmin, zmax
+REAL(RPREC) :: var_sum
 
 real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
 real(RPREC), dimension(3) :: bp4
@@ -344,7 +343,7 @@ integer :: nsum_global
 real(rprec) :: var_sum_global
 $endif
 
-real(rprec) :: var_sum, var_interp
+real(rprec) :: var_sum
 real(rprec) :: xp, yp, zp
 
 !  Check that points is a column major ordered array of dim-3
