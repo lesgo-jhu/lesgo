@@ -2124,7 +2124,6 @@ character (*), parameter :: sub_name = mod_name // '.interp_phi'
 
 integer :: i, j, k, ku
 integer :: i1, j1, k1, ku1
-integer :: l  !--debug
 
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
@@ -2761,7 +2760,6 @@ logical :: opn, exst
 real (rp) :: CD, CL
 real (rp) :: Uinf   !--velocity scale used in calculation of CD
 real (rp) :: fD, fL      !--drag, lift force
-real (rp) :: dV
 real (rp) :: fD_global, fL_global, Uinf_global
 
 !---------------------------------------------------------------------
@@ -2966,7 +2964,6 @@ integer :: datasize
 integer :: kstart
 
 logical, save :: phi_synced = .false.
-logical, save :: norm_synced = .false.
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
@@ -3326,7 +3323,9 @@ integer :: pt(nd), s(nd)
 integer :: indx(nd, 7), list(nd, 7)
 integer :: nxi(nd)
 
+$if ($DEBUG)
 logical, save :: first_call = .true.
+$endif
 
 real (rp) :: phi_c, phiw, phiw_m
 real (rp) :: sphi
@@ -4551,8 +4550,6 @@ integer, intent (in) :: i, j, k
 real (rp), intent (in) :: eps
 
 character (*), parameter :: sub_name = mod_name // '.avg_norm'
-
-integer :: navg
 
 real (rp) :: avg(nd)
 

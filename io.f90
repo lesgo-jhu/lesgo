@@ -191,11 +191,8 @@ use sim_param,only:path
 implicit none
 
 !--to hold file names
-character (64) :: temp
 !!$character (64) :: fCS1plan, fCS2plan, fCS4plan, fVISCplan,  &
 !!$                  fDISSplan, fCS1Vplan, fCS2Vplan, fCS4Vplan
-
-integer::i
 
 logical :: exst
 
@@ -280,16 +277,16 @@ end subroutine openfiles
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_loop(jt)
-use param, only : dx, dy, dz, jt_total, dt_dim
-use param, only : tavg_calc, tavg_nstart, tavg_nend
+!use param, only : dx, dy, dz, jt_total, dt_dim
 use stat_defs, only: tavg_t
+use param, only : tavg_calc, tavg_nstart, tavg_nend
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
-use grid_defs, only: z
+!use sim_param, only : u, v, w, txx, txy, tyy, txz, tyz, tzz, dudz, dvdz
+!use grid_defs, only: z
 
 !!$use param,only:output,dt,c_count,S_FLAG,SCAL_init
 !!$use sim_param,only:path,u,v,w,dudz,dudx,p,&
@@ -298,15 +295,7 @@ use grid_defs, only: z
 !!$use scalars_module2,only:scalar_slice
 !!$use immersedbc, only : fx, fy, fz
 implicit none
-character(len=20)::req
 integer,intent(in)::jt
-!real(kind=rprec),dimension(ld,ny,nz)::usp,vsp  !--not used
-real(kind=rprec),dimension(nz)::u_ndim
-
-character (64) :: fname, temp
-
-integer :: i,j,k
-integer::jx,jy,jz
 
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
@@ -566,7 +555,7 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname, temp, var_list
-integer :: n, fid, i, j, k, nvars
+integer :: n, i, j, k, nvars
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 
@@ -908,11 +897,9 @@ character(*), intent(in) :: fname, write_pos, write_fmt
 integer, intent(in) :: nvars
 real(rprec), intent(in), dimension(:) :: vars
 
+character(*), parameter :: sub_name = mod_name // '.write_real_data'
 
 character(64) :: frmt
-logical :: exst
-
-character(*), parameter :: sub_name = mod_name // '.write_real_data'
 
 !  Check if file exists
 !inquire ( file=fname, exist=exst)
@@ -986,8 +973,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax*kmax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x,y,z
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_3D'
 
@@ -1221,8 +1207,7 @@ real(rprec), intent(in), dimension(nvars*imax*jmax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x, y
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_2D'
 
@@ -1412,8 +1397,7 @@ real(rprec), intent(in), dimension(nvars*imax) :: vars
 integer, intent(in) :: ibuff
 real(rprec), intent(in), dimension(:), optional :: x
 
-character(64) :: frmt
-logical :: exst, coord_pres
+logical :: coord_pres
 
 character(*), parameter :: sub_name = mod_name // '.write_real_data_1D'
 
@@ -1520,7 +1504,6 @@ subroutine write_tecplot_header_xyline(fname, write_pos, var_list)
 implicit none
 
 character(*), intent(in) :: fname, write_pos, var_list
-character(120) :: tec_dt_str
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
 
@@ -1571,9 +1554,8 @@ integer, intent(in) :: zone, data_type
 real(rprec), optional, intent(in) :: soln_time
 
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_ND'
-character(64) :: tec_dt, posn
 character(120) :: tec_dt_str, tec_dat_str
-integer :: ndims, n
+integer :: ndims
 
 !  Check if write position has been specified correctly
 call check_write_pos(write_pos, sub_name)
@@ -1703,12 +1685,14 @@ use grid_defs, only : x,y,z
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg, tavg_total_time
 use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 use param, only : MPI_RPREC, rank_of_coord, comm, ierr
 use stat_defs, only : rs, tavg
 $endif
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
@@ -1716,9 +1700,10 @@ character (64) :: temp
 character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
   fname_tau, fname_f, fname_rs, fname_cs
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
-  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
+  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
+  fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
 
-real(rprec) :: fa
+real(rprec), parameter :: fa = 1. / real(nx * ny)  
 integer :: i,j,k
 
 $if($MPI)
@@ -1742,22 +1727,6 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
 $endif
 
 logical :: opn
-
-
-!type rs
-!real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
-!end type rs
-
-!type(rs), pointer, dimension(:,:,:) :: rs_t
-!type(rs), pointer, dimension(:) :: rs_zplane_t
-
-!!$if($MPI)
-!type(rs), pointer, dimension(:) :: rs_zplane_tot_t
-!type(rs), pointer, dimension(:) :: rs_zplane_buf_t
-
-!type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
-!type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
-!!$endif
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
@@ -1915,37 +1884,43 @@ tavg_t % fz = tavg_t % fz / tavg_total_time
 
 tavg_t % cs_opt2 = tavg_t % cs_opt2 / tavg_total_time
 
-!  Average zplane values
-tavg_zplane_t % u = tavg_zplane_t % u / tavg_total_time
-tavg_zplane_t % v = tavg_zplane_t % v / tavg_total_time
-tavg_zplane_t % w = tavg_zplane_t % w / tavg_total_time
-tavg_zplane_t % u2 = tavg_zplane_t % u2 / tavg_total_time
-tavg_zplane_t % v2 = tavg_zplane_t % v2 / tavg_total_time
-tavg_zplane_t % w2 = tavg_zplane_t % w2 / tavg_total_time
-tavg_zplane_t % uw = tavg_zplane_t % uw / tavg_total_time
-tavg_zplane_t % vw = tavg_zplane_t % vw / tavg_total_time
-tavg_zplane_t % uv = tavg_zplane_t % uv / tavg_total_time
-tavg_zplane_t % dudz = tavg_zplane_t % dudz / tavg_total_time
-tavg_zplane_t % dvdz = tavg_zplane_t % dvdz / tavg_total_time
+!  Average over z-planes
+do k=1, nz
 
-tavg_zplane_t % txx = tavg_zplane_t % txx / tavg_total_time
-tavg_zplane_t % txy = tavg_zplane_t % txy / tavg_total_time
-tavg_zplane_t % tyy = tavg_zplane_t % tyy / tavg_total_time
-tavg_zplane_t % txz = tavg_zplane_t % txz / tavg_total_time
-tavg_zplane_t % tyz = tavg_zplane_t % tyz / tavg_total_time
-tavg_zplane_t % tzz = tavg_zplane_t % tzz / tavg_total_time
+  tavg_zplane_t(k) % u = fa * sum( tavg_t(:,:,k) % u )
+  tavg_zplane_t(k) % v = fa * sum( tavg_t(:,:,k) % v )
+  tavg_zplane_t(k) % w = fa * sum( tavg_t(:,:,k) % w )
+  tavg_zplane_t(k) % u2 = fa * sum( tavg_t(:,:,k) % u2 )
+  tavg_zplane_t(k) % v2 = fa * sum( tavg_t(:,:,k) % v2 )
+  tavg_zplane_t(k) % w2 = fa * sum( tavg_t(:,:,k) % w2 )
 
-tavg_zplane_t % fx = tavg_zplane_t % fx / tavg_total_time
-tavg_zplane_t % fy = tavg_zplane_t % fy / tavg_total_time
-tavg_zplane_t % fz = tavg_zplane_t % fz / tavg_total_time
+  tavg_zplane_t(k) % uw = fa * sum( tavg_t(:,:,k) % uw )
+  tavg_zplane_t(k) % vw = fa * sum( tavg_t(:,:,k) % vw )
+  tavg_zplane_t(k) % uv = fa * sum( tavg_t(:,:,k) % uv )
 
-tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 / tavg_total_time
+  tavg_zplane_t(k) % dudz = fa * sum( tavg_t(:,:,k) % dudz )
+  tavg_zplane_t(k) % dvdz = fa * sum( tavg_t(:,:,k) % dvdz )
+  
+  tavg_zplane_t(k) % txx = fa * sum( tavg_t(:,:,k) % txx )
+  tavg_zplane_t(k) % txy = fa * sum( tavg_t(:,:,k) % txy )
+  tavg_zplane_t(k) % tyy = fa * sum( tavg_t(:,:,k) % tyy )
+  tavg_zplane_t(k) % txz = fa * sum( tavg_t(:,:,k) % txz )
+  tavg_zplane_t(k) % tyz = fa * sum( tavg_t(:,:,k) % tyz )
+  tavg_zplane_t(k) % tzz = fa * sum( tavg_t(:,:,k) % tzz )
 
-!  Compute the Reynolds Stresses: <bar(uw)>_xy - <bar(u)>_xy * <bar(w)>_xy
+  tavg_zplane_t(k) % fx = fa * sum( tavg_t(:,:,k) % fx )
+  tavg_zplane_t(k) % fy = fa * sum( tavg_t(:,:,k) % fy )
+  tavg_zplane_t(k) % fz = fa * sum( tavg_t(:,:,k) % fz )
+  
+  tavg_zplane_t(k) % cs_opt2 = fa * sum( tavg_t(:,:,k) % cs_opt2 )
+  
+enddo
+
 do k = 1, nz
   do j = 1, ny
     do i = 1, nx
     
+	  ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
       rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
       rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
       rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
@@ -1956,7 +1931,7 @@ do k = 1, nz
     enddo    
   enddo
   
-  fa = 1. / real(nx * ny)  
+  !  Compute the z-plane averaged Reynolds stresses:  <bar(u_i * u_j)>_xy - <bar(u_i) * bar(u_j)>_xy
   rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
   rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
   rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
@@ -1967,7 +1942,7 @@ do k = 1, nz
 enddo
 
 
-!  Compute the Canopy/Dispersive Stresses: <bar(u)*bar(w)>_xy - <bar(u)>_xy * <bar(w)>_xy
+!  Compute the Canopy/Dispersive Stresses: <bar(u_i)*bar(u_j)>_xy - <bar(u_i)>_xy * <bar(u_j)>_xy
 do k = 1, nz  
 
   cnpy_zplane_t(k) % up2  = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%u) - (fa*sum( tavg_t(:,:,k)%u ))**2
@@ -1983,14 +1958,11 @@ enddo
 !  Write data to tavg.out
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
-
 open (1, file=fname_out, action='write', position='rewind', form='unformatted')
-
 ! write the entire structures
 write (1) tavg_total_time
 write (1) tavg_t          
 write (1) tavg_zplane_t
-
 close(1)
 
 ! Construct zplane data 
@@ -2287,7 +2259,7 @@ implicit none
 integer,intent(in)::jt
 integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
 integer, parameter :: lun_default = 11
-integer::i,fid,jx,jy,jz
+integer::i,fid
 integer :: lun
 
 logical :: opn
@@ -2575,8 +2547,8 @@ logical, parameter :: recycle = .false.
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-$endif
 character (32) :: fmt
+$endif
 character (64) :: fname
 
 !--check for consistency with sim_param here
@@ -2589,15 +2561,19 @@ $else
     $define $lbz 1
 $endif
 
+$if($DEBUG)
 integer :: jy, jz
+$endif
+
 integer :: iend, iend_w
-integer :: i
 integer :: iolen
 integer, save :: rec
 integer, save :: nrec
 integer :: recp
 
+$if($DEBUG)
 logical, save :: init_DEBUG = .false.
+$endif
 logical, save :: initialized = .false.
 logical :: exst, opn
 
@@ -2828,11 +2804,14 @@ use param, only : zplane_calc, zplane_nloc, zplane_loc
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg
 use grid_defs
 use functions, only : cell_indx
+use messages
 implicit none
 
 !character(120) :: cx,cy,cz
-character(120) :: fname, var_list
+character(120) :: var_list
 integer :: fid, i,j,k
+
+logical :: exst
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -2932,66 +2911,67 @@ if(point_calc) then
 !  Find the processor in which this point lives
   $if ($MPI)
     if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
-    point_coord(i) = coord
+      point_coord(i) = coord
 	  
-	  point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-	  point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-	  point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+      point_istart(i) = cell_indx('i',dx,point_loc(1,i))
+      point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
+      point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	  
-	  point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-	  point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-	  point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+      point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
+      point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
+      point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
 
+	    fid=3000*i
 	  
-    fid=3000*i
-	  
-	  !  Can't concatenate an empty string
-    point_fname(i)=''
-	  call strcat(point_fname(i),'output/vel.x-')
-	  call strcat(point_fname(i), point_loc(1,i))
-	  call strcat(point_fname(i),'.y-')
-	  call strcat(point_fname(i),point_loc(2,i))
-	  call strcat(point_fname(i),'.z-')
-	  call strcat(point_fname(i),point_loc(3,i))
-	  call strcat(point_fname(i),'.dat')
-	
-	  
-	  !call strcat(point_t%fname(i),point_t%xyz(1,i))
-      !write (point_t%fname(i),*) ,trim(adjustl(cx)),'-',  &
-      !trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-	   
-	  var_list = '"t (s)", "u", "v", "w"'
-	  call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
-	    
+      !  Can't concatenate an empty string
+      point_fname(i)=''
+      call strcat(point_fname(i),'output/vel.x-')
+      call strcat(point_fname(i), point_loc(1,i))
+      call strcat(point_fname(i),'.y-')
+      call strcat(point_fname(i),point_loc(2,i))
+      call strcat(point_fname(i),'.z-')
+      call strcat(point_fname(i),point_loc(3,i))
+      call strcat(point_fname(i),'.dat')
+   
+      !  Add tecplot header if file does not exist
+      inquire (file=point_fname(i), exist=exst)
+      if (.not. exst) then
+        var_list = '"t (s)", "u", "v", "w"'
+        call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+      endif 	
+
+	   	    
     endif
   $else
     point_coord(i) = 0
-	point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-	point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-	point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+    point_istart(i) = cell_indx('i',dx,point_loc(1,i))
+    point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
+    point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	
-	point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-	point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-	point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+    point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
+    point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
+    point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
 
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 	
-	fid=3000*i
+    fid=3000*i
     point_fname(i)=''
-          call strcat(point_fname(i),'output/vel.x-')
-          call strcat(point_fname(i), point_loc(1,i))
-          call strcat(point_fname(i),'.y-')
-          call strcat(point_fname(i),point_loc(2,i))
-          call strcat(point_fname(i),'.z-')
-          call strcat(point_fname(i),point_loc(3,i))
-          call strcat(point_fname(i),'.dat')
+    call strcat(point_fname(i),'output/vel.x-')
+    call strcat(point_fname(i), point_loc(1,i))
+    call strcat(point_fname(i),'.y-')
+    call strcat(point_fname(i),point_loc(2,i))
+    call strcat(point_fname(i),'.z-')
+    call strcat(point_fname(i),point_loc(3,i))
+    call strcat(point_fname(i),'.dat')
 	
-    !write (point_t%fname(i),*) 'output/vel-',trim(adjustl(cx)),'-',  &
-    !  trim(adjustl(cy)),'-', trim(adjustl(cz)),'.dat'
-	var_list = '"t (s)", "u", "v", "w"'
-	call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+    !  Add tecplot header if file does not exist
+    inquire (file=point_fname(i), exist=exst)
+    if (.not. exst) then
+      var_list = '"t (s)", "u", "v", "w"'
+      call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
+    endif 
 	
   $endif
   
@@ -3026,33 +3006,33 @@ call interp_to_uv_grid(dvdz, dvdz_uv, dvdz_uv_tag)
 
 do k=1,nz
 
-  !  Include dt for current weighting
-  fa = dt / (nx * ny)
+  !!  Include dt for current weighting
+  !fa = dt / (nx * ny)
   
-  tavg_zplane_t(k)%u = tavg_zplane_t(k)%u + fa * sum(u(1:nx,1:ny,k))
-  tavg_zplane_t(k)%v = tavg_zplane_t(k)%v + fa * sum(v(1:nx,1:ny,k))
-  tavg_zplane_t(k)%w = tavg_zplane_t(k)%w + fa * sum(w(1:nx,1:ny,k))
-  tavg_zplane_t(k)%u2 = tavg_zplane_t(k)%u2 + fa * sum(u(1:nx,1:ny,k)*u(1:nx,1:ny,k))
-  tavg_zplane_t(k)%v2 = tavg_zplane_t(k)%v2 + fa * sum(v(1:nx,1:ny,k)*v(1:nx,1:ny,k)) 
-  tavg_zplane_t(k)%w2 = tavg_zplane_t(k)%w2 + fa * sum(w_uv(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
-  tavg_zplane_t(k)%uw = tavg_zplane_t(k)%uw+ fa * sum(u(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k))
-  tavg_zplane_t(k)%vw = tavg_zplane_t(k)%vw + fa * sum(v(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
-  tavg_zplane_t(k)%uv = tavg_zplane_t(k)%uv + fa * sum(u(1:nx,1:ny,k)*v(1:nx,1:ny,k))
-  tavg_zplane_t(k)%dudz = tavg_zplane_t(k)%dudz + fa * sum(dudz_uv(1:nx,1:ny,k)) 
-  tavg_zplane_t(k)%dvdz = tavg_zplane_t(k)%dvdz + fa * sum(dvdz_uv(1:nx,1:ny,k))
-      
-  tavg_zplane_t(k)%txx = tavg_zplane_t(k)%txx + fa * sum(txx(1:nx,1:ny,k))
-  tavg_zplane_t(k)%txy = tavg_zplane_t(k)%txy + fa * sum(txy(1:nx,1:ny,k))
-  tavg_zplane_t(k)%tyy = tavg_zplane_t(k)%tyy + fa * sum(tyy(1:nx,1:ny,k))
-  tavg_zplane_t(k)%txz = tavg_zplane_t(k)%txz + fa * sum(txz(1:nx,1:ny,k))
-  tavg_zplane_t(k)%tyz = tavg_zplane_t(k)%tyz + fa * sum(tyz(1:nx,1:ny,k))
-  tavg_zplane_t(k)%tzz = tavg_zplane_t(k)%tzz + fa * sum(tzz(1:nx,1:ny,k))
-      
-  tavg_zplane_t(k)%fx = tavg_zplane_t(k)%fx + fa * sum(fx(1:nx,1:ny,k)) 
-  tavg_zplane_t(k)%fy = tavg_zplane_t(k)%fy + fa * sum(fy(1:nx,1:ny,k))
-  tavg_zplane_t(k)%fz = tavg_zplane_t(k)%fz + fa * sum(fz(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%u = tavg_zplane_t(k)%u + fa * sum(u(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%v = tavg_zplane_t(k)%v + fa * sum(v(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%w = tavg_zplane_t(k)%w + fa * sum(w(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%u2 = tavg_zplane_t(k)%u2 + fa * sum(u(1:nx,1:ny,k)*u(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%v2 = tavg_zplane_t(k)%v2 + fa * sum(v(1:nx,1:ny,k)*v(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%w2 = tavg_zplane_t(k)%w2 + fa * sum(w_uv(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%uw = tavg_zplane_t(k)%uw+ fa * sum(u(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%vw = tavg_zplane_t(k)%vw + fa * sum(v(1:nx,1:ny,k)*w_uv(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%uv = tavg_zplane_t(k)%uv + fa * sum(u(1:nx,1:ny,k)*v(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%dudz = tavg_zplane_t(k)%dudz + fa * sum(dudz_uv(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%dvdz = tavg_zplane_t(k)%dvdz + fa * sum(dvdz_uv(1:nx,1:ny,k))
+  !    
+  !tavg_zplane_t(k)%txx = tavg_zplane_t(k)%txx + fa * sum(txx(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%txy = tavg_zplane_t(k)%txy + fa * sum(txy(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%tyy = tavg_zplane_t(k)%tyy + fa * sum(tyy(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%txz = tavg_zplane_t(k)%txz + fa * sum(txz(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%tyz = tavg_zplane_t(k)%tyz + fa * sum(tyz(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%tzz = tavg_zplane_t(k)%tzz + fa * sum(tzz(1:nx,1:ny,k))
+  !    
+  !tavg_zplane_t(k)%fx = tavg_zplane_t(k)%fx + fa * sum(fx(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%fy = tavg_zplane_t(k)%fy + fa * sum(fy(1:nx,1:ny,k))
+  !tavg_zplane_t(k)%fz = tavg_zplane_t(k)%fz + fa * sum(fz(1:nx,1:ny,k)) 
   
-  tavg_zplane_t(k)%cs_opt2 = tavg_zplane_t(k)%cs_opt2 + fa * sum(Cs_opt2(1:nx,1:ny,k)) 
+  !tavg_zplane_t(k)%cs_opt2 = tavg_zplane_t(k)%cs_opt2 + fa * sum(Cs_opt2(1:nx,1:ny,k)) 
   
   do j=1,ny
     do i=1,nx
@@ -3067,12 +3047,12 @@ do k=1,nz
       tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt
       tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt
       tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt
-      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p*u_p * dt
-      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p*v_p * dt
-      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p*w_p * dt
-      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p*w_p * dt
-      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p*w_p * dt
-      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p*v_p * dt
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt
       tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz_p * dt
       tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz_p * dt
       
@@ -3085,7 +3065,7 @@ do k=1,nz
       
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + fx(i,j,k) * dt 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + fy(i,j,k) * dt 
-      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + fz(i,j,k) * dt 
+      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + fz(i,j,k) * dt
  
       tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt 
       

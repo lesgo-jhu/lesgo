@@ -131,7 +131,7 @@ use sim_param,only:u,v,w,dudx,dvdx,dwdx,dudy,dvdy,dwdy,dudz,dvdz,dwdz
 implicit none
 integer::jx,jy,jz,i,j
 integer::px,py,lx,ly,lz
-real(kind=rprec)::u1,v1,ustar,u_avg,u_aver
+real(kind=rprec)::u1,v1,ustar,u_avg
 real(kind=rprec)::const,dz1,zo,zo_s
 zo=zo_avg/z_i       !zo_avg and z_i have dimensions, zo does not
 zo_s=zo_avg/z_i
@@ -262,7 +262,7 @@ implicit none
 integer::jx,jy,jz,i,j
 integer::px,py,lx,ly,lz
 real(kind=rprec),dimension(ld,ny,nz),intent(out)::txz,tyz,txy
-real(kind=rprec)::u1,v1,ustar,u_avg,u_aver
+real(kind=rprec)::u1,v1,ustar,u_avg
 real(kind=rprec)::const,dz1,zo,zo_s
 zo=zo_avg/z_i       !zo_avg and z_i have dimensions, zo does not
 zo_s=zo_avg/z_i

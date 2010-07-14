@@ -184,9 +184,9 @@ allocate(b_gamma(nb_elem))
 allocate(beta_gamma_sum(nb_elem))
 !allocate(beta_gamma_CD_sum(nb_elem))
 
-beta_gamma=0._rprec
-b_gamma=0._rprec
-beta_gamma_sum=0._rprec
+beta_gamma(:)=0._rprec
+b_gamma(:)=0._rprec
+beta_gamma_sum(:)=0._rprec
 !beta_gamma_CD_sum=0._rprec
 
 $if($MPI)
@@ -237,7 +237,7 @@ enddo
 
 !  Compute the total resolved force of each b_elem
 allocate(b_r_force( nb_elem )) 
-b_r_force = 0._rprec
+b_r_force(:) = 0._rprec
 do n=1, nb_elem
 
   nelem_p => b_elem_t(n) % r_child_t % nelem
