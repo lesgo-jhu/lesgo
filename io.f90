@@ -1931,7 +1931,7 @@ do k = 1, nz
     enddo    
   enddo
   
-  !  Compute the z-plane averaged Reynolds stresses:  <bar(u_i * u_j)>_xy - <bar(u_i) * bar(u_j)>_xy
+  !  Compute the z-plane averaged Reynolds stresses: 
   rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
   rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
   rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
