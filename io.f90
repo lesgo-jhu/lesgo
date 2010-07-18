@@ -1965,6 +1965,63 @@ write (1) tavg_t
 write (1) tavg_zplane_t
 close(1)
 
+! ----- Write all the 3D data -----
+! -- Work around for large data: only write 3 variables at a time. Since things are
+! -- written in block format this can be done with mulitple calls to
+! -- write_real_data_3D.
+
+call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
+call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % u, tavg_t % v, tavg_t % w /), &
+  4, x, y, z(1:nz))
+
+call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
+call write_real_data_3D(fname_vel2, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % u2, tavg_t % v2, tavg_t % w2 /), &
+  4, x, y, z(1:nz)) 
+call write_real_data_3D(fname_vel2, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % uw, tavg_t % vw, tavg_t % uv /), &
+  4)
+
+
+!  
+call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<dudz>","<dvdz>"', coord, 2)
+call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
+  (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
+
+call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+call write_real_data_3D(fname_tau, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy /), &
+  4, x, y, z(1:nz)) 
+call write_real_data_3D(fname_tau, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % txz, tavg_t % tyz, tavg_t % tzz /), &
+  4)
+  
+call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<fx>","<fy>","<fz>"', coord, 2)
+call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), &
+  4, x, y, z(1:nz))  
+  
+call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
+call write_real_data_3D(fname_rs, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ rs_t % up2, rs_t%vp2, rs_t%wp2 /), &
+  4, x, y, z(1:nz))  
+call write_real_data_3D(fname_rs, 'append', 'formatted', 3, nx, ny, nz, &
+  (/ rs_t%upwp, rs_t%vpwp, rs_t%upvp /), &
+  4) 
+
+call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+   '"x", "y", "z", "<cs2>"', coord, 2)
+call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
+  (/ tavg_t % cs_opt2 /), &
+  4, x, y, z(1:nz))  
+
 ! Construct zplane data 
 $if($MPI)
  
@@ -2126,50 +2183,7 @@ $if ($MPI)
 !call mpi_sync_real_array(  tavg_t % txz, MPI_SYNC_DOWNUP )
 !call mpi_sync_real_array(  tavg_t % tyz, MPI_SYNC_DOWNUP )
 !call mpi_sync_real_array(  tavg_t % tzz, MPI_SYNC_DOWNUP )
-$endif
-
-! ----- Write all the 3D data -----
-
-call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<u>","<v>","<w>"', coord, 2)
-call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
-  (/ tavg_t % u, tavg_t % v, tavg_t % w /), &
-  4, x, y, z(1:nz))
-
-call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', coord, 2)
-call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ tavg_t % u2, tavg_t % v2, tavg_t % w2, tavg_t % uw, tavg_t % vw, tavg_t % uv /), &
-  4, x, y, z(1:nz)) 
-  
-call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<dudz>","<dvdz>"', coord, 2)
-call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
-  (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
-
-call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
-call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy, tavg_t % txz, tavg_t % tyz, tavg_t % tzz /), &
-  4, x, y, z(1:nz)) 
-  
-call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<fx>","<fy>","<fz>"', coord, 2)
-call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
-  (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), &
-  4, x, y, z(1:nz))  
-  
-call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', coord, 2)  
-call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ rs_t % up2, rs_t%vp2, rs_t%wp2, rs_t%upwp, rs_t%vpwp, rs_t%upvp /), &
-  4, x, y, z(1:nz))  
-  
-call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<cs2>"', coord, 2)
-call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
-  (/ tavg_t % cs_opt2 /), &
-  4, x, y, z(1:nz))    
+$endif 
 
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
 
