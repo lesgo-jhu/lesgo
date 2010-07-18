@@ -46,11 +46,11 @@ $if ($TURBINES)
   type(wind_farm)	        :: wind_farm_t	
 $endif
 
-type(tavg), pointer, dimension(:,:,:) :: tavg_t
-type(tavg), pointer, dimension(:) :: tavg_zplane_t
+type(tavg), allocatable, dimension(:,:,:) :: tavg_t
+type(tavg), allocatable, dimension(:) :: tavg_zplane_t
 
-type(rs), pointer, dimension(:,:,:) :: rs_t
-type(rs), pointer, dimension(:) :: rs_zplane_t, cnpy_zplane_t
+type(rs), allocatable, dimension(:,:,:) :: rs_t
+type(rs), allocatable, dimension(:) :: rs_zplane_t, cnpy_zplane_t
 
 end module stat_defs
 
