@@ -31,10 +31,10 @@ USE_OPENMP = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
 
-USE_CYL_SKEW_LS = yes
-USE_RNS_LS = yes
+USE_CYL_SKEW_LS = no
+USE_RNS_LS = no
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -103,7 +103,7 @@ ifeq ($(FCOMP),ifort)
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all
+  FFLAGS += -warn all -mcmodel medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel
