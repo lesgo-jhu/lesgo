@@ -685,7 +685,7 @@ integer, intent(out) :: id_gen, iface
 
 integer :: ng
 real(rprec) :: zcell_bot, zcell_top
-real(rprec), pointer :: bplane => null(), tplane=> null() 
+real(rprec), pointer :: bplane => null(), tplane => null() 
 
 id_gen=-1
 iface=-1 
@@ -942,8 +942,7 @@ delta2 = delta*delta
 
 chi=0.
 
-    
-    !  Now for each branch check if inside itself and other
+!  Now for each branch check if inside itself and other
 do n = 1, nbranch
 
   do j = 1, ny
