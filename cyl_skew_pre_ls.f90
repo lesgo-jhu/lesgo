@@ -32,6 +32,9 @@ type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
 !  coordinate system
 type(vec3d) :: vgcs_t
 
+logical, parameter :: mpi_split = .true.
+integer, parameter :: mpi_split_nproc = 16
+
 logical :: DIST_CALC=.true.
 
 real(rprec), parameter :: BOGUS = 1234567890._rprec
