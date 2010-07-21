@@ -536,7 +536,8 @@ use messages
 use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
 $if($MPI)
-use param, only : coord, nproc
+use mpi
+use param, only : coord, nproc, comm, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
@@ -551,8 +552,12 @@ real(rprec) :: chi
 real(rprec) :: z_star
 real(rprec) :: zcell_bot, zcell_top
 real(rprec), pointer :: bplane_p => null(), tplane_p => null()
-!integer :: dumb_brindx
 integer, pointer, dimension(:) :: brindx_loc_id_p
+
+$if ($MPI)
+integer :: dumb_indx
+$endif
+
 
 nullify(brindx_loc_id_p)
 
@@ -580,6 +585,9 @@ gcs_t(:,:,:) % chi = 0._rprec
 do k=$lbz,ubz
   do j=1,ny
     do i=1,nx
+    
+      !  To keep mpi stuff flowing during bad load balancing runs
+      call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
 
       zcell_bot = gcs_t(i,j,k) % xyz(3) - dz/2.
       zcell_top = gcs_t(i,j,k) % xyz(3) + dz/2.
