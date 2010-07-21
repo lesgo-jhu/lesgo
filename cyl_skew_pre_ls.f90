@@ -98,10 +98,9 @@ subroutine initialize()
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
-use param, only : coord
 $endif
 
-use param, only : nz
+use param, only : nz, coord
 use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : fill_tree_array_ls
@@ -110,7 +109,9 @@ implicit none
 
 integer :: ng,i,j,k
 
+$if ($MPI)
 call initialize_mpi ()
+$endif
 call allocate_arrays()
 call fill_tree_array_ls()
 call generate_grid()
@@ -543,6 +544,7 @@ real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locat
 integer :: i,j,k,ubz
 integer :: n, nf
 integer :: gen_cell_bot, gen_cell_top, gen_id
+real(rprec) :: chi
 real(rprec) :: z_star
 real(rprec) :: zcell_bot, zcell_top
 real(rprec), pointer :: bplane_p => null(), tplane_p => null()
@@ -568,6 +570,8 @@ do k=$lbz,nz
   z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
 
+gcs_t(:,:,:) % chi = 0._rprec
+
 !  Do not set top most chi value; for MPI jobs
 !  this is the overlap node and must be sync'd
 do k=$lbz,ubz
@@ -590,26 +594,46 @@ do k=$lbz,ubz
       else
 
         if( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
-        
-          !bplane_p => tr_t(1)%gen_t(gen_cell_top)%bplane
-        
-          !z_star = bplane_p
-          
-          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
-          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
-          
-          !!  Filter at beginning generation
-          !z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
-          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
-          
+ 		  
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
           call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
           
-          nf = ( gen_cell_top - gen_cell_bot + 1) - 2
+          nf = gen_cell_top - 1 
+          
+          !  Filter over intermediate generations
+          do n=1, nf
+          
+            gen_id = n
+            tplane_p => tr_t(1)%gen_t(gen_id)%tplane
+            bplane_p => tr_t(1)%gen_t(gen_id)%bplane
+            
+            z_star = 0.5_rprec * ( tplane_p + bplane_p )
+
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
+            
+            nullify(tplane_p, bplane_p)
+            
+          enddo          
+          
+        elseif( gen_cell_bot .ne. -1 .and. gen_cell_top == -1 ) then 
+
+          !tplane_p => tr_t(1)%gen_t(gen_cell_bot)%tplane
+        
+          !z_star = tplane_p
+          
+          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          
+          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
+		  
+		   !  Filter at beginning generation
+          z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
+          
+          nf = ngen - gen_cell_bot
           
           !  Filter over intermediate generations
           do n=1, nf
@@ -620,32 +644,18 @@ do k=$lbz,ubz
             
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
-            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane_p - bplane_p) / dz
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
             
             nullify(tplane_p, bplane_p)
             
-          enddo          
+          enddo  
           
-          nullify(bplane_p)
-          
-        elseif( gen_cell_bot .ne. -1 .and. gen_cell_top == -1 ) then 
-
-          tplane_p => tr_t(1)%gen_t(gen_cell_bot)%tplane
-        
-          z_star = tplane_p
-          
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
-          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
-          
-          nullify(tplane_p)
+          !nullify(tplane_p)
           
         elseif( gen_cell_bot == gen_cell_top ) then
-        
-          z_star = gcs_t(i,j,k) % xyz(3)
           
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           
         else
         
@@ -656,8 +666,8 @@ do k=$lbz,ubz
           
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (zcell_top - z_star) / dz
           
           nf = ( gen_cell_top - gen_cell_bot + 1) - 2
           
@@ -670,8 +680,8 @@ do k=$lbz,ubz
             
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
-            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane_p - bplane_p) / dz
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
             
             nullify(tplane_p, bplane_p)
             
@@ -1103,16 +1113,19 @@ subroutine finalize()
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
-use param, only : nproc, coord, ierr
+use param, only : ierr
 $endif
 use cyl_skew_pre_base_ls
+use param, only : nproc, coord
 
 implicit none
 
 if(DIST_CALC) call write_output()
 
+$if ($MPI)
 !  Finalize mpi communication
 call MPI_FINALIZE(ierr)
+$endif
 
 return
 contains
