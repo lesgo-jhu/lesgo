@@ -564,11 +564,11 @@ nullify(brindx_loc_id_p)
 allocate(z_w($lbz:nz))
 
 $if ($MPI)
-  if(coord == nproc - 1) then
-    ubz = nz
-  else
+  !if(coord == nproc - 1) then
+  !  ubz = nz
+  !else
     ubz = nz - 1
-  endif
+  !endif
 $else
   ubz = nz
 $endif
@@ -582,7 +582,7 @@ gcs_t(:,:,:) % chi = 0._rprec
 
 !  Do not set top most chi value; for MPI jobs
 !  this is the overlap node and must be sync'd
-do k=$lbz,ubz
+do k=1,ubz
   do j=1,ny
     do i=1,nx
     
