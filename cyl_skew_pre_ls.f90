@@ -586,9 +586,11 @@ do k=$lbz,ubz
   do j=1,ny
     do i=1,nx
     
+      $if ($MPI)
       !  To keep mpi stuff flowing during bad load balancing runs
       call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
-
+      $endif
+      
       zcell_bot = gcs_t(i,j,k) % xyz(3) - dz/2.
       zcell_top = gcs_t(i,j,k) % xyz(3) + dz/2.
       
