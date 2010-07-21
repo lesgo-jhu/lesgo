@@ -1170,7 +1170,7 @@ write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "itype", "chi"
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz-$lbz+1
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
