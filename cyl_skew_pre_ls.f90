@@ -605,8 +605,12 @@ do k=$lbz,ubz
         gcs_t(i,j,k)%chi = 0.
         
       else
+      
+        if( gen_cell_bot == gen_cell_top ) then
+          
+          call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)      
 
-        if( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
+        elseif( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
  		  
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
@@ -633,15 +637,7 @@ do k=$lbz,ubz
           
         elseif( gen_cell_bot .ne. -1 .and. gen_cell_top == -1 ) then 
 
-          !tplane_p => tr_t(1)%gen_t(gen_cell_bot)%tplane
-        
-          !z_star = tplane_p
-          
-          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
-          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
-		  
-		   !  Filter at beginning generation
+          !  Filter at beginning generation
           z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
           call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
@@ -665,11 +661,7 @@ do k=$lbz,ubz
           enddo  
           
           !nullify(tplane_p)
-          
-        elseif( gen_cell_bot == gen_cell_top ) then
-          
-          call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
+         
         else
         
           !  Filter at beginning generation
@@ -691,6 +683,7 @@ do k=$lbz,ubz
             tplane_p => tr_t(1)%gen_t(gen_id)%tplane
             bplane_p => tr_t(1)%gen_t(gen_id)%bplane
             
+            !  Filter at mid-height of generation
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
             call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
@@ -703,60 +696,7 @@ do k=$lbz,ubz
         endif
         
       endif    
-        
-       
-      ! !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
-      !if(id_gen > ngen ) then
-      !  call error(sub_name,'id_gen > ngen')
-      !endif
 
-      !if (iface == -1) then
-  
-      !  gcs_t(i,j,k)%chi = 0.
-
-      !elseif( 0 <= iface .and. iface <= 3) then
-      
-      !  nullify(bplane,tplane)
-      
-      !!  Assume all trees have same bplane and tplane values for all generations
-      !  bplane => tr_t(1)%gen_t(id_gen)%bplane
-      !  tplane => tr_t(1)%gen_t(id_gen)%tplane
-
-      !  if(iface == 0) then
-
-      !    call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-      !    
-      !  elseif(iface == 1) then
-    
-      !    !  Set z location to bottom plane of generation
-      !    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane/), &
-      !      id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-      !    !  Normalize by volume fraction
-      !    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane)/dz
-
-      !  elseif(iface == 2) then
-  
-      !    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, chi_sum, dumb_brindx)
-      !    !  Normalize by volume fraction
-      !    chi_sum = chi_sum * (tplane - z_w(k))/dz
-
-      !    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen+1, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-      !    !  Normalize by volume fraction
-      !    gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane)/dz
-
-      !  elseif(iface == 3) then
-  
-      !    call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-      !    !  Normalize by volume fraction
-      !    gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane - z_w(k))/dz
-  
-      !  endif
-  
-      !else
-   
-      !  call error(sub_name,' iface not calculated correctly : ', iface)
-
-      !endif
     enddo
   enddo
 enddo
