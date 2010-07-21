@@ -579,6 +579,9 @@ do k=$lbz,ubz
       
       call find_assoc_gen( zcell_bot, gen_cell_bot )
       call find_assoc_gen( zcell_top, gen_cell_top )
+
+      write(*,*) 'gen_cell_bot : ', gen_cell_bot
+      write(*,*) 'gen_cell_top : ', gen_cell_top
       
       if( gen_cell_bot == -1 .and. gen_cell_top == -1) then
       
@@ -586,21 +589,49 @@ do k=$lbz,ubz
         
       else
 
-        if( gen_cell_bot == -1 .and. gen_cell_top == 1 ) then
+        if( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
         
-          bplane_p => tr_t(1)%gen_t(1)%bplane
+          !bplane_p => tr_t(1)%gen_t(gen_cell_top)%bplane
         
-          z_star = bplane_p
+          !z_star = bplane_p
           
+          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          
+          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
+          
+          !!  Filter at beginning generation
+          !z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
+          !call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          !gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
+          
+          !  Filter at ending generation
+          z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
           call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
+          
+          nf = ( gen_cell_top - gen_cell_bot + 1) - 2
+          
+          !  Filter over intermediate generations
+          do n=1, nf
+          
+            gen_id = gen_cell_bot + n
+            tplane_p => tr_t(1)%gen_t(gen_id)%tplane
+            bplane_p => tr_t(1)%gen_t(gen_id)%bplane
+            
+            z_star = 0.5_rprec * ( tplane_p + bplane_p )
+
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane_p - bplane_p) / dz
+            
+            nullify(tplane_p, bplane_p)
+            
+          enddo          
           
           nullify(bplane_p)
           
-        elseif( gen_cell_bot == ngen .and. gen_cell_top == -1 ) then 
+        elseif( gen_cell_bot .ne. -1 .and. gen_cell_top == -1 ) then 
 
-          tplane_p => tr_t(1)%gen_t(ngen)%tplane
+          tplane_p => tr_t(1)%gen_t(gen_cell_bot)%tplane
         
           z_star = tplane_p
           
