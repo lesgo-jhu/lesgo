@@ -845,9 +845,12 @@ if (.not. exst) then
   return ! Do nothing if not present
 endif 
 
-$if ($WRITE_BIG_ENDIAN)
+$if ($READ_BIG_ENDIAN)
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='little_endian')  
 $else
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
@@ -892,8 +895,17 @@ $else
 fname = trim(adjustl(fname_out))
 $endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, action='write', position='rewind',  &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, action='write', position='rewind',  &
+  form='unformatted', convert='little_endian')  
+$else
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
+$endif
+
 write(1) r_elem_t(:) % force_t 
 write(1) beta_elem_t(:) % force_t 
 write(1) b_elem_t(:) % force_t

@@ -28,7 +28,14 @@ USE_MPI = yes
 USE_OPENMP = no
 
 # Write binary files as big_endian
-WRITE_BIG_ENDIAN = yes
+WRITE_BIG_ENDIAN = no
+# Write binary files as little_endian
+WRITE_LITTLE_ENDIAN = yes
+
+# Read binary files as big_endian
+READ_BIG_ENDIAN = no
+# Read binary files as little_endian
+READ_LITTLE_ENDIAN = yes
 
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -69,6 +76,13 @@ ifeq ($(WRITE_BIG_ENDIAN),yes)
   FPP += -DWRITE_BIG_ENDIAN
 endif
 
+ifeq ($(WRITE_LITTLE_ENDIAN),yes)
+  FPP += -DWRITE_LITTLE_ENDIAN
+endif
+
+ifeq ($(READ_LITTLE_ENDIAN),yes)
+  FPP += -DREAD_LITTLE_ENDIAN
+endif
 
 ifeq ($(USE_TREES_LS), yes)
   FPP += -DTREES_LS

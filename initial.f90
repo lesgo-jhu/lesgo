@@ -43,8 +43,11 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
+!  Open vel.out (lun_default in io) for final output
 $if ($WRITE_BIG_ENDIAN)
 open(11,file=fname,form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open(11,file=fname,form='unformatted', convert='little_endian')
 $else
 open(11,file=fname,form='unformatted')
 $endif
@@ -52,9 +55,18 @@ $endif
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
 
 if(initu)then
+
+  $if ($READ_BIG_ENDIAN)
+  open(12,file=fname,form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open(12,file=fname,form='unformatted', convert='little_endian')
+  $else
+  open(12,file=fname,form='unformatted')
+  $endif
+  
   if(initsc) then
     print *,'Reading initial velocity and temperature from file'
-    read(11) u,v,w,RHSx,RHSy,RHSz,Cs_opt2,F_LM,F_MM,theta,RHS_T
+    read(12) u,v,w,RHSx,RHSy,RHSz,Cs_opt2,F_LM,F_MM,theta,RHS_T
 !TS INITIALIZE THE ZERO CONCENTRATION FIELD IF jt_total=0
     if(sflux_flag)then
        open(1,file=path//'run')
@@ -77,19 +89,19 @@ if(initu)then
 
     select case (model)
       case (1)
-        read (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
+        read (12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz)
       case (2:4)
-        read(11) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+        read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
                  Cs_opt2
       case (5)
         if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
-          read (11) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+          read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
                     Cs_opt2
         else
-          read(11) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
                    Cs_opt2, F_LM, F_MM, F_QN, F_NN
         end if
@@ -106,6 +118,9 @@ if(initu)then
     end do
 7780 format('jz, ubar, vbar, wbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4))
   end if
+
+  close(12) 
+
 else
   if (dns_bc) then
      print*, 'Creating initial velocity field with DNS BCs'

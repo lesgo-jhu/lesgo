@@ -4640,7 +4640,14 @@ inquire (file=fphi_in, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
+$if ($READ_BIG_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
+$else
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
+$endif
+
 read (lun) phi(:, :, $lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1

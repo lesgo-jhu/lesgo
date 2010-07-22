@@ -1189,6 +1189,8 @@ endif
 !  Write binary data for lesgo
 $if ($WRITE_BIG_ENDIAN)
 open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
 $else
 open (1, file=fname, form='unformatted')
 $endif
@@ -1206,6 +1208,8 @@ endif
 
 $if ($WRITE_BIG_ENDIAN)
 open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
 $else
 open (1, file=fname, form='unformatted')
 $endif
@@ -1223,6 +1227,8 @@ endif
 
 $if ($WRITE_BIG_ENDIAN)
 open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
 $else
 open (1, file=fname, form='unformatted')
 $endif
@@ -1239,6 +1245,8 @@ endif
 
 $if ($WRITE_BIG_ENDIAN)
 open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
 $else
 open (1, file=fname, form='unformatted')
 $endif
