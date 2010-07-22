@@ -157,6 +157,9 @@ ifeq ($(FCOMP),gfortran)
 endif
 
 ifeq ($(FCOMP),xlf)
+
+  LIBS += -lfcgaml-xlf 
+
   FPP += -DXLF
   ifeq ($(USE_MPI), yes)
     FC = mpxlf95_r
@@ -185,7 +188,7 @@ ifeq ($(FCOMP),xlf)
     ## or specify on command line
     #LIBPATH = -L${HOME}/fftw/fftw2/lib
     #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
-    LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+    #LIBS = $(LIBPATH) -lrfftw -lfftw -lm
   endif
   MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)
