@@ -43,15 +43,6 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
-!  Open vel.out (lun_default in io) for final output
-$if ($WRITE_BIG_ENDIAN)
-open(11,file=fname,form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
-open(11,file=fname,form='unformatted', convert='little_endian')
-$else
-open(11,file=fname,form='unformatted')
-$endif
-
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
 
 if(initu)then
@@ -186,6 +177,15 @@ if (USE_MPI .and. coord == 0) then
   v(:, :, $lbz) = BOGUS
   w(:, :, $lbz) = BOGUS
 end if
+
+!  Open vel.out (lun_default in io) for final output
+$if ($WRITE_BIG_ENDIAN)
+open(11,file=fname,form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open(11,file=fname,form='unformatted', convert='little_endian')
+$else
+open(11,file=fname,form='unformatted')
+$endif
 
 contains
 
