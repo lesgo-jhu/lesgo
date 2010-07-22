@@ -30,12 +30,12 @@ USE_OPENMP = no
 # Write binary files as big_endian
 WRITE_BIG_ENDIAN = no
 # Write binary files as little_endian
-WRITE_LITTLE_ENDIAN = yes
+WRITE_LITTLE_ENDIAN = no
 
 # Read binary files as big_endian
 READ_BIG_ENDIAN = no
 # Read binary files as little_endian
-READ_LITTLE_ENDIAN = yes
+READ_LITTLE_ENDIAN = no
 
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
@@ -78,6 +78,10 @@ endif
 
 ifeq ($(WRITE_LITTLE_ENDIAN),yes)
   FPP += -DWRITE_LITTLE_ENDIAN
+endif
+
+ifeq ($(READ_BIG_ENDIAN),yes)
+  FPP += -DREAD_BIG_ENDIAN
 endif
 
 ifeq ($(READ_LITTLE_ENDIAN),yes)
