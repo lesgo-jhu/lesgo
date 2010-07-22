@@ -1187,8 +1187,11 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 !  Write binary data for lesgo
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$else
 open (1, file=fname, form='unformatted')
-!endif
+$endif
 write(1) phi
 close (1)
 
@@ -1201,7 +1204,11 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) brindx
 close (1)
 
@@ -1214,7 +1221,11 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) clindx
 close (1)
 
@@ -1226,13 +1237,17 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) chi
 close (1)
 
 !  Generate generation associations to be used in drag force calculations
 !  for each generation
-call gen_assoc() !  Generation data from the last tree must match that of the first
+!call gen_assoc() !  Generation data from the last tree must match that of the first
 
 return
 end subroutine write_output

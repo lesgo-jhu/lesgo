@@ -27,14 +27,17 @@ DEVEL=no
 USE_MPI = yes
 USE_OPENMP = no
 
+# Write binary files as big_endian
+WRITE_BIG_ENDIAN = yes
+
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
 
-USE_CYL_SKEW_LS = no
-USE_RNS_LS = no
+USE_CYL_SKEW_LS = yes
+USE_RNS_LS = yes
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -61,6 +64,11 @@ endif
 ifeq ($(USE_DYNALLOC),yes)
   FPP += -DDYNALLOC
 endif
+
+ifeq ($(WRITE_BIG_ENDIAN),yes)
+  FPP += -DWRITE_BIG_ENDIAN
+endif
+
 
 ifeq ($(USE_TREES_LS), yes)
   FPP += -DTREES_LS
@@ -125,7 +133,7 @@ ifeq ($(FCOMP),gfortran)
   FDEBUG = -g
   FPROF = -p
   LDFLAGS = -static 
-  MODDIR = -I$(MPATH) -J$(MPATH)
+  MODDIR = -I$(MPATH) -J $(MPATH)
   FFLAGS += $(MODDIR)  
 #  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif

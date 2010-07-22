@@ -845,8 +845,14 @@ if (.not. exst) then
   return ! Do nothing if not present
 endif 
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='big_endian')
+$else
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
+$endif
+
 read (1) r_elem_t(:) % force_t 
 read (1) beta_elem_t(:) % force_t 
 read (1) b_elem_t(:) % force_t 

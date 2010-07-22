@@ -43,7 +43,12 @@ $if ($MPI)
   fname = trim (fname) // temp
 $endif
 
+$if ($WRITE_BIG_ENDIAN)
+open(11,file=fname,form='unformatted', convert='big_endian')
+$else
 open(11,file=fname,form='unformatted')
+$endif
+
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
 
 if(initu)then
