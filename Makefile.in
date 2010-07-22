@@ -27,14 +27,24 @@ DEVEL=no
 USE_MPI = yes
 USE_OPENMP = no
 
+# Write binary files as big_endian
+WRITE_BIG_ENDIAN = no
+# Write binary files as little_endian
+WRITE_LITTLE_ENDIAN = no
+
+# Read binary files as big_endian
+READ_BIG_ENDIAN = no
+# Read binary files as little_endian
+READ_LITTLE_ENDIAN = no
+
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
 
-USE_CYL_SKEW_LS = no
-USE_RNS_LS = no
+USE_CYL_SKEW_LS = yes
+USE_RNS_LS = yes
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -60,6 +70,22 @@ endif
 
 ifeq ($(USE_DYNALLOC),yes)
   FPP += -DDYNALLOC
+endif
+
+ifeq ($(WRITE_BIG_ENDIAN),yes)
+  FPP += -DWRITE_BIG_ENDIAN
+endif
+
+ifeq ($(WRITE_LITTLE_ENDIAN),yes)
+  FPP += -DWRITE_LITTLE_ENDIAN
+endif
+
+ifeq ($(READ_BIG_ENDIAN),yes)
+  FPP += -DREAD_BIG_ENDIAN
+endif
+
+ifeq ($(READ_LITTLE_ENDIAN),yes)
+  FPP += -DREAD_LITTLE_ENDIAN
 endif
 
 ifeq ($(USE_TREES_LS), yes)
@@ -125,12 +151,15 @@ ifeq ($(FCOMP),gfortran)
   FDEBUG = -g
   FPROF = -p
   LDFLAGS = -static 
-  MODDIR = -I$(MPATH) -J$(MPATH)
+  MODDIR = -I$(MPATH) -J $(MPATH)
   FFLAGS += $(MODDIR)  
 #  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif
 
 ifeq ($(FCOMP),xlf)
+
+  LIBS += -lfcgaml-xlf 
+
   FPP += -DXLF
   ifeq ($(USE_MPI), yes)
     FC = mpxlf95_r
@@ -159,7 +188,7 @@ ifeq ($(FCOMP),xlf)
     ## or specify on command line
     #LIBPATH = -L${HOME}/fftw/fftw2/lib
     #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
-    LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+    #LIBS = $(LIBPATH) -lrfftw -lfftw -lm
   endif
   MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
   FFLAGS += $(MODDIR)

@@ -53,7 +53,6 @@ nullify(kappa_p)
 !  Compute the relavent force information ( include reference quantities, CD, etc.)
 call rns_elem_force()
 
-!if(.false.) then
 !  Apply the RNS forcing to appropriate nodes
 do n = 1, nbeta_elem
  
@@ -187,7 +186,7 @@ allocate(beta_gamma_sum(nb_elem))
 beta_gamma(:)=0._rprec
 b_gamma(:)=0._rprec
 beta_gamma_sum(:)=0._rprec
-!beta_gamma_CD_sum=0._rprec
+!beta_gamma_CD_sum(:)=0._rprec
 
 $if($MPI)
 !  Make sure intermediate velocity is sync'd
@@ -238,6 +237,7 @@ enddo
 !  Compute the total resolved force of each b_elem
 allocate(b_r_force( nb_elem )) 
 b_r_force(:) = 0._rprec
+
 do n=1, nb_elem
 
   nelem_p => b_elem_t(n) % r_child_t % nelem
@@ -246,7 +246,10 @@ do n=1, nb_elem
   do ns=1, nelem_p
     b_r_force(n) = b_r_force(n) + r_elem_t( indx_p(ns) )% force_t % fD 
   enddo 
-	
+  
+  !  Perform partial sum for b_elem force
+  b_elem_t(n) % force_t % fD = b_r_force(n) 	
+  
   nullify(indx_p, nelem_p)
 	
 enddo
@@ -254,11 +257,12 @@ enddo
 if( use_explicit_formulation ) then
 
   allocate(b_force( nb_elem ))
-  b_force = 0._rprec
+  !b_force = 0._rprec
   
   do n=1, nb_elem
     	
     b_force(n) = b_r_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
+    !b_force(n) = b_r_force(n) - 0.5_rprec * beta_gamma_CD_sum(n)
 	
   enddo
   
@@ -274,6 +278,7 @@ if( use_explicit_formulation ) then
   
     CD_num=0._rprec
 	  CD_denom=0._rprec
+    
     do n=1, nb_elem
 	
       CD_num = CD_num + b_force(n) * b_gamma(n) 
@@ -289,7 +294,8 @@ if( use_explicit_formulation ) then
 
 else ! use implicit formulation
 
-  allocate( b_m( nb_elem )) 
+  allocate( b_m( nb_elem ) ) 
+  
   do n=1, nb_elem  
     b_m(n) = 0.5_rprec * (beta_gamma_sum(n) - b_gamma(n))
   enddo
@@ -346,9 +352,19 @@ do n=1, nbeta_elem
   beta_elem_t(n) % force_t % fD = - 0.5_rprec * beta_elem_t(n) % force_t % CD * beta_gamma(n)
 enddo
 
-!  Compute the total force for b_elem
+!  Compute the total force for b_elem; r_elem has already been accounted for from above
 do n=1, nb_elem
-  b_elem_t(n) % force_t % fD = - 0.5_rprec * b_elem_t(n) % force_t % CD * b_gamma(n)
+  
+  nelem_p => b_elem_t(n) % beta_child_t % nelem
+  indx_p  => b_elem_t(n) % beta_child_t % indx
+
+  !  Perform secondary sum over beta_elem for b_elem force
+  do ns = 1, nelem_p
+    b_elem_t(n) % force_t % fD = b_elem_t(n) % force_t % fD + beta_elem_t( indx_p(ns) ) % force_t % fD
+  enddo 
+
+  nullify( nelem_p, indx_p )
+  
 enddo
 
 !  Now need to compute kappa
@@ -401,7 +417,6 @@ enddo
 deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
 
-!call beta_elem_kappa()
 
 return
 end subroutine rns_elem_force
@@ -830,8 +845,17 @@ if (.not. exst) then
   return ! Do nothing if not present
 endif 
 
+$if ($READ_BIG_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='little_endian')  
+$else
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
+$endif
+
 read (1) r_elem_t(:) % force_t 
 read (1) beta_elem_t(:) % force_t 
 read (1) b_elem_t(:) % force_t 
@@ -871,8 +895,17 @@ $else
 fname = trim(adjustl(fname_out))
 $endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, action='write', position='rewind',  &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, action='write', position='rewind',  &
+  form='unformatted', convert='little_endian')  
+$else
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
+$endif
+
 write(1) r_elem_t(:) % force_t 
 write(1) beta_elem_t(:) % force_t 
 write(1) b_elem_t(:) % force_t

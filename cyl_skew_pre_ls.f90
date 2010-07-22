@@ -32,6 +32,9 @@ type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
 !  coordinate system
 type(vec3d) :: vgcs_t
 
+logical, parameter :: mpi_split = .true.
+integer, parameter :: mpi_split_nproc = 16
+
 logical :: DIST_CALC=.true.
 
 real(rprec), parameter :: BOGUS = 1234567890._rprec
@@ -98,10 +101,9 @@ subroutine initialize()
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
-use param, only : coord
 $endif
 
-use param, only : nz
+use param, only : nz, coord
 use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : fill_tree_array_ls
@@ -110,7 +112,9 @@ implicit none
 
 integer :: ng,i,j,k
 
+$if ($MPI)
 call initialize_mpi ()
+$endif
 call allocate_arrays()
 call fill_tree_array_ls()
 call generate_grid()
@@ -532,7 +536,8 @@ use messages
 use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
 $if($MPI)
-use param, only : coord, nproc
+use mpi
+use param, only : coord, nproc, comm, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
@@ -540,22 +545,30 @@ implicit none
 character (*), parameter :: sub_name = 'compute_chi'
 real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
-integer :: i,j,k, id_gen, iface, ubz
-real(rprec) :: chi_sum
-real(rprec), pointer :: bplane => null(), tplane=> null()
-integer :: dumb_brindx
+integer :: i,j,k,ubz
+integer :: n, nf
+integer :: gen_cell_bot, gen_cell_top, gen_id
+real(rprec) :: chi
+real(rprec) :: z_star
+real(rprec) :: zcell_bot, zcell_top
+real(rprec), pointer :: bplane_p => null(), tplane_p => null()
 integer, pointer, dimension(:) :: brindx_loc_id_p
+
+$if ($MPI)
+integer :: dumb_indx
+$endif
+
 
 nullify(brindx_loc_id_p)
 
 allocate(z_w($lbz:nz))
 
 $if ($MPI)
-  if(coord == nproc - 1) then
-    ubz = nz
-  else
+  !if(coord == nproc - 1) then
+  !  ubz = nz
+  !else
     ubz = nz - 1
-  endif
+  !endif
 $else
   ubz = nz
 $endif
@@ -565,71 +578,125 @@ do k=$lbz,nz
   z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
 
+gcs_t(:,:,:) % chi = 0._rprec
+
 !  Do not set top most chi value; for MPI jobs
 !  this is the overlap node and must be sync'd
-do k=$lbz,ubz
+do k=1,ubz
   do j=1,ny
     do i=1,nx
-!      if(gcs_t(i,j,k)%phi <= 0.) then
-!  	gcs_t(i,j,k)%chi=1.
-!      else
-  
-  !  See if points have a generation association
-      call find_assoc_gen(gcs_t(i,j,k)%xyz(3), id_gen, iface)
-	  
-       
-       !write(*,*) 'gcs_t(i,j,k)%xyz(3), id_gen, iface : ', gcs_t(i,j,k)%xyz(3), id_gen, iface
-      if(id_gen > ngen ) then
-        call error(sub_name,'id_gen > ngen')
-      endif
-
-      if (iface == -1) then
-  
-        gcs_t(i,j,k)%chi = 0.
-
-      elseif( 0 <= iface .and. iface <= 3) then
-      
-        nullify(bplane,tplane)
-      
-      !  Assume all trees have same bplane and tplane values for all generations
-        bplane => tr_t(1)%gen_t(id_gen)%bplane
-        tplane => tr_t(1)%gen_t(id_gen)%tplane
-
-        if(iface == 0) then
-
-          call filter_chi(gcs_t(i,j,k)%xyz, id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          
-        elseif(iface == 1) then
     
-          !  Set z location to bottom plane of generation
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), bplane/), &
-            id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          !  Normalize by volume fraction
-          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_w(k+1) - bplane)/dz
+      $if ($MPI)
+      !  To keep mpi stuff flowing during bad load balancing runs
+      call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
+      $endif
+      
+      zcell_bot = gcs_t(i,j,k) % xyz(3) - dz/2.
+      zcell_top = gcs_t(i,j,k) % xyz(3) + dz/2.
+      
+      call find_assoc_gen( zcell_bot, gen_cell_bot )
+      call find_assoc_gen( zcell_top, gen_cell_top )
 
-        elseif(iface == 2) then
-  
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, chi_sum, dumb_brindx)
-          !  Normalize by volume fraction
-          chi_sum = chi_sum * (tplane - z_w(k))/dz
-
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen+1, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          !  Normalize by volume fraction
-          gcs_t(i,j,k)%chi = chi_sum + gcs_t(i,j,k)%chi * (z_w(k+1) - tplane)/dz
-
-        elseif(iface == 3) then
-  
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), tplane/), id_gen, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
-          !  Normalize by volume fraction
-          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (tplane - z_w(k))/dz
-  
-        endif
-  
+      write(*,*) 'gen_cell_bot : ', gen_cell_bot
+      write(*,*) 'gen_cell_top : ', gen_cell_top
+      
+      if( gen_cell_bot == -1 .and. gen_cell_top == -1) then
+      
+        gcs_t(i,j,k)%chi = 0.
+        
       else
-   
-        call error(sub_name,' iface not calculated correctly : ', iface)
+      
+        if( gen_cell_bot == gen_cell_top ) then
+          
+          call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)      
 
-      endif
+        elseif( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
+ 		  
+          !  Filter at ending generation
+          z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
+          
+          nf = gen_cell_top - 1 
+          
+          !  Filter over intermediate generations
+          do n=1, nf
+          
+            gen_id = n
+            tplane_p => tr_t(1)%gen_t(gen_id)%tplane
+            bplane_p => tr_t(1)%gen_t(gen_id)%bplane
+            
+            z_star = 0.5_rprec * ( tplane_p + bplane_p )
+
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
+            
+            nullify(tplane_p, bplane_p)
+            
+          enddo          
+          
+        elseif( gen_cell_bot .ne. -1 .and. gen_cell_top == -1 ) then 
+
+          !  Filter at beginning generation
+          z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
+          
+          nf = ngen - gen_cell_bot
+          
+          !  Filter over intermediate generations
+          do n=1, nf
+          
+            gen_id = gen_cell_bot + n
+            tplane_p => tr_t(1)%gen_t(gen_id)%tplane
+            bplane_p => tr_t(1)%gen_t(gen_id)%bplane
+            
+            z_star = 0.5_rprec * ( tplane_p + bplane_p )
+
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
+            
+            nullify(tplane_p, bplane_p)
+            
+          enddo  
+          
+          !nullify(tplane_p)
+         
+        else
+        
+          !  Filter at beginning generation
+          z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
+          
+          !  Filter at ending generation
+          z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
+          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, chi, gcs_t(i,j,k) % brindx)
+          gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (zcell_top - z_star) / dz
+          
+          nf = ( gen_cell_top - gen_cell_bot + 1) - 2
+          
+          !  Filter over intermediate generations
+          do n=1, nf
+          
+            gen_id = gen_cell_bot + n
+            tplane_p => tr_t(1)%gen_t(gen_id)%tplane
+            bplane_p => tr_t(1)%gen_t(gen_id)%bplane
+            
+            !  Filter at mid-height of generation
+            z_star = 0.5_rprec * ( tplane_p + bplane_p )
+
+            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
+            
+            nullify(tplane_p, bplane_p)
+            
+          enddo
+          
+        endif
+        
+      endif    
+
     enddo
   enddo
 enddo
@@ -642,7 +709,7 @@ call mpi_sync_real_array(gcs_t(:,:,:)%chi, MPI_SYNC_DOWNUP)
 $endif
 
 !  Ensure all pointers are nullified
-nullify(bplane,tplane)
+nullify(bplane_p,tplane_p)
 
 !  Set clindx based on brindx
 do k=$lbz,ubz
@@ -666,69 +733,42 @@ return
 end subroutine compute_chi
 
 !**********************************************************************
-subroutine find_assoc_gen(z, id_gen, iface)
+subroutine find_assoc_gen(z, gen_id)
 !**********************************************************************
 !  This subroutine finds the generation associated with a given point
 !  on the uv grid (i.e. cell center). This routine biases the bottom
 !  generation when an interior interface falls within a cell
 
-!  iface - 0 (no interface), 1 (bottom of tree), 
-!          2 (inter-generation interface), 3 (top of tree)
 use types, only : rprec
-use param, only : dz
 use cyl_skew_base_ls, only : ngen, tr_t
 implicit none
 
 real(rprec), intent(in) :: z ! on uv grid
 
-integer, intent(out) :: id_gen, iface
+integer, intent(out) :: gen_id
 
 integer :: ng
-real(rprec) :: zcell_bot, zcell_top
-real(rprec), pointer :: bplane => null(), tplane=> null() 
+real(rprec), pointer :: bplane_p => null(), tplane_p => null() 
 
-id_gen=-1
-iface=-1 
-
-zcell_bot = z - dz/2.
-zcell_top = z + dz/2.
+gen_id = -1
 
 isearch_gen : do ng=1,ngen
-    nullify(bplane, tplane)
     !  Assume all trees have same bplane and tplane values for all generations
-    bplane => tr_t(1)%gen_t(ng)%bplane
-    tplane => tr_t(1)%gen_t(ng)%tplane
-  ! Check if bottom of generation is within cell
-  if(zcell_bot < bplane .and. bplane < zcell_top) then
-    if(ng==1) then
-      id_gen = ng
-      iface = 1
-      exit isearch_gen
-    else
-      id_gen = ng-1
-      iface = 2
-      exit isearch_gen
-    endif
-  ! Check if top of generation is within cell
-  elseif (zcell_bot < tplane .and. tplane < zcell_top ) then
-    if(ng < ngen) then
-      id_gen = ng
-      iface = 2
-      exit isearch_gen
-    else
-      id_gen = ng
-      iface = 3
-      exit isearch_gen
-   endif
-  elseif(bplane < z .and. z < tplane) then
-	id_gen = ng
-	iface = 0
-	exit isearch_gen
+  bplane_p => tr_t(1)%gen_t(ng)%bplane
+  tplane_p => tr_t(1)%gen_t(ng)%tplane
+    
+  if( bplane_p <= z .and. z <= tplane_p ) then
+  
+    gen_id = ng
+    exit isearch_gen
+    
   endif
+  
+  nullify( bplane_p, tplane_p )
 
 enddo isearch_gen
 
-nullify(bplane, tplane)
+nullify(bplane_p, tplane_p)
 
 return
 end subroutine find_assoc_gen
@@ -942,8 +982,7 @@ delta2 = delta*delta
 
 chi=0.
 
-    
-    !  Now for each branch check if inside itself and other
+!  Now for each branch check if inside itself and other
 do n = 1, nbranch
 
   do j = 1, ny
@@ -1027,16 +1066,19 @@ subroutine finalize()
 !**********************************************************************
 $if ($MPI)
 use mpi_defs
-use param, only : nproc, coord, ierr
+use param, only : ierr
 $endif
 use cyl_skew_pre_base_ls
+use param, only : nproc, coord
 
 implicit none
 
 if(DIST_CALC) call write_output()
 
+$if ($MPI)
 !  Finalize mpi communication
 call MPI_FINALIZE(ierr)
+$endif
 
 return
 contains
@@ -1081,7 +1123,7 @@ write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "itype", "chi"
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
 
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz+1
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz-$lbz+1
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
 
@@ -1145,8 +1187,13 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 !  Write binary data for lesgo
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
+$else
 open (1, file=fname, form='unformatted')
-!endif
+$endif
 write(1) phi
 close (1)
 
@@ -1159,7 +1206,13 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) brindx
 close (1)
 
@@ -1172,7 +1225,13 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) clindx
 close (1)
 
@@ -1184,13 +1243,19 @@ if(nproc > 1) then
   fname = trim (fname) // temp
 endif
 
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, form='unformatted', convert='little_endian')
+$else
 open (1, file=fname, form='unformatted')
+$endif
 write(1) chi
 close (1)
 
 !  Generate generation associations to be used in drag force calculations
 !  for each generation
-call gen_assoc() !  Generation data from the last tree must match that of the first
+!call gen_assoc() !  Generation data from the last tree must match that of the first
 
 return
 end subroutine write_output

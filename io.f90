@@ -443,8 +443,17 @@ if (.not. exst) then
   
   return
 endif
-  
-open (1, file=fname, action='read', position='rewind', form='unformatted')
+
+$if ($READ_BIG_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted', convert='little_endian')  
+$else
+open (1, file=fname, action='read', position='rewind',  &
+  form='unformatted')
+$endif
 
 read (1) tavg_total_time
 read (1) tavg_t
@@ -1958,7 +1967,17 @@ enddo
 !  Write data to tavg.out
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname_out, action='write', position='rewind', &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname_out, action='write', position='rewind', &
+  form='unformatted', convert='little_endian')
+$else
 open (1, file=fname_out, action='write', position='rewind', form='unformatted')
+$endif
+
 ! write the entire structures
 write (1) tavg_total_time
 write (1) tavg_t          

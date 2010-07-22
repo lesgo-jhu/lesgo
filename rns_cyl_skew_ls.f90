@@ -169,8 +169,16 @@ $if ($MPI)
   if (.not. exst) call error (sub_name,                             &
                               'cannot find file ' // fname_in_MPI)
 
-  open (1, file=fname_in_MPI, action='read', position='rewind',  &
-         form='unformatted')
+  $if ($READ_BIG_ENDIAN)
+  open (1, file=fname_in_MPI, action='read', position='rewind', &
+    form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open (1, file=fname_in_MPI, action='read', position='rewind', &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fname_in_MPI, action='read', position='rewind', form='unformatted')
+  $endif                              
+
   read (1) clindx
   close (1)
 
@@ -181,8 +189,16 @@ $else
   inquire (file=fname_in, exist=exst)
   if (.not. exst) call error (sub_name, 'cannot find file ' // fname_in)
 
-  open (1, file=fname_in, action='read', position='rewind',  &
-         form='unformatted')
+  $if ($READ_BIG_ENDIAN)
+  open (1, file=fname_in, action='read', position='rewind', &
+    form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open (1, file=fname_in, action='read', position='rewind', &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fname_in, action='read', position='rewind', form='unformatted')
+  $endif   
+
   read (1) clindx
   close (1)
 
@@ -225,8 +241,16 @@ $if ($MPI)
   if (.not. exst) call error (sub_name,                             &
                               'cannot find file ' // fchi_in_MPI)
 
-  open (1, file=fchi_in_MPI, action='read', position='rewind',  &
-         form='unformatted')
+  $if ($READ_BIG_ENDIAN)
+  open (1, file=fchi_in_MPI, action='read', position='rewind', &
+    form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open (1, file=fchi_in_MPI, action='read', position='rewind', &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fchi_in_MPI, action='read', position='rewind', form='unformatted')
+  $endif                               
+
   read (1) chi
   close (1)
 
@@ -236,9 +260,16 @@ $else
 
   inquire (file=fchi_in, exist=exst)
   if (.not. exst) call error (sub_name, 'cannot find file ' // fchi_in)
-
-  open (1, file=fchi_in, action='read', position='rewind',  &
-         form='unformatted')
+  
+  $if ($READ_BIG_ENDIAN)
+  open (1, file=fchi_in, action='read', position='rewind', &
+    form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open (1, file=fchi_in, action='read', position='rewind', &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fchi_in, action='read', position='rewind', form='unformatted')
+  $endif   
   read (1) chi
   close (1)
 

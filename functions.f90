@@ -54,7 +54,7 @@ real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
-!  exists in the cell with lower dimension: istart,jstart,kstart
+!  exists in the cell with lower dimension (cell index) : istart,jstart,kstart
 !  for the point xyz
 !  
 !  istart, jstart, kstart are used to determine the cell location on the
@@ -143,7 +143,7 @@ real(rprec) function linear_interp(u1,u2,dx,xdiff)
 use types, only : rprec
 implicit none
 
-double precision, intent(IN) :: u1, u2, dx, xdiff
+real(rprec), intent(IN) :: u1, u2, dx, xdiff
 
 linear_interp = u1 + (xdiff) * (u2 - u1) / dx
 
