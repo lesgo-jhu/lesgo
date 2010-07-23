@@ -65,7 +65,7 @@ $if ($MPI)
 use param, only : coord
 $endif
 use cyl_skew_pre_base_ls, only : DIST_CALC, ntree
-use cyl_skew_base_ls, only : ngen, ngen_reslv
+use cyl_skew_base_ls, only : ngen, ngen_reslv, filter_chi
 use messages
 implicit none
 
@@ -87,7 +87,8 @@ do nt = 1, ntree
 enddo 
 
 !  Uses global tree info from ebgcs_t and etgcs_t to
-call compute_chi()
+
+if( filter_chi ) call compute_chi()
 
 call finalize()
 
@@ -1088,6 +1089,7 @@ subroutine write_output()
 !**********************************************************************
 use grid_defs
 use param, only : ld, Nx, Ny, Nz
+use cyl_skew_base_ls, only : filter_chi
 implicit none
 
 character (64) :: fname, temp
@@ -1235,6 +1237,7 @@ $endif
 write(1) clindx
 close (1)
 
+if( filter_chi ) then
 write (fname,*) 'chi.out'
 fname = trim(adjustl(fname)) 
 
@@ -1252,6 +1255,7 @@ open (1, file=fname, form='unformatted')
 $endif
 write(1) chi
 close (1)
+endif
 
 !  Generate generation associations to be used in drag force calculations
 !  for each generation
