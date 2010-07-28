@@ -28,13 +28,13 @@ $endif
 !---------------------------------------------------  
 integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 
-logical, parameter :: use_explicit_formulation = .false.
+logical, parameter :: use_explicit_formulation = .true.
 
 logical, parameter :: use_local_CD = .false.
 
 integer, parameter :: output_nskip = 10
 
-integer, parameter :: CD_ramp_nstep = 1
+integer, parameter :: CD_ramp_nstep = 25000
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
