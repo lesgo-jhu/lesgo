@@ -27,7 +27,7 @@ SRCS =  \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
-        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stat_defs.f90 stats_init.f90 \
+        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stat_defs.f90 \
 	strmod.f90 \
 	std_dynamic.f90 string_util.f90 \
         test_filtermodule.f90 topbc.f90 \
