@@ -336,6 +336,9 @@ if( jt < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD
 !  Now update the CD of all the beta_elem 
 do n=1, nb_elem
 
+  !  Check if b_elem CD < 0
+  if( b_elem_t(n) % force_t % CD < 0._rprec ) b_elem_t(n) % force_t % CD = 0._rprec
+
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
   
