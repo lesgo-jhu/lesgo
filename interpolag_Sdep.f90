@@ -3,7 +3,7 @@ subroutine interpolag_Sdep()
 ! This subroutine computes the values of F_LM and F_MM 
 ! at positions (x-u*dt) for use in the subroutine lagrangian
 use types,only:rprec
-!use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,c_count
+!use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,cfl_count
 use param
 use sgsmodule
 implicit none
@@ -278,9 +278,9 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
 end if
 
-!if(mod(jt,c_count).eq.0) print*,'Lagrangian CFL condition= ',  &
+!if(mod(jt,cfl_count).eq.0) print*,'Lagrangian CFL condition= ',  &
 !                         maxval ( abs (xp(1:nx, :, 1:nz)) )
-if(mod(jt,c_count).eq.0) print*,'Lagrangian CFL condition= ',  &
+if(mod(jt,cfl_count).eq.0) print*,'Lagrangian CFL condition= ',  &
                          maxval ( abs (u_lag(1:nx, :, 1:nz)) )
 
 
