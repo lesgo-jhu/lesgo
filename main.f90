@@ -594,20 +594,18 @@ call output_final (jt)
 
 $if ($LVLSET)
 
-$if ($TREES_LS)
+  $if ($TREES_LS)
   call trees_ls_finalize ()
-$endif
+  $endif
+
+  $if ($RNS_LS)
+  call rns_finalize_ls ()
+  $endif
  
 $endif
 
 $if ($MPI)
   call mpi_finalize (ierr)
-$endif
-
-$if ($LVLSET)
-$if ($RNS_LS)
-  call rns_finalize_ls ()
-$endif
 $endif
 
 $if ($TURBINES)
