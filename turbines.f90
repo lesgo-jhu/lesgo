@@ -826,7 +826,7 @@ $endif
 !apply forcing to each node
 if (turbine_in_proc == .true.) then
 
-    !initialize forces to zero (only local values?)
+    !initialize forces to zero (only local values)
     fx = 0.
     fy = 0.
     fz = 0.    
@@ -846,7 +846,7 @@ if (turbine_in_proc == .true.) then
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
             fx(i2,j2,k2) = disk_force(s)*p_nhat1*ind2                            
             fy(i2,j2,k2) = disk_force(s)*p_nhat2*ind2   
-            !fz(i2,j2,k2) = disk_force(s)*p_nhat3*ind2   !<< different points than fx,fy... check this
+            !>>fz acts on different points than fx,fy... (stag grid)
             fz(i2,j2,k2) = 0.5*disk_force(s)*p_nhat3*ind2
             fz(i2,j2,k2+1) = 0.5*disk_force(s)*p_nhat3*ind2
         enddo
