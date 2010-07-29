@@ -277,7 +277,7 @@ if( use_explicit_formulation ) then
   else ! compute global CD
   
     CD_num=0._rprec
-	  CD_denom=0._rprec
+	CD_denom=0._rprec
     
     do n=1, nb_elem
 	
@@ -297,14 +297,14 @@ else ! use implicit formulation
   allocate( b_m( nb_elem ) ) 
   
   do n=1, nb_elem  
-    b_m(n) = 0.5_rprec * (beta_gamma_sum(n) - b_gamma(n))
+    b_m(n) = beta_gamma_sum(n) - b_gamma(n)
   enddo
 
   if( use_local_CD ) then
   
     do n=1, nb_elem
 	
-      b_elem_t(n) % force_t % CD = b_r_force(n) / b_m(n)
+      b_elem_t(n) % force_t % CD = 2._rprec * b_r_force(n) / b_m(n)
 	  
     enddo
 	
@@ -320,7 +320,7 @@ else ! use implicit formulation
 	  
     enddo
 
-    b_elem_t(:) % force_t % CD = CD_num / CD_denom
+    b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 	
   endif
   
