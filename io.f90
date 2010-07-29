@@ -177,22 +177,12 @@ return
 
 end subroutine interp_to_uv_grid
 
-!!$ Commented by JSG
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! file number 1-10 are used for temporary use
-! 11-19 are basic output
-! 20-40 are avgslice
-! use >50 for debugging
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine openfiles()
-!!$use param,only:sflux_flag
+
 use sim_param,only:path
 implicit none
-
-!--to hold file names
-!!$character (64) :: fCS1plan, fCS2plan, fCS4plan, fVISCplan,  &
-!!$                  fDISSplan, fCS1Vplan, fCS2Vplan, fCS4Vplan
 
 logical :: exst
 
@@ -218,60 +208,6 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
   open(13, file=path//'output/check_ke.out', position='append')
 end if
 
-!!$if(time_spec.gt.0)then
-!!$  open(15,file=path//'output/velspec.out',form='unformatted',position='append')
-!!$  if(jt_total.eq.0)rewind(15)
-!!$endif
-!!$
-!!$if(io_mean)then
-!!$  open(51,file=path//'output/mean_u.out',form='unformatted',position='append')
-!!$  if(jt_total.eq.0)then
-!!$    rewind(51)
-!!$    write(51)jx_pls,jx_ple,jy_pls,jy_ple
-!!$  endif
-!!$endif
-
-!!$fCS1plan = path // 'output/CS1plan.out'
-!!$fCS2plan = path // 'output/CS2plan.out'
-!!$fCS4plan = path // 'output/CS4plan.out'
-!!$fVISCplan = path // 'output/VISCplan.out'
-!!$fDISSplan = path // 'output/DISSplan.out'
-!!$fCS1Vplan = path // 'output/CS1Vplan.out'
-!!$fCS2Vplan = path // 'output/CS2Vplan.out'
-!!$fCS4Vplan = path // 'output/CS4Vplan.out'
-!!$
-!!$$if ($MPI)
-!!$  !--append coordinate identifiers
-!!$  write (temp, '(".c",i0)') coord
-!!$  fCS1plan = trim (fCS1plan) // temp
-!!$  fCS2plan = trim (fCS2plan) // temp
-!!$  fCS4plan = trim (fCS4plan) // temp
-!!$  fVISCplan = trim (fVISCplan) // temp
-!!$  fDISSplan = trim (fDISSplan) // temp
-!!$  fCS1Vplan = trim (fCS1Vplan) // temp
-!!$  fCS2Vplan = trim (fCS2Vplan) // temp
-!!$  fCS4Vplan = trim (fCS4Vplan) // temp
-!!$$endif
-
-!!$open (90, file=fCS1plan, form='unformatted')
-!!$open (91, file=fCS2plan, form='unformatted')
-!!$open (92, file=fCS4plan, form='unformatted')
-!!$open (93, file=fVISCplan, form='unformatted')
-!!$open (94, file=fDISSplan, form='unformatted')
-!!$open (95, file=fCS1Vplan, form='unformatted')
-!!$open (96, file=fCS2Vplan, form='unformatted')
-!!$open (97, file=fCS4Vplan, form='unformatted')
-!!$!TSif(sflux_flag)open(98,file='/home/bluesky/ytseng/RESEARCH/JHU_LES/CHANNEL/output/series_data.dat',form='unformatted')
-
-!!$if(time_spec.gt.0)then
-!!$open(1,file=path//'obs.pt')
-!!$read(1,*)n_obs
-!!$allocate(obs_pt(1:2,n_obs))
-!!$do i=1,n_obs
-!!$read(1,*)obs_pt(1:2,i)
-!!$enddo
-!!$close(1)
-!!$endif
 
 end subroutine openfiles
 
@@ -1769,8 +1705,6 @@ elseif(coord == nproc - 1) then
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
   
-  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
-  
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
   tavg_zplane_t(nz) % fz = 0._rprec
@@ -1797,8 +1731,6 @@ $else
   tavg_t(:,:,nz) % txz = 0._rprec
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
-  
-  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
   
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
