@@ -370,7 +370,7 @@ do n=1, nb_elem
   
 enddo
 
-!  Now need to compute kappa
+!  Now need to compute kappa; each beta region gets its own kappa value
 do n = 1, nbeta_elem
 
   !  Compute beta_int over each region beta
@@ -408,13 +408,11 @@ do n = 1, nbeta_elem
   CD_p    => beta_elem_t(n) % force_t % CD
     
   kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
-  !kappa_p = 0._rprec
     
   if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
 
-        
 enddo
    
 deallocate(beta_gamma, beta_gamma_sum)
@@ -546,11 +544,6 @@ nullify(indx_array_t_p)
 nullify(npoint_p, iarray_p)
 nullify(i,j,k)
 nullify(fD_p)
-
-!!$if ($MPI)
-!!allocate (cl_fD ( ncluster_reslv_ref ) )
-!!cl_fD = 0._rprec
-!!$endif
 
 do n = 1, nr_elem
 
