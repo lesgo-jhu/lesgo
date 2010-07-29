@@ -1924,7 +1924,7 @@ call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
   (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
 
 call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_3D(fname_tau, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy /), &
   4, x, y, z(1:nz)) 
@@ -2024,7 +2024,7 @@ $if($MPI)
       (/ tavg_zplane_tot_t % dudz, tavg_zplane_tot_t % dvdz /), 0, z_tot)
   
     call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
-      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
     call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
       (/ tavg_zplane_tot_t % txx, tavg_zplane_tot_t % txy, tavg_zplane_tot_t % tyy, &
       tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), 0, z_tot) 
@@ -2077,7 +2077,7 @@ call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
   (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), 0, z(1:nz))
   
 call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
-   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
   (/ tavg_zplane_t % txx, tavg_zplane_t % txy, tavg_zplane_t % tyy, &
   tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), 0, z(1:nz)) 
