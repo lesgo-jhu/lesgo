@@ -457,25 +457,6 @@ $endif
 
 read (1) tavg_total_time
 read (1) tavg_t
-read (1) tavg_zplane_t
-!!read (1) tavg_t % u 
-!!read (1) tavg_t % v
-!!read (1) tavg_t % w
-!!read (1) tavg_t % u2
-!!read (1) tavg_t % v2
-!!read (1) tavg_t % w2
-!!read (1) tavg_t % uw
-!!read (1) tavg_t % vw
-!!read (1) tavg_t % uv
-!!read (1) tavg_t % dudz
-
-!!$if($LVLSET)
-!!$if(RNS_LS)
-!!read (1) tavg_t % fx
-!!read (1) tavg_t % fy
-!!read (1) tavg_t % fz
-!!$endif
-!!$endif
 
 close(1)
 
@@ -1981,7 +1962,6 @@ $endif
 ! write the entire structures
 write (1) tavg_total_time
 write (1) tavg_t          
-write (1) tavg_zplane_t
 close(1)
 
 ! ----- Write all the 3D data -----
