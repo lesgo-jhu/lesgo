@@ -34,9 +34,7 @@ character (*), parameter :: mod_name = 'rns_cyl_skew_ls'
 integer, parameter :: rns_tree_layout = 1
 
 !  Parameters for setting reference regions
-real(rprec), parameter :: alpha=1._rprec 
 real(rprec), parameter :: alpha_width = 2.0_rprec
-!real(rprec), parameter :: alpha_width = 1.0_rprec
 real(rprec), parameter :: alpha_dist = 1.25_rprec
 
 integer, pointer, dimension(:) :: cl_to_r_elem_map
@@ -1255,7 +1253,7 @@ do n=1, nbeta_elem
   endif     
       
   nullify( ref_region_t_p )
-	nullify( htop_p, hbot_p)
+  nullify( htop_p, hbot_p)
   nullify( cl_t_p )
   nullify(cl_loc_id_p)
       
