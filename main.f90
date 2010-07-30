@@ -539,7 +539,7 @@ do jt=1,nsteps
         call output_loop (jt)  
         !RNS: Determine if instantaneous plane velocities are to be recorded
         $if ($RNS_LS)
-        if(rns_t%plane_u_calc) call rns_u_write_ls()
+         
         $endif
         
         ! Write inflow_BC file for future use
