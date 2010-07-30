@@ -886,10 +886,9 @@ character (*), parameter :: sub_name = mod_name // '.fill_r_elem_ref_region'
 integer :: n, nb
 integer :: nzeta, neta
 
-real(rprec) :: h, h_m, w, area_proj, zeta_c(3)
+real(rprec) :: h, w, zeta_c(3)
 real(rprec), dimension(3) :: p1, p2, p3
 
-integer, pointer :: nbranch_p
 integer, pointer, dimension(:) :: cl_loc_id_p
 
 real(rprec), pointer :: d_p, l_p, skew_angle_p
@@ -900,7 +899,6 @@ type(branch),     pointer :: br_t_p
 
 type(ref_region), pointer :: ref_region_t_p
 
-nullify(nbranch_p)
 nullify(cl_loc_id_p)
 nullify(d_p, l_p, skew_angle_p)
 nullify(hbot_p, htop_p)
@@ -922,39 +920,46 @@ do n=1, nr_elem
   
   cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
 
-  nbranch_p => cl_t_p % nbranch
-    
-  !  Initialize mean cluster height and projected area
-  h_m = 0._rprec
-  area_proj = 0._rprec
-      
-  do nb = 1, cl_t_p % nbranch
-       
-    br_t_p => cl_t_p % br_t( nb )
+  !  Point to the top and bottom of the plane
+  hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+  htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane
 
-    d_p          => br_t_p % d
-    l_p          => br_t_p % l
-    skew_angle_p => br_t_p % skew_angle
-        
-    h         = l_p * dcos(skew_angle_p)
-    h_m       = h_m + h
-    area_proj = area_proj + d_p * h
-        
-    nullify( d_p, l_p, skew_angle_p )
-    nullify( br_t_p )
+  h = htop_p - hbot_p
+  w = alpha_width * h
+
+!  nbranch_p => cl_t_p % nbranch
+    
+!  !  Initialize mean cluster height and projected area
+!  h_m = 0._rprec
+!  area_proj = 0._rprec
       
-  enddo
+!  do nb = 1, cl_t_p % nbranch
+!       
+!    br_t_p => cl_t_p % br_t( nb )
+!
+!    d_p          => br_t_p % d
+!    l_p          => br_t_p % l
+!    skew_angle_p => br_t_p % skew_angle
+!        
+!    h         = l_p * dcos(skew_angle_p)
+!    h_m       = h_m + h
+!    area_proj = area_proj + d_p * h
+!        
+!    nullify( d_p, l_p, skew_angle_p )
+!    nullify( br_t_p )
+!      
+!  enddo
       
-  !  Mean height of branch cluster  and height of reference area
-  h_m = h_m / nbranch_p
-  !  width of reference area
-  w   = area_proj / h_m     
+!  !  Mean height of branch cluster  and height of reference area
+!  h_m = h_m / nbranch_p
+!  !  width of reference area
+!  w   = area_proj / h_m     
       
   nzeta = ceiling( w / dy + 1)
-  neta  = ceiling( h_m / dz + 1)
+  neta  = ceiling( h / dz + 1)
       
   !  Offset in the upstream x-direction
-  zeta_c = cl_t_p % origin + (/ -alpha * w, 0._rprec, 0._rprec /)
+  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
       
   !  Set the ordered corner points of the plane
   p1    = zeta_c 
@@ -964,13 +969,13 @@ do n=1, nr_elem
   p2(2) = p2(2) - w
       
   p3    = p2
-  p3(3) = p3(3) + h_m      
+  p3(3) = p3(3) + h
       
   !  Point to ref_region_t of the resolved element
   ref_region_t_p => r_elem_t ( n ) % ref_region_t
 
-  ref_region_t_p % area    = area_proj
-  ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % area    = h * w
+  ref_region_t_p % npoint = nzeta * neta
     
   !  Check if the element has been allocated
   !if( associated( ref_region_t_p % points ) ) then
@@ -990,7 +995,7 @@ do n=1, nr_elem
   
       
   nullify( ref_region_t_p )
-	nullify( nbranch_p)
+  nullify( htop_p, hbot_p )
   nullify( cl_t_p )
   nullify( cl_loc_id_p )
       
