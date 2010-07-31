@@ -2881,7 +2881,7 @@ if(point_calc) then
       !  Add tecplot header if file does not exist
       inquire (file=point_fname(i), exist=exst)
       if (.not. exst) then
-        var_list = '"t (s)", "u", "v", "w"'
+        var_list = '"t", "u", "v", "w"'
         call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
       endif 	
 
