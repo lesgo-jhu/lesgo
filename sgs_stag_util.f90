@@ -3,6 +3,22 @@
 !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
 !   txx, txy, tyy, tzz (uvp-nodes) and txz, tyz (w-nodes)
 !   Sij values are stored on w-nodes (1:nz)
+!
+!   module is used to share Sij values b/w subroutines
+!     (avoids memory error when arrays are very large)
+
+module sgs_stag_param
+
+use types,only:rprec
+use param, only:ld,ny,nz
+
+private 
+public S11, S12, S22, S33, S13, S23
+
+real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
+
+end module sgs_stag_param
+
 !**********************************************************************
 subroutine sgs_stag ()
 !**********************************************************************
@@ -18,6 +34,7 @@ use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
 use messages
+use sgs_stag_param
 
 $if ($DEBUG)
 use debug_mod
@@ -35,7 +52,6 @@ logical, parameter :: DEBUG = .false.
 $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
 real(kind=rprec) :: delta, nu, const
 
@@ -64,9 +80,7 @@ end if
 $endif
 
 ! Calculate S12, S13, S23, etc.
-call calc_Sij (dudx, dudy, dudz,  &
-                 dvdx, dvdy, dvdz,  &
-                 dwdx, dwdy, dwdz)
+call calc_Sij ()
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -407,13 +421,19 @@ $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+end subroutine sgs_stag
 
+!**********************************************************************
+subroutine calc_Sij
+!**********************************************************************
 ! Calculate the resolved strain rate tensor, Sij = 0.5(djui - diuj)
 !   values are stored on w-nodes (1:nz)
-subroutine calc_Sij (dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz)
+
+use types,only:rprec
+use param
+use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
+use sgs_stag_param
+
 implicit none
 
 $if ($MPI)
@@ -422,9 +442,8 @@ $else
   $define $lbz 1
 $endif
 
-real (rprec), dimension (ld, ny, $lbz:nz), intent(IN) :: dudx, dudy, dudz,  &
-                                             dvdx, dvdy, dvdz,  &
-                                             dwdx, dwdy, dwdz
+integer::jx,jy,jz
+integer :: jz_min
 
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 
@@ -534,4 +553,3 @@ end do
 
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-end subroutine sgs_stag
