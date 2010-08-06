@@ -569,14 +569,14 @@ end do
         $endif
     $endif
 
+    ! Turbines:
+    $if ($TURBINES)
+        call turbines_finalize ()   ! must come before MPI finalize
+    $endif    
+    
     ! MPI:
     $if ($MPI)
         call mpi_finalize (ierr)
-    $endif
-
-    ! Turbines:
-    $if ($TURBINES)
-        call turbines_finalize ()
     $endif
 
 ! Stop wall clock
