@@ -6,9 +6,9 @@
 !
 !   module is used to share Sij values b/w subroutines
 !     (avoids memory error when arrays are very large)
-
+!**********************************************************************
 module sgs_stag_param
-
+!**********************************************************************
 use types,only:rprec
 use param, only:ld,ny,nz
 
@@ -26,15 +26,14 @@ subroutine sgs_stag ()
 
 use types,only:rprec
 use param
+use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
 use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t
-
 use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
 use messages
-use sgs_stag_param
 
 $if ($DEBUG)
 use debug_mod
@@ -431,8 +430,8 @@ subroutine calc_Sij
 
 use types,only:rprec
 use param
-use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 use sgs_stag_param
+use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 
 implicit none
 
@@ -518,6 +517,7 @@ $if ($MPI)
     ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process (only 1:nz-1)
     ! exchange information between processors to set values at nz
     !    from jz=1 above to jz=nz below
+    !  Could you mpi_sync_real_array(dwdz, MPI_SYNC_DOWN)
     call mpi_sendrecv (dwdz(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
                      dwdz(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
                      comm, status, ierr)
