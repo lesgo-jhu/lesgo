@@ -573,9 +573,9 @@ do n = 1, nr_elem
     if( k == nz ) call error( sub_name, 'Summing over bogus fx')
   
     $if($MPI)
-    fD = fD + fx(i,j,k) * dx * dy * dz
+    fD = fD + fx(i,j,k)
     $else
-    fD_p = fD_p + fx(i,j,k) * dx * dy * dz
+    fD_p = fD_p + fx(i,j,k)
     $endif
     
     nullify(i,j,k)
@@ -585,6 +585,8 @@ do n = 1, nr_elem
   $if($MPI)
   call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   $endif
+
+  fD_p = fD_p * dx * dy * dz
    
   !  Compute CD
   r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
