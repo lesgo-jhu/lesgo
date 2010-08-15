@@ -29,12 +29,12 @@ $endif
 integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 
 !  Explict - 1, Implicit - 2
-integer, parameter :: time_model = 1
+integer, parameter :: temporal_model = 2
 !  Local - 1, Global direct - 2, Global least squares - 3
-integer, parameter :: spatial_model = 1
+integer, parameter :: spatial_model = 3
 
 integer, parameter :: output_nskip = 10
-integer, parameter :: CD_ramp_nstep = 25000
+integer, parameter :: CD_ramp_nstep = 1
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 

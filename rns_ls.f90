@@ -254,7 +254,7 @@ do n=1, nb_elem
 	
 enddo
 
-if( time_model == 1 ) then
+if( temporal_model == 1 ) then
 
   allocate(b_force( nb_elem ))
   !b_force = 0._rprec
@@ -310,13 +310,13 @@ if( time_model == 1 ) then
   
   deallocate(b_force)
 
-elseif( time_model == 2) then ! use implicit formulation
+elseif( temporal_model == 2) then ! use implicit formulation
 
   allocate( b_m( nb_elem ) ) 
   
   do n=1, nb_elem  
-    !b_m(n) = beta_gamma_sum(n) - b_gamma(n)
-    b_m(n) = b_gamma(n) - beta_gamma_sum(n)
+    b_m(n) = beta_gamma_sum(n) - b_gamma(n)
+    !b_m(n) = b_gamma(n) - beta_gamma_sum(n)
   enddo
 
   if( spatial_model == 1 ) then
@@ -365,7 +365,7 @@ elseif( time_model == 2) then ! use implicit formulation
   
 else
   
-  call error( sub_name, 'time_model not specified correctly.')  
+  call error( sub_name, 'temporal_model not specified correctly.')  
  
 endif
 
