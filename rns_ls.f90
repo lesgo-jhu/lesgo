@@ -254,7 +254,7 @@ do n=1, nb_elem
 	
 enddo
 
-if( use_explicit_formulation ) then
+if( time_model == 1 ) then
 
   allocate(b_force( nb_elem ))
   !b_force = 0._rprec
@@ -266,15 +266,29 @@ if( use_explicit_formulation ) then
 	
   enddo
   
-  if( use_local_CD ) then
+  if( spatial_model == 1 ) then
   
     do n=1, nb_elem
 	
       b_elem_t(n) % force_t % CD = -2._rprec * b_force(n) / b_gamma(n)
 	  
     enddo
+	
+  elseif( spatial_model == 2) then
+   
+    CD_num=0._rprec
+	CD_denom=0._rprec
+    
+    do n=1, nb_elem
+	
+      CD_num = CD_num + b_force(n) 
+      CD_denom = CD_denom + b_gamma(n)
+      
+    enddo
+    
+    b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
   
-  else ! compute global CD
+  elseif( spatial_model == 3) then ! compute global CD
   
     CD_num=0._rprec
 	CD_denom=0._rprec
@@ -288,11 +302,15 @@ if( use_explicit_formulation ) then
     
     b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
 	
+  else
+  
+    call error( sub_name, 'spatial_model not specified correctly.')
+	
   endif
   
   deallocate(b_force)
 
-else ! use implicit formulation
+elseif( time_model == 2) then ! use implicit formulation
 
   allocate( b_m( nb_elem ) ) 
   
@@ -301,7 +319,7 @@ else ! use implicit formulation
     b_m(n) = b_gamma(n) - beta_gamma_sum(n)
   enddo
 
-  if( use_local_CD ) then
+  if( spatial_model == 1 ) then
   
     do n=1, nb_elem
 	
@@ -309,7 +327,21 @@ else ! use implicit formulation
 	  
     enddo
 	
-  else
+  elseif( spatial_model == 2 ) then
+  
+    CD_num=0._rprec
+    CD_denom=0._rprec
+    
+    do n=1, nb_elem
+	
+      CD_num = CD_num + b_r_force(n) 
+      CD_denom = CD_denom + b_m(n)
+	  
+    enddo
+
+    b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom    
+	
+  elseif( spatial_model == 3 ) then
   
     CD_num=0._rprec
     CD_denom=0._rprec
@@ -323,9 +355,17 @@ else ! use implicit formulation
 
     b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 	
+  else
+  
+    call error( sub_name, 'spatial_model not specified correctly.')	
+	
   endif
   
   deallocate( b_m )
+  
+else
+  
+  call error( sub_name, 'time_model not specified correctly.')  
  
 endif
 
@@ -422,87 +462,6 @@ deallocate(b_gamma)
 
 return
 end subroutine rns_elem_force
-
-!!**********************************************************************
-!subroutine beta_elem_kappa()
-!!**********************************************************************
-!use types, only : rprec
-!use param, only : dx, dy, dz
-!use sim_param, only : u
-!$if($MPI)
-!use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-!$endif
-!implicit none
-
-!integer :: n, ns
-
-!integer, pointer :: i,j,k
-!integer, pointer :: npoint_p
-
-!real(rprec), pointer :: kappa_p, CD_p
-
-!real(rprec) :: beta_int
-
-!$if($MPI)
-!real(rprec) :: beta_int_global
-!$endif
-
-!$if($MPI)
-!real(rprec) :: fD
-!$endif
-
-!nullify(i,j,k)
-!nullify(npoint_p)
-!nullify(kappa_p, CD_p)
-
-!!  Now need to compute kappa
-!do n = 1, nbeta_elem
-
-!  !  Compute beta_int over each region beta
-!  beta_int = 0._rprec
-!    
-!  $if($MPI)
-!  beta_int_global = 0._rprec
-!  $endif
-!  
-!  !  Loop over number of points used in beta region
-!  npoint_p => beta_elem_t(n) % indx_array_t % npoint
-!  
-!  do ns = 1, npoint_p
-!  
-!    i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
-!    j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
-!    k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
-!    
-!    beta_int = beta_int + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
-! 
-!    nullify(i,j,k)
-!      
-!  enddo
-!  
-!  beta_int = beta_int * dx * dy * dz
-!    
-!  nullify( npoint_p )
-!    
-!  $if($MPI)
-!  call mpi_allreduce (beta_int, beta_int_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-!  beta_int = beta_int_global
-!  $endif
-!    
-!  kappa_p => beta_elem_t(n) % force_t % kappa
-!  CD_p    => beta_elem_t(n) % force_t % CD
-!    
-!  kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
-!    
-!  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
-!    
-!  nullify(kappa_p, CD_p)
-!  nullify(u_p, area_p)
-!        
-!enddo
-
-!return
-!end subroutine beta_elem_kappa
 
 !**********************************************************************
 subroutine r_elem_force()
