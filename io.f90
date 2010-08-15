@@ -2773,8 +2773,6 @@ $else
   $define $lbz 1
 $endif
 
-point_loc(:,1) = (/ 6.162_rprec, L_y/2., 4.462_rprec /)
-
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
 if(tavg_calc) then 
