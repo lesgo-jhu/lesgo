@@ -2798,8 +2798,8 @@ if(xplane_calc) then
   
 !  Compute istart and ldiff
   do i=1,xplane_nloc
-	  xplane_istart(i) = cell_indx('i', dx, xplane_loc(i))
-	  xplane_ldiff(i) = x(xplane_istart(i)) - xplane_loc(i)
+    xplane_istart(i) = cell_indx('i', dx, xplane_loc(i))
+    xplane_ldiff(i) = xplane_loc(i) - x(xplane_istart(i))   
   enddo
     
 endif
@@ -2812,8 +2812,8 @@ if(yplane_calc) then
   
 !  Compute istart and ldiff
   do j=1,yplane_nloc
-	  yplane_istart(j) = cell_indx('j', dy, yplane_loc(j))
-	  yplane_ldiff(j) = y(yplane_istart(j)) - yplane_loc(j)
+    yplane_istart(j) = cell_indx('j', dy, yplane_loc(j))
+    yplane_ldiff(j) = yplane_loc(j) - y(yplane_istart(j))
   enddo
     
 endif
@@ -2834,12 +2834,12 @@ if(zplane_calc) then
       zplane_coord(k) = coord
 
       zplane_istart(k) = cell_indx('k',dz,zplane_loc(k))
-      zplane_ldiff(k) = z(zplane_istart(k)) - zplane_loc(k)
+      zplane_ldiff(k) = zplane_loc(k) - z(zplane_istart(k))
     endif
     $else
     zplane_coord(k) = 0
     zplane_istart(k) = cell_indx('k',dz,zplane_loc(k))
-    zplane_ldiff(k) = z(zplane_istart(k)) - zplane_loc(k)
+    zplane_ldiff(k) = zplane_loc(k) - z(zplane_istart(k))
     $endif
 
   enddo  
@@ -2862,9 +2862,9 @@ if(point_calc) then
       point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
       point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	  
-      point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-      point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-      point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+      point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
+      point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
+      point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
 
 	    fid=3000*i
 	  
@@ -2893,10 +2893,9 @@ if(point_calc) then
     point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
     point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	
-    point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-    point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-    point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
-
+    point_xdiff(i) = point_loc(1,i) - x(point_istart(i)) 
+    point_ydiff(i) = point_loc(2,i) - y(point_jstart(i)) 
+    point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
