@@ -3,6 +3,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use messages
+use io, only : write_real_data
 $if ($XLF)
   use ieee_arithmetic  !--for NAN checking
 $endif
@@ -18,7 +19,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .true.
 $endif
 
-logical, parameter :: flush = .false.
+!logical, parameter :: flush = .true.
 
 integer :: jx, jy, jz
 integer :: nan_count
@@ -42,10 +43,9 @@ denom=2._rprec*(nx*ny*(nz-1))
 z_loop: do jz=1,nz-1
     do jy=1,ny
         do jx=1,nx
-            !  Should perform trilinear interpolation on the cell
-            temp_w=.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
+            
+            temp_w=0.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
             ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)/denom
-            !ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+interp_to_uv_grid('w',jx,jy,jz)**2)/denom
             
             $if ($DEBUG)
             if (DEBUG) then
@@ -80,22 +80,27 @@ $if ($MPI)
 
   call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   if (rank == 0) then  !--note its rank here, not coord
-    ke = ke_global/nproc
-    write (13, *) (jt_total-1) * dt, ke
+    !ke = ke_global/nproc
+    ke = ke_global
+    !write (13, *) total_time, ke
+
+    call write_real_data(path//'output/check_ke.out', 'append', 'formatted', 2, (/ total_time, ke /))
+
   end if
   !if (rank == 0) ke = ke_global/nproc  !--its rank here, not coord
 
 $else
 
-  write (13, *) (jt_total-1) * dt, ke
+!  write (13, *) total_time, ke
+  call write_real_data(path//'output/check_ke.out', 'append', 'formatted', 2, (/ total_time, ke /))
 
 $endif
 
-if ( flush ) then
-  if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-    close (13)
-    open ( 13, file=path//'output/check_ke.out', position='append' )
-  end if
-end if
+!if ( flush ) then
+!  if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
+!    close (13)
+!    open ( 13, file=path//'output/check_ke.out', position='append' )
+!  end if
+!end if
 
 end subroutine energy

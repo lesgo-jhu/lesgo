@@ -203,10 +203,10 @@ if (cumulative_time) then
 
 end if
 
-!--see also energy () subr. for flushing this file
-if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-  open(13, file=path//'output/check_ke.out', position='append')
-end if
+!!--see also energy () subr. for flushing this file
+!if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
+!  open(13, file=path//'output/check_ke.out', position='append')
+!end if
 
 
 end subroutine openfiles
@@ -1955,7 +1955,11 @@ call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
 
 ! Construct zplane data 
 $if($MPI)
- 
+
+  $if ($XLF)
+  !  Don't sync z-data
+  $else
+
   !  Create MPI type structures consistent with the derived types
   call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
   Call MPI_Type_commit(MPI_RS,ierr)
@@ -2057,6 +2061,8 @@ $if($MPI)
     deallocate(z_tot, gather_coord)
   
   endif
+
+  $endif
 
 $else
 
@@ -2766,6 +2772,8 @@ $if ($MPI)
 $else
   $define $lbz 1
 $endif
+
+point_loc(:,1) = (/ 6.162_rprec, L_y/2., 4.462_rprec /)
 
 !  Allocate arrays for variable summation for Reynolds
 !  stress calculations
