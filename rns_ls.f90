@@ -151,6 +151,10 @@ real(rprec), allocatable, dimension(:) :: beta_gamma_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
 real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
 
+!  Variables used for spatial_model = 4
+real(rprec) :: lagrange_mult
+real(rprec), allocatable, dimension(:) :: r_ke, r_ke_sum, beta_q, beta_q_sum, b_q
+
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
@@ -291,7 +295,7 @@ if( temporal_model == 1 ) then
   elseif( spatial_model == 3) then ! compute global CD
   
     CD_num=0._rprec
-	CD_denom=0._rprec
+	  CD_denom=0._rprec
     
     do n=1, nb_elem
 	
@@ -355,6 +359,68 @@ elseif( temporal_model == 2) then ! use implicit formulation
 
     b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 	
+  elseif( spatial_model == 4 ) then
+  
+    allocate(r_ke(nr_elem), r_ke_sum( nb_elem ), beta_q(nbeta_elem), beta_q_sum(nb_elem), b_q(nb_elem))
+    
+    do n=1, nr_elem
+    
+      r_ke(n) = r_elem_t( n ) % force_t % fD  * r_elem_t( n ) % ref_region_t % u
+      
+    enddo
+    
+    do n=1, nbeta_elem
+    
+      beta_q(n) = beta_gamma(n) * beta_elem_t(n) % ref_region_t % u
+      
+    enddo
+  
+    beta_q_sum(:) = 0._rprec
+    r_ke_sum(:)   = 0._rprec
+    do n=1, nb_elem
+      
+      nelem_p => b_elem_t(n) % beta_child_t % nelem
+      indx_p  => b_elem_t(n) % beta_child_t % indx
+  
+      do ns=1, nelem_p
+        beta_q_sum(n) = beta_q_sum(n) + beta_q( indx_p(ns) )
+      enddo
+  
+      nullify(indx_p, nelem_p)
+      
+      nelem_p => b_elem_t(n) % r_child_t % nelem
+      indx_p  => b_elem_t(n) % r_child_t % indx
+  
+      do ns=1, nelem_p
+        r_ke_sum(n) = r_ke_sum(n) + r_ke( indx_p(ns) )
+      enddo      
+      
+    enddo
+    
+    CD_num=0._rprec
+    CD_denom=0._rprec
+    
+    do n=1, nb_elem
+	
+      CD_num = CD_num + b_r_force(n)
+      CD_denom = CD_denom + 0.5_rprec * b_m(n) **2 / &
+        ( r_ke_sum(n) * ( beta_q_sum(n) - b_q(n) ) - &
+        0.5_rprec * ( beta_q_sum(n) - b_q(n) )**2 )
+	  
+    enddo
+
+    lagrange_mult = CD_num / CD_denom
+    
+    do n=1, nb_elem
+       
+      b_elem_t(n) % force_t % CD = lagrange_mult * b_m(n) / &
+        ( r_ke_sum(n) * ( beta_q_sum(n) - b_q(n) ) - &
+        0.5_rprec * ( beta_q_sum(n) - b_q(n) )**2 )
+	  
+    enddo
+    
+    deallocate( r_ke, r_ke_sum, beta_q, beta_q_sum, b_q )    
+    
   else
   
     call error( sub_name, 'spatial_model not specified correctly.')	
