@@ -39,7 +39,7 @@ use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
 
 $if ($DEBUG)
@@ -501,6 +501,11 @@ do jt=1,nsteps
         call mpi_sync_real_array( v, MPI_SYNC_UP )
         call mpi_sync_real_array( w, MPI_SYNC_UP )
     $endif
+    
+    ! Perform conditional averaging - for turbines
+    $if ($TURBINES)
+        call turbines_cond_avg()
+    $endif       
 
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
