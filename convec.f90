@@ -6,6 +6,9 @@
 !...Corrected near wall on 4/14/96 {w(DZ/2)=0.5*w(DZ)}
 ! sc: better to have 0.25*w(dz), since really parabolic.
 !--provides cx, cy, cz at 1:nz-1
+!
+! uses 3/2-rule for dealiasing 
+!-- for more info see Canuto 1991 Spectral Methods (0387522050), chapter 7
 subroutine convec (cx,cy,cz)
 use types,only:rprec
 use param

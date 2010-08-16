@@ -1,13 +1,10 @@
 module bottombc
 use types,only:rprec
-use param,only:nx,ny,ld,S_FLAG
+use param,only:nx,ny,ld,S_FLAG,use_default_patch,zo_default
 implicit none
 private
 public zo_avg,num_patch,zot,zo,phi_m,psi_m,phi_h,psi_h,&
      patches,avgpatch,T_s,q_s,q_mix
-
-logical, parameter :: use_default_patch = .true.
-real (rprec), parameter :: zo_default = 0.0001_rprec  !--nondimensional
 
 ! num_patch= numbr of patches, zo?=surface roughness for the patches types
 ! ptypes=number of pacthes types to be used, usually we use 2
