@@ -4,6 +4,9 @@ use param
 use stat_defs, only:wind_farm_t
 use grid_defs, only:x,y,z
 use io
+$if ($MPI)
+  use mpi_defs
+$endif
 
 implicit none
 
@@ -41,6 +44,11 @@ real :: buffer
 logical :: buffer_logical
 integer, dimension(nproc-1) :: turbine_in_proc_array = 0
 integer :: turbine_in_proc_cnt = 0
+
+real (rprec), dimension (nx,ny,nz) :: u_cond_avg=0., v_cond_avg=0., w_cond_avg=0.
+logical :: cond_avg_calc, cond_avg_flag
+integer :: cond_avg_turbine
+real (rprec) :: cond_avg_ud_min,cond_avg_time=0.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -130,6 +138,11 @@ implicit none
         wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
         wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
 
+    !conditional averaging
+        cond_avg_calc = .true.
+        cond_avg_turbine = 1                !which turbine number to place condition on
+        cond_avg_ud_min = 9.0              !minimum u_d for condition to be satisfied
+        
     !other
 	    Ct_prime = 1.33		!thrust coefficient
         Ct_noprime = 0.75   !a=1/4
@@ -805,20 +818,54 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
          
         enddo    
         
+        !apply conditional averaging
+        if(cond_avg_calc .and. (abs(wind_farm_t%turbine_t(cond_avg_turbine)%u_d) .ge. cond_avg_ud_min)) then            
+            cond_avg_flag = .true.
+            u_cond_avg = u_cond_avg + u(1:nx,1:ny,1:nz)*dt
+            v_cond_avg = v_cond_avg + v(1:nx,1:ny,1:nz)*dt
+            w_cond_avg = w_cond_avg + w(1:nx,1:ny,1:nz)*dt
+            cond_avg_time = cond_avg_time + dt
+        else
+            cond_avg_flag = .false.
+        endif
+        
 endif
+
+!coord 0 sends cond_avg_flag to other processors so they can apply the averaging to their slice (or not)
+$if ($MPI)
+    !############################################## 4  
+        if (rank == 0) then          
+            do i=1,nproc-1
+                call MPI_send( cond_avg_flag, 1, MPI_logical, i, 4, MPI_COMM_WORLD, ierr )
+            enddo              
+                        
+        else
+            call MPI_recv( cond_avg_flag, 1, MPI_logical, 0, 4, MPI_COMM_WORLD, status, ierr )
+            
+            !apply conditional averaging if necessary
+            if(cond_avg_flag) then            
+                u_cond_avg = u_cond_avg + u(1:nx,1:ny,1:nz)*dt
+                v_cond_avg = v_cond_avg + v(1:nx,1:ny,1:nz)*dt
+                w_cond_avg = w_cond_avg + w(1:nx,1:ny,1:nz)*dt
+                cond_avg_time = cond_avg_time + dt
+            endif            
+        endif     
+    !##############################################     
+$endif 
+
 
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 $if ($MPI)
-    !############################################## 4  
+    !############################################## 5  
         if (rank == 0) then
           
             do i=1,turbine_in_proc_cnt
                 j = turbine_in_proc_array(i)
-                call MPI_send( disk_force, nloc, MPI_rprec, j, 4, MPI_COMM_WORLD, ierr )
+                call MPI_send( disk_force, nloc, MPI_rprec, j, 5, MPI_COMM_WORLD, ierr )
             enddo              
                         
         elseif (turbine_in_proc == .true.) then
-            call MPI_recv( disk_force, nloc, MPI_rprec, 0, 4, MPI_COMM_WORLD, status, ierr )
+            call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, MPI_COMM_WORLD, status, ierr )
         endif     
     !##############################################     
 $endif 
@@ -826,7 +873,7 @@ $endif
 !apply forcing to each node
 if (turbine_in_proc == .true.) then
 
-    !initialize forces to zero (only local values?)
+    !initialize forces to zero (only local values)
     fx = 0.
     fy = 0.
     fz = 0.    
@@ -846,7 +893,7 @@ if (turbine_in_proc == .true.) then
             ind2 = wind_farm_t%turbine_t(s)%ind(l)			
             fx(i2,j2,k2) = disk_force(s)*p_nhat1*ind2                            
             fy(i2,j2,k2) = disk_force(s)*p_nhat2*ind2   
-            !fz(i2,j2,k2) = disk_force(s)*p_nhat3*ind2   !<< different points than fx,fy... check this
+            !>>fz acts on different points than fx,fy... (stag grid)
             fz(i2,j2,k2) = 0.5*disk_force(s)*p_nhat3*ind2
             fz(i2,j2,k2+1) = 0.5*disk_force(s)*p_nhat3*ind2
         enddo
@@ -861,10 +908,11 @@ end subroutine turbines_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize()
+
 implicit none
+
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
-
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     fname4 = 'turbine_u_d_T.dat'
     open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
@@ -872,7 +920,43 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(2,*) wind_farm_t%turbine_t(i)%u_d_T    
     enddo    
     write(2,*) T_avg_dim
+    close (2)  
 endif
+
+!finalize conditional averaging
+    if(cond_avg_calc) then            
+        u_cond_avg = u_cond_avg / cond_avg_time
+        v_cond_avg = v_cond_avg / cond_avg_time
+        w_cond_avg = w_cond_avg / cond_avg_time             
+        
+        fname = 'cond_avg_vel.dat'    
+        $if ($MPI)
+            write (temp, '(".c",i0)') coord
+            fname = trim (fname) // temp   
+          
+            !MPI sync
+            call mpi_sync_real_array(u_cond_avg, MPI_SYNC_DOWNUP)     
+            call mpi_sync_real_array(v_cond_avg, MPI_SYNC_DOWNUP)
+            call mpi_sync_real_array(w_cond_avg, MPI_SYNC_DOWNUP)
+            
+            if(coord .eq. (nproc-1)) then
+                u_cond_avg(:,:,nz) = u_cond_avg(:,:,nz-1)
+                v_cond_avg(:,:,nz) = v_cond_avg(:,:,nz-1)
+                w_cond_avg(:,:,nz) = w_cond_avg(:,:,nz-1)
+            endif
+        $endif 
+            
+        call write_tecplot_header_ND(fname,'rewind', 6, (/nx,ny,nz/), &
+            '"x","y","z","u","v","w"', 1, 1)
+        call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny, nz, &
+            (/u_cond_avg,v_cond_avg,w_cond_avg/), 0, x, y, z(1:nz))       
+            
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            write(*,*) 'cond_avg_time',cond_avg_time
+            write(*,*) 'total_time',nsteps*dt
+            write(*,*) 'Fraction of time that condition was met: ', cond_avg_time/(nsteps*dt)
+        endif
+    endif  
     
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

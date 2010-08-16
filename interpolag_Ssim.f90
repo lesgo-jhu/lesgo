@@ -6,7 +6,7 @@ subroutine interpolag_Ssim ()
 !use sgsmodule,only:u_lag,v_lag,w_lag
 use types,only:rprec
 use param
-!use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,c_count, jt,  &
+!use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,cfl_count, jt,  &
 !               USE_MPI, coord, nproc, BOGUS
 use sgsmodule
 use messages
@@ -226,7 +226,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 end if
 
 
-if (mod (jt, c_count) .eq. 0) then
+if (mod (jt, cfl_count) .eq. 0) then
   lcfl = 0._rprec
   do jz = 1, nz
     !lcfl = max ( lcfl,  maxval (abs (xp(1:nx, :, jz))) )
@@ -237,7 +237,7 @@ end if
 !--beware this only takes xp into account, which may not be enough for
 !  complex geometry cases
 !--under certain conditions this causes segfault with ifc 7.1
-!if (mod (jt, c_count) .eq. 0) print*, 'Lagrangian CFL condition= ',  &
+!if (mod (jt, cfl_count) .eq. 0) print*, 'Lagrangian CFL condition= ',  &
 !                              maxval ( abs (xp(1:nx, :, 1:nz)) )
 
 !      if ((test_dyn_count>0.7) .OR. (test_dyn_count<0.5)) then

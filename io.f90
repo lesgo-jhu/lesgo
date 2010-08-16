@@ -177,22 +177,12 @@ return
 
 end subroutine interp_to_uv_grid
 
-!!$ Commented by JSG
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! file number 1-10 are used for temporary use
-! 11-19 are basic output
-! 20-40 are avgslice
-! use >50 for debugging
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine openfiles()
-!!$use param,only:sflux_flag
+
 use sim_param,only:path
 implicit none
-
-!--to hold file names
-!!$character (64) :: fCS1plan, fCS2plan, fCS4plan, fVISCplan,  &
-!!$                  fDISSplan, fCS1Vplan, fCS2Vplan, fCS4Vplan
 
 logical :: exst
 
@@ -213,65 +203,11 @@ if (cumulative_time) then
 
 end if
 
-!--see also energy () subr. for flushing this file
-if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-  open(13, file=path//'output/check_ke.out', position='append')
-end if
+!!--see also energy () subr. for flushing this file
+!if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
+!  open(13, file=path//'output/check_ke.out', position='append')
+!end if
 
-!!$if(time_spec.gt.0)then
-!!$  open(15,file=path//'output/velspec.out',form='unformatted',position='append')
-!!$  if(jt_total.eq.0)rewind(15)
-!!$endif
-!!$
-!!$if(io_mean)then
-!!$  open(51,file=path//'output/mean_u.out',form='unformatted',position='append')
-!!$  if(jt_total.eq.0)then
-!!$    rewind(51)
-!!$    write(51)jx_pls,jx_ple,jy_pls,jy_ple
-!!$  endif
-!!$endif
-
-!!$fCS1plan = path // 'output/CS1plan.out'
-!!$fCS2plan = path // 'output/CS2plan.out'
-!!$fCS4plan = path // 'output/CS4plan.out'
-!!$fVISCplan = path // 'output/VISCplan.out'
-!!$fDISSplan = path // 'output/DISSplan.out'
-!!$fCS1Vplan = path // 'output/CS1Vplan.out'
-!!$fCS2Vplan = path // 'output/CS2Vplan.out'
-!!$fCS4Vplan = path // 'output/CS4Vplan.out'
-!!$
-!!$$if ($MPI)
-!!$  !--append coordinate identifiers
-!!$  write (temp, '(".c",i0)') coord
-!!$  fCS1plan = trim (fCS1plan) // temp
-!!$  fCS2plan = trim (fCS2plan) // temp
-!!$  fCS4plan = trim (fCS4plan) // temp
-!!$  fVISCplan = trim (fVISCplan) // temp
-!!$  fDISSplan = trim (fDISSplan) // temp
-!!$  fCS1Vplan = trim (fCS1Vplan) // temp
-!!$  fCS2Vplan = trim (fCS2Vplan) // temp
-!!$  fCS4Vplan = trim (fCS4Vplan) // temp
-!!$$endif
-
-!!$open (90, file=fCS1plan, form='unformatted')
-!!$open (91, file=fCS2plan, form='unformatted')
-!!$open (92, file=fCS4plan, form='unformatted')
-!!$open (93, file=fVISCplan, form='unformatted')
-!!$open (94, file=fDISSplan, form='unformatted')
-!!$open (95, file=fCS1Vplan, form='unformatted')
-!!$open (96, file=fCS2Vplan, form='unformatted')
-!!$open (97, file=fCS4Vplan, form='unformatted')
-!!$!TSif(sflux_flag)open(98,file='/home/bluesky/ytseng/RESEARCH/JHU_LES/CHANNEL/output/series_data.dat',form='unformatted')
-
-!!$if(time_spec.gt.0)then
-!!$open(1,file=path//'obs.pt')
-!!$read(1,*)n_obs
-!!$allocate(obs_pt(1:2,n_obs))
-!!$do i=1,n_obs
-!!$read(1,*)obs_pt(1:2,i)
-!!$enddo
-!!$close(1)
-!!$endif
 
 end subroutine openfiles
 
@@ -457,25 +393,6 @@ $endif
 
 read (1) tavg_total_time
 read (1) tavg_t
-read (1) tavg_zplane_t
-!!read (1) tavg_t % u 
-!!read (1) tavg_t % v
-!!read (1) tavg_t % w
-!!read (1) tavg_t % u2
-!!read (1) tavg_t % v2
-!!read (1) tavg_t % w2
-!!read (1) tavg_t % uw
-!!read (1) tavg_t % vw
-!!read (1) tavg_t % uv
-!!read (1) tavg_t % dudz
-
-!!$if($LVLSET)
-!!$if(RNS_LS)
-!!read (1) tavg_t % fx
-!!read (1) tavg_t % fy
-!!read (1) tavg_t % fz
-!!$endif
-!!$endif
 
 close(1)
 
@@ -1788,8 +1705,6 @@ elseif(coord == nproc - 1) then
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
   
-  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
-  
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
   tavg_zplane_t(nz) % fz = 0._rprec
@@ -1816,8 +1731,6 @@ $else
   tavg_t(:,:,nz) % txz = 0._rprec
   tavg_t(:,:,nz) % tyz = 0._rprec
   tavg_t(:,:,nz) % tzz = 0._rprec
-  
-  tavg_t(:,:,nz) % cs_opt2 = 0._rprec
   
   tavg_zplane_t(nz) % fx = 0._rprec
   tavg_zplane_t(nz) % fy = 0._rprec
@@ -1981,7 +1894,6 @@ $endif
 ! write the entire structures
 write (1) tavg_total_time
 write (1) tavg_t          
-write (1) tavg_zplane_t
 close(1)
 
 ! ----- Write all the 3D data -----
@@ -2012,7 +1924,7 @@ call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
   (/ tavg_t % dudz, tavg_t % dvdz /), 4, x, y, z(1:nz))
 
 call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_3D(fname_tau, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % txx, tavg_t % txy, tavg_t % tyy /), &
   4, x, y, z(1:nz)) 
@@ -2043,7 +1955,11 @@ call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
 
 ! Construct zplane data 
 $if($MPI)
- 
+
+  $if ($XLF)
+  !  Don't sync z-data
+  $else
+
   !  Create MPI type structures consistent with the derived types
   call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
   Call MPI_Type_commit(MPI_RS,ierr)
@@ -2112,7 +2028,7 @@ $if($MPI)
       (/ tavg_zplane_tot_t % dudz, tavg_zplane_tot_t % dvdz /), 0, z_tot)
   
     call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
-      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
     call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
       (/ tavg_zplane_tot_t % txx, tavg_zplane_tot_t % txy, tavg_zplane_tot_t % tyy, &
       tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), 0, z_tot) 
@@ -2146,6 +2062,8 @@ $if($MPI)
   
   endif
 
+  $endif
+
 $else
 
 call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
@@ -2165,7 +2083,7 @@ call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
   (/ tavg_zplane_t % dudz, tavg_zplane_t % dvdz /), 0, z(1:nz))
   
 call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
-   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
+   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', coord, 2)  
 call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
   (/ tavg_zplane_t % txx, tavg_zplane_t % txy, tavg_zplane_t % tyy, &
   tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), 0, z(1:nz)) 
@@ -2886,8 +2804,8 @@ if(xplane_calc) then
   
 !  Compute istart and ldiff
   do i=1,xplane_nloc
-	  xplane_istart(i) = cell_indx('i', dx, xplane_loc(i))
-	  xplane_ldiff(i) = x(xplane_istart(i)) - xplane_loc(i)
+    xplane_istart(i) = cell_indx('i', dx, xplane_loc(i))
+    xplane_ldiff(i) = xplane_loc(i) - x(xplane_istart(i))   
   enddo
     
 endif
@@ -2900,8 +2818,8 @@ if(yplane_calc) then
   
 !  Compute istart and ldiff
   do j=1,yplane_nloc
-	  yplane_istart(j) = cell_indx('j', dy, yplane_loc(j))
-	  yplane_ldiff(j) = y(yplane_istart(j)) - yplane_loc(j)
+    yplane_istart(j) = cell_indx('j', dy, yplane_loc(j))
+    yplane_ldiff(j) = yplane_loc(j) - y(yplane_istart(j))
   enddo
     
 endif
@@ -2922,12 +2840,12 @@ if(zplane_calc) then
       zplane_coord(k) = coord
 
       zplane_istart(k) = cell_indx('k',dz,zplane_loc(k))
-      zplane_ldiff(k) = z(zplane_istart(k)) - zplane_loc(k)
+      zplane_ldiff(k) = zplane_loc(k) - z(zplane_istart(k))
     endif
     $else
     zplane_coord(k) = 0
     zplane_istart(k) = cell_indx('k',dz,zplane_loc(k))
-    zplane_ldiff(k) = z(zplane_istart(k)) - zplane_loc(k)
+    zplane_ldiff(k) = zplane_loc(k) - z(zplane_istart(k))
     $endif
 
   enddo  
@@ -2950,9 +2868,9 @@ if(point_calc) then
       point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
       point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	  
-      point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-      point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-      point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
+      point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
+      point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
+      point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
 
 	    fid=3000*i
 	  
@@ -2969,7 +2887,7 @@ if(point_calc) then
       !  Add tecplot header if file does not exist
       inquire (file=point_fname(i), exist=exst)
       if (.not. exst) then
-        var_list = '"t (s)", "u", "v", "w"'
+        var_list = '"t", "u", "v", "w"'
         call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
       endif 	
 
@@ -2981,10 +2899,9 @@ if(point_calc) then
     point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
     point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
 	
-    point_xdiff(i) = x(point_istart(i)) - point_loc(1,i)
-    point_ydiff(i) = y(point_jstart(i)) - point_loc(2,i)
-    point_zdiff(i) = z(point_kstart(i)) - point_loc(3,i)
-
+    point_xdiff(i) = point_loc(1,i) - x(point_istart(i)) 
+    point_ydiff(i) = point_loc(2,i) - y(point_jstart(i)) 
+    point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
