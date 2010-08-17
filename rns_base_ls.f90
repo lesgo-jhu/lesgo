@@ -36,6 +36,10 @@ integer, parameter :: spatial_model = 3
 integer, parameter :: output_nskip = 10
 integer, parameter :: CD_ramp_nstep = 1
 
+!  Parameters for setting reference regions
+real(rprec), parameter :: alpha_width = 2.0_rprec
+real(rprec), parameter :: alpha_dist = 1.0_rprec
+
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
 !---------------------------------------------------

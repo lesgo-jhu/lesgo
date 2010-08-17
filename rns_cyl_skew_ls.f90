@@ -33,10 +33,6 @@ character (*), parameter :: mod_name = 'rns_cyl_skew_ls'
 
 integer, parameter :: rns_tree_layout = 1
 
-!  Parameters for setting reference regions
-real(rprec), parameter :: alpha_width = 2.0_rprec
-real(rprec), parameter :: alpha_dist = 1.25_rprec
-
 integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
 integer, pointer, dimension(:) :: cl_to_b_elem_map
@@ -922,39 +918,11 @@ do n=1, nr_elem
 
   !  Point to the top and bottom of the plane
   hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
-  htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane
+  htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % tplane
 
   h = htop_p - hbot_p
   w = alpha_width * h
-
-!  nbranch_p => cl_t_p % nbranch
-    
-!  !  Initialize mean cluster height and projected area
-!  h_m = 0._rprec
-!  area_proj = 0._rprec
-      
-!  do nb = 1, cl_t_p % nbranch
-!       
-!    br_t_p => cl_t_p % br_t( nb )
-!
-!    d_p          => br_t_p % d
-!    l_p          => br_t_p % l
-!    skew_angle_p => br_t_p % skew_angle
-!        
-!    h         = l_p * dcos(skew_angle_p)
-!    h_m       = h_m + h
-!    area_proj = area_proj + d_p * h
-!        
-!    nullify( d_p, l_p, skew_angle_p )
-!    nullify( br_t_p )
-!      
-!  enddo
-      
-!  !  Mean height of branch cluster  and height of reference area
-!  h_m = h_m / nbranch_p
-!  !  width of reference area
-!  w   = area_proj / h_m     
-      
+ 
   nzeta = ceiling( w / dy + 1)
   neta  = ceiling( h / dz + 1)
       
