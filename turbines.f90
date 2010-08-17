@@ -181,17 +181,19 @@ implicit none
     enddo
 
 !create files to store turbine forcing data
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-        var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
-        do s=1,nloc
-            fname = 'turbine/turbine_'
-            write (temp, '(i0)') s
-            fname2 = trim (fname) // temp
-            fname = trim (fname2) // '_forcing.dat'
-          
-            call write_tecplot_header_xyline(fname,'rewind', var_list)   
-        enddo
-    endif    
+    if (.not. turbine_cumulative_time) then
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
+            do s=1,nloc
+                fname = 'turbine/turbine_'
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_forcing.dat'
+              
+                call write_tecplot_header_xyline(fname,'rewind', var_list)   
+            enddo
+        endif    
+    endif
     
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
@@ -248,7 +250,7 @@ implicit none
 !options (set above and applied here):
 !   1. continue/complete conditional averaging from a previous run (turbine_cumulative_ca_time)
 !       therefore needs to read in velocities and times
-!   2. set cond. avg. limits based on mean & rms values from a previous run (read rms from file)
+!   2. set cond. avg. limits based on mean & rms values from a previous run (read_rms_from_file)
 !       can be applied to each turbine individually or can average and apply same condition to all
 !       (rms_same_for_all)
 
@@ -269,96 +271,116 @@ implicit none
             wind_farm_t%turbine_t(k)%cond_avg_time_lo = 0.                      
         enddo  
     !set initial values (read from file or use default)
-    if (turbine_cumulative_ca_time) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then                           
-            fname = 'turbine/turbine_cond_avg_hi_time.dat'
-            inquire (file=fname, exist=exst)
-            if (exst) then
+    if (turbine_cumulative_ca_time) then                           
+        fname = 'turbine/turbine_cond_avg_hi_time.dat'
+        inquire (file=fname, exist=exst)
+        if (exst) then
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
                 write(*,*) 'Reading from file turbine_cond_avg_hi_time.dat'
-                open (1, file=fname)
-                do i=1,nloc
-                    read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi    
-                enddo    
-                close (1)
-                
+            endif
+            open (1, file=fname)
+            do i=1,nloc
+                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi    
+            enddo    
+            close (1)
+             
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
                 write(*,*) 'Reading turbine cond_avg_hi files'
-                do s=1,nloc
-                    fname = 'turbine/cond_avg_hi_'    
-                    write (temp, '(i0)') s
-                    fname2 = trim (fname) // temp
-                    fname = trim (fname2) // '_vel.dat'                            
-                    $if ($MPI)
-                        write (temp, '(".c",i0)') coord
-                        fname = trim (fname) // temp   
-                    $endif 
-                    inquire (file=fname, exist=exst)
-                    if (exst) then
+            endif
+            do s=1,nloc
+                fname = 'turbine/cond_avg_hi_'    
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_vel.dat'                            
+                $if ($MPI)
+                    write (temp, '(".c",i0)') coord
+                    fname = trim (fname) // temp   
+                $endif 
+                inquire (file=fname, exist=exst)
+                if (exst) then
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                         write(*,*) 'Turbine ',s
-                        open (1, file=fname, action='read', position='rewind', form='formatted')
-                        read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz), &
+                    endif
+                    open (1, file=fname, action='read', position='rewind', form='formatted')
+                    read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz), &
                             wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz), &
                             wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz)
-                        close (1)
-                        wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi* &
+                    close (1)
+                    wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_hi
-                        wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi* &
+                    wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_hi 
-                        wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi* &
+                    wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_hi 
-                    else
+                else
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                         write(*,*) 'Turbine ',s,'cond_avg_hi_vel file not found'
                     endif
-                enddo
-            else  
+                endif
+            enddo
+        else  
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                 write (*, *) 'File ', fname, ' not found'
                 write (*, *) 'Starting conditional average (hi) from scratch'
-            endif     
+            endif
+        endif     
             
-            fname = 'turbine/turbine_cond_avg_lo_time.dat'
-            inquire (file=fname, exist=exst)
-            if (exst) then
+        fname = 'turbine/turbine_cond_avg_lo_time.dat'
+        inquire (file=fname, exist=exst)
+        if (exst) then
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                 write(*,*) 'Reading from file turbine_cond_avg_lo_time.dat'
-                open (1, file=fname)
-                do i=1,nloc
-                    read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo    
-                enddo    
-                close (1)
+            endif    
+            open (1, file=fname)
+            do i=1,nloc
+                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo    
+            enddo    
+            close (1)
                 
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                 write(*,*) 'Reading turbine cond_avg (lo) files'
-                do s=1,nloc
-                    fname = 'turbine/cond_avg_lo_'    
-                    write (temp, '(i0)') s
-                    fname2 = trim (fname) // temp
-                    fname = trim (fname2) // '_vel.dat'                            
-                    $if ($MPI)
-                        write (temp, '(".c",i0)') coord
-                        fname = trim (fname) // temp   
-                    $endif 
-                    inquire (file=fname, exist=exst)
-                    if (exst) then
+            endif
+            do s=1,nloc
+                fname = 'turbine/cond_avg_lo_'    
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_vel.dat'                            
+                $if ($MPI)
+                    write (temp, '(".c",i0)') coord
+                    fname = trim (fname) // temp   
+                $endif 
+                inquire (file=fname, exist=exst)
+                if (exst) then
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                         write(*,*) 'Turbine ',s
-                        open (1, file=fname, action='read', position='rewind', form='formatted')
-                        read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz), &
+                    endif
+                    open (1, file=fname, action='read', position='rewind', form='formatted')
+                    read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz), &
                             wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz), &
                             wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz)
-                        close (1)
-                        wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo* &
+                    close (1)
+                    wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-                        wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo* &
+                    wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-                        wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo* &
+                    wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo* &
                             wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-                    else
+                else
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                         write(*,*) 'Turbine ',s,'cond_avg_lo_vel file not found'
                     endif
-                enddo
-            else  
+                endif
+            enddo
+        else  
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                 write (*, *) 'File ', fname, ' not found'
                 write (*, *) 'Starting conditional average (lo) from scratch'
-            endif                
-        endif
+            endif
+        endif                
     else 
-        write (*, *) 'Starting conditional average (hi and lo) from scratch'
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            write (*, *) 'Starting conditional average (hi and lo) from scratch'
+        endif
     endif   
     
     if (read_rms_from_file) then
@@ -368,7 +390,9 @@ implicit none
         inquire (file=fname2, exist=exst2)
         
         if (exst .and. exst2) then
-            write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
+            endif
             open (1, file=fname, action='read', position='rewind', form='formatted')
             read (1,*) ca_limit_mean(1:nloc)
             close (1)
@@ -392,7 +416,9 @@ implicit none
                 enddo  
             endif
         else
-            write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
+            endif
         endif
     endif          
 
