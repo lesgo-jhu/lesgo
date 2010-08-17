@@ -35,10 +35,14 @@ integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 integer :: k_start, k_end
 real(rprec) :: a0,a1,a2,a3,a4
 character (4) :: string1, string2, string3
-logical :: exst
+logical :: exst, exst2
 
 logical :: turbine_in_proc=.false.      !false if there is no turbine (partial or whole) in this processor
-logical :: turbine_cumulative_time, turbine_cumulative_ca_time=.false.  !init
+logical :: turbine_cumulative_time, turbine_cumulative_ca_time=.false.  !init, do not change this
+
+logical :: read_rms_from_file,rms_same_for_all
+real(rprec), pointer, dimension(:) :: ca_limit_mean,ca_limit_rms
+real(rprec) :: rms_mult_hi,rms_mult_lo,ca_limit_mean_averaged,ca_limit_rms_averaged
 
 real(rprec), pointer, dimension(:) :: buffer_array
 real :: buffer
@@ -103,11 +107,10 @@ implicit none
             thk_all = thk_all/z_i
             thk_all = max(thk_all,dx*1.01)	
             
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%height = height_all
-                wind_farm_t%turbine_t(k)%dia = dia_all
-                wind_farm_t%turbine_t(k)%thk = thk_all
-            enddo
+            wind_farm_t%turbine_t(:)%height = height_all
+            wind_farm_t%turbine_t(:)%dia = dia_all
+            wind_farm_t%turbine_t(:)%thk = thk_all
+                
         !for varying height and/or diameter and/or thickness
         else
             !** set individual values here
@@ -119,10 +122,9 @@ implicit none
             theta1_all = 0.     !angle CCW(from above) from -x direction [degrees]
             theta2_all = 0.     !angle above the horizontal, from -x dir [degrees]
             
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%theta1 = theta1_all
-                wind_farm_t%turbine_t(k)%theta2 = theta2_all
-            enddo
+            wind_farm_t%turbine_t(:)%theta1 = theta1_all
+            wind_farm_t%turbine_t(:)%theta2 = theta2_all
+
         !for varying angles
         else
             !** set individual values here
@@ -137,30 +139,26 @@ implicit none
     !conditional averaging     
         allocate(wind_farm_t%cond_avg_flag_hi(nloc)) 
         allocate(wind_farm_t%cond_avg_flag_lo(nloc)) 
-        wind_farm_t%cond_avg_flag_hi = .false.     !init - do not change this value
-        wind_farm_t%cond_avg_flag_lo = .false.     !init - do not change this value
+        allocate(ca_limit_mean(nloc)) 
+        allocate(ca_limit_rms(nloc)) 
         
-        turbine_cumulative_ca_time = .true.     !true to read cond_avg values from file        
+        turbine_cumulative_ca_time = .false.    !true to read cond_avg values from file (continue a simulation)        
+        read_rms_from_file = .true.             !true to read forcing mean & rms values from file (to set limits)
+        rms_same_for_all = .false.              !true to average across all turbines (if reading from file)
+        rms_mult_hi = 1.    !set limit as this multiple of rms above mean
+        rms_mult_lo = 1.    !set limit as this multiple of rms below mean          
         
-        if(.true.) then     !all the same
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%cond_avg_calc_hi = .true.
-                wind_farm_t%turbine_t(k)%cond_avg_calc_lo = .true.
-                wind_farm_t%turbine_t(k)%cond_avg_ud_hi = 8.0      !pos or neg - doesn't matter                
-                wind_farm_t%turbine_t(k)%cond_avg_ud_lo = 5.5      !pos or neg - doesn't matter  
-                
-                wind_farm_t%turbine_t(k)%u_cond_avg_hi = 0.            !init
-                wind_farm_t%turbine_t(k)%v_cond_avg_hi = 0.            !init
-                wind_farm_t%turbine_t(k)%w_cond_avg_hi = 0.            !init                    
-                wind_farm_t%turbine_t(k)%cond_avg_time_hi = 0.         !init 
-                
-                wind_farm_t%turbine_t(k)%u_cond_avg_lo = 0.            !init
-                wind_farm_t%turbine_t(k)%v_cond_avg_lo = 0.            !init
-                wind_farm_t%turbine_t(k)%w_cond_avg_lo = 0.            !init                    
-                wind_farm_t%turbine_t(k)%cond_avg_time_lo = 0.         !init                 
-            enddo  
-        else        !read in rms values from file    
-            !should also do mean-rms limit
+        if(read_rms_from_file==.false.) then    !set values explicitly below           
+            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_ud_hi = 8.0      !pos or neg - doesn't matter                
+            wind_farm_t%turbine_t(:)%cond_avg_ud_lo = 5.5      !pos or neg - doesn't matter         
+        else                !read in rms values from file    
+            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .true.   
+            !limits are set later
+            wind_farm_t%turbine_t(:)%cond_avg_ud_hi = 8.5       !default if cannot read from file
+            wind_farm_t%turbine_t(:)%cond_avg_ud_lo = 5.5       !default if cannot read from file
         endif    
         
     !other
@@ -175,13 +173,26 @@ implicit none
 !#########################################################################################
 
 ! Create turbine directory
-call system("mkdir -vp turbine") 
+    call system("mkdir -vp turbine") 
 
 !z_tot for total domain (since z is local to the processor)
     do k=1,nz_tot
         z_tot(k) = (k - 0.5_rprec) * dz
     enddo
 
+!create files to store turbine forcing data
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
+        do s=1,nloc
+            fname = 'turbine/turbine_'
+            write (temp, '(i0)') s
+            fname2 = trim (fname) // temp
+            fname = trim (fname2) // '_forcing.dat'
+          
+            call write_tecplot_header_xyline(fname,'rewind', var_list)   
+        enddo
+    endif    
+    
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
     large_node_array = 0.
@@ -232,7 +243,32 @@ call system("mkdir -vp turbine")
             wind_farm_t%turbine_t(k)%u_d_T = -7.
         enddo    
     endif
-        
+   
+!set variables for conditional averaging
+!options (set above and applied here):
+!   1. continue/complete conditional averaging from a previous run (turbine_cumulative_ca_time)
+!       therefore needs to read in velocities and times
+!   2. set cond. avg. limits based on mean & rms values from a previous run (read rms from file)
+!       can be applied to each turbine individually or can average and apply same condition to all
+!       (rms_same_for_all)
+
+    !default initilization
+        wind_farm_t%cond_avg_flag_hi = .false.     !init - do not change this value
+        wind_farm_t%cond_avg_flag_lo = .false.     !init - do not change this value 
+        ca_limit_mean = 0.
+        ca_limit_rms = 0.
+        do k=1,nloc               
+            wind_farm_t%turbine_t(k)%u_cond_avg_hi = 0.          
+            wind_farm_t%turbine_t(k)%v_cond_avg_hi = 0.          
+            wind_farm_t%turbine_t(k)%w_cond_avg_hi = 0.                             
+            wind_farm_t%turbine_t(k)%cond_avg_time_hi = 0.  
+                
+            wind_farm_t%turbine_t(k)%u_cond_avg_lo = 0.      
+            wind_farm_t%turbine_t(k)%v_cond_avg_lo = 0.          
+            wind_farm_t%turbine_t(k)%w_cond_avg_lo = 0.                          
+            wind_farm_t%turbine_t(k)%cond_avg_time_lo = 0.                      
+        enddo  
+    !set initial values (read from file or use default)
     if (turbine_cumulative_ca_time) then
         if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then                           
             fname = 'turbine/turbine_cond_avg_hi_time.dat'
@@ -323,21 +359,42 @@ call system("mkdir -vp turbine")
         endif
     else 
         write (*, *) 'Starting conditional average (hi and lo) from scratch'
-    endif       
+    endif   
     
-!create files to store turbine forcing data
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-        var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'
+    if (read_rms_from_file) then
+        fname = 'turbine/turbine_all_mean.dat'
+        inquire (file=fname, exist=exst)
+        fname2 = 'turbine/turbine_all_rms.dat'
+        inquire (file=fname2, exist=exst2)
+        
+        if (exst .and. exst2) then
+            write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
+            open (1, file=fname, action='read', position='rewind', form='formatted')
+            read (1,*) ca_limit_mean(1:nloc)
+            close (1)
+            open (2, file=fname2, action='read', position='rewind', form='formatted')
+            read (2,*) ca_limit_rms(1:nloc)
+            close (2)        
             
-        do s=1,nloc
-            fname = 'turbine/turbine_'
-            write (temp, '(i0)') s
-            fname2 = trim (fname) // temp
-            fname = trim (fname2) // '_forcing.dat'
-          
-            call write_tecplot_header_xyline(fname,'rewind', var_list)   
-        enddo
-    endif
+            if (rms_same_for_all) then
+                ca_limit_mean_averaged = sum(ca_limit_mean)/nloc
+                ca_limit_rms_averaged = sum(ca_limit_rms)/nloc
+                wind_farm_t%turbine_t(:)%cond_avg_ud_hi = abs(ca_limit_mean_averaged) + &
+                    rms_mult_hi*abs(ca_limit_rms_averaged)       
+                wind_farm_t%turbine_t(:)%cond_avg_ud_lo = abs(ca_limit_mean_averaged) - &
+                    rms_mult_lo*abs(ca_limit_rms_averaged)   
+            else           
+                do k=1,nloc                  
+                    wind_farm_t%turbine_t(k)%cond_avg_ud_hi = abs(ca_limit_mean(k)) + &
+                        rms_mult_hi*abs(ca_limit_rms(k))       
+                    wind_farm_t%turbine_t(k)%cond_avg_ud_lo = abs(ca_limit_mean(k)) - &
+                        rms_mult_lo*abs(ca_limit_rms(k))        
+                enddo  
+            endif
+        else
+            write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
+        endif
+    endif          
 
 	
 end subroutine turbines_init
