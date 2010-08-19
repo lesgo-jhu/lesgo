@@ -66,7 +66,7 @@ do n = 1, nbeta_elem
       j => beta_elem_t( n ) % indx_array_t % iarray(2,np)
       k => beta_elem_t( n ) % indx_array_t % iarray(3,np)
     
-      fx(i,j,k) = - kappa_p * dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+      fx(i,j,k) = - kappa_p * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
  
       nullify(i,j,k)
       
@@ -208,7 +208,7 @@ do n=1, nbeta_elem
   
   u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
   
-  beta_gamma(n) = dabs( u_p ) * u_p * area_p
+  beta_gamma(n) = abs( u_p ) * u_p * area_p
   
   nullify(points_p, area_p, u_p)
 
@@ -222,7 +222,7 @@ do n=1, nb_elem
   
   u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
   
-  b_gamma(n) = dabs( u_p ) * u_p * area_p
+  b_gamma(n) = abs( u_p ) * u_p * area_p
   
   nullify(points_p, area_p, u_p)
   
@@ -496,7 +496,7 @@ do n = 1, nbeta_elem
     j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
     k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
     
-    beta_int = beta_int + dabs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+    beta_int = beta_int + abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
  
     nullify(i,j,k)
       
