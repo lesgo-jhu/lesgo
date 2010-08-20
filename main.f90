@@ -55,7 +55,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-real(kind=rprec) rmsdivvel,ke,cfl
+real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
@@ -186,6 +186,11 @@ $endif
 
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
+
+    $if($CFL_DT)
+    call cfl_set_dt(dt)
+    dt_dim = dt * z_i / u_star
+    $endif
 
     ! Advance time
     jt_total = jt_total + 1 
@@ -526,10 +531,10 @@ do jt=1,nsteps
         ! Calculate rms divergence of velocity
         !   only written to screen, not used otherwise
         call rmsdiv (rmsdivvel)
-        call maxcfl ( cfl )
+        call cfl_max ( maxcfl )
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-            write (6, 7777) jt, dt, rmsdivvel, ke, cfl
+            write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
             
             if ((S_FLAG) .or. (coriolis_forcing)) then
                 write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
