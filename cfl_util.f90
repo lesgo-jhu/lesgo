@@ -16,7 +16,9 @@ $if($MPI)
 real(rprec) :: cfl_buf
 $endif
 
-cfl = maxval( (/ dt * u / dx, dt * v / dy, dt * w / dz /) )
+cfl = maxval( (/ dt * u(1:nx,1:ny,1:nz-1) / dx, &
+                 dt * v(1:nx,1:ny,1:nz-1) / dy, &
+                 dt * w(1:nx,1:ny,1:nz-1) / dz /) )
 
 $if($MPI)
 call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm, ierr)
