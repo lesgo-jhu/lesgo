@@ -537,7 +537,7 @@ do jt=1,nsteps
             end if
         end if
     end if
-    7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
+    7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
           
