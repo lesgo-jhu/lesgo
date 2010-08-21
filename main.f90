@@ -186,10 +186,15 @@ $endif
 
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
-
+    
     $if($CFL_DT)
-    call cfl_set_dt(dt)
-    dt_dim = dt * z_i / u_star
+      dt_f = dt
+
+      call cfl_set_dt(dt)
+      dt_dim = dt * z_i / u_star
+    
+      tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
+      tadv2 = 1._rprec - tadv1
     $endif
 
     ! Advance time

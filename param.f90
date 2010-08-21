@@ -122,12 +122,18 @@ module param
   $if($CFL_DT)
   
   real(rprec), parameter :: cfl = 0.3
-  real(rprec) :: dt, dt_dim
+  real(rprec) :: dt, dt_f, dt_dim
+  
+  ! time advance parameters (Adams-Bashforth, 2nd order accurate)
+  real (rprec) :: tadv1, tadv2
   
   $else
   
   real (rprec), parameter :: dt = 5.e-4                ! dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
+  
+  ! time advance parameters (Adams-Bashforth, 2nd order accurate)
+  real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
   
   $endif
   
@@ -137,9 +143,6 @@ module param
   integer :: jt                 ! global time-step counter
   integer :: jt_total           ! used for cumulative time (see io module)
   real(rprec) :: total_time, total_time_dim
-
-  ! time advance parameters (Adams-Bashforth, 2nd order accurate)
-  real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
   
 !---------------------------------------------------
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
