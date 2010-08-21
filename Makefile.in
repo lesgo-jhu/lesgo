@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
-LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -27,7 +27,7 @@ DEVEL=no
 USE_MPI = yes
 USE_OPENMP = no
 
-# Set dt based on CFL condition
+# Set dt based on CFL condition (EXPERIMENTAL)
 USE_CFL_DT = yes
 
 # Write binary files as big_endian
@@ -44,10 +44,10 @@ READ_LITTLE_ENDIAN = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
 
-USE_CYL_SKEW_LS = no
-USE_RNS_LS = no
+USE_CYL_SKEW_LS = yes
+USE_RNS_LS = yes
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -131,10 +131,10 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium -shared-intel
   #FDEBUG = -g -debug all
