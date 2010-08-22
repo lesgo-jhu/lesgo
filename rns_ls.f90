@@ -151,10 +151,6 @@ real(rprec), allocatable, dimension(:) :: beta_gamma_sum
 real(rprec), allocatable, dimension(:) :: b_gamma
 real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
 
-!  Variables used for spatial_model = 4
-real(rprec) :: lagrange_mult
-real(rprec), allocatable, dimension(:) :: r_ke, r_ke_sum, beta_q, beta_q_sum, b_q
-
 real(rprec), pointer :: area_p, u_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
@@ -258,183 +254,113 @@ do n=1, nb_elem
 	
 enddo
 
-if( temporal_model == 1 ) then
+if( temporal_weight == 0 ) then
 
-  allocate(b_force( nb_elem ))
-  !b_force = 0._rprec
+  if( temporal_model == 1 ) then
+
+    allocate(b_force( nb_elem ))
   
-  do n=1, nb_elem
-    	
-    b_force(n) = b_r_force(n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(n)
-    !b_force(n) = b_r_force(n) - 0.5_rprec * beta_gamma_CD_sum(n)
-	
-  enddo
+    b_force(:) = b_r_force(:) - 0.5_rprec * b_elem_t(:) % force_t % CD * beta_gamma_sum(:)
   
-  if( spatial_model == 1 ) then
+    if( spatial_model == 1 ) then
   
-    do n=1, nb_elem
-	
-      b_elem_t(n) % force_t % CD = -2._rprec * b_force(n) / b_gamma(n)
-	  
-    enddo
-	
-  elseif( spatial_model == 2) then
+      b_elem_t(:) % force_t % CD = -2._rprec * b_force(:) / b_gamma(:)
+  
+    elseif( spatial_model == 2) then
    
-    CD_num=0._rprec
-	CD_denom=0._rprec
+      CD_num=0._rprec
+      CD_denom=0._rprec
     
-    do n=1, nb_elem
-	
-      CD_num = CD_num + b_force(n) 
-      CD_denom = CD_denom + b_gamma(n)
+      do n=1, nb_elem
       
-    enddo
+        CD_num = CD_num + b_force(n) 
+        CD_denom = CD_denom + b_gamma(n)
     
-    b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
-  
-  elseif( spatial_model == 3) then ! compute global CD
-  
-    CD_num=0._rprec
-	  CD_denom=0._rprec
-    
-    do n=1, nb_elem
-	
-      CD_num = CD_num + b_force(n) * b_gamma(n) 
-      CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
-      
-    enddo
-    
-    b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
-	
-  else
-  
-    call error( sub_name, 'spatial_model not specified correctly.')
-	
-  endif
-  
-  deallocate(b_force)
-
-elseif( temporal_model == 2) then ! use implicit formulation
-
-  allocate( b_m( nb_elem ) ) 
-  
-  do n=1, nb_elem  
-    b_m(n) = beta_gamma_sum(n) - b_gamma(n)
-  enddo
-
-  if( spatial_model == 1 ) then
-  
-    do n=1, nb_elem
-	
-      b_elem_t(n) % force_t % CD = 2._rprec * b_r_force(n) / b_m(n)
-	  
-    enddo
-	
-  elseif( spatial_model == 2 ) then
-  
-    CD_num=0._rprec
-    CD_denom=0._rprec
-    
-    do n=1, nb_elem
-	
-      CD_num = CD_num + b_r_force(n) 
-      CD_denom = CD_denom + b_m(n)
-	  
-    enddo
-
-    b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom    
-	
-  elseif( spatial_model == 3 ) then
-  
-    CD_num=0._rprec
-    CD_denom=0._rprec
-    
-    do n=1, nb_elem
-	
-      CD_num = CD_num + b_r_force(n) * b_m(n)
-      CD_denom = CD_denom + b_m(n) * b_m(n)
-	  
-    enddo
-
-    b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
-	
-  elseif( spatial_model == 4 ) then
-  
-    allocate(r_ke(nr_elem), r_ke_sum( nb_elem ), beta_q(nbeta_elem), beta_q_sum(nb_elem), b_q(nb_elem))
-    
-    do n=1, nr_elem
-    
-      r_ke(n) = r_elem_t( n ) % force_t % fD  * r_elem_t( n ) % ref_region_t % u
-      
-    enddo
-    
-    do n=1, nbeta_elem
-    
-      beta_q(n) = beta_gamma(n) * beta_elem_t(n) % ref_region_t % u
-      
-    enddo
-  
-    beta_q_sum(:) = 0._rprec
-    r_ke_sum(:)   = 0._rprec
-    do n=1, nb_elem
-      
-      nelem_p => b_elem_t(n) % beta_child_t % nelem
-      indx_p  => b_elem_t(n) % beta_child_t % indx
-  
-      do ns=1, nelem_p
-        beta_q_sum(n) = beta_q_sum(n) + beta_q( indx_p(ns) )
       enddo
-  
-      nullify(indx_p, nelem_p)
-      
-      nelem_p => b_elem_t(n) % r_child_t % nelem
-      indx_p  => b_elem_t(n) % r_child_t % indx
-  
-      do ns=1, nelem_p
-        r_ke_sum(n) = r_ke_sum(n) + r_ke( indx_p(ns) )
-      enddo      
-      
-    enddo
     
-    CD_num=0._rprec
-    CD_denom=0._rprec
+      b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
+  
+    elseif( spatial_model == 3) then ! compute global CD
+  
+      CD_num=0._rprec
+      CD_denom=0._rprec
     
-    do n=1, nb_elem
-	
-      CD_num = CD_num + b_r_force(n)
-      CD_denom = CD_denom + 0.5_rprec * b_m(n) **2 / &
-        ( r_ke_sum(n) * ( beta_q_sum(n) - b_q(n) ) - &
-        0.5_rprec * ( beta_q_sum(n) - b_q(n) )**2 )
-	  
-    enddo
+      do n=1, nb_elem
 
-    lagrange_mult = CD_num / CD_denom
+        CD_num = CD_num + b_force(n) * b_gamma(n) 
+        CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
+     
+      enddo
     
-    do n=1, nb_elem
-       
-      b_elem_t(n) % force_t % CD = lagrange_mult * b_m(n) / &
-        ( r_ke_sum(n) * ( beta_q_sum(n) - b_q(n) ) - &
-        0.5_rprec * ( beta_q_sum(n) - b_q(n) )**2 )
-	  
-    enddo
+      b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
+        
+    else
+  
+      call error( sub_name, 'spatial_model not specified correctly.')
+
+    endif
+  
+    deallocate(b_force)
+
+  elseif( temporal_model == 2) then ! use implicit formulation
+
+    allocate( b_m( nb_elem ) ) 
+  
+    b_m(:) = beta_gamma_sum(:) - b_gamma(:)
+
+    if( spatial_model == 1 ) then
+  
+      b_elem_t(:) % force_t % CD = 2._rprec * b_r_force(:) / b_m(:)
+  
+    elseif( spatial_model == 2 ) then
+  
+      CD_num=0._rprec
+      CD_denom=0._rprec
     
-    deallocate( r_ke, r_ke_sum, beta_q, beta_q_sum, b_q )    
+      do n=1, nb_elem
+
+        CD_num = CD_num + b_r_force(n) 
+        CD_denom = CD_denom + b_m(n)
+  
+      enddo
+
+      b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom    
+
+    elseif( spatial_model == 3 ) then
+  
+      CD_num=0._rprec
+      CD_denom=0._rprec
     
+      do n=1, nb_elem
+
+        CD_num = CD_num + b_r_force(n) * b_m(n)
+        CD_denom = CD_denom + b_m(n) * b_m(n)
+    
+      enddo
+
+      b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
+
+    else
+  
+      call error( sub_name, 'spatial_model not specified correctly.')
+
+    endif
+  
+    deallocate( b_m )
+  
   else
   
-    call error( sub_name, 'spatial_model not specified correctly.')	
-	
-  endif
-  
-  deallocate( b_m )
-  
-else
-  
-  call error( sub_name, 'temporal_model not specified correctly.')  
+    call error( sub_name, 'temporal_model not specified correctly.')  
  
-endif
+  endif
 
-deallocate(b_r_force)
+  deallocate(b_r_force)
+
+else
+
+  call error( sub_name, 'temporal_weight not specified correctly.')
+
+endif
 
 !  Check if CD is to be modulated
 if( jt < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt / CD_ramp_nstep
@@ -457,9 +383,7 @@ do n=1, nb_elem
 enddo
 
 !  Compute the total force for beta_elem
-do n=1, nbeta_elem
-  beta_elem_t(n) % force_t % fD = - 0.5_rprec * beta_elem_t(n) % force_t % CD * beta_gamma(n)
-enddo
+beta_elem_t(:) % force_t % fD = - 0.5_rprec * beta_elem_t(:) % force_t % CD * beta_gamma(:)
 
 !  Compute the total force for b_elem; r_elem has already been accounted for from above
 do n=1, nb_elem
