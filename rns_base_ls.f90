@@ -29,7 +29,7 @@ $endif
 integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 
 !  Weighting Off - 0, On - 2
-integer, parameter :: temporal_weight = 1
+integer, parameter :: temporal_weight = 0
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 1
 !  Local - 1, Global direct - 2, Global least squares - 3
