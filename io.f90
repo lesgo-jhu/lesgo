@@ -180,7 +180,9 @@ end subroutine interp_to_uv_grid
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine openfiles()
-
+$if($CFL_DT)
+use param, only : dt, cfl_f
+$endif
 use sim_param,only:path
 implicit none
 
@@ -191,11 +193,18 @@ if (cumulative_time) then
   inquire (file=fcumulative_time, exist=exst)
   if (exst) then
     open (1, file=fcumulative_time)
+    
+    $if($CFL_DT)
+    read(1, *) jt_total, total_time, total_time_dim, dt, cfl_f
+    $else
     read (1, *) jt_total, total_time, total_time_dim
+    $endif
+    
     close (1)
   else  !--assume this is the first run on cumulative time
-    write (*, *) 'file ', fcumulative_time, ' not found'
-    write (*, *) 'assuming jt_total = 0, total_time = 0., total_time_dim = 0.'
+    if( .not. USE_MPI .or. ( USE_MPI .and. coord == 0 ) ) then
+      write (*, *) '--> Assuming jt_total = 0, total_time = 0., total_time_dim = 0.'
+    endif
     jt_total = 0
     total_time = 0.
     total_time_dim = 0._rprec
@@ -2205,6 +2214,10 @@ subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t
 use param, only : tavg_calc, point_calc, point_nloc
 
+$if($CFL_DT)
+use param, only : dt, cfl
+$endif
+
 implicit none
 
 integer,intent(in)::jt
@@ -2242,8 +2255,15 @@ if ((cumulative_time) .and. (lun == lun_default)) then
   if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
-    write (1, *) jt_total, total_time, total_time_dim
-    close (1)
+
+    $if($CFL_DT)
+    write(1, *) jt_total, total_time, total_time_dim, dt, cfl
+    $else
+    write(1, *) jt_total, total_time, total_time_dim
+    $endif
+
+    close(1)
+
   end if
 end if
 
