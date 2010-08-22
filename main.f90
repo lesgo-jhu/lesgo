@@ -185,7 +185,7 @@ end if
 $endif
 
 $if($CFL_DT)
-if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-3_rprec ) then
+if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
   if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
   call cfl_set_dt(dt) 
   dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
@@ -548,7 +548,7 @@ do jt=1,nsteps
         call cfl_max ( maxcfl )
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-            write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
+            write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
             
             if ((S_FLAG) .or. (coriolis_forcing)) then
                 write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
@@ -556,7 +556,7 @@ do jt=1,nsteps
             end if
         end if
     end if
-    7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
+    7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,6(1x,e9.4))
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
           
