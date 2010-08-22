@@ -560,7 +560,7 @@ do jt=1,nsteps
         end if
     end if
     $if($CFL_DT)
-    7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,6(1x,e9.4))
+    7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
     $else
     7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
     $endif
