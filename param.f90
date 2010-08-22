@@ -16,7 +16,7 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 8
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(32)/nproc + 1   
+  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -66,8 +66,8 @@ module param
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
     real(rprec),parameter::L_x= pi
-    real(rprec),parameter::L_y= pi    
-    real(rprec),parameter::L_z= 1.
+    real(rprec),parameter::L_y= L_x    
+    real(rprec),parameter::L_z= 2._rprec
     !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
     !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
@@ -117,19 +117,19 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 10000
+  integer, parameter :: nsteps = 100000
  
   $if($CFL_DT)
   
-  real(rprec), parameter :: cfl = 0.3
-  real(rprec) :: dt, dt_f, dt_dim
+  real(rprec), parameter :: cfl = 0.1
+  real(rprec) :: dt, dt_f, dt_dim, cfl_f
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
   real (rprec) :: tadv1, tadv2
   
   $else
   
-  real (rprec), parameter :: dt = 5.e-4                ! dt=2.e-4 usually works for 64^3
+  real (rprec), parameter :: dt = 2.e-4                ! dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -191,7 +191,7 @@ module param
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
 
-  ! how often to display "jt,dt,rmsdivvel,ke" output
+  ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
   integer,parameter::wbase=100
   
   ! how often to write ke to check_ke.out
