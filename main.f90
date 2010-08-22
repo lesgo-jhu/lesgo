@@ -548,15 +548,22 @@ do jt=1,nsteps
         call cfl_max ( maxcfl )
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-            write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
-            
-            if ((S_FLAG) .or. (coriolis_forcing)) then
-                write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
-                        coriolis_forcing, ug*u_star
-            end if
+          $if($CFL_DT)
+          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
+          $else
+          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
+          $endif  
+          if ((S_FLAG) .or. (coriolis_forcing)) then
+            write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
+              coriolis_forcing, ug*u_star
+          end if
         end if
     end if
+    $if($CFL_DT)
     7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,6(1x,e9.4))
+    $else
+    7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
+    $endif
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
           
