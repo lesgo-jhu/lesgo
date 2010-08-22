@@ -55,7 +55,7 @@ subroutine ic()
      !  seed=-80
      !$endif
 
-     print *,'Modified Log Profile for IC'
+     if( .not. USE_MPI .or. (USE_MPI .and. coord == 0 ) ) write(*,*) '------> Creating modified log profile for IC'
      do jz=1,nz
 
         $if ($MPI)
