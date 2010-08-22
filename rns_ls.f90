@@ -295,7 +295,7 @@ if( temporal_weight == 0 ) then
 
   deallocate(b_r_force)
 
-elseif( temporal_weight == 2 ) then
+elseif( temporal_weight == 1 ) then
 
   if( temporal_model == 1 ) then
     
