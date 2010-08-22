@@ -320,7 +320,6 @@ elseif( temporal_model == 2) then ! use implicit formulation
   
   do n=1, nb_elem  
     b_m(n) = beta_gamma_sum(n) - b_gamma(n)
-    !b_m(n) = b_gamma(n) - beta_gamma_sum(n)
   enddo
 
   if( spatial_model == 1 ) then
