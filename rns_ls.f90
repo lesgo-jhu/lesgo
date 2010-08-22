@@ -304,7 +304,6 @@ elseif( temporal_weight == 2 ) then
   elseif( temporal_model == 2 ) then
   
     allocate( b_m( nb_elem ) ) 
-  
     b_m(:) = beta_gamma_sum(:) - b_gamma(:)  
 	
 	if( spatial_model == 1 ) then
@@ -483,7 +482,9 @@ do n=1, nb_elem
   
 enddo
 
-b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom   
+b_elem_t(1) % force_t % CD = 2._rprec * CD_num / CD_denom 
+
+b_elem_t(:) % force_t % CD = b_elem_t(1) % force_t % CD
 
 return
 end subroutine b_elem_CD_GID
@@ -535,6 +536,45 @@ subroutine b_elem_CD_GITW()
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 implicit none
+
+real(rprec) :: b_r_force_sum, b_m_sum
+real(rprec), pointer :: LRM_p, LMM_p, lambda_p, CD_p
+
+nullify(LRM_p, LMM_p, lambda_p, CD_p)
+
+LRM_p    => b_elem_t(1) % force_t % LRM
+LMM_p    => b_elem_t(1) % force_t % LMM
+lambda_p => b_elem_t(1) % force_t % lambda
+CD_p     => b_elem_t(1) % force_t % CD
+
+b_r_force_sum = sum( b_r_force(:) )
+b_m_sum = sum( b_m(:) )
+
+call Lsim( b_r_force_sum * b_m_sum, LRM_p )
+call Lsim( b_r_force_sum * b_m_sum, LMM_p )
+
+if( jt < weight_nstart ) then
+
+  call b_elem_CD_GID()
+  nullify(LRM_p, LMM_p, lambda_p, CD_p)
+  
+else
+
+  !  Compute the Lagrange multiplier
+  lambda_p = 2._rprec * ( b_r_force_sum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
+
+  !  Compute CD
+  CD_p = ( 2._rprec *  LRM_p + lambda_p * b_m_sum ) / LMM_p
+
+  !  Update all b elements
+  b_elem_t(:) % force_t % LRM = LRM_p
+  b_elem_t(:) % force_t % LMM = LMM_p
+  b_elem_t(:) % force_t % lambda = lambda_p
+  b_elem_t(:) % force_t % CD = CD_p
+
+  nullify(LRM_p, LMM_p, lambda_p, CD_p)
+
+endif
 
 return
 end subroutine b_elem_CD_GITW
@@ -609,6 +649,33 @@ return
 end subroutine beta_elem_kappa
 
 end subroutine rns_elem_force
+
+!**********************************************************************
+subroutine Lsim(F, L)
+!**********************************************************************
+!  This subroutine updates the time weighted function L when using
+!  temporal weighted. This advances dL/dt where
+!
+!  L = \int_{-\infty}^t F * W(t-t') dt'
+! 
+!  and W(t - t') = 1/Tconst * exp( (t-t')/Tconst ).
+!
+use types, only : rprec
+use param, only : dt
+
+implicit none
+
+real(rprec), intent(IN) :: F
+real(rprec), intent(INOUT) :: L
+
+real(rprec) :: Tratio
+
+Tratio = dt / Tconst
+
+L = ( 1._rprec - Tratio ) * L + Tratio * F 
+
+return
+end subroutine Lsim
 
 !**********************************************************************
 subroutine r_elem_force()
