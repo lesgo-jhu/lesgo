@@ -29,11 +29,12 @@ $endif
 integer, parameter :: rns_ntree = 2 ! Number of unique trees 
 
 !  Explict - 1, Implicit - 2
-integer, parameter :: temporal_model = 2
-!  Local - 1, Global direct - 2, Global least squares - 3
-integer, parameter :: spatial_model = 3
+integer, parameter :: temporal_model = 1
+!  Local - 1, Global direct - 2, Global least squares - 3, Local KE - 4
+integer, parameter :: spatial_model = 2
 
 integer, parameter :: output_nskip = 10
+integer, parameter :: screen_nskip = 10
 integer, parameter :: CD_ramp_nstep = 1
 
 !  Parameters for setting reference regions

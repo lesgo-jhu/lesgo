@@ -515,7 +515,7 @@ do n = 1, nbeta_elem
     
   kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
     
-  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt, screen_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
 
@@ -615,7 +615,7 @@ do n = 1, nr_elem
   !  Compute CD
   r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
   
-  if(coord == 0 .and. (modulo (jt, output_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
+  if(coord == 0 .and. (modulo (jt, screen_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
 
   nullify(fD_p)
   nullify(npoint_p, iarray_p)
