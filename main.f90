@@ -164,16 +164,16 @@ call system("mkdir -vp output")
     
 ! Write to screen
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  print *, 'Number of timesteps', nsteps
-  print *, 'dt = ', dt
-  if (model == 1) print *, 'Co = ', Co
-  print *, 'Nx, Ny, Nz = ', nx, ny, nz
-  print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
-  if (USE_MPI) print *, 'Number of processes = ', nproc
-  print *, 'Number of patches = ', num_patch
+  print *, '--> Number of timesteps', nsteps
+  print *, '--> dt = ', dt
+  if (model == 1) print *, '--> Co = ', Co
+  print *, '--> Nx, Ny, Nz = ', nx, ny, nz
+  print *, '--> Lx, Ly, Lz = ', L_x, L_y, L_z
+  if (USE_MPI) print *, '--> Number of processes = ', nproc
+  print *, '--> Number of patches = ', num_patch
   !print *, 'sampling stats every ', c_count, ' timesteps'
   !print *, 'writing stats every ', p_count, ' timesteps'
-  if (molec) print*, 'molecular viscosity (dimensional) ', nu_molec
+  if (molec) print*, '--> molecular viscosity (dimensional) ', nu_molec
 end if
 
 $if ($DEBUG)
@@ -184,6 +184,14 @@ if (DEBUG) then
 end if
 $endif
 
+$if($CFL_DT)
+if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-3_rprec ) then
+  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
+  call cfl_set_dt(dt) 
+  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+endif
+$endif
+
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
     
@@ -191,6 +199,7 @@ do jt=1,nsteps
       dt_f = dt
 
       call cfl_set_dt(dt)
+
       dt_dim = dt * z_i / u_star
     
       tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
