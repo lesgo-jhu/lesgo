@@ -14,9 +14,7 @@ public :: rns_force_init_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
-!**********************************************************************
 contains
-!**********************************************************************
 
 !**********************************************************************
 subroutine rns_forcing_ls()
@@ -130,7 +128,7 @@ use messages
 use sim_param, only : u
 use immersedbc, only : fx
 use functions, only : points_avg_3D
-use param, only : nx, nz, dx, dy, dz, coord, jt
+use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
@@ -159,34 +157,17 @@ real(rprec) ::  CD_num, CD_denom
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
 
-real(rprec), pointer :: kappa_p, CD_p
-
-real(rprec) :: beta_int
-
-$if($MPI)
-real(rprec) :: beta_int_global
-$endif
-
-$if($MPI)
-real(rprec) :: fD
-$endif
-
-!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
-
 nullify(nelem_p, indx_p)
-
 nullify(area_p, u_p)
 nullify(points_p)
 
 allocate(beta_gamma(nbeta_elem))
 allocate(b_gamma(nb_elem))
 allocate(beta_gamma_sum(nb_elem))
-!allocate(beta_gamma_CD_sum(nb_elem))
 
 beta_gamma(:)=0._rprec
 b_gamma(:)=0._rprec
 beta_gamma_sum(:)=0._rprec
-!beta_gamma_CD_sum(:)=0._rprec
 
 $if($MPI)
 !  Make sure intermediate velocity is sync'd
@@ -259,40 +240,19 @@ if( temporal_weight == 0 ) then
   if( temporal_model == 1 ) then
 
     allocate(b_force( nb_elem ))
-  
     b_force(:) = b_r_force(:) - 0.5_rprec * b_elem_t(:) % force_t % CD * beta_gamma_sum(:)
   
     if( spatial_model == 1 ) then
-  
-      b_elem_t(:) % force_t % CD = -2._rprec * b_force(:) / b_gamma(:)
+	
+	  call b_elem_CD_LE()
   
     elseif( spatial_model == 2) then
-   
-      CD_num=0._rprec
-      CD_denom=0._rprec
+	
+	  call b_elem_CD_GED()
     
-      do n=1, nb_elem
-      
-        CD_num = CD_num + b_force(n) 
-        CD_denom = CD_denom + b_gamma(n)
-    
-      enddo
-    
-      b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
-  
-    elseif( spatial_model == 3) then ! compute global CD
-  
-      CD_num=0._rprec
-      CD_denom=0._rprec
-    
-      do n=1, nb_elem
-
-        CD_num = CD_num + b_force(n) * b_gamma(n) 
-        CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
-     
-      enddo
-    
-      b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
+    elseif( spatial_model == 3) then
+	
+	  call b_elem_CD_GELS()
         
     else
   
@@ -304,42 +264,21 @@ if( temporal_weight == 0 ) then
 
   elseif( temporal_model == 2) then ! use implicit formulation
 
-    allocate( b_m( nb_elem ) ) 
-  
+    allocate( b_m( nb_elem ) )  
     b_m(:) = beta_gamma_sum(:) - b_gamma(:)
 
     if( spatial_model == 1 ) then
-  
-      b_elem_t(:) % force_t % CD = 2._rprec * b_r_force(:) / b_m(:)
-  
+	  
+	  call b_elem_CD_LI()
+ 
     elseif( spatial_model == 2 ) then
+	
+	  call b_elem_CD_GID() ! Global, implicit, direct summation (GID)
   
-      CD_num=0._rprec
-      CD_denom=0._rprec
-    
-      do n=1, nb_elem
-
-        CD_num = CD_num + b_r_force(n) 
-        CD_denom = CD_denom + b_m(n)
-  
-      enddo
-
-      b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom    
-
     elseif( spatial_model == 3 ) then
+	
+	  call b_elem_CD_GILS()
   
-      CD_num=0._rprec
-      CD_denom=0._rprec
-    
-      do n=1, nb_elem
-
-        CD_num = CD_num + b_r_force(n) * b_m(n)
-        CD_denom = CD_denom + b_m(n) * b_m(n)
-    
-      enddo
-
-      b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
-
     else
   
       call error( sub_name, 'spatial_model not specified correctly.')
@@ -356,14 +295,46 @@ if( temporal_weight == 0 ) then
 
   deallocate(b_r_force)
 
-else
+elseif( temporal_weight == 2 ) then
+
+  if( temporal_model == 1 ) then
+    
+    call error( sub_name, 'temporal_method not specified correctly.')
+	
+  elseif( temporal_model == 2 ) then
+  
+    allocate( b_m( nb_elem ) ) 
+  
+    b_m(:) = beta_gamma_sum(:) - b_gamma(:)  
+	
+	if( spatial_model == 1 ) then
+	
+	  call b_elem_CD_LITW()
+	
+	elseif( spatial_model == 2 ) then
+	
+	  call b_elem_CD_GITW()
+	
+	else
+	  
+	  call error( sub_name, 'spatial_method not specified correctly.')
+	
+	endif
+	
+  else
+   
+    call error( sub_name, 'temporal_method not specified correctly.')
+	
+  endif
+  
+else  
 
   call error( sub_name, 'temporal_weight not specified correctly.')
 
 endif
 
-!  Check if CD is to be modulated
-if( jt < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt / CD_ramp_nstep
+!  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
+if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep
 
 !  Now update the CD of all the beta_elem 
 do n=1, nb_elem
@@ -401,6 +372,195 @@ do n=1, nb_elem
 enddo
 
 !  Now need to compute kappa; each beta region gets its own kappa value
+call beta_elem_kappa()
+  
+deallocate(beta_gamma, beta_gamma_sum)
+deallocate(b_gamma)
+
+
+return
+
+contains
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_LE()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the local b_elem CD using the explicit 
+!  formulation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+b_elem_t(:) % force_t % CD = -2._rprec * b_force(:) / b_gamma(:)   
+
+return
+end subroutine b_elem_CD_LE
+     
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GED()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the explicit 
+!  formulation with direct summation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+CD_num=0._rprec
+CD_denom=0._rprec
+    
+do n=1, nb_elem
+      
+  CD_num = CD_num + b_force(n) 
+  CD_denom = CD_denom + b_gamma(n)
+    
+enddo
+    
+b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
+
+return
+end subroutine b_elem_CD_GED
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GELS()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the explicit 
+!  formulation with least squares summation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+CD_num=0._rprec
+CD_denom=0._rprec
+    
+do n=1, nb_elem
+
+  CD_num = CD_num + b_force(n) * b_gamma(n) 
+  CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
+     
+enddo
+    
+b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
+
+return
+end subroutine b_elem_CD_GELS
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_LI()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the local b_elem CD using the explicit 
+!  formulation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+b_elem_t(:) % force_t % CD = 2._rprec * b_r_force(:) / b_m(:)
+
+return
+end subroutine b_elem_CD_LI
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GID()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the implicit 
+!  formulation with direct summation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+CD_num=0._rprec
+CD_denom=0._rprec
+    
+do n=1, nb_elem
+
+  CD_num = CD_num + b_r_force(n) 
+  CD_denom = CD_denom + b_m(n)
+  
+enddo
+
+b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom   
+
+return
+end subroutine b_elem_CD_GID
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GILS()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the implicit 
+!  formulation with direct summation
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+CD_num=0._rprec
+CD_denom=0._rprec
+    
+do n=1, nb_elem
+
+  CD_num = CD_num + b_r_force(n) * b_m(n)
+  CD_denom = CD_denom + b_m(n) * b_m(n)
+    
+enddo
+
+b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
+
+return
+end subroutine b_elem_CD_GILS
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_LITW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the implicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+return
+end subroutine b_elem_CD_LITW
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GITW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the implicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+return
+end subroutine b_elem_CD_GITW
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine beta_elem_kappa()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the implicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+implicit none
+
+real(rprec) :: beta_int
+
+$if($MPI)
+real(rprec) :: beta_int_global
+$endif
+
+real(rprec), pointer :: kappa_p, CD_p
+
+nullify(i,j,k)
+nullify(npoint_p)
+nullify(kappa_p, CD_p)
+
 do n = 1, nbeta_elem
 
   !  Compute beta_int over each region beta
@@ -442,14 +602,12 @@ do n = 1, nbeta_elem
   if(coord == 0 .and. (modulo (jt, screen_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
-
+  
 enddo
-   
-deallocate(beta_gamma, beta_gamma_sum)
-deallocate(b_gamma)
-
 
 return
+end subroutine beta_elem_kappa
+
 end subroutine rns_elem_force
 
 !**********************************************************************
