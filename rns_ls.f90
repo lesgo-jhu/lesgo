@@ -535,6 +535,7 @@ subroutine b_elem_CD_GITW()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 real(rprec) :: b_r_force_sum, b_m_sum
@@ -551,7 +552,11 @@ b_r_force_sum = sum( b_r_force(:) )
 b_m_sum = sum( b_m(:) )
 
 call Lsim( b_r_force_sum * b_m_sum, LRM_p )
-call Lsim( b_r_force_sum * b_m_sum, LMM_p )
+call Lsim( b_m_sum * b_m_sum, LMM_p )
+
+!  Update all b elements
+b_elem_t(:) % force_t % LRM = LRM_p
+b_elem_t(:) % force_t % LMM = LMM_p
 
 if( jt < weight_nstart ) then
 
@@ -562,13 +567,17 @@ else
 
   !  Compute the Lagrange multiplier
   lambda_p = 2._rprec * ( b_r_force_sum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
+  lambda_p = 0._rprec ! Turn off global constraint
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing GITW CD'
+    write(*,*) '--> lambda : ', lambda_p
+  endif
 
   !  Compute CD
   CD_p = ( 2._rprec *  LRM_p + lambda_p * b_m_sum ) / LMM_p
 
   !  Update all b elements
-  b_elem_t(:) % force_t % LRM = LRM_p
-  b_elem_t(:) % force_t % LMM = LMM_p
   b_elem_t(:) % force_t % lambda = lambda_p
   b_elem_t(:) % force_t % CD = CD_p
 
@@ -587,6 +596,7 @@ subroutine beta_elem_kappa()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 real(rprec) :: beta_int
@@ -639,7 +649,7 @@ do n = 1, nbeta_elem
     
   kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
     
-  if(coord == 0 .and. (modulo (jt, screen_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   
@@ -684,7 +694,7 @@ subroutine r_elem_force()
 !
 use types, only : rprec
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt
+use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt, wbase
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -764,7 +774,7 @@ do n = 1, nr_elem
   !  Compute CD
   r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
   
-  if(coord == 0 .and. (modulo (jt, screen_nskip) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
+  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
 
   nullify(fD_p)
   nullify(npoint_p, iarray_p)
