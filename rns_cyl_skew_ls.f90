@@ -1389,7 +1389,7 @@ call set_b_elem_children()
 !  Initialize force data
 do n=1, nb_elem
   b_elem_t( n ) % force_t = force_type_2( fD=0._rprec, CD=0._rprec, kappa=0._rprec, &
-    LRM=0._rprec, LMM=0._rprec, lambda=0._rprec )
+    LRM=0._rprec, LMM=0._rprec )
 enddo
 
 return

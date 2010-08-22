@@ -517,12 +517,64 @@ end subroutine b_elem_CD_GILS
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LITW()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!  This subroutine computes the global b_elem CD using the implicit 
+!  This subroutine computes the local b_elem CD using the implicit 
 !  formulation with temporal weighting
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
+
+real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
+real(rprec), pointer :: LRM_p, LMM_p, CD_p
+
+nullify(LRM_p, LMM_p, CD_p)
+
+!  Get LRM and LMM for all b_elem
+do n=1,nb_elem
+  
+  LRM_p    => b_elem_t(n) % force_t % LRM
+  LMM_p    => b_elem_t(n) % force_t % LMM
+  
+  call Lsim( b_r_force(n) * b_m(n), LRM_p )
+  call Lsim( b_m(n) * b_m(n), LMM_p )
+  
+  nullify( LRM_p, LMM_p )
+  
+enddo
+
+if( jt < weight_nstart ) then
+
+  call b_elem_CD_GID()
+  
+else
+
+  b_r_fsum  = sum( b_r_force(:) )
+  b_m_wsum  = sum( b_elem_t(:) % force_t % LRM * b_m(:) / b_elem_t(:) % force_t % LMM )
+  b_m_wsum2 = sum( b_m(:) * b_m(:) / b_elem_t(:) % force_t % LMM ) 
+  
+  !  Compute the Lagrange multiplier
+  lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LITW CD'
+    write(*,*) '--> lambda : ', lambda
+  endif
+
+  !  Compute CD
+  do n = 1, nb_elem
+  
+    LRM_p => b_elem_t(n) % force_t % LRM
+    LMM_p => b_elem_t(n) % force_t % LMM
+	CD_p  => b_elem_t(n) % force_t % CD
+	
+	CD_p = (2._rprec * LRM_p + lambda * b_m(n) ) / LMM_p
+
+    nullify( LRM_p, LMM_p, CD_p )   
+
+  enddo
+
+endif
 
 return
 end subroutine b_elem_CD_LITW
@@ -538,20 +590,19 @@ subroutine b_elem_CD_GITW()
 use param, only : wbase
 implicit none
 
-real(rprec) :: b_r_force_sum, b_m_sum
-real(rprec), pointer :: LRM_p, LMM_p, lambda_p, CD_p
+real(rprec) :: b_r_fsum, b_m_sum, lambda
+real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
-nullify(LRM_p, LMM_p, lambda_p, CD_p)
+nullify(LRM_p, LMM_p, CD_p)
 
 LRM_p    => b_elem_t(1) % force_t % LRM
 LMM_p    => b_elem_t(1) % force_t % LMM
-lambda_p => b_elem_t(1) % force_t % lambda
 CD_p     => b_elem_t(1) % force_t % CD
 
-b_r_force_sum = sum( b_r_force(:) )
+b_r_fsum = sum( b_r_force(:) )
 b_m_sum = sum( b_m(:) )
 
-call Lsim( b_r_force_sum * b_m_sum, LRM_p )
+call Lsim( b_r_fsum * b_m_sum, LRM_p )
 call Lsim( b_m_sum * b_m_sum, LMM_p )
 
 !  Update all b elements
@@ -561,29 +612,26 @@ b_elem_t(:) % force_t % LMM = LMM_p
 if( jt < weight_nstart ) then
 
   call b_elem_CD_GID()
-  nullify(LRM_p, LMM_p, lambda_p, CD_p)
-  
+    
 else
 
   !  Compute the Lagrange multiplier
-  lambda_p = 2._rprec * ( b_r_force_sum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
-  lambda_p = 0._rprec ! Turn off global constraint
+  lambda = 2._rprec * ( b_r_fsum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
 
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GITW CD'
-    write(*,*) '--> lambda : ', lambda_p
+    write(*,*) '--> lambda : ', lambda
   endif
 
   !  Compute CD
-  CD_p = ( 2._rprec *  LRM_p + lambda_p * b_m_sum ) / LMM_p
+  CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
 
   !  Update all b elements
-  b_elem_t(:) % force_t % lambda = lambda_p
   b_elem_t(:) % force_t % CD = CD_p
 
-  nullify(LRM_p, LMM_p, lambda_p, CD_p)
-
 endif
+
+nullify(LRM_p, LMM_p, CD_p)
 
 return
 end subroutine b_elem_CD_GITW
