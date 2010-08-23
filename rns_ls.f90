@@ -525,12 +525,15 @@ subroutine b_elem_CD_LITW()
 use param, only : wbase
 implicit none
 
+integer :: iter
 real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
+real(rprec) :: b_m_psum, sigma, lambda_p, CD_min
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
-
-real(rprec), allocatable, dimension(:) :: b_p, b_q
-real(rprec) :: b_m_psum, b_m_qsum, denom, sigma
 real(rprec), parameter :: sigmult = 10._rprec
+
+!real(rprec), allocatable, dimension(:) :: b_p, b_q
+!real(rprec) :: b_m_psum, b_m_qsum, denom, 
+!
 
 nullify(LRM_p, LMM_p, CD_p)
 
@@ -556,17 +559,12 @@ else
   b_r_fsum  = sum( b_r_force(:) )
   b_m_wsum  = sum( b_elem_t(:) % force_t % LRM * b_m(:) / b_elem_t(:) % force_t % LMM )
   b_m_wsum2 = sum( b_m(:) * b_m(:) / b_elem_t(:) % force_t % LMM ) 
-  
+
   !  Compute the Lagrange multiplier
   lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
   !lambda = 0._rprec
-
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
-    write(*,*) '--> Computing LITW CD'
-    write(*,*) '--> lambda : ', lambda
-  endif
-
-  !  Compute CD
+  
+    !  Compute CD
   do n = 1, nb_elem
   
     LRM_p => b_elem_t(n) % force_t % LRM
@@ -578,43 +576,44 @@ else
     nullify( LRM_p, LMM_p, CD_p )   
 
   enddo
-   
-  !  Apply CD < 0 penalty
-  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
   
-    allocate( b_p(nb_elem), b_q(nb_elem) )
-	
-	sigma = 1._rprec / sigmult
-	do while ( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) 
-	
-	  sigma = sigmult * sigma
-	
-	  do n=1, nb_elem
-	    
-	    if( b_elem_t(n) % force_t % CD < 0._rprec ) then
-		  denom = b_elem_t(n) % force_t % LMM - 4._rprec * sigma
-		else	
-		  denom = b_elem_t(n) % force_t % LMM
-        endif
-		
-		b_p(n) = 2._rprec * b_elem_t(n) % force_t % LRM / denom
-		b_q(n) = b_m(n) / denom	
-		
-	  enddo
-		
-      b_m_qsum = sum( b_p(:) * b_m(:) )
-      b_m_qsum = sum( b_q(:) * b_m(:) )
-		
-	  lambda = 2._rprec * ( b_r_fsum - 0.5_rprec * b_m_psum )
-		
-      b_elem_t(:) % force_t % CD = b_p(:) + lambda * b_q(:)
-		
-	enddo
-	
-	deallocate( b_p, b_q )
-	
-  endif
+  CD_min = minval( b_elem_t(:) % force_t % CD )
+  sigma = 0.25_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+  iter=0
+  do while ( CD_min < 0._rprec )
+  
+    sigma = sigmult * sigma
+    iter = iter + 1
     
+    b_m_psum = 0._rprec
+    do n=1,nb_elem
+      b_m_psum = b_m_psum + minval((/ 0._rprec,  b_elem_t(n) % force_t % CD /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
+    enddo
+    
+    lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
+    
+    !  Compute CD
+    do n = 1, nb_elem
+  
+      LRM_p => b_elem_t(n) % force_t % LRM
+      LMM_p => b_elem_t(n) % force_t % LMM
+      CD_p  => b_elem_t(n) % force_t % CD
+	
+      CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  b_elem_t(n) % force_t % CD /))) / LMM_p
+
+      nullify( LRM_p, LMM_p, CD_p )   
+
+    enddo
+    
+    CD_min = minval( b_elem_t(:) % force_t % CD )
+    
+  enddo
+  
+  
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LITW CD'
+    !write(*,*) '--> lambda : ', lambda
+  endif  
 
 endif
 
