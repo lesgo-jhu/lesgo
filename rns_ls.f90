@@ -656,8 +656,9 @@ if( jt < weight_nstart ) then
     
 else
 
-  !  Compute the Lagrange multiplier
-  lambda = 2._rprec * ( b_r_fsum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
+  !!  Compute the Lagrange multiplier
+  !lambda = 2._rprec * ( b_r_fsum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
+  lambda = 0._rprec
 
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GITW CD'
