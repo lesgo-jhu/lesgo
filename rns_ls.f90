@@ -528,6 +528,10 @@ implicit none
 real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
+real(rprec), allocatable, dimension(:) :: b_p, b_q
+real(rprec) :: b_m_psum, b_m_qsum, denom, sigma
+real(rprec), parameter :: sigmult = 10._rprec
+
 nullify(LRM_p, LMM_p, CD_p)
 
 !  Get LRM and LMM for all b_elem
@@ -574,6 +578,43 @@ else
     nullify( LRM_p, LMM_p, CD_p )   
 
   enddo
+   
+  !  Apply CD < 0 penalty
+  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+  
+    allocate( b_p(nb_elem), b_q(nb_elem) )
+	
+	sigma = 1._rprec / sigmult
+	do while ( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) 
+	
+	  sigma = sigmult * sigma
+	
+	  do n=1, nb_elem
+	    
+	    if( b_elem_t(n) % force_t % CD < 0._rprec ) then
+		  denom = b_elem_t(n) % force_t % LMM - 4._rprec * sigma
+		else	
+		  denom = b_elem_t(n) % force_t % LMM
+        endif
+		
+		b_p(n) = 2._rprec * b_elem_t(n) % force_t % LRM / denom
+		b_q(n) = b_m(n) / denom	
+		
+	  enddo
+		
+      b_m_qsum = sum( b_p(:) * b_m(:) )
+      b_m_qsum = sum( b_q(:) * b_m(:) )
+		
+	  lambda = 2._rprec * ( b_r_fsum - 0.5_rprec * b_m_psum )
+		
+      b_elem_t(:) % force_t % CD = b_p(:) + lambda * b_q(:)
+		
+	enddo
+	
+	deallocate( b_p, b_q )
+	
+  endif
+    
 
 endif
 
