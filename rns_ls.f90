@@ -587,7 +587,7 @@ else
     
     b_m_psum = 0._rprec
     do n=1,nb_elem
-      b_m_psum = b_m_psum + minval((/ 0._rprec,  b_elem_t(n) % force_t % CD /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
+      b_m_psum = b_m_psum + minval((/ 0._rprec,  2._rprec * b_elem_t(n) % force_t % CD /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
     enddo
     
     lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
@@ -599,7 +599,7 @@ else
       LMM_p => b_elem_t(n) % force_t % LMM
       CD_p  => b_elem_t(n) % force_t % CD
 	
-      CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  b_elem_t(n) % force_t % CD /))) / LMM_p
+      CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * b_elem_t(n) % force_t % CD /))) / LMM_p
 
       nullify( LRM_p, LMM_p, CD_p )   
 
