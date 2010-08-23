@@ -555,6 +555,7 @@ else
   
   !  Compute the Lagrange multiplier
   lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
+  !lambda = 0._rprec
 
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
@@ -566,9 +567,9 @@ else
   
     LRM_p => b_elem_t(n) % force_t % LRM
     LMM_p => b_elem_t(n) % force_t % LMM
-	CD_p  => b_elem_t(n) % force_t % CD
+    CD_p  => b_elem_t(n) % force_t % CD
 	
-	CD_p = (2._rprec * LRM_p + lambda * b_m(n) ) / LMM_p
+    CD_p = (2._rprec * LRM_p + lambda * b_m(n) ) / LMM_p
 
     nullify( LRM_p, LMM_p, CD_p )   
 
