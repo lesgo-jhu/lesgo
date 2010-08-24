@@ -617,8 +617,16 @@ else
       !rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
       rms = -minval( b_elem_t(:) % force_t % CD )
 
-      if(coord == 0) write(*,*) iter, b_elem_t(:) % force_t % CD, b_elem_t(:) % force_t % LRM, &
-         b_elem_t(:) % force_t % LMM
+      if(iter == 1 .and. coord == 0) then
+
+         write(*,'(1a,i6)') 'iter : ', iter
+         write(*,'(1a,6f9.4)') 'CD : ', b_elem_t(:) % force_t % CD
+         write(*,'(1a,6f9.4)') 'LRM : ', b_elem_t(:) % force_t % LRM
+         write(*,'(1a,6f9.4)') 'LMM : ', b_elem_t(:) % force_t % LMM
+         write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
+         write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
+
+      endif
     
     enddo
   
