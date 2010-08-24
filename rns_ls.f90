@@ -527,11 +527,12 @@ implicit none
 
 integer :: iter
 real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
-real(rprec) :: b_m_psum, sigma, lambda_p, CD_min
+real(rprec) :: b_m_psum, sigma, lambda_p, rms
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
-real(rprec), parameter :: sigmult = 10._rprec
+real(rprec), parameter :: sigmult = 1.1_rprec
+real(rprec), parameter :: thresh = 1.e-6_rprec
 
-!real(rprec), allocatable, dimension(:) :: b_p, b_q
+real(rprec), allocatable, dimension(:) :: CD_f
 !real(rprec) :: b_m_psum, b_m_qsum, denom, 
 !
 
@@ -577,45 +578,57 @@ else
 
   enddo
   
-  CD_min = minval( b_elem_t(:) % force_t % CD )
-  sigma = 0.25_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
-  iter=0
-  do while ( CD_min < 0._rprec )
+  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+
+    allocate(CD_f(nb_elem))
+
+    sigma = 0.25_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+    iter=0
+    rms=1.
+
+    do while ( rms > thresh )
+
+      CD_f(:) = b_elem_t(:) % force_t % CD
   
-    sigma = sigmult * sigma
-    iter = iter + 1
+      sigma = sigmult * sigma
+      iter = iter + 1
     
-    b_m_psum = 0._rprec
-    do n=1,nb_elem
-      b_m_psum = b_m_psum + minval((/ 0._rprec,  2._rprec * b_elem_t(n) % force_t % CD /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
-    enddo
+      b_m_psum = 0._rprec
+      do n=1,nb_elem
+        b_m_psum = b_m_psum + minval((/ 0._rprec,  2._rprec * CD_f(n) /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
+      enddo
     
-    lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
+      lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
     
-    !  Compute CD
-    do n = 1, nb_elem
+      !  Compute CD
+      do n = 1, nb_elem
   
-      LRM_p => b_elem_t(n) % force_t % LRM
-      LMM_p => b_elem_t(n) % force_t % LMM
-      CD_p  => b_elem_t(n) % force_t % CD
+        LRM_p => b_elem_t(n) % force_t % LRM
+        LMM_p => b_elem_t(n) % force_t % LMM
+        CD_p  => b_elem_t(n) % force_t % CD
 	
-      CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * b_elem_t(n) % force_t % CD /))) / LMM_p
+        CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f(n) /))) / LMM_p
 
-      nullify( LRM_p, LMM_p, CD_p )   
+        nullify( LRM_p, LMM_p, CD_p )   
 
+      enddo
+    
+      rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
+
+      if(coord == 0) write(*,*) iter, b_elem_t(:) % force_t % CD
+    
     enddo
-    
-    CD_min = minval( b_elem_t(:) % force_t % CD )
-    
-  enddo
   
   
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
-    write(*,*) '--> Computing LITW CD'
-    !write(*,*) '--> lambda : ', lambda
-  endif  
+    if(modulo(jt,wbase)==0 .and. coord == 0) then
+      write(*,*) '--> Computing LITW CD'
+      !write(*,*) '--> lambda : ', lambda
+    endif  
 
+  endif
 endif
+
+
 
 return
 end subroutine b_elem_CD_LITW
