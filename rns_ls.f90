@@ -582,7 +582,7 @@ else
 
     allocate(CD_f(nb_elem))
 
-    sigma = 0.25_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
     iter=0
     rms=1.
 
@@ -647,11 +647,16 @@ implicit none
 real(rprec) :: b_r_fsum, b_m_sum, lambda
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
+integer :: iter
+real(rprec) ::  rms, CD_f, sigma
+real(rprec), parameter :: sigmult = 10.0_rprec
+real(rprec), parameter :: thresh = 1.0e-6_rprec
+
 nullify(LRM_p, LMM_p, CD_p)
 
-LRM_p    => b_elem_t(1) % force_t % LRM
-LMM_p    => b_elem_t(1) % force_t % LMM
-CD_p     => b_elem_t(1) % force_t % CD
+LRM_p => b_elem_t(1) % force_t % LRM
+LMM_p => b_elem_t(1) % force_t % LMM
+CD_p  => b_elem_t(1) % force_t % CD
 
 b_r_fsum = sum( b_r_force(:) )
 b_m_sum = sum( b_m(:) )
@@ -671,22 +676,49 @@ else
 
   !!  Compute the Lagrange multiplier
   !lambda = 2._rprec * ( b_r_fsum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
-  lambda = 0._rprec
-
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
-    write(*,*) '--> Computing GITW CD'
-    write(*,*) '--> lambda : ', lambda
-  endif
 
   !  Compute CD
-  CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
+  !CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
+  CD_p = 2._rprec *  LRM_p / LMM_p
+ 
+  if( CD_p < 0._rprec ) then
 
+    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+    iter=0
+    rms=1.
+
+    do while ( rms > thresh )
+
+      CD_f = CD_p
+  
+      sigma = sigmult * sigma
+      iter = iter + 1
+      
+      !LRM_p => b_elem_t(1) % force_t % LRM
+      !LMM_p => b_elem_t(1) % force_t % LMM
+      !CD_p  => b_elem_t(1) % force_t % CD
+	
+      CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
+
+      rms = abs( CD_p - CD_f )
+
+      if(coord == 0) write(*,*) iter, CD_p
+    
+    enddo
+ 
+    if(modulo(jt,wbase)==0 .and. coord == 0) then
+      write(*,*) '--> Computing GITW CD'
+      !write(*,*) '--> lambda : ', lambda
+    endif  
+
+  endif 
+  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
 
 endif
 
-nullify(LRM_p, LMM_p, CD_p)
+nullify( LRM_p, LMM_p, CD_p )
 
 return
 end subroutine b_elem_CD_GITW
