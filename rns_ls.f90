@@ -530,7 +530,7 @@ real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
 real(rprec) :: b_m_psum, sigma, lambda_p, rms
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 real(rprec), parameter :: sigmult = 1.1_rprec
-real(rprec), parameter :: thresh = 1.e-6_rprec
+real(rprec), parameter :: thresh = 1.e-4_rprec
 
 real(rprec), allocatable, dimension(:) :: CD_f
 !real(rprec) :: b_m_psum, b_m_qsum, denom, 
@@ -582,7 +582,8 @@ else
 
     allocate(CD_f(nb_elem))
 
-    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+    !sigma = 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+    sigma = 1.0e-3_rprec * 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
     iter=0
     rms=1.
 
@@ -613,9 +614,11 @@ else
 
       enddo
     
-      rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
+      !rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
+      rms = -minval( b_elem_t(:) % force_t % CD )
 
-      if(coord == 0) write(*,*) iter, b_elem_t(:) % force_t % CD
+      if(coord == 0) write(*,*) iter, b_elem_t(:) % force_t % CD, b_elem_t(:) % force_t % LRM, &
+         b_elem_t(:) % force_t % LMM
     
     enddo
   
@@ -644,13 +647,14 @@ subroutine b_elem_CD_GITW()
 use param, only : wbase
 implicit none
 
-real(rprec) :: b_r_fsum, b_m_sum, lambda
+real(rprec) :: b_r_fsum, b_m_sum
+real(rprec) :: lambda
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
-integer :: iter
-real(rprec) ::  rms, CD_f, sigma
-real(rprec), parameter :: sigmult = 10.0_rprec
-real(rprec), parameter :: thresh = 1.0e-6_rprec
+!integer :: iter
+!real(rprec) ::  rms, CD_f, sigma
+!real(rprec), parameter :: sigmult = 1.0_rprec
+!real(rprec), parameter :: thresh = 1.0e-6_rprec
 
 nullify(LRM_p, LMM_p, CD_p)
 
@@ -681,40 +685,40 @@ else
   !CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
   CD_p = 2._rprec *  LRM_p / LMM_p
  
-  if( CD_p < 0._rprec ) then
+  !if( CD_p < 0._rprec ) then
 
-    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
-    iter=0
-    rms=1.
+  !  sigma = 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+  !  iter=0
+  !  rms=1.
 
-    do while ( rms > thresh )
+  !  do while ( rms > thresh )
 
-      CD_f = CD_p
+  !    CD_f = CD_p
   
-      sigma = sigmult * sigma
-      iter = iter + 1
+  !    sigma = sigmult * sigma
+  !    iter = iter + 1
       
       !LRM_p => b_elem_t(1) % force_t % LRM
       !LMM_p => b_elem_t(1) % force_t % LMM
       !CD_p  => b_elem_t(1) % force_t % CD
 	
-      CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
+   !   CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
 
-      rms = abs( CD_p - CD_f )
+   !   rms = abs( CD_p - CD_f )
 
-      if(coord == 0) write(*,*) iter, CD_p
+   !   if(coord == 0) write(*,*) iter, CD_p
     
-    enddo
+   ! enddo
  
-    if(modulo(jt,wbase)==0 .and. coord == 0) then
-      write(*,*) '--> Computing GITW CD'
-      !write(*,*) '--> lambda : ', lambda
-    endif  
-
-  endif 
+  !endif 
   
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing GITW CD'
+    !write(*,*) '--> lambda : ', lambda
+  endif 
 
 endif
 
