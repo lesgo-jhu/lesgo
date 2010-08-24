@@ -360,7 +360,7 @@ do nt = 1, ntree
             
       ! Ellipse major axis
       tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % a = &
-      tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b/dcos(skew_angle) 
+      tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t % b/cos(skew_angle) 
             
       do nb = 1, tr_t(nt) % gen_t(ng) % cl_t(nc) % nbranch
 
@@ -372,7 +372,7 @@ do nt = 1, ntree
                    
                 
         tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_axis = &
-          (/ dcos(angle +pi/2.), dsin(angle + pi/2.), 0._rprec/)
+          (/ cos(angle +pi/2.), sin(angle + pi/2.), 0._rprec/)
                         
         tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % skew_angle = skew_angle         
                   
@@ -493,12 +493,12 @@ do nt = 1, ntree
                 tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot(1) = &
                     tr_t(nt) % gen_t(ng) % cl_t(nc) % origin(1) + &          
                     tr_t(nt) % gen_t(ng) % cl_t(nc) % br_t(nb) % offset * &
-                    dcos(tr_t(nt) % gen_t(ng) %cl_t(nc) % br_t(nb) % angle)
+                    cos(tr_t(nt) % gen_t(ng) %cl_t(nc) % br_t(nb) % angle)
                 
                 tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % bot(2) = &
                     tr_t(nt) % gen_t(ng) % cl_t(nc) % origin(2) + &
                     tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % offset * &
-                    dsin(tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % angle)
+                    sin(tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % angle)
                    
                 call rotation_axis_vector_3d( tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % skew_axis, &
                     tr_t(nt)%gen_t(ng)%cl_t(nc)% br_t(nb) % skew_angle, &

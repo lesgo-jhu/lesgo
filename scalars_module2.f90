@@ -174,7 +174,7 @@ implicit none
 ! and scalar_in subroutine
 
 if (patch_flag .eq. 1) then
-print *, 'Assigning values to patches'
+if( .not. USE_MPI .or. (USE_MPI .and. coord == 0 ) ) write(*,*) '--> Assigning values to patches'
 !call patches(zo,T_s,q_s2d,patch,patchnum)
 call patches()
 
@@ -185,7 +185,7 @@ z_os(:,:)=(1./10.)*zo(:,:)
 !c sets temperature field and roughness field at the bottom , x-y plane
 !c Added by Vijayant
 else if (remote_flag .eq. 1) then
-print *, 'Assigning remote-sensed values to the surface'
+if( .not. USE_MPI .or. (USE_MPI .and. coord == 0 ) ) write(*,*) '--> Assigning remote-sensed values to the surface'
    call scalar_in() ! Updated T_s and zo loaded from bottombc
 !   call scalar_in(T_s,zo,crap2,crap3)
 !   T_s=T_s+273 ! Convert to Kelvin
