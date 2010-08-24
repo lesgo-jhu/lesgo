@@ -39,7 +39,7 @@ use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
 
 $if ($DEBUG)
@@ -55,7 +55,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-real(kind=rprec) rmsdivvel,ke
+real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
@@ -164,16 +164,16 @@ call system("mkdir -vp output")
     
 ! Write to screen
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  print *, 'Number of timesteps', nsteps
-  print *, 'dt = ', dt
-  if (model == 1) print *, 'Co = ', Co
-  print *, 'Nx, Ny, Nz = ', nx, ny, nz
-  print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
-  if (USE_MPI) print *, 'Number of processes = ', nproc
-  print *, 'Number of patches = ', num_patch
+  print *, '--> Number of timesteps', nsteps
+  print *, '--> dt = ', dt
+  if (model == 1) print *, '--> Co = ', Co
+  print *, '--> Nx, Ny, Nz = ', nx, ny, nz
+  print *, '--> Lx, Ly, Lz = ', L_x, L_y, L_z
+  if (USE_MPI) print *, '--> Number of processes = ', nproc
+  print *, '--> Number of patches = ', num_patch
   !print *, 'sampling stats every ', c_count, ' timesteps'
   !print *, 'writing stats every ', p_count, ' timesteps'
-  if (molec) print*, 'molecular viscosity (dimensional) ', nu_molec
+  if (molec) print*, '--> molecular viscosity (dimensional) ', nu_molec
 end if
 
 $if ($DEBUG)
@@ -184,8 +184,27 @@ if (DEBUG) then
 end if
 $endif
 
+$if($CFL_DT)
+if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
+  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
+  call cfl_set_dt(dt) 
+  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+endif
+$endif
+
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
+    
+    $if($CFL_DT)
+      dt_f = dt
+
+      call cfl_set_dt(dt)
+
+      dt_dim = dt * z_i / u_star
+    
+      tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
+      tadv2 = 1._rprec - tadv1
+    $endif
 
     ! Advance time
     jt_total = jt_total + 1 
@@ -501,6 +520,11 @@ do jt=1,nsteps
         call mpi_sync_real_array( v, MPI_SYNC_UP )
         call mpi_sync_real_array( w, MPI_SYNC_UP )
     $endif
+    
+    ! Perform conditional averaging - for turbines
+    $if ($TURBINES)
+        call turbines_cond_avg()
+    $endif       
 
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
@@ -521,17 +545,25 @@ do jt=1,nsteps
         ! Calculate rms divergence of velocity
         !   only written to screen, not used otherwise
         call rmsdiv (rmsdivvel)
+        call cfl_max ( maxcfl )
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-            write (6, 7777) jt, dt, rmsdivvel, ke
-            
-            if ((S_FLAG) .or. (coriolis_forcing)) then
-                write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
-                        coriolis_forcing, ug*u_star
-            end if
+          $if($CFL_DT)
+          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
+          $else
+          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
+          $endif  
+          if ((S_FLAG) .or. (coriolis_forcing)) then
+            write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
+              coriolis_forcing, ug*u_star
+          end if
         end if
     end if
-    7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
+    $if($CFL_DT)
+    7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
+    $else
+    7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
+    $endif
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
           

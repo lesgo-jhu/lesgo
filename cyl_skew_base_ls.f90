@@ -23,12 +23,12 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
-integer, parameter :: ntree = 1
+integer, parameter :: ntree = 5
 
-integer, parameter :: ngen = 5
-integer, parameter :: ngen_reslv = 5
+integer, parameter :: ngen = 10
+integer, parameter :: ngen_reslv = 2
 
-integer, parameter :: nbranch = 2
+integer, parameter :: nbranch = 3
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
@@ -36,10 +36,10 @@ real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
 
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
-logical, parameter :: use_bottom_surf = .false. !  True for making a bottom surface
+logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 real(rprec), parameter :: z_bottom_surf = 0.188482319537037_rprec
 
-logical, parameter :: filter_chi = .false.
+logical, parameter :: filter_chi = .true.
 real(rprec), parameter :: filt_width = 2.*dx  !  Filter width for filtered indicator function
 
 !---------------------------------------------------

@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 FCOMP = ifort
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/fftw-2.1.5/lib -L/usr/local/lib -L/usr/local/lib64
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -27,13 +27,16 @@ DEVEL=no
 USE_MPI = yes
 USE_OPENMP = no
 
+# Set dt based on CFL condition (EXPERIMENTAL)
+USE_CFL_DT = yes
+
 # Write binary files as big_endian
-WRITE_BIG_ENDIAN = no
+WRITE_BIG_ENDIAN = yes
 # Write binary files as little_endian
 WRITE_LITTLE_ENDIAN = no
 
 # Read binary files as big_endian
-READ_BIG_ENDIAN = no
+READ_BIG_ENDIAN = yes
 # Read binary files as little_endian
 READ_LITTLE_ENDIAN = no
 
@@ -66,6 +69,10 @@ endif
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
   LIBS += -lmpichf90 -lfmpich -lmpich
+endif
+
+ifeq ($(USE_CFL_DT), yes)
+  FPP += -DCFL_DT
 endif
 
 ifeq ($(USE_DYNALLOC),yes)
@@ -124,12 +131,12 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback
-  #FFLAGS = -fast
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
+  #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel medium
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads -shared-intel

@@ -56,7 +56,7 @@ if(initu)then
   $endif
   
   if(initsc) then
-    print *,'Reading initial velocity and temperature from file'
+    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity and temperature from file'
     read(12) u,v,w,RHSx,RHSy,RHSz,Cs_opt2,F_LM,F_MM,theta,RHS_T
 !TS INITIALIZE THE ZERO CONCENTRATION FIELD IF jt_total=0
     if(sflux_flag)then
@@ -76,7 +76,7 @@ if(initu)then
 7781 format('jz, ubar, vbar, wbar, Tbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4,1x,F9.4))
   else
 
-    print *,'Reading initial velocity field from file'
+    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
     select case (model)
       case (1)
@@ -114,15 +114,15 @@ if(initu)then
 
 else
   if (dns_bc) then
-     print*, 'Creating initial velocity field with DNS BCs'
+     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else
-    print*, 'Creating initial fields'
+    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial fields'
     if (S_FLAG) then
-       print*, 'Creating initial velocity & scalar fields'
+       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity & scalar fields'
        call ic_scal()
     else
-       print*, 'Creating initial velocity field'
+       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity field'
        call ic()
     end if
   end if

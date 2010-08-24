@@ -13,7 +13,7 @@ implicit none
 save
 private
 
-public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 
 integer :: nloc 
 integer :: num_x,num_y
@@ -23,7 +23,7 @@ real(rprec) :: T_avg_dim, T_avg_dim_file
 real(rprec), dimension(nz_tot) :: z_tot
 real(rprec) :: sx,sy
 
-character (64) :: fname0, fname, fname3, fname4, var_list, temp
+character (64) :: fname, fname0, fname2, fname3, fname4, var_list, temp, temp2, dummy_char
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array    !used for visualizing node locations
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array_filtered
 
@@ -35,20 +35,20 @@ integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 integer :: k_start, k_end
 real(rprec) :: a0,a1,a2,a3,a4
 character (4) :: string1, string2, string3
-logical :: exst
+logical :: exst, exst2
 
 logical :: turbine_in_proc=.false.      !false if there is no turbine (partial or whole) in this processor
+logical :: turbine_cumulative_time, turbine_cumulative_ca_time=.false.  !init, do not change this
+
+logical :: read_rms_from_file,rms_same_for_all
+real(rprec), pointer, dimension(:) :: ca_limit_mean,ca_limit_rms
+real(rprec) :: rms_mult_hi,rms_mult_lo,ca_limit_mean_averaged,ca_limit_rms_averaged
 
 real(rprec), pointer, dimension(:) :: buffer_array
 real :: buffer
 logical :: buffer_logical
 integer, dimension(nproc-1) :: turbine_in_proc_array = 0
 integer :: turbine_in_proc_cnt = 0
-
-real (rprec), dimension (nx,ny,nz) :: u_cond_avg=0., v_cond_avg=0., w_cond_avg=0.
-logical :: cond_avg_calc, cond_avg_flag
-integer :: cond_avg_turbine
-real (rprec) :: cond_avg_ud_min,cond_avg_time=0.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -66,7 +66,7 @@ implicit none
     num_x = 4               !number of turbines in x-direction
     num_y = 6               !number of turbines in y-direction  
 	nloc = num_x*num_y      !number of turbines (locations) 
-	allocate(wind_farm_t%turbine_t(nloc))
+	allocate(wind_farm_t%turbine_t(nloc)) 
     allocate(buffer_array(nloc))
 
     !x,y-locations
@@ -107,11 +107,10 @@ implicit none
             thk_all = thk_all/z_i
             thk_all = max(thk_all,dx*1.01)	
             
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%height = height_all
-                wind_farm_t%turbine_t(k)%dia = dia_all
-                wind_farm_t%turbine_t(k)%thk = thk_all
-            enddo
+            wind_farm_t%turbine_t(:)%height = height_all
+            wind_farm_t%turbine_t(:)%dia = dia_all
+            wind_farm_t%turbine_t(:)%thk = thk_all
+                
         !for varying height and/or diameter and/or thickness
         else
             !** set individual values here
@@ -123,10 +122,9 @@ implicit none
             theta1_all = 0.     !angle CCW(from above) from -x direction [degrees]
             theta2_all = 0.     !angle above the horizontal, from -x dir [degrees]
             
-            do k=1,nloc
-                wind_farm_t%turbine_t(k)%theta1 = theta1_all
-                wind_farm_t%turbine_t(k)%theta2 = theta2_all
-            enddo
+            wind_farm_t%turbine_t(:)%theta1 = theta1_all
+            wind_farm_t%turbine_t(:)%theta2 = theta2_all
+
         !for varying angles
         else
             !** set individual values here
@@ -138,12 +136,34 @@ implicit none
         wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
         wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
 
-    !conditional averaging
-        cond_avg_calc = .true.
-        cond_avg_turbine = 1                !which turbine number to place condition on
-        cond_avg_ud_min = 9.0              !minimum u_d for condition to be satisfied
+    !conditional averaging     
+        allocate(wind_farm_t%cond_avg_flag_hi(nloc)) 
+        allocate(wind_farm_t%cond_avg_flag_lo(nloc)) 
+        allocate(ca_limit_mean(nloc)) 
+        allocate(ca_limit_rms(nloc)) 
+        
+        turbine_cumulative_ca_time = .true.    !true to read cond_avg values from file (continue a simulation)        
+        read_rms_from_file = .false.             !true to read forcing mean & rms values from file (to set limits)
+        rms_same_for_all = .false.              !true to average across all turbines (if reading from file)
+        rms_mult_hi = 1.    !set limit as this multiple of rms above mean
+        rms_mult_lo = 1.    !set limit as this multiple of rms below mean          
+        
+        if(read_rms_from_file==.false.) then    !set values explicitly below           
+            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .false.
+            wind_farm_t%turbine_t(:)%cond_avg_ud_hi = 7.5      !pos or neg - doesn't matter                
+            wind_farm_t%turbine_t(:)%cond_avg_ud_lo = 6.0      !pos or neg - doesn't matter         
+        else                                    !read in rms values from file    
+            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .false.   
+            !limits are set later
+            wind_farm_t%turbine_t(:)%cond_avg_ud_hi = 8.5       !default if cannot read from file
+            wind_farm_t%turbine_t(:)%cond_avg_ud_lo = 5.5       !default if cannot read from file
+        endif    
         
     !other
+        turbine_cumulative_time = .true.    !true to read u_d_T values from file        
+        
 	    Ct_prime = 1.33		!thrust coefficient
         Ct_noprime = 0.75   !a=1/4
         T_avg_dim = 600.     !time-averaging 'window' for one-sided exp. weighting (seconds)
@@ -152,11 +172,29 @@ implicit none
         sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
 !#########################################################################################
 
+! Create turbine directory
+    call system("mkdir -vp turbine") 
+
 !z_tot for total domain (since z is local to the processor)
     do k=1,nz_tot
         z_tot(k) = (k - 0.5_rprec) * dz
     enddo
 
+!create files to store turbine forcing data
+    if (.not. turbine_cumulative_time) then
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
+            do s=1,nloc
+                fname = 'turbine/turbine_'
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_forcing.dat'
+              
+                call write_tecplot_header_xyline(fname,'rewind', var_list)   
+            enddo
+        endif    
+    endif
+    
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
     large_node_array = 0.
@@ -164,7 +202,7 @@ implicit none
 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 	!to write the node locations to file
-	  fname0 = 'nodes_unfiltered.dat'
+	  fname0 = 'turbine/nodes_unfiltered.dat'
 	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', 0, 1)
 	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
@@ -178,9 +216,9 @@ implicit none
 !set variables for time-averaging velocity 
     eps = dt_dim/T_avg_dim / (1. + dt_dim/T_avg_dim)
     
-    if (cumulative_time) then
+    if (turbine_cumulative_time) then
         if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-            fname4 = 'turbine_u_d_T.dat'
+            fname4 = 'turbine/turbine_u_d_T.dat'
             inquire (file=fname4, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
@@ -199,7 +237,7 @@ implicit none
                 do k=1,nloc
                     wind_farm_t%turbine_t(k)%u_d_T = -7.
                 enddo
-            end if                 
+            endif                                         
         endif
     else
         write (*, *) 'Assuming u_d_T = -7 for all turbines'
@@ -207,23 +245,185 @@ implicit none
             wind_farm_t%turbine_t(k)%u_d_T = -7.
         enddo    
     endif
-    
-!create files to store turbine forcing data
-    if (cumulative_time) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'
-            call write_tecplot_header_xyline('turbine_x1y1_forcing.dat','rewind', var_list)     ! 1 --turbine number
-            call write_tecplot_header_xyline('turbine_x2y1_forcing.dat','rewind', var_list)     ! 2
-            call write_tecplot_header_xyline('turbine_x3y1_forcing.dat','rewind', var_list)     ! 3
-            call write_tecplot_header_xyline('turbine_x4y1_forcing.dat','rewind', var_list)     ! 4
+   
+!set variables for conditional averaging
+!options (set above and applied here):
+!   1. continue/complete conditional averaging from a previous run (turbine_cumulative_ca_time)
+!       therefore needs to read in velocities and times
+!   2. set cond. avg. limits based on mean & rms values from a previous run (read_rms_from_file)
+!       can be applied to each turbine individually or can average and apply same condition to all
+!       (rms_same_for_all)
+
+    !default initilization
+        wind_farm_t%cond_avg_flag_hi = .false.     !init - do not change this value
+        wind_farm_t%cond_avg_flag_lo = .false.     !init - do not change this value 
+        ca_limit_mean = 0.
+        ca_limit_rms = 0.
+             
+        do k=1,nloc
+            wind_farm_t%turbine_t(k)%u_cond_avg_hi = 0.          
+            wind_farm_t%turbine_t(k)%v_cond_avg_hi = 0.          
+            wind_farm_t%turbine_t(k)%w_cond_avg_hi = 0.                             
+            wind_farm_t%turbine_t(k)%cond_avg_time_hi = 0.  
+                    
+            wind_farm_t%turbine_t(k)%u_cond_avg_lo = 0.      
+            wind_farm_t%turbine_t(k)%v_cond_avg_lo = 0.          
+            wind_farm_t%turbine_t(k)%w_cond_avg_lo = 0.                          
+            wind_farm_t%turbine_t(k)%cond_avg_time_lo = 0.  
+        enddo
+
+    !set initial values (read from file or use default)
+    if (turbine_cumulative_ca_time) then                           
+        fname = 'turbine/turbine_cond_avg_hi_time.dat'
+        inquire (file=fname, exist=exst)
+        if (exst) then
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
+                write(*,*) 'Reading from file turbine_cond_avg_hi_time.dat'
+            endif
+            open (1, file=fname)
+            do i=1,nloc
+                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi    
+            enddo    
+            close (1)
+          
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
+                write(*,*) 'Reading turbine cond_avg_hi files'
+            endif
+            do s=1,nloc
+                fname = 'turbine/cond_avg_hi_'    
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_vel.dat'                            
+                $if ($MPI)
+                    write (temp, '(".c",i0)') coord
+                    fname = trim (fname) // temp   
+                $endif 
+                inquire (file=fname, exist=exst)
+                if (exst) then
+                    open (1, file=fname, action='read', position='rewind', form='formatted')
+                    read(1,*) dummy_char
+                    read(1,*) dummy_char
+                    read(1,*) dummy_char
+                    read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz), &
+                            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz), &
+                            wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz)
+                    close (1)
+                    wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_hi
+                    wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_hi 
+                    wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_hi 
+                else
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                        write(*,*) 'File ', fname, ' not found...'
+                    endif
+                endif
+            enddo
+        else  
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write (*, *) 'File ', fname, ' not found'
+                write (*, *) 'Starting conditional average (hi) from scratch'
+            endif
+        endif     
             
-            call write_tecplot_header_xyline('turbine_x1y2_forcing.dat','rewind', var_list)     ! 5
-            call write_tecplot_header_xyline('turbine_x1y3_forcing.dat','rewind', var_list)     ! 9
-            call write_tecplot_header_xyline('turbine_x1y4_forcing.dat','rewind', var_list)     ! 13
-            call write_tecplot_header_xyline('turbine_x1y5_forcing.dat','rewind', var_list)     ! 17
-            call write_tecplot_header_xyline('turbine_x1y6_forcing.dat','rewind', var_list)     ! 21
+        fname = 'turbine/turbine_cond_avg_lo_time.dat'
+        inquire (file=fname, exist=exst)
+        if (exst) then
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Reading from file turbine_cond_avg_lo_time.dat'
+            endif    
+            open (1, file=fname)
+            do i=1,nloc
+                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo    
+            enddo    
+            close (1)
+                
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Reading turbine cond_avg (lo) files'
+            endif
+            do s=1,nloc
+                fname = 'turbine/cond_avg_lo_'    
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_vel.dat'                            
+                $if ($MPI)
+                    write (temp, '(".c",i0)') coord
+                    fname = trim (fname) // temp   
+                $endif 
+                inquire (file=fname, exist=exst)
+                if (exst) then
+                    open (1, file=fname, action='read', position='rewind', form='formatted')
+                    read(1,*) dummy_char
+                    read(1,*) dummy_char
+                    read(1,*) dummy_char                    
+                    read(1,*) wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz), &
+                            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz), &
+                            wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz)
+                    close (1)
+                    wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_lo 
+                    wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_lo 
+                    wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo* &
+                            wind_farm_t%turbine_t(s)%cond_avg_time_lo 
+                else
+                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                        write(*,*) 'File ', fname, ' not found...'
+                    endif
+                endif
+            enddo
+        else  
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write (*, *) 'File ', fname, ' not found'
+                write (*, *) 'Starting conditional average (lo) from scratch'
+            endif
+        endif                
+    else 
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            write (*, *) 'Starting conditional average (hi and lo) from scratch'
         endif
-    endif
+    endif   
+    
+    if (read_rms_from_file) then
+        fname = 'turbine/turbine_all_mean.dat'
+        inquire (file=fname, exist=exst)
+        fname2 = 'turbine/turbine_all_rms.dat'
+        inquire (file=fname2, exist=exst2)
+        
+        if (exst .and. exst2) then
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
+            endif
+            open (1, file=fname, action='read', position='rewind', form='formatted')
+            read (1,*) ca_limit_mean(1:nloc)
+            close (1)
+            open (2, file=fname2, action='read', position='rewind', form='formatted')
+            read (2,*) ca_limit_rms(1:nloc)
+            close (2)        
+            
+            if (rms_same_for_all) then
+                ca_limit_mean_averaged = sum(ca_limit_mean)/nloc
+                ca_limit_rms_averaged = sum(ca_limit_rms)/nloc
+                wind_farm_t%turbine_t(:)%cond_avg_ud_hi = abs(ca_limit_mean_averaged) + &
+                    rms_mult_hi*abs(ca_limit_rms_averaged)       
+                wind_farm_t%turbine_t(:)%cond_avg_ud_lo = abs(ca_limit_mean_averaged) - &
+                    rms_mult_lo*abs(ca_limit_rms_averaged)   
+            else           
+                do k=1,nloc                  
+                    wind_farm_t%turbine_t(k)%cond_avg_ud_hi = abs(ca_limit_mean(k)) + &
+                        rms_mult_hi*abs(ca_limit_rms(k))       
+                    wind_farm_t%turbine_t(k)%cond_avg_ud_lo = abs(ca_limit_mean(k)) - &
+                        rms_mult_lo*abs(ca_limit_rms(k))        
+                enddo  
+            endif
+        else
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
+            endif
+        endif
+    endif          
+
 	
 end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -455,7 +655,7 @@ logical :: verbose = .false.
         enddo
 
         if (.false.) then
-            fname0 = 'convolution_function.dat'
+            fname0 = 'turbine/convolution_function.dat'
             call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', 1, 1)
             call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
 
@@ -648,7 +848,7 @@ enddo
         enddo   
         enddo
         !write to file with .dat.c* extension
-            fname3 = 'nodes_filtered_c.dat'
+            fname3 = 'turbine/nodes_filtered_c.dat'
             write (temp, '(".c",i0)') coord
             fname3 = trim (fname3) // temp
             call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', 1, 1)
@@ -656,7 +856,7 @@ enddo
     endif
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-    fname3 = 'nodes_filtered.dat'
+    fname3 = 'turbine/nodes_filtered.dat'
     call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', 1, 1)
     call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
 endif
@@ -697,7 +897,9 @@ implicit none
 
 real(rprec), pointer :: p_u_d => null(), p_nhat1=> null(), p_nhat2=> null(), p_nhat3=> null()
 real(rprec), pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
+real(rprec), pointer :: p_ca_ud_hi => null(), p_ca_ud_lo => null()
 integer, pointer :: p_num_nodes=> null()
+logical, pointer :: p_ca_calc_hi=> null()  , p_ca_calc_lo=> null()  
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
@@ -772,7 +974,13 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             p_u_d_T => wind_farm_t%turbine_t(s)%u_d_T   
             p_f_n => wind_farm_t%turbine_t(s)%f_n               
             p_dia => wind_farm_t%turbine_t(s)%dia 
-            p_thk => wind_farm_t%turbine_t(s)%thk               
+            p_thk => wind_farm_t%turbine_t(s)%thk      
+            
+            p_ca_calc_hi => wind_farm_t%turbine_t(s)%cond_avg_calc_hi
+            p_ca_ud_hi => wind_farm_t%turbine_t(s)%cond_avg_ud_hi
+ 
+            p_ca_calc_lo => wind_farm_t%turbine_t(s)%cond_avg_calc_lo
+            p_ca_ud_lo => wind_farm_t%turbine_t(s)%cond_avg_ud_lo            
             
         !correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -793,66 +1001,48 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                 a3 = p_f_n
                 a4 = -0.5*Ct_prime*(a2*a2*a2)*pi/(4.*sx*sy)  !power density
 
-                if (s==1) then
-                    call write_real_data('turbine_x1y1_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/))  
-                elseif (s==2) then
-                    call write_real_data('turbine_x2y1_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/))          
-                elseif (s==3) then
-                    call write_real_data('turbine_x3y1_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
-                elseif (s==4) then
-                    call write_real_data('turbine_x4y1_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
-                elseif (s==5) then
-                    call write_real_data('turbine_x1y2_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
-                elseif (s==9) then
-                    call write_real_data('turbine_x1y3_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
-                elseif (s==13) then
-                    call write_real_data('turbine_x1y4_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
-                elseif (s==17) then
-                    call write_real_data('turbine_x1y5_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/))
-                elseif (s==21) then
-                    call write_real_data('turbine_x1y6_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/))                     
-                endif          
+
+             !call write_real_data('turbine_x2y1_forcing.dat', 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/))            
+                
+                fname = 'turbine/turbine_'
+                write (temp, '(i0)') s
+                fname2 = trim (fname) // temp
+                fname = trim (fname2) // '_forcing.dat'
+          
+                call write_real_data(fname, 'append', 'formatted', 5, (/a0,a1,a2,a3,a4/)) 
                 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
-         
-        enddo    
-        
-        !apply conditional averaging
-        if(cond_avg_calc .and. (abs(wind_farm_t%turbine_t(cond_avg_turbine)%u_d) .ge. cond_avg_ud_min)) then            
-            cond_avg_flag = .true.
-            u_cond_avg = u_cond_avg + u(1:nx,1:ny,1:nz)*dt
-            v_cond_avg = v_cond_avg + v(1:nx,1:ny,1:nz)*dt
-            w_cond_avg = w_cond_avg + w(1:nx,1:ny,1:nz)*dt
-            cond_avg_time = cond_avg_time + dt
-        else
-            cond_avg_flag = .false.
-        endif
+            
+            !set flags for conditional averaging
+            if(p_ca_calc_hi .and. (abs(p_u_d) .ge. abs(p_ca_ud_hi))) then            
+                wind_farm_t%cond_avg_flag_hi(s) = .true.
+                wind_farm_t%cond_avg_flag_lo(s) = .false.
+            else
+                wind_farm_t%cond_avg_flag_hi(s) = .false.
+                if(p_ca_calc_lo .and. (abs(p_u_d) .le. abs(p_ca_ud_lo))) then            
+                    wind_farm_t%cond_avg_flag_lo(s) = .true.
+                endif                
+            endif                           
+                     
+        enddo           
         
 endif
 
 !coord 0 sends cond_avg_flag to other processors so they can apply the averaging to their slice (or not)
 $if ($MPI)
-    !############################################## 4  
+    !############################################## 4 and 44
         if (rank == 0) then          
             do i=1,nproc-1
-                call MPI_send( cond_avg_flag, 1, MPI_logical, i, 4, MPI_COMM_WORLD, ierr )
-            enddo              
-                        
+                call MPI_send( wind_farm_t%cond_avg_flag_hi, nloc, MPI_logical, i, 4, MPI_COMM_WORLD, ierr )
+                call MPI_send( wind_farm_t%cond_avg_flag_lo, nloc, MPI_logical, i, 44, MPI_COMM_WORLD, ierr )
+            enddo                                      
         else
-            call MPI_recv( cond_avg_flag, 1, MPI_logical, 0, 4, MPI_COMM_WORLD, status, ierr )
-            
-            !apply conditional averaging if necessary
-            if(cond_avg_flag) then            
-                u_cond_avg = u_cond_avg + u(1:nx,1:ny,1:nz)*dt
-                v_cond_avg = v_cond_avg + v(1:nx,1:ny,1:nz)*dt
-                w_cond_avg = w_cond_avg + w(1:nx,1:ny,1:nz)*dt
-                cond_avg_time = cond_avg_time + dt
-            endif            
+            call MPI_recv( wind_farm_t%cond_avg_flag_hi, nloc, MPI_logical, 0, 4, MPI_COMM_WORLD, status, ierr )            
+            call MPI_recv( wind_farm_t%cond_avg_flag_lo, nloc, MPI_logical, 0, 44, MPI_COMM_WORLD, status, ierr ) 
         endif     
     !##############################################     
 $endif 
-
 
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 $if ($MPI)
@@ -907,57 +1097,147 @@ end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_finalize()
+subroutine turbines_cond_avg()
+use sim_param, only: u,v,w
 
 implicit none
 
+!apply conditional averaging if necessary
+    do s=1,nloc
+        if(wind_farm_t%cond_avg_flag_hi(s)) then            
+            wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) = & 
+                wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%cond_avg_time_hi = wind_farm_t%turbine_t(s)%cond_avg_time_hi + dt
+        elseif(wind_farm_t%cond_avg_flag_lo(s)) then     
+            wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) = & 
+                wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%cond_avg_time_lo = wind_farm_t%turbine_t(s)%cond_avg_time_lo + dt
+        endif 
+    enddo  
+    
+end subroutine turbines_cond_avg
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_finalize ()
+
+implicit none
+
+integer::cond_tag = 0
+   
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-    fname4 = 'turbine_u_d_T.dat'
-    open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
-    do i=1,nloc
-        write(2,*) wind_farm_t%turbine_t(i)%u_d_T    
-    enddo    
-    write(2,*) T_avg_dim
-    close (2)  
-endif
-
-!finalize conditional averaging
-    if(cond_avg_calc) then            
-        u_cond_avg = u_cond_avg / cond_avg_time
-        v_cond_avg = v_cond_avg / cond_avg_time
-        w_cond_avg = w_cond_avg / cond_avg_time             
-        
-        fname = 'cond_avg_vel.dat'    
-        $if ($MPI)
-            write (temp, '(".c",i0)') coord
-            fname = trim (fname) // temp   
-          
-            !MPI sync
-            call mpi_sync_real_array(u_cond_avg, MPI_SYNC_DOWNUP)     
-            call mpi_sync_real_array(v_cond_avg, MPI_SYNC_DOWNUP)
-            call mpi_sync_real_array(w_cond_avg, MPI_SYNC_DOWNUP)
-            
-            if(coord .eq. (nproc-1)) then
-                u_cond_avg(:,:,nz) = u_cond_avg(:,:,nz-1)
-                v_cond_avg(:,:,nz) = v_cond_avg(:,:,nz-1)
-                w_cond_avg(:,:,nz) = w_cond_avg(:,:,nz-1)
-            endif
-        $endif 
-            
-        call write_tecplot_header_ND(fname,'rewind', 6, (/nx,ny,nz/), &
-            '"x","y","z","u","v","w"', 1, 1)
-        call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny, nz, &
-            (/u_cond_avg,v_cond_avg,w_cond_avg/), 0, x, y, z(1:nz))       
-            
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-            write(*,*) 'cond_avg_time',cond_avg_time
-            write(*,*) 'total_time',nsteps*dt
-            write(*,*) 'Fraction of time that condition was met: ', cond_avg_time/(nsteps*dt)
-        endif
-    endif  
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        fname4 = 'turbine/turbine_u_d_T.dat'
+        open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
+        do i=1,nloc
+            write(2,*) wind_farm_t%turbine_t(i)%u_d_T    
+        enddo    
+        write(2,*) T_avg_dim
+        close (2)  
+    endif   
     
+!finalize conditional averaging      
+    do s=1,nloc
+        if(wind_farm_t%turbine_t(s)%cond_avg_calc_hi) then        
+            cond_tag = 0
+            if (wind_farm_t%turbine_t(s)%cond_avg_time_hi .gt. 0.) then
+                wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi / wind_farm_t%turbine_t(s)%cond_avg_time_hi   
+                wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi / wind_farm_t%turbine_t(s)%cond_avg_time_hi
+                wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi / wind_farm_t%turbine_t(s)%cond_avg_time_hi      
+            endif
+            
+            !call interp_to_uv_grid(wind_farm_t%turbine_t(s)%w_cond_avg_hi, wind_farm_t%turbine_t(s)%w_cond_avg_hi, cond_tag)         
+
+            fname = 'turbine/cond_avg_hi_'    
+            write (temp, '(i0)') s
+            fname2 = trim (fname) // temp
+            fname = trim (fname2) // '_vel.dat'                            
+            $if ($MPI)
+                write (temp, '(".c",i0)') coord
+                fname = trim (fname) // temp   
+            $endif 
+       
+            call write_tecplot_header_ND(fname,'rewind', 6, (/nx,ny,nz/), &
+                '"x","y","z","u","v","w"', 1, 1)                 
+            call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz)/), 0, x(1:nx), y(1:ny), z(1:nz))                
+            call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz)/), 0)                   
+            call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz)/), 0)                           
+        endif  
+    enddo
+    
+    do s=1,nloc
+        if(wind_farm_t%turbine_t(s)%cond_avg_calc_lo) then    
+            cond_tag = 0
+            if (wind_farm_t%turbine_t(s)%cond_avg_time_lo .gt. 0.) then
+                wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo / wind_farm_t%turbine_t(s)%cond_avg_time_lo   
+                wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo / wind_farm_t%turbine_t(s)%cond_avg_time_lo
+                wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo / wind_farm_t%turbine_t(s)%cond_avg_time_lo     
+            endif
+            
+            !call interp_to_uv_grid(wind_farm_t%turbine_t(s)%w_cond_avg_lo, wind_farm_t%turbine_t(s)%w_cond_avg_lo, cond_tag)         
+            
+            fname3 = 'turbine/cond_avg_lo_'    
+            write (temp2, '(i0)') s
+            fname4 = trim (fname3) // temp2
+            fname3 = trim (fname4) // '_vel.dat'                            
+            $if ($MPI)
+                write (temp2, '(".c",i0)') coord
+                fname3 = trim (fname3) // temp2   
+            $endif        
+            
+            call write_tecplot_header_ND(fname3,'rewind', 6, (/nx,ny,nz/), &
+                '"x","y","z","u","v","w"', 1, 1)           
+            call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz)/), 0, x(1:nx), y(1:ny), z(1:nz))                
+            call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz)/), 0)                   
+            call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
+                (/wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz)/), 0)                   
+                
+        endif   
+    enddo
+    
+    do s=1,nloc
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            write(*,*)
+            write(*,*) 'turbine:',s
+            write(*,*) 'cond_avg_time_hi',wind_farm_t%turbine_t(s)%cond_avg_time_hi
+            write(*,*) 'cond_avg_time_lo',wind_farm_t%turbine_t(s)%cond_avg_time_lo
+            write(*,*) 'total_time',nsteps*dt
+            write(*,*) 'Fraction of time that (hi) condition was met: ', wind_farm_t%turbine_t(s)%cond_avg_time_hi/(nsteps*dt)
+            write(*,*) 'Fraction of time that (lo) condition was met: ', wind_farm_t%turbine_t(s)%cond_avg_time_lo/(nsteps*dt)
+        endif                   
+    enddo    
+    
+!write cond_avg_time array to file (for multiple runs)
+    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        fname4 = 'turbine/turbine_cond_avg_hi_time.dat'
+        open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
+        do i=1,nloc
+            write(2,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi
+        enddo    
+        close (2)  
+        
+        fname4 = 'turbine/turbine_cond_avg_lo_time.dat'
+        open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
+        do i=1,nloc
+            write(2,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo
+        enddo    
+        close (2)          
+    endif        
+
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
