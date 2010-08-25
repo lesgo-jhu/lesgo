@@ -525,14 +525,14 @@ subroutine b_elem_CD_LITW()
 use param, only : wbase
 implicit none
 
-integer :: iter
 real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
-real(rprec) :: b_m_psum, sigma, lambda_p, rms
+
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
-real(rprec), parameter :: sigmult = 1.1_rprec
 real(rprec), parameter :: thresh = 1.e-4_rprec
 
-real(rprec), allocatable, dimension(:) :: CD_f
+integer :: mu_iter, iter
+real(rprec) :: b_m_msum, mu_rms, rms
+real(rprec), allocatable, dimension(:) :: CD_f, mu, mu_f
 !real(rprec) :: b_m_psum, b_m_qsum, denom, 
 !
 
@@ -563,9 +563,8 @@ else
 
   !  Compute the Lagrange multiplier
   lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
-  !lambda = 0._rprec
   
-    !  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LRM_p => b_elem_t(n) % force_t % LRM
@@ -578,46 +577,56 @@ else
 
   enddo
  
-  if(.false.) then 
-  !if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+
+  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
 
     allocate(CD_f(nb_elem))
+	allocate(mu(nb_elem))
+	allocate(mu_f(nb_elem))
 
-    !sigma = 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
-    sigma = 1.0e-3_rprec * 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
     iter=0
     rms=1.
 
     do while ( rms > thresh )
+	  
+	  iter=iter+1
+	  CD_f(:) = b_elem_t(:) % force_t % CD
+	  
+	  mu_rms = 1.
+	  mu_iter = 0.
+	  mu(:) = 0._rprec
+	  do while ( mu_rms > thresh )
+	  
+	    mu_iter = mu_iter + 1
+		mu_f = mu
+		b_m_msum = 0._rprec
+	    !  Initalize mu
+	    do n=1, nb_elem
+		  if( b_elem_t(n) % force_t % CD  < 0._rprec ) then
+		    mu(n) = b_elem_t(n) % force_t % LRM + 0.5_rprec * lambda * b_m(n)
+		  else
+		    mu(n) = 0._rprec
+		  endif
+		  b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+		enddo
+		
+		lambda = 2._rprec * ( b_r_fsum  - b_m_wsum  - b_m_msum ) / b_m_wsum2 
+		
+		mu_rms = sqrt( sum( ( mu(:) - mu_f(:) )**2 ) )
+	  enddo
+	  if(coord == 0) write(*,*) 'mu_iter : ', mu_iter
+	  
+	  !  Compute new CD
+	  b_m_msum = 0._rprec
+	  do n=1, nb_elem
+        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+	  enddo		
 
-      CD_f(:) = b_elem_t(:) % force_t % CD
-  
-      sigma = sigmult * sigma
-      iter = iter + 1
-    
-      b_m_psum = 0._rprec
-      do n=1,nb_elem
-        b_m_psum = b_m_psum + minval((/ 0._rprec,  2._rprec * CD_f(n) /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
-      enddo
-    
-      lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
-    
-      !  Compute CD
-      do n = 1, nb_elem
-  
-        LRM_p => b_elem_t(n) % force_t % LRM
-        LMM_p => b_elem_t(n) % force_t % LMM
-        CD_p  => b_elem_t(n) % force_t % CD
-	
-        CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f(n) /))) / LMM_p
-
-        nullify( LRM_p, LMM_p, CD_p )   
-
-      enddo
-    
-      !rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
-      rms = -minval( b_elem_t(:) % force_t % CD )
-
+      b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LRM + &
+	    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LMM
+		
+      rms = sqrt( sum( ( b_elem_t(:) % force_t % CD - CD_f(:) )**2 ) )
+	  
       if(iter == 1 .and. coord == 0) then
 
          write(*,'(1a,i6)') 'iter : ', iter
@@ -627,17 +636,20 @@ else
          write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
          write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
 
-      endif
-    
-    enddo
-  
-  
-    if(modulo(jt,wbase)==0 .and. coord == 0) then
-      write(*,*) '--> Computing LITW CD'
-      !write(*,*) '--> lambda : ', lambda
-    endif  
-
+      endif	  
+	  
+	enddo
+	if(coord == 0) write(*,*) 'iter : ', iter
+	
+	deallocate(CD_f, mu, mu_f )
+	
   endif
+  
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LITW CD'
+    !write(*,*) '--> lambda : ', lambda
+  endif  
+
 endif
 
 
