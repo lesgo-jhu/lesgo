@@ -1924,10 +1924,13 @@ do k=1,nzeta
       cell_center = bp2 + (i - 0.5)*dxi*xi_vec + eta + zeta
         
       points(:,np) = cell_center
+	  
     enddo
 
   enddo
 enddo
+
+if(coord == 0) write(*,*) 'np, nxi*neta*nzeta : ', np, nxi*neta*nzeta
 
 return
 
