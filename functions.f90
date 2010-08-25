@@ -313,7 +313,7 @@ return
 end function plane_avg_3D
 
 !**********************************************************************
-real(rprec) function points_avg_3D(var, points)
+real(rprec) function points_avg_3D(var, npoints, points)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity defined
@@ -331,12 +331,13 @@ use messages
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
-real(rprec), intent(IN), dimension(:,:) :: points
+integer, intent(IN) :: npoints
+real(rprec), intent(IN), dimension(3,npoints) :: points
 
 character (*), parameter :: func_name = mod_name // '.points_avg_3D'
 
 integer :: istart, jstart, kstart, nsum
-integer :: n, npoint
+integer :: n
 
 $if ($MPI)
 integer :: nsum_global
@@ -347,7 +348,7 @@ real(rprec) :: var_sum
 real(rprec) :: xp, yp, zp
 
 !  Check that points is a column major ordered array of dim-3
-if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
+!if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
 
 !  Build computational mesh if needed
 if(.not. grid_built) call grid_build()
@@ -356,9 +357,9 @@ nsum = 0
 var_sum=0.
 
 ! Get the number of specified points
-npoint = size(points,2)
+!npoint = size(points,2)
 
-do n=1, npoint
+do n=1, npoints
   
   zp = points(3,n)
   

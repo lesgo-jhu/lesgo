@@ -183,7 +183,7 @@ do n=1, nbeta_elem
   area_p   => beta_elem_t(n) % ref_region_t % area
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p ) 
   
   beta_gamma(n) = abs( u_p ) * u_p * area_p
   
@@ -197,7 +197,7 @@ do n=1, nb_elem
   area_p   => b_elem_t(n) % ref_region_t % area
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), b_elem_t(n) % ref_region_t % npoint, points_p ) 
   
   b_gamma(n) = abs( u_p ) * u_p * area_p
   
@@ -881,7 +881,7 @@ do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % points)
+  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
