@@ -1369,7 +1369,7 @@ do n=1, nbeta_elem
   ref_region_t_p => beta_elem_t ( n ) % ref_region_t
 
   ref_region_t_p % area = h * w
-  ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % npoint = nxi*neta*nzeta
       
     !!  Check if the element has been allocated
     !if( associated( ref_region_t_p % points ) ) then
@@ -1640,7 +1640,7 @@ do n=1, nb_elem
 
 
   ref_region_t_p % area = h * w
-  ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % npoint = nxi*neta*nzeta
       
   !  Check if the element has been allocated
   !if( associated( ref_region_t_p % points ) ) then
