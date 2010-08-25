@@ -1060,8 +1060,6 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 endif
 
 do n=1, nr_elem
-
-  if(coord == 0) write(*,*) ' n : ', n
   
   !  Get the base cluster local id
   cl_loc_id_p => clindx_to_loc_id(:, r_elem_to_basecl_map(n) )
@@ -1108,10 +1106,8 @@ do n=1, nr_elem
   allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
   !endif
         
-  if(coord == 0) write(*,*) 'calling set_point_in_box'
   !call set_points_in_plane( p1, p2, p3, nxi, neta, ref_region_t_p % points )  
   call set_points_in_box( p1, p2, p3, p4, nxi, neta, nzeta, ref_region_t_p % points ) 
-  if(coord == 0) write(*,*) 'called set_point_in_box'
 
   !  Finally initialize velocity reference components
   ref_region_t_p % u = 0._rprec
