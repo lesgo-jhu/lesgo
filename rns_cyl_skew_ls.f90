@@ -1887,6 +1887,7 @@ real(RPREC), dimension(3) :: cell_center
 
 points(:,:) = -huge(1.) ! Initialize to some bogus value
 
+! bp2 serves as the local origin
 !  vector in xi direction
 xi_vec = bp4 - bp2
 !  vector in eta direction
@@ -1915,7 +1916,7 @@ do k=1,nzeta
   do j=1,neta
     !  Attempt for cache friendliness
     eta = (j - 0.5)*deta*eta_vec
-    do i=1,nzeta
+    do i=1,nxi
   
       np = np + 1
     
@@ -1923,8 +1924,7 @@ do k=1,nzeta
       cell_center = bp2 + (i - 0.5)*dxi*xi_vec + eta + zeta
         
       points(:,np) = cell_center
-	  
-	enddo
+    enddo
 
   enddo
 enddo
