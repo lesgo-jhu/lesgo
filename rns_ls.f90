@@ -562,8 +562,8 @@ else
   b_m_wsum2 = sum( b_m(:) * b_m(:) / b_elem_t(:) % force_t % LMM ) 
 
   !  Compute the Lagrange multiplier
-  lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
-  !lambda = 0._rprec
+  !lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
+  lambda = 0._rprec
   
     !  Compute CD
   do n = 1, nb_elem
@@ -577,8 +577,9 @@ else
     nullify( LRM_p, LMM_p, CD_p )   
 
   enddo
-  
-  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+ 
+  if(.false.) then 
+  !if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
 
     allocate(CD_f(nb_elem))
 
