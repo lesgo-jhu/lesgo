@@ -1893,7 +1893,7 @@ xi_vec = bp4 - bp2
 !  vector in eta direction
 eta_vec   = bp1 - bp2
 !  vector in zeta direction
-eta_vec   = bp3 - bp2
+zeta_vec   = bp3 - bp2
 
 !  Normalize to create unit vectors
 vec_mag = sqrt(xi_vec(1)*xi_vec(1) + xi_vec(2)*xi_vec(2) + xi_vec(3)*xi_vec(3))
@@ -1922,15 +1922,12 @@ do k=1,nzeta
     
       ! Simple vector addition
       cell_center = bp2 + (i - 0.5)*dxi*xi_vec + eta + zeta
-        
       points(:,np) = cell_center
-	  
+
     enddo
 
   enddo
 enddo
-
-if(coord == 0) write(*,*) 'np, nxi*neta*nzeta : ', np, nxi*neta*nzeta
 
 return
 
