@@ -339,7 +339,7 @@ if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_
 do n=1, nb_elem
 
   !  Check if b_elem CD < 0
-  if( b_elem_t(n) % force_t % CD < 0._rprec ) b_elem_t(n) % force_t % CD = 0._rprec
+  !if( b_elem_t(n) % force_t % CD < 0._rprec ) b_elem_t(n) % force_t % CD = 0._rprec
 
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
@@ -577,8 +577,8 @@ else
 
   enddo
  
-
-  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+  if(.false.) then
+  !if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
 
     allocate(CD_f(nb_elem))
 	allocate(mu(nb_elem))
