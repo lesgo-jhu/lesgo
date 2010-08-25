@@ -356,6 +356,8 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
+write(*,*) 'maxval( points(3,:) ) : ', maxval( points(3,:) )
+write(*,*) 'minval( points(3,:) ) : ', minval( points(3,:) )
 ! Get the number of specified points
 !npoint = size(points,2)
 
