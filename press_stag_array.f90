@@ -243,6 +243,7 @@ do jz = jz_min, nz
 
       if (jx*jy == 1) cycle
 
+      ! JDA dissertation, eqn(2.85) a,b,c=coefficients and RHS_col=r_m
       a(jx, jy, jz) = 1._rprec/(dz**2)
       b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
       c(jx, jy, jz) = 1._rprec/(dz**2)
@@ -321,6 +322,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 end if
 
 do jz = 2, nz
+  ! JDA dissertation, eqn(2.88)
   p_hat(1, 1, jz) = p_hat(1, 1, jz-1) + H_z(1, 1, jz)*dz
 end do
 
