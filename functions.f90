@@ -2,6 +2,7 @@
 module functions
 !**********************************************************************
 use messages
+use types, only : rprec
 implicit none
 save
 private
