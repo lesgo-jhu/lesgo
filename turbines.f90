@@ -156,8 +156,8 @@ implicit none
         rms_mult_lo = 1.    !set limit as this multiple of rms below mean          
         
         if(.not.read_rms_from_file) then    !set values explicitly below           
-            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .false.
-            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .false.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_hi = .true.
+            wind_farm_t%turbine_t(:)%cond_avg_calc_lo = .true.
             wind_farm_t%turbine_t(:)%cond_avg_ud_hi = 7.5      !pos or neg - doesn't matter                
             wind_farm_t%turbine_t(:)%cond_avg_ud_lo = 6.0      !pos or neg - doesn't matter         
         else                                    !read in rms values from file    
@@ -1248,6 +1248,10 @@ subroutine turbine_fin_ca_hi()
 
 implicit none
 
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    write(*,*) 'Writing turbine cond_avg_hi files'
+endif
+
     do s=1,nloc
         if(wind_farm_t%turbine_t(s)%cond_avg_calc_hi) then        
             if (wind_farm_t%turbine_t(s)%cond_avg_time_hi .gt. 0.) then
@@ -1284,6 +1288,10 @@ end subroutine turbine_fin_ca_hi
 subroutine turbine_fin_ca_lo()
 
 implicit none
+
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    write(*,*) 'Writing turbine cond_avg_lo files'
+endif
 
     do s=1,nloc
         if(wind_farm_t%turbine_t(s)%cond_avg_calc_lo) then           
