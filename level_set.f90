@@ -1575,6 +1575,7 @@ end subroutine enforce_log_profile
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
 use grid_defs, only : autowrap_i, autowrap_j
 use functions, only : cell_indx
+use messages
 implicit none
 
 integer, intent (in) :: albz
@@ -1600,6 +1601,10 @@ real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1740,6 +1745,10 @@ $endif
 a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
       w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 end subroutine interp_scal
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1747,6 +1756,7 @@ subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
 use functions, only : cell_indx
 use grid_defs, only : autowrap_i, autowrap_j
+use messages
 
 implicit none
 
@@ -1766,6 +1776,10 @@ real (rp) :: w(8)
 real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1862,6 +1876,10 @@ call fill_f (tzzbot, tzztop, tzz)
 tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1939,6 +1957,7 @@ subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
 use functions, only : cell_indx
 use grid_defs, only : autowrap_i, autowrap_j
+use messages
 
 implicit none
 
@@ -1958,6 +1977,10 @@ real (rp) :: w(8)
 real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2030,6 +2053,10 @@ call fill_f (tyzbot, tyztop, tyz)
 
 tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
 
 !**********************************************************************
 contains
@@ -2115,6 +2142,7 @@ subroutine interp_phi (x, phi_x)
 !
 use functions, only : cell_indx
 use grid_defs, only : autowrap_i, autowrap_j
+use messages
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2129,6 +2157,10 @@ real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2260,6 +2292,10 @@ $endif
 phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 end subroutine interp_phi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2272,6 +2308,7 @@ subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 use functions, only : cell_indx
 use grid_defs, only : autowrap_i, autowrap_j
+use messages
 
 implicit none
 
@@ -2288,6 +2325,10 @@ real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2544,6 +2585,10 @@ $endif
 
 vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
 
 end subroutine interp_vel
 

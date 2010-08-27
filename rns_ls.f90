@@ -24,6 +24,7 @@ subroutine rns_forcing_ls()
 use types, only : rprec
 use sim_param, only : u
 use immersedbc, only : fx
+use messages
 
 $if($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -47,6 +48,10 @@ real(rprec), pointer :: kappa_p
 nullify(i,j,k)
 nullify(npoint_p)
 nullify(kappa_p)
+
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
 
 !  Compute the relavent force information ( include reference quantities, CD, etc.)
 call rns_elem_force()
@@ -88,6 +93,10 @@ $endif
 !endif
 
 if(modulo (jt, output_nskip) == 0) call rns_elem_output()
+
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
 
 return
 
