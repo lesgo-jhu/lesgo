@@ -468,6 +468,156 @@ endif
 return
 end subroutine set_nbeta_elem
 
+!!**********************************************************************
+!subroutine fill_elem_ref_region(elem, nelem, ref_region_t)
+!!**********************************************************************
+!use param, only : dy, dz, USE_MPI, coord
+!use param, only : nx, ny, nz
+!use messages
+!use cyl_skew_base_ls, only : tr_t, tree, generation
+!implicit none
+
+!character (*), parameter :: sub_name = mod_name // '.fill_elem_ref_region'
+
+
+!character(*), intent(IN) :: elem
+!integer, intent(IN) :: nelem
+!type(ref_region), intent(IN), target, dimension(nelem) :: ref_region_t
+
+!integer :: n, nb
+!integer :: nxi, neta, nzeta
+
+!real(rprec) :: h, w, xi_c(3)
+!real(rprec), dimension(3) :: p1, p2, p3
+
+!integer, pointer, dimension(:) :: cl_loc_id_p
+
+!real(rprec), pointer :: d_p, l_p, skew_angle_p
+!real(rprec), pointer :: hbot_p, htop_p
+
+!type(cluster),    pointer :: cl_t_p
+!type(branch),     pointer :: br_t_p
+
+!type(ref_region), pointer :: ref_region_t_p
+
+!nullify(cl_loc_id_p)
+!nullify(d_p, l_p, skew_angle_p)
+!nullify(hbot_p, htop_p)
+!nullify(cl_t_p, br_t_p)
+!nullify(ref_region_t_p)
+
+!if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+!  write(*,*) ' '
+!  write(*,*) '--> Filling R_ELEM Reference Plane Arrays'
+!  write(*,*) ' '
+!  write(*,*) '----> Reference Region Information : '
+!  write(*,'(a116)') '| ID       | NPOINT   | AREA     | P1.X   | P1.Y   | P1.Z   | P2.X   | P2.Y   | P2.Z   | P3.X   | P3.Y   | P3.Z   |'
+!endif
+
+!do n=1, nelem
+
+!  select case( elem )
+!    case ('r')
+!	
+!      !  Get the base cluster local id
+!      cl_loc_id_p => clindx_to_loc_id(:, r_elem_to_basecl_map(n) )
+!  
+!      cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
+
+!      !  Point to the top and bottom of the plane
+!      hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+!      htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % tplane	
+
+!    case ('b')
+!	
+!	  !  Point to ref_region_t of the resolved element
+!      ref_region_t_p => b_elem_t ( n ) % ref_region_t
+
+!      !  Get the base cluster local id
+!      cl_loc_id_p => clindx_to_loc_id(:, b_elem_to_basecl_map(n) )
+!  
+!      cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
+
+!      !  Point to the top and bottom of the plane
+!      hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+!      htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane
+
+!    case ('beta')
+!	
+!      !  Get the base cluster local id
+!      cl_loc_id_p => clindx_to_loc_id(:, beta_elem_to_basecl_map(n) )
+!  
+!      cl_t_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % cl_t( cl_loc_id_p(3) )
+
+!      !  Point to the top and bottom of the plane
+!      hbot_p => tr_t( cl_loc_id_p(1) ) % gen_t( cl_loc_id_p(2) ) % bplane
+!      htop_p => tr_t( cl_loc_id_p(1) ) % gen_t( ngen ) % tplane	
+
+!    case default
+!        call error( sub_name, 'Invalid element specification.' )
+!  end select  
+!  
+
+
+!  h = htop_p - hbot_p
+!  w = alpha_width * h
+! 
+!  nxi   = ceiling ( 2. * alpha_dist * h / dx ) + 1
+!  neta  = ceiling( w / dy ) + 1
+!  nzeta = ceiling( h / dz ) + 1  
+!      
+!  !  Offset in the upstream x-direction
+!  xi_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
+!      
+!  !  Set the ordered corner points of the plane
+!  p1    = xi_c 
+!  p1(2) = p1(2) + w / 2._rprec
+!    
+!  p2    = p1
+!  p2(2) = p2(2) - w
+!      
+!  p3    = p2
+!  p3(3) = p3(3) + h
+!  
+!  p4    = p1
+!  p4(1) = p4(1) + 2. * alpha_dist * h
+!      
+!  !  Point to ref_region_t of the resolved element
+!  ref_region_t_p => 
+
+!  ref_region_t(n) % area    = h * w
+!  ref_region_t(n) % npoint = nxi * neta * nzeta
+!    
+!  !  Check if the element has been allocated
+!  !if( associated( ref_region_t_p % points ) ) then
+!  !  call error(sub_name, 'reference region points already allocated.')
+!  !else
+!  allocate( ref_region_t(n) % points( 3, ref_region_t(n) % npoint ) )
+!  !endif
+!            
+!  !call set_points_in_plane( p1, p2, p3, nxi, neta, ref_region_t_p % points )  
+!  call set_points_in_box( p1, p2, p3, p4, nzeta, neta, ref_region_t(n) % points ) 
+
+!  !  Finally initialize velocity reference components
+!  ref_region_t_p % u = 0._rprec
+!  
+!  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+!    write(*,'(i12,i11,f11.6, 9f9.4)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
+!  endif  
+!  
+!      
+!  nullify( ref_region_t_p )
+!  nullify( htop_p, hbot_p )
+!  nullify( cl_t_p )
+!  nullify( cl_loc_id_p )
+!      
+!enddo
+!    
+!   
+!return
+
+!end subroutine fill_elem_ref_region
+
 
 !!!**********************************************************************
 !!subroutine fill_beta_elem_to_cl_map()
@@ -871,7 +1021,7 @@ end subroutine fill_r_elem
 !**********************************************************************
 subroutine fill_r_elem_ref_region()
 !**********************************************************************
-use param, only : dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, USE_MPI, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -880,10 +1030,10 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.fill_r_elem_ref_region'
 
 integer :: n, nb
-integer :: nzeta, neta
+integer :: nxi, neta, nzeta
 
-real(rprec) :: h, w, zeta_c(3)
-real(rprec), dimension(3) :: p1, p2, p3
+real(rprec) :: h, w, xi_c(3)
+real(rprec), dimension(3) :: p1, p2, p3, p4
 
 integer, pointer, dimension(:) :: cl_loc_id_p
 
@@ -923,14 +1073,15 @@ do n=1, nr_elem
   h = htop_p - hbot_p
   w = alpha_width * h
  
-  nzeta = ceiling( w / dy + 1)
-  neta  = ceiling( h / dz + 1)
+  nxi   = ceiling ( 2. * alpha_dist * h / dx ) + 1
+  neta  = ceiling( w / dy ) + 1
+  nzeta = ceiling( h / dz ) + 1  
       
   !  Offset in the upstream x-direction
-  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
+  xi_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
       
-  !  Set the ordered corner points of the plane
-  p1    = zeta_c 
+  !  Set the ordered corner points of the box
+  p1    = xi_c 
   p1(2) = p1(2) + w / 2._rprec
     
   p2    = p1
@@ -938,12 +1089,15 @@ do n=1, nr_elem
       
   p3    = p2
   p3(3) = p3(3) + h
+  
+  p4    = p2
+  p4(1) = p4(1) + 2. * alpha_dist * h
       
   !  Point to ref_region_t of the resolved element
   ref_region_t_p => r_elem_t ( n ) % ref_region_t
 
   ref_region_t_p % area    = h * w
-  ref_region_t_p % npoint = nzeta * neta
+  ref_region_t_p % npoint = nxi * neta * nzeta
     
   !  Check if the element has been allocated
   !if( associated( ref_region_t_p % points ) ) then
@@ -951,16 +1105,16 @@ do n=1, nr_elem
   !else
   allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
   !endif
-            
-  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+        
+  !call set_points_in_plane( p1, p2, p3, nxi, neta, ref_region_t_p % points )  
+  call set_points_in_box( p1, p2, p3, p4, nxi, neta, nzeta, ref_region_t_p % points ) 
 
   !  Finally initialize velocity reference components
   ref_region_t_p % u = 0._rprec
   
   if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
     write(*,'(i12,i11,f11.6, 9f9.4)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
-  endif  
-  
+  endif   
       
   nullify( ref_region_t_p )
   nullify( htop_p, hbot_p )
@@ -1136,7 +1290,7 @@ end subroutine fill_beta_elem
 !**********************************************************************
 subroutine fill_beta_elem_ref_region()
 !**********************************************************************
-use param, only : dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, USE_MPI, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t
@@ -1145,10 +1299,10 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.fill_beta_elem_ref_region'
 
 integer :: n
-integer :: nzeta, neta
+integer :: nxi, neta, nzeta
 
 real(rprec) :: h, w
-real(rprec), dimension(3) :: p1, p2, p3, zeta_c
+real(rprec), dimension(3) :: p1, p2, p3,p4, xi_c
 
 integer, pointer, dimension(:) :: cl_loc_id_p
 
@@ -1187,27 +1341,31 @@ do n=1, nbeta_elem
   h = htop_p - hbot_p
   w = alpha_width * h
     
-  nzeta = ceiling( w / dy + 1)
-  neta  = ceiling( h / dz + 1)     
-    
-  !  Offset in the upstream x-direction 
-  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
-
-  !  Need to set the number of points
-  p1    = zeta_c 
-  p1(2) = p1(2) + w / 2._rprec
+  nxi   = ceiling ( 2. * alpha_dist * h / dx ) + 1
+  neta  = ceiling( w / dy ) + 1
+  nzeta = ceiling( h / dz ) + 1  
       
+  !  Offset in the upstream x-direction
+  xi_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
+      
+  !  Set the ordered corner points of the box
+  p1    = xi_c 
+  p1(2) = p1(2) + w / 2._rprec
+    
   p2    = p1
   p2(2) = p2(2) - w
       
   p3    = p2
   p3(3) = p3(3) + h
+  
+  p4    = p2
+  p4(1) = p4(1) + 2. * alpha_dist * h
 
   !  Point to ref_region_t of the resolved element
   ref_region_t_p => beta_elem_t ( n ) % ref_region_t
 
   ref_region_t_p % area = h * w
-  ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % npoint = nxi*neta*nzeta
       
     !!  Check if the element has been allocated
     !if( associated( ref_region_t_p % points ) ) then
@@ -1216,7 +1374,8 @@ do n=1, nbeta_elem
   allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
     !endif
             
-  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+  !call set_points_in_plane( p1, p2, p3, nxi, neta, ref_region_t_p % points )  
+  call set_points_in_box( p1, p2, p3, p4, nxi, neta, nzeta, ref_region_t_p % points ) 
 
   !  Finally initialize velocity reference components
   ref_region_t_p % u = 0._rprec
@@ -1398,7 +1557,7 @@ end subroutine fill_b_elem
 !**********************************************************************
 subroutine fill_b_elem_ref_region()
 !**********************************************************************
-use param, only : dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, USE_MPI, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -1407,10 +1566,10 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.fill_b_elem_ref_region'
 
 integer :: n
-integer :: nzeta, neta
+integer :: nxi, neta, nzeta
 
 real(rprec) :: h, w
-real(rprec), dimension(3) :: p1, p2, p3, zeta_c
+real(rprec), dimension(3) :: p1, p2, p3, p4, xi_c
 
 integer, pointer, dimension(:) :: cl_loc_id_p
 
@@ -1455,25 +1614,29 @@ do n=1, nb_elem
   h = htop_p - hbot_p
   w = alpha_width * h
     
-  nzeta = ceiling( w / dy + 1)
-  neta  = ceiling( h / dz + 1)     
-    
-  !  Offset in the upstream x-direction 
-  zeta_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)  
-
-  !  Need to set the number of points
-  p1    = zeta_c 
-  p1(2) = p1(2) + w / 2._rprec
+  nxi   = ceiling ( 2. * alpha_dist * h / dx ) + 1
+  neta  = ceiling( w / dy ) + 1
+  nzeta = ceiling( h / dz ) + 1  
       
+  !  Offset in the upstream x-direction
+  xi_c = cl_t_p % origin + (/ -alpha_dist * h, 0._rprec, 0._rprec /)
+      
+  !  Set the ordered corner points of the box
+  p1    = xi_c 
+  p1(2) = p1(2) + w / 2._rprec
+    
   p2    = p1
   p2(2) = p2(2) - w
       
   p3    = p2
   p3(3) = p3(3) + h
+  
+  p4    = p2
+  p4(1) = p4(1) + 2. * alpha_dist * h
 
 
   ref_region_t_p % area = h * w
-  ref_region_t_p % npoint = nzeta*neta
+  ref_region_t_p % npoint = nxi*neta*nzeta
       
   !  Check if the element has been allocated
   !if( associated( ref_region_t_p % points ) ) then
@@ -1482,7 +1645,8 @@ do n=1, nb_elem
   allocate( ref_region_t_p % points( 3, ref_region_t_p % npoint ) )
   !endif
             
-  call set_points_in_plane( p1, p2, p3, nzeta, neta, ref_region_t_p % points )    
+  !call set_points_in_plane( p1, p2, p3, nxi, neta, ref_region_t_p % points )  
+  call set_points_in_box( p1, p2, p3, p4, nxi, neta, nzeta, ref_region_t_p % points )    
 
     !  Finally initialize velocity reference components
     ref_region_t_p % u = 0._rprec
@@ -1689,5 +1853,87 @@ enddo
 return
 
 end subroutine set_points_in_plane
+
+!**********************************************************************
+subroutine set_points_in_box(bp1, bp2, bp3, bp4, nxi, neta, nzeta, points)
+!**********************************************************************
+!
+!  This subroutine assigns the points in an arbitrary 3D box
+!
+
+use types, only : rprec
+use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+$endif
+use grid_defs
+use messages
+implicit none
+
+real(RPREC), intent(IN), dimension(3) :: bp1, bp2, bp3, bp4
+INTEGER, INTENT(IN) :: nxi, neta, nzeta
+
+real(rprec), intent(out), dimension(3,nxi*neta*nzeta) :: points
+
+character (*), parameter :: sub_name = mod_name // '.set_points_in_box'
+
+integer :: i, j, k, np
+
+REAL(RPREC) :: dxi, deta, dzeta, vec_mag
+
+real(RPREC), dimension(3) :: xi_vec, eta_vec, zeta_vec, eta, zeta
+real(RPREC), dimension(3) :: cell_center
+
+points(:,:) = -huge(1.) ! Initialize to some bogus value
+
+! bp2 serves as the local origin
+!  vector in xi direction
+xi_vec = bp4 - bp2
+!  vector in eta direction
+eta_vec   = bp1 - bp2
+!  vector in zeta direction
+zeta_vec   = bp3 - bp2
+
+!  Normalize to create unit vectors
+vec_mag = sqrt(xi_vec(1)*xi_vec(1) + xi_vec(2)*xi_vec(2) + xi_vec(3)*xi_vec(3))
+dxi = vec_mag/nxi
+xi_vec = xi_vec / vec_mag
+
+vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_vec(3))
+deta = vec_mag/neta
+eta_vec = eta_vec / vec_mag
+
+vec_mag = sqrt(zeta_vec(1)*zeta_vec(1) + zeta_vec(2)*zeta_vec(2) + zeta_vec(3)*zeta_vec(3))
+dzeta = vec_mag/nzeta
+zeta_vec = zeta_vec / vec_mag
+
+np=0
+do k=1,nzeta
+  !  Compute cell centers
+  !  Attempt for cache friendliness
+  zeta = (k - 0.5)*dzeta*zeta_vec  
+  do j=1,neta
+    !  Attempt for cache friendliness
+    eta = (j - 0.5)*deta*eta_vec
+    do i=1,nxi
+  
+      np = np + 1
+    
+      ! Simple vector addition
+      cell_center = bp2 + (i - 0.5)*dxi*xi_vec + eta + zeta
+      ! Autowrap point
+      cell_center(1) = modulo(cell_center(1), L_x)
+      cell_center(2) = modulo(cell_center(2), L_y) 
+      points(:,np) = cell_center
+
+    enddo
+
+  enddo
+enddo
+
+return
+
+end subroutine set_points_in_box
 
 end module rns_cyl_skew_ls

@@ -1,7 +1,7 @@
 ! For use with staggered grid LES
 ! JDA, 23 Jan 96
 ! zo is nondimensionalized, zo1 not!
-!--provides txz, tyz, dudz, dvdz at jz=1
+!--provides txz, tyz (w-nodes) and dudz, dvdz (uvp-nodes) at jz=1
 subroutine wallstress ()
 use types,only:rprec
 use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom
@@ -17,7 +17,9 @@ real(kind=rprec)::const
 select case (lbc_mom)
 
   case ('wall')
-
+    ! See John D. Albertson's dissertation, eqns (2.46)-(2.52)
+    ! For dudz and dvdz at wall, we should use derivwall.f90
+    
     !TS Remove the following line when obukhov.f is used
     psi_m=0._rprec
     phi_m=1._rprec

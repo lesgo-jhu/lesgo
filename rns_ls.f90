@@ -24,6 +24,7 @@ subroutine rns_forcing_ls()
 use types, only : rprec
 use sim_param, only : u
 use immersedbc, only : fx
+use messages
 
 $if($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -47,6 +48,10 @@ real(rprec), pointer :: kappa_p
 nullify(i,j,k)
 nullify(npoint_p)
 nullify(kappa_p)
+
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
 
 !  Compute the relavent force information ( include reference quantities, CD, etc.)
 call rns_elem_force()
@@ -89,6 +94,10 @@ $endif
 
 if(modulo (jt, output_nskip) == 0) call rns_elem_output()
 
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
+
 return
 
 end subroutine rns_forcing_ls
@@ -105,6 +114,10 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
+
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
@@ -114,6 +127,10 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
       
 endif
     
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
+
 return
 end subroutine rns_elem_output
 
@@ -157,6 +174,10 @@ real(rprec) ::  CD_num, CD_denom
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
 
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
+
 nullify(nelem_p, indx_p)
 nullify(area_p, u_p)
 nullify(points_p)
@@ -183,7 +204,7 @@ do n=1, nbeta_elem
   area_p   => beta_elem_t(n) % ref_region_t % area
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p ) 
   
   beta_gamma(n) = abs( u_p ) * u_p * area_p
   
@@ -197,7 +218,7 @@ do n=1, nb_elem
   area_p   => b_elem_t(n) % ref_region_t % area
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), b_elem_t(n) % ref_region_t % npoint, points_p ) 
   
   b_gamma(n) = abs( u_p ) * u_p * area_p
   
@@ -339,7 +360,7 @@ if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_
 do n=1, nb_elem
 
   !  Check if b_elem CD < 0
-  if( b_elem_t(n) % force_t % CD < 0._rprec ) b_elem_t(n) % force_t % CD = 0._rprec
+  !if( b_elem_t(n) % force_t % CD < 0._rprec ) b_elem_t(n) % force_t % CD = 0._rprec
 
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
@@ -376,6 +397,9 @@ call beta_elem_kappa()
 deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
 
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
 
 return
 
@@ -525,14 +549,14 @@ subroutine b_elem_CD_LITW()
 use param, only : wbase
 implicit none
 
-integer :: iter
 real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
-real(rprec) :: b_m_psum, sigma, lambda_p, rms
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
-real(rprec), parameter :: sigmult = 1.1_rprec
-real(rprec), parameter :: thresh = 1.e-6_rprec
 
-real(rprec), allocatable, dimension(:) :: CD_f
+real(rprec), pointer :: LRM_p, LMM_p, CD_p
+real(rprec), parameter :: thresh = 1.e-4_rprec
+
+integer :: mu_iter, iter
+real(rprec) :: b_m_msum, mu_rms, rms
+real(rprec), allocatable, dimension(:) :: CD_f, mu, mu_f
 !real(rprec) :: b_m_psum, b_m_qsum, denom, 
 !
 
@@ -563,9 +587,8 @@ else
 
   !  Compute the Lagrange multiplier
   lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
-  !lambda = 0._rprec
   
-    !  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LRM_p => b_elem_t(n) % force_t % LRM
@@ -577,55 +600,80 @@ else
     nullify( LRM_p, LMM_p, CD_p )   
 
   enddo
-  
-  if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
+ 
+  if(.false.) then
+  !if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
 
     allocate(CD_f(nb_elem))
+	allocate(mu(nb_elem))
+	allocate(mu_f(nb_elem))
 
-    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
     iter=0
     rms=1.
 
     do while ( rms > thresh )
+	  
+	  iter=iter+1
+	  CD_f(:) = b_elem_t(:) % force_t % CD
+	  
+	  mu_rms = 1.
+	  mu_iter = 0.
+	  mu(:) = 0._rprec
+	  do while ( mu_rms > thresh )
+	  
+	    mu_iter = mu_iter + 1
+		mu_f = mu
+		b_m_msum = 0._rprec
+	    !  Initalize mu
+	    do n=1, nb_elem
+		  if( b_elem_t(n) % force_t % CD  < 0._rprec ) then
+		    mu(n) = b_elem_t(n) % force_t % LRM + 0.5_rprec * lambda * b_m(n)
+		  else
+		    mu(n) = 0._rprec
+		  endif
+		  b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+		enddo
+		
+		lambda = 2._rprec * ( b_r_fsum  - b_m_wsum  - b_m_msum ) / b_m_wsum2 
+		
+		mu_rms = sqrt( sum( ( mu(:) - mu_f(:) )**2 ) )
+	  enddo
+	  if(coord == 0) write(*,*) 'mu_iter : ', mu_iter
+	  
+	  !  Compute new CD
+	  b_m_msum = 0._rprec
+	  do n=1, nb_elem
+        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+	  enddo		
 
-      CD_f(:) = b_elem_t(:) % force_t % CD
-  
-      sigma = sigmult * sigma
-      iter = iter + 1
-    
-      b_m_psum = 0._rprec
-      do n=1,nb_elem
-        b_m_psum = b_m_psum + minval((/ 0._rprec,  2._rprec * CD_f(n) /)) * b_m(n) / b_elem_t(n) % force_t % LMM 
-      enddo
-    
-      lambda_p = lambda + 2._rprec * sigma * b_m_psum / b_m_wsum2
-    
-      !  Compute CD
-      do n = 1, nb_elem
-  
-        LRM_p => b_elem_t(n) % force_t % LRM
-        LMM_p => b_elem_t(n) % force_t % LMM
-        CD_p  => b_elem_t(n) % force_t % CD
+      b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LRM + &
+	    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LMM
+		
+      rms = sqrt( sum( ( b_elem_t(:) % force_t % CD - CD_f(:) )**2 ) )
+	  
+      if(iter == 1 .and. coord == 0) then
+
+         write(*,'(1a,i6)') 'iter : ', iter
+         write(*,'(1a,6f9.4)') 'CD : ', b_elem_t(:) % force_t % CD
+         write(*,'(1a,6f9.4)') 'LRM : ', b_elem_t(:) % force_t % LRM
+         write(*,'(1a,6f9.4)') 'LMM : ', b_elem_t(:) % force_t % LMM
+         write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
+         write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
+
+      endif	  
+	  
+	enddo
+	if(coord == 0) write(*,*) 'iter : ', iter
 	
-        CD_p = (2._rprec * LRM_p + lambda_p * b_m(n) - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f(n) /))) / LMM_p
-
-        nullify( LRM_p, LMM_p, CD_p )   
-
-      enddo
-    
-      rms = sqrt (sum( (b_elem_t(:) % force_t % CD - CD_f(:))**2 ))
-
-      if(coord == 0) write(*,*) iter, b_elem_t(:) % force_t % CD
-    
-    enddo
-  
-  
-    if(modulo(jt,wbase)==0 .and. coord == 0) then
-      write(*,*) '--> Computing LITW CD'
-      !write(*,*) '--> lambda : ', lambda
-    endif  
-
+	deallocate(CD_f, mu, mu_f )
+	
   endif
+  
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LITW CD'
+    !write(*,*) '--> lambda : ', lambda
+  endif  
+
 endif
 
 
@@ -644,13 +692,14 @@ subroutine b_elem_CD_GITW()
 use param, only : wbase
 implicit none
 
-real(rprec) :: b_r_fsum, b_m_sum, lambda
+real(rprec) :: b_r_fsum, b_m_sum
+real(rprec) :: lambda
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
-integer :: iter
-real(rprec) ::  rms, CD_f, sigma
-real(rprec), parameter :: sigmult = 10.0_rprec
-real(rprec), parameter :: thresh = 1.0e-6_rprec
+!integer :: iter
+!real(rprec) ::  rms, CD_f, sigma
+!real(rprec), parameter :: sigmult = 1.0_rprec
+!real(rprec), parameter :: thresh = 1.0e-6_rprec
 
 nullify(LRM_p, LMM_p, CD_p)
 
@@ -681,40 +730,40 @@ else
   !CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
   CD_p = 2._rprec *  LRM_p / LMM_p
  
-  if( CD_p < 0._rprec ) then
+  !if( CD_p < 0._rprec ) then
 
-    sigma = 1.0e-3_rprec * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
-    iter=0
-    rms=1.
+  !  sigma = 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
+  !  iter=0
+  !  rms=1.
 
-    do while ( rms > thresh )
+  !  do while ( rms > thresh )
 
-      CD_f = CD_p
+  !    CD_f = CD_p
   
-      sigma = sigmult * sigma
-      iter = iter + 1
+  !    sigma = sigmult * sigma
+  !    iter = iter + 1
       
       !LRM_p => b_elem_t(1) % force_t % LRM
       !LMM_p => b_elem_t(1) % force_t % LMM
       !CD_p  => b_elem_t(1) % force_t % CD
 	
-      CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
+   !   CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
 
-      rms = abs( CD_p - CD_f )
+   !   rms = abs( CD_p - CD_f )
 
-      if(coord == 0) write(*,*) iter, CD_p
+   !   if(coord == 0) write(*,*) iter, CD_p
     
-    enddo
+   ! enddo
  
-    if(modulo(jt,wbase)==0 .and. coord == 0) then
-      write(*,*) '--> Computing GITW CD'
-      !write(*,*) '--> lambda : ', lambda
-    endif  
-
-  endif 
+  !endif 
   
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing GITW CD'
+    !write(*,*) '--> lambda : ', lambda
+  endif 
 
 endif
 
@@ -857,6 +906,10 @@ type(indx_array), pointer :: indx_array_t_p
 
 !if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
+
 !  Comment starts here 
 nullify(ref_region_t_p)
 nullify(indx_array_t_p)
@@ -868,7 +921,7 @@ do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % points)
+  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
@@ -917,6 +970,10 @@ do n = 1, nr_elem
   nullify(ref_region_t_p)
  
 enddo
+
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
 
 return
 end subroutine r_elem_force
