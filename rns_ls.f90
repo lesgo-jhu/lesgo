@@ -114,6 +114,10 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
+
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
   
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
 
@@ -123,6 +127,10 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
       
 endif
     
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
+
 return
 end subroutine rns_elem_output
 
@@ -165,6 +173,10 @@ real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
+
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
 
 nullify(nelem_p, indx_p)
 nullify(area_p, u_p)
@@ -385,6 +397,9 @@ call beta_elem_kappa()
 deallocate(beta_gamma, beta_gamma_sum)
 deallocate(b_gamma)
 
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
 
 return
 
@@ -891,6 +906,10 @@ type(indx_array), pointer :: indx_array_t_p
 
 !if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
+$if($VERBOSE)
+call enter_sub(sub_name)
+$endif
+
 !  Comment starts here 
 nullify(ref_region_t_p)
 nullify(indx_array_t_p)
@@ -951,6 +970,10 @@ do n = 1, nr_elem
   nullify(ref_region_t_p)
  
 enddo
+
+$if($VERBOSE)
+call exit_sub(sub_name)
+$endif
 
 return
 end subroutine r_elem_force
