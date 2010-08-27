@@ -54,20 +54,20 @@ real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 type ref_region
   integer :: npoint
   real(rprec), pointer, dimension(:,:) :: points !  3 ordered points
-  real(rprec) :: u ! reference values
+  real(rprec) :: u, v ! reference values
   real(rprec) :: area
 end type ref_region
 
 type force_type_1
   !integer :: parent !  parent CD; for resolved branches 
-  real(rprec) :: fD
+  real(rprec) :: fx, fy
   real(rprec) :: CD
   real(rprec) :: kappa ! Used for unresolved branches
 end type force_type_1
 
 type force_type_2
   !integer :: parent !  parent CD; for resolved branches 
-  real(rprec) :: fD
+  real(rprec) :: fx, fy
   real(rprec) :: CD
   real(rprec) :: kappa ! Used for unresolved branches
   real(rprec) :: LRM, LMM ! Used for temporal weighting

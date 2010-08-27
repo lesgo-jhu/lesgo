@@ -22,8 +22,8 @@ subroutine rns_forcing_ls()
 !  This subroutine computes the forces on the unresolved branches
 !
 use types, only : rprec
-use sim_param, only : u
-use immersedbc, only : fx
+use sim_param, only : u, v
+use immersedbc, only : fx, fy
 use messages
 
 $if($MPI)
@@ -70,7 +70,8 @@ do n = 1, nbeta_elem
       k => beta_elem_t( n ) % indx_array_t % iarray(3,np)
     
       fx(i,j,k) = - kappa_p * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
- 
+      fy(i,j,k) = - kappa_p * abs( v(i,j,k) ) * v(i,j,k) * chi(i,j,k)
+
       nullify(i,j,k)
       
     enddo
@@ -87,6 +88,9 @@ $if($MPI)
 !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
 call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
   fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+  comm, status, ierr)
+call mpi_sendrecv (fy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+  fy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
   comm, status, ierr)
 $endif
 
@@ -142,8 +146,8 @@ subroutine rns_elem_force()
 !
 use types, only : rprec
 use messages
-use sim_param, only : u
-use immersedbc, only : fx
+use sim_param, only : u, v
+use immersedbc, only : fx, fy
 use functions, only : points_avg_3D
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
@@ -201,13 +205,16 @@ call r_elem_force()
 do n=1, nbeta_elem
 
   u_p      => beta_elem_t(n) % ref_region_t % u
+  v_p      => beta_elem_t(n) % ref_region_t % v
   area_p   => beta_elem_t(n) % ref_region_t % area
   points_p => beta_elem_t(n) % ref_region_t % points
   
   u_p = points_avg_3D( u(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p )
   
   beta_gamma(n) = abs( u_p ) * u_p * area_p
-  
+  call error( sub_name, 'need to complete')
+
   nullify(points_p, area_p, u_p)
 
 enddo
