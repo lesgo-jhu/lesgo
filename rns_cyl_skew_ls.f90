@@ -1922,6 +1922,9 @@ do k=1,nzeta
     
       ! Simple vector addition
       cell_center = bp2 + (i - 0.5)*dxi*xi_vec + eta + zeta
+      ! Autowrap point
+      cell_center(1) = modulo(cell_center(1), L_x)
+      cell_center(2) = modulo(cell_center(2), L_y) 
       points(:,np) = cell_center
 
     enddo
