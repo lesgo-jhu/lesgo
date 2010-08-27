@@ -1,5 +1,8 @@
-! kills the oddball components in f, and calculates in plane derivatives
+! kills the oddball components in f, and calculates in horizontal derivatives
 !--supplies results for jz=$lbz:nz
+  !--MPI: all these arrays are 0:nz
+  !--MPI: on exit, u,dudx,dudy,v,dvdx,dvdy,w,dwdx,dwdy valid on jz=0:nz,
+  !  except on bottom process (0 level set to BOGUS, starts at 1)
 subroutine filt_da(f_c,dfdx_c,dfdy_c)
 use types,only:rprec
 use param,only:lh,nx,ny,nz
