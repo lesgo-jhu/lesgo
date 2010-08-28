@@ -43,6 +43,7 @@ integer :: np, n
 integer, pointer :: i, j, k
 
 integer, pointer :: npoint_p
+real(rprec) :: uc, vc, cache
 real(rprec), pointer :: kappa_p
 
 nullify(i,j,k)
@@ -69,8 +70,13 @@ do n = 1, nbeta_elem
       j => beta_elem_t( n ) % indx_array_t % iarray(2,np)
       k => beta_elem_t( n ) % indx_array_t % iarray(3,np)
     
-      fx(i,j,k) = - kappa_p * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
-      fy(i,j,k) = - kappa_p * abs( v(i,j,k) ) * v(i,j,k) * chi(i,j,k)
+      !  Cache values
+      uc = u(i,j,k)
+      vc = v(i,j,k)
+      cache = -kappa_p * sqrt( uc**2 + vc**2 ) * chi(i,j,k)  
+      
+      fx(i,j,k) = cache * uc
+      fy(i,j,k) = cache * vc
 
       nullify(i,j,k)
       
@@ -167,7 +173,7 @@ integer, pointer, dimension(:) :: indx_p
 real(rprec) :: cache
 
 real(rprec), allocatable, dimension(:,:) :: beta_gamma
-real(rprec), allocatable, dimension(:,:) :: beta_gamma_sum
+real(rprec), allocatable, dimension(:,:) :: b_beta_gamma_sum
 real(rprec), allocatable, dimension(:,:) :: b_gamma
 real(rprec), allocatable, dimension(:,:) :: b_r_force
 real(rprec), allocatable, dimension(:,:) :: b_force, b_m
@@ -175,7 +181,7 @@ real(rprec), allocatable, dimension(:,:) :: b_force, b_m
 real(rprec), pointer :: area_p, u_p, v_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
-real(rprec) ::  CD_num, CD_denom
+!real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -185,16 +191,16 @@ call enter_sub(sub_name)
 $endif
 
 nullify(nelem_p, indx_p)
-nullify(area_p, u_p)
+nullify(area_p, u_p, v_p)
 nullify(points_p)
 
 allocate(beta_gamma(ndim, nbeta_elem))
 allocate(b_gamma(ndim, nb_elem))
-allocate(beta_gamma_sum(ndim, nb_elem))
+allocate(b_beta_gamma_sum(ndim, nb_elem))
 
 beta_gamma=0._rprec
 b_gamma=0._rprec
-beta_gamma_sum=0._rprec
+b_beta_gamma_sum=0._rprec
 
 $if($MPI)
 !  Make sure intermediate velocity is sync'd
@@ -210,15 +216,16 @@ do n=1, nbeta_elem
   u_p      => beta_elem_t(n) % ref_region_t % u
   v_p      => beta_elem_t(n) % ref_region_t % v
   area_p   => beta_elem_t(n) % ref_region_t % area
+  npoint_p => beta_elem_t(n) % ref_region_t % npoint
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p )
+  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  cache = sqrt( u_p*u_p + v_p*v_p ) * area_p
+  cache = sqrt( u_p**2 + v_p**2 ) * area_p
   beta_gamma(:,n) = cache * (/ u_p, v_p /)
 
-  nullify(points_p, area_p, u_p, v_p)
+  nullify(npoint_p, points_p, area_p, u_p, v_p)
 
 enddo
 
@@ -227,21 +234,23 @@ do n=1, nb_elem
   u_p      => b_elem_t(n) % ref_region_t % u
   v_p      => b_elem_t(n) % ref_region_t % v
   area_p   => b_elem_t(n) % ref_region_t % area
+  npoint_p => b_elem_t(n) % ref_region_t % npoint
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), b_elem_t(n) % ref_region_t % npoint, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), b_elem_t(n) % ref_region_t % npoint, points_p )
+  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  cache = sqrt( u_p*u_p + v_p*v_p ) * area_p
-  b_gamma(:,n) = (/ cache * u_p, cache * v_p /)
+  cache = sqrt( u_p**2 + v_p**2 ) * area_p
+  b_gamma(:,n) = cache * (/ u_p, v_p /)
   
-  nullify(points_p, area_p, u_p, v_p)
+  nullify(npoint_p, points_p, area_p, u_p, v_p)
   
+  !  Sum over 
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
-  
+  b_beta_gamma_sum(:,n) = 0._rprec
   do ns=1, nelem_p
-    beta_gamma_sum(:,n) = beta_gamma_sum(:,n) + beta_gamma(:, indx_p(ns) )
+    b_beta_gamma_sum(:,n) = b_beta_gamma_sum(:,n) + beta_gamma(:, indx_p(ns) )
   enddo
   
   nullify(indx_p, nelem_p)
@@ -250,7 +259,7 @@ enddo
 
 !  Compute the total resolved force of each b_elem
 allocate(b_r_force( ndim, nb_elem )) 
-b_r_force = 0._rprec
+b_r_force(:,:) = 0._rprec
 
 do n=1, nb_elem
 
@@ -273,10 +282,11 @@ enddo
 if( temporal_weight == 0 ) then
 
   if( temporal_model == 1 ) then
-
+  
+    !  Compute F_b^n (CD^{n-1})
     allocate(b_force( ndim, nb_elem ))
     do n=1, nb_elem
-      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * beta_gamma_sum(:,n)
+      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
     enddo
   
     if( spatial_model == 1 ) then
@@ -303,7 +313,7 @@ if( temporal_weight == 0 ) then
 
     allocate( b_m( ndim, nb_elem ) )  
     do n=1,nb_elem
-      b_m(:,n) = beta_gamma_sum(:,n) - b_gamma(:,n)
+      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)
     enddo
 
     if( spatial_model == 1 ) then
@@ -344,7 +354,7 @@ elseif( temporal_weight == 1 ) then
   
     allocate( b_m( ndim, nb_elem ) ) 
     do n=1, nb_elem
-      b_m(:,n) = beta_gamma_sum(:,n) - b_gamma(:,n)  
+      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)  
     enddo
 
     if( spatial_model == 1 ) then
@@ -419,7 +429,7 @@ enddo
 !  Now need to compute kappa; each beta region gets its own kappa value
 call beta_elem_kappa()
   
-deallocate(beta_gamma, beta_gamma_sum)
+deallocate(beta_gamma, b_beta_gamma_sum)
 deallocate(b_gamma)
 
 $if($VERBOSE)
@@ -461,8 +471,8 @@ implicit none
 
 real(rprec), dimension(ndim) :: b_fsum, b_gamma_sum
 
-b_fsum = 0._rprec
-b_gamma_sum = 0._rprec
+b_fsum(:) = 0._rprec
+b_gamma_sum(:) = 0._rprec
 
 do n=1, nb_elem
 
@@ -486,6 +496,8 @@ subroutine b_elem_CD_GELS()
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 implicit none
+
+real(rprec) :: CD_num, CD_denom
 
 CD_num=0._rprec
 CD_denom=0._rprec
@@ -531,8 +543,8 @@ subroutine b_elem_CD_GID()
 implicit none
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_sum
 
-b_r_fsum = 0._rprec
-b_m_sum = 0._rprec
+b_r_fsum(:) = 0._rprec
+b_m_sum(:) = 0._rprec
     
 do n=1, nb_elem
 
@@ -541,7 +553,7 @@ do n=1, nb_elem
   
 enddo
 
-b_elem_t(:) % force_t % CD = 2._rprec * ( sum( b_r_fsum(:) * b_m_sum(:) ) ) / &
+b_elem_t(:) % force_t % CD = 2._rprec * sum( b_r_fsum(:) * b_m_sum(:) ) / &
   sum( b_m_sum(:) * b_m_sum(:) )
 
 return
@@ -556,6 +568,8 @@ subroutine b_elem_CD_GILS()
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 implicit none
+
+real(rprec) :: CD_num, CD_denom
 
 CD_num=0._rprec
 CD_denom=0._rprec
@@ -585,10 +599,12 @@ use functions, only : det2D
 implicit none
 
 integer :: i1,i2
+
 real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
 real(rprec), dimension(ndim,ndim) :: matd, matn1, matn2
+
+real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
 nullify(LRM_p, LMM_p, CD_p)
 
@@ -764,7 +780,8 @@ b_elem_t(:) % force_t % LMM = LMM_p
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GID()
+  !call b_elem_CD_GID()
+  call b_elem_CD_GILS()
     
 else
 
@@ -797,6 +814,7 @@ subroutine beta_elem_kappa()
 use param, only : wbase
 implicit none
 
+real(rprec) :: uc, vc
 real(rprec), dimension(ndim) :: beta_int
 
 $if($MPI)
@@ -826,29 +844,32 @@ do n = 1, nbeta_elem
     i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
     j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
     k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
-    
-    cache = sqrt( u(i,j,k)**2 + v(i,j,k)**2 ) * chi(i,j,k)
-    beta_int(:) = beta_int(:) + cache * (/ u(i,j,k), v(i,j,k) /)  
+   
+    uc = u(i,j,k)
+    vc = v(i,j,k) 
+    cache = sqrt( uc**2 + vc**2 ) * chi(i,j,k)
+    beta_int(:) = beta_int(:) + cache * (/ uc, vc /)  
  
     nullify(i,j,k)
       
   enddo
   
-  beta_int = beta_int * dx * dy * dz
+  beta_int(:) = beta_int(:) * dx * dy * dz
     
   nullify( npoint_p )
     
   $if($MPI)
-  call mpi_allreduce (beta_int, beta_int_global, ndim, MPI_RPREC, MPI_SUM, comm, ierr)
-  beta_int = beta_int_global
+  call mpi_allreduce (beta_int(1), beta_int_global(1), 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce (beta_int(2), beta_int_global(2), 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  beta_int(:) = beta_int_global(:)
   $endif
     
   kappa_p => beta_elem_t(n) % force_t % kappa
   CD_p    => beta_elem_t(n) % force_t % CD
     
-  kappa_p = CD_p * sum( beta_gamma(:,n)*beta_int(:) ) / ( 2._rprec * sum( beta_int(:)*beta_int(:) ) )
+  kappa_p = CD_p * sum( beta_gamma(:,n) * beta_int(:) ) / ( 2._rprec * sum( beta_int(:) * beta_int(:) ) )
     
-  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,4f9.4)') 'beta_indx, kappa, CD, beta_int(1), beta_int(2) : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,4f9.4)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   
