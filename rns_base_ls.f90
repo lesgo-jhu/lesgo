@@ -46,6 +46,9 @@ real(rprec), parameter :: alpha_dist = 1.25_rprec
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
+! Number of spatial dimensions (MUST BE 2)
+integer, parameter :: ndim = 2
+
 !---------------------------------------------------
 ! 
 !---------------------------------------------------  
