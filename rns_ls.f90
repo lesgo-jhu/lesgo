@@ -216,9 +216,7 @@ do n=1, nbeta_elem
   v_p = points_avg_3D( v(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p )
   
   cache = sqrt( u_p*u_p + v_p*v_p ) * area_p
-  beta_gamma(:,n) = (/ cache * u_p, cache * v_p /)
-
-  call error( sub_name, 'need to complete')
+  beta_gamma(:,n) = cache * (/ u_p, v_p /)
 
   nullify(points_p, area_p, u_p, v_p)
 
