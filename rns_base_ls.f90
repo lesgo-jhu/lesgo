@@ -30,19 +30,22 @@ integer, parameter :: rns_ntree = 2 ! Number of unique trees
 
 !  Weighting Off - 0, On - 2
 integer, parameter :: temporal_weight = 1
-real(rprec), parameter :: Tconst = 0.1_rprec
-real(rprec), parameter :: weight_nstart = 0
+!real(rprec), parameter :: Tconst = 10._rprec
+real(rprec), parameter :: Tconst = 0.25_rprec
+real(rprec), parameter :: weight_nstart = 2000
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 2
 !  Local - 1, Global direct - 2, Global least squares - 3
 integer, parameter :: spatial_model = 2
 
 integer, parameter :: output_nskip = 2
-integer, parameter :: CD_ramp_nstep = 0
+integer, parameter :: CD_ramp_nstep = 1000
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
-real(rprec), parameter :: alpha_dist = 1.25_rprec
+!real(rprec), parameter :: alpha_width = 1.1429_rprec
+!real(rprec), parameter :: alpha_dist = 0.85714_rprec
+real(rprec), parameter :: alpha_dist = 1.0_rprec
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
