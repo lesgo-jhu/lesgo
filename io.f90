@@ -2883,17 +2883,17 @@ if(point_calc) then
   $if ($MPI)
     if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
       point_coord(i) = coord
-	  
+  
       point_istart(i) = cell_indx('i',dx,point_loc(1,i))
       point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
       point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
-	  
+  
       point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
       point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
       point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
 
-	    fid=3000*i
-	  
+      fid=3000*i
+  
       !  Can't concatenate an empty string
       point_fname(i)=''
       call strcat(point_fname(i),'output/vel.x-')
@@ -2909,9 +2909,8 @@ if(point_calc) then
       if (.not. exst) then
         var_list = '"t", "u", "v", "w"'
         call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
-      endif 	
-
-	   	    
+      endif 
+  
     endif
   $else
     point_coord(i) = 0
