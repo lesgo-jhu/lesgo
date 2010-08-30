@@ -598,11 +598,11 @@ use param, only : wbase
 use functions, only : det2D
 implicit none
 
-integer :: i1,i2
+integer :: i1,i2, ipiv, info
 
 real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
-real(rprec), dimension(ndim,ndim) :: matd, matn1, matn2
+real(rprec), dimension(ndim,ndim) :: mata
 
 real(rprec), pointer :: LRM_p, LMM_p, CD_p
 
@@ -631,26 +631,24 @@ else
   !  Assemble matrices used for lambda calculations
   do i2=1,ndim
     do i1=1,ndim
-      matd(i1,i2) = sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LMM )
+      mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LMM )
     enddo
   enddo
 
-  matn1(1,1) = sum( b_r_force(1,:) - b_elem_t(:) % force_t % LRM * b_m(1,:) / &
+  !  Creat RHS using lambda
+  do n=1, ndim
+    lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LRM * b_m(n,:) / &
     b_elem_t(:) % force_t % LMM )
-  matn1(2,1) = sum( b_r_force(2,:) - b_elem_t(:) % force_t % LRM * b_m(2,:) / &
-    b_elem_t(:) % force_t % LMM )
-  matn1(1,2) = sum( b_m(1,:)*b_m(2,:) / b_elem_t(:) % force_t % LMM )
-  matn1(2,2) = sum( b_m(2,:)*b_m(2,:) / b_elem_t(:) % force_t % LMM )
+  enddo
 
-  matn2(1,1) = sum( b_m(1,:)*b_m(1,:) / b_elem_t(:) % force_t % LMM )
-  matn2(2,1) = matn1(1,2)
-  matn2(1,2) = matn1(1,1)
-  matn2(2,2) = matn1(2,1)
-
-  !  Compute the Lagrange multiplier
-  lambda = 2._rprec * (/ det2D(matn1), det2D(matn2) /) / det2D(matd) 
+  !  Solve for the Lagrange multiplier
+  $if(DBLPREC)
+  call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $else
+  call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $endif
   
-  !  Compute CD
+!  Compute CD
   do n = 1, nb_elem
   
     LRM_p => b_elem_t(n) % force_t % LRM
