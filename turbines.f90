@@ -13,7 +13,8 @@ implicit none
 save
 private
 
-public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
+public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+public :: turbines_cond_avg_hi, turbines_cond_avg_lo
 
 integer :: nloc 
 integer :: num_x,num_y
@@ -150,8 +151,8 @@ implicit none
         allocate(ca_limit_rms(nloc)) 
         
         turbine_cumulative_ca_time = .true.    !true to read cond_avg values from file (continue a simulation)        
-        read_rms_from_file = .false.             !true to read forcing mean & rms values from file (to set limits)
-        rms_same_for_all = .false.              !true to average across all turbines (if reading from file)
+        read_rms_from_file = .true.            !true to read forcing mean & rms values from file (to set limits)
+        rms_same_for_all = .true.              !true to average across all turbines (if reading from file)
         rms_mult_hi = 1.    !set limit as this multiple of rms above mean
         rms_mult_lo = 1.    !set limit as this multiple of rms below mean          
         
@@ -169,7 +170,7 @@ implicit none
         endif    
         
     !other
-        turbine_cumulative_time = .false.    !true to read u_d_T values from file        
+        turbine_cumulative_time = .true.    !true to read u_d_T values from file        
         
 	    Ct_prime = 1.33		!thrust coefficient
         Ct_noprime = 0.75   !a=1/4
@@ -824,7 +825,7 @@ $if ($MPI)
             if (buffer_logical) then
                 write (string3, '(i3)') i
                 string3 = trim(adjustl(string3))       
-                print*,'Coord ',string3,' has turbine nodes'            
+                print*,'Coord ',trim(string3),' has turbine nodes'            
                 turbine_in_proc_cnt = turbine_in_proc_cnt + 1
                 turbine_in_proc_array(turbine_in_proc_cnt) = i
             endif
@@ -1133,36 +1134,6 @@ end subroutine turbine_vel_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_cond_avg()
-use sim_param, only: u,v,w
-
-implicit none
-
-!apply conditional averaging if necessary
-    do s=1,nloc
-        if(wind_farm_t%cond_avg_flag_hi(s)) then            
-            wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) = & 
-                wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) = &
-                wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) = &
-                wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%cond_avg_time_hi = wind_farm_t%turbine_t(s)%cond_avg_time_hi + dt
-        elseif(wind_farm_t%cond_avg_flag_lo(s)) then     
-            wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) = & 
-                wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) = &
-                wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) = &
-                wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
-            wind_farm_t%turbine_t(s)%cond_avg_time_lo = wind_farm_t%turbine_t(s)%cond_avg_time_lo + dt
-        endif 
-    enddo  
-    
-end subroutine turbines_cond_avg
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbine_read_ca_hi()
 
 implicit none
@@ -1241,6 +1212,52 @@ do s=1,nloc
 enddo
 
 end subroutine turbine_read_ca_lo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_cond_avg_hi()
+use sim_param, only: u,v,w
+
+implicit none
+
+!apply conditional averaging if necessary
+    do s=1,nloc
+        if(wind_farm_t%cond_avg_flag_hi(s)) then            
+            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) write(*,*) 'hi'
+            wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) = & 
+                wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%cond_avg_time_hi = wind_farm_t%turbine_t(s)%cond_avg_time_hi + dt
+        endif 
+    enddo  
+    
+end subroutine turbines_cond_avg_hi
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_cond_avg_lo()
+use sim_param, only: u,v,w
+
+implicit none
+
+!apply conditional averaging if necessary
+    do s=1,nloc
+        if(wind_farm_t%cond_avg_flag_lo(s)) then            
+            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) write(*,*) 'lo'
+            wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) = & 
+                wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) = &
+                wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
+            wind_farm_t%turbine_t(s)%cond_avg_time_lo = wind_farm_t%turbine_t(s)%cond_avg_time_lo + dt
+        endif 
+    enddo  
+    
+end subroutine turbines_cond_avg_lo
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
