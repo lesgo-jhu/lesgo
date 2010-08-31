@@ -76,7 +76,7 @@ type force_type_2
   real(rprec) :: fx, fy
   real(rprec) :: CD
   real(rprec) :: kappa ! Used for unresolved branches
-  real(rprec) :: LRM, LMM ! Used for temporal weighting
+  real(rprec) :: LAB, LBB ! Used for temporal weighting
 end type force_type_2
 
 type indx_array

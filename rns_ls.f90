@@ -587,6 +587,89 @@ return
 end subroutine b_elem_CD_GILS
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_LETW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the local b_elem CD using the explicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+use param, only : wbase
+implicit none
+
+integer :: i1,i2, ipiv, info
+
+real(rprec), dimension(ndim) :: lambda
+real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
+real(rprec), dimension(ndim,ndim) :: mata
+
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
+
+nullify(LAB_p, LBB_p, CD_p)
+
+!  Get LAB and LBB for all b_elem
+do n=1,nb_elem
+  
+  LAB_p    => b_elem_t(n) % force_t % LAB
+  LBB_p    => b_elem_t(n) % force_t % LBB
+  
+  call Lsim( sum(b_r_force(:,n) * b_m(:,n)), LAB_p )
+  call Lsim( sum(b_m(:,n) * b_m(:,n)), LBB_p )
+  
+  nullify( LAB_p, LBB_p )
+  
+enddo
+
+if( jt < weight_nstart ) then
+
+  !call b_elem_CD_GID()
+  call b_elem_CD_GILS()
+  
+else
+
+  !  Assemble matrices used for lambda calculations
+  do i2=1,ndim
+    do i1=1,ndim
+      mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
+    enddo
+  enddo
+
+  !  Creat RHS using lambda
+  do n=1, ndim
+    lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
+    b_elem_t(:) % force_t % LBB )
+  enddo
+
+  !  Solve for the Lagrange multiplier
+  $if(DBLPREC)
+  call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $else
+  call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $endif
+  
+!  Compute CD
+  do n = 1, nb_elem
+  
+    LAB_p => b_elem_t(n) % force_t % LAB
+    LBB_p => b_elem_t(n) % force_t % LBB
+    CD_p  => b_elem_t(n) % force_t % CD
+
+    CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
+
+    nullify( LAB_p, LBB_p, CD_p )   
+
+  enddo
+  
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LETW CD'
+  endif  
+
+endif
+
+return
+end subroutine b_elem_CD_LITW
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LITW()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine computes the local b_elem CD using the implicit 
@@ -604,20 +687,20 @@ real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
 real(rprec), dimension(ndim,ndim) :: mata
 
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
-nullify(LRM_p, LMM_p, CD_p)
+nullify(LAB_p, LBB_p, CD_p)
 
-!  Get LRM and LMM for all b_elem
+!  Get LAB and LBB for all b_elem
 do n=1,nb_elem
   
-  LRM_p    => b_elem_t(n) % force_t % LRM
-  LMM_p    => b_elem_t(n) % force_t % LMM
+  LAB_p    => b_elem_t(n) % force_t % LAB
+  LBB_p    => b_elem_t(n) % force_t % LBB
   
-  call Lsim( sum(b_r_force(:,n) * b_m(:,n)), LRM_p )
-  call Lsim( sum(b_m(:,n) * b_m(:,n)), LMM_p )
+  call Lsim( sum(b_r_force(:,n) * b_m(:,n)), LAB_p )
+  call Lsim( sum(b_m(:,n) * b_m(:,n)), LBB_p )
   
-  nullify( LRM_p, LMM_p )
+  nullify( LAB_p, LBB_p )
   
 enddo
 
@@ -631,14 +714,14 @@ else
   !  Assemble matrices used for lambda calculations
   do i2=1,ndim
     do i1=1,ndim
-      mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LMM )
+      mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
     enddo
   enddo
 
   !  Creat RHS using lambda
   do n=1, ndim
-    lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LRM * b_m(n,:) / &
-    b_elem_t(:) % force_t % LMM )
+    lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
+    b_elem_t(:) % force_t % LBB )
   enddo
 
   !  Solve for the Lagrange multiplier
@@ -651,13 +734,13 @@ else
 !  Compute CD
   do n = 1, nb_elem
   
-    LRM_p => b_elem_t(n) % force_t % LRM
-    LMM_p => b_elem_t(n) % force_t % LMM
+    LAB_p => b_elem_t(n) % force_t % LAB
+    LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    CD_p = ( 2._rprec * LRM_p + sum(lambda(:) * b_m(:,n)) ) / LMM_p
+    CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
 
-    nullify( LRM_p, LMM_p, CD_p )   
+    nullify( LAB_p, LBB_p, CD_p )   
 
   enddo
  
@@ -687,11 +770,11 @@ else
   !      !  Initalize mu
   !      do n=1, nb_elem
   !        if( b_elem_t(n) % force_t % CD  < 0._rprec ) then
-  !          mu(n) = b_elem_t(n) % force_t % LRM + 0.5_rprec * lambda * b_m(n)
+  !          mu(n) = b_elem_t(n) % force_t % LAB + 0.5_rprec * lambda * b_m(n)
   !        else
   !          mu(n) = 0._rprec
   !        endif
-  !        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+  !        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LBB
   !      enddo
 
   !      lambda = 2._rprec * ( b_r_fsum  - b_m_wsum  - b_m_msum ) / b_m_wsum2 
@@ -704,11 +787,11 @@ else
   !    !  Compute new CD
   !    b_m_msum = 0._rprec
   !    do n=1, nb_elem
-  !      b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
+  !      b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LBB
   !    enddo
 
-  !    b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LRM + &
-  !    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LMM
+  !    b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LAB + &
+  !    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LBB
 
   !    rms = sqrt( sum( ( b_elem_t(:) % force_t % CD - CD_f(:) )**2 ) )
   
@@ -716,8 +799,8 @@ else
 
   !       write(*,'(1a,i6)') 'iter : ', iter
   !       write(*,'(1a,6f9.4)') 'CD : ', b_elem_t(:) % force_t % CD
-  !       write(*,'(1a,6f9.4)') 'LRM : ', b_elem_t(:) % force_t % LRM
-  !       write(*,'(1a,6f9.4)') 'LMM : ', b_elem_t(:) % force_t % LMM
+  !       write(*,'(1a,6f9.4)') 'LAB : ', b_elem_t(:) % force_t % LAB
+  !       write(*,'(1a,6f9.4)') 'LBB : ', b_elem_t(:) % force_t % LBB
   !       write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
   !       write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
 
@@ -752,12 +835,12 @@ use param, only : wbase
 implicit none
 
 real(rprec) :: b_r_msum, b_m_msum
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
-nullify(LRM_p, LMM_p, CD_p)
+nullify(LAB_p, LBB_p, CD_p)
 
-LRM_p => b_elem_t(1) % force_t % LRM
-LMM_p => b_elem_t(1) % force_t % LMM
+LAB_p => b_elem_t(1) % force_t % LAB
+LBB_p => b_elem_t(1) % force_t % LBB
 CD_p  => b_elem_t(1) % force_t % CD
 
 b_r_msum = 0._rprec
@@ -769,12 +852,12 @@ do n=1, nb_elem
   b_m_msum = b_m_msum + sum( b_m(:,n) * b_m(:,n) )
 enddo
 
-call Lsim( b_r_msum, LRM_p )
-call Lsim( b_m_msum, LMM_p )
+call Lsim( b_r_msum, LAB_p )
+call Lsim( b_m_msum, LBB_p )
 
 !  Update all b elements
-b_elem_t(:) % force_t % LRM = LRM_p
-b_elem_t(:) % force_t % LMM = LMM_p
+b_elem_t(:) % force_t % LAB = LAB_p
+b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt < weight_nstart ) then
 
@@ -784,7 +867,7 @@ if( jt < weight_nstart ) then
 else
 
   !  Compute CD
-  CD_p = 2._rprec *  LRM_p / LMM_p
+  CD_p = 2._rprec *  LAB_p / LBB_p
  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
@@ -796,7 +879,7 @@ else
 
 endif
 
-nullify( LRM_p, LMM_p, CD_p )
+nullify( LAB_p, LBB_p, CD_p )
 
 return
 end subroutine b_elem_CD_GITW
