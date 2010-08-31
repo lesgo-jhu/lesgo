@@ -347,8 +347,27 @@ if( temporal_weight == 0 ) then
 elseif( temporal_weight == 1 ) then
 
   if( temporal_model == 1 ) then
+    !  Compute F_b^n (CD^{n-1})
+    allocate(b_force( ndim, nb_elem ))
+    do n=1, nb_elem
+      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+    enddo  
+  
+    if( spatial_model == 1 ) then
+
+      call b_elem_CD_LETW()
+
+    elseif( spatial_model == 2 ) then
+  
+      call error( sub_name, 'spatial_method not specified correctly.')
+
+    else
+      
+      call b_elem_CD_GETW()
+
+    endif
     
-    call error( sub_name, 'temporal_method not specified correctly.')
+    deallocate(b_force)
 
   elseif( temporal_model == 2 ) then
   
@@ -362,12 +381,12 @@ elseif( temporal_weight == 1 ) then
       call b_elem_CD_LITW()
 
     elseif( spatial_model == 2 ) then
-
-      call b_elem_CD_GITW()
-
-    else
   
       call error( sub_name, 'spatial_method not specified correctly.')
+
+    else
+      
+      call b_elem_CD_GITW()
 
     endif
 
@@ -600,12 +619,13 @@ implicit none
 integer :: i1,i2, ipiv, info
 
 real(rprec), dimension(ndim) :: lambda
-real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
+real(rprec), dimension(ndim) :: b_gamma_gsum, b_force_gsum
 real(rprec), dimension(ndim,ndim) :: mata
 
 real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
 nullify(LAB_p, LBB_p, CD_p)
+
 
 !  Get LAB and LBB for all b_elem
 do n=1,nb_elem
@@ -613,8 +633,8 @@ do n=1,nb_elem
   LAB_p    => b_elem_t(n) % force_t % LAB
   LBB_p    => b_elem_t(n) % force_t % LBB
   
-  call Lsim( sum(b_r_force(:,n) * b_m(:,n)), LAB_p )
-  call Lsim( sum(b_m(:,n) * b_m(:,n)), LBB_p )
+  call Lsim( sum(b_force(:,n) * b_gamma(:,n)), LAB_p )
+  call Lsim( sum(b_gamma(:,n) * b_gamma(:,n)), LBB_p )
   
   nullify( LAB_p, LBB_p )
   
@@ -622,21 +642,20 @@ enddo
 
 if( jt < weight_nstart ) then
 
-  !call b_elem_CD_GID()
-  call b_elem_CD_GILS()
+  call b_elem_CD_GELS()
   
 else
 
   !  Assemble matrices used for lambda calculations
   do i2=1,ndim
     do i1=1,ndim
-      mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
+      mata(i1,i2) = 0.5_rprec * sum( b_gamma(i1,:)*b_gamma(i2,:) / b_elem_t(:) % force_t % LBB )
     enddo
   enddo
 
   !  Creat RHS using lambda
   do n=1, ndim
-    lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
+    lambda(n) = sum( b_force(n,:) - b_elem_t(:) % force_t % LAB * b_gamma(n,:) / &
     b_elem_t(:) % force_t % LBB )
   enddo
 
@@ -654,7 +673,7 @@ else
     LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
+    CD_p = -( 2._rprec * LAB_p + sum(lambda(:) * b_gamma(:,n)) ) / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
 
@@ -667,7 +686,66 @@ else
 endif
 
 return
-end subroutine b_elem_CD_LITW
+end subroutine b_elem_CD_LETW
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GETW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the explicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+use param, only : wbase
+implicit none
+
+real(rprec) :: b_force_gsum, b_gamma_gsum
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
+
+nullify(LAB_p, LBB_p, CD_p)
+
+LAB_p => b_elem_t(1) % force_t % LAB
+LBB_p => b_elem_t(1) % force_t % LBB
+CD_p  => b_elem_t(1) % force_t % CD
+
+b_force_gsum = 0._rprec
+b_gamma_gsum = 0._rprec
+
+!  Least squares summation
+do n=1, nb_elem
+  b_force_gsum = b_force_gsum + sum( b_force(:,n) * b_gamma(:,n) )
+  b_gamma_gsum = b_gamma_gsum + sum( b_gamma(:,n) * b_gamma(:,n) )
+enddo
+
+call Lsim( b_force_gsum, LAB_p )
+call Lsim( b_gamma_gsum, LBB_p )
+
+!  Update all b elements
+b_elem_t(:) % force_t % LAB = LAB_p
+b_elem_t(:) % force_t % LBB = LBB_p
+
+if( jt < weight_nstart ) then
+
+  call b_elem_CD_GELS()
+    
+else
+
+  !  Compute CD
+  CD_p = -2._rprec *  LAB_p / LBB_p
+ 
+  !  Update all b elements
+  b_elem_t(:) % force_t % CD = CD_p
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing GETW CD'
+  endif 
+
+endif
+
+nullify( LAB_p, LBB_p, CD_p )
+
+return
+end subroutine b_elem_CD_GETW
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LITW()
@@ -743,75 +821,6 @@ else
     nullify( LAB_p, LBB_p, CD_p )   
 
   enddo
- 
-  !if(.false.) then
-  !!if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
-
-  !  allocate(CD_f(nb_elem))
-  !  allocate(mu(nb_elem))
-  !  allocate(mu_f(nb_elem))
-
-  !  iter=0
-  !  rms=1.
-
-  !  do while ( rms > thresh )
-  
-  !    iter=iter+1
-  !    CD_f(:) = b_elem_t(:) % force_t % CD
-  
-  !    mu_rms = 1.
-  !    mu_iter = 0.
-  !    mu(:) = 0._rprec
-  !    do while ( mu_rms > thresh )
-  
-  !      mu_iter = mu_iter + 1
-  !      mu_f = mu
-  !      b_m_msum = 0._rprec
-  !      !  Initalize mu
-  !      do n=1, nb_elem
-  !        if( b_elem_t(n) % force_t % CD  < 0._rprec ) then
-  !          mu(n) = b_elem_t(n) % force_t % LAB + 0.5_rprec * lambda * b_m(n)
-  !        else
-  !          mu(n) = 0._rprec
-  !        endif
-  !        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LBB
-  !      enddo
-
-  !      lambda = 2._rprec * ( b_r_fsum  - b_m_wsum  - b_m_msum ) / b_m_wsum2 
-
-  !      mu_rms = sqrt( sum( ( mu(:) - mu_f(:) )**2 ) )
-  !    enddo
-
-  !    if(coord == 0) write(*,*) 'mu_iter : ', mu_iter
-  
-  !    !  Compute new CD
-  !    b_m_msum = 0._rprec
-  !    do n=1, nb_elem
-  !      b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LBB
-  !    enddo
-
-  !    b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LAB + &
-  !    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LBB
-
-  !    rms = sqrt( sum( ( b_elem_t(:) % force_t % CD - CD_f(:) )**2 ) )
-  
-  !    if(iter == 1 .and. coord == 0) then
-
-  !       write(*,'(1a,i6)') 'iter : ', iter
-  !       write(*,'(1a,6f9.4)') 'CD : ', b_elem_t(:) % force_t % CD
-  !       write(*,'(1a,6f9.4)') 'LAB : ', b_elem_t(:) % force_t % LAB
-  !       write(*,'(1a,6f9.4)') 'LBB : ', b_elem_t(:) % force_t % LBB
-  !       write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
-  !       write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
-
-  !    endif
-  
-  !  enddo
-  !  if(coord == 0) write(*,*) 'iter : ', iter
-
-  !  deallocate(CD_f, mu, mu_f )
-
-  !endif
   
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
