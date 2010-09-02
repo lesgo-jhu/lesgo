@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "Enter output macro string:"
+echo "Enter output macro file name:"
 read OUTMCR
 #echo "Enter TECPATH string:"
 #read TECPATH
@@ -24,7 +24,7 @@ done
 ZONESTART=$(($NZONE+1))
 ZONEEND=$(($NZONE+$NZONE))
 echo "\$!ALTERDATA  [$ZONESTART-$ZONEEND]" >> $OUTMCR
-echo "  EQUATION = $EQUATION" >> $OUTMCR
+echo "  EQUATION = '$EQUATION'" >> $OUTMCR
 
 echo '$!RemoveVar |MFBD|' >> $OUTMCR
 exit 0
