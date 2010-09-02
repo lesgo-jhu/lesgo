@@ -663,7 +663,7 @@ else
   $if(DBLPREC)
   call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
   $else
-  call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  call sgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
   $endif
   
 !  Compute CD
