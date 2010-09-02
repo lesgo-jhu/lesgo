@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "Enter output macro file name:"
+echo "Enter output macro filename:"
 read OUTMCR
 #echo "Enter TECPATH string:"
 #read TECPATH
