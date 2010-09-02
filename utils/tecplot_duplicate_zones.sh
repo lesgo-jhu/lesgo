@@ -6,8 +6,6 @@ read OUTMCR
 TECPATH=$(pwd)
 echo "Enter number of zones to duplicate:"
 read NZONE
-echo "Enter variable id to duplicate:"
-read VARID
 echo "Enter Tecplot equation to move duplicated data:"
 read EQUATION
 
