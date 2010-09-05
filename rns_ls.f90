@@ -616,8 +616,8 @@ subroutine b_elem_CD_LETW()
 use param, only : wbase
 implicit none
 
-integer :: i1,i2, ipiv, info
-
+integer :: i1,i2, info
+integer, dimension(ndim) :: ipiv
 real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_gamma_gsum, b_force_gsum
 real(rprec), dimension(ndim,ndim) :: mata
@@ -759,8 +759,8 @@ use param, only : wbase
 use functions, only : det2D
 implicit none
 
-integer :: i1,i2, ipiv, info
-
+integer :: i1,i2, info
+integer, dimension(ndim) :: ipiv
 real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
 real(rprec), dimension(ndim,ndim) :: mata
