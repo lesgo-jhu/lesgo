@@ -1968,74 +1968,73 @@ $if($MPI)
   $if ($XLF)
 
   !  Don't sync z-data
-  call mpi_gather( rs_zplane_t(:)%up2, nz, MPI_RPREC, rs_zplane_buf_t(:)%up2, nz, &
+  call mpi_gather( rs_zplane_t%up2, nz, MPI_RPREC, rs_zplane_buf_t%up2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( rs_zplane_t(:)%vp2, nz, MPI_RPREC, rs_zplane_buf_t(:)%vp2, nz, &
+  call mpi_gather( rs_zplane_t%vp2, nz, MPI_RPREC, rs_zplane_buf_t%vp2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( rs_zplane_t(:)%wp2, nz, MPI_RPREC, rs_zplane_buf_t(:)%wp2, nz, &
+  call mpi_gather( rs_zplane_t%wp2, nz, MPI_RPREC, rs_zplane_buf_t%wp2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( rs_zplane_t(:)%upwp, nz, MPI_RPREC, rs_zplane_buf_t(:)%upwp, nz, &
+  call mpi_gather( rs_zplane_t%upwp, nz, MPI_RPREC, rs_zplane_buf_t%upwp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( rs_zplane_t(:)%vpwp, nz, MPI_RPREC, rs_zplane_buf_t(:)%vpwp, nz, &
+  call mpi_gather( rs_zplane_t%vpwp, nz, MPI_RPREC, rs_zplane_buf_t%vpwp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
-  call mpi_gather( rs_zplane_t(:)%upvp, nz, MPI_RPREC, rs_zplane_buf_t(:)%upvp, nz, &
+  call mpi_gather( rs_zplane_t%upvp, nz, MPI_RPREC, rs_zplane_buf_t%upvp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
     
-  call mpi_gather( cnpy_zplane_t(:)%up2, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%up2, nz, &
+  call mpi_gather( cnpy_zplane_t%up2, nz, MPI_RPREC, cnpy_zplane_buf_t%up2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( cnpy_zplane_t(:)%vp2, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%vp2, nz, &
+  call mpi_gather( cnpy_zplane_t%vp2, nz, MPI_RPREC, cnpy_zplane_buf_t%vp2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( cnpy_zplane_t(:)%wp2, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%wp2, nz, &
+  call mpi_gather( cnpy_zplane_t%wp2, nz, MPI_RPREC, cnpy_zplane_buf_t%wp2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( cnpy_zplane_t(:)%upwp, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%upwp, nz, &
+  call mpi_gather( cnpy_zplane_t%upwp, nz, MPI_RPREC, cnpy_zplane_buf_t%upwp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)
-  call mpi_gather( cnpy_zplane_t(:)%vpwp, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%vpwp, nz, &
+  call mpi_gather( cnpy_zplane_t%vpwp, nz, MPI_RPREC, cnpy_zplane_buf_t%vpwp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
-  call mpi_gather( cnpy_zplane_t(:)%upvp, nz, MPI_RPREC, cnpy_zplane_buf_t(:)%upvp, nz, &
+  call mpi_gather( cnpy_zplane_t%upvp, nz, MPI_RPREC, cnpy_zplane_buf_t%upvp, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)       
 
-
-  call mpi_gather( tavg_zplane_t(:)%u, nz, MPI_RPREC, tavg_zplane_buf_t(:)%u, nz, &
+  call mpi_gather( tavg_zplane_t%u, nz, MPI_RPREC, tavg_zplane_buf_t%u, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%v, nz, MPI_RPREC, tavg_zplane_buf_t(:)%v, nz, &
+  call mpi_gather( tavg_zplane_t%v, nz, MPI_RPREC, tavg_zplane_buf_t%v, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%w, nz, MPI_RPREC, tavg_zplane_buf_t(:)%w, nz, &
+  call mpi_gather( tavg_zplane_t%w, nz, MPI_RPREC, tavg_zplane_buf_t%w, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%u2, nz, MPI_RPREC, tavg_zplane_buf_t(:)%u2, nz, &
+  call mpi_gather( tavg_zplane_t%u2, nz, MPI_RPREC, tavg_zplane_buf_t%u2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
-  call mpi_gather( tavg_zplane_t(:)%v2, nz, MPI_RPREC, tavg_zplane_buf_t(:)%v2, nz, &
+  call mpi_gather( tavg_zplane_t%v2, nz, MPI_RPREC, tavg_zplane_buf_t%v2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%w2, nz, MPI_RPREC, tavg_zplane_buf_t(:)%w2, nz, &
+  call mpi_gather( tavg_zplane_t%w2, nz, MPI_RPREC, tavg_zplane_buf_t%w2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
-  call mpi_gather( tavg_zplane_t(:)%uw, nz, MPI_RPREC, tavg_zplane_buf_t(:)%uw, nz, &
+  call mpi_gather( tavg_zplane_t%uw, nz, MPI_RPREC, tavg_zplane_buf_t%uw, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%vw, nz, MPI_RPREC, tavg_zplane_buf_t(:)%vw, nz, &
+  call mpi_gather( tavg_zplane_t%vw, nz, MPI_RPREC, tavg_zplane_buf_t%vw, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)  
-  call mpi_gather( tavg_zplane_t(:)%uv, nz, MPI_RPREC, tavg_zplane_buf_t(:)%uv, nz, &
+  call mpi_gather( tavg_zplane_t%uv, nz, MPI_RPREC, tavg_zplane_buf_t%uv, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)   
-  call mpi_gather( tavg_zplane_t(:)%dudz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%dudz, nz, &
+  call mpi_gather( tavg_zplane_t%dudz, nz, MPI_RPREC, tavg_zplane_buf_t%dudz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)    
-  call mpi_gather( tavg_zplane_t(:)%dvdz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%dvdz, nz, &
+  call mpi_gather( tavg_zplane_t%dvdz, nz, MPI_RPREC, tavg_zplane_buf_t%dvdz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)   
-  call mpi_gather( tavg_zplane_t(:)%txx, nz, MPI_RPREC, tavg_zplane_buf_t(:)%txx, nz, &
+  call mpi_gather( tavg_zplane_t%txx, nz, MPI_RPREC, tavg_zplane_buf_t%txx, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%txy, nz, MPI_RPREC, tavg_zplane_buf_t(:)%txy, nz, &
+  call mpi_gather( tavg_zplane_t%txy, nz, MPI_RPREC, tavg_zplane_buf_t%txy, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)   
-  call mpi_gather( tavg_zplane_t(:)%tyy, nz, MPI_RPREC, tavg_zplane_buf_t(:)%tyy, nz, &
+  call mpi_gather( tavg_zplane_t%tyy, nz, MPI_RPREC, tavg_zplane_buf_t%tyy, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%txz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%txz, nz, &
+  call mpi_gather( tavg_zplane_t%txz, nz, MPI_RPREC, tavg_zplane_buf_t%txz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)   
-  call mpi_gather( tavg_zplane_t(:)%tyz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%tyz, nz, &
+  call mpi_gather( tavg_zplane_t%tyz, nz, MPI_RPREC, tavg_zplane_buf_t%tyz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)  
-  call mpi_gather( tavg_zplane_t(:)%tzz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%tzz, nz, &
+  call mpi_gather( tavg_zplane_t%tzz, nz, MPI_RPREC, tavg_zplane_buf_t%tzz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)   
-  call mpi_gather( tavg_zplane_t(:)%fx, nz, MPI_RPREC, tavg_zplane_buf_t(:)%fx, nz, &
+  call mpi_gather( tavg_zplane_t%fx, nz, MPI_RPREC, tavg_zplane_buf_t%fx, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%fy, nz, MPI_RPREC, tavg_zplane_buf_t(:)%fy, nz, &
+  call mpi_gather( tavg_zplane_t%fy, nz, MPI_RPREC, tavg_zplane_buf_t%fy, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%fz, nz, MPI_RPREC, tavg_zplane_buf_t(:)%fz, nz, &
+  call mpi_gather( tavg_zplane_t%fz, nz, MPI_RPREC, tavg_zplane_buf_t%fz, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
-  call mpi_gather( tavg_zplane_t(:)%cs_opt2, nz, MPI_RPREC, tavg_zplane_buf_t(:)%cs_opt2, nz, &
+  call mpi_gather( tavg_zplane_t%cs_opt2, nz, MPI_RPREC, tavg_zplane_buf_t%cs_opt2, nz, &
     MPI_RPREC, rank_of_coord(0), comm, ierr)     
   
   $else
