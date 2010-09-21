@@ -47,10 +47,10 @@ READ_LITTLE_ENDIAN = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
 
-USE_CYL_SKEW_LS = yes
-USE_RNS_LS = yes
+USE_CYL_SKEW_LS = no
+USE_RNS_LS = no
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -221,7 +221,4 @@ ifeq ($(FCOMP),g95)
   FFLAGS += $(MODDIR)
 endif
 
-ifeq ($(USE_RNS_LS), yes)
-  LIBS += -llapack -lm
-endif
 
