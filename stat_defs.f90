@@ -24,7 +24,8 @@ end type tavg
 
 $if ($TURBINES)
 	type turbine 
-		real(rprec) :: xloc, yloc, height, dia, thk		  
+		real(rprec) :: xloc, yloc, height, dia, thk
+        real(rprec) :: vol_c                        !term used for volume correction  
 		real(rprec) :: theta1                       !angle CCW(from above) from -x direction [degrees]
         real(rprec) :: theta2	                    !angle above the horizontal, from -x dir [degrees]
 		real(rprec), dimension(3) :: nhat           !(nx,ny,nz) of unit normal for each turbine
@@ -35,10 +36,10 @@ $if ($TURBINES)
         real(rprec) :: f_n                          !normal force on turbine disk
 		real(rprec), dimension(1500) :: ind         !indicator function - weighting of each node
         
-        real(rprec), dimension (nx,ny,nz) :: u_cond_avg_lo, v_cond_avg_lo, w_cond_avg_lo
-        real(rprec), dimension (nx,ny,nz) :: u_cond_avg_hi, v_cond_avg_hi, w_cond_avg_hi
-        logical :: cond_avg_calc_lo,cond_avg_calc_hi
-        real(rprec) :: cond_avg_ud_lo,cond_avg_ud_hi,cond_avg_time_lo,cond_avg_time_hi
+        !real(rprec), dimension (nx,ny,nz) :: u_cond_avg_lo, v_cond_avg_lo, w_cond_avg_lo
+        !real(rprec), dimension (nx,ny,nz) :: u_cond_avg_hi, v_cond_avg_hi, w_cond_avg_hi
+        !logical :: cond_avg_calc_lo,cond_avg_calc_hi
+        !real(rprec) :: cond_avg_ud_lo,cond_avg_ud_hi,cond_avg_time_lo,cond_avg_time_hi
 	end type turbine
 
 	type wind_farm
@@ -48,7 +49,7 @@ $if ($TURBINES)
         real(rprec) :: filter_cutoff                !ind only includes values above this cutoff
 		type(turbine), pointer, dimension(:) :: turbine_t
         
-        logical, pointer, dimension(:) :: cond_avg_flag_lo,cond_avg_flag_hi
+        !logical, pointer, dimension(:) :: cond_avg_flag_lo,cond_avg_flag_hi
 	end type wind_farm	
     
   type(wind_farm)	        :: wind_farm_t	
