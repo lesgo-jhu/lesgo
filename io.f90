@@ -1965,14 +1965,10 @@ call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
 ! Construct zplane data 
 $if($MPI)
 
-  $if ($XLF)
-  !  Don't sync z-data
-  $else
-
   !  Create MPI type structures consistent with the derived types
   call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
   Call MPI_Type_commit(MPI_RS,ierr)
-  
+
   call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
   Call MPI_Type_commit(MPI_CNPY,ierr)  
 
@@ -1987,15 +1983,15 @@ $if($MPI)
     
   call mpi_gather( tavg_zplane_t, nz, MPI_TSTATS, tavg_zplane_buf_t, nz, &
     MPI_TSTATS, rank_of_coord(0), comm, ierr)   
-    
+  
+  call MPI_Type_free (MPI_RS, ierr)
+  call MPI_Type_free (MPI_CNPY, ierr)
+  call mpi_type_free (MPI_TSTATS, ierr)    
+  
   !  Get the rank that was used for mpi_gather (ensure that assembly of {rs,tavg}_zplane_tot_t is
   !  done in increasing coord
   call mpi_gather( coord, 1, MPI_INTEGER, gather_coord, 1, &
   MPI_INTEGER, rank_of_coord(0), comm, ierr)
-  
-  call MPI_Type_free (MPI_RS, ierr)
-  call MPI_Type_free (MPI_CNPY, ierr)
-  call mpi_type_free (MPI_TSTATS, ierr)
   
   if(coord == 0) then
   
@@ -2070,8 +2066,6 @@ $if($MPI)
     deallocate(z_tot, gather_coord)
   
   endif
-
-  $endif
 
 $else
 
@@ -2883,17 +2877,17 @@ if(point_calc) then
   $if ($MPI)
     if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
       point_coord(i) = coord
-	  
+  
       point_istart(i) = cell_indx('i',dx,point_loc(1,i))
       point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
       point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
-	  
+  
       point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
       point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
       point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
 
-	    fid=3000*i
-	  
+      fid=3000*i
+  
       !  Can't concatenate an empty string
       point_fname(i)=''
       call strcat(point_fname(i),'output/vel.x-')
@@ -2909,9 +2903,8 @@ if(point_calc) then
       if (.not. exst) then
         var_list = '"t", "u", "v", "w"'
         call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
-      endif 	
-
-	   	    
+      endif 
+  
     endif
   $else
     point_coord(i) = 0

@@ -7,7 +7,7 @@ implicit none
 save
 private
 public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
-public buff_indx, points_avg_3D
+public buff_indx, points_avg_3D, det2D
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -442,5 +442,18 @@ endif
   
 return
 end function buff_indx
+
+!**********************************************************************
+real(rprec) function det2D(A)
+!**********************************************************************
+!  Computes the determinant of the 2D matrix A
+!
+implicit none
+real(rprec), intent(IN), dimension(2,2) :: A
+
+det2D = A(1,1) * A(2,2) - A(1,2) * A(2,1)
+
+return
+end function det2D
 
 end module functions

@@ -22,8 +22,8 @@ subroutine rns_forcing_ls()
 !  This subroutine computes the forces on the unresolved branches
 !
 use types, only : rprec
-use sim_param, only : u
-use immersedbc, only : fx
+use sim_param, only : u, v
+use immersedbc, only : fx, fy
 use messages
 
 $if($MPI)
@@ -43,6 +43,7 @@ integer :: np, n
 integer, pointer :: i, j, k
 
 integer, pointer :: npoint_p
+real(rprec) :: uc, vc, cache
 real(rprec), pointer :: kappa_p
 
 nullify(i,j,k)
@@ -69,8 +70,14 @@ do n = 1, nbeta_elem
       j => beta_elem_t( n ) % indx_array_t % iarray(2,np)
       k => beta_elem_t( n ) % indx_array_t % iarray(3,np)
     
-      fx(i,j,k) = - kappa_p * abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
- 
+      !  Cache values
+      uc = u(i,j,k)
+      vc = v(i,j,k)
+      cache = -kappa_p * sqrt( uc**2 + vc**2 ) * chi(i,j,k)  
+      
+      fx(i,j,k) = cache * uc
+      fy(i,j,k) = cache * vc
+
       nullify(i,j,k)
       
     enddo
@@ -87,6 +94,9 @@ $if($MPI)
 !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
 call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
   fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+  comm, status, ierr)
+call mpi_sendrecv (fy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+  fy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
   comm, status, ierr)
 $endif
 
@@ -142,8 +152,8 @@ subroutine rns_elem_force()
 !
 use types, only : rprec
 use messages
-use sim_param, only : u
-use immersedbc, only : fx
+use sim_param, only : u, v
+use immersedbc, only : fx, fy
 use functions, only : points_avg_3D
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
@@ -160,16 +170,18 @@ integer ::  n, ns
 integer, pointer :: nelem_p
 integer, pointer, dimension(:) :: indx_p
 
-real(rprec), allocatable, dimension(:) :: beta_gamma
-real(rprec), allocatable, dimension(:) :: beta_gamma_sum
-!real(rprec), allocatable, dimension(:) :: beta_gamma_CD_sum
-real(rprec), allocatable, dimension(:) :: b_gamma
-real(rprec), allocatable, dimension(:) :: b_r_force, b_force, b_m
+real(rprec) :: cache
 
-real(rprec), pointer :: area_p, u_p
+real(rprec), allocatable, dimension(:,:) :: beta_gamma
+real(rprec), allocatable, dimension(:,:) :: b_beta_gamma_sum
+real(rprec), allocatable, dimension(:,:) :: b_gamma
+real(rprec), allocatable, dimension(:,:) :: b_r_force
+real(rprec), allocatable, dimension(:,:) :: b_force, b_m
+
+real(rprec), pointer :: area_p, u_p, v_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
-real(rprec) ::  CD_num, CD_denom
+!real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -179,20 +191,21 @@ call enter_sub(sub_name)
 $endif
 
 nullify(nelem_p, indx_p)
-nullify(area_p, u_p)
+nullify(area_p, u_p, v_p)
 nullify(points_p)
 
-allocate(beta_gamma(nbeta_elem))
-allocate(b_gamma(nb_elem))
-allocate(beta_gamma_sum(nb_elem))
+allocate(beta_gamma(ndim, nbeta_elem))
+allocate(b_gamma(ndim, nb_elem))
+allocate(b_beta_gamma_sum(ndim, nb_elem))
 
-beta_gamma(:)=0._rprec
-b_gamma(:)=0._rprec
-beta_gamma_sum(:)=0._rprec
+beta_gamma=0._rprec
+b_gamma=0._rprec
+b_beta_gamma_sum=0._rprec
 
 $if($MPI)
 !  Make sure intermediate velocity is sync'd
-call mpi_sync_real_array( u, MPI_SYNC_DOWNUP)
+call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( v, MPI_SYNC_DOWNUP )
 $endif
 
 !  Get the force for the resolved elements
@@ -201,35 +214,43 @@ call r_elem_force()
 do n=1, nbeta_elem
 
   u_p      => beta_elem_t(n) % ref_region_t % u
+  v_p      => beta_elem_t(n) % ref_region_t % v
   area_p   => beta_elem_t(n) % ref_region_t % area
+  npoint_p => beta_elem_t(n) % ref_region_t % npoint
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), beta_elem_t(n) % ref_region_t % npoint, points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  beta_gamma(n) = abs( u_p ) * u_p * area_p
-  
-  nullify(points_p, area_p, u_p)
+  cache = sqrt( u_p**2 + v_p**2 ) * area_p
+  beta_gamma(:,n) = cache * (/ u_p, v_p /)
+
+  nullify(npoint_p, points_p, area_p, u_p, v_p)
 
 enddo
 
 do n=1, nb_elem
 
   u_p      => b_elem_t(n) % ref_region_t % u
+  v_p      => b_elem_t(n) % ref_region_t % v
   area_p   => b_elem_t(n) % ref_region_t % area
+  npoint_p => b_elem_t(n) % ref_region_t % npoint
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), b_elem_t(n) % ref_region_t % npoint, points_p ) 
+  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  b_gamma(n) = abs( u_p ) * u_p * area_p
+  cache = sqrt( u_p**2 + v_p**2 ) * area_p
+  b_gamma(:,n) = cache * (/ u_p, v_p /)
   
-  nullify(points_p, area_p, u_p)
+  nullify(npoint_p, points_p, area_p, u_p, v_p)
   
+  !  Sum over 
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
-  
+  b_beta_gamma_sum(:,n) = 0._rprec
   do ns=1, nelem_p
-    beta_gamma_sum(n) = beta_gamma_sum(n) + beta_gamma( indx_p(ns) )
-    !beta_gamma_CD_sum(n) = beta_gamma_CD_sum(n) + beta_elem_t( indx_p(ns) ) % force_t % CD * beta_gamma( indx_p(ns) )
+    b_beta_gamma_sum(:,n) = b_beta_gamma_sum(:,n) + beta_gamma(:, indx_p(ns) )
   enddo
   
   nullify(indx_p, nelem_p)
@@ -237,8 +258,8 @@ do n=1, nb_elem
 enddo
 
 !  Compute the total resolved force of each b_elem
-allocate(b_r_force( nb_elem )) 
-b_r_force(:) = 0._rprec
+allocate(b_r_force( ndim, nb_elem )) 
+b_r_force(:,:) = 0._rprec
 
 do n=1, nb_elem
 
@@ -246,34 +267,39 @@ do n=1, nb_elem
   indx_p  => b_elem_t(n) % r_child_t % indx
   
   do ns=1, nelem_p
-    b_r_force(n) = b_r_force(n) + r_elem_t( indx_p(ns) )% force_t % fD 
+    b_r_force(:,n) = b_r_force(:,n) + (/ r_elem_t( indx_p(ns) )% force_t % fx, &
+      r_elem_t( indx_p(ns) )% force_t % fy /)
   enddo 
   
   !  Perform partial sum for b_elem force
-  b_elem_t(n) % force_t % fD = b_r_force(n) 	
+  b_elem_t(n) % force_t % fx = b_r_force(1,n)
+  b_elem_t(n) % force_t % fy = b_r_force(2,n)
   
   nullify(indx_p, nelem_p)
-	
+
 enddo
 
 if( temporal_weight == 0 ) then
 
   if( temporal_model == 1 ) then
-
-    allocate(b_force( nb_elem ))
-    b_force(:) = b_r_force(:) - 0.5_rprec * b_elem_t(:) % force_t % CD * beta_gamma_sum(:)
+  
+    !  Compute F_b^n (CD^{n-1})
+    allocate(b_force( ndim, nb_elem ))
+    do n=1, nb_elem
+      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+    enddo
   
     if( spatial_model == 1 ) then
-	
-	  call b_elem_CD_LE()
+
+      call b_elem_CD_LE()
   
     elseif( spatial_model == 2) then
-	
-	  call b_elem_CD_GED()
+
+      call b_elem_CD_GED()
     
     elseif( spatial_model == 3) then
-	
-	  call b_elem_CD_GELS()
+
+      call b_elem_CD_GELS()
         
     else
   
@@ -285,20 +311,22 @@ if( temporal_weight == 0 ) then
 
   elseif( temporal_model == 2) then ! use implicit formulation
 
-    allocate( b_m( nb_elem ) )  
-    b_m(:) = beta_gamma_sum(:) - b_gamma(:)
+    allocate( b_m( ndim, nb_elem ) )  
+    do n=1,nb_elem
+      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)
+    enddo
 
     if( spatial_model == 1 ) then
-	  
-	  call b_elem_CD_LI()
+ 
+      call b_elem_CD_LI()
  
     elseif( spatial_model == 2 ) then
-	
-	  call b_elem_CD_GID() ! Global, implicit, direct summation (GID)
+
+      call b_elem_CD_GID() ! Global, implicit, direct summation (GID)
   
     elseif( spatial_model == 3 ) then
-	
-	  call b_elem_CD_GILS()
+
+      call b_elem_CD_GILS()
   
     else
   
@@ -319,32 +347,53 @@ if( temporal_weight == 0 ) then
 elseif( temporal_weight == 1 ) then
 
   if( temporal_model == 1 ) then
+    !  Compute F_b^n (CD^{n-1})
+    allocate(b_force( ndim, nb_elem ))
+    do n=1, nb_elem
+      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+    enddo  
+  
+    if( spatial_model == 1 ) then
+
+      call b_elem_CD_LETW()
+
+    elseif( spatial_model == 2 ) then
+  
+      call error( sub_name, 'spatial_method not specified correctly.')
+
+    else
+      
+      call b_elem_CD_GETW()
+
+    endif
     
-    call error( sub_name, 'temporal_method not specified correctly.')
-	
+    deallocate(b_force)
+
   elseif( temporal_model == 2 ) then
   
-    allocate( b_m( nb_elem ) ) 
-    b_m(:) = beta_gamma_sum(:) - b_gamma(:)  
-	
-	if( spatial_model == 1 ) then
-	
-	  call b_elem_CD_LITW()
-	
-	elseif( spatial_model == 2 ) then
-	
-	  call b_elem_CD_GITW()
-	
-	else
-	  
-	  call error( sub_name, 'spatial_method not specified correctly.')
-	
-	endif
-	
+    allocate( b_m( ndim, nb_elem ) ) 
+    do n=1, nb_elem
+      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)  
+    enddo
+
+    if( spatial_model == 1 ) then
+
+      call b_elem_CD_LITW()
+
+    elseif( spatial_model == 2 ) then
+  
+      call error( sub_name, 'spatial_method not specified correctly.')
+
+    else
+      
+      call b_elem_CD_GITW()
+
+    endif
+
   else
    
     call error( sub_name, 'temporal_method not specified correctly.')
-	
+
   endif
   
 else  
@@ -368,13 +417,17 @@ do n=1, nb_elem
   do ns=1, nelem_p
     beta_elem_t( indx_p(ns) ) % force_t % CD = b_elem_t(n) % force_t % CD
   enddo 
-	
+
   nullify(indx_p, nelem_p)
-	
+
 enddo
 
 !  Compute the total force for beta_elem
-beta_elem_t(:) % force_t % fD = - 0.5_rprec * beta_elem_t(:) % force_t % CD * beta_gamma(:)
+do n=1, nbeta_elem
+  cache = - 0.5_rprec * beta_elem_t(n) % force_t % CD
+  beta_elem_t(n) % force_t % fx = cache * beta_gamma(1,n)
+  beta_elem_t(n) % force_t % fy = cache * beta_gamma(2,n)
+enddo
 
 !  Compute the total force for b_elem; r_elem has already been accounted for from above
 do n=1, nb_elem
@@ -384,7 +437,8 @@ do n=1, nb_elem
 
   !  Perform secondary sum over beta_elem for b_elem force
   do ns = 1, nelem_p
-    b_elem_t(n) % force_t % fD = b_elem_t(n) % force_t % fD + beta_elem_t( indx_p(ns) ) % force_t % fD
+    b_elem_t(n) % force_t % fx = b_elem_t(n) % force_t % fx + beta_elem_t( indx_p(ns) ) % force_t % fx
+    b_elem_t(n) % force_t % fy = b_elem_t(n) % force_t % fy + beta_elem_t( indx_p(ns) ) % force_t % fy
   enddo 
 
   nullify( nelem_p, indx_p )
@@ -394,7 +448,7 @@ enddo
 !  Now need to compute kappa; each beta region gets its own kappa value
 call beta_elem_kappa()
   
-deallocate(beta_gamma, beta_gamma_sum)
+deallocate(beta_gamma, b_beta_gamma_sum)
 deallocate(b_gamma)
 
 $if($VERBOSE)
@@ -415,7 +469,10 @@ subroutine b_elem_CD_LE()
 !
 implicit none
 
-b_elem_t(:) % force_t % CD = -2._rprec * b_force(:) / b_gamma(:)   
+do n=1, nb_elem
+  b_elem_t(n) % force_t % CD = -2._rprec * sum( b_force(:,n) * b_gamma(:,n) ) / &
+    sum ( b_gamma(:,n) * b_gamma(:,n) )
+enddo
 
 return
 end subroutine b_elem_CD_LE
@@ -431,17 +488,20 @@ subroutine b_elem_CD_GED()
 !
 implicit none
 
-CD_num=0._rprec
-CD_denom=0._rprec
-    
+real(rprec), dimension(ndim) :: b_fsum, b_gamma_sum
+
+b_fsum(:) = 0._rprec
+b_gamma_sum(:) = 0._rprec
+
 do n=1, nb_elem
-      
-  CD_num = CD_num + b_force(n) 
-  CD_denom = CD_denom + b_gamma(n)
-    
+
+  b_fsum(:) = b_fsum(:) + b_force(:,n)
+  b_gamma_sum(:) = b_gamma_sum(:) + b_gamma(:,n)
+
 enddo
-    
-b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom    
+
+b_elem_t(:) % force_t % CD = -2._rprec * sum( b_fsum(:) * b_gamma_sum(:) ) / &
+  sum( b_gamma_sum(:) * b_gamma_sum(:) )
 
 return
 end subroutine b_elem_CD_GED
@@ -456,13 +516,15 @@ subroutine b_elem_CD_GELS()
 !
 implicit none
 
+real(rprec) :: CD_num, CD_denom
+
 CD_num=0._rprec
 CD_denom=0._rprec
     
 do n=1, nb_elem
 
-  CD_num = CD_num + b_force(n) * b_gamma(n) 
-  CD_denom = CD_denom + b_gamma(n) * b_gamma(n)
+  CD_num = CD_num + sum( b_force(:,n) * b_gamma(:,n) )
+  CD_denom = CD_denom + sum( b_gamma(:,n) * b_gamma(:,n) )
      
 enddo
     
@@ -474,14 +536,17 @@ end subroutine b_elem_CD_GELS
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LI()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!  This subroutine computes the local b_elem CD using the explicit 
+!  This subroutine computes the local b_elem CD using the implicit
 !  formulation
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 implicit none
 
-b_elem_t(:) % force_t % CD = 2._rprec * b_r_force(:) / b_m(:)
+do n=1, nb_elem
+  b_elem_t(n) % force_t % CD = 2._rprec * sum( b_r_force(:,n) * b_m(:,n) ) / &
+    sum( b_m(:,n) * b_m(:,n) )
+enddo
 
 return
 end subroutine b_elem_CD_LI
@@ -495,20 +560,20 @@ subroutine b_elem_CD_GID()
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 implicit none
+real(rprec), dimension(ndim) :: b_r_fsum, b_m_sum
 
-CD_num=0._rprec
-CD_denom=0._rprec
+b_r_fsum(:) = 0._rprec
+b_m_sum(:) = 0._rprec
     
 do n=1, nb_elem
 
-  CD_num = CD_num + b_r_force(n) 
-  CD_denom = CD_denom + b_m(n)
+  b_r_fsum(:) = b_r_fsum(:) + b_r_force(:,n)
+  b_m_sum(:) = b_m_sum(:) + b_m(:,n)
   
 enddo
 
-b_elem_t(1) % force_t % CD = 2._rprec * CD_num / CD_denom 
-
-b_elem_t(:) % force_t % CD = b_elem_t(1) % force_t % CD
+b_elem_t(:) % force_t % CD = 2._rprec * sum( b_r_fsum(:) * b_m_sum(:) ) / &
+  sum( b_m_sum(:) * b_m_sum(:) )
 
 return
 end subroutine b_elem_CD_GID
@@ -523,13 +588,15 @@ subroutine b_elem_CD_GILS()
 !
 implicit none
 
+real(rprec) :: CD_num, CD_denom
+
 CD_num=0._rprec
 CD_denom=0._rprec
     
 do n=1, nb_elem
 
-  CD_num = CD_num + b_r_force(n) * b_m(n)
-  CD_denom = CD_denom + b_m(n) * b_m(n)
+  CD_num = CD_num + sum( b_r_force(:,n) * b_m(:,n) )
+  CD_denom = CD_denom + sum ( b_m(:,n) * b_m(:,n) )
     
 enddo
 
@@ -537,6 +604,151 @@ b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 
 return
 end subroutine b_elem_CD_GILS
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_LETW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the local b_elem CD using the explicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+use param, only : wbase
+implicit none
+
+!integer :: i1,i2, info
+!integer, dimension(ndim) :: ipiv
+!real(rprec), dimension(ndim) :: lambda
+real(rprec), dimension(ndim) :: b_gamma_gsum, b_force_gsum
+!real(rprec), dimension(ndim,ndim) :: mata
+
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
+
+nullify(LAB_p, LBB_p, CD_p)
+
+
+!  Get LAB and LBB for all b_elem
+do n=1,nb_elem
+  
+  LAB_p    => b_elem_t(n) % force_t % LAB
+  LBB_p    => b_elem_t(n) % force_t % LBB
+  
+  call Lsim( sum(b_force(:,n) * b_gamma(:,n)), LAB_p )
+  call Lsim( sum(b_gamma(:,n) * b_gamma(:,n)), LBB_p )
+  
+  nullify( LAB_p, LBB_p )
+  
+enddo
+
+if( jt < weight_nstart ) then
+
+  call b_elem_CD_GELS()
+  
+else
+
+  !  Assemble matrices used for lambda calculations
+  !do i2=1,ndim
+  !  do i1=1,ndim
+  !    mata(i1,i2) = 0.5_rprec * sum( b_gamma(i1,:)*b_gamma(i2,:) / b_elem_t(:) % force_t % LBB )
+  !  enddo
+  !enddo
+
+  !  Creat RHS using lambda
+  !do n=1, ndim
+  !  lambda(n) = sum( b_force(n,:) - b_elem_t(:) % force_t % LAB * b_gamma(n,:) / &
+  !  b_elem_t(:) % force_t % LBB )
+  !enddo
+
+  !  Solve for the Lagrange multiplier
+  $if(DBLPREC)
+  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $else
+  !call sgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $endif
+
+  !lambda = (/ 0._rprec, 0._rprec /)
+  
+!  Compute CD
+  do n = 1, nb_elem
+  
+    LAB_p => b_elem_t(n) % force_t % LAB
+    LBB_p => b_elem_t(n) % force_t % LBB
+    CD_p  => b_elem_t(n) % force_t % CD
+
+    !CD_p = -( 2._rprec * LAB_p + sum(lambda(:) * b_gamma(:,n)) ) / LBB_p
+    CD_p = -2._rprec * LAB_p / LBB_p
+
+    nullify( LAB_p, LBB_p, CD_p )   
+
+  enddo
+  
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing LETW CD'
+  endif  
+
+endif
+
+return
+end subroutine b_elem_CD_LETW
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine b_elem_CD_GETW()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine computes the global b_elem CD using the explicit 
+!  formulation with temporal weighting
+!
+!  Used variable declarations from contained subroutine rns_elem_force
+!
+use param, only : wbase
+implicit none
+
+real(rprec) :: b_force_gsum, b_gamma_gsum
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
+
+nullify(LAB_p, LBB_p, CD_p)
+
+LAB_p => b_elem_t(1) % force_t % LAB
+LBB_p => b_elem_t(1) % force_t % LBB
+CD_p  => b_elem_t(1) % force_t % CD
+
+b_force_gsum = 0._rprec
+b_gamma_gsum = 0._rprec
+
+!  Least squares summation
+do n=1, nb_elem
+  b_force_gsum = b_force_gsum + sum( b_force(:,n) * b_gamma(:,n) )
+  b_gamma_gsum = b_gamma_gsum + sum( b_gamma(:,n) * b_gamma(:,n) )
+enddo
+
+call Lsim( b_force_gsum, LAB_p )
+call Lsim( b_gamma_gsum, LBB_p )
+
+!  Update all b elements
+b_elem_t(:) % force_t % LAB = LAB_p
+b_elem_t(:) % force_t % LBB = LBB_p
+
+if( jt < weight_nstart ) then
+
+  call b_elem_CD_GELS()
+    
+else
+
+  !  Compute CD
+  CD_p = -2._rprec *  LAB_p / LBB_p
+ 
+  !  Update all b elements
+  b_elem_t(:) % force_t % CD = CD_p
+
+  if(modulo(jt,wbase)==0 .and. coord == 0) then
+    write(*,*) '--> Computing GETW CD'
+  endif 
+
+endif
+
+nullify( LAB_p, LBB_p, CD_p )
+
+return
+end subroutine b_elem_CD_GETW
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LITW()
@@ -547,127 +759,74 @@ subroutine b_elem_CD_LITW()
 !  Used variable declarations from contained subroutine rns_elem_force
 !
 use param, only : wbase
+use functions, only : det2D
 implicit none
 
-real(rprec) :: b_r_fsum, b_m_wsum, b_m_wsum2, lambda
+!integer :: i1,i2, info
+!integer, dimension(ndim) :: ipiv
+!real(rprec), dimension(ndim) :: lambda
+real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
+!real(rprec), dimension(ndim,ndim) :: mata
 
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
-real(rprec), parameter :: thresh = 1.e-4_rprec
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
-integer :: mu_iter, iter
-real(rprec) :: b_m_msum, mu_rms, rms
-real(rprec), allocatable, dimension(:) :: CD_f, mu, mu_f
-!real(rprec) :: b_m_psum, b_m_qsum, denom, 
-!
+nullify(LAB_p, LBB_p, CD_p)
 
-nullify(LRM_p, LMM_p, CD_p)
-
-!  Get LRM and LMM for all b_elem
+!  Get LAB and LBB for all b_elem
 do n=1,nb_elem
   
-  LRM_p    => b_elem_t(n) % force_t % LRM
-  LMM_p    => b_elem_t(n) % force_t % LMM
+  LAB_p    => b_elem_t(n) % force_t % LAB
+  LBB_p    => b_elem_t(n) % force_t % LBB
   
-  call Lsim( b_r_force(n) * b_m(n), LRM_p )
-  call Lsim( b_m(n) * b_m(n), LMM_p )
+  call Lsim( sum(b_r_force(:,n) * b_m(:,n)), LAB_p )
+  call Lsim( sum(b_m(:,n) * b_m(:,n)), LBB_p )
   
-  nullify( LRM_p, LMM_p )
+  nullify( LAB_p, LBB_p )
   
 enddo
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GID()
+  !call b_elem_CD_GID()
+  call b_elem_CD_GILS()
   
 else
 
-  b_r_fsum  = sum( b_r_force(:) )
-  b_m_wsum  = sum( b_elem_t(:) % force_t % LRM * b_m(:) / b_elem_t(:) % force_t % LMM )
-  b_m_wsum2 = sum( b_m(:) * b_m(:) / b_elem_t(:) % force_t % LMM ) 
+  !  Assemble matrices used for lambda calculations
+  !do i2=1,ndim
+  !  do i1=1,ndim
+  !    mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
+  !  enddo
+  !enddo
 
-  !  Compute the Lagrange multiplier
-  lambda = 2._rprec * ( b_r_fsum  - b_m_wsum ) / b_m_wsum2 
+  !  Creat RHS using lambda
+  !do n=1, ndim
+  !  lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
+  !  b_elem_t(:) % force_t % LBB )
+  !enddo
+
+  !  Solve for the Lagrange multiplier
+  $if(DBLPREC)
+  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $else
+  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
+  $endif
   
-  !  Compute CD
+  !lambda = (/ 0._rprec, 0._rprec /)
+
+!  Compute CD
   do n = 1, nb_elem
   
-    LRM_p => b_elem_t(n) % force_t % LRM
-    LMM_p => b_elem_t(n) % force_t % LMM
+    LAB_p => b_elem_t(n) % force_t % LAB
+    LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
-	
-    CD_p = (2._rprec * LRM_p + lambda * b_m(n) ) / LMM_p
 
-    nullify( LRM_p, LMM_p, CD_p )   
+    !CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
+    CD_p = 2._rprec * LAB_p / LBB_p
+
+    nullify( LAB_p, LBB_p, CD_p )   
 
   enddo
- 
-  if(.false.) then
-  !if( minval( b_elem_t(:) % force_t % CD ) < 0._rprec ) then
-
-    allocate(CD_f(nb_elem))
-	allocate(mu(nb_elem))
-	allocate(mu_f(nb_elem))
-
-    iter=0
-    rms=1.
-
-    do while ( rms > thresh )
-	  
-	  iter=iter+1
-	  CD_f(:) = b_elem_t(:) % force_t % CD
-	  
-	  mu_rms = 1.
-	  mu_iter = 0.
-	  mu(:) = 0._rprec
-	  do while ( mu_rms > thresh )
-	  
-	    mu_iter = mu_iter + 1
-		mu_f = mu
-		b_m_msum = 0._rprec
-	    !  Initalize mu
-	    do n=1, nb_elem
-		  if( b_elem_t(n) % force_t % CD  < 0._rprec ) then
-		    mu(n) = b_elem_t(n) % force_t % LRM + 0.5_rprec * lambda * b_m(n)
-		  else
-		    mu(n) = 0._rprec
-		  endif
-		  b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
-		enddo
-		
-		lambda = 2._rprec * ( b_r_fsum  - b_m_wsum  - b_m_msum ) / b_m_wsum2 
-		
-		mu_rms = sqrt( sum( ( mu(:) - mu_f(:) )**2 ) )
-	  enddo
-	  if(coord == 0) write(*,*) 'mu_iter : ', mu_iter
-	  
-	  !  Compute new CD
-	  b_m_msum = 0._rprec
-	  do n=1, nb_elem
-        b_m_msum = b_m_msum + mu(n) * b_m(n) / b_elem_t(n) % force_t % LMM
-	  enddo		
-
-      b_elem_t(:) % force_t % CD = ( 2._rprec * b_elem_t(:) % force_t % LRM + &
-	    lambda * b_m(:) - 2._rprec * mu(:) ) / b_elem_t(:) % force_t % LMM
-		
-      rms = sqrt( sum( ( b_elem_t(:) % force_t % CD - CD_f(:) )**2 ) )
-	  
-      if(iter == 1 .and. coord == 0) then
-
-         write(*,'(1a,i6)') 'iter : ', iter
-         write(*,'(1a,6f9.4)') 'CD : ', b_elem_t(:) % force_t % CD
-         write(*,'(1a,6f9.4)') 'LRM : ', b_elem_t(:) % force_t % LRM
-         write(*,'(1a,6f9.4)') 'LMM : ', b_elem_t(:) % force_t % LMM
-         write(*,'(1a,6f9.4)') 'b_r_force : ', b_r_force(:)
-         write(*,'(1a,6f9.4)') 'b_m : ', b_m(:)
-
-      endif	  
-	  
-	enddo
-	if(coord == 0) write(*,*) 'iter : ', iter
-	
-	deallocate(CD_f, mu, mu_f )
-	
-  endif
   
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
@@ -675,8 +834,6 @@ else
   endif  
 
 endif
-
-
 
 return
 end subroutine b_elem_CD_LITW
@@ -692,71 +849,41 @@ subroutine b_elem_CD_GITW()
 use param, only : wbase
 implicit none
 
-real(rprec) :: b_r_fsum, b_m_sum
-real(rprec) :: lambda
-real(rprec), pointer :: LRM_p, LMM_p, CD_p
+real(rprec) :: b_r_msum, b_m_msum
+real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
-!integer :: iter
-!real(rprec) ::  rms, CD_f, sigma
-!real(rprec), parameter :: sigmult = 1.0_rprec
-!real(rprec), parameter :: thresh = 1.0e-6_rprec
+nullify(LAB_p, LBB_p, CD_p)
 
-nullify(LRM_p, LMM_p, CD_p)
-
-LRM_p => b_elem_t(1) % force_t % LRM
-LMM_p => b_elem_t(1) % force_t % LMM
+LAB_p => b_elem_t(1) % force_t % LAB
+LBB_p => b_elem_t(1) % force_t % LBB
 CD_p  => b_elem_t(1) % force_t % CD
 
-b_r_fsum = sum( b_r_force(:) )
-b_m_sum = sum( b_m(:) )
+b_r_msum = 0._rprec
+b_m_msum = 0._rprec
 
-call Lsim( b_r_fsum * b_m_sum, LRM_p )
-call Lsim( b_m_sum * b_m_sum, LMM_p )
+!  Least squares summation
+do n=1, nb_elem
+  b_r_msum = b_r_msum + sum( b_r_force(:,n) * b_m(:,n) )
+  b_m_msum = b_m_msum + sum( b_m(:,n) * b_m(:,n) )
+enddo
+
+call Lsim( b_r_msum, LAB_p )
+call Lsim( b_m_msum, LBB_p )
 
 !  Update all b elements
-b_elem_t(:) % force_t % LRM = LRM_p
-b_elem_t(:) % force_t % LMM = LMM_p
+b_elem_t(:) % force_t % LAB = LAB_p
+b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GID()
+  !call b_elem_CD_GID()
+  call b_elem_CD_GILS()
     
 else
 
-  !!  Compute the Lagrange multiplier
-  !lambda = 2._rprec * ( b_r_fsum  - LRM_p / LMM_p * b_m_sum ) / ( b_m_sum * b_m_sum / LMM_p ) 
-
   !  Compute CD
-  !CD_p = ( 2._rprec *  LRM_p + lambda * b_m_sum ) / LMM_p
-  CD_p = 2._rprec *  LRM_p / LMM_p
+  CD_p = 2._rprec *  LAB_p / LBB_p
  
-  !if( CD_p < 0._rprec ) then
-
-  !  sigma = 0.25 * (sum( b_elem_t(:) % force_t % LMM ) / nb_elem) / sigmult
-  !  iter=0
-  !  rms=1.
-
-  !  do while ( rms > thresh )
-
-  !    CD_f = CD_p
-  
-  !    sigma = sigmult * sigma
-  !    iter = iter + 1
-      
-      !LRM_p => b_elem_t(1) % force_t % LRM
-      !LMM_p => b_elem_t(1) % force_t % LMM
-      !CD_p  => b_elem_t(1) % force_t % CD
-	
-   !   CD_p = (2._rprec * LRM_p - 2._rprec * sigma * minval((/ 0._rprec,  2._rprec * CD_f /))) / LMM_p
-
-   !   rms = abs( CD_p - CD_f )
-
-   !   if(coord == 0) write(*,*) iter, CD_p
-    
-   ! enddo
- 
-  !endif 
-  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
 
@@ -767,7 +894,7 @@ else
 
 endif
 
-nullify( LRM_p, LMM_p, CD_p )
+nullify( LAB_p, LBB_p, CD_p )
 
 return
 end subroutine b_elem_CD_GITW
@@ -783,10 +910,11 @@ subroutine beta_elem_kappa()
 use param, only : wbase
 implicit none
 
-real(rprec) :: beta_int
+real(rprec) :: uc, vc
+real(rprec), dimension(ndim) :: beta_int
 
 $if($MPI)
-real(rprec) :: beta_int_global
+real(rprec), dimension(ndim) :: beta_int_global
 $endif
 
 real(rprec), pointer :: kappa_p, CD_p
@@ -798,10 +926,10 @@ nullify(kappa_p, CD_p)
 do n = 1, nbeta_elem
 
   !  Compute beta_int over each region beta
-  beta_int = 0._rprec
+  beta_int(:) = 0._rprec
     
   $if($MPI)
-  beta_int_global = 0._rprec
+  beta_int_global(:) = 0._rprec
   $endif
   
   !  Loop over number of points used in beta region
@@ -812,28 +940,32 @@ do n = 1, nbeta_elem
     i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
     j => beta_elem_t(n) % indx_array_t % iarray(2,ns)
     k => beta_elem_t(n) % indx_array_t % iarray(3,ns)
-    
-    beta_int = beta_int + abs( u(i,j,k) ) * u(i,j,k) * chi(i,j,k) 
+   
+    uc = u(i,j,k)
+    vc = v(i,j,k) 
+    cache = sqrt( uc**2 + vc**2 ) * chi(i,j,k)
+    beta_int(:) = beta_int(:) + cache * (/ uc, vc /)  
  
     nullify(i,j,k)
       
   enddo
   
-  beta_int = beta_int * dx * dy * dz
+  beta_int(:) = beta_int(:) * dx * dy * dz
     
   nullify( npoint_p )
     
   $if($MPI)
-  call mpi_allreduce (beta_int, beta_int_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  beta_int = beta_int_global
+  call mpi_allreduce (beta_int(1), beta_int_global(1), 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce (beta_int(2), beta_int_global(2), 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  beta_int(:) = beta_int_global(:)
   $endif
     
   kappa_p => beta_elem_t(n) % force_t % kappa
   CD_p    => beta_elem_t(n) % force_t % CD
     
-  kappa_p = CD_p * beta_gamma(n) / ( 2._rprec * beta_int )
+  kappa_p = CD_p * sum( beta_gamma(:,n) * beta_int(:) ) / ( 2._rprec * sum( beta_int(:) * beta_int(:) ) )
     
-  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,3f18.6)') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   
@@ -882,9 +1014,9 @@ use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt, wbase
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
-use sim_param, only : u
+use sim_param, only : u, v
 use functions, only : points_avg_3D
-use immersedbc, only : fx
+use immersedbc, only : fx, fy
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.r_elem_force'
@@ -895,10 +1027,11 @@ integer, pointer :: i, j, k
 integer, pointer :: npoint_p
 integer, pointer, dimension(:,:) :: iarray_p
 
-real(rprec), pointer :: fD_p
+real(rprec) :: cache
+real(rprec), pointer :: fx_p, fy_p
 
 $if ($MPI)
-real(rprec) :: fD
+real(rprec) :: fx_l, fy_l
 $endif
 
 type(ref_region), pointer :: ref_region_t_p
@@ -915,13 +1048,14 @@ nullify(ref_region_t_p)
 nullify(indx_array_t_p)
 nullify(npoint_p, iarray_p)
 nullify(i,j,k)
-nullify(fD_p)
+nullify(fx_p, fy_p)
 
 do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
   ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % v = points_avg_3D( v(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
@@ -929,11 +1063,14 @@ do n = 1, nr_elem
   iarray_p => indx_array_t_p % iarray
   
   $if($MPI)
-  fD = 0._rprec
+  fx_l = 0._rprec
+  fy_l = 0._rprec
   $endif
 
-  fD_p => r_elem_t( n ) % force_t % fD
-  fD_p = 0._rprec
+  fx_p => r_elem_t( n ) % force_t % fx
+  fy_p => r_elem_t( n ) % force_t % fy
+  fx_p = 0._rprec
+  fy_p = 0._rprec
   
   do np=1, npoint_p
   
@@ -944,9 +1081,11 @@ do n = 1, nr_elem
     if( k == nz ) call error( sub_name, 'Summing over bogus fx')
   
     $if($MPI)
-    fD = fD + fx(i,j,k)
+    fx_l = fx_l + fx(i,j,k)
+    fy_l = fy_l + fy(i,j,k)
     $else
-    fD_p = fD_p + fx(i,j,k)
+    fx_p = fx_p + fx(i,j,k)
+    fy_p = fy_p + fy(i,j,k)
     $endif
     
     nullify(i,j,k)
@@ -954,17 +1093,21 @@ do n = 1, nr_elem
   enddo
   
   $if($MPI)
-  call mpi_allreduce (fD, fD_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce (fx_l, fx_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce (fy_l, fy_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   $endif
 
-  fD_p = fD_p * dx * dy * dz
+  cache = dx * dy * dz
+  fx_p = fx_p * cache
+  fy_p = fy_p * cache
    
   !  Compute CD
-  r_elem_t(n) % force_t % CD = -fD_p / (0.5_rprec * ref_region_t_p % area * (ref_region_t_p % u)**2)
+  r_elem_t(n) % force_t % CD = -(fx_p * ref_region_t_p % u + fy_p * ref_region_t_p % v)/ &
+    (0.5_rprec * ref_region_t_p % area * sqrt((ref_region_t_p % u)**2 + (ref_region_t_p % v)**2)**3)
   
-  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,i3,3f18.6)') 'r_indx, fD, CD : ', n, -fD_p, r_elem_t(n) % force_t % CD
+  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'r_indx, fx, fy, CD : ', n, -fx_p, -fy_p, r_elem_t(n) % force_t % CD
 
-  nullify(fD_p)
+  nullify(fx_p, fy_p)
   nullify(npoint_p, iarray_p)
   nullify(indx_array_t_p)
   nullify(ref_region_t_p)
@@ -987,7 +1130,7 @@ use strmod
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_r_elem_fD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_r_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
 
 
@@ -1014,14 +1157,20 @@ if (.not. exst) then
   var_list = '"t"'
   do n = 1, nr_elem
     !  Create variable list name:
-    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, ',"fx<sub>')
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nr_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"fy<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo  
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nr_elem+1, (/ total_time, -r_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, -r_elem_t(:) % force_t % fx, -r_elem_t(:) % force_t % fy /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
@@ -1032,10 +1181,16 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nr_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"v<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
   call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_vel, 'append', 'formatted', nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u, r_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine r_elem_data_write
@@ -1049,7 +1204,7 @@ use strmod
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_fD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_force.dat'
 character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
 
@@ -1077,14 +1232,20 @@ if (.not. exst) then
   var_list = '"t"'
   do n = 1, nbeta_elem
     !  Create variable list name:
-    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, ',"fx<sub>')
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nbeta_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"fy<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo  
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', ndim*nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fx, -beta_elem_t(:) % force_t % fy /))
 
 inquire (file=fname_kappa, exist=exst)
 if (.not. exst) then
@@ -1109,10 +1270,16 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nbeta_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"v<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo  
   call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_vel, 'append', 'formatted', nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', ndim*nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u, beta_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine beta_elem_data_write
@@ -1126,7 +1293,7 @@ use strmod
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_b_elem_fD.dat'
+character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
 
 
@@ -1152,14 +1319,20 @@ if (.not. exst) then
   var_list = '"t"'
   do n = 1, nb_elem
     !  Create variable list name:
-    call strcat(var_list, ',"fD<sub>')
+    call strcat(var_list, ',"fx<sub>')
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"fy<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo  
   call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_fD, 'append', 'formatted', nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fD /))
+call write_real_data(fname_fD, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fx, -b_elem_t(:) % force_t % fy /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
@@ -1170,10 +1343,16 @@ if (.not. exst) then
     call strcat(var_list, n)
     call strcat(var_list, '</sub>"')
   enddo
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"v<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo  
   call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
 endif
 
-call write_real_data(fname_vel, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % ref_region_t % u /))
+call write_real_data(fname_vel, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, b_elem_t(:) % ref_region_t % u, b_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine b_elem_data_write

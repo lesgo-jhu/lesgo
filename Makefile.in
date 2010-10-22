@@ -15,6 +15,9 @@ LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
+# Set either double or single precision
+USE_DBLPREC = yes
+
 #--Set global DEBUG flag;
 #--Still have to set DEBUG in individual routines
 DEBUG=no
@@ -44,15 +47,19 @@ READ_LITTLE_ENDIAN = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
 
-USE_CYL_SKEW_LS = yes
-USE_RNS_LS = yes
+USE_CYL_SKEW_LS = no
+USE_RNS_LS = no
 USE_TREES_LS = no
 
 USE_TURBINES = no
 
 FPP = fpx3
+
+ifeq ($(USE_DBLPREC), yes)
+  FPP += -DDBLPREC
+endif
 
 ifeq ($(DEBUG), yes)
   FPP += -DDEBUG
@@ -134,12 +141,12 @@ ifeq ($(FCOMP),ifort)
   FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
-  #FFLAGS = -O3 -ip -ipo -ftz
+  FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   FFLAGS += -warn all -mcmodel=medium -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
-  LDFLAGS = -threads -shared-intel
+  LDFLAGS = -threads
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
 #  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
@@ -213,4 +220,5 @@ ifeq ($(FCOMP),g95)
   MODDIR =
   FFLAGS += $(MODDIR)
 endif
+
 
