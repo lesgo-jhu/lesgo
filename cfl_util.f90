@@ -18,9 +18,11 @@ $if($MPI)
 real(rprec) :: cfl_buf
 $endif
 
-cfl = maxval( (/ dt * abs(u(1:nx,1:ny,1:nz-1)) / dx, &
-                 dt * abs(v(1:nx,1:ny,1:nz-1)) / dy, &
-                 dt * abs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+cfl = maxval( (/ abs(u(1:nx,1:ny,1:nz-1)) / dx, &
+                 abs(v(1:nx,1:ny,1:nz-1)) / dy, &
+                 abs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+
+clf = dt * cfl
 
 $if($MPI)
 call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm, ierr)
@@ -51,9 +53,11 @@ $if($MPI)
 real(rprec) :: dt_buf
 $endif
 
-dt = minval( (/ cfl * dx / abs(u(1:nx,1:ny,1:nz-1)), &
-                cfl * dy / abs(v(1:nx,1:ny,1:nz-1)), &
-                cfl * dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
+                dy / abs(v(1:nx,1:ny,1:nz-1)), &
+                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+
+dt = cfl * dt
 
 $if($MPI)
 call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, comm, ierr)
