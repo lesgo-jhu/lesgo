@@ -22,7 +22,7 @@ cfl = maxval( (/ abs(u(1:nx,1:ny,1:nz-1)) / dx, &
                  abs(v(1:nx,1:ny,1:nz-1)) / dy, &
                  abs(w(1:nx,1:ny,1:nz-1)) / dz /) )
 
-clf = dt * cfl
+cfl = dt * cfl
 
 $if($MPI)
 call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm, ierr)
