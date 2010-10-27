@@ -520,9 +520,9 @@ if(itype==1) then
     $endif
 
     call write_real_data(point_fname(n), 'append', 'formatted', 4, (/ total_time, &
-      trilinear_interp(u,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
-      trilinear_interp(v,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
-      trilinear_interp(w_uv,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)) /))	  
+      trilinear_interp(u,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz), &
+      trilinear_interp(v,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz), &
+      trilinear_interp(w_uv,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz) /))
 
 
     $if ($MPI)
@@ -2875,27 +2875,27 @@ if(point_calc) then
   do i=1,point_nloc
 !  Find the processor in which this point lives
   $if ($MPI)
-    if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
+    if(point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
       point_coord(i) = coord
   
-      point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-      point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-      point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+      point_istart(i) = cell_indx('i',dx,point_loc(i)%xyz(1))
+      point_jstart(i) = cell_indx('j',dy,point_loc(i)%xyz(2))
+      point_kstart(i) = cell_indx('k',dz,point_loc(i)%xyz(3))
   
-      point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
-      point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
-      point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
+      point_xdiff(i) = point_loc(i)%xyz(1) - x(point_istart(i))
+      point_ydiff(i) = point_loc(i)%xyz(2) - y(point_jstart(i))
+      point_zdiff(i) = point_loc(i)%xyz(3) - z(point_kstart(i))
 
       fid=3000*i
   
       !  Can't concatenate an empty string
       point_fname(i)=''
       call strcat(point_fname(i),'output/vel.x-')
-      call strcat(point_fname(i), point_loc(1,i))
+      call strcat(point_fname(i), point_loc(i)%xyz(1))
       call strcat(point_fname(i),'.y-')
-      call strcat(point_fname(i),point_loc(2,i))
+      call strcat(point_fname(i),point_loc(i)%xyz(2))
       call strcat(point_fname(i),'.z-')
-      call strcat(point_fname(i),point_loc(3,i))
+      call strcat(point_fname(i),point_loc(i)%xyz(3))
       call strcat(point_fname(i),'.dat')
    
       !  Add tecplot header if file does not exist
@@ -2908,13 +2908,13 @@ if(point_calc) then
     endif
   $else
     point_coord(i) = 0
-    point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-    point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-    point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+    point_istart(i) = cell_indx('i',dx,point_loc(i)%xyz(1))
+    point_jstart(i) = cell_indx('j',dy,point_loc(i)%xyz(2))
+    point_kstart(i) = cell_indx('k',dz,point_loc(i)%xyz(3))
 	
-    point_xdiff(i) = point_loc(1,i) - x(point_istart(i)) 
-    point_ydiff(i) = point_loc(2,i) - y(point_jstart(i)) 
-    point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
+    point_xdiff(i) = point_loc(i)%xyz(1) - x(point_istart(i)) 
+    point_ydiff(i) = point_loc(i)%xyz(2) - y(point_jstart(i)) 
+    point_zdiff(i) = point_loc(i)%xyz(3) - z(point_kstart(i))
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
@@ -2922,11 +2922,11 @@ if(point_calc) then
     fid=3000*i
     point_fname(i)=''
     call strcat(point_fname(i),'output/vel.x-')
-    call strcat(point_fname(i), point_loc(1,i))
+    call strcat(point_fname(i), point_loc(i)%xyz(1))
     call strcat(point_fname(i),'.y-')
-    call strcat(point_fname(i),point_loc(2,i))
+    call strcat(point_fname(i),point_loc(i)%xyz(2))
     call strcat(point_fname(i),'.z-')
-    call strcat(point_fname(i),point_loc(3,i))
+    call strcat(point_fname(i),point_loc(i)%xyz(3))
     call strcat(point_fname(i),'.dat')
 	
     !  Add tecplot header if file does not exist
