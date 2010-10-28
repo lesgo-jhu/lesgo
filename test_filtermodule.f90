@@ -10,23 +10,27 @@ real(kind=rprec),dimension(lh,ny)::G_test,G_test_test
 end module test_filtermodule
 
 !--THIS IS NOT IN THE MODULE
+!**********************************************************************
 subroutine test_filter(f,G_test)
+!**********************************************************************
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
-use param,only:lh,ny
+use param,only:ld,lh,ny
 use fft
 implicit none
 ! note we're treating as complex here
-complex(kind=rprec), dimension(lh,ny),intent(inout)::f
+!complex(kind=rprec), dimension(lh,ny),intent(inout)::f
+real(kind=rprec), dimension(ld,ny), intent(inout) :: f
 real(kind=rprec), dimension(lh,ny),intent(in) :: G_test
 
-real (rprec) :: ignore_me
 !f_c=cmplx(f,0.,kind=rprec)
-call rfftwnd_f77_one_real_to_complex(forw,f,ignore_me)
+call rfftwnd_f77_one_real_to_complex(forw,f,null())
+
 ! the normalization is "in" G_test
-f = G_test*f  ! Nyquist taken care of with G_test
-call rfftwnd_f77_one_complex_to_real(back,f,ignore_me)
-!f=real(f_c,kind=rprec)
+!f = G_test*f  ! Nyquist taken care of with G_test
+call emul_complex_mult_inplace_real_complex_real_2D( f, G_test, ld, lh, ny )
+call rfftwnd_f77_one_complex_to_real(back,f,null())
+
 end subroutine test_filter
 
 subroutine test_filter_init(alpha,G_test)
