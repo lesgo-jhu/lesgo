@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -143,7 +143,8 @@ ifeq ($(FCOMP),ifort)
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel=medium -shared-intel
+  #FFLAGS += -warn all -mcmodel=medium -shared-intel
+  FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
