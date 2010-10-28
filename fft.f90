@@ -263,11 +263,11 @@ subroutine emul_complex_mult_inplace_real_complex_imag_2D( a, a_c, nx_r, nx_c, n
 !  This subroutine emulates the multiplication of two complex 2D array
 !  by emulating the input real array (a) as a complex type. This 
 !  subroutine ignores the real part of a_c (e.g. would use this when
-!  real(a_c) = 0)
+!  real(a_c) = 0). The results from the multplication are output as a.
 !
 !  Input:
 !  
-!    a (real,size(nx_r,ny))     - input real array
+!    a (real,size(nx_r,ny))     - input/outpu real array
 !    a_c (real,size(nx_c,ny))   - input imaginary part of complex array 
 !    nx_r (integer)             - size of real x dimension
 !    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
