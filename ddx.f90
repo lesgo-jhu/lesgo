@@ -49,7 +49,7 @@ do jz=$lbz,nz
   !  call emul_complex_mult_real_complex_2D( dfdx(:,:,jz), eye*kx, ld, lh, ny, dfdx(:,:,jz) )
   
   !  Optimized version for real(eye*kx)=0; only passing imaginary part of eye*kx
-  call emul_complex_mult_real_complex_imag_2D( dfdx(:, :, jz), kx, ld, lh, ny, dfdx(:,:,jz) )
+  call emul_complex_mult_inplace_real_complex_imag_2D( dfdx(:, :, jz), kx, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
