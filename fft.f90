@@ -314,4 +314,56 @@ return
 
 end subroutine emul_complex_mult_inplace_real_complex_imag_2D
 
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_real_2D( a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. This 
+!  subroutine ignores the imaginary part of a_c (e.g. would use this when
+!  imag(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input/output real array
+!    a_c (real,size(nx_c,ny))   - input real part of complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), target, dimension(nx_r, ny), intent(inout) :: a
+real(rprec), target, dimension(nx_c, ny), intent(in) :: a_c
+
+!  Cached variables
+real(rprec) :: a_r, a_i, a_c_r
+
+integer :: i,j,ii,ir
+
+!  Emulate complex multiplication
+do j=1, ny !  Using outer loop to get contingious memory access
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    a_c_r = a_c(i,j)
+
+    !  Perform multiplication
+    a(ir,j) = a_r * a_c_r
+    a(ii,j) =  a_i * a_c_r
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_real_2D
 end module fft
