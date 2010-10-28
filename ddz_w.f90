@@ -1,9 +1,13 @@
+!**********************************************************************
+subroutine ddz_w(f, dfdz)
+!**********************************************************************
+!
 !  First deriv in z direction for boundary layer (2nd order numerics)
 !  F is on w nodes and dFdz is on uvp nodes
 !    -23 January 1996
 !--MPI: provides 0:nz-1, except top process has 0:nz, and bottom process
 !  has 1:nz-1
-subroutine ddz_w(dfdz,f)
+!
 use types,only:rprec
 use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none

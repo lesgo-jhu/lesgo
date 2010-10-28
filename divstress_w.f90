@@ -22,20 +22,20 @@ $endif
 
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
-call ddx(dtxdx, tx)
+call ddx(tx, dtxdx)
 $if ($MPI)
   dtxdx(:, :, 0) = BOGUS
 $endif
 
 !--ty 1:nz => dtydy 1:nz
-call ddy(dtydy, ty)
+call ddy(ty, dtydy)
 $if ($MPI)
   dtydy(:, :, 0) = BOGUS
 $endif
 
 !--tz 0:nz-1 (special case) => dtzdz 1:nz-1 (default), 2:nz-1 (bottom),
 !                                    1:nz (top)
-call ddz_uv(dtzdz, tz)
+call ddz_uv(tz, dtzdz)
 $if ($MPI)
   dtzdz(:, :, 0) = BOGUS
 $endif

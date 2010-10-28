@@ -1,8 +1,12 @@
+!**********************************************************************
+subroutine ddz_uv(f, dfdz)
+!**********************************************************************
+!
 ! first derivative in z direction for boundary layer (2nd order numerics)
 !--provides dfdz(:, :, 2:nz), value at jz=1 is not touched
 !--MPI: provides dfdz(:, :, 1:nz) where f is on uvp-node, except at
-!  bottom process it only supplies 2:nz 
-subroutine ddz_uv(dfdz, f)
+!  bottom process it only supplies 2:nz
+!
 use types,only:rprec
 use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none

@@ -32,21 +32,21 @@ $endif
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(dtxdx, tx)  !--really should replace with ddxy (save an fft)
+call ddx(tx, dtxdx)  !--really should replace with ddxy (save an fft)
 !$if ($MPI)
 !  dtdx(:, :, 0) = BOGUS
 !$endif
 !dtxdx(:, :, nz) = BOGUS
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddy(dtydy, ty)
+call ddy(ty, dtydy)
 !$if ($MPI)
 !  dtdy(:, :, 0) = BOGUS
 !$endif
 !dtydy(:, :, nz) = BOGUS
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
-call ddz_w(dtzdz, tz)
+call ddz_w(tz, dtzdz)
 !$if ($MPI)
 !  dtzdz(:, :, 0) = BOGUS
 !$endif
