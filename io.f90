@@ -623,10 +623,10 @@ elseif(itype==3) then
       write (temp, '(".c",i0)') coord
       fname = trim (fname) // temp
     $endif
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
-	  	  
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
+  
     do k=1,nz
       do j=1,ny
 
@@ -641,7 +641,7 @@ elseif(itype==3) then
     enddo
 
     call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-    (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
+      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
 
     
   enddo   
@@ -668,10 +668,9 @@ elseif(itype==4) then
       write (temp, '(".c",i0)') coord
       fname = trim (fname) // temp
     $endif
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
-	  
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
     do k=1,nz
       do i=1,nx
 
@@ -687,7 +686,7 @@ elseif(itype==4) then
     enddo
     
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
+      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
   $if($LVLSET)
   
@@ -701,8 +700,8 @@ elseif(itype==4) then
     $endif
   
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-	  '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
-	  
+      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
+  
     do k=1,nz
       do i=1,nx
 
@@ -718,7 +717,7 @@ elseif(itype==4) then
     enddo
     
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
+      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
     $endif
 
@@ -743,9 +742,9 @@ elseif(itype==5) then
     write(ct,*) jt_total
     write(fname,*) 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
 
     do j=1,Ny
       do i=1,Nx
@@ -768,9 +767,9 @@ elseif(itype==5) then
     
     write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-	 '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)	  	 
+      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
 
     do j=1,Ny
       do i=1,Nx
