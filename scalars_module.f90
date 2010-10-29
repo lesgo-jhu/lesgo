@@ -10,13 +10,6 @@ use bottombc,only:zo,num_patch,zot,T_s,q_s,phi_m,psi_m,phi_h,psi_h,&
 !Includes patches subroutine
 use sgsmodule,only:Nu_t
 implicit none
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 !!!!!!--------------------------------------------
 ! Part I of the scalar files - contains the basic subroutines
 ! Also look at scalars_module2.f90 for other subroutines !! 
@@ -32,13 +25,13 @@ $endif
 !!!!!!--------------------------------------------
 !real(kind=rprec),dimension(ld,ny,nz):: scalar
 !real(kind=rprec),dimension(ld,ny,nz):: theta,q ! theta and q specified in sim_param
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: beta_scal,Pr_
+real(kind=rprec),dimension(ld,ny,nz):: beta_scal,Pr_
 !real(kind=rprec),dimension(ld,ny,nz):: dsdx,dsdy,dsdz
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: dTdz,dqdz ! Only ones needed for output
+real(kind=rprec),dimension(ld,ny,nz):: dTdz,dqdz ! Only ones needed for output
 ! Might need to add x and y derivatives here in case they need to be outputted
 ! Right now they are in the "scalar"_all_in_one routines below !!
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: RHS_Tf,RHS_T,RHS_qf,RHS_q
-real(kind=rprec), dimension(ld,ny,$lbz:nz):: sgs_t3,sgs_q3 !defines the surface sgs flux
+real(kind=rprec),dimension(ld,ny,nz):: RHS_Tf,RHS_T,RHS_qf,RHS_q
+real(kind=rprec), dimension(ld,ny,nz):: sgs_t3,sgs_q3 !defines the surface sgs flux
 
 !real(kind=rprec),dimension(:,:,:),allocatable:: scalar,q
 !real(kind=rprec),parameter::g=9.81,inv_strength=0.008 !inversion strength (K/m)
@@ -72,7 +65,7 @@ use immersedbc,only:building_interp_one
 implicit none
 real:: wt_s_current
 integer :: jt
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::dTdx,dTdy
+real(kind=rprec),dimension(ld,ny,nz)::dTdx,dTdy
 !real(kind=rprec),dimension(ld,ny,nz)::RHS_T, RHS_Tf
 !use scalars_module,theta => scalar
 
@@ -115,7 +108,7 @@ subroutine humidity_all_in_one(jt)
 use sim_param
 !use scalars_module
 implicit none
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::dqdx,dqdy
+real(kind=rprec),dimension(ld,ny,nz)::dqdx,dqdy
 real:: wt_s_current
 integer:: jt
 
@@ -155,8 +148,8 @@ subroutine calcbeta (scalar)
 implicit none
 integer::i, j, k
 !real(kind=rprec),dimension(ld,ny,nz),intent(out)::beta_scal
-real(kind=rprec),dimension(ld,ny,$lbz:nz),intent(in)::scalar
-real(kind=rprec),dimension($lbz:nz)::scalar_bar
+real(kind=rprec),dimension(ld,ny,nz),intent(in)::scalar
+real(kind=rprec),dimension(nz)::scalar_bar
 real(kind=rprec)::g_hat,above, below
 !..Non-dimensionalize gravity
 g_hat=g*(z_i/(u_star**2))
@@ -202,13 +195,13 @@ integer:: i, j, k,ni
 !integer:: patch(nx,ny),patchnum(types)
 real:: surf_flux_current
 !real(kind=rprec),dimension(ld,ny,nz):: u,v,w - !No need as already invoked using sim_param
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: dsdx,dsdy,dsdz
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: RHS,temp
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: scalar
-real(kind=rprec),dimension(ld,ny,$lbz:nz):: dtemp,txz,tyz,sgs_vert,Pr_
+real(kind=rprec),dimension(ld,ny,nz):: dsdx,dsdy,dsdz
+real(kind=rprec),dimension(ld,ny,nz):: RHS,temp
+real(kind=rprec),dimension(ld,ny,nz):: scalar
+real(kind=rprec),dimension(ld,ny,nz):: dtemp,txz,tyz,sgs_vert,Pr_
 !real,dimension(ld,ny,nz):: dtemp,s,txz,tyz,sgs_vert,Pr_,Nu_t
-real(kind=rprec),dimension(ld_big,ny2,$lbz:nz):: u_m,v_m,w_m,dsdx_m,dsdy_m,dsdz_m
- real(kind=rprec),dimension(ld_big,ny2,$lbz:nz):: RHS_m
+real(kind=rprec),dimension(ld_big,ny2,nz):: u_m,v_m,w_m,dsdx_m,dsdy_m,dsdz_m
+ real(kind=rprec),dimension(ld_big,ny2,nz):: RHS_m
 !cVK - changed the dimensions for RHS_m,u_m etc. to ld_big
 !cVK as otherwise it causes segmentation errors
 real(kind=rprec),dimension(nx,ny):: ustar_local,S_Surf,surf_flux,z_os
@@ -424,7 +417,7 @@ subroutine step_scalar(scalar,RHS_pre,RHS_post)
 use immersedbc,only:n_bldg,bldg_pts
 implicit none
 integer:: i,j,k
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::scalar, RHS_pre, RHS_post
+real(kind=rprec),dimension(ld,ny,nz)::scalar, RHS_pre, RHS_post
 !TS
 integer::px,py,lx,ly,lz,ni
 !real(kind=rprec)::wt_s_current
