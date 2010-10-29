@@ -1024,7 +1024,7 @@ select case(write_fmt)
       do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') x(i)
+            write(2,'(1e15.6)') x(i)
           enddo 
         enddo
       enddo
@@ -1032,7 +1032,7 @@ select case(write_fmt)
       do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') y(j)
+            write(2,'(1e15.6)') y(j)
           enddo 
         enddo
       enddo
@@ -1040,7 +1040,7 @@ select case(write_fmt)
       do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') z(k)
+            write(2,'(1e15.6)') z(k)
           enddo 
         enddo
       enddo      
@@ -1051,7 +1051,7 @@ select case(write_fmt)
       do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') vars(ikey_vars(n,i,j,k))
+            write(2,'(1e15.6)') vars(ikey_vars(n,i,j,k))
           enddo 
         enddo
       enddo 
@@ -1241,13 +1241,13 @@ select case(write_fmt)
 
       do j=1, jmax_buff
         do i=1,imax_buff
-          write(2,'(1e)') x(i)
+          write(2,'(1e15.6)') x(i)
         enddo 
       enddo
     
       do j=1, jmax_buff
         do i=1,imax_buff
-          write(2,'(1e)') y(j)
+          write(2,'(1e15.6)') y(j)
         enddo 
       enddo
  
@@ -1256,7 +1256,7 @@ select case(write_fmt)
     do n=1, nvars
       do j=1, jmax_buff
         do i=1,imax_buff
-          write(2,'(1e)') vars(ikey_vars(n,i,j))
+          write(2,'(1e15.6)') vars(ikey_vars(n,i,j))
         enddo 
       enddo
     enddo
@@ -1387,14 +1387,14 @@ select case(write_fmt)
     if (coord_pres) then
   
       do i=1,imax_buff
-        write(2,'(1e)') x(i)
+        write(2,'(1e15.6)') x(i)
       enddo 
   
     endif
     
     do n=1, nvars
       do i=1,imax_buff
-        write(2,'(1e)') vars(ikey_vars(n,i))
+        write(2,'(1e15.6)') vars(ikey_vars(n,i))
       enddo
     enddo 
 
@@ -1524,7 +1524,7 @@ write(2,'(1a)') tec_dat_str
 write(2,'(1a)') tec_dt_str
 
 if (present (soln_time)) then
-write(2,'(1a,e)') 'solutiontime=', soln_time
+write(2,'(1a,e15.6)') 'solutiontime=', soln_time
 endif
 
 close(2)

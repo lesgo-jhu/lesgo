@@ -1011,7 +1011,7 @@ call fill_r_elem_ref_region()
 call fill_r_elem_indx_array()
 !  Initialize force data
 do n=1, nr_elem
-  r_elem_t( n ) % force_t = force_type_1( fx=0._rprec, fy=0._rprec, CD=0._rprec, kappa=0._rprec )
+  r_elem_t( n ) % force_t = force_type_1( 0._rprec, 0._rprec, 0._rprec, 0._rprec )
 enddo
 
 return
@@ -1280,7 +1280,7 @@ call fill_beta_elem_ref_region()
 call fill_beta_elem_indx_array()
 !  Initialize force data
 do n=1, nbeta_elem
-  beta_elem_t( n ) % force_t = force_type_1( fx=0._rprec, fy=0._rprec, CD=0._rprec, kappa=0._rprec )
+  beta_elem_t( n ) % force_t = force_type_1( 0._rprec, 0._rprec, 0._rprec, 0._rprec )
 enddo
 
 return
@@ -1547,8 +1547,10 @@ call fill_b_elem_ref_region()
 call set_b_elem_children()
 !  Initialize force data
 do n=1, nb_elem
-  b_elem_t( n ) % force_t = force_type_2( fx=0._rprec, fy=0._rprec, CD=0._rprec, kappa=0._rprec, &
-    LAB=0._rprec, LBB=0._rprec )
+!  b_elem_t( n ) % force_t = force_type_2( fx=0._rprec, fy=0._rprec, CD=0._rprec, kappa=0._rprec, &
+!    LAB=0._rprec, LBB=0._rprec )
+  b_elem_t( n ) % force_t = force_type_2(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+    0._rprec, 0._rprec )
 enddo
 
 return

@@ -14,6 +14,10 @@ public :: kx,ky,k2,eye,forw,back,forw_big,back_big,init_fft
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+public :: emul_complex_mult_real_complex_2D, emul_complex_mult_inplace_real_complex_2D, &
+        emul_complex_mult_real_complex_imag_2D, emul_complex_mult_inplace_real_complex_imag_2D,&
+        emul_complex_mult_real_complex_real_2D, emul_complex_mult_inplace_real_complex_real_2D
+
 ! plans
 integer*8::forw,back,forw_big,back_big
 real(kind=rprec),dimension(lh,ny)::kx,ky,k2

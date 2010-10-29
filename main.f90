@@ -626,7 +626,7 @@ end do
 ! Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     call cpu_time (clock_end)
-    write(*,"(a,e)") 'Simulation wall time (s) : ', clock_end - clock_start
+    write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
 
 stop

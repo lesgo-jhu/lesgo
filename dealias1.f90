@@ -6,12 +6,17 @@ use types,only:rprec
 use param,only:ld,ld_big,nx,ny,nz,ny2,dx,dy
 use fft
 implicit none
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
 integer::jz
-real(kind=rprec),dimension(ld,ny,nz),intent(in):: u
-real(kind=rprec),dimension(ld_big,ny2,nz),intent(inout)::u_big
+real(kind=rprec),dimension(ld,ny,$lbz:nz),intent(in):: u
+real(kind=rprec),dimension(ld_big,ny2,$lbz:nz),intent(inout)::u_big
 real(kind=rprec)::ignore_me,const
 ! ahh get rid of this
-real(kind=rprec),dimension(ld,ny,nz)::temp    
+real(kind=rprec),dimension(ld,ny,$lbz:nz)::temp    
 ! be careful using u after calling this subroutine!
 const=1._rprec/(nx*ny)
 temp=const*u

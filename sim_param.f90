@@ -64,7 +64,7 @@ real(kind=rprec),dimension(ld,ny,0:nz)::p
 real (rprec), dimension (ld, ny, $lbz:nz) :: divtx, divty, divtz
 
 ! Added for scalars
-real(kind=rprec),dimension(ld,ny,nz)::theta,q
+real(kind=rprec),dimension(ld,ny,$lbz:nz)::theta,q
 
 $endif
 
