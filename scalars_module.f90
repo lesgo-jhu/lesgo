@@ -77,7 +77,7 @@ Pr_=Pr !Right now set the Prandtl num matrix equal to a constant Prandtl
 ! The plan-averaged dynamic Prandtl number model is already coded. just need to put it in !!
 if(use_bldg)call building_interp_one(theta,.04_rprec,3)
 call filt_da(theta,dTdx,dTdy)
-call ddz_uv (dTdz,theta)
+call ddz_uv (theta, dTdz)
 dTdz(:,:,Nz)=inv_strength/T_scale*z_i ! Valid for temperature
 !print *,'DTDZ remote in theta_all_in_one',dTdz(5,5,:)
 if (S_FLAG) then
@@ -119,7 +119,7 @@ Pr_=Pr !Right now set the Prandtl no matrix equal to a constant Prandtl
 ! The plan-averaged dynamic Prandtl number model is already coded. just need to put it in !!
 
 call filt_da(q,dqdx,dqdy)
-call ddz_uv (dqdz,q) ! Calculate vertical derivatives !! 
+call ddz_uv (q, dqdz) ! Calculate vertical derivatives !! 
 dqdz(:,:,Nz)=0 ! Valid for humidity and other passive scalars
 
 if (S_FLAG) then
@@ -211,7 +211,7 @@ real(kind=rprec),dimension(nx,ny):: ustar_local,S_Surf,surf_flux,z_os
 real(kind=rprec)::wt_s2
 !TS
 integer::px,py,lx,ly,lz
-!  call ddz_uv (dsdz,scalar) 
+!  call ddz_uv (scalar,dsdz) 
 !  if ((scalar(2,2,2)<2.and. L_z>z_i).AND.(wt_s.ne.0.0)) then
 !  dsdz(:,:,Nz)=inv_strength/T_scale*z_i ! Valid for temperature
 !  else if (wt_s .eq. 0.0) then
@@ -347,7 +347,7 @@ do i=1,Nx
 end do
 end do
 end do
-call DDX (dtemp, temp)
+call DDX (temp, dtemp)
 
 do k=1,Nz
 do j=1,Ny
@@ -357,7 +357,7 @@ do i=1,Nx
 end do
 end do
 end do
-call DDY (dtemp, temp)   
+call DDY (temp, dtemp)   
 
 !c...Use MO flux at wall for the scalar sgs term !
 !c Note that the total contribution to the scalar sgs term at
@@ -393,7 +393,7 @@ end do
 ! OBUKHOV.f and is not involved in any computations in this routine.
 ! sgs_t3(i,j,1) (<w'theta'> is used for computing wt at the surface in OBUKHOV)
 
-  call DDZ_w (dtemp, temp)
+  call DDZ_w (temp, dtemp)
   do k=1,Nz
     Do j=1,Ny
     do i=1,Nx
