@@ -456,7 +456,7 @@ tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
 
 tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 * tavg_total_time
 
-tavg_total_time = tavg_total_time + dble(tavg_nend - tavg_nstart + 1) * dt
+tavg_total_time = tavg_total_time + real(tavg_nend - tavg_nstart + 1,kind=rprec) * dt
 
 return
 end subroutine tavg_init
@@ -571,7 +571,7 @@ elseif(itype==2) then
   !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
-	
+
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
@@ -859,7 +859,7 @@ select case(write_fmt)
   case('unformatted')
   
     write(2) vars
-	
+
 end select
   
 close(2)
@@ -1018,85 +1018,85 @@ select case(write_fmt)
   case('formatted')
   
     !  Specify output format; may want to use a global setting
-    	
+   
     if (coord_pres) then
-	    
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') x(i)
-	        enddo 
-	      enddo
-	    enddo
+    
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') x(i)
+          enddo 
+        enddo
+      enddo
       
       do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') y(j)
-	        enddo 
-	      enddo
-	    enddo
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') y(j)
+          enddo 
+        enddo
+      enddo
       
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') z(k)
-	        enddo 
-	      enddo
-	    enddo      
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') z(k)
+          enddo 
+        enddo
+      enddo      
       
     endif      
     
     do n=1, nvars
-	    do k=1, kmax_buff
+      do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') vars(ikey_vars(n,i,j,k))
-	        enddo 
-	      enddo
-	    enddo 
+            write(2,'(1e15.6)') vars(ikey_vars(n,i,j,k))
+          enddo 
+        enddo
+      enddo 
     enddo
 
   case('unformatted')
   
     if (coord_pres) then
-	  
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+  
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) x(i)
-	        enddo 
-	      enddo
-	    enddo
+          enddo 
+        enddo
+      enddo
       
       do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) y(j)
-	        enddo 
-	      enddo
-	    enddo
+          enddo 
+        enddo
+      enddo
       
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) z(k)
-	        enddo 
-	      enddo
-	    enddo  
-	  
+          enddo 
+        enddo
+      enddo  
+  
     endif
     
     do n=1, nvars
-	    do k=1, kmax_buff
+      do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
             write(2) vars(ikey_vars(n,i,j,k))
-	        enddo 
-	      enddo
-	    enddo 
+          enddo 
+        enddo
+      enddo 
     enddo
-	
+
 end select
 
 close(2)
@@ -1236,59 +1236,59 @@ select case(write_fmt)
   case('formatted')
   
     !  Specify output format; may want to use a global setting
-    	
+   
     if (coord_pres) then
 
-	    do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2,'(1e)') x(i)
-	      enddo 
-	    enddo
-    	  
       do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2,'(1e)') y(j)
-	      enddo 
-	    enddo
+        do i=1,imax_buff
+          write(2,'(1e15.6)') x(i)
+        enddo 
+      enddo
+    
+      do j=1, jmax_buff
+        do i=1,imax_buff
+          write(2,'(1e15.6)') y(j)
+        enddo 
+      enddo
  
     endif
-	  
+  
     do n=1, nvars
       do j=1, jmax_buff
-	      do i=1,imax_buff
-          write(2,'(1e)') vars(ikey_vars(n,i,j))
-	      enddo 
-	    enddo
+        do i=1,imax_buff
+          write(2,'(1e15.6)') vars(ikey_vars(n,i,j))
+        enddo 
+      enddo
     enddo
 
   case('unformatted')
   
     if (coord_pres) then
-	  
-	  
-	    do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2) x(i)
-	      enddo 
-	    enddo
-    	  
+  
+  
       do j=1, jmax_buff
-  	    do i=1,imax_buff
+        do i=1,imax_buff
+          write(2) x(i)
+        enddo 
+      enddo
+    
+      do j=1, jmax_buff
+        do i=1,imax_buff
           write(2) y(j)
-	      enddo 
-	    enddo
+        enddo 
+      enddo
  
     endif
 
     do n=1, nvars
       do j=1, jmax_buff
-	      do i=1,imax_buff
+        do i=1,imax_buff
           write(2) vars(ikey_vars(n,i,j))
-	      enddo 
-	    enddo
+        enddo 
+      enddo
     enddo    
-	
-  !case default
+    
+    !case default
   !  call error(sub_name, 'Incorrect write format : ' // write_pos)
 end select
 
@@ -1385,34 +1385,34 @@ select case(write_fmt)
   case('formatted')
   
     if (coord_pres) then
-	  
+  
       do i=1,imax_buff
-        write(2,'(1e)') x(i)
+        write(2,'(1e15.6)') x(i)
       enddo 
-	  
+  
     endif
     
     do n=1, nvars
       do i=1,imax_buff
-        write(2,'(1e)') vars(ikey_vars(n,i))
+        write(2,'(1e15.6)') vars(ikey_vars(n,i))
       enddo
-	  enddo 
+    enddo 
 
   case('unformatted')
   
     if (coord_pres) then
-	  
+  
       do i=1,imax_buff
         write(2) x(i)
       enddo 
-	  
+  
     endif
     
     do n=1, nvars
       do i=1,imax_buff
         write(2) vars(ikey_vars(n,i))
       enddo
-	  enddo 
+    enddo 
 
 end select
 
@@ -1442,7 +1442,7 @@ character(*), intent(in) :: fname, write_pos, var_list
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
 
 !  Check if write position has been specified correctly
-call check_write_pos(write_pos, sub_name)	
+call check_write_pos(write_pos, sub_name)
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position=write_pos)
@@ -1524,7 +1524,7 @@ write(2,'(1a)') tec_dat_str
 write(2,'(1a)') tec_dt_str
 
 if (present (soln_time)) then
-write(2,'(1a,e)') 'solutiontime=', soln_time
+write(2,'(1a,e15.6)') 'solutiontime=', soln_time
 endif
 
 close(2)
@@ -1850,7 +1850,7 @@ do k = 1, nz
   do j = 1, ny
     do i = 1, nx
     
-	  ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
+    ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
       rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
       rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
       rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
@@ -2917,7 +2917,7 @@ if(point_calc) then
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
-	
+
     fid=3000*i
     point_fname(i)=''
     call strcat(point_fname(i),'output/vel.x-')
@@ -2927,14 +2927,14 @@ if(point_calc) then
     call strcat(point_fname(i),'.z-')
     call strcat(point_fname(i),point_loc(i)%xyz(3))
     call strcat(point_fname(i),'.dat')
-	
+
     !  Add tecplot header if file does not exist
     inquire (file=point_fname(i), exist=exst)
     if (.not. exst) then
       var_list = '"t (s)", "u", "v", "w"'
       call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
     endif 
-	
+
   $endif
   
   enddo
@@ -3347,6 +3347,5 @@ end subroutine tavg_compute
 
 !return
 !end subroutine zplane_avg_compute
-
 
 end module io
