@@ -456,7 +456,7 @@ tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
 
 tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 * tavg_total_time
 
-tavg_total_time = tavg_total_time + dble(tavg_nend - tavg_nstart + 1) * dt
+tavg_total_time = tavg_total_time + real(tavg_nend - tavg_nstart + 1,kind=rprec) * dt
 
 return
 end subroutine tavg_init
