@@ -9,6 +9,7 @@ use scalars_module2,only:ic_scal ! added by VK
 ! VK -label 122 assigned to vel_sc.out for reading input files in case of
 ! scalars
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
+
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
