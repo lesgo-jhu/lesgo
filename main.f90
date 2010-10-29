@@ -5,6 +5,7 @@ use sim_param
 use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
+use derivatives, only : filt_da, ddz_uv, ddz_w
 use immersedbc
 use test_filtermodule
 use topbc,only:setsponge,sponge
@@ -48,6 +49,15 @@ $endif
 
 use messages
 implicit none
+
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
 
 character (*), parameter :: sub_name = 'main'
 
@@ -248,18 +258,18 @@ do jt=1,nsteps
   
     ! Calculate velocity derivatives
         ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-        call filt_da (u, dudx, dudy)
-        call filt_da (v, dvdx, dvdy)
-        call filt_da (w, dwdx, dwdy)
+        call filt_da (u, dudx, dudy, $lbz)
+        call filt_da (v, dvdx, dvdy, $lbz)
+        call filt_da (w, dwdx, dwdy, $lbz)
          
         ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
         !  except bottom coord, only 2:nz
-        call ddz_uv(dudz,u)
-        call ddz_uv(dvdz,v)
+        call ddz_uv(u, dudz, $lbz)
+        call ddz_uv(v, dvdz, $lbz)
        
         ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
         !  except bottom coord, only 1:nz-1
-        call ddz_w(dwdz,w)
+        call ddz_w(w, dwdz, $lbz)
 
     ! Debug
     $if ($DEBUG)
@@ -472,7 +482,9 @@ do jt=1,nsteps
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
     !   provides p, dpdx, dpdy at 0:nz-1
-    call press_stag_array (p, dpdx, dpdy)
+    !
+    ! COMMENTING FOR NOW NEED TO FIX
+    ! call press_stag_array (p, dpdx, dpdy)
 
     ! Calculate dpdz
     !   note: p has additional level at z=-dz/2 for this derivative

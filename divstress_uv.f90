@@ -2,6 +2,7 @@
 subroutine divstress_uv (divt, tx, ty, tz)
 use types,only:rprec
 use param,only:ld,ny,nz, BOGUS
+use derivatives, only : ddx, ddy, ddz_w
 
 implicit none
 $if ($MPI)
@@ -32,21 +33,21 @@ $endif
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(tx, dtxdx)  !--really should replace with ddxy (save an fft)
+call ddx(tx, dtxdx, $lbz)  !--really should replace with ddxy (save an fft)
 !$if ($MPI)
 !  dtdx(:, :, 0) = BOGUS
 !$endif
 !dtxdx(:, :, nz) = BOGUS
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddy(ty, dtydy)
+call ddy(ty, dtydy, $lbz)
 !$if ($MPI)
 !  dtdy(:, :, 0) = BOGUS
 !$endif
 !dtydy(:, :, nz) = BOGUS
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
-call ddz_w(tz, dtzdz)
+call ddz_w(tz, dtzdz, $lbz)
 !$if ($MPI)
 !  dtzdz(:, :, 0) = BOGUS
 !$endif

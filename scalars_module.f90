@@ -62,6 +62,7 @@ subroutine theta_all_in_one(jt)
 !use scalars_module
 !use scalars_module
 use immersedbc,only:building_interp_one
+use derivatives, only : filt_da, ddz_uv
 implicit none
 real:: wt_s_current
 integer :: jt
@@ -76,8 +77,8 @@ Pr_=Pr !Right now set the Prandtl num matrix equal to a constant Prandtl
 ! number as specified in param. could use the dynamic model ideal to compute Pr as well !!
 ! The plan-averaged dynamic Prandtl number model is already coded. just need to put it in !!
 if(use_bldg)call building_interp_one(theta,.04_rprec,3)
-call filt_da(theta,dTdx,dTdy)
-call ddz_uv (theta, dTdz)
+call filt_da(theta,dTdx,dTdy, 1)
+call ddz_uv (theta, dTdz, 1)
 dTdz(:,:,Nz)=inv_strength/T_scale*z_i ! Valid for temperature
 !print *,'DTDZ remote in theta_all_in_one',dTdz(5,5,:)
 if (S_FLAG) then
@@ -106,6 +107,7 @@ end subroutine theta_all_in_one
 subroutine humidity_all_in_one(jt)
 ! Not correct now.. DONT USE ....
 use sim_param
+use derivatives, only : filt_da, ddz_uv
 !use scalars_module
 implicit none
 real(kind=rprec),dimension(ld,ny,nz)::dqdx,dqdy
@@ -118,8 +120,8 @@ Pr_=Pr !Right now set the Prandtl no matrix equal to a constant Prandtl
 ! number as specified in param. could use the dynamic model ideal to compute Pr as well !!
 ! The plan-averaged dynamic Prandtl number model is already coded. just need to put it in !!
 
-call filt_da(q,dqdx,dqdy)
-call ddz_uv (q, dqdz) ! Calculate vertical derivatives !! 
+call filt_da(q,dqdx,dqdy,1)
+call ddz_uv (q, dqdz,1) ! Calculate vertical derivatives !! 
 dqdz(:,:,Nz)=0 ! Valid for humidity and other passive scalars
 
 if (S_FLAG) then
@@ -190,6 +192,7 @@ subroutine scalar_RHS_calc(scalar,dsdx,dsdy,dsdz,S_Surf,z_os,RHS,sgs_vert,Pr_,su
 !wt_s_current)
 !cVK - s, here is the scalar inputted into the subroutine
 use immersedbc,only:n_bldg,bldg_pts
+use derivatives, only : ddx, ddy, ddz_w
 implicit none
 integer:: i, j, k,ni
 !integer:: patch(nx,ny),patchnum(types)
@@ -347,7 +350,7 @@ do i=1,Nx
 end do
 end do
 end do
-call DDX (temp, dtemp)
+call DDX (temp, dtemp, 1)
 
 do k=1,Nz
 do j=1,Ny
@@ -357,7 +360,7 @@ do i=1,Nx
 end do
 end do
 end do
-call DDY (temp, dtemp)   
+call DDY (temp, dtemp, 1)   
 
 !c...Use MO flux at wall for the scalar sgs term !
 !c Note that the total contribution to the scalar sgs term at
@@ -393,7 +396,7 @@ end do
 ! OBUKHOV.f and is not involved in any computations in this routine.
 ! sgs_t3(i,j,1) (<w'theta'> is used for computing wt at the surface in OBUKHOV)
 
-  call DDZ_w (temp, dtemp)
+  call DDZ_w (temp, dtemp, 1)
   do k=1,Nz
     Do j=1,Ny
     do i=1,Nx
