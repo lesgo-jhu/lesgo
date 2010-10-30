@@ -309,7 +309,7 @@ do jt=1,nsteps
     if (dns_bc .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
     else        
-        call sgs_stag()	    
+        call sgs_stag()
     end if
     if(use_bldg)then
         call wallstress_building(txy,txz,tyz)
