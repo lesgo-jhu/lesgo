@@ -75,7 +75,7 @@ integer :: jz_min
 real(kind=rprec), dimension(ld, ny, nz+1) :: RHS_col
 real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
 
-real(kind=rprec), dimension(2) :: aH_x, aH_y, aH_z ! Used to emulate complex scalar
+real(kind=rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
@@ -313,10 +313,11 @@ do jz = jz_min, nz
       a(jx, jy, jz) = 1._rprec/(dz**2)
       b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
       c(jx, jy, jz) = 1._rprec/(dz**2)   
+      !  Compute eye * kx * H_x 
       call emul_complex_mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
-      call emul_complex_mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )        
-      call emul_complex_mult_real_complex_imag( rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1), 1._rprec, aH_z )        
-      RHS_col(ir:ii,jy,jz) = ( aH_x + aH_y + aH_z ) / dz
+      !  Compute eye * ky * H_y
+      call emul_complex_mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
+      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
