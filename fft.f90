@@ -14,13 +14,14 @@ public :: kx,ky,k2,eye,forw,back,forw_big,back_big,init_fft
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
-public :: emul_complex_mult_real_complex_2D, emul_complex_mult_inplace_real_complex_2D, &
+public :: emul_complex_mult_real_complex_imag, emul_complex_mult_inplace_real_complex_imag, &
+        emul_complex_mult_real_complex_2D, emul_complex_mult_inplace_real_complex_2D, &
         emul_complex_mult_real_complex_imag_2D, emul_complex_mult_inplace_real_complex_imag_2D,&
         emul_complex_mult_real_complex_real_2D, emul_complex_mult_inplace_real_complex_real_2D
 
 ! plans
 integer*8::forw,back,forw_big,back_big
-real(kind=rprec),dimension(lh,ny)::kx,ky,k2
+real(kind=rprec),dimension(lh,ny) :: kx,ky,k2
 complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
 integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
@@ -80,6 +81,80 @@ end do
 ! magnitude squared: will have 0's around the edge
       k2 = kx*kx + ky*ky
 end subroutine init_wavenumber
+
+!**********************************************************************
+subroutine emul_complex_mult_real_complex_imag( a, a_c, b )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex scalars
+!  by emulating the input real vector (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(2,1))  - input real vector
+!    a_c (real)          - input imaginary part of complex scalar
+!
+!  Output:
+!
+!    b (real, size(2,1)) - output real vector
+
+use types, only : rprec
+implicit none
+
+real(rprec), dimension(2), intent(in) :: a
+real(rprec), intent(in) :: a_c
+real(rprec), dimension(2), intent(out) :: b
+
+!  Cached variables
+real(rprec) :: a_c_i
+  
+!  Cache multi-usage variables
+a_c_i = a_c
+
+!  Perform multiplication
+b(1) = - a(2) * a_c_i
+b(2) =  a(1) * a_c_i
+
+return
+
+end subroutine emul_complex_mult_real_complex_imag
+
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_imag( a, a_c )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex scalars
+!  by emulating the input real vector (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(2,1))           - input/outpu real array
+!    a_c (real)         - input imaginary part of complex array 
+!
+
+use types, only : rprec
+implicit none
+
+real(rprec), dimension(2), intent(inout) :: a
+real(rprec), intent(in) :: a_c
+
+!  Cached variables
+real(rprec) :: a_r, a_i, a_c_i
+  
+!  Cache multi-usage variables
+a_r = a(1)
+a_i = a(2)
+a_c_i = a_c
+
+!  Perform multiplication
+a(1) = - a_i * a_c_i
+a(2) =  a_r * a_c_i
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_imag
 
 !**********************************************************************
 subroutine emul_complex_mult_real_complex_2D( a, a_c, nx_r, nx_c, ny, b )
