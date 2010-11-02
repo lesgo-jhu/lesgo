@@ -21,6 +21,10 @@ $else
   $define $lbz 1
 $endif
 
+integer :: nx_proc
+integer :: nproc_csp, global_rank_csp
+real(rprec) :: stride
+
 !  cs{0,1} all correspond to vectors with the origin at the
 !  corresponding coordinate system
 type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
@@ -101,10 +105,10 @@ end program cyl_skew_pre_ls
 subroutine initialize()
 !**********************************************************************
 $if ($MPI)
-use mpi_defs
+!use mpi_defs
 $endif
 
-use param, only : nz, coord
+use param, only : nz_tot, coord, nx
 use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : fill_tree_array_ls
@@ -114,8 +118,23 @@ implicit none
 integer :: ng,i,j,k
 
 $if ($MPI)
-call initialize_mpi ()
+!call initialize_mpi ()
+call initializ_mpi_csp ()
+
+!  Set x decomposition (last proc gets remaining x points)
+if( global_rank_csp < nproc_csp - 1) then
+  nx_proc = floor(nx / nproc_csp)
+else
+  nx_proc = floor(nx / nproc_csp) + modulo(nx,nproc_csp)
+endif
+
+stride = floor(nx / nproc_csp)*global_rank_csp
+
+$else
+nx_proc = nx
+stride = 0
 $endif
+
 call allocate_arrays()
 call fill_tree_array_ls()
 call generate_grid()
@@ -169,13 +188,55 @@ return
 contains
 
 !**********************************************************************
+subroutine initialize_mpi_csp()
+!**********************************************************************
+use types, only : rprec
+use param, only : ierr, MPI_RPREC
+implicit none
+
+integer :: ip, np
+
+!--check for consistent preprocessor & param.f90 definitions of 
+!  MPI and $MPI
+if (.not. USE_MPI) then
+  write (*, *) 'inconsistent use of USE_MPI and $MPI'
+  stop
+end if
+
+call mpi_init (ierr)
+call mpi_comm_size (MPI_COMM_WORLD, nproc_csp, ierr)
+call mpi_comm_rank (MPI_COMM_WORLD, global_rank_csp, ierr)
+
+  !--check if run-time number of processes agrees with nproc parameter
+!if (np /= nproc) then
+!  write (*, *) 'runtime number of procs = ', np,  &
+!               ' not equal to nproc = ', nproc
+!  stop
+!end if
+
+!write (*, *) 'Hello! from process with coord = ', coord
+
+  !--set the MPI_RPREC variable
+if (rprec == kind (1.e0)) then
+  MPI_RPREC = MPI_REAL
+else if (rprec == kind (1.d0)) then
+  MPI_RPREC = MPI_DOUBLE_PRECISION
+else
+  write (*, *) 'error defining MPI_RPREC'
+  stop
+end if
+
+return
+end subroutine initialize_mpi
+
+!**********************************************************************
 subroutine allocate_arrays()
 !**********************************************************************
 use param, only : ld, nx, ny
 implicit none
 
 !  Allocate x,y,z for all coordinate systems
-allocate(gcs_t(ld,ny,$lbz:nz))
+allocate(gcs_t(nx_proc,ny,$lbz:nz_tot))
 
 return
 end subroutine allocate_arrays
@@ -187,19 +248,28 @@ subroutine generate_grid()
 ! (global coordinate system) in gcs_t using the grid generation routine
 ! grid_build()
 !
-use param, only : nproc, coord, nx, ny, nz
-use grid_defs
+use param, only : ny,nz_tot,dx,dy,dz
+!use grid_defs
 
 implicit none
 
-if(.not. grid_built) call grid_build()
+integer :: i,j,k
 
-do k=$lbz,nz
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
+do k=$lbz,nz_tot
   do j=1,ny
-    do i=1,nx
-      gcs_t(i,j,k)%xyz(1) = x(i)
-      gcs_t(i,j,k)%xyz(2) = y(j)
-      gcs_t(i,j,k)%xyz(3) = z(k)
+    do i=1,nx_proc
+      gcs_t(i,j,k)%xyz(1) = (i - 1 +  stride )*dx
+      gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
+      gcs_t(i,j,k)%xyz(3) = (k - 0.5_rprec) * dz
     enddo
   enddo
 enddo
@@ -213,7 +283,7 @@ end subroutine initialize
 subroutine main_loop(nt)
 !**********************************************************************
 use types, only : rprec
-use param, only : nx, ny, nz
+use param, only : ny, nz_tot
 use cyl_skew_base_ls, only : tr_t
 use cyl_skew_pre_base_ls, only : gcs_t
 implicit none
@@ -224,11 +294,11 @@ integer :: ng, nc, nb,i,j,k
 !  Loop over all global coordinates
 
 
-do k=$lbz,Nz
+do k=$lbz,Nz_tot
 
   do j=1,ny
 
-    do i=1,nx+2
+    do i=1,nx
         
       do ng = 1, tr_t(nt) % ngen_reslv
         
@@ -532,14 +602,13 @@ subroutine compute_chi()
 !**********************************************************************
 !  This subroutine filters the indicator function chi
 use types, only : rprec
-use param, only : nx, ny, nz, dz
+use param, only : ny, nz_tot, dz
 use messages
 use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
 $if($MPI)
 use mpi
-use param, only : coord, nproc, comm, ierr
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+use param, only : ierr
 $endif
 
 implicit none
@@ -562,17 +631,7 @@ $endif
 
 nullify(brindx_loc_id_p)
 
-allocate(z_w($lbz:nz))
-
-$if ($MPI)
-  !if(coord == nproc - 1) then
-  !  ubz = nz
-  !else
-    ubz = nz - 1
-  !endif
-$else
-  ubz = nz
-$endif
+allocate(z_w($lbz:nz_tot))
 
 !  Create w-grid (physical grid)
 do k=$lbz,nz
@@ -583,13 +642,13 @@ gcs_t(:,:,:) % chi = 0._rprec
 
 !  Do not set top most chi value; for MPI jobs
 !  this is the overlap node and must be sync'd
-do k=1,ubz
+do k=1,nz_tot
   do j=1,ny
-    do i=1,nx
+    do i=1,nx_proc
     
       $if ($MPI)
       !  To keep mpi stuff flowing during bad load balancing runs
-      call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
+      call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
       $endif
       
       zcell_bot = gcs_t(i,j,k) % xyz(3) - dz/2.
@@ -706,16 +765,16 @@ deallocate(z_w)
 
 !  Now must sync all overlapping nodes
 $if ($MPI)
-call mpi_sync_real_array(gcs_t(:,:,:)%chi, MPI_SYNC_DOWNUP)
+!call mpi_sync_real_array(gcs_t(:,:,:)%chi, MPI_SYNC_DOWNUP)
 $endif
 
 !  Ensure all pointers are nullified
 nullify(bplane_p,tplane_p)
 
 !  Set clindx based on brindx
-do k=$lbz,ubz
+do k=$lbz,nz_tot
   do j=1,ny
-    do i=1,nx
+    do i=1,nx_proc
     
       if(gcs_t(i,j,k) % brindx > 0) then
       brindx_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k) % brindx )
