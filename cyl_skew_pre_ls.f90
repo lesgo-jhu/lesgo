@@ -2,7 +2,7 @@
 module cyl_skew_pre_base_ls
 !**********************************************************************
 use types, only : rprec, vec3d
-use param, only : pi
+use param, only : pi, BOGUS, iBOGUS
 use cyl_skew_base_ls
 use cyl_skew_ls, only : fill_tree_array_ls
 use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
@@ -21,32 +21,26 @@ $else
   $define $lbz 1
 $endif
 
+!  Defined local processor definitions
+$if($MPI)
 integer :: nx_proc
 integer :: nproc_csp, global_rank_csp
 real(rprec) :: stride
+$endif
 
 !  cs{0,1} all correspond to vectors with the origin at the
 !  corresponding coordinate system
 type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
 type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
-!type(cs2), allocatable, dimension(:) :: lgcs_t
-!type(cs2), allocatable, dimension(:,:) ::  ebgcs_t, etgcs_t ! Shape (ntree, ngen)
-!type(rot), allocatable, dimension(:) :: zrot_t
+
 !  vectors do not have starting point a origin of corresponding
 !  coordinate system
 type(vec3d) :: vgcs_t
 
-logical, parameter :: mpi_split = .true.
-integer, parameter :: mpi_split_nproc = 16
-
 logical :: DIST_CALC=.true.
 
-real(rprec), parameter :: BOGUS = 1234567890._rprec
-real(rprec), parameter :: iBOGUS = 1234567890
 real(rprec), parameter :: eps = 1.e-12
 real(rprec), parameter, dimension(3) :: zrot_axis = (/0.,0.,1./)
-
-!real(rprec), dimension(3,ntree) :: origin
 
 logical :: in_cir, in_cyl
 logical :: in_cyl_top, in_cyl_bottom
@@ -55,19 +49,11 @@ logical :: in_bottom_surf, btw_planes
 
 integer, dimension(3) :: cyl_loc
 
-!logical :: brindx_set = .false. !  Used for finding branch closest to each point
-
-!integer, allocatable, dimension(:) :: gen_ntrunk, gen_ncluster
-!real(rprec), allocatable, dimension(:) :: crad, clen, rad_offset
-
 end module cyl_skew_pre_base_ls
 
 !**************************************************************
 program cyl_skew_pre_ls
 !***************************************************************
-$if ($MPI)
-use param, only : coord
-$endif
 use cyl_skew_pre_base_ls, only : DIST_CALC, ntree
 use cyl_skew_base_ls, only : ngen, ngen_reslv, filter_chi
 use messages
@@ -104,12 +90,11 @@ end program cyl_skew_pre_ls
 !**********************************************************************
 subroutine initialize()
 !**********************************************************************
-$if ($MPI)
-!use mpi_defs
+use param, only : nz_tot
+use cyl_skew_pre_base_ls, only : gcs_t
+$if($MPI)
+use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride
 $endif
-
-use param, only : nz_tot, coord, nx
-use cyl_skew_pre_base_ls, only : gcs_t, BOGUS
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : fill_tree_array_ls
 
@@ -130,28 +115,16 @@ endif
 
 stride = floor(nx / nproc_csp)*global_rank_csp
 
-$else
-
-nx_proc = nx
-stride = 0
-
 $endif
 
 call allocate_arrays()
 call fill_tree_array_ls()
 call generate_grid()
 
-!!  Allocate x,y,z for all coordinate systems
-!allocate(gcs_t(nx+2,ny,$lbz:nz))
-
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = BOGUS
-!!  Set lower level
-!gcs_t(:,:,0)%phi = -BOGUS
-
-gcs_t(:,:,:)%brindx=0
-gcs_t % clindx = 0
-
+gcs_t(:,:,:)%phi = -BOGUS
+gcs_t(:,:,:)%brindx=-iBOGUS
+gcs_t(:,:,:) % clindx = -iBOGUS
 
 !  Initialize the iset flag
 gcs_t(:,:,:)%iset=0
@@ -162,7 +135,7 @@ gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - elsewhere
 if(use_bottom_surf) then
   gcs_t(:,:,:)%itype=0
 !  Loop over all global coordinates
-  do k=$lbz,Nz
+  do k=$lbz,nz_tot
     gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf   
     if(gcs_t(1,1,k)%phi <= 0.) then 
         !if(.not. brindx_set) then
@@ -177,10 +150,15 @@ endif
 !  Top and bottom z-plane in gcs (same for all cylinders in generation)
 do ng=1,ngen
 
-  if(coord == 0) then
+  $if($MPI)
+  if(global_rank_csp == 0) then
     write(*,*) 'generation # : ', ng
     write(*,*) 'bplane and tplane = ', tr_t(1)%gen_t(ng)%bplane, tr_t(1)%gen_t(ng)%tplane
   endif
+  $else
+  write(*,*) 'generation # : ', ng
+  write(*,*) 'bplane and tplane = ', tr_t(1)%gen_t(ng)%bplane, tr_t(1)%gen_t(ng)%tplane
+  $endif
 
 enddo
 
@@ -189,6 +167,7 @@ return
 
 contains
 
+$if($MPI)
 !**********************************************************************
 subroutine initialize_mpi_csp()
 !**********************************************************************
@@ -209,15 +188,6 @@ call mpi_init (ierr)
 call mpi_comm_size (MPI_COMM_WORLD, nproc_csp, ierr)
 call mpi_comm_rank (MPI_COMM_WORLD, global_rank_csp, ierr)
 
-  !--check if run-time number of processes agrees with nproc parameter
-!if (np /= nproc) then
-!  write (*, *) 'runtime number of procs = ', np,  &
-!               ' not equal to nproc = ', nproc
-!  stop
-!end if
-
-!write (*, *) 'Hello! from process with coord = ', coord
-
 !--set the MPI_RPREC variable
 if (rprec == kind (1.e0)) then
   MPI_RPREC = MPI_REAL
@@ -230,11 +200,17 @@ end if
 
 return
 end subroutine initialize_mpi
+$endif
 
 !**********************************************************************
 subroutine allocate_arrays()
 !**********************************************************************
 use param, only : ny, nz_tot
+$if($MPI)
+use cyl_skew_pre_base_ls, only : nx_proc
+$else
+use param, only : nx => nx_proc
+$endif
 implicit none
 
 !  Allocate x,y,z for all coordinate systems
@@ -251,7 +227,11 @@ subroutine generate_grid()
 ! grid_build()
 !
 use param, only : ny,nz_tot,dx,dy,dz
-!use grid_defs
+$if($MPI)
+use cyl_skew_pre_base_ls, only : nx_proc, stride
+$else
+use param, only : nx => nx_proc
+$endif
 
 implicit none
 
@@ -269,7 +249,11 @@ $endif
 do k=$lbz,nz_tot
   do j=1,ny
     do i=1,nx_proc
+      $if($MPI)
       gcs_t(i,j,k)%xyz(1) = (i - 1 +  stride )*dx
+      $else
+      gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
+      $endif
       gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
       gcs_t(i,j,k)%xyz(3) = (k - 0.5_rprec) * dz
     enddo
@@ -285,9 +269,15 @@ end subroutine initialize
 subroutine main_loop(nt)
 !**********************************************************************
 use types, only : rprec
+$if($MPI)
+use cyl_skew_pre_base_ls, only : nx_proc
+$else
+use param, only : nx => nx_proc
+$endif
 use param, only : ny, nz_tot
 use cyl_skew_base_ls, only : tr_t
 use cyl_skew_pre_base_ls, only : gcs_t
+
 implicit none
 
 integer, intent(IN) :: nt
@@ -604,14 +594,18 @@ subroutine compute_chi()
 !**********************************************************************
 !  This subroutine filters the indicator function chi
 use types, only : rprec
+$if($MPI)
+use mpi
+use param, only : ierr
+use cyl_skew_pre_base_ls, only : nx_proc
+$else
+use param, only : nx => nx_proc
+$endif
 use param, only : ny, nz_tot, dz
 use messages
 use cyl_skew_pre_base_ls, only : gcs_t
 use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
-$if($MPI)
-use mpi
-use param, only : ierr
-$endif
+
 
 implicit none
 character (*), parameter :: sub_name = 'compute_chi'
@@ -636,7 +630,7 @@ nullify(brindx_loc_id_p)
 allocate(z_w($lbz:nz_tot))
 
 !  Create w-grid (physical grid)
-do k=$lbz,nz
+do k=$lbz,nz_tot
   z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
 enddo
 
@@ -765,11 +759,6 @@ do k=$lbz,nz_tot
 enddo
 
 deallocate(z_w)
-
-!  Now must sync all overlapping nodes
-$if ($MPI)
-!call mpi_sync_real_array(gcs_t(:,:,:)%chi, MPI_SYNC_DOWNUP)
-$endif
 
 !  Ensure all pointers are nullified
 nullify(bplane_p,tplane_p)
@@ -1156,6 +1145,7 @@ use grid_defs
 use param, only : ld, Nx, Ny, Nz, nz_tot
 $if($MPI)
 use param, only :  MPI_RPREC,ierr, nproc
+use cyl_skew_param_base_ls, only : nx_proc
 $endif
 use cyl_skew_base_ls, only : filter_chi
 implicit none
@@ -1224,6 +1214,7 @@ if( global_rank_csp > 0 ) then
 
 
 else
+
   allocate(phi(ld,ny,$lbz:nz_tot))
   allocate(chi(ld,ny,$lbz:nz_tot))
   allocate(brindx(ld,ny,$lbz:nz_tot))
@@ -1241,6 +1232,7 @@ else
         
   !  Get from all other procs
   do n=1,nproc_csp-1
+
     istart = nx_proc*n + 1
     if( n == nproc_csp - 1 ) then
       iend = nx
