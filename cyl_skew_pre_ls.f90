@@ -128,8 +128,8 @@ gcs_t(:,:,:)%phi = BOGUS
 !!  Set lower level
 !gcs_t(:,:,0)%phi = -BOGUS
 
-  gcs_t(:,:,:)%brindx=0
-  gcs_t % clindx = 0
+gcs_t(:,:,:)%brindx=0
+gcs_t % clindx = 0
 
 
 !  Initialize the iset flag
@@ -612,7 +612,7 @@ do k=1,ubz
           call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)      
 
         elseif( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
- 		  
+   
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
           call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
