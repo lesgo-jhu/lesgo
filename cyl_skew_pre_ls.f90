@@ -90,10 +90,10 @@ end program cyl_skew_pre_ls
 !**********************************************************************
 subroutine initialize()
 !**********************************************************************
-use param, only : nz_tot
+use param, only : nx, nz_tot
 use cyl_skew_pre_base_ls, only : gcs_t
 $if($MPI)
-use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride
+use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
 $endif
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
 use cyl_skew_ls, only : fill_tree_array_ls
@@ -108,12 +108,12 @@ call initializ_mpi_csp ()
 
 !  Set x decomposition (last proc gets remaining x points)
 if( global_rank_csp < nproc_csp - 1) then
-  nx_proc = floor(nx / nproc_csp)
+  nx_proc = floor(float(nx / nproc_csp))
 else
-  nx_proc = nx - floor(nx / nproc_csp)*global_rank_csp
+  nx_proc = nx - floor(float(nx / nproc_csp))*global_rank_csp
 endif
 
-stride = floor(nx / nproc_csp)*global_rank_csp
+stride = floor(float(nx / nproc_csp))*global_rank_csp
 
 $endif
 
