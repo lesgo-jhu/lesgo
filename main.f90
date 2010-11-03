@@ -299,7 +299,7 @@ do jt=1,nsteps
     if (dns_bc .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
     else        
-        call sgs_stag()	    
+        call sgs_stag()
     end if
     if(use_bldg)then
         call wallstress_building(txy,txz,tyz)
@@ -626,7 +626,7 @@ end do
 ! Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     call cpu_time (clock_end)
-    write(*,"(a,e)") 'Simulation wall time (s) : ', clock_end - clock_start
+    write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
 
 stop
