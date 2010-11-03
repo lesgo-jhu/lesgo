@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -27,19 +27,19 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition (EXPERIMENTAL)
 USE_CFL_DT = no
 
 # Write binary files as big_endian
-WRITE_BIG_ENDIAN = no
+WRITE_BIG_ENDIAN = yes
 # Write binary files as little_endian
 WRITE_LITTLE_ENDIAN = no
 
 # Read binary files as big_endian
-READ_BIG_ENDIAN = no
+READ_BIG_ENDIAN = yes
 # Read binary files as little_endian
 READ_LITTLE_ENDIAN = no
 
