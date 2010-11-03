@@ -2,7 +2,7 @@
 module cyl_skew_pre_base_ls
 !**********************************************************************
 use types, only : rprec, vec3d
-use param, only : pi, BOGUS, iBOGUS
+use param, only : pi, BOGUS
 use cyl_skew_base_ls
 use cyl_skew_ls, only : fill_tree_array_ls
 
@@ -23,7 +23,7 @@ $endif
 $if($MPI)
 integer :: nx_proc
 integer :: nproc_csp, global_rank_csp
-real(rprec) :: stride
+integer :: stride
 $endif
 
 !  cs{0,1} all correspond to vectors with the origin at the
@@ -76,7 +76,8 @@ enddo
 
 !  Uses global tree info from ebgcs_t and etgcs_t to
 
-if( filter_chi ) call compute_chi()
+!if( filter_chi ) call compute_chi()
+call compute_chi()
 
 call finalize()
 
@@ -88,9 +89,11 @@ end program cyl_skew_pre_ls
 !**********************************************************************
 subroutine initialize()
 !**********************************************************************
-use param, only : nx, nz_tot, BOGUS, iBOGUS
+use param, only : nx, nz_tot, BOGUS
 use cyl_skew_pre_base_ls, only : gcs_t
 $if($MPI)
+use mpi
+use param, only : ierr
 use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
 $endif
 use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
@@ -99,6 +102,9 @@ use cyl_skew_ls, only : fill_tree_array_ls
 implicit none
 
 integer :: ng, k
+$if($MPI)
+integer :: nx_proc_sum
+$endif
 
 $if ($MPI)
 !call initialize_mpi ()
@@ -106,12 +112,21 @@ call initialize_mpi_csp ()
 
 !  Set x decomposition (last proc gets remaining x points)
 if( global_rank_csp < nproc_csp - 1) then
-  nx_proc = floor(float(nx / nproc_csp))
+  nx_proc = nx / nproc_csp
 else
-  nx_proc = nx - floor(float(nx / nproc_csp))*global_rank_csp
+  nx_proc = nx - (nx / nproc_csp) * global_rank_csp
 endif
 
-stride = floor(float(nx / nproc_csp))*global_rank_csp
+stride = (nx / nproc_csp)*global_rank_csp
+write(*,*) 'ID, nx_proc, stride : ', global_rank_csp, nx_proc, stride
+
+
+call mpi_allreduce(nx_proc, nx_proc_sum, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+if(global_rank_csp == 0 .and. nx_proc_sum /= nx) then
+  write(*,*) 'Error in x decomposition - nx_proc_sum, nx : ', nx_proc_sum, nx
+  stop
+endif
+  
 
 $endif
 
@@ -121,8 +136,8 @@ call generate_grid()
 
 !  Initialize the distance function
 gcs_t(:,:,:)%phi = -BOGUS
-gcs_t(:,:,:)%brindx=-iBOGUS
-gcs_t(:,:,:) % clindx = -iBOGUS
+gcs_t(:,:,:)%brindx=0
+gcs_t(:,:,:) % clindx=0
 
 !  Initialize the iset flag
 gcs_t(:,:,:)%iset=0
@@ -652,8 +667,8 @@ do k=$lbz,nz_tot
       call find_assoc_gen( zcell_bot, gen_cell_bot )
       call find_assoc_gen( zcell_top, gen_cell_top )
 
-      write(*,*) 'gen_cell_bot : ', gen_cell_bot
-      write(*,*) 'gen_cell_top : ', gen_cell_top
+      !write(*,*) 'gen_cell_bot : ', gen_cell_bot
+      !write(*,*) 'gen_cell_top : ', gen_cell_top
       
       if( gen_cell_bot == -1 .and. gen_cell_top == -1) then
       
@@ -767,10 +782,10 @@ do k=$lbz,nz_tot
     do i=1,nx_proc
     
       if(gcs_t(i,j,k) % brindx > 0) then
-      brindx_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k) % brindx )
+        brindx_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k) % brindx )
 
-      gcs_t(i,j,k) % clindx = tr_t(brindx_loc_id_p(1)) % gen_t(brindx_loc_id_p(2)) % cl_t(brindx_loc_id_p(3)) % indx
-      nullify(brindx_loc_id_p)
+        gcs_t(i,j,k) % clindx = tr_t(brindx_loc_id_p(1)) % gen_t(brindx_loc_id_p(2)) % cl_t(brindx_loc_id_p(3)) % indx
+        nullify(brindx_loc_id_p)
       endif
     enddo
     
@@ -1139,12 +1154,12 @@ subroutine write_output()
 $if($MPI)
 use mpi
 $endif
-use param, only : ld, Nx, Ny, Nz, nz_tot
+use param, only : ld, nx, ny, nz, nz_tot,dx,dy,status
 $if($MPI)
 use param, only :  MPI_RPREC,ierr, nproc
 use cyl_skew_pre_base_ls, only : nx_proc
 $endif
-use cyl_skew_base_ls, only : filter_chi
+!use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
 use io, only : write_tecplot_header_ND
 use io, only : write_real_data_3D
 
@@ -1164,54 +1179,40 @@ integer, allocatable, dimension(:,:,:) :: brindx_proc, clindx_proc
 real(rprec), allocatable, dimension(:,:,:) :: rbrindx_proc, rclindx_proc
 real(rprec), allocatable, dimension(:,:,:) :: phi_proc, chi_proc
 real(rprec), allocatable, dimension(:) :: x, y, z
-integer :: sendcnt, recvcnt, stat
+integer :: sendcnt, recvcnt
 $endif
 
 integer, pointer, dimension(:) :: br_loc_id_p
-
-nullify(br_loc_id_p)
-!allocate(phi(ld,ny,$lbz:nz))
-!allocate(brindx(ld,ny,$lbz:nz))
-!allocate(clindx(ld,ny,$lbz:nz))
-!allocate(chi(ld,ny,$lbz:nz))
 
 $if($MPI)
 sendcnt = nx_proc * ny * (nz_tot - $lbz + 1)
 gcs_t(:,:,$lbz)%phi = -BOGUS
 $endif
 
-!  Assign clindx based on brindx
-do k=$lbz,nz_tot
-  do j=1,ny
-    do i=1,nx_proc
-
-      !  Update clindx based on brindx
-      if(gcs_t(i,j,k)%brindx > 0 ) then
-        br_loc_id_p => brindx_to_loc_id(:, gcs_t(i,j,k)%brindx)
-     
-        gcs_t(i,j,k)%clindx = tr_t(br_loc_id_p(1)) % gen_t(br_loc_id_p(2)) % cl_t(br_loc_id_p(3)) % indx
-        nullify( br_loc_id_p )
-      else
-      
-        gcs_t(i,j,k)%clindx = -1
-        
-      endif
-            
-    enddo
-  enddo
-enddo
-
 $if($MPI)
 !  Gather data one by one in rank order
 if( global_rank_csp > 0 ) then
 
-  call mpi_send( gcs_t(:,:,:)%phi, sendcnt, MPI_RPREC, 0, 1, &
+  !write(*,*) 'global_rank_csp, sendcnt : ',  global_rank_csp, sendcnt
+    !  Open file which to write global data
+    write (fname,*) 'x.dat'
+    fname = trim(adjustl(fname)) 
+
+    write (temp, '(".c",i0)') global_rank_csp
+    fname = trim (fname) // temp  
+    open (1, file=fname, form='formatted',status='unknown',position='rewind')
+    do n=1,nx_proc
+      write(1,*) gcs_t(n,1,1)%xyz(1)
+    enddo
+    close (1)
+
+  call mpi_ssend( gcs_t(:,:,:)%phi, sendcnt, MPI_RPREC, 0, 1, &
     MPI_COMM_WORLD, ierr)
-  call mpi_send( gcs_t(:,:,:)%chi, sendcnt, MPI_RPREC, 0, 2, &
+  call mpi_ssend( gcs_t(:,:,:)%chi, sendcnt, MPI_RPREC, 0, 2, &
     MPI_COMM_WORLD, ierr)
-  call mpi_send( gcs_t(:,:,:)%brindx, sendcnt, MPI_INTEGER, 0, 3, &
+  call mpi_ssend( gcs_t(:,:,:)%brindx, sendcnt, MPI_INTEGER, 0, 3, &
     MPI_COMM_WORLD, ierr)
-  call mpi_send( gcs_t(:,:,:)%clindx, sendcnt, MPI_INTEGER, 0, 4, &
+  call mpi_ssend( gcs_t(:,:,:)%clindx, sendcnt, MPI_INTEGER, 0, 4, &
     MPI_COMM_WORLD, ierr)    
   call mpi_send( gcs_t(:,1,1)%xyz(1), nx_proc, MPI_RPREC, 0, 5, &
     MPI_COMM_WORLD, ierr)
@@ -1223,7 +1224,27 @@ else
   allocate(chi(ld,ny,$lbz:nz_tot))
   allocate(brindx(ld,ny,$lbz:nz_tot))
   allocate(clindx(ld,ny,$lbz:nz_tot))
-  allocate(x(nx),y(ny),z($lbz:nz_tot))
+  allocate(x(nx+1),y(ny+1),z($lbz:nz_tot))
+ 
+  !  Initialize
+  phi=0._rprec
+  chi=0._rprec
+  brindx=0
+  clindx=0
+  x=-1._rprec
+  y=-1._rprec
+  z=-1._rprec
+
+      write (fname,*) 'x.dat'
+    fname = trim(adjustl(fname)) 
+
+    write (temp, '(".c",i0)') global_rank_csp
+    fname = trim (fname) // temp  
+    open (1, file=fname, form='formatted',status='unknown',position='rewind')
+    do n=1,nx_proc
+      write(1,*) gcs_t(n,1,1)%xyz(1)
+    enddo
+    close (1)
 
   !  Get from proc 0
   phi(1:nx_proc,:,:) = gcs_t(:,:,:)%phi
@@ -1231,10 +1252,11 @@ else
   brindx(1:nx_proc,:,:) = gcs_t(:,:,:)%brindx
   clindx(1:nx_proc,:,:) = gcs_t(:,:,:)%clindx
   x(1:nx_proc) = gcs_t(:,1,1)%xyz(1)
-  y = gcs_t(1,:,1)%xyz(2)
+  y(1:ny) = gcs_t(1,:,1)%xyz(2)
   z = gcs_t(1,1,:)%xyz(3)
         
   !  Get from all other procs
+  write(*,*) 'nproc_csp : ', nproc_csp
   do n=1,nproc_csp-1
 
     istart = nx_proc*n + 1
@@ -1245,20 +1267,47 @@ else
     endif
 
     recvcnt = (iend-istart+1) * ny * (nz_tot - $lbz + 1)
-    
+    write(*,*) 'n, istart, iend, recvcnt : ', n, istart, iend, recvcnt
+    ierr=1
     call mpi_recv( phi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 1, &
-      MPI_COMM_WORLD, stat, ierr)
+      MPI_COMM_WORLD, status, ierr)
     call mpi_recv( chi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 2, &
-      MPI_COMM_WORLD, stat, ierr)
+      MPI_COMM_WORLD, status, ierr)
     call mpi_recv( brindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 3, &
-      MPI_COMM_WORLD, stat, ierr)            
+      MPI_COMM_WORLD, status, ierr)            
     call mpi_recv( clindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 4, &
-      MPI_COMM_WORLD, stat, ierr)
+      MPI_COMM_WORLD, status, ierr)
     call mpi_recv( x(istart:iend), iend-istart+1, MPI_RPREC, n, 5, &
-      MPI_COMM_WORLD, stat, ierr)  
+      MPI_COMM_WORLD, status, ierr)
+
+    if( ierr /= 0 ) then
+       write(*,*) 'mpi_recv error wiht proc : ',ierr, n
+    endif
 
   enddo
+
+  x(nx+1) = x(nx) + dx
+  y(ny+1) = y(ny) + dy
+  write (fname,*) 'x_mpi.dat'
+  fname = trim(adjustl(fname)) 
+
+  open (1, file=fname, form='formatted',status='unknown',position='rewind')
+  do n=1,nx+1
+    write(1,*) x(n)
+  enddo
+  close (1)
+
+    write (fname,*) 'chi_mpi.dat'
+  fname = trim(adjustl(fname)) 
+
+  open (1, file=fname, form='formatted',status='unknown',position='rewind')
+  do n=1,nx+1
+    write(1,*) chi(n,:,:)
+  enddo
+  close (1)
+
 endif  
+write(*,*) 'Finalized local to global send/receive'
 
 $else
 
@@ -1300,8 +1349,8 @@ if( global_rank_csp == 0 ) then
     kend = kstart + nz
 
     phi_proc = -BOGUS
-    brindx_proc = -iBOGUS
-    clindx_proc = -iBOGUS
+    brindx_proc = 0
+    clindx_proc = 0
     chi_proc = -BOGUS
 
     phi_proc(:,:,:) = phi(:,:,kstart:kend)
@@ -1313,17 +1362,46 @@ if( global_rank_csp == 0 ) then
     write (fname,*) 'cyl_skew_ls.dat'
     fname = trim(adjustl(fname)) 
 
-    write (temp, '(".c",i0)') n
-    fname = trim (fname) // temp
+ !   write (temp, '(".c",i0)') n
+ !   fname = trim (fname) // temp
 
-    call write_tecplot_header_ND(fname, 'rewind', 7, &
-      (/ Nx, Ny, Nz_tot-$lbz+1 /), &
-      '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
-      n, 2)
+ !   call write_tecplot_header_ND(fname, 'rewind', 7, &
+ !     (/ Nx, Ny, Nz_tot-$lbz+1 /), &
+ !     '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
+ !     n, 2)
 
-    call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, Nz_tot-$lbz+1,&
-      (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
-      4, x, y, z)
+ !   call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, Nz_tot-$lbz+1,&
+ !     (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
+ !     4, x, y, z)
+ !  Open file which to write global data
+
+!  Create tecplot formatted phi and brindx field file
+open (unit = 2,file = fname, status='unknown',form='formatted', &
+  action='write',position='rewind')
+
+write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "chi"';
+
+write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
+
+1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz_tot-$lbz+1
+
+write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
+do k=$lbz,nz_tot
+  do j=1,ny
+    do i=1,nx
+      
+      write(2,*) x(i), y(j), z(k), &
+        phi(i,j,k), brindx(i,j,k), clindx(i,j,k), &
+        chi(i,j,k)
+        
+    enddo
+  enddo
+enddo
+close(2)
+
+
+
+
   enddo
 
   deallocate(rbrindx_proc, rclindx_proc)
@@ -1376,7 +1454,7 @@ if( global_rank_csp == 0 ) then
     endif
     kend = kstart + nz
 
-    brindx_proc = -iBOGUS
+    brindx_proc = 0
 
     brindx_proc(1:nx,:,:) = brindx(:,:,kstart:kend)  
 
@@ -1413,7 +1491,7 @@ if( global_rank_csp == 0 ) then
     endif
     kend = kstart + nz
 
-    clindx_proc = -iBOGUS
+    clindx_proc = 0
 
     clindx_proc(1:nx,:,:) = clindx(:,:,kstart:kend)    
 
