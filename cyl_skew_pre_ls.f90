@@ -1165,7 +1165,7 @@ use io, only : write_real_data_3D
 
 implicit none
 
-character (64) :: fname, temp
+character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi, temp
 integer :: i,j,k,n
 
 integer :: istart, iend
@@ -1227,24 +1227,13 @@ else
   allocate(x(nx+1),y(ny+1),z($lbz:nz_tot))
  
   !  Initialize
-  phi=0._rprec
-  chi=0._rprec
+  phi=-BOGUS
+  chi=-BOGUS
   brindx=0
   clindx=0
   x=-1._rprec
   y=-1._rprec
   z=-1._rprec
-
-      write (fname,*) 'x.dat'
-    fname = trim(adjustl(fname)) 
-
-    write (temp, '(".c",i0)') global_rank_csp
-    fname = trim (fname) // temp  
-    open (1, file=fname, form='formatted',status='unknown',position='rewind')
-    do n=1,nx_proc
-      write(1,*) gcs_t(n,1,1)%xyz(1)
-    enddo
-    close (1)
 
   !  Get from proc 0
   phi(1:nx_proc,:,:) = gcs_t(:,:,:)%phi
@@ -1256,7 +1245,6 @@ else
   z = gcs_t(1,1,:)%xyz(3)
         
   !  Get from all other procs
-  write(*,*) 'nproc_csp : ', nproc_csp
   do n=1,nproc_csp-1
 
     istart = nx_proc*n + 1
@@ -1285,26 +1273,6 @@ else
     endif
 
   enddo
-
-  x(nx+1) = x(nx) + dx
-  y(ny+1) = y(ny) + dy
-  write (fname,*) 'x_mpi.dat'
-  fname = trim(adjustl(fname)) 
-
-  open (1, file=fname, form='formatted',status='unknown',position='rewind')
-  do n=1,nx+1
-    write(1,*) x(n)
-  enddo
-  close (1)
-
-    write (fname,*) 'chi_mpi.dat'
-  fname = trim(adjustl(fname)) 
-
-  open (1, file=fname, form='formatted',status='unknown',position='rewind')
-  do n=1,nx+1
-    write(1,*) chi(n,:,:)
-  enddo
-  close (1)
 
 endif  
 write(*,*) 'Finalized local to global send/receive'
@@ -1338,224 +1306,124 @@ if( global_rank_csp == 0 ) then
   allocate(rclindx_proc(ld,ny,$lbz:nz))
   allocate(chi_proc(ld,ny,$lbz:nz))
 
-  do n=0,nproc-1
-
-    !(n+1)*nz - nz
-    if(n == 0) then
-      kstart = 0
-    else
-      kstart = nz*n - 1
-    endif
-    kend = kstart + nz
-
-    phi_proc=-BOGUS
-    rbrindx_proc=0._rprec
-    rclindx_proc=0._rprec
-    chi_proc=-BOGUS
-
-    phi_proc(:,:,:) = phi(:,:,kstart:kend)
-    rbrindx_proc(:,:,:) = 1.*brindx(:,:,kstart:kend)
-    rclindx_proc(:,:,:) = 1.*clindx(:,:,kstart:kend)
-    chi_proc(:,:,:) = chi(:,:,kstart:kend)
-
-    !  Open file which to write global data
-!    write (fname,*) 'cyl_skew_ls.dat'
-!    fname = trim(adjustl(fname)) 
-
-!    write (temp, '(".c",i0)') n
-!    fname = trim (fname) // temp
-
- !   call write_tecplot_header_ND(fname, 'rewind', 7, &
- !     (/ Nx, Ny, Nz_tot-$lbz+1 /), &
- !     '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
- !     n, 2)
-
- !   call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, Nz_tot-$lbz+1,&
- !     (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
- !     4, x, y, z)
- !  Open file which to write global data
-    enddo
-    !  Open file which to write global data
-    write (fname,*) 'cyl_skew_ls.dat'
-    fname = trim(adjustl(fname))
-
-!  Create tecplot formatted phi and brindx field file
-open (unit = 2,file = fname, status='unknown',form='formatted', &
-  action='write',position='rewind')
-
-write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "chi"';
-
-write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz_tot-$lbz+1
-
-write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-do k=$lbz,nz_tot
-  do j=1,ny
-    do i=1,nx
-      
-      write(2,*) x(i), y(j), z(k), &
-        phi(i,j,k), brindx(i,j,k), clindx(i,j,k), &
-        chi(i,j,k)
-        
-    enddo
-  enddo
-enddo
-close(2)
-
-
-
-
-!  enddo
-
-  deallocate(rbrindx_proc, rclindx_proc)
+  allocate(brindx_proc(ld,ny,$lbz:nz))
+  allocate(clindx_proc(ld,ny,$lbz:nz))
   
-  !  Write phi lesgo files
+  !  Write data files
   do n=0,nproc-1
 
-    if(n == 0) then
-      kstart = 0
-    else
-      kstart = nz*n - 1
-    endif
+    kstart = (nz-1)*n
     kend = kstart + nz
+
+    write(*,*) 'n, nz, nz_tot, kstart, kend :', n, nz, nz_tot, kstart, kend    
 
     phi_proc = -BOGUS
+    rbrindx_proc=0._rprec
+    rclindx_proc=0._rprec    
+    brindx_proc = 0
+    clindx_proc = 0
+    chi_proc = -BOGUS
 
-    phi_proc(:,:,:) = phi(:,:,kstart:kend)
+    if(kend-kstart+1 /= nz-$lbz+1) then
+      write(*,*) 'z dimension for proc ',n,' not specified correctly'
+    endif
   
+    phi_proc(:,:,:) = phi(:,:,kstart:kend)
+    rbrindx_proc(:,:,:) = 1.*brindx(:,:,kstart:kend)
+    rclindx_proc(:,:,:) = 1.*clindx(:,:,kstart:kend)    
+    brindx_proc(:,:,:) = brindx(:,:,kstart:kend)
+    clindx_proc(:,:,:) = clindx(:,:,kstart:kend) 
+    chi_proc(:,:,:) = chi(:,:,kstart:kend) 
+
     !  Open file which to write global data
-    write (fname,*) 'phi.out'
+    write (fname,*) 'cyl_skew_ls.dat'
     fname = trim(adjustl(fname)) 
 
     write (temp, '(".c",i0)') n
     fname = trim (fname) // temp
+
+    call write_tecplot_header_ND(fname, 'rewind', 7, &
+      (/ Nx+1, Ny+1, Nz-$lbz+1 /), &
+      '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
+      n, 2)
+
+    call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, nz-$lbz+1,&
+      (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
+      4, x, y, z(kstart:kend))    
+ 
+    !  Open file which to write global data
+    write (fname_phi,*) 'phi.out'
+    fname_phi = trim(adjustl(fname_phi)) 
+    write (fname_brindx,*) 'brindx.out'
+    fname_brindx = trim(adjustl(fname_brindx)) 
+    write (fname_clindx,*) 'clindx.out'
+    fname_clindx = trim(adjustl(fname_clindx))     
+    write (fname_chi,*) 'chi.out'
+    fname_chi = trim(adjustl(fname_chi)) 
+ 
+
+    write (temp, '(".c",i0)') n
+    fname_phi = trim (fname_phi) // temp
+    write (temp, '(".c",i0)') n
+    fname_brindx = trim (fname_brindx) // temp
+    write (temp, '(".c",i0)') n
+    fname_clindx = trim (fname_clindx) // temp
+    write (temp, '(".c",i0)') n
+    fname_chi = trim (fname_chi) // temp 
 
     !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='big_endian')
+    open (1, file=fname_phi, form='unformatted', convert='big_endian')
     $elseif ($WRITE_LITTLE_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='little_endian')
+    open (1, file=fname_phi, form='unformatted', convert='little_endian')
     $else
-    open (1, file=fname, form='unformatted')
+    open (1, file=fname_phi, form='unformatted')
     $endif
     write(1) phi_proc
     close (1)
-  enddo
 
-  deallocate(phi_proc)
-
-  allocate(brindx_proc(ld,ny,$lbz:nz))
- 
-  !  Write brindx lesgo files
-  do n=0,nproc-1
-
-    !(n+1)*nz - nz
-    if(n == 0) then
-      kstart = 0
-    else
-      kstart = nz*n - 1
-    endif
-    kend = kstart + nz
-
-    brindx_proc = 0
-
-    brindx_proc(1:nx,:,:) = brindx(:,:,kstart:kend)  
-
-    !  Open file which to write global data
-    write (fname,*) 'brindx.out'
-    fname = trim(adjustl(fname)) 
-
-    write (temp, '(".c",i0)') n
-    fname = trim (fname) // temp
-    
-
+    !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='big_endian')
+    open (1, file=fname_brindx, form='unformatted', convert='big_endian')
     $elseif ($WRITE_LITTLE_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='little_endian')
+    open (1, file=fname_brindx, form='unformatted', convert='little_endian')
     $else
-    open (1, file=fname, form='unformatted')
+    open (1, file=fname_brindx, form='unformatted')
     $endif
     write(1) brindx_proc
-    close (1)
-  enddo
+    close (1) 
 
-  deallocate(brindx_proc)
-
-  allocate(clindx_proc(ld,ny,$lbz:nz))   
-  !  Write clindx lesgo files
-  do n=0,nproc-1
-
-    !(n+1)*nz - nz
-    if(n == 0) then
-      kstart = 0
-    else
-      kstart = nz*n - 1
-    endif
-    kend = kstart + nz
-
-    clindx_proc = 0
-
-    clindx_proc(1:nx,:,:) = clindx(:,:,kstart:kend)    
-
-    !  Open file which to write global data
-    write (fname,*) 'clindx.out'
-    fname = trim(adjustl(fname)) 
-
-    write (temp, '(".c",i0)') n
-    fname = trim (fname) // temp
-
+    !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='big_endian')
+    open (1, file=fname_clindx, form='unformatted', convert='big_endian')
     $elseif ($WRITE_LITTLE_ENDIAN)
-    open (1, file=fname, form='unformatted', convert='little_endian')
+    open (1, file=fname_clindx, form='unformatted', convert='little_endian')
     $else
-    open (1, file=fname, form='unformatted')
+    open (1, file=fname_clindx, form='unformatted')
     $endif
     write(1) clindx_proc
-    close (1)
+    close (1)  
+
+    !  Write binary data for lesgo
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname_chi, form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname_chi, form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname_chi, form='unformatted')
+    $endif
+    write(1) chi_proc
+    close (1)    
 
   enddo
 
-  deallocate(clindx_proc)
-
-  !  Write chi lesgo files
-  if( filter_chi ) then
-
-    do n=0,nproc-1
-
-      if(n == 0) then
-        kstart = 0
-      else
-        kstart = nz*n - 1
-      endif
-      kend = kstart + nz
+  deallocate(phi,phi_proc)
+  deallocate(rbrindx_proc, rclindx_proc)
+  deallocate(brindx,brindx_proc)
+  deallocate(clindx,clindx_proc)
+  deallocate(chi,chi_proc)
  
-      chi_proc = -BOGUS
 
-      chi_proc(1:nx,:,:) = chi(:,:,kstart:kend)    
-  
-      write (fname,*) 'chi.out'
-      fname = trim(adjustl(fname)) 
- 
-      write (temp, '(".c",i0)') n
-      fname = trim (fname) // temp
-
-      $if ($WRITE_BIG_ENDIAN)
-      open (1, file=fname, form='unformatted', convert='big_endian')
-      $elseif ($WRITE_LITTLE_ENDIAN)
-      open (1, file=fname, form='unformatted', convert='little_endian')
-      $else
-      open (1, file=fname, form='unformatted')
-      $endif
-      write(1) chi_proc
-      close (1)
-
-    enddo
-
-    deallocate(chi_proc)
-
-  endif
 endif  
 
 $else
