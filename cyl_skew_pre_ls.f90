@@ -135,7 +135,7 @@ call fill_tree_array_ls()
 call generate_grid()
 
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = -BOGUS
+gcs_t(:,:,:)%phi = BOGUS
 gcs_t(:,:,:)%brindx=0
 gcs_t(:,:,:) % clindx=0
 
@@ -1186,7 +1186,7 @@ integer, pointer, dimension(:) :: br_loc_id_p
 
 $if($MPI)
 sendcnt = nx_proc * ny * (nz_tot - $lbz + 1)
-gcs_t(:,:,$lbz)%phi = -BOGUS
+gcs_t(:,:,$lbz)%phi = BOGUS
 $endif
 
 $if($MPI)
@@ -1227,8 +1227,8 @@ else
   allocate(x(nx+1),y(ny+1),z($lbz:nz_tot))
  
   !  Initialize
-  phi=-BOGUS
-  chi=-BOGUS
+  phi=BOGUS
+  chi=BOGUS
   brindx=0
   clindx=0
   x=-1._rprec
@@ -1274,6 +1274,10 @@ else
 
   enddo
 
+  !  Set buffer x and y points for periodicity
+  x(nx+1) = x(nx)+dx
+  y(ny+1) = y(ny)+dy
+
 endif  
 write(*,*) 'Finalized local to global send/receive'
 
@@ -1317,12 +1321,12 @@ if( global_rank_csp == 0 ) then
 
     write(*,*) 'n, nz, nz_tot, kstart, kend :', n, nz, nz_tot, kstart, kend    
 
-    phi_proc = -BOGUS
+    phi_proc = BOGUS
     rbrindx_proc=0._rprec
     rclindx_proc=0._rprec    
     brindx_proc = 0
     clindx_proc = 0
-    chi_proc = -BOGUS
+    chi_proc = BOGUS
 
     if(kend-kstart+1 /= nz-$lbz+1) then
       write(*,*) 'z dimension for proc ',n,' not specified correctly'
