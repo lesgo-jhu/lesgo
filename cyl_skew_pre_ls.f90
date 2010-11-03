@@ -5,8 +5,6 @@ use types, only : rprec, vec3d
 use param, only : pi, BOGUS, iBOGUS
 use cyl_skew_base_ls
 use cyl_skew_ls, only : fill_tree_array_ls
-use io, only : write_tecplot_header_xyline, write_tecplot_header_ND
-use io, only : write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
 implicit none
 
@@ -90,7 +88,7 @@ end program cyl_skew_pre_ls
 !**********************************************************************
 subroutine initialize()
 !**********************************************************************
-use param, only : nx, nz_tot
+use param, only : nx, nz_tot, BOGUS, iBOGUS
 use cyl_skew_pre_base_ls, only : gcs_t
 $if($MPI)
 use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
@@ -100,11 +98,11 @@ use cyl_skew_ls, only : fill_tree_array_ls
 
 implicit none
 
-integer :: ng,i,j,k
+integer :: ng, k
 
 $if ($MPI)
 !call initialize_mpi ()
-call initializ_mpi_csp ()
+call initialize_mpi_csp ()
 
 !  Set x decomposition (last proc gets remaining x points)
 if( global_rank_csp < nproc_csp - 1) then
@@ -171,11 +169,10 @@ $if($MPI)
 !**********************************************************************
 subroutine initialize_mpi_csp()
 !**********************************************************************
+use mpi
 use types, only : rprec
 use param, only : ierr, MPI_RPREC
 implicit none
-
-integer :: ip, np
 
 !--check for consistent preprocessor & param.f90 definitions of 
 !  MPI and $MPI
@@ -199,7 +196,7 @@ else
 end if
 
 return
-end subroutine initialize_mpi
+end subroutine initialize_mpi_csp
 $endif
 
 !**********************************************************************
@@ -226,6 +223,7 @@ subroutine generate_grid()
 ! (global coordinate system) in gcs_t using the grid generation routine
 ! grid_build()
 !
+use types, only : rprec
 use param, only : ny,nz_tot,dx,dy,dz
 $if($MPI)
 use cyl_skew_pre_base_ls, only : nx_proc, stride
@@ -597,7 +595,7 @@ use types, only : rprec
 $if($MPI)
 use mpi
 use param, only : ierr
-use cyl_skew_pre_base_ls, only : nx_proc
+use cyl_skew_pre_base_ls, only : nx_proc, global_rank_csp
 $else
 use param, only : nx => nx_proc
 $endif
@@ -611,7 +609,7 @@ implicit none
 character (*), parameter :: sub_name = 'compute_chi'
 real(rprec), dimension(:), allocatable :: z_w ! Used for checking vertical locations
 
-integer :: i,j,k,ubz
+integer :: i,j,k
 integer :: n, nf
 integer :: gen_cell_bot, gen_cell_top, gen_id
 real(rprec) :: chi
@@ -643,7 +641,7 @@ do k=$lbz,nz_tot
 
     $if ($MPI)
     !  To keep mpi stuff flowing during bad load balancing runs
-    call mpi_allreduce(coord, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     $endif
 
     do i=1,nx_proc
@@ -1141,23 +1139,29 @@ subroutine write_output()
 $if($MPI)
 use mpi
 $endif
-use grid_defs
 use param, only : ld, Nx, Ny, Nz, nz_tot
 $if($MPI)
 use param, only :  MPI_RPREC,ierr, nproc
-use cyl_skew_param_base_ls, only : nx_proc
+use cyl_skew_pre_base_ls, only : nx_proc
 $endif
 use cyl_skew_base_ls, only : filter_chi
+use io, only : write_tecplot_header_ND
+use io, only : write_real_data_3D
+
 implicit none
 
 character (64) :: fname, temp
-integer :: i,j,k
+integer :: i,j,k,n
+
+integer :: istart, iend
+integer :: kstart, kend
 
 integer, pointer, dimension(:,:,:) :: brindx, clindx
 real(rprec), pointer, dimension(:,:,:) :: phi, chi
 
 $if ($MPI)
 integer, allocatable, dimension(:,:,:) :: brindx_proc, clindx_proc
+real(rprec), allocatable, dimension(:,:,:) :: rbrindx_proc, rclindx_proc
 real(rprec), allocatable, dimension(:,:,:) :: phi_proc, chi_proc
 real(rprec), allocatable, dimension(:) :: x, y, z
 integer :: sendcnt, recvcnt, stat
@@ -1201,15 +1205,15 @@ $if($MPI)
 !  Gather data one by one in rank order
 if( global_rank_csp > 0 ) then
 
-  mpi_send( gcs_t(:,:,:)%phi, sendcnt, MPI_RPREC, 0, 1, &
+  call mpi_send( gcs_t(:,:,:)%phi, sendcnt, MPI_RPREC, 0, 1, &
     MPI_COMM_WORLD, ierr)
-  mpi_send( gcs_t(:,:,:)%chi, sendcnt, MPI_RPREC, 0, 2, &
+  call mpi_send( gcs_t(:,:,:)%chi, sendcnt, MPI_RPREC, 0, 2, &
     MPI_COMM_WORLD, ierr)
-  mpi_send( gcs_t(:,:,:)%brindx, sendcnt, MPI_INTEGER, 0, 3, &
+  call mpi_send( gcs_t(:,:,:)%brindx, sendcnt, MPI_INTEGER, 0, 3, &
     MPI_COMM_WORLD, ierr)
-  mpi_send( gcs_t(:,:,:)%clindx, sendcnt, MPI_INTEGER, 0, 4, &
+  call mpi_send( gcs_t(:,:,:)%clindx, sendcnt, MPI_INTEGER, 0, 4, &
     MPI_COMM_WORLD, ierr)    
-  mpi_send( gcs_t(:,1,1)%xyz(1), nx_proc, MPI_RPREC, 0, 5, &
+  call mpi_send( gcs_t(:,1,1)%xyz(1), nx_proc, MPI_RPREC, 0, 5, &
     MPI_COMM_WORLD, ierr)
 
 
@@ -1242,16 +1246,17 @@ else
 
     recvcnt = (iend-istart+1) * ny * (nz_tot - $lbz + 1)
     
-    mpi_recv( phi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 1, &
+    call mpi_recv( phi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 1, &
       MPI_COMM_WORLD, stat, ierr)
-    mpi_recv( chi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 2, &
+    call mpi_recv( chi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 2, &
       MPI_COMM_WORLD, stat, ierr)
-    mpi_recv( brindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 3, &
+    call mpi_recv( brindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 3, &
       MPI_COMM_WORLD, stat, ierr)            
-    mpi_recv( clindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 4, &
+    call mpi_recv( clindx(istart:iend,:,:), recvcnt, MPI_INTEGER, n, 4, &
       MPI_COMM_WORLD, stat, ierr)
-    mpi_recv( x(istart:iend), iend-istart+1, MPI_RPREC, n, 5, &
+    call mpi_recv( x(istart:iend), iend-istart+1, MPI_RPREC, n, 5, &
       MPI_COMM_WORLD, stat, ierr)  
+
   enddo
 endif  
 
@@ -1277,35 +1282,12 @@ deallocate( gcs_t )
 
 $if($MPI)
 if( global_rank_csp == 0 ) then
-  !  Open file which to write global data
-  write (fname,*) 'cyl_skew_ls.dat'
-  fname = trim(adjustl(fname)) 
 
-!if(nproc > 1) then
-!  write (temp, '(".c",i0)') coord
-!  fname = trim (fname) // temp
-!endif
-!  Create tecplot formatted phi and brindx field file
-  open (unit = 2,file = fname, status='unknown',form='formatted', &
-    action='write',position='rewind')
-
-  write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "chi"';
-
-  write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-    1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz_tot-$lbz+1
-
-  write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-  do k=$lbz,nz_tot
-    do j = 1,ny
-      do i = 1,nx
-        write(2,*) x(i), y(j), z(k), phi(i,j,k), brindx(i,j,k), clindx(i,j,k), chi(i,j,k)
-      enddo
-    enddo
-  enddo
-  close(2)
-
-  !  Write processor files for lesgo
+!  Write processor files for lesgo
   allocate(phi_proc(ld,ny,$lbz:nz))
+  allocate(rbrindx_proc(ld,ny,$lbz:nz))
+  allocate(rclindx_proc(ld,ny,$lbz:nz))
+  allocate(chi_proc(ld,ny,$lbz:nz))
 
   do n=0,nproc-1
 
@@ -1318,17 +1300,55 @@ if( global_rank_csp == 0 ) then
     kend = kstart + nz
 
     phi_proc = -BOGUS
+    brindx_proc = -iBOGUS
+    clindx_proc = -iBOGUS
+    chi_proc = -BOGUS
 
-    phi_proc(1:nx,:,:) = phi(:,:,kstart:kend)
+    phi_proc(:,:,:) = phi(:,:,kstart:kend)
+    rbrindx_proc(:,:,:) = 1.*brindx(:,:,kstart:kend)
+    rclindx_proc(:,:,:) = 1.*clindx(:,:,kstart:kend)
+    chi_proc(:,:,:) = chi(:,:,kstart:kend)
+
+    !  Open file which to write global data
+    write (fname,*) 'cyl_skew_ls.dat'
+    fname = trim(adjustl(fname)) 
+
+    write (temp, '(".c",i0)') n
+    fname = trim (fname) // temp
+
+    call write_tecplot_header_ND(fname, 'rewind', 7, &
+      (/ Nx, Ny, Nz_tot-$lbz+1 /), &
+      '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
+      n, 2)
+
+    call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, Nz_tot-$lbz+1,&
+      (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
+      4, x, y, z)
+  enddo
+
+  deallocate(rbrindx_proc, rclindx_proc)
+  
+  !  Write phi lesgo files
+  do n=0,nproc-1
+
+    if(n == 0) then
+      kstart = 0
+    else
+      kstart = nz*n - 1
+    endif
+    kend = kstart + nz
+
+    phi_proc = -BOGUS
+
+    phi_proc(:,:,:) = phi(:,:,kstart:kend)
   
     !  Open file which to write global data
     write (fname,*) 'phi.out'
     fname = trim(adjustl(fname)) 
 
-    if(nproc > 1) then
-      write (temp, '(".c",i0)') n
-      fname = trim (fname) // temp
-    endif
+    write (temp, '(".c",i0)') n
+    fname = trim (fname) // temp
+
     !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
     open (1, file=fname, form='unformatted', convert='big_endian')
@@ -1344,7 +1364,8 @@ if( global_rank_csp == 0 ) then
   deallocate(phi_proc)
 
   allocate(brindx_proc(ld,ny,$lbz:nz))
-
+ 
+  !  Write brindx lesgo files
   do n=0,nproc-1
 
     !(n+1)*nz - nz
@@ -1380,8 +1401,8 @@ if( global_rank_csp == 0 ) then
 
   deallocate(brindx_proc)
 
-  allocate(clindx_proc(ld,ny,$lbz:nz))
-
+  allocate(clindx_proc(ld,ny,$lbz:nz))   
+  !  Write clindx lesgo files
   do n=0,nproc-1
 
     !(n+1)*nz - nz
@@ -1417,12 +1438,11 @@ if( global_rank_csp == 0 ) then
 
   deallocate(clindx_proc)
 
+  !  Write chi lesgo files
   if( filter_chi ) then
-    allocate(chi_proc(ld,ny,$lbz:nz))
 
     do n=0,nproc-1
 
-      !(n+1)*nz - nz
       if(n == 0) then
         kstart = 0
       else
