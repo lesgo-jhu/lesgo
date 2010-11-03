@@ -1348,10 +1348,10 @@ if( global_rank_csp == 0 ) then
     endif
     kend = kstart + nz
 
-    phi_proc = -BOGUS
-    brindx_proc = 0
-    clindx_proc = 0
-    chi_proc = -BOGUS
+    phi_proc=-BOGUS
+    rbrindx_proc=0._rprec
+    rclindx_proc=0._rprec
+    chi_proc=-BOGUS
 
     phi_proc(:,:,:) = phi(:,:,kstart:kend)
     rbrindx_proc(:,:,:) = 1.*brindx(:,:,kstart:kend)
@@ -1359,11 +1359,11 @@ if( global_rank_csp == 0 ) then
     chi_proc(:,:,:) = chi(:,:,kstart:kend)
 
     !  Open file which to write global data
-    write (fname,*) 'cyl_skew_ls.dat'
-    fname = trim(adjustl(fname)) 
+!    write (fname,*) 'cyl_skew_ls.dat'
+!    fname = trim(adjustl(fname)) 
 
- !   write (temp, '(".c",i0)') n
- !   fname = trim (fname) // temp
+!    write (temp, '(".c",i0)') n
+!    fname = trim (fname) // temp
 
  !   call write_tecplot_header_ND(fname, 'rewind', 7, &
  !     (/ Nx, Ny, Nz_tot-$lbz+1 /), &
@@ -1374,6 +1374,10 @@ if( global_rank_csp == 0 ) then
  !     (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
  !     4, x, y, z)
  !  Open file which to write global data
+    enddo
+    !  Open file which to write global data
+    write (fname,*) 'cyl_skew_ls.dat'
+    fname = trim(adjustl(fname))
 
 !  Create tecplot formatted phi and brindx field file
 open (unit = 2,file = fname, status='unknown',form='formatted', &
@@ -1382,7 +1386,6 @@ open (unit = 2,file = fname, status='unknown',form='formatted', &
 write(2,*) 'variables = "x", "y", "z", "phi", "brindx", "clindx", "chi"';
 
 write(2,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-
 1,'", DATAPACKING=POINT, i=', Nx,', j=',Ny, ', k=', Nz_tot-$lbz+1
 
 write(2,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
@@ -1402,7 +1405,7 @@ close(2)
 
 
 
-  enddo
+!  enddo
 
   deallocate(rbrindx_proc, rclindx_proc)
   
