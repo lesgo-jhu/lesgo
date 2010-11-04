@@ -111,24 +111,27 @@ $if ($MPI)
 !  H_x(:, :, 0) = BOGUS
 !  H_y(:, :, 0) = BOGUS
 !  H_z(:, :, 0) = BOGUS
-  rH_x(:,:,0) = BOGUS
-  rH_y(:,:,0) = BOGUS
-  rH_z(:,:,0) = BOGUS
+  !Careful - only update real values (odd indicies)
+  rH_x(1:ld:2,:,0) = BOGUS
+  rH_y(1:ld:2,:,0) = BOGUS
+  rH_z(1:ld:2,:,0) = BOGUS
 $endif
 
 !--experiment
 !--this causes blow-up
 !H_x(:, :, nz) = BOGUS
 !H_y(:, :, nz) = BOGUS
-rH_x(:,:,nz) = BOGUS
-rH_y(:,:,nz) = BOGUS
+!Careful - only update real values (odd indicies)
+rH_x(1:ld:2,:,nz) = BOGUS
+rH_y(1:ld:2,:,nz) = BOGUS
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   !H_z(:, :, nz) = (0._rprec, 0._rprec)
   rH_z(:,:,nz) = 0._rprec
 else
   !H_z(:, :, nz) = BOGUS  !--perhaps this should be 0 on top process?
-  rh_z(:,:,nz) = BOGUS !--perhaps this should be 0 on top process?
+  !Careful - only update real values (odd indicies)
+  rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
 end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
@@ -174,7 +177,9 @@ if (TRI_DEBUG) then
   a = BOGUS
   b = BOGUS
   c = BOGUS
-  RHS_col = BOGUS
+  !RHS_col = BOGUS
+  !Careful - only update real values (odd indicies)
+  RHS_col(1:ld:2,:,:) = BOGUS
 end if
 $endif
 
@@ -194,7 +199,8 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     b(:, :, 1) = 2._rprec
     c(:, :, 1) = 1._rprec
     !RHS_col(:, :, 1) = 1._rprec
-    RHS_col(:,:,1) = 1._rprec
+    !Careful - only update real values (odd indicies)
+    RHS_col(1:ld:2,:,1) = 1._rprec
   end if
   $endif
 
@@ -222,10 +228,12 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
     c(:, :, nz+1) = BOGUS  !--was 0._rprec
     $if ($MPI)
       !RHS_col(:, :, nz+1) = real (nz+1 + coord * (nz-1), rprec)
-      RHS_col(:,:,nz+1) = real (nz+1 + coord * (nz-1), rprec)
+      !Careful - only update real values (odd indicies)
+      RHS_col(1:ld:2,:,nz+1) = real (nz+1 + coord * (nz-1), rprec)
     $else
       !RHS_col(:, :, nz+1) = real (nz+1, rprec)
-      RHS_col(:,:,nz+1) =  real (nz+1, rprec)
+      !Careful - only update real values (odd indicies)
+      RHS_col(1:ld:2,:,nz+1) =  real (nz+1, rprec)
     $endif
   end if
   $endif
@@ -326,10 +334,12 @@ do jz = jz_min, nz
         c(jx, jy, jz) = 1._rprec
         $if ($MPI)
           !RHS_col(jx, jy, jz) = jz + coord * (nz-1)
-          RHS_col(ir:ii,jy,jz) = jz + coord * (nz-1)
+          !Careful - only update real value
+          RHS_col(ir,jy,jz) = jz + coord * (nz-1)
         $else
           !RHS_col(jx, jy, jz) = jz
-          RHS_col(ir:ii,jy,jz) = jz
+          !Careful - only update real value
+          RHS_col(ir,jy,jz) = jz
         $endif
       end if
       $endif
