@@ -118,6 +118,57 @@ return
 end subroutine ddy
 
 !**********************************************************************
+subroutine ddxy (f, dfdx, dfdy, lbz)              
+!**********************************************************************
+use types,only:rprec
+use param,only:ld,lh,nx,ny,nz,dz
+use fft
+implicit none
+integer::jz
+
+integer, intent(in) :: lbz
+! only need complex treatment
+!complex(kind=rprec),dimension(lh,ny,nz),intent(in)::f_c
+!complex(kind=rprec),dimension(lh,ny,nz),intent(inout)::dfdx_c,dfdy_c
+real(rprec), dimension(:,:,lbz:), intent(in) :: f
+real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
+
+real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+
+!...Loop through horizontal slices
+do jz=lbz,nz
+! temporay storage in dfdx_c, this was don't mess up f_c
+   !dfdx_c(:,:,jz)=const*f_c(:,:,jz)   !normalize
+   dfdx(:,:,jz) = const*f(:,:,jz)
+
+   !call rfftwnd_f77_one_real_to_complex(forw,dfdx_c(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),null())
+
+   !dfdx_c(lh,:,jz)=0._rprec
+   !dfdx_c(:,ny/2+1,jz)=0._rprec
+   dfdx(ld-1:ld,:,jz)=0._rprec
+   dfdx(:,ny/2+1,jz)=0._rprec
+
+! derivatives: must to y's first here, because we're using dfdx as storage
+   !dfdy_c(:,:,jz)=eye*ky(:,:)*dfdx_c(:,:,jz)
+   !dfdx_c(:,:,jz)=eye*kx(:,:)*dfdx_c(:,:,jz)
+   call emul_complex_mult_inplace_real_complex_imag_2D( dfdx(:,:,jz), kx, &
+     ld, lh, ny)
+   call emul_complex_mult_real_complex_imag_2D( dfdx(:, :, jz), ky, &
+    ld, lh, ny, dfdy(:,:,jz))
+
+! the oddballs for derivatives should already be dead, since they are for f
+
+! inverse transform 
+   !call rfftwnd_f77_one_complex_to_real(back,dfdx_c(:,:,jz),ignore_me)
+   !call rfftwnd_f77_one_complex_to_real(back,dfdy_c(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
+   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
+
+end do
+end subroutine ddxy
+
+!**********************************************************************
 subroutine ddz_uv(f, dfdz, lbz)
 !**********************************************************************
 !
