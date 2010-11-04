@@ -352,10 +352,7 @@ subroutine emul_complex_mult_inplace_real_complex_imag_2D( a, a_c, nx_r, nx_c, n
 !    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
 !    ny (integer)               - size of y dimension
 !
-!  Output:
-! 
-!    b (real,size(nx_r,ny))     - output real array
-!
+
 
 use types, only : rprec
 implicit none
