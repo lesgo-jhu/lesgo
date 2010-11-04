@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = gfortran
+FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
@@ -27,7 +27,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition (EXPERIMENTAL)
