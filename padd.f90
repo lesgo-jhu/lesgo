@@ -11,6 +11,8 @@ integer :: jy_off, jy_off_big
 ! note we're calling with 2D arrays
 !complex(kind=rprec),dimension(lh,ny),intent(in)::u
 !complex(kind=rprec),dimension(lh_big,ny2),intent(out)::u_big
+
+!  u and u_big are interleaved as complex arrays
 real(kind=rprec), dimension(ld,ny), intent(in) :: u
 real(kind=rprec), dimension(ld_big,ny2), intent(out) :: u_big
 
