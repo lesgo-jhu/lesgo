@@ -523,7 +523,7 @@ enddo
 b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
 
 return
-end subroutine b_elem_CD_GELS
+end subroutine b_elem_CD_GE
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LI()
@@ -595,7 +595,7 @@ enddo
 b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
 
 return
-end subroutine b_elem_CD_GILS
+end subroutine b_elem_CD_GI
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LETW()
@@ -634,7 +634,7 @@ enddo
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GELS()
+  call b_elem_CD_GE()
   
 else
 
@@ -721,7 +721,7 @@ b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GELS()
+  call b_elem_CD_GE()
     
 else
 
@@ -780,7 +780,7 @@ enddo
 if( jt < weight_nstart ) then
 
   !call b_elem_CD_GID()
-  call b_elem_CD_GILS()
+  call b_elem_CD_GI()
   
 else
 
@@ -869,7 +869,7 @@ b_elem_t(:) % force_t % LBB = LBB_p
 if( jt < weight_nstart ) then
 
   !call b_elem_CD_GID()
-  call b_elem_CD_GILS()
+  call b_elem_CD_GI()
     
 else
 
