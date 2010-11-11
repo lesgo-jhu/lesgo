@@ -295,11 +295,7 @@ if( temporal_weight == 0 ) then
   
     elseif( spatial_model == 2) then
 
-      call b_elem_CD_GED()
-    
-    elseif( spatial_model == 3) then
-
-      call b_elem_CD_GELS()
+      call b_elem_CD_GE()
         
     else
   
@@ -322,11 +318,7 @@ if( temporal_weight == 0 ) then
  
     elseif( spatial_model == 2 ) then
 
-      call b_elem_CD_GID() ! Global, implicit, direct summation (GID)
-  
-    elseif( spatial_model == 3 ) then
-
-      call b_elem_CD_GILS()
+      call b_elem_CD_GI() ! Global implicit
   
     else
   
@@ -359,11 +351,11 @@ elseif( temporal_weight == 1 ) then
 
     elseif( spatial_model == 2 ) then
   
-      call error( sub_name, 'spatial_method not specified correctly.')
+      call b_elem_CD_GETW()
 
     else
-      
-      call b_elem_CD_GETW()
+
+      call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
     
@@ -382,11 +374,11 @@ elseif( temporal_weight == 1 ) then
 
     elseif( spatial_model == 2 ) then
   
-      call error( sub_name, 'spatial_method not specified correctly.')
+      call b_elem_CD_GITW()
 
     else
-      
-      call b_elem_CD_GITW()
+
+      call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
 
@@ -507,7 +499,7 @@ return
 end subroutine b_elem_CD_GED
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GELS()
+subroutine b_elem_CD_GE()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine computes the global b_elem CD using the explicit 
 !  formulation with least squares summation
@@ -579,7 +571,7 @@ return
 end subroutine b_elem_CD_GID
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GILS()
+subroutine b_elem_CD_GI()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine computes the global b_elem CD using the implicit 
 !  formulation with direct summation
