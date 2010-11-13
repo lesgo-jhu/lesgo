@@ -20,7 +20,7 @@ public :: turbines_cond_avg_hi, turbines_cond_avg_lo
 integer :: nloc 
 integer :: num_x,num_y
 real(rprec) :: height_all,dia_all,thk_all,theta1_all,theta2_all
-real(rprec) :: Ct_prime,Ct_noprime   					    !thrust coefficient
+real(rprec) :: Ct_prime,Ct_noprime !thrust coefficient
 real(rprec) :: Ct_prime_05
 real(rprec) :: T_avg_dim, T_avg_dim_file
 real(rprec), dimension(nz_tot) :: z_tot
@@ -30,7 +30,7 @@ character (64) :: fname, fname0, fname2, fname3, fname4, var_list, temp, temp2, 
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array    !used for visualizing node locations
 real(rprec), dimension(nx,ny,nz_tot) :: large_node_array_filtered
 
-real(rprec) :: eps											!epsilon used for disk velocity time-averaging
+real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
 integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,nn,ssx,ssy,ssz
 integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
@@ -71,7 +71,7 @@ character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
     num_x = 4               !number of turbines in x-direction
     num_y = 6               !number of turbines in y-direction  
-	nloc = num_x*num_y      !number of turbines (locations) 
+    nloc = num_x*num_y      !number of turbines (locations) 
 
     nullify(wind_farm_t%turbine_t)
     nullify(buffer_array)
@@ -102,14 +102,14 @@ character (*), parameter :: sub_name = mod_name // '.turbines_init'
     !height, diameter, and thickness
         !same values for all
             height_all = 100.       !turbine height, dimensional [m]
-            dia_all = 100.	        !turbine diameter, dimensional [m]
-            thk_all = 10.	        !turbine disk thickness, dimensional [m]
+            dia_all = 100.        !turbine diameter, dimensional [m]
+            thk_all = 10.        !turbine disk thickness, dimensional [m]
             
             !non-dimensionalize values by z_i
             height_all = height_all/z_i
             dia_all = dia_all/z_i
             thk_all = thk_all/z_i
-            thk_all = max(thk_all,dx*1.01)	
+            thk_all = max(thk_all,dx*1.01)
             
             wind_farm_t%turbine_t(:)%height = height_all
             wind_farm_t%turbine_t(:)%dia = dia_all
@@ -125,8 +125,8 @@ character (*), parameter :: sub_name = mod_name // '.turbines_init'
             wind_farm_t%turbine_t(:)%theta2 = theta2_all 
 
     !filtering operation
-        wind_farm_t%ifilter = 2			    !Filter type: 2-> Gaussian is the only option (currently)	
-        wind_farm_t%alpha = 1.5			    !filter size is alpha*(grid spacing)
+        wind_farm_t%ifilter = 2    !Filter type: 2-> Gaussian is the only option (currently)	
+        wind_farm_t%alpha = 1.5    !filter size is alpha*(grid spacing)
         wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
         wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
 
@@ -162,9 +162,9 @@ character (*), parameter :: sub_name = mod_name // '.turbines_init'
     !other
         turbine_cumulative_time = .true.    !true to read u_d_T values from file        
         
-	    Ct_prime = 1.33		!thrust coefficient
+        Ct_prime = 1.33     !thrust coefficient
         Ct_noprime = 0.75   !a=1/4
-        T_avg_dim = 600.     !time-averaging 'window' for one-sided exp. weighting (seconds)
+        T_avg_dim = 600.    !time-averaging 'window' for one-sided exp. weighting (seconds)
         
         sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
         sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
@@ -199,13 +199,13 @@ character (*), parameter :: sub_name = mod_name // '.turbines_init'
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
     large_node_array = 0.
-	call turbines_nodes(large_node_array)
+    call turbines_nodes(large_node_array)
 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-	!to write the node locations to file
-	  fname0 = 'turbine/nodes_unfiltered.dat'
-	  call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', 0, 1)
-	  call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
+      !to write the node locations to file
+      fname0 = 'turbine/nodes_unfiltered.dat'
+      call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', 0, 1)
+      call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
 
 !1.smooth/filter indicator function                     
@@ -407,8 +407,8 @@ real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
 do s=1,nloc
     
-    count_n = 0		!used for counting nodes for each turbine
-    count_i = 1		!index count - used for writing to array "nodes"
+    count_n = 0    !used for counting nodes for each turbine
+    count_i = 1    !index count - used for writing to array "nodes"
 
     !set pointers
         p_xloc => wind_farm_t%turbine_t(s)%xloc     
@@ -423,7 +423,7 @@ do s=1,nloc
         p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
 
     !identify "search area"
-    	R_t = p_dia/2.
+    R_t = p_dia/2.
             !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             !    if (verbose) then
             !      write(*,*) '     rad:',R_t
@@ -433,14 +433,14 @@ do s=1,nloc
             !      write(*,*) '     thk:',p_thk
             !    endif
             !endif
-    	imax = R_t/dx + 2
-    	jmax = R_t/dy + 2
-    	kmax = R_t/dz + 2
+    imax = R_t/dx + 2
+    jmax = R_t/dy + 2
+    kmax = R_t/dz + 2
 
     !determine unit normal vector for each turbine	
-    	p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
-    	p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
-    	p_nhat3 = sin(pi*p_theta2/180.)
+    p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
+    p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
+    p_nhat3 = sin(pi*p_theta2/180.)
             !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             !    if (verbose) then
             !      write(*,*) '     n_hat', p_nhat1, p_nhat2, p_nhat3
@@ -448,9 +448,9 @@ do s=1,nloc
             !endif
 
     !determine nearest (i,j,k) to turbine center
-    	icp = nint(p_xloc/dx)
-    	jcp = nint(p_yloc/dy)
-    	kcp = nint(p_height/dz + 0.5)
+    icp = nint(p_xloc/dx)
+    jcp = nint(p_yloc/dy)
+    kcp = nint(p_height/dz + 0.5)
             !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             !    if (verbose) then
             !      write(*,*) '     turbine center (i,j,k)',icp,jcp,kcp
@@ -461,12 +461,12 @@ do s=1,nloc
     !determine limits for checking i,j,k
         !due to spectral BCs, i and j may be < 1 or > nx,ny
         !the mod function accounts for this when these values are used
-    	min_i = icp-imax
-    	max_i = icp+imax
-    	min_j = jcp-jmax
-    	max_j = jcp+jmax
-    	min_k = max((kcp-kmax),1)
-    	max_k = min((kcp+kmax),nz_tot)
+    min_i = icp-imax
+    max_i = icp+imax
+    min_j = jcp-jmax
+    max_j = jcp+jmax
+    min_k = max((kcp-kmax),1)
+    max_k = min((kcp+kmax),nz_tot)
             !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             !    if (verbose) then
             !      write(*,*) '     i limits, range', min_i, max_i, dx*(max_i-min_i)
@@ -482,10 +482,10 @@ do s=1,nloc
             wind_farm_t%turbine_t(s)%nodes_max(6) = max_k            
 
     !check neighboring grid points	
-	do k=min_k,max_k
-		do j=min_j,max_j
-			do i=min_i,max_i
-			!vector from center point to this node is (rx,ry,rz) with length r
+    do k=min_k,max_k
+      do j=min_j,max_j
+        do i=min_i,max_i
+          !vector from center point to this node is (rx,ry,rz) with length r
                 if (i<1) then
                     i2 = mod(i+nx-1,nx)+1
                     rx = (x(i2)-L_x) - p_xloc
@@ -506,38 +506,38 @@ do s=1,nloc
                     j2 = j
                     ry = y(j) - p_yloc 
                 endif                      
-				rz = z_tot(k) - p_height 
-				r = sqrt(rx*rx + ry*ry + rz*rz)
-			!length projected onto unit normal for this turbine
-				r_norm = abs(rx*p_nhat1 + ry*p_nhat2 + rz*p_nhat3)
-			!(remaining) length projected onto turbine disk
-				r_disk = sqrt(r*r - r_norm*r_norm)
-			!if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
-				if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
+                rz = z_tot(k) - p_height 
+                r = sqrt(rx*rx + ry*ry + rz*rz)
+                !length projected onto unit normal for this turbine
+                r_norm = abs(rx*p_nhat1 + ry*p_nhat2 + rz*p_nhat3)
+                !(remaining) length projected onto turbine disk
+                r_disk = sqrt(r*r - r_norm*r_norm)
+                !if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
+                if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
                     !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
                     !    if (verbose) then
                     !      write(*,*) '     FOUND NODE', i,j,k
                     !    endif
                     !endif
-					array(i2,j2,k) = 1.
+                    array(i2,j2,k) = 1.
                     wind_farm_t%turbine_t(s)%ind(count_i) = 1. 
-					wind_farm_t%turbine_t(s)%nodes(count_i,1) = i2
-					wind_farm_t%turbine_t(s)%nodes(count_i,2) = j2
-					wind_farm_t%turbine_t(s)%nodes(count_i,3) = k   !global k (might be out of this proc's range)
+                    wind_farm_t%turbine_t(s)%nodes(count_i,1) = i2
+                    wind_farm_t%turbine_t(s)%nodes(count_i,2) = j2
+                    wind_farm_t%turbine_t(s)%nodes(count_i,3) = k   !global k (might be out of this proc's range)
                     count_n = count_n + 1
-					count_i = count_i + 1
-				endif
-			enddo
-		enddo
-	enddo
-	wind_farm_t%turbine_t(s)%num_nodes = count_n
+                    count_i = count_i + 1
+                endif
+           enddo
+       enddo
+    enddo
+    wind_farm_t%turbine_t(s)%num_nodes = count_n
 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(*,*) '     Turbine #',s,'has',count_n,'unfiltered nodes in entire domain'
     endif
     
 enddo
-		
+
 end subroutine turbines_nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -560,21 +560,21 @@ real(rprec) :: turbine_vol
 !logical :: verbose = .false.
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
-	!if(wind_farm_t%ifilter==2) then		!2-> Gaussian
-	  delta2 = wind_farm_t%alpha**2 * (dx**2 + dy**2 + dz**2)
+!if(wind_farm_t%ifilter==2) then		!2-> Gaussian
+delta2 = wind_farm_t%alpha**2 * (dx**2 + dy**2 + dz**2)
       do k=1,nz_tot
-    	  do j=1,ny
-    	    do i=1,nx
-    	      r2 = ((real(i)-nx/2.)*dx)**2 + ((real(j)-ny/2.)*dy)**2 + ((real(k)-(nz_tot-1)/2.)*dz)**2
-    	      g(i,j,k) = sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-    	    enddo
-    	  enddo
+        do j=1,ny
+          do i=1,nx
+            r2 = ((real(i)-nx/2.)*dx)**2 + ((real(j)-ny/2.)*dy)**2 + ((real(k)-(nz_tot-1)/2.)*dz)**2
+            g(i,j,k) = sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
+          enddo
+        enddo
       enddo
-	!endif
-	
+!endif
+
 !normalize the convolution function
-	sumG = sum(g(:,:,:))*dx*dy*dz
-	g = g/sumG
+sumG = sum(g(:,:,:))*dx*dy*dz
+g = g/sumG
     !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     !    if (verbose) then
     !        write(*,*) 'Convolution function created.'
@@ -590,7 +590,7 @@ real(rprec) :: turbine_vol
     !    endif       
     !endif
 
-	!to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
+    !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then    
         i=nx/2
         j=ny/2
@@ -627,7 +627,7 @@ do b=1,nloc
         do l=1,wind_farm_t%turbine_t(b)%num_nodes
             i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)	
+            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
             temp_array(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
         enddo
 
@@ -651,8 +651,8 @@ do b=1,nloc
         !convolution computed for points (i4,j4,k)
         !only compute for nodes near the turbine (defined by cut aka trunc)
         do k=max(min_k-cut,1),min(max_k+cut,nz_tot)    
-    	do j=(min_j-cut),(max_j+cut)
-    	do i=(min_i-cut),(max_i+cut)
+        do j=(min_j-cut),(max_j+cut)
+        do i=(min_i-cut),(max_i+cut)
         
             i4 = mod(i+nx-1,nx)+1       !since values may be out 1-nx,1-ny domain (spectral BCs)
             j4 = mod(j+ny-1,ny)+1              
@@ -661,14 +661,14 @@ do b=1,nloc
           !relative coords are (ssx,ssy,ssz). absolute coords of other/surrounding points are (i2,j2,k2)
           !only need to consider other/surrounding points near (i4,j4,k) since conv. function is compact
           do k2=max(k-wind_farm_t%trunc,1),min(k+wind_farm_t%trunc,nz_tot)     !currently using truncated Gaussian
-    	  do j2=j-wind_farm_t%trunc,j+wind_farm_t%trunc
-    	  do i2=i-wind_farm_t%trunc,i+wind_farm_t%trunc
+          do j2=j-wind_farm_t%trunc,j+wind_farm_t%trunc
+          do i2=i-wind_farm_t%trunc,i+wind_farm_t%trunc
 
             i3 = mod(i2+nx-1,nx)+1      !since values may be out 1-nx,1-ny domain (spectral BCs)
             j3 = mod(j2+ny-1,ny)+1             
           
             ssx = mod(i2-i+nx/2+nx-1,nx)+1
-    	    ssy = mod(j2-j+ny/2+ny-1,ny)+1       
+            ssy = mod(j2-j+ny/2+ny-1,ny)+1       
             ssz = k2-k+(nz_tot-1)/2       !since no spectral BCs in z-direction
                              
             if( ssz < 1) then
