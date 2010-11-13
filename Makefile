@@ -23,7 +23,7 @@ SRCS =  \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \
 	main.f90 messages.f90 \
-        padd.f90 param.f90 \
+        padd.f90 param.f90 param_output.f90\
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
