@@ -644,6 +644,4 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
 
-stop
-
 end program main
