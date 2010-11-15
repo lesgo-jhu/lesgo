@@ -61,11 +61,10 @@ real (rprec) :: force
 real clock_start, clock_end
 
 ! Write parameters to file for reference
-call param_output()
-
 ! Start wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   call cpu_time (clock_start)
+  call param_output()
 endif
 
 ! Check if read inflow from file is being specified; currently does not work
