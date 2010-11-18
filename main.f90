@@ -468,8 +468,7 @@ do jt=1,nsteps
     !   do not need to store p --> only need gradient
     !   provides p, dpdx, dpdy at 0:nz-1
     !
-    ! COMMENTING FOR NOW NEED TO FIX
-    ! call press_stag_array (p, dpdx, dpdy)
+    call press_stag_array (p, dpdx, dpdy)
 
     ! Calculate dpdz
     !   note: p has additional level at z=-dz/2 for this derivative
