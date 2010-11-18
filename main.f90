@@ -70,14 +70,6 @@ real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
 
-! Write parameters to file for reference
-call param_output()
-
-! Start wall clock
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  call cpu_time (clock_start)
-endif
-
 ! Check if read inflow from file is being specified; currently does not work
 if(inflow) then
   write(*,*) 'Error: read inflow conditions from file has been specified!'
@@ -89,36 +81,39 @@ endif
 call system("mkdir -vp output")
 
 ! INITIALIZATION
-    ! Define simulation parameters
-        call sim_param_init ()
+! Define simulation parameters
+call sim_param_init ()
 
-    ! Initialize MPI
-        $if ($MPI)
-          call initialize_mpi()
-        $else
-          if (nproc /= 1) then
-            write (*, *) 'nproc /=1 for non-MPI run is an error'
-            stop
-          end if
-          if (USE_MPI) then
-            write (*, *) 'inconsistent use of USE_MPI and $MPI'
-            stop
-          end if
-          chcoord = ''
-        $endif
+! Initialize MPI
+$if ($MPI)
+call initialize_mpi()
+$else
+  if (nproc /= 1) then
+    write (*, *) 'nproc /=1 for non-MPI run is an error'
+    stop
+  end if
+  if (USE_MPI) then
+    write (*, *) 'inconsistent use of USE_MPI and $MPI'
+    stop
+  end if
+  chcoord = ''
+$endif
+
+$if($MPI)
+  if(coord == 0) then
+    call cpu_time(clock_start)
+    call param_output()
+  endif
+$else
+  call cpu_time(clock_start)
+  call param_output()
+$endif
 
     ! Initialize uv grid (calculate x,y,z vectors)
         call grid_build()
 
     ! Initialize variables used for tavg and other data output
         call stats_init()
-
-    ! Write to screen
-        if(coord == 0) then
-          write(*,*) 'dz = ', dz
-          write(*,*) 'nz = ', nz
-          write(*,*) 'nz_tot = ', nz_tot
-        endif
 
     ! Initialize time variable
         tt=0
@@ -175,19 +170,6 @@ call system("mkdir -vp output")
     ! Initialize sponge variable for top BC, if applicable
         if (ubc == 1) call setsponge()
     
-! Write to screen
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  print *, '--> Number of timesteps', nsteps
-  print *, '--> dt = ', dt
-  if (model == 1) print *, '--> Co = ', Co
-  print *, '--> Nx, Ny, Nz = ', nx, ny, nz
-  print *, '--> Lx, Ly, Lz = ', L_x, L_y, L_z
-  if (USE_MPI) print *, '--> Number of processes = ', nproc
-  print *, '--> Number of patches = ', num_patch
-  !print *, 'sampling stats every ', c_count, ' timesteps'
-  !print *, 'writing stats every ', p_count, ' timesteps'
-  if (molec) print*, '--> molecular viscosity (dimensional) ', nu_molec
-end if
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -632,16 +614,17 @@ end do
     $if ($TURBINES)
         call turbines_finalize ()   ! must come before MPI finalize
     $endif    
-    
-    ! MPI:
-    $if ($MPI)
-        call mpi_finalize (ierr)
-    $endif
 
 ! Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     call cpu_time (clock_end)
     write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
+
+    
+    ! MPI:
+    $if ($MPI)
+        call mpi_finalize (ierr)
+    $endif
 
 end program main
