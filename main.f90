@@ -4,8 +4,13 @@ use param
 use sim_param
 use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
+$if($CUDA)
+use cuda_fft
+use cuda_derivatives, only : cuda_filt_da, cuda_ddz_uv, cuda_ddz_w
+$else
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
+$endif
 use immersedbc
 use test_filtermodule
 use topbc,only:setsponge,sponge
@@ -32,12 +37,14 @@ use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_ve
     $endif
   
   $endif
+
   
+  $if ($TREES_LS)
+  use trees_ls, only : trees_ls_finalize, trees_ls_init
+  $endif
+
 $endif
 
-$if ($TREES_LS)
-use trees_ls, only : trees_ls_finalize, trees_ls_init
-$endif
 
 $if ($TURBINES)
 use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg

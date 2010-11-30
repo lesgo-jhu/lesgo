@@ -29,6 +29,7 @@ DEVEL=no
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
+USE_CUDA = no
 
 # Set dt based on CFL condition
 USE_CFL_DT = yes
@@ -76,6 +77,10 @@ endif
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
   LIBS += -lmpichf90 -lfmpich -lmpich
+endif
+
+ifeq ($(USE_CUDA), yes)
+  FPP += -DCUDA
 endif
 
 ifeq ($(USE_CFL_DT), yes)
@@ -220,6 +225,7 @@ ifeq ($(FCOMP),pgf90)
   else
     FC = pgf90
   endif
+
   LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
@@ -235,6 +241,12 @@ ifeq ($(FCOMP),pgf90)
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
 #  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
+
+  ifeq ($(USE_CUDA), yes)
+    FFLAGS += -Mcuda
+    LIBS += -lcufft
+  endif
+
 endif
 
 ifeq ($(FCOMP),g95)
