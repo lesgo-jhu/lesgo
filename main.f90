@@ -109,66 +109,64 @@ $else
   call param_output()
 $endif
 
-    ! Initialize uv grid (calculate x,y,z vectors)
-        call grid_build()
+! Initialize uv grid (calculate x,y,z vectors)
+call grid_build()
 
-    ! Initialize variables used for tavg and other data output
-        call stats_init()
+! Initialize variables used for tavg and other data output
+call stats_init()
 
-    ! Initialize time variable
-        tt=0
+! Initialize time variable
+tt=0
 
-    ! Determine bottom BC roughness and temperature
-    !  only coord 0 needs to do this since at the bottom
-    !  roughness information then needs to be broadcast
-        call patch_or_remote ()
+! Determine bottom BC roughness and temperature
+!  only coord 0 needs to do this since at the bottom
+!  roughness information then needs to be broadcast
+call patch_or_remote ()
 
-    ! Initialize turbines
-        $if ($TURBINES)
-          call turbines_init()    !must occur before initial is called
-        $endif
+! Initialize turbines
+$if ($TURBINES)
+  call turbines_init()    !must occur before initial is called
+$endif
 
-    ! Initialize velocity field
-        call initial()
+! Initialize velocity field
+call initial()
 
-    ! If using level set method
-        $if ($LVLSET)
-          call level_set_init ()
-          
-          $if ($CYL_SKEW_LS)
-            !call cyl_skew_init_ls ()
-          $endif
-          
-          $if ($RNS_LS)
-            call rns_init_ls ()
-          $endif
-          
-        $endif
+! If using level set method
+$if ($LVLSET)
+  call level_set_init ()
 
-    ! Initialize fractal trees
-        $if ($TREES_LS)
-          !--this must come after initial, since fx, fy, fz are set 0 there
-          !  and this call may read fx, fy, fz from a file
-          call trees_ls_init ()
-        $endif
+  $if ($RNS_LS)
+    call rns_init_ls ()
+  $endif
+  
+  ! Initialize fractal trees
+  $if ($TREES_LS)
+  !--this must come after initial, since fx, fy, fz are set 0 there
+  !  and this call may read fx, fy, fz from a file
+    call trees_ls_init ()
+  $endif          
 
-    ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
-    ! Initialize the kx,ky arrays
-        call init_fft()
+$endif
+
+
+
+! Formulate the fft plans--may want to use FFTW_USE_WISDOM
+! Initialize the kx,ky arrays
+call init_fft()
     
-    ! Open output files (total_time.dat and check_ke.out)  
-        call openfiles()
+! Open output files (total_time.dat and check_ke.out)  
+call openfiles()
 
-    ! Initialize test filter
-    ! this is used for lower BC, even if no dynamic model
-        call test_filter_init (2._rprec * filter_size, G_test)
+! Initialize test filter
+! this is used for lower BC, even if no dynamic model
+call test_filter_init (2._rprec * filter_size, G_test)
 
-        if (model == 3 .or. model == 5) then  !--scale dependent dynamic
-          call test_filter_init (4._rprec * filter_size, G_test_test)
-        end if
+if (model == 3 .or. model == 5) then  !--scale dependent dynamic
+  call test_filter_init (4._rprec * filter_size, G_test_test)
+end if
 
-    ! Initialize sponge variable for top BC, if applicable
-        if (ubc == 1) call setsponge()
+! Initialize sponge variable for top BC, if applicable
+if (ubc == 1) call setsponge()
     
 
 $if ($DEBUG)
