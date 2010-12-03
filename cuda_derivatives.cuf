@@ -86,6 +86,64 @@ return
 end subroutine cuda_ddx
 
 !**********************************************************************
+subroutine cuda_ddy( a, dady, lbz )
+!**********************************************************************
+use types
+use param, only : nx, ny, ld, lh, nz, batchsize, blx, bly
+use param, only : gpu_copy_time, gpu_fft_time, gpu_mult_time
+use cuda_fft
+
+implicit none
+
+integer :: jb,jstart,jend,jbatch, nbatch
+integer, intent(in) :: lbz
+
+real(rprec), dimension(:,:,lbz:), intent(in) :: a
+real(rprec), dimension(:,:,lbz:), intent(inout) :: dady
+real(rprec), parameter :: const = 1._rprec / (nx*ny)
+
+integer :: nb
+real(rprec) :: clock_start, clock_end
+real(rprec), device, allocatable, dimension(:,:,:) :: dady_dev
+
+allocate(dady_dev(ld,ny,batchsize))
+
+nbatch = (nz - lbz + 1) / batchsize
+
+dady = const*a
+
+do jbatch=1, nbatch
+ 
+  jstart = (jbatch-1)*batchsize + 1
+  jend = jstart + batchsize - 1
+  
+  !  Copy data to device
+  dady_dev = dady(:,:,jstart:jend)
+
+  call cufftExecD2Z(cuda_forw,dady_dev,dady_dev)
+
+  !  k should take care of the 0's
+  !dadx(ld-1:ld,:,jz)=0._rprec 
+  !dadx(:,ny/2+1,jz)=0._rprec
+  do nb=1, batchsize
+    !  Compute derivative
+    call cuda_emul_cmplx_mult_inpl_rci_2D<<< dimGrid, dimBlock >>>(&
+      dady_dev(:,:,nb), ky_dev, ld, lh, ny )
+  enddo
+ 
+  call cufftExecZ2D(cuda_back,dady_dev,dady_dev)      
+
+  !  Copy back to host
+  dady(:,:,jstart:jend) = dady_dev
+
+enddo
+
+deallocate(dady_dev)
+
+return
+end subroutine cuda_ddy
+
+!**********************************************************************
 attributes(global) subroutine cuda_emul_cmplx_mult_inpl_rci_2D( &
   a, a_c, nx_r, nx_c, ny )
 !**********************************************************************
