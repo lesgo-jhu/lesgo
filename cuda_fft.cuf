@@ -1,0 +1,160 @@
+!**********************************************************************
+module cuda_fft
+!**********************************************************************
+use types, only : rprec
+use param, only : nz, batchsize
+use cudafor
+
+implicit none
+
+integer, public :: CUFFT_FORWARD = -1
+integer, public :: CUFFT_INVERSE = 1
+integer, public :: CUFFT_R2C = Z'2a' ! Real to Complex (interleaved)
+integer, public :: CUFFT_C2R = Z'2c' ! Complex (interleaved) to Real
+integer, public :: CUFFT_C2C = Z'29' ! Complex to Complex, interleaved
+integer, public :: CUFFT_D2Z = Z'6a' ! Double to Double-Complex
+integer, public :: CUFFT_Z2D = Z'6c' ! Double-Complex to Double
+integer, public :: CUFFT_Z2Z = Z'69' ! Double-Complex to Double-Complex
+
+integer:: cuda_forw, cuda_back
+
+real(rprec), device, allocatable, dimension(:,:) :: kx_dev, ky_dev
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! cufftPlan1d(cufftHandle *plan, int nx,cufftType type,int batch)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+interface cufftPlan2d
+subroutine cufftPlan2d(plan, nx, ny, type) bind(C,name='cufftPlan2d')
+use iso_c_binding
+integer(c_int):: plan
+integer(c_int),value:: nx, ny ,type
+end subroutine cufftPlan2d
+end interface cufftPlan2d  
+
+interface cufftPlanMany
+subroutine cufftPlanMany(plan, rank, n, inembed, istride, idist, &
+  onembed, ostride, odist, type, batch) bind(C,name='cufftPlanMany')
+use iso_c_binding
+integer(c_int) :: plan
+integer(c_int), value :: rank
+integer(c_int) :: n(:)
+integer(c_int) :: inembed
+integer(c_int), value :: istride, idist
+integer(c_int) :: onembed
+integer(c_int), value :: ostride, odist, type, batch
+end subroutine cufftPlanMany
+end interface cufftPlanMany
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! cufftDestroy(cufftHandle plan)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+interface cufftDestroy
+subroutine cufftDestroy(plan) bind(C,name='cufftDestroy')
+use iso_c_binding
+integer(c_int),value:: plan
+end subroutine cufftDestroy
+end interface cufftDestroy
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! cufftExecC2C(cufftHandle plan,
+! cufftComplex *idata,
+! cufftComplex *odata,
+! int direction)
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+interface cufftExecD2Z
+subroutine cufftExecD2Z(plan, idata, odata) &
+& bind(C,name='cufftExecD2Z')
+use iso_c_binding
+use types, only : rprec
+integer(c_int),value:: plan
+real(rprec),device::idata(:,:,:)
+real(rprec),device:: odata(:,:,:)
+end subroutine cufftExecD2Z
+end interface cufftExecD2Z
+
+interface cufftExecZ2D
+subroutine cufftExecZ2D(plan, idata, odata) &
+& bind(C,name='cufftExecZ2D')
+use iso_c_binding
+use types, only : rprec
+integer(c_int),value:: plan
+real(rprec),device:: idata(:,:,:)
+real(rprec),device::odata(:,:,:)
+end subroutine cufftExecZ2D
+end interface cufftExecZ2D
+
+
+contains
+
+!**********************************************************************
+subroutine cuda_fft_init()
+!**********************************************************************
+use param, only : nx, ny
+use fft, only : init_wavenumber
+
+implicit none
+
+! Initialize the plan
+!call cufftPlan2D(cuda_forw,ny,nx,CUFFT_D2Z)
+!call cufftPlan2D(cuda_back,ny,nx,CUFFT_Z2D)
+
+integer, pointer :: null_ptr=>null()
+integer, dimension(2) :: dims
+
+dims(1) = ny
+dims(2) = nx
+
+! Create a batched 2D plan 
+call cufftPlanMany(cuda_forw,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,batchsize)
+call cufftPlanMany(cuda_back,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,batchsize)
+
+!  Standard wavenumber initialization (reusing code)
+call init_wavenumber()
+call cuda_init_wavenumber()
+
+return
+end subroutine cuda_fft_init
+
+!**********************************************************************
+subroutine cuda_fft_finalize()
+!**********************************************************************
+use param, only : nx, ny
+implicit none
+
+! Destroy the plan
+call cufftDestroy(cuda_forw)
+call cufftDestroy(cuda_back)
+
+return
+end subroutine cuda_fft_finalize
+
+!**********************************************************************
+subroutine cuda_init_wavenumber()
+!**********************************************************************
+use types, only : rprec
+use param,only:lh,nx,ny,L_x,L_y,pi
+use fft, only : kx, ky
+implicit none
+integer :: jx,jy
+
+allocate(kx_dev(lh,ny),ky_dev(lh,ny))
+
+kx_dev = kx
+ky_dev = ky
+
+return
+end subroutine cuda_init_wavenumber
+
+end module cuda_fft
+
