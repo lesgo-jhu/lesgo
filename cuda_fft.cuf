@@ -101,13 +101,7 @@ contains
 subroutine cuda_fft_init()
 !**********************************************************************
 use param, only : nx, ny
-use fft, only : init_wavenumber
-
 implicit none
-
-! Initialize the plan
-!call cufftPlan2D(cuda_forw,ny,nx,CUFFT_D2Z)
-!call cufftPlan2D(cuda_back,ny,nx,CUFFT_Z2D)
 
 integer, pointer :: null_ptr=>null()
 integer, dimension(2) :: dims
@@ -119,17 +113,12 @@ dims(2) = nx
 call cufftPlanMany(cuda_forw,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,batchsize)
 call cufftPlanMany(cuda_back,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,batchsize)
 
-!  Standard wavenumber initialization (reusing code)
-call init_wavenumber()
-call cuda_init_wavenumber()
-
 return
 end subroutine cuda_fft_init
 
 !**********************************************************************
 subroutine cuda_fft_finalize()
 !**********************************************************************
-use param, only : nx, ny
 implicit none
 
 ! Destroy the plan
