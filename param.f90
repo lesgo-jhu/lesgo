@@ -65,15 +65,22 @@ module param
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x= 4._rprec
-    real(rprec),parameter::L_y= 4._rprec    
-    real(rprec),parameter::L_z= 4._rprec
-    !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
-    !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
+  real(rprec),parameter::L_x= 4._rprec
+  real(rprec),parameter::L_y= 4._rprec    
+  real(rprec),parameter::L_z= 4._rprec
+  !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
+  !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
-    real(rprec),parameter::dz=L_z/(nz_tot-1) ! or (L_z/nproc)/(nz - 1)
-    real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
+  real(rprec),parameter::dz=L_z/(nz_tot-1) ! or (L_z/nproc)/(nz - 1)
+  real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
+
+  $if($CUDA)
+  !  Used to define grid and block size for cuda kernels
+  integer, parameter :: blx = 16, bly = 32
+  !  Used for scheduling concurrent 2D FFT's
+  integer, parameter :: batchsize = 16
+  $endif
   
 !---------------------------------------------------
 ! MODEL PARAMETERS
