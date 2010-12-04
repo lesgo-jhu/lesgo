@@ -33,7 +33,7 @@ SRCS =  \
         test_filtermodule.f90 topbc.f90 \
         tridag.f90 tridag_array.f90 types.f90 \
         unpadd.f90 \
-	wallstress.f90 wallstress_dns.f90
+	wallstress.f90 wallstress_dns.f90 
 
 #--these also depend on linear_simple.f90
 TREES_LS_SRCS = string_util.f90 \

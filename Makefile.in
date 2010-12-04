@@ -27,12 +27,12 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 USE_CUDA = yes
 
 # Set dt based on CFL condition
-USE_CFL_DT = yes
+USE_CFL_DT = no
 
 # Write binary files as big_endian
 WRITE_BIG_ENDIAN = yes
@@ -220,15 +220,10 @@ ifeq ($(FCOMP),pgf90)
   
   FPP += -DPGI
   
-  ifeq ($(USE_MPI), yes)
-    FC = mpif90
-  else
-    FC = pgf90
-  endif
-
   LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  FFLAGS = -O0 -Mbounds -Mchkfpstk -g -C -Minform=warn
+  #FFLAGS = -fast
   #FFLAGS = -O2 
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
@@ -241,6 +236,15 @@ ifeq ($(FCOMP),pgf90)
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
 #  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
+
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+#    FFLAGS += -Mmpi=mpich2
+#    MODDIR += -I/opt/pgi/linux86-64/10.9/mpi/mpich/include/f90base
+#    LIBPATH += -L/opt/pgi/linux86-64/10.9/mpi/mpich/lib
+  else
+    FC = pgfortran
+  endif
 
   ifeq ($(USE_CUDA), yes)
     FFLAGS += -Mcuda

@@ -16,7 +16,7 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 8
+  $define $NPROC 2
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(63)/nproc + 1   
+  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -124,7 +124,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 1
+  integer, parameter :: nsteps = 1000
  
   $if($CFL_DT)
   
@@ -156,9 +156,9 @@ module param
 !---------------------------------------------------  
 
   ! initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
@@ -199,7 +199,7 @@ module param
 !---------------------------------------------------
 
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
-  integer,parameter::wbase=100
+  integer,parameter::wbase=1
   
   ! how often to write ke to check_ke.out
   integer, parameter :: nenergy = 1  
@@ -214,14 +214,13 @@ module param
   ! turns instantaneous velocity recording on or off
   logical, parameter :: point_calc = .false.
   integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
-  integer, parameter :: point_nloc = 2
+  integer, parameter :: point_nloc = 1
   !real(rprec), save, dimension(3,point_nloc) :: point_loc = (/ &
   !    (/ L_x/2., L_y/2., 2._rprec /), &
   !    (/ 3._rprec, 2._rprec, 2._rprec /) &
   !    /)
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
-        point3D( (/ L_x/2., L_y/2., 2._rprec /) ), &
-        point3D( (/ 3._rprec, 2._rprec, 2._rprec /) ) &
+        point3D( (/ L_x/2., L_y/2., L_z/2. /) ) &
         /)
 
   ! domain instantaneous output
