@@ -27,8 +27,13 @@ subroutine press_stag_array(p_hat,dfdx,dfdy)
 use types,only:rprec
 use param
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
-use fft
 use immersedbc,only:fx,fy,fz  ! only for forcing experiment
+$if($CUDA)
+use cudafor
+use cuda_fft
+$else
+use fft
+$endif
 
 $if ($DEBUG)
 use debug_mod
@@ -56,6 +61,10 @@ real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
 !complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
 real(kind=rprec), dimension(ld, ny, nz), intent(out)::dfdx,dfdy
 
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:,:) :: c_dev
+$endif
+
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 ! remove this stuff!
 integer::jx,jy,jz,k
@@ -82,6 +91,10 @@ $if ($VERBOSE)
 write (*, *) 'started press_stag_array'
 $endif
 
+$if($CUDA)
+allocate(c_dev(ld,ny,3))
+$endif
+
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   p_hat(:, :, 0) = (0._rprec, 0._rprec)
 else
@@ -95,14 +108,34 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! temp storage for sum of RHS terms.  normalized for fft
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
-   ! no forces
-   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
-   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
-   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+  ! no forces
+  rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
+  rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
+  rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
-   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),null())
-   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),null())
-   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),null())   
+  $if($CUDA)
+   !  Copy data to device
+  c_dev(:,:,1) = rH_x(:, :, jz)
+  c_dev(:,:,2) = rH_y(:, :, jz)
+  c_dev(:,:,3) = rH_z(:, :, jz)   
+
+  call cufftExecD2Z(cuda_forw_3, c_dev, c_dev)
+
+    !  Copy data to host
+  rH_x(:, :, jz) = c_dev(:,:,1)
+  rH_y(:, :, jz) = c_dev(:,:,2)
+  rH_z(:, :, jz) = c_dev(:,:,3)
+
+  $else
+  
+  call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),null())
+  call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),null())
+  call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),null())   
+
+  $endif
+
+  
+
 end do
 
 
@@ -464,9 +497,27 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
+
+$if($CUDA)
+!  Copy data to device
+c_dev(:,:,1) = dfdx(:,:,jz)
+c_dev(:,:,2) = dfdy(:,:,jz)
+c_dev(:,:,3) = p_hat(:,:,jz)
+
+call cufftExecZ2D(cuda_back_3, c_dev, c_dev)
+
+!  Copy data to host
+dfdx(:,:,jz) = c_dev(:,:,1)
+dfdy(:,:,jz) = c_dev(:,:,2)
+p_hat(:,:,jz) = c_dev(:,:,3)
+
+$else
+
 call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
 call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),null())
+
+$endif
 end do
 
 !--nz level is not needed elsewhere (although its valid)
@@ -478,4 +529,9 @@ $if ($VERBOSE)
 write (*, *) 'finished press_stag_array'
 $endif
 
+$if($CUDA)
+deallocate(c_dev)
+$endif
+
+return
 end subroutine press_stag_array

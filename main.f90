@@ -5,11 +5,10 @@ use sim_param
 use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 $if($CUDA)
+use cuda_defs
 use cuda_fft
-use cuda_derivatives, only : cuda_filt_da, cuda_ddz_uv, cuda_ddz_w
 $else
 use fft
-use derivatives, only : filt_da, ddz_uv, ddz_w
 $endif
 use immersedbc
 use test_filtermodule
@@ -159,7 +158,12 @@ $endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays
+$if($CUDA)
+call cuda_init()
+call cuda_fft_init()
+$else
 call init_fft()
+$endif
     
 ! Open output files (total_time.dat and check_ke.out)  
 call openfiles()
@@ -603,6 +607,11 @@ end do
     
     ! Write total_time.dat and tavg files
     call output_final (jt)
+
+    !  Clean up plans
+    $if($CUDA)
+    call cuda_fft_finalize()
+    $endif
 
     ! Level set:
     $if ($LVLSET)

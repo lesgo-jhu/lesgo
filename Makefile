@@ -49,10 +49,7 @@ RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90 rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90
 
-TSUM_POST_DEPS = utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
- 
-TSUM_POST_COMP2 = $(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
-	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
+CUDA_SRCS = cuda_defs.cuf cuda_emul_cmplx_mult.cuf cuda_fft.cuf cuda_padd.cuf
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
@@ -80,6 +77,10 @@ endif
 
 ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
+endif
+
+ifeq ($(USE_CUDA), yes)
+  SRCS += $(CUDA_SRCS)
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'

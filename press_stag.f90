@@ -1,4 +1,6 @@
+!**********************************************************************
 subroutine press_stag(p_hat,dfdx,dfdy)   
+!**********************************************************************
 ! p_hat contains the physical space pressure on exit
 !-------------------    
 ! Boundary Layer version with 4th order derivs in vertical.

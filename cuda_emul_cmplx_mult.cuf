@@ -47,4 +47,82 @@ return
 
 end subroutine cuda_emul_cmplx_mult_inpl_rci_2D
 
-end module cuda_cmplx_mult
+!**********************************************************************
+attributes(global) subroutine cuda_emul_cmplx_mult_rci_2D( &
+  a, a_c, nx_r, nx_c, ny, b )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+real(rprec) :: a(nx_r,ny), a_c(nx_c,ny) ! Device memory
+real(rprec) :: b(nx_r,ny)
+integer, value :: nx_r, nx_c, ny
+
+integer :: i, j, k, tx, ty, tz, ir, ii
+real(rprec) :: a_c_i
+
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of complex array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+ii = 2*i
+ir = ii - 1
+
+if( j <= ny ) then
+  if( i <= nx_c ) then
+
+    a_c_i = a_c(i,j)
+
+    b(ir,j) = -a(ii,j)*a_c_i
+    b(ii,j) = a(ir,j)*a_c_i 
+
+  endif
+endif
+
+return
+
+end subroutine cuda_emul_cmplx_mult_rci_2D
+
+!**********************************************************************
+attributes(global) subroutine cuda_emul_cmplx_mult_inpl_rcr_2D( &
+  a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+real(rprec) :: a(nx_r,ny), a_c(nx_c,ny) ! Device memory
+integer, value :: nx_r, nx_c, ny
+
+integer :: i, j, k, tx, ty, tz, ir, ii
+real(rprec) :: a_r, a_i, a_c_i
+
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of complex array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+ii = 2*i
+ir = ii - 1
+
+if( j <= ny ) then
+  if( i <= nx_c ) then
+
+    a(ir:ii,j) = a_c(i,j)*a(ir:ii,j)
+
+  endif
+endif
+
+return
+
+end subroutine cuda_emul_cmplx_mult_inpl_rcr_2D
+
+end module cuda_emul_cmplx_mult

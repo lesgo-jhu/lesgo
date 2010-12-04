@@ -76,10 +76,8 @@ module param
   real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
 
   $if($CUDA)
-  !  Used to define grid and block size for cuda kernels
-  integer, parameter :: blx = 16, bly = 32
-  !  Used for scheduling concurrent 2D FFT's
-  integer, parameter :: batchsize = 16
+  !  Used to define block size for cuda kernels
+  integer, parameter :: blx = 8, bly = 8
   $endif
   
 !---------------------------------------------------

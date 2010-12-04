@@ -16,9 +16,10 @@ integer, public :: CUFFT_D2Z = Z'6a' ! Double to Double-Complex
 integer, public :: CUFFT_Z2D = Z'6c' ! Double-Complex to Double
 integer, public :: CUFFT_Z2Z = Z'69' ! Double-Complex to Double-Complex
 
-integer:: cuda_forw, cuda_back
+integer :: cuda_forw, cuda_back, cuda_forw_big, cuda_back_big
+integer :: cuda_forw_3, cuda_back_3, cuda_forw_big_3, cuda_back_big_3
 
-real(rprec), device, allocatable, dimension(:,:) :: kx_dev, ky_dev
+real(rprec), device, allocatable, dimension(:,:) :: kx_dev, ky_dev, unity_dev
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -101,6 +102,7 @@ contains
 subroutine cuda_fft_init()
 !**********************************************************************
 use param, only : nx, ny
+use fft, only : init_wavenumber
 implicit none
 
 integer, pointer :: null_ptr=>null()
@@ -110,8 +112,20 @@ dims(1) = ny
 dims(2) = nx
 
 ! Create a batched 2D plan 
-call cufftPlanMany(cuda_forw,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,batchsize)
-call cufftPlanMany(cuda_back,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,batchsize)
+call cufftPlanMany(cuda_forw,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,1)
+call cufftPlanMany(cuda_back,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,1)
+call cufftPlanMany(cuda_forw_3,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,3)
+call cufftPlanMany(cuda_back_3,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,3)
+
+dims(1) = ny2
+dims(2) = nx2
+call cufftPlanMany(cuda_forw_big,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,1)
+call cufftPlanMany(cuda_back_big,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,1)
+call cufftPlanMany(cuda_forw_big_3,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_D2Z,3)
+call cufftPlanMany(cuda_back_big_3,2,dims,null_ptr,1,0,null_ptr,1,0,CUFFT_Z2D,3)
+
+call init_wavenumber() ! From FFT module
+call cuda_init_wavenumber()
 
 return
 end subroutine cuda_fft_init
@@ -124,6 +138,12 @@ implicit none
 ! Destroy the plan
 call cufftDestroy(cuda_forw)
 call cufftDestroy(cuda_back)
+call cufftDestroy(cuda_forw_3)
+call cufftDestroy(cuda_back_3)
+call cufftDestroy(cuda_forw_big)
+call cufftDestroy(cuda_back_big)
+call cufftDestroy(cuda_forw_big_3)
+call cufftDestroy(cuda_back_big_3)
 
 return
 end subroutine cuda_fft_finalize
@@ -135,12 +155,17 @@ use types, only : rprec
 use param,only:lh,nx,ny,L_x,L_y,pi
 use fft, only : kx, ky
 implicit none
-integer :: jx,jy
+integer :: jx, jy
 
-allocate(kx_dev(lh,ny),ky_dev(lh,ny))
+allocate(kx_dev(lh,ny),ky_dev(lh,ny), unity_dev)
 
 kx_dev = kx
 ky_dev = ky
+
+unity_dev = 1._rprec
+!  Zero oddballs
+unity_dev(lh,:) = 0._rprec
+unity_dev(:,ny/2+1) = 0._rprec
 
 return
 end subroutine cuda_init_wavenumber

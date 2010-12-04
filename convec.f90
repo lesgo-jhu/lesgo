@@ -14,7 +14,14 @@ use types,only:rprec
 use param
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
+
+$if($CUDA)
+use cudafor
+use cuda_fft
+use cuda_padd_mod
+$else
 use fft
+$endif
 
 $if ($DEBUG)
 use debug_mod
@@ -45,6 +52,12 @@ real (rprec), save, dimension (ld_big, ny2, $lbz:nz) :: u1_big, u2_big, u3_big
 !--save forces heap storage 
 real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
                                                    vort3_big
+
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:,:) :: c_dev
+real(rprec), device, allocatable, dimension(:,:,:) :: c_big_dev
+$endif
+
 !real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
 !--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
 real(kind=rprec)::ignore_me,const
@@ -55,9 +68,12 @@ $endif
 !...Recall dudz, and dvdz are on UVP node for k=1 only
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
 
+$if($CUDA)
+allocate(c_dev(ld, ny, 3), c_big_dev(ld_big,ny2,3))
+$endif
+
 ! sc: it would be nice to NOT have to loop through slices here
 ! Loop through horizontal slices
-
 const=1._rprec/(nx*ny)
 !$omp parallel do default(shared) private(jz)		
 do jz = $lbz, nz
@@ -66,7 +82,37 @@ do jz = $lbz, nz
 ! use cx,cy,cz for temp storage here! 
    cx(:,:,jz)=const*u1(:,:,jz)
    cy(:,:,jz)=const*u2(:,:,jz)
-   cz(:,:,jz)=const*u3(:,:,jz)
+   cz(:,:,jz)=const*u3(:,:,jz)  
+
+  $if($CUDA)
+  !  Copy to device
+  c_dev(:,:,1) = cx(:,:,jz)
+  c_dev(:,:,2) = cy(:,:,jz)
+  c_dev(:,:,3) = cz(:,:,jz)
+   
+  !  Perform fft in batch of 3
+  call cufftExecD2Z(cuda_forw_3,c_dev,c_dev)
+
+  !  Make sure padded array is zeroed first
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,1))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,2))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,3))
+
+  !  Padd array
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,1),c_big_dev(:,:,1))
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,2),c_big_dev(:,:,2))
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,3),c_big_dev(:,:,3))
+
+  !  Perform inverse fft in batch of 3
+  call cufftExecZ2D(cuda_back_big_3,c_big_dev,c_big_dev)
+
+  !  Copy data to host
+  u1_big(:,:,jz) = u_big_dev(:,:,1)
+  u2_big(:,:,jz) = u_big_dev(:,:,2)
+  u3_big(:,:,jz) = u_big_dev(:,:,3)  
+
+  $else
+
 ! do forward fft on normal-size arrays
    call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),ignore_me)
    call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),ignore_me)
@@ -80,6 +126,8 @@ do jz = $lbz, nz
    call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),ignore_me)
    call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),ignore_me)
    call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),ignore_me)
+
+   $endif
 end do
 
 do jz = 1, nz
@@ -87,49 +135,82 @@ do jz = 1, nz
 !--if du1d3, du2d3 are on u-nodes for jz=1, then we need a special
 !  definition of the vorticity in that case which also interpolates
 !  du3d1, du3d2 to the u-node at jz=1
-   if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-        (jz == 1) ) then
+  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
+       (jz == 1) ) then
         
-     select case (lbc_mom)
-       case ('wall')
+    select case (lbc_mom)
+      case ('wall')
 
-         !--du3d2(jz=1) should be 0, so we could use this
-         cx(:, :, 1) = const * ( 0.5_rprec * (du3d2(:, :, 1) +  &
-                                              du3d2(:, :, 2))   &
-                                 - du2d3(:, :, 1) )
-         !--du3d1(jz=1) should be 0, so we could use this
-         cy(:, :, 1) = const * ( du1d3(:, :, 1) -               &
-                                 0.5_rprec * (du3d1(:, :, 1) +  &
-                                              du3d1(:, :, 2)) )
+        !--du3d2(jz=1) should be 0, so we could use this
+        cx(:, :, 1) = const * ( 0.5_rprec * (du3d2(:, :, 1) +  &
+                                             du3d2(:, :, 2))   &
+                                - du2d3(:, :, 1) )
+        !--du3d1(jz=1) should be 0, so we could use this
+        cy(:, :, 1) = const * ( du1d3(:, :, 1) -               &
+                                0.5_rprec * (du3d1(:, :, 1) +  &
+                                             du3d1(:, :, 2)) )
 
-       case ('stress free')
+      case ('stress free')
 
-         cx(:, :, 1) = 0._rprec
-         cy(:, :, 1) = 0._rprec
+        cx(:, :, 1) = 0._rprec
+        cy(:, :, 1) = 0._rprec
 
-     end select
+    end select
 
-   else
+  else
    
-     cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
-     cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
+    cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
+    cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
 
-   end if
+  end if
 
-   cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
+  cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
-   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),ignore_me)
-   call padd(vort1_big(:,:,jz),cx(:,:,jz))
-   call padd(vort2_big(:,:,jz),cy(:,:,jz))
-   call padd(vort3_big(:,:,jz),cz(:,:,jz))
+  $if($CUDA)
+   
+  !  Copy data to device
+  c_dev(:,:,1) = cx(:,:,jz)
+  c_dev(:,:,2) = cy(:,:,jz)
+  c_dev(:,:,3) = cz(:,:,jz)
 
-! Back to physical space
-! the normalization should be ok...
-   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),ignore_me)
+  !  Perform fft in batch of 3
+  call cufftExecD2Z(cuda_forw_3,c_dev,c_dev)
+
+  !  Make sure padded array is zeroed first
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,1))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,2))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,3))
+
+  !  Padd array
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,1),c_big_dev(:,:,1))
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,2),c_big_dev(:,:,2))
+  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,3),c_big_dev(:,:,3))
+
+  !  Perform inverse fft in batch of 3
+  call cufftExecZ2D(cuda_back_big_3,c_big_dev,c_big_dev)
+
+  !  Copy data to host
+  vort1_big(:,:,jz) = c_big_dev(:,:,1)
+  vort2_big(:,:,jz) = c_big_dev(:,:,2)
+  vort3_big(:,:,jz) = c_big_dev(:,:,3)
+
+  $else
+
+  call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),ignore_me)
+  call padd(vort1_big(:,:,jz),cx(:,:,jz))
+  call padd(vort2_big(:,:,jz),cy(:,:,jz))
+  call padd(vort3_big(:,:,jz),cz(:,:,jz))
+
+  ! Back to physical space
+  ! the normalization should be ok...
+  call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),ignore_me)
+  call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),ignore_me)
+  call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),ignore_me)
+
+  $endif
+
 end do
 !$omp end parallel do
 
@@ -161,12 +242,35 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
-! un-zero pad
-! note: cc_big is going into cx!!!!
-   call unpadd(cx(:,:,jz),cc_big(:,:,jz))
-! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),ignore_me)
+
+  $if($CUDA)
+  !  Copy data to device
+  c_big_dev(:,:,1) = cc_big(:,:,jz)
+   
+  !  Perform fft 
+  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+
+  ! un-zero pad
+  !  Make sure oddballs are pre-zeroed
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) )  
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+  ! Back to physical space
+  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+
+  !  Copy data to host
+  cx(:,:,jz) = c_dev(:,:,1)  
+
+  $else
+
+  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+  ! un-zero pad
+  ! note: cc_big is going into cx!!!!
+  call unpadd(cx(:,:,jz),cc_big(:,:,jz))
+  ! Back to physical space
+  call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),ignore_me)
+
+  $endif
+
 end do
 !$omp end parallel do
 
@@ -196,13 +300,37 @@ end do
 
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
- ! un-zero pad
-! note: cc_big is going into cy!!!!
-   call unpadd(cy(:,:,jz),cc_big(:,:,jz))
 
-! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),ignore_me)
+  $if($CUDA)
+  !  Copy data to device
+  c_big_dev(:,:,1) = cc_big(:,:,jz)
+
+  !  Perform fft 
+  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+
+  ! un-zero pad
+  !  Make sure oddballs are pre-zeroed
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) )  
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+
+  ! Back to physical space
+  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+
+  !  Copy data to host
+  cy(:,:,jz) = c_dev(:,:,1)
+
+  $else
+
+  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+  ! un-zero pad
+  ! note: cc_big is going into cy!!!!
+  call unpadd(cy(:,:,jz),cc_big(:,:,jz))
+
+  ! Back to physical space
+  call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),ignore_me)
+
+  $endif
+
 end do
 !$omp end parallel do
 
@@ -239,14 +367,39 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
 
-! un-zero pad
-! note: cc_big is going into cz!!!!
-   call unpadd(cz(:,:,jz),cc_big(:,:,jz))
+  $if($CUDA)
 
-! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),ignore_me)
+  !  Copy data to device
+  c_big_dev(:,:,1) = cc_big(:,:,jz)
+
+  !  Perform fft 
+  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+
+  ! un-zero pad
+  !  Make sure oddballs are pre-zeroed
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) ) 
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+
+  ! Back to physical space
+  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+
+  !  Copy data to host
+  cz(:,:,jz) = c_dev(:,:,1) 
+
+  $else
+
+  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+
+  ! un-zero pad
+  ! note: cc_big is going into cz!!!!
+  call unpadd(cz(:,:,jz),cc_big(:,:,jz))
+
+  ! Back to physical space
+  call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),ignore_me)
+
+  $endif
+
 end do
 !$omp end parallel do
 
@@ -273,4 +426,9 @@ $if ($VERBOSE)
 write (*, *) 'finished convec'
 $endif
 
+$if($CUDA)
+deallocate(c_dev, c_big_dev)
+$endif
+
+return
 end subroutine convec

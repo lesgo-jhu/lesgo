@@ -16,12 +16,42 @@ subroutine test_filter(f, G_test)
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
 use param,only:ld,lh,ny
+$if($CUDA)
+use cudafor
+use cuda_fft
+use cuda_emul_cmplx_mult
+$else
 use fft
+$endif
+
 implicit none
 
 !complex(kind=rprec), dimension(lh,ny),intent(inout)::f ! note we're treating as complex here
 real(kind=rprec), dimension(ld,ny), intent(inout) :: f
 real(kind=rprec), dimension(lh,ny),intent(in) :: G_test
+
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:) :: f_dev, G_test_dev
+$endif
+
+$if($CUDA)
+allocate(f_dev(ld,ny), G_test_dev(ld,ny))
+
+!  Copy data to device
+f_dev = f
+!  Perform FFT
+call cufftExecD2Z(cuda_forw, f_dev, f_dev)
+!  Multiply by G_test_dev (real part of complex array)
+call cuda_emul_cmplx_mult_inpl_rcr_2D<<< dimGrid, dimBlock >>>( &
+  f_dev, G_test_dev, ld, lh, ny )
+!  Perform inverse FFT
+call cufftExecZ2D(cuda_back, f_dev, f_dev)  
+!  Copy data to host
+f = f_dev
+
+deallocate(f_dev, G_test_dev)
+
+$else
 
 !  Perform in-place FFT
 call rfftwnd_f77_one_real_to_complex(forw,f,null())
@@ -31,6 +61,8 @@ call rfftwnd_f77_one_real_to_complex(forw,f,null())
 call emul_complex_mult_inplace_real_complex_real_2D( f, G_test, ld, lh, ny )
 
 call rfftwnd_f77_one_complex_to_real(back,f,null())
+
+$endif
 
 return
 end subroutine test_filter

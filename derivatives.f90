@@ -16,7 +16,14 @@ subroutine ddx(f,dfdx,lbz)
 
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
+
+$if($CUDA)
+use cudafor
+use cuda_fft
+use cuda_emul_cmplx_mult
+$else
 use fft
+$endif
 
 implicit none
 
@@ -29,13 +36,38 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
 
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:) :: dfdx_dev
+$endif
+
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+
+$if($CUDA)
+allocate(dadx_dev(ld,ny))
+$endif
 
 ! Loop through horizontal slices
 do jz=lbz,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
+
+  $if($CUDA)
+  !  Copy data to device
+  dfdx_dev = dfdx(:,:,jz)
+
+  call cufftExecD2Z(cuda_forw,dfdx_dev,dfdx_dev)
+
+  call cuda_emul_cmplx_mult_inpl_rci_2D<<< dimGrid, dimBlock >>>(&
+      dfdx_dev, kx_dev, ld, lh, ny )  
+
+  call cufftExecZ2D(cuda_back,dfdx_dev,dfdx_dev)      
+
+  !  Copy back to host
+  dfdx(:,:,jz) = dfdx_dev
+
+  $else
+  
   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),null())       
 
   ! Zero padded region and Nyquist frequency
@@ -56,7 +88,13 @@ do jz=lbz,nz
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
 
+  $endif
+
 enddo
+
+$if($CUDA)
+deallocate(dfdx_dev)
+$endif
 
 return
 
@@ -71,7 +109,13 @@ subroutine ddy(f,dfdy, lbz)
 !  
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
+$if($CUDA)
+use cudafor
+use cuda_fft
+use cuda_emul_cmplx_mult
+$else
 use fft
+$endif
 
 implicit none      
 
@@ -84,10 +128,34 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
 
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:) :: dfdy_dev
+$endif
+
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+
+$if($CUDA)
+allocate(dady_dev(ld,ny))
+$endif
 
 ! Loop through horizontal slices
 do jz=lbz,nz    
+
+  $if($CUDA)
+  !  Copy data to device
+  dfdy_dev = dfdy(:,:,jz)
+
+  call cufftExecD2Z(cuda_forw,dfdy_dev,dfdy_dev)
+
+  call cuda_emul_cmplx_mult_inpl_rci_2D<<< dimGrid, dimBlock >>>(&
+      dfdy_dev, ky_dev, ld, lh, ny )  
+
+  call cufftExecZ2D(cuda_back,dfdy_dev,dfdy_dev)      
+
+  !  Copy back to host
+  dfdy(:,:,jz) = dfdy_dev
+
+  $else
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
   dfdy(:,:,jz)=const*f(:,:,jz)
@@ -109,12 +177,17 @@ do jz=lbz,nz
   call emul_complex_mult_inplace_real_complex_imag_2D( dfdy(:, :, jz), ky, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
-  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())   
+  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())  
+
+  $endif
 
 end do
 
-return
+$if($CUDA)
+deallocate(dfdy_dev)
+$endif
 
+return
 end subroutine ddy
 
 !**********************************************************************
@@ -269,6 +342,7 @@ end if
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   !--this is not needed
   ! Stress free lid (ubc)
+  
   !if (ubc==0) then stop
 
   !else
@@ -294,13 +368,23 @@ subroutine filt_da(f,dfdx,dfdy, lbz)
 !
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz
+$if($CUDA)
+use cudafor
+use cuda_fft
+use cuda_emul_cmplx_mult
+$else
 use fft
+$endif
 implicit none
 integer::jz
 
 integer, intent(in) :: lbz
 real(rprec), dimension(:, :, lbz:), intent(inout) :: f
 real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
+
+$if($CUDA)
+real(rprec), device, allocatable, dimension(:,:) :: f_dev
+$endif
 
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
@@ -311,6 +395,36 @@ real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 do jz=lbz,nz
   
   f(:,:,jz)=const*f(:,:,jz)   !normalize
+
+  $if($CUDA)
+  !  Copy data to device
+  f_dev = f(:,:,jz)
+
+  !  Perform FFT
+  call cufftExecD2Z(cuda_forw,f_dev,f_dev)  
+
+  !  Compute in-plane derivatives
+  call cuda_emul_cmplx_mult_rci_2D<<< dimGrid, dimBlock >>>(&
+      f_dev, kx_dev, ld, lh, ny, dfdx_dev )  
+  call cuda_emul_cmplx_mult_rci_2D<<< dimGrid, dimBlock >>>(&
+      f_dev, ky_dev, ld, lh, ny, dfdy_dev ) 
+
+  !  Zero oddballs through 2D multiplication (avoids extra data transfer to
+  !  device)
+  call cuda_emul_cmplx_mult_inpl_rcr_2D<<< dimGrid, dimBlock >>>(&
+      f_dev, unity_dev, ld, lh, ny )      
+
+  !  Perform inverse FFT
+  call cufftExecZ2D(cuda_back,f_dev,f_dev)
+  call cufftExecZ2D(cuda_back,dfdx_dev,dfdx_dev)
+  call cufftExecZ2D(cuda_back,dfdy_dev,dfdy_dev)
+
+  !  Copy to host
+  f(:,:,jz) = f_dev
+  dfdx(:,:,jz) = dfdx_dev
+  dfdy(:,:,jz) = dfdy_dev
+
+  $else
 
   call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),null())
 
@@ -335,7 +449,13 @@ do jz=lbz,nz
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
 
+  $endif
+
 end do
+
+$if($CUDA)
+deallocate(f_dev,dfdx_dev,dfdy_dev)
+$endif
 
 return
 end subroutine filt_da

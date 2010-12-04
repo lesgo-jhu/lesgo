@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = pgf90
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
@@ -27,9 +27,9 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
-USE_CUDA = no
+USE_CUDA = yes
 
 # Set dt based on CFL condition
 USE_CFL_DT = yes
