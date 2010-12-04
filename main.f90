@@ -10,6 +10,7 @@ use cuda_fft
 $else
 use fft
 $endif
+use derivatives
 use immersedbc
 use test_filtermodule
 use topbc,only:setsponge,sponge

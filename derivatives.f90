@@ -19,6 +19,7 @@ use param,only:ld,lh,nx,ny,nz,dz
 
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_emul_cmplx_mult
 $else
@@ -43,7 +44,7 @@ $endif
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 $if($CUDA)
-allocate(dadx_dev(ld,ny))
+allocate(dfdx_dev(ld,ny))
 $endif
 
 ! Loop through horizontal slices
@@ -56,12 +57,12 @@ do jz=lbz,nz
   !  Copy data to device
   dfdx_dev = dfdx(:,:,jz)
 
-  call cufftExecD2Z(cuda_forw,dfdx_dev,dfdx_dev)
+  call cufftExecD2Z_2D(cuda_forw,dfdx_dev,dfdx_dev)
 
   call cuda_emul_cmplx_mult_inpl_rci_2D<<< dimGrid, dimBlock >>>(&
       dfdx_dev, kx_dev, ld, lh, ny )  
 
-  call cufftExecZ2D(cuda_back,dfdx_dev,dfdx_dev)      
+  call cufftExecZ2D_2D(cuda_back,dfdx_dev,dfdx_dev)      
 
   !  Copy back to host
   dfdx(:,:,jz) = dfdx_dev
@@ -111,6 +112,7 @@ use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_emul_cmplx_mult
 $else
@@ -135,7 +137,7 @@ $endif
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 $if($CUDA)
-allocate(dady_dev(ld,ny))
+allocate(dfdy_dev(ld,ny))
 $endif
 
 ! Loop through horizontal slices
@@ -145,12 +147,12 @@ do jz=lbz,nz
   !  Copy data to device
   dfdy_dev = dfdy(:,:,jz)
 
-  call cufftExecD2Z(cuda_forw,dfdy_dev,dfdy_dev)
+  call cufftExecD2Z_2D(cuda_forw,dfdy_dev,dfdy_dev)
 
   call cuda_emul_cmplx_mult_inpl_rci_2D<<< dimGrid, dimBlock >>>(&
       dfdy_dev, ky_dev, ld, lh, ny )  
 
-  call cufftExecZ2D(cuda_back,dfdy_dev,dfdy_dev)      
+  call cufftExecZ2D_2D(cuda_back,dfdy_dev,dfdy_dev)      
 
   !  Copy back to host
   dfdy(:,:,jz) = dfdy_dev
@@ -370,6 +372,7 @@ use types,only:rprec
 use param,only:ld,lh,nx,ny,nz
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_emul_cmplx_mult
 $else
@@ -383,13 +386,15 @@ real(rprec), dimension(:, :, lbz:), intent(inout) :: f
 real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
 
 $if($CUDA)
-real(rprec), device, allocatable, dimension(:,:) :: f_dev
+real(rprec), device, allocatable, dimension(:,:) :: f_dev, dfdx_dev, dfdy_dev
 $endif
 
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+
+allocate(f_dev(ld,ny), dfdx_dev(ld,ny), dfdy_dev(ld,ny))
 
 ! loop through horizontal slices
 do jz=lbz,nz
@@ -401,7 +406,7 @@ do jz=lbz,nz
   f_dev = f(:,:,jz)
 
   !  Perform FFT
-  call cufftExecD2Z(cuda_forw,f_dev,f_dev)  
+  call cufftExecD2Z_2D(cuda_forw,f_dev,f_dev)  
 
   !  Compute in-plane derivatives
   call cuda_emul_cmplx_mult_rci_2D<<< dimGrid, dimBlock >>>(&
@@ -415,9 +420,9 @@ do jz=lbz,nz
       f_dev, unity_dev, ld, lh, ny )      
 
   !  Perform inverse FFT
-  call cufftExecZ2D(cuda_back,f_dev,f_dev)
-  call cufftExecZ2D(cuda_back,dfdx_dev,dfdx_dev)
-  call cufftExecZ2D(cuda_back,dfdy_dev,dfdy_dev)
+  call cufftExecZ2D_2D(cuda_back,f_dev,f_dev)
+  call cufftExecZ2D_2D(cuda_back,dfdx_dev,dfdx_dev)
+  call cufftExecZ2D_2D(cuda_back,dfdy_dev,dfdy_dev)
 
   !  Copy to host
   f(:,:,jz) = f_dev

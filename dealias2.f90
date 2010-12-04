@@ -4,6 +4,7 @@ use types,only:rprec
 use param,only:ld,ld_big,nx,ny,nz,nx2,ny2,dx,dy
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_padd_mod
 $else
@@ -35,13 +36,13 @@ do jz=1,nz
   u_big_dev = u_big(:,:,jz)
 
   ! perform forward FFT
-  call cufftExecD2Z(cuda_forw_big,u_big_dev,u_big_dev) 
+  call cufftExecD2Z_2D(cuda_forw_big,u_big_dev,u_big_dev) 
 
   call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( u_dev )
   call cuda_unpadd <<< dimGrid, dimBlock >>>( u_big_dev, u_dev )
 
   ! Back to physical space
-   call cufftExecZ2D( cuda_back, u_dev, u_dev )
+   call cufftExecZ2D_2D( cuda_back, u_dev, u_dev )
 
   !  Copy data to host
   u(:,:,jz) = u_dev

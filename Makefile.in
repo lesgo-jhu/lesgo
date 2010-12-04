@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 FCOMP = pgf90
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/cuda/lib64
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64

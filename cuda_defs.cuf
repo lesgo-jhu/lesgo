@@ -11,7 +11,7 @@ contains
 !**********************************************************************
 subroutine cuda_init()
 !**********************************************************************
-use param, only : lh, ny, blx, bly
+use param, only : lh, lh_big, ny, ny2, blx, bly
 implicit none
 
 integer :: grid_x, grid_y
@@ -28,6 +28,6 @@ grid_y = ny2/bly + min(1,modulo(ny2,bly))
 
 dimGrid_big = dim3( grid_x, grid_y, 1)
 
-end subroutine cuda_derivatives_init
+end subroutine cuda_init
 
 end module cuda_defs

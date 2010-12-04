@@ -2,7 +2,7 @@
 module cuda_fft
 !**********************************************************************
 use types, only : rprec
-use param, only : nz, batchsize
+use param, only : nz
 use cudafor
 
 implicit none
@@ -73,27 +73,49 @@ end interface cufftDestroy
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-interface cufftExecD2Z
-subroutine cufftExecD2Z(plan, idata, odata) &
+interface cufftExecD2Z_3D
+subroutine cufftExecD2Z_3D(plan, idata, odata) &
 & bind(C,name='cufftExecD2Z')
 use iso_c_binding
 use types, only : rprec
 integer(c_int),value:: plan
 real(rprec),device::idata(:,:,:)
 real(rprec),device:: odata(:,:,:)
-end subroutine cufftExecD2Z
-end interface cufftExecD2Z
+end subroutine cufftExecD2Z_3D
+end interface cufftExecD2Z_3D
 
-interface cufftExecZ2D
-subroutine cufftExecZ2D(plan, idata, odata) &
+interface cufftExecZ2D_3D
+subroutine cufftExecZ2D_3D(plan, idata, odata) &
 & bind(C,name='cufftExecZ2D')
 use iso_c_binding
 use types, only : rprec
 integer(c_int),value:: plan
 real(rprec),device:: idata(:,:,:)
 real(rprec),device::odata(:,:,:)
-end subroutine cufftExecZ2D
-end interface cufftExecZ2D
+end subroutine cufftExecZ2D_3D
+end interface cufftExecZ2D_3D
+
+interface cufftExecD2Z_2D
+subroutine cufftExecD2Z_2D(plan, idata, odata) &
+& bind(C,name='cufftExecD2Z')
+use iso_c_binding
+use types, only : rprec
+integer(c_int),value:: plan
+real(rprec),device::idata(:,:)
+real(rprec),device:: odata(:,:)
+end subroutine cufftExecD2Z_2D
+end interface cufftExecD2Z_2D
+
+interface cufftExecZ2D_2D
+subroutine cufftExecZ2D_2D(plan, idata, odata) &
+& bind(C,name='cufftExecZ2D')
+use iso_c_binding
+use types, only : rprec
+integer(c_int),value:: plan
+real(rprec),device:: idata(:,:)
+real(rprec),device::odata(:,:)
+end subroutine cufftExecZ2D_2D
+end interface cufftExecZ2D_2D
 
 
 contains
@@ -101,7 +123,7 @@ contains
 !**********************************************************************
 subroutine cuda_fft_init()
 !**********************************************************************
-use param, only : nx, ny
+use param, only : nx, ny, nx2, ny2
 use fft, only : init_wavenumber
 implicit none
 
@@ -157,7 +179,7 @@ use fft, only : kx, ky
 implicit none
 integer :: jx, jy
 
-allocate(kx_dev(lh,ny),ky_dev(lh,ny), unity_dev)
+allocate(kx_dev(lh,ny),ky_dev(lh,ny), unity_dev(lh,ny))
 
 kx_dev = kx
 ky_dev = ky

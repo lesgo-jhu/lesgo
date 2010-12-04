@@ -54,8 +54,7 @@ attributes(global) subroutine cuda_emul_cmplx_mult_rci_2D( &
 use types, only : rprec
 implicit none
 
-real(rprec) :: a(nx_r,ny), a_c(nx_c,ny) ! Device memory
-real(rprec) :: b(nx_r,ny)
+real(rprec) :: a(nx_r,ny), a_c(nx_c,ny), b(nx_r,ny)
 integer, value :: nx_r, nx_c, ny
 
 integer :: i, j, k, tx, ty, tz, ir, ii

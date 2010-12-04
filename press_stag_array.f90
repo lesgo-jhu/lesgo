@@ -31,6 +31,7 @@ use immersedbc,only:fx,fy,fz  ! only for forcing experiment
 $if($CUDA)
 use cudafor
 use cuda_fft
+use fft, only : kx, ky
 $else
 use fft
 $endif
@@ -62,7 +63,8 @@ real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
 real(kind=rprec), dimension(ld, ny, nz), intent(out)::dfdx,dfdy
 
 $if($CUDA)
-real(rprec), device, allocatable, dimension(:,:,:) :: c_dev
+real(rprec), device, allocatable, dimension(:,:) :: c_dev
+real(rprec), device, allocatable, dimension(:,:,:) :: cxyz_dev
 $endif
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
@@ -92,7 +94,8 @@ write (*, *) 'started press_stag_array'
 $endif
 
 $if($CUDA)
-allocate(c_dev(ld,ny,3))
+allocate(c_dev(ld,ny))
+allocate(cxyz_dev(ld,ny,3))
 $endif
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
@@ -115,16 +118,16 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 
   $if($CUDA)
    !  Copy data to device
-  c_dev(:,:,1) = rH_x(:, :, jz)
-  c_dev(:,:,2) = rH_y(:, :, jz)
-  c_dev(:,:,3) = rH_z(:, :, jz)   
+  cxyz_dev(:,:,1) = rH_x(:, :, jz)
+  cxyz_dev(:,:,2) = rH_y(:, :, jz)
+  cxyz_dev(:,:,3) = rH_z(:, :, jz)   
 
-  call cufftExecD2Z(cuda_forw_3, c_dev, c_dev)
+  call cufftExecD2Z_3D(cuda_forw_3, cxyz_dev, cxyz_dev)
 
     !  Copy data to host
-  rH_x(:, :, jz) = c_dev(:,:,1)
-  rH_y(:, :, jz) = c_dev(:,:,2)
-  rH_z(:, :, jz) = c_dev(:,:,3)
+  rH_x(:, :, jz) = cxyz_dev(:,:,1)
+  rH_y(:, :, jz) = cxyz_dev(:,:,2)
+  rH_z(:, :, jz) = cxyz_dev(:,:,3)
 
   $else
   
@@ -169,12 +172,29 @@ end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   rbottomw(:, :) = const * divtz(:, :, 1)
+  $if($CUDA)
+  !  Copy data to device
+  c_dev = rbottomw
+  !  Perform FFT
+  call cufftExecD2Z_2D(cuda_forw, c_dev, c_dev)
+  !  Copy data to host
+  rbottomw = c_dev
+  $else
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), null())
+  $endif
 end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   rtopw(:, :) = const * divtz(:, :, nz)
+  $if($CUDA)
+  !  Copy data to device
+  c_dev = rtopw
+  call cufftExecD2Z_2D(cuda_forw, c_dev, c_dev)
+  !  Copy data to host
+  rtopw = c_dev
+  $else
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), null())
+  $endif
 end if
 
 ! set oddballs to 0
@@ -482,7 +502,14 @@ $if ($DEBUG)
 if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
+$if($CUDA)
+c_dev = p_hat(:,:,0)
+call cufftExecZ2D_2D(cuda_back, c_dev, c_dev)
+p_hat(:,:,0) = c_dev
+$else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),null())
+$endif
+
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,lh
@@ -500,16 +527,16 @@ end do
 
 $if($CUDA)
 !  Copy data to device
-c_dev(:,:,1) = dfdx(:,:,jz)
-c_dev(:,:,2) = dfdy(:,:,jz)
-c_dev(:,:,3) = p_hat(:,:,jz)
+cxyz_dev(:,:,1) = dfdx(:,:,jz)
+cxyz_dev(:,:,2) = dfdy(:,:,jz)
+cxyz_dev(:,:,3) = p_hat(:,:,jz)
 
-call cufftExecZ2D(cuda_back_3, c_dev, c_dev)
+call cufftExecZ2D_3D(cuda_back_3, cxyz_dev, cxyz_dev)
 
 !  Copy data to host
-dfdx(:,:,jz) = c_dev(:,:,1)
-dfdy(:,:,jz) = c_dev(:,:,2)
-p_hat(:,:,jz) = c_dev(:,:,3)
+dfdx(:,:,jz) = cxyz_dev(:,:,1)
+dfdy(:,:,jz) = cxyz_dev(:,:,2)
+p_hat(:,:,jz) = cxyz_dev(:,:,3)
 
 $else
 
@@ -530,7 +557,7 @@ write (*, *) 'finished press_stag_array'
 $endif
 
 $if($CUDA)
-deallocate(c_dev)
+deallocate(c_dev, cxyz_dev)
 $endif
 
 return

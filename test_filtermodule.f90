@@ -18,6 +18,7 @@ use types,only:rprec
 use param,only:ld,lh,ny
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_emul_cmplx_mult
 $else
@@ -40,12 +41,12 @@ allocate(f_dev(ld,ny), G_test_dev(ld,ny))
 !  Copy data to device
 f_dev = f
 !  Perform FFT
-call cufftExecD2Z(cuda_forw, f_dev, f_dev)
+call cufftExecD2Z_2D(cuda_forw, f_dev, f_dev)
 !  Multiply by G_test_dev (real part of complex array)
 call cuda_emul_cmplx_mult_inpl_rcr_2D<<< dimGrid, dimBlock >>>( &
   f_dev, G_test_dev, ld, lh, ny )
 !  Perform inverse FFT
-call cufftExecZ2D(cuda_back, f_dev, f_dev)  
+call cufftExecZ2D_2D(cuda_back, f_dev, f_dev)  
 !  Copy data to host
 f = f_dev
 

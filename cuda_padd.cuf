@@ -126,17 +126,17 @@ return
 end subroutine cuda_unpadd
 
 !**********************************************************************
-attributes(global) subroutine cuda_padd_zero (u_big)
+attributes(global) subroutine cuda_padd_zero (a_big)
 !**********************************************************************
 
 ! puts arrays into larger, zero-padded arrays 
 ! automatically zeroes the oddballs
 use types,only:rprec
-use param,only:ld_big,ny2
+use param,only:lh_big,ld_big,ny2
 implicit none
 
 ! a_big are interleaved as complex array
-real(kind=rprec), dimension(ld_big,ny2) :: u_big
+real(rprec), dimension(ld_big,ny2) :: a_big
 
 integer:: i, j, tx, ty, ii, ir
 
@@ -167,7 +167,7 @@ attributes(global) subroutine cuda_unpadd_zero( a )
 ! puts arrays into larger, zero-padded arrays 
 ! automatically zeroes the oddballs
 use types,only:rprec
-use param,only:ld,ny
+use param,only:lh,ld,ny
 implicit none
 
 ! a is interleaved as complex array

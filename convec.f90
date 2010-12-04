@@ -17,6 +17,7 @@ use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
 
 $if($CUDA)
 use cudafor
+use cuda_defs
 use cuda_fft
 use cuda_padd_mod
 $else
@@ -54,8 +55,8 @@ real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
                                                    vort3_big
 
 $if($CUDA)
-real(rprec), device, allocatable, dimension(:,:,:) :: c_dev
-real(rprec), device, allocatable, dimension(:,:,:) :: c_big_dev
+real(rprec), device, allocatable, dimension(:,:) ::c_dev, c_big_dev
+real(rprec), device, allocatable, dimension(:,:,:) :: cxyz_dev, cxyz_big_dev
 $endif
 
 !real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
@@ -69,7 +70,7 @@ $endif
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
 
 $if($CUDA)
-allocate(c_dev(ld, ny, 3), c_big_dev(ld_big,ny2,3))
+allocate(cxyz_dev(ld, ny, 3), cxyz_big_dev(ld_big,ny2,3))
 $endif
 
 ! sc: it would be nice to NOT have to loop through slices here
@@ -86,30 +87,30 @@ do jz = $lbz, nz
 
   $if($CUDA)
   !  Copy to device
-  c_dev(:,:,1) = cx(:,:,jz)
-  c_dev(:,:,2) = cy(:,:,jz)
-  c_dev(:,:,3) = cz(:,:,jz)
+  cxyz_dev(:,:,1) = cx(:,:,jz)
+  cxyz_dev(:,:,2) = cy(:,:,jz)
+  cxyz_dev(:,:,3) = cz(:,:,jz)
    
   !  Perform fft in batch of 3
-  call cufftExecD2Z(cuda_forw_3,c_dev,c_dev)
+  call cufftExecD2Z_3D(cuda_forw_3,cxyz_dev,cxyz_dev)
 
   !  Make sure padded array is zeroed first
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,1))
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,2))
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,3))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,1))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,2))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,3))
 
   !  Padd array
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,1),c_big_dev(:,:,1))
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,2),c_big_dev(:,:,2))
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,3),c_big_dev(:,:,3))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,1),cxyz_big_dev(:,:,1))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,2),cxyz_big_dev(:,:,2))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,3),cxyz_big_dev(:,:,3))
 
   !  Perform inverse fft in batch of 3
-  call cufftExecZ2D(cuda_back_big_3,c_big_dev,c_big_dev)
+  call cufftExecZ2D_3D(cuda_back_big_3,cxyz_big_dev,cxyz_big_dev)
 
   !  Copy data to host
-  u1_big(:,:,jz) = u_big_dev(:,:,1)
-  u2_big(:,:,jz) = u_big_dev(:,:,2)
-  u3_big(:,:,jz) = u_big_dev(:,:,3)  
+  u1_big(:,:,jz) = cxyz_big_dev(:,:,1)
+  u2_big(:,:,jz) = cxyz_big_dev(:,:,2)
+  u3_big(:,:,jz) = cxyz_big_dev(:,:,3)  
 
   $else
 
@@ -169,30 +170,30 @@ do jz = 1, nz
   $if($CUDA)
    
   !  Copy data to device
-  c_dev(:,:,1) = cx(:,:,jz)
-  c_dev(:,:,2) = cy(:,:,jz)
-  c_dev(:,:,3) = cz(:,:,jz)
+  cxyz_dev(:,:,1) = cx(:,:,jz)
+  cxyz_dev(:,:,2) = cy(:,:,jz)
+  cxyz_dev(:,:,3) = cz(:,:,jz)
 
   !  Perform fft in batch of 3
-  call cufftExecD2Z(cuda_forw_3,c_dev,c_dev)
+  call cufftExecD2Z_3D(cuda_forw_3,cxyz_dev,cxyz_dev)
 
   !  Make sure padded array is zeroed first
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,1))
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,2))
-  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(c_big_dev(:,:,3))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,1))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,2))
+  call cuda_padd_zero<<< dimGrid_big, dimBlock >>>(cxyz_big_dev(:,:,3))
 
   !  Padd array
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,1),c_big_dev(:,:,1))
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,2),c_big_dev(:,:,2))
-  call cuda_padd<<<dimGrid, dimBlock>>>(c_dev(:,:,3),c_big_dev(:,:,3))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,1),cxyz_big_dev(:,:,1))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,2),cxyz_big_dev(:,:,2))
+  call cuda_padd<<<dimGrid, dimBlock>>>(cxyz_dev(:,:,3),cxyz_big_dev(:,:,3))
 
   !  Perform inverse fft in batch of 3
-  call cufftExecZ2D(cuda_back_big_3,c_big_dev,c_big_dev)
+  call cufftExecZ2D_3D(cuda_back_big_3,cxyz_big_dev,cxyz_big_dev)
 
   !  Copy data to host
-  vort1_big(:,:,jz) = c_big_dev(:,:,1)
-  vort2_big(:,:,jz) = c_big_dev(:,:,2)
-  vort3_big(:,:,jz) = c_big_dev(:,:,3)
+  vort1_big(:,:,jz) = cxyz_big_dev(:,:,1)
+  vort2_big(:,:,jz) = cxyz_big_dev(:,:,2)
+  vort3_big(:,:,jz) = cxyz_big_dev(:,:,3)
 
   $else
 
@@ -213,6 +214,9 @@ do jz = 1, nz
 
 end do
 !$omp end parallel do
+
+deallocate(cxyz_dev, cxyz_big_dev)
+allocate(c_dev(ld,ny), c_big_dev(ld_big,ny2))
 
 ! CX
 ! redefinition of const
@@ -245,20 +249,20 @@ do jz=1,nz-1
 
   $if($CUDA)
   !  Copy data to device
-  c_big_dev(:,:,1) = cc_big(:,:,jz)
+  c_big_dev = cc_big(:,:,jz)
    
   !  Perform fft 
-  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+  call cufftExecD2Z_2D(cuda_forw_big,c_big_dev,c_big_dev)
 
   ! un-zero pad
   !  Make sure oddballs are pre-zeroed
-  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) )  
-  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev )  
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev, c_dev)
   ! Back to physical space
-  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+  call cufftExecZ2D_2D(cuda_back, c_dev, c_dev)
 
   !  Copy data to host
-  cx(:,:,jz) = c_dev(:,:,1)  
+  cx(:,:,jz) = c_dev  
 
   $else
 
@@ -303,21 +307,21 @@ do jz=1,nz-1
 
   $if($CUDA)
   !  Copy data to device
-  c_big_dev(:,:,1) = cc_big(:,:,jz)
+  c_big_dev = cc_big(:,:,jz)
 
   !  Perform fft 
-  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+  call cufftExecD2Z_2D(cuda_forw_big,c_big_dev,c_big_dev)
 
   ! un-zero pad
   !  Make sure oddballs are pre-zeroed
-  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) )  
-  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev )  
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev, c_dev)
 
   ! Back to physical space
-  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+  call cufftExecZ2D_2D(cuda_back, c_dev, c_dev)
 
   !  Copy data to host
-  cy(:,:,jz) = c_dev(:,:,1)
+  cy(:,:,jz) = c_dev
 
   $else
 
@@ -371,21 +375,21 @@ do jz=1,nz - 1
   $if($CUDA)
 
   !  Copy data to device
-  c_big_dev(:,:,1) = cc_big(:,:,jz)
+  c_big_dev = cc_big(:,:,jz)
 
   !  Perform fft 
-  call cufftExecD2Z(cuda_forw_big,c_big_dev(:,:,1),c_big_dev(:,:,1))
+  call cufftExecD2Z_2D(cuda_forw_big,c_big_dev,c_big_dev)
 
   ! un-zero pad
   !  Make sure oddballs are pre-zeroed
-  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev(:,:,1) ) 
-  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev(:,:,1), c_dev(:,:,1))
+  call cuda_unpadd_zero<<< dimGrid, dimBlock >>>( c_dev ) 
+  call cuda_unpadd<<< dimGrid, dimBlock>>>(c_big_dev, c_dev)
 
   ! Back to physical space
-  call cufftExecZ2D(cuda_back, c_dev(:,:,1), c_dev(:,:,1))
+  call cufftExecZ2D_2D(cuda_back, c_dev, c_dev)
 
   !  Copy data to host
-  cz(:,:,jz) = c_dev(:,:,1) 
+  cz(:,:,jz) = c_dev 
 
   $else
 
