@@ -22,7 +22,7 @@ implicit none
 real(kind=rprec), dimension(ld,ny) :: a
 real(kind=rprec), dimension(ld_big,ny2) :: a_big
 
-integer::jx,jy, tx, ty
+integer::i, j, tx, ty
 integer :: ir, ii
 integer :: j_off, j_off_big
 
@@ -167,7 +167,7 @@ attributes(global) subroutine cuda_unpadd_zero( a )
 ! puts arrays into larger, zero-padded arrays 
 ! automatically zeroes the oddballs
 use types,only:rprec
-use param,only:ld_big,ny2
+use param,only:ld,ny
 implicit none
 
 ! a is interleaved as complex array
@@ -193,6 +193,6 @@ endif
 
 return
 
-end subroutine cuda_padd_zero
+end subroutine cuda_unpadd_zero
 
 end module cuda_padd_mod
