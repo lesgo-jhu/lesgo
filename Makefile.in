@@ -228,7 +228,7 @@ ifeq ($(FCOMP),pgf90)
 
   LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz

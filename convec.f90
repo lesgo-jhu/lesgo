@@ -215,9 +215,10 @@ do jz = 1, nz
 end do
 !$omp end parallel do
 
+$if($CUDA)
 deallocate(cxyz_dev, cxyz_big_dev)
 allocate(c_dev(ld,ny), c_big_dev(ld_big,ny2))
-
+$endif
 ! CX
 ! redefinition of const
 const=1._rprec/(nx2*ny2)

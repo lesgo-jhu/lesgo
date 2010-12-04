@@ -24,6 +24,7 @@ use cuda_fft
 use cuda_emul_cmplx_mult
 $else
 use fft
+use emul_cmplx_mult
 $endif
 
 implicit none
@@ -84,7 +85,7 @@ do jz=lbz,nz
   !  call emul_complex_mult_real_complex_2D( dfdx(:,:,jz), eye*kx, ld, lh, ny, dfdx(:,:,jz) )
   
   !  Optimized version for real(eye*kx)=0; only passing imaginary part of eye*kx
-  call emul_complex_mult_inplace_real_complex_imag_2D( dfdx(:, :, jz), kx, ld, lh, ny )
+  call emul_cmplx_mult_inpl_rci_2d( dfdx(:, :, jz), kx, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
@@ -117,6 +118,7 @@ use cuda_fft
 use cuda_emul_cmplx_mult
 $else
 use fft
+use emul_cmplx_mult
 $endif
 
 implicit none      
@@ -176,7 +178,7 @@ do jz=lbz,nz
   !  call emul_complex_mult_real_complex_2D( dfdy(:,:,jz), eye*ky, ld, lh, ny, dfdy(:,:,jz) )
   
   !  Optimized version for real(eye*ky)=0; only passing imaginary part of eye*ky
-  call emul_complex_mult_inplace_real_complex_imag_2D( dfdy(:, :, jz), ky, ld, lh, ny )
+  call emul_cmplx_mult_inpl_rci_2d( dfdy(:, :, jz), ky, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())  
@@ -198,6 +200,7 @@ subroutine ddxy (f, dfdx, dfdy, lbz)
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
 use fft
+use emul_cmplx_mult
 implicit none
 integer::jz
 
@@ -227,9 +230,9 @@ do jz=lbz,nz
 ! derivatives: must to y's first here, because we're using dfdx as storage
    !dfdy_c(:,:,jz)=eye*ky(:,:)*dfdx_c(:,:,jz)
    !dfdx_c(:,:,jz)=eye*kx(:,:)*dfdx_c(:,:,jz)
-   call emul_complex_mult_inplace_real_complex_imag_2D( dfdx(:,:,jz), kx, &
+   call emul_cmplx_mult_inpl_rci_2d( dfdx(:,:,jz), kx, &
      ld, lh, ny)
-   call emul_complex_mult_real_complex_imag_2D( dfdx(:, :, jz), ky, &
+   call emul_cmplx_mult_rci_2D( dfdx(:, :, jz), ky, &
     ld, lh, ny, dfdy(:,:,jz))
 
 ! the oddballs for derivatives should already be dead, since they are for f
@@ -377,6 +380,7 @@ use cuda_fft
 use cuda_emul_cmplx_mult
 $else
 use fft
+use emul_cmplx_mult
 $endif
 implicit none
 integer::jz
@@ -394,7 +398,9 @@ $endif
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
+$if($CUDA)
 allocate(f_dev(ld,ny), dfdx_dev(ld,ny), dfdy_dev(ld,ny))
+$endif
 
 ! loop through horizontal slices
 do jz=lbz,nz
@@ -445,8 +451,8 @@ do jz=lbz,nz
   !  Compute in-plane derivatives
   !  dfdy_c(:,:,jz)=eye*ky(:,:)*f_c(:,:,jz) !  complex version
   !  dfdx_c(:,:,jz)=eye*kx(:,:)*f_c(:,:,jz) !  complex version
-  call emul_complex_mult_real_complex_imag_2D( f(:,:,jz), kx, ld, lh, ny, dfdx(:,:,jz) )
-  call emul_complex_mult_real_complex_imag_2D( f(:,:,jz), ky, ld, lh, ny, dfdy(:,:,jz) )
+  call emul_cmplx_mult_rci_2D( f(:,:,jz), kx, ld, lh, ny, dfdx(:,:,jz) )
+  call emul_cmplx_mult_rci_2D( f(:,:,jz), ky, ld, lh, ny, dfdy(:,:,jz) )
 
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 

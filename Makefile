@@ -13,12 +13,12 @@ EXE = lesgo
 
 SRCS =  \
 	bottombc.f90 \
-        cfl.f90 convec.f90 \
+        cfl.f90 fft.f90 convec.f90 \
         derivatives.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
-        energy.f90 \
-        fft.f90 forcing.f90 functions.f90 grid.f90 \
+        energy.f90 emul_cmplx_mult.f90 \
+        forcing.f90 functions.f90 grid.f90 \
         ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 \
 	interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 \
         lagrange_Sdep.f90 lagrange_Ssim.f90 \

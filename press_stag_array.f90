@@ -35,6 +35,7 @@ use fft, only : kx, ky
 $else
 use fft
 $endif
+use emul_cmplx_mult
 
 $if ($DEBUG)
 use debug_mod
@@ -375,9 +376,9 @@ do jz = jz_min, nz
       b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
       c(jx, jy, jz) = 1._rprec/(dz**2)   
       !  Compute eye * kx * H_x 
-      call emul_complex_mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
+      call emul_cmplx_mult_rci( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
       !  Compute eye * ky * H_y
-      call emul_complex_mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
+      call emul_cmplx_mult_rci( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
 
       $if ($DEBUG)
@@ -518,8 +519,8 @@ do jx=1,lh
 ! complex
    !dfdx(jx,jy,jz)=eye*kx(jx,jy)*p_hat(jx,jy,jz)
    !dfdy(jx,jy,jz)=eye*ky(jx,jy)*p_hat(jx,jy,jz)
-   call emul_complex_mult_real_complex_imag( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
-   call emul_complex_mult_real_complex_imag( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
+   call emul_cmplx_mult_rci( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
+   call emul_cmplx_mult_rci( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
 
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do

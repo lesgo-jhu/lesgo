@@ -23,6 +23,7 @@ use cuda_fft
 use cuda_emul_cmplx_mult
 $else
 use fft
+use emul_cmplx_mult
 $endif
 
 implicit none
@@ -59,7 +60,7 @@ call rfftwnd_f77_one_real_to_complex(forw,f,null())
 
 !  Perform f = G_test*f, emulating f as complex
 ! Nyquist frequency and normalization is taken care of with G_test
-call emul_complex_mult_inplace_real_complex_real_2D( f, G_test, ld, lh, ny )
+call emul_cmplx_mult_inpl_rcr_2D( f, G_test, ld, lh, ny )
 
 call rfftwnd_f77_one_complex_to_real(back,f,null())
 
