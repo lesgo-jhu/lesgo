@@ -27,7 +27,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 USE_CUDA = yes
 
@@ -229,7 +229,7 @@ ifeq ($(FCOMP),pgf90)
   LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
-  #FFLAGS = -O2 -fPIC
+  #FFLAGS = -O2 
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 

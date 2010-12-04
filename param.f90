@@ -78,6 +78,8 @@ module param
   $if($CUDA)
   !  Used to define block size for cuda kernels
   integer, parameter :: blx = 8, bly = 8
+  !  Specify number of GPU's available
+  integer, parameter :: ngpu=2
   $endif
   
 !---------------------------------------------------
