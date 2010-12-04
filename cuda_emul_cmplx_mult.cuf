@@ -1,0 +1,50 @@
+!**********************************************************************
+module cuda_emul_cmplx_mult
+!**********************************************************************
+implicit none
+
+contains
+
+!**********************************************************************
+attributes(global) subroutine cuda_emul_cmplx_mult_inpl_rci_2D( &
+  a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+real(rprec) :: a(nx_r,ny), a_c(nx_c,ny) ! Device memory
+integer, value :: nx_r, nx_c, ny
+
+integer :: i, j, k, tx, ty, tz, ir, ii
+real(rprec) :: a_r, a_i, a_c_i
+
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of complex array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+ii = 2*i
+ir = ii - 1
+
+if( j <= ny ) then
+  if( i <= nx_c ) then
+
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    a_c_i = a_c(i,j)
+
+    a(ir,j) = -a_i*a_c_i
+    a(ii,j) = a_r*a_c_i
+
+  endif
+endif
+
+return
+
+end subroutine cuda_emul_cmplx_mult_inpl_rci_2D
+
+end module cuda_cmplx_mult

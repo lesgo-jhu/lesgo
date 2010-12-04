@@ -1,0 +1,33 @@
+!**********************************************************************
+module cuda_defs
+!**********************************************************************
+use cudafor
+implicit none
+
+type(dim3) :: dimGrid, dimGrid_big, dimBlock
+
+contains
+
+!**********************************************************************
+subroutine cuda_init()
+!**********************************************************************
+use param, only : lh, ny, blx, bly
+implicit none
+
+integer :: grid_x, grid_y
+
+grid_x = lh/blx + min(1,modulo(lh,blx))
+grid_y = ny/bly + min(1,modulo(ny,bly))
+!grid_z = batchsize/blz + min(1,modulo(batchsize,blz))
+
+dimGrid = dim3( grid_x, grid_y, 1)
+dimBlock = dim3( blx, bly, 1 )
+
+grid_x = lh_big/blx + min(1,modulo(lh_big,blx))
+grid_y = ny2/bly + min(1,modulo(ny2,bly))
+
+dimGrid_big = dim3( grid_x, grid_y, 1)
+
+end subroutine cuda_derivatives_init
+
+end module cuda_defs

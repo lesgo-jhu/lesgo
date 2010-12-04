@@ -1,0 +1,198 @@
+module cuda_padd_mod
+
+implicit none
+
+contains
+
+!**********************************************************************
+attributes(global) subroutine cuda_padd (a, a_big)
+!**********************************************************************
+! puts arrays into larger, zero-padded arrays 
+! automatically zeroes the oddballs
+use types,only:rprec
+use param,only:ld,ld_big,nx,ny,ny2
+implicit none
+
+
+! note we're calling with 2D arrays
+!complex(kind=rprec),dimension(lh,ny),intent(in)::u
+!complex(kind=rprec),dimension(lh_big,ny2),intent(out)::u_big
+
+!  u and u_big are interleaved as complex arrays
+real(kind=rprec), dimension(ld,ny) :: a
+real(kind=rprec), dimension(ld_big,ny2) :: a_big
+
+integer::jx,jy, tx, ty
+integer :: ir, ii
+integer :: j_off, j_off_big
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of complex array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+! note: the loops are split in an attempt to maintain locality
+! test it                   !
+if( j <= ny/2 ) then
+  if( i <= nx/2 ) then
+
+    ii = 2*i
+    ir = ii - 1
+
+    a_big(ir:ii,j) = a(ir:ii,j)
+
+  endif
+endif
+
+
+if( j <= ny/2-1 ) then
+
+  !  Cache index
+  j_off_big = j+ny2-ny/2+1
+  j_off     = j+ny/2+1
+
+  if( i <= nx/2 ) then
+
+    a_big( ir:ii, j_off_big ) = a( ir:ii, j_off )
+
+  endif
+endif
+
+return
+end subroutine cuda_padd
+
+!**********************************************************************
+attributes(global) subroutine cuda_unpadd (a_big, a)
+!**********************************************************************
+! puts arrays into larger, zero-padded arrays 
+! automatically zeroes the oddballs
+use types,only:rprec
+use param,only:ld,ld_big,nx,ny,ny2
+implicit none
+
+
+! note we're calling with 2D arrays
+!complex(kind=rprec),dimension(lh,ny),intent(in)::u
+!complex(kind=rprec),dimension(lh_big,ny2),intent(out)::u_big
+
+!  u and u_big are interleaved as complex arrays
+real(kind=rprec), dimension(ld,ny) :: a
+real(kind=rprec), dimension(ld_big,ny2) :: a_big
+
+integer::i ,j, tx, ty
+integer :: ir, ii
+integer :: j_off, j_off_big
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of complex array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+! note: the loops are split in an attempt to maintain locality
+! test it !
+
+if( j <= ny/2 ) then
+  if( i <= nx/2 ) then
+
+    ii = 2*i
+    ir = ii - 1
+
+    a(ir:ii,j) = a_big(ir:ii,j)
+
+  endif
+endif
+
+
+if( j <= ny/2-1 ) then
+
+  !  Cache index
+  j_off_big = j+ny2-ny/2+1
+  j_off     = j+ny/2+1
+
+  if( i <= nx/2 ) then
+
+    a( ir:ii, j_off ) = a_big( ir:ii, j_off_big )
+
+  endif
+endif
+
+return
+end subroutine cuda_unpadd
+
+!**********************************************************************
+attributes(global) subroutine cuda_padd_zero (u_big)
+!**********************************************************************
+
+! puts arrays into larger, zero-padded arrays 
+! automatically zeroes the oddballs
+use types,only:rprec
+use param,only:ld_big,ny2
+implicit none
+
+! a_big are interleaved as complex array
+real(kind=rprec), dimension(ld_big,ny2) :: u_big
+
+integer:: i, j, tx, ty, ii, ir
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+if( j <= ny2 ) then
+  if( i <= lh_big ) then
+    ii = 2*i
+    ir = ii - 1
+    a_big(ir:ii,j) = 0._rprec
+  endif
+endif
+
+return
+
+end subroutine cuda_padd_zero
+
+!**********************************************************************
+attributes(global) subroutine cuda_unpadd_zero( a )
+!**********************************************************************
+
+! puts arrays into larger, zero-padded arrays 
+! automatically zeroes the oddballs
+use types,only:rprec
+use param,only:ld_big,ny2
+implicit none
+
+! a is interleaved as complex array
+real(kind=rprec), dimension(ld,ny) :: a
+
+integer:: i, j, tx, ty, ii, ir
+
+! Get the thread indices (with thread block)
+tx = threadidx%x
+ty = threadidx%y
+
+! Get the global index of array 
+i = (blockidx%x-1) * blockdim%x + tx
+j = (blockidx%y-1) * blockdim%y + ty
+
+if( j <= ny ) then
+  if( i <= lh ) then
+    ii = 2*i
+    ir = ii - 1
+    a(ir:ii,j) = 0._rprec
+  endif
+endif
+
+return
+
+end subroutine cuda_padd_zero
+
+end module cuda_padd_mod
