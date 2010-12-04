@@ -490,9 +490,13 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname, temp, var_list
-integer :: n, i, j, k, nvars
+integer :: n, i, j, k, nvars, icount
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
+
+$if($PGI)
+real(rprec), allocatable, dimension(:) :: u_inter
+$endif
 
 ! real(rprec) :: dnx, dny, dnz
 
@@ -572,14 +576,48 @@ elseif(itype==2) then
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
 
+  
+
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
     4, x, y, z(1:nz))
   $else
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
-    4, x, y, z(1:nz))
+    $if($PGI)
+    allocate(u_inter(nx*ny*nz*3))
+    icount=0
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = u(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = v(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = w(i,j,k)
+        enddo
+      enddo
+    enddo
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      u_inter, 4, x, y, z(1:nz))
+    deallocate(u_inter)
+    $else
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
+      4, x, y, z(1:nz))
+    $endif
   $endif
   
   !  Output Instantaneous Force Field for RNS Simulations
