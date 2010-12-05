@@ -1368,6 +1368,7 @@ $if ($MPI)
 $endif
 
 logical :: opn, exst
+integer :: n
 
 !---------------------------------------------------------------------
 
@@ -1401,11 +1402,29 @@ open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
 $endif
 
+$if($PGI)
+
+do n=1,nr_elem
+  read(1) r_elem_t(n) % force_t
+enddo
+do n=1,nbeta_elem
+  read(1) beta_elem_t(n) % force_t
+enddo
+do n=1,nb_elem
+  read(1) b_elem_t(n) % force_t
+enddo
+
+$else
+
 read (1) r_elem_t(:) % force_t 
 read (1) beta_elem_t(:) % force_t 
 read (1) b_elem_t(:) % force_t 
+
+$endif
+
 close (1)
 
+return
 end subroutine rns_force_init_ls
 
 !**********************************************************************
@@ -1428,6 +1447,7 @@ $if ($MPI)
 $endif
 
 logical :: opn
+integer :: n
 
 !---------------------------------------------------------------------
 
@@ -1451,11 +1471,28 @@ open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
 $endif
 
-write(1) r_elem_t(:) % force_t 
+$if($PGI)
+
+do n=1,nr_elem
+  write(1) r_elem_t(n) % force_t 
+enddo
+do n=1,nbeta_elem
+  write(1) beta_elem_t(n) % force_t
+enddo
+do n=1,nb_elem
+  write(1) b_elem_t(n) % force_t
+enddo
+
+$else
+
+write(1) r_elem_t(:) % force_t
 write(1) beta_elem_t(:) % force_t 
 write(1) b_elem_t(:) % force_t
+
+$endif
 close (1)
 
+return
 deallocate(r_elem_t)
 deallocate(beta_elem_t)
 deallocate(b_elem_t)
