@@ -13,7 +13,7 @@ $endif
 
 implicit none
 integer::jz
-real(kind=rprec),dimension(ld,ny,nz),intent(in):: u
+real(kind=rprec),dimension(ld,ny,nz),intent(inout):: u
 real(kind=rprec),dimension(ld_big,ny2,nz),intent(inout)::u_big
 real(kind=rprec)::ignore_me,const
 
