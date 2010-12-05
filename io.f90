@@ -583,9 +583,7 @@ elseif(itype==2) then
   !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
-
   
-
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
