@@ -12,16 +12,17 @@ include Makefile.in
 EXE = cyl_skew_pre_ls
 
 SRCS =  \
+        param.f90 types.f90 emul_cmplx_mult.f90 \
+        test_filtermodule.f90 \
 	cyl_skew_base_ls.f90 cyl_skew_ls.f90 \
- 	cyl_skew_pre_ls.f90 param.f90 io.f90 \
-	types.f90 sim_param.f90 messages.f90 strmod.f90 \
+ 	cyl_skew_pre_ls.f90 io.f90 \
+	sim_param.f90 messages.f90 strmod.f90 \
 	stat_defs.f90 grid.f90 functions.f90 level_set.f90 \
-	sgsmodule.f90 test_filtermodule.f90 fft.f90 \
+	sgsmodule.f90 fft.f90 \
 	level_set_base.f90 immersedbc.f90 linear_simple.f90 \
-	scalars_module.f90 bottombc.f90 filt_da.f90 \
-	dealias1.f90 dealias2.f90 ddx.f90 ddz_uv.f90 \
-	ddy.f90 ddz_w.f90 padd.f90 unpadd.f90
-
+	scalars_module.f90 bottombc.f90 derivatives.f90 \
+	dealias1.f90 dealias2.f90 padd.f90 unpadd.f90 
+	
 RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
 
 ifeq ($(USE_MPI), yes)
