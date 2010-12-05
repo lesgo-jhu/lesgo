@@ -37,10 +37,12 @@ real(rprec), device, allocatable, dimension(:,:) :: f_dev, G_test_dev
 $endif
 
 $if($CUDA)
-allocate(f_dev(ld,ny), G_test_dev(ld,ny))
+allocate(f_dev(ld,ny), G_test_dev(lh,ny))
 
 !  Copy data to device
 f_dev = f
+G_test_dev = G_test
+
 !  Perform FFT
 call cufftExecD2Z_2D(cuda_forw, f_dev, f_dev)
 !  Multiply by G_test_dev (real part of complex array)
