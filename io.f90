@@ -14,6 +14,15 @@ implicit none
 save
 private
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
@@ -91,9 +100,8 @@ integer, dimension(zplane_nloc) :: zplane_istart=-1, zplane_coord=-1
 real(rprec), dimension(zplane_nloc) :: zplane_ldiff
 real(rprec) :: zplane_fa
 
-real(rprec), dimension(lbound(w,1):ubound(w,1),lbound(w,2):ubound(w,2),lbound(w,3):ubound(w,3)) :: w_uv
-real(rprec), dimension(lbound(dudz,1):ubound(dudz,1),lbound(dudz,2):ubound(dudz,2),lbound(dudz,3):ubound(dudz,3)) :: dudz_uv ! on the uv grid
-real(rprec), dimension(lbound(dvdz,1):ubound(dvdz,1),lbound(dvdz,2):ubound(dvdz,2),lbound(dvdz,3):ubound(dvdz,3)) :: dvdz_uv ! on the uv grid
+real(rprec), dimension(ld,ny,$lbz:nz) :: w_uv, dudz_uv, dvdz_uv
+
 integer :: w_uv_tag, dudz_uv_tag, dvdz_uv_tag
                    
 !**********************************************************************
@@ -490,9 +498,13 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname, temp, var_list
-integer :: n, i, j, k, nvars
+integer :: n, i, j, k, nvars, icount
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
+
+$if($PGI)
+real(rprec), allocatable, dimension(:) :: u_inter
+$endif
 
 ! real(rprec) :: dnx, dny, dnz
 
@@ -571,15 +583,47 @@ elseif(itype==2) then
   !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
-
+  
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
     4, x, y, z(1:nz))
   $else
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
-    4, x, y, z(1:nz))
+    $if($PGI)
+    allocate(u_inter(nx*ny*nz*3))
+    icount=0
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = u(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = v(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = w(i,j,k)
+        enddo
+      enddo
+    enddo
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      u_inter, 4, x, y, z(1:nz))
+    deallocate(u_inter)
+    $else
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
+      4, x, y, z(1:nz))
+    $endif
   $endif
   
   !  Output Instantaneous Force Field for RNS Simulations
