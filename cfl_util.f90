@@ -53,6 +53,7 @@ $endif
 
 $if($PGI)
 cfl = maxval( u_inter )
+deallocate( u_inter )
 $else
 cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
                  dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
