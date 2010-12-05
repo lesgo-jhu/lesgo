@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = pgf90
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
@@ -218,11 +218,11 @@ ifeq ($(FCOMP),pgf90)
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = pgf90
+    FC = pgfortran
   endif
   LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz

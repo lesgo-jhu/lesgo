@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(63)/nproc + 1   
+  integer,parameter:: nx=32,ny=32,nz=(31)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -65,15 +65,15 @@ module param
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x= 4._rprec
-    real(rprec),parameter::L_y= 4._rprec    
-    real(rprec),parameter::L_z= 4._rprec
+    real(rprec),parameter::L_x= 2.*pi
+    real(rprec),parameter::L_y= 2.*pi 
+    real(rprec),parameter::L_z= 2.*pi
     !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
     !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
     real(rprec),parameter::dz=L_z/(nz_tot-1) ! or (L_z/nproc)/(nz - 1)
-    real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
+   real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
   
 !---------------------------------------------------
 ! MODEL PARAMETERS
@@ -117,7 +117,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 1
+  integer, parameter :: nsteps = 10000
  
   $if($CFL_DT)
   
@@ -219,22 +219,22 @@ module param
 
   ! domain instantaneous output
   logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 1000, domain_nend = nsteps, domain_nskip = 1000
+  integer, parameter :: domain_nstart = nsteps, domain_nend = nsteps, domain_nskip = nsteps
   
   ! x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .true.
+  logical, parameter :: xplane_calc   = .false.
   integer, parameter :: xplane_nstart = 1000, xplane_nend = nsteps, xplane_nskip  = 1000
   integer, parameter :: xplane_nloc   = 4
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .true.
+  logical, parameter :: yplane_calc   = .false.
   integer, parameter :: yplane_nstart = 1000, yplane_nend = nsteps, yplane_nskip  = 1000
   integer, parameter :: yplane_nloc   = 4
   real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)  
 
   ! z-plane instantaneous output
-  logical, parameter :: zplane_calc   = .true.
+  logical, parameter :: zplane_calc   = .false.
   integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
   integer, parameter :: zplane_nloc   = 1
   real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1 /)
