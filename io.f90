@@ -14,6 +14,15 @@ implicit none
 save
 private
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
@@ -91,9 +100,8 @@ integer, dimension(zplane_nloc) :: zplane_istart=-1, zplane_coord=-1
 real(rprec), dimension(zplane_nloc) :: zplane_ldiff
 real(rprec) :: zplane_fa
 
-real(rprec), dimension(lbound(w,1):ubound(w,1),lbound(w,2):ubound(w,2),lbound(w,3):ubound(w,3)) :: w_uv
-real(rprec), dimension(lbound(dudz,1):ubound(dudz,1),lbound(dudz,2):ubound(dudz,2),lbound(dudz,3):ubound(dudz,3)) :: dudz_uv ! on the uv grid
-real(rprec), dimension(lbound(dvdz,1):ubound(dvdz,1),lbound(dvdz,2):ubound(dvdz,2),lbound(dvdz,3):ubound(dvdz,3)) :: dvdz_uv ! on the uv grid
+real(rprec), dimension(ld,ny,$lbz:nz) :: w_uv, dudz_uv, dvdz_uv
+
 integer :: w_uv_tag, dudz_uv_tag, dvdz_uv_tag
                    
 !**********************************************************************
