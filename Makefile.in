@@ -9,7 +9,7 @@
 
 SHELL = /bin/bash
 FCOMP = pgf90
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/cuda/lib64
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/opt/cuda/lib64 -L/usr/local/lib64
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -27,12 +27,12 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
-USE_CUDA = yes
+USE_CUDA = no
 
 # Set dt based on CFL condition
-USE_CFL_DT = no
+USE_CFL_DT = yes
 
 # Write binary files as big_endian
 WRITE_BIG_ENDIAN = yes
@@ -220,28 +220,22 @@ ifeq ($(FCOMP),pgf90)
   
   FPP += -DPGI
   
-  LIBS += -lfcgaml-pgi
-  #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -O0 -Mbounds -Mchkfpstk -g -C -Minform=warn
-  #FFLAGS = -fast
-  #FFLAGS = -O2 
+  #LIBS += -lfcgaml-pgi
+  #FFLAGS = -O0 -Mbounds -Mchkfpstk -g -C -Minform=warn
+  FFLAGS = -fastsse -O3
+  #FFLAGS = -O2
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  FFLAGS += 
+  #FFLAGS += -mcmodel=medium
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = 
   MODDIR = -I$(MPATH) -module $(MPATH)
   FFLAGS += $(MODDIR)
-#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
 
   ifeq ($(USE_MPI), yes)
     FC = mpif90
-#    FFLAGS += -Mmpi=mpich2
-#    MODDIR += -I/opt/pgi/linux86-64/10.9/mpi/mpich/include/f90base
-#    LIBPATH += -L/opt/pgi/linux86-64/10.9/mpi/mpich/lib
   else
     FC = pgfortran
   endif

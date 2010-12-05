@@ -55,19 +55,19 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1   
+  integer,parameter:: nx=128,ny=128,nz=(128)/nproc + 1  
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
   ! this value is dimensional [m]:
-  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+  real(rprec),parameter::z_i=pi   !dimensions in meters, height of BL
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x= 4._rprec
-  real(rprec),parameter::L_y= 4._rprec    
-  real(rprec),parameter::L_z= 4._rprec
+  real(rprec),parameter::L_x= 2*pi
+  real(rprec),parameter::L_y= 2*pi
+  real(rprec),parameter::L_z= 2*pi
   !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
   !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
@@ -116,7 +116,7 @@ module param
 
   ! nu_molec is dimensional m^2/s
   real(rprec),parameter::nu_molec=1.14e-5_rprec  
-	   
+   
   logical,parameter::use_bldg=.false.
   logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
   
@@ -124,11 +124,11 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 1000
+  integer, parameter :: nsteps = 10000
  
   $if($CFL_DT)
   
-  real(rprec), parameter :: cfl = 0.1
+  real(rprec), parameter :: cfl = 0.25
   real(rprec) :: dt, dt_f, dt_dim, cfl_f
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -199,10 +199,10 @@ module param
 !---------------------------------------------------
 
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
-  integer,parameter::wbase=1
+  integer,parameter::wbase=100
   
   ! how often to write ke to check_ke.out
-  integer, parameter :: nenergy = 1  
+  integer, parameter :: nenergy = 100
 
   ! how often to display CFL condition
   integer,parameter::cfl_count=1000  
@@ -215,35 +215,31 @@ module param
   logical, parameter :: point_calc = .false.
   integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
   integer, parameter :: point_nloc = 1
-  !real(rprec), save, dimension(3,point_nloc) :: point_loc = (/ &
-  !    (/ L_x/2., L_y/2., 2._rprec /), &
-  !    (/ 3._rprec, 2._rprec, 2._rprec /) &
-  !    /)
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
         point3D( (/ L_x/2., L_y/2., L_z/2. /) ) &
         /)
 
   ! domain instantaneous output
-  logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 1000, domain_nend = nsteps, domain_nskip = 1000
+  logical, parameter :: domain_calc = .false.
+  integer, parameter :: domain_nstart = 5000, domain_nend = nsteps, domain_nskip = 5000
   
   ! x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .true.
-  integer, parameter :: xplane_nstart = 1000, xplane_nend = nsteps, xplane_nskip  = 1000
+  logical, parameter :: xplane_calc   = .false.
+  integer, parameter :: xplane_nstart = 5000, xplane_nend = nsteps, xplane_nskip  = 5000
   integer, parameter :: xplane_nloc   = 4
-  real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)
+  real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/8, 3*L_x/8, 5*L_x/8, 7*L_x/8 /)
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .true.
-  integer, parameter :: yplane_nstart = 1000, yplane_nend = nsteps, yplane_nskip  = 1000
+  logical, parameter :: yplane_calc   = .false.
+  integer, parameter :: yplane_nstart = 5000, yplane_nend = nsteps, yplane_nskip  = 5000
   integer, parameter :: yplane_nloc   = 4
-  real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)  
+  real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ L_y/8, 3*L_y/8, 5*L_y/8, 7*L_y/8 /)
 
   ! z-plane instantaneous output
-  logical, parameter :: zplane_calc   = .true.
-  integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
-  integer, parameter :: zplane_nloc   = 1
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1 /)
+  logical, parameter :: zplane_calc   = .false.
+  integer, parameter :: zplane_nstart = 5000, zplane_nend = nsteps, zplane_nskip  = 5000
+  integer, parameter :: zplane_nloc   = 4
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ L_z/8, 3*L_z/8, 5*L_z/8, 7*L_z/8 /)
 
 !--------------------------------------------------- 
 ! SCALAR PARAMETERS
