@@ -25,7 +25,7 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 integer, parameter :: ntree = 5
 
-integer, parameter :: ngen = 10
+integer, parameter :: ngen = 3
 integer, parameter :: ngen_reslv = 2
 
 integer, parameter :: nbranch = 3
