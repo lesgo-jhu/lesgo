@@ -81,7 +81,7 @@ type force_type_2
   !integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fx, fy
   real(rprec) :: CD
-  real(rprec) :: kappa ! Used for unresolved branches
+  real(rprec) :: error
   real(rprec) :: LAB, LBB ! Used for temporal weighting
 end type force_type_2
 
