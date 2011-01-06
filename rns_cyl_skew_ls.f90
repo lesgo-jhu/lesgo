@@ -27,11 +27,12 @@ $endif
 save
 private
 
-public rns_init_ls
+public rns_init_ls, rns_tree_layout
 
 character (*), parameter :: mod_name = 'rns_cyl_skew_ls'
 
-integer, parameter :: rns_tree_layout = 1
+!  Options: 'default', 'kc-3'
+character(*), parameter :: rns_tree_layout = 'kc-3'
 
 integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
@@ -41,7 +42,9 @@ integer, pointer, dimension(:) :: r_elem_to_basecl_map
 integer, pointer, dimension(:) :: beta_elem_to_basecl_map
 integer, pointer, dimension(:) :: b_elem_to_basecl_map
 
-integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+!integer, pointer, dimension(:) :: rns_tree_map(:) ! This maps the tree number from cyl_skew to the trees considered during rns
+integer, pointer, dimension(:) :: rns_to_cyl_skew_tree_map
+integer, pointer, dimension(:) :: cyl_skew_to_rns_tree_map
 
 integer :: clindx(ld, ny, $lbz:nz)
 logical :: clindx_initialized = .false.
@@ -287,7 +290,8 @@ character (*), parameter :: sub_name = mod_name // '.fill_rns_tree_map'
 integer :: n, nt
 
 !  this is used to map the brindx to correct rns tree
-allocate( rns_tree_map( ntree ) )
+allocate( rns_to_cyl_skew_tree_map( rns_ntree ) )
+allocate( cyl_skew_to_rns_tree_map( ntree ) )
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
   write(*,*) ' '
@@ -296,29 +300,37 @@ if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 endif
 
 !  Assign rns_tree_map layout
-if(rns_tree_layout == 1) then 
+select case (rns_tree_layout)
 
-  do nt = 1, ntree
+  case('default')
+
+    do nt = 1, ntree
   
-    if( nt <= rns_ntree ) then
-        rns_tree_map( nt ) = nt
-    else
-        rns_tree_map(nt) = rns_ntree
-    endif
+      if( nt <= rns_ntree ) then
+          cyl_skew_to_rns_tree_map( nt ) = nt
+          rns_to_cyl_skew_tree_map( nt ) = nt
+      else
+          cyl_skew_to_rns_tree_map(nt) = rns_ntree
+      endif
     
-  enddo
-  
-else
- 
-  call error(sub_name, 'rns_tree_layout must be 1 for now')
-  
-endif
+    enddo
+
+  case('kc-3')
+
+    cyl_skew_to_rns_tree_map = (/ 1, 2, 3, 3, 4, 4, 4, 4 /)
+    rns_to_cyl_skew_tree_map = (/ 1, 2, 3, 5 /)
+
+  case default
+
+    call error(sub_name, 'rns_tree_layout not specified correctly')
+
+end select
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
 write(*,*) '----> RNS Tree Mapping : '
   write(*,*) '| ID       | RNS NT   |'
   do n=1, ntree
-    write(*,'(i12,i11)') n, rns_tree_map(n)
+    write(*,'(i12,i11)') n, cyl_skew_to_rns_tree_map(n)
   enddo
 endif
 
@@ -350,7 +362,7 @@ nr_elem = 0
 do nt = 1, rns_ntree
   
   !  Point to RNS mapped tree
-  tr_t_p => tr_t( rns_tree_map(nt) ) 
+  tr_t_p => tr_t( rns_to_cyl_skew_tree_map(nt) ) 
   
   do ng=1, tr_t_p % ngen_reslv
 
@@ -401,15 +413,15 @@ nb_elem = 0
 do nt = 1, rns_ntree
 
   !  Point to the resolved generation of the rns mapped tree  
-  gen_t_p => tr_t( rns_tree_map( nt ) ) % gen_t( ngen_reslv )
-	
+  gen_t_p => tr_t( rns_to_cyl_skew_tree_map( nt ) ) % gen_t( ngen_reslv )
+  
   do nc = 1, gen_t_p % ncluster 
-	
-      nb_elem = nb_elem + 1
+  
+    nb_elem = nb_elem + 1
     
-	enddo    
-	
-	nullify(gen_t_p)
+  enddo    
+
+  nullify(gen_t_p)
   
 enddo
 
@@ -449,7 +461,7 @@ nbeta_elem = 0
 do nt = 1, rns_ntree
 
   !  Point to the resolved generation of the rns mapped tree  
-  gen_t_p => tr_t( rns_tree_map( nt ) ) % gen_t( ngen_reslv + 1)
+  gen_t_p => tr_t( rns_to_cyl_skew_tree_map( nt ) ) % gen_t( ngen_reslv + 1)
 	
   do nc = 1, gen_t_p % ncluster 
   
@@ -735,12 +747,12 @@ ncount=0
 do nt = 1, rns_ntree
 
   !  Point to RNS mapped tree
-  tr_t_p => tr_t( rns_tree_map( nt ) )
+  tr_t_p => tr_t( rns_to_cyl_skew_tree_map( nt ) )
   
   do ng = 1, tr_t_p % ngen_reslv
   
     gen_t_p => tr_t_p % gen_t( ng )
-	
+    
     do nc = 1, gen_t_p % ncluster 
     
       ncount = ncount + 1
@@ -782,7 +794,7 @@ implicit none
 integer :: ncount, nt, ng, nc, n
 integer :: iparent, ng_parent
 
-integer, pointer :: clindx_p
+integer, pointer :: clindx_p, trindx_p
 integer, pointer, dimension(:) :: cl_loc_id_p
 
 type(tree), pointer :: tr_t_p 
@@ -791,6 +803,7 @@ type(generation), pointer :: gen_t_p
 ! Nullify all pointers
 nullify(tr_t_p, gen_t_p)
 nullify(clindx_p)
+nullify(trindx_p)
 nullify(cl_loc_id_p)
 
 allocate( cl_to_beta_elem_map( ncluster_tot ) ) 
@@ -809,7 +822,7 @@ endif
 ncount=0  
 do nt = 1, rns_ntree
     
-  tr_t_p => tr_t( rns_tree_map( nt ) ) 
+  tr_t_p => tr_t( rns_to_cyl_skew_tree_map( nt ) ) 
     
   gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv + 1 )
     
@@ -842,13 +855,15 @@ do nt = 1, rns_ntree
       do while ( ng_parent > tr_t_p % ngen_reslv + 1)
         
         cl_loc_id_p => clindx_to_loc_id(:,iparent)
+        trindx_p => rns_to_cyl_skew_tree_map( cyl_skew_to_rns_tree_map( cl_loc_id_p(1) ) )
         
-		!  Careful - cl_loc_id_p(1) should point to a RNS tree (set above)
-        iparent = tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t (cl_loc_id_p(2)) % cl_t(cl_loc_id_p(3)) % parent
+        !  Careful - cl_loc_id_p(1) should point to a RNS tree (set above)
+        iparent = tr_t( trindx_p ) % gen_t (cl_loc_id_p(2)) % cl_t(cl_loc_id_p(3)) % parent
           
         ng_parent = cl_loc_id_p(2) - 1
           
         nullify(cl_loc_id_p)
+        nullify(trindx_p)
           
       enddo
         
@@ -891,7 +906,7 @@ implicit none
 integer :: ncount, nt, ng, nc, n
 integer :: iparent, ng_parent
 
-integer, pointer :: clindx_p => null()
+integer, pointer :: clindx_p => null(), trindx_p => null()
 integer, pointer, dimension(:) :: cl_loc_id_p
 
 type(tree), pointer :: tr_t_p 
@@ -918,7 +933,7 @@ endif
 ncount = 0
 do nt = 1, rns_ntree
   
-  tr_t_p => tr_t( rns_tree_map( nt ) ) 
+  tr_t_p => tr_t( rns_to_cyl_skew_tree_map( nt ) ) 
    
   gen_t_p => tr_t_p % gen_t ( tr_t_p % ngen_reslv )
     
@@ -955,12 +970,14 @@ do nt = 1, rns_ntree
       do while ( ng_parent > tr_t_p % ngen_reslv)
         
         cl_loc_id_p => clindx_to_loc_id(:,iparent)
-          
-        iparent = tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t (cl_loc_id_p(2)) % cl_t(cl_loc_id_p(3)) % parent
+        trindx_p => rns_to_cyl_skew_tree_map( cyl_skew_to_rns_tree_map( cl_loc_id_p(1) ) )  
+
+        iparent = tr_t( trindx_p ) % gen_t (cl_loc_id_p(2)) % cl_t(cl_loc_id_p(3)) % parent
           
         ng_parent = cl_loc_id_p(2) - 1
           
         nullify(cl_loc_id_p)
+        nullify(trindx_p)
           
       enddo
         
@@ -1152,11 +1169,12 @@ integer :: i,j,k, n, np
 
 integer, allocatable, dimension(:) :: npoint_global
 
-integer, pointer :: clindx_p, indx_p, npoint_p
+integer, pointer :: clindx_p, indx_p, npoint_p, trindx_p
 integer, pointer, dimension(:) :: cl_loc_id_p
 
 ! ---- Nullify all pointers ----
 nullify(clindx_p)
+nullify(trindx_p)
 nullify(indx_p)
 nullify(npoint_p)
 nullify(cl_loc_id_p)
@@ -1191,34 +1209,38 @@ do k=1, nz - 1
       
         !  Need to map cluster to coorespond cluster in RNS tree
         cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
-        clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
+        trindx_p => rns_to_cyl_skew_tree_map( cyl_skew_to_rns_tree_map( cl_loc_id_p(1) ) )
+
+        clindx_p => tr_t( trindx_p ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
  
         indx_p => cl_to_r_elem_map( clindx_p )
+
+        nullify( trindx_p )
       
-	    !  Check if cluster belongs to a r_elem
+        !  Check if cluster belongs to a r_elem
         if( indx_p > 0 ) then
-		
+
           !  Use only inside points
           if ( phi(i,j,k) <= 0._rprec ) then 
 
 
             pre_indx_array_t( indx_p ) % npoint = pre_indx_array_t( indx_p ) % npoint + 1
-			
-	          npoint_p => pre_indx_array_t( indx_p ) % npoint
+
+            npoint_p => pre_indx_array_t( indx_p ) % npoint
         
             pre_indx_array_t( indx_p ) % iarray(1, npoint_p ) = i
             pre_indx_array_t( indx_p ) % iarray(2, npoint_p ) = j
             pre_indx_array_t( indx_p ) % iarray(3, npoint_p ) = k
           
             nullify( npoint_p )
-			
+
           endif
-		  
+  
         endif
 
         nullify( indx_p )
         nullify(clindx_p)
-	nullify(cl_loc_id_p)        
+        nullify(cl_loc_id_p)        
        
       endif
       
@@ -1418,11 +1440,12 @@ integer :: i,j,k, n, np
 
 integer, allocatable, dimension(:) :: npoint_global
 
-integer, pointer :: clindx_p, indx_p, npoint_p
+integer, pointer :: clindx_p, indx_p, npoint_p, trindx_p
 integer, pointer, dimension(:) :: cl_loc_id_p
 
 ! ---- Nullify all pointers ----
 nullify(clindx_p)
+nullify(trindx_p)
 nullify(indx_p)
 nullify(npoint_p)
 nullify(cl_loc_id_p)
@@ -1456,30 +1479,34 @@ do k=1, nz - 1
            
       if ( clindx(i,j,k) > 0 ) then
       
-      	  !  Need to map cluster to coorespond cluster in RNS tree
-	      cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
-	      clindx_p => tr_t( rns_tree_map( cl_loc_id_p(1) ) ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
+        !  Need to map cluster to coorespond cluster in RNS tree
+        cl_loc_id_p => clindx_to_loc_id(:, clindx(i,j,k))
+        trindx_p => rns_to_cyl_skew_tree_map( cyl_skew_to_rns_tree_map( cl_loc_id_p(1) ))
+
+        clindx_p => tr_t( trindx_p ) % gen_t( cl_loc_id_p(2) ) % cl_t ( cl_loc_id_p(3) ) % indx
   
         indx_p => cl_to_beta_elem_map( clindx_p )
+
+        nullify(trindx_p)
       
-	    !  Check if cluster belongs to beta_elem
+        !  Check if cluster belongs to beta_elem
         if( indx_p > 0 ) then
-		
+
           !  Use only points within cutoff
           if ( chi(i,j,k) >= chi_cutoff ) then 
 
             pre_indx_array_t( indx_p ) % npoint = pre_indx_array_t( indx_p ) % npoint + 1
-			
-	          npoint_p => pre_indx_array_t( indx_p ) % npoint
+
+            npoint_p => pre_indx_array_t( indx_p ) % npoint
         
             pre_indx_array_t( indx_p ) % iarray(1, npoint_p ) = i
             pre_indx_array_t( indx_p ) % iarray(2, npoint_p ) = j
             pre_indx_array_t( indx_p ) % iarray(3, npoint_p ) = k
           
-	        nullify( npoint_p )
-			
+            nullify( npoint_p )
+
           endif
-		  
+  
         endif
 
         nullify( indx_p )
