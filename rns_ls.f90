@@ -282,16 +282,16 @@ do n=1, nb_elem
 
 enddo
 
-if( temporal_weight == 0 ) then
+if( temporal_model == 1 ) then
 
-  if( temporal_model == 1 ) then
-  
-    !  Compute F_b^n (CD^{n-1})
-    allocate(b_force( ndim, nb_elem ))
-    do n=1, nb_elem
-      b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
-    enddo
-  
+  !  Compute F_b^n (CD^{n-1})
+  allocate(b_force( ndim, nb_elem ))
+  do n=1, nb_elem
+    b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+  enddo
+
+  if( temporal_weight == 0 ) then
+
     if( spatial_model == 1 ) then
 
       call b_elem_CD_LE()
@@ -305,15 +305,51 @@ if( temporal_weight == 0 ) then
       call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
+
+  elseif( temporal_weight == 1 ) then 
+
+    if( spatial_model == 1 ) then
+
+      call b_elem_CD_LETW()
+
+    elseif( spatial_model == 2 ) then
   
-    deallocate(b_force)
+      call b_elem_CD_GETW()
 
-  elseif( temporal_model == 2) then ! use implicit formulation
+    else
 
-    allocate( b_m( ndim, nb_elem ) )  
-    do n=1,nb_elem
-      b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n)
-    enddo
+      call error( sub_name, 'spatial_model not specified correctly.')
+
+    endif 
+
+  else
+
+    call error( sub_name, 'temporal_weight not specified correctly.')
+
+  endif
+
+  !  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
+  if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep  
+
+  !  Compute the RNS error for the b elem (e_b = F_b + CD_b * gamma_b)
+  do n=1, nb_elem
+    force_t_p => b_elem(n) % force_t
+    force_t_p % error = 100.*sqrt( ( b_force(1,n) + force_t_p % CD * b_gamma(1,n))**2 + &
+                                   ( b_force(2,n) + force_t_p % CD * b_gamma(2,n))**2 ) / &
+                             sqrt( b_force(1,n)**2 + b_force(2,n)**2 )
+    nullify(force_t_p)                            
+  enddo
+
+  deallocate(b_force)  
+
+elseif( temporal_model == 2) then ! use implicit formulation
+
+  allocate( b_m( ndim, nb_elem ) )  
+  do n=1,nb_elem
+    b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n)
+  enddo  
+
+  if( temporal_weight == 0 ) then
 
     if( spatial_model == 1 ) then
  
@@ -328,48 +364,8 @@ if( temporal_weight == 0 ) then
       call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
-  
-    deallocate( b_m )
-  
-  else
-  
-    call error( sub_name, 'temporal_model not specified correctly.')  
- 
-  endif
 
-  deallocate(b_r_force)
-
-elseif( temporal_weight == 1 ) then
-
-  if( temporal_model == 1 ) then
-    !  Compute F_b^n (CD^{n-1})
-    allocate(b_force( ndim, nb_elem ))
-    do n=1, nb_elem
-      b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
-    enddo  
-  
-    if( spatial_model == 1 ) then
-
-      call b_elem_CD_LETW()
-
-    elseif( spatial_model == 2 ) then
-  
-      call b_elem_CD_GETW()
-
-    else
-
-      call error( sub_name, 'spatial_model not specified correctly.')
-
-    endif
-    
-    deallocate(b_force)
-
-  elseif( temporal_model == 2 ) then
-  
-    allocate( b_m( ndim, nb_elem ) ) 
-    do n=1, nb_elem
-      b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n) 
-    enddo
+  elseif( temporal_weight == 1 ) then
 
     if( spatial_model == 1 ) then
 
@@ -386,19 +382,30 @@ elseif( temporal_weight == 1 ) then
     endif
 
   else
-   
-    call error( sub_name, 'temporal_method not specified correctly.')
 
-  endif
+    call error( sub_name, 'temporal_weight not specified correctly.')
+
+  endif    
+
+  !  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
+  if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep  
+
+  !  Compute the RNS error for the b elem (e_b = R_b + CD_b * M_b)
+  do n=1, nb_elem
+    force_t_p => b_elem(n) % force_t
+    force_t_p % error = 100.*sqrt( ( b_r_force(1,n) + force_t_p % CD * b_m(1,n))**2 + &
+                                   ( b_r_force(2,n) + force_t_p % CD * b_m(2,n))**2 ) / &
+                             sqrt( b_r_force(1,n)**2 + b_r_force(2,n)**2 )
+    nullify(force_t_p)
+  enddo  
+
+  deallocate( b_m )
+
+else
   
-else  
-
-  call error( sub_name, 'temporal_weight not specified correctly.')
-
-endif
-
-!  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
-if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep
+  call error( sub_name, 'temporal_model not specified correctly.')  
+ 
+endif  
 
 !  Now update the CD of all the beta_elem 
 do n=1, nb_elem
@@ -437,10 +444,6 @@ do n=1, nb_elem
     force_t_p % fx = force_t_p % fx + beta_elem_t( indx_p(ns) ) % force_t % fx
     force_t_p % fy = force_t_p % fy + beta_elem_t( indx_p(ns) ) % force_t % fy
   enddo 
-
-  !  Compute the RNS error for the b elem (e_b = F_b + CD_b * gamma_b)
-  force_t_p % error = sqrt( (force_t_p % fx + force_t_p % CD * b_gamma(1,n))**2 + &
-                            (force_t_p % fy + force_t_p % CD * b_gamma(2,n))**2 )
 
   nullify( nelem_p, indx_p, force_t_p )
   
