@@ -30,8 +30,10 @@ integer, parameter :: rns_ntree = 2 ! Number of unique trees
 
 !  Weighting Off - 0, On - 1
 integer, parameter :: temporal_weight = 1
-!real(rprec), parameter :: Tconst = 0.25_rprec
-real(rprec), parameter :: Tconst = 10.0_rprec
+! kunlun_canopy-2
+!real(rprec), parameter :: Tconst = 16.0_rprec
+! vtree-2
+real(rprec), parameter :: Tconst = 1.0_rprec
 real(rprec), parameter :: weight_nstart = 0
 
 !  Explict - 1, Implicit - 2
@@ -45,13 +47,11 @@ integer, parameter :: CD_ramp_nstep = 0
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
-!real(rprec), parameter :: alpha_width = 1.1429_rprec
 
-!real(rprec), parameter :: alpha_dist = 0.85714_rprec
-!real(rprec), parameter :: alpha_dist = 0.5_rprec
+! alpha_dist = h / h (kunlun_canopy-2)
 !real(rprec), parameter :: alpha_dist = 1.0_rprec
-real(rprec), parameter :: alpha_dist = 1.166666667_rprec
-
+! alpha_dist = d / h (vtree-2)
+real(rprec), parameter :: alpha_dist = 0.57143
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
@@ -81,7 +81,7 @@ type force_type_2
   !integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fx, fy
   real(rprec) :: CD
-  real(rprec) :: kappa ! Used for unresolved branches
+  real(rprec) :: error
   real(rprec) :: LAB, LBB ! Used for temporal weighting
 end type force_type_2
 

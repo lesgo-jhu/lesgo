@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = pgf90
+FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 

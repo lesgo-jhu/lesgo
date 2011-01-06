@@ -1547,10 +1547,8 @@ call fill_b_elem_ref_region()
 call set_b_elem_children()
 !  Initialize force data
 do n=1, nb_elem
-!  b_elem_t( n ) % force_t = force_type_2( fx=0._rprec, fy=0._rprec, CD=0._rprec, kappa=0._rprec, &
-!    LAB=0._rprec, LBB=0._rprec )
-  b_elem_t( n ) % force_t = force_type_2(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec )
+  b_elem_t( n ) % force_t = force_type_2( fx=0._rprec, fy=0._rprec, CD=0._rprec, &
+    error=0._rprec, LAB=0._rprec, LBB=0._rprec )
 enddo
 
 return
