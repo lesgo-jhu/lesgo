@@ -28,7 +28,7 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 ! vtree-2
 integer, parameter :: ntree = 2
 
-integer, parameter :: ngen = 3
+integer, parameter :: ngen = 10
 integer, parameter :: ngen_reslv = 2
 
 ! kunlun_canopy-2
