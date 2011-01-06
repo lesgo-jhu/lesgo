@@ -220,10 +220,10 @@ ifeq ($(FCOMP),pgf90)
   
   FPP += -DPGI
   
-  #LIBS += -lfcgaml-pgi
-  #FFLAGS = -O0 -Mbounds -Mchkfpstk -g -C -Minform=warn
-  FFLAGS = -fastsse -O3
-  #FFLAGS = -O2
+  LIBS += -lfcgaml-pgi
+  #FFLAGS = -O3 -fastsse -Mcache_align
+  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS += -warn all -mcmodel=medium -shared-intel

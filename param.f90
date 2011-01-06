@@ -230,7 +230,7 @@ module param
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/8, 3*L_x/8, 5*L_x/8, 7*L_x/8 /)
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .true.
+  logical, parameter :: yplane_calc   = .false.
   integer, parameter :: yplane_nstart = 1000, yplane_nend = nsteps, yplane_nskip  = 1000
   integer, parameter :: yplane_nloc   = 4
   real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ L_y/8, 3*L_y/8, 5*L_y/8, 7*L_y/8 /)
