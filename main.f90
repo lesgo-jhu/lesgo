@@ -60,11 +60,6 @@ real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
 
-! Start wall clock
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  call cpu_time (clock_start)
-endif
-
 ! Check if read inflow from file is being specified; currently does not work
 if(inflow) then
   write(*,*) 'Error: read inflow conditions from file has been specified!'
@@ -76,105 +71,93 @@ endif
 call system("mkdir -vp output")
 
 ! INITIALIZATION
-    ! Define simulation parameters
-        call sim_param_init ()
+! Define simulation parameters
+call sim_param_init ()
 
-    ! Initialize MPI
-        $if ($MPI)
-          call initialize_mpi()
-        $else
-          if (nproc /= 1) then
-            write (*, *) 'nproc /=1 for non-MPI run is an error'
-            stop
-          end if
-          if (USE_MPI) then
-            write (*, *) 'inconsistent use of USE_MPI and $MPI'
-            stop
-          end if
-          chcoord = ''
-        $endif
+! Initialize MPI
+$if ($MPI)
+call initialize_mpi()
+$else
+  if (nproc /= 1) then
+    write (*, *) 'nproc /=1 for non-MPI run is an error'
+    stop
+  end if
+  if (USE_MPI) then
+    write (*, *) 'inconsistent use of USE_MPI and $MPI'
+    stop
+  end if
+  chcoord = ''
+$endif
 
-    ! Initialize uv grid (calculate x,y,z vectors)
-        call grid_build()
+$if($MPI)
+  if(coord == 0) then
+    call cpu_time(clock_start)
+    call param_output()
+  endif
+$else
+  call cpu_time(clock_start)
+  call param_output()
+$endif
 
-    ! Initialize variables used for tavg and other data output
-        call stats_init()
+! Initialize uv grid (calculate x,y,z vectors)
+call grid_build()
 
-    ! Write to screen
-        if(coord == 0) then
-          write(*,*) 'dz = ', dz
-          write(*,*) 'nz = ', nz
-          write(*,*) 'nz_tot = ', nz_tot
-        endif
+! Initialize variables used for tavg and other data output
+call stats_init()
 
-    ! Initialize time variable
-        tt=0
+! Initialize time variable
+tt=0
 
-    ! Determine bottom BC roughness and temperature
-    !  only coord 0 needs to do this since at the bottom
-    !  roughness information then needs to be broadcast
-        call patch_or_remote ()
+! Determine bottom BC roughness and temperature
+!  only coord 0 needs to do this since at the bottom
+!  roughness information then needs to be broadcast
+call patch_or_remote ()
 
-    ! Initialize turbines
-        $if ($TURBINES)
-          call turbines_init()    !must occur before initial is called
-        $endif
+! Initialize turbines
+$if ($TURBINES)
+  call turbines_init()    !must occur before initial is called
+$endif
 
-    ! Initialize velocity field
-        call initial()
+! Initialize velocity field
+call initial()
 
-    ! If using level set method
-        $if ($LVLSET)
-          call level_set_init ()
-          
-          $if ($CYL_SKEW_LS)
-            !call cyl_skew_init_ls ()
-          $endif
-          
-          $if ($RNS_LS)
-            call rns_init_ls ()
-          $endif
-          
-        $endif
+! If using level set method
+$if ($LVLSET)
+  call level_set_init ()
 
-    ! Initialize fractal trees
-        $if ($TREES_LS)
-          !--this must come after initial, since fx, fy, fz are set 0 there
-          !  and this call may read fx, fy, fz from a file
-          call trees_ls_init ()
-        $endif
+  $if ($RNS_LS)
+    call rns_init_ls ()
+  $endif
+  
+  ! Initialize fractal trees
+  $if ($TREES_LS)
+  !--this must come after initial, since fx, fy, fz are set 0 there
+  !  and this call may read fx, fy, fz from a file
+    call trees_ls_init ()
+  $endif          
 
-    ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
-    ! Initialize the kx,ky arrays
-        call init_fft()
+$endif
+
+
+
+! Formulate the fft plans--may want to use FFTW_USE_WISDOM
+! Initialize the kx,ky arrays
+call init_fft()
     
-    ! Open output files (total_time.dat and check_ke.out)  
-        call openfiles()
+! Open output files (total_time.dat and check_ke.out)  
+call openfiles()
 
-    ! Initialize test filter
-    ! this is used for lower BC, even if no dynamic model
-        call test_filter_init (2._rprec * filter_size, G_test)
+! Initialize test filter
+! this is used for lower BC, even if no dynamic model
+call test_filter_init (2._rprec * filter_size, G_test)
 
-        if (model == 3 .or. model == 5) then  !--scale dependent dynamic
-          call test_filter_init (4._rprec * filter_size, G_test_test)
-        end if
-
-    ! Initialize sponge variable for top BC, if applicable
-        if (ubc == 1) call setsponge()
-    
-! Write to screen
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  print *, '--> Number of timesteps', nsteps
-  print *, '--> dt = ', dt
-  if (model == 1) print *, '--> Co = ', Co
-  print *, '--> Nx, Ny, Nz = ', nx, ny, nz
-  print *, '--> Lx, Ly, Lz = ', L_x, L_y, L_z
-  if (USE_MPI) print *, '--> Number of processes = ', nproc
-  print *, '--> Number of patches = ', num_patch
-  !print *, 'sampling stats every ', c_count, ' timesteps'
-  !print *, 'writing stats every ', p_count, ' timesteps'
-  if (molec) print*, '--> molecular viscosity (dimensional) ', nu_molec
+if (model == 3 .or. model == 5) then  !--scale dependent dynamic
+  call test_filter_init (4._rprec * filter_size, G_test_test)
 end if
+
+! Initialize sponge variable for top BC, if applicable
+if (ubc == 1) call setsponge()
+    
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -299,7 +282,7 @@ do jt=1,nsteps
     if (dns_bc .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
     else        
-        call sgs_stag()	    
+        call sgs_stag()
     end if
     if(use_bldg)then
         call wallstress_building(txy,txz,tyz)
@@ -617,18 +600,17 @@ end do
     $if ($TURBINES)
         call turbines_finalize ()   ! must come before MPI finalize
     $endif    
+
+! Stop wall clock
+if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    call cpu_time (clock_end)
+    write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
+endif
+
     
     ! MPI:
     $if ($MPI)
         call mpi_finalize (ierr)
     $endif
-
-! Stop wall clock
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-    call cpu_time (clock_end)
-    write(*,"(a,e)") 'Simulation wall time (s) : ', clock_end - clock_start
-endif
-
-stop
 
 end program main

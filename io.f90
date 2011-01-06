@@ -14,6 +14,15 @@ implicit none
 save
 private
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
@@ -91,9 +100,8 @@ integer, dimension(zplane_nloc) :: zplane_istart=-1, zplane_coord=-1
 real(rprec), dimension(zplane_nloc) :: zplane_ldiff
 real(rprec) :: zplane_fa
 
-real(rprec), dimension(lbound(w,1):ubound(w,1),lbound(w,2):ubound(w,2),lbound(w,3):ubound(w,3)) :: w_uv
-real(rprec), dimension(lbound(dudz,1):ubound(dudz,1),lbound(dudz,2):ubound(dudz,2),lbound(dudz,3):ubound(dudz,3)) :: dudz_uv ! on the uv grid
-real(rprec), dimension(lbound(dvdz,1):ubound(dvdz,1),lbound(dvdz,2):ubound(dvdz,2),lbound(dvdz,3):ubound(dvdz,3)) :: dvdz_uv ! on the uv grid
+real(rprec), dimension(ld,ny,$lbz:nz) :: w_uv, dudz_uv, dvdz_uv
+
 integer :: w_uv_tag, dudz_uv_tag, dvdz_uv_tag
                    
 !**********************************************************************
@@ -456,7 +464,7 @@ tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
 
 tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 * tavg_total_time
 
-tavg_total_time = tavg_total_time + dble(tavg_nend - tavg_nstart + 1) * dt
+tavg_total_time = tavg_total_time + real(tavg_nend - tavg_nstart + 1,kind=rprec) * dt
 
 return
 end subroutine tavg_init
@@ -490,9 +498,13 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname, temp, var_list
-integer :: n, i, j, k, nvars
+integer :: n, i, j, k, nvars, icount
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
+
+$if($PGI)
+real(rprec), allocatable, dimension(:) :: u_inter
+$endif
 
 ! real(rprec) :: dnx, dny, dnz
 
@@ -520,9 +532,9 @@ if(itype==1) then
     $endif
 
     call write_real_data(point_fname(n), 'append', 'formatted', 4, (/ total_time, &
-      trilinear_interp(u,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
-      trilinear_interp(v,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)), &
-      trilinear_interp(w_uv,point_istart(n),point_jstart(n), point_kstart(n), point_loc(:,n)) /))	  
+      trilinear_interp(u,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz), &
+      trilinear_interp(v,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz), &
+      trilinear_interp(w_uv,point_istart(n),point_jstart(n), point_kstart(n), point_loc(n)%xyz) /))
 
 
     $if ($MPI)
@@ -571,15 +583,47 @@ elseif(itype==2) then
   !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
   !open(unit = 7,file = fname, status='old',form='formatted', &
   !  action='write',position='append')
-	
+  
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
     (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
     4, x, y, z(1:nz))
   $else
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
-    4, x, y, z(1:nz))
+    $if($PGI)
+    allocate(u_inter(nx*ny*nz*3))
+    icount=0
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = u(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = v(i,j,k)
+        enddo
+      enddo
+    enddo
+    do k=1,nz
+      do j=1,ny
+        do i=1,nx
+          icount=icount+1
+          u_inter(icount) = w(i,j,k)
+        enddo
+      enddo
+    enddo
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      u_inter, 4, x, y, z(1:nz))
+    deallocate(u_inter)
+    $else
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+      (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
+      4, x, y, z(1:nz))
+    $endif
   $endif
   
   !  Output Instantaneous Force Field for RNS Simulations
@@ -623,10 +667,10 @@ elseif(itype==3) then
       write (temp, '(".c",i0)') coord
       fname = trim (fname) // temp
     $endif
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
-	  	  
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
+  
     do k=1,nz
       do j=1,ny
 
@@ -641,7 +685,7 @@ elseif(itype==3) then
     enddo
 
     call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-    (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
+      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
 
     
   enddo   
@@ -668,10 +712,9 @@ elseif(itype==4) then
       write (temp, '(".c",i0)') coord
       fname = trim (fname) // temp
     $endif
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-	  '"x", "y", "z", "u", "v", "w"', coord, 2, total_time)  
-	  
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
     do k=1,nz
       do i=1,nx
 
@@ -687,7 +730,7 @@ elseif(itype==4) then
     enddo
     
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
+      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
   $if($LVLSET)
   
@@ -701,8 +744,8 @@ elseif(itype==4) then
     $endif
   
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-	  '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
-	  
+      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)  
+  
     do k=1,nz
       do i=1,nx
 
@@ -718,7 +761,7 @@ elseif(itype==4) then
     enddo
     
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-    (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
+      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
     $endif
 
@@ -743,9 +786,9 @@ elseif(itype==5) then
     write(ct,*) jt_total
     write(fname,*) 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-	 '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
+      '"x", "y", "z", "u", "v", "w"', coord, 2, total_time) 
 
     do j=1,Ny
       do i=1,Nx
@@ -768,9 +811,9 @@ elseif(itype==5) then
     
     write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
-	
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-	 '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)	  	 
+      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
 
     do j=1,Ny
       do i=1,Nx
@@ -860,7 +903,7 @@ select case(write_fmt)
   case('unformatted')
   
     write(2) vars
-	
+
 end select
   
 close(2)
@@ -1019,85 +1062,85 @@ select case(write_fmt)
   case('formatted')
   
     !  Specify output format; may want to use a global setting
-    	
+   
     if (coord_pres) then
-	    
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') x(i)
-	        enddo 
-	      enddo
-	    enddo
+    
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') x(i)
+          enddo 
+        enddo
+      enddo
       
       do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') y(j)
-	        enddo 
-	      enddo
-	    enddo
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') y(j)
+          enddo 
+        enddo
+      enddo
       
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
-            write(2,'(1e)') z(k)
-	        enddo 
-	      enddo
-	    enddo      
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
+            write(2,'(1e15.6)') z(k)
+          enddo 
+        enddo
+      enddo      
       
     endif      
     
     do n=1, nvars
-	    do k=1, kmax_buff
+      do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
-            write(2,'(1e)') vars(ikey_vars(n,i,j,k))
-	        enddo 
-	      enddo
-	    enddo 
+            write(2,'(1e15.6)') vars(ikey_vars(n,i,j,k))
+          enddo 
+        enddo
+      enddo 
     enddo
 
   case('unformatted')
   
     if (coord_pres) then
-	  
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+  
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) x(i)
-	        enddo 
-	      enddo
-	    enddo
+          enddo 
+        enddo
+      enddo
       
       do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) y(j)
-	        enddo 
-	      enddo
-	    enddo
+          enddo 
+        enddo
+      enddo
       
-	    do k=1, kmax_buff
-  	    do j=1, jmax_buff
-    	    do i=1, imax_buff
+      do k=1, kmax_buff
+        do j=1, jmax_buff
+          do i=1, imax_buff
             write(2) z(k)
-	        enddo 
-	      enddo
-	    enddo  
-	  
+          enddo 
+        enddo
+      enddo  
+  
     endif
     
     do n=1, nvars
-	    do k=1, kmax_buff
+      do k=1, kmax_buff
         do j=1, jmax_buff
           do i=1, imax_buff
             write(2) vars(ikey_vars(n,i,j,k))
-	        enddo 
-	      enddo
-	    enddo 
+          enddo 
+        enddo
+      enddo 
     enddo
-	
+
 end select
 
 close(2)
@@ -1237,59 +1280,59 @@ select case(write_fmt)
   case('formatted')
   
     !  Specify output format; may want to use a global setting
-    	
+   
     if (coord_pres) then
 
-	    do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2,'(1e)') x(i)
-	      enddo 
-	    enddo
-    	  
       do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2,'(1e)') y(j)
-	      enddo 
-	    enddo
+        do i=1,imax_buff
+          write(2,'(1e15.6)') x(i)
+        enddo 
+      enddo
+    
+      do j=1, jmax_buff
+        do i=1,imax_buff
+          write(2,'(1e15.6)') y(j)
+        enddo 
+      enddo
  
     endif
-	  
+  
     do n=1, nvars
       do j=1, jmax_buff
-	      do i=1,imax_buff
-          write(2,'(1e)') vars(ikey_vars(n,i,j))
-	      enddo 
-	    enddo
+        do i=1,imax_buff
+          write(2,'(1e15.6)') vars(ikey_vars(n,i,j))
+        enddo 
+      enddo
     enddo
 
   case('unformatted')
   
     if (coord_pres) then
-	  
-	  
-	    do j=1, jmax_buff
-  	    do i=1,imax_buff
-          write(2) x(i)
-	      enddo 
-	    enddo
-    	  
+  
+  
       do j=1, jmax_buff
-  	    do i=1,imax_buff
+        do i=1,imax_buff
+          write(2) x(i)
+        enddo 
+      enddo
+    
+      do j=1, jmax_buff
+        do i=1,imax_buff
           write(2) y(j)
-	      enddo 
-	    enddo
+        enddo 
+      enddo
  
     endif
 
     do n=1, nvars
       do j=1, jmax_buff
-	      do i=1,imax_buff
+        do i=1,imax_buff
           write(2) vars(ikey_vars(n,i,j))
-	      enddo 
-	    enddo
+        enddo 
+      enddo
     enddo    
-	
-  !case default
+    
+    !case default
   !  call error(sub_name, 'Incorrect write format : ' // write_pos)
 end select
 
@@ -1386,34 +1429,34 @@ select case(write_fmt)
   case('formatted')
   
     if (coord_pres) then
-	  
+  
       do i=1,imax_buff
-        write(2,'(1e)') x(i)
+        write(2,'(1e15.6)') x(i)
       enddo 
-	  
+  
     endif
     
     do n=1, nvars
       do i=1,imax_buff
-        write(2,'(1e)') vars(ikey_vars(n,i))
+        write(2,'(1e15.6)') vars(ikey_vars(n,i))
       enddo
-	  enddo 
+    enddo 
 
   case('unformatted')
   
     if (coord_pres) then
-	  
+  
       do i=1,imax_buff
         write(2) x(i)
       enddo 
-	  
+  
     endif
     
     do n=1, nvars
       do i=1,imax_buff
         write(2) vars(ikey_vars(n,i))
       enddo
-	  enddo 
+    enddo 
 
 end select
 
@@ -1443,7 +1486,7 @@ character(*), intent(in) :: fname, write_pos, var_list
 character(*), parameter :: sub_name = mod_name // '.write_tecplot_header_xyline'
 
 !  Check if write position has been specified correctly
-call check_write_pos(write_pos, sub_name)	
+call check_write_pos(write_pos, sub_name)
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position=write_pos)
@@ -1525,7 +1568,7 @@ write(2,'(1a)') tec_dat_str
 write(2,'(1a)') tec_dt_str
 
 if (present (soln_time)) then
-write(2,'(1a,e)') 'solutiontime=', soln_time
+write(2,'(1a,e15.6)') 'solutiontime=', soln_time
 endif
 
 close(2)
@@ -1851,7 +1894,7 @@ do k = 1, nz
   do j = 1, ny
     do i = 1, nx
     
-	  ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
+    ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
       rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
       rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
       rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
@@ -2875,27 +2918,27 @@ if(point_calc) then
   do i=1,point_nloc
 !  Find the processor in which this point lives
   $if ($MPI)
-    if(point_loc(3,i) >= z(1) .and. point_loc(3,i) < z(nz)) then
+    if(point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
       point_coord(i) = coord
   
-      point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-      point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-      point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+      point_istart(i) = cell_indx('i',dx,point_loc(i)%xyz(1))
+      point_jstart(i) = cell_indx('j',dy,point_loc(i)%xyz(2))
+      point_kstart(i) = cell_indx('k',dz,point_loc(i)%xyz(3))
   
-      point_xdiff(i) = point_loc(1,i) - x(point_istart(i))
-      point_ydiff(i) = point_loc(2,i) - y(point_jstart(i))
-      point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
+      point_xdiff(i) = point_loc(i)%xyz(1) - x(point_istart(i))
+      point_ydiff(i) = point_loc(i)%xyz(2) - y(point_jstart(i))
+      point_zdiff(i) = point_loc(i)%xyz(3) - z(point_kstart(i))
 
       fid=3000*i
   
       !  Can't concatenate an empty string
       point_fname(i)=''
       call strcat(point_fname(i),'output/vel.x-')
-      call strcat(point_fname(i), point_loc(1,i))
+      call strcat(point_fname(i), point_loc(i)%xyz(1))
       call strcat(point_fname(i),'.y-')
-      call strcat(point_fname(i),point_loc(2,i))
+      call strcat(point_fname(i),point_loc(i)%xyz(2))
       call strcat(point_fname(i),'.z-')
-      call strcat(point_fname(i),point_loc(3,i))
+      call strcat(point_fname(i),point_loc(i)%xyz(3))
       call strcat(point_fname(i),'.dat')
    
       !  Add tecplot header if file does not exist
@@ -2908,34 +2951,34 @@ if(point_calc) then
     endif
   $else
     point_coord(i) = 0
-    point_istart(i) = cell_indx('i',dx,point_loc(1,i))
-    point_jstart(i) = cell_indx('j',dy,point_loc(2,i))
-    point_kstart(i) = cell_indx('k',dz,point_loc(3,i))
+    point_istart(i) = cell_indx('i',dx,point_loc(i)%xyz(1))
+    point_jstart(i) = cell_indx('j',dy,point_loc(i)%xyz(2))
+    point_kstart(i) = cell_indx('k',dz,point_loc(i)%xyz(3))
 	
-    point_xdiff(i) = point_loc(1,i) - x(point_istart(i)) 
-    point_ydiff(i) = point_loc(2,i) - y(point_jstart(i)) 
-    point_zdiff(i) = point_loc(3,i) - z(point_kstart(i))
+    point_xdiff(i) = point_loc(i)%xyz(1) - x(point_istart(i)) 
+    point_ydiff(i) = point_loc(i)%xyz(2) - y(point_jstart(i)) 
+    point_zdiff(i) = point_loc(i)%xyz(3) - z(point_kstart(i))
     !write(cx,'(F9.4)') point_t%xyz(1,i)
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
-	
+
     fid=3000*i
     point_fname(i)=''
     call strcat(point_fname(i),'output/vel.x-')
-    call strcat(point_fname(i), point_loc(1,i))
+    call strcat(point_fname(i), point_loc(i)%xyz(1))
     call strcat(point_fname(i),'.y-')
-    call strcat(point_fname(i),point_loc(2,i))
+    call strcat(point_fname(i),point_loc(i)%xyz(2))
     call strcat(point_fname(i),'.z-')
-    call strcat(point_fname(i),point_loc(3,i))
+    call strcat(point_fname(i),point_loc(i)%xyz(3))
     call strcat(point_fname(i),'.dat')
-	
+
     !  Add tecplot header if file does not exist
     inquire (file=point_fname(i), exist=exst)
     if (.not. exst) then
       var_list = '"t (s)", "u", "v", "w"'
       call write_tecplot_header_xyline(point_fname(i), 'rewind', var_list)
     endif 
-	
+
   $endif
   
   enddo
@@ -3348,6 +3391,5 @@ end subroutine tavg_compute
 
 !return
 !end subroutine zplane_avg_compute
-
 
 end module io

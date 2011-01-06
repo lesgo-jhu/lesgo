@@ -45,6 +45,8 @@ $else
   $define $lbz 1
 $endif
 
+!  x and y go to nx+1, ny+1 respectively for adding
+!  the buffered points for periodicity
 allocate(x(nx+1),y(ny+1),z($lbz:nz),zw($lbz:nz))
 allocate(autowrap_i(0:nx+1), autowrap_j(0:ny+1))
 

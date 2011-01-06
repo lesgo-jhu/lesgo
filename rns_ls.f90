@@ -181,6 +181,8 @@ real(rprec), allocatable, dimension(:,:) :: b_force, b_m
 real(rprec), pointer :: area_p, u_p, v_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
+type(force_type_2), pointer :: force_t_p
+
 !real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
@@ -193,6 +195,7 @@ $endif
 nullify(nelem_p, indx_p)
 nullify(area_p, u_p, v_p)
 nullify(points_p)
+nullify(force_t_p)
 
 allocate(beta_gamma(ndim, nbeta_elem))
 allocate(b_gamma(ndim, nb_elem))
@@ -222,7 +225,7 @@ do n=1, nbeta_elem
   u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
   v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  cache = sqrt( u_p**2 + v_p**2 ) * area_p
+  cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   beta_gamma(:,n) = cache * (/ u_p, v_p /)
 
   nullify(npoint_p, points_p, area_p, u_p, v_p)
@@ -240,7 +243,7 @@ do n=1, nb_elem
   u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
   v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
   
-  cache = sqrt( u_p**2 + v_p**2 ) * area_p
+  cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   b_gamma(:,n) = cache * (/ u_p, v_p /)
   
   nullify(npoint_p, points_p, area_p, u_p, v_p)
@@ -268,7 +271,7 @@ do n=1, nb_elem
   
   do ns=1, nelem_p
     b_r_force(:,n) = b_r_force(:,n) + (/ r_elem_t( indx_p(ns) )% force_t % fx, &
-      r_elem_t( indx_p(ns) )% force_t % fy /)
+                                         r_elem_t( indx_p(ns) )% force_t % fy /)
   enddo 
   
   !  Perform partial sum for b_elem force
@@ -279,42 +282,74 @@ do n=1, nb_elem
 
 enddo
 
-if( temporal_weight == 0 ) then
+if( temporal_model == 1 ) then
 
-  if( temporal_model == 1 ) then
-  
-    !  Compute F_b^n (CD^{n-1})
-    allocate(b_force( ndim, nb_elem ))
-    do n=1, nb_elem
-      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
-    enddo
-  
+  !  Compute F_b^n (CD^{n-1})
+  allocate(b_force( ndim, nb_elem ))
+  do n=1, nb_elem
+    b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+  enddo
+
+  if( temporal_weight == 0 ) then
+
     if( spatial_model == 1 ) then
 
       call b_elem_CD_LE()
   
     elseif( spatial_model == 2) then
 
-      call b_elem_CD_GED()
-    
-    elseif( spatial_model == 3) then
-
-      call b_elem_CD_GELS()
+      call b_elem_CD_GE()
         
     else
   
       call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
+
+  elseif( temporal_weight == 1 ) then 
+
+    if( spatial_model == 1 ) then
+
+      call b_elem_CD_LETW()
+
+    elseif( spatial_model == 2 ) then
   
-    deallocate(b_force)
+      call b_elem_CD_GETW()
 
-  elseif( temporal_model == 2) then ! use implicit formulation
+    else
 
-    allocate( b_m( ndim, nb_elem ) )  
-    do n=1,nb_elem
-      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)
-    enddo
+      call error( sub_name, 'spatial_model not specified correctly.')
+
+    endif 
+
+  else
+
+    call error( sub_name, 'temporal_weight not specified correctly.')
+
+  endif
+
+  !  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
+  if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep  
+
+  !  Compute the RNS error for the b elem (e_b = F_b + CD_b * gamma_b)
+  do n=1, nb_elem
+    force_t_p => b_elem_t(n) % force_t
+    force_t_p % error = 100.*sqrt( ( b_force(1,n) + force_t_p % CD * b_gamma(1,n))**2 + &
+                                   ( b_force(2,n) + force_t_p % CD * b_gamma(2,n))**2 ) / &
+                             sqrt( b_force(1,n)**2 + b_force(2,n)**2 )
+    nullify(force_t_p)                            
+  enddo
+
+  deallocate(b_force)  
+
+elseif( temporal_model == 2) then ! use implicit formulation
+
+  allocate( b_m( ndim, nb_elem ) )  
+  do n=1,nb_elem
+    b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n)
+  enddo  
+
+  if( temporal_weight == 0 ) then
 
     if( spatial_model == 1 ) then
  
@@ -322,59 +357,15 @@ if( temporal_weight == 0 ) then
  
     elseif( spatial_model == 2 ) then
 
-      call b_elem_CD_GID() ! Global, implicit, direct summation (GID)
-  
-    elseif( spatial_model == 3 ) then
-
-      call b_elem_CD_GILS()
+      call b_elem_CD_GI() ! Global implicit
   
     else
   
       call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
-  
-    deallocate( b_m )
-  
-  else
-  
-    call error( sub_name, 'temporal_model not specified correctly.')  
- 
-  endif
 
-  deallocate(b_r_force)
-
-elseif( temporal_weight == 1 ) then
-
-  if( temporal_model == 1 ) then
-    !  Compute F_b^n (CD^{n-1})
-    allocate(b_force( ndim, nb_elem ))
-    do n=1, nb_elem
-      b_force(:,n) = b_r_force(:,n) - 0.5_rprec * b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
-    enddo  
-  
-    if( spatial_model == 1 ) then
-
-      call b_elem_CD_LETW()
-
-    elseif( spatial_model == 2 ) then
-  
-      call error( sub_name, 'spatial_method not specified correctly.')
-
-    else
-      
-      call b_elem_CD_GETW()
-
-    endif
-    
-    deallocate(b_force)
-
-  elseif( temporal_model == 2 ) then
-  
-    allocate( b_m( ndim, nb_elem ) ) 
-    do n=1, nb_elem
-      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)  
-    enddo
+  elseif( temporal_weight == 1 ) then
 
     if( spatial_model == 1 ) then
 
@@ -382,28 +373,39 @@ elseif( temporal_weight == 1 ) then
 
     elseif( spatial_model == 2 ) then
   
-      call error( sub_name, 'spatial_method not specified correctly.')
+      call b_elem_CD_GITW()
 
     else
-      
-      call b_elem_CD_GITW()
+
+      call error( sub_name, 'spatial_model not specified correctly.')
 
     endif
 
   else
-   
-    call error( sub_name, 'temporal_method not specified correctly.')
 
-  endif
+    call error( sub_name, 'temporal_weight not specified correctly.')
+
+  endif    
+
+  !  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
+  if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep  
+
+  !  Compute the RNS error for the b elem (e_b = R_b + CD_b * M_b)
+  do n=1, nb_elem
+    force_t_p => b_elem_t(n) % force_t
+    force_t_p % error = 100.*sqrt( ( b_r_force(1,n) + force_t_p % CD * b_m(1,n))**2 + &
+                                   ( b_r_force(2,n) + force_t_p % CD * b_m(2,n))**2 ) / &
+                             sqrt( b_r_force(1,n)**2 + b_r_force(2,n)**2 )
+    nullify(force_t_p)
+  enddo  
+
+  deallocate( b_m )
+
+else
   
-else  
-
-  call error( sub_name, 'temporal_weight not specified correctly.')
-
-endif
-
-!  Check if CD is to be modulated (based on jt_total so can span across multiple runs)
-if( jt_total < CD_ramp_nstep ) b_elem_t(:) % force_t % CD = b_elem_t(:) % force_t % CD * jt_total / CD_ramp_nstep
+  call error( sub_name, 'temporal_model not specified correctly.')  
+ 
+endif  
 
 !  Now update the CD of all the beta_elem 
 do n=1, nb_elem
@@ -424,7 +426,7 @@ enddo
 
 !  Compute the total force for beta_elem
 do n=1, nbeta_elem
-  cache = - 0.5_rprec * beta_elem_t(n) % force_t % CD
+  cache = - beta_elem_t(n) % force_t % CD
   beta_elem_t(n) % force_t % fx = cache * beta_gamma(1,n)
   beta_elem_t(n) % force_t % fy = cache * beta_gamma(2,n)
 enddo
@@ -435,13 +437,15 @@ do n=1, nb_elem
   nelem_p => b_elem_t(n) % beta_child_t % nelem
   indx_p  => b_elem_t(n) % beta_child_t % indx
 
-  !  Perform secondary sum over beta_elem for b_elem force
+  force_t_p => b_elem_t(n) % force_t
+
+  !  Perform secondary sum over beta_elem for b_elem force and the RNS error
   do ns = 1, nelem_p
-    b_elem_t(n) % force_t % fx = b_elem_t(n) % force_t % fx + beta_elem_t( indx_p(ns) ) % force_t % fx
-    b_elem_t(n) % force_t % fy = b_elem_t(n) % force_t % fy + beta_elem_t( indx_p(ns) ) % force_t % fy
+    force_t_p % fx = force_t_p % fx + beta_elem_t( indx_p(ns) ) % force_t % fx
+    force_t_p % fy = force_t_p % fy + beta_elem_t( indx_p(ns) ) % force_t % fy
   enddo 
 
-  nullify( nelem_p, indx_p )
+  nullify( nelem_p, indx_p, force_t_p )
   
 enddo
 
@@ -470,7 +474,7 @@ subroutine b_elem_CD_LE()
 implicit none
 
 do n=1, nb_elem
-  b_elem_t(n) % force_t % CD = -2._rprec * sum( b_force(:,n) * b_gamma(:,n) ) / &
+  b_elem_t(n) % force_t % CD = - sum( b_force(:,n) * b_gamma(:,n) ) / &
     sum ( b_gamma(:,n) * b_gamma(:,n) )
 enddo
 
@@ -500,14 +504,14 @@ do n=1, nb_elem
 
 enddo
 
-b_elem_t(:) % force_t % CD = -2._rprec * sum( b_fsum(:) * b_gamma_sum(:) ) / &
+b_elem_t(:) % force_t % CD = - sum( b_fsum(:) * b_gamma_sum(:) ) / &
   sum( b_gamma_sum(:) * b_gamma_sum(:) )
 
 return
 end subroutine b_elem_CD_GED
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GELS()
+subroutine b_elem_CD_GE()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine computes the global b_elem CD using the explicit 
 !  formulation with least squares summation
@@ -528,10 +532,10 @@ do n=1, nb_elem
      
 enddo
     
-b_elem_t(:) % force_t % CD = -2._rprec * CD_num / CD_denom
+b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
 return
-end subroutine b_elem_CD_GELS
+end subroutine b_elem_CD_GE
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LI()
@@ -544,7 +548,7 @@ subroutine b_elem_CD_LI()
 implicit none
 
 do n=1, nb_elem
-  b_elem_t(n) % force_t % CD = 2._rprec * sum( b_r_force(:,n) * b_m(:,n) ) / &
+  b_elem_t(n) % force_t % CD = - sum( b_r_force(:,n) * b_m(:,n) ) / &
     sum( b_m(:,n) * b_m(:,n) )
 enddo
 
@@ -572,14 +576,14 @@ do n=1, nb_elem
   
 enddo
 
-b_elem_t(:) % force_t % CD = 2._rprec * sum( b_r_fsum(:) * b_m_sum(:) ) / &
+b_elem_t(:) % force_t % CD = - sum( b_r_fsum(:) * b_m_sum(:) ) / &
   sum( b_m_sum(:) * b_m_sum(:) )
 
 return
 end subroutine b_elem_CD_GID
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GILS()
+subroutine b_elem_CD_GI()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine computes the global b_elem CD using the implicit 
 !  formulation with direct summation
@@ -600,10 +604,10 @@ do n=1, nb_elem
     
 enddo
 
-b_elem_t(:) % force_t % CD = 2._rprec * CD_num / CD_denom
+b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
 return
-end subroutine b_elem_CD_GILS
+end subroutine b_elem_CD_GI
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_LETW()
@@ -642,7 +646,7 @@ enddo
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GELS()
+  call b_elem_CD_GE()
   
 else
 
@@ -676,7 +680,7 @@ else
     CD_p  => b_elem_t(n) % force_t % CD
 
     !CD_p = -( 2._rprec * LAB_p + sum(lambda(:) * b_gamma(:,n)) ) / LBB_p
-    CD_p = -2._rprec * LAB_p / LBB_p
+    CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
 
@@ -729,12 +733,12 @@ b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt < weight_nstart ) then
 
-  call b_elem_CD_GELS()
+  call b_elem_CD_GE()
     
 else
 
   !  Compute CD
-  CD_p = -2._rprec *  LAB_p / LBB_p
+  CD_p = - LAB_p / LBB_p
  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
@@ -788,7 +792,7 @@ enddo
 if( jt < weight_nstart ) then
 
   !call b_elem_CD_GID()
-  call b_elem_CD_GILS()
+  call b_elem_CD_GI()
   
 else
 
@@ -822,7 +826,7 @@ else
     CD_p  => b_elem_t(n) % force_t % CD
 
     !CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
-    CD_p = 2._rprec * LAB_p / LBB_p
+    CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
 
@@ -877,12 +881,12 @@ b_elem_t(:) % force_t % LBB = LBB_p
 if( jt < weight_nstart ) then
 
   !call b_elem_CD_GID()
-  call b_elem_CD_GILS()
+  call b_elem_CD_GI()
     
 else
 
   !  Compute CD
-  CD_p = 2._rprec *  LAB_p / LBB_p
+  CD_p = - LAB_p / LBB_p
  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
@@ -963,7 +967,7 @@ do n = 1, nbeta_elem
   kappa_p => beta_elem_t(n) % force_t % kappa
   CD_p    => beta_elem_t(n) % force_t % CD
     
-  kappa_p = CD_p * sum( beta_gamma(:,n) * beta_int(:) ) / ( 2._rprec * sum( beta_int(:) * beta_int(:) ) )
+  kappa_p = CD_p * sum( beta_gamma(:,n) * beta_int(:) ) / ( sum( beta_int(:) * beta_int(:) ) )
     
   if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
@@ -1295,7 +1299,7 @@ character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
-
+character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
 
 logical :: exst
 character(5000) :: var_list
@@ -1333,6 +1337,21 @@ if (.not. exst) then
 endif
 
 call write_real_data(fname_fD, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fx, -b_elem_t(:) % force_t % fy /))
+
+inquire (file=fname_error, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"error<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname_error, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error /))
+
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then

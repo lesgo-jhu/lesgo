@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 
-LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -30,7 +30,7 @@ DEVEL=no
 USE_MPI = yes
 USE_OPENMP = no
 
-# Set dt based on CFL condition (EXPERIMENTAL)
+# Set dt based on CFL condition
 USE_CFL_DT = yes
 
 # Write binary files as big_endian
@@ -138,12 +138,13 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
-  FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  FFLAGS += -warn all -mcmodel=medium -shared-intel
+  #FFLAGS = -O3 -ip -ipo -ftz
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS += -warn all -mcmodel=medium -shared-intel
+  FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
@@ -165,9 +166,8 @@ ifeq ($(FCOMP),gfortran)
   FDEBUG = -g
   FPROF = -p
   LDFLAGS = -static 
-  MODDIR = -I$(MPATH) -J $(MPATH)
+  MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR)  
-#  CYLINDER_SKEW_PRE_LS_FFLAGS += -fdefault-real-8 -fdefault-double-8
 endif
 
 ifeq ($(FCOMP),xlf)
@@ -208,6 +208,32 @@ ifeq ($(FCOMP),xlf)
   FFLAGS += $(MODDIR)
   CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) 
   #-qautodbl=dbl4 -qrealsize=8
+endif
+
+ifeq ($(FCOMP),pgf90)
+  
+  FPP += -DPGI
+  
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = pgf90
+  endif
+  LIBS += -lfcgaml-pgi
+  #FFLAGS = -O3 -fastsse -Mcache_align
+  FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  #FFLAGS = -O2 -fPIC
+  #FFLAGS = -O3 -ipo
+  #FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS += -warn all -mcmodel=medium -shared-intel
+  FFLAGS += 
+  #FDEBUG = -g -debug all
+  FPROF = -p
+  LDFLAGS = 
+  MODDIR = -I$(MPATH) -module $(MPATH)
+  FFLAGS += $(MODDIR)
+#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
 endif
 
 ifeq ($(FCOMP),g95)
