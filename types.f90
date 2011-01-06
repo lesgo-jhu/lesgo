@@ -23,4 +23,8 @@ type vec2d
   real(rprec), dimension(2) :: xy
 end type vec2d
 
+type point3D
+  real(rprec), dimension(3) :: xyz
+end type point3D
+
 end module types
