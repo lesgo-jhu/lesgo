@@ -312,7 +312,7 @@ if( temporal_weight == 0 ) then
 
     allocate( b_m( ndim, nb_elem ) )  
     do n=1,nb_elem
-      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)
+      b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n)
     enddo
 
     if( spatial_model == 1 ) then
@@ -368,7 +368,7 @@ elseif( temporal_weight == 1 ) then
   
     allocate( b_m( ndim, nb_elem ) ) 
     do n=1, nb_elem
-      b_m(:,n) = b_beta_gamma_sum(:,n) - b_gamma(:,n)  
+      b_m(:,n) = b_gamma(:,n) - b_beta_gamma_sum(:,n) 
     enddo
 
     if( spatial_model == 1 ) then
@@ -545,7 +545,7 @@ subroutine b_elem_CD_LI()
 implicit none
 
 do n=1, nb_elem
-  b_elem_t(n) % force_t % CD = sum( b_r_force(:,n) * b_m(:,n) ) / &
+  b_elem_t(n) % force_t % CD = - sum( b_r_force(:,n) * b_m(:,n) ) / &
     sum( b_m(:,n) * b_m(:,n) )
 enddo
 
@@ -573,7 +573,7 @@ do n=1, nb_elem
   
 enddo
 
-b_elem_t(:) % force_t % CD = sum( b_r_fsum(:) * b_m_sum(:) ) / &
+b_elem_t(:) % force_t % CD = - sum( b_r_fsum(:) * b_m_sum(:) ) / &
   sum( b_m_sum(:) * b_m_sum(:) )
 
 return
@@ -601,7 +601,7 @@ do n=1, nb_elem
     
 enddo
 
-b_elem_t(:) % force_t % CD = CD_num / CD_denom
+b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
 return
 end subroutine b_elem_CD_GI
@@ -823,7 +823,7 @@ else
     CD_p  => b_elem_t(n) % force_t % CD
 
     !CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
-    CD_p = LAB_p / LBB_p
+    CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
 
@@ -883,7 +883,7 @@ if( jt < weight_nstart ) then
 else
 
   !  Compute CD
-  CD_p = LAB_p / LBB_p
+  CD_p = - LAB_p / LBB_p
  
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
