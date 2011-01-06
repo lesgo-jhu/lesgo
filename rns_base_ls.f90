@@ -30,11 +30,11 @@ integer, parameter :: rns_ntree = 2 ! Number of unique trees
 
 !  Weighting Off - 0, On - 1
 integer, parameter :: temporal_weight = 1
-! kunlun_canopy-2
-!real(rprec), parameter :: Tconst = 16.0_rprec
-! vtree-2
-real(rprec), parameter :: Tconst = 1.0_rprec
-real(rprec), parameter :: weight_nstart = 0
+  ! kunlun_canopy-2
+  !real(rprec), parameter :: Tconst = 16.0_rprec
+  ! vtree-2
+  real(rprec), parameter :: Tconst = 1.0_rprec
+  real(rprec), parameter :: weight_nstart = 0
 
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 2
