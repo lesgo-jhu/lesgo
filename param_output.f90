@@ -4,6 +4,9 @@ subroutine param_output()
 use param
 $if($RNS_LS)
 use rns_base_ls
+$if($CYL_SKEW_LS)
+use rns_cyl_skew_ls, only : rns_tree_layout
+$endif
 $endif
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls
@@ -159,6 +162,19 @@ write(2,f_fmt) 'alpha_width : ', alpha_width
 write(2,f_fmt) 'alpha_dist : ', alpha_dist
 write(2,f_fmt) 'chi_cutoff : ', chi_cutoff
 write(2,i_fmt) 'ndim : ', ndim
+
+$if($CYL_SKEW_LS)
+write(2,c_fmt) ''
+write(2,c_fmt) '**********************************************************************'
+write(2,c_fmt) 'RNS_CYL_SKEW_LS'
+write(2,c_fmt) '**********************************************************************'
+write(2,c_fmt) ''
+write(2,c_fmt) '---------------------------------------------------'
+write(2,c_fmt) 'RNS CYL_SKEW PARAMETERS'
+write(2,c_fmt) '---------------------------------------------------'
+write(2,x2c_fmt) 'rns_tree_layout : ', rns_tree_layout
+$endif
+
 $endif
 
 $if($CYL_SKEW_LS)
