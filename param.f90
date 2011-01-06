@@ -16,7 +16,7 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 2
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -128,7 +128,7 @@ module param
  
   $if($CFL_DT)
   
-  real(rprec), parameter :: cfl = 0.25
+  real(rprec), parameter :: cfl = 0.1
   real(rprec) :: dt, dt_f, dt_dim, cfl_f
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -230,8 +230,8 @@ module param
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/8, 3*L_x/8, 5*L_x/8, 7*L_x/8 /)
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .false.
-  integer, parameter :: yplane_nstart = 5000, yplane_nend = nsteps, yplane_nskip  = 5000
+  logical, parameter :: yplane_calc   = .true.
+  integer, parameter :: yplane_nstart = 1000, yplane_nend = nsteps, yplane_nskip  = 1000
   integer, parameter :: yplane_nloc   = 4
   real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ L_y/8, 3*L_y/8, 5*L_y/8, 7*L_y/8 /)
 

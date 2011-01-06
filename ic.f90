@@ -64,12 +64,12 @@ subroutine ic()
         z=(jz-.5_rprec)*dz
         $endif
         ! IC in equilibrium with rough surface (rough dominates in effective zo)
-        if(z >= z_i) then
-          arg = (1._rprec/vonk)*log(z_i/zo_avg)-1./(2.*vonk)
-        else
+!        if(z >= z_i) then
+!          arg = (1._rprec/vonk)*log(z_i/zo_avg)-1./(2.*vonk)
+!        else
           arg2=z/zo_avg
-          arg=(1._rprec/vonk)*log(arg2)-1./(2.*vonk*z_i*z_i)*z*z
-        endif
+          arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
+!        endif
 
         $if ($TURBINES)
           call turbine_vel_init (zo_turbines)
