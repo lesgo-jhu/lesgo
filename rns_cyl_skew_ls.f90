@@ -327,12 +327,19 @@ select case (rns_tree_layout)
 end select
 
 if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
-write(*,*) '----> RNS Tree Mapping : '
-  write(*,*) '| ID       | RNS NT   |'
-  do n=1, ntree
-    write(*,'(i12,i11)') n, cyl_skew_to_rns_tree_map(n)
-  enddo
+write(*,*) '----> RNS To CYL_SKEW Tree Mapping : '
+write(*,*) '| ID       | RNS NT   |'
+do n=1, rns_ntree
+  write(*,'(i12,i11)') rns_to_cyl_skew_tree_map(n), n
+enddo
+
+write(*,*) '----> CYL_SKEW To RNS Tree Mapping : '
+write(*,*) '| ID       | RNS NT   |'
+do n=1, ntree
+  write(*,'(i12,i11)') n, cyl_skew_to_rns_tree_map(n)
+enddo
 endif
+
 
 return
 
