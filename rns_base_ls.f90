@@ -26,15 +26,19 @@ $endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
-integer, parameter :: rns_ntree = 2 ! Number of unique trees 
+integer, parameter :: rns_ntree = 4 ! Number of unique trees 
 
 !  Weighting Off - 0, On - 1
 integer, parameter :: temporal_weight = 1
+  
+  ! kc-3
+  real(rprec), parameter :: Tconst = 8.0_rprec
   ! kunlun_canopy-2
   !real(rprec), parameter :: Tconst = 16.0_rprec
   ! vtree-2
-  real(rprec), parameter :: Tconst = 8.0_rprec
-  real(rprec), parameter :: weight_nstart = 5000
+  !real(rprec), parameter :: Tconst = 1.0_rprec
+  
+  integer, parameter :: weight_nstart = 5000
 
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 1
