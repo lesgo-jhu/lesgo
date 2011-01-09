@@ -76,8 +76,7 @@ enddo
 
 !  Uses global tree info from ebgcs_t and etgcs_t to
 
-!if( filter_chi ) call compute_chi()
-call compute_chi()
+if( filter_chi ) call compute_chi()
 
 call finalize()
 
@@ -90,7 +89,7 @@ end program cyl_skew_pre_ls
 subroutine initialize()
 !**********************************************************************
 use param, only : nx, nz_tot, BOGUS
-use cyl_skew_pre_base_ls, only : gcs_t
+use cyl_skew_pre_base_ls, only : gcs_t, ntree
 $if($MPI)
 use mpi
 use param, only : ierr
@@ -131,7 +130,7 @@ endif
 $endif
 
 call allocate_arrays()
-call fill_tree_array_ls()
+if( ntree > 0 ) call fill_tree_array_ls()
 call generate_grid()
 
 !  Initialize the distance function

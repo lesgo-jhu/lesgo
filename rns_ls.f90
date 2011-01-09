@@ -471,6 +471,7 @@ subroutine b_elem_CD_LE()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 do n=1, nb_elem
@@ -478,38 +479,13 @@ do n=1, nb_elem
     sum ( b_gamma(:,n) * b_gamma(:,n) )
 enddo
 
+if(modulo(jt,wbase)==0 .and. coord == 0) then
+  write(*,*) '--> Computing LE CD'
+endif
+
 return
 end subroutine b_elem_CD_LE
      
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GED()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!  This subroutine computes the global b_elem CD using the explicit 
-!  formulation with direct summation
-!
-!  Used variable declarations from contained subroutine rns_elem_force
-!
-implicit none
-
-real(rprec), dimension(ndim) :: b_fsum, b_gamma_sum
-
-b_fsum(:) = 0._rprec
-b_gamma_sum(:) = 0._rprec
-
-do n=1, nb_elem
-
-  b_fsum(:) = b_fsum(:) + b_force(:,n)
-  b_gamma_sum(:) = b_gamma_sum(:) + b_gamma(:,n)
-
-enddo
-
-b_elem_t(:) % force_t % CD = - sum( b_fsum(:) * b_gamma_sum(:) ) / &
-  sum( b_gamma_sum(:) * b_gamma_sum(:) )
-
-return
-end subroutine b_elem_CD_GED
-
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_GE()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -518,6 +494,7 @@ subroutine b_elem_CD_GE()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 real(rprec) :: CD_num, CD_denom
@@ -534,6 +511,10 @@ enddo
     
 b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
+if(modulo(jt,wbase)==0 .and. coord == 0) then
+  write(*,*) '--> Computing GE CD'
+endif
+
 return
 end subroutine b_elem_CD_GE
 
@@ -545,6 +526,7 @@ subroutine b_elem_CD_LI()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 do n=1, nb_elem
@@ -552,35 +534,12 @@ do n=1, nb_elem
     sum( b_m(:,n) * b_m(:,n) )
 enddo
 
+if(modulo(jt,wbase)==0 .and. coord == 0) then
+  write(*,*) '--> Computing LI CD'
+endif
+
 return
 end subroutine b_elem_CD_LI
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine b_elem_CD_GID()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!  This subroutine computes the global b_elem CD using the implicit 
-!  formulation with direct summation
-!
-!  Used variable declarations from contained subroutine rns_elem_force
-!
-implicit none
-real(rprec), dimension(ndim) :: b_r_fsum, b_m_sum
-
-b_r_fsum(:) = 0._rprec
-b_m_sum(:) = 0._rprec
-    
-do n=1, nb_elem
-
-  b_r_fsum(:) = b_r_fsum(:) + b_r_force(:,n)
-  b_m_sum(:) = b_m_sum(:) + b_m(:,n)
-  
-enddo
-
-b_elem_t(:) % force_t % CD = - sum( b_r_fsum(:) * b_m_sum(:) ) / &
-  sum( b_m_sum(:) * b_m_sum(:) )
-
-return
-end subroutine b_elem_CD_GID
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine b_elem_CD_GI()
@@ -590,6 +549,7 @@ subroutine b_elem_CD_GI()
 !
 !  Used variable declarations from contained subroutine rns_elem_force
 !
+use param, only : wbase
 implicit none
 
 real(rprec) :: CD_num, CD_denom
@@ -605,6 +565,10 @@ do n=1, nb_elem
 enddo
 
 b_elem_t(:) % force_t % CD = - CD_num / CD_denom
+
+if(modulo(jt,wbase)==0 .and. coord == 0) then
+  write(*,*) '--> Computing GI CD'
+endif
 
 return
 end subroutine b_elem_CD_GI
