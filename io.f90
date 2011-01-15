@@ -2304,15 +2304,6 @@ if ((cumulative_time) .and. (lun == lun_default)) then
   end if
 end if
 
-! !  Check if writing statistics
-! if(rs_t%calc) then
-!   call rs_compute()
-!   call rs_write()
-! endif 
-! 
-! !  Check if average quantities are to be recorded
-! if(tavg_t%calc) call tavg_write()
-
 !  Check if average quantities are to be recorded
 if(tavg_calc) call tavg_finalize()
  
