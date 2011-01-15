@@ -26,15 +26,20 @@ $endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
+! kc-3
 integer, parameter :: rns_ntree = 4 ! Number of unique trees 
+! vtree-2
+!integer, parameter :: rns_ntree = 2 ! Number of unique trees
+
+!  Options: 'default', 'kc-3'
+character(*), parameter :: rns_tree_layout = 'kc-3'
+
 
 !  Weighting Off - 0, On - 1
 integer, parameter :: temporal_weight = 1
   
   ! kc-3
   real(rprec), parameter :: Tconst = 8.0_rprec
-  ! kunlun_canopy-2
-  !real(rprec), parameter :: Tconst = 16.0_rprec
   ! vtree-2
   !real(rprec), parameter :: Tconst = 1.0_rprec
   
@@ -52,9 +57,9 @@ integer, parameter :: CD_ramp_nstep = 0
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
 
-! alpha_dist = h / h (kunlun_canopy-2)
+! kc-3 alpha_dist = h / h
 real(rprec), parameter :: alpha_dist = 1.0_rprec
-! alpha_dist = d / h (vtree-2)
+! vtree-2 alpha_dist = d / h
 !real(rprec), parameter :: alpha_dist = 0.57143
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
@@ -85,7 +90,7 @@ type force_type_2
   !integer :: parent !  parent CD; for resolved branches 
   real(rprec) :: fx, fy
   real(rprec) :: CD
-  real(rprec) :: error
+  real(rprec) :: error, error_norm
   real(rprec) :: LAB, LBB ! Used for temporal weighting
 end type force_type_2
 
