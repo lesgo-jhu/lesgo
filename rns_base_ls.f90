@@ -32,7 +32,10 @@ integer, parameter :: rns_ntree = 4 ! Number of unique trees
 !integer, parameter :: rns_ntree = 2 ! Number of unique trees
 
 !  Options: 'default', 'kc-3'
+! kc-3
 character(*), parameter :: rns_tree_layout = 'kc-3'
+! vtree-2
+!character(*), parameter :: rns_tree_layout = 'default'
 
 
 !  Weighting Off - 0, On - 1
