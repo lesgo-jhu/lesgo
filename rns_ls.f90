@@ -1262,6 +1262,7 @@ character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
 character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
+character(*), parameter :: fname_error_norm = path // 'output/rns_b_elem_error_norm.dat'
 
 logical :: exst
 character(5000) :: var_list
@@ -1314,6 +1315,19 @@ endif
 
 call write_real_data(fname_error, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error /))
 
+inquire (file=fname_error_norm, exist=exst)
+if (.not. exst) then
+  var_list = '"t"'
+  do n = 1, nb_elem
+    !  Create variable list name:
+    call strcat(var_list, ',"error_norm<sub>')
+    call strcat(var_list, n)
+    call strcat(var_list, '</sub>"')
+  enddo
+  call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
+endif
+
+call write_real_data(fname_error_norm, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error_norm /))
 
 inquire (file=fname_vel, exist=exst)
 if (.not. exst) then
