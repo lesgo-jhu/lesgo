@@ -334,9 +334,8 @@ if( temporal_model == 1 ) then
   !  Compute the RNS error for the b elem (e_b = F_b + CD_b * gamma_b)
   do n=1, nb_elem
     force_t_p => b_elem_t(n) % force_t
-    force_t_p % error = 100.*sqrt( ( b_force(1,n) + force_t_p % CD * b_gamma(1,n))**2 + &
-                                   ( b_force(2,n) + force_t_p % CD * b_gamma(2,n))**2 ) / &
-                             sqrt( b_force(1,n)**2 + b_force(2,n)**2 )
+    force_t_p % error = sum( ( b_force(:,n) + force_t_p % CD * b_gamma(:,n) )**2 )
+    force_t_p % error_norm = sum( b_force(:,n)**2 )
     nullify(force_t_p)                            
   enddo
 
@@ -393,9 +392,8 @@ elseif( temporal_model == 2) then ! use implicit formulation
   !  Compute the RNS error for the b elem (e_b = R_b + CD_b * M_b)
   do n=1, nb_elem
     force_t_p => b_elem_t(n) % force_t
-    force_t_p % error = 100.*sqrt( ( b_r_force(1,n) + force_t_p % CD * b_m(1,n))**2 + &
-                                   ( b_r_force(2,n) + force_t_p % CD * b_m(2,n))**2 ) / &
-                             sqrt( b_r_force(1,n)**2 + b_r_force(2,n)**2 )
+    force_t_p % error = sum(( b_r_force(:,n) + force_t_p % CD * b_m(:,n))**2 )
+    force_t_p % error_norm = sum( b_r_force(:,n)**2 )
     nullify(force_t_p)
   enddo  
 

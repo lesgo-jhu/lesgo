@@ -25,15 +25,13 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 ! kc-3
 integer, parameter :: ntree = 8
-! kc-2
-!integer, parameter :: ntree = 5
 ! vtree-2
 !integer, parameter :: ntree = 2
 
 integer, parameter :: ngen = 10
 integer, parameter :: ngen_reslv = 2
 
-! kc-{2,3}
+! kc-3
 integer, parameter :: nbranch = 3
 ! vtree-2
 !integer, parameter :: nbranch = 2
@@ -45,7 +43,6 @@ real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-!real(rprec), parameter :: z_bottom_surf = 0.188482319537037_rprec
 real(rprec), parameter :: z_bottom_surf = 0.2_rprec
 
 logical, parameter :: filter_chi = .true.
