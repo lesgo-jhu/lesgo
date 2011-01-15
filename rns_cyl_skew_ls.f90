@@ -32,7 +32,7 @@ public rns_init_ls, rns_tree_layout
 character (*), parameter :: mod_name = 'rns_cyl_skew_ls'
 
 !  Options: 'default', 'kc-3'
-character(*), parameter :: rns_tree_layout = 'kc-3'
+!character(*), parameter :: rns_tree_layout = 'kc-3'
 
 integer, pointer, dimension(:) :: cl_to_r_elem_map
 integer, pointer, dimension(:) :: cl_to_beta_elem_map
@@ -1582,7 +1582,7 @@ call set_b_elem_children()
 !  Initialize force data
 do n=1, nb_elem
   b_elem_t( n ) % force_t = force_type_2( fx=0._rprec, fy=0._rprec, CD=0._rprec, &
-    error=0._rprec, LAB=0._rprec, LBB=0._rprec )
+    error=0._rprec, error_norm=0._rprec, LAB=0._rprec, LBB=0._rprec )
 enddo
 
 return
