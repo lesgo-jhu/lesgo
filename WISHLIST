@@ -7,3 +7,5 @@ lesgo wish list: let the fun begin
    This applies not only for variables written to file but any
    instance that a w-grid variable is operated against a uv-grid
    variable.
+
+** Add checkpointing.
