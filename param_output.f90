@@ -30,8 +30,8 @@ character(*), parameter :: f_fmt = '(a,f12.6)'
 character(*), parameter :: x2f_fmt = '(a,2f12.6)'
 character(*), parameter :: x3f_fmt = '(a,3f12.6)'
 
-character(*), parameter :: if_fmt='(a,i,f12.6)'
-character(*), parameter :: ix3f_fmt='(a,i,3f12.6)'
+character(*), parameter :: if_fmt='(a,i7,f12.6)'
+character(*), parameter :: ix3f_fmt='(a,i7,3f12.6)'
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
