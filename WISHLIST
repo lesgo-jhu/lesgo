@@ -9,3 +9,9 @@ lesgo wish list: let the fun begin
    variable.
 
 ** Add checkpointing.
+
+** Create documentation. Good place to start is the README. Would 
+   be nice to have a formal pdf covering the basic background info,
+   usage of lesgo, and any idiosyncrasies that are important to
+   know
+   
