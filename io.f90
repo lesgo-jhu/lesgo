@@ -2094,7 +2094,7 @@ $if($LVLSET)
 call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
    '"x", "y", "z", "phi", "<cs2>"', coord, 2)
 !  write phi and x,y,z
-call write_real_data_3D(fname_rs, 'append', 'formatted', 1, nx, ny, nz, &
+call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
   (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
 call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
   (/ tavg_t % cs_opt2 /), 4)  
