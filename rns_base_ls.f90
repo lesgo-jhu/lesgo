@@ -29,7 +29,7 @@ $endif
 ! kc-3
 !integer, parameter :: rns_ntree = 4 ! Number of unique trees 
 ! vtree-2
-integer, parameter :: rns_ntree = 2 ! Number of unique trees
+integer, parameter :: rns_ntree = 1 ! Number of unique trees
 
 !  Options: 'default', 'kc-3'
 ! kc-3
@@ -46,16 +46,16 @@ integer, parameter :: temporal_weight = 1
   ! vtree-2
   real(rprec), parameter :: Tconst = 1.0_rprec
   
-  integer, parameter :: weight_nstart = 0
+  integer, parameter :: weight_nstart = 10000
 
 !  Explict - 1, Implicit - 2
-integer, parameter :: temporal_model = 2
+integer, parameter :: temporal_model = 1
 
 !  Local - 1, Global - 2
-integer, parameter :: spatial_model = 2
+integer, parameter :: spatial_model = 1
 
 integer, parameter :: output_nskip = 10
-integer, parameter :: CD_ramp_nstep = 0
+integer, parameter :: CD_ramp_nstep = 500
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
