@@ -27,26 +27,26 @@ $endif
 ! RNS PARAMETERS
 !---------------------------------------------------  
 ! kc-3
-!integer, parameter :: rns_ntree = 4 ! Number of unique trees 
+integer, parameter :: rns_ntree = 4 ! Number of unique trees 
 ! vtree-2
-integer, parameter :: rns_ntree = 1 ! Number of unique trees
+!integer, parameter :: rns_ntree = 2 ! Number of unique trees
 
 !  Options: 'default', 'kc-3'
 ! kc-3
-!character(*), parameter :: rns_tree_layout = 'kc-3'
+character(*), parameter :: rns_tree_layout = 'kc-3'
 ! vtree-2
-character(*), parameter :: rns_tree_layout = 'default'
+!character(*), parameter :: rns_tree_layout = 'default'
 
 
 !  Weighting Off - 0, On - 1
 integer, parameter :: temporal_weight = 1
   
   ! kc-3
-  !real(rprec), parameter :: Tconst = 8.0_rprec
+  real(rprec), parameter :: Tconst = 8.0_rprec
   ! vtree-2
-  real(rprec), parameter :: Tconst = 1.0_rprec
+  !real(rprec), parameter :: Tconst = 1.0_rprec
   
-  integer, parameter :: weight_nstart = 10000
+  integer, parameter :: weight_nstart = 0
 
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 1
@@ -55,15 +55,15 @@ integer, parameter :: temporal_model = 1
 integer, parameter :: spatial_model = 1
 
 integer, parameter :: output_nskip = 10
-integer, parameter :: CD_ramp_nstep = 500
+integer, parameter :: CD_ramp_nstep = 0
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
 
 ! kc-3 alpha_dist = h / h
-!real(rprec), parameter :: alpha_dist = 1.0_rprec
+real(rprec), parameter :: alpha_dist = 1.0_rprec
 ! vtree-2 alpha_dist = d / h
-real(rprec), parameter :: alpha_dist = 0.57143
+!real(rprec), parameter :: alpha_dist = 0.57143
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
 
