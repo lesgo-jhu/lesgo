@@ -9,6 +9,7 @@ save
 private
 
 public :: rns_forcing_ls ! Apply forcing
+public :: rns_elem_force_ls
 public :: rns_finalize_ls
 public :: rns_force_init_ls
 
@@ -19,15 +20,19 @@ contains
 !**********************************************************************
 subroutine rns_forcing_ls()
 !**********************************************************************
-!  This subroutine computes the forces on the unresolved branches
+!
+!  This subroutine computes the forces on the unresolved branches. These
+!  forces are based on the velocity field at u^m and not the intermediate
+!  velocity u*. The values for kappa is from the m-1 time step
+!  as the values from time step m are unknown until after the IBM is applied
+!  and rns_elem_force_ls is called.
 !
 use types, only : rprec
-use sim_param, only : u, v
-use immersedbc, only : fx, fy
+use sim_param, only : u, v, RHSx, RHSy
 use messages
 
 $if($MPI)
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP, MPI_SYNC_DOWN
 use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
@@ -54,9 +59,6 @@ $if($VERBOSE)
 call enter_sub(sub_name)
 $endif
 
-!  Compute the relavent force information ( include reference quantities, CD, etc.)
-call rns_elem_force()
-
 !  Apply the RNS forcing to appropriate nodes
 do n = 1, nbeta_elem
  
@@ -75,8 +77,10 @@ do n = 1, nbeta_elem
       vc = v(i,j,k)
       cache = -kappa_p * sqrt( uc**2 + vc**2 ) * chi(i,j,k)  
       
-      fx(i,j,k) = cache * uc
-      fy(i,j,k) = cache * vc
+      !  Modify the RHS to include forces in the evaluation
+      !  of the intermediate velocity u*
+      RHSx(i,j,k) = RHSx(i,j,k) + cache * uc
+      RHSy(i,j,k) = RHSy(i,j,k) + cache * vc
 
       nullify(i,j,k)
       
@@ -86,23 +90,14 @@ do n = 1, nbeta_elem
     
 enddo
 
-!$if($MPI)
-!call mpi_sync_real_array( fx, MPI_SYNC_DOWNUP )
-!$endif
-
 $if($MPI)
-!  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
-call mpi_sendrecv (fy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
+!  Sync RHS{x,y}; not sure if this is needed, but
+!  shouldn't hurt
+call mpi_sync_real_array(RHSx, MPI_SYNC_DOWNUP)
+call mpi_sync_real_array(RHSy, MPI_SYNC_DOWNUP)
 $endif
 
 !endif
-
-if(modulo (jt, output_nskip) == 0) call rns_elem_output()
 
 $if($VERBOSE)
 call exit_sub(sub_name)
@@ -146,9 +141,9 @@ end subroutine rns_elem_output
 
 
 !**********************************************************************
-subroutine rns_elem_force()
+subroutine rns_elem_force_ls()
 !**********************************************************************
-!  This subroutine computes the CD of the beta elements
+!  This subroutine computes the CD and kappa of the beta elements
 !
 use types, only : rprec
 use messages
@@ -164,7 +159,7 @@ $endif
 
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.rns_elem_force'
+character (*), parameter :: sub_name = mod_name // '.rns_elem_force_ls'
 
 integer ::  n, ns
 integer, pointer :: nelem_p
@@ -453,6 +448,8 @@ call beta_elem_kappa()
 deallocate(beta_gamma, b_beta_gamma_sum)
 deallocate(b_gamma)
 
+if(modulo (jt, output_nskip) == 0) call rns_elem_output()
+
 $if($VERBOSE)
 call exit_sub(sub_name)
 $endif
@@ -467,7 +464,7 @@ subroutine b_elem_CD_LE()
 !  This subroutine computes the local b_elem CD using the explicit 
 !  formulation
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -490,7 +487,7 @@ subroutine b_elem_CD_GE()
 !  This subroutine computes the global b_elem CD using the explicit 
 !  formulation with least squares summation
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -522,7 +519,7 @@ subroutine b_elem_CD_LI()
 !  This subroutine computes the local b_elem CD using the implicit
 !  formulation
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -545,7 +542,7 @@ subroutine b_elem_CD_GI()
 !  This subroutine computes the global b_elem CD using the implicit 
 !  formulation with direct summation
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -577,7 +574,7 @@ subroutine b_elem_CD_LETW()
 !  This subroutine computes the local b_elem CD using the explicit 
 !  formulation with temporal weighting
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -663,7 +660,7 @@ subroutine b_elem_CD_GETW()
 !  This subroutine computes the global b_elem CD using the explicit 
 !  formulation with temporal weighting
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -722,7 +719,7 @@ subroutine b_elem_CD_LITW()
 !  This subroutine computes the local b_elem CD using the implicit 
 !  formulation with temporal weighting
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 use functions, only : det2D
@@ -810,7 +807,7 @@ subroutine b_elem_CD_GITW()
 !  This subroutine computes the global b_elem CD using the implicit 
 !  formulation with temporal weighting
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -871,7 +868,7 @@ subroutine beta_elem_kappa()
 !  This subroutine computes the global b_elem CD using the implicit 
 !  formulation with temporal weighting
 !
-!  Used variable declarations from contained subroutine rns_elem_force
+!  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
 implicit none
@@ -940,7 +937,7 @@ enddo
 return
 end subroutine beta_elem_kappa
 
-end subroutine rns_elem_force
+end subroutine rns_elem_force_ls
 
 !**********************************************************************
 subroutine Lsim(F, L)
@@ -1358,6 +1355,7 @@ subroutine rns_force_init_ls ()
 !  
 !  This subroutine reads the last BETA force data from a previous simulation
 !
+use types, only : rprec
 use param, only : coord, USE_MPI
 use messages
 implicit none
@@ -1408,6 +1406,10 @@ read (1) r_elem_t(:) % force_t
 read (1) beta_elem_t(:) % force_t 
 read (1) b_elem_t(:) % force_t 
 close (1)
+
+!  Initialize beta forces
+fbeta_x=0._rprec
+fbeta_y=0._rprec
 
 end subroutine rns_force_init_ls
 
