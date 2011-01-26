@@ -238,6 +238,8 @@ real (rp) :: x_tmp(nd), y_tmp(nd)
 
 type ( branch_type ) :: sbr
 
+logical :: DEBUG=.false.
+
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub ( sub_name )
