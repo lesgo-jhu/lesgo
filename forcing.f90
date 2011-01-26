@@ -3,16 +3,17 @@
 !**********************************************************************
 subroutine forcing ()
 !**********************************************************************
-
-use types,only:rprec
-use param
-use sim_param
-use immersedbc
-$if ($TREES_LS)
-  use trees_ls
-$endif
+!
+!  This subroutine acts as a driver for applying pointwise body forces
+!  into the domain. Subroutines contained here should modify RHS{x,y,z}
+!  to include the forces in the evaluation of the intermediate velocity
+!  u*. Forces are applied here before the pressure solver so that the 
+!  additional forces may be included in the pressure Poisson equation
+!  and the updated velocity field u^{m+1} will be divergence free 
+!  (i.e. conserve mass).
+!
+use messages
 $if ($LVLSET)
-  use level_set, only : level_set_forcing
   $if ($RNS_LS)
   use rns_ls, only : rns_forcing_ls
   $endif
@@ -22,13 +23,53 @@ $if ($TURBINES)
 $endif
 implicit none
 
-integer::px,py,lx,ly,lz
-integer :: jx,jy,jz,i
+character (*), parameter :: sub_name = 'forcing'
+$if ($LVLSET)
+  $if ($RNS_LS)
+  call rns_forcing_ls()
+  $endif
+$endif
+
+$if ($TURBINES)
+  call mesg(sub_name,'turbines_forcing disabled until forces are correctly added to RHS{x,y,z}')
+  call mesg(sub_name,'To revert these changes please checkout tag pre_force_move from CVS')
+  call error(sub_name,'Stopping')
+  !call turbines_forcing ()
+$endif
+   
+end subroutine forcing
+
+!**********************************************************************
+subroutine forcing_post_press()
+!**********************************************************************
+!  
+!  Forces applied in this subroutine are done so after the pressure 
+!  Poisson solver. Therefore, care should be taken so that the applied
+!  forces are divergence free in order to preserve mass conservation.
+!  
+use types, only : rprec
+use param
+use sim_param
+use immersedbc
+$if ($LVLSET)
+use level_set, only : level_set_forcing
+$if($RNS_LS)
+  use rns_ls, only : rns_elem_force_ls
+$endif
+$if ($TREES_LS)
+  use trees_ls
+$endif
+$endif
+implicit none
 
 real (rprec) :: Rx, Ry, Rz 
 
+integer::px,py,lx,ly,lz
+integer :: jx,jy,jz,i
+
 ! start calculation of body forces (fx,fy,fz)
 ! 'force' is the mean pressure gradient
+! WARNING: Not sure if application of building forces here violate continuity!
 if (use_bldg) then
    do i=1,n_bldg
      px=bldg_pts(1,i)
@@ -56,33 +97,27 @@ if (use_bldg) then
    ! end calculation of forces
 endif
 
-$if ($LVLSET)
+$if($LVLSET)
+
+  !  Compute the level set IBM forces
   call level_set_forcing ()
-  $if ($RNS_LS)
-  call rns_forcing_ls()
+
+  $if($RNS_LS)
+  !  Compute the relavent force information ( include reference quantities, CD, etc.)
+  !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+  !  made here.
+  call rns_elem_force_ls()
   $endif
 
-  $if ($TREES_LS)
+  $if($TREES_LS)
   !--this must come after call to level_set_forcing
   !--in /a posteriori/ test, this adds SGS branch force
   !--in /a priori/ test, this does not modify force
   call trees_ls_calc ()
   $endif
-
-$endif
-
-$if ($TURBINES)
-  call turbines_forcing ()
 $endif
 
 if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
-    
-end subroutine forcing
-
-!**********************************************************************
-subroutine forcing_post_press()
-!**********************************************************************
-implicit none
 
 return
 end subroutine forcing_post_press
