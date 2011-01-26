@@ -481,7 +481,7 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use grid_defs, only : x,y,z,zw
-use sim_param, only : u,v,w
+use sim_param, only : u,v,w,dudx,dvdy,dwdz
 $if($MPI)
 use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
@@ -501,7 +501,7 @@ character(25) :: cl, ct
 character (64) :: fname, temp, var_list
 integer :: n, i, j, k, nvars, icount
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel
 
 $if($PGI)
 real(rprec), allocatable, dimension(:) :: u_inter
@@ -648,7 +648,37 @@ elseif(itype==2) then
   4, x, y, z(1:nz))
   
   $endif
-  
+
+  !  Output divergence of velocity field
+  allocate(divvel(nx,ny,nz))
+  divvel=dudx(1:nx,1:ny,1:nz)+dvdy(1:nx,1:ny,1:nz)+dwdz(1:nx,1:ny,1:nz)
+
+  !  Open file which to write global data
+  write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
+  fname = trim(adjustl(fname))
+
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+  $endif
+
+  $if($LVLSET)
+  var_list = '"x", "y", "z", "divvel", "phi"'
+  nvars = 5
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+  $else
+  var_list = '"x", "y", "z", "divvel"'
+  nvars = 4
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ divvel /), 4, x, y, z(1:nz))
+  $endif
+
+  deallocate(divvel)
+
+
 !  Write instantaneous x-plane values
 elseif(itype==3) then
 
