@@ -386,7 +386,7 @@ do jt=1,nsteps
         force = 0._rprec
     end if
 
-    !  
+    !  Applied forcing (forces are added to RHS{x,y,z})
     call forcing()
 
     ! Set RHS*_f if necessary (first timestep)
@@ -466,7 +466,7 @@ do jt=1,nsteps
                               p(1:nx, 1:ny, 0:nz-2)) / dz
     dpdz(:, :, nz) = BOGUS
 
-    ! Add pressure gradients to RHS variables
+    ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
