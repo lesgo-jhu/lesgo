@@ -1407,10 +1407,6 @@ read (1) beta_elem_t(:) % force_t
 read (1) b_elem_t(:) % force_t 
 close (1)
 
-!  Initialize beta forces
-fbeta_x=0._rprec
-fbeta_y=0._rprec
-
 end subroutine rns_force_init_ls
 
 !**********************************************************************
