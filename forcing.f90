@@ -1,6 +1,8 @@
 ! modified this so that is just calculated the force--it does not do the
 ! time advancement
+!**********************************************************************
 subroutine forcing ()
+!**********************************************************************
 
 use types,only:rprec
 use param
@@ -77,8 +79,17 @@ if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
     
 end subroutine forcing
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
+subroutine forcing_post_press()
+!**********************************************************************
+implicit none
+
+return
+end subroutine forcing_post_press
+
+!**********************************************************************
 function fringe_blend ( x )
+!**********************************************************************
 use types, only : rp => rprec
 implicit none
 
