@@ -498,7 +498,8 @@ implicit none
 integer, intent(IN) :: itype
 
 character(25) :: cl, ct
-character (64) :: fname, temp, var_list
+character (64) :: fname, temp
+character(128) :: var_list
 integer :: n, i, j, k, nvars, icount
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel
