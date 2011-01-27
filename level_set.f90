@@ -64,7 +64,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
+logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
                                        !  level set BC
 logical, parameter :: use_log_profile = .false.
 logical, parameter :: use_enforce_un = .false.
@@ -4698,8 +4698,6 @@ read (lun) phi(:, :, $lbz:nz)
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
 close (lun)
 
-write(*,*) 'minval(phi) = ', minval(phi)
-write(*,*) 'maxval(phi) = ', maxval(phi)
 call mesg (sub_name, 'level set function initialized')
 
 !--calculate the normal
