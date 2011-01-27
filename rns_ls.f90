@@ -28,7 +28,8 @@ subroutine rns_forcing_ls()
 !  and rns_elem_force_ls is called.
 !
 use types, only : rprec
-use sim_param, only : u, v, fxa, fya
+use sim_param, only : u, v
+use immersedbc, only : fxa, fya
 use messages
 
 $if($MPI)
@@ -92,11 +93,11 @@ enddo
 
 $if($MPI)
 !  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-call mpi_sendrecv (fxa(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-  fxa(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+  fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
   comm, status, ierr)
-call mpi_sendrecv (fya(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-  fya(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+  fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
   comm, status, ierr)
 
 $endif
