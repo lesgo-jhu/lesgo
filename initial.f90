@@ -1,7 +1,7 @@
 subroutine initial()
 use types,only:rprec
 use param
-use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
+use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q,fxa,fya,fza
 !use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
 use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN 
 use scalars_module,only:RHS_T ! added by VK
@@ -33,6 +33,7 @@ integer::i,jz
 
 !Cs_opt2_avg=0._rprec
 fx=0._rprec;fy=0._rprec;fz=0._rprec
+fxa=0._rprec; fya=0._rprec; fza=0._rprec
 u_des=0._rprec;v_des=0._rprec;w_des=0._rprec
 mean_u=0._rprec;mean_u2=0._rprec;mean_v=0._rprec;mean_v2=0._rprec
 mean_w=0._rprec;mean_w2=0._rprec
