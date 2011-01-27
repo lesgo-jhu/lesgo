@@ -489,7 +489,7 @@ $endif
 
 $if($LVLSET)
 use level_set, only : phi
-use immersedbc, only : fx, fy, fz
+use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
 
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
@@ -502,7 +502,7 @@ character (64) :: fname, temp
 character(128) :: var_list
 integer :: n, i, j, k, nvars, icount
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel, fx_tot, fy_tot, fz_tot
 
 $if($PGI)
 real(rprec), allocatable, dimension(:) :: u_inter
@@ -628,7 +628,21 @@ elseif(itype==2) then
     call mpi_sendrecv (fz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
                        fz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
                        comm, status, ierr)
+    call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (fza(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fza(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
     $endif
+
+    allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
+    fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
+    fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
+    fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
 
     !  Open file which to write global data
     write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
@@ -643,10 +657,11 @@ elseif(itype==2) then
     nvars = 7
     call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
-      (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz) /), &
-      4, x, y, z(1:nz))
+      (/ fx_tot, fy_tot, fz_tot /), 4, x, y, z(1:nz))
     call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
       (/ phi(1:nx,1:ny,1:nz) /), 4)
+
+    deallocate(fx_tot, fy_tot, fz_tot)
   
   $endif
 
@@ -782,12 +797,19 @@ elseif(itype==4) then
       do i=1,nx
 
         ui(i,1,k) = linear_interp(fx(i,yplane_istart(j),k), &
-          fx(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
+          fx(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j)) + &
+          linear_interp(fxa(i,yplane_istart(j),k), &
+          fxa(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
+
         vi(i,1,k) = linear_interp(fy(i,yplane_istart(j),k), &
-          fy(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
+          fy(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j)) + &
+          linear_interp(fya(i,yplane_istart(j),k), &
+          fya(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
+
         wi(i,1,k) = linear_interp(fz(i,yplane_istart(j),k), &
-          fz(i,yplane_istart(j)+1,k), dy, &
-          yplane_ldiff(j))
+          fz(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j)) + &
+          linear_interp(fza(i,yplane_istart(j),k), &
+          fza(i,yplane_istart(j)+1,k), dy, yplane_ldiff(j))
 
       enddo
     enddo
@@ -851,12 +873,17 @@ elseif(itype==5) then
       do i=1,Nx
 
         ui(i,j,1) = linear_interp(fx(i,j,zplane_istart(k)),fx(i,j,zplane_istart(k)+1), &
+          dz, zplane_ldiff(k)) + &
+          linear_interp(fxa(i,j,zplane_istart(k)),fxa(i,j,zplane_istart(k)+1), &
           dz, zplane_ldiff(k))
         vi(i,j,1) = linear_interp(fy(i,j,zplane_istart(k)),fy(i,j,zplane_istart(k)+1), &
-          dz, zplane_ldiff(k))
+          dz, zplane_ldiff(k)) + &
+          linear_interp(fya(i,j,zplane_istart(k)),fya(i,j,zplane_istart(k)+1), &
+          dz, zplane_ldiff(k)) 
         wi(i,j,1) = linear_interp(fz(i,j,zplane_istart(k)), &
-          fz(i,j,zplane_istart(k)+1), &
-          dz, zplane_ldiff(k))
+          fz(i,j,zplane_istart(k)+1), dz, zplane_ldiff(k)) + &
+          linear_interp(fza(i,j,zplane_istart(k)), &
+          fza(i,j,zplane_istart(k)+1), dz, zplane_ldiff(k))
 
       enddo
     enddo
