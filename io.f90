@@ -525,9 +525,8 @@ call interp_to_uv_grid(w, w_uv, w_uv_tag)
 if(itype==1) then
 
   do n=1,point_nloc
-!  Files have been opened in stats_init
 
-!  For parallel runs check if data is on correct proc
+    !  For parallel runs check if data is on correct proc
     $if ($MPI)
     if(point_coord(n) == coord) then
     $endif
@@ -567,28 +566,15 @@ elseif(itype==2) then
   nvars = 6
   $endif
   
-  
   call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
-  !write_tecplot_header_ND(fname, write_posn, var_list, nvars, zone, data_prec, domain_size, soln_time)
-  
-
-  !write(7,"(1a,i9,1a,i3,1a,i3,1a,i3,1a,i3)") 'ZONE T="', &
-  !  j,'", DATAPACKING=POINT, i=', Nx,', j=',Ny,', k=', Nz
-
-  !!$if($LVLSET)
-  !!write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-  !!$else
-  !!write(7,"(1a)") ''//adjustl('DT=(DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)')//''
-  !!$endif
-
-  !!write(7,"(1a,f18.6)") 'solutiontime=', total_time_dim
-  !open(unit = 7,file = fname, status='old',form='formatted', &
-  !  action='write',position='append')
   
   $if($LVLSET)
-  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), & 
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny, nz, &
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), & 
     4, x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
+    (/ phi(1:nx,1:ny,1:nz) /), 4)
+  
   $else
     $if($PGI)
     allocate(u_inter(nx*ny*nz*3))
@@ -626,26 +612,40 @@ elseif(itype==2) then
       4, x, y, z(1:nz))
     $endif
   $endif
-  
+
   !  Output Instantaneous Force Field for RNS Simulations
   !  Still need to put fz on uv grid may need a better way
   $if($LVLSET)
-  !  Open file which to write global data
-  write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
-  fname = trim(adjustl(fname))
+    $if($MPI)
+    !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+    call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (fy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (fz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                       fz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    $endif
 
-  $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
-  $endif
+    !  Open file which to write global data
+    write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
+    fname = trim(adjustl(fname))
 
-  !write(7,*) 'variables = "x", "y", "z", "u", "v", "w", "phi"';
-  var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
-  nvars = 7
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
-  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-  (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz) /), &
-  4, x, y, z(1:nz))
+    $if ($MPI)
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
+
+    var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
+    nvars = 7
+    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+      (/ fx(1:nx,1:ny,1:nz), fy(1:nx,1:ny,1:nz), fz(1:nx,1:ny,1:nz) /), &
+      4, x, y, z(1:nz))
+    call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+      (/ phi(1:nx,1:ny,1:nz) /), 4)
   
   $endif
 
@@ -672,7 +672,7 @@ elseif(itype==2) then
   var_list = '"x", "y", "z", "divvel"'
   nvars = 4
   call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, total_time)
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
   (/ divvel /), 4, x, y, z(1:nz))
   $endif
 
