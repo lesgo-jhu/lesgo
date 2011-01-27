@@ -31,7 +31,7 @@ $if ($LVLSET)
 $endif
 
 $if ($TURBINES)
-  call mesg(sub_name,'turbines_forcing disabled until forces are correctly added to RHS{x,y,z}')
+  call mesg(sub_name,'turbines_forcing disabled until forces are correctly added to f{x,y,z}a')
   call mesg(sub_name,'To revert these changes please checkout tag pre_force_move from CVS')
   call error(sub_name,'Stopping')
   !call turbines_forcing ()
@@ -278,7 +278,7 @@ do jz = 1, nz - 1
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
       RHS = -tadv1 * dpdy(jx, jy, jz)
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz)))
-
+   
       !if (DEBUG) then
       !  if ( isnan (u(jx, jy, jz)) ) then
       !    write (*, *) $str($context_doc)
