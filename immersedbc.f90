@@ -3,12 +3,16 @@ use types,only:rprec
 use param,only:ld,ny,nz
 implicit none
 private
-public n_bldg,bldg_pts,fx,fy,fz,u_des,v_des,w_des&
-     ,building_mask,building_interp,building_mask_one,building_interp_one&
-     ,wallstress_building,walldudx_building
+public n_bldg,bldg_pts,fx,fy,fz,fxa,fya,fza, &
+       u_des,v_des,w_des, &
+       building_mask,building_interp,building_mask_one,building_interp_one, &
+       wallstress_building,walldudx_building
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
 real(kind=rprec),dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
+! Added for use with applied forces
+real(kind=rprec),dimension(ld,ny,nz) :: fxa, fya, fza
+
 logical,parameter::callag=.false.
 !--is this for the building or what?
 real(kind=rprec),parameter::zo_avg=2._rprec
