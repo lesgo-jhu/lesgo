@@ -1,7 +1,7 @@
 subroutine initial()
 use types,only:rprec
 use param
-use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q,fxa,fya,fza
+use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
 !use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
 use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN 
 use scalars_module,only:RHS_T ! added by VK
@@ -10,6 +10,7 @@ use scalars_module2,only:ic_scal ! added by VK
 ! scalars
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
+use immersedbc,only:fxa,fya,fza
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
