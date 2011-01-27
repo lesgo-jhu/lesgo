@@ -389,6 +389,11 @@ do jt=1,nsteps
     !  Applied forcing (forces are added to RHS{x,y,z})
     call forcing()
 
+    !  Update RHS with applied forcing
+    RHSx(1:nx,1:ny,1:nz-1) = RHSx(1:nx,1:ny,1:nz-1) + fxa(1:nx,1:ny,1:nz-1)
+    RHSy(1:nx,1:ny,1:nz-1) = RHSy(1:nx,1:ny,1:nz-1) + fya(1:nx,1:ny,1:nz-1)
+    RHSz(1:nx,1:ny,1:nz-1) = RHSz(1:nx,1:ny,1:nz-1) + fza(1:nx,1:ny,1:nz-1)
+
     ! Set RHS*_f if necessary (first timestep)
     if ((jt == 1) .and. (.not. initu)) then
         ! if initu, then this is read from the initialization file
