@@ -28,7 +28,7 @@ subroutine rns_forcing_ls()
 !  and rns_elem_force_ls is called.
 !
 use types, only : rprec
-use sim_param, only : u, v, RHSx, RHSy
+use sim_param, only : u, v, fxa, fya
 use messages
 
 $if($MPI)
@@ -79,8 +79,8 @@ do n = 1, nbeta_elem
       
       !  Modify the RHS to include forces in the evaluation
       !  of the intermediate velocity u*
-      RHSx(i,j,k) = RHSx(i,j,k) + cache * uc
-      RHSy(i,j,k) = RHSy(i,j,k) + cache * vc
+      fxa(i,j,k) = cache * uc
+      fya(i,j,k) = cache * vc
 
       nullify(i,j,k)
       
@@ -91,10 +91,14 @@ do n = 1, nbeta_elem
 enddo
 
 $if($MPI)
-!  Sync RHS{x,y}; not sure if this is needed, but
-!  shouldn't hurt
-call mpi_sync_real_array(RHSx, MPI_SYNC_DOWNUP)
-call mpi_sync_real_array(RHSy, MPI_SYNC_DOWNUP)
+!  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+call mpi_sendrecv (fxa(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+  fxa(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+  comm, status, ierr)
+call mpi_sendrecv (fya(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+  fya(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+  comm, status, ierr)
+
 $endif
 
 !endif
