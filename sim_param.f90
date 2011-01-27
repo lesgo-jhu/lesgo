@@ -65,6 +65,8 @@ real (rprec), dimension (ld, ny, $lbz:nz) :: divtx, divty, divtz
 
 ! Added for scalars
 real(kind=rprec),dimension(ld,ny,nz)::theta,q
+! Added for use with applied forces
+real(kind=rprec),dimension(nx,ny,nz) :: fxa, fya, fza
 
 $endif
 
