@@ -28,10 +28,7 @@ $if ($LVLSET)
 $endif
 
 $if ($TURBINES)
-  call mesg(sub_name,'turbines_forcing disabled until forces are correctly added to f{x,y,z}a')
-  call mesg(sub_name,'To revert these changes please checkout tag pre_force_move from CVS')
-  call error(sub_name,'Stopping')
-  !call turbines_forcing ()
+  call turbines_forcing ()
 $endif
    
 end subroutine forcing
