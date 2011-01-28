@@ -134,7 +134,7 @@ if( ntree > 0 ) call fill_tree_array_ls()
 call generate_grid()
 
 !  Initialize the distance function
-gcs_t(:,:,:)%phi = BOGUS
+gcs_t(:,:,:)%phi = -BOGUS
 gcs_t(:,:,:)%brindx=0
 gcs_t(:,:,:) % clindx=0
 
@@ -1185,7 +1185,7 @@ integer, pointer, dimension(:) :: br_loc_id_p
 
 $if($MPI)
 sendcnt = nx_proc * ny * (nz_tot - $lbz + 1)
-gcs_t(:,:,$lbz)%phi = BOGUS
+!gcs_t(:,:,$lbz)%phi = BOGUS
 $endif
 
 $if($MPI)

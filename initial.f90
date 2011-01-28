@@ -10,6 +10,7 @@ use scalars_module2,only:ic_scal ! added by VK
 ! scalars
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
 use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
+use immersedbc,only:fxa,fya,fza
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -33,6 +34,7 @@ integer::i,jz
 
 !Cs_opt2_avg=0._rprec
 fx=0._rprec;fy=0._rprec;fz=0._rprec
+fxa=0._rprec; fya=0._rprec; fza=0._rprec
 u_des=0._rprec;v_des=0._rprec;w_des=0._rprec
 mean_u=0._rprec;mean_u2=0._rprec;mean_v=0._rprec;mean_v2=0._rprec
 mean_w=0._rprec;mean_w2=0._rprec

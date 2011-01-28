@@ -230,19 +230,19 @@ do jt=1,nsteps
     $endif
   
     ! Calculate velocity derivatives
-        ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-        call filt_da (u, dudx, dudy)
-        call filt_da (v, dvdx, dvdy)
-        call filt_da (w, dwdx, dwdy)
+    ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+    call filt_da (u, dudx, dudy)
+    call filt_da (v, dvdx, dvdy)
+    call filt_da (w, dwdx, dwdy)
          
-        ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
-        !  except bottom coord, only 2:nz
-        call ddz_uv(dudz,u)
-        call ddz_uv(dvdz,v)
+    ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
+    !  except bottom coord, only 2:nz
+    call ddz_uv(dudz,u)
+    call ddz_uv(dvdz,v)
        
-        ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
-        !  except bottom coord, only 1:nz-1
-        call ddz_w(dwdz,w)
+    ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
+    !  except bottom coord, only 1:nz-1
+    call ddz_w(dwdz,w)
 
     ! Debug
     $if ($DEBUG)
@@ -386,6 +386,14 @@ do jt=1,nsteps
         force = 0._rprec
     end if
 
+    !  Applied forcing (forces are added to RHS{x,y,z})
+    call forcing()
+
+    !  Update RHS with applied forcing
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
+    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
+
     ! Set RHS*_f if necessary (first timestep)
     if ((jt == 1) .and. (.not. initu)) then
         ! if initu, then this is read from the initialization file
@@ -463,7 +471,7 @@ do jt=1,nsteps
                               p(1:nx, 1:ny, 0:nz-2)) / dz
     dpdz(:, :, nz) = BOGUS
 
-    ! Add pressure gradients to RHS variables
+    ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
@@ -480,7 +488,7 @@ do jt=1,nsteps
 
     ! Calculate external forces (buildings, trees, turbines, etc)
     !   store in fx,fy,fz arrays
-    call forcing ()
+    call forcing_post_press ()
 
     ! Debug
     $if ($DEBUG)

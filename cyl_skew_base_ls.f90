@@ -24,17 +24,17 @@ real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 ! kc-3
-!integer, parameter :: ntree = 8
+integer, parameter :: ntree = 8
 ! vtree-2
-integer, parameter :: ntree = 2
+!integer, parameter :: ntree = 2
 
 integer, parameter :: ngen = 10
 integer, parameter :: ngen_reslv = 2
 
 ! kc-3
-!integer, parameter :: nbranch = 3
+integer, parameter :: nbranch = 3
 ! vtree-2
-integer, parameter :: nbranch = 2
+!integer, parameter :: nbranch = 2
 
 real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
 real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
@@ -128,14 +128,14 @@ real(rprec), allocatable, dimension(:,:) :: origin
 allocate(origin(3,ntree))
 
 ! kc-3
-!origin(:,1) = (/ L_x/4., L_y/2., z_bottom_surf /)
-!origin(:,2) = (/ 3.*L_x/4., L_y/2., z_bottom_surf /)
-!origin(:,3) = (/ L_x/2., L_y, z_bottom_surf /)
-!origin(:,4) = (/ L_x/2., 0._rprec, z_bottom_surf /)
-!origin(:,5) = (/ 0._rprec, L_y, z_bottom_surf /)
-!origin(:,6) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-!origin(:,7) = (/ L_x, L_y, z_bottom_surf /)
-!origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
+origin(:,1) = (/ L_x/4., L_y/2., z_bottom_surf /)
+origin(:,2) = (/ 3.*L_x/4., L_y/2., z_bottom_surf /)
+origin(:,3) = (/ L_x/2., L_y, z_bottom_surf /)
+origin(:,4) = (/ L_x/2., 0._rprec, z_bottom_surf /)
+origin(:,5) = (/ 0._rprec, L_y, z_bottom_surf /)
+origin(:,6) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+origin(:,7) = (/ L_x, L_y, z_bottom_surf /)
+origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
 
 ! kc-2
 !origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
@@ -145,8 +145,8 @@ allocate(origin(3,ntree))
 !origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
 
 ! vtree-2
-origin(:,1) = (/ L_x/4., 0.5*L_y, z_bottom_surf /)
-origin(:,2) = (/ 3.*L_x/4., 0.5*L_y, z_bottom_surf /)
+!origin(:,1) = (/ L_x/4., 0.5*L_y, z_bottom_surf /)
+!origin(:,2) = (/ 3.*L_x/4., 0.5*L_y, z_bottom_surf /)
 
 origin_out = origin(:,nt)
 

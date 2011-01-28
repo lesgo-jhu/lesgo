@@ -1,5 +1,8 @@
 lesgo wish list: let the fun begin
 
+(**) denotes items that have not been implemented
+(-->) denotes items that are in progress
+
 ** Check for consist usage of variables existing on w-grid. 
    There are several variables that are written to file that
    exisit on the w-grid - we need to make sure that they are
@@ -10,8 +13,25 @@ lesgo wish list: let the fun begin
 
 ** Add checkpointing.
 
-** Create documentation. Good place to start is the README. Would 
+--> Create documentation. Good place to start is the README. Would 
    be nice to have a formal pdf covering the basic background info,
    usage of lesgo, and any idiosyncrasies that are important to
    know
+
+** Convert code to use an input file. This would be very nice! The
+   code would need to fully implement dynamic allocation of arrays. 
+   Also need to consider the input format - 1) this could be a custom
+   format where all info is read in a strings and using delimiters
+   required values could be extract or 2) can use Fortran namelists
+   to express the input data using standard Fortran data types
+   (probably the best way to go)
+
+** Convert code to dynamic memory allocation. This is a good
+   practice in general, it will remove issues with the mcmodel
+   for cases with large grids, and is a prequesite to use an
+   input file for setting parameters. There is a dynamic 
+   allocation flag in Makefile.in but it seems that only
+   sim_param's are dynamically allocated with it. 
+   
+
    
