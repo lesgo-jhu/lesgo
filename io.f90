@@ -639,6 +639,7 @@ elseif(itype==2) then
                        comm, status, ierr)
     $endif
 
+    !  Sum both the induced and applied forces
     allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
     fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
     fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
