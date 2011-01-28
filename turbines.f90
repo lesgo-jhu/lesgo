@@ -822,7 +822,8 @@ end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
 use sim_param, only: u,v,w
-use immersedbc, only: fx,fy,fz
+!use immersedbc, only: fx,fy,fz
+use immersedbc, only : fxa, fya, fza
 use grid_defs, only: y,z
 $if ($MPI)
     use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -986,9 +987,10 @@ $endif
 if (turbine_in_proc) then
 
     !initialize forces to zero (only local values)
-    fx = 0.
-    fy = 0.
-    fz = 0.    
+    !fx = 0.
+    !fy = 0.
+    !fz = 0.    
+    fxa=0._rprec; fya=0._rprec; fza=0._rprec
 
     do s=1,nloc     
             
@@ -996,8 +998,9 @@ if (turbine_in_proc) then
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
-            ind2 = wind_farm_t%turbine_t(s)%ind(l)			
-            fx(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2                            
+            ind2 = wind_farm_t%turbine_t(s)%ind(l)
+            !fx(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2                            
+            fxa(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2 
             !fy(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(2)*ind2   
             !fz(i2,j2,k2) = 0.5*disk_force(s)*wind_farm_t%turbine_t(s)%nhat(3)*ind2
             !fz(i2,j2,k2+1) = fz(i2,j2,k2)
