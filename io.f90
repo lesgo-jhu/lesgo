@@ -732,8 +732,49 @@ elseif(itype==3) then
     enddo
 
     call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))      
+      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))     
 
+    $if($LVLSET)
+
+    write(fname,*) 'output/force.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    fname=trim(adjustl(fname))
+
+    $if ($MPI)
+    !  For MPI implementation
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+    $endif
+
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
+      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
+
+    !  Sum both induced forces, f{x,y,z}, and applied forces, f{x,y,z}a
+    do k=1,nz
+      do j=1,ny
+
+        ui(1,j,k) = linear_interp(fx(xplane_istart(i),j,k), &
+          fx(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i)) + &
+          linear_interp(fxa(xplane_istart(i),j,k), &
+          fxa(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i))
+
+        vi(1,j,k) = linear_interp(fy(xplane_istart(i),j,k), &
+          fy(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i)) + &
+          linear_interp(fya(xplane_istart(i),j,k), &
+          fya(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i))
+
+        wi(1,j,k) = linear_interp(fz(xplane_istart(i),j,k), &
+          fz(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i)) + &
+          linear_interp(fza(xplane_istart(i),j,k), &
+          fza(xplane_istart(i)+1,j,k), dx, xplane_ldiff(i))
+      enddo
+    enddo
+
+
+    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))
+
+
+    $endif
     
   enddo   
   
