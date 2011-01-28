@@ -102,8 +102,8 @@ do i=1,n_bldg
       do jy=py,py+ly
       do jx=px,px+lx
          u(jx,jy,jz)=u(jx,jy,jz)*weight+&
-              u(jx-1,jy,jz)*weightp+u(jx+1,jy,jz)*weightp+&
-              u(jx,jy-1,jz)*weightp+u(jx,jy+1,jz)*weightp
+         u(jx-1,jy,jz)*weightp+u(jx+1,jy,jz)*weightp+&
+         u(jx,jy-1,jz)*weightp+u(jx,jy+1,jz)*weightp
       enddo
       enddo
       enddo

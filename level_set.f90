@@ -659,7 +659,7 @@ do k = 1, nz - 1
 
       if ((-phi_c <= phi_x) .and. (phi_x < phi_0)) then
 
-	! Find bounding box for all "banded" points"
+        ! Find bounding box for all "banded" points"
         imn_used = min (imn_used, i)
         imx_used = max (imx_used, i)
         jmn_used = min (jmn_used, j)
@@ -679,8 +679,6 @@ do k = 1, nz - 1
         dphi = dphi0
         x1 = x + dphi * n_hat  !--this pt is supposed to be in fluid
                                !--this means dphi >= phi_c
-			       
-	
 
         !--check phi(x1) >= 0
         call interp_phi (x1, phi1)
