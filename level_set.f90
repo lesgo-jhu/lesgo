@@ -2663,14 +2663,16 @@ call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_smooth_vel
-
+ 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--smoothes in-place, so be careful
 !--uses SOR for laplace equation to acheive smoothing
 !--only smoothes region phi < phi0
-!--does NOT work near boundaries (of grid)!
+!--Used to NOT work near boundaries (of grid), but does now as
+!--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
+use grid_defs, only : autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -2693,6 +2695,9 @@ integer :: kmin, kmax
 
 real (rp) :: phi1
 real (rp) :: update
+
+! For autowrapping points: im1 = i-1, ip1 = i+1, etc.
+real(rp) :: im1, ip1, jm1, jp1
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
@@ -2727,8 +2732,8 @@ end select
 do iter = 1, niter
   
   do k = kmin, kmax
-    do j = 2, ny-1
-      do i = 2, nx-1
+    do j = 1, ny
+      do i = 1, nx
 
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
              (k == s) ) then
@@ -2740,15 +2745,21 @@ do iter = 1, niter
 
         if (phi1 < phi0) then  !--note its less than
 
+          !  Autowrap boundary points
+          im1 = autowrap_i(i-1)
+          ip1 = autowrap_i(i+1)
+          jm1 = autowrap_j(j-1)
+          jp1 = autowrap_j(j+1)
+
           select case (mode)
             case ('xy')
               nnbr = 4
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k)) / nnbr
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k)) / nnbr
             case ('3d')
               nnbr = 6
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k) +     &
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k) +     &
                         a(i, j, k-1) + a(i, j, k+1)) / nnbr
             case default
               call error (sub_name, 'invalid mode =' // mode)
