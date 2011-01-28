@@ -5,12 +5,9 @@ subroutine forcing ()
 !**********************************************************************
 !
 !  This subroutine acts as a driver for applying pointwise body forces
-!  into the domain. Subroutines contained here should modify RHS{x,y,z}
-!  to include the forces in the evaluation of the intermediate velocity
-!  u*. Forces are applied here before the pressure solver so that the 
-!  additional forces may be included in the pressure Poisson equation
-!  and the updated velocity field u^{m+1} will be divergence free 
-!  (i.e. conserve mass).
+!  into the domain. Subroutines contained here should modify f{x,y,z}a
+!  which are explicitly applied forces. These forces are applied to RHS 
+!  in the evaluation of u* so that mass conservation is preserved.
 !
 use messages
 $if ($LVLSET)
@@ -43,9 +40,13 @@ end subroutine forcing
 subroutine forcing_post_press()
 !**********************************************************************
 !  
-!  Forces applied in this subroutine are done so after the pressure 
-!  Poisson solver. Therefore, care should be taken so that the applied
-!  forces are divergence free in order to preserve mass conservation.
+!  Forces in this subroutine are done so after the pressure 
+!  Poisson solver. These forces are designated as induced forces
+!  such that they are chosen to obtain a desired velocity at time
+!  step m+1. If this is not the case, care should be taken so that the forces
+!  here are divergence free in order to preserve mass conservation. For 
+!  non-induced forces such as explicitly applied forces they should be 
+!  placed in forcing.
 !  
 use types, only : rprec
 use param
