@@ -746,7 +746,7 @@ elseif(itype==3) then
     $endif
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
-      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
+      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', coord, 2, total_time)
 
     !  Sum both induced forces, f{x,y,z}, and applied forces, f{x,y,z}a
     do k=1,nz
@@ -908,7 +908,7 @@ elseif(itype==5) then
     fname=trim(adjustl(fname))
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-      '"x", "y", "z", "fx", "fy", "fz"', coord, 2, total_time)
+      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', coord, 2, total_time)
 
     do j=1,Ny
       do i=1,Nx
@@ -2146,7 +2146,7 @@ $endif
 $if($LVLSET)
 
 call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<fx>","<fy>","<fz>"', coord, 2)
+   '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', coord, 2)
 !  write phi and x,y,z
 call write_real_data_3D(fname_f, 'append', 'formatted', 1, nx, ny, nz, &
   (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
@@ -2156,7 +2156,7 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
 $else
 
 call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<fx>","<fy>","<fz>"', coord, 2)
+   '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', coord, 2)
 call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), &
   4, x, y, z(1:nz))
@@ -2285,7 +2285,7 @@ $if($MPI)
       tavg_zplane_tot_t % txz, tavg_zplane_tot_t % tyz, tavg_zplane_tot_t % tzz /), 0, z_tot) 
   
     call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
-      '"z", "<fx>","<fy>","<fz>"', coord, 2)
+      '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', coord, 2)
     call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
       (/ tavg_zplane_tot_t % fx, tavg_zplane_tot_t % fy, tavg_zplane_tot_t % fz /), 0, z_tot)  
   
@@ -2338,7 +2338,7 @@ call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
   tavg_zplane_t % txz, tavg_zplane_t % tyz, tavg_zplane_t % tzz /), 0, z(1:nz)) 
   
 call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
-   '"z", "<fx>","<fy>","<fz>"', coord, 2)
+   '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', coord, 2)
 call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
   (/ tavg_zplane_t % fx, tavg_zplane_t % fy, tavg_zplane_t % fz /), 0, z(1:nz))  
   
