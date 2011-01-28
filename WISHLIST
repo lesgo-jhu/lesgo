@@ -25,6 +25,13 @@ lesgo wish list: let the fun begin
    required values could be extract or 2) can use Fortran namelists
    to express the input data using standard Fortran data types
    (probably the best way to go)
+
+** Convert code to dynamic memory allocation. This is a good
+   practice in general, it will remove issues with the mcmodel
+   for cases with large grids, and is a prequesite to use an
+   input file for setting parameters. There is a dynamic 
+   allocation flag in Makefile.in but it seems that only
+   sim_param's are dynamically allocated with it. 
    
 
    
