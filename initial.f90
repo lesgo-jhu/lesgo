@@ -84,10 +84,20 @@ if(initu)then
       case (1)
         read (12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz)
-      case (2:4)
+      case (2:3)
         read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                 Cs_opt2
+                 Cs_opt2              
+      case (4)
+        if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
+          read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+                    Cs_opt2
+        else
+          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+                   Cs_opt2, F_LM, F_MM
+        end if
       case (5)
         if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
           read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
