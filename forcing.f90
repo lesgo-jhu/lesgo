@@ -1,7 +1,5 @@
-! modified this so that is just calculated the force--it does not do the
-! time advancement
 !**********************************************************************
-subroutine forcing ()
+subroutine forcing_applied()
 !**********************************************************************
 !
 !  This subroutine acts as a driver for applying pointwise body forces
@@ -9,50 +7,49 @@ subroutine forcing ()
 !  which are explicitly applied forces. These forces are applied to RHS 
 !  in the evaluation of u* so that mass conservation is preserved.
 !
-use messages
 $if ($LVLSET)
-  $if ($RNS_LS)
-  use rns_ls, only : rns_forcing_ls
-  $endif
+$if ($RNS_LS)
+use rns_ls, only : rns_forcing_ls
 $endif
+$endif
+
 $if ($TURBINES)
-  use turbines, only:turbines_forcing
+use turbines, only:turbines_forcing
 $endif
+
 implicit none
 
-character (*), parameter :: sub_name = 'forcing'
 $if ($LVLSET)
-  $if ($RNS_LS)
-  call rns_forcing_ls()
-  $endif
+$if ($RNS_LS)
+call rns_forcing_ls()
+$endif
 $endif
 
 $if ($TURBINES)
-  call turbines_forcing ()
+call turbines_forcing ()
 $endif
    
-end subroutine forcing
+end subroutine forcing_applied
 
 !**********************************************************************
-subroutine forcing_post_press()
+subroutine forcing_induced()
 !**********************************************************************
 !  
-!  Forces in this subroutine are done so after the pressure 
-!  Poisson solver. These forces are designated as induced forces
-!  such that they are chosen to obtain a desired velocity at time
+!  These forces are designated as induced forces such that they are 
+!  chosen to obtain a desired velocity at time
 !  step m+1. If this is not the case, care should be taken so that the forces
 !  here are divergence free in order to preserve mass conservation. For 
 !  non-induced forces such as explicitly applied forces they should be 
-!  placed in forcing.
+!  placed in forcing_applied.
 !  
 use types, only : rprec
-use param
-use sim_param
-use immersedbc
+!use param
+!use sim_param
+!use immersedbc
 $if ($LVLSET)
 use level_set, only : level_set_forcing
 $if($RNS_LS)
-  use rns_ls, only : rns_elem_force_ls
+use rns_ls, only : rns_elem_force_ls
 $endif
 $if ($TREES_LS)
   use trees_ls
@@ -60,65 +57,68 @@ $endif
 $endif
 implicit none
 
-real (rprec) :: Rx, Ry, Rz 
+!real (rprec) :: Rx, Ry, Rz 
 
-integer::px,py,lx,ly,lz
-integer :: jx,jy,jz,i
+!integer::px,py,lx,ly,lz
+!integer :: jx,jy,jz,i
 
 ! start calculation of body forces (fx,fy,fz)
 ! 'force' is the mean pressure gradient
 ! WARNING: Not sure if application of building forces here violate continuity!
-if (use_bldg) then
-   do i=1,n_bldg
-     px=bldg_pts(1,i)
-     py=bldg_pts(2,i)
-     lx=bldg_pts(3,i)
-     ly=bldg_pts(4,i)
-     lz=bldg_pts(5,i)
-     do jz=1,lz
-     do jy=py,py+ly
-     do jx=px,px+lx
+!if (use_bldg) then
+!   do i=1,n_bldg
+!     px=bldg_pts(1,i)
+!     py=bldg_pts(2,i)
+!     lx=bldg_pts(3,i)
+!     ly=bldg_pts(4,i)
+!     lz=bldg_pts(5,i)
+!     do jz=1,lz
+!     do jy=py,py+ly
+!     do jx=px,px+lx
 
-       ! forces after pressure update
-       Rx = -tadv1*dpdx(jx,jy,jz)
-       Ry = -tadv1*dpdy(jx,jy,jz)
-       Rz = -tadv1*dpdz(jx,jy,jz)
+!       ! forces after pressure update
+!       Rx = -tadv1*dpdx(jx,jy,jz)
+!       Ry = -tadv1*dpdy(jx,jy,jz)
+!       Rz = -tadv1*dpdz(jx,jy,jz)
 
-       fx(jx,jy,jz) = ((u_des(jx,jy,jz)-u(jx,jy,jz))/dt - Rx)
-       fy(jx,jy,jz) = ((v_des(jx,jy,jz)-v(jx,jy,jz))/dt - Ry)
-       fz(jx,jy,jz) = ((w_des(jx,jy,jz)-w(jx,jy,jz))/dt - Rz)
-
-     end do
-     end do
-     end do
-   end do
-   ! end calculation of forces
-endif
+!       fx(jx,jy,jz) = ((u_des(jx,jy,jz)-u(jx,jy,jz))/dt - Rx)
+!       fy(jx,jy,jz) = ((v_des(jx,jy,jz)-v(jx,jy,jz))/dt - Ry)
+!       fz(jx,jy,jz) = ((w_des(jx,jy,jz)-w(jx,jy,jz))/dt - Rz)
+!
+!     end do
+!     end do
+!     end do
+!   end do
+!   ! end calculation of forces
+!endif
 
 $if($LVLSET)
 
-  !  Compute the level set IBM forces
-  call level_set_forcing ()
+!  Compute the level set IBM forces
+call level_set_forcing ()
 
-  $if($RNS_LS)
-  !  Compute the relavent force information ( include reference quantities, CD, etc.)
-  !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-  !  made here.
-  call rns_elem_force_ls()
-  $endif
-
-  $if($TREES_LS)
-  !--this must come after call to level_set_forcing
-  !--in /a posteriori/ test, this adds SGS branch force
-  !--in /a priori/ test, this does not modify force
-  call trees_ls_calc ()
-  $endif
+$if($RNS_LS)
+!  Compute the relavent force information ( include reference quantities, CD, etc.)
+!  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+!  made here.
+call rns_elem_force_ls()
 $endif
 
-if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
+$if($TREES_LS)
+!--this must come after call to level_set_forcing
+!--in /a posteriori/ test, this adds SGS branch force
+!--in /a priori/ test, this does not modify force
+call trees_ls_calc ()
+$endif
+
+$endif
+
+!  Commented by JSG (2/3/11); still need to resolve fringe forcing
+!  with updated pressure correction scheme
+!if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
 
 return
-end subroutine forcing_post_press
+end subroutine forcing_induced
 
 !**********************************************************************
 function fringe_blend ( x )
@@ -132,8 +132,6 @@ real (rp), intent (in) :: x
 
 real (rp) :: arg
 
-!---------------------------------------------------------------------
-
 if ( x <= 0.0_rp ) then
     fringe_blend = 0.0_rp
 else if ( x >= 1.0_rp ) then
@@ -145,8 +143,14 @@ end if
 
 end function fringe_blend
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine inflow_cond ()
+!**********************************************************************
+!
+!  WARNING: NOT SURE IF THE FORCING PERFORMED HERE IS CORRECT WITH 
+!  UPDATED PRESSURE-CORRECTION SCHEME. PLEASE REVISIT BEFORE DOING
+!  SOMETHING STUPID (JSG 02/03/11)
+!
 use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
                   sflux_flag, buff_end, buff_len, use_fringe_forcing,  &
@@ -164,8 +168,6 @@ real (rprec) :: factor
 real (rprec) :: fringe_blend
 real (rprec) :: x1, x2
 real (rprec) :: delta_r, delta_f
-
-!---------------------------------------------------------------------
 
 !--these may be out of 1, ..., nx
 iend = floor (buff_end * nx + 1._rprec)
@@ -246,10 +248,12 @@ end do
 
 end subroutine inflow_cond
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--provides u, v, w at 1:nz
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine project ()
+!**********************************************************************
+!
+! provides u, v, w at 1:nz 
+!
 use param
 use sim_param
 use immersedbc
@@ -265,17 +269,22 @@ $endif
 integer :: jx, jy, jz
 integer :: jz_min
 
-real (rprec) :: RHS
+real (rprec) :: RHS, tconst
 
-!---------------------------------------------------------------------
+! Caching
+tconst = tadv1 * dt
 
 do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
-      RHS = -tadv1 * dpdx(jx, jy, jz)
-      u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
-      RHS = -tadv1 * dpdy(jx, jy, jz)
-      v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz)))
+      
+      RHS = tconst * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz))
+      !u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
+      u(jx, jy, jz) = u(jx, jy, jz) - RHS
+      
+      RHS = tconst * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz))
+      !v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz)))
+      v(jx, jy, jz) = v(jx, jy, jz) - RHS
    
       !if (DEBUG) then
       !  if ( isnan (u(jx, jy, jz)) ) then
@@ -284,7 +293,7 @@ do jz = 1, nz - 1
       !    stop
       !  end if
       !  if ( isnan (v(jx, jy, jz)) ) then
-      !    write (*, *) $str($context_doc)
+      !    write($context_doc)
       !    write (*, *) 'nan in v at (jx, jy, jz) = ', jx, jy, jz
       !    stop
       !  end if
@@ -303,8 +312,9 @@ end if
 do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
-      RHS = -tadv1 * dpdz(jx, jy, jz)
-      w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
+      RHS = tconst * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz))
+      !w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
+      w(jx, jy, jz) = w(jx, jy, jz) - RHS
 
       !if (DEBUG) then
       !  if ( isnan (w(jx, jy, jz)) ) then
