@@ -2,7 +2,7 @@
 module cyl_skew_base_ls
 !**********************************************************************
 use types, only : rprec
-use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz,z_i
 
 implicit none
 
@@ -36,14 +36,15 @@ integer, parameter :: nbranch = 3
 ! vtree-2
 !integer, parameter :: nbranch = 2
 
-real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
-real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
-real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
+!  Make sure they are non-dimensional
+real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec/z_i
+real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec/z_i
+real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec/z_i
 
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
 logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 0.2_rprec
+real(rprec), parameter :: z_bottom_surf = 0.2_rprec ! Already in non-dimensional units
 
 logical, parameter :: filter_chi = .true.
 real(rprec), parameter :: filt_width = 2._rprec*dx  !  Filter width for filtered indicator function
