@@ -24,7 +24,8 @@ subroutine press_stag_array(p_hat,dfdx,dfdy)
 !-------------------          
 use types,only:rprec
 use param
-use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
+use sim_param,only:u,v,w,divtz
+use sim_param, only : dpdx_f, dpdy_f, dpdz_f
 use fft
 use immersedbc,only:fx,fy,fz  ! only for forcing experiment
 
@@ -39,7 +40,7 @@ $else
   $define $lbz 1
 $endif
 implicit none      
-complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
+complex(kind=rprec),dimension(lh,ny,0:nz),intent(out)::p_hat
 real(kind=rprec),dimension(ld,ny,$lbz:nz)::rH_x,rH_y,rH_z
 complex(kind=rprec),dimension(lh,ny,$lbz:nz)::H_x,H_y,H_z
 equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
@@ -83,9 +84,9 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
    ! no forces
-   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
-   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
-   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+   rH_x(:, :, jz) = const  * (u(:, :, jz) / (tadv1*dt) + dpdx_f(:,:,jz))
+   rH_y(:, :, jz) = const  * (v(:, :, jz) / (tadv1*dt) + dpdy_f(:,:,jz))
+   rH_z(:, :, jz) = const  * (w(:, :, jz) / (tadv1*dt) + dpdz_f(:,:,jz))
 
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
