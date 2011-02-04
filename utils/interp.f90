@@ -23,11 +23,11 @@ logical, parameter :: MPI_s = .true.
 logical, parameter :: MPI_b = .true.
 
 integer, parameter :: np_s = 64 !--must be 1 when MPI_s is false
-integer, parameter :: np_b = 96 !--must to 1 when MPI_b is false
+integer, parameter :: np_b = 64 !--must to 1 when MPI_b is false
 
 !--MPI: these are the total sizes (include all processes)
 integer, parameter :: nx_s = 256, ny_s = 74, nz_s = 129
-integer, parameter :: nx_b = 128, ny_b = 74, nz_b = 193
+integer, parameter :: nx_b = 256, ny_b = 74, nz_b = 193
 
 character (64) :: fmt
 character (128) :: fname

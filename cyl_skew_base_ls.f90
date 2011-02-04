@@ -37,9 +37,12 @@ integer, parameter :: nbranch = 3
 !integer, parameter :: nbranch = 2
 
 !  Make sure they are non-dimensional
-real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec/z_i
-real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec/z_i
-real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec/z_i
+!  dm = 28.8 mm
+!  hm = 50.4 mm
+!  offset = 9 mm
+real(rprec), parameter :: d = 28.8_rprec/z_i
+real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)/z_i
+real(rprec), parameter :: offset = 9._rprec/z_i
 
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
