@@ -214,11 +214,11 @@ do jt=1,nsteps
     $endif
 
     ! Buildings: smooth velocity
-    if (use_bldg) then      !--no MPI here yet
-        call building_interp (u, v, w, .04_rprec, 3)
-        call building_interp (dudx, dvdx, dwdx, .04_rprec, 3)
-        call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
-    end if
+    !if (use_bldg) then      !--no MPI here yet
+    !    call building_interp (u, v, w, .04_rprec, 3)
+    !    call building_interp (dudx, dvdx, dwdx, .04_rprec, 3)
+    !    call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
+    !end if
 
     ! Debug
     $if ($DEBUG)
@@ -284,10 +284,10 @@ do jt=1,nsteps
     else        
         call sgs_stag()
     end if
-    if(use_bldg)then
-        call wallstress_building(txy,txz,tyz)
-        call building_mask(u,v,w)
-    endif
+    !if(use_bldg)then
+    !    call wallstress_building(txy,txz,tyz)
+    !    call building_mask(u,v,w)
+    !endif
 
     ! Update scalars
     if(S_FLAG.and.(jt.GE.SCAL_INIT))  then
@@ -385,14 +385,8 @@ do jt=1,nsteps
     else
         force = 0._rprec
     end if
-
-    !  Applied forcing (forces are added to RHS{x,y,z})
-    call forcing()
-
-    !  Update RHS with applied forcing
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
+  
+    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
 
     ! Set RHS*_f if necessary (first timestep)
     if ((jt == 1) .and. (.not. initu)) then
@@ -424,17 +418,42 @@ do jt=1,nsteps
     end if
     $endif
 
+    ! Calculate external forces induced forces. These are
+    ! stored in fx,fy,fz arrays. We are calling induced 
+    ! forces before applied forces as some of the applied
+    ! forces (RNS) depend on the induced forces and the 
+    ! two are assumed independent
+    call forcing_induced ()
+
+     !  Applied forcing (forces are added to RHS{x,y,z})
+    call forcing_applied()
+
+    !  Update RHS with applied forcing
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
+    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
+
+    ! Set RHS*_f if necessary (first timestep) 
+    if ((jt == 1) .and. (.not. initu)) then
+        ! if initu, then this is read from the initialization file
+        ! else for the first step put RHS_f=RHS
+        !--i.e. at first step, take an Euler step
+        RHSx_f=RHSx
+        RHSy_f=RHSy
+        RHSz_f=RHSz
+    end if
+
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
     u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
-                            tadv2 * RHSx_f(:, :, 1:nz-1) + force )
+                            tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx(:,:,1:nz-1) + fx(:,:,1:nz-1))
     v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
-                            tadv2 * RHSy_f(:, :, 1:nz-1) )
+                            tadv2 * RHSy_f(:, :, 1:nz-1) - dpdy(:,:,1:nz-1) + fy(:,:,1:nz-1))
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
-                            tadv2 * RHSz_f(:, :, 1:nz-1) )
+                            tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz(:,:,1:nz-1) + fz(:,:,1:nz-1))
 
     ! Set unused values to BOGUS so unintended uses will be noticable
     $if ($MPI)
@@ -459,6 +478,11 @@ do jt=1,nsteps
     end if
     $endif
 
+    ! Save previous pressure gradient
+    dpdx_f = dpdx
+    dpdy_f = dpdy
+    dpdz_f = dpdz
+
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
@@ -468,14 +492,14 @@ do jt=1,nsteps
     ! Calculate dpdz
     !   note: p has additional level at z=-dz/2 for this derivative
     dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) -   &
-                              p(1:nx, 1:ny, 0:nz-2)) / dz
+                                p(1:nx, 1:ny, 0:nz-2)) / dz
     dpdz(:, :, nz) = BOGUS
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
-    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
-    RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
-    RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    !RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
+    !RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
+    !RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
     ! Debug
     $if ($DEBUG)
@@ -485,10 +509,6 @@ do jt=1,nsteps
         call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
     end if
     $endif
-
-    ! Calculate external forces (buildings, trees, turbines, etc)
-    !   store in fx,fy,fz arrays
-    call forcing_post_press ()
 
     ! Debug
     $if ($DEBUG)
@@ -571,14 +591,11 @@ do jt=1,nsteps
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
           
     ! Write output files
-        call output_loop (jt)  
-        !RNS: Determine if instantaneous plane velocities are to be recorded
-        $if ($RNS_LS)
-         
-        $endif
+    call output_loop (jt)  
+    !RNS: Determine if instantaneous plane velocities are to be recorded
         
-        ! Write inflow_BC file for future use
-          if (write_inflow_file) call inflow_write () 
+    ! Write inflow_BC file for future use
+    if (write_inflow_file) call inflow_write () 
 
     ! Debug
     $if ($DEBUG)
