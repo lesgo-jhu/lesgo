@@ -22,12 +22,12 @@ logical, parameter :: DEBUG = .true.
 logical, parameter :: MPI_s = .true.
 logical, parameter :: MPI_b = .true.
 
-integer, parameter :: np_s = 8  !--must be 1 when MPI_s is false
-integer, parameter :: np_b = 12 !--must to 1 when MPI_b is false
+integer, parameter :: np_s = 64 !--must be 1 when MPI_s is false
+integer, parameter :: np_b = 96 !--must to 1 when MPI_b is false
 
 !--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx_s = 128, ny_s = 74, nz_s = 97
-integer, parameter :: nx_b = 128, ny_b = 74, nz_b = 97
+integer, parameter :: nx_s = 256, ny_s = 74, nz_s = 129
+integer, parameter :: nx_b = 128, ny_b = 74, nz_b = 193
 
 character (64) :: fmt
 character (128) :: fname
@@ -77,13 +77,32 @@ write (*, fmt) 'new size is (', nx_b, ' X ', ny_b,' X ', nz_b, ') / ',  &
 !  etc.
 if (.not. MPI_s) then 
 
-  open (1, file=fbase, form='unformatted')
+  $if ($READ_BIG_ENDIAN)
+  open (1, file=fbase, action='read', position='rewind',  &
+    form='unformatted', convert='big_endian')
+  $elseif ($READ_LITTLE_ENDIAN)
+  open (1, file=fbase, action='read', position='rewind',  &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fbase, action='read', position='rewind',  &
+    form='unformatted')
+  $endif
   read (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s, FLM_s, FMM_s, FQN_s, FNN_s
   close (1)
 
   !--save a copy
   !--need 'system' command to copy fbase to fsave more efficiently?
-  open (1, file=fsave, form='unformatted')
+  $if ($WRITE_BIG_ENDIAN)
+  open (1, file=fsave, action='write', position='rewind',  &
+    form='unformatted', convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open (1, file=fsave, action='write', position='rewind',  &
+    form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fsave, action='write', position='rewind',  &
+    form='unformatted')
+  $endif
+
   write (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s, FLM_s, FMM_s, FQN_s, FNN_s
   close (1)
 
@@ -92,7 +111,16 @@ else
   do ip = 0, np_s-1
 
     write (fname, '(a,a,i0)') trim (fbase), MPI_suffix, ip
-    open (1, file=fname, form='unformatted')
+    $if ($READ_BIG_ENDIAN)
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='big_endian')
+    $elseif ($READ_LITTLE_ENDIAN)
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted')
+    $endif
 
     lbz = ip * (nz_s-1)/np_s + 1
     ubz = lbz + (nz_s-1)/np_s   
@@ -105,7 +133,16 @@ else
 
     !--save a copy
     write (fname, '(a,a,i0)') trim (fsave), MPI_suffix, ip
-    open (1, file=fname, form='unformatted')
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted')
+    $endif
 
     lbz = ip * (nz_s-1)/np_s + 1
     ubz = lbz + (nz_s-1)/np_s   
@@ -159,7 +196,16 @@ call interpolate (nx_s, ny_s, nz_s, FNN_s, nx_b, ny_b, nz_b, FNN_b)
 
 if (.not. MPI_b) then
 
-  open (1, file=fbase, form='unformatted')
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fbase, action='write', position='rewind',  &
+      form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fbase, action='write', position='rewind',  &
+      form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fbase, action='write', position='rewind',  &
+      form='unformatted')
+    $endif
   write (1) u_b, v_b, w_b, Rx_b, Ry_b, Rz_b, cs_b, FLM_b, FMM_b, FQN_b, FNN_b
   close (1)
 
@@ -168,7 +214,16 @@ else
   do ip = 0, np_b-1
 
     write (fname, '(a,a,i0)') trim (fbase), MPI_suffix, ip
-    open (1, file=fname, form='unformatted')
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname, action='write', position='rewind',  &
+      form='unformatted')
+    $endif
 
     lbz = ip * (nz_b-1)/np_b + 1
     ubz = lbz + (nz_b-1)/np_b  !--corresponds to nz in main code  

@@ -108,9 +108,6 @@ cyl_skew_post_ls: utils/cyl_skew_post_ls.f90 $(OPATH)/types.o \
 	$(FPP) $< > t.cyl_skew_post_ls.f90; $(FC) -o $@ \
 	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cyl_skew_post_ls.f90
 
-interp: utils/interp.f90
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
-
 convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
