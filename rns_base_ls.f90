@@ -46,7 +46,7 @@ integer, parameter :: temporal_weight = 1
   ! vtree-2
   !real(rprec), parameter :: Tconst = 1.0_rprec
   
-  integer, parameter :: weight_nstart = 10000
+  integer, parameter :: weight_nstart = 0
 
 !  Explict - 1, Implicit - 2
 integer, parameter :: temporal_model = 1
@@ -55,7 +55,7 @@ integer, parameter :: temporal_model = 1
 integer, parameter :: spatial_model = 1
 
 integer, parameter :: output_nskip = 10
-integer, parameter :: CD_ramp_nstep = 5000
+integer, parameter :: CD_ramp_nstep = 0
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
