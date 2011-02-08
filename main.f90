@@ -204,6 +204,11 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
+    
+    ! Reset applied force arrays
+    fxa = 0._rprec
+    fya = 0._rprec
+    fza = 0._rprec
 
     ! Compute scalars and __? 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
