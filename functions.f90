@@ -16,7 +16,9 @@ contains
 !**********************************************************************
 integer function cell_indx(indx,dx,px)
 !**********************************************************************
-! This routine does ...
+! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
+!   spacing=[dx or dy or dz] and the [x or y or z] location and returns
+!   the value of the lower index (cell index)
 !
 use types, only : rprec
 use grid_defs, only : z, grid_built, grid_build
@@ -42,7 +44,7 @@ select case (indx)
   !  Need to compute local distance to get local k index
   case ('k')
     cell_indx = floor ((px - z(1)) / dx) + 1
-    if( cell_indx > Nz .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')    
+    if( cell_indx > Nz .or. cell_indx < 0) call error(func_name, 'Specified point is not in spatial domain')    
   case default
     call error (func_name, 'invalid indx =' // indx)
 end select
@@ -51,7 +53,7 @@ return
 end function cell_indx
 
 !**********************************************************************
-real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
+real(rprec) function trilinear_interp(var,lbz,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -64,48 +66,49 @@ real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
 !  Takes care of putting w-grid variables onto the uv-grid; this assumes
 !  that var is on the uv-grid
 !
+!  The variable sent to this subroutine should have a lower-bound-on-z 
+!  (lbz) set as an input so the k-index will match the k-index of z.  
+!  Before calling this function, make sure the point exists on the coord
+!  [ test using: z(1) \leq z_p < z(nz-1) ]
+!
 use grid_defs, only : x,y,z, autowrap_i, autowrap_j
 use types, only : rprec
 use sim_param, only : u,v
-use param, only : nz, dx, dy, dz, coord
+use param, only : nz, dx, dy, dz, coord, L_x, L_y
 implicit none
 
 real(rprec), dimension(:,:,:), intent(IN) :: var
-integer, intent(IN) :: istart, jstart, kstart
+integer, intent(IN) :: lbz
+integer :: istart, jstart, kstart
 real(rprec), intent(IN), dimension(3) :: xyz
 
 real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
 integer :: i,j,k
-integer, dimension(2) :: is, js, ks
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
 !  Initialize stuff
-u1=0.
-u2=0.
-u3=0.
-u4=0.
-u5=0.
-u6=0.
+u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
-!  istart and jstart are assumed to be in the spatial domain
-is = (/ istart, autowrap_i( istart + 1 ) /)
-js = (/ jstart, autowrap_j( jstart + 1 ) /)
-ks = (/ kstart, kstart + 1 /)
+! Wrap x,y if necessary (periodic BCs)
+! Determine istart, jstart, kstart by calling cell_indx
+istart = cell_indx('i',dx,mod(xyz(1),L_x))
+jstart = cell_indx('j',dy,mod(xyz(2),L_y))
+kstart = cell_indx('k',dz,xyz(3))
+!write(*,*) 'coord,is,js,ks',coord,istart,jstart,kstart
 
 !  Contains the 6 points that make of the cube
 uvar = 0.
 
-!uvar(:,:,:) = var(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
-do k=1,2
-  do j=1,2
-    do i=1,2
-      uvar(i,j,k) = var(is(i), js(j), ks(k) )
+! Extra term with kstart accounts for shift in var k-index is lbz.ne.1
+do k=0,1
+  do j=0,1
+    do i=0,1
+      uvar(i+1,j+1,k+1) = var(istart+i, jstart+j, kstart+(1-lbz)+k)
     enddo
   enddo
 enddo
-
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
@@ -152,11 +155,15 @@ return
 end function linear_interp
 
 !**********************************************************************
-real(rprec) function plane_avg_3D(var, bp1, bp2, bp3, nzeta, neta)
+real(rprec) function plane_avg_3D(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
 !  plane in 3D space. 
+!
+!  When sending the variable to this subroutine, it is important that the
+!  ranges (1:nx,1:ny,1:nz) be stated explicitly to avoid incorrect matching
+!  of indices between this variable and the x,y,z arrays.
 !
 
 use types, only : rprec
@@ -170,13 +177,14 @@ use messages
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
+integer, intent(IN) :: lbz   !lower bound on z ($lbz) for variable sent
 real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
 
 character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
 
-integer :: i, j, istart, jstart, kstart, nsum
+integer :: i, j, nsum
 
 $if ($MPI)
 integer :: nsum_global
@@ -244,13 +252,8 @@ eta_vec = eta_vec / vec_mag
         cell_center(1) = modulo(cell_center(1), L_x)
         cell_center(2) = modulo(cell_center(2), L_y)
         
-        !  Perform trilinear interpolation
-        !  Get the cell id (starting node id)
-        istart = autowrap_i ( cell_indx('i', dx, cell_center(1)) )
-        jstart = autowrap_j ( cell_indx('j', dy, cell_center(2)) )
-        kstart = cell_indx('k', dz, cell_center(3))
-        
-        var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
+        !  Perform trilinear interpolation       
+        var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
         nsum = nsum + 1
 
       endif
@@ -314,7 +317,7 @@ return
 end function plane_avg_3D
 
 !**********************************************************************
-real(rprec) function points_avg_3D(var, npoints, points)
+real(rprec) function points_avg_3D(var, lbz, npoints, points)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity defined
@@ -332,6 +335,7 @@ use messages
 implicit none
 
 real(rprec), intent(IN), dimension(:,:,:) :: var
+integer, intent(IN) :: lbz      !lower bound on z ($lbz) for variable sent
 integer, intent(IN) :: npoints
 real(rprec), intent(IN), dimension(3,npoints) :: points
 
@@ -378,7 +382,7 @@ do n=1, npoints
     jstart = autowrap_j( cell_indx('j', dy, yp) )
     kstart = cell_indx('k', dz, zp)
         
-    var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, (/ xp, yp, zp /))
+    var_sum = var_sum + trilinear_interp(var, lbz, (/ xp, yp, zp /))
     nsum = nsum + 1
     
   endif
