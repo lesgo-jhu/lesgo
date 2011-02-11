@@ -23,12 +23,12 @@ integer function cell_indx(indx,dx,px)
 use types, only : rprec
 use grid_defs, only : z, grid_built, grid_build
 use messages 
-use param, only : nx, ny, nz
+use param, only : nx, ny, nz, L_x, L_y
 implicit none
 
 character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
-real(rprec), intent(IN) :: px ! Global value
+real(rprec) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.cell_indx'
 
@@ -36,11 +36,13 @@ if(.not. grid_built) call grid_build()
 
 select case (indx)
   case ('i')
+    px = mod(px + L_x, L_x)
     cell_indx = floor (px / dx) + 1
     if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
   case ('j')
+    px = mod(px + L_y, L_y)
     cell_indx = floor (px / dx) + 1
-    if( cell_indx > Ny .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
   !  Need to compute local distance to get local k index
   case ('k')
     cell_indx = floor ((px - z(1)) / dx) + 1
@@ -74,7 +76,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 use grid_defs, only : x,y,z, autowrap_i, autowrap_j
 use types, only : rprec
 use sim_param, only : u,v
-use param, only : nz, dx, dy, dz, coord, L_x, L_y
+use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
 implicit none
 
 real(rprec), dimension(:,:,:), intent(IN) :: var
@@ -91,24 +93,25 @@ real(rprec) :: xdiff, ydiff, zdiff
 !  Initialize stuff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
-! Wrap x,y if necessary (periodic BCs)
 ! Determine istart, jstart, kstart by calling cell_indx
-istart = cell_indx('i',dx,mod(xyz(1),L_x))
-jstart = cell_indx('j',dy,mod(xyz(2),L_y))
+istart = cell_indx('i',dx,xyz(1))
+jstart = cell_indx('j',dy,xyz(2))
 kstart = cell_indx('k',dz,xyz(3))
 !write(*,*) 'coord,is,js,ks',coord,istart,jstart,kstart
 
 !  Contains the 6 points that make of the cube
 uvar = 0.
 
-! Extra term with kstart accounts for shift in var k-index is lbz.ne.1
-do k=0,1
-  do j=0,1
-    do i=0,1
-      uvar(i+1,j+1,k+1) = var(istart+i, jstart+j, kstart+(1-lbz)+k)
-    enddo
-  enddo
-enddo
+! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
+!   mod accounts for situation where istart=nx or jstart=ny
+uvar(1,1,1) = var(istart,           jstart,           kstart+(1-lbz))
+uvar(2,1,1) = var(mod(istart,nx)+1, jstart,           kstart+(1-lbz))
+uvar(1,2,1) = var(istart,           mod(jstart,ny)+1, kstart+(1-lbz))
+uvar(2,2,1) = var(mod(istart,nx)+1, mod(jstart,ny)+1, kstart+(1-lbz))
+uvar(1,1,2) = var(istart,           jstart,           kstart+(1-lbz)+1)
+uvar(2,1,2) = var(mod(istart,nx)+1, jstart,           kstart+(1-lbz)+1)
+uvar(1,2,2) = var(istart,           mod(jstart,ny)+1, kstart+(1-lbz)+1)
+uvar(2,2,2) = var(mod(istart,nx)+1, mod(jstart,ny)+1, kstart+(1-lbz)+1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
