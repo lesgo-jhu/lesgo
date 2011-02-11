@@ -27,7 +27,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
@@ -47,10 +47,10 @@ READ_LITTLE_ENDIAN = no
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
 
-USE_CYL_SKEW_LS = yes
-USE_RNS_LS = yes
+USE_CYL_SKEW_LS = no
+USE_RNS_LS = no
 USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -138,11 +138,11 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
