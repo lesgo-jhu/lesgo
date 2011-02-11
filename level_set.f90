@@ -4226,18 +4226,20 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
       if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
 
-        ! forces after pressure update
+        ! Original
         !Rx = -tadv1 * dpdx(i, j, k)
-        !Ry = -tadv1 * dpdy(i, j, k)
-        
+        !Ry = -tadv1 * dpdy(i, j, k)        
         !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
         !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-        
-        !  Experimenting with basing f{x,y,z} on u*
+
+        ! Updated
         fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k))
         fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k))
 
+
       else if (vel_BC) then
+       
+        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
 
         ! forces after pressure update
         Rx = -tadv1 * dpdx(i, j, k)
@@ -4272,19 +4274,20 @@ do k = k_min, nz - 1
 
       if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
 
-        ! forces after pressure update
+        ! Original
         !Rx = -tadv1 * dpdx(i, j, k)
         !Ry = -tadv1 * dpdy(i, j, k)
-        
         !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
         !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
 
-        !  Experimenting with basing f{x,y,z} on u*
+        ! Updated
         fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
         fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
 
 
       else if (vel_BC) then
+
+        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
 
         ! forces after pressure update
         Rx = -tadv1 * dpdx(i, j, k)
@@ -4302,14 +4305,18 @@ do k = k_min, nz - 1
 
       if (phi(i, j, k) + phi(i, j, k-1) <= 0._rp) then  !--w-nodes
 
+        ! Original
         !Rz = -tadv1 * dpdz(i, j, k)
         !fz(i, j, k) = (-w(i, j, k)/dt - Rz)
 
+        ! Updated
         !  Experimenting with basing f{x,y,z} on u*
         fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
 
 
       else if (vel_BC) then
+
+        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
 
         Rz = -tadv1 * dpdz(i, j, k)
 

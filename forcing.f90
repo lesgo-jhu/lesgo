@@ -277,13 +277,17 @@ tconst = tadv1 * dt
 do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
-      
-      RHS = tconst * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz))
+ 
+      !  Original
+      !RHS = -tadv1 * dpdx(jx, jy, jz)
       !u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
-      u(jx, jy, jz) = u(jx, jy, jz) - RHS
+      !RHS = -tadv1 * dpdy(jx, jy, jz)
+      !v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz))) 
       
+      !  Updated
+      RHS = tconst * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz))
+      u(jx, jy, jz) = u(jx, jy, jz) - RHS
       RHS = tconst * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz))
-      !v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz)))
       v(jx, jy, jz) = v(jx, jy, jz) - RHS
    
       !if (DEBUG) then
@@ -293,7 +297,7 @@ do jz = 1, nz - 1
       !    stop
       !  end if
       !  if ( isnan (v(jx, jy, jz)) ) then
-      !    write($context_doc)
+      !    write (*, *) $str($context_doc)
       !    write (*, *) 'nan in v at (jx, jy, jz) = ', jx, jy, jz
       !    stop
       !  end if
@@ -312,8 +316,13 @@ end if
 do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
-      RHS = tconst * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz))
+
+      ! Original
+      !RHS = -tadv1 * dpdz(jx, jy, jz)
       !w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
+
+      ! Updated
+      RHS = tconst * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz))
       w(jx, jy, jz) = w(jx, jy, jz) - RHS
 
       !if (DEBUG) then
