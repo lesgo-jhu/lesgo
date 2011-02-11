@@ -159,7 +159,8 @@ real(rprec) function plane_avg_3D(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
-!  plane in 3D space. 
+!  plane in 3D space. The bounding points, bp{1,2,3} are used to define the plane
+!  such that the zeta direction 2 -> 1 and the eta direction 2 -> 3.
 !
 !  When sending the variable to this subroutine, it is important that the
 !  ranges (1:nx,1:ny,1:nz) be stated explicitly to avoid incorrect matching
@@ -203,13 +204,6 @@ if(.not. grid_built) call grid_build()
 nsum = 0
 var_sum=0.
 
-!write(*,*) '-------------------------'
-!write(*,*) 'From plane_avg_3D : '
-!write(*,'(1a,3f12.6)') 'bp1 : ', bp1
-!write(*,'(1a,3f12.6)') 'bp3 : ', bp2
-!write(*,'(1a,3f12.6)') 'bp2 : ', bp3
-!write(*,'(1a,3i3)') 'nzeta, neta : ', nzeta, nzeta
-
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
 !  vector in eta direction
@@ -230,57 +224,30 @@ vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_ve
 deta = vec_mag/neta
 eta_vec = eta_vec / vec_mag
 
-!if(coord == 0) then
-!  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-!  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
-!endif
-
-!!  Check if plane is associated with processor
-!if(z(nz) <= zmax .or. z(1) >= zmin) then
-
 !  Compute cell centers
-  do j=1,neta
+do j=1,neta
   !  Attempt for cache friendliness
-    eta = (j - 0.5)*deta*eta_vec
-    do i=1,nzeta
-    ! Simple vector addition
-      cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
+  eta = (j - 0.5)*deta*eta_vec
+  do i=1,nzeta
+  ! Simple vector addition
+    cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
 
-      if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
+    if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
       
-        !  Include autowrapping for x and y directions
-        cell_center(1) = modulo(cell_center(1), L_x)
-        cell_center(2) = modulo(cell_center(2), L_y)
+      !  Include autowrapping for x and y directions
+      cell_center(1) = modulo(cell_center(1), L_x)
+      cell_center(2) = modulo(cell_center(2), L_y)
         
-        !  Perform trilinear interpolation       
-        var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
-        nsum = nsum + 1
+      !  Perform trilinear interpolation       
+      var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
+      nsum = nsum + 1
 
-      endif
+    endif
 
-    enddo
   enddo
+enddo
 
-  $if ($MPI)
-!  if(isum_recieve) then
-!    CALL MPI_Recv(var_sum_up, 1, MPI_RPREC, up, 1, MPI_COMM_WORLD, status, ierr)
-!    CALL MPI_Recv(nsum_up, 1, MPI_RPREC, up, 2, MPI_COMM_WORLD, status, ierr)
-!     var_sum = var_sum + var_sum_up
-!     nsum = nsum + nsum_up
-!  endif
-  
-!  if(isum_send) then
-!    CALL MPI_Send(var_sum, 1, MPI_RPREC, down, 1, MPI_COMM_WORLD, ierr)
-!    CALL MPI_Send(nsum, 1, MPI_RPREC, down, 2, MPI_COMM_WORLD, ierr)
-!  else
-!    ! Should be the bottom most proc 
-!	plane_avg_3D = var_sum / nsum
-!     call mpi_scatter(plane_avg_3D, 1, MPI_RPREC, plane_avg_3D, 1, MPI_RPREC, rank_of_coord(coord), MPI_COMM_WORLD, ierr)
-!  endif
-  
-!  if(iavg_recieve) CALL MPI_Recv(plane_avg_3D, 1, MPI_RPREC, down, 3, MPI_COMM_WORLD, status, ierr)
-!  if(iavg_send) CALL MPI_Send(plane_avg_3D, 1, MPI_RPREC, up, 3, MPI_COMM_WORLD, ierr)
-
+$if ($MPI)
 !  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
@@ -306,12 +273,6 @@ eta_vec = eta_vec / vec_mag
   
  $endif
    
-!else
-!  write(*,*) 'need to put message here'
-!  stop
-!endif
-
-
 return
 
 end function plane_avg_3D
@@ -320,8 +281,8 @@ end function plane_avg_3D
 real(rprec) function points_avg_3D(var, lbz, npoints, points)
 !**********************************************************************
 !
-!  This subroutine computes the average of a specified quantity defined
-!  on a set of arbitrary points
+!  This subroutine computes the arithmetic average of a specified 
+!  quantity defined on a set of arbitrary points
 !
 
 use types, only : rprec
