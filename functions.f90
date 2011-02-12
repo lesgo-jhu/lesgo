@@ -31,11 +31,11 @@ integer function cell_indx(indx,dx,px)
 !   wrapping of the spatial location px
 ! 
 !  cell_indx should always be:
-!  1<= cell_indx <= Nx - 1
+!  1<= cell_indx <= Nx
 !  or
-!  1<= cell_indx <= Ny - 1
+!  1<= cell_indx <= Ny
 !  or
-!  $lbz <= cell_indx <= Nz-1
+!  $lbz <= cell_indx < Nz
 !
 use types, only : rprec
 use grid_defs, only : z, grid_built, grid_build
@@ -55,15 +55,15 @@ select case (indx)
   case ('i')
     ! Autowrap spatial point   
     px = modulo(px,L_x)
-    ! Returned values 1 <= cell_indx <= Nx-1
+    ! Returned values 1 <= cell_indx <= Nx
     cell_indx = floor (px / dx) + 1
-    if( cell_indx >= Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
+    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
   case ('j')
     ! Autowrap spatial point
     px = modulo(px, L_y) 
-    ! Returned values 1 <= cell_indx <= Ny-1
+    ! Returned values 1 <= cell_indx <= Ny
     cell_indx = floor (px / dx) + 1 
-    if( cell_indx >= Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
+    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
   !  Need to compute local distance to get local k index
   case ('k')
     cell_indx = floor ((px - z(1)) / dx) + 1
@@ -102,7 +102,7 @@ implicit none
 
 real(rprec), dimension(:,:,:), intent(IN) :: var
 integer, intent(IN) :: lbz
-integer :: istart, jstart, kstart, koffset
+integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(IN), dimension(3) :: xyz
 
 real(rprec), dimension(2,2,2) :: uvar
@@ -115,25 +115,29 @@ real(rprec) :: xdiff, ydiff, zdiff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
 ! Determine istart, jstart, kstart by calling cell_indx
-istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx-1 
-jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny-1
-kstart = cell_indx('k',dz,xyz(3))
-!write(*,*) 'coord,is,js,ks',coord,istart,jstart,kstart
+istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
+jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
+kstart = cell_indx('k',dz,xyz(3)) ! $lbz <= kstart < Nz
+
+! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
+kstart=kstart+(1-lbz)
+! Set +1 values
+istart1 = autowrap_i(istart+1) ! Autowrap index
+jstart1 = autowrap_j(jstart+1) ! Autowrap index
+kstart1 = kstart + 1
 
 !  Contains the 6 points that make of the cube
 uvar = 0.
 
-! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 ! Can probably bypass storing in uvar and put directly in linear_interp
-kstart=kstart+(1-lbz)
-uvar(1,1,1) = var(istart,   jstart,   kstart)
-uvar(2,1,1) = var(istart+1, jstart,   kstart)
-uvar(1,2,1) = var(istart,   jstart+1, kstart)
-uvar(2,2,1) = var(istart+1, jstart+1, kstart)
-uvar(1,1,2) = var(istart,   jstart,   kstart+1)
-uvar(2,1,2) = var(istart+1, jstart,   kstart+1)
-uvar(1,2,2) = var(istart,   jstart+1, kstart+1)
-uvar(2,2,2) = var(istart+1, jstart+1, kstart+1)
+uvar(1,1,1) = var(istart,  jstart,  kstart)
+uvar(2,1,1) = var(istart1, jstart,  kstart)
+uvar(1,2,1) = var(istart,  jstart1, kstart)
+uvar(2,2,1) = var(istart1, jstart1, kstart)
+uvar(1,1,2) = var(istart,  jstart,  kstart1)
+uvar(2,1,2) = var(istart1, jstart,  kstart1)
+uvar(1,2,2) = var(istart,  jstart1, kstart1)
+uvar(2,2,2) = var(istart1, jstart1, kstart1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
