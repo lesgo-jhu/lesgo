@@ -201,6 +201,7 @@ do jt=1,nsteps
     $endif
 
     ! Save previous time's right-hand-sides for Adams-Bashforth Integration
+    ! NOTE: RHS does not contain the pressure gradient
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
@@ -354,9 +355,9 @@ do jt=1,nsteps
     $endif
 
     ! Buildings: set vel to 0. inside buildings
-    if (use_bldg) call building_mask (u, v, w)
+    !if (use_bldg) call building_mask (u, v, w)
 
-    ! Add div-tau term to RHS variable
+    ! Add div-tau term to RHS variable 
     !   this will be used for pressure calculation
     RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
@@ -528,7 +529,7 @@ do jt=1,nsteps
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs nz and 1 node info for u,v,w    
     call project ()
-    
+
     ! Exchange ghost node information (since coords overlap)
     !   send info up (from nz-1 below to 0 above)    
     
@@ -556,17 +557,6 @@ do jt=1,nsteps
 
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
-
-    ! Level set: ?
-    $if ($LVLSET)
-        !call level_set_cylinder_CD ()   
-        $if ($CYL_SKEW_LS)
-            !call cyl_skew_CD_ls()
-        $endif    
-        $if ($RNS_LS)
-            !call rns_CD_ls()
-        $endif
-    $endif
 
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
