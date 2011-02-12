@@ -11,6 +11,15 @@ public buff_indx, points_avg_3D, det2D
 
 character (*), parameter :: mod_name = 'functions'
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 contains
 
 !**********************************************************************
@@ -18,7 +27,15 @@ integer function cell_indx(indx,dx,px)
 !**********************************************************************
 ! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
 !   spacing=[dx or dy or dz] and the [x or y or z] location and returns
-!   the value of the lower index (cell index)
+!   the value of the lower index (cell index). Also include is implicit
+!   wrapping of the spatial location px
+! 
+!  cell_indx should always be:
+!  1<= cell_indx <= Nx - 1
+!  or
+!  1<= cell_indx <= Ny - 1
+!  or
+!  $lbz <= cell_indx <= Nz-1
 !
 use types, only : rprec
 use grid_defs, only : z, grid_built, grid_build
@@ -36,17 +53,21 @@ if(.not. grid_built) call grid_build()
 
 select case (indx)
   case ('i')
-    px = mod(px + L_x, L_x)
+    ! Autowrap spatial point   
+    px = modulo(px,L_x)
+    ! Returned values 1 <= cell_indx <= Nx-1
     cell_indx = floor (px / dx) + 1
-    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+    if( cell_indx >= Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
   case ('j')
-    px = mod(px + L_y, L_y)
-    cell_indx = floor (px / dx) + 1
-    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+    ! Autowrap spatial point
+    px = modulo(px, L_y) 
+    ! Returned values 1 <= cell_indx <= Ny-1
+    cell_indx = floor (px / dx) + 1 
+    if( cell_indx >= Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
   !  Need to compute local distance to get local k index
   case ('k')
     cell_indx = floor ((px - z(1)) / dx) + 1
-    if( cell_indx > Nz .or. cell_indx < 0) call error(func_name, 'Specified point is not in spatial domain')    
+    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain')    
   case default
     call error (func_name, 'invalid indx =' // indx)
 end select
@@ -81,7 +102,7 @@ implicit none
 
 real(rprec), dimension(:,:,:), intent(IN) :: var
 integer, intent(IN) :: lbz
-integer :: istart, jstart, kstart
+integer :: istart, jstart, kstart, koffset
 real(rprec), intent(IN), dimension(3) :: xyz
 
 real(rprec), dimension(2,2,2) :: uvar
@@ -94,8 +115,8 @@ real(rprec) :: xdiff, ydiff, zdiff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
 ! Determine istart, jstart, kstart by calling cell_indx
-istart = cell_indx('i',dx,xyz(1))
-jstart = cell_indx('j',dy,xyz(2))
+istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx-1 
+jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny-1
 kstart = cell_indx('k',dz,xyz(3))
 !write(*,*) 'coord,is,js,ks',coord,istart,jstart,kstart
 
@@ -103,15 +124,16 @@ kstart = cell_indx('k',dz,xyz(3))
 uvar = 0.
 
 ! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
-!   mod accounts for situation where istart=nx or jstart=ny
-uvar(1,1,1) = var(istart,           jstart,           kstart+(1-lbz))
-uvar(2,1,1) = var(mod(istart,nx)+1, jstart,           kstart+(1-lbz))
-uvar(1,2,1) = var(istart,           mod(jstart,ny)+1, kstart+(1-lbz))
-uvar(2,2,1) = var(mod(istart,nx)+1, mod(jstart,ny)+1, kstart+(1-lbz))
-uvar(1,1,2) = var(istart,           jstart,           kstart+(1-lbz)+1)
-uvar(2,1,2) = var(mod(istart,nx)+1, jstart,           kstart+(1-lbz)+1)
-uvar(1,2,2) = var(istart,           mod(jstart,ny)+1, kstart+(1-lbz)+1)
-uvar(2,2,2) = var(mod(istart,nx)+1, mod(jstart,ny)+1, kstart+(1-lbz)+1)
+! Can probably bypass storing in uvar and put directly in linear_interp
+kstart=kstart+(1-lbz)
+uvar(1,1,1) = var(istart,   jstart,   kstart)
+uvar(2,1,1) = var(istart+1, jstart,   kstart)
+uvar(1,2,1) = var(istart,   jstart+1, kstart)
+uvar(2,2,1) = var(istart+1, jstart+1, kstart)
+uvar(1,1,2) = var(istart,   jstart,   kstart+1)
+uvar(2,1,2) = var(istart+1, jstart,   kstart+1)
+uvar(1,2,2) = var(istart,   jstart+1, kstart+1)
+uvar(2,2,2) = var(istart+1, jstart+1, kstart+1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
