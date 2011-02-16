@@ -100,12 +100,12 @@ use sim_param, only : u,v
 use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
 implicit none
 
-real(rprec), dimension(:,:,:), intent(IN) :: var
 integer, intent(IN) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(IN), dimension(3) :: xyz
 
-real(rprec), dimension(2,2,2) :: uvar
+!real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
 integer :: i,j,k
 real(rprec) :: u1,u2,u3,u4,u5,u6
@@ -117,7 +117,7 @@ u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 ! Determine istart, jstart, kstart by calling cell_indx
 istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
 jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx('k',dz,xyz(3)) ! $lbz <= kstart < Nz
+kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
 ! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 kstart=kstart+(1-lbz)
@@ -126,18 +126,18 @@ istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index
 kstart1 = kstart + 1
 
-!  Contains the 6 points that make of the cube
-uvar = 0.
 
 ! Can probably bypass storing in uvar and put directly in linear_interp
-uvar(1,1,1) = var(istart,  jstart,  kstart)
-uvar(2,1,1) = var(istart1, jstart,  kstart)
-uvar(1,2,1) = var(istart,  jstart1, kstart)
-uvar(2,2,1) = var(istart1, jstart1, kstart)
-uvar(1,1,2) = var(istart,  jstart,  kstart1)
-uvar(2,1,2) = var(istart1, jstart,  kstart1)
-uvar(1,2,2) = var(istart,  jstart1, kstart1)
-uvar(2,2,2) = var(istart1, jstart1, kstart1)
+!  Contains the 6 points that make of the cube
+!uvar = 0.
+!uvar(1,1,1) = var(istart,  jstart,  kstart)
+!uvar(2,1,1) = var(istart1, jstart,  kstart)
+!uvar(1,2,1) = var(istart,  jstart1, kstart)
+!uvar(2,2,1) = var(istart1, jstart1, kstart)
+!uvar(1,1,2) = var(istart,  jstart,  kstart1)
+!uvar(2,1,2) = var(istart1, jstart,  kstart1)
+!uvar(1,2,2) = var(istart,  jstart1, kstart1)
+!uvar(2,2,2) = var(istart1, jstart1, kstart1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
@@ -148,10 +148,22 @@ zdiff = xyz(3) - z(kstart)
 
 !  Perform the 7 linear interpolations
 !  Perform interpolations in x-direction 
-u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
-u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
-u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
-u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
+!u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
+!u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
+!u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
+!u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
+u1 = linear_interp(var(istart,  jstart,  kstart), &
+                   var(istart1, jstart,  kstart), &
+                   dx, xdiff)
+u2 = linear_interp(var(istart,  jstart1, kstart), &
+                   var(istart1, jstart1, kstart), &
+                   dx, xdiff)
+u3 = linear_interp(var(istart,  jstart,  kstart1), &
+                   var(istart1, jstart,  kstart1), &
+                   dx, xdiff)
+u4 = linear_interp(var(istart,  jstart1, kstart1), &
+                   var(istart1, jstart1, kstart1), &
+                   dx, xdiff)
 !  Perform interpolations in y-direction
 u5 = linear_interp(u1,u2,dy,ydiff)
 u6 = linear_interp(u3,u4,dy,ydiff)
