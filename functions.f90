@@ -218,7 +218,7 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,:) :: var
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
 integer, intent(IN) :: lbz   !lower bound on z ($lbz) for variable sent
 real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
@@ -276,8 +276,8 @@ do j=1,neta
     if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
       
       !  Include autowrapping for x and y directions
-      cell_center(1) = modulo(cell_center(1), L_x)
-      cell_center(2) = modulo(cell_center(2), L_y)
+      !cell_center(1) = modulo(cell_center(1), L_x)
+      !cell_center(2) = modulo(cell_center(2), L_y)
         
       !  Perform trilinear interpolation       
       var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
@@ -336,7 +336,7 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,:) :: var
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
 integer, intent(IN) :: lbz      !lower bound on z ($lbz) for variable sent
 integer, intent(IN) :: npoints
 real(rprec), intent(IN), dimension(3,npoints) :: points
@@ -376,13 +376,13 @@ do n=1, npoints
     yp = points(2,n)
     
     !  Include autowrapping for x and y directions
-    xp = modulo(xp, L_x)
-    yp = modulo(yp, L_y)
+    !xp = modulo(xp, L_x)
+    !yp = modulo(yp, L_y)
     
     !  Perform trilinear interpolation
-    istart = autowrap_i( cell_indx('i', dx, xp) )
-    jstart = autowrap_j( cell_indx('j', dy, yp) )
-    kstart = cell_indx('k', dz, zp)
+    !istart = autowrap_i( cell_indx('i', dx, xp) )
+    !jstart = autowrap_j( cell_indx('j', dy, yp) )
+    !kstart = cell_indx('k', dz, zp)
         
     var_sum = var_sum + trilinear_interp(var, lbz, (/ xp, yp, zp /))
     nsum = nsum + 1
