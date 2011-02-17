@@ -55,9 +55,12 @@ $if($PGI)
 cfl = maxval( u_inter )
 deallocate( u_inter )
 $else
-cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
-                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
-                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+!cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
+!                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
+!                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+cfl = maxval( abs(u(1:nx,1:ny,1:nz-1)) / dx )
+cfl = maxval( (/ cfl, dabs(v(1:nx,1:ny,1:nz-1)) / dy /) )
+cfl = maxval( (/ cfl, dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
 $endif
 
 cfl = dt * cfl
@@ -129,9 +132,12 @@ $if($PGI)
 dt = minval( u_inter )
 deallocate(u_inter)
 $else
-dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
-                dy / abs(v(1:nx,1:ny,1:nz-1)), &
-                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+!dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
+!                dy / abs(v(1:nx,1:ny,1:nz-1)), &
+!                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+dt = minval( dx / abs(u(1:nx,1:ny,1:nz-1)) )
+dt = minval((/ dt, dy / abs(v(1:nx,1:ny,1:nz-1)) /) )
+dt = minval((/ dt, dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
 $endif
 
 dt = cfl * dt
