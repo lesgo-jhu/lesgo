@@ -4356,11 +4356,10 @@ end subroutine level_set_forcing
 !--this assumes f(:, :, nz) is valid
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function safe_cd (i, j, k, d, f)
+real(rp) function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz  !--in addition to those above
+use grid_defs, only : autowrap_i, autowrap_j
 implicit none
-
-real (rp) :: safe_cd
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
@@ -4376,40 +4375,48 @@ real (rp) :: delta
 
 select case (d)
   case (1)
-    n = nx
     delta = dx
 
-    if (i == 1) then
+    !  Commented (JSG)
+    !n = nx
+    !if (i == 1) then
 
-      safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
+    !  safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
 
-    else if (i == n) then
+    !else if (i == n) then
 
-      safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
+    !  safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
 
-    else
+    !else
 
-      safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
+    !  safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
 
-    end if
+    !end if
+
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(autowrap_i(i + 1), j, k) - f(autowrap_i(i - 1), j, k) ) / (2._rp * delta)
     
   case (2)
-    n = ny
+ 
     delta = dy
+    !  Commented (JSG)
+    ! n = ny
+    !if (j == 1) then
 
-    if (j == 1) then
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
+    !else if (j == n) then
 
-    else if (j == n) then
+    !  safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
 
-      safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
+    !else
 
-    else
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
+    !end if
 
-    end if
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(i, autowrap_j(j + 1), k) - f(i, autowrap_j(j - 1), k) ) /  (2._rp * delta)
 
   case (3)
     n = nz
