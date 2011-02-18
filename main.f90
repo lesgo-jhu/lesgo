@@ -102,7 +102,7 @@ $endif
 ! Initialize uv grid (calculate x,y,z vectors)
 call grid_build()
 
-! Initialize variables used for tavg and other data output
+! Initialize variables used for output statistics and instantaneous data
 call stats_init()
 
 ! Initialize time variable
@@ -137,8 +137,6 @@ $if ($LVLSET)
   $endif          
 
 $endif
-
-
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays

@@ -2,18 +2,58 @@
 module stat_defs
 !**********************************************************************
 use types, only : rprec
-use param, only : nx,ny,nz
+use param, only : nx,ny,nz,lh
 
 save
 public
+
+!integer, dimension(point_nloc) :: point_coord=-1, point_istart=-1, point_jstart=-1, point_kstart=-1
+!real(rprec), dimension(point_nloc) :: point_xdiff, point_ydiff, point_zdiff
+!character(64), dimension(point_nloc) :: point_fname
+
+!integer, dimension(xplane_nloc) :: xplane_istart=-1
+!real(rprec), dimension(xplane_nloc) :: xplane_ldiff
+
+!integer, dimension(yplane_nloc) :: yplane_istart=-1
+!real(rprec), dimension(yplane_nloc) :: yplane_ldiff
+
+!integer, dimension(zplane_nloc) :: zplane_istart=-1, zplane_coord=-1
+!real(rprec), dimension(zplane_nloc) :: zplane_ldiff
+
+!integer, dimension(spectra_nloc) :: spectra_istart=-1, spectra_coord=-1
+!real(rprec), dimension(spectra_nloc) :: spectra_ldiff
+
+type point
+  integer :: istart, jstart, kstart, coord
+  real(rprec) :: xdiff, ydiff, zdiff
+  character(64) :: fname
+end type point
+
+type plane
+  integer :: istart
+  real(rprec) :: ldiff
+end type plane
+
+type zplane
+  integer :: istart, coord
+  real(rprec) :: ldiff
+end type zplane  
 
 type rs
   real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
 end type rs
 
-real(rprec) :: tavg_total_time
-!  Sums performed over time
+type spectra
+  real(rprec), dimension(nx) :: uhat
+  real(rprec), dimension(lh) :: power
+  integer :: istart, coord
+  real(rprec) :: ldiff 
+end type spectra
 
+real(rprec) :: spectra_total_time
+real(rprec) :: tavg_total_time
+
+!  Sums performed over time
 type tavg
   real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
   real(rprec) :: dudz, dvdz
@@ -55,11 +95,16 @@ end type wind_farm
 type(wind_farm)        :: wind_farm_t
 $endif
 
+type(point), allocatable, dimension(:) :: point_t
+type(plane), allocatable, dimension(:) :: xplane_t, yplane_t
+type(zplane), allocatable, dimension(:) :: zplane_t
+
 type(tavg), allocatable, dimension(:,:,:) :: tavg_t
 type(tavg), allocatable, dimension(:) :: tavg_zplane_t
 
 type(rs), allocatable, dimension(:,:,:) :: rs_t
 type(rs), allocatable, dimension(:) :: rs_zplane_t, cnpy_zplane_t
+type(spectra), allocatable, dimension(:) :: spectra_t
 
 end module stat_defs
 

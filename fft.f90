@@ -3,19 +3,19 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module fft
 use types,only:rprec
-use param,only:lh,ny
+use param,only:lh,ny,spectra_calc
 implicit none
 
 save
 
 !public
 private
-public :: kx,ky,k2,eye,forw,back,forw_big,back_big,init_fft
+public :: kx, ky, k2, eye, forw, back, forw_big, back_big, init_fft, forw_spectra
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
 ! plans
-integer*8::forw,back,forw_big,back_big
+integer*8::forw,back,forw_big,back_big, forw_spectra
 real(kind=rprec),dimension(lh,ny)::kx,ky,k2
 complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
@@ -44,8 +44,16 @@ call rfftw2d_f77_create_plan(forw_big,nx2,ny2,&
      FFTW_REAL_TO_COMPLEX,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
 call rfftw2d_f77_create_plan(back_big,nx2,ny2,&
      FFTW_COMPLEX_TO_REAL,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
+
+if(spectra_calc) then
+  call rfftw_f77_create_plan(forw_spectra, Nx, FFTW_REAL_TO_COMPLEX, &
+                             FFTW_ESTIMATE)
+endif
+
 call init_wavenumber()
 end subroutine init_fft
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine init_wavenumber()
