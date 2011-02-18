@@ -7,22 +7,6 @@ use param, only : nx,ny,nz,lh
 save
 public
 
-!integer, dimension(point_nloc) :: point_coord=-1, point_istart=-1, point_jstart=-1, point_kstart=-1
-!real(rprec), dimension(point_nloc) :: point_xdiff, point_ydiff, point_zdiff
-!character(64), dimension(point_nloc) :: point_fname
-
-!integer, dimension(xplane_nloc) :: xplane_istart=-1
-!real(rprec), dimension(xplane_nloc) :: xplane_ldiff
-
-!integer, dimension(yplane_nloc) :: yplane_istart=-1
-!real(rprec), dimension(yplane_nloc) :: yplane_ldiff
-
-!integer, dimension(zplane_nloc) :: zplane_istart=-1, zplane_coord=-1
-!real(rprec), dimension(zplane_nloc) :: zplane_ldiff
-
-!integer, dimension(spectra_nloc) :: spectra_istart=-1, spectra_coord=-1
-!real(rprec), dimension(spectra_nloc) :: spectra_ldiff
-
 type point
   integer :: istart, jstart, kstart, coord
   real(rprec) :: xdiff, ydiff, zdiff
