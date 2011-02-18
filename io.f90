@@ -3307,10 +3307,10 @@ do k=1,spectra_nloc
   fname=trim(adjustl(fname))
 
   !  Omitting Nyquist from output
-  call write_tecplot_header_ND(fname, 'rewind', 2, (/ Nx /), &
+  call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
     '"k", "E(k)"', k, 2 ) 
-  call write_real_data_1D(fname, 'append', 'formatted', 1, Nx, &
-    (/ spectra_t(k) % power(1:Nx) /), 0, (/ kx(1:lh-1,1) /))
+  call write_real_data_1D(fname, 'append', 'formatted', 1, lh-1, &
+    (/ spectra_t(k) % power(1:lh-1) /), 0, (/ kx(1:lh-1,1) /))
     
   $if ($MPI)
   endif
