@@ -336,11 +336,11 @@ implicit none
 integer, intent(IN) :: itype
 
 character(25) :: cl, ct
-character (64) :: fname, temp
+character (64) :: fname
 character(128) :: var_list
-integer :: n, i, j, k, nvars, icount
+integer :: n, i, j, k, nvars
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel, fx_tot, fy_tot, fz_tot
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel
 
 $if($PGI)
 real(rprec), allocatable, dimension(:) :: u_inter
@@ -2109,7 +2109,8 @@ use grid_defs
 use functions, only : cell_indx
 use messages
 use stat_defs, only : point_t, xplane_t, yplane_t, zplane_t
-use stat_defs, only : tavg, tavg_t, tavg_zplane_t, spectra_t
+use stat_defs, only : tavg_t, tavg_zplane_t, spectra_t
+use stat_defs, only : type_set
 implicit none
 
 !character(120) :: cx,cy,cz
@@ -2133,17 +2134,28 @@ if( tavg_calc ) then
   allocate(tavg_zplane_t(nz))
   
   !  Initialize arrays
-  tavg_t(:,:,:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
+  !tavg_t(:,:,:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
+
+  do k=1,Nz
+    do j=1, Ny
+      do i=1, Nx
+        call type_set( tavg_t(i,j,k), 0._rprec )
+      enddo
+    enddo
+
+    call type_set( tavg_zplane_t(k), 0._rprec )
+
+  enddo
     
-  tavg_zplane_t(:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-    0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
+  !tavg_zplane_t(:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
+  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
 
 endif
 
@@ -2325,9 +2337,9 @@ subroutine tavg_init()
 
 !  Load tavg.out files
 
-use param, only : coord, dt, USE_MPI
+use param, only : coord, dt, USE_MPI, Nx, Ny, Nz
 use messages
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg
+use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
 use param, only : tavg_nstart, tavg_nend
 implicit none
 
@@ -2339,6 +2351,7 @@ $endif
 character (128) :: fname
 
 logical :: opn, exst
+integer :: i,j,k
 
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
@@ -2379,55 +2392,39 @@ read (1) tavg_t
 close(1)
 
 ! Now initialize all quantities for summation
-tavg_t % u = tavg_t % u * tavg_total_time
-tavg_t % v = tavg_t % v * tavg_total_time
-tavg_t % w = tavg_t % w * tavg_total_time
-tavg_t % u2 = tavg_t % u2 * tavg_total_time
-tavg_t % v2 = tavg_t % v2 * tavg_total_time
-tavg_t % w2 = tavg_t % w2 * tavg_total_time
-tavg_t % uw = tavg_t % uw * tavg_total_time
-tavg_t % vw = tavg_t % vw * tavg_total_time
-tavg_t % uv = tavg_t % uv * tavg_total_time
-tavg_t % dudz = tavg_t % dudz * tavg_total_time
-tavg_t % dvdz = tavg_t % dvdz * tavg_total_time
+do k=1, Nz
+  do j=1, Ny
+    do i=1, Nx
+      tavg_t(i,j,k) = tavg_t(i,j,k) .MUL. tavg_total_time
+    enddo
+  enddo
+enddo
 
-tavg_t % txx = tavg_t % txx * tavg_total_time
-tavg_t % txy = tavg_t % txy * tavg_total_time
-tavg_t % tyy = tavg_t % tyy * tavg_total_time
-tavg_t % txz = tavg_t % txz * tavg_total_time
-tavg_t % tyz = tavg_t % tyz * tavg_total_time
-tavg_t % tzz = tavg_t % tzz * tavg_total_time
 
-tavg_t % fx = tavg_t % fx * tavg_total_time
-tavg_t % fy = tavg_t % fy * tavg_total_time
-tavg_t % fz = tavg_t % fz * tavg_total_time
+!tavg_t % u = tavg_t % u * tavg_total_time
+!tavg_t % v = tavg_t % v * tavg_total_time
+!tavg_t % w = tavg_t % w * tavg_total_time
+!tavg_t % u2 = tavg_t % u2 * tavg_total_time
+!tavg_t % v2 = tavg_t % v2 * tavg_total_time
+!tavg_t % w2 = tavg_t % w2 * tavg_total_time
+!tavg_t % uw = tavg_t % uw * tavg_total_time
+!tavg_t % vw = tavg_t % vw * tavg_total_time
+!tavg_t % uv = tavg_t % uv * tavg_total_time
+!tavg_t % dudz = tavg_t % dudz * tavg_total_time
+!tavg_t % dvdz = tavg_t % dvdz * tavg_total_time
+!
+!tavg_t % txx = tavg_t % txx * tavg_total_time
+!tavg_t % txy = tavg_t % txy * tavg_total_time
+!tavg_t % tyy = tavg_t % tyy * tavg_total_time
+!tavg_t % txz = tavg_t % txz * tavg_total_time
+!tavg_t % tyz = tavg_t % tyz * tavg_total_time
+!tavg_t % tzz = tavg_t % tzz * tavg_total_time
 
-tavg_t % cs_opt2 = tavg_t % cs_opt2 * tavg_total_time
+!tavg_t % fx = tavg_t % fx * tavg_total_time
+!tavg_t % fy = tavg_t % fy * tavg_total_time
+!tavg_t % fz = tavg_t % fz * tavg_total_time
 
-tavg_zplane_t % u = tavg_zplane_t % u * tavg_total_time
-tavg_zplane_t % v = tavg_zplane_t % v * tavg_total_time
-tavg_zplane_t % w = tavg_zplane_t % w * tavg_total_time
-tavg_zplane_t % u2 = tavg_zplane_t % u2 * tavg_total_time
-tavg_zplane_t % v2 = tavg_zplane_t % v2 * tavg_total_time
-tavg_zplane_t % w2 = tavg_zplane_t % w2 * tavg_total_time
-tavg_zplane_t % uw = tavg_zplane_t % uw * tavg_total_time
-tavg_zplane_t % vw = tavg_zplane_t % vw * tavg_total_time
-tavg_zplane_t % uv = tavg_zplane_t % uv * tavg_total_time
-tavg_zplane_t % dudz = tavg_zplane_t % dudz * tavg_total_time
-tavg_zplane_t % dvdz = tavg_zplane_t % dvdz * tavg_total_time
-
-tavg_zplane_t % txx = tavg_zplane_t % txx * tavg_total_time
-tavg_zplane_t % txy = tavg_zplane_t % txy * tavg_total_time
-tavg_zplane_t % tyy = tavg_zplane_t % tyy * tavg_total_time
-tavg_zplane_t % txz = tavg_zplane_t % txz * tavg_total_time
-tavg_zplane_t % tyz = tavg_zplane_t % tyz * tavg_total_time
-tavg_zplane_t % tzz = tavg_zplane_t % tzz * tavg_total_time
-
-tavg_zplane_t % fx = tavg_zplane_t % fx * tavg_total_time
-tavg_zplane_t % fy = tavg_zplane_t % fy * tavg_total_time
-tavg_zplane_t % fz = tavg_zplane_t % fz * tavg_total_time
-
-tavg_zplane_t % cs_opt2 = tavg_zplane_t % cs_opt2 * tavg_total_time
+!tavg_t % cs_opt2 = tavg_t % cs_opt2 * tavg_total_time
 
 return
 end subroutine tavg_init
@@ -2447,7 +2444,7 @@ implicit none
 
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
-real(rprec) :: u_p, v_p, w_p, dudz_p, dvdz_p, fa
+real(rprec) :: u_p, v_p, w_p, dudz_p, dvdz_p
 
 !  Make sure w stuff has been interpolated to uv-grid
 call interp_to_uv_grid(w, w_uv, w_uv_tag)
@@ -2505,8 +2502,12 @@ end subroutine tavg_compute
 subroutine tavg_finalize()
 !**********************************************************************
 use grid_defs, only : x,y,z
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg, tavg_total_time
-use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg
+use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t 
+use stat_defs, only : operator(.DIV.), operator(.MUL.)
+use stat_defs, only :  operator(.ADD.), operator(.SUB.)
+use stat_defs, only : type_set, type_zero_bogus
+use stat_defs, only : rs_compute, cnpy_tavg_mul
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 
 $if($MPI)
@@ -2523,14 +2524,12 @@ $endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
-character (64) :: temp
 character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
   fname_tau, fname_f, fname_rs, fname_cs
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
   fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
-
-real(rprec), parameter :: fa = 1. / real(nx * ny)  
+  
 integer :: i,j,k
 
 $if($MPI)
@@ -2554,6 +2553,10 @@ type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
 $endif
 
 logical :: opn
+
+type(rs) :: cnpy_avg_t
+type(tavg) :: tavg_avg_t
+integer :: ncount=0
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
@@ -2594,58 +2597,27 @@ if(coord == 0) then
   
 elseif(coord == nproc - 1) then
 
-  !  Set fx,fy,fz to 0 as these are bogus
-  tavg_t(:,:,nz) % fx = 0._rprec
-  tavg_t(:,:,nz) % fy = 0._rprec
-  tavg_t(:,:,nz) % fz = 0._rprec
-  
-  tavg_t(:,:,nz) % txx = 0._rprec
-  tavg_t(:,:,nz) % txy = 0._rprec
-  tavg_t(:,:,nz) % tyy = 0._rprec
-  tavg_t(:,:,nz) % txz = 0._rprec
-  tavg_t(:,:,nz) % tyz = 0._rprec
-  tavg_t(:,:,nz) % tzz = 0._rprec
-  
-  tavg_zplane_t(nz) % fx = 0._rprec
-  tavg_zplane_t(nz) % fy = 0._rprec
-  tavg_zplane_t(nz) % fz = 0._rprec
-  
-  tavg_zplane_t(nz) % txx = 0._rprec
-  tavg_zplane_t(nz) % txy = 0._rprec
-  tavg_zplane_t(nz) % tyy = 0._rprec  
-  tavg_zplane_t(nz) % txz = 0._rprec
-  tavg_zplane_t(nz) % tyz = 0._rprec
-  tavg_zplane_t(nz) % tzz = 0._rprec
-  
+  !  Zero bogus values
+  do j=1, Ny
+    do i=1,Nx
+     call type_zero_bogus(tavg_t(i,j,nz))
+    enddo
+  enddo
+
 endif
 
 $else
 
-  !  Set fx,fy,fz to 0 as these are bogus
-  tavg_t(:,:,nz) % fx = 0._rprec
-  tavg_t(:,:,nz) % fy = 0._rprec
-  tavg_t(:,:,nz) % fz = 0._rprec
-  
-  tavg_t(:,:,nz) % txx = 0._rprec
-  tavg_t(:,:,nz) % txy = 0._rprec
-  tavg_t(:,:,nz) % tyy = 0._rprec
-  tavg_t(:,:,nz) % txz = 0._rprec
-  tavg_t(:,:,nz) % tyz = 0._rprec
-  tavg_t(:,:,nz) % tzz = 0._rprec
-  
-  tavg_zplane_t(nz) % fx = 0._rprec
-  tavg_zplane_t(nz) % fy = 0._rprec
-  tavg_zplane_t(nz) % fz = 0._rprec
-  
-  tavg_zplane_t(nz) % txx = 0._rprec
-  tavg_zplane_t(nz) % txy = 0._rprec
-  tavg_zplane_t(nz) % tyy = 0._rprec  
-  tavg_zplane_t(nz) % txz = 0._rprec
-  tavg_zplane_t(nz) % tyz = 0._rprec
-  tavg_zplane_t(nz) % tzz = 0._rprec
+  !  Zero bogus values
+  do j=1, Ny
+    do i=1,Nx
+     call type_zero_bogus(tavg_t(i,j,nz))
+    enddo
+  enddo
 
 $endif
-! All processors need not do this
+
+! All processors need not do this, but that is ok
 !  Set file names
 fname_out = 'tavg.out'
 
@@ -2681,86 +2653,141 @@ $if ($MPI)
    
 $endif
 
-!  Perform Averaging operation
-tavg_t % u = tavg_t % u / tavg_total_time
-tavg_t % v = tavg_t % v / tavg_total_time
-tavg_t % w = tavg_t % w / tavg_total_time
-tavg_t % u2 = tavg_t % u2 / tavg_total_time
-tavg_t % v2 = tavg_t % v2 / tavg_total_time
-tavg_t % w2 = tavg_t % w2 / tavg_total_time
-tavg_t % uw = tavg_t % uw / tavg_total_time
-tavg_t % vw = tavg_t % vw / tavg_total_time
-tavg_t % uv = tavg_t % uv / tavg_total_time
-tavg_t % dudz = tavg_t % dudz / tavg_total_time
-tavg_t % dvdz = tavg_t % dvdz / tavg_total_time
+!  Perform time averaging operation
+!  tavg_t = tavg_t / tavg_total_time
+do k=1,Nz
+  do j=1, Ny
+    do i=1, Nx
+      tavg_t(i,j,k) = tavg_t(i,j,k) .DIV. tavg_total_time
+    enddo
+  enddo
+enddo
 
-tavg_t % txx = tavg_t % txx / tavg_total_time
-tavg_t % txy = tavg_t % txy / tavg_total_time
-tavg_t % tyy = tavg_t % tyy / tavg_total_time
-tavg_t % txz = tavg_t % txz / tavg_total_time
-tavg_t % tyz = tavg_t % tyz / tavg_total_time
-tavg_t % tzz = tavg_t % tzz / tavg_total_time
+!tavg_t % u = tavg_t % u / tavg_total_time
+!tavg_t % v = tavg_t % v / tavg_total_time
+!tavg_t % w = tavg_t % w / tavg_total_time
+!tavg_t % u2 = tavg_t % u2 / tavg_total_time
+!tavg_t % v2 = tavg_t % v2 / tavg_total_time
+!tavg_t % w2 = tavg_t % w2 / tavg_total_time
+!tavg_t % uw = tavg_t % uw / tavg_total_time
+!tavg_t % vw = tavg_t % vw / tavg_total_time
+!tavg_t % uv = tavg_t % uv / tavg_total_time
+!tavg_t % dudz = tavg_t % dudz / tavg_total_time
+!tavg_t % dvdz = tavg_t % dvdz / tavg_total_time
 
-tavg_t % fx = tavg_t % fx / tavg_total_time
-tavg_t % fy = tavg_t % fy / tavg_total_time
-tavg_t % fz = tavg_t % fz / tavg_total_time
+!tavg_t % txx = tavg_t % txx / tavg_total_time
+!tavg_t % txy = tavg_t % txy / tavg_total_time
+!tavg_t % tyy = tavg_t % tyy / tavg_total_time
+!tavg_t % txz = tavg_t % txz / tavg_total_time
+!tavg_t % tyz = tavg_t % tyz / tavg_total_time
+!tavg_t % tzz = tavg_t % tzz / tavg_total_time
 
-tavg_t % cs_opt2 = tavg_t % cs_opt2 / tavg_total_time
+!tavg_t % fx = tavg_t % fx / tavg_total_time
+!tavg_t % fy = tavg_t % fy / tavg_total_time
+!tavg_t % fz = tavg_t % fz / tavg_total_time
+
+!tavg_t % cs_opt2 = tavg_t % cs_opt2 / tavg_total_time
 
 !  Average over z-planes
 do k=1, nz
-
-  tavg_zplane_t(k) % u = fa * sum( tavg_t(:,:,k) % u )
-  tavg_zplane_t(k) % v = fa * sum( tavg_t(:,:,k) % v )
-  tavg_zplane_t(k) % w = fa * sum( tavg_t(:,:,k) % w )
-  tavg_zplane_t(k) % u2 = fa * sum( tavg_t(:,:,k) % u2 )
-  tavg_zplane_t(k) % v2 = fa * sum( tavg_t(:,:,k) % v2 )
-  tavg_zplane_t(k) % w2 = fa * sum( tavg_t(:,:,k) % w2 )
-
-  tavg_zplane_t(k) % uw = fa * sum( tavg_t(:,:,k) % uw )
-  tavg_zplane_t(k) % vw = fa * sum( tavg_t(:,:,k) % vw )
-  tavg_zplane_t(k) % uv = fa * sum( tavg_t(:,:,k) % uv )
-
-  tavg_zplane_t(k) % dudz = fa * sum( tavg_t(:,:,k) % dudz )
-  tavg_zplane_t(k) % dvdz = fa * sum( tavg_t(:,:,k) % dvdz )
   
-  tavg_zplane_t(k) % txx = fa * sum( tavg_t(:,:,k) % txx )
-  tavg_zplane_t(k) % txy = fa * sum( tavg_t(:,:,k) % txy )
-  tavg_zplane_t(k) % tyy = fa * sum( tavg_t(:,:,k) % tyy )
-  tavg_zplane_t(k) % txz = fa * sum( tavg_t(:,:,k) % txz )
-  tavg_zplane_t(k) % tyz = fa * sum( tavg_t(:,:,k) % tyz )
-  tavg_zplane_t(k) % tzz = fa * sum( tavg_t(:,:,k) % tzz )
+  !  Initialize to 0 for summations
+  call type_set( tavg_zplane_t(k), 0._rprec )
+  ncount = 0
 
-  tavg_zplane_t(k) % fx = fa * sum( tavg_t(:,:,k) % fx )
-  tavg_zplane_t(k) % fy = fa * sum( tavg_t(:,:,k) % fy )
-  tavg_zplane_t(k) % fz = fa * sum( tavg_t(:,:,k) % fz )
+  do j=1, Ny
+    do i=1, Nx
+
+      $if($LVLSET)
+      if( phi(i,j,k) > 0._rprec ) then
+      $endif
+
+      tavg_zplane_t(k) = tavg_zplane_t(k) .ADD. tavg_t(i,j,k)
+      ncount = ncount + 1
+
+      $if($LVLSET)
+      endif
+      $endif
+
+    enddo
+  enddo
+
+  !  Divide by number of summation points 
+  tavg_zplane_t(k) = tavg_zplane_t(k) .DIV. real(ncount,kind=rprec)
+
+
+  !tavg_zplane_t(k) % u = fa * sum( tavg_t(:,:,k) % u )
+  !tavg_zplane_t(k) % v = fa * sum( tavg_t(:,:,k) % v )
+  !tavg_zplane_t(k) % w = fa * sum( tavg_t(:,:,k) % w )
+  !tavg_zplane_t(k) % u2 = fa * sum( tavg_t(:,:,k) % u2 )
+  !tavg_zplane_t(k) % v2 = fa * sum( tavg_t(:,:,k) % v2 )
+  !tavg_zplane_t(k) % w2 = fa * sum( tavg_t(:,:,k) % w2 )
+
+  !tavg_zplane_t(k) % uw = fa * sum( tavg_t(:,:,k) % uw )
+  !tavg_zplane_t(k) % vw = fa * sum( tavg_t(:,:,k) % vw )
+  !tavg_zplane_t(k) % uv = fa * sum( tavg_t(:,:,k) % uv )
+
+  !tavg_zplane_t(k) % dudz = fa * sum( tavg_t(:,:,k) % dudz )
+  !tavg_zplane_t(k) % dvdz = fa * sum( tavg_t(:,:,k) % dvdz )
   
-  tavg_zplane_t(k) % cs_opt2 = fa * sum( tavg_t(:,:,k) % cs_opt2 )
+  !tavg_zplane_t(k) % txx = fa * sum( tavg_t(:,:,k) % txx )
+  !tavg_zplane_t(k) % txy = fa * sum( tavg_t(:,:,k) % txy )
+  !tavg_zplane_t(k) % tyy = fa * sum( tavg_t(:,:,k) % tyy )
+  !tavg_zplane_t(k) % txz = fa * sum( tavg_t(:,:,k) % txz )
+  !tavg_zplane_t(k) % tyz = fa * sum( tavg_t(:,:,k) % tyz )
+  !tavg_zplane_t(k) % tzz = fa * sum( tavg_t(:,:,k) % tzz )
+
+  !tavg_zplane_t(k) % fx = fa * sum( tavg_t(:,:,k) % fx )
+  !tavg_zplane_t(k) % fy = fa * sum( tavg_t(:,:,k) % fy )
+  !tavg_zplane_t(k) % fz = fa * sum( tavg_t(:,:,k) % fz )
+  
+  !tavg_zplane_t(k) % cs_opt2 = fa * sum( tavg_t(:,:,k) % cs_opt2 )
   
 enddo
 
 do k = 1, nz
+
+  !  Initialize to 0
+  call type_set( rs_zplane_t(k), 0._rprec)
+  ncount = 0
+
   do j = 1, ny
     do i = 1, nx
     
-    ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
-      rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
-      rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
-      rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
-      rs_t(i,j,k) % upwp = tavg_t(i,j,k) % uw - tavg_t(i,j,k) % u * tavg_t(i,j,k) % w
-      rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
-      rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
+      ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
+      rs_t(i,j,k) = rs_compute( tavg_t(i,j,k) )
+
+      !call rs_compute( rs_t(i,j,k), tavg_t(i,j,k) )
+      !rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
+      !rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
+      !rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
+      !rs_t(i,j,k) % upwp = tavg_t(i,j,k) % uw - tavg_t(i,j,k) % u * tavg_t(i,j,k) % w
+      !rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
+      !rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
+
+      $if($LVLSET)
+      if( phi(i,j,k) > 0._rprec ) then
+      $endif 
+
+      rs_zplane_t(k) = rs_zplane_t(k) .ADD. rs_t(i,j,k) 
+      ncount = ncount + 1
+
+      $if($LVLSET)
+      endif
+      $endif
       
     enddo    
   enddo
+
+  rs_zplane_t(k) = rs_zplane_t(k) .DIV. real(ncount,kind=rprec)
   
   !  Compute the z-plane averaged Reynolds stresses: 
-  rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
-  rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
-  rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
-  rs_zplane_t(k) % upwp = fa * sum( rs_t(:,:,k) % upwp )
-  rs_zplane_t(k) % vpwp = fa * sum( rs_t(:,:,k) % vpwp )
-  rs_zplane_t(k) % upvp = fa * sum( rs_t(:,:,k) % upvp )
+  !rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
+  !rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
+  !rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
+  !rs_zplane_t(k) % upwp = fa * sum( rs_t(:,:,k) % upwp )
+  !rs_zplane_t(k) % vpwp = fa * sum( rs_t(:,:,k) % vpwp )
+  !rs_zplane_t(k) % upvp = fa * sum( rs_t(:,:,k) % upvp )
   
 enddo
 
@@ -2768,12 +2795,40 @@ enddo
 !  Compute the Canopy/Dispersive Stresses: <bar(u_i)*bar(u_j)>_xy - <bar(u_i)>_xy * <bar(u_j)>_xy
 do k = 1, nz  
 
-  cnpy_zplane_t(k) % up2  = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%u) - (fa*sum( tavg_t(:,:,k)%u ))**2
-  cnpy_zplane_t(k) % vp2  = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%v) - (fa*sum( tavg_t(:,:,k)%v ))**2
-  cnpy_zplane_t(k) % wp2  = fa*sum(tavg_t(:,:,k)%w * tavg_t(:,:,k)%w) - (fa*sum( tavg_t(:,:,k)%w ))**2
-  cnpy_zplane_t(k) % upwp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%w )
-  cnpy_zplane_t(k) % vpwp = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%v ) * fa*sum( tavg_t(:,:,k)%w )
-  cnpy_zplane_t(k) % upvp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%v) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%v )
+  ! Initialize to 0
+  call type_set( cnpy_avg_t, 0._rprec)
+  call type_set( tavg_avg_t, 0._rprec)
+  ncount = 0
+
+  do j=1, Ny
+    do i=1, Nx
+
+      $if($LVLSET)
+      if( phi(i,j,k) > 0._rprec ) then
+      $endif
+
+      cnpy_avg_t = cnpy_avg_t .ADD. cnpy_tavg_mul( tavg_t(i,j,k) )
+      tavg_avg_t = tavg_avg_t .ADD. tavg_t(i,j,k)
+      ncount = ncount + 1
+
+      $if($LVLSET)
+      endif
+      $endif
+      
+    enddo
+  enddo
+
+  cnpy_avg_t = cnpy_avg_t .DIV. real(ncount, kind=rprec)
+  tavg_avg_t = tavg_avg_t .DIV. real(ncount, kind=rprec)
+
+  cnpy_zplane_t(k) = cnpy_avg_t .SUB. cnpy_tavg_mul( tavg_avg_t )
+
+  !cnpy_zplane_t(k) % up2  = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%u) - (fa*sum( tavg_t(:,:,k)%u ))**2
+  !cnpy_zplane_t(k) % vp2  = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%v) - (fa*sum( tavg_t(:,:,k)%v ))**2
+  !cnpy_zplane_t(k) % wp2  = fa*sum(tavg_t(:,:,k)%w * tavg_t(:,:,k)%w) - (fa*sum( tavg_t(:,:,k)%w ))**2
+  !cnpy_zplane_t(k) % upwp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%w )
+  !cnpy_zplane_t(k) % vpwp = fa*sum(tavg_t(:,:,k)%v * tavg_t(:,:,k)%w) - fa*sum( tavg_t(:,:,k)%v ) * fa*sum( tavg_t(:,:,k)%w )
+  !cnpy_zplane_t(k) % upvp = fa*sum(tavg_t(:,:,k)%u * tavg_t(:,:,k)%v) - fa*sum( tavg_t(:,:,k)%u ) * fa*sum( tavg_t(:,:,k)%v )
   
 enddo
 
@@ -3138,7 +3193,7 @@ $endif
 character (128) :: fname
 
 logical :: opn, exst
-integer :: i, k
+integer :: k
 
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
@@ -3267,7 +3322,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
 character(25) :: cl
-character (64) :: fname, temp
+character (64) :: fname
 character(64) :: fname_out
 
 integer :: i, k
