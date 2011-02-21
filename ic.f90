@@ -45,7 +45,10 @@ subroutine ic()
 
   else 
 
-     w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
+     !w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
+     w_star = u_star
+     
+
      !      T_star=wt_s/w_star
      !      q_star=T_star
 
