@@ -326,7 +326,7 @@ use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
 
 $if($LVLSET)
-use level_set, only : phi
+use level_set_base, only : phi
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
 
@@ -340,7 +340,7 @@ character (64) :: fname
 character(128) :: var_list
 integer :: n, i, j, k, nvars
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel, fx_tot, fy_tot, fz_tot
 
 $if($PGI)
 real(rprec), allocatable, dimension(:) :: u_inter
