@@ -21,7 +21,6 @@ public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
 public :: level_set_cylinder_CD
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
-public :: phi
 
 character (*), parameter :: mod_name = 'level_set'
 
