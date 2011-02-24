@@ -84,12 +84,12 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-   ! Original
+   ! Original PC
    !rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
    !rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    !rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
    
-   ! Updated
+   ! Updated PC
    rH_x(:, :, jz) = const  * (u(:, :, jz) / (tadv1*dt) + dpdx_f(:,:,jz))
    rH_y(:, :, jz) = const  * (v(:, :, jz) / (tadv1*dt) + dpdy_f(:,:,jz))
    rH_z(:, :, jz) = const  * (w(:, :, jz) / (tadv1*dt) + dpdz_f(:,:,jz))
