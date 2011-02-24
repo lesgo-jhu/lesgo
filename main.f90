@@ -119,7 +119,7 @@ $if ($TURBINES)
 $endif
 
 ! Initialize velocity field
-call initial()
+!call initial()
 
 ! If using level set method
 $if ($LVLSET)
@@ -137,6 +137,9 @@ $if ($LVLSET)
   $endif          
 
 $endif
+
+! Initialize velocity field
+call initial()
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays
@@ -391,7 +394,7 @@ do jt=1,nsteps
     end if
   
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
-
+ 
     ! Set RHS*_f if necessary (first timestep)
     if ((jt == 1) .and. (.not. initu)) then
         ! if initu, then this is read from the initialization file
@@ -427,6 +430,7 @@ do jt=1,nsteps
     ! forces before applied forces as some of the applied
     ! forces (RNS) depend on the induced forces and the 
     ! two are assumed independent
+    ! Updated PC
     call forcing_induced ()
 
      !  Applied forcing (forces are added to RHS{x,y,z})
@@ -449,6 +453,18 @@ do jt=1,nsteps
 
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
+    ! Original PC
+    !u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
+    !                 dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
+    !                        tadv2 * RHSx_f(:, :, 1:nz-1) )
+    !v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
+    !                 dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
+    !                        tadv2 * RHSy_f(:, :, 1:nz-1) )
+    !w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
+    !                 dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
+    !                        tadv2 * RHSz_f(:, :, 1:nz-1) )
+
+    ! Updated PC
     u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
                             tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx(:,:,1:nz-1) + fx(:,:,1:nz-1))
@@ -483,6 +499,7 @@ do jt=1,nsteps
     $endif
 
     ! Save previous pressure gradient
+    ! Updated PC
     dpdx_f = dpdx
     dpdy_f = dpdy
     dpdz_f = dpdz
@@ -501,6 +518,7 @@ do jt=1,nsteps
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
+    ! Original PC
     !RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     !RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
     !RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
@@ -522,6 +540,9 @@ do jt=1,nsteps
         call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
     end if
     $endif
+
+    ! Original PC
+    !call forcing_induced()
 
     ! Projection method provides u,v,w for jz=1:nz
     !   uses fx,fy,fz calculated above
