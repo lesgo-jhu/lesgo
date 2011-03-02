@@ -2709,16 +2709,16 @@ do k=1, nz
   do j=1, Ny
     do i=1, Nx
 
-      $if($LVLSET)
-      if( phi(i,j,k) > 0._rprec ) then
-      $endif
+      !$if($LVLSET)
+      !if( phi(i,j,k) > 0._rprec ) then
+      !$endif
 
       tavg_zplane_t(k) = tavg_zplane_t(k) .ADD. tavg_t(i,j,k)
       ncount = ncount + 1
 
-      $if($LVLSET)
-      endif
-      $endif
+      !$if($LVLSET)
+      !endif
+      !$endif
 
     enddo
   enddo
@@ -2776,16 +2776,16 @@ do k = 1, nz
       !rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
       !rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
 
-      $if($LVLSET)
-      if( phi(i,j,k) > 0._rprec ) then
-      $endif 
+      !$if($LVLSET)
+      !if( phi(i,j,k) > 0._rprec ) then
+      !$endif 
 
       rs_zplane_t(k) = rs_zplane_t(k) .ADD. rs_t(i,j,k) 
       ncount = ncount + 1
 
-      $if($LVLSET)
-      endif
-      $endif
+      !$if($LVLSET)
+      !endif
+      !$endif
       
     enddo    
   enddo
@@ -2814,17 +2814,17 @@ do k = 1, nz
   do j=1, Ny
     do i=1, Nx
 
-      $if($LVLSET)
-      if( phi(i,j,k) > 0._rprec ) then
-      $endif
+      !$if($LVLSET)
+      !if( phi(i,j,k) > 0._rprec ) then
+      !$endif
 
       cnpy_avg_t = cnpy_avg_t .ADD. cnpy_tavg_mul( tavg_t(i,j,k) )
       tavg_avg_t = tavg_avg_t .ADD. tavg_t(i,j,k)
       ncount = ncount + 1
 
-      $if($LVLSET)
-      endif
-      $endif
+      !$if($LVLSET)
+      !endif
+      !$endif
       
     enddo
   enddo
