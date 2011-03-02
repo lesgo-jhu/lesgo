@@ -3242,14 +3242,14 @@ $endif
 
 read (1) spectra_total_time
 do k=1, spectra_nloc
-  read (1) spectra_t(k) % uhat
+  read (1) spectra_t(k) % power
 enddo
 
 close(1)
 
 !  Prepare for averaging
 do k=1, spectra_nloc
-  spectra_t(k) % uhat = spectra_t(k) % uhat * spectra_total_time
+  spectra_t(k) % power = spectra_t(k) % power * spectra_total_time
 enddo
 
 
@@ -3261,7 +3261,7 @@ subroutine spectra_compute()
 !***************************************************************
 use types, only : rprec
 use sim_param, only : u
-use param, only : Nx, Ny, dt, dz
+use param, only : Nx, Ny, dt, dz, lh
 use param, only : spectra_nloc
 use stat_defs, only : spectra_t, spectra_total_time
 use functions, only : linear_interp
@@ -3269,10 +3269,10 @@ use fft, only : forw_spectra
 implicit none
 
 integer :: i, j, k
-real(rprec), allocatable, dimension(:) :: ui, uhat, uhat_avg
+real(rprec), allocatable, dimension(:) :: ui, power
 
 ! Interpolation variable
-allocate(ui(nx), uhat(nx), uhat_avg(nx))
+allocate(ui(nx), power(lh))
 
 !  Loop over all spectra locations
 do k=1, spectra_nloc
@@ -3280,8 +3280,6 @@ do k=1, spectra_nloc
   $if ($MPI)
   if(spectra_t(k) % coord == coord) then
   $endif
-
-  uhat_avg = 0._rprec  
 
   do j=1,Ny
 
@@ -3295,19 +3293,21 @@ do k=1, spectra_nloc
     ! 1) Compute uhat for the given j
     ui = ui - sum(ui) / Nx ! Remove the mean
     ! Compute FFT
-    call rfftw_f77_one(forw_spectra, ui, uhat)
+    call rfftw_f77_one(forw_spectra, ui, spectra_t(k) % uhat)
     !  Normalize
-    uhat = uhat / Nx
+    spectra_t(k) % uhat = spectra_t(k) % uhat / Nx
 
-    ! 2) Sum for averaging across y
-    uhat_avg = uhat_avg + uhat
+    ! 2) Compute power spectra for given j
+    power(1) = spectra_t(k) % uhat(1)**2
+    do i=2,lh-1
+      power(i) = 2._rprec*(spectra_t(k) % uhat(i)**2 + spectra_t(k) % uhat(Nx-i+2)**2)
+    enddo
+    power(lh) = spectra_t(k) % uhat(lh)**2 ! Nyquist
+
+    ! Sum jth component 
+    spectra_t(k) % power = spectra_t(k) % power + power
 
   enddo
-
-  !  Finalize averaging across y
-  uhat_avg = uhat_avg / Ny
-
-  spectra_t(k) % uhat = spectra_t(k) % uhat + uhat_avg * dt
 
   !  Update spectra total time
   spectra_total_time = spectra_total_time + dt
@@ -3318,7 +3318,7 @@ do k=1, spectra_nloc
 
 enddo  
   
-deallocate(ui, uhat, uhat_avg)
+deallocate(ui, power)
 return
 end subroutine spectra_compute
 
@@ -3361,15 +3361,8 @@ do k=1,spectra_nloc
   if(spectra_t(k) % coord == coord) then
   $endif
 
-  !  Perform time averaging for uhat
-  spectra_t(k) % uhat = spectra_t(k) % uhat / spectra_total_time
-
-  !  Compute power for each wave number
-  spectra_t(k) % power(1) = spectra_t(k) % uhat(1)**2
-  do i=2,lh-1
-    spectra_t(k) % power(i) = 2._rprec*(spectra_t(k) % uhat(i)**2 + spectra_t(k) % uhat(Nx-i+2)**2)
-  enddo
-  spectra_t(k) % power(lh) = spectra_t(k) % uhat(lh)**2 ! Nyquist
+  ! Finalize averaging for power spectra (averaging over y and time)
+  spectra_t(k) % power = (spectra_t(k) % power / Ny) / spectra_total_time
 
   !  Create unique file name
   write(cl,'(F9.4)') spectra_loc(k)
@@ -3406,7 +3399,7 @@ $endif
 ! write the entire structures
 write (1) spectra_total_time
 do k=1, spectra_nloc
-  write (1) spectra_t(k) % uhat
+  write (1) spectra_t(k) % power
 enddo
 close(1)
   
