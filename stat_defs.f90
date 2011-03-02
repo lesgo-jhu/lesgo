@@ -28,7 +28,6 @@ type rs
 end type rs
 
 type spectra
-  real(rprec), dimension(nx) :: uhat
   real(rprec), dimension(lh) :: power
   integer :: istart, coord
   real(rprec) :: ldiff 
