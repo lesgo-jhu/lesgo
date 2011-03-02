@@ -2182,7 +2182,6 @@ if(spectra_calc) then
   do k=1,spectra_nloc
 
     !  Initialize sub-arrays
-    spectra_t(k) % uhat = 0._rprec
     spectra_t(k) % power = 0._rprec
 
     $if ($MPI)
@@ -3269,10 +3268,10 @@ use fft, only : forw_spectra
 implicit none
 
 integer :: i, j, k
-real(rprec), allocatable, dimension(:) :: ui, power
+real(rprec), allocatable, dimension(:) :: ui, uhat, power
 
 ! Interpolation variable
-allocate(ui(nx), power(lh))
+allocate(ui(nx), uhat(nx), power(lh))
 
 !  Loop over all spectra locations
 do k=1, spectra_nloc
@@ -3293,16 +3292,16 @@ do k=1, spectra_nloc
     ! 1) Compute uhat for the given j
     ui = ui - sum(ui) / Nx ! Remove the mean
     ! Compute FFT
-    call rfftw_f77_one(forw_spectra, ui, spectra_t(k) % uhat)
+    call rfftw_f77_one(forw_spectra, ui, uhat)
     !  Normalize
-    spectra_t(k) % uhat = spectra_t(k) % uhat / Nx
+    uhat = uhat / Nx
 
     ! 2) Compute power spectra for given j
-    power(1) = spectra_t(k) % uhat(1)**2
+    power(1) = uhat(1)**2
     do i=2,lh-1
-      power(i) = 2._rprec*(spectra_t(k) % uhat(i)**2 + spectra_t(k) % uhat(Nx-i+2)**2)
+      power(i) = 2._rprec*(uhat(i)**2 + uhat(Nx-i+2)**2)
     enddo
-    power(lh) = spectra_t(k) % uhat(lh)**2 ! Nyquist
+    power(lh) = uhat(lh)**2 ! Nyquist
 
     ! Sum jth component 
     spectra_t(k) % power = spectra_t(k) % power + power
@@ -3318,7 +3317,7 @@ do k=1, spectra_nloc
 
 enddo  
   
-deallocate(ui, power)
+deallocate(ui, uhat, power)
 return
 end subroutine spectra_compute
 
