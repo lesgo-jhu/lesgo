@@ -337,10 +337,17 @@ integer, intent(IN) :: itype
 
 character(25) :: cl, ct
 character (64) :: fname
+$if($MPI)
+character(64) :: temp
+$endif
 character(128) :: var_list
 integer :: n, i, j, k, nvars
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, divvel, fx_tot, fy_tot, fz_tot
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, fx_tot, fy_tot, fz_tot
+
+$if($DEBUG)
+real(rprec), allocatable, dimension(:,:,:) :: divvel
+$endif
 
 $if($PGI)
 real(rprec), allocatable, dimension(:) :: u_inter
@@ -504,6 +511,8 @@ elseif(itype==2) then
   
   $endif
 
+  $if($DEBUG)
+  if(DEBUG) then
   !  Output divergence of velocity field
   allocate(divvel(nx,ny,nz))
   divvel=dudx(1:nx,1:ny,1:nz)+dvdy(1:nx,1:ny,1:nz)+dwdz(1:nx,1:ny,1:nz)
@@ -532,6 +541,8 @@ elseif(itype==2) then
   $endif
 
   deallocate(divvel)
+  endif
+  $endif
 
 
 !  Write instantaneous x-plane values
@@ -1629,7 +1640,7 @@ end subroutine checkpoint
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine output_final(jt, lun_opt)
-use stat_defs, only : tavg_t
+use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 
 $if($CFL_DT)
@@ -1696,7 +1707,7 @@ if(point_calc) then
 
   do i=1,point_nloc
     $if ($MPI)
-    if(point_coord(i) == coord) then
+    if(point_t(i)%coord == coord) then
     $endif
 
     fid=3000*i
@@ -2533,6 +2544,7 @@ character(64) :: fname_vel_zplane, fname_vel2_zplane, &
 integer :: i,j,k
 
 $if($MPI)
+character(64) :: temp
 real(rprec), allocatable, dimension(:) :: z_tot
 integer :: MPI_RS, MPI_CNPY, MPI_TSTATS
 integer :: rs_type(1), rs_block(1), rs_disp(1)
@@ -3324,6 +3336,10 @@ character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
 character(25) :: cl
 character (64) :: fname
 character(64) :: fname_out
+
+$if($MPI)
+character(64) :: temp
+$endif
 
 integer :: i, k
 
