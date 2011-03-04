@@ -8,8 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = gfortran
-INCLPATH = -I/usr/local/include
+FCOMP = ifort
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64
 LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
 
@@ -35,12 +34,12 @@ USE_OPENMP = no
 USE_CFL_DT = yes
 
 # Write binary files as big_endian
-WRITE_BIG_ENDIAN = no
+WRITE_BIG_ENDIAN = yes
 # Write binary files as little_endian
 WRITE_LITTLE_ENDIAN = no
 
 # Read binary files as big_endian
-READ_BIG_ENDIAN = no
+READ_BIG_ENDIAN = yes
 # Read binary files as little_endian
 READ_LITTLE_ENDIAN = no
 
@@ -53,7 +52,6 @@ USE_LVLSET = no
 USE_CYL_SKEW_LS = no
 USE_RNS_LS = no
 USE_TREES_LS = no
-
 
 USE_TURBINES = no
 
@@ -139,12 +137,12 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
-  LIBS += -lfcgaml-intel -lftecio-intel
+  LIBS += -lfcgaml-intel
   FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
-  #FFLAGS = -O3
+  #FFLAGS = -O2 -fPIC
+  #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
@@ -162,14 +160,13 @@ ifeq ($(FCOMP),gfortran)
   else
     FC = gfortran
   endif
-  LIBS += -lfcgaml -lftecio
-  #FFLAGS = -O0 -fbounds-check
-  FFLAGS = -O3
+  LIBS += -lfcgaml
+  FFLAGS = -O0 -fbounds-check
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = 
+  LDFLAGS = -static 
   MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR)  
 endif
@@ -223,7 +220,7 @@ ifeq ($(FCOMP),pgf90)
   else
     FC = pgf90
   endif
-  LIBS += -lfcgaml-pgi -lftecio
+  LIBS += -lfcgaml-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC

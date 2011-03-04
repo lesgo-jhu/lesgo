@@ -3,13 +3,11 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use messages
-!use io, only : write_real_data
+use io, only : write_real_data
 $if ($XLF)
   use ieee_arithmetic  !--for NAN checking
 $endif
 implicit none
-
-include 'tecio.h'
 
 character (*), parameter :: sub_name = 'energy'
 
