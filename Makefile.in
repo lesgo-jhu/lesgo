@@ -9,9 +9,9 @@
 
 SHELL = /bin/bash
 FCOMP = ifort
-INCLPATH = -I/usr/local/include
+INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64
-LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
+LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
