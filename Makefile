@@ -9,8 +9,6 @@
 
 include Makefile.in
 
-FC += $(INCLPATH)
-
 EXE = lesgo
 
 SRCS =  \
