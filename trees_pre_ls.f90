@@ -1,6 +1,6 @@
 program trees_pre_ls
 use types, only : rprec
-use param, only : nx, ny, nz, BOGUS
+use param, only : nx, ny, nz, BOGUS, nproc
 use trees_base_ls, only : grid_initialize, pt_of_grid
 use trees_setup_ls, only : fill_tree_array, sdistfcn_tree_array
 use trees_io_ls, only : draw_tree_array
@@ -20,7 +20,7 @@ logical, parameter :: do_calc_global_fmask = .true.
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI
 character (*), parameter :: MPI_suffix = '.c'
-integer, parameter :: np = 4
+integer, parameter :: np = nproc
 logical, parameter :: MPI_split = .true.
 
 !integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
