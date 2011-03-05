@@ -59,8 +59,8 @@ $else
 !                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
 !                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
 cfl = maxval( abs(u(1:nx,1:ny,1:nz-1)) / dx )
-cfl = maxval( (/ cfl, dabs(v(1:nx,1:ny,1:nz-1)) / dy /) )
-cfl = maxval( (/ cfl, dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+cfl = maxval( (/ cfl, abs(v(1:nx,1:ny,1:nz-1)) / dy /) )
+cfl = maxval( (/ cfl, abs(w(1:nx,1:ny,1:nz-1)) / dz /) )
 $endif
 
 cfl = dt * cfl
