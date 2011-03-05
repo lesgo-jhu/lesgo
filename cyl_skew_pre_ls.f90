@@ -1159,10 +1159,9 @@ use param, only :  MPI_RPREC,ierr, nproc
 use cyl_skew_pre_base_ls, only : nx_proc
 $endif
 !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-use io, only : write_tecplot_header_ND
-use io, only : write_real_data_3D
 
 implicit none
+include 'tecio.h'
 
 character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi, temp
 integer :: i,j,k,n
