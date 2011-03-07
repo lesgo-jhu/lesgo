@@ -1766,7 +1766,7 @@ logical :: opn
 
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
-integer :: ncount=0
+real(rprec), parameter :: favg = real(nx*ny,kind=rprec)
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
@@ -1903,27 +1903,17 @@ do k=1, nz
   
   !  Initialize to 0 for summations
   call type_set( tavg_zplane_t(k), 0._rprec )
-  ncount = 0
 
   do j=1, Ny
     do i=1, Nx
 
-      !$if($LVLSET)
-      !if( phi(i,j,k) > 0._rprec ) then
-      !$endif
-
       tavg_zplane_t(k) = tavg_zplane_t(k) .ADD. tavg_t(i,j,k)
-      ncount = ncount + 1
-
-      !$if($LVLSET)
-      !endif
-      !$endif
 
     enddo
   enddo
 
   !  Divide by number of summation points 
-  tavg_zplane_t(k) = tavg_zplane_t(k) .DIV. real(ncount,kind=rprec)
+  tavg_zplane_t(k) = tavg_zplane_t(k) .DIV. favg
 
 
   !tavg_zplane_t(k) % u = fa * sum( tavg_t(:,:,k) % u )
@@ -1959,7 +1949,6 @@ do k = 1, nz
 
   !  Initialize to 0
   call type_set( rs_zplane_t(k), 0._rprec)
-  ncount = 0
 
   do j = 1, ny
     do i = 1, nx
@@ -1975,21 +1964,12 @@ do k = 1, nz
       !rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
       !rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
 
-      !$if($LVLSET)
-      !if( phi(i,j,k) > 0._rprec ) then
-      !$endif 
-
       rs_zplane_t(k) = rs_zplane_t(k) .ADD. rs_t(i,j,k) 
-      ncount = ncount + 1
 
-      !$if($LVLSET)
-      !endif
-      !$endif
-      
     enddo    
   enddo
 
-  rs_zplane_t(k) = rs_zplane_t(k) .DIV. real(ncount,kind=rprec)
+  rs_zplane_t(k) = rs_zplane_t(k) .DIV. favg
   
   !  Compute the z-plane averaged Reynolds stresses: 
   !rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
@@ -2008,28 +1988,18 @@ do k = 1, nz
   ! Initialize to 0
   call type_set( cnpy_avg_t, 0._rprec)
   call type_set( tavg_avg_t, 0._rprec)
-  ncount = 0
 
   do j=1, Ny
     do i=1, Nx
 
-      !$if($LVLSET)
-      !if( phi(i,j,k) > 0._rprec ) then
-      !$endif
-
       cnpy_avg_t = cnpy_avg_t .ADD. cnpy_tavg_mul( tavg_t(i,j,k) )
       tavg_avg_t = tavg_avg_t .ADD. tavg_t(i,j,k)
-      ncount = ncount + 1
-
-      !$if($LVLSET)
-      !endif
-      !$endif
       
     enddo
   enddo
 
-  cnpy_avg_t = cnpy_avg_t .DIV. real(ncount, kind=rprec)
-  tavg_avg_t = tavg_avg_t .DIV. real(ncount, kind=rprec)
+  cnpy_avg_t = cnpy_avg_t .DIV. favg
+  tavg_avg_t = tavg_avg_t .DIV. favg
 
   cnpy_zplane_t(k) = cnpy_avg_t .SUB. cnpy_tavg_mul( tavg_avg_t )
 
