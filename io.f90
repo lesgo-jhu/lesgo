@@ -1760,6 +1760,8 @@ type(rs), pointer, dimension(:) :: cnpy_zplane_buf_t
 
 type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
 type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
+
+real(rprec) :: fx_global, fy_global, fz_global
 $endif
 
 logical :: opn
@@ -2133,6 +2135,27 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 1, nx, ny, nz, &
 call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
   (/ tavg_t % fx, tavg_t % fy, tavg_t % fz /), 4)  
 
+  $if($MPI)
+
+  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fx), fx_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fy), fy_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fz), fz_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  
+  fx_global = fx_global * dx * dy * dz
+  fy_global = fy_global * dx * dy * dz
+  fz_global = fz_global * dx * dy * dz
+
+  if(coord == 0) then
+    open(unit = 1, file = "output/force_total_avg.dat", status="unknown", position="rewind") 
+    write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
+    close(1)
+  endif
+
+  $endif
+
+    
+ 
+  
 $else
 
 call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
