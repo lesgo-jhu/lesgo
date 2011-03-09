@@ -902,7 +902,6 @@ do n = 1, nbeta_elem
   
   !  Loop over number of points used in beta region
   npoint_p => beta_elem_t(n) % indx_array_t % npoint
-  
   do ns = 1, npoint_p
   
     i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
