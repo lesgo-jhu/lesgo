@@ -1720,7 +1720,7 @@ use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-use param, only : MPI_RPREC, rank_of_coord, comm, ierr
+use param, only : MPI_RPREC, rank_of_coord, comm, ierr, down, up, status
 use stat_defs, only : rs, tavg
 $endif
 
@@ -1828,6 +1828,21 @@ $else
   enddo
 
 $endif
+
+  $if($MPI)
+    !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+    call mpi_sendrecv (tavg_t(:,:,1)%fx, nx*ny, MPI_RPREC, down, 1,  &
+                       tavg_t(:,:,nz)%fx, nx*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (tavg_t(:,:,1)%fy, nx*ny, MPI_RPREC, down, 1,  &
+                       tavg_t(:,:,nz)%fy, nx*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+    call mpi_sendrecv (tavg_t(:,:,1)%fz, nx*ny, MPI_RPREC, down, 1,  &
+                       tavg_t(:,:,nz)%fz, nx*ny, MPI_RPREC, up, 1,   &
+                       comm, status, ierr)
+
+    $endif
+
 
 ! All processors need not do this, but that is ok
 !  Set file names
