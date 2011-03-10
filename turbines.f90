@@ -11,6 +11,15 @@ $endif
 
 implicit none
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 save
 private
 
@@ -977,13 +986,17 @@ logical, pointer :: p_ca_calc_hi=> null()  , p_ca_calc_lo=> null()
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
+real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
 integer :: w_uv_tag_turbines = -1
+
+allocate(w_uv(ld,ny,$lbz:nz))
 
 $if ($MPI)
     call mpi_sync_real_array(w, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
-call interp_to_uv_grid(w, w_uv, w_uv_tag_turbines)
+!call interp_to_uv_grid(w, w_uv, $lbz, w_uv_tag_turbines)
+w_uv = interp_to_uv_grid(w, $lbz)
 
 disk_avg_vels = 0.
 
@@ -1169,6 +1182,8 @@ if (turbine_in_proc) then
     enddo
     
 endif    
+
+deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then

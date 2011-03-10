@@ -111,7 +111,7 @@ INTERFACE type_set
 END INTERFACE
 
 INTERFACE type_zero_bogus
-  MODULE PROCEDURE tavg_zero_bogus 
+  MODULE PROCEDURE tavg_zero_bogus_2D, tavg_zero_bogus_3D
 END INTERFACE
 
 contains
@@ -220,12 +220,12 @@ return
 end function tavg_scalar_add
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine tavg_zero_bogus( c )
+subroutine tavg_zero_bogus_2D( c )
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 implicit none
 
-type(tavg), intent(out) :: c
+type(tavg), dimension(:,:), intent(inout) :: c
 
 c % txx = 0._rprec
 c % txy = 0._rprec
@@ -238,7 +238,29 @@ c % fy = 0._rprec
 c % fz = 0._rprec
 
 return
-end subroutine tavg_zero_bogus
+end subroutine tavg_zero_bogus_2D
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tavg_zero_bogus_3D( c )
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+implicit none
+
+type(tavg), dimension(:,:,:), intent(inout) :: c
+
+c % txx = 0._rprec
+c % txy = 0._rprec
+c % tyy = 0._rprec
+c % txz = 0._rprec
+c % tyz = 0._rprec
+c % tzz = 0._rprec
+c % fx = 0._rprec
+c % fy = 0._rprec
+c % fz = 0._rprec
+
+return
+end subroutine tavg_zero_bogus_3D
+
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_scalar_div( a, b ) result(c)
@@ -342,6 +364,37 @@ c % cs_opt2 = a % cs_opt2 * b
 return
 end function tavg_scalar_mul
 
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function tavg_interp_to_uv_grid( a ) result(c)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use functions, only : interp_to_uv_grid
+implicit none
+
+type(tavg), dimension(:,:,:), intent(in) :: a
+type(tavg), allocatable, dimension(:,:,:) :: c
+
+integer :: ubx, uby, ubz
+
+ubx = ubound(a,1)
+uby = ubound(a,2)
+ubz = ubound(a,3)
+
+allocate(c(ubx,uby,ubz))
+
+c = a
+
+c % dudz =  interp_to_uv_grid( a % dudz, 1 )
+c % dvdz =  interp_to_uv_grid( a % dvdz, 1 )
+
+c % txz =  interp_to_uv_grid( a % txz, 1 )
+c % tyz =  interp_to_uv_grid( a % tyz, 1 )
+
+c % fz = interp_to_uv_grid( a % fz, 1 )
+
+return
+
+end function tavg_interp_to_uv_grid
+
 !//////////////////////////////////////////////////////////////////////
 !///////////////////// RS OPERATORS ///////////////////////////////////
 !//////////////////////////////////////////////////////////////////////
@@ -406,8 +459,16 @@ end function rs_scalar_div
 function rs_compute( a ) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
-type(tavg), intent(in) :: a
-type(rs) :: c
+type(tavg), dimension(:,:,:), intent(in) :: a
+type(rs), allocatable, dimension(:,:,:) :: c
+
+integer :: ubx, uby, ubz
+
+ubx=ubound(a,1)
+uby=ubound(a,2)
+ubz=ubound(a,3)
+
+allocate(c(ubx,uby,ubz))
 
 c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
@@ -417,6 +478,7 @@ c % vpwp = a % vw - a % v * a % w
 c % upvp = a % uv - a % u * a % v
 
 return
+deallocate(c)
 end function rs_compute
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

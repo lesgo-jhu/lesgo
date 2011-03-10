@@ -4371,7 +4371,17 @@ end do
 
 fx(:, :, nz) = BOGUS
 fy(:, :, nz) = BOGUS
-fz(:, :, nz) = BOGUS
+
+!Setting 0 at physical top boundary
+$if($MPI)
+  if( coord == nproc - 1 ) then
+    fz(:, :, nz) = 0._rprec
+  else
+    fz(:, :, nz) = BOGUS
+  endif
+$else
+  fz(:,:,nz) = 0._rprec
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then

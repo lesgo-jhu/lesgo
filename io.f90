@@ -26,7 +26,7 @@ $endif
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
 public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
-public w_uv, dudz_uv, w_uv_tag, dudz_uv_tag, interp_to_uv_grid, stats_init
+public stats_init
 !public write_tecplot_header_xyline, write_tecplot_header_ND
 !public write_real_data, write_real_data_1D, write_real_data_2D, write_real_data_3D
 
@@ -37,90 +37,87 @@ integer,parameter::jy_pls=ny/2-width,jy_ple=ny/2+width+1
 real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
      mean_u,mean_v,mean_w,mean_u2,mean_v2,mean_w2
 
-real(rprec), dimension(ld,ny,$lbz:nz) :: w_uv, dudz_uv, dvdz_uv
-
-integer :: w_uv_tag, dudz_uv_tag, dvdz_uv_tag
-                   
 !**********************************************************************
 contains
 !**********************************************************************
 
-!**********************************************************************
-subroutine interp_to_uv_grid(var,var_uv,tag)
-!**********************************************************************
-!  This function interpolates the array var, which resides on the w-grid,
-!  onto the uv-grid variable var_uv using linear interpolation. It is 
-!  important to note that message passing is required for MPI cases and 
-!  all processors must call this routine. If this subroutine is call from a 
-!  only a subset of the total processors, the code will hang due to the usage
-!  of the syncronous send/recv functions and certain processors waiting
-!  to recv data but it never gets there.
+!!**********************************************************************
+!subroutine interp_to_uv_grid(var,var_uv,lbz,tag)
+!!**********************************************************************
+!!  This function interpolates the array var, which resides on the w-grid,
+!!  onto the uv-grid variable var_uv using linear interpolation. It is 
+!!  important to note that message passing is required for MPI cases and 
+!!  all processors must call this routine. If this subroutine is call from a 
+!!  only a subset of the total processors, the code will hang due to the usage
+!!  of the syncronous send/recv functions and certain processors waiting
+!!  to recv data but it never gets there.
+!!
+!!  NOTE: It is assumed that the size of var and var_uv are the same as the
+!!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
+!!  nodes - no interpolation is performed for k=0 and k=nz
+!!
+!use types, only : rprec
+!use param,only : nz,ld,jt
+!use sim_param, only : w, dudz
+!$if ($MPI)
+!use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+!$endif
 !
-!  NOTE: It is assumed that the size of var and var_uv are the same as the
-!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
-!  nodes - no interpolation is performed for k=0 and k=nz
+!implicit none
 !
-use types, only : rprec
-use param,only : nz,ld,jt
-use sim_param, only : w, dudz
-$if ($MPI)
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-$endif
-
-implicit none
-
-real(rprec), dimension(:,:,:), intent(IN) :: var
-real(rprec), dimension(:,:,:), intent(OUT) :: var_uv
-integer, intent(INOUT) :: tag
-!real(rprec), dimension(2) :: var
-integer :: lbx,ubx,lby,uby,lbz,ubz
-integer :: i,j,k
-
-character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
-
-if(tag == jt) then
-$if ($VERBOSE)
-  call mesg(sub_name, 'Interpolation already performed for current time step')
-$endif
-  return
-endif
-  
-lbx=lbound(var,1); ubx=ubound(var,1)
-lby=lbound(var,2); uby=ubound(var,2)
-lbz=lbound(var,3); ubz=ubound(var,3)
-
-do k=lbz+1,ubz-1
-  do j=lby,uby
-    do i=lbx,ubx
-      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-    enddo
-  enddo
-enddo
-
-$if ($MPI)
-
-!  Take care of top "physical" boundary
-if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
-
-!  Sync all overlapping data
-call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
-
-$else
-
-!  Take care of top "physical" boundary
-var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
-
-$endif
-  
-tag = jt ! Set identifying tag 
-
-return 
-
-!!$if($MPI)
-!deallocate(buf)
-!!$endif
-
-end subroutine interp_to_uv_grid
+!real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+!real(rprec), dimension(:,:,lbz:), intent(OUT) :: var_uv
+!integer, intent(in) :: lbz
+!integer, intent(INOUT) :: tag
+!!real(rprec), dimension(2) :: var
+!integer :: ubx,uby,ubz
+!integer :: i,j,k
+!
+!character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
+!
+!if(tag == jt) then
+!$if ($VERBOSE)
+  !call mesg(sub_name, 'Interpolation already performed for current time step')
+!$endif
+  !return
+!endif
+ ! 
+!ubx=ubound(var,1)
+!uby=ubound(var,2)
+!ubz=ubound(var,3)
+!
+!do k=1,ubz-1
+  !do j=1,uby
+    !do i=1,ubx
+      !var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    !enddo
+  !enddo
+!enddo
+!
+!$if ($MPI)
+!
+!!  Take care of top "physical" boundary
+!if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+!
+!!  Sync all overlapping data
+!call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
+!
+!$else
+!
+!!  Take care of top "physical" boundary
+!var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+!
+!$endif
+ ! 
+!tag = jt ! Set identifying tag 
+!
+!return 
+!
+!!!$if($MPI)
+!!deallocate(buf)
+!!!$endif
+!
+!end subroutine interp_to_uv_grid
 
 !**********************************************************************
 subroutine openfiles()
@@ -305,20 +302,20 @@ endif
 return
 end subroutine output_loop
 
-
-
 !**********************************************************************
 subroutine inst_write(itype)
 !**********************************************************************
 !  This subroutine writes the instantaneous values
 !  at specified i,j,k locations
-use functions, only : linear_interp, trilinear_interp
+use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
 use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use grid_defs, only : x,y,z,zw
 use sim_param, only : u,v,w,dudx,dvdy,dwdz
+use sim_param, only : p, dpdx, dpdy, dpdz
+use sim_param, only : RHSx, RHSy, RHSz
 use stat_defs, only : xplane_t, yplane_t, zplane_t, point_t
 $if($MPI)
 use mpi
@@ -345,30 +342,24 @@ $endif
 character(128) :: var_list
 integer :: n, i, j, k, nvars
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi, fx_tot, fy_tot, fz_tot
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
+real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
-$if($DEBUG)
+$if($LVLSET)
+real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
+$endif
+
+!$if($DEBUG)
 real(rprec), allocatable, dimension(:,:,:) :: divvel
-$endif
+!$endif
 
-$if($PGI)
-real(rprec), allocatable, dimension(:) :: u_inter
-$endif
-
-! real(rprec) :: dnx, dny, dnz
 
 !  Write point data; assumes files have been opened properly
 !  in stats_init
 
+allocate(w_uv(ld,ny,$lbz:nz))
 !  Make sure w has been interpolated to uv-grid
-call interp_to_uv_grid(w, w_uv, w_uv_tag)
-
-!$if($MPI)
-!!  Sync fx; can not use mpi_sync_real_array since its not allocated from 0 -> nz
-!call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!  fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!  comm, status, ierr)
-!$endif
+w_uv = interp_to_uv_grid(w, $lbz)
 
 if(itype==1) then
 
@@ -424,73 +415,16 @@ elseif(itype==2) then
     (/ phi(1:nx,1:ny,1:nz) /), 4)
   
   $else
-    $if($PGI)
-    allocate(u_inter(nx*ny*nz*3))
-    icount=0
-    do k=1,nz
-      do j=1,ny
-        do i=1,nx
-          icount=icount+1
-          u_inter(icount) = u(i,j,k)
-        enddo
-      enddo
-    enddo
-    do k=1,nz
-      do j=1,ny
-        do i=1,nx
-          icount=icount+1
-          u_inter(icount) = v(i,j,k)
-        enddo
-      enddo
-    enddo
-    do k=1,nz
-      do j=1,ny
-        do i=1,nx
-          icount=icount+1
-          u_inter(icount) = w(i,j,k)
-        enddo
-      enddo
-    enddo
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-      u_inter, 4, x, y, z(1:nz))
-    deallocate(u_inter)
-    $else
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-      (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
-      4, x, y, z(1:nz))
-    $endif
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+    (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w_uv(1:nx,1:ny,1:nz) /), &
+    4, x, y, z(1:nz))
   $endif
 
   !  Output Instantaneous Force Field for RNS Simulations
-  !  Still need to put fz on uv grid may need a better way
   $if($LVLSET)
-    $if($MPI)
-    !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-    call mpi_sendrecv (fx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (fy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (fz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (fza(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                       fza(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    $endif
 
-    !  Sum both the induced and applied forces
-    allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
-    fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
-    fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
-    fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
+    ! Compute the total forces 
+    call force_tot()
 
     !  Open file which to write global data
     write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
@@ -513,11 +447,11 @@ elseif(itype==2) then
   
   $endif
 
-  $if($DEBUG)
-  if(DEBUG) then
+  !$if($DEBUG)
+  !if(DEBUG) then
   !  Output divergence of velocity field
   allocate(divvel(nx,ny,nz))
-  divvel=dudx(1:nx,1:ny,1:nz)+dvdy(1:nx,1:ny,1:nz)+dwdz(1:nx,1:ny,1:nz)
+  divvel=dudx(1:nx,1:ny,1:nz)+dvdy(1:nx,1:ny,1:nz)+interp_to_uv_grid( dwdz(1:nx,1:ny,1:nz), 1 )
 
   !  Open file which to write global data
   write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
@@ -543,7 +477,67 @@ elseif(itype==2) then
   $endif
 
   deallocate(divvel)
-  endif
+  !endif
+  !$endif
+
+   !=== Output Pressure Field ===
+    !  Open file which to write global data
+  write (fname,*) 'output/pressure.', trim(adjustl(ct)),'.dat'
+  fname = trim(adjustl(fname))
+
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+  $endif
+
+   call pressure_sync()
+
+  $if($LVLSET)
+  var_list = '"x", "y", "z", "phi", "p", "dpdx", "dpdy", "dpdz"'
+  nvars = 8
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, real(total_time,4))
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ phi(1:nx,1:ny,1:nz), p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+  (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
+  $else
+  var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
+  nvars = 7
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, real(total_time,4))
+  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+  (/ p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+  (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
+  $endif
+
+  !=== Output RHS field ===
+   !=== Output Pressure Field ===
+    !  Open file which to write global data
+  write (fname,*) 'output/RHS.', trim(adjustl(ct)),'.dat'
+  fname = trim(adjustl(fname))
+
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname = trim (fname) // temp
+  $endif  
+  call RHS_sync()
+
+  $if($LVLSET)
+  var_list = '"x", "y", "z", "phi", "RHSx", "RHSy", "RHSz"'
+  nvars = 7
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, real(total_time,4))
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ phi(1:nx,1:ny,1:nz), RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
+  $else
+  var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
+  nvars = 6
+  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), var_list, coord, 2, real(total_time,4))
+  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+  (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+  (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
   $endif
 
 
@@ -551,6 +545,10 @@ elseif(itype==2) then
 elseif(itype==3) then
 
   allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
+
+  $if($LVLSET)
+  call force_tot()
+  $endif
 
 !  Loop over all xplane locations
   do i=1,xplane_nloc
@@ -604,20 +602,15 @@ elseif(itype==3) then
     do k=1,nz
       do j=1,ny
 
-        ui(1,j,k) = linear_interp(fx(xplane_t(i) % istart,j,k), &
-          fx(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff) + &
-          linear_interp(fxa(xplane_t(i) % istart,j,k), &
-          fxa(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
+        ui(1,j,k) = linear_interp(fx_tot(xplane_t(i) % istart,j,k), &
+          fx_tot(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
 
-        vi(1,j,k) = linear_interp(fy(xplane_t(i) % istart,j,k), &
-          fy(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff) + &
-          linear_interp(fya(xplane_t(i) % istart,j,k), &
-          fya(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
+        vi(1,j,k) = linear_interp(fy_tot(xplane_t(i) % istart,j,k), &
+          fy_tot(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
 
-        wi(1,j,k) = linear_interp(fz(xplane_t(i) % istart,j,k), &
-          fz(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff) + &
-          linear_interp(fza(xplane_t(i) % istart,j,k), &
-          fza(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
+        wi(1,j,k) = linear_interp(fz_tot(xplane_t(i) % istart,j,k), &
+          fz_tot(xplane_t(i) % istart+1,j,k), dx, xplane_t(i) % ldiff)
+
       enddo
     enddo
 
@@ -632,11 +625,18 @@ elseif(itype==3) then
   
   deallocate(ui,vi,wi)
 
-  
+  $if($LVLSET)
+  deallocate( fx_tot, fy_tot, fz_tot )
+  $endif
+
 !  Write instantaneous y-plane values
 elseif(itype==4) then
   
   allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
+
+  $if($LVLSET)
+  call force_tot()
+  $endif
   
 !  Loop over all yplane locations
   do j=1,yplane_nloc
@@ -689,20 +689,14 @@ elseif(itype==4) then
     do k=1,nz
       do i=1,nx
 
-        ui(i,1,k) = linear_interp(fx(i,yplane_t(j) % istart,k), &
-          fx(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff) + &
-          linear_interp(fxa(i,yplane_t(j) % istart,k), &
-          fxa(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
+        ui(i,1,k) = linear_interp(fx_tot(i,yplane_t(j) % istart,k), &
+          fx_tot(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
 
-        vi(i,1,k) = linear_interp(fy(i,yplane_t(j) % istart,k), &
-          fy(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff) + &
-          linear_interp(fya(i,yplane_t(j) % istart,k), &
-          fya(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
+        vi(i,1,k) = linear_interp(fy_tot(i,yplane_t(j) % istart,k), &
+          fy_tot(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
 
-        wi(i,1,k) = linear_interp(fz(i,yplane_t(j) % istart,k), &
-          fz(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff) + &
-          linear_interp(fza(i,yplane_t(j) % istart,k), &
-          fza(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
+        wi(i,1,k) = linear_interp(fz_tot(i,yplane_t(j) % istart,k), &
+          fz_tot(i,yplane_t(j) % istart+1,k), dy, yplane_t(j) % ldiff)
 
       enddo
     enddo
@@ -715,11 +709,19 @@ elseif(itype==4) then
   enddo  
 
   deallocate(ui,vi,wi)
+
+  $if($LVLSET)
+  deallocate(fx_tot, fy_tot, fz_tot)
+  $endif
   
 !  Write instantaneous z-plane values
 elseif(itype==5) then
 
   allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
+
+  $if($LVLSET)
+  call force_tot()
+  $endif
 
 !  Loop over all zplane locations
   do k=1,zplane_nloc
@@ -765,18 +767,12 @@ elseif(itype==5) then
     do j=1,Ny
       do i=1,Nx
 
-        ui(i,j,1) = linear_interp(fx(i,j,zplane_t(k) % istart),fx(i,j,zplane_t(k) % istart+1), &
-          dz, zplane_t(k) % ldiff) + &
-          linear_interp(fxa(i,j,zplane_t(k) % istart),fxa(i,j,zplane_t(k) % istart+1), &
-          dz, zplane_t(k) % ldiff)
-        vi(i,j,1) = linear_interp(fy(i,j,zplane_t(k) % istart),fy(i,j,zplane_t(k) % istart+1), &
-          dz, zplane_t(k) % ldiff) + &
-          linear_interp(fya(i,j,zplane_t(k) % istart),fya(i,j,zplane_t(k) % istart+1), &
+        ui(i,j,1) = linear_interp(fx_tot(i,j,zplane_t(k) % istart),fx_tot(i,j,zplane_t(k) % istart+1), &
           dz, zplane_t(k) % ldiff) 
-        wi(i,j,1) = linear_interp(fz(i,j,zplane_t(k) % istart), &
-          fz(i,j,zplane_t(k) % istart+1), dz, zplane_t(k) % ldiff) + &
-          linear_interp(fza(i,j,zplane_t(k) % istart), &
-          fza(i,j,zplane_t(k) % istart+1), dz, zplane_t(k) % ldiff)
+        vi(i,j,1) = linear_interp(fy_tot(i,j,zplane_t(k) % istart),fy_tot(i,j,zplane_t(k) % istart+1), &
+          dz, zplane_t(k) % ldiff) 
+        wi(i,j,1) = linear_interp(fz_tot(i,j,zplane_t(k) % istart), &
+          fz_tot(i,j,zplane_t(k) % istart+1), dz, zplane_t(k) % ldiff)
 
       enddo
     enddo
@@ -793,12 +789,120 @@ elseif(itype==5) then
   enddo  
   
   deallocate(ui,vi,wi)
+  
+  $if($LVLSET)
+  deallocate(fx_tot, fy_tot, fz_tot)
+  $endif
 
 else
   write(*,*) 'Error: itype not specified properly to inst_write!'
   stop
 endif
+
+deallocate(w_uv)
+
 return
+contains
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine force_tot()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+implicit none
+
+! Zero bogus values
+fx(:,:,nz) = 0._rprec
+fy(:,:,nz) = 0._rprec
+fz(:,:,nz) = 0._rprec
+
+!  Sum both the induced and applied forces
+allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
+fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
+fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
+fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
+
+! Put in correct units
+fx_tot = fx_tot * (dx * dy * dz)
+fy_tot = fy_tot * (dx * dy * dz)
+fz_tot = fz_tot * (dx * dy * dz)
+
+$if($MPI)
+!  Sync forces
+call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+                   fx_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (fy_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+                   fy_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (fz_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+                   fz_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+$endif
+
+
+! Put fz_tot on uv-grid
+fz_tot = interp_to_uv_grid( fz_tot, 1 )
+
+return
+end subroutine force_tot
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine pressure_sync()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : ld
+implicit none
+
+! Reset bogus values
+p(:,:,nz) = p(:,:,nz-1)
+dpdx(:,:,nz) = dpdx(:,:,nz-1)
+dpdy(:,:,nz) = dpdy(:,:,nz-1)
+dpdz(:,:,nz) = dpdz(:,:,nz-1)
+
+!  Sync pressure arrays
+$if($MPI)
+!  Sync forces
+call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (dpdx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   dpdx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (dpdy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   dpdy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   dpdz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)                   
+$endif
+
+end subroutine pressure_sync
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine RHS_sync()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : ld
+implicit none
+
+! Reset bogus values
+RHSx(:,:,nz) = RHSx(:,:,nz-1)
+RHSy(:,:,nz) = RHSy(:,:,nz-1)
+RHSz(:,:,nz) = RHSz(:,:,nz-1)
+
+!  Sync pressure arrays
+$if($MPI)
+!  Sync forces
+call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (RHSy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   RHSy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+                   RHSz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+                   comm, status, ierr)                   
+$endif
+
+end subroutine RHS_sync
 end subroutine inst_write
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1598,41 +1702,6 @@ read (1) tavg_t
 
 close(1)
 
-! Now initialize all quantities for summation
-do k=1, Nz
-  do j=1, Ny
-    do i=1, Nx
-      tavg_t(i,j,k) = tavg_t(i,j,k) .MUL. tavg_total_time
-    enddo
-  enddo
-enddo
-
-
-!tavg_t % u = tavg_t % u * tavg_total_time
-!tavg_t % v = tavg_t % v * tavg_total_time
-!tavg_t % w = tavg_t % w * tavg_total_time
-!tavg_t % u2 = tavg_t % u2 * tavg_total_time
-!tavg_t % v2 = tavg_t % v2 * tavg_total_time
-!tavg_t % w2 = tavg_t % w2 * tavg_total_time
-!tavg_t % uw = tavg_t % uw * tavg_total_time
-!tavg_t % vw = tavg_t % vw * tavg_total_time
-!tavg_t % uv = tavg_t % uv * tavg_total_time
-!tavg_t % dudz = tavg_t % dudz * tavg_total_time
-!tavg_t % dvdz = tavg_t % dvdz * tavg_total_time
-!
-!tavg_t % txx = tavg_t % txx * tavg_total_time
-!tavg_t % txy = tavg_t % txy * tavg_total_time
-!tavg_t % tyy = tavg_t % tyy * tavg_total_time
-!tavg_t % txz = tavg_t % txz * tavg_total_time
-!tavg_t % tyz = tavg_t % tyz * tavg_total_time
-!tavg_t % tzz = tavg_t % tzz * tavg_total_time
-
-!tavg_t % fx = tavg_t % fx * tavg_total_time
-!tavg_t % fy = tavg_t % fy * tavg_total_time
-!tavg_t % fz = tavg_t % fz * tavg_total_time
-
-!tavg_t % cs_opt2 = tavg_t % cs_opt2 * tavg_total_time
-
 return
 end subroutine tavg_init
 
@@ -1646,31 +1715,31 @@ use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
 use param, only : nx,ny,nz, dt
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
+use functions, only : interp_to_uv_grid
 
 implicit none
 
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
 integer :: i,j,k
-real(rprec) :: u_p, v_p, w_p, dudz_p, dvdz_p
+real(rprec) :: u_p, v_p, w_p
+real(rprec), allocatable, dimension(:,:,:) :: w_uv
+
+allocate(w_uv(ld,ny,$lbz:nz))
 
 !  Make sure w stuff has been interpolated to uv-grid
-call interp_to_uv_grid(w, w_uv, w_uv_tag)
-call interp_to_uv_grid(dudz, dudz_uv, dudz_uv_tag)
-call interp_to_uv_grid(dvdz, dvdz_uv, dvdz_uv_tag)
+w_uv = interp_to_uv_grid( w, $lbz )
 
 do k=1,nz  
   do j=1,ny
     do i=1,nx
    
-      !  Being cache friendly
       u_p = u(i,j,k)
       v_p = v(i,j,k) 
       w_p = w_uv(i,j,k)
-      dudz_p = dudz_uv(i,j,k) 
-      dvdz_p = dvdz_uv(i,j,k) 
           
-      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt
-      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt
+      ! === uv-grid variables ===
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt                    
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt                         
       tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt
       tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt
       tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt
@@ -1678,25 +1747,32 @@ do k=1,nz
       tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt
       tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt
       tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt
-      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz_p * dt
-      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz_p * dt
-      
+
       tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt
       tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt
       tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt
-      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt
-      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt
       tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt
       
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt 
-      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
  
       tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt 
+
+      ! === w-grid variables === 
+      ! These need to be interpolated before written to file
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt
+
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt
+
+      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
       
     enddo
   enddo
 enddo
+
+deallocate( w_uv )
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + dt
@@ -1714,6 +1790,7 @@ use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t
 use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only :  operator(.ADD.), operator(.SUB.)
 use stat_defs, only : type_set, type_zero_bogus
+use stat_defs, only : tavg_interp_to_uv_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 
@@ -1773,77 +1850,6 @@ real(rprec) :: fx_global, fy_global, fz_global
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
 
-$if($MPI)
-
-rs_type = MPI_RPREC
-rs_block = 6 ! Number of rs subtypes
-rs_disp = 0
-
-cnpy_type = MPI_RPREC
-cnpy_block = 6 ! Number of cnpy subtypes
-cnpy_disp = 0
-
-tavg_type = MPI_RPREC
-tavg_block = 21 ! Number of tavg subtypes
-tavg_disp = 0
-
-if(coord == 0) then
-
-  !  Allocate space only on base processor for assembled z-plane data
-  ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
-  ! *_buf_t contains the overlap data and is used to recieve the z-plane data from all other nodes
-  allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
-  allocate(cnpy_zplane_tot_t(nz_tot), cnpy_zplane_buf_t(nz*nproc))
-  allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
-  
-  allocate(z_tot(nz_tot))
-  ! In order to ensure that *_tot_t is assembled correctly we make sure that the processor number 
-  ! is consistent with the spatial location
-  allocate(gather_coord(nproc))
-    
-  do k=1, nz_tot
-  
-    z_tot(k) = (dble(k) - 0.5_rprec) * dz
-    
-  enddo
-  
-elseif(coord == nproc - 1) then
-
-  !  Zero bogus values
-  do j=1, Ny
-    do i=1,Nx
-     call type_zero_bogus(tavg_t(i,j,nz))
-    enddo
-  enddo
-
-endif
-
-$else
-
-  !  Zero bogus values
-  do j=1, Ny
-    do i=1,Nx
-     call type_zero_bogus(tavg_t(i,j,nz))
-    enddo
-  enddo
-
-$endif
-
-  $if($MPI)
-    !  Sync fx; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-    call mpi_sendrecv (tavg_t(:,:,1)%fx, nx*ny, MPI_RPREC, down, 1,  &
-                       tavg_t(:,:,nz)%fx, nx*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (tavg_t(:,:,1)%fy, nx*ny, MPI_RPREC, down, 1,  &
-                       tavg_t(:,:,nz)%fy, nx*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-    call mpi_sendrecv (tavg_t(:,:,1)%fz, nx*ny, MPI_RPREC, down, 1,  &
-                       tavg_t(:,:,nz)%fz, nx*ny, MPI_RPREC, up, 1,   &
-                       comm, status, ierr)
-
-    $endif
-
-
 ! All processors need not do this, but that is ok
 !  Set file names
 fname_out = 'tavg.out'
@@ -1880,6 +1886,81 @@ $if ($MPI)
    
 $endif
 
+!  Write data to tavg.out
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname_out, action='write', position='rewind', &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname_out, action='write', position='rewind', &
+  form='unformatted', convert='little_endian')
+$else
+open (1, file=fname_out, action='write', position='rewind', form='unformatted')
+$endif
+
+! write the entire structures
+write (1) tavg_total_time
+write (1) tavg_t
+close(1)
+
+! Zero bogus values
+call type_zero_bogus( tavg_t(:,:,nz) )
+
+$if($MPI)
+
+rs_type = MPI_RPREC
+rs_block = 6 ! Number of rs subtypes
+rs_disp = 0
+
+cnpy_type = MPI_RPREC
+cnpy_block = 6 ! Number of cnpy subtypes
+cnpy_disp = 0
+
+tavg_type = MPI_RPREC
+tavg_block = 21 ! Number of tavg subtypes
+tavg_disp = 0
+
+!  Create MPI type structures consistent with the derived types
+call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
+Call MPI_Type_commit(MPI_RS,ierr)
+
+call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
+Call MPI_Type_commit(MPI_CNPY,ierr)  
+   
+call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
+Call MPI_Type_commit(MPI_TSTATS,ierr)
+
+!  Sync entire tavg_t structure
+call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TSTATS, down, 1,  &
+                   tavg_t(:,:,nz), nx*ny, MPI_TSTATS, up, 1,   &
+                   comm, status, ierr)
+
+if(coord == 0) then
+
+  !  Allocate space only on base processor for assembled z-plane data
+  ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
+  ! *_buf_t contains the overlap data and is used to recieve the z-plane data from all other nodes
+  allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
+  allocate(cnpy_zplane_tot_t(nz_tot), cnpy_zplane_buf_t(nz*nproc))
+  allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
+  
+  allocate(z_tot(nz_tot))
+  ! In order to ensure that *_tot_t is assembled correctly we make sure that the processor number 
+  ! is consistent with the spatial location
+  allocate(gather_coord(nproc))
+    
+  do k=1, nz_tot
+  
+    z_tot(k) = (dble(k) - 0.5_rprec) * dz
+    
+  enddo
+  
+endif
+
+$endif
+
 !  Perform time averaging operation
 !  tavg_t = tavg_t / tavg_total_time
 do k=1,Nz
@@ -1890,30 +1971,13 @@ do k=1,Nz
   enddo
 enddo
 
-!tavg_t % u = tavg_t % u / tavg_total_time
-!tavg_t % v = tavg_t % v / tavg_total_time
-!tavg_t % w = tavg_t % w / tavg_total_time
-!tavg_t % u2 = tavg_t % u2 / tavg_total_time
-!tavg_t % v2 = tavg_t % v2 / tavg_total_time
-!tavg_t % w2 = tavg_t % w2 / tavg_total_time
-!tavg_t % uw = tavg_t % uw / tavg_total_time
-!tavg_t % vw = tavg_t % vw / tavg_total_time
-!tavg_t % uv = tavg_t % uv / tavg_total_time
-!tavg_t % dudz = tavg_t % dudz / tavg_total_time
-!tavg_t % dvdz = tavg_t % dvdz / tavg_total_time
+! Now put w-grid variables on uv-grid
+tavg_t = tavg_interp_to_uv_grid( tavg_t )
 
-!tavg_t % txx = tavg_t % txx / tavg_total_time
-!tavg_t % txy = tavg_t % txy / tavg_total_time
-!tavg_t % tyy = tavg_t % tyy / tavg_total_time
-!tavg_t % txz = tavg_t % txz / tavg_total_time
-!tavg_t % tyz = tavg_t % tyz / tavg_total_time
-!tavg_t % tzz = tavg_t % tzz / tavg_total_time
-
-!tavg_t % fx = tavg_t % fx / tavg_total_time
-!tavg_t % fy = tavg_t % fy / tavg_total_time
-!tavg_t % fz = tavg_t % fz / tavg_total_time
-
-!tavg_t % cs_opt2 = tavg_t % cs_opt2 / tavg_total_time
+!  Ensure that fx, fy, and fz have correct dimensions
+tavg_t % fx = tavg_t % fx * (dx * dy * dz)
+tavg_t % fy = tavg_t % fy * (dx * dy * dz)
+tavg_t % fz = tavg_t % fz * (dx * dy * dz)
 
 !  Average over z-planes
 do k=1, nz
@@ -1932,36 +1996,11 @@ do k=1, nz
   !  Divide by number of summation points 
   tavg_zplane_t(k) = tavg_zplane_t(k) .DIV. favg
 
-
-  !tavg_zplane_t(k) % u = fa * sum( tavg_t(:,:,k) % u )
-  !tavg_zplane_t(k) % v = fa * sum( tavg_t(:,:,k) % v )
-  !tavg_zplane_t(k) % w = fa * sum( tavg_t(:,:,k) % w )
-  !tavg_zplane_t(k) % u2 = fa * sum( tavg_t(:,:,k) % u2 )
-  !tavg_zplane_t(k) % v2 = fa * sum( tavg_t(:,:,k) % v2 )
-  !tavg_zplane_t(k) % w2 = fa * sum( tavg_t(:,:,k) % w2 )
-
-  !tavg_zplane_t(k) % uw = fa * sum( tavg_t(:,:,k) % uw )
-  !tavg_zplane_t(k) % vw = fa * sum( tavg_t(:,:,k) % vw )
-  !tavg_zplane_t(k) % uv = fa * sum( tavg_t(:,:,k) % uv )
-
-  !tavg_zplane_t(k) % dudz = fa * sum( tavg_t(:,:,k) % dudz )
-  !tavg_zplane_t(k) % dvdz = fa * sum( tavg_t(:,:,k) % dvdz )
-  
-  !tavg_zplane_t(k) % txx = fa * sum( tavg_t(:,:,k) % txx )
-  !tavg_zplane_t(k) % txy = fa * sum( tavg_t(:,:,k) % txy )
-  !tavg_zplane_t(k) % tyy = fa * sum( tavg_t(:,:,k) % tyy )
-  !tavg_zplane_t(k) % txz = fa * sum( tavg_t(:,:,k) % txz )
-  !tavg_zplane_t(k) % tyz = fa * sum( tavg_t(:,:,k) % tyz )
-  !tavg_zplane_t(k) % tzz = fa * sum( tavg_t(:,:,k) % tzz )
-
-  !tavg_zplane_t(k) % fx = fa * sum( tavg_t(:,:,k) % fx )
-  !tavg_zplane_t(k) % fy = fa * sum( tavg_t(:,:,k) % fy )
-  !tavg_zplane_t(k) % fz = fa * sum( tavg_t(:,:,k) % fz )
-  
-  !tavg_zplane_t(k) % cs_opt2 = fa * sum( tavg_t(:,:,k) % cs_opt2 )
-  
 enddo
 
+! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
+rs_t = rs_compute( tavg_t )
+! Compute planar averaged Reynolds stress
 do k = 1, nz
 
   !  Initialize to 0
@@ -1970,31 +2009,12 @@ do k = 1, nz
   do j = 1, ny
     do i = 1, nx
     
-      ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
-      rs_t(i,j,k) = rs_compute( tavg_t(i,j,k) )
-
-      !call rs_compute( rs_t(i,j,k), tavg_t(i,j,k) )
-      !rs_t(i,j,k) % up2 = tavg_t(i,j,k) % u2 - tavg_t(i,j,k) % u * tavg_t(i,j,k) % u
-      !rs_t(i,j,k) % vp2 = tavg_t(i,j,k) % v2 - tavg_t(i,j,k) % v * tavg_t(i,j,k) % v
-      !rs_t(i,j,k) % wp2 = tavg_t(i,j,k) % w2 - tavg_t(i,j,k) % w * tavg_t(i,j,k) % w
-      !rs_t(i,j,k) % upwp = tavg_t(i,j,k) % uw - tavg_t(i,j,k) % u * tavg_t(i,j,k) % w
-      !rs_t(i,j,k) % vpwp = tavg_t(i,j,k) % vw - tavg_t(i,j,k) % v * tavg_t(i,j,k) % w
-      !rs_t(i,j,k) % upvp = tavg_t(i,j,k) % uv - tavg_t(i,j,k) % u * tavg_t(i,j,k) % v
-
       rs_zplane_t(k) = rs_zplane_t(k) .ADD. rs_t(i,j,k) 
 
     enddo    
   enddo
 
   rs_zplane_t(k) = rs_zplane_t(k) .DIV. favg
-  
-  !  Compute the z-plane averaged Reynolds stresses: 
-  !rs_zplane_t(k) % up2  = fa * sum( rs_t(:,:,k) % up2 )
-  !rs_zplane_t(k) % vp2  = fa * sum( rs_t(:,:,k) % vp2 )
-  !rs_zplane_t(k) % wp2  = fa * sum( rs_t(:,:,k) % wp2 )
-  !rs_zplane_t(k) % upwp = fa * sum( rs_t(:,:,k) % upwp )
-  !rs_zplane_t(k) % vpwp = fa * sum( rs_t(:,:,k) % vpwp )
-  !rs_zplane_t(k) % upvp = fa * sum( rs_t(:,:,k) % upvp )
   
 enddo
 
@@ -2029,25 +2049,6 @@ do k = 1, nz
   
 enddo
 
-
-!  Write data to tavg.out
-inquire (unit=1, opened=opn)
-if (opn) call error (sub_name, 'unit 1 already open')
-
-$if ($WRITE_BIG_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
-  form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
-  form='unformatted', convert='little_endian')
-$else
-open (1, file=fname_out, action='write', position='rewind', form='unformatted')
-$endif
-
-! write the entire structures
-write (1) tavg_total_time
-write (1) tavg_t          
-close(1)
 
 ! ----- Write all the 3D data -----
 ! -- Work around for large data: only write 3 variables at a time. Since things are
@@ -2164,11 +2165,6 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
 
   $endif
   
-  fx_global = fx_global * dx * dy * dz
-  fy_global = fy_global * dx * dy * dz
-  fz_global = fz_global * dx * dy * dz
-
-  
   if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
     open(unit = 1, file = "output/force_total_avg.dat", status="unknown", position="rewind") 
     write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
@@ -2232,16 +2228,6 @@ $endif
 
 ! Construct zplane data 
 $if($MPI)
-
-  !  Create MPI type structures consistent with the derived types
-  call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
-  Call MPI_Type_commit(MPI_RS,ierr)
-
-  call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
-  Call MPI_Type_commit(MPI_CNPY,ierr)  
-
-  call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
-  Call MPI_Type_commit(MPI_TSTATS,ierr)
 
   call mpi_gather( rs_zplane_t, nz, MPI_RS, rs_zplane_buf_t, nz, &
     MPI_RS, rank_of_coord(0), comm, ierr)
@@ -2382,16 +2368,6 @@ call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
   (/ tavg_zplane_t % cs_opt2 /), 0, z(1:nz))    
   
 $endif
-
-$if ($MPI)
-!  Sync data across all nodes for a subset of varibles which contain bogus initialization
-!call mpi_sync_real_array(  tavg_t % txx, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array(  tavg_t % txy, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array(  tavg_t % tyy, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array(  tavg_t % txz, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array(  tavg_t % tyz, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array(  tavg_t % tzz, MPI_SYNC_DOWNUP )
-$endif 
 
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
 

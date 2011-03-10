@@ -6,7 +6,7 @@ use types, only : rprec
 implicit none
 save
 private
-public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
+public interp_to_uv_grid, trilinear_interp, linear_interp, cell_indx, plane_avg_3D
 public buff_indx, points_avg_3D, det2D
 
 character (*), parameter :: mod_name = 'functions'
@@ -21,6 +21,87 @@ $else
 $endif
 
 contains
+
+!**********************************************************************
+function interp_to_uv_grid(var, lbz) result(var_uv)
+!**********************************************************************
+!  This function interpolates the array var, which resides on the w-grid,
+!  onto the uv-grid variable var_uv using linear interpolation. It is 
+!  important to note that message passing is required for MPI cases and 
+!  all processors must call this routine. If this subroutine is call from a 
+!  only a subset of the total processors, the code will hang due to the usage
+!  of the syncronous send/recv functions and certain processors waiting
+!  to recv data but it never gets there.
+!
+!  NOTE: It is assumed that the size of var and var_uv are the same as the
+!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
+!  nodes - no interpolation is performed for k=0 and k=nz
+
+use types, only : rprec
+use param,only : nz
+use messages
+$if ($MPI)
+use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+$endif
+
+implicit none
+
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer, intent(in) :: lbz
+real(rprec), allocatable, dimension(:,:,:) :: var_uv
+
+integer :: ubx,uby,ubz
+integer :: i,j,k
+
+character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
+
+ubx=ubound(var,1)
+uby=ubound(var,2)
+ubz=ubound(var,3)
+
+if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z dimensions.')
+
+allocate(var_uv(ubx,uby,lbz:ubz))
+
+do k=1,ubz-1
+  do j=1,uby
+    do i=1,ubx
+      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    enddo
+  enddo
+enddo
+
+$if ($MPI)
+
+!  Take care of top "physical" boundary
+if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+
+!  Sync all overlapping data
+if( lbz == 0 ) then
+  call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
+elseif( lbz == 1 ) then
+  call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
+                    var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
+                    comm, status, ierr)
+endif                    
+
+$else
+
+!  Take care of top "physical" boundary
+var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+
+$endif
+  
+return 
+
+deallocate(var_uv)
+
+!$if($MPI)
+!deallocate(buf)
+!$endif
+
+end function interp_to_uv_grid
 
 !**********************************************************************
 integer function cell_indx(indx,dx,px)
