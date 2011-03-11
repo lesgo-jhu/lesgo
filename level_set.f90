@@ -4207,9 +4207,9 @@ integer :: k_min
 real (rp) :: Rx, Ry, Rz
 
 ! Update FV
-!real(rp) :: phi_p, fweight
-!real(rp), parameter :: delta = 1.1*dx
-!real(rp), parameter :: a1=0.25_rprec / delta**3, a2=-0.75_rprec / delta, a3=0.5_rprec
+real(rp) :: phi_p, fweight
+real(rp), parameter :: delta = 1.1*dx
+real(rp), parameter :: a3=0.25_rprec / delta**3, a1=-0.75_rprec / delta, a0=0.5_rprec
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
@@ -4227,12 +4227,12 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   do j = 1, ny
     do i = 1, nx
 
-      !phi_p = phi(i,j,k)
+      phi_p = phi(i,j,k)
 
       ! Original FV
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+      !if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
       ! Updated FV
-      !if( phi_p <= delta ) then
+      if( phi_p <= delta ) then
 
         ! Original PC
         !Rx = -tadv1 * dpdx(i, j, k)
@@ -4245,11 +4245,12 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
 
         ! Updated FV
-        !if( abs(phi_p) <= delta ) then
-        !    fweight = a1*phi_p**3 + a2*phi_p + a3
-        !    fx(i,j,k) = fweight*fx(i,j,k)
-        !    fy(i,j,k) = fweight*fy(i,j,k)
-        !endif
+        if( abs(phi_p) <= delta ) then
+            fweight = a0 + a1*phi_p + a3*phi_p**3
+            !fweight = fweight**2;
+            fx(i,j,k) = fweight*fx(i,j,k)
+            fy(i,j,k) = fweight*fy(i,j,k)
+        endif
 
 
       else if (vel_BC) then
@@ -4287,12 +4288,12 @@ do k = k_min, nz - 1
   do j = 1, ny
     do i = 1, nx
 
-      !phi_p = phi(i,j,k)
+      phi_p = phi(i,j,k)
 
       ! Original FV
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+      !if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
       ! Updated FV
-      !if( phi_p <= delta ) then
+      if( phi_p <= delta ) then
 
 
         ! Original PC
@@ -4306,11 +4307,13 @@ do k = k_min, nz - 1
         fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
 
         ! Updated FV
-        !if( abs(phi_p) <= delta ) then
-        !    fweight = a1*phi_p**3 + a2*phi_p + a3
-        !    fx(i,j,k) = fweight*fx(i,j,k)
-        !    fy(i,j,k) = fweight*fy(i,j,k)
-        !endif
+        if( abs(phi_p) <= delta ) then
+            fweight = a0 + a1*phi_p + a3*phi_p**3
+            !fweight = fweight**2;
+            fx(i,j,k) = fweight*fx(i,j,k)
+            fy(i,j,k) = fweight*fy(i,j,k)
+        endif
+
 
 
 
@@ -4332,12 +4335,12 @@ do k = k_min, nz - 1
         
       end if
 
-      !phi_p = 0.5_rprec * (phi(i, j, k) + phi(i, j, k-1))
+      phi_p = 0.5_rprec * (phi(i, j, k) + phi(i, j, k-1))
 
       ! Original FV
-      if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
+      !if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
       ! Update FV
-      !if( phi_p <= delta ) then
+      if( phi_p <= delta ) then
 
         ! Original PC
         !Rz = -tadv1 * dpdz(i, j, k)
@@ -4347,10 +4350,13 @@ do k = k_min, nz - 1
         fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
 
         ! Updated FV
-        !if( abs(phi_p) <= delta ) then
-        !    fweight = a1*phi_p**3 + a2*phi_p + a3
-        !    fz(i,j,k) = fweight*fz(i,j,k)
-        !endif
+        if( abs(phi_p) <= delta ) then
+            fweight = a0 + a1*phi_p + a3*phi_p**3
+            !fweight = fweight**2;
+            fx(i,j,k) = fweight*fx(i,j,k)
+            fy(i,j,k) = fweight*fy(i,j,k)
+        endif
+
 
 
       else if (vel_BC) then
