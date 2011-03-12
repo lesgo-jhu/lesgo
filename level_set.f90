@@ -14,6 +14,12 @@ $endif
 use level_set_base
 implicit none
 
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 save
 private
 
@@ -61,29 +67,6 @@ real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-$endif
-
-logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
-                                       !  level set BC
-logical, parameter :: use_log_profile = .false.
-logical, parameter :: use_enforce_un = .false.
-logical, parameter :: physBC = .true.
-logical, parameter :: use_smooth_tau = .true.
-logical, parameter :: use_extrap_tau_log = .false.
-logical, parameter :: use_extrap_tau_simple = .true.
-logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; not MPI compliant
-                                                  !--wont work w/extra_tau_log
-
-real (rp), parameter :: z0 = 0.0001_rp
-                        !--nondimensional roughness length of surface
-
-logical :: phi_cutoff_is_set = .false.
-logical :: phi_0_is_set = .false.
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
 $endif
 
 real (rp) :: phi_cutoff
@@ -4206,10 +4189,6 @@ integer :: k_min
 
 real (rp) :: Rx, Ry, Rz
 
-! Update FV
-real(rp) :: phi_p, fweight
-real(rp), parameter :: delta = 1.1*dx
-real(rp), parameter :: a3=0.25_rprec / delta**3, a1=-0.75_rprec / delta, a0=0.5_rprec
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
@@ -4227,49 +4206,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   do j = 1, ny
     do i = 1, nx
 
-      phi_p = phi(i,j,k)
-
-      ! Original FV
-      !if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-      ! Updated FV
-      if( phi_p <= delta ) then
-
-        ! Original PC
-        !Rx = -tadv1 * dpdx(i, j, k)
-        !Ry = -tadv1 * dpdy(i, j, k)        
-        !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-
-        ! Updated PC
-        fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
-        fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
-
-        ! Updated FV
-        if( abs(phi_p) <= delta ) then
-            fweight = a0 + a1*phi_p + a3*phi_p**3
-            !fweight = fweight**2;
-            fx(i,j,k) = fweight*fx(i,j,k)
-            fy(i,j,k) = fweight*fy(i,j,k)
-        endif
-
-
-      else if (vel_BC) then
-       
-        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-
-      end if
+      call level_set_force_xy()
 
       !--no w-node part here: the velocity should be zero b/c of BCs
 
@@ -4288,88 +4225,8 @@ do k = k_min, nz - 1
   do j = 1, ny
     do i = 1, nx
 
-      phi_p = phi(i,j,k)
-
-      ! Original FV
-      !if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-      ! Updated FV
-      if( phi_p <= delta ) then
-
-
-        ! Original PC
-        !Rx = -tadv1 * dpdx(i, j, k)
-        !Ry = -tadv1 * dpdy(i, j, k)
-        !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-
-        ! Updated PC
-        fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
-        fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
-
-        ! Updated FV
-        if( abs(phi_p) <= delta ) then
-            fweight = a0 + a1*phi_p + a3*phi_p**3
-            !fweight = fweight**2;
-            fx(i,j,k) = fweight*fx(i,j,k)
-            fy(i,j,k) = fweight*fy(i,j,k)
-        endif
-
-
-
-
-      else if (vel_BC) then
-
-        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-        
-      end if
-
-      phi_p = 0.5_rprec * (phi(i, j, k) + phi(i, j, k-1))
-
-      ! Original FV
-      !if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
-      ! Update FV
-      if( phi_p <= delta ) then
-
-        ! Original PC
-        !Rz = -tadv1 * dpdz(i, j, k)
-        !fz(i, j, k) = (-w(i, j, k)/dt - Rz)
-
-        ! Updated PC
-        fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
-
-        ! Updated FV
-        if( abs(phi_p) <= delta ) then
-            fweight = a0 + a1*phi_p + a3*phi_p**3
-            !fweight = fweight**2;
-            fx(i,j,k) = fweight*fx(i,j,k)
-            fy(i,j,k) = fweight*fy(i,j,k)
-        endif
-
-
-
-      else if (vel_BC) then
-
-        call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
-
-        Rz = -tadv1 * dpdz(i, j, k)
-
-        if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
-          fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
-        end if
-
-      end if
+      call level_set_force_xy()
+      call level_set_force_z()
 
     end do
   end do
@@ -4403,6 +4260,116 @@ $endif
 $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
+
+return
+
+contains
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_xy()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+$if($WEIGHT_INTFC)
+
+phi_p = phi(i,j,k)
+if( phi_p <= delta ) then
+  
+$else
+
+! Original FV
+if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+  
+$endif
+      
+  ! Original PC
+  !Rx = -tadv1 * dpdx(i, j, k)
+  !Ry = -tadv1 * dpdy(i, j, k)        
+  !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+  !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
+
+  ! Updated PC
+  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
+  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
+
+  $if($WEIGHT_INTFC)
+  ! Updated FV
+  if( -delta <= phi_p ) then
+    fweight = a0 + a1*phi_p + a3*phi_p**3
+    fx(i,j,k) = fweight*fx(i,j,k)
+    fy(i,j,k) = fweight*fy(i,j,k)
+  endif
+  $endif
+
+  !  Commented since not compliant with correct pressure scheme (JSG)
+!else if (vel_BC) then
+       
+  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
+
+  ! forces after pressure update
+  !Rx = -tadv1 * dpdx(i, j, k)
+  !Ry = -tadv1 * dpdy(i, j, k)
+
+  !if (udes(i, j, k) < huge (1._rp) / 2) then
+    !fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
+  !end if
+
+  !if (vdes(i, j, k) < huge (1._rp) / 2) then
+    !fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
+  !end if
+
+end if
+
+return
+end subroutine level_set_force_xy
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_z()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+$if($WEIGHT_INTFC)
+
+phi_p = 0.5_rprec * (phi(i, j, k) + phi(i, j, k-1))
+! Update FV
+if( phi_p <= delta ) then
+   
+$else
+
+! Original FV
+if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
+
+$endif
+
+  ! Original PC
+  !Rz = -tadv1 * dpdz(i, j, k)
+  !fz(i, j, k) = (-w(i, j, k)/dt - Rz)
+
+  ! Updated PC
+  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
+
+  $if($WEIGHT_INTFC) 
+  ! Updated FV
+  if( -delta <= phi_p ) then
+    fweight = a0 + a1*phi_p + a3*phi_p**3
+    fz(i,j,k) = fweight*fz(i,j,k)
+  endif
+  $endif
+
+!  Commented since not compliant with correct pressure scheme (JSG)
+!else if (vel_BC) then
+  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
+
+  !Rz = -tadv1 * dpdz(i, j, k)
+
+  !if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
+    !fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
+  !end if
+
+end if
+
+return
+end subroutine level_set_force_z
 
 end subroutine level_set_forcing
 
