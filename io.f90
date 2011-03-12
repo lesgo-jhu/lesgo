@@ -451,7 +451,7 @@ elseif(itype==2) then
   !if(DEBUG) then
   !  Output divergence of velocity field
   allocate(divvel(nx,ny,nz))
-  divvel=dudx(1:nx,1:ny,1:nz)+dvdy(1:nx,1:ny,1:nz)+interp_to_uv_grid( dwdz(1:nx,1:ny,1:nz), 1 )
+  divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
   !  Open file which to write global data
   write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
@@ -821,11 +821,6 @@ fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
 fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
 fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
 
-! Put in correct units
-fx_tot = fx_tot * (dx * dy * dz)
-fy_tot = fy_tot * (dx * dy * dz)
-fz_tot = fz_tot * (dx * dy * dz)
-
 $if($MPI)
 !  Sync forces
 call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
@@ -875,6 +870,7 @@ call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
                    comm, status, ierr)                   
 $endif
 
+return
 end subroutine pressure_sync
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -902,7 +898,9 @@ call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
                    comm, status, ierr)                   
 $endif
 
+return
 end subroutine RHS_sync
+
 end subroutine inst_write
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1973,11 +1971,6 @@ enddo
 
 ! Now put w-grid variables on uv-grid
 tavg_t = tavg_interp_to_uv_grid( tavg_t )
-
-!  Ensure that fx, fy, and fz have correct dimensions
-tavg_t % fx = tavg_t % fx * (dx * dy * dz)
-tavg_t % fy = tavg_t % fy * (dx * dy * dz)
-tavg_t % fz = tavg_t % fz * (dx * dy * dz)
 
 !  Average over z-planes
 do k=1, nz
