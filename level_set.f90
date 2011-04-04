@@ -4169,10 +4169,12 @@ $endif
 
 end subroutine fit3
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--set fx, fy, fz at 1:nz-1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine level_set_forcing ()
+!**********************************************************************
+! 
+! Set fx, fy, fz at 1:nz-1
+!
 use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
 use immersedbc, only : fx, fy, fz
@@ -4193,6 +4195,11 @@ real (rp) :: Rx, Ry, Rz
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+! Initialize
+fx = 0._rprec
+fy = 0._rprec
+fz = 0._rprec
 
 !--this is experimental
 if (vel_BC) then
@@ -4244,6 +4251,14 @@ $if($MPI)
   endif
 $else
   fz(:,:,nz) = 0._rprec
+$endif
+
+$if($LVLSET_FORCE_VARMIN)
+$if($MPI)
+  call error(sub_name,'Level set force variance minimization can only be used in serial')
+$else
+call level_set_force_varmin()
+$endif
 $endif
 
 $if ($DEBUG)
@@ -4372,6 +4387,69 @@ return
 end subroutine level_set_force_z
 
 end subroutine level_set_forcing
+
+$if($LVLSET_FORCE_VARMIN)
+!**********************************************************************
+subroutine level_set_force_varmin ()
+!**********************************************************************
+use types, only : rprec
+use param, only : Nx, Ny, Nz_tot 
+use immersedbc, only : fx, fy, fz
+
+implicit none
+
+integer :: i,j,k,indx
+integer, parameter :: Ntot = Nx*Ny*(Nz_tot-1)
+
+integer :: info
+integer, dimension(Ntot) :: IPIV
+real(rprec), dimension(Ntot) :: Bx, By, Bz
+real(rprec), dimension(Ntot,Ntot) :: A
+
+external :: dgesv
+
+A = -1._rprec / (Ntot * Ntot)
+
+do i = 1, Ntot
+  A(i,i) = 1._rprec + 1._rprec / Ntot - 1._rprec / (Ntot * Ntot)
+enddo
+
+do k=1, Nz_tot -1
+  do j=1, Ny
+    do i=1, Nx
+      indx = Nx*Ny*(k-1) + Nx*(j-1) + i
+      Bx(indx) = fx(i,j,k)
+      By(indx) = fy(i,j,k)
+      Bz(indx) = fz(i,j,k)
+    enddo
+  enddo
+enddo
+
+$if($DBLPREC)
+call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
+call DGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
+call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
+$else
+call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
+call SGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
+call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
+$endif
+
+do k=1, Nz_tot -1
+  do j=1, Ny
+    do i=1, Nx
+      indx = Nx*Ny*(k-1) + Nx*(j-1) + i
+      fx(i,j,k) = Bx(indx)
+      fy(i,j,k) = By(indx)
+      fz(i,j,k) = Bz(indx)
+    enddo
+  enddo
+enddo
+
+
+return
+end subroutine level_set_force_varmin
+$endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--calculated centered differences, excetp 1-sided differences at edges
