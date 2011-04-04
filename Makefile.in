@@ -50,7 +50,8 @@ USE_DYNALLOC = no
 
 USE_LVLSET = yes
   USE_WEIGHT_INTFC = no
-  USE_FORCE_VARMIN = yes
+  USE_FORCE_VARMIN = no
+  USE_FORCE_VARMIN_LOC = yes
 
   USE_CYL_SKEW_LS = no
   USE_RNS_LS = no
@@ -120,9 +121,11 @@ endif
 
 ifeq ($(USE_FORCE_VARMIN), yes)
   FPP += -DLVLSET_FORCE_VARMIN
-  LIBS += -llapack -lblas
 endif
 
+ifeq ($(USE_FORCE_VARMIN_LOC), yes)
+  FPP += -DLVLSET_FORCE_VARMIN_LOC
+endif
 
 ifeq ($(USE_CYL_SKEW_LS), yes)
   FPP += -DCYL_SKEW_LS
@@ -152,8 +155,8 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
-  #FFLAGS = -O3
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
+  FFLAGS = -O3
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC

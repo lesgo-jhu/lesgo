@@ -4253,12 +4253,14 @@ $else
   fz(:,:,nz) = 0._rprec
 $endif
 
-$if($LVLSET_FORCE_VARMIN)
 $if($MPI)
   call error(sub_name,'Level set force variance minimization can only be used in serial')
 $else
-call level_set_force_varmin()
-$endif
+  $if($LVLSET_FORCE_VARMIN)
+  call level_set_force_varmin()
+  $elseif($LVLSET_FORCE_VARMIN_LOC)
+  call level_set_force_varmin_local()
+  $endif
 $endif
 
 $if ($DEBUG)
@@ -4400,20 +4402,24 @@ implicit none
 
 integer :: i,j,k,indx
 integer, parameter :: Ntot = Nx*Ny*(Nz_tot-1)
+real(rprec), parameter :: A1 = 1._rp /Ntot, A2 = A1**2
+real(rprec), parameter :: crit = 1.e-14_rp
 
-integer :: info
-integer, dimension(Ntot) :: IPIV
+!integer :: info
+!integer, dimension(Ntot) :: IPIV
 real(rprec), dimension(Ntot) :: Bx, By, Bz
-real(rprec), dimension(Ntot,Ntot) :: A
+real(rprec) :: FSx, FSy, FSz, error
+real(rprec), dimension(Ntot) :: fnx, fny, fnz, fnx_f, fny_f, fnz_f
+!real(rprec), dimension(Ntot,Ntot) :: A
 
-external :: dgesv
+!external :: dgesv
 
-A = -1._rprec / (Ntot * Ntot)
-
-do i = 1, Ntot
-  A(i,i) = 1._rprec + 1._rprec / Ntot - 1._rprec / (Ntot * Ntot)
-enddo
-
+!A = -1._rprec / (Ntot * Ntot)
+!
+!do i = 1, Ntot
+  !A(i,i) = 1._rprec + 1._rprec / Ntot - 1._rprec / (Ntot * Ntot)
+!enddo
+!
 do k=1, Nz_tot -1
   do j=1, Ny
     do i=1, Nx
@@ -4425,23 +4431,52 @@ do k=1, Nz_tot -1
   enddo
 enddo
 
-$if($DBLPREC)
-call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
-call DGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
-call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
-$else
-call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
-call SGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
-call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
-$endif
+!$if($DBLPREC)
+!call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
+!call DGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
+!call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
+!$else
+!call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
+!call SGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
+!call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
+!$endif
+
+error=1._rp
+fnx = Bx
+fny = By
+fnz = Bz
+k=0
+do while( error > crit ) 
+
+  k=k+1
+
+  fnx_f = fnx
+  fny_f = fny
+  fnz_f = fnz
+
+  FSx = sum( fnx )
+  FSy = sum( fny )
+  FSz = sum( fnz )
+
+  fnx = (A2*FSx + Bx(:)) / (1._rp + A1)
+  fny = (A2*FSy + By(:)) / (1._rp + A1)
+  fnz = (A2*FSz + Bz(:)) / (1._rp + A1)
+
+  error = sum( abs( fnx(:) - fnx_f(:) ) )
+  error = error + sum( abs( fny(:) - fny_f(:) ) )
+  error = error + sum( abs( fnz(:) - fnz_f(:) ) )  
+
+  !write(*,*) 'k, FSx, FSy, FSz, A1, A2, error : ', k, FSx, FSy, FSz, A1, A2, error
+
+enddo 
 
 do k=1, Nz_tot -1
   do j=1, Ny
     do i=1, Nx
       indx = Nx*Ny*(k-1) + Nx*(j-1) + i
-      fx(i,j,k) = Bx(indx)
-      fy(i,j,k) = By(indx)
-      fz(i,j,k) = Bz(indx)
+      fx(i,j,k) = fnx(indx)
+      fy(i,j,k) = fny(indx)
+      fz(i,j,k) = fnz(indx)
     enddo
   enddo
 enddo
@@ -4449,6 +4484,106 @@ enddo
 
 return
 end subroutine level_set_force_varmin
+
+$elseif($LVLSET_FORCE_VARMIN_LOC)
+!**********************************************************************
+subroutine level_set_force_varmin_local ()
+!**********************************************************************
+use types, only : rprec
+use param, only : Nx, Ny, Nz_tot 
+use immersedbc, only : fx, fy, fz
+
+implicit none
+
+integer :: i,j,k,indx
+integer :: Ntot
+real(rprec) :: A1, A2
+real(rprec), parameter :: crit = 1.e-14_rp
+
+real(rprec), allocatable, dimension(:) :: Bx, By, Bz
+real(rprec) :: FSx, FSy, FSz, error
+real(rprec), allocatable, dimension(:) :: fnx, fny, fnz, fnx_f, fny_f, fnz_f
+
+Ntot=0
+do k=1, Nz_tot-1
+  do j=1, Ny
+    do i=1, Nx
+      if(phi(i,j,k) <= 0._rp ) Ntot = Ntot + 1
+    enddo
+  enddo
+enddo
+
+A1 = 1._rp / Ntot
+A2 = A1**2
+
+allocate(Bx(Ntot), By(Ntot), Bz(Ntot))
+allocate(fnx(Ntot), fny(Ntot), fnz(Ntot))
+allocate(fnx_f(Ntot), fny_f(Ntot), fnz_f(Ntot))
+
+indx = 0
+do k=1, Nz_tot -1
+  do j=1, Ny
+    do i=1, Nx
+
+      if( phi(i,j,k) <= 0._rp ) then
+        indx = indx + 1
+        Bx(indx) = fx(i,j,k)
+        By(indx) = fy(i,j,k)
+        Bz(indx) = fz(i,j,k)
+      endif
+
+    enddo
+  enddo
+enddo
+
+error=1._rp
+fnx = Bx
+fny = By
+fnz = Bz
+k=0
+do while( error > crit ) 
+
+  k=k+1
+
+  fnx_f = fnx
+  fny_f = fny
+  fnz_f = fnz
+
+  FSx = sum( fnx )
+  FSy = sum( fny )
+  FSz = sum( fnz )
+
+  fnx = (A2*FSx + Bx(:)) / (1._rp + A1)
+  fny = (A2*FSy + By(:)) / (1._rp + A1)
+  fnz = (A2*FSz + Bz(:)) / (1._rp + A1)
+
+  error = sum( abs( fnx(:) - fnx_f(:) ) )
+  error = error + sum( abs( fny(:) - fny_f(:) ) )
+  error = error + sum( abs( fnz(:) - fnz_f(:) ) )  
+
+  !write(*,*) 'k, Ntot, FSx, FSy, FSz, A1, A2, error : ', k, Ntot, FSx, FSy, FSz, A1, A2, error
+
+enddo 
+
+indx = 0
+do k=1, Nz_tot -1
+  do j=1, Ny
+    do i=1, Nx
+
+      if( phi(i,j,k) <= 0._rp ) then
+        indx = indx + 1
+        fx(i,j,k) = Bx(indx)
+        fy(i,j,k) = By(indx)
+        fz(i,j,k) = Bz(indx)
+      endif
+
+    enddo
+  enddo
+enddo
+
+
+return
+end subroutine level_set_force_varmin_local
 $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
