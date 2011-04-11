@@ -324,8 +324,9 @@ $endif
 
 $if($LVLSET)
 use level_set_base, only : phi
-use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
+use immersedbc, only : fx, fy, fz, fxa, fya, fza
+
 
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
 implicit none
@@ -345,9 +346,7 @@ integer :: n, i, j, k, nvars
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
-$if($LVLSET)
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
-$endif
 
 !$if($DEBUG)
 real(rprec), allocatable, dimension(:,:,:) :: divvel
@@ -808,6 +807,7 @@ contains
 subroutine force_tot()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+!use immersedbc, only : fx, fy, fz, fxa, fya, fza
 implicit none
 
 ! Zero bogus values
