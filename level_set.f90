@@ -2627,14 +2627,12 @@ real (rp), intent (in out), dimension (ld, ny, $lbz:nz) :: u, v, w
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 
-real (rp) :: phi_c
+real (rp), parameter :: phi_c = 0._rp !--any pt with phi < 0 is smoothed
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
-
-phi_c = 0._rp  !--any pt with phi < 0 is smoothed
 
 call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
