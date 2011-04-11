@@ -324,9 +324,8 @@ $endif
 
 $if($LVLSET)
 use level_set_base, only : phi
-$endif
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
-
+$endif
 
 use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
 implicit none
@@ -346,7 +345,9 @@ integer :: n, i, j, k, nvars
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
+$if($LVLSET)
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
+$endif
 
 !$if($DEBUG)
 real(rprec), allocatable, dimension(:,:,:) :: divvel
@@ -803,11 +804,11 @@ deallocate(w_uv)
 return
 contains
 
+$if($LVLSET)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine force_tot()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-!use immersedbc, only : fx, fy, fz, fxa, fya, fza
 implicit none
 
 ! Zero bogus values
@@ -840,6 +841,7 @@ fz_tot = interp_to_uv_grid( fz_tot, 1 )
 
 return
 end subroutine force_tot
+$endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine pressure_sync()
@@ -1843,7 +1845,10 @@ logical :: opn
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
 real(rprec), parameter :: favg = real(nx*ny,kind=rprec)
+
+$if($LVLSET)
 real(rprec) :: fx_global, fy_global, fz_global
+$endif
 
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
