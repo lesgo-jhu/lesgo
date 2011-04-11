@@ -2,7 +2,7 @@ program main
 use types,only:rprec
 use param
 use sim_param
-use grid_defs, only : grid_build, x, y, z
+use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
 use immersedbc
@@ -11,7 +11,6 @@ use topbc,only:setsponge,sponge
 use bottombc,only:num_patch,avgpatch
 use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
-use functions
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
@@ -49,20 +48,6 @@ $endif
 
 use messages
 implicit none
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%
-!  THIS IS FOR CHECKING THE FUNCTIONALITY OF THE TRILINEAR_INTERP SUBROUTINE
-!    also need 'use functions' and 'use grid_defs, only: x, y, z' above 
-!%%%%%%%%%%%%%%%%%%%%%%%%%
-$if ($MPI) 
-    integer, parameter :: lbz_stuart = 0
-$else
-    integer, parameter :: lbz_stuart = 1
-$endif
-real(rprec), dimension(nx,ny,lbz_stuart:nz) :: stuart
-real(rprec) :: claire, xp, yp, zp
-integer :: i,j,k
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 character (*), parameter :: sub_name = 'main'
 
@@ -116,49 +101,6 @@ $endif
 
 ! Initialize uv grid (calculate x,y,z vectors)
 call grid_build()
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%
-!  THIS IS FOR CHECKING THE FUNCTIONALITY OF THE TRILINEAR_INTERP SUBROUTINE
-!%%%%%%%%%%%%%%%%%%%%%%%%%
-! Here we are checking the z-values only.  To check x- or y-values you must change:
-!   1) stuart should be set equal to either x(i) or y(j)
-!   2) xp or yp should be set to some value (such as 0.5_rprec)
-!   3) zp should be set to z = 0.5_rprec (something other than z(*) which will have
-!      multiple values, one for each coord).
-!   4) the write statement.  It should compare 'claire' to xp or yp.  This needs to 
-!      be changed for MPI and non-MPI write statements.
-do i=1,nx
-do j=1,ny
-do k=lbz_stuart,nz
-stuart(i,j,k) = z(k)
-enddo
-enddo
-enddo
-
-xp = x(1)
-yp = y(1)
-zp = 0.5_rprec
-
-$if($MPI)
-    if (((zp.ge.z(0)).and.(zp.lt.z(nz-1))).or.((coord.eq.nproc-1).and.(zp.ge.z(nz-1)))) then
-        write(*,*) 'Point in coord ',coord
-        claire = trilinear_interp(stuart,lbz_stuart,(/xp,yp,zp/))
-        write(*,*) 'These should match:',zp,claire
-        stop
-    else        
-        write(*,*) 'Point not in coord ',coord
-        do while (.true.)
-        !wait
-        enddo
-    endif
-$else
-    claire = trilinear_interp(stuart,lbz_stuart,(/xp,yp,zp/))
-    write(*,*) 'These should match:',zp,claire
-    stop
-$endif
-!%%%%%%%%%%%%%%%%%%%%%%%%%
-!  END FUNCTIONALITY CHECK
-!%%%%%%%%%%%%%%%%%%%%%%%%%
 
 !  Initialize variables used for output statistics and instantaneous data
 call stats_init()
