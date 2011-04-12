@@ -28,116 +28,38 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition
 USE_CFL_DT = yes
 
-# Write binary files as big_endian
-WRITE_BIG_ENDIAN = no
-# Write binary files as little_endian
-WRITE_LITTLE_ENDIAN = no
+# Write binary files as big_endian or little_endian
+# Options: DEFAULT, LITTLE, or BIG
+WRITE_ENDIAN = DEFAULT
 
-# Read binary files as big_endian
-READ_BIG_ENDIAN = no
-# Read binary files as little_endian
-READ_LITTLE_ENDIAN = no
+# Read binary files as big_endian or little_endian
+# Options: DEFAULT, LITTLE, or BIG
+READ_ENDIAN = DEFAULT
 
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
-  USE_WEIGHT_INTFC = no
-  USE_FORCE_VARMIN = no
-  USE_FORCE_VARMIN_LOC = yes
+# Set pressure correction scheme
+# Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
+USE_PC_SCHEME = DEFAULT
 
+USE_LVLSET = no
   USE_CYL_SKEW_LS = no
   USE_RNS_LS = no
   USE_TREES_LS = no
-
 
 USE_TURBINES = no
 
 FPP = fpx3
 
-ifeq ($(USE_DBLPREC), yes)
-  FPP += -DDBLPREC
-endif
-
-ifeq ($(DEBUG), yes)
-  FPP += -DDEBUG
-endif
-
-ifeq ($(VERBOSE), yes)
-  FPP += -DVERBOSE
-endif
-
-ifeq ($(DEVEL), yes)
-  FPP += -DDEVEL
-endif
-
-ifeq ($(USE_MPI), yes)
-  FPP += -DMPI
-  LIBS += -lmpichf90 -lfmpich -lmpich
-endif
-
-ifeq ($(USE_CFL_DT), yes)
-  FPP += -DCFL_DT
-endif
-
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
-endif
-
-ifeq ($(WRITE_BIG_ENDIAN),yes)
-  FPP += -DWRITE_BIG_ENDIAN
-endif
-
-ifeq ($(WRITE_LITTLE_ENDIAN),yes)
-  FPP += -DWRITE_LITTLE_ENDIAN
-endif
-
-ifeq ($(READ_BIG_ENDIAN),yes)
-  FPP += -DREAD_BIG_ENDIAN
-endif
-
-ifeq ($(READ_LITTLE_ENDIAN),yes)
-  FPP += -DREAD_LITTLE_ENDIAN
-endif
-
-ifeq ($(USE_TREES_LS), yes)
-  FPP += -DTREES_LS
-endif
-
-ifeq ($(USE_LVLSET), yes)
-  FPP += -DLVLSET
-endif
-
-ifeq ($(USE_WEIGHT_INTFC), yes)
-  FPP += -DWEIGHT_INTFC
-endif
-
-ifeq ($(USE_FORCE_VARMIN), yes)
-  FPP += -DLVLSET_FORCE_VARMIN
-endif
-
-ifeq ($(USE_FORCE_VARMIN_LOC), yes)
-  FPP += -DLVLSET_FORCE_VARMIN_LOC
-endif
-
-ifeq ($(USE_CYL_SKEW_LS), yes)
-  FPP += -DCYL_SKEW_LS
-endif
-
-ifeq ($(USE_RNS_LS), yes)
-  FPP += -DRNS_LS
-endif
-
-ifeq ($(USE_TURBINES), yes)
-  FPP += -DTURBINES
-endif
+include Makefile.fpp
 
 # Directory for the .o files
 OPATH = obj

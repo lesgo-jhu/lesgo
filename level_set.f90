@@ -4251,16 +4251,6 @@ $else
   fz(:,:,nz) = 0._rprec
 $endif
 
-$if($MPI)
-  call error(sub_name,'Level set force variance minimization can only be used in serial')
-$else
-  $if($LVLSET_FORCE_VARMIN)
-  call level_set_force_varmin()
-  $elseif($LVLSET_FORCE_VARMIN_LOC)
-  call level_set_force_varmin_local()
-  $endif
-$endif
-
 $if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
@@ -4285,35 +4275,29 @@ subroutine level_set_force_xy()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-$if($WEIGHT_INTFC)
-
-phi_p = phi(i,j,k)
-if( phi_p <= delta ) then
-  
-$else
-
-! Original FV
 if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
   
-$endif
-      
+  $if($PC_SCHEME_0)    
   ! Original PC
-  !Rx = -tadv1 * dpdx(i, j, k)
-  !Ry = -tadv1 * dpdy(i, j, k)        
-  !fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-  !fy(i, j, k) = (-v(i, j, k)/dt - Ry)
+  Rx = -tadv1 * dpdx(i, j, k)
+  Ry = -tadv1 * dpdy(i, j, k)        
+  fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+  fy(i, j, k) = (-v(i, j, k)/dt - Ry)
 
+  $elseif($PC_SCHEME_1)
   ! Updated PC
   fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
   fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
 
-  $if($WEIGHT_INTFC)
-  ! Updated FV
-  if( -delta <= phi_p ) then
-    fweight = a0 + a1*phi_p + a3*phi_p**3
-    fx(i,j,k) = fweight*fx(i,j,k)
-    fy(i,j,k) = fweight*fy(i,j,k)
-  endif
+  $elseif($PC_SCHEME_2)
+  ! Updated PC-2
+  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k))
+  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k))
+
+  $else
+
+  call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
   $endif
 
   !  Commented since not compliant with correct pressure scheme (JSG)
@@ -4343,32 +4327,27 @@ subroutine level_set_force_z()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-$if($WEIGHT_INTFC)
-
-phi_p = 0.5_rprec * (phi(i, j, k) + phi(i, j, k-1))
-! Update FV
-if( phi_p <= delta ) then
-   
-$else
 
 ! Original FV
 if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
 
-$endif
-
+  $if($PC_SCHEME_0)
   ! Original PC
-  !Rz = -tadv1 * dpdz(i, j, k)
-  !fz(i, j, k) = (-w(i, j, k)/dt - Rz)
+  Rz = -tadv1 * dpdz(i, j, k)
+  fz(i, j, k) = (-w(i, j, k)/dt - Rz)
 
+  $elseif($PC_SCHEME_1)
   ! Updated PC
   fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
 
-  $if($WEIGHT_INTFC) 
-  ! Updated FV
-  if( -delta <= phi_p ) then
-    fweight = a0 + a1*phi_p + a3*phi_p**3
-    fz(i,j,k) = fweight*fz(i,j,k)
-  endif
+  $elseif($PC_SCHEME_2)
+  ! Update PC-2
+  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k))
+
+  $else
+
+  call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
   $endif
 
 !  Commented since not compliant with correct pressure scheme (JSG)
@@ -4387,202 +4366,6 @@ return
 end subroutine level_set_force_z
 
 end subroutine level_set_forcing
-
-$if($LVLSET_FORCE_VARMIN)
-!**********************************************************************
-subroutine level_set_force_varmin ()
-!**********************************************************************
-use types, only : rprec
-use param, only : Nx, Ny, Nz_tot 
-use immersedbc, only : fx, fy, fz
-
-implicit none
-
-integer :: i,j,k,indx
-integer, parameter :: Ntot = Nx*Ny*(Nz_tot-1)
-real(rprec), parameter :: A1 = 1._rp /Ntot, A2 = A1**2
-real(rprec), parameter :: crit = 1.e-14_rp
-
-!integer :: info
-!integer, dimension(Ntot) :: IPIV
-real(rprec), dimension(Ntot) :: Bx, By, Bz
-real(rprec) :: FSx, FSy, FSz, error
-real(rprec), dimension(Ntot) :: fnx, fny, fnz, fnx_f, fny_f, fnz_f
-!real(rprec), dimension(Ntot,Ntot) :: A
-
-!external :: dgesv
-
-!A = -1._rprec / (Ntot * Ntot)
-!
-!do i = 1, Ntot
-  !A(i,i) = 1._rprec + 1._rprec / Ntot - 1._rprec / (Ntot * Ntot)
-!enddo
-!
-do k=1, Nz_tot -1
-  do j=1, Ny
-    do i=1, Nx
-      indx = Nx*Ny*(k-1) + Nx*(j-1) + i
-      Bx(indx) = fx(i,j,k)
-      By(indx) = fy(i,j,k)
-      Bz(indx) = fz(i,j,k)
-    enddo
-  enddo
-enddo
-
-!$if($DBLPREC)
-!call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
-!call DGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
-!call DGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
-!$else
-!call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bx, Ntot, INFO )
-!call SGESV( Ntot, Ntot, A, Ntot, IPIV, By, Ntot, INFO )
-!call SGESV( Ntot, Ntot, A, Ntot, IPIV, Bz, Ntot, INFO )
-!$endif
-
-error=1._rp
-fnx = Bx
-fny = By
-fnz = Bz
-k=0
-do while( error > crit ) 
-
-  k=k+1
-
-  fnx_f = fnx
-  fny_f = fny
-  fnz_f = fnz
-
-  FSx = sum( fnx )
-  FSy = sum( fny )
-  FSz = sum( fnz )
-
-  fnx = (A2*FSx + Bx(:)) / (1._rp + A1)
-  fny = (A2*FSy + By(:)) / (1._rp + A1)
-  fnz = (A2*FSz + Bz(:)) / (1._rp + A1)
-
-  error = sum( abs( fnx(:) - fnx_f(:) ) )
-  error = error + sum( abs( fny(:) - fny_f(:) ) )
-  error = error + sum( abs( fnz(:) - fnz_f(:) ) )  
-
-  !write(*,*) 'k, FSx, FSy, FSz, A1, A2, error : ', k, FSx, FSy, FSz, A1, A2, error
-
-enddo 
-
-do k=1, Nz_tot -1
-  do j=1, Ny
-    do i=1, Nx
-      indx = Nx*Ny*(k-1) + Nx*(j-1) + i
-      fx(i,j,k) = fnx(indx)
-      fy(i,j,k) = fny(indx)
-      fz(i,j,k) = fnz(indx)
-    enddo
-  enddo
-enddo
-
-
-return
-end subroutine level_set_force_varmin
-
-$elseif($LVLSET_FORCE_VARMIN_LOC)
-!**********************************************************************
-subroutine level_set_force_varmin_local ()
-!**********************************************************************
-use types, only : rprec
-use param, only : Nx, Ny, Nz_tot 
-use immersedbc, only : fx, fy, fz
-
-implicit none
-
-integer :: i,j,k,indx
-integer :: Ntot
-real(rprec) :: A1, A2
-real(rprec), parameter :: crit = 1.e-14_rp
-
-real(rprec), allocatable, dimension(:) :: Bx, By, Bz
-real(rprec) :: FSx, FSy, FSz, error
-real(rprec), allocatable, dimension(:) :: fnx, fny, fnz, fnx_f, fny_f, fnz_f
-
-Ntot=0
-do k=1, Nz_tot-1
-  do j=1, Ny
-    do i=1, Nx
-      if(phi(i,j,k) <= 0._rp ) Ntot = Ntot + 1
-    enddo
-  enddo
-enddo
-
-A1 = 1._rp / Ntot
-A2 = A1**2
-
-allocate(Bx(Ntot), By(Ntot), Bz(Ntot))
-allocate(fnx(Ntot), fny(Ntot), fnz(Ntot))
-allocate(fnx_f(Ntot), fny_f(Ntot), fnz_f(Ntot))
-
-indx = 0
-do k=1, Nz_tot -1
-  do j=1, Ny
-    do i=1, Nx
-
-      if( phi(i,j,k) <= 0._rp ) then
-        indx = indx + 1
-        Bx(indx) = fx(i,j,k)
-        By(indx) = fy(i,j,k)
-        Bz(indx) = fz(i,j,k)
-      endif
-
-    enddo
-  enddo
-enddo
-
-error=1._rp
-fnx = Bx
-fny = By
-fnz = Bz
-k=0
-do while( error > crit ) 
-
-  k=k+1
-
-  fnx_f = fnx
-  fny_f = fny
-  fnz_f = fnz
-
-  FSx = sum( fnx )
-  FSy = sum( fny )
-  FSz = sum( fnz )
-
-  fnx = (A2*FSx + Bx(:)) / (1._rp + A1)
-  fny = (A2*FSy + By(:)) / (1._rp + A1)
-  fnz = (A2*FSz + Bz(:)) / (1._rp + A1)
-
-  error = sum( abs( fnx(:) - fnx_f(:) ) )
-  error = error + sum( abs( fny(:) - fny_f(:) ) )
-  error = error + sum( abs( fnz(:) - fnz_f(:) ) )  
-
-  !write(*,*) 'k, Ntot, FSx, FSy, FSz, A1, A2, error : ', k, Ntot, FSx, FSy, FSz, A1, A2, error
-
-enddo 
-
-indx = 0
-do k=1, Nz_tot -1
-  do j=1, Ny
-    do i=1, Nx
-
-      if( phi(i,j,k) <= 0._rp ) then
-        indx = indx + 1
-        fx(i,j,k) = Bx(indx)
-        fy(i,j,k) = By(indx)
-        fz(i,j,k) = Bz(indx)
-      endif
-
-    enddo
-  enddo
-enddo
-
-
-return
-end subroutine level_set_force_varmin_local
-$endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--calculated centered differences, excetp 1-sided differences at edges

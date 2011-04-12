@@ -188,6 +188,7 @@ do jt=1,nsteps
     
       tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
       tadv2 = 1._rprec - tadv1
+
     $endif
 
     ! Advance time
@@ -206,7 +207,7 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
-    
+
     ! Reset applied force arrays
     fxa = 0._rprec
     fya = 0._rprec
@@ -217,7 +218,7 @@ do jt=1,nsteps
 
     ! Level set: smooth velocity
     $if ($LVLSET)
-        !call level_set_smooth_vel (u, v, w)
+      call level_set_smooth_vel (u, v, w)
     $endif
 
     ! Buildings: smooth velocity
@@ -291,6 +292,7 @@ do jt=1,nsteps
     else        
         call sgs_stag()
     end if
+
     !if(use_bldg)then
     !    call wallstress_building(txy,txz,tyz)
     !    call building_mask(u,v,w)
@@ -307,8 +309,8 @@ do jt=1,nsteps
     !   send info up (from nz-1 below to 0 above)
     $if ($MPI)
         call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
-                        tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
-                        comm, status, ierr)
+                           tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
+                           comm, status, ierr)
     $endif
 
     ! Debug
@@ -430,8 +432,10 @@ do jt=1,nsteps
     ! forces before applied forces as some of the applied
     ! forces (RNS) depend on the induced forces and the 
     ! two are assumed independent
-    ! Updated PC
+    $if($PC_SCHEME_0)
+    $else
     call forcing_induced ()
+    $endif
 
      !  Applied forcing (forces are added to RHS{x,y,z})
     call forcing_applied()
@@ -453,17 +457,18 @@ do jt=1,nsteps
 
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
+    $if($PC_SCHEME_0)
     ! Original PC
-    !u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
-    !                 dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
-    !                        tadv2 * RHSx_f(:, :, 1:nz-1) )
-    !v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
-    !                 dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
-    !                        tadv2 * RHSy_f(:, :, 1:nz-1) )
-    !w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
-    !                 dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
-    !                        tadv2 * RHSz_f(:, :, 1:nz-1) )
-
+    u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
+                            tadv2 * RHSx_f(:, :, 1:nz-1) )
+    v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
+                            tadv2 * RHSy_f(:, :, 1:nz-1) )
+    w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
+                            tadv2 * RHSz_f(:, :, 1:nz-1) )
+    $elseif($PC_SCHEME_1)
     ! Updated PC
     u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
@@ -474,6 +479,22 @@ do jt=1,nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz(:,:,1:nz-1) + fz(:,:,1:nz-1))
+
+    $elseif($PC_SCHEME_2)
+    ! Updated PC-2
+    u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
+                            tadv2 * RHSx_f(:, :, 1:nz-1) + fx(:,:,1:nz-1))
+    v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
+                            tadv2 * RHSy_f(:, :, 1:nz-1) + fy(:,:,1:nz-1))
+    w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
+                            tadv2 * RHSz_f(:, :, 1:nz-1) + fz(:,:,1:nz-1))
+    $else
+    call error('main','Makefile pressure correction scheme flag not set properly.')
+    $endif
+
 
     ! Set unused values to BOGUS so unintended uses will be noticable
     $if ($MPI)
@@ -498,11 +519,13 @@ do jt=1,nsteps
     end if
     $endif
 
+    $if($PC_SCHEME_1)
     ! Save previous pressure gradient
     ! Updated PC
     dpdx_f = dpdx
     dpdy_f = dpdy
     dpdz_f = dpdz
+    $endif
 
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
@@ -518,10 +541,12 @@ do jt=1,nsteps
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
+    $if($PC_SCHEME_0)
     ! Original PC
-    !RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
-    !RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
-    !RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
+    RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
+    RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    $endif
 
     ! Debug
     $if ($DEBUG)
@@ -541,8 +566,10 @@ do jt=1,nsteps
     end if
     $endif
 
+    $if($PC_SCHEME_0)
     ! Original PC
-    !call forcing_induced()
+    call forcing_induced()
+    $endif
 
     ! Projection method provides u,v,w for jz=1:nz
     !   uses fx,fy,fz calculated above

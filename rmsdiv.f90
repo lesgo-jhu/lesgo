@@ -3,7 +3,8 @@ subroutine rmsdiv(rms)
 ! l_1 norm or something.
 use types,only:rprec
 use param
-use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz
+use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz 
+!use sim_param, only : dudx, dvdy, dwdz, dudy, dvdx, u, v, w
 use io, only : jt_total
 
 $if ($DEBUG)
@@ -35,6 +36,15 @@ real (rprec) :: magdu, div
 $if ($MPI)
   real (rprec) :: rms_global
 $endif
+
+!! Calculate velocity derivatives
+!! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+!call filt_da (u, dudx, dudy)
+!call filt_da (v, dvdx, dvdy)
+
+!! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
+!!  except bottom coord, only 1:nz-1
+!call ddz_w(dwdz,w)
 
 !---------------------------------------------------------------------
 
