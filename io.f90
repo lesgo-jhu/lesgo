@@ -936,9 +936,15 @@ if (S_FLAG) then !WITH SCALARS
               RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
               Cs_opt2, F_LM, F_MM, F_QN, F_NN, theta, RHS_T
 else ! No SCALARS
-  write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
-              RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-              Cs_opt2, F_LM, F_MM, F_QN, F_NN
+    $if ($DYN_TN) 
+      write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+                  Cs_opt2, F_LM, F_MM, F_ee2, F_deedt2, ee_past                
+    $else
+      write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+                  Cs_opt2, F_LM, F_MM, F_QN, F_NN
+    $endif
 end if
 
 end subroutine checkpoint
