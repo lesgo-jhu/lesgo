@@ -28,7 +28,7 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
@@ -50,8 +50,8 @@ USE_DYNALLOC = no
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
 USE_PC_SCHEME = DEFAULT
 
-USE_LVLSET = yes
-  USE_CYL_SKEW_LS = yes
+USE_LVLSET = no
+  USE_CYL_SKEW_LS = no
   USE_RNS_LS = no
   USE_TREES_LS = no
 

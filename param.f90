@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(63)/nproc + 1   
+  integer,parameter:: nx=32,ny=32,nz=(31)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -117,7 +117,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 200
+  integer, parameter :: nsteps = 1000
  
   $if($CFL_DT)
   
@@ -149,9 +149,9 @@ module param
 !---------------------------------------------------  
 
   ! initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
@@ -233,7 +233,7 @@ module param
   logical, parameter :: zplane_calc   = .true.
   integer, parameter :: zplane_nstart = 100, zplane_nend = nsteps, zplane_nskip  = 100
   integer, parameter :: zplane_nloc   = 1
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1 /)
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ L_z / 2._rprec /)
 
   logical, parameter :: spectra_calc = .true.
   integer, parameter :: spectra_nstart = 1, spectra_nend = nsteps
