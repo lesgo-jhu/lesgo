@@ -119,7 +119,7 @@ integer function cell_indx(indx,dx,px)
 !  $lbz <= cell_indx < Nz
 !
 use types, only : rprec
-use grid_defs, only : z, grid_built, grid_build
+use grid_defs
 use messages 
 use param, only : nx, ny, nz, L_x, L_y
 implicit none
@@ -130,7 +130,13 @@ real(rprec) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.cell_indx'
 
-if(.not. grid_built) call grid_build()
+real(rprec), pointer, dimension(:) :: z
+
+nullify(z)
+
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 select case (indx)
   case ('i')
@@ -152,6 +158,8 @@ select case (indx)
   case default
     call error (func_name, 'invalid indx =' // indx)
 end select
+
+nullify(z)
 
 return
 end function cell_indx
@@ -175,7 +183,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
-use grid_defs, only : x,y,z, autowrap_i, autowrap_j
+use grid_defs, only : grid_t
 use types, only : rprec
 use sim_param, only : u,v
 use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
@@ -191,6 +199,18 @@ integer, parameter :: nvar = 3
 integer :: i,j,k
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
+
+real(rprec), pointer, dimension(:) :: x,y,z
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
+nullify(x,y,z)
+nullify(autowrap_i, autowrap_j)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !  Initialize stuff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
@@ -250,6 +270,9 @@ u5 = linear_interp(u1,u2,dy,ydiff)
 u6 = linear_interp(u3,u4,dy,ydiff)
 !  Perform interpolation in z-direction
 trilinear_interp = linear_interp(u5,u6,dz,zdiff)
+
+nullify(x,y,z)
+nullify(autowrap_i, autowrap_j)
 
 return
 end function trilinear_interp
@@ -320,8 +343,14 @@ REAL(RPREC) :: var_sum
 real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
 real(RPREC), dimension(3) :: bp4
 
+real(rprec), pointer, dimension(:) :: z
+
+nullify(z)
+
 !  Build computational mesh if needed
-if(.not. grid_built) call grid_build()
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 nsum = 0
 var_sum=0.
@@ -395,6 +424,8 @@ $if ($MPI)
   
  $endif
    
+nullify(z)
+
 return
 
 end function plane_avg_3D
@@ -435,11 +466,17 @@ $endif
 real(rprec) :: var_sum
 real(rprec) :: xp, yp, zp
 
+real(rprec), pointer, dimension(:) :: z
+
+nullify(z)
+
 !  Check that points is a column major ordered array of dim-3
 !if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
 
 !  Build computational mesh if needed
-if(.not. grid_built) call grid_build()
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 nsum = 0
 var_sum=0.
@@ -493,23 +530,11 @@ points_avg_3D = var_sum / nsum
   
 $endif
    
+nullify(z)
+
 return
 
 end function points_avg_3D
-
-!**********************************************************************
-real(rprec) function fractal_scale(var, scale_fact, ng)
-!**********************************************************************
-use types, only : rprec
-implicit none
-
-real(rprec), intent(in) :: var, scale_fact
-integer, intent(in) :: ng
-
-fractal_scale = var * scale_fact ** ( ng - 1 )
-
-return
-end function fractal_scale
 
 !**********************************************************************
 integer function buff_indx(i,imax)

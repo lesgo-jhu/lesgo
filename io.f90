@@ -1,4 +1,6 @@
+!**********************************************************************
 module io
+!**********************************************************************
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
@@ -312,7 +314,7 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use grid_defs, only : x,y,z,zw
+use grid_defs, only : grid_t !x,y,z,zw
 use sim_param, only : u,v,w,dudx,dvdy,dwdz
 use sim_param, only : p, dpdx, dpdy, dpdz
 use sim_param, only : RHSx, RHSy, RHSz
@@ -353,6 +355,14 @@ $endif
 real(rprec), allocatable, dimension(:,:,:) :: divvel
 !$endif
 
+real(rprec), pointer, dimension(:) :: x,y,z,zw
+
+nullify(x,y,z,zw)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
+zw => grid_t % zw
 
 !  Write point data; assumes files have been opened properly
 !  in stats_init
@@ -800,6 +810,7 @@ else
 endif
 
 deallocate(w_uv)
+nullify(x,y,z,zw)
 
 return
 
@@ -1416,7 +1427,7 @@ use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
 use param, only : spectra_calc, spectra_nloc, spectra_loc
 use param, only : tavg_calc
-use grid_defs
+use grid_defs, only : grid_t
 use functions, only : cell_indx
 use messages
 use stat_defs, only : point_t, xplane_t, yplane_t, zplane_t
@@ -1432,6 +1443,8 @@ integer :: fid, i,j,k
 
 logical :: exst
 
+real(rprec), pointer, dimension(:) :: x,y,z
+
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
   !--its simpler to have all arrays dimensioned the same, even though
@@ -1440,6 +1453,12 @@ $if ($MPI)
 $else
   $define $lbz 1
 $endif
+
+nullify(x,y,z)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 if( tavg_calc ) then
 
@@ -1640,6 +1659,8 @@ if(point_calc) then
   enddo
 endif
 
+nullify(x,y,z)
+
 return
 end subroutine stats_init
 
@@ -1785,7 +1806,7 @@ end subroutine tavg_compute
 !**********************************************************************
 subroutine tavg_finalize()
 !**********************************************************************
-use grid_defs, only : x,y,z
+use grid_defs, only : grid_t !x,y,z
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg
 use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t 
 use stat_defs, only : operator(.DIV.), operator(.MUL.)
@@ -1851,8 +1872,16 @@ $if($LVLSET)
 real(rprec) :: fx_global, fy_global, fz_global
 $endif
 
+real(rprec), pointer, dimension(:) :: x,y,z
+
+nullify(x,y,z)
+
 allocate(rs_t(nx,ny,nz), rs_zplane_t(nz))
 allocate(cnpy_zplane_t(nz))
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 ! All processors need not do this, but that is ok
 !  Set file names
@@ -2369,6 +2398,8 @@ call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
 $endif
 
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
+
+nullify(x,y,z)
 
 return
 end subroutine tavg_finalize

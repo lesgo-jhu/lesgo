@@ -1553,7 +1553,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use functions, only : cell_indx
 use messages
 implicit none
@@ -1575,6 +1575,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ks, ks1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
@@ -1585,6 +1587,11 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+nullify(autowrap_i, autowrap_j)
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1725,6 +1732,8 @@ $endif
 a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
       w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -1735,7 +1744,7 @@ end subroutine interp_scal
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -1750,6 +1759,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ku, ku1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
@@ -1757,9 +1768,14 @@ real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1856,6 +1872,8 @@ call fill_f (tzzbot, tzztop, tzz)
 tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)        
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -1936,7 +1954,7 @@ end subroutine interp_tij_u
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -1951,6 +1969,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: kw, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
@@ -1958,9 +1978,14 @@ real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2033,6 +2058,8 @@ call fill_f (tyzbot, tyztop, tyz)
 
 tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
+
+nullify(autowrap_i, autowrap_j)
 
 $if($VERBOSE)
 call exit_sub( sub_name )
@@ -2121,7 +2148,7 @@ subroutine interp_phi (x, phi_x)
 !--assumes phi is on u-nodes
 !
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 implicit none
 
@@ -2133,14 +2160,21 @@ character (*), parameter :: sub_name = mod_name // '.interp_phi'
 integer :: i, j, k, ku
 integer :: i1, j1, k1, ku1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2272,6 +2306,8 @@ $endif
 phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -2287,7 +2323,7 @@ end subroutine interp_phi
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -2300,15 +2336,22 @@ character (*), parameter :: sub_name = mod_name // '.interp_vel'
 integer :: i, j, k, ku, kw
 integer :: i1, j1, k1, ku1, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2566,6 +2609,8 @@ $endif
 vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -2652,7 +2697,7 @@ end subroutine level_set_smooth_vel
 !--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -2673,6 +2718,8 @@ integer :: nnbr  !--number of neighbors
 integer :: iter
 integer :: kmin, kmax
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: phi1
 real (rp) :: update
 
@@ -2680,9 +2727,14 @@ real (rp) :: update
 real(rp) :: im1, ip1, jm1, jp1
 
 !---------------------------------------------------------------------
+nullify(autowrap_i, autowrap_j)
+
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 if (present (node)) then
 
@@ -2754,6 +2806,8 @@ do iter = 1, niter
   end do
 
 end do
+
+nullify(autowrap_i, autowrap_j)
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -4374,7 +4428,7 @@ end subroutine level_set_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 real(rp) function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz  !--in addition to those above
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t ! autowrap_i, autowrap_j
 implicit none
 
 integer, intent (in) :: i, j, k
@@ -4385,7 +4439,14 @@ character (*), parameter :: sub_name = mod_name // '.safe_cd'
 
 integer :: n
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: delta
+
+nullify( autowrap_i, autowrap_j )
+
+autowrap_i => grid_t % autowrap_i  
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 
@@ -4461,6 +4522,8 @@ select case (d)
   case default
     call error (sub_name, 'invalid d =', d)
 end select
+
+nullify( autowrap_i, autowrap_j )
 
 end function safe_cd
 

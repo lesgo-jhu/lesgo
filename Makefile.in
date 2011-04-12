@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 FCOMP = ifort
 INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw -lm
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -50,8 +50,8 @@ USE_DYNALLOC = no
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
 USE_PC_SCHEME = DEFAULT
 
-USE_LVLSET = no
-  USE_CYL_SKEW_LS = no
+USE_LVLSET = yes
+  USE_CYL_SKEW_LS = yes
   USE_RNS_LS = no
   USE_TREES_LS = no
 
@@ -77,13 +77,13 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
-  FFLAGS = -O3
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
+  #FFLAGS = -O3
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC
-  FFLAGS += -warn all -mcmodel=medium -shared-intel
-  #FFLAGS += -warn all -shared-intel
+  #FFLAGS += -warn all -mcmodel=medium -shared-intel
+  FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads

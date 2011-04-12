@@ -2,7 +2,7 @@ module turbines
 use types,only:rprec
 use param
 use stat_defs, only:wind_farm_t
-use grid_defs, only:x,y,z
+use grid_defs, only: grid_t !x,y,z
 use io
 use messages
 $if ($MPI)
@@ -78,7 +78,15 @@ real :: clock_time
 integer :: seed
 logical :: redoflag
 
+real(rprec), pointer, dimension(:) :: x,y,z
+
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
+
+nullify(x,y,z)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 !##############################  SET BY USER  ############################################
 !set turbine parameters
@@ -535,6 +543,8 @@ if (coord .eq. nproc-1) then
     close(1)
 endif
 
+nullify(x,y,z)
+
 end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -551,7 +561,15 @@ real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_th
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
+real(rprec), pointer, dimension(:) :: x, y, z
+
 !logical :: verbose = .false.
+
+nullify(x,y,z)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 do s=1,nloc
     
@@ -686,6 +704,8 @@ do s=1,nloc
     
 enddo
 
+nullify(x,y,z)
+
 end subroutine turbines_nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -705,7 +725,14 @@ real(rprec), dimension(nx,ny,nz) :: temp_array_2
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
 
+real(rprec), pointer, dimension(:) :: x,y,z
+
 !logical :: verbose = .false.
+
+nullify(x,y,z)
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
 !if(wind_farm_t%ifilter==2) then		!2-> Gaussian
@@ -962,6 +989,8 @@ $if ($MPI)
         call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, MPI_COMM_WORLD, ierr )
     endif
 $endif
+
+nullify(x,y,z)
 !##############################################
 
 end subroutine turbines_filter_ind
@@ -971,7 +1000,8 @@ end subroutine turbines_filter_ind
 subroutine turbines_forcing()
 use sim_param, only: u,v,w
 use immersedbc, only : fxa, fya, fza
-use grid_defs, only: y,z
+use grid_defs, only: grid_t !y,z
+use functions, only: interp_to_uv_grid
 $if ($MPI)
     use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
@@ -987,8 +1017,13 @@ logical, pointer :: p_ca_calc_hi=> null()  , p_ca_calc_lo=> null()
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
+real(rprec), pointer, dimension(:) :: y,z
 
 integer :: w_uv_tag_turbines = -1
+
+nullify(y,z)
+y => grid_t % y
+z => grid_t % z
 
 allocate(w_uv(ld,ny,$lbz:nz))
 
@@ -1193,6 +1228,8 @@ if (coord .eq. nproc-1) then
     close(1)
 endif
 
+nullify(y,z)
+
 end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1200,7 +1237,15 @@ end subroutine turbines_forcing
 subroutine turbines_finalize ()
 
 implicit none
+
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
+
+real(rprec), pointer, dimension(:) :: x,y,z
+
+nullify(x,y,z)
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
@@ -1265,6 +1310,8 @@ character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
     !deallocate(wind_farm_t%cond_avg_flag_lo) 
     !deallocate(ca_limit_mean) 
     !deallocate(ca_limit_rms) 
+
+nullify(x,y,z)
 
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
