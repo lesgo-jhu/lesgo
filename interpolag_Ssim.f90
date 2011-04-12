@@ -1,19 +1,21 @@
-! this is the w-node version
-!--MPI: requires u, v 0:nz, except bottom process 1:nz
 subroutine interpolag_Ssim ()
 ! This subroutine takes the arrays F_LM and F_MM from the previous  
 !   timestep and essentially moves the values around to follow the 
 !   corresponding particles. The (x, y, z) value at the current 
 !   timestep will be the (x-u*dt, y-v*dt, z-w*dt) value at the 
 !   previous timestep.  Since particle motion does not conform to
-!   the grid, an interpolation will be required.
+!   the grid, an interpolation will be required.  Variables should 
+!   be on the w-grid.
 
 use types,only:rprec
 use param
-!use param,only:ld,nx,ny,nz,dx,dy,dz,dt,cs_count,cfl_count, jt,  &
-!               USE_MPI, coord, nproc, BOGUS
 use sgsmodule
 use messages
+use grid_defs,only:grid_t !x,y,z
+use functions, only:trilinear_interp
+$if ($MPI)
+use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
+$endif
 implicit none
 
 character (*), parameter :: sub_name = 'interpolag_Ssim'
@@ -21,245 +23,160 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: jx, jy, jz
-integer :: jjx, jjy, jjz
-integer :: jz_min
 $if ($MPI)
   $define $lbz 0
 $else
   $define $lbz 1
 $endif
 
-real(kind=rprec) :: frac_x,frac_y,frac_z
-real(kind=rprec) :: comp_x,comp_y,comp_z
-real(kind=rprec), dimension(nx+2,ny+2,nz+2) :: FF_LM,FF_MM
-real(kind=rprec) :: lagran_dt, consta
+real(rprec), dimension(3) :: xyz_past
+real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_LM, tempF_MM
+real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
+integer :: i,j,k,kmin,jz
+
 real (rprec) :: lcfl
 
-integer :: addx, addy, addz
-integer :: jxaddx, jyaddy, jzaddz
+real(rprec), pointer, dimension(:) :: x,y,z
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-! To account for particles passing through the boundaries and/or between MPI 
-!   coords, "padded" arrays FF_LM and FF_MM will be created & used in place of 
-!   F_LM and F_MM during interpolation.  Since particles cannot pass a grid spacing
-!   during the Lag timestep this padding only needs "one" extra in each direction.
-!   Finally, these padded arrays are shifted to allow for the zero index.
+nullify(x,y,z)
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
 
-! Create FF_LM and FF_MM (repeat values for periodic BCs and use MPI_sendrecv to 
-!   share values among coords)
-    !$omp parallel do default(shared) private(jx,jy,jz)	
-    do jz = 1, nz
-      do jy = 1, ny
-        do jx = 1, nx
-          FF_LM(jx+1, jy+1, jz+1) = F_LM(jx, jy, jz)
-          FF_MM(jx+1, jy+1, jz+1) = F_MM(jx, jy, jz)
-        end do
-      end do
-    end do
-    !$omp end parallel do
+! Perform (backwards) Lagrangian interpolation
 
-    !This is a bit like witch craft but the following lines do take care
-    !of all the edges including the corners
-    FF_LM(1,:,:) = FF_LM(nx+1,:,:)
-    FF_LM(nx+2,:,:) = FF_LM(2,:,:)
+    ! Create dummy arrays so information will not be overwritten during interpolation
+        tempF_LM(:,:,1:nz) = F_LM(:,:,1:nz)
+        tempF_MM(:,:,1:nz) = F_MM(:,:,1:nz)  
+        $if ($DYN_TN)
+        tempF_ee2 = F_ee2
+        tempF_deedt2 = F_deedt2
+        tempee_past = ee_past  
+        $endif 
+    
+        ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
+        !   Note: we need to put u_lag and v_lag on w-nodes (same as Cs, F_LM, F_MM, etc)
+        !  Also, do not allow interpolation out of top/bottom of domain.
+        
+        ! Bottom-most level for Cs, F_LM, F_MM, etc is on uvp-nodes
+        !   This requires special treatment for k=1,2 since F_*(i,j,k=1) is closer 
+        !   to F_*(i,j,k=2) than the usual spacing, dz.  
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.0)) then
+                kmin = 3 
+                do k=1,2                     
+                do j=1,ny   
+                do i=1,nx
+                    ! Determine position at previous timestep
+                    if (k.eq.1) then    ! UVP-node; If w is positive, set w=0            
+                        xyz_past(1) = x(i) - u_lag(i,j,k)*dt
+                        xyz_past(2) = y(j) - v_lag(i,j,k)*dt
+                        xyz_past(3) = z(k) - 0.5_rprec*min(w_lag(i,j,k+1),0._rprec)*dt                  
+                    else                ! W-node; If w is positive, multiply by two
+                        xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
+                        xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt                    
+                        xyz_past(3) = z(k) - (w_lag(i,j,k) + max(w_lag(i,j,k),0._rprec))*dt 
+                    endif
+               
+                    ! Interpolate
+                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    $if ($DYN_TN)
+                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    $endif 
+                enddo
+                enddo
+                enddo
+            else
+                kmin = 1
+            endif
+        ! Intermediate levels on w-nodes
+            do k=kmin,nz-1
+            do j=1,ny
+            do i=1,nx
+                ! Determine position at previous timestep
+                xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
+                xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt
+                xyz_past(3) = z(k) - w_lag(i,j,k)*dt  ! minus dz/2 (since these values are on w-grid)
+                                             ! but this dz/2 would be added back during interpolation                     
 
-    FF_LM(:,1,:) = FF_LM(:,ny+1,:) 
-    FF_LM(:,ny+2,:) = FF_LM(:,2,:) 
-
-    $if ($MPI)
-      !--send F_LM @ jz=nz-1 to F_LM @ jz=0'
-      !  i.e. FF_LM @ jz=nz to FF_LM @ jz=1'
-      call mpi_sendrecv (FF_LM(1, 1, nz), (nx+2)*(ny+2), MPI_RPREC, up, 1,   &
-                         FF_LM(1, 1, 1), (nx+2)*(ny+2), MPI_RPREC, down, 1,  &
-                         comm, status, ierr)
-      !--F_LM @ jz=nz and F_LM @ jz=1' should already be in sync (test?)
-      !  i.e. FF_LM @ jz=nz+1 and FF_LM @ jz=2'
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-      FF_LM(:,:,1) = FF_LM(:,:,2) 
-    end if
-
-    $if ($MPI)
-      !--send F_LM @ jz=2 to F_LM @ jz=nz+1'
-      !  i.e. FF_LM @ jz=3 to FF_LM @ jz=nz+2'
-    call mpi_sendrecv (FF_LM(1, 1, 3), (nx+2)*(ny+2), MPI_RPREC, down, 2,   &
-                     FF_LM(1, 1, nz+2), (nx+2)*(ny+2), MPI_RPREC, up, 2,  &
-                     comm, status, ierr)
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-      FF_LM(:,:,nz+2) = FF_LM(:,:,nz+1) 
-    end if
-
-    FF_MM(1,:,:) = FF_MM(nx+1,:,:)
-    FF_MM(nx+2,:,:) = FF_MM(2,:,:)
-
-    FF_MM(:,1,:) = FF_MM(:,ny+1,:) 
-    FF_MM(:,ny+2,:) = FF_MM(:,2,:) 
-
-    $if ($MPI)
-      !--send F_MM @ jz=nz-1 to F_MM @ jz=0'
-      !  i.e. FF_MM @ jz=nz to FF_MM @ jz=1'
-      call mpi_sendrecv (FF_MM(1, 1, nz), (nx+2)*(ny+2), MPI_RPREC, up, 3,   &
-                         FF_MM(1, 1, 1), (nx+2)*(ny+2), MPI_RPREC, down, 3,  &
-                         comm, status, ierr)
-      !--F_MM @ jz=nz and F_MM @ jz=1' should already be in sync (test?)
-      !  i.e. FF_MM @ jz=nz+1 and FF_MM @ jz=2'
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-      FF_MM(:,:,1) = FF_MM(:,:,2) 
-    end if
-
-    $if ($MPI)
-      !--send F_MM @ jz=2 to F_MM @ jz=nz+1'
-      !  i.e. FF_MM @ jz=3 to FF_MM @ jz=nz+2'
-      call mpi_sendrecv (FF_MM(1, 1, 3), (nx+2)*(ny+2), MPI_RPREC, down, 4,   &
-                         FF_MM(1, 1, nz+2), (nx+2)*(ny+2), MPI_RPREC, up, 4,  &
-                         comm, status, ierr)
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-      FF_MM(:,:,nz+2) = FF_MM(:,:,nz+1) 
-    end if
-    ! end of witch craft
+                ! Interpolate   
+                F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                $if ($DYN_TN)
+                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                $endif 
+            enddo
+            enddo
+            enddo               
+        ! Top-most level should not allow negative w
+            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.nproc-1)) then
+                k = nz
+                do j=1,ny
+                do i=1,nx
+                    ! Determine position at previous timestep
+                    xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
+                    xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt
+                                              
+                    if (w_lag(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
+                        ! this is cheating, but it should work for now...
+                        xyz_past(3) = z(k) - 1.0e-10_rprec*dt
+                    else
+                        xyz_past(3) = z(k) - w_lag(i,j,k)*dt
+                    endif
+                    
+                    ! Interpolate
+                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    $if ($DYN_TN)
+                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)    
+                    $endif
+                enddo
+                enddo    
+            endif    
+            
+         ! Share new data between overlapping nodes
+         $if ($MPI)
+            call mpi_sync_real_array( F_LM, MPI_SYNC_DOWNUP )  
+            call mpi_sync_real_array( F_MM, MPI_SYNC_DOWNUP )   
+            $if ($DYN_TN)
+            call mpi_sync_real_array( F_ee2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_deedt2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( ee_past, MPI_SYNC_DOWNUP )
+            $endif 
+        $endif   
 
     $if ($DEBUG)
-    if (DEBUG) write (*, *) 'interpolag_Ssim: after FF setup'
+    if (DEBUG) write (*, *) 'interpolag_Ssim: after interpolation'
     $endif
-
-! Put u_lag and and v_lag on cs nodes
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-      jz_min = 2
-    else
-      jz_min = 1
-    end if
-
-    !--must do backwards due to data depenency on plane below current one
-    do jz = nz, jz_min, -1
-      u_lag(:, :, jz) = 0.5_rprec * (u_lag(:, :, jz) + u_lag(:, :, jz-1))
-      v_lag(:, :, jz) = 0.5_rprec * (v_lag(:, :, jz) + v_lag(:, :, jz-1))
-    end do
-
-    $if ($MPI)
-      !--not sure if 0-level is needed
-      w_lag(:, :, $lbz) = BOGUS
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-      w_lag (:,:,1) = .25_rprec*w_lag (:,:,2)
-    end if
-
-! Computes the 3-D inverse displacement arrays that describe 
-!   the location where the point was at the previous step
-! Previously u_lag represented a velocity  
-! Now it represents the number of grid spacings the particle has traveled in the past cs_count timesteps
-!   (motion in the positive x-direction will have a negative u_lag)
-    u_lag = -u_lag*dt/dx    ! note: Previous u_lag is sum of all u's from past cs_count timesteps
-    v_lag = -v_lag*dt/dy    !       so this is equivalent to taking the average then multiplying
-    w_lag = -w_lag*dt/dz    !       by cs_count*dt to account for all the time that has elapsed.
-                            !       Dividing by dx makes u_lag the number of gridspaces (not a distance)
-
-    $if ($MPI)
-      !--perhaps can remove 0-level altogether
-      u_lag(:, :, $lbz) = BOGUS
-      v_lag(:, :, $lbz) = BOGUS
-      w_lag(:, :, $lbz) = BOGUS
-    $endif
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-      !	because first plane is on u,v,p nodes
-      !	this corrects for the fact that the first cell
-      !	in the z direction has height dz/2
-      !	it doubles the zp fraction if this fraction relates to the cell 
-      !     beneath it
-      do jy=1,ny
-        do jx=1,nx
-          w_lag(jx,jy,2) = w_lag(jx,jy,2) + min (w_lag(jx,jy,2), 0._rprec)
-          w_lag(jx,jy,1) = w_lag(jx,jy,1) + max (w_lag(jx,jy,1), 0._rprec)
-        end do
-      end do
-
-      !--we may be missing something here, see interpolag_Sdep at analogous place
-    end if
 
 ! Compute the Lagrangian CFL number and print to screen
-!   Note: this is only in the x-direction... not for complex geometry cases
+!   Note: this is only in the x-direction... not good for complex geometry cases
     if (mod (jt, cfl_count) .eq. 0) then
-      lcfl = 0._rprec
-      do jz = 1, nz
-        lcfl = max ( lcfl,  maxval (abs (u_lag(1:nx, :, jz))) )
-      end do
-      print*, 'Lagrangian CFL condition= ', lcfl
-    end if
-
-! Compute (backwards) interpolation of F_LM, F_MM (represented by "padded" arrays FF_LM, FF_MM)
-!   and store the interpolated values to F_LM, F_MM arrays 
-! This will be an interpolation between (i,j,k) and i+/-1 etc depending on the sign of u_lag
-!   (negative means it moved in the positive x-direction so we want i-1 to go back in time)
-!   ditto for v_lag and w_lag
-    do jz=1,nz
-     jjz = jz+1     ! accounts for shift that was used to accomodate zero index
-     do jy=1,ny
-      jjy = jy+1
-      do jx=1,nx
-         jjx = jx+1
-         ! addx is the value to add to the index jx (will be either +1 or -1)
-         addx = int(sign(1._rprec,u_lag(jx,jy,jz)))
-         addy = int(sign(1._rprec,v_lag(jx,jy,jz)))
-         addz = int(sign(1._rprec,w_lag(jx,jy,jz)))
-         jxaddx = jjx + addx    ! interpolation will be between jjx and jxaddx
-         jyaddy = jjy + addy
-         jzaddz = jjz + addz
-
-         ! computes the relative weights given to F_** in the cube depending on point location
-         comp_x = abs(u_lag(jx,jy,jz))  ! weight for jxaddx
-         comp_y = abs(v_lag(jx,jy,jz))
-         comp_z = abs(w_lag(jx,jy,jz))
-
-         frac_x = 1._rprec - comp_x     ! weight for jjx
-         frac_y = 1._rprec - comp_y
-         frac_z = 1._rprec - comp_z
-
-         ! computes interpoated F_LM
-         F_LM(jx,jy,jz)=frac_x*frac_y*&
-              (FF_LM(jjx,jjy,jjz)*frac_z+FF_LM(jjx,jjy,jzaddz)*comp_z)&
-              + frac_x*comp_y*&
-              (FF_LM(jjx,jyaddy,jjz)*frac_z+FF_LM(jjx,jyaddy,jzaddz)*comp_z)&
-              + comp_x*frac_y*&
-              (FF_LM(jxaddx,jjy,jjz)*frac_z+FF_LM(jxaddx,jjy,jzaddz)*comp_z)&
-              + comp_x*comp_y*&
-              (FF_LM(jxaddx,jyaddy,jjz)*frac_z&
-              +FF_LM(jxaddx,jyaddy,jzaddz)*comp_z)
-
-         ! computes interpoated F_MM
-         F_MM(jx,jy,jz)=&
-              frac_x*frac_y*&
-              (FF_MM(jjx,jjy,jjz)*frac_z+FF_MM(jjx,jjy,jzaddz)*comp_z)&
-              + frac_x*comp_y*&
-              (FF_MM(jjx,jyaddy,jjz)*frac_z+FF_MM(jjx,jyaddy,jzaddz)*comp_z)&
-              + comp_x*frac_y*&
-              (FF_MM(jxaddx,jjy,jjz)*frac_z+FF_MM(jxaddx,jjy,jzaddz)*comp_z)&
-              + comp_x*comp_y*&
-              (FF_MM(jxaddx,jyaddy,jjz)*frac_z&
-              +FF_MM(jxaddx,jyaddy,jzaddz)*comp_z)
-      end do
-     end do
-    end do
+        lcfl = 0._rprec
+        do jz = 1, nz
+            lcfl = max ( lcfl,  maxval (abs (u_lag(1:nx, :, jz))) )*dt/dx
+        enddo
+        print*, 'Lagrangian CFL condition= ', lcfl
+    endif
 
 ! Reset Lagrangian u/v/w variables for use during next set of cs_counts
-    u_lag = 0._rprec
-    v_lag = 0._rprec
-    w_lag = 0._rprec
+    u_lag = 0._rprec;    v_lag = 0._rprec;    w_lag = 0._rprec
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
+
+nullify(x,y,z)
 
 end subroutine interpolag_Ssim
