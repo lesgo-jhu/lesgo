@@ -221,7 +221,6 @@ jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
 kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
 ! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
-kstart=kstart+(1-lbz)
 ! Set +1 values
 istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index
