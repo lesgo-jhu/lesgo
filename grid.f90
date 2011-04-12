@@ -42,16 +42,8 @@ integer :: i,j,k
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 
-grid_t % built = .false.
-
-! Set pointers
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
-zw => grid_t %zw
-
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+nullify(x,y,z,zw)
+nullify(autowrap_i,autowrap_j)
 
 $if ($MPI)
   !--this dimensioning adds a ghost layer for finite differences
@@ -64,8 +56,21 @@ $endif
 
 !  x and y go to nx+1, ny+1 respectively for adding
 !  the buffered points for periodicity
-allocate(x(nx+1),y(ny+1),z($lbz:nz),zw($lbz:nz))
-allocate(autowrap_i(0:nx+1), autowrap_j(0:ny+1))
+allocate(grid_t % x(nx+1),grid_t % y(ny+1))
+allocate(grid_t % z($lbz:nz), grid_t % zw($lbz:nz))
+allocate(grid_t % autowrap_i(0:nx+1), grid_t % autowrap_j(0:ny+1))
+
+! Initialize built
+grid_t % built = .false. 
+
+! Set pointers
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
+zw => grid_t %zw
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 do k=$lbz,nz
   $if ($MPI)
