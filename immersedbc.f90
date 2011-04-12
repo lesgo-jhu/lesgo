@@ -25,7 +25,7 @@ implicit none
 integer::px,py,lx,ly,lz
 integer::i
 real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
-! this sets pressure grad's inside bldg's
+! this sets velocity in building to 0
 do i=1,n_bldg
    px=bldg_pts(1,i)
    py=bldg_pts(2,i)
