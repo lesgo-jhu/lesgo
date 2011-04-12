@@ -925,6 +925,9 @@ use param, only : nz, S_FLAG
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use scalars_module, only : RHS_T
+$if ($DYN_TN)
+use sgsmodule, only:F_ee2,F_deedt2,ee_past
+$endif
 implicit none
 
 integer, intent (in) :: lun
