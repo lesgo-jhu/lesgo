@@ -20,13 +20,6 @@ private :: rp, rprec, ld, ny, nz, dx
 !private
 !public :: phi
 
-! Update FV
-$if($WEIGHT_INTFC)
-real(rp) :: phi_p, fweight
-real(rp), parameter :: delta = 1.1*dx
-real(rp), parameter :: a0=0.5_rprec, a1=-0.75_rprec / delta, a3=0.25_rprec / delta**3
-$endif
-
 logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
                                        !  level set BC
 logical, parameter :: use_log_profile = .false.
