@@ -1,31 +1,39 @@
 module sgsmodule
 use types,only:rprec
-use param,only:ld,ny,nz
+use param,only:ld,nx,ny,nz
 implicit none
 private ld,ny,nz
-!TS In genreal, ofttime is 1.5 (Meneveau et al., 1996)
-real(kind=rprec),parameter::opftime=1.5_rprec
+
+$if ($MPI)
+    $define $lbz 0
+$else
+    $define $lbz 1
+$endif
+
+! The following are for dynamic Lagranrian SGS models (model=4,5) 
+real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
 real(kind=rprec),dimension(ld,ny,nz)::F_LM,F_MM,F_QN,F_NN,Beta
+
+! The following are for dynamically updating T, the timescale for Lagrangian averaging
+!   F_ee2 is the running average of (eij*eij)^2
+!   F_deedt2 is the running average of [d(eij*eij)/dt]^2
+!   ee_past is the array (eij*eij) for the past timestep
+$if ($DYN_TN)
+real(kind=rprec),dimension(ld,ny,$lbz:nz) :: F_ee2, F_deedt2
+real(kind=rprec),dimension(ld,ny,$lbz:nz) :: ee_past
+$endif
+
 !real(kind=rprec),dimension(ld,ny,nz)::Betaclip  !--not used
-!xxxx----- Added by Vij - 04/14/04--xxxx----------------
-! Nu_t is needed for scalar sgs
-! For more details look into scalars_module.f90
-$if ($MPI)
-  real (rprec), dimension (ld, ny, nz) :: Nu_t
-$else
-  real(kind=rprec),dimension(ld,ny,nz)::Nu_t
-$endif
-!xxxx---- Vij change ends here --xxxx-------------
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
+
+real(rprec), dimension(ld, ny, nz) :: Nu_t      ! eddy viscosity
 real(kind=rprec),dimension(ld,ny,$lbz:nz)::u_lag,v_lag,w_lag
 integer ::jt_count
-real(kind=rprec),dimension(ld,ny,nz)::Cs_opt2!,Cs_opt2_avg
-                 !--Cs_opt2_avg commented to save mem.
+real(kind=rprec),dimension(ld,ny,nz)::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
+integer :: count_clip, count_all
+
+!**********************************************************************                 
 contains
+!**********************************************************************                 
 
 real(kind=rprec) function rtnewt(A, jz)
 use types,only:rprec
