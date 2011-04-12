@@ -3,7 +3,10 @@ use types,only:rprec
 use param
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
 !use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
-use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN 
+use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+$if ($DYN_TN)
+use sgsmodule, only:F_ee2,F_deedt2,ee_past
+$endif
 use scalars_module,only:RHS_T ! added by VK
 use scalars_module2,only:ic_scal ! added by VK
 ! VK -label 122 assigned to vel_sc.out for reading input files in case of
@@ -38,6 +41,11 @@ fxa=0._rprec; fya=0._rprec; fza=0._rprec
 u_des=0._rprec;v_des=0._rprec;w_des=0._rprec
 mean_u=0._rprec;mean_u2=0._rprec;mean_v=0._rprec;mean_v2=0._rprec
 mean_w=0._rprec;mean_w2=0._rprec
+
+$if ($DYN_TN)
+!Eventually want to read these in from file, but for now, just initialize to zero
+ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
+$endif
 
 fname = path // 'vel.out'
 $if ($MPI)
@@ -94,9 +102,15 @@ if(initu)then
                     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
                     Cs_opt2
         else
+        $if($DYN_TN)
           read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2, F_LM, F_MM
+                   Cs_opt2, F_LM, F_MM, F_ee2, F_deedt2, ee_past
+        $else
+          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
+                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+                   Cs_opt2, F_LM, F_MM   
+        $endif
         end if
       case (5)
         if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
