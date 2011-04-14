@@ -95,7 +95,7 @@ $endif
   
 return 
 
-deallocate(var_uv)
+!deallocate(var_uv)
 
 !$if($MPI)
 !deallocate(buf)
