@@ -13,6 +13,8 @@ $endif
 implicit none
 real(rprec), intent(OUT) :: cfl
 
+real(rprec) :: cfl_u, cfl_v, cfl_w
+
 $if($MPI)
 real(rprec) :: cfl_buf
 $endif
@@ -20,11 +22,11 @@ $endif
 !cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
 !                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
 !                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
-cfl = maxval( abs(u(1:nx,1:ny,1:nz-1)) / dx )
-cfl = maxval( (/ cfl, abs(v(1:nx,1:ny,1:nz-1)) / dy /) )
-cfl = maxval( (/ cfl, abs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
+cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
-cfl = dt * cfl
+cfl = dt * maxval( (/ cfl_u, cfl_v, cfl_w /) )
 
 $if($MPI)
 call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm, ierr)
@@ -51,6 +53,9 @@ implicit none
 
 real(rprec), intent(OUT) :: dt
 
+! dt inverse
+real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
+
 $if($MPI)
 real(rprec) :: dt_buf
 $endif
@@ -58,11 +63,12 @@ $endif
 !dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
 !                dy / abs(v(1:nx,1:ny,1:nz-1)), &
 !                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
-dt = minval( dx / abs(u(1:nx,1:ny,1:nz-1)) )
-dt = minval((/ dt, dy / abs(v(1:nx,1:ny,1:nz-1)) /) )
-dt = minval((/ dt, dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+! Avoid division by computing max dt^-1
+dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+dt_inv_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy 
+dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
-dt = cfl * dt
+dt = cfl / maxval( (/ dt_inv_u, dt_inv_v, dt_inv_w /) )
 
 $if($MPI)
 call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, comm, ierr)
