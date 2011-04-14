@@ -15,7 +15,7 @@ $endif
 save
 
 public
-private :: rp, rprec, ld, ny, nz, dx
+private :: rp, ld, ny, nz, dx
 
 !private
 !public :: phi
