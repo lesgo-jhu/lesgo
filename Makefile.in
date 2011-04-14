@@ -48,7 +48,7 @@ USE_DYNALLOC = no
 
 # Set pressure correction scheme
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
-USE_PC_SCHEME = DEFAULT
+USE_PC_SCHEME = PC_SCHEME_2
 
 USE_LVLSET = no
   USE_CYL_SKEW_LS = no
@@ -63,10 +63,6 @@ USE_DYN_TN = no
 FPP = fpx3
 
 include Makefile.fpp
-
-ifeq ($(USE_DYN_TN), yes)
-  FPP += -DDYN_TN
-endif
 
 # Directory for the .o files
 OPATH = obj
@@ -87,7 +83,7 @@ ifeq ($(FCOMP),ifort)
   FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
   #FFLAGS = -O3
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
+  FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   FFLAGS += -warn all -shared-intel
@@ -107,8 +103,8 @@ ifeq ($(FCOMP),gfortran)
     FC = gfortran
   endif
   LIBS += -lfcgaml -lftecio
-  #FFLAGS = -O0 -fbounds-check
-  FFLAGS = -O3
+  FFLAGS = -O0 -fbounds-check
+  #FFLAGS = -O3
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
