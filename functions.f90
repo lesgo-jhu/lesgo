@@ -132,7 +132,10 @@ character (*), parameter :: func_name = mod_name // '.cell_indx'
 
 real(rprec), pointer, dimension(:) :: z
 
+! Nullify pointers
 nullify(z)
+! Intialize result
+cell_indx = -1
 
 if(.not. grid_t % built) call grid_build()
 
@@ -404,9 +407,9 @@ $if ($MPI)
 
  if(nsum_global == 0) then
  
-  write(*,'(1a,1i,3f9.4)') 'coord, bp1 : ', coord, bp1
-  write(*,'(1a,1i,3f9.4)') 'coord, bp2 : ', coord, bp2
-  write(*,'(1a,1i,3f9.4)') 'coord, bp3 : ', coord, bp3
+  write(*,'(1a,i4,f9.4)') 'coord, bp1 : ', coord, bp1
+  write(*,'(1a,i4,f9.4)') 'coord, bp2 : ', coord, bp2
+  write(*,'(1a,i4,f9.4)') 'coord, bp3 : ', coord, bp3
   
   call error(func_name, 'nsum_global = 0')
   
