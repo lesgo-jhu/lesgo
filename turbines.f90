@@ -5,6 +5,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t !x,y,z
 use io
 use messages
+use strmod, only : numtostr
 $if ($MPI)
   use mpi_defs
 $endif
@@ -360,7 +361,7 @@ z => grid_t % z
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
       !to write the node locations to file
       fname0 = 'turbine/nodes_unfiltered.dat'
-      call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', 0, 1)
+      call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
       call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
 
@@ -779,7 +780,7 @@ g = g/sumG
 
         !if (.false.) then
         !    fname0 = 'turbine/convolution_function.dat'
-        !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', 1, 1)
+        !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
         !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
 
         !    if (verbose) then
@@ -958,12 +959,12 @@ enddo
             fname3 = 'turbine/nodes_filtered_c.dat'
             write (temp, '(".c",i0)') coord
             fname3 = trim (fname3) // temp
-            call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', 1, 1)
+            call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
             call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         fname3 = 'turbine/nodes_filtered.dat'
-        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', 1, 1)
+        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
         call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
     endif
 

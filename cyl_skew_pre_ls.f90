@@ -1159,7 +1159,7 @@ use param, only :  MPI_RPREC,ierr, nproc, status
 use cyl_skew_pre_base_ls, only : nx_proc
 $endif
 !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-
+use strmod, only : numtostr
 implicit none
 include 'tecio.h'
 
@@ -1347,7 +1347,7 @@ if( global_rank_csp == 0 ) then
     call write_tecplot_header_ND(fname, 'rewind', 7, &
       (/ Nx+1, Ny+1, Nz-$lbz+1 /), &
       '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
-      n, 2)
+      numtostr(n,6), 2)
 
     call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, nz-$lbz+1,&
       (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
