@@ -8,10 +8,10 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
-LIBS = $(LIBPATH) -lrfftw -lfftw -lm
+LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -51,6 +51,8 @@ USE_DYNALLOC = no
 USE_PC_SCHEME = PC_SCHEME_2
 
 USE_LVLSET = no
+  SMOOTH_VEL = no
+
   USE_CYL_SKEW_LS = no
   USE_RNS_LS = no
   USE_TREES_LS = no
@@ -80,13 +82,13 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback -fpic
-  #FFLAGS = -O3
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -warn nointerfaces
+  #FFLAGS = -O2
   #FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC
-  #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  FFLAGS += -warn all -shared-intel
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
+  #FFLAGS += -warn all -shared-intel
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
@@ -100,11 +102,11 @@ ifeq ($(FCOMP),gfortran)
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = gfortran
+    FC = gfortran44
   endif
   LIBS += -lfcgaml -lftecio
-  FFLAGS = -O0 -fbounds-check
-  #FFLAGS = -O3
+  #FFLAGS = -O0 -fbounds-check -mcmodel=medium
+  FFLAGS = -O3 -mcmodel=medium
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
@@ -153,16 +155,16 @@ ifeq ($(FCOMP),xlf)
   #-qautodbl=dbl4 -qrealsize=8
 endif
 
-ifeq ($(FCOMP),pgf90)
+ifeq ($(FCOMP),pgfortran)
   
   FPP += -DPGI
   
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = pgf90
+    FC = pgfortran
   endif
-  LIBS += -lfcgaml-pgi -lftecio
+  LIBS += -lfcgaml-pgi -lftecio-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC

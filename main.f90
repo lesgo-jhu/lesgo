@@ -219,7 +219,7 @@ do jt=1,nsteps
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
 
     ! Level set: smooth velocity
-    $if ($LVLSET)
+    $if ($LVLSET_SMOOTH_VEL)
       call level_set_smooth_vel (u, v, w)
     $endif
 
