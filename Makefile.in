@@ -83,12 +83,11 @@ ifeq ($(FCOMP),ifort)
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
   FFLAGS = -O0 -check bounds -g -debug all -traceback -warn nointerfaces
-  #FFLAGS = -O2
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 -fPIC
   FFLAGS += -warn all -mcmodel=medium -shared-intel
-  #FFLAGS += -warn all -shared-intel
+  # Fix segmentation faults (stack overflows)
+  FFLAGS += -heap-arrays
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
