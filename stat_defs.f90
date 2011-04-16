@@ -478,7 +478,7 @@ c % vpwp = a % vw - a % v * a % w
 c % upvp = a % uv - a % u * a % v
 
 return
-deallocate(c)
+
 end function rs_compute
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
