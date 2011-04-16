@@ -314,7 +314,7 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use grid_defs, only : grid_t !x,y,z,zw
+use grid_defs, only : grid_t
 use sim_param, only : u,v,w,dudx,dvdy,dwdz
 use sim_param, only : p, dpdx, dpdy, dpdz
 use sim_param, only : RHSx, RHSy, RHSz
@@ -328,13 +328,15 @@ $if($LVLSET)
 use level_set_base, only : phi
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
-
-use param, only : jt_total, dt_dim, nx, ny, nz,dx,dy,dz,z_i,L_x,L_y,L_z,coord
+use param, only : dx,dy,dz
+use messages
 implicit none
 
-include 'tecio.h'
+include 'tecio.h'      
 
 integer, intent(IN) :: itype
+
+character (*), parameter :: sub_name = mod_name // '.inst_write'
 
 character(25) :: cl, ct
 character (64) :: fname
@@ -357,19 +359,20 @@ real(rprec), allocatable, dimension(:,:,:) :: divvel
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
+! Nullify pointers
 nullify(x,y,z,zw)
 
+! Set grid pointers
 x => grid_t % x
 y => grid_t % y
 z => grid_t % z
 zw => grid_t % zw
 
-!  Write point data; assumes files have been opened properly
-!  in stats_init
+!  Allocate space for the interpolated w values
+allocate(w_uv(nx,ny,$lbz:nz))
 
-allocate(w_uv(ld,ny,$lbz:nz))
 !  Make sure w has been interpolated to uv-grid
-w_uv = interp_to_uv_grid(w, $lbz)
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,$lbz:nz), $lbz)
 
 if(itype==1) then
 
@@ -812,8 +815,6 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
-return
-
 contains
 
 $if($LVLSET)
@@ -849,7 +850,7 @@ $endif
 
 
 ! Put fz_tot on uv-grid
-fz_tot = interp_to_uv_grid( fz_tot, 1 )
+fz_tot(1:nx,1:ny,1:nz) = interp_to_uv_grid( fz_tot(1:nx,1:ny,1:nz), 1 )
 
 return
 end subroutine force_tot
@@ -867,9 +868,8 @@ dpdx(:,:,nz) = dpdx(:,:,nz-1)
 dpdy(:,:,nz) = dpdy(:,:,nz-1)
 dpdz(:,:,nz) = dpdz(:,:,nz-1)
 
-!  Sync pressure arrays
 $if($MPI)
-!  Sync forces
+!  Sync pressure
 call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
                    p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
                    comm, status, ierr)
@@ -898,9 +898,8 @@ RHSx(:,:,nz) = RHSx(:,:,nz-1)
 RHSy(:,:,nz) = RHSy(:,:,nz-1)
 RHSz(:,:,nz) = RHSz(:,:,nz-1)
 
-!  Sync pressure arrays
 $if($MPI)
-!  Sync forces
+!  Sync RHS
 call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
                    RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
                    comm, status, ierr)
@@ -1755,10 +1754,10 @@ integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
-allocate(w_uv(ld,ny,$lbz:nz))
+allocate(w_uv(nx,ny,$lbz:nz))
 
 !  Make sure w stuff has been interpolated to uv-grid
-w_uv = interp_to_uv_grid( w, $lbz )
+w_uv(1:nx,1:ny,$lbz:nz) = interp_to_uv_grid( w(1:nx,1:ny,$lbz:nz), $lbz )
 
 do k=1,nz  
   do j=1,ny
