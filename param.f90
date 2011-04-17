@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(63)/nproc + 1   
+  integer,parameter:: nx=32,ny=32,nz=(31)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
@@ -65,9 +65,9 @@ module param
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x= 4._rprec
-    real(rprec),parameter::L_y= 4._rprec    
-    real(rprec),parameter::L_z= 4._rprec
+    real(rprec),parameter::L_x= 2._rprec * pi
+    real(rprec),parameter::L_y= L_x
+    real(rprec),parameter::L_z= L_y
     !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
     !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
 
@@ -117,7 +117,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 1
+  integer, parameter :: nsteps = 1000
  
   $if($CFL_DT)
   
@@ -149,9 +149,9 @@ module param
 !---------------------------------------------------  
 
   ! initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .true.
+  logical, parameter :: initu = .false.
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .false.
+  logical, parameter :: inilag = .true.
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
@@ -205,13 +205,9 @@ module param
   integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
 
   ! turns instantaneous velocity recording on or off
-  logical, parameter :: point_calc = .false.
+  logical, parameter :: point_calc = .true.
   integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
   integer, parameter :: point_nloc = 2
-  !real(rprec), save, dimension(3,point_nloc) :: point_loc = (/ &
-  !    (/ L_x/2., L_y/2., 2._rprec /), &
-  !    (/ 3._rprec, 2._rprec, 2._rprec /) &
-  !    /)
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
         point3D( (/ L_x/2., L_y/2., 2._rprec /) ), &
         point3D( (/ 3._rprec, 2._rprec, 2._rprec /) ) &
@@ -219,25 +215,30 @@ module param
 
   ! domain instantaneous output
   logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 1000, domain_nend = nsteps, domain_nskip = 1000
+  integer, parameter :: domain_nstart = 100, domain_nend = nsteps, domain_nskip = 100
   
   ! x-plane instantaneous output
   logical, parameter :: xplane_calc   = .true.
-  integer, parameter :: xplane_nstart = 1000, xplane_nend = nsteps, xplane_nskip  = 1000
+  integer, parameter :: xplane_nstart = 100, xplane_nend = nsteps, xplane_nskip  = 100
   integer, parameter :: xplane_nloc   = 4
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)
 
   ! y-plane instantaneous output
   logical, parameter :: yplane_calc   = .true.
-  integer, parameter :: yplane_nstart = 1000, yplane_nend = nsteps, yplane_nskip  = 1000
+  integer, parameter :: yplane_nstart = 100, yplane_nend = nsteps, yplane_nskip  = 100
   integer, parameter :: yplane_nloc   = 4
   real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ pi/8., 3.*pi/8., 5.*pi/8., 7.*pi/8. /)  
 
   ! z-plane instantaneous output
   logical, parameter :: zplane_calc   = .true.
-  integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
+  integer, parameter :: zplane_nstart = 100, zplane_nend = nsteps, zplane_nskip  = 100
   integer, parameter :: zplane_nloc   = 1
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1 /)
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ L_z / 2._rprec /)
+
+  logical, parameter :: spectra_calc = .true.
+  integer, parameter :: spectra_nstart = 1, spectra_nend = nsteps
+  integer, parameter :: spectra_nloc = 2
+  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ dz/2._rprec, L_x/8._rprec /)
 
 !--------------------------------------------------- 
 ! SCALAR PARAMETERS

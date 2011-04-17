@@ -6,52 +6,169 @@ use types, only : rprec
 implicit none
 save
 private
-public trilinear_interp, linear_interp, cell_indx, plane_avg_3D
+public interp_to_uv_grid, trilinear_interp, linear_interp, cell_indx, plane_avg_3D
 public buff_indx, points_avg_3D, det2D
 
 character (*), parameter :: mod_name = 'functions'
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 contains
+
+!**********************************************************************
+function interp_to_uv_grid(var, lbz) result(var_uv)
+!**********************************************************************
+!  This function interpolates the array var, which resides on the w-grid,
+!  onto the uv-grid variable var_uv using linear interpolation. It is 
+!  important to note that message passing is required for MPI cases and 
+!  all processors must call this routine. If this subroutine is call from a 
+!  only a subset of the total processors, the code will hang due to the usage
+!  of the syncronous send/recv functions and certain processors waiting
+!  to recv data but it never gets there.
+!
+!  NOTE: It is assumed that the size of var and var_uv are the same as the
+!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
+!  nodes - no interpolation is performed for k=0 and k=nz
+
+use types, only : rprec
+use param,only : nz
+use messages
+$if ($MPI)
+use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+$endif
+
+implicit none
+
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer, intent(in) :: lbz
+real(rprec), allocatable, dimension(:,:,:) :: var_uv
+
+integer :: ubx,uby,ubz
+integer :: i,j,k
+
+character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
+
+ubx=ubound(var,1)
+uby=ubound(var,2)
+ubz=ubound(var,3)
+
+if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z dimensions.')
+
+allocate(var_uv(ubx,uby,lbz:ubz))
+
+do k=1,ubz-1
+  do j=1,uby
+    do i=1,ubx
+      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
+    enddo
+  enddo
+enddo
+
+$if ($MPI)
+
+!  Take care of top "physical" boundary
+if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+
+!  Sync all overlapping data
+if( lbz == 0 ) then
+  call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
+elseif( lbz == 1 ) then
+  call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
+                    var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
+                    comm, status, ierr)
+endif                    
+
+$else
+
+!  Take care of top "physical" boundary
+var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
+
+$endif
+  
+return 
+
+!deallocate(var_uv)
+
+!$if($MPI)
+!deallocate(buf)
+!$endif
+
+end function interp_to_uv_grid
 
 !**********************************************************************
 integer function cell_indx(indx,dx,px)
 !**********************************************************************
-! This routine does ...
+! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
+!   spacing=[dx or dy or dz] and the [x or y or z] location and returns
+!   the value of the lower index (cell index). Also include is implicit
+!   wrapping of the spatial location px
+! 
+!  cell_indx should always be:
+!  1<= cell_indx <= Nx
+!  or
+!  1<= cell_indx <= Ny
+!  or
+!  $lbz <= cell_indx < Nz
 !
 use types, only : rprec
-use grid_defs, only : z, grid_built, grid_build
+use grid_defs
 use messages 
-use param, only : nx, ny, nz
+use param, only : nx, ny, nz, L_x, L_y
 implicit none
 
 character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
-real(rprec), intent(IN) :: px ! Global value
+real(rprec) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.cell_indx'
 
-if(.not. grid_built) call grid_build()
+real(rprec), pointer, dimension(:) :: z
+
+! Nullify pointers
+nullify(z)
+! Intialize result
+cell_indx = -1
+
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 select case (indx)
   case ('i')
+    ! Autowrap spatial point   
+    px = modulo(px,L_x)
+    ! Returned values 1 <= cell_indx <= Nx
     cell_indx = floor (px / dx) + 1
-    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
   case ('j')
-    cell_indx = floor (px / dx) + 1
-    if( cell_indx > Ny .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain - wrap with modulo')
+    ! Autowrap spatial point
+    px = modulo(px, L_y) 
+    ! Returned values 1 <= cell_indx <= Ny
+    cell_indx = floor (px / dx) + 1 
+    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
   !  Need to compute local distance to get local k index
   case ('k')
     cell_indx = floor ((px - z(1)) / dx) + 1
-    if( cell_indx > Nz .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')    
+    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain')    
   case default
     call error (func_name, 'invalid indx =' // indx)
 end select
+
+nullify(z)
 
 return
 end function cell_indx
 
 !**********************************************************************
-real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
+real(rprec) function trilinear_interp(var,lbz,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -64,48 +181,66 @@ real(rprec) function trilinear_interp(var,istart,jstart,kstart,xyz)
 !  Takes care of putting w-grid variables onto the uv-grid; this assumes
 !  that var is on the uv-grid
 !
-use grid_defs, only : x,y,z, autowrap_i, autowrap_j
+!  The variable sent to this subroutine should have a lower-bound-on-z 
+!  (lbz) set as an input so the k-index will match the k-index of z.  
+!  Before calling this function, make sure the point exists on the coord
+!  [ test using: z(1) \leq z_p < z(nz-1) ]
+!
+use grid_defs, only : grid_t
 use types, only : rprec
 use sim_param, only : u,v
-use param, only : nz, dx, dy, dz, coord
+use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
 implicit none
 
-real(rprec), dimension(:,:,:), intent(IN) :: var
-integer, intent(IN) :: istart, jstart, kstart
+integer, intent(IN) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(IN), dimension(3) :: xyz
 
-real(rprec), dimension(2,2,2) :: uvar
+!real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
 integer :: i,j,k
-integer, dimension(2) :: is, js, ks
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
+real(rprec), pointer, dimension(:) :: x,y,z
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
+nullify(x,y,z)
+nullify(autowrap_i, autowrap_j)
+
+x => grid_t % x
+y => grid_t % y
+z => grid_t % z
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !  Initialize stuff
-u1=0.
-u2=0.
-u3=0.
-u4=0.
-u5=0.
-u6=0.
+u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
-!  istart and jstart are assumed to be in the spatial domain
-is = (/ istart, autowrap_i( istart + 1 ) /)
-js = (/ jstart, autowrap_j( jstart + 1 ) /)
-ks = (/ kstart, kstart + 1 /)
+! Determine istart, jstart, kstart by calling cell_indx
+istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
+jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
+kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
+! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
+! Set +1 values
+istart1 = autowrap_i(istart+1) ! Autowrap index
+jstart1 = autowrap_j(jstart+1) ! Autowrap index
+kstart1 = kstart + 1
+
+
+! Can probably bypass storing in uvar and put directly in linear_interp
 !  Contains the 6 points that make of the cube
-uvar = 0.
-
-!uvar(:,:,:) = var(istart:istart+1,jstart:jstart+1,kstart:kstart+1)
-do k=1,2
-  do j=1,2
-    do i=1,2
-      uvar(i,j,k) = var(is(i), js(j), ks(k) )
-    enddo
-  enddo
-enddo
-
+!uvar = 0.
+!uvar(1,1,1) = var(istart,  jstart,  kstart)
+!uvar(2,1,1) = var(istart1, jstart,  kstart)
+!uvar(1,2,1) = var(istart,  jstart1, kstart)
+!uvar(2,2,1) = var(istart1, jstart1, kstart)
+!uvar(1,1,2) = var(istart,  jstart,  kstart1)
+!uvar(2,1,2) = var(istart1, jstart,  kstart1)
+!uvar(1,2,2) = var(istart,  jstart1, kstart1)
+!uvar(2,2,2) = var(istart1, jstart1, kstart1)
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
@@ -116,15 +251,30 @@ zdiff = xyz(3) - z(kstart)
 
 !  Perform the 7 linear interpolations
 !  Perform interpolations in x-direction 
-u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
-u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
-u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
-u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
+!u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
+!u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
+!u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
+!u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
+u1 = linear_interp(var(istart,  jstart,  kstart), &
+                   var(istart1, jstart,  kstart), &
+                   dx, xdiff)
+u2 = linear_interp(var(istart,  jstart1, kstart), &
+                   var(istart1, jstart1, kstart), &
+                   dx, xdiff)
+u3 = linear_interp(var(istart,  jstart,  kstart1), &
+                   var(istart1, jstart,  kstart1), &
+                   dx, xdiff)
+u4 = linear_interp(var(istart,  jstart1, kstart1), &
+                   var(istart1, jstart1, kstart1), &
+                   dx, xdiff)
 !  Perform interpolations in y-direction
 u5 = linear_interp(u1,u2,dy,ydiff)
 u6 = linear_interp(u3,u4,dy,ydiff)
 !  Perform interpolation in z-direction
 trilinear_interp = linear_interp(u5,u6,dz,zdiff)
+
+nullify(x,y,z)
+nullify(autowrap_i, autowrap_j)
 
 return
 end function trilinear_interp
@@ -152,11 +302,16 @@ return
 end function linear_interp
 
 !**********************************************************************
-real(rprec) function plane_avg_3D(var, bp1, bp2, bp3, nzeta, neta)
+real(rprec) function plane_avg_3D(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
-!  plane in 3D space. 
+!  plane in 3D space. The bounding points, bp{1,2,3} are used to define the plane
+!  such that the zeta direction 2 -> 1 and the eta direction 2 -> 3.
+!
+!  When sending the variable to this subroutine, it is important that the
+!  ranges (1:nx,1:ny,1:nz) be stated explicitly to avoid incorrect matching
+!  of indices between this variable and the x,y,z arrays.
 !
 
 use types, only : rprec
@@ -169,14 +324,15 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,:) :: var
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
+integer, intent(IN) :: lbz   !lower bound on z ($lbz) for variable sent
 real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
 
 character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
 
-integer :: i, j, istart, jstart, kstart, nsum
+integer :: i, j, nsum
 
 $if ($MPI)
 integer :: nsum_global
@@ -189,18 +345,17 @@ REAL(RPREC) :: var_sum
 real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
 real(RPREC), dimension(3) :: bp4
 
+real(rprec), pointer, dimension(:) :: z
+
+nullify(z)
+
 !  Build computational mesh if needed
-if(.not. grid_built) call grid_build()
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 nsum = 0
 var_sum=0.
-
-!write(*,*) '-------------------------'
-!write(*,*) 'From plane_avg_3D : '
-!write(*,'(1a,3f12.6)') 'bp1 : ', bp1
-!write(*,'(1a,3f12.6)') 'bp3 : ', bp2
-!write(*,'(1a,3f12.6)') 'bp2 : ', bp3
-!write(*,'(1a,3i3)') 'nzeta, neta : ', nzeta, nzeta
 
 !  vector in zeta direction
 zeta_vec = bp1 - bp2
@@ -222,71 +377,39 @@ vec_mag = sqrt(eta_vec(1)*eta_vec(1) + eta_vec(2)*eta_vec(2) + eta_vec(3)*eta_ve
 deta = vec_mag/neta
 eta_vec = eta_vec / vec_mag
 
-!if(coord == 0) then
-!  write(*,'(1a,3f12.6)') 'zeta_vec : ', zeta_vec
-!  write(*,'(1a,3f12.6)') 'eta_vec  : ', eta_vec
-!endif
-
-!!  Check if plane is associated with processor
-!if(z(nz) <= zmax .or. z(1) >= zmin) then
-
 !  Compute cell centers
-  do j=1,neta
+do j=1,neta
   !  Attempt for cache friendliness
-    eta = (j - 0.5)*deta*eta_vec
-    do i=1,nzeta
-    ! Simple vector addition
-      cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
+  eta = (j - 0.5)*deta*eta_vec
+  do i=1,nzeta
+  ! Simple vector addition
+    cell_center = bp2 + (i - 0.5)*dzeta*zeta_vec + eta
 
-      if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
+    if(cell_center(3) >= z(1) .and. cell_center(3) < z(nz)) then
       
-        !  Include autowrapping for x and y directions
-        cell_center(1) = modulo(cell_center(1), L_x)
-        cell_center(2) = modulo(cell_center(2), L_y)
+      !  Include autowrapping for x and y directions
+      !cell_center(1) = modulo(cell_center(1), L_x)
+      !cell_center(2) = modulo(cell_center(2), L_y)
         
-        !  Perform trilinear interpolation
-        !  Get the cell id (starting node id)
-        istart = autowrap_i ( cell_indx('i', dx, cell_center(1)) )
-        jstart = autowrap_j ( cell_indx('j', dy, cell_center(2)) )
-        kstart = cell_indx('k', dz, cell_center(3))
-        
-        var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, cell_center)
-        nsum = nsum + 1
+      !  Perform trilinear interpolation       
+      var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
+      nsum = nsum + 1
 
-      endif
+    endif
 
-    enddo
   enddo
+enddo
 
-  $if ($MPI)
-!  if(isum_recieve) then
-!    CALL MPI_Recv(var_sum_up, 1, MPI_RPREC, up, 1, MPI_COMM_WORLD, status, ierr)
-!    CALL MPI_Recv(nsum_up, 1, MPI_RPREC, up, 2, MPI_COMM_WORLD, status, ierr)
-!     var_sum = var_sum + var_sum_up
-!     nsum = nsum + nsum_up
-!  endif
-  
-!  if(isum_send) then
-!    CALL MPI_Send(var_sum, 1, MPI_RPREC, down, 1, MPI_COMM_WORLD, ierr)
-!    CALL MPI_Send(nsum, 1, MPI_RPREC, down, 2, MPI_COMM_WORLD, ierr)
-!  else
-!    ! Should be the bottom most proc 
-!	plane_avg_3D = var_sum / nsum
-!     call mpi_scatter(plane_avg_3D, 1, MPI_RPREC, plane_avg_3D, 1, MPI_RPREC, rank_of_coord(coord), MPI_COMM_WORLD, ierr)
-!  endif
-  
-!  if(iavg_recieve) CALL MPI_Recv(plane_avg_3D, 1, MPI_RPREC, down, 3, MPI_COMM_WORLD, status, ierr)
-!  if(iavg_send) CALL MPI_Send(plane_avg_3D, 1, MPI_RPREC, up, 3, MPI_COMM_WORLD, ierr)
-
+$if ($MPI)
 !  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
 
  if(nsum_global == 0) then
  
-  write(*,'(1a,1i,3f9.4)') 'coord, bp1 : ', coord, bp1
-  write(*,'(1a,1i,3f9.4)') 'coord, bp2 : ', coord, bp2
-  write(*,'(1a,1i,3f9.4)') 'coord, bp3 : ', coord, bp3
+  write(*,'(1a,i4,f9.4)') 'coord, bp1 : ', coord, bp1
+  write(*,'(1a,i4,f9.4)') 'coord, bp2 : ', coord, bp2
+  write(*,'(1a,i4,f9.4)') 'coord, bp3 : ', coord, bp3
   
   call error(func_name, 'nsum_global = 0')
   
@@ -303,22 +426,18 @@ eta_vec = eta_vec / vec_mag
   
  $endif
    
-!else
-!  write(*,*) 'need to put message here'
-!  stop
-!endif
-
+nullify(z)
 
 return
 
 end function plane_avg_3D
 
 !**********************************************************************
-real(rprec) function points_avg_3D(var, npoints, points)
+real(rprec) function points_avg_3D(var, lbz, npoints, points)
 !**********************************************************************
 !
-!  This subroutine computes the average of a specified quantity defined
-!  on a set of arbitrary points
+!  This subroutine computes the arithmetic average of a specified 
+!  quantity defined on a set of arbitrary points
 !
 
 use types, only : rprec
@@ -331,7 +450,8 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,:) :: var
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
+integer, intent(IN) :: lbz      !lower bound on z ($lbz) for variable sent
 integer, intent(IN) :: npoints
 real(rprec), intent(IN), dimension(3,npoints) :: points
 
@@ -348,11 +468,17 @@ $endif
 real(rprec) :: var_sum
 real(rprec) :: xp, yp, zp
 
+real(rprec), pointer, dimension(:) :: z
+
+nullify(z)
+
 !  Check that points is a column major ordered array of dim-3
 !if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
 
 !  Build computational mesh if needed
-if(.not. grid_built) call grid_build()
+if(.not. grid_t % built) call grid_build()
+
+z => grid_t % z
 
 nsum = 0
 var_sum=0.
@@ -370,15 +496,15 @@ do n=1, npoints
     yp = points(2,n)
     
     !  Include autowrapping for x and y directions
-    xp = modulo(xp, L_x)
-    yp = modulo(yp, L_y)
+    !xp = modulo(xp, L_x)
+    !yp = modulo(yp, L_y)
     
     !  Perform trilinear interpolation
-    istart = autowrap_i( cell_indx('i', dx, xp) )
-    jstart = autowrap_j( cell_indx('j', dy, yp) )
-    kstart = cell_indx('k', dz, zp)
+    !istart = autowrap_i( cell_indx('i', dx, xp) )
+    !jstart = autowrap_j( cell_indx('j', dy, yp) )
+    !kstart = cell_indx('k', dz, zp)
         
-    var_sum = var_sum + trilinear_interp(var, istart, jstart, kstart, (/ xp, yp, zp /))
+    var_sum = var_sum + trilinear_interp(var, lbz, (/ xp, yp, zp /))
     nsum = nsum + 1
     
   endif
@@ -406,23 +532,11 @@ points_avg_3D = var_sum / nsum
   
 $endif
    
+nullify(z)
+
 return
 
 end function points_avg_3D
-
-!**********************************************************************
-real(rprec) function fractal_scale(var, scale_fact, ng)
-!**********************************************************************
-use types, only : rprec
-implicit none
-
-real(rprec), intent(in) :: var, scale_fact
-integer, intent(in) :: ng
-
-fractal_scale = var * scale_fact ** ( ng - 1 )
-
-return
-end function fractal_scale
 
 !**********************************************************************
 integer function buff_indx(i,imax)

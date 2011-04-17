@@ -8,9 +8,10 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64
-LIBS = $(LIBPATH) -ldrfftw -ldfftw -lm
+FCOMP = gfortran
+INCLPATH = -I${HOME}/include -I/usr/local/include
+LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
+LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -27,100 +28,43 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
 USE_CFL_DT = yes
 
-# Write binary files as big_endian
-WRITE_BIG_ENDIAN = yes
-# Write binary files as little_endian
-WRITE_LITTLE_ENDIAN = no
+# Write binary files as big_endian or little_endian
+# Options: DEFAULT, LITTLE, or BIG
+WRITE_ENDIAN = DEFAULT
 
-# Read binary files as big_endian
-READ_BIG_ENDIAN = yes
-# Read binary files as little_endian
-READ_LITTLE_ENDIAN = no
+# Read binary files as big_endian or little_endian
+# Options: DEFAULT, LITTLE, or BIG
+READ_ENDIAN = DEFAULT
 
 #--not fully supported by all parts of the code
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+# Set pressure correction scheme
+# Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
+USE_PC_SCHEME = PC_SCHEME_2
 
-USE_CYL_SKEW_LS = yes
-USE_RNS_LS = yes
-USE_TREES_LS = no
+USE_LVLSET = no
+  SMOOTH_VEL = no
+
+  USE_CYL_SKEW_LS = no
+  USE_RNS_LS = no
+  USE_TREES_LS = no
 
 USE_TURBINES = no
 
+# Calc Lag-avg timescale w. error autocorrelation
+USE_DYN_TN = no
+
 FPP = fpx3
 
-ifeq ($(USE_DBLPREC), yes)
-  FPP += -DDBLPREC
-endif
-
-ifeq ($(DEBUG), yes)
-  FPP += -DDEBUG
-endif
-
-ifeq ($(VERBOSE), yes)
-  FPP += -DVERBOSE
-endif
-
-ifeq ($(DEVEL), yes)
-  FPP += -DDEVEL
-endif
-
-ifeq ($(USE_MPI), yes)
-  FPP += -DMPI
-  LIBS += -lmpichf90 -lfmpich -lmpich
-endif
-
-ifeq ($(USE_CFL_DT), yes)
-  FPP += -DCFL_DT
-endif
-
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
-endif
-
-ifeq ($(WRITE_BIG_ENDIAN),yes)
-  FPP += -DWRITE_BIG_ENDIAN
-endif
-
-ifeq ($(WRITE_LITTLE_ENDIAN),yes)
-  FPP += -DWRITE_LITTLE_ENDIAN
-endif
-
-ifeq ($(READ_BIG_ENDIAN),yes)
-  FPP += -DREAD_BIG_ENDIAN
-endif
-
-ifeq ($(READ_LITTLE_ENDIAN),yes)
-  FPP += -DREAD_LITTLE_ENDIAN
-endif
-
-ifeq ($(USE_TREES_LS), yes)
-  FPP += -DTREES_LS
-endif
-
-ifeq ($(USE_LVLSET), yes)
-  FPP += -DLVLSET
-endif
-
-ifeq ($(USE_CYL_SKEW_LS), yes)
-  FPP += -DCYL_SKEW_LS
-endif
-
-ifeq ($(USE_RNS_LS), yes)
-  FPP += -DRNS_LS
-endif
-
-ifeq ($(USE_TURBINES), yes)
-  FPP += -DTURBINES
-endif
+include Makefile.fpp
 
 # Directory for the .o files
 OPATH = obj
@@ -137,19 +81,23 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
-  LIBS += -lfcgaml-intel
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback -fPIC
-  #FFLAGS = -O2 -fPIC
-  #FFLAGS = -O3 -ipo
+  LIBS += -lfcgaml-intel -lftecio-intel
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  FFLAGS += -warn all -shared-intel
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3
+
+  # Work around for real -> complex dummy array assignment
+  FFLAGS += -warn nointerfaces
+  # Fix segmentation faults (stack overflows)
+  FFLAGS += -heap-arrays
+
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
+
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
   MODDIR = -I$(MPATH) -module $(MPATH)
-  FFLAGS += $(MODDIR)
+  FFLAGS += $(MODDIR) $(INCLPATH)
 #  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
 endif
 
@@ -158,17 +106,18 @@ ifeq ($(FCOMP),gfortran)
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = gfortran
+    FC = gfortran44
   endif
-  LIBS += -lfcgaml
-  FFLAGS = -O0 -fbounds-check
+  LIBS += -lfcgaml -lftecio
+  #FFLAGS = -O0 -fbounds-check -mcmodel=medium
+  FFLAGS = -O3 -mcmodel=medium
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = -static 
+  LDFLAGS = 
   MODDIR = -I$(MPATH) -J$(MPATH)
-  FFLAGS += $(MODDIR)  
+  FFLAGS += $(MODDIR) $(INCLPATH)
 endif
 
 ifeq ($(FCOMP),xlf)
@@ -206,21 +155,20 @@ ifeq ($(FCOMP),xlf)
     #LIBS = $(LIBPATH) -lrfftw -lfftw -lm
   endif
   MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
-  FFLAGS += $(MODDIR)
-  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) 
+  FFLAGS += $(MODDIR) $(INCLPATH)
   #-qautodbl=dbl4 -qrealsize=8
 endif
 
-ifeq ($(FCOMP),pgf90)
+ifeq ($(FCOMP),pgfortran)
   
   FPP += -DPGI
   
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = pgf90
+    FC = pgfortran
   endif
-  LIBS += -lfcgaml-pgi
+  LIBS += -lfcgaml-pgi -lftecio-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
@@ -245,7 +193,7 @@ ifeq ($(FCOMP),g95)
   FPROF = -p
   LDFLAGS =
   MODDIR =
-  FFLAGS += $(MODDIR)
+  FFLAGS += $(MODDIR) $(INCLPATH)
 endif
 
 

@@ -14,6 +14,12 @@ $endif
 use level_set_base
 implicit none
 
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 save
 private
 
@@ -21,7 +27,6 @@ public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
 public :: level_set_cylinder_CD
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
-public :: phi
 
 character (*), parameter :: mod_name = 'level_set'
 
@@ -62,29 +67,6 @@ real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-$endif
-
-logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
-                                       !  level set BC
-logical, parameter :: use_log_profile = .false.
-logical, parameter :: use_enforce_un = .false.
-logical, parameter :: physBC = .true.
-logical, parameter :: use_smooth_tau = .true.
-logical, parameter :: use_extrap_tau_log = .false.
-logical, parameter :: use_extrap_tau_simple = .true.
-logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; not MPI compliant
-                                                  !--wont work w/extra_tau_log
-
-real (rp), parameter :: z0 = 0.0001_rp
-                        !--nondimensional roughness length of surface
-
-logical :: phi_cutoff_is_set = .false.
-logical :: phi_0_is_set = .false.
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
 $endif
 
 real (rp) :: phi_cutoff
@@ -1571,7 +1553,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use functions, only : cell_indx
 use messages
 implicit none
@@ -1593,6 +1575,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ks, ks1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
@@ -1603,6 +1587,11 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+nullify(autowrap_i, autowrap_j)
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1743,6 +1732,8 @@ $endif
 a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
       w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -1753,7 +1744,7 @@ end subroutine interp_scal
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -1768,6 +1759,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ku, ku1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
@@ -1775,9 +1768,14 @@ real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -1874,6 +1872,8 @@ call fill_f (tzzbot, tzztop, tzz)
 tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)        
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -1954,7 +1954,7 @@ end subroutine interp_tij_u
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -1969,6 +1969,8 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: kw, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
@@ -1976,9 +1978,14 @@ real (rp) :: f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2051,6 +2058,8 @@ call fill_f (tyzbot, tyztop, tyz)
 
 tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
+
+nullify(autowrap_i, autowrap_j)
 
 $if($VERBOSE)
 call exit_sub( sub_name )
@@ -2139,7 +2148,7 @@ subroutine interp_phi (x, phi_x)
 !--assumes phi is on u-nodes
 !
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 implicit none
 
@@ -2151,14 +2160,21 @@ character (*), parameter :: sub_name = mod_name // '.interp_phi'
 integer :: i, j, k, ku
 integer :: i1, j1, k1, ku1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2290,6 +2306,8 @@ $endif
 phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -2305,7 +2323,7 @@ end subroutine interp_phi
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 use functions, only : cell_indx
-use grid_defs, only : autowrap_i, autowrap_j
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -2318,15 +2336,22 @@ character (*), parameter :: sub_name = mod_name // '.interp_vel'
 integer :: i, j, k, ku, kw
 integer :: i1, j1, k1, ku1, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2584,6 +2609,8 @@ $endif
 vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
 $if($VERBOSE)
 call exit_sub( sub_name )
 $endif
@@ -2645,14 +2672,12 @@ real (rp), intent (in out), dimension (ld, ny, $lbz:nz) :: u, v, w
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 
-real (rp) :: phi_c
+real (rp), parameter :: phi_c = 0._rp !--any pt with phi < 0 is smoothed
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
-
-phi_c = 0._rp  !--any pt with phi < 0 is smoothed
 
 call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
@@ -2663,14 +2688,16 @@ call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_smooth_vel
-
+ 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--smoothes in-place, so be careful
 !--uses SOR for laplace equation to acheive smoothing
 !--only smoothes region phi < phi0
-!--does NOT work near boundaries (of grid)!
+!--Used to NOT work near boundaries (of grid), but does now as
+!--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -2691,13 +2718,23 @@ integer :: nnbr  !--number of neighbors
 integer :: iter
 integer :: kmin, kmax
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: phi1
 real (rp) :: update
 
+! For autowrapping points: im1 = i-1, ip1 = i+1, etc.
+real(rp) :: im1, ip1, jm1, jp1
+
 !---------------------------------------------------------------------
+nullify(autowrap_i, autowrap_j)
+
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 if (present (node)) then
 
@@ -2727,8 +2764,8 @@ end select
 do iter = 1, niter
   
   do k = kmin, kmax
-    do j = 2, ny-1
-      do i = 2, nx-1
+    do j = 1, ny
+      do i = 1, nx
 
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
              (k == s) ) then
@@ -2740,15 +2777,21 @@ do iter = 1, niter
 
         if (phi1 < phi0) then  !--note its less than
 
+          !  Autowrap boundary points
+          im1 = autowrap_i(i-1)
+          ip1 = autowrap_i(i+1)
+          jm1 = autowrap_j(j-1)
+          jp1 = autowrap_j(j+1)
+
           select case (mode)
             case ('xy')
               nnbr = 4
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k)) / nnbr
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k)) / nnbr
             case ('3d')
               nnbr = 6
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k) +     &
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k) +     &
                         a(i, j, k-1) + a(i, j, k+1)) / nnbr
             case default
               call error (sub_name, 'invalid mode =' // mode)
@@ -2763,6 +2806,8 @@ do iter = 1, niter
   end do
 
 end do
+
+nullify(autowrap_i, autowrap_j)
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -4176,11 +4221,13 @@ $endif
 
 end subroutine fit3
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--set fx, fy, fz at 1:nz-1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine level_set_forcing ()
-use param, only : tadv1, dt, BOGUS  !--in addition to param vars above
+!**********************************************************************
+! 
+! Set fx, fy, fz at 1:nz-1
+!
+use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
 use immersedbc, only : fx, fy, fz
 implicit none
@@ -4201,6 +4248,11 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
+! Initialize
+fx = 0._rprec
+fy = 0._rprec
+fz = 0._rprec
+
 !--this is experimental
 if (vel_BC) then
   if (use_enforce_un) call enforce_un ()
@@ -4213,30 +4265,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   do j = 1, ny
     do i = 1, nx
 
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-        
-        fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-  
-      else if (vel_BC) then
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-
-      end if
+      call level_set_force_xy()
 
       !--no w-node part here: the velocity should be zero b/c of BCs
 
@@ -4255,45 +4284,8 @@ do k = k_min, nz - 1
   do j = 1, ny
     do i = 1, nx
 
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-        
-        fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-
-      else if (vel_BC) then
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-        
-      end if
-
-      if (phi(i, j, k) + phi(i, j, k-1) <= 0._rp) then  !--w-nodes
-
-        Rz = -tadv1 * dpdz(i, j, k)
-        fz(i, j, k) = (-w(i, j, k)/dt - Rz)
-
-      else if (vel_BC) then
-
-        Rz = -tadv1 * dpdz(i, j, k)
-
-        if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
-          fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
-        end if
-
-      end if
+      call level_set_force_xy()
+      call level_set_force_z()
 
     end do
   end do
@@ -4301,7 +4293,17 @@ end do
 
 fx(:, :, nz) = BOGUS
 fy(:, :, nz) = BOGUS
-fz(:, :, nz) = BOGUS
+
+!Setting 0 at physical top boundary
+$if($MPI)
+  if( coord == nproc - 1 ) then
+    fz(:, :, nz) = 0._rprec
+  else
+    fz(:, :, nz) = BOGUS
+  endif
+$else
+  fz(:,:,nz) = 0._rprec
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -4318,6 +4320,105 @@ $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
 
+return
+
+contains
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_xy()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+  
+  $if($PC_SCHEME_0)    
+  ! Original PC
+  Rx = -tadv1 * dpdx(i, j, k)
+  Ry = -tadv1 * dpdy(i, j, k)        
+  fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+  fy(i, j, k) = (-v(i, j, k)/dt - Ry)
+
+  $elseif($PC_SCHEME_1)
+  ! Updated PC
+  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
+  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
+
+  $elseif($PC_SCHEME_2)
+  ! Updated PC-2
+  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k))
+  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k))
+
+  $else
+
+  call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
+  $endif
+
+  !  Commented since not compliant with correct pressure scheme (JSG)
+!else if (vel_BC) then
+       
+  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
+
+  ! forces after pressure update
+  !Rx = -tadv1 * dpdx(i, j, k)
+  !Ry = -tadv1 * dpdy(i, j, k)
+
+  !if (udes(i, j, k) < huge (1._rp) / 2) then
+    !fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
+  !end if
+
+  !if (vdes(i, j, k) < huge (1._rp) / 2) then
+    !fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
+  !end if
+
+end if
+
+return
+end subroutine level_set_force_xy
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_z()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+
+! Original FV
+if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
+
+  $if($PC_SCHEME_0)
+  ! Original PC
+  Rz = -tadv1 * dpdz(i, j, k)
+  fz(i, j, k) = (-w(i, j, k)/dt - Rz)
+
+  $elseif($PC_SCHEME_1)
+  ! Updated PC
+  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
+
+  $elseif($PC_SCHEME_2)
+  ! Update PC-2
+  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k))
+
+  $else
+
+  call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
+  $endif
+
+!  Commented since not compliant with correct pressure scheme (JSG)
+!else if (vel_BC) then
+  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
+
+  !Rz = -tadv1 * dpdz(i, j, k)
+
+  !if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
+    !fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
+  !end if
+
+end if
+
+return
+end subroutine level_set_force_z
+
 end subroutine level_set_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4325,11 +4426,10 @@ end subroutine level_set_forcing
 !--this assumes f(:, :, nz) is valid
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function safe_cd (i, j, k, d, f)
+real(rp) function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz  !--in addition to those above
+use grid_defs, only : grid_t ! autowrap_i, autowrap_j
 implicit none
-
-real (rp) :: safe_cd
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
@@ -4339,46 +4439,61 @@ character (*), parameter :: sub_name = mod_name // '.safe_cd'
 
 integer :: n
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: delta
+
+nullify( autowrap_i, autowrap_j )
+
+autowrap_i => grid_t % autowrap_i  
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 
 select case (d)
   case (1)
-    n = nx
     delta = dx
 
-    if (i == 1) then
+    !  Commented (JSG)
+    !n = nx
+    !if (i == 1) then
 
-      safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
+    !  safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
 
-    else if (i == n) then
+    !else if (i == n) then
 
-      safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
+    !  safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
 
-    else
+    !else
 
-      safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
+    !  safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
 
-    end if
+    !end if
+
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(autowrap_i(i + 1), j, k) - f(autowrap_i(i - 1), j, k) ) / (2._rp * delta)
     
   case (2)
-    n = ny
+ 
     delta = dy
+    !  Commented (JSG)
+    ! n = ny
+    !if (j == 1) then
 
-    if (j == 1) then
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
+    !else if (j == n) then
 
-    else if (j == n) then
+    !  safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
 
-      safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
+    !else
 
-    else
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
+    !end if
 
-    end if
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(i, autowrap_j(j + 1), k) - f(i, autowrap_j(j - 1), k) ) /  (2._rp * delta)
 
   case (3)
     n = nz
@@ -4407,6 +4522,8 @@ select case (d)
   case default
     call error (sub_name, 'invalid d =', d)
 end select
+
+nullify( autowrap_i, autowrap_j )
 
 end function safe_cd
 

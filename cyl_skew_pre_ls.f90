@@ -220,7 +220,7 @@ use param, only : ny, nz_tot
 $if($MPI)
 use cyl_skew_pre_base_ls, only : nx_proc
 $else
-use param, only : nx => nx_proc
+use param, only : nx_proc => nx
 $endif
 implicit none
 
@@ -242,7 +242,7 @@ use param, only : ny,nz_tot,dx,dy,dz
 $if($MPI)
 use cyl_skew_pre_base_ls, only : nx_proc, stride
 $else
-use param, only : nx => nx_proc
+use param, only : nx_proc => nx
 $endif
 
 implicit none
@@ -284,7 +284,7 @@ use types, only : rprec
 $if($MPI)
 use cyl_skew_pre_base_ls, only : nx_proc
 $else
-use param, only : nx => nx_proc
+use param, only : nx_proc => nx
 $endif
 use param, only : ny, nz_tot
 use cyl_skew_base_ls, only : tr_t
@@ -611,7 +611,7 @@ use mpi
 use param, only : ierr
 use cyl_skew_pre_base_ls, only : nx_proc, global_rank_csp
 $else
-use param, only : nx => nx_proc
+use param, only : nx_proc => nx
 $endif
 use param, only : ny, nz_tot, dz
 use messages
@@ -1153,16 +1153,15 @@ subroutine write_output()
 $if($MPI)
 use mpi
 $endif
-use param, only : ld, nx, ny, nz, nz_tot,dx,dy,status
+use param, only : ld, nx, ny, nz, nz_tot,dx,dy
 $if($MPI)
-use param, only :  MPI_RPREC,ierr, nproc
+use param, only :  MPI_RPREC,ierr, nproc, status
 use cyl_skew_pre_base_ls, only : nx_proc
 $endif
 !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-use io, only : write_tecplot_header_ND
-use io, only : write_real_data_3D
-
+use strmod, only : numtostr
 implicit none
+include 'tecio.h'
 
 character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi, temp
 integer :: i,j,k,n
@@ -1177,10 +1176,10 @@ $if ($MPI)
 integer, allocatable, dimension(:,:,:) :: brindx_proc, clindx_proc
 real(rprec), allocatable, dimension(:,:,:) :: rbrindx_proc, rclindx_proc
 real(rprec), allocatable, dimension(:,:,:) :: phi_proc, chi_proc
-real(rprec), allocatable, dimension(:) :: x, y, z
 integer :: sendcnt, recvcnt
 $endif
 
+real(rprec), allocatable, dimension(:) :: x, y, z
 integer, pointer, dimension(:) :: br_loc_id_p
 
 $if($MPI)
@@ -1348,7 +1347,7 @@ if( global_rank_csp == 0 ) then
     call write_tecplot_header_ND(fname, 'rewind', 7, &
       (/ Nx+1, Ny+1, Nz-$lbz+1 /), &
       '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
-      n, 2)
+      numtostr(n,6), 2)
 
     call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, nz-$lbz+1,&
       (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
