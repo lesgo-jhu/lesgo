@@ -77,3 +77,16 @@
 
 16. U infinity is defined as the average U velocity at the inflow 
     plane in level_set.f90.
+
+17. 2011-04-15: It has been noted that a possible bug in the Intel
+    Fortran compiler results in segmentation faults for larger 
+    domains. This issue has manifest itself with sgs_stag(), 
+    the turbines subroutines, interpolation functions, and
+    when writing arrays to file. It has been found that GNU gfortran 
+    (version 4.4+) and PGI pgfortran (version 11.3) work fine 
+    even for really large domain. Therefore, due to the availability of
+    GNU gcc, g++, gfortran, etc.- which lends itself nicely for 
+    reasons of portability - GNU gfortran is currently the defacto
+    compiler for lesgo. This just means that if a decision is
+    to be made based on the capability of a compiler, gfortran
+    will have priority.

@@ -12,55 +12,21 @@ $endif
 
 implicit none
 real(rprec), intent(OUT) :: cfl
-$if($PGI)
-integer :: i, j, k, icount
-real(rprec), allocatable, dimension(:) :: u_inter
-$endif
+
+real(rprec) :: cfl_u, cfl_v, cfl_w
 
 $if($MPI)
 real(rprec) :: cfl_buf
 $endif
 
-$if($PGI)
-allocate(u_inter(nx*ny*(nz-1)*3))
-icount=0
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = abs(u(i,j,k)) / dx
-    enddo
-  enddo
-enddo
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = abs(v(i,j,k)) / dy
-    enddo
-  enddo
-enddo
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = abs(w(i,j,k)) / dz
-    enddo
-  enddo
-enddo
+!cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
+!                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
+!                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
+cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
+cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
-$endif
-
-$if($PGI)
-cfl = maxval( u_inter )
-deallocate( u_inter )
-$else
-cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
-                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
-                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
-$endif
-
-cfl = dt * cfl
+cfl = dt * maxval( (/ cfl_u, cfl_v, cfl_w /) )
 
 $if($MPI)
 call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm, ierr)
@@ -87,54 +53,22 @@ implicit none
 
 real(rprec), intent(OUT) :: dt
 
-$if($PGI)
-integer :: i, j, k, icount
-real(rprec), allocatable, dimension(:) :: u_inter
-$endif
+! dt inverse
+real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
 
 $if($MPI)
 real(rprec) :: dt_buf
 $endif
 
-$if($PGI)
-allocate(u_inter(nx*ny*(nz-1)*3))
-icount=0
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = dx / abs(u(i,j,k))
-    enddo
-  enddo
-enddo
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = dy / abs(v(i,j,k))
-    enddo
-  enddo
-enddo
-do k=1,nz-1
-  do j=1,ny
-    do i=1,nx
-      icount = icount + 1
-      u_inter(icount) = dz / abs(w(i,j,k))
-    enddo
-  enddo
-enddo
-$endif
+!dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
+!                dy / abs(v(1:nx,1:ny,1:nz-1)), &
+!                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
+! Avoid division by computing max dt^-1
+dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+dt_inv_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy 
+dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
-$if($PGI)
-dt = minval( u_inter )
-deallocate(u_inter)
-$else
-dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
-                dy / abs(v(1:nx,1:ny,1:nz-1)), &
-                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
-$endif
-
-dt = cfl * dt
+dt = cfl / maxval( (/ dt_inv_u, dt_inv_v, dt_inv_w /) )
 
 $if($MPI)
 call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, comm, ierr)

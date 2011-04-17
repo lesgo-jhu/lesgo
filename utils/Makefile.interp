@@ -7,31 +7,19 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-include Makefile.in
+include ../Makefile.in
 
-EXE = cyl_skew_pre_ls
+EXE = interp
 
-SRCS = 	cyl_skew_base_ls.f90 cyl_skew_ls.f90 \
-	cyl_skew_pre_ls.f90 param.f90 \
-        types.f90 messages.f90 strmod.f90
-
-RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
-
-ifeq ($(USE_MPI), yes)
-  SRCS += mpi_defs.f90
-endif
-
-#ifeq ($(USE_RNS_LS), yes)
-#        SRCS += $(RNS_LS_SRCS)
-#endif
+SRCS =  interp.f90
 
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
-include .depend_cspl
+include .depend_interp
 
-.depend_cspl: $(SRCS)
+.depend_interp: $(SRCS)
 	mkdir -p $(OPATH) $(MPATH);
-	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend_cspl
+	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend_interp
         
 .PHONY : clean
 clean:

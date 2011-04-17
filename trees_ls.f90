@@ -1714,7 +1714,9 @@ bboxpt_loop: do ipt = 1, br % nbboxpt
 
     end if
 
+    $if($DEBUG)
     if (DEBUG) ftot = ftot + (/ fx(i, j, k), fy(i, j, k), fz(i, j, k) /)
+    $endif
 
 end do bboxpt_loop
 

@@ -9,10 +9,16 @@ use types, only : rprec
 save
 private
 
-public :: strcat
+public :: strcat, numtostr
 
 interface strcat
   module procedure strcat_aa, strcat_ai, strcat_ar
+end interface
+
+! Explicit interface for overloaded function to convert
+! reals and integer to strings
+interface numtostr
+  module procedure numtostr_r, numtostr_i
 end interface
 
 character(*), parameter :: int_fmt='(i0)'
@@ -65,6 +71,63 @@ call strcat(str1,trim(adjustl(str2)))
 
 return
 end subroutine strcat_ar
+
+!**********************************************************************
+function numtostr_r( a, n ) result(c)
+!**********************************************************************
+!
+! This function converts the real variable a to a string b
+!
+! Inputs
+! a : real, scalar value to convert
+! n : length of string to return 
+!
+implicit none
+
+real(rprec), intent(in) :: a
+integer, intent(in) :: n
+integer, parameter :: l=2*kind(a)+2
+character(l) :: b
+character(n) :: c
+character(25) :: fmt
+
+write(*,*) 'a : ', a
+write( fmt, '("(f",i0,".",i0,")")' ) l, l/2
+write(*,*) 'fmt : ', fmt
+
+write(b,fmt) a
+write(*,*) 'b : ', b
+
+b = trim(adjustl(b))
+c = b(:n)
+write(*,*) 'c : ', c
+return
+end function numtostr_r
+
+!**********************************************************************
+function numtostr_i( a, n ) result(c)
+!**********************************************************************
+!
+! This function converts the real variable a to a string b
+!
+! Inputs
+! a : real, scalar value to convert
+! n : length of string to return 
+!
+implicit none
+
+integer, intent(in) :: a
+integer, intent(in) :: n
+integer, parameter :: l = 2*kind(a)+2
+character(l) :: b
+character(n) :: c
+
+write(b,'(i0)') a
+b = adjustl(b)
+c = b(:n)
+
+return
+end function numtostr_i
 
 !!**********************************************************************
 !subroutine strcat_aai(str1, str2, i1)
