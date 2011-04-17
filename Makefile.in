@@ -82,12 +82,17 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback -warn nointerfaces
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3 -fPIC
-  FFLAGS += -warn all -mcmodel=medium -shared-intel
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3
+
+  # Work around for real -> complex dummy array assignment
+  FFLAGS += -warn nointerfaces
   # Fix segmentation faults (stack overflows)
   FFLAGS += -heap-arrays
+
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
+
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
