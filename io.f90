@@ -1990,8 +1990,6 @@ call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TSTATS, down, 1,  &
                    comm, status, ierr)
 
 if( coord == 0 ) then 
-! All processes need to allocate memory to avoid segmentation
-! fault in MPI gather calls
 
   !  Allocate space only on base processor for assembled z-plane data
   ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
