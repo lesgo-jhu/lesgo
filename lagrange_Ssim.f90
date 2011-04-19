@@ -240,7 +240,7 @@ do jz = 1,nz
     ! Update running averages (F_LM, F_MM, F_ee2, F_deedt2)
         ! Determine averaging timescale 
             $if ($DYN_TN)   ! based on Taylor timescale
-                Tn = sqrt(2._rprec*F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
+                Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
             $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
                 Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), eps)
                 Tn = opftdelta*(Tn**powcoeff)    

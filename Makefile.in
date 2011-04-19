@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = gfortran
+FCOMP = ifort
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
@@ -48,7 +48,7 @@ USE_DYNALLOC = no
 
 # Set pressure correction scheme
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
-USE_PC_SCHEME = PC_SCHEME_2
+USE_PC_SCHEME = DEFAULT
 
 USE_LVLSET = no
   SMOOTH_VEL = no
@@ -84,15 +84,12 @@ ifeq ($(FCOMP),ifort)
   LIBS += -lfcgaml-intel -lftecio-intel
   FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -O3
-
+  #FFLAGS = -axSSE4.2 -ftz -ip -O3
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
   # Work around for real -> complex dummy array assignment
   FFLAGS += -warn nointerfaces
   # Fix segmentation faults (stack overflows)
   FFLAGS += -heap-arrays
-
-  FFLAGS += -warn all -mcmodel=medium -shared-intel
-
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
