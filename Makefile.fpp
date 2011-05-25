@@ -65,7 +65,11 @@ endif
 
 ifeq ($(USE_PC_SCHEME), PC_SCHEME_2)
   FPP += -DPC_SCHEME_2
-endif  
+endif 
+
+ifeq ($(USE_PC_SCHEME), PC_SCHEME_3)
+  FPP += -DPC_SCHEME_3
+endif
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
