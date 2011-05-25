@@ -19,7 +19,7 @@ $if ($MPI)
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
+use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel, level_set_vel_err
   
   $if ($CYL_SKEW_LS)
   !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
@@ -635,6 +635,10 @@ do jt=1,nsteps
     $endif
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
+
+    $if($LVLSET)
+    if( (modulo( jt, 10 ) == 0) .and. (jt >= 5000) ) call level_set_vel_err()
+    $endif
           
     ! Write output files
     call output_loop (jt)  

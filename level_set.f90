@@ -27,6 +27,7 @@ public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
 public :: level_set_cylinder_CD
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
+public :: level_set_vel_err
 
 character (*), parameter :: mod_name = 'level_set'
 
@@ -80,6 +81,123 @@ real (rp) :: udes(ld, ny, $lbz:nz), vdes(ld, ny, $lbz:nz), wdes(ld, ny, $lbz:nz)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+!**********************************************************************
+subroutine level_set_vel_err() 
+!**********************************************************************
+!
+!  This subroutine computes the error in the final velocity field (u^{m+1})
+!  with respect to the desired IBM velocity (here zero). The averaged 
+!  value is written to file
+!
+use types, only : rprec
+use param, only : nx, ny, nz, total_time
+use sim_param, only : u, v, w
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+$endif
+implicit none
+
+include 'tecio.h'
+
+character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
+character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
+
+integer :: i,j,k
+integer :: uv_err_navg, w_err_navg
+real(rprec) :: u_err, v_err, w_err
+$if($MPI)
+real(rprec) :: u_err_global, v_err_global, w_err_global
+$endif
+
+!  Initialize values
+uv_err_navg = 0
+w_err_navg = 0 
+u_err = 0._rprec
+v_err = 0._rprec
+w_err = 0._rprec
+
+!  Sum over bottom plane
+k=1
+do j=1, ny
+  do i=1, nx
+
+    if( phi(i,j,k) <= 0._rprec ) then
+      uv_err_navg = uv_err_navg + 1
+      u_err = u_err + abs( u(i,j,k) )
+      v_err = v_err + abs( v(i,j,k) )
+    endif
+
+  enddo
+enddo
+
+!  Sum over rest of planes
+do k=2, nz-1
+  do j=1, ny
+    do i=1, nx
+
+      if( phi(i,j,k) <= 0._rprec ) then
+        uv_err_navg = uv_err_navg + 1
+        u_err = u_err + abs( u(i,j,k) )
+        v_err = v_err + abs( v(i,j,k) )
+      endif
+
+
+      if( phi(i,j,k) + phi(i,j,k-1) <= 0._rprec ) then
+        w_err_navg = w_err_navg + 1
+        w_err = w_err + abs( w(i,j,k) )
+      endif
+      
+    enddo
+  enddo
+enddo
+
+if( uv_err_navg == 0 ) then
+  u_err = 0._rprec
+  v_err = 0._rprec
+else
+  u_err = u_err / uv_err_navg
+  v_err = v_err / uv_err_navg
+endif
+
+if( w_err_navg == 0 ) then
+  w_err = 0._rprec
+else
+  w_err = w_err / w_err_navg
+endif
+
+$if( $MPI )
+
+  call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  call mpi_reduce (w_err, w_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+
+  if( rank == 0 ) then
+  
+    u_err = u_err_global / nproc
+    v_err = v_err_global / nproc
+    w_err = w_err_global / nproc
+
+    call write_real_data(fname_write, 'append', 'formatted', 2, &
+                         (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+
+  endif
+
+$else
+
+call write_real_data(fname_write, 'append', 'formatted', 2, &
+                     (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+
+$endif
+
+
+
+
+
+return
+end subroutine level_set_vel_err
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--sets Cs2 to epsilon inside solid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4418,7 +4536,8 @@ end subroutine level_set_force_z
 end subroutine level_set_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--calculated centered differences, excetp 1-sided differences at edges
+!--calculated centered differences, excetp 1-sided differences at top and
+!--bottom edges
 !--this assumes f(:, :, nz) is valid
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4590,7 +4709,7 @@ end subroutine fix_norm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--uses centered finite differences to calculate unit normal from 
 !  the signed distance function
-!--uses 1-sided finite differences near boundaries
+!--uses 1-sided finite differences near top and bottom boundaries
 !--not caring about speed too much here
 !--always returns a unit vector
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
