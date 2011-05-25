@@ -210,10 +210,20 @@ do jt=1,nsteps
     RHSy_f = RHSy
     RHSz_f = RHSz
 
-    ! Reset applied force arrays
-    fxa = 0._rprec
-    fya = 0._rprec
-    fza = 0._rprec
+    $if($PC_SCHEME_1 or $PC_SCHEME_3)
+    ! Save previous pressure gradient
+    ! Updated PC
+    dpdx_f = dpdx
+    dpdy_f = dpdy
+    dpdz_f = dpdz
+    $endif    
+
+    $if($PC_SCHEME_3)
+    ! Set values at time step m
+    fx_f = fx
+    fy_f = fy
+    fz_f = fz
+    $endif
 
     ! Compute scalars and __? 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
@@ -439,7 +449,8 @@ do jt=1,nsteps
     call forcing_induced ()
     $endif
 
-     !  Applied forcing (forces are added to RHS{x,y,z})
+    !  Applied forcing (forces are added to RHS{x,y,z})
+    !  In some cases f*a are dependent on f* (induced)
     call forcing_applied()
 
     !  Update RHS with applied forcing
@@ -470,17 +481,17 @@ do jt=1,nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
-    $elseif($PC_SCHEME_1)
+    $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
     ! Updated PC
     u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
-                            tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx(:,:,1:nz-1) + fx(:,:,1:nz-1))
+                            tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx_f(:,:,1:nz-1) + fx(:,:,1:nz-1))
     v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
-                            tadv2 * RHSy_f(:, :, 1:nz-1) - dpdy(:,:,1:nz-1) + fy(:,:,1:nz-1))
+                            tadv2 * RHSy_f(:, :, 1:nz-1) - dpdy_f(:,:,1:nz-1) + fy(:,:,1:nz-1))
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
-                            tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz(:,:,1:nz-1) + fz(:,:,1:nz-1))
+                            tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz_f(:,:,1:nz-1) + fz(:,:,1:nz-1))
 
     $elseif($PC_SCHEME_2)
     ! Updated PC-2
@@ -519,14 +530,6 @@ do jt=1,nsteps
         call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
         call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
     end if
-    $endif
-
-    $if($PC_SCHEME_1)
-    ! Save previous pressure gradient
-    ! Updated PC
-    dpdx_f = dpdx
-    dpdy_f = dpdy
-    dpdz_f = dpdz
     $endif
 
     ! Solve Poisson equation for pressure

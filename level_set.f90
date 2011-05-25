@@ -4230,6 +4230,7 @@ subroutine level_set_forcing ()
 use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
 use immersedbc, only : fx, fy, fz
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
@@ -4247,11 +4248,6 @@ real (rp) :: Rx, Ry, Rz
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
-
-! Initialize
-fx = 0._rprec
-fy = 0._rprec
-fz = 0._rprec
 
 !--this is experimental
 if (vel_BC) then
@@ -4338,10 +4334,10 @@ if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
   fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
   fy(i, j, k) = (-v(i, j, k)/dt - Ry)
 
-  $elseif($PC_SCHEME_1)
+  $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
   ! Updated PC
-  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx(i,j,k))
-  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy(i,j,k))
+  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx_f(i,j,k))
+  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy_f(i,j,k))
 
   $elseif($PC_SCHEME_2)
   ! Updated PC-2
@@ -4390,9 +4386,9 @@ if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
   Rz = -tadv1 * dpdz(i, j, k)
   fz(i, j, k) = (-w(i, j, k)/dt - Rz)
 
-  $elseif($PC_SCHEME_1)
+  $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
   ! Updated PC
-  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz(i,j,k))
+  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz_f(i,j,k))
 
   $elseif($PC_SCHEME_2)
   ! Update PC-2

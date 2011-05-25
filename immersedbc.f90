@@ -7,9 +7,20 @@ public n_bldg,bldg_pts,fx,fy,fz,fxa,fya,fza, &
        u_des,v_des,w_des, &
        building_mask,building_interp,building_mask_one,building_interp_one, &
        wallstress_building,walldudx_building
+
+$if($PC_SCHEME_3)       
+public fx_f, fy_f, fz_f
+$endif 
+
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
-real(kind=rprec),dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
+real(kind=rprec),dimension(ld,ny,nz)::fx,fy,fz
+real(kind=rprec),dimension(ld,ny,nz)::u_des,v_des,w_des
+
+$if($PC_SCHEME_3)
+real(kind=rprec),dimension(ld,ny,nz) :: fx_f, fy_f, fz_f
+$endif
+
 ! Added for use with applied forces
 real(kind=rprec),dimension(ld,ny,nz) :: fxa, fya, fza
 

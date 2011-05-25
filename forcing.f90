@@ -7,6 +7,9 @@ subroutine forcing_applied()
 !  which are explicitly applied forces. These forces are applied to RHS 
 !  in the evaluation of u* so that mass conservation is preserved.
 !
+use types, only : rprec
+use immersedbc, only : fxa, fya, fza
+
 $if ($LVLSET)
 $if ($RNS_LS)
 use rns_ls, only : rns_forcing_ls
@@ -18,6 +21,11 @@ use turbines, only:turbines_forcing
 $endif
 
 implicit none
+
+! Reset applied force arrays
+fxa = 0._rprec
+fya = 0._rprec
+fza = 0._rprec
 
 $if ($LVLSET)
 $if ($RNS_LS)
@@ -43,9 +51,7 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-!use param
-!use sim_param
-!use immersedbc
+use immersedbc, only : fx, fy, fz
 $if ($LVLSET)
 use level_set, only : level_set_forcing
 $if($RNS_LS)
@@ -56,6 +62,12 @@ $if ($TREES_LS)
 $endif
 $endif
 implicit none
+
+
+! Initialize
+fx = 0._rprec
+fy = 0._rprec
+fz = 0._rprec
 
 !real (rprec) :: Rx, Ry, Rz 
 
@@ -97,18 +109,18 @@ $if($LVLSET)
 !  Compute the level set IBM forces
 call level_set_forcing ()
 
-$if($RNS_LS)
-!  Compute the relavent force information ( include reference quantities, CD, etc.)
-!  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-!  made here.
-call rns_elem_force_ls()
-$endif
+  $if($RNS_LS)
+  !  Compute the relavent force information ( include reference quantities, CD, etc.)
+  !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+  !  made here.
+  call rns_elem_force_ls()
+  $endif
 
-$if($TREES_LS)
-!--this must come after call to level_set_forcing
-!--in /a posteriori/ test, this adds SGS branch force
-!--in /a priori/ test, this does not modify force
-call trees_ls_calc ()
+  $if($TREES_LS)
+  !--this must come after call to level_set_forcing
+  !--in /a posteriori/ test, this adds SGS branch force
+  !--in /a priori/ test, this does not modify force
+  call trees_ls_calc ()
 $endif
 
 $endif
@@ -302,6 +314,12 @@ do jz = 1, nz - 1
       RHS = dt * dpdy(jx, jy, jz)
       v(jx, jy, jz) = v(jx, jy, jz) - RHS
 
+      $elseif($PC_SCHEME_3)
+      RHS = 0.5_rprec * dt * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz) + fx(jx,jy,jz) - fx_f(jx,jy,jz))
+      u(jx, jy, jz) = u(jx, jy, jz) - RHS
+      RHS = 0.5_rprec * dt * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz) + fy(jx,jy,jz) - fy_f(jx,jy,jz))
+      v(jx, jy, jz) = v(jx, jy, jz) - RHS
+
       $else
 
       call error(sub_name,'Makefile pressure correction scheme not specified properly')
@@ -349,6 +367,10 @@ do jz = jz_min, nz - 1
       $elseif($PC_SCHEME_2)
       ! Updated PC-2
       RHS = dt * dpdz(jx, jy, jz)
+      w(jx, jy, jz) = w(jx, jy, jz) - RHS
+
+      $elseif($PC_SCHEME_3)
+      RHS = 0.5_rprec * dt * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz) + fz(jx,jy,jz) - fz_f(jx,jy,jz))
       w(jx, jy, jz) = w(jx, jy, jz) - RHS
  
       $else
