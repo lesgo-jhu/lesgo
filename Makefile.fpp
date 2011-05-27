@@ -52,7 +52,7 @@ ifeq ($(USE_TREES_LS), yes)
 endif
 
 ifeq ($(USE_PC_SCHEME), DEFAULT)
-  FPP += -DPC_SCHEME_1
+  FPP += -DPC_SCHEME_0
 endif
 
 ifeq ($(USE_PC_SCHEME), PC_SCHEME_0)
