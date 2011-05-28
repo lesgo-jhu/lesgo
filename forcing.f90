@@ -51,6 +51,7 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
+use param, only : inflow, use_fringe_forcing
 use immersedbc, only : fx, fy, fz
 $if ($LVLSET)
 use level_set, only : level_set_forcing
@@ -125,9 +126,9 @@ $endif
 
 $endif
 
-!  Commented by JSG (2/3/11); still need to resolve fringe forcing
-!  with updated pressure correction scheme
-!if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
+!  Compute forces used to enforce velocity in fringe region
+!  Based on IBM forcing
+if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
 
 return
 end subroutine forcing_induced
@@ -159,9 +160,10 @@ end function fringe_blend
 subroutine inflow_cond ()
 !**********************************************************************
 !
-!  WARNING: NOT SURE IF THE FORCING PERFORMED HERE IS CORRECT WITH 
-!  UPDATED PRESSURE-CORRECTION SCHEME. PLEASE REVISIT BEFORE DOING
-!  SOMETHING STUPID (JSG 02/03/11)
+!  Enforces prescribed inflow condition. Options are either a uniform
+!  inflow velocity or an inlet velocity field generated from a precursor
+!  simulation. The inflow condition is enforced using either an IBM type
+!  forcing or by modulating directly the velocity in the fringe region.
 !
 use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
