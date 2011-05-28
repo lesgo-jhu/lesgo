@@ -62,13 +62,6 @@ real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
 
-! Check if read inflow from file is being specified; currently does not work
-if(inflow) then
-  write(*,*) 'Error: read inflow conditions from file has been specified!'
-  write(*,*) 'This capability does not currently work. Please set to false.'
-  stop
-endif
-
 ! Create output directory
 call system("mkdir -vp output")
 
