@@ -11,7 +11,7 @@ use types,only:rprec
 use param
 use sgsmodule
 use messages
-use grid_defs,only:grid_t !x,y,z
+use grid_defs,only:grid_t 
 use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -31,7 +31,9 @@ $endif
 
 real(rprec), dimension(3) :: xyz_past
 real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_LM, tempF_MM
+$if ($DYN_TN)
 real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
+$endif
 integer :: i,j,k,kmin,jz
 
 real (rprec) :: lcfl
