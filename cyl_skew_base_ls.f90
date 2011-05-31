@@ -25,7 +25,9 @@ real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
 
 ! kc-3
 !integer, parameter :: ntree = 8
-! vtree-2
+! vtree-2 
+!integer, parameter :: ntree = 2
+! vtree-3
 integer, parameter :: ntree = 4
 
 integer, parameter :: ngen = 10
@@ -33,7 +35,7 @@ integer, parameter :: ngen_reslv = 2
 
 ! kc-3
 !integer, parameter :: nbranch = 3
-! vtree-2
+! vtree-2, vtree-3
 integer, parameter :: nbranch = 2
 
 !  Make sure they are non-dimensional
@@ -148,7 +150,7 @@ allocate(origin(3,ntree))
 !origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
 !origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
 
-! vtree-2
+! vtree-2, vtree-3
 origin(:,1) = (/ L_x/8., 0.5*L_y, z_bottom_surf /)
 origin(:,2) = (/ 3.*L_x/8., 0.5*L_y, z_bottom_surf /)
 origin(:,3) = (/ 5.*L_x/8., 0.5*L_y, z_bottom_surf /)
