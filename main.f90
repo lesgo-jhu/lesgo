@@ -19,7 +19,8 @@ $if ($MPI)
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel, level_set_vel_err
+use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set_base, only : global_CD_calc
   
   $if ($CYL_SKEW_LS)
   !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
@@ -610,6 +611,11 @@ do jt=1,nsteps
 
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
+
+    $if ($LVLSET)
+      if( global_CD_calc ) call level_set_global_CD ()
+    $endif
+
 
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
