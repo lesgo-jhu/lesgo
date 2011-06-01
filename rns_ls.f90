@@ -1091,9 +1091,12 @@ end subroutine r_elem_force
 !**********************************************************************
 subroutine r_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
@@ -1165,9 +1168,12 @@ end subroutine r_elem_data_write
 !**********************************************************************
 subroutine beta_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
@@ -1254,9 +1260,11 @@ end subroutine beta_elem_data_write
 !**********************************************************************
 subroutine b_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
