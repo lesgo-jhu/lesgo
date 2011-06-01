@@ -314,8 +314,10 @@ use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use grid_defs, only : grid_t
 use sim_param, only : u,v,w,dudx,dvdy,dwdz
+$if($DEBUG)
 use sim_param, only : p, dpdx, dpdy, dpdz
 use sim_param, only : RHSx, RHSy, RHSz
+$endif
 use stat_defs, only : xplane_t, yplane_t, zplane_t, point_t
 $if($MPI)
 use mpi
@@ -350,9 +352,9 @@ $if($LVLSET)
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 $endif
 
-!$if($DEBUG)
+$if($DEBUG)
 real(rprec), allocatable, dimension(:,:,:) :: divvel
-!$endif
+$endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
@@ -459,6 +461,8 @@ elseif(itype==2) then
   
   $endif
 
+  $if($DEBUG)
+
   !$if($DEBUG)
   !if(DEBUG) then
   !  Output divergence of velocity field
@@ -556,6 +560,8 @@ elseif(itype==2) then
   (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
   call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
   (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
+  $endif
+
   $endif
 
 
@@ -822,7 +828,9 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
+$if($LVLSET or $DEBUG)
 contains
+$endif
 
 $if($LVLSET)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -863,6 +871,7 @@ return
 end subroutine force_tot
 $endif
 
+$if($DEBUG)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine pressure_sync()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -920,6 +929,7 @@ $endif
 
 return
 end subroutine RHS_sync
+$endif
 
 end subroutine inst_write
 
