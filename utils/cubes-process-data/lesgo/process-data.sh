@@ -12,7 +12,7 @@ Nx=64; XMIN=0; XMAX=8.0
 Ny=32; YMIN=0; YMAX=4.0
 Nz=29; ZMIN=0.0625; ZMAX=3.5625
 
-# Velocity spatial scale
+# Velocity spatial scale (DON'T TOUCH)
 Us=0.4
 Vs=1.2
 
