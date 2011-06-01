@@ -1,0 +1,54 @@
+#!MC 1200
+# Created by Tecplot 360 build 12.2.0.9077
+$!VarSet |MFBD| = '.'
+$!READDATASET  '"|MFBD|/mu__0101.dat" "|MFBD|/mu__0201.dat" "|MFBD|/mu__0301.dat" "|MFBD|/mu__0401.dat" "|MFBD|/mu__0501.dat" '
+  READDATAOPTION = NEW
+  RESETSTYLE = YES
+  INCLUDETEXT = NO
+  INCLUDEGEOM = NO
+  INCLUDECUSTOMLABELS = NO
+  VARLOADMODE = BYNAME
+  ASSIGNSTRANDIDS = YES
+  INITIALPLOTTYPE = XYLINE
+  VARNAMELIST = '"V1" "V2"'
+$!ALTERDATA 
+  EQUATION = '{H}=15'
+$!ALTERDATA 
+  EQUATION = '{Ur}=5.04985'
+$!ALTERDATA 
+  EQUATION = '{z}=V1/{H}'
+$!ALTERDATA 
+  EQUATION = '{<u>}=V2/{Ur}'
+$!ALTERDATA 
+  EQUATION = '{Us} = 0.4'
+$!ALTERDATA 
+  EQUATION = '{Vs} = 0.8'
+$!ALTERDATA 
+  EQUATION = '{alpha_U} = {Us}'
+$!ALTERDATA 
+  EQUATION = '{alpha_V} = {Vs}'
+$!ALTERDATA 
+  EQUATION = '{<u>s}=0.0'
+$!ALTERDATA  [1]
+  EQUATION = '{<u>s} = {alpha_U} * {<u>} - 0.3 '
+$!ALTERDATA  [2]
+  EQUATION = '{<u>s} = {alpha_U} * {<u>} + 0.3 '
+$!ALTERDATA  [3]
+  EQUATION = '{<u>s} = {alpha_U} * {<u>} + 1.3 '
+$!ALTERDATA  [4]
+  EQUATION = '{<u>s} = {alpha_U} * {<u>} + 1.7 '
+$!ALTERDATA  [5]
+  EQUATION = '{<u>s} = {alpha_U} * {<u>} + 2.3 '
+$!WRITEDATASET  "|MFBD|/u_scaled_y-0.dat"
+  INCLUDETEXT = NO
+  INCLUDEGEOM = NO
+  INCLUDECUSTOMLABELS = NO
+  INCLUDEDATASHARELINKAGE = NO
+  INCLUDEAUTOGENFACENEIGHBORS = YES
+  ASSOCIATELAYOUTWITHDATAFILE = NO
+  VARPOSITIONLIST =  [3-11]
+  BINARY = NO
+  USEPOINTFORMAT = NO
+  PRECISION = 9
+  TECPLOTVERSIONTOWRITE = TECPLOTCURRENT
+$!RemoveVar |MFBD|
