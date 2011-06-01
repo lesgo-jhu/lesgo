@@ -1,6 +1,6 @@
 #!MC 1200
 # Created by Tecplot 360 build 12.2.0.9077
-$!VarSet |MFBD| = '/home/jgraham/Data/lesgo/cubes-ibm/case6_2'
+$!VarSet |MFBD| = '.'
 $!READDATASET  '"|MFBD|/mw__0102.dat" "|MFBD|/mw__0202.dat" "|MFBD|/mw__0302.dat" "|MFBD|/mw__0402.dat" "|MFBD|/mw__0502.dat" '
   READDATAOPTION = NEW
   RESETSTYLE = YES
