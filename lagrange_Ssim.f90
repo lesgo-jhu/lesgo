@@ -70,11 +70,12 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
-opftdelta = opftime*delta
-powcoeff = -1._rprec/8._rprec
-lagran_dt=dt*real(cs_count,kind=rprec)
-const = 2._rprec*delta**2
+! Set coefficients
+    delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
+    opftdelta = opftime*delta
+    powcoeff = -1._rprec/8._rprec
+    lagran_dt=dt*real(cs_count,kind=rprec)
+    const = 2._rprec*delta**2
 
 $if ($LVLSET)
   call level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
@@ -99,13 +100,13 @@ do jz = 1,nz
         ! (except for very first level which should be on uvp-nodes)
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
             (jz == 1) ) then  ! uvp-nodes
-         u_bar(:,:) = u(:,:,1)
-         v_bar(:,:) = v(:,:,1)
-         w_bar(:,:) = .25_rprec*w(:,:,2)
+            u_bar(:,:) = u(:,:,1)
+            v_bar(:,:) = v(:,:,1)
+            w_bar(:,:) = .25_rprec*w(:,:,2)
        else  ! w-nodes
-         u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
-         v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
-         w_bar(:,:) = w(:,:,jz)
+            u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
+            v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
+            w_bar(:,:) = w(:,:,jz)
        end if
        
        ! First term before filtering (not the final value)
@@ -290,6 +291,7 @@ do jz = 1,nz
             count_all = count_all + 1
         enddo
         enddo
+        ! Clip Cs if necessary
         Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz)) 
    
     ! Write average Tn for this level to file
