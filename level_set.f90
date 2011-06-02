@@ -14,12 +14,6 @@ $endif
 use level_set_base
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 save
 private
 
@@ -27,6 +21,7 @@ public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
 public :: level_set_cylinder_CD
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
+public :: phi
 
 character (*), parameter :: mod_name = 'level_set'
 
@@ -67,6 +62,29 @@ real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
+
+logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
+                                       !  level set BC
+logical, parameter :: use_log_profile = .false.
+logical, parameter :: use_enforce_un = .false.
+logical, parameter :: physBC = .true.
+logical, parameter :: use_smooth_tau = .true.
+logical, parameter :: use_extrap_tau_log = .false.
+logical, parameter :: use_extrap_tau_simple = .true.
+logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; not MPI compliant
+                                                  !--wont work w/extra_tau_log
+
+real (rp), parameter :: z0 = 0.0001_rp
+                        !--nondimensional roughness length of surface
+
+logical :: phi_cutoff_is_set = .false.
+logical :: phi_0_is_set = .false.
+
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
 $endif
 
 real (rp) :: phi_cutoff
