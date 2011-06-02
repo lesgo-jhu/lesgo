@@ -16,7 +16,7 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
+  $define $NPROC 8
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -59,10 +59,9 @@ module param
   ! 2x1 coarse
   !integer,parameter:: nx=64,ny=32,nz=(28)/nproc + 1 
   ! 2x2 coarse
-  integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
-  !integer, parameter :: nx=256, ny=nx, nz=nx
+  !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
   ! 3x3 coarse
-  !integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
+  integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
   !integer, parameter :: nx=64, ny=64, nz=57
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
