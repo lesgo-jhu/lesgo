@@ -2688,16 +2688,14 @@ call exit_sub (sub_name)
 $endif
 
 end subroutine level_set_smooth_vel
- 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--smoothes in-place, so be careful
 !--uses SOR for laplace equation to acheive smoothing
 !--only smoothes region phi < phi0
-!--Used to NOT work near boundaries (of grid), but does now as
-!--autowrapping of points has been added
+!--does NOT work near boundaries (of grid)!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -2718,23 +2716,13 @@ integer :: nnbr  !--number of neighbors
 integer :: iter
 integer :: kmin, kmax
 
-integer, pointer, dimension(:) :: autowrap_i, autowrap_j
-
 real (rp) :: phi1
 real (rp) :: update
 
-! For autowrapping points: im1 = i-1, ip1 = i+1, etc.
-real(rp) :: im1, ip1, jm1, jp1
-
 !---------------------------------------------------------------------
-nullify(autowrap_i, autowrap_j)
-
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
-
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
 
 if (present (node)) then
 
@@ -2764,8 +2752,8 @@ end select
 do iter = 1, niter
   
   do k = kmin, kmax
-    do j = 1, ny
-      do i = 1, nx
+    do j = 2, ny-1
+      do i = 2, nx-1
 
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
              (k == s) ) then
@@ -2777,21 +2765,15 @@ do iter = 1, niter
 
         if (phi1 < phi0) then  !--note its less than
 
-          !  Autowrap boundary points
-          im1 = autowrap_i(i-1)
-          ip1 = autowrap_i(i+1)
-          jm1 = autowrap_j(j-1)
-          jp1 = autowrap_j(j+1)
-
           select case (mode)
             case ('xy')
               nnbr = 4
-              update = (a(im1, j, k) + a(ip1, j, k) +     &
-                        a(i, jm1, k) + a(i, jp1, k)) / nnbr
+              update = (a(i-1, j, k) + a(i+1, j, k) +     &
+                        a(i, j-1, k) + a(i, j+1, k)) / nnbr
             case ('3d')
               nnbr = 6
-              update = (a(im1, j, k) + a(ip1, j, k) +     &
-                        a(i, jm1, k) + a(i, jp1, k) +     &
+              update = (a(i-1, j, k) + a(i+1, j, k) +     &
+                        a(i, j-1, k) + a(i, j+1, k) +     &
                         a(i, j, k-1) + a(i, j, k+1)) / nnbr
             case default
               call error (sub_name, 'invalid mode =' // mode)
@@ -2806,8 +2788,6 @@ do iter = 1, niter
   end do
 
 end do
-
-nullify(autowrap_i, autowrap_j)
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -4377,10 +4357,11 @@ end subroutine level_set_forcing
 !--this assumes f(:, :, nz) is valid
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-real(rp) function safe_cd (i, j, k, d, f)
+function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz  !--in addition to those above
-use grid_defs, only : grid_t ! autowrap_i, autowrap_j
 implicit none
+
+real (rp) :: safe_cd
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
@@ -4390,61 +4371,46 @@ character (*), parameter :: sub_name = mod_name // '.safe_cd'
 
 integer :: n
 
-integer, pointer, dimension(:) :: autowrap_i, autowrap_j
-
 real (rp) :: delta
-
-nullify( autowrap_i, autowrap_j )
-
-autowrap_i => grid_t % autowrap_i  
-autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 
 select case (d)
   case (1)
+    n = nx
     delta = dx
 
-    !  Commented (JSG)
-    !n = nx
-    !if (i == 1) then
+    if (i == 1) then
 
-    !  safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
+      safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
 
-    !else if (i == n) then
+    else if (i == n) then
 
-    !  safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
+      safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
 
-    !else
+    else
 
-    !  safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
+      safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
 
-    !end if
-
-    !  Using autowrap to take care of edges
-    safe_cd = ( f(autowrap_i(i + 1), j, k) - f(autowrap_i(i - 1), j, k) ) / (2._rp * delta)
+    end if
     
   case (2)
- 
+    n = ny
     delta = dy
-    !  Commented (JSG)
-    ! n = ny
-    !if (j == 1) then
 
-    !  safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
+    if (j == 1) then
 
-    !else if (j == n) then
+      safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
 
-    !  safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
+    else if (j == n) then
 
-    !else
+      safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
 
-    !  safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
+    else
 
-    !end if
+      safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
 
-    !  Using autowrap to take care of edges
-    safe_cd = ( f(i, autowrap_j(j + 1), k) - f(i, autowrap_j(j - 1), k) ) /  (2._rp * delta)
+    end if
 
   case (3)
     n = nz
@@ -4473,8 +4439,6 @@ select case (d)
   case default
     call error (sub_name, 'invalid d =', d)
 end select
-
-nullify( autowrap_i, autowrap_j )
 
 end function safe_cd
 
