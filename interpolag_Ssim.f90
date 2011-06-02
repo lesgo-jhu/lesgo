@@ -174,7 +174,8 @@ z => grid_t % z
 
 ! Reset Lagrangian u/v/w variables for use during next set of cs_counts
     u_lag = 0._rprec;    v_lag = 0._rprec;    w_lag = 0._rprec
-
+    lagran_dt = 0._rprec
+    
 $if ($VERBOSE)
 call exit_sub (sub_name)
 $endif
