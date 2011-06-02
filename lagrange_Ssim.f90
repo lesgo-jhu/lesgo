@@ -10,7 +10,7 @@ subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all
+use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
 use test_filtermodule
 use messages
 use grid_defs
@@ -54,7 +54,7 @@ real(kind=rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
 real(kind=rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
 real(kind=rprec), dimension(ld,ny) :: S
 real(kind=rprec) :: delta,const
-real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
+real(kind=rprec) :: opftdelta,powcoeff
 
 character (64) :: fnamek, tempk
 
@@ -74,7 +74,6 @@ $endif
     delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
     opftdelta = opftime*delta
     powcoeff = -1._rprec/8._rprec
-    lagran_dt=dt*real(cs_count,kind=rprec)
     const = 2._rprec*delta**2
 
 $if ($LVLSET)

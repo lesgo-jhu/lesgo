@@ -12,7 +12,7 @@ subroutine lagrange_Sdep(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgsmodule,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime
+use sgsmodule,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
 use test_filtermodule
 use immersedbc,only:n_bldg,bldg_pts,building_interp
 $if ($DYN_TN)
@@ -59,7 +59,7 @@ real(kind=rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
 real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 
 real(kind=rprec) :: delta,const
-real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
+real(kind=rprec) :: opftdelta,powcoeff
 
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
@@ -73,7 +73,6 @@ $endif
     delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
     opftdelta = opftime*delta
     powcoeff = -1._rprec/8._rprec
-    lagran_dt=dt*real(cs_count,kind=rprec)
     fractus= 1._rprec/real(ny*nx,kind=rprec)
     const = 2._rprec*(delta**2)
     tf1=2._rprec
