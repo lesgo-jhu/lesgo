@@ -7,6 +7,10 @@ subroutine ic()
   $if ($TURBINES)
     use turbines, only: turbine_vel_init
   $endif 
+
+  $if($LVLSET)
+  use level_set_base, only : phi
+  $endif
   
   implicit none
 
@@ -17,6 +21,10 @@ subroutine ic()
   $if ($TURBINES)
     real(rprec) :: zo_turbines
   $endif    
+
+  $if($LVLSET)
+  real(rprec) :: phi_p
+  $endif
   
   integer::jx,jy,jz,seed
   integer :: jz_abs
@@ -45,7 +53,10 @@ subroutine ic()
 
   else 
 
-     w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
+     !w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
+     w_star = u_star
+     
+
      !      T_star=wt_s/w_star
      !      q_star=T_star
 
@@ -97,6 +108,7 @@ subroutine ic()
      !  return
      !end if
 
+
      rms = 3._rprec
      do jz=1,nz
         $if ($MPI)
@@ -126,6 +138,7 @@ subroutine ic()
                  noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
                  w(jx,jy,jz)=noise*w_star/u_star*.01_rprec
               end if
+
            end do
         end do
      end do
@@ -145,6 +158,31 @@ subroutine ic()
      end if
 
   end if
+
+  $if($LVLSET)
+  do jz=1,nz
+    do jy=1,ny
+      do jx=1,nx
+
+        !  Set velocity to zero inside objects
+        !  Create parabolic weighting near wall
+        phi_p = phi(jx,jy,jz)
+        if(phi_p < 1._rprec) then
+          if(phi_p < 0._rprec) then
+            u(jx,jy,jz) = 0._rprec
+            v(jx,jy,jz) = 0._rprec
+            w(jx,jy,jz) = 0._rprec
+          else
+            u(jx,jy,jz) = u(jx,jy,jz) * phi_p**2
+            v(jx,jy,jz) = v(jx,jy,jz) * phi_p**2
+            w(jx,jy,jz) = w(jx,jy,jz) * phi_p**2
+          endif
+        endif
+      enddo
+    enddo
+  enddo
+  $endif
+
 
   !VK Display the mean vertical profiles of the initialized variables on the
   !screen

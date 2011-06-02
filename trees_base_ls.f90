@@ -23,6 +23,7 @@ integer, parameter :: nzone = 1  ! # of averaging zones for dyn. Cd
 integer, parameter :: tree_node = 1  ! trees based on u, v, or w nodes
 
 !--specify force model to be used
+!--
 $define $fmodel nba
                 !--d, d_germano, dls, nba
 $if ($fmodel eq "d")

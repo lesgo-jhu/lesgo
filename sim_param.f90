@@ -55,6 +55,11 @@ real (rprec), dimension (ld, ny, $lbz:nz) :: dudx, dudy, dudz,    &
 real (rprec), dimension (ld, ny, nz) :: dpdx=0._rprec,  &
                                         dpdy=0._rprec,  &
                                         dpdz=0._rprec
+$if($PC_SCHEME_1 or $PC_SCHEME_3)
+real(rprec), dimension (ld, ny, nz) :: dpdx_f=0._rprec, &
+                                       dpdy_f=0._rprec, &
+                                       dpdz_f=0._rprec
+$endif
 
 real (rprec), dimension (ld, ny, $lbz:nz) :: txx, txy, tyy
 real (rprec), dimension (ld, ny, $lbz:nz) :: txz, tyz, tzz

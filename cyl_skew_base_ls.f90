@@ -2,7 +2,7 @@
 module cyl_skew_base_ls
 !**********************************************************************
 use types, only : rprec
-use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz,z_i
 
 implicit none
 
@@ -20,32 +20,44 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 ! CYL_SKEW TREE PARAMETERS
 !--------------------------------------------------- 
 
-real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
-real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
+!real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
+!real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
+real(rprec), parameter :: zrot_angle = 0._rprec
+real(rprec), parameter :: skew_angle = 0._rprec
+
 
 ! kc-3
-integer, parameter :: ntree = 8
-! vtree-2
-!integer, parameter :: ntree = 2
+!integer, parameter :: ntree = 8
+! vtree-3
+integer, parameter :: ntree = 4
+! crossflow
+integer, parameter :: ntree = 1
 
-integer, parameter :: ngen = 10
-integer, parameter :: ngen_reslv = 2
+integer, parameter :: ngen = 1
+integer, parameter :: ngen_reslv = 1
 
 ! kc-3
-integer, parameter :: nbranch = 3
-! vtree-2
-!integer, parameter :: nbranch = 2
+!integer, parameter :: nbranch = 3
+! vtree-3
+integer, parameter :: nbranch = 2
 
-real(rprec), parameter :: d = 28.8_rprec*4._rprec/185._rprec
-real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)*4._rprec/185._rprec
-real(rprec), parameter :: offset = 9._rprec*4._rprec/185._rprec
+!  Make sure they are non-dimensional
+!  dm = 28.8 mm
+!  hm = 50.4 mm
+!  offset = 9 mm
+!real(rprec), parameter :: d = 28.8_rprec/z_i
+!real(rprec), parameter :: l = 50.4_rprec/cos(skew_angle)/z_i
+!real(rprec), parameter :: offset = 9._rprec/z_i
 
+real(rprec), parameter :: d = 1.
+real(rprec), parameter :: l = 16.
+real(rprec), parameter :: offset = 0.0
 real(rprec), parameter :: scale_fact = 0.5_rprec
 
-logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 0.2_rprec
+logical, parameter :: use_bottom_surf = .false. !  True for making a bottom surface
+real(rprec), parameter :: z_bottom_surf = -200._rprec ! Already in non-dimensional units
 
-logical, parameter :: filter_chi = .true.
+logical, parameter :: filter_chi = .false.
 real(rprec), parameter :: filt_width = 2._rprec*dx  !  Filter width for filtered indicator function
 
 !---------------------------------------------------
@@ -128,14 +140,14 @@ real(rprec), allocatable, dimension(:,:) :: origin
 allocate(origin(3,ntree))
 
 ! kc-3
-origin(:,1) = (/ L_x/4., L_y/2., z_bottom_surf /)
-origin(:,2) = (/ 3.*L_x/4., L_y/2., z_bottom_surf /)
-origin(:,3) = (/ L_x/2., L_y, z_bottom_surf /)
-origin(:,4) = (/ L_x/2., 0._rprec, z_bottom_surf /)
-origin(:,5) = (/ 0._rprec, L_y, z_bottom_surf /)
-origin(:,6) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-origin(:,7) = (/ L_x, L_y, z_bottom_surf /)
-origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
+!origin(:,1) = (/ L_x/4., L_y/2., z_bottom_surf /)
+!origin(:,2) = (/ 3.*L_x/4., L_y/2., z_bottom_surf /)
+!origin(:,3) = (/ L_x/2., L_y, z_bottom_surf /)
+!origin(:,4) = (/ L_x/2., 0._rprec, z_bottom_surf /)
+!origin(:,5) = (/ 0._rprec, L_y, z_bottom_surf /)
+!origin(:,6) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
+!origin(:,7) = (/ L_x, L_y, z_bottom_surf /)
+!origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
 
 ! kc-2
 !origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
@@ -144,9 +156,13 @@ origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
 !origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
 !origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
 
-! vtree-2
-!origin(:,1) = (/ L_x/4., 0.5*L_y, z_bottom_surf /)
-!origin(:,2) = (/ 3.*L_x/4., 0.5*L_y, z_bottom_surf /)
+! vtree-3
+!origin(:,1) = (/ L_x/8., 0.5*L_y, z_bottom_surf /)
+!origin(:,2) = (/ 3.*L_x/8., 0.5*L_y, z_bottom_surf /)
+!origin(:,3) = (/ 5.*L_x/8., 0.5*L_y, z_bottom_surf /)
+!origin(:,4) = (/ 7.*L_x/8., 0.5*L_y, z_bottom_surf /)
+
+origin(:,1) = (/ 5._rprec, 8._rprec, -4._rprec /)
 
 origin_out = origin(:,nt)
 

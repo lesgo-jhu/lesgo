@@ -7,11 +7,23 @@ public n_bldg,bldg_pts,fx,fy,fz,fxa,fya,fza, &
        u_des,v_des,w_des, &
        building_mask,building_interp,building_mask_one,building_interp_one, &
        wallstress_building,walldudx_building
+
+$if($PC_SCHEME_3)       
+public fx_f, fy_f, fz_f
+$endif 
+
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
-real(kind=rprec),dimension(ld,ny,nz)::fx,fy,fz,u_des,v_des,w_des
+real(kind=rprec),dimension(ld,ny,nz)::u_des,v_des,w_des
+real(kind=rprec),dimension(ld,ny,nz)::fx = 0._rprec ,fy = 0._rprec ,fz = 0._rprec
+
+
+$if($PC_SCHEME_3)
+real(kind=rprec),dimension(ld,ny,nz) :: fx_f = 0._rprec ,fy_f = 0._rprec ,fz_f = 0._rprec
+$endif
+
 ! Added for use with applied forces
-real(kind=rprec),dimension(ld,ny,nz) :: fxa, fya, fza
+real(kind=rprec),dimension(ld,ny,nz) :: fxa = 0._rprec ,fya = 0._rprec ,fza = 0._rprec
 
 logical,parameter::callag=.false.
 !--is this for the building or what?
@@ -25,7 +37,7 @@ implicit none
 integer::px,py,lx,ly,lz
 integer::i
 real(kind=rprec),dimension(ld,ny,nz),intent(inout)::u,v,w
-! this sets pressure grad's inside bldg's
+! this sets velocity in building to 0
 do i=1,n_bldg
    px=bldg_pts(1,i)
    py=bldg_pts(2,i)

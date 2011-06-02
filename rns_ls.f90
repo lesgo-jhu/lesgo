@@ -222,8 +222,8 @@ do n=1, nbeta_elem
   npoint_p => beta_elem_t(n) % ref_region_t % npoint
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
+  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   beta_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -240,8 +240,8 @@ do n=1, nb_elem
   npoint_p => b_elem_t(n) % ref_region_t % npoint
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), npoint_p, points_p )
+  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   b_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -902,7 +902,6 @@ do n = 1, nbeta_elem
   
   !  Loop over number of points used in beta region
   npoint_p => beta_elem_t(n) % indx_array_t % npoint
-  
   do ns = 1, npoint_p
   
     i => beta_elem_t(n) % indx_array_t % iarray(1,ns)
@@ -1022,8 +1021,8 @@ do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
-  ref_region_t_p % v = points_avg_3D( v(1:nx,:,1:nz), ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % v = points_avg_3D( v(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
@@ -1092,9 +1091,12 @@ end subroutine r_elem_force
 !**********************************************************************
 subroutine r_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
@@ -1166,9 +1168,12 @@ end subroutine r_elem_data_write
 !**********************************************************************
 subroutine beta_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
@@ -1255,9 +1260,11 @@ end subroutine beta_elem_data_write
 !**********************************************************************
 subroutine b_elem_data_write()
 !**********************************************************************
-use io, only : write_real_data, write_tecplot_header_xyline
 use param, only : total_time, path
 use strmod
+implicit none
+
+include 'tecio.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
