@@ -4265,7 +4265,30 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   do j = 1, ny
     do i = 1, nx
 
-      call level_set_force_xy()
+      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+
+        ! forces after pressure update
+        Rx = -tadv1 * dpdx(i, j, k)
+        Ry = -tadv1 * dpdy(i, j, k)
+        
+        fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+        fy(i, j, k) = (-v(i, j, k)/dt - Ry)
+  
+      else if (vel_BC) then
+
+        ! forces after pressure update
+        Rx = -tadv1 * dpdx(i, j, k)
+        Ry = -tadv1 * dpdy(i, j, k)
+
+        if (udes(i, j, k) < huge (1._rp) / 2) then
+          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
+        end if
+
+        if (vdes(i, j, k) < huge (1._rp) / 2) then
+          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
+        end if
+
+      end if
 
       !--no w-node part here: the velocity should be zero b/c of BCs
 
@@ -4283,42 +4306,6 @@ end if
 do k = k_min, nz - 1
   do j = 1, ny
     do i = 1, nx
-
-      call level_set_force_xy()
-      call level_set_force_z()
-
-    end do
-  end do
-end do
-
-fx(:, :, nz) = BOGUS
-fy(:, :, nz) = BOGUS
-fz(:, :, nz) = BOGUS
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
-  call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
-  call DEBUG_write (w(:, :, 1:nz), 'level_set_forcing.w')
-  call DEBUG_write (fx(:, :, 1:nz), 'level_set_forcing.fx')
-  call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
-  call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
-end if
-$endif
-
-$if ($VERBOSE)
-call exit_sub (sub_name)
-$endif
-
-return
-
-contains
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine level_set_force_xy()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-implicit none
-
 
       if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
 
@@ -4345,17 +4332,9 @@ implicit none
         
       end if
 
-return
-end subroutine level_set_force_xy
+      if (phi(i, j, k) + phi(i, j, k-1) <= 0._rp) then  !--w-nodes
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine level_set_force_z()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-implicit none
-
-
-     if (phi(i, j, k) + phi(i, j, k-1) <= 0._rp) then  !--w-nodes
-       Rz = -tadv1 * dpdz(i, j, k)
+        Rz = -tadv1 * dpdz(i, j, k)
         fz(i, j, k) = (-w(i, j, k)/dt - Rz)
 
       else if (vel_BC) then
@@ -4368,8 +4347,28 @@ implicit none
 
       end if
 
-return
-end subroutine level_set_force_z
+    end do
+  end do
+end do
+
+fx(:, :, nz) = BOGUS
+fy(:, :, nz) = BOGUS
+fz(:, :, nz) = BOGUS
+
+$if ($DEBUG)
+if (DEBUG) then
+  call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
+  call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
+  call DEBUG_write (w(:, :, 1:nz), 'level_set_forcing.w')
+  call DEBUG_write (fx(:, :, 1:nz), 'level_set_forcing.fx')
+  call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
+  call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
+end if
+$endif
+
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_forcing
 
