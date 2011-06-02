@@ -55,21 +55,21 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=32,ny=32,nz=(31)/nproc + 1   
+  integer,parameter:: nx=64,ny=64,nz=(63)/nproc + 1   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
   ! this value is dimensional [m]:
-  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+  real(rprec),parameter::z_i=1._rprec   !dimensions in meters, height of BL
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-    real(rprec),parameter::L_x= 2._rprec * pi
-    real(rprec),parameter::L_y= L_x
-    real(rprec),parameter::L_z= L_y
-    !real(rprec),parameter::L_y=(ny - 1.)/(nx - 1.)*L_x               ! ensure dy=dx
-    !real(rprec),parameter::L_z=(nz_tot - 1./2.)/(nx - 1.)*L_x  ! ensure dz = dx
+    real(rprec),parameter::L_x= 8._rprec
+    !real(rprec),parameter::L_y= L_x
+    !real(rprec),parameter::L_z= L_y
+    real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
+    real(rprec),parameter::L_z=(nz_tot - 1.)/(1.*nx)*L_x  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
     real(rprec),parameter::dz=L_z/(nz_tot-1) ! or (L_z/nproc)/(nz - 1)
@@ -192,21 +192,21 @@ module param
 !---------------------------------------------------
 
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
-  integer,parameter::wbase=100
+  integer,parameter::wbase=1
   
   ! how often to write ke to check_ke.out
-  integer, parameter :: nenergy = 1  
+  integer, parameter :: nenergy = 10
 
   ! how often to display CFL condition
   integer,parameter::cfl_count=1000  
 
   ! records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
-  integer, parameter :: tavg_nstart = 1, tavg_nend = nsteps
+  integer, parameter :: tavg_nstart = 1000, tavg_nend = nsteps
 
   ! turns instantaneous velocity recording on or off
   logical, parameter :: point_calc = .true.
-  integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
+  integer, parameter :: point_nstart = 1000, point_nend = nsteps, point_nskip = 10
   integer, parameter :: point_nloc = 2
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
         point3D( (/ L_x/2., L_y/2., 2._rprec /) ), &

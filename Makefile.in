@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = gfortran
+FCOMP = ifort
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
@@ -28,11 +28,11 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition
-USE_CFL_DT = yes
+USE_CFL_DT = no
 
 # Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -48,9 +48,9 @@ USE_DYNALLOC = no
 
 # Set pressure correction scheme
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
-USE_PC_SCHEME = PC_SCHEME_2
+USE_PC_SCHEME = PC_SCHEME_0
 
-USE_LVLSET = no
+USE_LVLSET = yes
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no
