@@ -46,10 +46,6 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-# Set pressure correction scheme
-# Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
-USE_PC_SCHEME = PC_SCHEME_0
-
 USE_LVLSET = yes
   SMOOTH_VEL = no
 
