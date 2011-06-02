@@ -139,6 +139,24 @@ subroutine ic()
                  w(jx,jy,jz)=noise*w_star/u_star*.01_rprec
               end if
 
+              $if($LVLSET)
+              !  Set velocity to zero inside objects
+              !  Create parabolic weighting near wall
+              phi_p = phi(jx,jy,jz)
+              if(phi_p < 1._rprec) then
+                if(phi_p < 0._rprec) then
+                  u(jx,jy,jz) = 0._rprec
+                  v(jx,jy,jz) = 0._rprec
+                  w(jx,jy,jz) = 0._rprec
+                else
+                  u(jx,jy,jz) = u(jx,jy,jz) * phi_p**2
+                  v(jx,jy,jz) = v(jx,jy,jz) * phi_p**2
+                  w(jx,jy,jz) = w(jx,jy,jz) * phi_p**2
+                endif
+              endif
+              $endif
+ 
+              
            end do
         end do
      end do
@@ -158,31 +176,6 @@ subroutine ic()
      end if
 
   end if
-
-  $if($LVLSET)
-  do jz=1,nz
-    do jy=1,ny
-      do jx=1,nx
-
-        !  Set velocity to zero inside objects
-        !  Create parabolic weighting near wall
-        phi_p = phi(jx,jy,jz)
-        if(phi_p < 1._rprec) then
-          if(phi_p < 0._rprec) then
-            u(jx,jy,jz) = 0._rprec
-            v(jx,jy,jz) = 0._rprec
-            w(jx,jy,jz) = 0._rprec
-          else
-            u(jx,jy,jz) = u(jx,jy,jz) * phi_p**2
-            v(jx,jy,jz) = v(jx,jy,jz) * phi_p**2
-            w(jx,jy,jz) = w(jx,jy,jz) * phi_p**2
-          endif
-        endif
-      enddo
-    enddo
-  enddo
-  $endif
-
 
   !VK Display the mean vertical profiles of the initialized variables on the
   !screen

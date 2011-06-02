@@ -138,14 +138,6 @@ do n=1,zplane_nloc
   write(2,if_fmt) 'n, zplane_loc(n) : ', n, zplane_loc(n)
 enddo
 
-write(2,l_fmt) 'spectra_calc : ', spectra_calc
-write(2,x2i_fmt) 'spectra_nstart, spectra_nend : ', spectra_nstart, spectra_nend
-write(2,i_fmt) 'spectra_nloc : ', spectra_nloc
-do n=1,spectra_nloc
-  write(2,if_fmt) 'n, spectra_loc(n) : ', n, spectra_loc(n)
-enddo
-
-
 $if($RNS_LS)
 write(2,c_fmt) ''
 write(2,c_fmt) '**********************************************************************'

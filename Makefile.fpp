@@ -52,7 +52,7 @@ ifeq ($(USE_TREES_LS), yes)
 endif
 
 ifeq ($(USE_PC_SCHEME), DEFAULT)
-  FPP += -DPC_SCHEME_0
+  FPP += -DPC_SCHEME_1
 endif
 
 ifeq ($(USE_PC_SCHEME), PC_SCHEME_0)
@@ -65,11 +65,7 @@ endif
 
 ifeq ($(USE_PC_SCHEME), PC_SCHEME_2)
   FPP += -DPC_SCHEME_2
-endif 
-
-ifeq ($(USE_PC_SCHEME), PC_SCHEME_3)
-  FPP += -DPC_SCHEME_3
-endif
+endif  
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET

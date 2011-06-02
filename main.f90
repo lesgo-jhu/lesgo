@@ -19,8 +19,7 @@ $if ($MPI)
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
-use level_set_base, only : global_CD_calc
+use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel
   
   $if ($CYL_SKEW_LS)
   !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
@@ -62,6 +61,13 @@ real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
 real clock_start, clock_end
+
+! Check if read inflow from file is being specified; currently does not work
+if(inflow) then
+  write(*,*) 'Error: read inflow conditions from file has been specified!'
+  write(*,*) 'This capability does not currently work. Please set to false.'
+  stop
+endif
 
 ! Create output directory
 call system("mkdir -vp output")
@@ -174,7 +180,7 @@ $endif
 
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
-   
+    
     $if($CFL_DT)
       dt_f = dt
 
@@ -203,21 +209,11 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
- 
-    $if($PC_SCHEME_1 or $PC_SCHEME_3)
-    ! Save previous pressure gradient (dp^{m})
-    ! Updated PC
-    dpdx_f = dpdx
-    dpdy_f = dpdy
-    dpdz_f = dpdz
-    $endif    
 
-    $if($PC_SCHEME_3)
-    ! Set values at time step m
-    fx_f = fx
-    fy_f = fy
-    fz_f = fz
-    $endif
+    ! Reset applied force arrays
+    fxa = 0._rprec
+    fya = 0._rprec
+    fza = 0._rprec
 
     ! Compute scalars and __? 
     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
@@ -402,6 +398,16 @@ do jt=1,nsteps
     end if
   
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
+ 
+    ! Set RHS*_f if necessary (first timestep)
+    if ((jt == 1) .and. (.not. initu)) then
+        ! if initu, then this is read from the initialization file
+        ! else for the first step put RHS_f=RHS
+        !--i.e. at first step, take an Euler step
+        RHSx_f=RHSx
+        RHSy_f=RHSy
+        RHSz_f=RHSz
+    end if
 
     ! Debug
     $if ($DEBUG)
@@ -423,33 +429,6 @@ do jt=1,nsteps
     end if
     $endif
 
-    !//////////////////////////////////////////////////////
-    !/// APPLIED FORCES                                 ///
-    !//////////////////////////////////////////////////////
-    !  Applied forcing (forces are added to RHS{x,y,z})
-    call forcing_applied()
-
-    !  Update RHS with applied forcing
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
-
-    !//////////////////////////////////////////////////////
-    !/// EULER INTEGRATION CHECK                        ///
-    !////////////////////////////////////////////////////// 
-    ! Set RHS*_f if necessary (first timestep) 
-    if ((jt == 1) .and. (.not. initu)) then
-      ! if initu, then this is read from the initialization file
-      ! else for the first step put RHS_f=RHS
-      !--i.e. at first step, take an Euler step
-      RHSx_f=RHSx
-      RHSy_f=RHSy
-      RHSz_f=RHSz
-    end if    
-
-    !//////////////////////////////////////////////////////
-    !/// INDUCED FORCES                                 ///
-    !//////////////////////////////////////////////////////    
     ! Calculate external forces induced forces. These are
     ! stored in fx,fy,fz arrays. We are calling induced 
     ! forces before applied forces as some of the applied
@@ -457,12 +436,27 @@ do jt=1,nsteps
     ! two are assumed independent
     $if($PC_SCHEME_0)
     $else
-      call forcing_induced()
+    call forcing_induced ()
     $endif
 
-    !//////////////////////////////////////////////////////
-    !/// INTERMEDIATE VELOCITY                          ///
-    !//////////////////////////////////////////////////////     
+     !  Applied forcing (forces are added to RHS{x,y,z})
+    call forcing_applied()
+
+    !  Update RHS with applied forcing
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
+    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
+
+    ! Set RHS*_f if necessary (first timestep) 
+    if ((jt == 1) .and. (.not. initu)) then
+        ! if initu, then this is read from the initialization file
+        ! else for the first step put RHS_f=RHS
+        !--i.e. at first step, take an Euler step
+        RHSx_f=RHSx
+        RHSy_f=RHSy
+        RHSz_f=RHSz
+    end if
+
     ! Calculate intermediate velocity field
     !   only 1:nz-1 are valid
     $if($PC_SCHEME_0)
@@ -476,17 +470,17 @@ do jt=1,nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
-    $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
+    $elseif($PC_SCHEME_1)
     ! Updated PC
     u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
-                            tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx_f(:,:,1:nz-1) + fx(:,:,1:nz-1))
+                            tadv2 * RHSx_f(:, :, 1:nz-1) - dpdx(:,:,1:nz-1) + fx(:,:,1:nz-1))
     v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
-                            tadv2 * RHSy_f(:, :, 1:nz-1) - dpdy_f(:,:,1:nz-1) + fy(:,:,1:nz-1))
+                            tadv2 * RHSy_f(:, :, 1:nz-1) - dpdy(:,:,1:nz-1) + fy(:,:,1:nz-1))
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
-                            tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz_f(:,:,1:nz-1) + fz(:,:,1:nz-1))
+                            tadv2 * RHSz_f(:, :, 1:nz-1) - dpdz(:,:,1:nz-1) + fz(:,:,1:nz-1))
 
     $elseif($PC_SCHEME_2)
     ! Updated PC-2
@@ -499,12 +493,10 @@ do jt=1,nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) + fz(:,:,1:nz-1))
-
     $else
-
     call error('main','Makefile pressure correction scheme flag not set properly.')
-    
     $endif
+
 
     ! Set unused values to BOGUS so unintended uses will be noticable
     $if ($MPI)
@@ -529,9 +521,14 @@ do jt=1,nsteps
     end if
     $endif
 
-    !//////////////////////////////////////////////////////
-    !/// PRESSURE SOLUTION                              ///
-    !//////////////////////////////////////////////////////
+    $if($PC_SCHEME_1)
+    ! Save previous pressure gradient
+    ! Updated PC
+    dpdx_f = dpdx
+    dpdy_f = dpdy
+    dpdz_f = dpdz
+    $endif
+
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
@@ -576,9 +573,6 @@ do jt=1,nsteps
     call forcing_induced()
     $endif
 
-    !//////////////////////////////////////////////////////
-    !/// PROJECTION STEP                                ///
-    !//////////////////////////////////////////////////////   
     ! Projection method provides u,v,w for jz=1:nz
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs nz and 1 node info for u,v,w    
@@ -612,11 +606,6 @@ do jt=1,nsteps
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
 
-    $if ($LVLSET)
-      if( global_CD_calc ) call level_set_global_CD ()
-    $endif
-
-
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
         ! Calculate rms divergence of velocity
@@ -643,11 +632,6 @@ do jt=1,nsteps
     $endif
     7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
              &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
-
-    $if($LVLSET)
-    !  Used for testing PC schemes
-    !if( (modulo( jt, 10 ) == 0) .and. (jt >= 5000) ) call level_set_vel_err()
-    $endif
           
     ! Write output files
     call output_loop (jt)  
@@ -665,36 +649,36 @@ end do
 ! END TIME LOOP
 
 ! Finalize
-close(2)
+    close(2)
     
-! Write total_time.dat and tavg files
-call output_final (jt)
+    ! Write total_time.dat and tavg files
+    call output_final (jt)
 
-! Level set:
-$if ($LVLSET)
-  $if ($TREES_LS)
-  call trees_ls_finalize ()
-  $endif
+    ! Level set:
+    $if ($LVLSET)
+        $if ($TREES_LS)
+            call trees_ls_finalize ()
+        $endif
+        $if ($RNS_LS)
+            call rns_finalize_ls ()
+        $endif
+    $endif
 
-  $if ($RNS_LS)
-  call rns_finalize_ls ()
-  $endif
-$endif
-
-! Turbines:
-$if ($TURBINES)
-call turbines_finalize ()   ! must come before MPI finalize
-$endif    
+    ! Turbines:
+    $if ($TURBINES)
+        call turbines_finalize ()   ! must come before MPI finalize
+    $endif    
 
 ! Stop wall clock
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  call cpu_time (clock_end)
-  write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
+    call cpu_time (clock_end)
+    write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
 endif
 
-! MPI:
-$if ($MPI)
-call mpi_finalize (ierr)
-$endif
+    
+    ! MPI:
+    $if ($MPI)
+        call mpi_finalize (ierr)
+    $endif
 
 end program main

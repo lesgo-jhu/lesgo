@@ -314,10 +314,8 @@ use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use grid_defs, only : grid_t
 use sim_param, only : u,v,w,dudx,dvdy,dwdz
-$if($DEBUG)
 use sim_param, only : p, dpdx, dpdy, dpdz
 use sim_param, only : RHSx, RHSy, RHSz
-$endif
 use stat_defs, only : xplane_t, yplane_t, zplane_t, point_t
 $if($MPI)
 use mpi
@@ -352,9 +350,9 @@ $if($LVLSET)
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 $endif
 
-$if($DEBUG)
+!$if($DEBUG)
 real(rprec), allocatable, dimension(:,:,:) :: divvel
-$endif
+!$endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
@@ -461,8 +459,6 @@ elseif(itype==2) then
   
   $endif
 
-  $if($DEBUG)
-
   !$if($DEBUG)
   !if(DEBUG) then
   !  Output divergence of velocity field
@@ -560,8 +556,6 @@ elseif(itype==2) then
   (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
   call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
   (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
-  $endif
-
   $endif
 
 
@@ -828,9 +822,7 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
-$if($LVLSET or $DEBUG)
 contains
-$endif
 
 $if($LVLSET)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -871,7 +863,6 @@ return
 end subroutine force_tot
 $endif
 
-$if($DEBUG)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine pressure_sync()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -929,7 +920,6 @@ $endif
 
 return
 end subroutine RHS_sync
-$endif
 
 end subroutine inst_write
 
@@ -1873,14 +1863,14 @@ integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
 integer, allocatable, dimension(:) :: gather_coord
 
-type(rs), allocatable, dimension(:) :: rs_zplane_tot_t
-type(rs), allocatable, dimension(:) :: rs_zplane_buf_t
+type(rs), pointer, dimension(:) :: rs_zplane_tot_t
+type(rs), pointer, dimension(:) :: rs_zplane_buf_t
 
-type(rs), allocatable, dimension(:) :: cnpy_zplane_tot_t
-type(rs), allocatable, dimension(:) :: cnpy_zplane_buf_t
+type(rs), pointer, dimension(:) :: cnpy_zplane_tot_t
+type(rs), pointer, dimension(:) :: cnpy_zplane_buf_t
 
-type(tavg), allocatable, dimension(:) :: tavg_zplane_tot_t
-type(tavg), allocatable, dimension(:) :: tavg_zplane_buf_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_tot_t
+type(tavg), pointer, dimension(:) :: tavg_zplane_buf_t
 
 $endif
 
@@ -1979,27 +1969,20 @@ tavg_disp = 0
 
 !  Create MPI type structures consistent with the derived types
 call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
-if(ierr /= 0) call error(sub_name,'Error in setting MPI_RS:', ierr)
 Call MPI_Type_commit(MPI_RS,ierr)
-if(ierr /= 0) call error(sub_name,'Error in committing MPI_RS:', ierr)
-
 
 call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
-if(ierr /= 0) call error(sub_name,'Error in setting MPI_CNPY:', ierr)
 Call MPI_Type_commit(MPI_CNPY,ierr)  
-if(ierr /= 0) call error(sub_name,'Error in committing MPI_CNPY:', ierr)
    
 call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
-if(ierr /= 0) call error(sub_name,'Error in setting MPI_TSTATS:', ierr)
 Call MPI_Type_commit(MPI_TSTATS,ierr)
-if(ierr /= 0) call error(sub_name,'Error in committing MPI_TSTATS:', ierr)
 
 !  Sync entire tavg_t structure
 call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TSTATS, down, 1,  &
                    tavg_t(:,:,nz), nx*ny, MPI_TSTATS, up, 1,   &
                    comm, status, ierr)
 
-if( coord == 0 ) then 
+if(coord == 0) then
 
   !  Allocate space only on base processor for assembled z-plane data
   ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
@@ -2294,7 +2277,6 @@ $endif
 ! Construct zplane data 
 $if($MPI)
 
-  ! Gather to coord = 0
   call mpi_gather( rs_zplane_t, nz, MPI_RS, rs_zplane_buf_t, nz, &
     MPI_RS, rank_of_coord(0), comm, ierr)
     
@@ -2309,11 +2291,11 @@ $if($MPI)
   call mpi_type_free (MPI_TSTATS, ierr)    
   
   !  Get the rank that was used for mpi_gather (ensure that assembly of {rs,tavg}_zplane_tot_t is
-  !  done in increasing coord; gather to coord = 0
+  !  done in increasing coord
   call mpi_gather( coord, 1, MPI_INTEGER, gather_coord, 1, &
   MPI_INTEGER, rank_of_coord(0), comm, ierr)
   
-  if( coord == 0 ) then
+  if(coord == 0) then
   
   !  Need to remove overlapping nodes
   !! Set initial block of data  

@@ -70,12 +70,11 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-! Set coefficients
-    delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
-    opftdelta = opftime*delta
-    powcoeff = -1._rprec/8._rprec
-    lagran_dt=dt*real(cs_count,kind=rprec)
-    const = 2._rprec*delta**2
+delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
+opftdelta = opftime*delta
+powcoeff = -1._rprec/8._rprec
+lagran_dt=dt*real(cs_count,kind=rprec)
+const = 2._rprec*delta**2
 
 $if ($LVLSET)
   call level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
@@ -100,13 +99,13 @@ do jz = 1,nz
         ! (except for very first level which should be on uvp-nodes)
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
             (jz == 1) ) then  ! uvp-nodes
-            u_bar(:,:) = u(:,:,1)
-            v_bar(:,:) = v(:,:,1)
-            w_bar(:,:) = .25_rprec*w(:,:,2)
+         u_bar(:,:) = u(:,:,1)
+         v_bar(:,:) = v(:,:,1)
+         w_bar(:,:) = .25_rprec*w(:,:,2)
        else  ! w-nodes
-            u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
-            v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
-            w_bar(:,:) = w(:,:,jz)
+         u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
+         v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
+         w_bar(:,:) = w(:,:,jz)
        end if
        
        ! First term before filtering (not the final value)
@@ -241,7 +240,7 @@ do jz = 1,nz
     ! Update running averages (F_LM, F_MM, F_ee2, F_deedt2)
         ! Determine averaging timescale 
             $if ($DYN_TN)   ! based on Taylor timescale
-                Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
+                Tn = sqrt(2._rprec*F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
             $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
                 Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), eps)
                 Tn = opftdelta*(Tn**powcoeff)    
@@ -291,7 +290,6 @@ do jz = 1,nz
             count_all = count_all + 1
         enddo
         enddo
-        ! Clip Cs if necessary
         Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz)) 
    
     ! Write average Tn for this level to file
