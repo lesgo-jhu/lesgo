@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
@@ -28,11 +28,11 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
-USE_CFL_DT = no
+USE_CFL_DT = yes
 
 # Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -46,7 +46,11 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+# Set pressure correction scheme
+# Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2
+USE_PC_SCHEME = PC_SCHEME_2
+
+USE_LVLSET = no
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no
@@ -87,7 +91,7 @@ ifeq ($(FCOMP),ifort)
   # Fix segmentation faults (stack overflows)
   FFLAGS += -heap-arrays
 
-  FFLAGS += -warn all -shared-intel
+  FFLAGS += -warn all -mcmodel=medium -shared-intel
 
   #FDEBUG = -g -debug all
   FPROF = -p

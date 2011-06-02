@@ -113,6 +113,8 @@ $endif
 
 $endif
 
+!  Commented by JSG (2/3/11); still need to resolve fringe forcing
+!  with updated pressure correction scheme
 !if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
 
 return
@@ -143,6 +145,12 @@ end function fringe_blend
 
 !**********************************************************************
 subroutine inflow_cond ()
+!**********************************************************************
+!
+!  WARNING: NOT SURE IF THE FORCING PERFORMED HERE IS CORRECT WITH 
+!  UPDATED PRESSURE-CORRECTION SCHEME. PLEASE REVISIT BEFORE DOING
+!  SOMETHING STUPID (JSG 02/03/11)
+!
 use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
                   sflux_flag, buff_end, buff_len, use_fringe_forcing,  &
@@ -249,6 +257,7 @@ subroutine project ()
 use param
 use sim_param
 use immersedbc
+use messages
 $if($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
@@ -261,18 +270,45 @@ $endif
 integer :: jx, jy, jz
 integer :: jz_min
 
-real (rprec) :: RHS
+real (rprec) :: RHS, tconst
 
-!---------------------------------------------------------------------
+character(*), parameter :: sub_name='project'
+
+! Caching
+tconst = tadv1 * dt
 
 do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
+ 
+      $if($PC_SCHEME_0)
+      ! Original PC
       RHS = -tadv1 * dpdx(jx, jy, jz)
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
       RHS = -tadv1 * dpdy(jx, jy, jz)
-      v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz)))
-   
+      v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz))) 
+      
+      $elseif($PC_SCHEME_1)
+      ! Updated PC
+      RHS = tconst * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz))
+      u(jx, jy, jz) = u(jx, jy, jz) - RHS
+      RHS = tconst * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz))
+      v(jx, jy, jz) = v(jx, jy, jz) - RHS
+
+      $elseif($PC_SCHEME_2)
+      ! Updated PC-2
+      RHS = dt * dpdx(jx, jy, jz)
+      u(jx, jy, jz) = u(jx, jy, jz) - RHS
+      RHS = dt * dpdy(jx, jy, jz)
+      v(jx, jy, jz) = v(jx, jy, jz) - RHS
+
+      $else
+
+      call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
+      $endif
+
+
       !if (DEBUG) then
       !  if ( isnan (u(jx, jy, jz)) ) then
       !    write (*, *) $str($context_doc)
@@ -299,9 +335,28 @@ end if
 do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
+
+      $if($PC_SCHEME_0)
+      ! Original PC
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
 
+      $elseif($PC_SCHEME_1)
+      ! Updated PC
+      RHS = tconst * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz))
+      w(jx, jy, jz) = w(jx, jy, jz) - RHS
+     
+      $elseif($PC_SCHEME_2)
+      ! Updated PC-2
+      RHS = dt * dpdz(jx, jy, jz)
+      w(jx, jy, jz) = w(jx, jy, jz) - RHS
+ 
+      $else
+
+      call error(sub_name,'Makefile pressure correction scheme not specified properly')
+
+      $endif
+       
       !if (DEBUG) then
       !  if ( isnan (w(jx, jy, jz)) ) then
       !    write (*, *) 'nan in w at (jx, jy, jz) = ', jx, jy, jz
