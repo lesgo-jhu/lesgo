@@ -29,7 +29,7 @@ use param
 use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t
+use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t,lagran_dt
 use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
@@ -98,6 +98,7 @@ if (model == 4 .OR. model==5) then
     u_lag = u_lag+u
     v_lag = v_lag+v
     w_lag = w_lag+w
+    lagran_dt = lagran_dt+dt
 end if
 
 if (sgs) then 
