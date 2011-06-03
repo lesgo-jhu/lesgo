@@ -94,12 +94,15 @@ $endif
 
 ! This part computes the average velocity during cs_count times steps
 ! This is used with the lagrangian model only
+! Only start summing until needed
 if (model == 4 .OR. model==5) then
+  if( ( jt .GE. DYN_init-cs_count+1) .OR. (initu)) then
     u_lag = u_lag+u
     v_lag = v_lag+v
     w_lag = w_lag+w
     lagran_dt = lagran_dt+dt
-end if
+  endif
+endif
 
 if (sgs) then 
     if((model == 1))then  ! Traditional Smagorinsky model
