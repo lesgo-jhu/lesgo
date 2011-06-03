@@ -396,9 +396,13 @@ if(itype==1) then
 !  Instantaneous write for entire domain
 elseif(itype==2) then
 
-!  Convert total iteration time to string
+  !////////////////////////////////////////////
+  !/// WRITE VELOCITY                       ///
+  !////////////////////////////////////////////
+
+  !  Convert total iteration time to string
   write(ct,*) jt_total
-!  Open file which to write global data
+  !  Open file which to write global data
   write (fname,*) 'output/vel.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
 
@@ -433,8 +437,18 @@ elseif(itype==2) then
     4, x, y, z(1:nz))
   $endif
 
+  $if($MPI)
+    ! Ensure that all processes finish before attempting to write 
+    ! additional files. Otherwise it may flood the system with 
+    ! too many I/O requests and crash the process 
+    call mpi_barrier( comm, ierr )
+  $endif
+
   !  Output Instantaneous Force Field for RNS Simulations
   $if($LVLSET)
+    !////////////////////////////////////////////
+    !/// WRITE FORCES                         ///
+    !////////////////////////////////////////////
 
     ! Compute the total forces 
     call force_tot()
@@ -458,109 +472,146 @@ elseif(itype==2) then
       (/ phi(1:nx,1:ny,1:nz) /), 4)
 
     deallocate(fx_tot, fy_tot, fz_tot)
+
+    $if($MPI)
+      ! Ensure that all processes finish before attempting to write 
+      ! additional files. Otherwise it may flood the system with 
+      ! too many I/O requests and crash the process 
+      call mpi_barrier( comm, ierr )
+    $endif
+
   
   $endif
 
   $if($DEBUG)
 
-  !$if($DEBUG)
-  !if(DEBUG) then
-  !  Output divergence of velocity field
-  allocate(divvel(nx,ny,nz))
-  divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
+    !////////////////////////////////////////////
+    !/// WRITE VELOCITY DIVERGENCE            ///
+    !////////////////////////////////////////////
 
-  !  Open file which to write global data
-  write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
-  fname = trim(adjustl(fname))
 
-  $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
-  $endif
+    !  Output divergence of velocity field
+    allocate(divvel(nx,ny,nz))
+    divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
-  $if($LVLSET)
-  var_list = '"x", "y", "z", "divvel", "phi"'
-  nvars = 5
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord, 6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-  (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-  $else
-  var_list = '"x", "y", "z", "divvel"'
-  nvars = 4
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord, 6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
-  (/ divvel /), 4, x, y, z(1:nz))
-  $endif
-
-  deallocate(divvel)
-  !endif
-  !$endif
-
-   !=== Output Pressure Field ===
     !  Open file which to write global data
-  write (fname,*) 'output/pressure.', trim(adjustl(ct)),'.dat'
-  fname = trim(adjustl(fname))
+    write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
+    fname = trim(adjustl(fname))
 
-  $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
-  $endif
+    $if ($MPI)
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
 
-   call pressure_sync()
+    $if($LVLSET)
+      var_list = '"x", "y", "z", "divvel", "phi"'
+      nvars = 5
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord, 6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+        (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+    $else
+      var_list = '"x", "y", "z", "divvel"'
+      nvars = 4
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord, 6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+        (/ divvel /), 4, x, y, z(1:nz))
+    $endif
 
-  $if($LVLSET)
-  var_list = '"x", "y", "z", "phi", "p", "dpdx", "dpdy", "dpdz"'
-  nvars = 8
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord,6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-  (/ phi(1:nx,1:ny,1:nz), p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
-  (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
-  $else
-  var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
-  nvars = 7
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord,6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
-  (/ p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
-  (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
-  $endif
+    deallocate(divvel)
 
-  !=== Output RHS field ===
-   !=== Output Pressure Field ===
+    $if($MPI)
+      ! Ensure that all processes finish before attempting to write 
+      ! additional files. Otherwise it may flood the system with 
+      ! too many I/O requests and crash the process 
+      call mpi_barrier( comm, ierr )
+    $endif
+
+    !////////////////////////////////////////////
+    !/// WRITE PRESSURE                       ///
+    !////////////////////////////////////////////
+
     !  Open file which to write global data
-  write (fname,*) 'output/RHS.', trim(adjustl(ct)),'.dat'
-  fname = trim(adjustl(fname))
+    write (fname,*) 'output/pressure.', trim(adjustl(ct)),'.dat'
+    fname = trim(adjustl(fname))
+  
+    $if ($MPI)
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif
 
-  $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
-  $endif  
-  call RHS_sync()
+    call pressure_sync()
 
-  $if($LVLSET)
-  var_list = '"x", "y", "z", "phi", "RHSx", "RHSy", "RHSz"'
-  nvars = 7
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord,6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-  (/ phi(1:nx,1:ny,1:nz), RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-  (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
-  $else
-  var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
-  nvars = 6
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord,6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
-  (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-  call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-  (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
-  $endif
+    $if($LVLSET)
+      var_list = '"x", "y", "z", "phi", "p", "dpdx", "dpdy", "dpdz"'
+      nvars = 8
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+        (/ phi(1:nx,1:ny,1:nz), p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+      call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+        (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
+    $else
+      var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
+      nvars = 7
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+        (/ p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+      call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+        (/ dpdx(1:nx,1:ny,1:nz), dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), 4)
+    $endif
+
+    $if($MPI)
+      ! Ensure that all processes finish before attempting to write 
+      ! additional files. Otherwise it may flood the system with 
+      ! too many I/O requests and crash the process 
+      call mpi_barrier( comm, ierr )
+    $endif
+  
+    !////////////////////////////////////////////
+    !/// WRITE RHS                            ///
+    !////////////////////////////////////////////
+
+    !  Open file which to write global data
+    write (fname,*) 'output/RHS.', trim(adjustl(ct)),'.dat'
+    fname = trim(adjustl(fname))
+
+    $if ($MPI)
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+    $endif  
+  
+    call RHS_sync()
+
+    $if($LVLSET)
+      var_list = '"x", "y", "z", "phi", "RHSx", "RHSy", "RHSz"'
+      nvars = 7
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+        (/ phi(1:nx,1:ny,1:nz), RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+        (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
+    $else
+      var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
+      nvars = 6
+      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+      call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+        (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+        (/ RHSy(1:nx,1:ny,1:nz), interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), 4)
+    $endif
+
+    $if($MPI)
+      ! Ensure that all processes finish before attempting to write 
+      ! additional files. Otherwise it may flood the system with 
+      ! too many I/O requests and crash the process 
+      call mpi_barrier( comm, ierr )
+    $endif
+
 
   $endif
 
