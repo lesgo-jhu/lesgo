@@ -29,7 +29,7 @@ use param
 use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:x_lag,y_lag,z_lag,Cs_opt2,Nu_t,lagran_dt
+use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
 use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
@@ -94,16 +94,15 @@ $endif
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-if (model == 4 .OR. model==5) then
-  if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
-    do k=1,nz-1     ! the following assumes u,v are synced 
-    x_lag(:,:,k) = x_lag(:,:,k) + 0.5_rprec*(u(:,:,k-1)+u(:,:,k))*dt        ! interpolated to w nodes
-    y_lag(:,:,k) = y_lag(:,:,k) + 0.5_rprec*(v(:,:,k-1)+v(:,:,k))*dt        ! where SGS information is stored
-    enddo
-    z_lag = z_lag + w*dt    
-    lagran_dt = lagran_dt + dt
-  endif
-endif
+$if ($CFL_DT)
+    if (model == 4 .OR. model==5) then
+      if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
+        lagran_dt = lagran_dt + dt
+      endif
+    endif
+$else
+    lagran_dt = cs_count*dt
+$endif
 
 if (sgs) then 
     if((model == 1))then  ! Traditional Smagorinsky model
