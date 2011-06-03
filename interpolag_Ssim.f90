@@ -16,6 +16,7 @@ use types,only:rprec
 use param
 use sgsmodule
 use messages
+use sim_param,only:u,v,w
 use grid_defs,only:grid_t 
 use functions, only:trilinear_interp
 $if ($MPI)
@@ -75,9 +76,6 @@ z => grid_t % z
                 ! At the bottom-most level (at the wall) the velocities are zero.
                 ! Since there is no movement the values of F_LM, F_MM, etc should
                 !   not change and no interpolation is necessary.
-                x_lag(:,:,1) = 0.0_rprec
-                y_lag(:,:,1) = 0.0_rprec
-                z_lag(:,:,1) = 0.0_rprec
             else
                 kmin = 1
             endif
@@ -86,9 +84,9 @@ z => grid_t % z
             do j=1,ny
             do i=1,nx
                 ! Determine position at previous timestep                   
-                xyz_past(1) = x(i) - x_lag(i,j,k)
-                xyz_past(2) = y(j) - y_lag(i,j,k)
-                xyz_past(3) = z(k) - z_lag(i,j,k)
+                xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
+                xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt
+                xyz_past(3) = z(k) - w(i,j,k)*lagran_dt
                 
                 ! Interpolate   
                 F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
@@ -107,14 +105,14 @@ z => grid_t % z
                 do j=1,ny
                 do i=1,nx
                     ! Determine position at previous timestep
-                    xyz_past(1) = x(i) - x_lag(i,j,k)
-                    xyz_past(2) = y(j) - y_lag(i,j,k)          
+                    xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
+                    xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt       
                                               
-                    if (z_lag(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
+                    if (w(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
                         ! this is cheating, but it should work for now...
                         xyz_past(3) = z(k) - 1.0e-10_rprec
                     else
-                        xyz_past(3) = z(k) - z_lag(i,j,k)
+                        xyz_past(3) = z(k) - w(i,j,k)*lagran_dt
                     endif
                     
                     ! Interpolate
@@ -147,15 +145,16 @@ z => grid_t % z
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases
     if (mod (jt, cfl_count) .eq. 0) then
-        lcfl = 0._rprec
-        do jz = 1, nz
-            lcfl = max ( lcfl,  maxval (abs (x_lag(1:nx, :, jz)))/dx )
-        enddo
-        print*, 'Lagrangian CFL condition= ', lcfl
+        call cfl_max(lcfl)
+        lcfl = lcfl*lagran_dt/dt  
+        $if($MPI)
+            if(coord.eq.0) print*, 'Lagrangian CFL condition= ', lcfl
+        $else
+            print*, 'Lagrangian CFL condition= ', lcfl
+        $endif
     endif
 
 ! Reset Lagrangian u/v/w variables for use during next set of cs_counts
-    x_lag = 0._rprec;    y_lag = 0._rprec;    z_lag = 0._rprec  
     lagran_dt = 0._rprec
     
 $if ($VERBOSE)
