@@ -60,7 +60,7 @@ module param
   ! 2x2 coarse
   !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
   ! 3x3 coarse
-  i!integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
+  !integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
   ! 2x3 fine
   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
