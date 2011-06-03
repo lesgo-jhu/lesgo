@@ -27,7 +27,7 @@ $endif
 !real(kind=rprec),dimension(ld,ny,nz)::Betaclip  !--not used
 
 real(rprec), dimension(ld, ny, nz) :: Nu_t      ! eddy viscosity
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::u_lag,v_lag,w_lag
+real(kind=rprec),dimension(ld,ny,$lbz:nz)::x_lag,y_lag,z_lag
 integer ::jt_count
 real(kind=rprec),dimension(ld,ny,nz)::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
 integer :: count_clip, count_all
