@@ -94,7 +94,7 @@ $endif
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-if ((model == 4 .OR. model==5) then
+if (model == 4 .OR. model==5) then
   if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
     do k=1,nz-1     ! the following assumes u,v are synced 
     x_lag(:,:,k) = x_lag(:,:,k) + 0.5_rprec*(u(:,:,k-1)+u(:,:,k))*dt        ! interpolated to w nodes
@@ -103,7 +103,7 @@ if ((model == 4 .OR. model==5) then
     z_lag = z_lag + w*dt    
     lagran_dt = lagran_dt + dt
   endif
-end if
+endif
 
 if (sgs) then 
     if((model == 1))then  ! Traditional Smagorinsky model
