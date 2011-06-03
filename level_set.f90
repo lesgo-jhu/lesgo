@@ -2946,8 +2946,10 @@ use immersedbc, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
+include 'tecio.h'
+
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
-character (*), parameter :: fCD_out = 'output/global_CD.dat'
+character (*), parameter :: fCD_out = 'output/CD_global.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
@@ -3008,41 +3010,36 @@ $else
 
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+$if($MPI)
+if( coord == 0 ) then
+$endif 
 
   CD = fD_global / (0.5_rp * Ap * Uinf_global**2)
   CL = fL_global / (0.5_rp * Ap * Uinf_global**2)
 
-  inquire (lun, exist=exst, opened=opn)
+  inquire (file=fCD_out, exist=exst, opened=opn)
 
   !  Check that output is not already opened
   if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-  ! Open file 
-  open (lun, file=fCD_out, position='append')
+  if( .not. exst ) then
 
-  !  Check if output file exists
-  if (.not. exst) then
-    
-    !--write a header
-    write (lun, '(a,es12.5)') '# Ap = ', Ap
-    write (lun, '(a)') '# t, CD, fD, CL, fL, Uinf' 
+    call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
 
-  endif 
+  endif
 
-  file_init = .true.
+  call write_real_data(fCD_out, 'append', 'formatted', 6, &
+    (/ total_time, CD, fD_global, CL, fL_global, Uinf_global /))
+
+  !file_init = .true.
 
   $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
   $endif
 
-  !--output to file
-  write (lun, '(6(es12.5,1x))') (jt_total * dt), CD, fD_global,  &
-                                CL, fL_global, Uinf_global
-
-  close (lun)  !--only do this to force a flush
-
+$if($MPI)
 end if
+$endif
 
 end subroutine level_set_global_CD
 
