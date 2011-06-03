@@ -7,6 +7,11 @@ subroutine interpolag_Sdep()
 !   the grid, an interpolation will be required.  Variables should 
 !   be on the w-grid.
 
+! This subroutine assumes that dt and cs_count are chosen such that
+!   the Lagrangian CFL in the z-direction will never exceed 1.  If the
+!   Lag. CFL in the x-direction is less than one this should generally
+!   be satisfied.
+
 use types,only:rprec
 use param
 use sgsmodule
@@ -61,53 +66,28 @@ z => grid_t % z
         $endif 
 
         ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
-        !   Note: we need to put u_lag and v_lag on w-nodes (same as Cs, F_LM, F_MM, etc)
-        !  Also, do not allow interpolation out of top/bottom of domain.
-        
-        ! Bottom-most level for Cs, F_LM, F_MM, etc is on uvp-nodes
-        !   This requires special treatment for k=1,2 since F_*(i,j,k=1) is closer 
-        !   to F_*(i,j,k=2) than the usual spacing, dz.  
+        ! Variables x,y,z_lag, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
+        ! Interpolation out of top/bottom of domain is not permitted.
+        ! Note: x,y,z_lag values are only good for k=1:nz-1 within each proc
             if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.0)) then
-                kmin = 3 
-                do k=1,2                     
-                do j=1,ny   
-                do i=1,nx
-                    ! Determine position at previous timestep
-                    if (k.eq.1) then    ! UVP-node; If w is positive, set w=0            
-                        xyz_past(1) = x(i) - u_lag(i,j,k)*dt
-                        xyz_past(2) = y(j) - v_lag(i,j,k)*dt
-                        xyz_past(3) = z(k) - 0.5_rprec*min(w_lag(i,j,k+1),0._rprec)*dt                  
-                    else                ! W-node; If w is positive, multiply by two
-                        xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
-                        xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt                    
-                        xyz_past(3) = z(k) - (w_lag(i,j,k) + max(w_lag(i,j,k),0._rprec))*dt 
-                    endif
-               
-                    ! Interpolate
-                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)                    
-                    $if ($DYN_TN)
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    $endif 
-                enddo
-                enddo
-                enddo
+                kmin = 2                    
+                ! At the bottom-most level (at the wall) the velocities are zero.
+                ! Since there is no movement the values of F_LM, F_MM, etc should
+                !   not change and no interpolation is necessary.
+                x_lag(:,:,1) = 0.0_rprec
+                y_lag(:,:,1) = 0.0_rprec
+                z_lag(:,:,1) = 0.0_rprec                
             else
                 kmin = 1
             endif
-        ! Intermediate levels on w-nodes
+        ! Intermediate levels
             do k=kmin,nz-1
             do j=1,ny
             do i=1,nx
                 ! Determine position at previous timestep
-                xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
-                xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt
-                xyz_past(3) = z(k) - w_lag(i,j,k)*dt  ! minus dz/2 (since these values are on w-grid)
-                                             ! but this dz/2 would be added back during interpolation                     
+                xyz_past(1) = x(i) - x_lag(i,j,k)
+                xyz_past(2) = y(j) - y_lag(i,j,k)
+                xyz_past(3) = z(k) - z_lag(i,j,k)                  
 
                 ! Interpolate   
                 F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
@@ -128,14 +108,14 @@ z => grid_t % z
                 do j=1,ny
                 do i=1,nx
                     ! Determine position at previous timestep
-                    xyz_past(1) = x(i) - 0.5*(u_lag(i,j,k)+u_lag(i,j,k-1))*dt
-                    xyz_past(2) = y(j) - 0.5*(v_lag(i,j,k)+v_lag(i,j,k-1))*dt
+                    xyz_past(1) = x(i) - x_lag(i,j,k)
+                    xyz_past(2) = y(j) - y_lag(i,j,k)   
                                               
-                    if (w_lag(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
+                    if (z_lag(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
                         ! this is cheating, but it should work for now...
-                        xyz_past(3) = z(k) - 1.0e-10_rprec*dt
+                        xyz_past(3) = z(k) - 1.0e-10_rprec
                     else
-                        xyz_past(3) = z(k) - w_lag(i,j,k)*dt
+                        xyz_past(3) = z(k) - z_lag(i,j,k)
                     endif
                     
                     ! Interpolate
@@ -169,14 +149,14 @@ z => grid_t % z
 !   Note: this is only in the x-direction... not good for complex geometry cases
     if (mod (jt, cfl_count) .eq. 0) then
         lcfl = 0._rprec
-        do jz = 1, nz
-            lcfl = max ( lcfl,  maxval (abs (u_lag(1:nx, :, jz))) )*dt/dx
+        do jz = 1, nz  
+            lcfl = max ( lcfl,  maxval (abs (x_lag(1:nx, :, jz)))/dx )
         enddo
         print*, 'Lagrangian CFL condition= ', lcfl
     endif
 
 ! Reset Lagrangian u/v/w variables for use during next set of cs_counts
-    u_lag = 0._rprec;    v_lag = 0._rprec;    w_lag = 0._rprec
+    x_lag = 0._rprec;    y_lag = 0._rprec;    z_lag = 0._rprec  
     lagran_dt = 0._rprec
         
 $if ($VERBOSE)
