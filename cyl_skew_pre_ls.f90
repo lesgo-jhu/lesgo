@@ -1,3 +1,13 @@
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
+
 !**********************************************************************
 module cyl_skew_pre_base_ls
 !**********************************************************************
@@ -248,15 +258,6 @@ $endif
 implicit none
 
 integer :: i,j,k
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 do k=$lbz,nz_tot
   do j=1,ny
