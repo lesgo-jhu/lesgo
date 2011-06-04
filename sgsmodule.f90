@@ -13,6 +13,7 @@ $endif
 ! The following are for dynamic Lagranrian SGS models (model=4,5) 
 real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
 real(kind=rprec),dimension(ld,ny,nz)::F_LM,F_MM,F_QN,F_NN,Beta
+real(kind=rprec) :: lagran_dt
 
 ! The following are for dynamically updating T, the timescale for Lagrangian averaging
 !   F_ee2 is the running average of (eij*eij)^2
@@ -26,7 +27,6 @@ $endif
 !real(kind=rprec),dimension(ld,ny,nz)::Betaclip  !--not used
 
 real(rprec), dimension(ld, ny, nz) :: Nu_t      ! eddy viscosity
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::u_lag,v_lag,w_lag
 integer ::jt_count
 real(kind=rprec),dimension(ld,ny,nz)::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
 integer :: count_clip, count_all

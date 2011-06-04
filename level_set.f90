@@ -24,7 +24,7 @@ save
 private
 
 public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
-public :: level_set_cylinder_CD
+public :: level_set_global_CD
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
 public :: level_set_vel_err
@@ -2935,26 +2935,28 @@ end subroutine smooth
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--this routine relies on user-supplied data about the projected area
-!  of the cylinder, because it is hard to get exact values from the
+!  of the level set object, because it is hard to get exact values from the
 !  level set alone
 !--may want to put option to append to previous output, if it exists
 !--also calculates CL (coeff. of lift)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_cylinder_CD ()
+subroutine level_set_global_CD ()
 use param, only : jt, jt_total, dt, L_y, L_z
 use immersedbc, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.level_set_cylinder_CD'
-character (*), parameter :: fCD_out = 'output/cylinder_CD.dat'
+include 'tecio.h'
+
+character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
+character (*), parameter :: fCD_out = 'output/CD_global.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
-integer, parameter :: Ldir = 2
-                      !--lift direction:
-                      !  2 when cyl-axis is z
-                      !  3 when cyl axis is y
+!integer, parameter :: Ldir = 2
+!                      !--lift direction:
+!                      !  2 when cyl-axis is z
+!                      !  3 when cyl axis is y
 
 !logical, parameter :: DEBUG = .false.
 
@@ -3008,41 +3010,38 @@ $else
 
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+$if($MPI)
+if( coord == 0 ) then
+$endif 
 
   CD = fD_global / (0.5_rp * Ap * Uinf_global**2)
   CL = fL_global / (0.5_rp * Ap * Uinf_global**2)
 
-  inquire (lun, exist=exst, opened=opn)
+  inquire (file=fCD_out, exist=exst, opened=opn)
 
-  if (.not. exst) call error (sub_name, 'unit', lun, ' nonexistant')
+  !  Check that output is not already opened
   if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-  open (lun, file=fCD_out, position='append')
+  if( .not. exst ) then
 
-  if (.not. file_init) then  !--set up file for output
+    call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
 
-    !--write a header
-    write (lun, '(a,es12.5)') '# Ap = ', Ap
-    write (lun, '(a)') '# t, CD, fD, CL, fL, Uinf' 
+  endif
 
-    file_init = .true.
+  call write_real_data(fCD_out, 'append', 'formatted', 6, &
+    (/ total_time, CD, fD_global, CL, fL_global, Uinf_global /))
 
-  end if
+  !file_init = .true.
 
   $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
   $endif
 
-  !--output to file
-  write (lun, '(6(es12.5,1x))') (jt_total * dt), CD, fD_global,  &
-                                CL, fL_global, Uinf_global
-
-  close (lun)  !--only do this to force a flush
-
+$if($MPI)
 end if
+$endif
 
-end subroutine level_set_cylinder_CD
+end subroutine level_set_global_CD
 
 
 

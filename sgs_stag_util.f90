@@ -29,7 +29,7 @@ use param
 use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:u_lag,v_lag,w_lag,Cs_opt2,Nu_t
+use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
 use bottombc,only:zo
 use immersedbc,only:building_mask,building_interp
 use test_filtermodule,only:filter_size
@@ -54,7 +54,7 @@ real(kind=rprec),dimension(nz)::l,ziko,zz
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
 real(kind=rprec) :: delta, nu, const
 
-integer::jx,jy,jz
+integer::jx,jy,jz,k
 integer :: jz_min
 
 $if ($VERBOSE)
@@ -92,13 +92,17 @@ if (DEBUG) then
 end if
 $endif
 
-! This part computes the average velocity during cs_count times steps
+! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-if (model == 4 .OR. model==5) then
-    u_lag = u_lag+u
-    v_lag = v_lag+v
-    w_lag = w_lag+w
-end if
+$if ($CFL_DT)
+    if (model == 4 .OR. model==5) then
+      if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
+        lagran_dt = lagran_dt + dt
+      endif
+    endif
+$else
+    lagran_dt = cs_count*dt
+$endif
 
 if (sgs) then 
     if((model == 1))then  ! Traditional Smagorinsky model
@@ -144,6 +148,7 @@ if (sgs) then
         l = delta       ! recall: l is the filter size
         
         if ((jt == 1) .and. (inilag)) then 
+        ! Use the Smagorinsky model until DYN_init timestep
             print *,'CS_opt2 initialiazed'
             Cs_opt2 = 0.03_rprec
 

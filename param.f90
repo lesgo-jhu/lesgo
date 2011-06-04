@@ -55,13 +55,12 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  !integer,parameter:: nx=128,ny=64,nz=(56)/nproc + 1   
   ! 2x1 coarse
-  !integer,parameter:: nx=64,ny=32,nz=(28)/nproc + 1 
+  integer,parameter:: nx=64,ny=32,nz=(28)/nproc + 1 
   ! 2x2 coarse
-  integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
+  !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
   ! 3x3 coarse
-  i!integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
+  !integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
   ! 2x3 fine
   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
@@ -75,7 +74,7 @@ module param
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
   real(rprec),parameter::L_x= 8.0_rprec
   !real(rprec),parameter::L_y= 4.0_rprec
-  !real(rprec),parameter::L_z= 3.5_rprec
+  !real(rprec),parameter::L_z= 4.0_rprec
   real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
   real(rprec),parameter::L_z=(nz_tot - 1.)/nx*L_x  ! ensure dz = dx
 
