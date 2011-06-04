@@ -22,7 +22,7 @@ $!ALTERDATA
 $!ALTERDATA 
   EQUATION = '{Us} = 0.4'
 $!ALTERDATA 
-  EQUATION = '{Vs} = 0.8'
+  EQUATION = '{Vs} = 1.2'
 $!ALTERDATA 
   EQUATION = '{alpha_U} = {Us}'
 $!ALTERDATA 

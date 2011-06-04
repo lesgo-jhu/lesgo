@@ -1,3 +1,13 @@
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
+
 !**********************************************************************
 module cyl_skew_pre_base_ls
 !**********************************************************************
@@ -248,15 +258,6 @@ $endif
 implicit none
 
 integer :: i,j,k
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 do k=$lbz,nz_tot
   do j=1,ny
@@ -1281,19 +1282,24 @@ write(*,*) 'Finalized local to global send/receive'
 
 $else
 
-allocate(phi(ld,ny,$lbz:nz_tot))
-allocate(chi(ld,ny,$lbz:nz_tot))
-allocate(brindx(ld,ny,$lbz:nz_tot))
-allocate(clindx(ld,ny,$lbz:nz_tot))
-allocate(x(nx),y(ny),z($lbz:nz_tot))
 
-phi(:,:,:) = gcs_t(:,:,:)%phi
-chi(:,:,:) = gcs_t(:,:,:)%chi
-brindx(:,:,:) = gcs_t(:,:,:)%brindx
-clindx(:,:,:) = gcs_t(:,:,:)%clindx
-x(:) = gcs_t(:,1,1)%xyz(1)
-y(:) = gcs_t(1,:,1)%xyz(2)
+allocate(phi(ld,ny,nz))
+allocate(chi(ld,ny,nz))
+allocate(brindx(ld,ny,nz))
+allocate(clindx(ld,ny,nz))
+allocate(x(nx+1),y(ny+1),z(nz))
+
+phi(1:nx,:,:) = gcs_t(1:nx,:,:)%phi
+chi(1:nx,:,:) = gcs_t(1:nx,:,:)%chi
+brindx(1:nx,:,:) = gcs_t(1:nx,:,:)%brindx
+clindx(1:nx,:,:) = gcs_t(1:nx,:,:)%clindx
+x(1:nx) = gcs_t(1:nx,1,1)%xyz(1)
+y(1:nx) = gcs_t(1,1:ny,1)%xyz(2)
 z(:) = gcs_t(1,1,:)%xyz(3)
+
+!  Set buffer x and y points for periodicity
+x(nx+1) = x(nx)+dx
+y(ny+1) = y(ny)+dy
 
 $endif
 
@@ -1430,7 +1436,79 @@ endif
 
 $else
   
-  write(*,*) 'No output yet for single processor'
+  !write(*,*) 'No output yet for single processor'
+  
+  !  Open file which to write global data
+  write (fname,*) 'cyl_skew_ls.dat'
+  fname = trim(adjustl(fname)) 
+
+  call write_tecplot_header_ND(fname, 'rewind', 7, &
+    (/ Nx+1, Ny+1, Nz /), &
+    '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
+    numtostr(n,6), 2)
+
+  call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, Nz,&
+    (/phi(1:nx,:,1:Nz), real(brindx(1:nx,:,1:Nz),rprec), real(clindx(1:nx,:,1:Nz),rprec), chi(1:nx,:,1:Nz)/),&
+    4, x, y, z(1:Nz))    
+
+  !  Open file which to write global data
+  write (fname_phi,*) 'phi.out'
+  fname_phi = trim(adjustl(fname_phi)) 
+  write (fname_brindx,*) 'brindx.out'
+  fname_brindx = trim(adjustl(fname_brindx)) 
+  write (fname_clindx,*) 'clindx.out'
+  fname_clindx = trim(adjustl(fname_clindx))     
+  write (fname_chi,*) 'chi.out'
+  fname_chi = trim(adjustl(fname_chi)) 
+ 
+  !  Write binary data for lesgo
+  $if ($WRITE_BIG_ENDIAN)
+  open (1, file=fname_phi, form='unformatted', convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open (1, file=fname_phi, form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fname_phi, form='unformatted')
+  $endif
+  write(1) phi
+  close (1)
+
+  !  Write binary data for lesgo
+  $if ($WRITE_BIG_ENDIAN)
+  open (1, file=fname_brindx, form='unformatted', convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open (1, file=fname_brindx, form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fname_brindx, form='unformatted')
+  $endif
+  write(1) brindx
+  close (1) 
+
+  !  Write binary data for lesgo
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname_clindx, form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname_clindx, form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname_clindx, form='unformatted')
+    $endif
+    write(1) clindx
+    close (1)  
+
+    !  Write binary data for lesgo
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname_chi, form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname_chi, form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname_chi, form='unformatted')
+    $endif
+    write(1) chi
+    close (1)    
+
+  deallocate(phi)
+  deallocate(brindx)
+  deallocate(clindx)
+  deallocate(chi)  
 
 $endif
 

@@ -19,7 +19,8 @@ $if ($MPI)
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_cylinder_CD, level_set_smooth_vel, level_set_vel_err
+use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set_base, only : global_CD_calc
   
   $if ($CYL_SKEW_LS)
   !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
@@ -580,29 +581,9 @@ do jt=1,nsteps
     !//////////////////////////////////////////////////////   
     ! Projection method provides u,v,w for jz=1:nz
     !   uses fx,fy,fz calculated above
-    !   for MPI: syncs nz and 1 node info for u,v,w    
+    !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
     call project ()
-
-    ! Exchange ghost node information (since coords overlap)
-    !   send info up (from nz-1 below to 0 above)    
-    
-    $if ($MPI)
-    call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-                       u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-                       comm, status, ierr)
-
-    call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-                       v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-                       comm, status, ierr)
-
-    call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-                       w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-                       comm, status, ierr)    
-    !    call mpi_sync_real_array( u, MPI_SYNC_UP )
-    !    call mpi_sync_real_array( v, MPI_SYNC_UP )
-    !    call mpi_sync_real_array( w, MPI_SYNC_UP )
-    $endif
-    
+   
     ! Perform conditional averaging - for turbines
     $if ($TURBINES)
         call turbines_cond_avg()
@@ -610,6 +591,11 @@ do jt=1,nsteps
 
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
+
+    $if ($LVLSET)
+      if( global_CD_calc ) call level_set_global_CD ()
+    $endif
+
 
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then

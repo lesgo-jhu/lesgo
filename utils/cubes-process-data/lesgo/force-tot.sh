@@ -2,7 +2,7 @@
 
 if [ $# -ne 3 ]
 then
-  echo "Usage: `basename $0` {nproc}"
+  echo "Usage: `basename $0` {nproc} {Lx} {Nx}"
   exit 1
 fi
 
