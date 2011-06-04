@@ -122,10 +122,12 @@ use types, only : rprec
 use grid_defs
 use messages 
 use param, only : nx, ny, nz, L_x, L_y
+use param, only : coord
 implicit none
 
 character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
+
 real(rprec) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.cell_indx'
@@ -143,23 +145,36 @@ z => grid_t % z
 
 select case (indx)
   case ('i')
+
     ! Autowrap spatial point   
     px = modulo(px,L_x)
+
     ! Returned values 1 <= cell_indx <= Nx
     cell_indx = floor (px / dx) + 1
-    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
+
+    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain (x-direction)')
+
   case ('j')
+
     ! Autowrap spatial point
     px = modulo(px, L_y) 
+
     ! Returned values 1 <= cell_indx <= Ny
     cell_indx = floor (px / dx) + 1 
-    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
+
+    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain (y-direction)')
+
   !  Need to compute local distance to get local k index
   case ('k')
+    
     cell_indx = floor ((px - z(1)) / dx) + 1
-    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain')    
+
+    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain (z-direction)')    
+
   case default
+
     call error (func_name, 'invalid indx =' // indx)
+
 end select
 
 nullify(z)

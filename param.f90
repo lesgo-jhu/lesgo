@@ -55,8 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  ! 2x1 coarse
-  integer,parameter:: nx=64,ny=32,nz=(28)/nproc + 1 
+  integer,parameter:: nx=256,ny=128,nz=(32)/nproc + 1 
   ! 2x2 coarse
   !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
   ! 3x3 coarse
@@ -72,7 +71,7 @@ module param
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x= 8.0_rprec
+  real(rprec),parameter::L_x= 32.0_rprec
   !real(rprec),parameter::L_y= 4.0_rprec
   !real(rprec),parameter::L_z= 4.0_rprec
   real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
@@ -90,13 +89,15 @@ module param
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
   ! Models type: 1->static prandtl, 2->Dynamic
   integer,parameter::model=5,models=1,nnn=2
+
+  ! timesteps between dynamic Cs updates           
+  integer, parameter :: cs_count = 5
+  ! When to start dynamic Cs calculations
+  integer,parameter::DYN_init=cs_count
   
   ! Cs is the Smagorinsky Constant
   ! Co and nnn are used in the mason model for smagorisky coeff
   real(kind=rprec),parameter::Co=0.16_rprec
-  
-  ! timesteps between dynamic Cs updates	   
-  integer, parameter :: cs_count = 5  
   
   ! test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer,parameter::ifilter=1
@@ -123,7 +124,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 550000
+  integer, parameter :: nsteps = 32000
  
   $if($CFL_DT)
   
@@ -162,7 +163,7 @@ module param
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
   ! lbc: lower boundary condition:  'wall', 'stress free'
-  character (*), parameter :: lbc_mom = 'wall'
+  character (*), parameter :: lbc_mom = 'stress free'
   
   ! lower boundary condition, roughness length
   ! if use_default_patch is false, zo will be read from 'patch.dat'
@@ -170,7 +171,7 @@ module param
   real (rprec), parameter :: zo_default = 0.0001_rprec  ! nondimensional  
 
   ! prescribed inflow:   
-  logical,parameter::inflow=.false.
+  logical,parameter::inflow=.true.
   ! if inflow is true the following should be set:
     logical, parameter :: use_fringe_forcing = .false.  
     ! position of right end of buffer region, as a fraction of L_x
@@ -190,7 +191,7 @@ module param
     logical, parameter :: force_top_bot = .false.
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
-  logical, parameter :: use_mean_p_force = .true.
+  logical, parameter :: use_mean_p_force = .false.
   real (rprec), parameter :: mean_p_force = 1._rprec * 1. / L_z
   
 !---------------------------------------------------
@@ -201,47 +202,47 @@ module param
   integer,parameter::wbase=100
   
   ! how often to write ke to check_ke.out
-  integer, parameter :: nenergy = 1  
+  integer, parameter :: nenergy = 10
 
-  ! how often to display CFL condition
-  integer,parameter::cfl_count=1000  
+  ! how often to display Lagrangian CFL condition of 
+  ! dynamic SGS models
+  integer,parameter::cfl_count=1000
 
   ! records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
-  integer, parameter :: tavg_nstart = 50000, tavg_nend = nsteps
+  integer, parameter :: tavg_nstart = nsteps/2, tavg_nend = nsteps
 
   ! turns instantaneous velocity recording on or off
-  logical, parameter :: point_calc = .false.
+  logical, parameter :: point_calc = .true.
   integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
-  integer, parameter :: point_nloc = 2
+  integer, parameter :: point_nloc = 1
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
-        point3D( (/ L_x/2., L_y/2., 2._rprec /) ), &
-        point3D( (/ 3._rprec, 2._rprec, 2._rprec /) ) &
+        point3D( (/ 6.0_rprec, L_y/2.0_rprec, 2.0_rprec /) ) &
         /)
 
   ! domain instantaneous output
   logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 100, domain_nend = nsteps, domain_nskip = 50000
+  integer, parameter :: domain_nstart = 10000, domain_nend = nsteps, domain_nskip = 10000
   
   ! x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .true.
+  logical, parameter :: xplane_calc   = .false.
   integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 50000
   integer, parameter :: xplane_nloc   = 2
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .true.
+  logical, parameter :: yplane_calc   = .false.
   integer, parameter :: yplane_nstart = 50000, yplane_nend = nsteps, yplane_nskip  = 50000
   integer, parameter :: yplane_nloc   = 2
   real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ L_y/4._rprec, L_y/2._rprec  /)  
 
   ! z-plane instantaneous output
   logical, parameter :: zplane_calc   = .true.
-  integer, parameter :: zplane_nstart = 50000, zplane_nend = nsteps, zplane_nskip  = 50000
-  integer, parameter :: zplane_nloc   = 2
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.5, 2.25 /)
+  integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
+  integer, parameter :: zplane_nloc   = 1
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 2.0_rprec /)
 
-  logical, parameter :: spectra_calc = .true.
+  logical, parameter :: spectra_calc = .false.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
   integer, parameter :: spectra_nloc = 2
   real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.5_rprec, 2.25_rprec /)
@@ -254,7 +255,7 @@ module param
   ! logical,parameter::S_FLAG=.TRUE.,coupling_flag=.FALSE.,mo_flag=.TRUE.
   logical,parameter::S_FLAG=.false.
   ! integer,parameter::DYN_init=2, SCAL_init=5, no_days=1
-  integer,parameter::DYN_init=100, SCAL_init=5, no_days=1
+  integer,parameter :: SCAL_init=5, no_days=1
   ! integer,parameter::DYN_init=1, SCAL_init=1, no_days=1
   integer,parameter::patch_flag=1, remote_flag=0, time_start=0
   ! initu=.TRUE. & initsc=.FALSE read velocity fields from a binary file
