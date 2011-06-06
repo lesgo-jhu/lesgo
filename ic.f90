@@ -63,6 +63,13 @@ subroutine ic()
         arg2=z/zo_avg
         arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
+        $if($LVLSET)
+        ! Kludge to adjust magnitude of velocity profile
+        ! Not critical - may delete
+        arg = 0.357*arg
+        $endif
+     
+
         $if ($TURBINES)
           call turbine_vel_init (zo_turbines)
           arg2=z/zo_turbines
