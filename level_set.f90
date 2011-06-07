@@ -41,7 +41,7 @@ $if ($MPI)
   integer, parameter :: ntautop = 3
   integer, parameter :: ntaubot = 2
   integer, parameter :: nFMMtop = 1
-  integer, parameter :: nFMMbot = 1
+  integer, parameter :: nFMMbot = 2
 $else
   integer, parameter :: nphitop = 0
   integer, parameter :: nphibot = 0
@@ -2824,7 +2824,9 @@ real (rp), intent (in out) :: a(ld, ny, albz:nz)
 character (*), intent (in), optional :: node  !--'u' or 'w'
 
 character (*), parameter :: sub_name = mod_name // '.smooth'
-character (*), parameter :: mode = 'xy'  !--'xy', '3d'
+
+! Moved to level_set_base (renamed to smooth_mode )
+!character (*), parameter :: mode = 'xy'  !--'xy', '3d'
 
 integer, parameter :: niter = 5  !--number of SOR iterations
 
@@ -2868,15 +2870,18 @@ else
 
 end if
 
-select case (mode)
+select case (smooth_mode)
   case ('xy')
     kmin = 1
     kmax = nz
   case ('3d')
     kmin = 2  !--this is not MPI-enabled
     kmax = nz - 1
+    $if($MPI)
+    call error (sub_name, 'smooth_mode 3d not MPI compliant')
+    $endif
   case default
-    call error (sub_name, 'invalid mode =' // mode)
+    call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
 end select
 
 do iter = 1, niter
@@ -2901,7 +2906,7 @@ do iter = 1, niter
           jm1 = autowrap_j(j-1)
           jp1 = autowrap_j(j+1)
 
-          select case (mode)
+          select case (smooth_mode)
             case ('xy')
               nnbr = 4
               update = (a(im1, j, k) + a(ip1, j, k) +     &
@@ -2912,7 +2917,7 @@ do iter = 1, niter
                         a(i, jm1, k) + a(i, jp1, k) +     &
                         a(i, j, k-1) + a(i, j, k+1)) / nnbr
             case default
-              call error (sub_name, 'invalid mode =' // mode)
+              call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
           end select
 
           a(i, j, k) = (1._rp - omega) * a(i, j, k) + omega * update 

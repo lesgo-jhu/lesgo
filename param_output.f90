@@ -8,6 +8,9 @@ $endif
 $if($CYL_SKEW_LS)
 use cyl_skew_base_ls
 $endif
+$if($LVLSET)
+use level_set_base
+$endif
 
 implicit none
 
@@ -145,6 +148,41 @@ do n=1,spectra_nloc
   write(2,if_fmt) 'n, spectra_loc(n) : ', n, spectra_loc(n)
 enddo
 
+$if($LVLSET)
+write(2,c_fmt) ''
+write(2,c_fmt) '**********************************************************************'
+write(2,c_fmt) 'LEVEL_SET_BASE'
+write(2,c_fmt) '**********************************************************************'
+write(2,c_fmt) ''
+write(2,c_fmt) '---------------------------------------------------'
+write(2,c_fmt) 'FORCE PARAMETERS'
+write(2,c_fmt) '---------------------------------------------------'
+write(2,l_fmt) 'global_CD_calc : ', global_CD_calc
+write(2,i_fmt) 'Ldir : ', Ldir
+write(2,c_fmt) ''
+write(2,c_fmt) '---------------------------------------------------'
+write(2,c_fmt) 'BC PARAMETERS'
+write(2,c_fmt) '---------------------------------------------------'
+write(2,l_fmt) 'vel_BC : ', vel_BC
+write(2,l_fmt) 'use_log_profile : ', use_log_profile
+write(2,l_fmt) 'use_enforce_un : ', use_enforce_un
+write(2,l_fmt) 'physBC : ', physBC
+write(2,f_fmt) 'z0 : ', z0
+write(2,c_fmt) ''
+write(2,c_fmt) '---------------------------------------------------'
+write(2,c_fmt) 'SMOOTHING PARAMETERS'
+write(2,c_fmt) '---------------------------------------------------'
+write(2,l_fmt) 'use_smooth_tau : ', use_smooth_tau
+write(2,l_fmt) 'use_extrap_tau_log : ', use_extrap_tau_log
+write(2,l_fmt) 'use_extrap_tau_simple : ', use_extrap_tau_simple
+write(2,l_fmt) 'use_modify_dutdn : ', use_modify_dutdn
+write(2,x2c_fmt) 'smooth_mode : ', smooth_mode
+write(2,c_fmt) ''
+write(2,c_fmt) '---------------------------------------------------'
+write(2,c_fmt) 'SGS PARAMETERS'
+write(2,c_fmt) '---------------------------------------------------'
+write(2,l_fmt) 'lag_dyn_modify_beta : ', lag_dyn_modify_beta
+$endif
 
 $if($RNS_LS)
 write(2,c_fmt) ''
@@ -153,7 +191,7 @@ write(2,c_fmt) 'RNS_BASE_LS'
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
-write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
+write(2,c_fmt) 'RNS PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,i_fmt) 'rns_ntree : ', rns_ntree
 write(2,x2c_fmt) 'rns_tree_layout : ', rns_tree_layout
@@ -196,8 +234,6 @@ write(2,f_fmt) 'filt_width : ', filt_width
 $endif
 
 close(2)
-
-
 
 return
 end subroutine param_output

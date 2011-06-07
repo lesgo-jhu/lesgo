@@ -30,6 +30,13 @@ subroutine ic()
   $endif
 
 
+  !if (DEBUG) then
+  !  u = face_avg
+  !  v = 0._rprec
+  !  w = 0._rprec
+  !  return
+  !end if
+
   if ((inflow) .and. (.not. read_inflow_file)) then  !--no turbulence
 
      u = face_avg 
@@ -90,6 +97,15 @@ subroutine ic()
         if ((coriolis_forcing).and.(z.gt.(.5_rprec))) ubar(jz)=ug
 
      end do
+
+     !if (DEBUG) then
+     !  do jz = 1, nz
+     !    u(1:nx, 1:ny, jz) = ubar(jz)
+     !  end do
+     !  v = 0._rprec
+     !  w = 0._rprec
+     !  return
+     !end if
 
      rms = 3._rprec
      do jz=1,nz
