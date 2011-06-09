@@ -41,7 +41,7 @@ $if ($MPI)
   integer, parameter :: ntautop = 3
   integer, parameter :: ntaubot = 2
   integer, parameter :: nFMMtop = 1
-  integer, parameter :: nFMMbot = 2
+  integer, parameter :: nFMMbot = 1
 $else
   integer, parameter :: nphitop = 0
   integer, parameter :: nphibot = 0
