@@ -2,7 +2,7 @@ module sgsmodule
 use types,only:rprec
 use param,only:ld,nx,ny,nz
 implicit none
-private ld,ny,nz
+private ld,nx,ny,nz,rprec
 
 $if ($MPI)
     $define $lbz 0
