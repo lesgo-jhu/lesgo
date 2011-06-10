@@ -329,6 +329,8 @@ use level_set_base, only : phi
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
+use param, only : model
+use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2
 implicit none
 
 include 'tecio.h'      
@@ -357,6 +359,9 @@ real(rprec), allocatable, dimension(:,:,:) :: divvel
 $endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
+
+! Arrays used for outputing slices of LDSM variables
+real(rprec), allocatable, dimension(:,:) :: F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s
 
 ! Nullify pointers
 nullify(x,y,z,zw)
@@ -858,6 +863,43 @@ elseif(itype==5) then
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /) )      
     
     $endif
+
+    if( model == 5 ) then
+      allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
+      allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))
+      allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
+
+      do j=1,Ny
+        do i=1,Nx
+!
+          F_LM_s(i,j) = linear_interp(F_LM(i,j,zplane_t(k) % istart), F_LM(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff) 
+          F_MM_s(i,j) = linear_interp(F_MM(i,j,zplane_t(k) % istart), F_MM(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff) 
+          F_QN_s(i,j) = linear_interp(F_QN(i,j,zplane_t(k) % istart), F_QN(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          F_NN_s(i,j) = linear_interp(F_NN(i,j,zplane_t(k) % istart), F_NN(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          beta_s(i,j) = linear_interp(beta(i,j,zplane_t(k) % istart), beta(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)            
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2(i,j,zplane_t(k) % istart), Cs_opt2(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)                                         
+        enddo
+      enddo      
+
+      write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      call write_tecplot_header_ND(fname, 'rewind', 9, (/ Nx+1, Ny+1, 1/), &
+        '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>", "F<sub>QN</sub>", "F<sub>NN</sub>", "<greek>b</greek>", "Cs<sup>2</sup>"', &
+        numtostr(coord,6), 2, real(total_time,4))
+
+      call write_real_data_3D(fname, 'append', 'formatted', 6, nx,ny,1, &
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s /), 4, x, y, (/ zplane_loc(k) /) )         
+
+      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s)
+
+    endif
 
     $if ($MPI)
     endif
