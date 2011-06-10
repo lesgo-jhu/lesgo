@@ -11,7 +11,6 @@ $else
   $define $lbz 1
 $endif
 
-
 save
 
 public
@@ -26,7 +25,6 @@ integer, parameter :: Ldir = 2
                       !  2 when lift direction is y
                       !  3 when lift direction is z
 
-
 logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
                                        !  level set BC
 logical, parameter :: use_log_profile = .false.
@@ -38,12 +36,19 @@ logical, parameter :: use_extrap_tau_simple = .true.
 logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; not MPI compliant
                                                   !--wont work w/extra_tau_log
 
-real (rp), parameter :: z0 = 0.0001_rp
-                        !--nondimensional roughness length of surface
+! Enables scale dependent Cs evaluations (not dynamic evaluation)
+! Used when model=4 in param module
+logical, parameter :: lag_dyn_modify_beta = .true.
+
+! Configures the mode in which SOR smoothing is applied in the IB
+! 'xy' may be safely used in most cases (must be used for MPI cases)
+! '3d' not MPI compliant
+character (*), parameter :: smooth_mode = 'xy'  !--'xy', '3d'
+
+real (rp), parameter :: z0 = 0.0001_rp !--nondimensional roughness length of surface
 
 logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
-
 
 real (rp) :: phi(ld, ny, $lbz:nz)
 

@@ -28,11 +28,11 @@ VERBOSE=no
 DEVEL=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition (EXPERIMENTAL)
-USE_CFL_DT = no
+USE_CFL_DT = yes
 
 # Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -50,7 +50,7 @@ USE_DYNALLOC = no
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2, PC_SCHEME_3 (EXPERIMENTAL)
 USE_PC_SCHEME = DEFAULT
 
-USE_LVLSET = no
+USE_LVLSET = yes
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no
@@ -82,9 +82,9 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
   LIBS += -lfcgaml-intel -lftecio-intel
-  FFLAGS = -O0 -check bounds -g -debug all -traceback
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -ftz -ip -O3
+  FFLAGS = -axSSE4.2 -ftz -ip -O3
   FFLAGS += -warn all -shared-intel
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   # Work around for real -> complex dummy array assignment

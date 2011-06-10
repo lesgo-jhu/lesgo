@@ -121,14 +121,16 @@ integer function cell_indx(indx,dx,px)
 use types, only : rprec
 use grid_defs
 use messages 
-use param, only : nx, ny, nz, L_x, L_y
+use param, only : nx, ny, nz, L_x, L_y, L_z
 implicit none
 
 character (*), intent (in) :: indx
 real(rprec), intent(IN) :: dx
+
 real(rprec) :: px ! Global value
 
 character (*), parameter :: func_name = mod_name // '.cell_indx'
+real(rprec), parameter :: thresh = 1.e-9_rprec
 
 real(rprec), pointer, dimension(:) :: z
 
@@ -143,23 +145,80 @@ z => grid_t % z
 
 select case (indx)
   case ('i')
+
     ! Autowrap spatial point   
     px = modulo(px,L_x)
-    ! Returned values 1 <= cell_indx <= Nx
-    cell_indx = floor (px / dx) + 1
-    if( cell_indx > Nx .or. cell_indx < 1) call error(func_name, 'Specified point is not in spatial domain')
+   
+    ! Check lower boundary
+    if( abs(px) / L_x < thresh ) then
+
+      cell_indx = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_x ) / L_x < thresh ) then
+   
+      cell_indx = Nx
+
+    else
+
+      ! Returned values 1 < cell_indx < Nx
+      cell_indx = floor (px / dx) + 1
+
+   endif
+
+   if( cell_indx > Nx .or. cell_indx < 1)  then
+     write(*,*) 'px, dx, L_x, cell_indx : ', px, dx, L_x, cell_indx
+     call error(func_name, 'Specified point is not in spatial domain (x-direction)')
+   endif
+
+
   case ('j')
+
     ! Autowrap spatial point
     px = modulo(px, L_y) 
-    ! Returned values 1 <= cell_indx <= Ny
-    cell_indx = floor (px / dx) + 1 
-    if( cell_indx > Ny .or. cell_indx < 1)  call error(func_name, 'Specified point is not in spatial domain')
+
+    ! Check lower boundary
+    if( abs(px) / L_y < thresh ) then
+
+      cell_indx = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_y ) / L_y < thresh ) then
+
+      cell_indx = Ny
+
+    else
+
+      ! Returned values 1 < cell_indx < Ny
+      cell_indx = floor (px / dx) + 1
+
+   endif
+
+   if( cell_indx > Ny .or. cell_indx < 1)  then
+      write(*,*) 'px, dx, L_y, cell_indx : ', px, dx, L_y, cell_indx
+      call error(func_name, 'Specified point is not in spatial domain (y-direction)')
+   endif
+
   !  Need to compute local distance to get local k index
   case ('k')
-    cell_indx = floor ((px - z(1)) / dx) + 1
-    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain')    
+
+      ! Check upper boundary 
+    if( abs( px - z(Nz) ) / L_z < thresh ) then
+
+      cell_indx = Nz-1
+
+    else
+
+      cell_indx = floor ((px - z(1)) / dx) + 1
+
+    endif
+
+    if( cell_indx >= Nz .or. cell_indx < $lbz) call error(func_name, 'Specified point is not in spatial domain (z-direction)')    
+
   case default
+
     call error (func_name, 'invalid indx =' // indx)
+
 end select
 
 nullify(z)
