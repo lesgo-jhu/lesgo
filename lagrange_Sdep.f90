@@ -60,6 +60,8 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
 
+real(kind=rprec), parameter :: zero=1.e-24_rprec
+
 !--removed to save mem.:  need to put back if use building stuff
 !real (rprec), dimension (ld, ny, $lbz:nz) :: u_temp, v_temp
 
@@ -308,15 +310,15 @@ end if
 !TS FIX THE BUG IN COMPAQ COMPILER
 !TS ADD the following
 !--you mean workaround?
-Tn =max(real(F_LM(:,:,jz)*F_MM(:,:,jz)),real(1E-24))
+Tn =max(real(F_LM(:,:,jz)*F_MM(:,:,jz)),real(zero))
 Tn=opftdelta*(Tn**powcoeff)
-Tn(:,:) = max(real(1E-24),real(Tn(:,:)))
+Tn(:,:) = max(real(zero),real(Tn(:,:)))
 dumfac = lagran_dt/Tn 
 epsi = dumfac / (1._rprec+dumfac)
 
 F_LM(:,:,jz)=(epsi*LM + (1._rprec-epsi)*F_LM(:,:,jz))
 F_MM(:,:,jz)=(epsi*MM + (1._rprec-epsi)*F_MM(:,:,jz))
-F_LM(:,:,jz)= max(real(1E-24),real(F_LM(:,:,jz)))
+F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
 
 !--changed to 2d arrays to save mem.
 !Cs_opt2_2d(:,:,jz) = F_LM(:,:,jz)/F_MM(:,:,jz)
@@ -329,9 +331,9 @@ F_LM(:,:,jz)= max(real(1E-24),real(F_LM(:,:,jz)))
 Cs_opt2_2d(:,:) = F_LM(:,:,jz)/F_MM(:,:,jz)
 !	Cs_opt2_2d(:,:) = SUM(LM(:,:))/SUM(MM(:,:))
 !--why set ld-1:ld to this?
-Cs_opt2_2d(ld,:) = 1E-24
-Cs_opt2_2d(ld-1,:) = 1E-24
-Cs_opt2_2d(:,:)=max(real(1E-24),real(Cs_opt2_2d(:,:)))
+Cs_opt2_2d(ld,:) = zero
+Cs_opt2_2d(ld-1,:) = zero
+Cs_opt2_2d(:,:)=max(real(zero),real(Cs_opt2_2d(:,:)))
 
 if (inilag) then
   if ((.not. F_QN_NN_init) .and. (jt == cs_count .or. jt == DYN_init)) then
@@ -347,15 +349,15 @@ end if
 
 !TS FIX THE BUG IN COMPAQ COMPILER
 !TS ADD the following
-Tn =max(real(F_QN(:,:,jz)*F_NN(:,:,jz)),real(1E-24))
+Tn =max(real(F_QN(:,:,jz)*F_NN(:,:,jz)),real(zero))
 Tn=opftdelta*(Tn**powcoeff)
-Tn(:,:) = max(real(1E-24),real(Tn(:,:)))
+Tn(:,:) = max(real(zero),real(Tn(:,:)))
 dumfac = lagran_dt/Tn
 epsi = dumfac / (1._rprec+dumfac)
 
 F_QN(:,:,jz)=(epsi*QN + (1._rprec-epsi)*F_QN(:,:,jz))
 F_NN(:,:,jz)=(epsi*NN + (1._rprec-epsi)*F_NN(:,:,jz))
-F_QN(:,:,jz)= max(real(1E-24),real(F_QN(:,:,jz)))
+F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 
 !--changed to 2d arrays to save mem.
 !Cs_opt2_4d(:,:,jz) = F_QN(:,:,jz)/F_NN(:,:,jz)
@@ -366,9 +368,9 @@ F_QN(:,:,jz)= max(real(1E-24),real(F_QN(:,:,jz)))
 
 Cs_opt2_4d(:,:) = F_QN(:,:,jz)/F_NN(:,:,jz)
 !	Cs_opt2_4d(:,:) = SUM(QN(:,:))/SUM(NN(:,:))
-Cs_opt2_4d(ld,:) = 1E-24
-Cs_opt2_4d(ld-1,:) = 1E-24
-Cs_opt2_4d(:,:)=max(real(1E-24),real(Cs_opt2_4d(:,:)))
+Cs_opt2_4d(ld,:) = zero
+Cs_opt2_4d(ld-1,:) = zero
+Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 
 !--changed to save mem.
 !Beta(:,:,jz)=&
@@ -405,9 +407,9 @@ do jy = 1, ny
   end do
 end do
 
-Cs_opt2(ld,:,jz) = 1E-24
-Cs_opt2(ld-1,:,jz) = 1E-24
-Cs_opt2(:,:,jz)=max(real(1E-24),real(Cs_opt2(:,:,jz)))
+Cs_opt2(ld,:,jz) = zero
+Cs_opt2(ld-1,:,jz) = zero
+Cs_opt2(:,:,jz)=max(real(zero),real(Cs_opt2(:,:,jz)))
 
 !!$if (mod(jt,100) == 0) then
 !!$      if (jz==1.or.jz==nz/4.or.jz==nz/2) then
