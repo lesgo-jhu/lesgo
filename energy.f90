@@ -35,8 +35,7 @@ $if ($MPI)
   real (rprec) :: ke_global
 $endif
 
-!---------------------------------------------------------------------
-
+! Initialize variables
 nan_count = 0
 ke=0._rprec
 
@@ -74,8 +73,10 @@ z_loop: do jz=1,nz-1
     end do
 end do z_loop
 
+! Perform spatial averaging
 ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
+! Check if NaN's where found
 if ( nan_count > 0 ) call error (sub_name, 'NaN found')
 
 $if ($MPI)
