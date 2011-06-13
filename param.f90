@@ -55,7 +55,7 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=256,ny=128,nz=(32)/nproc + 1 
+  integer,parameter:: nx=32,ny=32,nz=(32)/nproc + 1 
   ! 2x2 coarse
   !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
   ! 3x3 coarse
@@ -71,7 +71,7 @@ module param
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x= 32.0_rprec
+  real(rprec),parameter::L_x= 4.0_rprec
   !real(rprec),parameter::L_y= 4.0_rprec
   !real(rprec),parameter::L_z= 4.0_rprec
   real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
@@ -124,7 +124,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 32000
+  integer, parameter :: nsteps = 10000
  
   $if($CFL_DT)
   
@@ -136,7 +136,7 @@ module param
   
   $else
   
-  real (rprec), parameter :: dt = 1.e-4               ! dt=2.e-4 usually works for 64^3
+  real (rprec), parameter :: dt = 5.e-4               ! dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -163,7 +163,7 @@ module param
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
   ! lbc: lower boundary condition:  'wall', 'stress free'
-  character (*), parameter :: lbc_mom = 'stress free'
+  character (*), parameter :: lbc_mom = 'wall'
   
   ! lower boundary condition, roughness length
   ! if use_default_patch is false, zo will be read from 'patch.dat'
@@ -171,7 +171,7 @@ module param
   real (rprec), parameter :: zo_default = 0.0001_rprec  ! nondimensional  
 
   ! prescribed inflow:   
-  logical,parameter::inflow=.true.
+  logical,parameter::inflow=.false.
   ! if inflow is true the following should be set:
     logical, parameter :: use_fringe_forcing = .false.  
     ! position of right end of buffer region, as a fraction of L_x
@@ -191,22 +191,22 @@ module param
     logical, parameter :: force_top_bot = .false.
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
-  logical, parameter :: use_mean_p_force = .false.
-  real (rprec), parameter :: mean_p_force = 1._rprec * 1. / L_z
+  logical, parameter :: use_mean_p_force = .true.
+  real (rprec), parameter :: mean_p_force = 1._rprec * 1. / (L_z-0.6_rprec)
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
 
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
-  integer,parameter::wbase=100
+  integer,parameter::wbase=1
   
   ! how often to write ke to check_ke.out
   integer, parameter :: nenergy = 10
 
   ! how often to display Lagrangian CFL condition of 
   ! dynamic SGS models
-  integer,parameter::cfl_count=1000
+  integer,parameter::cfl_count=1
 
   ! records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
@@ -239,8 +239,8 @@ module param
   ! z-plane instantaneous output
   logical, parameter :: zplane_calc   = .true.
   integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
-  integer, parameter :: zplane_nloc   = 1
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 2.0_rprec /)
+  integer, parameter :: zplane_nloc   = 3
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.3_rprec, 1.1_rprec, 3._rprec /)
 
   logical, parameter :: spectra_calc = .false.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps

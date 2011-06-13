@@ -67,6 +67,8 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: opftdelta,powcoeff
 
+real(kind=rprec), parameter :: zero=1.e-24_rprec
+
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
 
@@ -292,10 +294,10 @@ do jz = 1,nz
             $if ($DYN_TN)   ! based on Taylor timescale
                 Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
             $else           ! based on Meneveau, Lund, and Cabot paper (JFM 1996)
-                Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), real(1E-24))
-                Tn = opftdelta*(Tn**powcoeff)    
+                Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), real(zero))
+                Tn = opftdelta*(Tn**powcoeff)
                 ! Clip, if necessary
-                Tn(:,:) = max(real(1E-24),real(Tn(:,:)))                
+                Tn(:,:) = max(real(zero),real(Tn(:,:)))                
             $endif           
             
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi                 
@@ -305,14 +307,15 @@ do jz = 1,nz
             F_LM(:,:,jz)=(epsi*LM + (1._rprec-epsi)*F_LM(:,:,jz))
             F_MM(:,:,jz)=(epsi*MM + (1._rprec-epsi)*F_MM(:,:,jz))
             ! Clip, if necessary
-            F_LM(:,:,jz)= max(real(1E-24),real(F_LM(:,:,jz)))
+            F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
 
     ! Calculate Cs_opt2 (for 2-delta filter)
-        Cs_opt2_2d(:,:) = F_LM(:,:,jz)/F_MM(:,:,jz)
-        Cs_opt2_2d(ld,:) = 1E-24
-        Cs_opt2_2d(ld-1,:) = 1E-24
+        ! Add +zero in demomenator to avoid division by identically zero
+        Cs_opt2_2d(:,:) = F_LM(:,:,jz)/(F_MM(:,:,jz) + zero)
+        Cs_opt2_2d(ld,:) = zero
+        Cs_opt2_2d(ld-1,:) = zero
         ! Clip, if necessary
-        Cs_opt2_2d(:,:)=max(real(1E-24),real(Cs_opt2_2d(:,:)))
+        Cs_opt2_2d(:,:)=max(real(zero),real(Cs_opt2_2d(:,:)))
 
     ! Initialize (???)           
         if (inilag) then
@@ -332,10 +335,10 @@ do jz = 1,nz
             $if ($DYN_TN)   ! based on Taylor timescale
                 ! Keep the same as 2-delta filter 
             $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
-                Tn =max(real(F_QN(:,:,jz)*F_NN(:,:,jz)),real(1E-24))
+                Tn =max(real(F_QN(:,:,jz)*F_NN(:,:,jz)),real(zero))
                 Tn=opftdelta*(Tn**powcoeff)
                 ! Clip, if necessary
-                Tn(:,:) = max(real(1E-24),real(Tn(:,:)))                     
+                Tn(:,:) = max(real(zero),real(Tn(:,:)))                     
             $endif   
 
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi                
@@ -345,18 +348,20 @@ do jz = 1,nz
             F_QN(:,:,jz)=(epsi*QN + (1._rprec-epsi)*F_QN(:,:,jz))
             F_NN(:,:,jz)=(epsi*NN + (1._rprec-epsi)*F_NN(:,:,jz))
             ! Clip, if necessary
-            F_QN(:,:,jz)= max(real(1E-24),real(F_QN(:,:,jz)))
+            F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 
     ! Calculate Cs_opt2 (for 4-delta filter)
-        Cs_opt2_4d(:,:) = F_QN(:,:,jz)/F_NN(:,:,jz)
-        Cs_opt2_4d(ld,:) = 1E-24
-        Cs_opt2_4d(ld-1,:) = 1E-24
+       ! Add +zero in demomenator to avoid division by identically zero
+        Cs_opt2_4d(:,:) = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
+        Cs_opt2_4d(ld,:) = zero
+        Cs_opt2_4d(ld-1,:) = zero
         ! Clip, if necessary
-        Cs_opt2_4d(:,:)=max(real(1E-24),real(Cs_opt2_4d(:,:)))
+        Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 
     ! Calculate Beta and count how many are clipped
+        ! Add +zero in demomenator to avoid division by identically zero
         Beta(:,:,jz)=&
-             (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
+             (Cs_opt2_4d(:,:)/(Cs_opt2_2d(:,:) + zero))**(log(tf1)/(log(tf2)-log(tf1)))
         counter1=0      
         counter2=0
         
@@ -381,18 +386,18 @@ do jz = 1,nz
             Cs_opt2(jx,jy,jz)=Cs_opt2_2d(jx,jy)/Betaclip
           end do
         end do
-        Cs_opt2(ld,:,jz) = 1E-24
-        Cs_opt2(ld-1,:,jz) = 1E-24
+        Cs_opt2(ld,:,jz) = zero
+        Cs_opt2(ld-1,:,jz) = zero
         ! Clip, if necessary
-        Cs_opt2(:,:,jz)=max(real(1E-24),real(Cs_opt2(:,:,jz)))
+        Cs_opt2(:,:,jz)=max(real(zero),real(Cs_opt2(:,:,jz)))
 
     ! Save planar averages every 200 timesteps (not currently written anywhere?)
-        if (mod(jt,200) == 0) then
-           LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
-           MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
-           QNvert(jz) = sum(sum(QN,DIM=1),DIM=1)/ny/nx
-           NNvert(jz) = sum(sum(NN,DIM=1),DIM=1)/ny/nx
-        end if
+    !    if (mod(jt,200) == 0) then
+    !       LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
+    !       MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
+    !       QNvert(jz) = sum(sum(QN,DIM=1),DIM=1)/ny/nx
+    !       NNvert(jz) = sum(sum(NN,DIM=1),DIM=1)/ny/nx
+    !    end if
          
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices

@@ -903,7 +903,7 @@ elseif(itype==5) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
       call write_real_data_3D(fname, 'append', 'formatted', 7, nx,ny,1, &
-        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t /), 4, x, y, (/ zplane_loc(k) /) )         
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s /), 4, x, y, (/ zplane_loc(k) /) )         
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
