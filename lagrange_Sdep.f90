@@ -60,7 +60,7 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
 
-real(kind=rprec), parameter :: zero=1.e-24_rprec
+real(kind=rprec), parameter :: zero=1.e-12_rprec
 
 !--removed to save mem.:  need to put back if use building stuff
 !real (rprec), dimension (ld, ny, $lbz:nz) :: u_temp, v_temp
@@ -328,7 +328,9 @@ F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
 !Cs_opt2_2d(ld-1,:,jz) = 1E-24
 !Cs_opt2_2d(:,:,jz)=max(real(1E-24),real(Cs_opt2_2d(:,:,jz)))
 
-Cs_opt2_2d(:,:) = F_LM(:,:,jz)/F_MM(:,:,jz)
+! Add +zero in demomenator to avoid division by identically zero
+Cs_opt2_2d(:,:) = F_LM(:,:,jz)/(F_MM(:,:,jz) + zero)
+
 !	Cs_opt2_2d(:,:) = SUM(LM(:,:))/SUM(MM(:,:))
 !--why set ld-1:ld to this?
 Cs_opt2_2d(ld,:) = zero
@@ -366,7 +368,8 @@ F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 !Cs_opt2_4d(ld-1,:,jz) = 1E-24
 !Cs_opt2_4d(:,:,jz)=max(real(1E-24),real(Cs_opt2_4d(:,:,jz)))
 
-Cs_opt2_4d(:,:) = F_QN(:,:,jz)/F_NN(:,:,jz)
+! Add +zero in demomenator to avoid division by identically zero
+Cs_opt2_4d(:,:) = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
 !	Cs_opt2_4d(:,:) = SUM(QN(:,:))/SUM(NN(:,:))
 Cs_opt2_4d(ld,:) = zero
 Cs_opt2_4d(ld-1,:) = zero
@@ -376,7 +379,7 @@ Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 !Beta(:,:,jz)=&
 !     (Cs_opt2_4d(:,:,jz)/Cs_opt2_2d(:,:,jz))**(log(tf1)/(log(tf2)-log(tf1)))
 Beta(:,:,jz)=&
-     (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
+     (Cs_opt2_4d(:,:)/(Cs_opt2_2d(:,:)+zero))**(log(tf1)/(log(tf2)-log(tf1)))
 counter1=0      
 counter2=0
 
@@ -421,16 +424,18 @@ Cs_opt2(:,:,jz)=max(real(zero),real(Cs_opt2(:,:,jz)))
 !!$      end if
 !!$end if
 
-if (mod(jt,200) == 0) then
-   LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
-   MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
-   QNvert(jz) = sum(sum(QN,DIM=1),DIM=1)/ny/nx
-   NNvert(jz) = sum(sum(NN,DIM=1),DIM=1)/ny/nx
-end if
+!if (mod(jt,200) == 0) then
+   !LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
+   !MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
+   !QNvert(jz) = sum(sum(QN,DIM=1),DIM=1)/ny/nx
+   !NNvert(jz) = sum(sum(NN,DIM=1),DIM=1)/ny/nx
+!end if
 
 ! this ends the main jz=1-nz loop          
 end do
 
+! Commented by JSG
+! zeros points inside of buildings
 !if(use_bldg)then
    !do i=1,n_bldg
    !px=bldg_pts(1,i)
