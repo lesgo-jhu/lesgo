@@ -30,7 +30,7 @@ $if($DEBUG)
 logical :: nan
 $endif
 
-real(kind=rprec)::KE,denom,temp_w
+real(kind=rprec)::KE,temp_w
 $if ($MPI)
   real (rprec) :: ke_global
 $endif
@@ -38,16 +38,14 @@ $endif
 !---------------------------------------------------------------------
 
 nan_count = 0
-
 ke=0._rprec
-denom=2._rprec*(nx*ny*(nz-1))
 
 z_loop: do jz=1,nz-1
     do jy=1,ny
         do jx=1,nx
             
-            temp_w=0.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
-            ke=ke+(u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)/denom
+            temp_w = 0.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
+            ke = ke + (u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)
             
             $if ($DEBUG)
             if (DEBUG) then
@@ -76,14 +74,16 @@ z_loop: do jz=1,nz-1
     end do
 end do z_loop
 
+ke = ke*0.5_rprec/(nx*ny*(nz-1))
+
 if ( nan_count > 0 ) call error (sub_name, 'NaN found')
 
 $if ($MPI)
 
   call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   if (rank == 0) then  !--note its rank here, not coord
-    !ke = ke_global/nproc
-    ke = ke_global
+    ke = ke_global/nproc
+    !ke = ke_global
     !write (13, *) total_time, ke
 
     call write_real_data(path//'output/check_ke.out', 'append', 'formatted', 2, (/ total_time, ke /))
