@@ -60,7 +60,7 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
 
-real(kind=rprec), parameter :: zero=1.e-24_rprec
+real(kind=rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
 
 !--removed to save mem.:  need to put back if use building stuff
 !real (rprec), dimension (ld, ny, $lbz:nz) :: u_temp, v_temp
