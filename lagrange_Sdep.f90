@@ -60,7 +60,7 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
 
-real(kind=rprec), parameter :: zero=1.e-12_rprec
+real(kind=rprec), parameter :: zero=1.e-24_rprec
 
 !--removed to save mem.:  need to put back if use building stuff
 !real (rprec), dimension (ld, ny, $lbz:nz) :: u_temp, v_temp
@@ -378,6 +378,7 @@ Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 !--changed to save mem.
 !Beta(:,:,jz)=&
 !     (Cs_opt2_4d(:,:,jz)/Cs_opt2_2d(:,:,jz))**(log(tf1)/(log(tf2)-log(tf1)))
+! Add +zero in demomenator to avoid division by identically zero
 Beta(:,:,jz)=&
      (Cs_opt2_4d(:,:)/(Cs_opt2_2d(:,:)+zero))**(log(tf1)/(log(tf2)-log(tf1)))
 counter1=0      
