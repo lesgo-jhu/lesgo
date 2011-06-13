@@ -1,3 +1,9 @@
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 ! this is the w-node version
 !--provides Cs_opt2 1:nz
 !--MPI: required u,v on 0:nz, except bottom node 1:nz
@@ -53,12 +59,6 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: lagran_dt,opftdelta,powcoeff
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 !--removed to save mem.:  need to put back if use building stuff
 !real (rprec), dimension (ld, ny, $lbz:nz) :: u_temp, v_temp
@@ -429,16 +429,16 @@ end if
 ! this ends the main jz=1-nz loop          
 end do
 
-if(use_bldg)then
-   do i=1,n_bldg
-   px=bldg_pts(1,i)
-   py=bldg_pts(2,i)
-   lx=bldg_pts(3,i)
-   ly=bldg_pts(4,i)
-   lz=bldg_pts(5,i)
-   Cs_opt2(px:px+lx,py:py+ly,1:lz)=1.E-24
-   enddo
-endif
+!if(use_bldg)then
+   !do i=1,n_bldg
+   !px=bldg_pts(1,i)
+   !py=bldg_pts(2,i)
+   !lx=bldg_pts(3,i)
+   !ly=bldg_pts(4,i)
+   !lz=bldg_pts(5,i)
+   !Cs_opt2(px:px+lx,py:py+ly,1:lz)=1.E-24
+   !enddo
+!endif
 
 !!$if (mod(jt,100) == 0) then
 !!$         write(95)real(jt*dt),real(Cs_opt2(1:NX,1:NY/2+1,1:NZ))
