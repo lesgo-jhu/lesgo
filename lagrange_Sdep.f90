@@ -1,3 +1,9 @@
+$if ($MPI)
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 ! this is the w-node version
 !--provides Cs_opt2 1:nz
 !--MPI: required u,v on 0:nz, except bottom node 1:nz
