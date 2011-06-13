@@ -219,8 +219,8 @@ integer :: n
 !---------------------------------------------------------------------
 
 n = size (r_arr)
-write (fmt, *) '(1x,a,', n, '(1x,es11.4))'
-write (lun, fmt) name // ': ' // trim (msg), r_arr
+!write (fmt, '(a,i0,a)') '(1x,a,', n, '(1x,es11.4))'
+write (lun, *) name // ': ' // trim (msg), r_arr
 
 end subroutine message_ar_array
 
