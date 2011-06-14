@@ -383,7 +383,7 @@ Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 !     (Cs_opt2_4d(:,:,jz)/Cs_opt2_2d(:,:,jz))**(log(tf1)/(log(tf2)-log(tf1)))
 ! Add +zero in demomenator to avoid division by identically zero
 Beta(:,:,jz)=&
-     (Cs_opt2_4d(:,:)/(Cs_opt2_2d(:,:)+zero))**(log(tf1)/(log(tf2)-log(tf1)))
+     (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
 counter1=0      
 counter2=0
 
