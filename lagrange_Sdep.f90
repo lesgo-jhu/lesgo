@@ -312,7 +312,7 @@ do jz = 1,nz
             F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
 
     ! Calculate Cs_opt2 (for 2-delta filter)
-        ! Add +zero in demomenator to avoid division by identically zero
+        ! Add +zero in denomenator to avoid division by identically zero
         Cs_opt2_2d(:,:) = F_LM(:,:,jz)/(F_MM(:,:,jz) + zero)
         Cs_opt2_2d(ld,:) = zero
         Cs_opt2_2d(ld-1,:) = zero
@@ -353,7 +353,7 @@ do jz = 1,nz
             F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 
     ! Calculate Cs_opt2 (for 4-delta filter)
-       ! Add +zero in demomenator to avoid division by identically zero
+       ! Add +zero in denomenator to avoid division by identically zero
         Cs_opt2_4d(:,:) = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
         Cs_opt2_4d(ld,:) = zero
         Cs_opt2_4d(ld-1,:) = zero
@@ -361,9 +361,8 @@ do jz = 1,nz
         Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 
     ! Calculate Beta and count how many are clipped
-        ! Add +zero in demomenator to avoid division by identically zero
         Beta(:,:,jz)=&
-             (Cs_opt2_4d(:,:)/(Cs_opt2_2d(:,:) + zero))**(log(tf1)/(log(tf2)-log(tf1)))
+             (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
         counter1=0      
         counter2=0
         

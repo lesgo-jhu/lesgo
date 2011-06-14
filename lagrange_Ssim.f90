@@ -264,7 +264,8 @@ do jz = 1,nz
             
     ! Calculate Cs_opt2 (use only one of the methods below)
         ! Standard method - LASS
-            Cs_opt2(:,:,jz) = F_LM(:,:,jz) / F_MM(:,:,jz)
+        ! Added +eps to avoid division by zero
+            Cs_opt2(:,:,jz) = F_LM(:,:,jz) / (F_MM(:,:,jz) + eps)
             Cs_opt2(ld-1:ld,:,jz) = 0._rprec          
         ! 9-point average
             !do i=1,nx
