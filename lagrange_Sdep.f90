@@ -24,7 +24,9 @@ use immersedbc,only:n_bldg,bldg_pts,building_interp
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
-
+$if($LVLSET)
+use level_set, only : level_set_Cs_lag_dyn
+$endif
 implicit none
 
 $if ($MPI)
@@ -67,7 +69,7 @@ real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 real(kind=rprec) :: delta,const
 real(kind=rprec) :: opftdelta,powcoeff
 
-real(kind=rprec), parameter :: zero=1.e-24_rprec
+real(kind=rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
 
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
@@ -401,6 +403,11 @@ do jz = 1,nz
          
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
+
+$if ($LVLSET)
+  ! Zero Cs_opt2 inside objects
+  call level_set_Cs_lag_dyn ()
+$endif
 
 $if ($VERBOSE)
 write (*, *) 'finished lagrange_Sdep'
