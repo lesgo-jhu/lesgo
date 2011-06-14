@@ -17,6 +17,10 @@ ifeq ($(DEVEL), yes)
   FPP += -DDEVEL
 endif
 
+ifeq ($(OUTPUT_EXTRA), yes)
+  FPP += -DOUTPUT_EXTRA
+endif
+
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
   LIBS += -lmpichf90 -lfmpich -lmpich

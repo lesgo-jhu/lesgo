@@ -27,6 +27,10 @@ VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
 
+# Output additional quantities to file. May be useful
+# for diagnosing issues
+OUTPUT_EXTRA=yes
+
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
