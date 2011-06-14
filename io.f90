@@ -787,6 +787,106 @@ elseif(itype==4) then
     
     $endif
 
+    !////////////////////////////////////////////
+    !/// WRITE LDSM                           ///
+    !////////////////////////////////////////////
+
+    if( model == 4 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do i=1,Nx
+!
+          F_LM_s(i,j) = linear_interp(F_LM(i,yplane_t(j) % istart,k), F_LM(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_MM_s(i,j) = linear_interp(F_MM(i,yplane_t(j) % istart,k), F_MM(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          beta_s(i,j) = linear_interp(beta(i,yplane_t(j) % istart,k), beta(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2(i,yplane_t(j) % istart,k), Cs_opt2(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Nu_t_s(i,j) = linear_interp(Nu_t(i,yplane_t(j) % istart,k), Nu_t(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, 1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,1,nz, &
+        (/ F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s /), 1, x, (/ yplane_loc(j) /), z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    elseif( model == 5 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do i=1,Nx
+!
+          F_LM_s(i,j) = linear_interp(F_LM(i,yplane_t(j) % istart,k), F_LM(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_MM_s(i,j) = linear_interp(F_MM(i,yplane_t(j) % istart,k), F_MM(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_QN_s(i,j) = linear_interp(F_QN(i,yplane_t(j) % istart,k), F_QN(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_NN_s(i,j) = linear_interp(F_NN(i,yplane_t(j) % istart,k), F_NN(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)                                      
+          beta_s(i,j) = linear_interp(beta(i,yplane_t(j) % istart,k), beta(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2(i,yplane_t(j) % istart,k), Cs_opt2(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Nu_t_s(i,j) = linear_interp(Nu_t(i,yplane_t(j) % istart,k), Nu_t(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ',  "F<sub>QN</sub>", "F<sub>NN</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, 1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,1,nz, &
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s /), 1, x, (/ yplane_loc(j) /), z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    endif    
+
   enddo  
 
   deallocate(ui,vi,wi)
