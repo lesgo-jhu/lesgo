@@ -197,8 +197,6 @@ end do
 end do
 !$comp end parallel do
 
-write(*,*) 'Cs_opt2(nx/2,ny/2,1) : ', Cs_opt2(nx/2,ny/2,1)
-
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
