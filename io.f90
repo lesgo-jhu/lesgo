@@ -864,7 +864,46 @@ elseif(itype==5) then
     
     $endif
 
-    if( model == 5 ) then
+    if( model == 4 ) then
+      allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
+      allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
+      allocate(Nu_t_s(nx,ny))
+
+      do j=1,Ny
+        do i=1,Nx
+!
+          F_LM_s(i,j) = linear_interp(F_LM(i,j,zplane_t(k) % istart), F_LM(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          F_MM_s(i,j) = linear_interp(F_MM(i,j,zplane_t(k) % istart), F_MM(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          beta_s(i,j) = linear_interp(beta(i,j,zplane_t(k) % istart), beta(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2(i,j,zplane_t(k) % istart), Cs_opt2(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          Nu_t_s(i,j) = linear_interp(Nu_t(i,j,zplane_t(k) % istart), Nu_t(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, Ny+1, 1/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+
+      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,ny,1, &
+        (/ F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s /), 4, x, y, (/ zplane_loc(k) /) )
+
+      deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+ 
+
+    elseif( model == 5 ) then
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
       allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))
       allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
