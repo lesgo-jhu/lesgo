@@ -331,7 +331,7 @@ F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
 !Cs_opt2_2d(ld-1,:,jz) = 1E-24
 !Cs_opt2_2d(:,:,jz)=max(real(1E-24),real(Cs_opt2_2d(:,:,jz)))
 
-! Add +zero in demomenator to avoid division by identically zero
+! Add +zero in denomenator to avoid division by identically zero
 Cs_opt2_2d(:,:) = F_LM(:,:,jz)/(F_MM(:,:,jz) + zero)
 
 !	Cs_opt2_2d(:,:) = SUM(LM(:,:))/SUM(MM(:,:))
@@ -371,7 +371,7 @@ F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 !Cs_opt2_4d(ld-1,:,jz) = 1E-24
 !Cs_opt2_4d(:,:,jz)=max(real(1E-24),real(Cs_opt2_4d(:,:,jz)))
 
-! Add +zero in demomenator to avoid division by identically zero
+! Add +zero in denomenator to avoid division by identically zero
 Cs_opt2_4d(:,:) = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
 !	Cs_opt2_4d(:,:) = SUM(QN(:,:))/SUM(NN(:,:))
 Cs_opt2_4d(ld,:) = zero
@@ -381,7 +381,6 @@ Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
 !--changed to save mem.
 !Beta(:,:,jz)=&
 !     (Cs_opt2_4d(:,:,jz)/Cs_opt2_2d(:,:,jz))**(log(tf1)/(log(tf2)-log(tf1)))
-! Add +zero in demomenator to avoid division by identically zero
 Beta(:,:,jz)=&
      (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
 counter1=0      
