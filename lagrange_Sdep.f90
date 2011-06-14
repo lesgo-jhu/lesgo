@@ -22,6 +22,9 @@ use sim_param,only:u,v,w
 use sgsmodule,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime
 use test_filtermodule
 use immersedbc,only:n_bldg,bldg_pts,building_interp
+$if($LVLSET)
+use level_set, only : level_set_Cs_lag_dyn
+$endif
 implicit none
 
 integer :: jx,jy,jz
@@ -447,6 +450,12 @@ end do
    !Cs_opt2(px:px+lx,py:py+ly,1:lz)=1.E-24
    !enddo
 !endif
+
+$if ($LVLSET)
+  ! Zero Cs_opt2 inside objects
+  call level_set_Cs_lag_dyn ()
+$endif
+
 
 !!$if (mod(jt,100) == 0) then
 !!$         write(95)real(jt*dt),real(Cs_opt2(1:NX,1:NY/2+1,1:NZ))
