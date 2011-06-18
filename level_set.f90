@@ -34,7 +34,8 @@ character (*), parameter :: mod_name = 'level_set'
 integer, parameter :: nd = 3
 
 $if ($MPI)
-  integer, parameter :: nphitop = 2
+  ! Make sure all values (top and bottom) are less than Nz
+  integer, parameter :: nphitop = 3
   integer, parameter :: nphibot = 2
   integer, parameter :: nveltop = 1
   integer, parameter :: nvelbot = 1
@@ -4905,6 +4906,16 @@ real (rp) :: x, y, z
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
+$endif
+
+$if($MPI)
+!  Check that the buffer arrays DO NOT extent beyond neighboring processors
+if( nphitop >= Nz .or. nphibot >= Nz .or. &
+    nveltop >= Nz .or. nvelbot >= Nz .or. &
+    ntautop >= Nz .or. ntaubot >= Nz .or. &
+    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
+
+  call error( sub_name, 'Buffer array extents beyond neighboring processor')
 $endif
 
 inquire (unit=lun, exist=exst, opened=opn)
