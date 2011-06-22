@@ -2947,12 +2947,12 @@ do k=1, spectra_nloc
     ! 2) Compute power spectra for given j
     power(1) = uhat(1)**2
     do i=2,lh-1
-      power(i) = 2._rprec*(uhat(i)**2 + uhat(Nx-i+2)**2)
+      power(i) = uhat(i)**2 + uhat(Nx-i+2)**2
     enddo
     power(lh) = uhat(lh)**2 ! Nyquist
 
-    ! Sum jth component 
-    spectra_t(k) % power = spectra_t(k) % power + power
+    ! Sum jth component and normalize
+    spectra_t(k) % power = spectra_t(k) % power + power / nx
 
   enddo
 
