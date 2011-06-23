@@ -27,14 +27,14 @@ use level_set_base, only : global_CD_calc
   $endif
   
   $if ($RNS_LS)
-  use rns_ls, only : rns_finalize_ls
+  use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
   
     $if ($CYL_SKEW_LS)
     use rns_cyl_skew_ls, only : rns_init_ls
     $endif
   
   $endif
-  
+
 $endif
 
 $if ($TREES_LS)
@@ -583,6 +583,13 @@ do jt=1,nsteps
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
     call project ()
+
+    $if($LVLSET and $RNS_LS)
+    !  Compute the relavent force information ( include reference quantities, CD, etc.)
+    !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+    !  made here.
+    call rns_elem_force_ls()
+    $endif
    
     ! Perform conditional averaging - for turbines
     $if ($TURBINES)
