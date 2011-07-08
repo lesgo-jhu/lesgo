@@ -34,7 +34,8 @@ character (*), parameter :: mod_name = 'level_set'
 integer, parameter :: nd = 3
 
 $if ($MPI)
-  integer, parameter :: nphitop = 2
+  ! Make sure all values (top and bottom) are less than Nz
+  integer, parameter :: nphitop = 3
   integer, parameter :: nphibot = 2
   integer, parameter :: nveltop = 1
   integer, parameter :: nvelbot = 1
@@ -2954,7 +2955,7 @@ implicit none
 include 'tecio.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
-character (*), parameter :: fCD_out = 'output/CD_global.dat'
+character (*), parameter :: fCD_out = 'output/global_CD.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
@@ -3022,21 +3023,25 @@ $endif
   CD = fD_global / (0.5_rp * Ap * Uinf_global**2)
   CL = fL_global / (0.5_rp * Ap * Uinf_global**2)
 
-  inquire (file=fCD_out, exist=exst, opened=opn)
+  if( .not. file_init ) then
 
-  !  Check that output is not already opened
-  if (opn) call error (sub_name, 'unit', lun, ' is already open')
+    inquire (file=fCD_out, exist=exst, opened=opn)
 
-  if( .not. exst ) then
+    !  Check that output is not already opened
+    if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-    call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
+    if( .not. exst ) then
+
+      call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
+
+    endif
+
+    file_init = .true.
 
   endif
 
   call write_real_data(fCD_out, 'append', 'formatted', 6, &
     (/ total_time, CD, fD_global, CL, fL_global, Uinf_global /))
-
-  !file_init = .true.
 
   $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
@@ -4901,6 +4906,16 @@ real (rp) :: x, y, z
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
+$endif
+
+$if($MPI)
+!  Check that the buffer arrays DO NOT extent beyond neighboring processors
+if( nphitop >= Nz .or. nphibot >= Nz .or. &
+    nveltop >= Nz .or. nvelbot >= Nz .or. &
+    ntautop >= Nz .or. ntaubot >= Nz .or. &
+    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
+
+  call error( sub_name, 'Buffer array extents beyond neighboring processor')
 $endif
 
 inquire (unit=lun, exist=exst, opened=opn)

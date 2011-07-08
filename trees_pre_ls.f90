@@ -20,7 +20,7 @@ logical, parameter :: do_calc_global_fmask = .true.
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI
 character (*), parameter :: MPI_suffix = '.c'
-integer, parameter :: np = 4
+integer, parameter :: np = 16
 logical, parameter :: MPI_split = .true.
 
 !integer, parameter :: nz = (nztot - 1) / np +1  !--local nz

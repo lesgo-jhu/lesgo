@@ -27,13 +27,16 @@ VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
 
+# Output additional quantities to file. May be useful
+# for diagnosing issues
+OUTPUT_EXTRA=yes
+
 # watch the whitespace here
 USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition (EXPERIMENTAL)
-# Not compatable with Lagrangian SGS models
-USE_CFL_DT = no
+USE_CFL_DT = yes
 
 # Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -47,11 +50,11 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-# Set pressure correction scheme (used for testing IBM); if unsure use DEFAULT
+# Set pressure correction scheme
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2, PC_SCHEME_3 (EXPERIMENTAL)
 USE_PC_SCHEME = DEFAULT
 
-USE_LVLSET = no
+USE_LVLSET = yes
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no

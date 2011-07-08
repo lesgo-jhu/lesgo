@@ -300,43 +300,48 @@ do jz = 1,nz
    F_MM(:,:,jz)=(epsi*MM + (1.0_rprec-epsi)*F_MM(:,:,jz))
    F_LM(:,:,jz)= max (eps, F_LM(:,:,jz))
 
-   Cs_opt2(:,:,jz) = F_LM(:,:,jz) / F_MM(:,:,jz)
+   ! Added +eps to avoid division by zero
+   Cs_opt2(:,:,jz) = F_LM(:,:,jz) / (F_MM(:,:,jz) + eps)
    Cs_opt2(ld-1:ld,:,jz) = 0._rprec
    Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz))
 
-   if (mod(jt,200) == 0) then
-      LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
-      MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
-   end if
+   ! === Commented by JSG ====
 
-   ! Note: these are not the rms but the standard dev
-   ! Square these values to get the rms
-   !--you mean take the square-root?
-   if ((write_output) .and. (mod(jt,10)==0 .AND. jt>1)) then
-!	all the folowing is on UVP nodes
-      u_av  = sum(sum(u(:,:,jz),DIM=1),DIM=1)*fractus
-      v_av  = sum(sum(v(:,:,jz),DIM=1),DIM=1)*fractus
-      if (jz == nz) then
-        w_nod(:, :) = w(:, :, nz)
-      else
-        w_nod(:, :) = 0.5_rprec * (w(:, :, jz) + w(:, :, jz+1))
-      end if
-      w_av  = sum(sum(w_nod(:,:),DIM=1),DIM=1)*fractus
-      do jx=1,nx
-         u_pr (jx,:) = u(jx,:,jz)-u_av
-         v_pr (jx,:) = v(jx,:,jz)-v_av
-         w_pr (jx,:) = w_nod(jx,:)-w_av
-      end do
+   !if (mod(jt,200) == 0) then
+      !LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
+      !MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
+   !end if
 
-      u_rms = sqrt(sum(sum((u_pr*u_pr),DIM=1),DIM=1)*fractus)
-      v_rms = sqrt(sum(sum((v_pr*v_pr),DIM=1),DIM=1)*fractus)
-      w_rms = sqrt(sum(sum((w_pr*w_pr),DIM=1),DIM=1)*fractus)
-      uw_rms=- sum(sum((u_pr*w_pr),DIM=1),DIM=1)*fractus
+   !! Note: these are not the rms but the standard dev
+   !! Square these values to get the rms
+   !!--you mean take the square-root?
+   !if ((write_output) .and. (mod(jt,10)==0 .AND. jt>1)) then
+!!	all the folowing is on UVP nodes
+      !u_av  = sum(sum(u(:,:,jz),DIM=1),DIM=1)*fractus
+      !v_av  = sum(sum(v(:,:,jz),DIM=1),DIM=1)*fractus
+      !if (jz == nz) then
+        !w_nod(:, :) = w(:, :, nz)
+      !else
+        !w_nod(:, :) = 0.5_rprec * (w(:, :, jz) + w(:, :, jz+1))
+      !end if
+      !w_av  = sum(sum(w_nod(:,:),DIM=1),DIM=1)*fractus
+      !do jx=1,nx
+         !u_pr (jx,:) = u(jx,:,jz)-u_av
+         !v_pr (jx,:) = v(jx,:,jz)-v_av
+         !w_pr (jx,:) = w_nod(jx,:)-w_av
+      !end do
+!
+      !u_rms = sqrt(sum(sum((u_pr*u_pr),DIM=1),DIM=1)*fractus)
+      !v_rms = sqrt(sum(sum((v_pr*v_pr),DIM=1),DIM=1)*fractus)
+      !w_rms = sqrt(sum(sum((w_pr*w_pr),DIM=1),DIM=1)*fractus)
+      !uw_rms=- sum(sum((u_pr*w_pr),DIM=1),DIM=1)*fractus
+!
+      !!--format needs redo here
+      !write(96,*) jt*dz,u_av,u_rms,v_rms,w_rms,uw_rms
+!
+   !end if
+   ! === End commented section ===
 
-      !--format needs redo here
-      write(96,*) jt*dz,u_av,u_rms,v_rms,w_rms,uw_rms
-
-   end if
 ! this ends the main jz=1-nz loop          
 end do
 
@@ -348,25 +353,27 @@ if (DEBUG) then
 end if
 $endif
 
-!TS
-if(use_bldg)then
-!if(.false.)then
-   do i=1,n_bldg
-   px=bldg_pts(1,i)
-   py=bldg_pts(2,i)
-   lx=bldg_pts(3,i)
-   ly=bldg_pts(4,i)
-   lz=bldg_pts(5,i)
-   Cs_opt2(px:px+lx,py:py+ly,1:lz)=1.E-24
-   enddo
-!   do jx=px+lx-2,px+lx+4
-!   print*,jx,real(Cs_opt2(jx,py-2:py+ly+2,8))
-!   enddo
-!   do jx=px+lx-2,px+lx+4
-!   print*,jx,real(Cs_opt2(jx,py-2:py+ly+2,14))
-!   enddo
-!   print*,'maxval',maxval(Cs_opt2(px-5:px+lx+10,py-10:py+ly+10,4:20))
-endif
+! === Commented by JSG ===
+!!TS
+!if(use_bldg)then
+!!if(.false.)then
+   !do i=1,n_bldg
+   !px=bldg_pts(1,i)
+   !py=bldg_pts(2,i)
+   !lx=bldg_pts(3,i)
+   !ly=bldg_pts(4,i)
+   !lz=bldg_pts(5,i)
+   !Cs_opt2(px:px+lx,py:py+ly,1:lz)=1.E-24
+   !enddo
+!!   do jx=px+lx-2,px+lx+4
+!!   print*,jx,real(Cs_opt2(jx,py-2:py+ly+2,8))
+!!   enddo
+!!   do jx=px+lx-2,px+lx+4
+!!   print*,jx,real(Cs_opt2(jx,py-2:py+ly+2,14))
+!!   enddo
+!!   print*,'maxval',maxval(Cs_opt2(px-5:px+lx+10,py-10:py+ly+10,4:20))
+!endif
+!=== End commented section ===
 
 $if ($LVLSET)
   call level_set_Cs_lag_dyn ()

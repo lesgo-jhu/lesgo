@@ -330,7 +330,7 @@ use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
 use param, only : model
-use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2
+use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
 include 'tecio.h'      
@@ -344,7 +344,7 @@ character (64) :: fname
 $if($MPI)
 character(64) :: temp
 $endif
-character(128) :: var_list
+character(256) :: var_list
 integer :: n, i, j, k, nvars
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
@@ -360,8 +360,11 @@ $endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
+$if($OUTPUT_EXTRA)
 ! Arrays used for outputing slices of LDSM variables
-real(rprec), allocatable, dimension(:,:) :: F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s
+real(rprec), allocatable, dimension(:,:) :: F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s
+real(rprec), allocatable, dimension(:,:,:) :: F_LM_uv,F_MM_uv,F_QN_uv,F_NN_uv,beta_uv,Cs_opt2_uv,Nu_t_uv
+$endif
 
 ! Nullify pointers
 nullify(x,y,z,zw)
@@ -377,6 +380,36 @@ allocate(w_uv(nx,ny,$lbz:nz))
 
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,$lbz:nz), $lbz)
+
+$if($OUTPUT_EXTRA)
+!  Allocate arrays and interpolate to uv grid for LDSM output
+if( model == 4 .or. model == 5 ) then
+
+  if( itype == 3 .or. itype == 4 .or. itype == 5 ) then
+
+    allocate( F_LM_uv(nx,ny,nz), F_MM_uv(nx,ny,nz) )
+    allocate( beta_uv(nx,ny,nz), Cs_opt2_uv(nx,ny,nz) )
+    allocate( Nu_t_uv(nx,ny,nz) )
+
+    F_LM_uv = interp_to_uv_grid( F_LM(1:nx,1:ny,1:nz), 1 )
+    F_MM_uv = interp_to_uv_grid( F_MM(1:nx,1:ny,1:nz), 1 )
+    beta_uv = interp_to_uv_grid( beta(1:nx,1:ny,1:nz), 1 )
+    Cs_opt2_uv = interp_to_uv_grid( Cs_opt2(1:nx,1:ny,1:nz), 1 )
+    Nu_t_uv = interp_to_uv_grid( Nu_t(1:nx,1:ny,1:nz), 1 )
+
+    if( model == 5) then
+
+      allocate( F_QN_uv(nx, ny, nz), F_NN_uv(nx,ny,nz) )
+
+      F_QN_uv = interp_to_uv_grid( F_QN(1:nx,1:ny,1:nz), 1 )
+      F_NN_uv = interp_to_uv_grid( F_NN(1:nx,1:ny,1:nz), 1 )
+
+    endif
+
+  endif
+
+endif       
+$endif
 
 if(itype==1) then
 
@@ -427,7 +460,7 @@ elseif(itype==2) then
   $endif
   
   call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                               var_list, numtostr(coord, 6), 2, real(total_time,4))
+                               trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
 
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny, nz, &
@@ -470,7 +503,7 @@ elseif(itype==2) then
     var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
     nvars = 7
     call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                 var_list, numtostr(coord, 6), 2, real(total_time,4))
+                                 trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
       (/ fx_tot, fy_tot, fz_tot /), 4, x, y, z(1:nz))
     call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
@@ -512,14 +545,14 @@ elseif(itype==2) then
       var_list = '"x", "y", "z", "divvel", "phi"'
       nvars = 5
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord, 6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
         (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
     $else
       var_list = '"x", "y", "z", "divvel"'
       nvars = 4
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord, 6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
         (/ divvel /), 4, x, y, z(1:nz))
     $endif
@@ -552,7 +585,7 @@ elseif(itype==2) then
       var_list = '"x", "y", "z", "phi", "p", "dpdx", "dpdy", "dpdz"'
       nvars = 8
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
         (/ phi(1:nx,1:ny,1:nz), p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
       call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
@@ -561,7 +594,7 @@ elseif(itype==2) then
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
       nvars = 7
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
         (/ p(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
       call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
@@ -594,7 +627,7 @@ elseif(itype==2) then
       var_list = '"x", "y", "z", "phi", "RHSx", "RHSy", "RHSz"'
       nvars = 7
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
         (/ phi(1:nx,1:ny,1:nz), RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
@@ -603,7 +636,7 @@ elseif(itype==2) then
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
       nvars = 6
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-                                   var_list, numtostr(coord,6), 2, real(total_time,4))
+                                   trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
         (/ RHSx(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
@@ -701,6 +734,110 @@ elseif(itype==3) then
 
 
     $endif
+
+    $if($OUTPUT_EXTRA)
+
+    !////////////////////////////////////////////
+    !/// WRITE LDSM                           ///
+    !////////////////////////////////////////////
+
+    if( model == 4 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do j=1,Ny
+!
+          F_LM_s(j,k) = linear_interp(F_LM_uv(xplane_t(i) % istart,j,k), F_LM_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          F_MM_s(j,k) = linear_interp(F_MM_uv(xplane_t(i) % istart,j,k), F_MM_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          beta_s(j,k) = linear_interp(beta_uv(xplane_t(i) % istart,j,k), beta_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          Cs_opt2_s(j,k) = linear_interp(Cs_opt2_uv(xplane_t(i) % istart,j,k), Cs_opt2_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          Nu_t_s(j,k) = linear_interp(Nu_t_uv(xplane_t(i) % istart,j,k), Nu_t_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 8, (/ 1, Ny+1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 5, 1,ny,nz, &
+        (/ F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s /), 2, (/ xplane_loc(i) /), y, z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    elseif( model == 5 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do j=1,Ny
+!
+          F_LM_s(j,k) = linear_interp(F_LM_uv(xplane_t(i) % istart,j,k), F_LM_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          F_MM_s(j,k) = linear_interp(F_MM_uv(xplane_t(i) % istart,j,k), F_MM_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          F_QN_s(j,k) = linear_interp(F_QN_uv(xplane_t(i) % istart,j,k), F_QN_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)  
+          F_NN_s(j,k) = linear_interp(F_NN_uv(xplane_t(i) % istart,j,k), F_NN_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)                                         
+          beta_s(j,k) = linear_interp(beta_uv(xplane_t(i) % istart,j,k), beta_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          Cs_opt2_s(j,k) = linear_interp(Cs_opt2_uv(xplane_t(i) % istart,j,k), Cs_opt2_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+          Nu_t_s(j,k) = linear_interp(Nu_t_uv(xplane_t(i) % istart,j,k), Nu_t_uv(xplane_t(i) % istart+1,j,k), &
+                                      dx, xplane_t(i) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "F<sub>QN</sub>", "F<sub>NN</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 10, (/ 1, Ny+1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 7, 1,ny,nz, &
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s /), 2, (/ xplane_loc(i) /), y, z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    endif   
+
+    $endif    
     
   enddo   
   
@@ -787,6 +924,110 @@ elseif(itype==4) then
     
     $endif
 
+    $if($OUTPUT_EXTRA)
+
+    !////////////////////////////////////////////
+    !/// WRITE LDSM                           ///
+    !////////////////////////////////////////////
+
+    if( model == 4 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do i=1,Nx
+!
+          F_LM_s(i,k) = linear_interp(F_LM_uv(i,yplane_t(j) % istart,k), F_LM_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_MM_s(i,k) = linear_interp(F_MM_uv(i,yplane_t(j) % istart,k), F_MM_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          beta_s(i,k) = linear_interp(beta_uv(i,yplane_t(j) % istart,k), beta_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Cs_opt2_s(i,k) = linear_interp(Cs_opt2_uv(i,yplane_t(j) % istart,k), Cs_opt2_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Nu_t_s(i,k) = linear_interp(Nu_t_uv(i,yplane_t(j) % istart,k), Nu_t_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, 1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,1,nz, &
+        (/ F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s /), 1, x, (/ yplane_loc(j) /), z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    elseif( model == 5 ) then
+
+      allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
+      allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
+      allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
+      allocate(Nu_t_s(nx,nz))
+
+      do k=1,Nz
+        do i=1,Nx
+
+          F_LM_s(i,k) = linear_interp(F_LM_uv(i,yplane_t(j) % istart,k), F_LM_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_MM_s(i,k) = linear_interp(F_MM_uv(i,yplane_t(j) % istart,k), F_MM_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_QN_s(i,k) = linear_interp(F_QN_uv(i,yplane_t(j) % istart,k), F_QN_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          F_NN_s(i,k) = linear_interp(F_NN_uv(i,yplane_t(j) % istart,k), F_NN_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)                                      
+          beta_s(i,k) = linear_interp(beta_uv(i,yplane_t(j) % istart,k), beta_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Cs_opt2_s(i,k) = linear_interp(Cs_opt2_uv(i,yplane_t(j) % istart,k), Cs_opt2_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+          Nu_t_s(i,k) = linear_interp(Nu_t_uv(i,yplane_t(j) % istart,k), Nu_t_uv(i,yplane_t(j) % istart+1,k), &
+                                      dy, yplane_t(j) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      $if ($MPI)
+      !  For MPI implementation
+      write (temp, '(".c",i0)') coord
+      fname = trim (fname) // temp
+      $endif      
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ',  "F<sub>QN</sub>", "F<sub>NN</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, 1, Nz/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+
+      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,1,nz, &
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s /), 1, x, (/ yplane_loc(j) /), z(1:nz)) 
+
+      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+    endif   
+
+    $endif
+
   enddo  
 
   deallocate(ui,vi,wi)
@@ -864,42 +1105,97 @@ elseif(itype==5) then
     
     $endif
 
-    if( model == 5 ) then
+    $if($OUTPUT_EXTRA)
+
+    !////////////////////////////////////////////
+    !/// WRITE LDSM                           ///
+    !////////////////////////////////////////////
+
+    if( model == 4 ) then
+
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
-      allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))
       allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
+      allocate(Nu_t_s(nx,ny))
 
       do j=1,Ny
         do i=1,Nx
 !
-          F_LM_s(i,j) = linear_interp(F_LM(i,j,zplane_t(k) % istart), F_LM(i,j,zplane_t(k) % istart+1), &
-                                      dz, zplane_t(k) % ldiff) 
-          F_MM_s(i,j) = linear_interp(F_MM(i,j,zplane_t(k) % istart), F_MM(i,j,zplane_t(k) % istart+1), &
-                                      dz, zplane_t(k) % ldiff) 
-          F_QN_s(i,j) = linear_interp(F_QN(i,j,zplane_t(k) % istart), F_QN(i,j,zplane_t(k) % istart+1), &
+          F_LM_s(i,j) = linear_interp(F_LM_uv(i,j,zplane_t(k) % istart), F_LM_uv(i,j,zplane_t(k) % istart+1), &
                                       dz, zplane_t(k) % ldiff)
-          F_NN_s(i,j) = linear_interp(F_NN(i,j,zplane_t(k) % istart), F_NN(i,j,zplane_t(k) % istart+1), &
+          F_MM_s(i,j) = linear_interp(F_MM_uv(i,j,zplane_t(k) % istart), F_MM_uv(i,j,zplane_t(k) % istart+1), &
                                       dz, zplane_t(k) % ldiff)
-          beta_s(i,j) = linear_interp(beta(i,j,zplane_t(k) % istart), beta(i,j,zplane_t(k) % istart+1), &
+          beta_s(i,j) = linear_interp(beta_uv(i,j,zplane_t(k) % istart), beta_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2_uv(i,j,zplane_t(k) % istart), Cs_opt2_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          Nu_t_s(i,j) = linear_interp(Nu_t_uv(i,j,zplane_t(k) % istart), Nu_t_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+
+        enddo
+      enddo
+
+      write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      fname=trim(adjustl(fname))
+
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
+
+      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, Ny+1, 1/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+
+      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,ny,1, &
+        (/ F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s /), 4, x, y, (/ zplane_loc(k) /) )
+
+      deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
+
+ 
+
+    elseif( model == 5 ) then
+      allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
+      allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))
+      allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
+      allocate(Nu_t_s(nx,ny))
+
+      do j=1,Ny
+        do i=1,Nx
+!
+          F_LM_s(i,j) = linear_interp(F_LM_uv(i,j,zplane_t(k) % istart), F_LM_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff) 
+          F_MM_s(i,j) = linear_interp(F_MM_uv(i,j,zplane_t(k) % istart), F_MM_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff) 
+          F_QN_s(i,j) = linear_interp(F_QN_uv(i,j,zplane_t(k) % istart), F_QN_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          F_NN_s(i,j) = linear_interp(F_NN_uv(i,j,zplane_t(k) % istart), F_NN_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+          beta_s(i,j) = linear_interp(beta_uv(i,j,zplane_t(k) % istart), beta_uv(i,j,zplane_t(k) % istart+1), &
                                       dz, zplane_t(k) % ldiff)            
-          Cs_opt2_s(i,j) = linear_interp(Cs_opt2(i,j,zplane_t(k) % istart), Cs_opt2(i,j,zplane_t(k) % istart+1), &
+          Cs_opt2_s(i,j) = linear_interp(Cs_opt2_uv(i,j,zplane_t(k) % istart), Cs_opt2_uv(i,j,zplane_t(k) % istart+1), &
                                       dz, zplane_t(k) % ldiff)                                         
+          Nu_t_s(i,j) = linear_interp(Nu_t_uv(i,j,zplane_t(k) % istart), Nu_t_uv(i,j,zplane_t(k) % istart+1), &
+                                      dz, zplane_t(k) % ldiff)
+
         enddo
       enddo      
 
       write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
-      call write_tecplot_header_ND(fname, 'rewind', 9, (/ Nx+1, Ny+1, 1/), &
-        '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>", "F<sub>QN</sub>", "F<sub>NN</sub>", "<greek>b</greek>", "Cs<sup>2</sup>"', &
-        numtostr(coord,6), 2, real(total_time,4))
+      var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "F<sub>QN</sub>", "F<sub>NN</sub>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
+      var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_real_data_3D(fname, 'append', 'formatted', 6, nx,ny,1, &
-        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s /), 4, x, y, (/ zplane_loc(k) /) )         
+      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, Ny+1, 1/), &
+        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
-      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s)
+      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,ny,1, &
+        (/ F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s /), 4, x, y, (/ zplane_loc(k) /) )         
+
+      deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
     endif
+    $endif
 
     $if ($MPI)
     endif
@@ -2651,12 +2947,12 @@ do k=1, spectra_nloc
     ! 2) Compute power spectra for given j
     power(1) = uhat(1)**2
     do i=2,lh-1
-      power(i) = 2._rprec*(uhat(i)**2 + uhat(Nx-i+2)**2)
+      power(i) = uhat(i)**2 + uhat(Nx-i+2)**2
     enddo
     power(lh) = uhat(lh)**2 ! Nyquist
 
-    ! Sum jth component 
-    spectra_t(k) % power = spectra_t(k) % power + power
+    ! Sum jth component and normalize
+    spectra_t(k) % power = spectra_t(k) % power + power / nx
 
   enddo
 

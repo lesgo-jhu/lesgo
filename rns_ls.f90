@@ -15,6 +15,10 @@ public :: rns_force_init_ls
 
 character (*), parameter :: mod_name = 'rns_ls'
 
+logical :: r_elem_data_init = .false.
+logical :: beta_elem_data_init = .false.
+logical :: b_elem_data_init = .false.
+
 contains
 
 !**********************************************************************
@@ -159,7 +163,6 @@ use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -204,12 +207,6 @@ allocate(b_beta_gamma_sum(ndim, nb_elem))
 beta_gamma=0._rprec
 b_gamma=0._rprec
 b_beta_gamma_sum=0._rprec
-
-$if($MPI)
-!  Make sure intermediate velocity is sync'd
-call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( v, MPI_SYNC_DOWNUP )
-$endif
 
 !  Get the force for the resolved elements
 call r_elem_force()
@@ -1108,58 +1105,62 @@ logical :: exst
 character(5000) :: var_list
 integer :: n
 
-inquire (file=fname_CD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nr_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
-endif
+if( .not. r_elem_data_init ) then
+
+  inquire (file=fname_CD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nr_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"CD<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  inquire (file=fname_fD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nr_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fx<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nr_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fy<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo  
+    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  inquire (file=fname_vel, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nr_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"u<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nr_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"v<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  r_elem_data_init = .true.
+
+endif  
 
 call write_real_data(fname_CD, 'append', 'formatted', nr_elem + 1, (/ total_time, r_elem_t(:) % force_t % CD /))
-
-inquire (file=fname_fD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nr_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fx<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nr_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fy<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo  
-  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
-endif
-
 call write_real_data(fname_fD, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, -r_elem_t(:) % force_t % fx, -r_elem_t(:) % force_t % fy /))
-
-inquire (file=fname_vel, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nr_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nr_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"v<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
-endif
-
 call write_real_data(fname_vel, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u, r_elem_t(:) % ref_region_t % v /))
 
 return
@@ -1186,73 +1187,79 @@ logical :: exst
 character(5000) :: var_list
 integer :: n
 
-inquire (file=fname_CD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
-endif
+
+if( .not. beta_elem_data_init ) then
+        
+  inquire (file=fname_CD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"CD<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  inquire (file=fname_fD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fx<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fy<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo  
+    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+  endif  
+
+  inquire (file=fname_kappa, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"<greek>k</greek><sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
+  endif  
+
+  inquire (file=fname_vel, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"u<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nbeta_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"v<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo  
+    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+  endif  
+
+  beta_elem_data_init = .true. 
+
+endif  
 
 call write_real_data(fname_CD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % CD /))
-
-inquire (file=fname_fD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fx<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fy<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo  
-  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
-endif
-
-call write_real_data(fname_fD, 'append', 'formatted', ndim*nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fx, -beta_elem_t(:) % force_t % fy /))
-
-inquire (file=fname_kappa, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"<greek>k</greek><sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
-endif
-
+call write_real_data(fname_fD, 'append', 'formatted', ndim*nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fx, &
+  -beta_elem_t(:) % force_t % fy /))
 call write_real_data(fname_kappa, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % kappa /))
-
-inquire (file=fname_vel, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nbeta_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"v<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo  
-  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
-endif
-
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u, beta_elem_t(:) % ref_region_t % v /))
+call write_real_data(fname_vel, 'append', 'formatted', ndim*nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u, &
+  beta_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine beta_elem_data_write
@@ -1276,85 +1283,92 @@ character(*), parameter :: fname_error_norm = path // 'output/rns_b_elem_error_n
 logical :: exst
 character(5000) :: var_list
 integer :: n
-inquire (file=fname_CD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"CD<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
-endif
+
+if( .not. b_elem_data_init ) then
+
+  inquire (file=fname_CD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"CD<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  inquire (file=fname_fD, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fx<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"fy<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo  
+    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  inquire (file=fname_error, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"error<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
+  endif 
+
+  inquire (file=fname_error_norm, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"error_norm<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
+  endif  
+
+  inquire (file=fname_vel, exist=exst)
+  if (.not. exst) then
+    var_list = '"t"'
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"u<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo
+    do n = 1, nb_elem
+      !  Create variable list name:
+      call strcat(var_list, ',"v<sub>')
+      call strcat(var_list, n)
+      call strcat(var_list, '</sub>"')
+    enddo  
+    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+  endif
+
+  b_elem_data_init = .true. 
+
+endif       
+
 
 call write_real_data(fname_CD, 'append', 'formatted', nb_elem + 1, (/ total_time, b_elem_t(:) % force_t % CD /))
-
-inquire (file=fname_fD, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fx<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"fy<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo  
-  call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
-endif
-
-call write_real_data(fname_fD, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fx, -b_elem_t(:) % force_t % fy /))
-
-inquire (file=fname_error, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"error<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
-endif
-
+call write_real_data(fname_fD, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fx, &
+  -b_elem_t(:) % force_t % fy /))
 call write_real_data(fname_error, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error /))
-
-inquire (file=fname_error_norm, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"error_norm<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
-endif
-
 call write_real_data(fname_error_norm, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error_norm /))
 
-inquire (file=fname_vel, exist=exst)
-if (.not. exst) then
-  var_list = '"t"'
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"u<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo
-  do n = 1, nb_elem
-    !  Create variable list name:
-    call strcat(var_list, ',"v<sub>')
-    call strcat(var_list, n)
-    call strcat(var_list, '</sub>"')
-  enddo  
-  call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
-endif
 
 call write_real_data(fname_vel, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, b_elem_t(:) % ref_region_t % u, b_elem_t(:) % ref_region_t % v /))
 

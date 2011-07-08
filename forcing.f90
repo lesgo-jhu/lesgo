@@ -110,19 +110,21 @@ $if($LVLSET)
 !  Compute the level set IBM forces
 call level_set_forcing ()
 
-  $if($RNS_LS)
-  !  Compute the relavent force information ( include reference quantities, CD, etc.)
-  !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-  !  made here.
-  call rns_elem_force_ls()
-  $endif
+  ! Commented 6/22/11 JSG
+  ! Moved to main
+  !$if($RNS_LS)
+  !!  Compute the relavent force information ( include reference quantities, CD, etc.)
+  !!  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+  !!  made here.
+  !call rns_elem_force_ls()
+  !$endif
 
   $if($TREES_LS)
   !--this must come after call to level_set_forcing
   !--in /a posteriori/ test, this adds SGS branch force
   !--in /a priori/ test, this does not modify force
   call trees_ls_calc ()
-$endif
+  $endif
 
 $endif
 
