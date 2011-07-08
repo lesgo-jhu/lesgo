@@ -32,7 +32,8 @@ USE_MPI = yes
 USE_OPENMP = no
 
 # Set dt based on CFL condition (EXPERIMENTAL)
-USE_CFL_DT = yes
+# Not compatable with Lagrangian SGS models
+USE_CFL_DT = no
 
 # Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -46,11 +47,11 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-# Set pressure correction scheme
+# Set pressure correction scheme (used for testing IBM); if unsure use DEFAULT
 # Options: DEFAULT, PC_SCHEME_0, PC_SCHEME_1, PC_SCHEME_2, PC_SCHEME_3 (EXPERIMENTAL)
 USE_PC_SCHEME = DEFAULT
 
-USE_LVLSET = yes
+USE_LVLSET = no
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no
