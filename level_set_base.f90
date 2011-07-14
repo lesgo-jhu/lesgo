@@ -19,7 +19,7 @@ private :: rp, ld, ny, nz, dx
 !private
 !public :: phi
 
-logical, parameter :: global_CD_calc = .false. ! Compute global CD based on inflow velocity
+logical, parameter :: global_CD_calc = .true. ! Compute global CD based on inflow velocity
 integer, parameter :: Ldir = 2
                       !--lift direction:
                       !  2 when lift direction is y
@@ -27,7 +27,7 @@ integer, parameter :: Ldir = 2
 
 logical, parameter :: vel_BC = .false. !--means we are forcing velocity for
                                        !  level set BC 
-                                       !  (default = .true.)
+                                       !  (default = .false.)
 logical, parameter :: use_log_profile = .false.       !  (default = .false.)
 logical, parameter :: use_enforce_un = .false.        !  (default = .false.)
 logical, parameter :: physBC = .true.                 !  (default = .true.)        
@@ -48,7 +48,7 @@ logical, parameter :: lag_dyn_modify_beta = .true.
 character (*), parameter :: smooth_mode = 'xy'  !--'xy', '3d'
 
 real (rp), parameter :: z0 = 0.0001_rp !--nondimensional roughness length of surface
-!real (rp), parameter :: z0 = 1.6e-3_rp 
+!real (rp), parameter :: z0 = 1.6e-3_rp ! rough
 
 logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
