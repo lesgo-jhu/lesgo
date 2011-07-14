@@ -13,7 +13,6 @@ use sim_param,only:u,v,w
 use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
 use test_filtermodule
 use messages
-use grid_defs
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -40,28 +39,28 @@ real (rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
 character (*), parameter :: sub_name = 'lagrange_Ssim'
 real (rprec), parameter :: eps = 1.e-32_rprec
 
-real(kind=rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
-real(kind=rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
-real(kind=rprec), dimension(ld,ny) :: fourbeta
+real(rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
+real(rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
+real(rprec), dimension(ld,ny) :: fourbeta
 
-real(kind=rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
-real(kind=rprec), dimension(ld,ny) :: ee_now
+real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
+real(rprec), dimension(ld,ny) :: ee_now
 
-real(kind=rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
+real(rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
      S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
      S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 
-real(kind=rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
-real(kind=rprec), dimension(ld,ny) :: S
-real(kind=rprec) :: delta,const
-real(kind=rprec) :: opftdelta,powcoeff
+real(rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
+real(rprec), dimension(ld,ny) :: S
+real(rprec) :: delta,const
+real(rprec) :: opftdelta,powcoeff
 
 character (64) :: fnamek, tempk
 
 integer :: istart, iend, ihi, ilo, jhi, jlo
 integer :: jz
 integer :: ii
-integer :: i, j, px, py, lx, ly, lz
+integer :: i, j
 
 logical, save :: F_LM_MM_init = .false.
 
@@ -333,6 +332,11 @@ $endif
 
 $if ($LVLSET)
     call level_set_Cs_lag_dyn ()
+$endif
+
+$if ($CFL_DT)
+    ! Reset variable for use during next set of cs_count timesteps
+    lagran_dt = 0.0_rprec
 $endif
 
 $if ($VERBOSE)

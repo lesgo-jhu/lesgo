@@ -20,7 +20,6 @@ use param
 use sim_param,only:u,v,w
 use sgsmodule,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
 use test_filtermodule
-use immersedbc,only:n_bldg,bldg_pts,building_interp
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
@@ -36,40 +35,40 @@ $else
 $endif
 
 integer :: jx,jy,jz
-integer :: i, px, py, lx, ly, lz
+integer :: i
 integer :: counter1,counter2,counter3,counter4,counter5
 integer :: istart, iend
 
-real(kind=rprec):: tf1,tf2,tf1_2,tf2_2 ! Size if the second test filter
-real(kind=rprec) :: fractus
-real(kind=rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
-real(kind=rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
-real(kind=rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
+real(rprec):: tf1,tf2,tf1_2,tf2_2 ! Size of the second test filter
+real(rprec) :: fractus
+real(rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
+real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
+real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 
-real(kind=rprec), dimension(ld,ny) :: S,tempos
-real(kind=rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
-real(kind=rprec), dimension(ld,ny) :: Q11,Q12,Q13,Q22,Q23,Q33
-real(kind=rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
-real(kind=rprec), dimension(ld,ny) :: N11,N12,N13,N22,N23,N33
+real(rprec), dimension(ld,ny) :: S
+real(rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
+real(rprec), dimension(ld,ny) :: Q11,Q12,Q13,Q22,Q23,Q33
+real(rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
+real(rprec), dimension(ld,ny) :: N11,N12,N13,N22,N23,N33
 
-real(kind=rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert
-real(kind=rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
-real(kind=rprec), dimension(ld,ny) :: ee_now
+real(rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert
+real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
+real(rprec), dimension(ld,ny) :: ee_now
 
-real(kind=rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
+real(rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
      S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
      S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-real(kind=rprec), dimension(ld,ny) :: S_hat,S11_hat,S12_hat,&
+real(rprec), dimension(ld,ny) :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 
-real(kind=rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
-real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
+real(rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
+real(rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 
-real(kind=rprec) :: delta,const
-real(kind=rprec) :: opftdelta,powcoeff
+real(rprec) :: delta,const
+real(rprec) :: opftdelta,powcoeff
 
-real(kind=rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
+real(rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
 
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
@@ -404,12 +403,17 @@ end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
 
 $if ($LVLSET)
-  ! Zero Cs_opt2 inside objects
-  call level_set_Cs_lag_dyn ()
+    ! Zero Cs_opt2 inside objects
+    call level_set_Cs_lag_dyn ()
+$endif
+
+$if ($CFL_DT)
+    ! Reset variable for use during next set of cs_count timesteps
+    lagran_dt = 0.0_rprec
 $endif
 
 $if ($VERBOSE)
-write (*, *) 'finished lagrange_Sdep'
+    write (*, *) 'finished lagrange_Sdep'
 $endif
 
 end subroutine lagrange_Sdep
