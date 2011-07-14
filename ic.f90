@@ -40,7 +40,7 @@ subroutine ic()
   if ((inflow) .and. (.not. read_inflow_file)) then  !--no turbulence
 
      u = face_avg 
-     v = 0._rprec
+     v = 0.05_rprec * face_avg
      w = 0._rprec
 
   else 
