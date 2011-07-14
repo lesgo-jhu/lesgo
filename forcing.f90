@@ -178,6 +178,7 @@ implicit none
 
 integer :: i, i_w
 integer :: istart, istart_w
+integer :: imid
 integer :: iend, iend_w
 
 real (rprec) :: factor
@@ -187,6 +188,7 @@ real (rprec) :: delta_r, delta_f
 
 !--these may be out of 1, ..., nx
 iend = floor (buff_end * nx + 1._rprec)
+imid = floor (( buff_end - buff_len / 4 ) * nx + 1._rprec)
 istart = floor ((buff_end - buff_len) * nx + 1._rprec)
 
 !--wrapped versions
@@ -232,19 +234,19 @@ do i = istart + 1, iend - 1
                                        - w(i_w, 1:ny, 1:nz) )
 
   else
-
+      
+      ! Linear profile
       !factor = real ( i - istart, rprec ) / real ( iend - istart, rprec )
-
-      factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
-                                             / (iend - istart)) )
-
-      !if ( i - istart > (iend - istart) / 2 ) then
-      !    factor = 1.0_rprec
-      !else
-      !    factor = 0.5_rprec *                                        &
-      !             ( 1._rprec - cos (2*pi * real (i - istart, rprec)  &
-      !                                           / (iend - istart)) )
-      !end if
+      ! Sine profile
+      !factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
+      !                                       / (iend - istart)) )
+      ! Sine profile with plateau
+      if ( i > imid ) then 
+        factor = 1._rprec
+      else
+        factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
+                                             / (imid - istart)) )
+      endif
 
       u(i_w, 1:ny, 1:nz) = u(istart_w, 1:ny, 1:nz) + factor *               &
                             (u(iend_w, 1:ny, 1:nz) - u(istart_w, 1:ny, 1:nz))
