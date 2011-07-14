@@ -106,14 +106,8 @@ z => grid_t % z
                 do i=1,nx
                     ! Determine position at previous timestep
                     xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
-                    xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt       
-                                              
-                    if (w(i,j,k).le.0) then    ! trilinear_interp won't work (boo)
-                        ! this is cheating, but it should work for now...
-                        xyz_past(3) = z(k) - 1.0e-10_rprec
-                    else
-                        xyz_past(3) = z(k) - w(i,j,k)*lagran_dt
-                    endif
+                    xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt  
+                    xyz_past(3) = z(k) - max(0.0_rprec,w(i,j,k))*lagran_dt
                     
                     ! Interpolate
                     F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
@@ -153,9 +147,6 @@ z => grid_t % z
             print*, 'Lagrangian CFL condition= ', lcfl
         $endif
     endif
-
-! Reset Lagrangian u/v/w variables for use during next set of cs_counts
-    lagran_dt = 0._rprec
     
 $if ($VERBOSE)
 call exit_sub (sub_name)
