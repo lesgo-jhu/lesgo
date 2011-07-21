@@ -95,32 +95,34 @@ if(initu)then
       case (2:3)
         read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                 Cs_opt2              
+                 Cs_opt2(:,:,1:nz)              
       case (4)
         if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
           read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                    Cs_opt2
+                    Cs_opt2(:,:,1:nz)
         else
         $if($DYN_TN)
           read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2, F_LM, F_MM, F_ee2, F_deedt2, ee_past
+                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+                   F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
         $else
           read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2, F_LM, F_MM   
+                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz)   
         $endif
         end if
       case (5)
         if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
           read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                    Cs_opt2
+                    Cs_opt2(:,:,1:nz)
         else
           read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2, F_LM, F_MM, F_QN, F_NN
+                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+                   F_QN(:,:,1:nz), F_NN(:,:,1:nz)
         end if
       case default
         write (*, *) 'initial: invalid model number'
