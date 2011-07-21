@@ -26,6 +26,10 @@ $endif
 $if($LVLSET)
 use level_set, only : level_set_Cs_lag_dyn
 $endif
+$if ($MPI)
+use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
+$endif
+
 implicit none
 
 $if ($MPI)
@@ -351,6 +355,14 @@ do jz = 1,nz
             ! Clip, if necessary
             F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
 
+            $if ($DYN_TN)
+            ! note: the instantaneous value of the derivative is a Lagrangian average
+            F_ee2(:,:,jz) = epsi*ee_now**2 + (1._rprec-epsi)*F_ee2(:,:,jz)          
+            F_deedt2(:,:,jz) = epsi*( ((ee_now-ee_past(:,:,jz))/lagran_dt)**2 ) &
+                                  + (1._rprec-epsi)*F_deedt2(:,:,jz)
+            ee_past(:,:,jz) = ee_now
+            $endif   
+
     ! Calculate Cs_opt2 (for 4-delta filter)
        ! Add +zero in denomenator to avoid division by identically zero
         Cs_opt2_4d(:,:) = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
@@ -401,6 +413,19 @@ do jz = 1,nz
          
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
+
+! Share new data between overlapping nodes
+    $if ($MPI)
+        call mpi_sync_real_array( F_LM, MPI_SYNC_DOWNUP )  
+        call mpi_sync_real_array( F_MM, MPI_SYNC_DOWNUP )   
+        call mpi_sync_real_array( F_QN, MPI_SYNC_DOWNUP )  
+        call mpi_sync_real_array( F_NN, MPI_SYNC_DOWNUP )              
+        $if ($DYN_TN)
+            call mpi_sync_real_array( F_ee2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_deedt2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( ee_past, MPI_SYNC_DOWNUP )
+        $endif 
+    $endif   
 
 $if ($LVLSET)
     ! Zero Cs_opt2 inside objects
