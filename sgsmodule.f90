@@ -12,7 +12,7 @@ $endif
 
 ! The following are for dynamic Lagranrian SGS models (model=4,5) 
 real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-real(kind=rprec),dimension(ld,ny,nz)::F_LM,F_MM,F_QN,F_NN,Beta
+real(kind=rprec),dimension(ld,ny,$lbz:nz)::F_LM,F_MM,F_QN,F_NN,Beta
 !  Ensure that is this is initialized
 real(kind=rprec) :: lagran_dt = 0._rprec
 

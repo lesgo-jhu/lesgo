@@ -57,10 +57,11 @@ y => grid_t % y
 z => grid_t % z
 
 ! Perform (backwards) Lagrangian interpolation
+    ! F_* arrays should be synced at this point (for MPI)
 
     ! Create dummy arrays so information will not be overwritten during interpolation
-        tempF_LM(:,:,1:nz) = F_LM(:,:,1:nz)
-        tempF_MM(:,:,1:nz) = F_MM(:,:,1:nz)  
+        tempF_LM = F_LM
+        tempF_MM = F_MM
         $if ($DYN_TN)
         tempF_ee2 = F_ee2
         tempF_deedt2 = F_deedt2
