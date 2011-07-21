@@ -22,6 +22,9 @@ $endif
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
+$if ($MPI)
+use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
+$endif
 
 implicit none
 
@@ -321,6 +324,17 @@ do jz = 1,nz
     
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
+
+! Share new data between overlapping nodes
+    $if ($MPI)
+        call mpi_sync_real_array( F_LM, MPI_SYNC_DOWNUP )  
+        call mpi_sync_real_array( F_MM, MPI_SYNC_DOWNUP )            
+        $if ($DYN_TN)
+            call mpi_sync_real_array( F_ee2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_deedt2, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( ee_past, MPI_SYNC_DOWNUP )
+        $endif 
+    $endif   
 
 $if ($DEBUG)
 if (DEBUG) then
