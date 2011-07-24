@@ -111,7 +111,7 @@ ifeq ($(FCOMP),gfortran)
     FC = gfortran44
   endif
   LIBS += -lfcgaml -lftecio
-  FFLAGS = -O0 -fbounds-check -mcmodel=medium
+  FFLAGS = -O0 -fbounds-check -mcmodel=medium -ffree-form -ffixed-line-length-none
   #FFLAGS = -O3 -mcmodel=medium
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
