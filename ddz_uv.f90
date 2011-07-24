@@ -2,7 +2,9 @@
 !--provides dfdz(:, :, 2:nz), value at jz=1 is not touched
 !--MPI: provides dfdz(:, :, 1:nz) where f is on uvp-node, except at
 !  bottom process it only supplies 2:nz 
+!**********************************************************************
 subroutine ddz_uv(dfdz, f)
+!**********************************************************************
 use types,only:rprec
 use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none
