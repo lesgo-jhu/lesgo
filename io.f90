@@ -1408,7 +1408,7 @@ close (lun)
 
 
 !  Update total_time.dat after simulation
-if ((cumulative_time) .and. (lun == lun_default)) then
+!if ((cumulative_time) .and. (lun == lun_default)) then
   if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
@@ -1422,7 +1422,7 @@ if ((cumulative_time) .and. (lun == lun_default)) then
     close(1)
 
   end if
-end if
+!end if
 
 !  Check if average quantities are to be recorded
 if(tavg_calc) call tavg_finalize()
