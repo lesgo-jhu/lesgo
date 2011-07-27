@@ -111,25 +111,34 @@ use cyl_skew_ls, only : fill_tree_array_ls
 implicit none
 
 integer :: ng, k
+
 $if($MPI)
 integer :: nx_proc_sum
+integer :: nx_remain, nx_extra
 $endif
 
 $if ($MPI)
 !call initialize_mpi ()
 call initialize_mpi_csp ()
 
-!  Set x decomposition (last proc gets remaining x points)
-if( global_rank_csp < nproc_csp - 1) then
-  nx_proc = nx / nproc_csp
-else
-  nx_proc = nx - (nx / nproc_csp) * global_rank_csp
-endif
+! Load balancing: any left over get consumed in rank order, one-by-one
+nx_remain = modulo( nx , nproc_csp )
 
-stride = (nx / nproc_csp)*global_rank_csp
+nx_extra = 0
+! Spread the wealth around
+if( global_rank_csp < nx_remain )  nx_extra = 1
+
+! Set nx for the given processor
+nx_proc = nx / nproc_csp + nx_extra
+
+! Set stride to serve as offset for x-indexing; includes accumulated
+! extras from load balacing
+stride = (nx / nproc_csp)*global_rank_csp + min( global_rank_csp, nx_remain )
+
+! Write info to screen
 write(*,*) 'ID, nx_proc, stride : ', global_rank_csp, nx_proc, stride
 
-
+! Sanity check for loadbalancing
 call mpi_allreduce(nx_proc, nx_proc_sum, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 if(global_rank_csp == 0 .and. nx_proc_sum /= nx) then
   write(*,*) 'Error in x decomposition - nx_proc_sum, nx : ', nx_proc_sum, nx
@@ -283,7 +292,9 @@ subroutine main_loop(nt)
 !**********************************************************************
 use types, only : rprec
 $if($MPI)
-use cyl_skew_pre_base_ls, only : nx_proc
+use mpi
+use param, only : ierr
+use cyl_skew_pre_base_ls, only : nx_proc, global_rank_csp
 $else
 use param, only : nx_proc => nx
 $endif
@@ -298,12 +309,20 @@ integer, intent(IN) :: nt
 integer :: ng, nc, nb,i,j,k
 !  Loop over all global coordinates
 
+$if ($MPI)
+integer :: dumb_indx
+$endif
 
 do k=$lbz,nz_tot
 
   do j=1,ny
 
     do i=1,nx_proc
+
+      $if ($MPI)
+      !  To keep mpi stuff flowing during bad load balancing runs
+      call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+      $endif
         
       do ng = 1, tr_t(nt) % ngen_reslv
         
