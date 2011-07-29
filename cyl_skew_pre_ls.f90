@@ -697,13 +697,15 @@ do k=$lbz,nz_tot
       
         if( gen_cell_bot == gen_cell_top ) then
           
-          call filter_chi(gcs_t(i,j,k) % xyz, gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)      
+          call filter_indicator_function(gcs_t(i,j,k) % xyz, gen_cell_bot, &
+               filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)      
 
         elseif( gen_cell_bot == -1 .and. gen_cell_top .ne. -1 ) then
    
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), &
+               gen_cell_top, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (zcell_top - z_star) / dz
           
           nf = gen_cell_top - 1 
@@ -717,7 +719,8 @@ do k=$lbz,nz_tot
             
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
-            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), &
+                 gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
             gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
             
             nullify(tplane_p, bplane_p)
@@ -728,7 +731,8 @@ do k=$lbz,nz_tot
 
           !  Filter at beginning generation
           z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), &
+               gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
           
           nf = ngen - gen_cell_bot
@@ -742,8 +746,9 @@ do k=$lbz,nz_tot
             
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
-            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
-            gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
+            call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), &
+                 gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            gcs_t(I,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
             
             nullify(tplane_p, bplane_p)
             
@@ -755,12 +760,12 @@ do k=$lbz,nz_tot
         
           !  Filter at beginning generation
           z_star = tr_t(1)%gen_t(gen_cell_bot)%tplane
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
+          call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_bot, filt_width, gcs_t(i,j,k)%chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi * (z_star - zcell_bot) / dz
           
           !  Filter at ending generation
           z_star = tr_t(1)%gen_t(gen_cell_top)%bplane
-          call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, chi, gcs_t(i,j,k) % brindx)
+          call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_cell_top, filt_width, chi, gcs_t(i,j,k) % brindx)
           gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (zcell_top - z_star) / dz
           
           nf = ( gen_cell_top - gen_cell_bot + 1) - 2
@@ -775,7 +780,7 @@ do k=$lbz,nz_tot
             !  Filter at mid-height of generation
             z_star = 0.5_rprec * ( tplane_p + bplane_p )
 
-            call filter_chi((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
+            call filter_indicator_function((/ gcs_t(i,j,k)%xyz(1), gcs_t(i,j,k)%xyz(2), z_star /), gen_id, filt_width, chi, gcs_t(i,j,k) % brindx)
             gcs_t(i,j,k)%chi = gcs_t(i,j,k)%chi + chi * (tplane_p - bplane_p) / dz
             
             nullify(tplane_p, bplane_p)
@@ -858,7 +863,7 @@ return
 end subroutine find_assoc_gen
 
 !**********************************************************************
-subroutine filter_chi(xyz, id_gen, delta, chi, brindx)
+subroutine filter_indicator_function(xyz, id_gen, delta, chi, brindx)
 !**********************************************************************
 !  This subroutine performs filtering in the horizontal planes
 !
@@ -912,7 +917,7 @@ chi = 6._rprec/(pi*delta2) * chi
 
 return
 
-end subroutine filter_chi
+end subroutine filter_indicator_function
 
 !**********************************************************************
 subroutine filter_cl_chi(xyz, cl_t, delta, chi, brdist, brindx)
