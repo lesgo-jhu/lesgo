@@ -21,7 +21,7 @@
     save
 
     $if($MPI)
-    logical :: output_local=.true.
+    logical :: output_local=.false.
     $endif
     logical :: output_lesgo=.true.
 
@@ -302,6 +302,8 @@
 
     integer, intent(IN) :: nt
 
+    integer :: ndomain_loop
+
     integer :: ng, nc, nb,i,j,k
     !  Loop over all global coordinates
 
@@ -309,22 +311,29 @@
     integer :: dumb_indx
     $endif
 
-
+    ndomain_loop = 1
     do ng = 1, tr_t(nt) % ngen_reslv
 
        do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
-
+          
           do nb=1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
 
+             $if($MPI)
+             if( global_rank_csp == 0 ) write(*,*) 'Domain loop : ', ndomain_loop
+             $else
+             write(*,*) 'Domain loop : ', ndomain_loop
+             $endif
+
+             $if ($MPI)
+             !  To keep mpi stuff flowing during bad load balancing runs
+             call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+             $endif
+             
 
              do k=$lbz,nz_tot
 
                 do j=1,ny
 
-                   $if ($MPI)
-                   !  To keep mpi stuff flowing during bad load balancing runs
-                   call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-                   $endif
 
                    do i=1,nx_proc
 
@@ -338,6 +347,8 @@
 
                 enddo
              enddo
+
+             ndomain_loop = ndomain_loop + 1
 
           enddo
        enddo
