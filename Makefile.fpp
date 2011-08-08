@@ -55,26 +55,6 @@ ifeq ($(USE_TREES_LS), yes)
   FPP += -DTREES_LS
 endif
 
-ifeq ($(USE_PC_SCHEME), DEFAULT)
-  FPP += -DPC_SCHEME_0
-endif
-
-ifeq ($(USE_PC_SCHEME), PC_SCHEME_0)
-  FPP += -DPC_SCHEME_0
-endif
-
-ifeq ($(USE_PC_SCHEME), PC_SCHEME_1)
-  FPP += -DPC_SCHEME_1
-endif 
-
-ifeq ($(USE_PC_SCHEME), PC_SCHEME_2)
-  FPP += -DPC_SCHEME_2
-endif 
-
-ifeq ($(USE_PC_SCHEME), PC_SCHEME_3)
-  FPP += -DPC_SCHEME_3
-endif
-
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
   ifeq ($(SMOOTH_VEL), yes)
