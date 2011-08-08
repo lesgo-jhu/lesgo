@@ -299,39 +299,10 @@ do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
  
-      $if($PC_SCHEME_0)
-      ! Original PC
       RHS = -tadv1 * dpdx(jx, jy, jz)
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
       RHS = -tadv1 * dpdy(jx, jy, jz)
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz))) 
-      
-      $elseif($PC_SCHEME_1)
-      ! Updated PC
-      RHS = tconst * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz))
-      u(jx, jy, jz) = u(jx, jy, jz) - RHS
-      RHS = tconst * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz))
-      v(jx, jy, jz) = v(jx, jy, jz) - RHS
-
-      $elseif($PC_SCHEME_2)
-      ! Updated PC-2
-      RHS = dt * dpdx(jx, jy, jz)
-      u(jx, jy, jz) = u(jx, jy, jz) - RHS
-      RHS = dt * dpdy(jx, jy, jz)
-      v(jx, jy, jz) = v(jx, jy, jz) - RHS
-
-      $elseif($PC_SCHEME_3)
-      RHS = 0.5_rprec * dt * (dpdx(jx, jy, jz) - dpdx_f(jx,jy,jz) + fx(jx,jy,jz) - fx_f(jx,jy,jz))
-      u(jx, jy, jz) = u(jx, jy, jz) - RHS
-      RHS = 0.5_rprec * dt * (dpdy(jx, jy, jz) - dpdy_f(jx,jy,jz) + fy(jx,jy,jz) - fy_f(jx,jy,jz))
-      v(jx, jy, jz) = v(jx, jy, jz) - RHS
-
-      $else
-
-      call error(sub_name,'Makefile pressure correction scheme not specified properly')
-
-      $endif
-
 
       !if (DEBUG) then
       !  if ( isnan (u(jx, jy, jz)) ) then
@@ -360,31 +331,9 @@ do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
 
-      $if($PC_SCHEME_0)
-      ! Original PC
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
 
-      $elseif($PC_SCHEME_1)
-      ! Updated PC
-      RHS = tconst * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz))
-      w(jx, jy, jz) = w(jx, jy, jz) - RHS
-     
-      $elseif($PC_SCHEME_2)
-      ! Updated PC-2
-      RHS = dt * dpdz(jx, jy, jz)
-      w(jx, jy, jz) = w(jx, jy, jz) - RHS
-
-      $elseif($PC_SCHEME_3)
-      RHS = 0.5_rprec * dt * (dpdz(jx, jy, jz) - dpdz_f(jx,jy,jz) + fz(jx,jy,jz) - fz_f(jx,jy,jz))
-      w(jx, jy, jz) = w(jx, jy, jz) - RHS
- 
-      $else
-
-      call error(sub_name,'Makefile pressure correction scheme not specified properly')
-
-      $endif
-       
       !if (DEBUG) then
       !  if ( isnan (w(jx, jy, jz)) ) then
       !    write (*, *) 'nan in w at (jx, jy, jz) = ', jx, jy, jz
