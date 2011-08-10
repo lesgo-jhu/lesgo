@@ -16,7 +16,7 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 8
+  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
   $define $NPROC 1
@@ -55,27 +55,22 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=256,ny=128,nz=(32)/nproc + 1 
-  ! 2x2 coarse
-  !integer,parameter:: nx=64,ny=64,nz=(28)/nproc + 1
-  ! 3x3 coarse
-  !integer,parameter:: nx=96,ny=96,nz=(28)/nproc + 1
-  ! 2x3 fine
+  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1 
   
   integer, parameter :: nz_tot = (nz - 1) * nproc + 1
   integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
   integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
 
   ! this value is dimensional [m]:
-  real(rprec),parameter::z_i=1._rprec   !dimensions in meters, height of BL
+  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x= 32.0_rprec
-  !real(rprec),parameter::L_y= 4.0_rprec
-  !real(rprec),parameter::L_z= 4.0_rprec
-  real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
-  real(rprec),parameter::L_z=(nz_tot - 1.)/nx*L_x  ! ensure dz = dx
+  real(rprec),parameter::L_x= 2*pi
+  real(rprec),parameter::L_y= L_x
+  real(rprec),parameter::L_z= 1.0_rprec
+  !real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
+  !real(rprec),parameter::L_z=(nz_tot - 1.)/nx*L_x  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
   real(rprec),parameter::dz=L_z/(nz_tot-1.) ! or (L_z/nproc)/(nz - 1)
@@ -93,7 +88,7 @@ module param
   ! timesteps between dynamic Cs updates           
   integer, parameter :: cs_count = 5
   ! When to start dynamic Cs calculations
-  integer,parameter::DYN_init=cs_count
+  integer,parameter::DYN_init=100
   
   ! Cs is the Smagorinsky Constant
   ! Co and nnn are used in the mason model for smagorisky coeff
@@ -116,15 +111,17 @@ module param
        ug=u_star/u_star,vg=0._rprec/u_star
 
   ! nu_molec is dimensional m^2/s
-  real(rprec),parameter::nu_molec=1.14e-5_rprec   
-  logical,parameter::use_bldg=.false.
+  !real(rprec),parameter::nu_molec=1.14e-5_rprec   
+  real(rprec),parameter::nu_molec=0._rprec / 22000._rprec ! Re=22,000
+  
+logical,parameter::use_bldg=.false.
   logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
   
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 32000
+  integer, parameter :: nsteps = 150000
  
   $if($CFL_DT)
   
@@ -136,7 +133,7 @@ module param
   
   $else
   
-  real (rprec), parameter :: dt = 1.e-4               ! dt=2.e-4 usually works for 64^3
+  real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
   real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -163,7 +160,7 @@ module param
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
   integer,parameter::ubc=0
   ! lbc: lower boundary condition:  'wall', 'stress free'
-  character (*), parameter :: lbc_mom = 'stress free'
+  character (*), parameter :: lbc_mom = 'wall'
   
   ! lower boundary condition, roughness length
   ! if use_default_patch is false, zo will be read from 'patch.dat'
@@ -171,13 +168,13 @@ module param
   real (rprec), parameter :: zo_default = 0.0001_rprec  ! nondimensional  
 
   ! prescribed inflow:   
-  logical,parameter::inflow=.true.
+  logical,parameter::inflow=.false.
   ! if inflow is true the following should be set:
     logical, parameter :: use_fringe_forcing = .false.  
     ! position of right end of buffer region, as a fraction of L_x
     real (rprec), parameter :: buff_end = 1._rprec
     ! length of buffer region as a fraction of L_x
-    real (rprec), parameter :: buff_len = 0.25_rprec  
+    real (rprec), parameter :: buff_len = 0.125_rprec  
     real (rprec), parameter :: face_avg = 1.0_rprec
     ! true to read from file; false to set as constant
     ! read from file is not working properly
@@ -191,8 +188,8 @@ module param
     logical, parameter :: force_top_bot = .false.
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
-  logical, parameter :: use_mean_p_force = .false.
-  real (rprec), parameter :: mean_p_force = 1._rprec * 1. / L_z
+  logical, parameter :: use_mean_p_force = .true.
+  real (rprec), parameter :: mean_p_force = 1._rprec / L_z
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
@@ -202,7 +199,7 @@ module param
   integer,parameter::wbase=100
   
   ! how often to write ke to check_ke.out
-  integer, parameter :: nenergy = 10
+  integer, parameter :: nenergy = 100
 
   ! how often to display Lagrangian CFL condition of 
   ! dynamic SGS models
@@ -210,23 +207,23 @@ module param
 
   ! records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
-  integer, parameter :: tavg_nstart = nsteps/2, tavg_nend = nsteps
+  integer, parameter :: tavg_nstart = 50000, tavg_nend = nsteps
 
   ! turns instantaneous velocity recording on or off
   logical, parameter :: point_calc = .true.
-  integer, parameter :: point_nstart = 1, point_nend = nsteps, point_nskip = 10
+  integer, parameter :: point_nstart = 50000, point_nend = nsteps, point_nskip = 100
   integer, parameter :: point_nloc = 1
   type(point3D), dimension(point_nloc) :: point_loc = (/ &
-        point3D( (/ 6.0_rprec, L_y/2.0_rprec, 2.0_rprec /) ) &
+        point3D( (/ L_x / 2, L_y / 2, L_z / 2 /) ) &
         /)
 
   ! domain instantaneous output
   logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 10000, domain_nend = nsteps, domain_nskip = 10000
+  integer, parameter :: domain_nstart = 50000, domain_nend = nsteps, domain_nskip = 50000
   
   ! x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .false.
-  integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 50000
+  logical, parameter :: xplane_calc   = .true.
+  integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 10000
   integer, parameter :: xplane_nloc   = 2
   real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
 
@@ -238,14 +235,14 @@ module param
 
   ! z-plane instantaneous output
   logical, parameter :: zplane_calc   = .true.
-  integer, parameter :: zplane_nstart = 1000, zplane_nend = nsteps, zplane_nskip  = 1000
-  integer, parameter :: zplane_nloc   = 1
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 2.0_rprec /)
+  integer, parameter :: zplane_nstart = 50000, zplane_nend = nsteps, zplane_nskip  = 10000
+  integer, parameter :: zplane_nloc   = 3
+  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
 
-  logical, parameter :: spectra_calc = .false.
+  logical, parameter :: spectra_calc = .true.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
-  integer, parameter :: spectra_nloc = 2
-  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.5_rprec, 2.25_rprec /)
+  integer, parameter :: spectra_nloc = 3
+  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
 
 !--------------------------------------------------- 
 ! SCALAR PARAMETERS

@@ -1,4 +1,6 @@
+!**********************************************************************
 subroutine ddx(dfdx, f)              
+!**********************************************************************
 ! f remains untouched
 use types,only:rprec
 use param,only:lh,nx,ny,nz,dz

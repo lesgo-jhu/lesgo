@@ -1347,11 +1347,14 @@ else ! No SCALARS
     $if ($DYN_TN) 
       write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                  Cs_opt2, F_LM, F_MM, F_ee2, F_deedt2, ee_past                
+                  Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+                  F_QN(:,:,1:nz), F_NN(:,:,1:nz),                         &
+                  F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)                
     $else
       write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                  Cs_opt2, F_LM, F_MM, F_QN, F_NN
+                  Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+                  F_QN(:,:,1:nz), F_NN(:,:,1:nz)
     $endif
 end if
 
@@ -1405,7 +1408,7 @@ close (lun)
 
 
 !  Update total_time.dat after simulation
-if ((cumulative_time) .and. (lun == lun_default)) then
+!if ((cumulative_time) .and. (lun == lun_default)) then
   if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
@@ -1419,7 +1422,7 @@ if ((cumulative_time) .and. (lun == lun_default)) then
     close(1)
 
   end if
-end if
+!end if
 
 !  Check if average quantities are to be recorded
 if(tavg_calc) call tavg_finalize()

@@ -26,14 +26,7 @@ use types,only:rprec
 use param
 use messages
 use sim_param,only:u,v,w,divtz
-$if($PC_SCHEME_1 or $PC_SCHEME_3)
-use sim_param, only : dpdx_f, dpdy_f, dpdz_f
-$endif
 use fft
-
-$if($PC_SCHEME_3)
-use immersedbc,only:fx,fy,fz,fx_f,fy_f,fz_f
-$endif
 
 $if ($DEBUG)
 use debug_mod
@@ -92,39 +85,14 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-   $if($PC_SCHEME_0)
-   ! Original PC
    rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
    rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
-   $elseif($PC_SCHEME_1)
-   ! Updated PC
-   rH_x(:, :, jz) = const  * (u(:, :, jz) / (tadv1*dt) + dpdx_f(:,:,jz))
-   rH_y(:, :, jz) = const  * (v(:, :, jz) / (tadv1*dt) + dpdy_f(:,:,jz))
-   rH_z(:, :, jz) = const  * (w(:, :, jz) / (tadv1*dt) + dpdz_f(:,:,jz))
-
-   $elseif($PC_SCHEME_2)
-   ! Updated PC-2
-   rH_x(:, :, jz) = const * u(:, :, jz) / dt
-   rH_y(:, :, jz) = const * v(:, :, jz) / dt
-   rH_z(:, :, jz) = const * w(:, :, jz) / dt
-
-   $elseif($PC_SCHEME_3)
-
-   rH_x(:, :, jz) = const  * (2._rprec * u(:, :, jz) / dt + dpdx_f(:,:,jz) - ( fx(:,:,jz) - fx_f(:,:,jz) ) )
-   rH_y(:, :, jz) = const  * (2._rprec * v(:, :, jz) / dt + dpdy_f(:,:,jz) - ( fy(:,:,jz) - fy_f(:,:,jz) ) )
-   rH_z(:, :, jz) = const  * (2._rprec * w(:, :, jz) / dt + dpdz_f(:,:,jz) - ( fz(:,:,jz) - fz_f(:,:,jz) ) )
- 
-   $else
-
-   call error(sub_name,'Makefile pressure correction scheme flag not set properly')
-
-   $endif
-
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
    call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),ignore_me)   
+
 end do
 
 

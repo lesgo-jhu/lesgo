@@ -42,7 +42,7 @@ $if ($MPI)
   integer, parameter :: ntautop = 3
   integer, parameter :: ntaubot = 2
   integer, parameter :: nFMMtop = 1
-  integer, parameter :: nFMMbot = 2
+  integer, parameter :: nFMMbot = 1
 $else
   integer, parameter :: nphitop = 0
   integer, parameter :: nphibot = 0
@@ -4454,45 +4454,25 @@ implicit none
 
 if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
   
-  $if($PC_SCHEME_0)    
-  ! Original PC
   Rx = -tadv1 * dpdx(i, j, k)
   Ry = -tadv1 * dpdy(i, j, k)        
   fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
   fy(i, j, k) = (-v(i, j, k)/dt - Ry)
 
-  $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
-  ! Updated PC
-  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k) - dpdx_f(i,j,k))
-  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k) - dpdy_f(i,j,k))
 
-  $elseif($PC_SCHEME_2)
-  ! Updated PC-2
-  fx(i,j,k) = -(u(i,j,k)/dt + tadv1 * RHSx(i, j, k) + tadv2 * RHSx_f(i,j,k))
-  fy(i,j,k) = -(v(i,j,k)/dt + tadv1 * RHSy(i, j, k) + tadv2 * RHSy_f(i,j,k))
-
-  $else
-
-  call error(sub_name,'Makefile pressure correction scheme not specified properly')
-
-  $endif
-
-  !  Commented since not compliant with correct pressure scheme (JSG)
-!else if (vel_BC) then
+else if (vel_BC) then
        
-  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
-
   ! forces after pressure update
-  !Rx = -tadv1 * dpdx(i, j, k)
-  !Ry = -tadv1 * dpdy(i, j, k)
+  Rx = -tadv1 * dpdx(i, j, k)
+  Ry = -tadv1 * dpdy(i, j, k)
 
-  !if (udes(i, j, k) < huge (1._rp) / 2) then
-    !fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-  !end if
+  if (udes(i, j, k) < huge (1._rp) / 2) then
+    fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
+  end if
 
-  !if (vdes(i, j, k) < huge (1._rp) / 2) then
-    !fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-  !end if
+  if (vdes(i, j, k) < huge (1._rp) / 2) then
+    fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
+  end if
 
 end if
 
@@ -4504,38 +4484,19 @@ subroutine level_set_force_z()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-
 ! Original FV
 if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
 
-  $if($PC_SCHEME_0)
-  ! Original PC
   Rz = -tadv1 * dpdz(i, j, k)
   fz(i, j, k) = (-w(i, j, k)/dt - Rz)
 
-  $elseif($PC_SCHEME_1 or $PC_SCHEME_3)
-  ! Updated PC
-  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k) - dpdz_f(i,j,k))
+else if (vel_BC) then
 
-  $elseif($PC_SCHEME_2)
-  ! Update PC-2
-  fz(i,j,k) = -(w(i,j,k)/dt + tadv1 * RHSz(i, j, k) + tadv2 * RHSz_f(i,j,k))
+  Rz = -tadv1 * dpdz(i, j, k)
 
-  $else
-
-  call error(sub_name,'Makefile pressure correction scheme not specified properly')
-
-  $endif
-
-!  Commented since not compliant with correct pressure scheme (JSG)
-!else if (vel_BC) then
-  !call error(sub_name,'Disabled this feature until forcing updated to be based on u*')
-
-  !Rz = -tadv1 * dpdz(i, j, k)
-
-  !if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
-    !fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
-  !end if
+  if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
+    fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
+  end if
 
 end if
 

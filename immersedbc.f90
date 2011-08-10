@@ -8,19 +8,10 @@ public n_bldg,bldg_pts,fx,fy,fz,fxa,fya,fza, &
        building_mask,building_interp,building_mask_one,building_interp_one, &
        wallstress_building,walldudx_building
 
-$if($PC_SCHEME_3)       
-public fx_f, fy_f, fz_f
-$endif 
-
 integer::n_bldg
 integer,allocatable::bldg_pts(:,:)
 real(kind=rprec),dimension(ld,ny,nz)::u_des,v_des,w_des
 real(kind=rprec),dimension(ld,ny,nz)::fx = 0._rprec ,fy = 0._rprec ,fz = 0._rprec
-
-
-$if($PC_SCHEME_3)
-real(kind=rprec),dimension(ld,ny,nz) :: fx_f = 0._rprec ,fy_f = 0._rprec ,fz_f = 0._rprec
-$endif
 
 ! Added for use with applied forces
 real(kind=rprec),dimension(ld,ny,nz) :: fxa = 0._rprec ,fya = 0._rprec ,fza = 0._rprec

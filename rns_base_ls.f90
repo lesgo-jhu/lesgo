@@ -26,15 +26,15 @@ $endif
 !---------------------------------------------------
 ! RNS PARAMETERS
 !---------------------------------------------------  
-! kc-3, vtree-3
-integer, parameter :: rns_ntree = 3 ! Number of unique trees 
-! vtree-2
-!integer, parameter :: rns_ntree = 2 ! Number of unique trees
+! kc-3
+!integer, parameter :: rns_ntree = 4 ! Number of unique trees 
+! vtree-3
+integer, parameter :: rns_ntree = 3 ! Number of unique trees
 
 !  Options: 'default', 'kc-3'
 ! kc-3
 !character(*), parameter :: rns_tree_layout = 'kc-3'
-! vtree-2, vtree-3
+! vtree-3
 character(*), parameter :: rns_tree_layout = 'default'
 
 
@@ -43,7 +43,7 @@ integer, parameter :: temporal_weight = 0
   
   ! kc-3
   !real(rprec), parameter :: Tconst = 8.0_rprec
-  ! vtree-2, vtree-3
+  ! vtree-3
   real(rprec), parameter :: Tconst = 1.0_rprec
   
   integer, parameter :: weight_nstart = 20000

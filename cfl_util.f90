@@ -19,9 +19,6 @@ $if($MPI)
 real(rprec) :: cfl_buf
 $endif
 
-!cfl = maxval( (/ dabs(u(1:nx,1:ny,1:nz-1)) / dx, &
-!                 dabs(v(1:nx,1:ny,1:nz-1)) / dy, &
-!                 dabs(w(1:nx,1:ny,1:nz-1)) / dz /) )
 cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
 cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
 cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
@@ -60,9 +57,6 @@ $if($MPI)
 real(rprec) :: dt_buf
 $endif
 
-!dt = minval( (/ dx / abs(u(1:nx,1:ny,1:nz-1)), &
-!                dy / abs(v(1:nx,1:ny,1:nz-1)), &
-!                dz / abs(w(1:nx,1:ny,1:nz-1)) /) )
 ! Avoid division by computing max dt^-1
 dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
 dt_inv_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy 
