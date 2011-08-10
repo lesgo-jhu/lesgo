@@ -20,10 +20,10 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 ! CYL_SKEW TREE PARAMETERS
 !--------------------------------------------------- 
 
-!real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
-!real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
-real(rprec), parameter :: zrot_angle = 0._rprec
-real(rprec), parameter :: skew_angle = 0._rprec
+real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
+real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
+!real(rprec), parameter :: zrot_angle = 0._rprec
+!real(rprec), parameter :: skew_angle = 0._rprec
 
 
 ! kc-3
