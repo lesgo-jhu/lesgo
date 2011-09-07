@@ -9,7 +9,7 @@ $if ($XLF)
 $endif
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character (*), parameter :: sub_name = 'energy'
 

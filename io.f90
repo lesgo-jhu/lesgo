@@ -333,7 +333,7 @@ use param, only : model
 use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
-include 'tecio.h'      
+include 'tecryte.h'      
 
 integer, intent(IN) :: itype
 
@@ -1851,7 +1851,7 @@ use stat_defs, only : tavg_t, tavg_zplane_t, spectra_t
 use stat_defs, only : type_set
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 !character(120) :: cx,cy,cz
 character(120) :: var_list
@@ -2243,7 +2243,7 @@ $endif
 
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
 character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
@@ -2981,7 +2981,7 @@ use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
 character(25) :: cl

@@ -1093,7 +1093,7 @@ use strmod
 
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
@@ -1174,7 +1174,7 @@ use strmod
 
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
@@ -1271,7 +1271,7 @@ use param, only : total_time, path
 use strmod
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
