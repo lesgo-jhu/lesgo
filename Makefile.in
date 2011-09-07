@@ -81,7 +81,7 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
-  LIBS += -lfcgaml-intel -lftecio-intel-dev
+  LIBS += -lfcgaml-intel -ltecryte-intel
   #FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
   FFLAGS = -axSSE4.2 -ftz -ip -O3
@@ -106,7 +106,7 @@ ifeq ($(FCOMP),gfortran)
   else
     FC = gfortran44
   endif
-  LIBS += -lfcgaml -lftecio-dev
+  LIBS += -lfcgaml -ltecryte
   #FFLAGS = -O0 -fbounds-check -mcmodel=medium
   FFLAGS = -O3
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
@@ -166,7 +166,7 @@ ifeq ($(FCOMP),pgfortran)
   else
     FC = pgfortran
   endif
-  LIBS += -lfcgaml-pgi -lftecio-pgi-dev
+  LIBS += -lfcgaml-pgi -ltecryte-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
