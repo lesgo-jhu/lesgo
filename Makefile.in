@@ -81,7 +81,7 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
-  LIBS += -lfcgaml-intel -ltecryte-intel
+  LIBS += -ltecryte-intel
   #FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
   FFLAGS = -axSSE4.2 -ftz -ip -O3

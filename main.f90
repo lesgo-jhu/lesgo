@@ -13,6 +13,7 @@ use topbc,only:setsponge,sponge
 use bottombc,only:num_patch,avgpatch
 use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
+use cfl_mod 
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
@@ -167,7 +168,7 @@ $endif
 $if($CFL_DT)
 if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
   if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
-  call cfl_set_dt(dt) 
+  dt = get_cfl_dt() 
   dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
 endif
 $endif
@@ -178,7 +179,7 @@ do jt=1,nsteps
     $if($CFL_DT)
       dt_f = dt
 
-      call cfl_set_dt(dt)
+      dt = get_cfl_dt()
 
       dt_dim = dt * z_i / u_star
     
@@ -552,7 +553,7 @@ do jt=1,nsteps
         ! Calculate rms divergence of velocity
         !   only written to screen, not used otherwise
         call rmsdiv (rmsdivvel)
-        call cfl_max ( maxcfl )
+        maxcfl = get_max_cfl()
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
           $if($CFL_DT)

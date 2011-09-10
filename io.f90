@@ -126,9 +126,13 @@ $if($CFL_DT)
 use param, only : dt, cfl_f
 $endif
 use sim_param,only:path
+
 implicit none
 
 logical :: exst
+
+! Temporary values used to read time step and CFL from file
+real(rprec) :: dt_r, cfl_r
 
 if (cumulative_time) then
 
@@ -136,11 +140,7 @@ if (cumulative_time) then
   if (exst) then
     open (1, file=fcumulative_time)
     
-    $if($CFL_DT)
-    read(1, *) jt_total, total_time, total_time_dim, dt, cfl_f
-    $else
-    read (1, *) jt_total, total_time, total_time_dim
-    $endif
+    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r
     
     close (1)
   else  !--assume this is the first run on cumulative time
@@ -153,6 +153,11 @@ if (cumulative_time) then
   end if
 
 end if
+
+$if($CFL_DT)
+dt = dt_r
+cfl_f = cfl_r
+$endif
 
 !!--see also energy () subr. for flushing this file
 !if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
@@ -1370,9 +1375,11 @@ end subroutine checkpoint
 subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
-
+use param, only : dt
 $if($CFL_DT)
-use param, only : dt, cfl
+use param, only : cfl
+$else
+use cfl_mod, only : get_max_cfl
 $endif
 
 implicit none
@@ -1384,6 +1391,8 @@ integer::i,fid
 integer :: lun
 
 logical :: opn
+
+real(rprec) :: cfl_w
 
 !---------------------------------------------------------------------
 
@@ -1406,6 +1415,13 @@ call checkpoint (lun)
 
 close (lun)
 
+! Set the current cfl to a temporary (write) value based whether CFL is
+! specified or must be computed
+$if($CFL_DT)
+cfl_w = cfl
+$else
+cfl_w = get_max_cfl()
+$endif
 
 !  Update total_time.dat after simulation
 !if ((cumulative_time) .and. (lun == lun_default)) then
@@ -1413,11 +1429,7 @@ close (lun)
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
 
-    $if($CFL_DT)
-    write(1, *) jt_total, total_time, total_time_dim, dt, cfl
-    $else
-    write(1, *) jt_total, total_time, total_time_dim
-    $endif
+    write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w
 
     close(1)
 
