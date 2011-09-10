@@ -1442,25 +1442,6 @@ if(tavg_calc) call tavg_finalize()
 !  Check if spectra is to be computed
 if(spectra_calc) call spectra_finalize()
  
-!  Close instantaneous velocity files
-if(point_calc) then
-
-  do i=1,point_nloc
-    $if ($MPI)
-    if(point_t(i)%coord == coord) then
-    $endif
-
-    fid=3000*i
-    close(fid)
-
-    $if ($MPI)
-    endif
-    $endif
-
-  enddo
-
-endif
-
 return
 end subroutine output_final
 
@@ -2033,8 +2014,6 @@ if(point_calc) then
       point_t(i) % ydiff = point_loc(i)%xyz(2) - y(point_t(i) % jstart)
       point_t(i) % zdiff = point_loc(i)%xyz(3) - z(point_t(i) % kstart)
 
-      fid=3000*i
-  
       !  Can't concatenate an empty string
       point_t(i) % fname=''
       call strcat(point_t(i) % fname,'output/vel.x-')
@@ -2065,7 +2044,6 @@ if(point_calc) then
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 
-    fid=3000*i
     point_t(i) % fname=''
     call strcat(point_t(i) % fname,'output/vel.x-')
     call strcat(point_t(i) % fname, point_loc(i)%xyz(1))
