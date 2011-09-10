@@ -1,6 +1,19 @@
 !**********************************************************************
-subroutine cfl_max(cfl)
+module cfl_mod
 !**********************************************************************
+!
+! This module provides the subroutines/functions for getting CFL related
+! quantities 
+!
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_max_cfl() result(cfl)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides the value of the maximum CFL in the entire 
+! domain
+!
 use types, only : rprec
 use param, only : dt, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
@@ -11,7 +24,7 @@ use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 $endif
 
 implicit none
-real(rprec), intent(OUT) :: cfl
+real(rprec) :: cfl
 
 real(rprec) :: cfl_u, cfl_v, cfl_w
 
@@ -31,12 +44,16 @@ cfl = cfl_buf
 $endif
 
 return
-end subroutine cfl_max
+end function get_max_cfl
 
 $if($CFL_DT)
-!**********************************************************************
-subroutine cfl_set_dt(dt)
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_cfl_dt() result(dt)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This functions determines the maximum allowable time step based on the CFL
+! value specified in the param module
+!
 use types, only : rprec
 use param, only : cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
@@ -48,7 +65,7 @@ $endif
 
 implicit none
 
-real(rprec), intent(OUT) :: dt
+real(rprec) :: dt
 
 ! dt inverse
 real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
@@ -70,5 +87,7 @@ dt = dt_buf
 $endif
 
 return
-end subroutine cfl_set_dt
+end function get_cfl_dt
 $endif
+
+end module cfl_mod
