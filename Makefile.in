@@ -35,7 +35,7 @@ OUTPUT_EXTRA=yes
 USE_MPI = yes
 USE_OPENMP = no
 
-# Set dt based on CFL condition (EXPERIMENTAL)
+# Set dt based on CFL condition
 USE_CFL_DT = no
 
 # Write binary files as big_endian or little_endian
