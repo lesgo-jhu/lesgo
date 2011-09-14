@@ -114,7 +114,6 @@ module param
   !real(rprec),parameter::nu_molec=1.14e-5_rprec   
   real(rprec),parameter::nu_molec=0._rprec / 22000._rprec ! Re=22,000
   
-logical,parameter::use_bldg=.false.
   logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
   
 !---------------------------------------------------

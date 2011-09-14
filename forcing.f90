@@ -70,61 +70,17 @@ fx = 0._rprec
 fy = 0._rprec
 fz = 0._rprec
 
-!real (rprec) :: Rx, Ry, Rz 
-
-!integer::px,py,lx,ly,lz
-!integer :: jx,jy,jz,i
-
-! start calculation of body forces (fx,fy,fz)
-! 'force' is the mean pressure gradient
-! WARNING: Not sure if application of building forces here violate continuity!
-!if (use_bldg) then
-!   do i=1,n_bldg
-!     px=bldg_pts(1,i)
-!     py=bldg_pts(2,i)
-!     lx=bldg_pts(3,i)
-!     ly=bldg_pts(4,i)
-!     lz=bldg_pts(5,i)
-!     do jz=1,lz
-!     do jy=py,py+ly
-!     do jx=px,px+lx
-
-!       ! forces after pressure update
-!       Rx = -tadv1*dpdx(jx,jy,jz)
-!       Ry = -tadv1*dpdy(jx,jy,jz)
-!       Rz = -tadv1*dpdz(jx,jy,jz)
-
-!       fx(jx,jy,jz) = ((u_des(jx,jy,jz)-u(jx,jy,jz))/dt - Rx)
-!       fy(jx,jy,jz) = ((v_des(jx,jy,jz)-v(jx,jy,jz))/dt - Ry)
-!       fz(jx,jy,jz) = ((w_des(jx,jy,jz)-w(jx,jy,jz))/dt - Rz)
-!
-!     end do
-!     end do
-!     end do
-!   end do
-!   ! end calculation of forces
-!endif
-
 $if($LVLSET)
 
 !  Compute the level set IBM forces
 call level_set_forcing ()
 
-  ! Commented 6/22/11 JSG
-  ! Moved to main
-  !$if($RNS_LS)
-  !!  Compute the relavent force information ( include reference quantities, CD, etc.)
-  !!  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-  !!  made here.
-  !call rns_elem_force_ls()
-  !$endif
-
-  $if($TREES_LS)
-  !--this must come after call to level_set_forcing
-  !--in /a posteriori/ test, this adds SGS branch force
-  !--in /a priori/ test, this does not modify force
-  call trees_ls_calc ()
-  $endif
+$if($TREES_LS)
+!--this must come after call to level_set_forcing
+!--in /a posteriori/ test, this adds SGS branch force
+!--in /a priori/ test, this does not modify force
+call trees_ls_calc ()
+$endif
 
 $endif
 

@@ -1,4 +1,6 @@
+!*******************************************************************************
 subroutine initial()
+!*******************************************************************************
 use types,only:rprec
 use param
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
@@ -7,13 +9,17 @@ use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
+
 use scalars_module,only:RHS_T ! added by VK
 use scalars_module2,only:ic_scal ! added by VK
+
 ! VK -label 122 assigned to vel_sc.out for reading input files in case of
 ! scalars
 !!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
-use immersedbc,only:fx,fy,fz,u_des,v_des,w_des,n_bldg,bldg_pts
+
+use immersedbc,only:fx,fy,fz
 use immersedbc,only:fxa,fya,fza
+
 use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -38,9 +44,6 @@ integer::i,jz
 !Cs_opt2_avg=0._rprec
 fx=0._rprec;fy=0._rprec;fz=0._rprec
 fxa=0._rprec; fya=0._rprec; fza=0._rprec
-u_des=0._rprec;v_des=0._rprec;w_des=0._rprec
-mean_u=0._rprec;mean_u2=0._rprec;mean_v=0._rprec;mean_v2=0._rprec
-mean_w=0._rprec;mean_w2=0._rprec
 
 $if ($DYN_TN)
 !Eventually want to read these in from file, but for now, just initialize to zero
@@ -156,21 +159,6 @@ else
   end if
 end if
 
-! bldg stuff
-if (use_bldg) then
-   open(1,file=path//'bldg.dat')
-   read(1,*) n_bldg
-   allocate(bldg_pts(5,n_bldg))
-   do i=1,n_bldg
-      read(1,*) bldg_pts(1:5,i)
-      if(bldg_pts(5,i).ge.nz)then
-         write(*,*)"lz should be less than nz"
-         stop
-      end if
-   end do
-   close(1)
-end if
-
 $if ($MPI)
   !--synchronize the overlapping parts nz-1 (coord) -> 0 (coord + 1) 
   !  and 1 (coord + 1) -> nz (coord)
@@ -217,9 +205,9 @@ $endif
 
 contains
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine add_random ()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 real (rprec), parameter :: rms = 0.2_rprec
