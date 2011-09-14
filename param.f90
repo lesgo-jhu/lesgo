@@ -185,6 +185,11 @@ module param
     ! velocities are forced to the inflow velocity
     logical, parameter :: force_top_bot = .false.
 
+    ! If true the inflow will be forced to the velocity at a sampled location
+    logical, parameter :: inflow_sample_velocity=.true.
+    ! Location as a fraction of L_x
+    real(rprec), parameter :: inflow_sample_location=0.5_rprec
+
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical, parameter :: use_mean_p_force = .true.
   real (rprec), parameter :: mean_p_force = 1._rprec / L_z

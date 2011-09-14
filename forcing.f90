@@ -127,6 +127,7 @@ use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
                   sflux_flag, buff_end, buff_len, use_fringe_forcing,  &
                   L_x, dt, dx
+use param, only : inflow_sample_velocity, inflow_sample_location
 use sim_param, only : u, v, w, theta
 use immersedbc, only : fx, fy, fz
 use io, only : inflow_read
@@ -136,6 +137,8 @@ integer :: i, i_w
 integer :: istart, istart_w
 integer :: imid
 integer :: iend, iend_w
+
+integer :: isample
 
 real (rprec) :: factor
 real (rprec) :: fringe_blend
@@ -153,11 +156,24 @@ istart_w = modulo (istart - 1, nx) + 1
 
 !--read from file
 if (read_inflow_file) then  !--read vel inflow @ jx = iend_w from file
+
   call inflow_read ()  !--this sets u, v, w at (iend_w,:,:)
-else
+
+elseif( inflow_sample_velocity ) then  
+
+   isample = floor (inflow_sample_location * nx ) + 1
+   ! Wrap the location
+   isample = modulo( isample - 1, nx ) + 1
+   u(iend_w, :, :) = u(isample,:,:)
+   v(iend_w, :, :) = v(isample,:,:)
+   w(iend_w, :, :) = w(isample,:,:)
+
+else     
+
   u(iend_w, :, :) = face_avg
   v(iend_w, :, :) = 0._rprec
   w(iend_w, :, :) = 0._rprec
+
 end if
 
 !--skip istart since we know vel at istart, iend already
