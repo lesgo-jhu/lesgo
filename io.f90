@@ -1,6 +1,6 @@
-!**********************************************************************
+!///////////////////////////////////////////////////////////////////////////////
 module io
-!**********************************************************************
+!///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
                   USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
@@ -27,101 +27,16 @@ $endif
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, inflow_read, inflow_write, output_loop, output_final
-public mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
+
 public stats_init
 
 character (*), parameter :: mod_name = 'io'
 
-integer,parameter::jx_pls=1,jx_ple=1,width=1
-integer,parameter::jy_pls=ny/2-width,jy_ple=ny/2+width+1
-real(kind=rprec),dimension(jx_pls:jx_ple,jy_pls:jy_ple,nz):: &
-     mean_u,mean_v,mean_w,mean_u2,mean_v2,mean_w2
-
-!**********************************************************************
 contains
-!**********************************************************************
 
-!!**********************************************************************
-!subroutine interp_to_uv_grid(var,var_uv,lbz,tag)
-!!**********************************************************************
-!!  This function interpolates the array var, which resides on the w-grid,
-!!  onto the uv-grid variable var_uv using linear interpolation. It is 
-!!  important to note that message passing is required for MPI cases and 
-!!  all processors must call this routine. If this subroutine is call from a 
-!!  only a subset of the total processors, the code will hang due to the usage
-!!  of the syncronous send/recv functions and certain processors waiting
-!!  to recv data but it never gets there.
-!!
-!!  NOTE: It is assumed that the size of var and var_uv are the same as the
-!!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
-!!  nodes - no interpolation is performed for k=0 and k=nz
-!!
-!use types, only : rprec
-!use param,only : nz,ld,jt
-!use sim_param, only : w, dudz
-!$if ($MPI)
-!use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-!$endif
-!
-!implicit none
-!
-!real(rprec), dimension(:,:,lbz:), intent(IN) :: var
-!real(rprec), dimension(:,:,lbz:), intent(OUT) :: var_uv
-!integer, intent(in) :: lbz
-!integer, intent(INOUT) :: tag
-!!real(rprec), dimension(2) :: var
-!integer :: ubx,uby,ubz
-!integer :: i,j,k
-!
-!character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
-!
-!if(tag == jt) then
-!$if ($VERBOSE)
-  !call mesg(sub_name, 'Interpolation already performed for current time step')
-!$endif
-  !return
-!endif
- ! 
-!ubx=ubound(var,1)
-!uby=ubound(var,2)
-!ubz=ubound(var,3)
-!
-!do k=1,ubz-1
-  !do j=1,uby
-    !do i=1,ubx
-      !var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-    !enddo
-  !enddo
-!enddo
-!
-!$if ($MPI)
-!
-!!  Take care of top "physical" boundary
-!if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
-!
-!!  Sync all overlapping data
-!call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
-!
-!$else
-!
-!!  Take care of top "physical" boundary
-!var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
-!
-!$endif
- ! 
-!tag = jt ! Set identifying tag 
-!
-!return 
-!
-!!!$if($MPI)
-!!deallocate(buf)
-!!!$endif
-!
-!end subroutine interp_to_uv_grid
-
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine openfiles()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $if($CFL_DT)
 use param, only : dt, cfl_f
 $endif
@@ -159,17 +74,11 @@ dt = dt_r
 cfl_f = cfl_r
 $endif
 
-!!--see also energy () subr. for flushing this file
-!if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-!  open(13, file=path//'output/check_ke.out', position='append')
-!end if
-
-
 end subroutine openfiles
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_loop(jt)
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 !  This subroutine is called every time step and acts as a driver for 
 !  computing statistics and outputing instantaneous data. No actual
@@ -307,11 +216,15 @@ endif
 return
 end subroutine output_loop
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine inst_write(itype)
-!**********************************************************************
-!  This subroutine writes the instantaneous values
-!  at specified i,j,k locations
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine writes the instantaneous values
+! at specified i,j,k locations
+!
+! This subroutine should be separated into separate ones to keep things cleaner
+!
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
 use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
@@ -1227,9 +1140,9 @@ contains
 $endif
 
 $if($LVLSET)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine force_tot()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 implicit none
 
@@ -1266,9 +1179,9 @@ end subroutine force_tot
 $endif
 
 $if($DEBUG)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine pressure_sync()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : ld
 implicit none
 
@@ -1297,9 +1210,9 @@ $endif
 return
 end subroutine pressure_sync
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine RHS_sync()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : ld
 implicit none
 
@@ -1327,10 +1240,12 @@ $endif
 
 end subroutine inst_write
 
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine checkpoint (lun)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--assumes lun is open and positioned correctly
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine checkpoint (lun)
 use param, only : nz, S_FLAG
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
@@ -1365,6 +1280,10 @@ end if
 
 end subroutine checkpoint
 
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine output_final(jt, lun_opt)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--lun_opt gives option for writing to different unit, and is used by
 !  inflow_write
@@ -1372,7 +1291,6 @@ end subroutine checkpoint
 !  open for sequential unformatted writing
 !--this routine also closes the unit
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
@@ -1445,8 +1363,10 @@ if(spectra_calc) call spectra_finalize()
 return
 end subroutine output_final
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine inflow_write ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : jt_total, jt_start_write, buff_end,  &
                   read_inflow_file, write_inflow_file
 use sim_param, only : u, v, w
@@ -1560,9 +1480,10 @@ end if
 
 end subroutine inflow_write
 
-!**********************************************************************
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine inflow_read ()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : ny, nz, pi, nsteps, jt_total, buff_end
 use sim_param, only : u, v, w
 implicit none
@@ -1762,9 +1683,9 @@ $endif
 
 end subroutine inflow_read
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine len_da_file(fname, lenrec, length)
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !--finds number of records on existing direct-access unformatted file
 !--taken from Clive Page's comp.lang.fortran posting (12/16/2003), 
 !  under the topic counting number of records in a Fortran direct file
@@ -1824,12 +1745,11 @@ close(unit=lunit)
 return
 end subroutine len_da_file
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine stats_init ()
-!***************************************************************
-!  This subroutine allocates the memory for arrays
-!  used for statistical calculations 
-
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine allocates the memory for arrays used for statistical
+!  calculations
 use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
@@ -1873,14 +1793,8 @@ if( tavg_calc ) then
 
   allocate(tavg_t(nx,ny,nz))
   allocate(tavg_zplane_t(nz))
-  
-  !  Initialize arrays
-  !tavg_t(:,:,:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
 
+  ! Initialize the derived types tavg_t and tavg_zplane_t  
   do k=1,Nz
     do j=1, Ny
       do i=1, Nx
@@ -1891,12 +1805,6 @@ if( tavg_calc ) then
     call type_set( tavg_zplane_t(k), 0._rprec )
 
   enddo
-    
-  !tavg_zplane_t(:) = tavg(0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, &
-  !  0._rprec, 0._rprec, 0._rprec, 0._rprec, 0._rprec)
 
 endif
 
@@ -2070,12 +1978,10 @@ nullify(x,y,z)
 return
 end subroutine stats_init
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_init()
-!**********************************************************************
-
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
-
 use param, only : coord, dt, USE_MPI, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
@@ -2133,9 +2039,9 @@ close(1)
 return
 end subroutine tavg_init
 
-!***************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_compute()
-!***************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine collects the stats for each flow 
 !  variable quantity
 use types, only : rprec
@@ -2209,9 +2115,9 @@ return
 
 end subroutine tavg_compute
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_finalize()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use grid_defs, only : grid_t !x,y,z
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg
 use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t 
@@ -2828,9 +2734,9 @@ nullify(x,y,z)
 return
 end subroutine tavg_finalize
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_init()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use messages
 use param, only : coord, dt, USE_MPI, spectra_nloc, lh, nx
@@ -2896,9 +2802,9 @@ enddo
 return
 end subroutine spectra_init
 
-!***************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_compute()
-!***************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use sim_param, only : u
 use param, only : Nx, Ny, dt, dz, lh
@@ -2962,9 +2868,9 @@ deallocate(ui, uhat, power)
 return
 end subroutine spectra_compute
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_finalize()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use param, only : lh, spectra_nloc, spectra_loc
 use fft, only : kx

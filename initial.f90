@@ -20,7 +20,6 @@ use scalars_module2,only:ic_scal ! added by VK
 use immersedbc,only:fx,fy,fz
 use immersedbc,only:fxa,fya,fza
 
-use io,only:mean_u,mean_u2,mean_v,mean_v2,mean_w,mean_w2
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
