@@ -111,9 +111,8 @@ module param
        ug=u_star/u_star,vg=0._rprec/u_star
 
   ! nu_molec is dimensional m^2/s
-  !real(rprec),parameter::nu_molec=1.14e-5_rprec   
-  real(rprec),parameter::nu_molec=0._rprec / 22000._rprec ! Re=22,000
-  
+  real(rprec),parameter::nu_molec=1.14e-5_rprec   
+    
   logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
   
 !---------------------------------------------------
