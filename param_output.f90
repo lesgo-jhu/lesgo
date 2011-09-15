@@ -29,12 +29,12 @@ character(*), parameter :: x2i_fmt = '(a,2i7)'
 character(*), parameter :: x3i_fmt = '(a,3i7)'
 character(*), parameter :: x4i_fmt = '(a,4i7)'
 
-character(*), parameter :: f_fmt = '(a,f18.9)'
-character(*), parameter :: x2f_fmt = '(a,2f18.9)'
-character(*), parameter :: x3f_fmt = '(a,3f18.9)'
+character(*), parameter :: f_fmt = '(a,e15.7)'
+character(*), parameter :: x2f_fmt = '(a,2e15.7)'
+character(*), parameter :: x3f_fmt = '(a,3e15.7)'
 
-character(*), parameter :: if_fmt='(a,i7,f18.9)'
-character(*), parameter :: ix3f_fmt='(a,i7,3f18.9)'
+character(*), parameter :: if_fmt='(a,i7,e15.7)'
+character(*), parameter :: ix3f_fmt='(a,i7,3e15.7)'
 
 open (unit = 2,file = fname, status='unknown',form='formatted', &
   action='write',position='rewind')
@@ -100,6 +100,8 @@ write(2,l_fmt) 'read_inflow_file : ', read_inflow_file
 write(2,l_fmt) 'write_inflow_file : ', write_inflow_file
 write(2,i_fmt) 'jt_start_write : ', jt_start_write
 write(2,l_fmt) 'force_top_bot : ', force_top_bot
+write(2,l_fmt) 'inflow_sample_velocity : ', inflow_sample_velocity
+write(2,f_fmt) 'inflow_sample_location : ', inflow_sample_location
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
 write(2,f_fmt) 'mean_p_force : ', mean_p_force
 write(2,c_fmt) ''
