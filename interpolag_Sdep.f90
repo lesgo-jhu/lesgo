@@ -21,6 +21,7 @@ use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
+use cfl_mod, only : get_max_cfl
 implicit none
 
 $if ($MPI)
@@ -140,7 +141,7 @@ z => grid_t % z
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases
     if (mod (jt, cfl_count) .eq. 0) then
-        call cfl_max(lcfl)
+        lcfl = get_max_cfl()
         lcfl = lcfl*lagran_dt/dt  
         $if($MPI)
             if(coord.eq.0) print*, 'Lagrangian CFL condition= ', lcfl

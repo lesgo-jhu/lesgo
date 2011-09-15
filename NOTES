@@ -90,3 +90,13 @@
     compiler for lesgo. This just means that if a decision is
     to be made based on the capability of a compiler, gfortran
     will have priority.
+
+====== DEVELOPMENT ======
+
+1. 2011-09-13: All of the original "buildings" immersed boundary modeling has
+   been deemed deprecated and thus removed. To obtain the latest code before the
+   remove refer to CVS tag:
+
+     pre_immersedbc_buildings_remove
+
+

@@ -1144,7 +1144,7 @@ $!LINEMAP  [5]
     IJKLINES = J
     }
 $!LINEMAP  [6]
-  NAME = 'Meinders et al., 1996'
+  NAME = 'Exp. (Meinders and Hanjalic, 1999)'
   ASSIGN
     {
     ZONE = 6

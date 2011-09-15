@@ -1208,7 +1208,7 @@
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
       use strmod, only : numtostr
       implicit none
-      include 'tecio.h'
+      include 'tecryte.h'
 
       integer :: left, right
       integer :: sendcnt
@@ -1364,7 +1364,7 @@
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
       use strmod, only : numtostr
       implicit none
-      include 'tecio.h'
+      include 'tecryte.h'
 
       character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi, temp
       integer :: i,j,k,n

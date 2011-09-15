@@ -111,10 +111,8 @@ module param
        ug=u_star/u_star,vg=0._rprec/u_star
 
   ! nu_molec is dimensional m^2/s
-  !real(rprec),parameter::nu_molec=1.14e-5_rprec   
-  real(rprec),parameter::nu_molec=0._rprec / 22000._rprec ! Re=22,000
-  
-logical,parameter::use_bldg=.false.
+  real(rprec),parameter::nu_molec=1.14e-5_rprec   
+    
   logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
   
 !---------------------------------------------------
@@ -186,6 +184,12 @@ logical,parameter::use_bldg=.false.
     ! if inflow is true and force_top_bot is true, then the top & bottom
     ! velocities are forced to the inflow velocity
     logical, parameter :: force_top_bot = .false.
+
+    ! If true the inflow will be forced to the velocity at a sampled location
+    ! Use instead of face_avg and read_inflow_file
+    logical, parameter :: inflow_sample_velocity=.true.
+    ! Sample location as a fraction of L_x
+    real(rprec), parameter :: inflow_sample_location=0.5_rprec
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical, parameter :: use_mean_p_force = .true.

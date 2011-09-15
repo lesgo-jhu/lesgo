@@ -61,7 +61,6 @@ subroutine theta_all_in_one(jt)
 !subroutine scalar_all_in_one
 !use scalars_module
 !use scalars_module
-use immersedbc,only:building_interp_one
 implicit none
 real:: wt_s_current
 integer :: jt
@@ -75,7 +74,6 @@ wt_s_current=wt_s
 Pr_=Pr !Right now set the Prandtl num matrix equal to a constant Prandtl
 ! number as specified in param. could use the dynamic model ideal to compute Pr as well !!
 ! The plan-averaged dynamic Prandtl number model is already coded. just need to put it in !!
-if(use_bldg)call building_interp_one(theta,.04_rprec,3)
 call filt_da(theta,dTdx,dTdy)
 call ddz_uv (dTdz,theta)
 dTdz(:,:,Nz)=inv_strength/T_scale*z_i ! Valid for temperature
@@ -189,7 +187,6 @@ subroutine scalar_RHS_calc(scalar,dsdx,dsdy,dsdz,S_Surf,z_os,RHS,sgs_vert,Pr_,su
 !S_Surf,z_os,patch,patchnum,RHS,sgs_vert,jt,psi_h,phi_h,Pr_,&
 !wt_s_current)
 !cVK - s, here is the scalar inputted into the subroutine
-use immersedbc,only:n_bldg,bldg_pts
 implicit none
 integer:: i, j, k,ni
 !integer:: patch(nx,ny),patchnum(types)
@@ -286,22 +283,6 @@ dsdz(i,j,1) =-phi_h(i,j)*surf_flux(i,j)/(ustar_local(i,j)*vonk*DZ/2.)
 !CVK - How is dsdz = 0 at the lid (e.g. temp . we impose
 !CVK a gradient of inv_strength from dimen.h
 !TTS
-if(use_bldg)then
-do ni=1,n_bldg
-   px=bldg_pts(1,ni)
-   py=bldg_pts(2,ni)
-   lx=bldg_pts(3,ni)
-   ly=bldg_pts(4,ni)
-   lz=bldg_pts(5,ni)
-   do k=1,lz
-   do j=py,py+ly
-   do i=px,px+lx
-   dsdx(i,j,k)=0._rprec;dsdy(i,j,k)=0._rprec;dsdz(i,j,k)=0._rprec
-   enddo
-   enddo
-   enddo
-enddo
-endif
 
  call dealias1(u,u_m)
  call dealias1(v,v_m)
@@ -414,7 +395,6 @@ end subroutine scalar_RHS_calc
 
 subroutine step_scalar(scalar,RHS_pre,RHS_post)
 !subroutine step_scalar(scalar,RHS_T,RHS_Tf,wt_s_current)
-use immersedbc,only:n_bldg,bldg_pts
 implicit none
 integer:: i,j,k
 real(kind=rprec),dimension(ld,ny,nz)::scalar, RHS_pre, RHS_post
@@ -434,17 +414,7 @@ do i=1,nx
 end do
 end do
 end do
-!TS BUILDING CASES
-if(use_bldg)then
-do k=1,n_bldg
-   px=bldg_pts(1,k)
-   py=bldg_pts(2,k)
-   lx=bldg_pts(3,k)
-   ly=bldg_pts(4,k)
-   lz=bldg_pts(5,k)
-   scalar(px:px+lx,py:py+ly,1:lz)=0._rprec
-enddo
-endif
+
 !VK The following OR clause to the if statement was added on February 4th, 2003
 !VK to account for the case when we put wt_s=0 as this served as a test for the
 !VK Coriolis with both momentum and scalars running but decoupled.. as is the case 

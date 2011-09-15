@@ -7,12 +7,13 @@ use sim_param
 use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
-use immersedbc
+use immersedbc, only : fxa, fya, fza
 use test_filtermodule
 use topbc,only:setsponge,sponge
 use bottombc,only:num_patch,avgpatch
 use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
 use scalars_module2,only:patch_or_remote
+use cfl_mod 
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
@@ -21,10 +22,6 @@ $endif
 $if ($LVLSET)
 use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
 use level_set_base, only : global_CD_calc
-  
-  $if ($CYL_SKEW_LS)
-  !use cyl_skew_ls, only : cyl_skew_init_ls, cyl_skew_CD_ls
-  $endif
   
   $if ($RNS_LS)
   use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
@@ -167,7 +164,7 @@ $endif
 $if($CFL_DT)
 if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
   if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
-  call cfl_set_dt(dt) 
+  dt = get_cfl_dt() 
   dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
 endif
 $endif
@@ -178,7 +175,7 @@ do jt=1,nsteps
     $if($CFL_DT)
       dt_f = dt
 
-      call cfl_set_dt(dt)
+      dt = get_cfl_dt()
 
       dt_dim = dt * z_i / u_star
     
@@ -211,13 +208,6 @@ do jt=1,nsteps
     $if ($LVLSET_SMOOTH_VEL)
       call level_set_smooth_vel (u, v, w)
     $endif
-
-    ! Buildings: smooth velocity
-    !if (use_bldg) then      !--no MPI here yet
-    !    call building_interp (u, v, w, .04_rprec, 3)
-    !    call building_interp (dudx, dvdx, dwdx, .04_rprec, 3)
-    !    call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
-    !end if
 
     ! Debug
     $if ($DEBUG)
@@ -272,7 +262,6 @@ do jt=1,nsteps
         if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
             call wallstress ()                            
         end if
-        if(use_bldg) call walldudx_building
     end if    
 
     ! Calculate turbulent (subgrid) stress for entire domain
@@ -283,11 +272,6 @@ do jt=1,nsteps
     else        
         call sgs_stag()
     end if
-
-    !if(use_bldg)then
-    !    call wallstress_building(txy,txz,tyz)
-    !    call building_mask(u,v,w)
-    !endif
 
     ! Update scalars
     if(S_FLAG.and.(jt.GE.SCAL_INIT))  then
@@ -347,9 +331,6 @@ do jt=1,nsteps
         call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
     end if
     $endif
-
-    ! Buildings: set vel to 0. inside buildings
-    !if (use_bldg) call building_mask (u, v, w)
 
     ! Add div-tau term to RHS variable 
     !   this will be used for pressure calculation
@@ -552,7 +533,7 @@ do jt=1,nsteps
         ! Calculate rms divergence of velocity
         !   only written to screen, not used otherwise
         call rmsdiv (rmsdivvel)
-        call cfl_max ( maxcfl )
+        maxcfl = get_max_cfl()
 
         if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
           $if($CFL_DT)

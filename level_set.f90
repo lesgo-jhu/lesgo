@@ -100,7 +100,7 @@ use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 $endif
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
 character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
@@ -2952,7 +2952,7 @@ use immersedbc, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
-include 'tecio.h'
+include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
 character (*), parameter :: fCD_out = 'output/global_CD.dat'
