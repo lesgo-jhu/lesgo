@@ -1,6 +1,6 @@
 module bottombc
 use types,only:rprec
-use param,only:nx,ny,ld,S_FLAG,use_default_patch,zo_default
+use param,only:nx,ny,ld,use_default_patch,zo_default
 implicit none
 private
 public zo_avg,num_patch,zot,zo,phi_m,psi_m,phi_h,psi_h,&
@@ -30,7 +30,7 @@ subroutine patches()
 !TS NOTES ZOT(:,2:4) should locate in the same places for zo, T_s, q_s
 !TS OTHERWISE INCONSISTENCY
 !use types,only:rprec
-use param,only:z_i,t_scale
+use param,only:z_i
 implicit none
 integer::i,j,jp
 character(len=3)::trash
@@ -66,33 +66,6 @@ else
   zo_avg=zo_avg/real(num_patch,kind=rprec)
   patchnum(1)=patchnum(1)-sum(patchnum(2:num_patch))
 
-  if(S_FLAG)then
-   read(1,*)trash
-   do i=1,num_patch
-      read(1,*)zot(i,1:5)
-   enddo
-   do jp=1,num_patch
-   do i=int(zot(jp,2)),int(zot(jp,3))
-   do j=int(zot(jp,4)),int(zot(jp,5))
-      T_s(i,j)=zot(jp,1)/t_scale
-   enddo
-   enddo
-   enddo
-   read(1,*)trash
-   do i=1,num_patch
-      read(1,*)zot(i,1:5)
-   enddo
-   q_mix=0._rprec
-   do jp=1,num_patch
-   do i=int(zot(jp,2)),int(zot(jp,3))
-   do j=int(zot(jp,4)),int(zot(jp,5))
-      q_s(i,j)=zot(jp,1)
-   enddo
-   enddo
-   q_mix=q_mix+zot(jp,1)
-   enddo
-   q_mix=q_mix/real(num_patch,kind=rprec)
-  endif
   close(1)
 end if
 

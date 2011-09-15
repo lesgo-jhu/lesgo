@@ -125,7 +125,7 @@ subroutine inflow_cond ()
 !
 use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
-                  sflux_flag, buff_end, buff_len, use_fringe_forcing,  &
+                  buff_end, buff_len, use_fringe_forcing,  &
                   L_x, dt, dx
 use param, only : inflow_sample_velocity, inflow_sample_location
 use sim_param, only : u, v, w, theta
@@ -226,11 +226,6 @@ do i = istart + 1, iend - 1
                             (v(iend_w, 1:ny, 1:nz) - v(istart_w, 1:ny, 1:nz))
       w(i_w, 1:ny, 1:nz) = w(istart_w, 1:ny, 1:nz) + factor *               &
                             (w(iend_w, 1:ny, 1:nz) - w(istart_w, 1:ny, 1:nz))
-
-      if (sflux_flag) then
-         theta(i_w, 1:ny, 1:nz) = 0._rprec + factor *                   &
-                                   (theta(iend_w, 1:ny, 1:nz) - 0._rprec)
-      end if
 
   end if
 

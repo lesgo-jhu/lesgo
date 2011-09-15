@@ -246,39 +246,6 @@ module param
   logical, parameter :: spectra_calc = .true.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
   integer, parameter :: spectra_nloc = 3
-  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
-
-!--------------------------------------------------- 
-! SCALAR PARAMETERS
-!---------------------------------------------------
- 
-  ! S_FLAG=1 for Theta and q, =0 for no scalars
-  ! logical,parameter::S_FLAG=.TRUE.,coupling_flag=.FALSE.,mo_flag=.TRUE.
-  logical,parameter::S_FLAG=.false.
-  ! integer,parameter::DYN_init=2, SCAL_init=5, no_days=1
-  integer,parameter :: SCAL_init=5, no_days=1
-  ! integer,parameter::DYN_init=1, SCAL_init=1, no_days=1
-  integer,parameter::patch_flag=1, remote_flag=0, time_start=0
-  ! initu=.TRUE. & initsc=.FALSE read velocity fields from a binary file
-  ! initu=.TRUE. & initsc=.TRUE. read velocity & scalar fields from a binary file
-  ! initu=.FALSE. & S_FLAG=.TRUE. initialize velocity & scalar fields using ran
-  ! initu=.FALSE. & S_FLAG=.FALSE. initialize velocity fields using ran
-  logical,parameter::initsc=.false.
-  ! lbc=0: prescribed surface temperature, lbc=1 prescribed surface flux
-  ! (wT=0.06 Km/s)
-  integer,parameter :: lbc=0
-  ! Added a new parameter - sflux_flag for passive scalars with bldngs
-  logical,parameter :: sflux_flag=.false.
-  logical,parameter :: wt_evolution_flag=.FALSE.
-  logical,parameter :: test_phase=.FALSE., vec_map=.FALSE., smag_sc=.FALSE.
-  logical,parameter :: check_dt=.TRUE.
-  integer,parameter :: stencil_pts=4
-  logical,parameter :: coarse_grain_flag=.FALSE.
-  ! inversion strength (K/m)
-  real(kind=rprec),parameter::g=9.81_rprec, inv_strength=0._rprec
-  real(kind=rprec),parameter::theta_top=300._rprec,T_scale=300._rprec&
-       ,wt_s=20._rprec, T_init=300._rprec
-  real(kind=rprec),parameter::cap_thick=80._rprec, z_decay=1._rprec
-  integer,parameter::c_count=10000,p_count=10000  
+  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
 
 end module param

@@ -1246,10 +1246,9 @@ subroutine checkpoint (lun)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--assumes lun is open and positioned correctly
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-use param, only : nz, S_FLAG
+use param, only : nz
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use scalars_module, only : RHS_T
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
@@ -1259,11 +1258,6 @@ integer, intent (in) :: lun
 
 !---------------------------------------------------------------------
 
-if (S_FLAG) then !WITH SCALARS
-  write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
-              RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-              Cs_opt2, F_LM, F_MM, F_QN, F_NN, theta, RHS_T
-else ! No SCALARS
     $if ($DYN_TN) 
       write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
@@ -1276,7 +1270,6 @@ else ! No SCALARS
                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
                   F_QN(:,:,1:nz), F_NN(:,:,1:nz)
     $endif
-end if
 
 end subroutine checkpoint
 
