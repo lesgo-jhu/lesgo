@@ -186,8 +186,9 @@ module param
     logical, parameter :: force_top_bot = .false.
 
     ! If true the inflow will be forced to the velocity at a sampled location
+    ! Use instead of face_avg and read_inflow_file
     logical, parameter :: inflow_sample_velocity=.true.
-    ! Location as a fraction of L_x
+    ! Sample location as a fraction of L_x
     real(rprec), parameter :: inflow_sample_location=0.5_rprec
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
