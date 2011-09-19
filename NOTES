@@ -99,4 +99,16 @@
 
      pre_immersedbc_buildings_remove
 
+2. 2011-09-15: All of the original scalar calculations have been removed. The
+   scalar calculations were removed since they 1) are not currently being used
+   and 2) should, if reimplemented, be done in a consistent way with the current
+   coding constructs of lesgo. To obtain the latest code before the remove refer
+   to CVS tag:
+
+     pre_scalar_calculations_remove
+
+
+
+
+
 
