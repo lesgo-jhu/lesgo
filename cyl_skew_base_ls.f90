@@ -1,7 +1,7 @@
 !**********************************************************************
 module cyl_skew_base_ls
 !**********************************************************************
-use types, only : rprec
+use types, only : rprec, point3D
 use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz,z_i
 
 implicit none
@@ -22,21 +22,19 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 
 real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
-!real(rprec), parameter :: zrot_angle = 0._rprec
-!real(rprec), parameter :: skew_angle = 0._rprec
 
+logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
+real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
 
-! kc-3
-!integer, parameter :: ntree = 8
-! vtree-3
 integer, parameter :: ntree = 1
+
+type(point3D), dimension(ntree) :: tree_location = (/ &
+     point3D( (/ L_x / 2, L_y / 2, z_bottom_surf /) ) &
+     /)
 
 integer, parameter :: ngen = 1
 integer, parameter :: ngen_reslv = 1
 
-! kc-3
-!integer, parameter :: nbranch = 3
-! vtree-3
 integer, parameter :: nbranch = 1
 
 !  Make sure they are non-dimensional
@@ -48,9 +46,6 @@ real(rprec), parameter :: l = 1._rprec
 real(rprec), parameter :: offset = 0._rprec
 
 real(rprec), parameter :: scale_fact = 0.5_rprec
-
-logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
 
 logical, parameter :: filter_chi = .false.
 real(rprec), parameter :: filt_width = 2._rprec*dx  !  Filter width for filtered indicator function
@@ -119,51 +114,5 @@ integer, pointer, dimension(:,:) :: clindx_to_loc_id, brindx_to_loc_id
 integer, pointer, dimension(:,:) :: reslv_clindx_to_loc_id, unreslv_clindx_to_loc_id
 
 integer :: ncluster_reslv, ncluster_tot
-
-contains 
-
-!**********************************************************************
-subroutine set_tree_origin(nt,origin_out)
-!**********************************************************************
-
-implicit none
-
-integer, intent(in) :: nt
-real(rprec),  dimension(3), intent(out) :: origin_out
-real(rprec), allocatable, dimension(:,:) :: origin
-
-allocate(origin(3,ntree))
-
-! kc-3
-!origin(:,1) = (/ L_x/4., L_y/2., z_bottom_surf /)
-!origin(:,2) = (/ 3.*L_x/4., L_y/2., z_bottom_surf /)
-!origin(:,3) = (/ L_x/2., L_y, z_bottom_surf /)
-!origin(:,4) = (/ L_x/2., 0._rprec, z_bottom_surf /)
-!origin(:,5) = (/ 0._rprec, L_y, z_bottom_surf /)
-!origin(:,6) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-!origin(:,7) = (/ L_x, L_y, z_bottom_surf /)
-!origin(:,8) = (/ L_x, 0._rprec, z_bottom_surf /)
-
-! kc-2
-!origin(:,1) = (/ L_x/2., L_y/2., z_bottom_surf /)
-!origin(:,2) = (/ 0._rprec, L_y, z_bottom_surf /)
-!origin(:,3) = (/ 0._rprec, 0._rprec, z_bottom_surf /)
-!origin(:,4) = (/ L_x, 0._rprec, z_bottom_surf /)
-!origin(:,5) = (/ L_x, L_y, z_bottom_surf /)
-
-! vtree-3
-!origin(:,1) = (/ L_x/6., 0.5*L_y, z_bottom_surf /)
-!origin(:,2) = (/ 3.*L_x/6., 0.5*L_y, z_bottom_surf /)
-!origin(:,3) = (/ 5.*L_x/6., 0.5*L_y, z_bottom_surf /)
-
-origin(:,1) = (/ 2._rprec, 2._rprec, z_bottom_surf /)
-
-origin_out = origin(:,nt)
-
-deallocate(origin)
-
-return
-
-end subroutine set_tree_origin
 
 end module cyl_skew_base_ls
