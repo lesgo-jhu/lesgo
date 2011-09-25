@@ -338,7 +338,7 @@ enddo
 !  memory addresses move as needed during the allocation of 
 !  sub types
 do nt=1, ntree
-  call set_tree_origin(nt,tr_t(nt)%origin)
+  tr_t(nt) % origin = tree_location(nt) % xyz
 enddo
 
 do nt = 1, ntree
