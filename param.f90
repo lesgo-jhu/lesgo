@@ -69,8 +69,8 @@ module param
   real(rprec),parameter::L_x= 2*pi
   real(rprec),parameter::L_y= L_x
   real(rprec),parameter::L_z= 1.0_rprec
-  !real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
-  !real(rprec),parameter::L_z=(nz_tot - 1.)/nx*L_x  ! ensure dz = dx
+  !real(rprec),parameter::L_y=ny*L_x/nx               ! ensure dy=dx
+  !real(rprec),parameter::L_z=(nz_tot - 1)*L_x/nx  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
   real(rprec),parameter::dz=L_z/(nz_tot-1.) ! or (L_z/nproc)/(nz - 1)
