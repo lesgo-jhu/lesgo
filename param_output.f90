@@ -89,8 +89,7 @@ write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'ubc : ', ubc
 write(2,x2c_fmt) 'lbc_mom : ', lbc_mom
-write(2,l_fmt) 'use_default_patch : ', use_default_patch
-write(2,f_fmt) 'zo_default : ', zo_default
+write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
 write(2,l_fmt) 'use_fringe_forcing : ', use_fringe_forcing
 write(2,f_fmt) 'buff_end : ', buff_end

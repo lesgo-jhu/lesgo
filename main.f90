@@ -10,7 +10,6 @@ use fft
 use immersedbc, only : fxa, fya, fza
 use test_filtermodule
 use topbc,only:setsponge,sponge
-use bottombc,only:num_patch,avgpatch
 use cfl_mod 
 
 $if ($MPI)

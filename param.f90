@@ -139,7 +139,7 @@ module param
   
   $endif
   
-  logical, parameter :: cumulative_time = .true.        ! to use total_time.dat
+  logical, parameter :: cumulative_time = .false.        ! to use total_time.dat
   character (*), parameter :: fcumulative_time = path // 'total_time.dat'
   
   integer :: jt                 ! global time-step counter
@@ -161,9 +161,7 @@ module param
   character (*), parameter :: lbc_mom = 'wall'
   
   ! lower boundary condition, roughness length
-  ! if use_default_patch is false, zo will be read from 'patch.dat'
-  logical, parameter :: use_default_patch = .true.
-  real (rprec), parameter :: zo_default = 0.0001_rprec  ! nondimensional  
+  real (rprec), parameter :: zo = 0.0001_rprec  ! nondimensional  
 
   ! prescribed inflow:   
   logical,parameter::inflow=.false.

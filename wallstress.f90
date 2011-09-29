@@ -1,18 +1,17 @@
 ! For use with staggered grid LES
 ! JDA, 23 Jan 96
-! zo is nondimensionalized, zo1 not!
 !--provides txz, tyz (w-nodes) and dudz, dvdz (w-nodes) at jz=1
 subroutine wallstress ()
 use types,only:rprec
-use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom
+use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom,zo
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
-use bottombc,only:zo,psi_m,phi_m
 use test_filtermodule
 implicit none
 integer::jx,jy
 real(kind=rprec),dimension(nx,ny)::ustar,u_avg,denom
 real(kind=rprec),dimension(ld,ny)::u1,v1
 real(kind=rprec)::const
+real(kind=rprec),dimension(nx,ny)::phi_m,psi_m
 
 select case (lbc_mom)
 

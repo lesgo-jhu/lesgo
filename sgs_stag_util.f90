@@ -30,7 +30,6 @@ use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
 use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
-use bottombc,only:zo
 use test_filtermodule,only:filter_size
 use messages
 
