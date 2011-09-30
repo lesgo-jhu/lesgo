@@ -127,14 +127,14 @@ z => grid_t % z
         
          ! Share new data between overlapping nodes
          $if ($MPI)
-            call mpi_sync_real_array( F_LM, MPI_SYNC_DOWNUP )  
-            call mpi_sync_real_array( F_MM, MPI_SYNC_DOWNUP )   
-            call mpi_sync_real_array( F_QN, MPI_SYNC_DOWNUP )  
-            call mpi_sync_real_array( F_NN, MPI_SYNC_DOWNUP )              
+            call mpi_sync_real_array( F_LM, 0, MPI_SYNC_DOWNUP )  
+            call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )   
+            call mpi_sync_real_array( F_QN, 0, MPI_SYNC_DOWNUP )  
+            call mpi_sync_real_array( F_NN, 0, MPI_SYNC_DOWNUP )              
             $if ($DYN_TN)
-            call mpi_sync_real_array( F_ee2, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( F_deedt2, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( ee_past, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
             $endif 
         $endif   
 

@@ -1029,7 +1029,7 @@ z => grid_t % z
 allocate(w_uv(ld,ny,$lbz:nz))
 
 $if ($MPI)
-    call mpi_sync_real_array(w, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
+    call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
 !call interp_to_uv_grid(w, w_uv, $lbz, w_uv_tag_turbines)
 w_uv = interp_to_uv_grid(w, $lbz)
@@ -1322,7 +1322,7 @@ subroutine turbine_vel_init(zo_high)
 !  called from ic.f90 if initu, dns_bc, S_FLAG are all false.
 !  this accounts for the turbines when creating the initial velocity profile.
 
-use bottombc, only: zo_avg
+use param, only: zo
 implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_vel_init'
 
@@ -1337,7 +1337,7 @@ real(rprec) :: cft,nu_w,exp_KE
 
 !turbine friction height, Calaf, Phys. Fluids 22, 2010
     zo_high = height_all*(1.+0.5*dia_all/height_all)**(nu_w/(1.+nu_w))* &
-      exp(-1.*(0.5*cft/(vonk**2) + (log(height_all/zo_avg* &
+      exp(-1.*(0.5*cft/(vonk**2) + (log(height_all/zo* &
       (1.-0.5*dia_all/height_all)**(nu_w/(1.+nu_w))) )**(-2) )**(-0.5) )
 
     exp_KE =  0.5*(log(0.45/zo_high)/0.4)**2

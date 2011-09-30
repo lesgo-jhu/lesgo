@@ -65,9 +65,7 @@ do ip = 0, np-1
   call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
 end do
 
-!write (*, *) 'Hello! from process with coord = ', coord
-
-  !--set the MPI_RPREC variable
+!--set the MPI_RPREC variable
 if (rprec == kind (1.e0)) then
   MPI_RPREC = MPI_REAL
   MPI_CPREC = MPI_COMPLEX
@@ -83,65 +81,91 @@ return
 end subroutine initialize_mpi
 
 !**********************************************************************
-subroutine mpi_sync_real_array( var, isync )
+subroutine mpi_sync_real_array( var, lbz, isync )
 !**********************************************************************
-!  This subroutine syncs data for the:
-!    k = nz-1 at coord to k=0 at coord+1
-!    k = 1 at coord+1  to k=nz at coord
-!  nodes; these are the ghost and interprocessor overlap nodes. 
+! 
+! This subroutine provides a generic method for syncing arrays in
+! lesgo. This method applies to arrays indexed in the direction starting
+! from both 0 and 1. For arrays starting from index of 1, only the
+! SYNC_DOWN procedure may be performed. No assumption is made about the
+! dimensions of the other directions (x and y) and the bounds of these
+! indices are obtained directly.
+!
+! The synchronization is provided according to the following rules:
+!
+! SYNC_DOWN : Send data from k = 1 at coord+1 to k=nz at coord
+! SYNC_UP   : Send data from k = nz-1 at coord to k=0 at coord+1
+!
+! Arguments:
+!
+! var   : three dimensional array to be sync'd accross processors 
+! lbz   : the lower bound of var for the z index; its specification resolves
+!         descrepencies between arrays indexed starting at 0 from those at 1
+! isync : flag for determining the type of synchronization and takes on values, 
+!         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS 
+!         module. 
+!
 use types, only : rprec
 use mpi
-use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord
+use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord, nz
 use messages
 
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.mpi_sync_real_array'
 
-real(rprec), dimension(:,:,:), intent(INOUT) :: var
+real(rprec), dimension(:,:,lbz:), intent(INOUT) :: var
+integer, intent(in) :: lbz
 integer, intent(in) :: isync
 
-integer :: lbx,ubx,lby,uby,lbz,ubz
+!integer :: lbx,ubx
+!integer :: lby,uby
+integer :: sx, sy
+integer :: ubz
 integer :: mpi_datasize
 
-!  Get bounds of var array
-lbx=lbound(var,1); ubx=ubound(var,1)
-lby=lbound(var,2); uby=ubound(var,2)
-lbz=lbound(var,3); ubz=ubound(var,3)
+!lbx=lbound(var,1); ubx=ubound(var,1)
+!lby=lbound(var,2); uby=ubound(var,2)
+!lbz=lbound(var,3); ubz=ubound(var,3)
+
+! Get size of var array in x and y directions
+sx=size(var,1)
+sy=size(var,2)
+! Get upper bound of z index; the lower bound is specified
+ubz=ubound(var,3)
+
+! We are assuming that the array var has nz as the upper bound - checking this
+if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz:nz z dimensions.')
 
 !  Set mpi data size
-mpi_datasize = (ubx-lbx+1)*(uby-lby+1)
+mpi_datasize = sx*sy
 
-!  ----- Need to get all overlapping values -----
-!if(coord < nproc - 1) then
-!  call mpi_send (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 1, comm, ierr)
-!  call mpi_recv (var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 2, comm, status, ierr)
-!endif
-
-!if(coord > 0) then
-!  call mpi_recv(var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 1, comm, status, ierr)
-!  call mpi_send (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 2, comm, ierr)
-!endif
 if(isync == MPI_SYNC_DOWN) then
-   
-  call sync_down()
-    
+
+   call sync_down()
+
 elseif( isync == MPI_SYNC_UP) then
 
-  call sync_up()
+   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_UP with variable with non-zero starting index')
+   call sync_up()
 
 elseif( isync == MPI_SYNC_DOWNUP) then
 
-  call sync_down()
-  call sync_up()
-  
+   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_DOWNUP with variable with non-zero starting index')
+   call sync_down()
+   call sync_up()
+
 else
 
-  call error( sub_name, 'isync not specified properly')
-  
+   call error( sub_name, 'isync not specified properly')
+
 endif
 
 if(ierr .ne. 0) call error( sub_name, 'Error occured during mpi sync; recieved mpi error code :', ierr)
+
+! Enforce globally synchronous MPI behavior. Most likely safe to comment
+! out, but can be enabled to ensure absolute safety.
+!call mpi_barrier( comm, ierr )
 
 return
 
@@ -152,7 +176,7 @@ subroutine sync_down()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-call mpi_sendrecv (var(:,:,lbz+1), mpi_datasize, MPI_RPREC, down, 1,  &
+call mpi_sendrecv (var(:,:,1), mpi_datasize, MPI_RPREC, down, 1,  &
   var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 1,   &
   comm, status, ierr)
     
@@ -166,7 +190,7 @@ subroutine sync_up()
 implicit none
 
 call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 2,  &
-  var(:,:,lbz), mpi_datasize, MPI_RPREC, down, 2,   &
+  var(:,:,0), mpi_datasize, MPI_RPREC, down, 2,   &
   comm, status, ierr)
 
 return

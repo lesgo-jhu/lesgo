@@ -69,8 +69,8 @@ module param
   real(rprec),parameter::L_x= 2*pi
   real(rprec),parameter::L_y= L_x
   real(rprec),parameter::L_z= 1.0_rprec
-  !real(rprec),parameter::L_y=(1.*ny)/(1.*nx)*L_x               ! ensure dy=dx
-  !real(rprec),parameter::L_z=(nz_tot - 1.)/nx*L_x  ! ensure dz = dx
+  !real(rprec),parameter::L_y=ny*L_x/nx               ! ensure dy=dx
+  !real(rprec),parameter::L_z=(nz_tot - 1)*L_x/nx  ! ensure dz = dx
 
   ! these values are also non-dimensionalized by z_i:
   real(rprec),parameter::dz=L_z/(nz_tot-1.) ! or (L_z/nproc)/(nz - 1)
@@ -139,7 +139,7 @@ module param
   
   $endif
   
-  logical, parameter :: cumulative_time = .true.        ! to use total_time.dat
+  logical, parameter :: cumulative_time = .false.        ! to use total_time.dat
   character (*), parameter :: fcumulative_time = path // 'total_time.dat'
   
   integer :: jt                 ! global time-step counter
@@ -161,9 +161,7 @@ module param
   character (*), parameter :: lbc_mom = 'wall'
   
   ! lower boundary condition, roughness length
-  ! if use_default_patch is false, zo will be read from 'patch.dat'
-  logical, parameter :: use_default_patch = .true.
-  real (rprec), parameter :: zo_default = 0.0001_rprec  ! nondimensional  
+  real (rprec), parameter :: zo = 0.0001_rprec  ! nondimensional  
 
   ! prescribed inflow:   
   logical,parameter::inflow=.false.
@@ -246,39 +244,6 @@ module param
   logical, parameter :: spectra_calc = .true.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
   integer, parameter :: spectra_nloc = 3
-  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
-
-!--------------------------------------------------- 
-! SCALAR PARAMETERS
-!---------------------------------------------------
- 
-  ! S_FLAG=1 for Theta and q, =0 for no scalars
-  ! logical,parameter::S_FLAG=.TRUE.,coupling_flag=.FALSE.,mo_flag=.TRUE.
-  logical,parameter::S_FLAG=.false.
-  ! integer,parameter::DYN_init=2, SCAL_init=5, no_days=1
-  integer,parameter :: SCAL_init=5, no_days=1
-  ! integer,parameter::DYN_init=1, SCAL_init=1, no_days=1
-  integer,parameter::patch_flag=1, remote_flag=0, time_start=0
-  ! initu=.TRUE. & initsc=.FALSE read velocity fields from a binary file
-  ! initu=.TRUE. & initsc=.TRUE. read velocity & scalar fields from a binary file
-  ! initu=.FALSE. & S_FLAG=.TRUE. initialize velocity & scalar fields using ran
-  ! initu=.FALSE. & S_FLAG=.FALSE. initialize velocity fields using ran
-  logical,parameter::initsc=.false.
-  ! lbc=0: prescribed surface temperature, lbc=1 prescribed surface flux
-  ! (wT=0.06 Km/s)
-  integer,parameter :: lbc=0
-  ! Added a new parameter - sflux_flag for passive scalars with bldngs
-  logical,parameter :: sflux_flag=.false.
-  logical,parameter :: wt_evolution_flag=.FALSE.
-  logical,parameter :: test_phase=.FALSE., vec_map=.FALSE., smag_sc=.FALSE.
-  logical,parameter :: check_dt=.TRUE.
-  integer,parameter :: stencil_pts=4
-  logical,parameter :: coarse_grain_flag=.FALSE.
-  ! inversion strength (K/m)
-  real(kind=rprec),parameter::g=9.81_rprec, inv_strength=0._rprec
-  real(kind=rprec),parameter::theta_top=300._rprec,T_scale=300._rprec&
-       ,wt_s=20._rprec, T_init=300._rprec
-  real(kind=rprec),parameter::cap_thick=80._rprec, z_decay=1._rprec
-  integer,parameter::c_count=10000,p_count=10000  
+  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
 
 end module param

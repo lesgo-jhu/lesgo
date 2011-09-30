@@ -299,10 +299,10 @@ do jz = 1,nz
             $if ($DYN_TN)   ! based on Taylor timescale
                 Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
             $else           ! based on Meneveau, Lund, and Cabot paper (JFM 1996)
-                Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), real(zero))
+                Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), zero)
                 Tn = opftdelta*(Tn**powcoeff)
                 ! Clip, if necessary
-                Tn(:,:) = max(real(zero),real(Tn(:,:)))                
+                Tn(:,:) = max(zero, Tn(:,:))                
             $endif           
             
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi                 
@@ -312,7 +312,7 @@ do jz = 1,nz
             F_LM(:,:,jz)=(epsi*LM + (1._rprec-epsi)*F_LM(:,:,jz))
             F_MM(:,:,jz)=(epsi*MM + (1._rprec-epsi)*F_MM(:,:,jz))
             ! Clip, if necessary
-            F_LM(:,:,jz)= max(real(zero),real(F_LM(:,:,jz)))
+            F_LM(:,:,jz)= max( zero, F_LM(:,:,jz) )
 
     ! Calculate Cs_opt2 (for 2-delta filter)
         ! Add +zero in denomenator to avoid division by identically zero
@@ -320,7 +320,7 @@ do jz = 1,nz
         Cs_opt2_2d(ld,:) = zero
         Cs_opt2_2d(ld-1,:) = zero
         ! Clip, if necessary
-        Cs_opt2_2d(:,:)=max(real(zero),real(Cs_opt2_2d(:,:)))
+        Cs_opt2_2d(:,:)=max( zero, Cs_opt2_2d(:,:) )
 
     ! Initialize (???)           
         if (inilag) then
@@ -340,10 +340,10 @@ do jz = 1,nz
             $if ($DYN_TN)   ! based on Taylor timescale
                 ! Keep the same as 2-delta filter 
             $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
-                Tn =max(real(F_QN(:,:,jz)*F_NN(:,:,jz)),real(zero))
+                Tn =max( F_QN(:,:,jz)*F_NN(:,:,jz), zero)
                 Tn=opftdelta*(Tn**powcoeff)
                 ! Clip, if necessary
-                Tn(:,:) = max(real(zero),real(Tn(:,:)))                     
+                Tn(:,:) = max( zero,Tn(:,:))                     
             $endif   
 
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi                
@@ -353,7 +353,7 @@ do jz = 1,nz
             F_QN(:,:,jz)=(epsi*QN + (1._rprec-epsi)*F_QN(:,:,jz))
             F_NN(:,:,jz)=(epsi*NN + (1._rprec-epsi)*F_NN(:,:,jz))
             ! Clip, if necessary
-            F_QN(:,:,jz)= max(real(zero),real(F_QN(:,:,jz)))
+            F_QN(:,:,jz)= max(zero,F_QN(:,:,jz))
 
             $if ($DYN_TN)
             ! note: the instantaneous value of the derivative is a Lagrangian average
@@ -369,7 +369,7 @@ do jz = 1,nz
         Cs_opt2_4d(ld,:) = zero
         Cs_opt2_4d(ld-1,:) = zero
         ! Clip, if necessary
-        Cs_opt2_4d(:,:)=max(real(zero),real(Cs_opt2_4d(:,:)))
+        Cs_opt2_4d(:,:)=max(zero,Cs_opt2_4d(:,:))
 
     ! Calculate Beta and count how many are clipped
         Beta(:,:,jz)=&
@@ -394,14 +394,14 @@ do jz = 1,nz
     ! Clip Beta and set Cs_opt2 for each point in the plane
         do jy = 1, ny
           do jx = 1, ld  !--perhaps only nx is needed
-            Betaclip=max(real(Beta(jx,jy,jz)),real(1._rprec/(tf1*tf2)))
+            Betaclip=max(Beta(jx,jy,jz),1._rprec/(tf1*tf2))
             Cs_opt2(jx,jy,jz)=Cs_opt2_2d(jx,jy)/Betaclip
           end do
         end do
         Cs_opt2(ld,:,jz) = zero
         Cs_opt2(ld-1,:,jz) = zero
         ! Clip, if necessary
-        Cs_opt2(:,:,jz)=max(real(zero),real(Cs_opt2(:,:,jz)))
+        Cs_opt2(:,:,jz)=max(zero,Cs_opt2(:,:,jz))
 
     ! Save planar averages every 200 timesteps (not currently written anywhere?)
     !    if (mod(jt,200) == 0) then
@@ -416,14 +416,14 @@ end do
 
 ! Share new data between overlapping nodes
     $if ($MPI)
-        call mpi_sync_real_array( F_LM, MPI_SYNC_DOWNUP )  
-        call mpi_sync_real_array( F_MM, MPI_SYNC_DOWNUP )   
-        call mpi_sync_real_array( F_QN, MPI_SYNC_DOWNUP )  
-        call mpi_sync_real_array( F_NN, MPI_SYNC_DOWNUP )              
+        call mpi_sync_real_array( F_LM, 0, MPI_SYNC_DOWNUP )  
+        call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )   
+        call mpi_sync_real_array( F_QN, 0, MPI_SYNC_DOWNUP )  
+        call mpi_sync_real_array( F_NN, 0, MPI_SYNC_DOWNUP )              
         $if ($DYN_TN)
-            call mpi_sync_real_array( F_ee2, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( F_deedt2, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( ee_past, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
+            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
     $endif   
 

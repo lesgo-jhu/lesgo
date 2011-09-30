@@ -10,13 +10,6 @@ $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
 
-use scalars_module,only:RHS_T ! added by VK
-use scalars_module2,only:ic_scal ! added by VK
-
-! VK -label 122 assigned to vel_sc.out for reading input files in case of
-! scalars
-!!!!XXXXXXXXXX--------Added by Vijayant----XXXXXXX!!!!!
-
 use immersedbc,only:fx,fy,fz
 use immersedbc,only:fxa,fya,fza
 
@@ -67,26 +60,6 @@ if(initu)then
   open(12,file=fname,form='unformatted')
   $endif
   
-  if(initsc) then
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity and temperature from file'
-    read(12) u,v,w,RHSx,RHSy,RHSz,Cs_opt2,F_LM,F_MM,theta,RHS_T
-!TS INITIALIZE THE ZERO CONCENTRATION FIELD IF jt_total=0
-    if(sflux_flag)then
-       open(1,file=path//'run')
-       read(1,*)i
-       close(1)
-       if(i.eq.0)then
-          theta=0._rprec;RHS_T=0._rprec
-       endif
-    endif
-    do jz=1,nz
-    write(6,7781) jz, sum (u(1:nx, :, jz)) / (nx * ny),  &
-                      sum (v(1:nx, :, jz)) / (nx * ny),  &
-                      sum (w(1:nx, :, jz)) / (nx * ny),  &
-                      sum (theta(1:nx, :, jz)) / (nx * ny)
-    end do
-7781 format('jz, ubar, vbar, wbar, Tbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4,1x,F9.4))
-  else
 
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
@@ -138,7 +111,6 @@ if(initu)then
                         sum (w(1:nx, :, jz)) / (nx * ny)
     end do
 7780 format('jz, ubar, vbar, wbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4))
-  end if
 
   close(12) 
 
@@ -148,41 +120,16 @@ else
      call ic_dns()
   else
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial fields'
-    if (S_FLAG) then
-       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity & scalar fields'
-       call ic_scal()
-    else
        if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity field'
        call ic()
-    end if
   end if
 end if
 
 $if ($MPI)
-  !--synchronize the overlapping parts nz-1 (coord) -> 0 (coord + 1) 
-  !  and 1 (coord + 1) -> nz (coord)
-  !call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-  !                   u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-  !                   v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-  !                   w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (u(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
-  !                   u(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (v(1, 1, 1), ld*ny, MPI_RPREC, down, 5,  &
-  !                   v(1, 1, nz), ld*ny, MPI_RPREC, up, 5,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (w(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
-  !                   w(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
-  !                   comm, status, ierr)   
 
-  call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
-  call mpi_sync_real_array( v, MPI_SYNC_DOWNUP ) 
-  call mpi_sync_real_array( w, MPI_SYNC_DOWNUP ) 
+  call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
+  call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
+  call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
   
 $endif
 

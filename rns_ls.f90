@@ -96,13 +96,18 @@ do n = 1, nbeta_elem
 enddo
 
 $if($MPI)
-!  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
-call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
+! !  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+! call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!   fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!   comm, status, ierr)
+! call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!   fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!   comm, status, ierr)
+
+! Sync applied forces
+call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
+
 
 $endif
 
@@ -271,7 +276,9 @@ do n=1, nb_elem
                                          r_elem_t( indx_p(ns) )% force_t % fy /)
   enddo 
   
-  !  Perform partial sum for b_elem force
+  ! Perform partial sum for b_elem force This only sums the resolved
+  ! forces. The contribution due to the unresolved (subgrid) forces is
+  ! performed after the Cd is calculated.
   b_elem_t(n) % force_t % fx = b_r_force(1,n)
   b_elem_t(n) % force_t % fy = b_r_force(2,n)
   
@@ -284,7 +291,7 @@ if( temporal_model == 1 ) then
   !  Compute F_b^n (CD^{n-1})
   allocate(b_force( ndim, nb_elem ))
   do n=1, nb_elem
-    b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
+     b_force(:,n) = b_r_force(:,n) - b_elem_t(n) % force_t % CD * b_beta_gamma_sum(:,n)
   enddo
 
   if( temporal_weight == 0 ) then
@@ -332,7 +339,7 @@ if( temporal_model == 1 ) then
   do n=1, nb_elem
     force_t_p => b_elem_t(n) % force_t
     force_t_p % error = sum( ( b_force(:,n) + force_t_p % CD * b_gamma(:,n) )**2 )
-    force_t_p % error_norm = sum( b_force(:,n)**2 )
+    !force_t_p % error_norm = sum( b_force(:,n)**2 )
     nullify(force_t_p)                            
   enddo
 
@@ -390,7 +397,7 @@ elseif( temporal_model == 2) then ! use implicit formulation
   do n=1, nb_elem
     force_t_p => b_elem_t(n) % force_t
     force_t_p % error = sum(( b_r_force(:,n) + force_t_p % CD * b_m(:,n))**2 )
-    force_t_p % error_norm = sum( b_r_force(:,n)**2 )
+    !force_t_p % error_norm = sum( b_r_force(:,n)**2 )
     nullify(force_t_p)
   enddo  
 
@@ -439,6 +446,9 @@ do n=1, nb_elem
     force_t_p % fx = force_t_p % fx + beta_elem_t( indx_p(ns) ) % force_t % fx
     force_t_p % fy = force_t_p % fy + beta_elem_t( indx_p(ns) ) % force_t % fy
   enddo 
+
+  ! Compute the normalization factor for the RNS error
+  force_t_p % error_norm = force_t_p % fx**2 + force_t_p % fy**2
 
   nullify( nelem_p, indx_p, force_t_p )
   

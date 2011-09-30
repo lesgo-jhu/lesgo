@@ -220,10 +220,23 @@ end subroutine output_loop
 subroutine inst_write(itype)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
-! This subroutine writes the instantaneous values
-! at specified i,j,k locations
+! This subroutine is used to write all of the instantaneous data from
+! lesgo to file. The types of data written are:
+! 
+!   points   : itype=1
+!   domain   : itype=2
+!   x-planes : itype=3
+!   y-planes : itype=4
+!   z-planes : itype=5
 !
-! This subroutine should be separated into separate ones to keep things cleaner
+! For the points and planar data, this subroutine writes using the
+! locations specfied from the param module. All of the data is written
+! using the tecryte library. If additional instantenous values are
+! desired to be written, they should be done so using this subroutine.
+!
+! REMARK: It may be desired to convert this subroutine to a driver and
+! have it call appropriate subroutines to perform the writing, just to
+! clean things up a bit
 !
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
 use param, only : point_nloc, point_loc
@@ -1143,7 +1156,7 @@ $if($LVLSET)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine force_tot()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 implicit none
 
 ! Zero bogus values
@@ -1159,15 +1172,19 @@ fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
 
 $if($MPI)
 !  Sync forces
-call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-                   fx_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (fy_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-                   fy_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (fz_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-                   fz_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
+! call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+!                    fx_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (fy_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+!                    fy_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (fz_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
+!                    fz_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
+
 $endif
 
 
@@ -1182,6 +1199,7 @@ $if($DEBUG)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine pressure_sync()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 use param, only : ld
 implicit none
 
@@ -1193,18 +1211,23 @@ dpdz(:,:,nz) = dpdz(:,:,nz-1)
 
 $if($MPI)
 !  Sync pressure
-call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (dpdx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   dpdx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (dpdy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   dpdy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   dpdz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)                   
+! call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (dpdx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    dpdx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (dpdy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    dpdy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    dpdz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)                   
+call mpi_sync_real_array( p, 0 , MPI_SYNC_DOWN )
+call mpi_sync_real_array( dpdx, 1 , MPI_SYNC_DOWN )
+call mpi_sync_real_array( dpdy, 1 , MPI_SYNC_DOWN )
+call mpi_sync_real_array( dpdz, 1 , MPI_SYNC_DOWN )
+
 $endif
 
 return
@@ -1214,6 +1237,7 @@ end subroutine pressure_sync
 subroutine RHS_sync()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : ld
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 implicit none
 
 ! Reset bogus values
@@ -1223,15 +1247,19 @@ RHSz(:,:,nz) = RHSz(:,:,nz-1)
 
 $if($MPI)
 !  Sync RHS
-call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (RHSy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   RHSy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)
-call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-                   RHSz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-                   comm, status, ierr)                   
+! call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (RHSy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    RHSy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!                    RHSz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!                    comm, status, ierr)                   
+call mpi_sync_real_array( RHSx, 0 , MPI_SYNC_DOWN )
+call mpi_sync_real_array( RHSy, 0 , MPI_SYNC_DOWN )
+call mpi_sync_real_array( RHSz, 0 , MPI_SYNC_DOWN )
+
 $endif
 
 return
@@ -1246,10 +1274,9 @@ subroutine checkpoint (lun)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--assumes lun is open and positioned correctly
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-use param, only : nz, S_FLAG
+use param, only : nz
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use scalars_module, only : RHS_T
 $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
@@ -1259,11 +1286,6 @@ integer, intent (in) :: lun
 
 !---------------------------------------------------------------------
 
-if (S_FLAG) then !WITH SCALARS
-  write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
-              RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-              Cs_opt2, F_LM, F_MM, F_QN, F_NN, theta, RHS_T
-else ! No SCALARS
     $if ($DYN_TN) 
       write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
@@ -1276,7 +1298,6 @@ else ! No SCALARS
                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
                   F_QN(:,:,1:nz), F_NN(:,:,1:nz)
     $endif
-end if
 
 end subroutine checkpoint
 
@@ -2086,7 +2107,8 @@ do k=1,nz
       tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt
       tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt
       tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt
-      
+
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt 
  
@@ -2100,6 +2122,7 @@ do k=1,nz
       tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt
       tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt
 
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
       
     enddo
@@ -2345,6 +2368,7 @@ enddo
 
 ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
 rs_t = rs_compute( tavg_t )
+
 ! Compute planar averaged Reynolds stress
 do k = 1, nz
 

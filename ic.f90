@@ -3,7 +3,6 @@ subroutine ic()
   use types,only:rprec
   use param
   use sim_param,only:u,v,w
-  use bottombc,only:zo_avg
   $if ($TURBINES)
     use turbines, only: turbine_vel_init
   $endif 
@@ -67,7 +66,7 @@ subroutine ic()
         z=(jz-.5_rprec)*dz
         $endif
         ! IC in equilibrium with rough surface (rough dominates in effective zo)
-        arg2=z/zo_avg
+        arg2=z/zo
         arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
         $if($LVLSET)

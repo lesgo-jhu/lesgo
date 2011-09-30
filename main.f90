@@ -10,9 +10,6 @@ use fft
 use immersedbc, only : fxa, fya, fza
 use test_filtermodule
 use topbc,only:setsponge,sponge
-use bottombc,only:num_patch,avgpatch
-use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
-use scalars_module2,only:patch_or_remote
 use cfl_mod 
 
 $if ($MPI)
@@ -100,11 +97,6 @@ call stats_init()
 
 ! Initialize time variable
 tt=0
-
-! Determine bottom BC roughness and temperature
-!  only coord 0 needs to do this since at the bottom
-!  roughness information then needs to be broadcast
-call patch_or_remote ()
 
 ! Initialize turbines
 $if ($TURBINES)
@@ -200,9 +192,6 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
- 
-    ! Compute scalars and __? 
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
 
     ! Level set: smooth velocity
     $if ($LVLSET_SMOOTH_VEL)
@@ -273,13 +262,6 @@ do jt=1,nsteps
         call sgs_stag()
     end if
 
-    ! Update scalars
-    if(S_FLAG.and.(jt.GE.SCAL_INIT))  then
-        call theta_all_in_one(jt)
-    else
-        beta_scal=0._rprec  !buoyancy term set to zero
-    end if
-
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
     $if ($MPI)
@@ -337,13 +319,6 @@ do jt=1,nsteps
     RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = -RHSz(:, :, 1:nz-1) - divtz(:, :, 1:nz-1)
-
-    ! Scalars: add buoyancy term to RHS...only valid for theta
-    if (S_FLAG .and. (.not.sflux_flag)) then
-        RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) + beta_scal(:, :, 1:nz-1)
-        if (mod (jt, 1000) == 0) print *, 'Adding buoyancy_term'
-        print *,'buoyancy_term=',jt,maxval(beta_scal),minval(beta_scal)
-    end if
 
     ! Coriolis: add forcing to RHS
     if (coriolis_forcing) then
@@ -541,10 +516,6 @@ do jt=1,nsteps
           $else
           write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
           $endif  
-          if ((S_FLAG) .or. (coriolis_forcing)) then
-            write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
-              coriolis_forcing, ug*u_star
-          end if
         end if
     end if
     $if($CFL_DT)
