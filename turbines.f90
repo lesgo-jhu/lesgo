@@ -1029,7 +1029,7 @@ z => grid_t % z
 allocate(w_uv(ld,ny,$lbz:nz))
 
 $if ($MPI)
-    call mpi_sync_real_array(w, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
+    call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
 !call interp_to_uv_grid(w, w_uv, $lbz, w_uv_tag_turbines)
 w_uv = interp_to_uv_grid(w, $lbz)

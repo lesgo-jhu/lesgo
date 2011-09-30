@@ -127,9 +127,9 @@ end if
 
 $if ($MPI)
 
-  call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
-  call mpi_sync_real_array( v, MPI_SYNC_DOWNUP ) 
-  call mpi_sync_real_array( w, MPI_SYNC_DOWNUP ) 
+  call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
+  call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
+  call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
   
 $endif
 

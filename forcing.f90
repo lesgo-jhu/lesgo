@@ -320,9 +320,9 @@ if ( inflow .and. (.not. use_fringe_forcing) ) call inflow_cond ()
 $if ($MPI)
 
 ! Exchange ghost node information (since coords overlap)                     
-call mpi_sync_real_array( u, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( v, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( w, MPI_SYNC_DOWNUP )  
+call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )  
   
 $endif
 

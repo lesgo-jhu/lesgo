@@ -96,13 +96,18 @@ do n = 1, nbeta_elem
 enddo
 
 $if($MPI)
-!  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
-call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-  fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
+! !  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
+! call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!   fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!   comm, status, ierr)
+! call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
+!   fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
+!   comm, status, ierr)
+
+! Sync applied forces
+call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
+
 
 $endif
 

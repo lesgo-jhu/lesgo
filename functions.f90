@@ -42,7 +42,7 @@ use param,only : nz
 use messages
 $if ($MPI)
 use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 $endif
 
 implicit none
@@ -51,26 +51,28 @@ real(rprec), dimension(:,:,lbz:), intent(IN) :: var
 integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
-integer :: ubx,uby,ubz
+integer :: sx,sy,ubz
 integer :: i,j,k
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
-ubx=ubound(var,1)
-uby=ubound(var,2)
+sx=size(var,1)
+sy=size(var,2)
 ubz=ubound(var,3)
 
 if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z dimensions.')
 
-allocate(var_uv(ubx,uby,lbz:ubz))
+allocate(var_uv(sx,sy,lbz:ubz))
 
-do k=1,ubz-1
-  do j=1,uby
-    do i=1,ubx
-      var_uv(i,j,k) = 0.5 * (var(i,j,k+1) + var(i,j,k))
-    enddo
-  enddo
-enddo
+!do k=1,ubz-1
+!  do j=1,uby
+!    do i=1,ubx
+!      var_uv(i,j,k) = 0.5_rprec * (var(i,j,k+1) + var(i,j,k))
+!    enddo
+!  enddo
+!enddo
+! Perform the interpolation
+var_uv(:,:,1:ubz-1) = 0.5_rprec * (var(:,:,2:ubz) + var(:,:,1:ubz-1))
 
 $if ($MPI)
 
@@ -79,11 +81,12 @@ if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 !  Sync all overlapping data
 if( lbz == 0 ) then
-  call mpi_sync_real_array( var_uv, MPI_SYNC_DOWNUP )
+  call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWNUP )
 elseif( lbz == 1 ) then
-  call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
-                    var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
-                    comm, status, ierr)
+  ! call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
+  !                   var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
+  !                   comm, status, ierr)
+  call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWN )
 endif                    
 
 $else

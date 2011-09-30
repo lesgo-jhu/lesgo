@@ -33,6 +33,10 @@ use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
 use test_filtermodule,only:filter_size
 use messages
 
+$if ($MPI)
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
+$endif
+
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -388,15 +392,19 @@ end if
 $endif
 
 $if ($MPI)
-    ! txz,tyz calculated for 1:nz-1 (on w-nodes) except bottom process (only 2:nz-1)
-    ! exchange information between processors to set values at nz
-    !    from jz=1 above to jz=nz below  
-    call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, 3,  &
-                     txz(1, 1, nz), ld*ny, MPI_RPREC, up, 3,   &
-                     comm, status, ierr)
-    call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
-                     tyz(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
-                     comm, status, ierr)
+    ! txz,tyz calculated for 1:nz-1 (on w-nodes) except bottom process
+    ! (only 2:nz-1) exchange information between processors to set
+    ! values at nz from jz=1 above to jz=nz below
+
+    ! call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, 3,  &
+    !                  txz(1, 1, nz), ld*ny, MPI_RPREC, up, 3,   &
+    !                  comm, status, ierr)
+    ! call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
+    !                  tyz(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
+    !                  comm, status, ierr)
+
+    call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
+    call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
 
     ! Set bogus values (easier to catch if there's an error)
     txx(:, :, 0) = BOGUS
@@ -435,6 +443,10 @@ use types,only:rprec
 use param
 use sgs_stag_param
 use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
+
+$if ($MPI)
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
+$endif
 
 implicit none
 
@@ -517,13 +529,16 @@ else
 end if
 
 $if ($MPI)
-    ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process (only 1:nz-1)
-    ! exchange information between processors to set values at nz
-    !    from jz=1 above to jz=nz below
-    !  Could you mpi_sync_real_array(dwdz, MPI_SYNC_DOWN)
-    call mpi_sendrecv (dwdz(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
-                     dwdz(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
-                     comm, status, ierr)
+    ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
+    ! (only 1:nz-1) exchange information between processors to set
+    ! values at nz from jz=1 above to jz=nz below
+
+    ! call mpi_sendrecv (dwdz(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
+    !                  dwdz(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
+    !                  comm, status, ierr)
+
+    call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
+
 $endif
 
 ! Calculate Sij for the rest of the domain

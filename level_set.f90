@@ -3291,51 +3291,51 @@ integer :: kstart
 !--first step synchronize tij to make is valid at 0:nz
 
 !--send 1 level down to nz
-call mpi_sendrecv (txx(1, 1, 1), ld*ny, MPI_RPREC, down, tag+51,  &
-                   txx(1, 1, nz), ld*ny, MPI_RPREC, up, tag+51,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+52,  &
-                   txy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+52,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+53,  &
-                   txz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+53,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+54,  &
-                   tyy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+54,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+55,  &
-                   tyz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+55,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tzz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+56,  &
-                         tzz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+56,   &
-                         comm, status, ierr)
+! call mpi_sendrecv (txx(1, 1, 1), ld*ny, MPI_RPREC, down, tag+51,  &
+!                    txx(1, 1, nz), ld*ny, MPI_RPREC, up, tag+51,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+52,  &
+!                    txy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+52,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+53,  &
+!                    txz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+53,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+54,  &
+!                    tyy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+54,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+55,  &
+!                    tyz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+55,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tzz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+56,  &
+!                          tzz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+56,   &
+!                          comm, status, ierr)
 
-!--send nz-1 level up to 0 level
-call mpi_sendrecv (txx(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+61,  &
-                   txx(1, 1, 0), ld*ny, MPI_RPREC, down, tag+61,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+62,  &
-                   txy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+62,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+63,  &
-                   txz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+63,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+64,  &
-                   tyy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+64,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+65,  &
-                   tyz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+65,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tzz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+66,  &
-                   tzz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+66,   &
-                   comm, status, ierr)
+! !--send nz-1 level up to 0 level
+! call mpi_sendrecv (txx(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+61,  &
+!                    txx(1, 1, 0), ld*ny, MPI_RPREC, down, tag+61,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+62,  &
+!                    txy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+62,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+63,  &
+!                    txz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+63,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+64,  &
+!                    tyy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+64,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+65,  &
+!                    tyz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+65,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tzz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+66,  &
+!                    tzz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+66,   &
+!                    comm, status, ierr)
 
-!call mpi_sync_real_array( txx, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( txy, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( txz, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tyy, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tyz, MPI_SYNC_DOWNUP )
-!call mpi_sync_real_array( tzz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txx, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txy, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyy, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tzz, 0, MPI_SYNC_DOWNUP )
 
 !--at this point, tij 0:nz are valid (1:nz at bottom, 0:nz-1 at top)
 
