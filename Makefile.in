@@ -88,7 +88,7 @@ ifeq ($(FCOMP),ifort)
   FFLAGS += -warn all -shared-intel
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   # Work around for real -> complex dummy array assignment
-  FFLAGS += -warn nointerfaces
+  # FFLAGS += -warn nointerfaces
   # Fix segmentation faults (stack overflows)
   FFLAGS += -heap-arrays
   #FDEBUG = -g -debug all
@@ -169,6 +169,32 @@ ifeq ($(FCOMP),pgfortran)
   LIBS += -ltecryte-pgi
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
+  #FFLAGS = -O2 -fPIC
+  #FFLAGS = -O3 -ipo
+  #FFLAGS = -O3 -ip -ipo -ftz
+  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
+  #FFLAGS += -warn all -mcmodel=medium -shared-intel
+  FFLAGS += 
+  #FDEBUG = -g -debug all
+  FPROF = -p
+  LDFLAGS = 
+  MODDIR = -I$(MPATH) -module $(MPATH)
+  FFLAGS += $(MODDIR)
+#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
+endif
+
+ifeq ($(FCOMP),pgf90)
+  
+  FPP += -DPGI
+  
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = pgfortran
+  endif
+  LIBS += -lfcgaml-pgi
+  #FFLAGS = -O3 -fastsse -Mcache_align
+  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
   #FFLAGS = -O3 -ipo
   #FFLAGS = -O3 -ip -ipo -ftz

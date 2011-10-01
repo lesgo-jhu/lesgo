@@ -1,6 +1,6 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 ! fftw 2.1.X version
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 module fft
 use types,only:rprec
 use param,only:lh,ny,spectra_calc
@@ -14,9 +14,14 @@ public :: kx, ky, k2, eye, forw, back, forw_big, back_big, init_fft, forw_spectr
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+public :: emul_complex_mult_real_complex_imag, emul_complex_mult_inplace_real_complex_imag, &
+        emul_complex_mult_real_complex_2D, emul_complex_mult_inplace_real_complex_2D, &
+        emul_complex_mult_real_complex_imag_2D, emul_complex_mult_inplace_real_complex_imag_2D,&
+        emul_complex_mult_real_complex_real_2D, emul_complex_mult_inplace_real_complex_real_2D
+
 ! plans
 integer*8::forw,back,forw_big,back_big, forw_spectra
-real(kind=rprec),dimension(lh,ny)::kx,ky,k2
+real(kind=rprec),dimension(lh,ny) :: kx,ky,k2
 complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
 integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
@@ -29,10 +34,11 @@ integer, parameter :: FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0
 integer, parameter :: FFTW_SCRAMBLED_INPUT=8192
 integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
 subroutine init_fft()
+!**********************************************************************
 use param,only:nx,ny,nx2,ny2
 implicit none
 ! formulate the fft plans--may want to use FFTW_USE_WISDOM
@@ -53,10 +59,9 @@ endif
 call init_wavenumber()
 end subroutine init_fft
 
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine init_wavenumber()
+!**********************************************************************
 use param,only:lh,nx,ny,L_x,L_y,pi
 implicit none
 integer :: jx,jy
@@ -77,10 +82,411 @@ end do
 
 ! for the aspect ratio change
       kx=2._rprec*pi/L_x*kx
-      ky=2._rprec*pi/L_y*ky
+      ky=2._rprec*pi/L_y*ky 
 
 ! magnitude squared: will have 0's around the edge
       k2 = kx*kx + ky*ky
 end subroutine init_wavenumber
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
+subroutine emul_complex_mult_real_complex_imag( a, a_c, b )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex scalars
+!  by emulating the input real vector (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(2,1))  - input real vector
+!    a_c (real)          - input imaginary part of complex scalar
+!
+!  Output:
+!
+!    b (real, size(2,1)) - output real vector
+
+use types, only : rprec
+implicit none
+
+real(rprec), dimension(2), intent(in) :: a
+real(rprec), intent(in) :: a_c
+real(rprec), dimension(2), intent(out) :: b
+
+!  Cached variables
+real(rprec) :: a_c_i
+  
+!  Cache multi-usage variables
+a_c_i = a_c
+
+!  Perform multiplication
+b(1) = - a(2) * a_c_i
+b(2) =  a(1) * a_c_i
+
+return
+
+end subroutine emul_complex_mult_real_complex_imag
+
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_imag( a, a_c )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex scalars
+!  by emulating the input real vector (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(2,1))           - input/outpu real array
+!    a_c (real)         - input imaginary part of complex array 
+!
+
+use types, only : rprec
+implicit none
+
+real(rprec), dimension(2), intent(inout) :: a
+real(rprec), intent(in) :: a_c
+
+!  Cached variables
+real(rprec) :: a_r, a_i, a_c_i
+  
+!  Cache multi-usage variables
+a_r = a(1)
+a_i = a(2)
+a_c_i = a_c
+
+!  Perform multiplication
+a(1) = - a_i * a_c_i
+a(2) =  a_r * a_c_i
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_imag
+
+!**********************************************************************
+subroutine emul_complex_mult_real_complex_2D( a, a_c, nx_r, nx_c, ny, b )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input real array
+!    a_c (complex,size(nx_c,ny))- input complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+!  Output:
+! 
+!    b (real,size(nx_r,ny))     - output real array
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension( nx_r, ny ), intent(in) :: a
+complex(rprec), dimension( nx_c, ny), intent(in) :: a_c
+
+real(rprec), dimension(nx_r, ny), intent(out) :: b
+
+!  Cached variables
+real(rprec) ::  a_r, a_i, a_c_r, a_c_i
+
+integer :: i,j,ir,ii
+
+!  Emulate complex multiplication
+!  Using outer loop to get contingious memory access
+do j=1, ny
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    a_c_r = real(a_c(i,j),kind=rprec)
+    $if($DBLPREC)
+    a_c_i = dimag(a_c(i,j))
+    $else
+    a_c_i = aimag(a_c(i,j))
+    $endif
+    
+    !  Perform multiplication
+    b(ir,j) = a_r * a_c_r - a_i * a_c_i
+    b(ii,j) = a_r * a_c_i + a_i * a_c_r
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_real_complex_2D
+
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_2D( a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+!
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. The resulting
+!  multiplication is returned as array a
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input/output real array
+!    a_c (complex,size(nx_c,ny))- input complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension( nx_r, ny ), intent(inout) :: a
+complex(rprec), dimension( nx_c, ny), intent(in) :: a_c
+
+!  Cached variables
+real(rprec) ::  a_r, a_i, a_c_r, a_c_i
+
+integer :: i,j,ir,ii
+
+!  Emulate complex multiplication
+!  Using outer loop to get contingious memory access
+do j=1, ny
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+
+    a_c_r = real(a_c(i,j),kind=rprec)
+    $if($DBLPREC)
+    a_c_i = dimag(a_c(i,j))
+    $else
+    a_c_i = aimag(a_c(i,j))
+    $endif
+    
+    !  Perform multiplication
+    a(ir,j) = a_r * a_c_r - a_i * a_c_i
+    a(ii,j) = a_r * a_c_i + a_i * a_c_r
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_2D
+
+!**********************************************************************
+subroutine emul_complex_mult_real_complex_imag_2D( a, a_c, nx_r, nx_c, ny, b )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0)
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input real array
+!    a_c (real,size(nx_c,ny))   - input imaginary part of complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+!  Output:
+! 
+!    b (real,size(nx_r,ny))     - output real array
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension(nx_r, ny), intent(in) :: a
+real(rprec), dimension(nx_c, ny), intent(in) :: a_c
+
+real(rprec), dimension(nx_r, ny), intent(out) :: b
+
+!  Cached variables
+real(rprec) ::  a_c_i
+
+integer :: i,j,ii,ir
+
+!  Emulate complex multiplication
+do j=1, ny !  Using outer loop to get contingious memory access
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_c_i = a_c(i,j)
+
+    !  Perform multiplication
+    b(ir,j) = - a(ii,j) * a_c_i
+    b(ii,j) =  a(ir,j) * a_c_i
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_real_complex_imag_2D
+
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_imag_2D( a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. This 
+!  subroutine ignores the real part of a_c (e.g. would use this when
+!  real(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input/outpu real array
+!    a_c (real,size(nx_c,ny))   - input imaginary part of complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension(nx_r, ny), intent(inout) :: a
+real(rprec), dimension(nx_c, ny), intent(in) :: a_c
+
+!  Cached variables
+real(rprec) :: a_r, a_i, a_c_i
+
+integer :: i,j,ii,ir
+
+!  Emulate complex multiplication
+do j=1, ny !  Using outer loop to get contingious memory access
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    a_c_i = a_c(i,j)
+
+    !  Perform multiplication
+    a(ir,j) = - a_i * a_c_i
+    a(ii,j) =  a_r * a_c_i
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_imag_2D
+
+!**********************************************************************
+subroutine emul_complex_mult_real_complex_real_2D( a, a_c, nx_r, nx_c, ny, b )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. This 
+!  subroutine ignores the imaginary part of a_c (e.g. would use this when
+!  imag(a_c) = 0). 
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input/output real array
+!    a_c (real,size(nx_c,ny))   - input real part of complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+!  Output:
+!
+!    b (real, size(nx_r,ny))    - output real array
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension(nx_r, ny), intent(inout) :: a
+real(rprec), dimension(nx_c, ny), intent(in) :: a_c
+
+real(rprec), dimension(nx_r, ny), intent(out) :: b
+
+integer :: i,j,ii,ir
+
+!  Emulate complex multiplication
+do j=1, ny !  Using outer loop to get contingious memory access
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+
+    !  Perform multiplication
+    b(ir:ii,j) = a_c(i,j)*a(ir:ii,j)
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_real_complex_real_2D
+
+!**********************************************************************
+subroutine emul_complex_mult_inplace_real_complex_real_2D( a, a_c, nx_r, nx_c, ny )
+!**********************************************************************
+!  This subroutine emulates the multiplication of two complex 2D array
+!  by emulating the input real array (a) as a complex type. This 
+!  subroutine ignores the imaginary part of a_c (e.g. would use this when
+!  imag(a_c) = 0). The results from the multplication are output as a.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input/output real array
+!    a_c (real,size(nx_c,ny))   - input real part of complex array 
+!    nx_r (integer)             - size of real x dimension
+!    nx_c (integer)             - size of complex x dimension (nx_c must be nx_r/2)
+!    ny (integer)               - size of y dimension
+!
+
+use types, only : rprec
+implicit none
+
+integer, intent(in) :: nx_r, nx_c, ny
+real(rprec), dimension(nx_r, ny), intent(inout) :: a
+real(rprec), dimension(nx_c, ny), intent(in) :: a_c
+
+integer :: i,j,ii,ir
+
+!  Emulate complex multiplication
+do j=1, ny !  Using outer loop to get contingious memory access
+  do i=1,nx_c
+
+    !  Real and imaginary indicies of a
+    ii = 2*i
+    ir = ii-1
+
+    !  Perform multiplication
+    a(ir:ii,j) = a_c(i,j)*a(ir:ii,j)
+
+  enddo
+enddo
+
+return
+
+end subroutine emul_complex_mult_inplace_real_complex_real_2D
 end module fft
