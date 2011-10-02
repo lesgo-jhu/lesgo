@@ -100,9 +100,9 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
-   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),null())
-   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),null())
-   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),null())   
+   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)   
 end do
 
 
@@ -136,12 +136,12 @@ end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   rbottomw(:, :) = const * divtz(:, :, 1)
-  call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), null())
+  call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
 end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   rtopw(:, :) = const * divtz(:, :, nz)
-  call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), null())
+  call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
 end if
 
 ! set oddballs to 0
@@ -449,7 +449,7 @@ $if ($DEBUG)
 if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),null())
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,lh
@@ -464,9 +464,9 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
-call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
-call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),null())
+call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
 end do
 
 !--nz level is not needed elsewhere (although its valid)

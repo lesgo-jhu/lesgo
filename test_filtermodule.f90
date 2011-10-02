@@ -24,13 +24,13 @@ real(kind=rprec), dimension(ld,ny), intent(inout) :: f
 real(kind=rprec), dimension(lh,ny),intent(in) :: G_test
 
 !  Perform in-place FFT
-call rfftwnd_f77_one_real_to_complex(forw,f,null())
+call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
 
 !  Perform f = G_test*f, emulating f as complex
 ! Nyquist frequency and normalization is taken care of with G_test
 call emul_complex_mult_inplace_real_complex_real_2D( f, G_test, ld, lh, ny )
 
-call rfftwnd_f77_one_complex_to_real(back,f,null())
+call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
 
 return
 end subroutine test_filter

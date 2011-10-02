@@ -4,6 +4,16 @@ module derivatives
 
 implicit none
 
+save
+private
+
+public ddx, &
+     ddy, &
+     ddxy, &
+     ddz_uv, &
+     ddz_w, &
+     filt_da
+
 contains
 
 !**********************************************************************
@@ -36,7 +46,7 @@ do jz=lbz,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
-  call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),null())       
+  call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
 
   ! Zero padded region and Nyquist frequency
   !  dfdx_c(lh,:,jz)=0._rprec ! Complex version
@@ -54,7 +64,7 @@ do jz=lbz,nz
   call emul_complex_mult_inplace_real_complex_imag_2D( dfdx(:, :, jz), kx, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
-  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
+  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
 
 enddo
 
@@ -91,7 +101,7 @@ do jz=lbz,nz
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
   dfdy(:,:,jz)=const*f(:,:,jz)
-  call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),null())     
+  call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
 
   ! Zero padded region and Nyquist frequency
   !  dfdy_c(lh,:,jz)=0._rprec ! Complex version
@@ -109,7 +119,7 @@ do jz=lbz,nz
   call emul_complex_mult_inplace_real_complex_imag_2D( dfdy(:, :, jz), ky, ld, lh, ny )
 
   ! Perform inverse transform to get pseudospectral derivative
-  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())   
+  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)   
 
 end do
 
@@ -142,7 +152,7 @@ do jz=lbz,nz
    dfdx(:,:,jz) = const*f(:,:,jz)
 
    !call rfftwnd_f77_one_real_to_complex(forw,dfdx_c(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),null())
+   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)
 
    !dfdx_c(lh,:,jz)=0._rprec
    !dfdx_c(:,ny/2+1,jz)=0._rprec
@@ -162,8 +172,8 @@ do jz=lbz,nz
 ! inverse transform 
    !call rfftwnd_f77_one_complex_to_real(back,dfdx_c(:,:,jz),ignore_me)
    !call rfftwnd_f77_one_complex_to_real(back,dfdy_c(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
-   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
+   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 
 end do
 end subroutine ddxy
@@ -312,7 +322,7 @@ do jz=lbz,nz
   
   f(:,:,jz)=const*f(:,:,jz)   !normalize
 
-  call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),null())
+  call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),fftwNull_p)
 
   ! what exactly is the filter doing here? in other words, why is routine
   ! called filt_da? not filtering anything
@@ -331,9 +341,9 @@ do jz=lbz,nz
 
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 
-  call rfftwnd_f77_one_complex_to_real(back,f(:,:,jz),null())
-  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),null())
-  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),null())
+  call rfftwnd_f77_one_complex_to_real(back,f(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 
 end do
 

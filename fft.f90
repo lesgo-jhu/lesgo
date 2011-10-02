@@ -14,6 +14,7 @@ public :: kx, ky, k2, eye, forw, back, forw_big, back_big, init_fft, forw_spectr
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+public :: fftwNull_p
 public :: emul_complex_mult_real_complex_imag, emul_complex_mult_inplace_real_complex_imag, &
         emul_complex_mult_real_complex_2D, emul_complex_mult_inplace_real_complex_2D, &
         emul_complex_mult_real_complex_imag_2D, emul_complex_mult_inplace_real_complex_imag_2D,&
@@ -33,6 +34,9 @@ integer, parameter :: FFTW_THREADSAFE=128
 integer, parameter :: FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0
 integer, parameter :: FFTW_SCRAMBLED_INPUT=8192
 integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
+
+! Null pointer for fftw2 dummy argument
+integer(2), pointer :: fftwNull_p
 
 contains
 

@@ -47,7 +47,7 @@ real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
                                                    vort3_big
 !real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
 !--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
-real(kind=rprec)::ignore_me,const
+real(kind=rprec) :: const
 
 $if ($VERBOSE)
 write (*, *) 'started convec'
@@ -68,18 +68,18 @@ do jz = $lbz, nz
    cy(:,:,jz)=const*u2(:,:,jz)
    cz(:,:,jz)=const*u3(:,:,jz)
 ! do forward fft on normal-size arrays
-   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
 ! zero pad: padd takes care of the oddballs
    call padd(u1_big(:,:,jz),cx(:,:,jz))
    call padd(u2_big(:,:,jz),cy(:,:,jz))
    call padd(u3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
-   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),fftwNull_p)
 end do
 
 do jz = 1, nz
@@ -118,18 +118,18 @@ do jz = 1, nz
 
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
-   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
    call padd(vort1_big(:,:,jz),cx(:,:,jz))
    call padd(vort2_big(:,:,jz),cy(:,:,jz))
    call padd(vort3_big(:,:,jz),cz(:,:,jz))
 
 ! Back to physical space
 ! the normalization should be ok...
-   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),fftwNull_p)
 end do
 !$omp end parallel do
 
@@ -161,12 +161,12 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
 ! un-zero pad
 ! note: cc_big is going into cx!!!!
    call unpadd(cx(:,:,jz),cc_big(:,:,jz))
 ! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),fftwNull_p)
 end do
 !$omp end parallel do
 
@@ -196,13 +196,13 @@ end do
 
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
  ! un-zero pad
 ! note: cc_big is going into cy!!!!
    call unpadd(cy(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),fftwNull_p)
 end do
 !$omp end parallel do
 
@@ -239,14 +239,14 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
-   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
 
 ! un-zero pad
 ! note: cc_big is going into cz!!!!
    call unpadd(cz(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-   call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),fftwNull_p)
 end do
 !$omp end parallel do
 
