@@ -113,9 +113,6 @@ $if ($TURBINES)
   call turbines_init()    !must occur before initial is called
 $endif
 
-! Initialize velocity field
-!call initial()
-
 ! If using level set method
 $if ($LVLSET)
   call level_set_init ()
