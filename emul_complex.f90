@@ -117,7 +117,7 @@ character (*), parameter :: sub_name = mod_name // '.mul_real_complex_2D'
 real(rprec), dimension( :, :), intent(in) :: a
 complex(rprec), dimension( :, : ), intent(in) :: a_c
 
-real(rprec), pointer, dimension(:, :) :: b
+real(rprec), allocatable, dimension(:, :) :: b
 
 !  Cached variables
 real(rprec) ::  a_r, a_i, a_c_r, a_c_i
@@ -193,7 +193,7 @@ character (*), parameter :: sub_name = mod_name // '.mul_real_complex_imag_2D'
 real(rprec), dimension( :, : ), intent(in) :: a
 real(rprec), dimension( :, : ), intent(in) :: a_c
 
-real(rprec), pointer, dimension(:, :) :: b
+real(rprec), allocatable, dimension(:, :) :: b
 
 !  Cached variables
 real(rprec) ::  a_c_i
@@ -263,7 +263,7 @@ character (*), parameter :: sub_name = mod_name // '.mul_real_complex_real_2D'
 real(rprec), dimension( :, : ), intent(in) :: a
 real(rprec), dimension( :, : ), intent(in) :: a_c
 
-real(rprec), pointer, dimension(:, :) :: b
+real(rprec), allocatable, dimension(:, :) :: b
 
 integer :: i,j,ii,ir
 integer :: nx_r, nx_c, ny
