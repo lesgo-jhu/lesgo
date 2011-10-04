@@ -17,6 +17,7 @@ subroutine test_filter(f, G_test)
 use types,only:rprec
 use param,only:ld,lh,ny
 use fft
+use emul_complex, only : OPERATOR(.MULR.)
 implicit none
 
 !complex(kind=rprec), dimension(lh,ny),intent(inout)::f ! note we're treating as complex here
@@ -28,7 +29,8 @@ call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
 
 !  Perform f = G_test*f, emulating f as complex
 ! Nyquist frequency and normalization is taken care of with G_test
-call emul_complex_mult_inplace_real_complex_real_2D( f, G_test, ld, lh, ny )
+!call mult_real_complex_real( f, G_test )
+f = f .MULR. G_test
 
 call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
 

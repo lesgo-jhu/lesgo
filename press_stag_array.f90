@@ -29,7 +29,7 @@ use param
 use messages
 use sim_param,only:u,v,w,divtz
 use fft
-
+use emul_complex, only : OPERATOR(.MULI.)
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -322,9 +322,13 @@ do jz = jz_min, nz
       b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
       c(jx, jy, jz) = 1._rprec/(dz**2)   
       !  Compute eye * kx * H_x 
-      call emul_complex_mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
+!      call mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
+      aH_x = rH_x(ir:ii, jy, jz-1) .MULI. kx(jx,jy)
+
       !  Compute eye * ky * H_y
-      call emul_complex_mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
+!      call mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
+      aH_y = rH_y(ir:ii, jy, jz-1) .MULI. ky(jx,jy) 
+
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
 
       $if ($DEBUG)
@@ -458,8 +462,11 @@ do jx=1,lh
 ! complex
    !dfdx(jx,jy,jz)=eye*kx(jx,jy)*p_hat(jx,jy,jz)
    !dfdy(jx,jy,jz)=eye*ky(jx,jy)*p_hat(jx,jy,jz)
-   call emul_complex_mult_real_complex_imag( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
-   call emul_complex_mult_real_complex_imag( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
+   !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
+   !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
+   dfdx(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. kx(jx,jy) 
+   dfdy(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. ky(jx,jy) 
+   
 
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do

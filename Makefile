@@ -15,6 +15,7 @@ SRCS =  cfl.f90 convec.f90 \
         derivatives.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
+        emul_complex.f90 \
         energy.f90 \
         fft.f90 forcing.f90 functions.f90 grid.f90 \
         ic.f90 ic_dns.f90 immersedbc.f90 initial.f90 \
@@ -47,15 +48,8 @@ RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90 rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90
 
-TSUM_POST_DEPS = utils/tsum_post.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
- 
-TSUM_POST_COMP2 = $(FPP) $< > t.tsum_post.f90; $(FC) -o $@ $(FFLAGS) $(LIBPATH) t.tsum_post.f90 \
-	$(OPATH)/param.o $(OPATH)/stat_defs.o $(OPATH)/grid.o
-
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
-  TSUM_POST_COMP1 = $(FPP) mpi_defs.f90 > t.mpi_defs.f90; $(FC) -c -o $(OPATH)/mpi_defs.o $(FFLAGS) t.mpi_defs.f90; 
-  TSUM_POST_COMP2 += $(OPATH)/mpi_defs.o
 endif
 
 ifeq ($(USE_TREES_LS), yes)
@@ -68,8 +62,6 @@ endif
 
 ifeq ($(USE_CYL_SKEW_LS), yes)
   SRCS += $(CYL_SKEW_LS_SRCS)
-  TSUM_POST_DEPS += $(OPATH)/cyl_skew_base_ls.o
-  TSUM_POST_COMP2 += $(OPATH)/cyl_skew_base_ls.o
 endif
 
 ifeq ($(USE_RNS_LS), yes)
@@ -97,15 +89,6 @@ prof:
 	$(MAKE) $(EXE) "FFLAGS = $(FPROF) $(FFLAGS)"
 
 # Other support programs are listed below this point
-tsum_post: $(TSUM_POST_DEPS)
-	$(TSUM_POST_COMP1)
-	$(TSUM_POST_COMP2)
-
-cyl_skew_post_ls: utils/cyl_skew_post_ls.f90 $(OPATH)/types.o \
-	$(OPATH)/param.o $(OPATH)/cyl_skew_base_ls.o 
-	$(FPP) $< > t.cyl_skew_post_ls.f90; $(FC) -o $@ \
-	$(CYLINDER_SKEW_PRE_LS_FFLAGS) $(LIBPATH) t.cyl_skew_post_ls.f90
-
 convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
