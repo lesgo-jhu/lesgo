@@ -50,11 +50,11 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
   SMOOTH_VEL = no
 
-  USE_CYL_SKEW_LS = no
-  USE_RNS_LS = no
+  USE_CYL_SKEW_LS = yes
+  USE_RNS_LS = yes
   USE_TREES_LS = no
 
 USE_TURBINES = no
@@ -81,7 +81,12 @@ ifeq ($(FCOMP),ifort)
   else
     FC = ifort
   endif
+
   LIBS += -ltecryte-intel
+  ifeq ($(USE_CYL_SKEW_LS),yes)
+    LIBS += -lfcgaml-intel
+  endif
+
   FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -ftz -ip -O3
@@ -100,13 +105,20 @@ ifeq ($(FCOMP),ifort)
 endif
 
 ifeq ($(FCOMP),gfortran)
+
   FPP += -DGFORTRAN
+
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
     FC = gfortran44
   endif
+
   LIBS += -ltecryte
+  ifeq ($(USE_CYL_SKEW_LS),yes)
+    LIBS += -lfcgaml
+  endif
+
   #FFLAGS = -O0 -fbounds-check -mcmodel=medium
   FFLAGS = -O3
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
@@ -120,14 +132,19 @@ endif
 
 ifeq ($(FCOMP),xlf)
 
-  LIBS +=
-
   FPP += -DXLF
+
   ifeq ($(USE_MPI), yes)
     FC = mpxlf95_r
   else
     FC = xlf95_r
   endif
+
+  LIBS += -ltecryte-xlf
+  ifeq ($(USE_CYL_SKEW_LS),yes)
+    LIBS += -lfcgaml-xlf
+  endif
+
   #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
   FFLAGS = -qstrict -qsuffix=f=f90 -O3
   #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
@@ -166,7 +183,12 @@ ifeq ($(FCOMP),pgfortran)
   else
     FC = pgfortran
   endif
+
   LIBS += -ltecryte-pgi
+  ifeq ($(USE_CYL_SKEW_LS),yes)
+    LIBS += -lfcgaml-pgi
+  endif
+
   #FFLAGS = -O3 -fastsse -Mcache_align
   FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
   #FFLAGS = -O2 -fPIC
