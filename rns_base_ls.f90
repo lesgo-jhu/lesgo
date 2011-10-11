@@ -38,14 +38,12 @@ integer, parameter :: rns_ntree = 3 ! Number of unique trees
 character(*), parameter :: rns_tree_layout = 'default'
 
 
-!  Weighting Off - 0, On - 1
+!  Weighting/averaging: Off - 0, On - 1
 integer, parameter :: temporal_weight = 0
   
-  ! kc-3
-  !real(rprec), parameter :: Tconst = 8.0_rprec
-  ! vtree-3
+  ! Time weighting constant
   real(rprec), parameter :: Tconst = 1.0_rprec
-  
+  ! Time step to start weighting
   integer, parameter :: weight_nstart = 20000
 
 !  Explict - 1, Implicit - 2
@@ -59,10 +57,6 @@ integer, parameter :: CD_ramp_nstep = 10000
 
 !  Parameters for setting reference regions
 real(rprec), parameter :: alpha_width = 2.0_rprec
-
-! kc-3 alpha_dist = h / h
-!real(rprec), parameter :: alpha_dist = 1.0_rprec
-! vtree-2, vtree-3 alpha_dist = d / h
 real(rprec), parameter :: alpha_dist = 0.571428571_rprec
 
 real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
@@ -112,7 +106,7 @@ end type child_elem
 ! ---- Primary structures ----
 type primary_struct_type_1
   type(ref_region)   :: ref_region_t
-  type(force_type_1)        :: force_t
+  type(force_type_1) :: force_t
   type(indx_array)   :: indx_array_t
 end type primary_struct_type_1
 
