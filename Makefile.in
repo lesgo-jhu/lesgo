@@ -8,9 +8,9 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = g95
+FCOMP = ifort
 INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
+LIBPATH = -L${HOME}/lib -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -238,6 +238,12 @@ ifeq ($(FCOMP),g95)
   else
     FC = g95
   endif
+
+  LIBS += -ltecryte-g95
+  ifeq ($(USE_CYL_SKEW_LS),yes)
+    LIBS += -lfcgaml-g95
+  endif
+
 
   FPP += -DG95
   FFLAGS = -O0
