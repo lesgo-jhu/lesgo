@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = g95
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L${HOME}/lib64 -L/usr/local/lib64 -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
@@ -232,13 +232,19 @@ ifeq ($(FCOMP),pgf90)
 endif
 
 ifeq ($(FCOMP),g95)
+
+  ifeq ($(USE_MPI), yes)
+    FC = mpif90
+  else
+    FC = g95
+  endif
+
   FPP += -DG95
-  FC = g95
   FFLAGS = -O0
   FDEBUG = -g
   FPROF = -p
   LDFLAGS =
-  MODDIR =
+  MODDIR = -I $(MPATH)
   FFLAGS += $(MODDIR) $(INCLPATH)
 endif
 
