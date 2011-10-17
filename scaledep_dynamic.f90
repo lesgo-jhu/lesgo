@@ -244,12 +244,15 @@ do jz=1,nz
    Cs_opt2(jz) = max(0._rprec, real(Cs_opt2(jz),kind=rprec))
 end do
 
-if (modulo(jt,500) == 0) then
-   write(fname,'(A13,i6.6)')path//'output/beta',jt
-      open(1,file=fname,form='unformatted')
-   do jz=1,nz
-      write(1,*) jz, beta(jz)
-   end do
-   close(1)
-end if
+! Commented by JSG: this should be implemented in a way that supports
+! MPI, writes to a single file for all times using tecryte.
+! if (modulo(jt,500) == 0) then
+!    write(fname,'(A13,i6.6)')path//'output/beta',jt
+!       open(1,file=fname,form='unformatted')
+!    do jz=1,nz
+!       write(1,*) jz, beta(jz)
+!    end do
+!    close(1)
+! end if
+
 end subroutine scaledep_dynamic
