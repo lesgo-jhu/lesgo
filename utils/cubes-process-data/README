@@ -1,9 +1,9 @@
 This directory contains scripts and macros for extracting time
 averaged velocity profiles from lesgo to compare to the 
 experimental data of flow over an array of cubes from Meinders 
-et al. See
+et al. See:
 
-http://tmdb.ws.tn.tudelft.nl/workshop8/case6_2/case6_2.html
+http://www.ercoftac.org/fileadmin/user_upload/bigfiles/sig15/database/6.2/case62d.html
 
 for information regarding experimental setup.
 
