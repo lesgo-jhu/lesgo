@@ -215,7 +215,7 @@ module param
   logical, parameter :: point_calc = .true.
   integer, parameter :: point_nstart = 50000, point_nend = nsteps, point_nskip = 100
   integer, parameter :: point_nloc = 1
-  type(point3D), dimension(point_nloc) :: point_loc = (/ &
+  type(point3D), parameter, dimension(point_nloc) :: point_loc = (/ &
         point3D( (/ L_x / 2, L_y / 2, L_z / 2 /) ) &
         /)
 
@@ -227,23 +227,23 @@ module param
   logical, parameter :: xplane_calc   = .true.
   integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 10000
   integer, parameter :: xplane_nloc   = 2
-  real(rprec), dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
+  real(rprec), parameter, dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
 
   ! y-plane instantaneous output
   logical, parameter :: yplane_calc   = .false.
   integer, parameter :: yplane_nstart = 50000, yplane_nend = nsteps, yplane_nskip  = 50000
   integer, parameter :: yplane_nloc   = 2
-  real(rprec), dimension(yplane_nloc) :: yplane_loc = (/ L_y/4._rprec, L_y/2._rprec  /)  
+  real(rprec), parameter, dimension(yplane_nloc) :: yplane_loc = (/ L_y/4._rprec, L_y/2._rprec  /)  
 
   ! z-plane instantaneous output
   logical, parameter :: zplane_calc   = .true.
   integer, parameter :: zplane_nstart = 50000, zplane_nend = nsteps, zplane_nskip  = 10000
   integer, parameter :: zplane_nloc   = 3
-  real(rprec), dimension(zplane_nloc) :: zplane_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
+  real(rprec), parameter, dimension(zplane_nloc) :: zplane_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
 
   logical, parameter :: spectra_calc = .true.
   integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
   integer, parameter :: spectra_nloc = 3
-  real(rprec), dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
+  real(rprec), parameter, dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
 
 end module param

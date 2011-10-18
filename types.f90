@@ -1,4 +1,9 @@
+!*********************************************************************
 module types
+!*********************************************************************
+!
+! This module provides generic types and routines that act on them.
+!
 implicit none
 
 public
@@ -26,5 +31,51 @@ end type vec2d
 type point3D
   real(rprec), dimension(3) :: xyz
 end type point3D
+
+type clock_type
+   real(rprec) :: start
+   real(rprec) :: end
+end type clock_type
+
+!---------------------------------------------------------------------
+contains
+!---------------------------------------------------------------------
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function clock_time( clock_t ) result( time )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+type(clock_type), intent(in) :: clock_t
+real(rprec) :: time
+
+time = clock_t % end - clock_t % start
+
+return
+end function clock_time
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine clock_start( clock_t )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+type(clock_type), intent(inout) :: clock_t
+
+call cpu_time( clock_t % start )
+
+return
+end subroutine clock_start
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine clock_end( clock_t )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+type(clock_type), intent(inout) :: clock_t
+
+call cpu_time( clock_t % end )
+
+return
+end subroutine clock_end
 
 end module types

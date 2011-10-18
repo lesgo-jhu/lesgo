@@ -43,7 +43,7 @@ real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
 complex(kind=rprec),dimension(lh,ny)::topw,bottomw
 equivalence (rtopw,topw),(rbottomw,bottomw)
 complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
-real(kind=rprec)::const,ignore_me
+real(kind=rprec)::const
 ! remove this stuff!
 integer::jx,jy,jz,k
 
@@ -119,22 +119,22 @@ do jz=1,nz
    rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
-   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
    write(*,*) 'rH_x(1,1,jz) = ', rH_x(1,1,jz)
    write(*,*) 'H_x(1,1,jz) = ', H_x(1,1,jz)
    write(*,*) '--------'
-   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),ignore_me)     
+   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)     
 end do
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   ! sc: could do out of place transform if wanted to...
   rbottomw(:,:)=const*divtz(:,:,1)
-  call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),fftwNull_p)
 end if
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   rtopw(:,:)=const*divtz(:,:,nz)
-  call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
 end if
 
 $if ($DEBUG)
@@ -622,7 +622,7 @@ $endif
 
 if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
 
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),ignore_me)
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 do jz=1,nz
 do jy=1,ny
 do jx=1,lh
@@ -632,9 +632,9 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
-call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),ignore_me)
-call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),ignore_me)
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),ignore_me)
+call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
 end do
 
 $if ($MPI)

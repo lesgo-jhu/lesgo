@@ -1,12 +1,13 @@
 !**********************************************************************
 program main
 !**********************************************************************
-use types,only:rprec
+use types, only : rprec, clock_type, clock_time, clock_start, clock_end
 use param
 use sim_param
 use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
 use fft
+use derivatives, only : filt_da, ddz_uv, ddz_w
 use immersedbc, only : fxa, fya, fza
 use test_filtermodule
 use topbc,only:setsponge,sponge
@@ -46,6 +47,15 @@ $endif
 use messages
 implicit none
 
+$if ($MPI)
+  !--this dimensioning adds a ghost layer for finite differences
+  !--its simpler to have all arrays dimensioned the same, even though
+  !  some components do not need ghost layer
+  $define $lbz 0
+$else
+  $define $lbz 1
+$endif
+
 character (*), parameter :: sub_name = 'main'
 
 $if ($DEBUG)
@@ -55,7 +65,12 @@ $endif
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
-real clock_start, clock_end
+
+type(clock_type) :: clock_t, clock_total_t
+
+! Start the clocks, both local and total
+call clock_start( clock_t )
+clock_total_t = clock_t
 
 ! Create output directory
 call system("mkdir -vp output")
@@ -80,12 +95,8 @@ $else
 $endif
 
 $if($MPI)
-  if(coord == 0) then
-    call cpu_time(clock_start)
-    call param_output()
-  endif
+  if(coord == 0) call param_output()
 $else
-  call cpu_time(clock_start)
   call param_output()
 $endif
 
@@ -102,9 +113,6 @@ tt=0
 $if ($TURBINES)
   call turbines_init()    !must occur before initial is called
 $endif
-
-! Initialize velocity field
-!call initial()
 
 ! If using level set method
 $if ($LVLSET)
@@ -161,9 +169,22 @@ if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
 endif
 $endif
 
+$if($MPI)
+  if(coord == 0) then
+     call clock_end( clock_t )
+     write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
+  endif
+$else
+  call clock_end( clock_t )
+  write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
+$endif
+
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
    
+   ! Get the starting time for the iteration
+   call clock_start( clock_t )
+
     $if($CFL_DT)
       dt_f = dt
 
@@ -209,18 +230,18 @@ do jt=1,nsteps
   
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    call filt_da (u, dudx, dudy)
-    call filt_da (v, dvdx, dvdy)
-    call filt_da (w, dwdx, dwdy)
+    call filt_da (u, dudx, dudy, $lbz)
+    call filt_da (v, dvdx, dvdy, $lbz)
+    call filt_da (w, dwdx, dwdy, $lbz)
          
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
-    call ddz_uv(dudz,u)
-    call ddz_uv(dvdz,v)
+    call ddz_uv(u, dudz, $lbz)
+    call ddz_uv(v, dvdz, $lbz)
        
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
-    call ddz_w(dwdz,w)
+    call ddz_w(w, dwdz, $lbz)
 
     ! Debug
     $if ($DEBUG)
@@ -502,35 +523,6 @@ do jt=1,nsteps
       if( global_CD_calc ) call level_set_global_CD ()
     $endif
 
-
-    ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
-    if (modulo (jt, wbase) == 0) then
-        ! Calculate rms divergence of velocity
-        !   only written to screen, not used otherwise
-        call rmsdiv (rmsdivvel)
-        maxcfl = get_max_cfl()
-
-        if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-          $if($CFL_DT)
-          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
-          $else
-          write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
-          $endif  
-        end if
-    end if
-    $if($CFL_DT)
-    7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
-    $else
-    7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
-    $endif
-    7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
-             &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
-
-    $if($LVLSET)
-    !  Used for testing PC schemes
-    !if( (modulo( jt, 10 ) == 0) .and. (jt >= 5000) ) call level_set_vel_err()
-    $endif
-          
     ! Write output files
     call output_loop (jt)  
     !RNS: Determine if instantaneous plane velocities are to be recorded
@@ -538,11 +530,56 @@ do jt=1,nsteps
     ! Write inflow_BC file for future use
     if (write_inflow_file) call inflow_write () 
 
-    ! Debug
-    $if ($DEBUG)
-    if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
-    $endif    
-    
+    ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
+    if (modulo (jt, wbase) == 0) then
+       
+       ! Get the ending time for the iteration
+       call clock_end( clock_t )
+       call clock_end( clock_total_t )
+
+       
+        ! Calculate rms divergence of velocity
+       !   only written to screen, not used otherwise
+       call rmsdiv (rmsdivvel)
+       maxcfl = get_max_cfl()
+
+       
+       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+          write(*,*)
+          write(*,'(a)') '========================================'
+          write(*,'(a)') 'Time step information:'
+          write(*,'(a,i9)') '  Iteration: ', jt
+          write(*,'(a,E15.7)') '  Time step: ', dt
+          $if($CFL_DT)
+          write(*,'(a,E15.7)') '  CFL: ', maxcfl
+          $endif
+          write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
+          write(*,*) 
+          write(*,'(a)') 'Flow field information:'          
+          write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
+          write(*,'(a,E15.7)') '  Kinetic energy: ', ke
+          ! $if($CFL_DT)
+          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
+          ! $else
+          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
+          ! $endif  
+          write(*,*)
+          write(*,'(1a)') 'Simulation wall times (s): '
+          write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_time( clock_total_t )
+          write(*,'(a)') '========================================'
+       end if
+
+    end if
+
+    ! $if($CFL_DT)
+    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
+    ! $else
+    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
+    ! $endif
+    ! 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
+    !      &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
+
 end do
 ! END TIME LOOP
 
@@ -569,10 +606,12 @@ call turbines_finalize ()   ! must come before MPI finalize
 $endif    
 
 ! Stop wall clock
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  call cpu_time (clock_end)
-  write(*,"(a,e15.6)") 'Simulation wall time (s) : ', clock_end - clock_start
-endif
+call clock_end( clock_total_t )
+$if($MPI)
+  if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
+$else
+  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
+$endif
 
 ! MPI:
 $if ($MPI)

@@ -28,7 +28,7 @@ real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional
 
 integer, parameter :: ntree = 1
 
-type(point3D), dimension(ntree) :: tree_location = (/ &
+type(point3D), parameter, dimension(ntree) :: tree_location = (/ &
      point3D( (/ L_x / 2, L_y / 2, z_bottom_surf /) ) &
      /)
 

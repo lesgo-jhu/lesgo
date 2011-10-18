@@ -7,45 +7,44 @@ KEY:
 (CC) items that are complete
 
 ITEMS:
-(CC) Check for consist usage of variables existing on w-grid. 
-     There are several variables that are written to file that
-     exisit on the w-grid - we need to make sure that they are
-     correctly interpolated to the uv-grid before they are written.
-     This applies not only for variables written to file but any
-     instance that a w-grid variable is operated against a uv-grid
-     variable.
 
-(NN) Add checkpointing.
+(CC) Check for consistant usage of variables existing on w-grid. There
+     are several variables that are written to file that exisit on the
+     w-grid - we need to make sure that they are correctly interpolated
+     to the uv-grid before they are written.  This applies not only for
+     variables written to file but any instance that a w-grid variable
+     is operated against a uv-grid variable.
 
-(II) Create documentation. Good place to start is the README. Would 
-     be nice to have a formal pdf covering the basic background info,
-     usage of lesgo, and any idiosyncrasies that are important to
-     know
+(NN) Add checkpointing. This should also include periodic writes of the
+     time averaged data.
+
+(II) Create documentation. Good place to start is the README. Would be
+     nice to have a formal pdf covering the basic background info, usage
+     of lesgo, and any idiosyncrasies that are important to know
 
 (NN) Convert code to use an input file. This would be very nice! The
-     code would need to fully implement dynamic allocation of arrays. 
+     code would need to fully implement dynamic allocation of arrays.
      Also need to consider the input format - 1) this could be a custom
      format where all info is read in a strings and using delimiters
-     required values could be extract or 2) can use Fortran namelists
-     to express the input data using standard Fortran data types
-     (probably the best way to go)
+     required values could be extract or 2) can use Fortran namelists to
+     express the input data using standard Fortran data types (probably
+     the best way to go)
  
-(NN) Convert code to dynamic memory allocation. This is a good
-     practice in general, it will remove issues with the mcmodel
-     for cases with large grids, and is a prequesite to use an
-     input file for setting parameters. There is a dynamic 
-     allocation flag in Makefile.in but it seems that only
-     sim_param's are dynamically allocated with it. 
+(NN) Convert code to dynamic memory allocation. This is a good practice
+     in general, it will remove issues with the mcmodel for cases with
+     large grids, and is a prequesite to use an input file for setting
+     parameters. There is a dynamic allocation flag in Makefile.in but
+     it seems that only sim_param's are dynamically allocated with it.
 
-(NN) Create a standard for MPI syncing. It would be advantageous to have
+(II) Create a standard for MPI syncing. It would be advantageous to have
      a standardized protocol for perfoming MPI sync's. Currently there
      is no direct way to know if an array has been sync'd and therefore
-     redundency certainly exists (not good for efficiency). There is 
+     redundency certainly exists (not good for efficiency). There is
      also the issue with the usage of BOGUS that is tied into the MPI
-     sync's. Any time data is output to file or manimulated such as interpolation
-     (e.g. w-grid to uv-grid, trilinear, etc.) two things must occur: 1) are
-     the BOGUS values zeroed and 2) are the data sync'd across over lap nodes.
-     A standard would provide a means to always know the state relative to 
-     the position in main.
+     sync's. Any time data is output to file or manimulated such as
+     interpolation (e.g. w-grid to uv-grid, trilinear, etc.) two things
+     must occur: 1) are the BOGUS values zeroed and 2) are the data
+     sync'd across over lap nodes.  A standard would provide a means to
+     always know the state relative to the position in main.
 
    
