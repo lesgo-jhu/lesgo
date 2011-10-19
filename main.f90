@@ -1,7 +1,8 @@
 !**********************************************************************
 program main
 !**********************************************************************
-use types, only : rprec, clock_type, clock_time, clock_start, clock_end
+use types, only : rprec
+use clocks 
 use param
 use sim_param
 use grid_defs, only : grid_build
@@ -171,11 +172,11 @@ $endif
 
 $if($MPI)
   if(coord == 0) then
-     call clock_end( clock_t )
+     call clock_stop( clock_t )
      write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
   endif
 $else
-  call clock_end( clock_t )
+  call clock_stop( clock_t )
   write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
 $endif
 
@@ -534,8 +535,8 @@ do jt=1,nsteps
     if (modulo (jt, wbase) == 0) then
        
        ! Get the ending time for the iteration
-       call clock_end( clock_t )
-       call clock_end( clock_total_t )
+       call clock_stop( clock_t )
+       call clock_stop( clock_total_t )
 
        
         ! Calculate rms divergence of velocity
@@ -606,7 +607,7 @@ call turbines_finalize ()   ! must come before MPI finalize
 $endif    
 
 ! Stop wall clock
-call clock_end( clock_total_t )
+call clock_stop( clock_total_t )
 $if($MPI)
   if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
 $else
