@@ -30,7 +30,7 @@ character (128) :: fbrindex_out_MPI, fbrindex_raw_out_MPI
 
 integer :: ip, ipmin, ipmax
 integer :: i, j, k, ktot
-integer :: lbz, ubz
+integer :: lbz2, ubz
 integer, allocatable :: brindex(:, :, :)
 
 real (rprec), allocatable :: phi(:, :, :)
@@ -103,8 +103,8 @@ do ip = ipmin, ipmax
     open (1, file=fphi_raw_out_MPI, form='unformatted')
 
     !--note some overlap here for local 0, nz levels (less MPI comms later)
-    !lbz = ip * (nz - 1) / np       !--0 level (local)
-    !ubz = lbz + (nz - 1) / np + 1  !--nz level (local)
+    !lbz2 = ip * (nz - 1) / np       !--0 level (local)
+    !ubz = lbz2 + (nz - 1) / np + 1  !--nz level (local)
 
     write (1) phi(:, :, 0:nz)  !--each file gets 0:nz_local
       
@@ -116,8 +116,8 @@ do ip = ipmin, ipmax
     open (1, file=fbrindex_raw_out_MPI, form='unformatted')
 
     !--overlap is different from above: brindex is only 1:nz_local-1
-    !lbz = ip * (nz - 1) / np + 1   !--1 level (local)
-    !ubz = lbz + (nz - 1) / np - 1  !--nz-1 level (local)
+    !lbz2 = ip * (nz - 1) / np + 1   !--1 level (local)
+    !ubz = lbz2 + (nz - 1) / np - 1  !--nz-1 level (local)
 
     write (1) brindex(:, :, 1:nz-1)
 
@@ -131,8 +131,8 @@ do ip = ipmin, ipmax
       write (1, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny,  &
                              ', k=', nz + 1
 
-      !lbz = ip * (nz - 1) / np       !--0-level
-      !ubz = lbz + (nz - 1) / np + 1  !--nz-level
+      !lbz2 = ip * (nz - 1) / np       !--0-level
+      !ubz = lbz2 + (nz - 1) / np + 1  !--nz-level
 
       do k = 0, nz
 
@@ -162,8 +162,8 @@ do ip = ipmin, ipmax
       write (1, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny,  &
                              ', k=', nz - 1
 
-      !lbz = ip * (nz - 1) / np + 1      !--1 level
-      !ubz = lbz + (nz - 1) / np - 1  !--nz-1 level
+      !lbz2 = ip * (nz - 1) / np + 1      !--1 level
+      !ubz = lbz2 + (nz - 1) / np - 1  !--nz-1 level
 
       do k = 1, nz-1
 

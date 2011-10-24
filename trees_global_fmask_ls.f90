@@ -143,7 +143,7 @@ character (128) :: fname
 !logical :: do_fmt
 
 integer :: ip
-integer :: lbz, ubz
+integer :: lbz2, ubz
 
 !---------------------------------------------------------------------
 
@@ -156,12 +156,12 @@ if ( MPI_split ) then
         open ( lun, file=fname, action='write', position='rewind',  &
                form='unformatted' )
         
-        lbz = ip * (nz - 1) / np + 1  !--1 level (local)
-        ubz = lbz + (nz - 1) / np  !--nz level (local)
+        lbz2 = ip * (nz - 1) / np + 1  !--1 level (local)
+        ubz = lbz2 + (nz - 1) / np  !--nz level (local)
 
-        call mesg ( sub_name, '(ip,lbz,ubz)=', (/ ip, lbz, ubz /) )
+        call mesg ( sub_name, '(ip,lbz2,ubz)=', (/ ip, lbz2, ubz /) )
 
-        write ( lun ) global_fmask(:, :, lbz:ubz)
+        write ( lun ) global_fmask(:, :, lbz2:ubz)
     
         close ( lun )
     

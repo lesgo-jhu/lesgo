@@ -12,17 +12,11 @@ module rns_cyl_skew_ls
 !  rns definitions module may be used at a time.
 !
 use types, only : rprec
-use param, only : ld, ny, nz
+use param, only : ld, ny, nz, lbz
 use rns_base_ls
 use cyl_skew_base_ls
 
 implicit none
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 save
 private
@@ -46,7 +40,7 @@ integer, pointer, dimension(:) :: b_elem_to_basecl_map
 integer, pointer, dimension(:) :: rns_to_cyl_skew_tree_map
 integer, pointer, dimension(:) :: cyl_skew_to_rns_tree_map
 
-integer :: clindx(ld, ny, $lbz:nz)
+integer :: clindx(ld, ny, lbz:nz)
 logical :: clindx_initialized = .false.
 
 contains

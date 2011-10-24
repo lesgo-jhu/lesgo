@@ -30,6 +30,12 @@ module param
   integer :: status(MPI_STATUS_SIZE)
   $endif
 
+  $if ($MPI)
+  integer, parameter :: lbz = 0  ! overlap level for MPI transfer
+  $else
+  integer, parameter :: lbz = 1  ! no overlap level necessary
+  $endif
+
   character (*), parameter :: path = './'
 
   !--this stuff must be defined, even if not using MPI
@@ -43,6 +49,7 @@ module param
   integer :: rank = -1   !--init to bogus (so its defined, even if no MPI)
   integer :: coord = -1  !--same here
   integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
+  integer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
   !--end mpi stuff
   
 !---------------------------------------------------
@@ -119,7 +126,7 @@ module param
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 150000
+  integer, parameter :: nsteps = 1500
  
   $if($CFL_DT)
   

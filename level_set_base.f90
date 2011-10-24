@@ -1,16 +1,8 @@
 module level_set_base
 use types, only : rp => rprec
 use types, only : rprec
-use param, only : ld, ny, nz, dx
+use param, only : ld, ny, nz, dx, lbz
 implicit none
-
-!--this definition of lbz must be consistent with that in level_set module
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 
 save
 
@@ -56,6 +48,6 @@ logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
 
 
-real (rp) :: phi(ld, ny, $lbz:nz)
+real (rp) :: phi(ld, ny, lbz:nz)
 
 end module level_set_base

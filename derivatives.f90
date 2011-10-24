@@ -20,7 +20,7 @@ public ddx, &
 contains
 
 !**********************************************************************
-subroutine ddx(f,dfdx,lbz)              
+subroutine ddx(f,dfdx,lbz2)              
 !**********************************************************************
 !
 !  This subroutine computes the partial derivative of f with respect to
@@ -38,14 +38,14 @@ integer::jz
 !  Original complex versions
 !complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
 !complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
+integer, intent(in) :: lbz2
+real(rprec), dimension(:,:,lbz2:), intent(in) :: f
+real(rprec), dimension(:,:,lbz2:), intent(inout) :: dfdx
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 ! Loop through horizontal slices
-do jz=lbz,nz
+do jz=lbz2,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
@@ -74,7 +74,7 @@ return
 end subroutine ddx
 
 !**********************************************************************
-subroutine ddy(f,dfdy, lbz)              
+subroutine ddy(f,dfdy, lbz2)              
 !**********************************************************************
 !
 !  This subroutine computes the partial derivative of f with respect to
@@ -91,14 +91,14 @@ integer::jz
 !  Original complex versions
 !complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
 !complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
+integer, intent(in) :: lbz2
+real(rprec), dimension(:,:,lbz2:), intent(in) :: f
+real(rprec), dimension(:,:,lbz2:), intent(inout) :: dfdy
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 ! Loop through horizontal slices
-do jz=lbz,nz    
+do jz=lbz2,nz    
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
   dfdy(:,:,jz)=const*f(:,:,jz)
@@ -127,7 +127,7 @@ return
 end subroutine ddy
 
 !**********************************************************************
-subroutine ddxy (f, dfdx, dfdy, lbz)              
+subroutine ddxy (f, dfdx, dfdy, lbz2)              
 !**********************************************************************
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
@@ -136,17 +136,17 @@ use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 integer::jz
 
-integer, intent(in) :: lbz
+integer, intent(in) :: lbz2
 ! only need complex treatment
 !complex(kind=rprec),dimension(lh,ny,nz),intent(in)::f_c
 !complex(kind=rprec),dimension(lh,ny,nz),intent(inout)::dfdx_c,dfdy_c
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
+real(rprec), dimension(:,:,lbz2:), intent(in) :: f
+real(rprec), dimension(:,:,lbz2:), intent(inout) :: dfdx,dfdy
 
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 !...Loop through horizontal slices
-do jz=lbz,nz
+do jz=lbz2,nz
 ! temporay storage in dfdx_c, this was don't mess up f_c
    !dfdx_c(:,:,jz)=const*f_c(:,:,jz)   !normalize
    dfdx(:,:,jz) = const*f(:,:,jz)
@@ -177,7 +177,7 @@ end do
 end subroutine ddxy
 
 !**********************************************************************
-subroutine ddz_uv(f, dfdz, lbz)
+subroutine ddz_uv(f, dfdz, lbz2)
 !**********************************************************************
 !
 ! first derivative in z direction for boundary layer (2nd order numerics)
@@ -189,9 +189,9 @@ use types,only:rprec
 use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none
 
-integer, intent(in) :: lbz
-real (rprec), dimension (:, :, lbz:), intent (in) :: f
-real (rprec), dimension(:, :, lbz:), intent (inout) :: dfdz
+integer, intent(in) :: lbz2
+real (rprec), dimension (:, :, lbz2:), intent (in) :: f
+real (rprec), dimension(:, :, lbz2:), intent (inout) :: dfdz
 
 integer::jx,jy,jz
 real (rprec) :: const
@@ -240,7 +240,7 @@ return
 end subroutine ddz_uv
 
 !**********************************************************************
-subroutine ddz_w(f, dfdz, lbz)
+subroutine ddz_w(f, dfdz, lbz2)
 !**********************************************************************
 !
 !  First deriv in z direction for boundary layer (2nd order numerics)
@@ -253,15 +253,15 @@ use types,only:rprec
 use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
 implicit none
 
-integer, intent(in) :: lbz
-real (rprec), dimension (:, :, lbz:), intent (in) :: f
-real(kind=rprec),dimension(:, :, lbz:), intent (inout) :: dfdz
+integer, intent(in) :: lbz2
+real (rprec), dimension (:, :, lbz2:), intent (in) :: f
+real(kind=rprec),dimension(:, :, lbz2:), intent (inout) :: dfdz
 
 real(kind=rprec)::const
 integer::jx,jy,jz
 
 const=1._rprec/dz
-do jz=lbz,nz-1
+do jz=lbz2,nz-1
 do jy=1,ny
 do jx=1,nx
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz+1)-f(jx,jy,jz))
@@ -271,7 +271,7 @@ end do
 
 if (USE_MPI .and. coord == 0) then
   !--bottom process cannot calculate dfdz(jz=0)
-  dfdz(:, :, lbz) = BOGUS
+  dfdz(:, :, lbz2) = BOGUS
 end if
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
@@ -291,7 +291,7 @@ end if
 end subroutine ddz_w
 
 !**********************************************************************
-subroutine filt_da(f,dfdx,dfdy, lbz)
+subroutine filt_da(f,dfdx,dfdy, lbz2)
 !**********************************************************************
 !
 ! kills the oddball components in f, and calculates in horizontal derivatives
@@ -307,9 +307,9 @@ use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 integer::jz
 
-integer, intent(in) :: lbz
-real(rprec), dimension(:, :, lbz:), intent(inout) :: f
-real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
+integer, intent(in) :: lbz2
+real(rprec), dimension(:, :, lbz2:), intent(inout) :: f
+real(rprec), dimension(:, :, lbz2:), intent(inout) :: dfdx, dfdy
 
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
@@ -317,7 +317,7 @@ real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
 real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
 
 ! loop through horizontal slices
-do jz=lbz,nz
+do jz=lbz2,nz
   
   f(:,:,jz)=const*f(:,:,jz)   !normalize
 

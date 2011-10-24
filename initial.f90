@@ -19,12 +19,6 @@ $endif
 
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 logical, parameter :: use_add_random = .false.
 
 character (64) :: fname, temp
@@ -135,9 +129,9 @@ $endif
 
 if (USE_MPI .and. coord == 0) then
   !--set 0-level velocities to BOGUS
-  u(:, :, $lbz) = BOGUS
-  v(:, :, $lbz) = BOGUS
-  w(:, :, $lbz) = BOGUS
+  u(:, :, lbz) = BOGUS
+  v(:, :, lbz) = BOGUS
+  w(:, :, lbz) = BOGUS
 end if
 
 !  Open vel.out (lun_default in io) for final output

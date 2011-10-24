@@ -23,7 +23,7 @@ character (128) :: fbrindex_in_MPI
 
 integer :: ip
 integer :: i, j, k, ktot
-integer :: lbz, ubz
+integer :: lbz2, ubz
 integer :: brindex(nx+2, ny, nztot)
 
 real (rp) :: phi(nx+2, ny, 0:nztot)  !--nx+2 to be compatible with other stuff
@@ -39,10 +39,10 @@ do ip = 0, np-1
   open (1, file=fphi_in_MPI, form='unformatted')
 
   !--note some overlap here for local 0, nz levels (less MPI comms later)
-  lbz = ip * (nz - 1)  !--0 level (local)
-  ubz = lbz + nz       !--nz level (local)
+  lbz2 = ip * (nz - 1)  !--0 level (local)
+  ubz = lbz2 + nz       !--nz level (local)
 
-  read (1) phi(:, :, lbz:ubz)  !--each file gets 0:nz_local
+  read (1) phi(:, :, lbz2:ubz)  !--each file gets 0:nz_local
       
   close (1)
 
@@ -50,10 +50,10 @@ do ip = 0, np-1
   open (1, file=fbrindex_in_MPI, form='unformatted')
 
   !--overlap is different from above: brindex is only 1:nz_local-1
-  lbz = ip * (nz - 1) + 1  !--1 level (local)
-  ubz = lbz + (nz - 2)     !--nz-1 level (local)
+  lbz2 = ip * (nz - 1) + 1  !--1 level (local)
+  ubz = lbz2 + (nz - 2)     !--nz-1 level (local)
 
-  read (1) brindex(:, :, lbz:ubz)
+  read (1) brindex(:, :, lbz2:ubz)
 
   close (1)
 

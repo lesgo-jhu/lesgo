@@ -3,7 +3,8 @@ module io
 !///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, write_inflow_file, path,  &
-                  USE_MPI, coord, rank, nproc, jt_total, total_time, total_time_dim
+                  USE_MPI, coord, rank, nproc, jt_total, total_time, &
+                  total_time_dim, lbz
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
 use sgsmodule,only:Cs_opt2
@@ -14,15 +15,6 @@ implicit none
 
 save
 private
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
@@ -307,10 +299,10 @@ z => grid_t % z
 zw => grid_t % zw
 
 !  Allocate space for the interpolated w values
-allocate(w_uv(nx,ny,$lbz:nz))
+allocate(w_uv(nx,ny,lbz:nz))
 
 !  Make sure w has been interpolated to uv-grid
-w_uv = interp_to_uv_grid(w(1:nx,1:ny,$lbz:nz), $lbz)
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
 $if($OUTPUT_EXTRA)
 !  Allocate arrays and interpolate to uv grid for LDSM output
@@ -1505,7 +1497,7 @@ end subroutine inflow_write
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine inflow_read ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : ny, nz, pi, nsteps, jt_total, buff_end
+use param, only : ny, nz, pi, nsteps, jt_total, buff_end, lbz
 use sim_param, only : u, v, w
 implicit none
 
@@ -1528,16 +1520,6 @@ character (32) :: fmt
 $endif
 character (64) :: fname
 
-!--check for consistency with sim_param here
-!--could define a fortran integer lbz in sim_param, and make it visible
-!  here, however, this may have complications elsewhere where the name lbz
-!  is used.
-$if ( $MPI )
-    $define $lbz 0
-$else
-    $define $lbz 1
-$endif
-
 $if($DEBUG)
 integer :: jy, jz
 $endif
@@ -1556,7 +1538,7 @@ logical :: exst, opn
 
 real (rprec) :: wgt
 
-real (rprec) :: u_tmp(ny, $lbz:nz), v_tmp(ny, $lbz:nz), w_tmp(ny, $lbz:nz)
+real (rprec) :: u_tmp(ny, lbz:nz), v_tmp(ny, lbz:nz), w_tmp(ny, lbz:nz)
 
 !---------------------------------------------------------------------
 
@@ -1771,7 +1753,7 @@ subroutine stats_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
-use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc
+use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
@@ -1794,15 +1776,6 @@ integer :: fid, i,j,k
 logical :: exst
 
 real(rprec), pointer, dimension(:) :: x,y,z
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 nullify(x,y,z)
 
@@ -2067,7 +2040,7 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
-use param, only : nx,ny,nz, dt
+use param, only : nx,ny,nz,dt,lbz
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 use functions, only : interp_to_uv_grid
@@ -2079,10 +2052,10 @@ integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
-allocate(w_uv(nx,ny,$lbz:nz))
+allocate(w_uv(nx,ny,lbz:nz))
 
 !  Make sure w stuff has been interpolated to uv-grid
-w_uv(1:nx,1:ny,$lbz:nz) = interp_to_uv_grid( w(1:nx,1:ny,$lbz:nz), $lbz )
+w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid( w(1:nx,1:ny,lbz:nz), lbz )
 
 do k=1,nz  
   do j=1,ny

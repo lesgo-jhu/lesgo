@@ -48,15 +48,6 @@ $endif
 use messages
 implicit none
 
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 character (*), parameter :: sub_name = 'main'
 
 $if ($DEBUG)
@@ -231,18 +222,18 @@ do jt=1,nsteps
   
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    call filt_da (u, dudx, dudy, $lbz)
-    call filt_da (v, dvdx, dvdy, $lbz)
-    call filt_da (w, dwdx, dwdy, $lbz)
+    call filt_da (u, dudx, dudy, lbz)
+    call filt_da (v, dvdx, dvdy, lbz)
+    call filt_da (w, dwdx, dwdy, lbz)
          
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
-    call ddz_uv(u, dudz, $lbz)
-    call ddz_uv(v, dvdz, $lbz)
+    call ddz_uv(u, dudz, lbz)
+    call ddz_uv(v, dvdz, lbz)
        
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
-    call ddz_w(w, dwdz, $lbz)
+    call ddz_w(w, dwdz, lbz)
 
     ! Debug
     $if ($DEBUG)

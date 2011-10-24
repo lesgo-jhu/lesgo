@@ -14,12 +14,6 @@ $endif
 use level_set_base
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 save
 private
 
@@ -73,12 +67,12 @@ $endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
-!real (rp) :: phi(ld, ny, $lbz:nz)
-real (rp) :: norm(nd, ld, ny, $lbz:nz) !--normal vector
+!real (rp) :: phi(ld, ny, lbz:nz)
+real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
                                   !--may want to change so only normals
                                   !  near 0-set are stored
 !--experimental: desired velocities for IB method
-real (rp) :: udes(ld, ny, $lbz:nz), vdes(ld, ny, $lbz:nz), wdes(ld, ny, $lbz:nz)
+real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -256,6 +250,7 @@ end subroutine level_set_Cs_lag_dyn
 !  * applies neumann condition on F_MM at solid surface
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
+use param, only: lbz
 use sim_param, only : u, v, w
 implicit none
 
@@ -276,9 +271,9 @@ $endif
 !--part 1: smooth variables
 phi_c = 0._rp
 
-call smooth (phi_c, $lbz, u)
-call smooth (phi_c, $lbz, v)
-call smooth (phi_c, $lbz, w, 'w')
+call smooth (phi_c, lbz, u)
+call smooth (phi_c, lbz, v)
+call smooth (phi_c, lbz, w, 'w')
 
 call smooth (phi_c, 1, S11, 'w')
 call smooth (phi_c, 1, S12, 'w')
@@ -2001,11 +1996,12 @@ $endif
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine fill_f (abot, atop, a)
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, $lbz:nz)  !--since tij are $lbz:nz
+real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
@@ -2191,11 +2187,12 @@ contains
 !**********************************************************************
 subroutine fill_f (abot, atop, a)
 !**********************************************************************
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, $lbz:nz)  !--since tij are $lbz:nz
+real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
@@ -2740,11 +2737,12 @@ end subroutine interp_vel
 !--a driver routine for calling smooth routine with stresses
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth_tau (phi_c, txx, txy, txz, tyy, tyz, tzz)
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: phi_c
 
-real (rp), intent (in out), dimension (ld, ny, $lbz:nz) ::  &
+real (rp), intent (in out), dimension (ld, ny, lbz:nz) ::  &
                                  txx, txy, txz, tyy, tyz, tzz
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
@@ -2765,12 +2763,12 @@ $endif
 !phi_c = -(filter_size * sqrt (dx**2 + dy**2 + dz**2) +  &
 !          10._rp * epsilon (0._rp))
 
-call smooth (phi_c, $lbz, txx)
-call smooth (phi_c, $lbz, txy)
-call smooth (phi_c, $lbz, txz, node='w')
-call smooth (phi_c, $lbz, tyy)
-call smooth (phi_c, $lbz, tyz, node='w')
-call smooth (phi_c, $lbz, tzz)
+call smooth (phi_c, lbz, txx)
+call smooth (phi_c, lbz, txy)
+call smooth (phi_c, lbz, txz, node='w')
+call smooth (phi_c, lbz, tyy)
+call smooth (phi_c, lbz, tyz, node='w')
+call smooth (phi_c, lbz, tzz)
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -2785,9 +2783,10 @@ end subroutine smooth_tau
 !--modifies u, v, w.  Be careful.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_smooth_vel (u, v, w)
+use param, only: lbz
 implicit none
 
-real (rp), intent (in out), dimension (ld, ny, $lbz:nz) :: u, v, w
+real (rp), intent (in out), dimension (ld, ny, lbz:nz) :: u, v, w
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 
@@ -4512,13 +4511,13 @@ end subroutine level_set_forcing
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 real(rp) function safe_cd (i, j, k, d, f)
-use param, only : dx, dy, dz  !--in addition to those above
+use param, only : dx, dy, dz, lbz  !--in addition to those above
 use grid_defs, only : grid_t ! autowrap_i, autowrap_j
 implicit none
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
-real (rp), intent (in) :: f(ld, ny, $lbz:nz)
+real (rp), intent (in) :: f(ld, ny, lbz:nz)
 
 character (*), parameter :: sub_name = mod_name // '.safe_cd'
 
@@ -4843,7 +4842,7 @@ end function mag
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_init ()
-use param, only : dx, dy, dz  !--in addition to those above
+use param, only : dx, dy, dz, lbz  !--in addition to those above
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'
@@ -4903,7 +4902,7 @@ $else
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
 $endif
 
-read (lun) phi(:, :, $lbz:nz)
+read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
 close (lun)
