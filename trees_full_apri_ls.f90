@@ -28,7 +28,7 @@ character (64) :: fxyz_fname
 character (64) :: sn
 
 integer :: ip
-integer :: lbz2, ubz
+integer :: lbz, ubz
 
 logical :: exst
 
@@ -61,14 +61,14 @@ if ( merge_MPI ) then
         open (1, file=MPI_fname(ip), form='unformatted')
 
         !--overlap is 0:nz_local for brindex
-        lbz2 = ip * (nz-1) / np       !--0 level (local)
-        ubz = lbz2 + (nz-1) / np + 1  !--nz level (local)
+        lbz = ip * (nz-1) / np       !--0 level (local)
+        ubz = lbz + (nz-1) / np + 1  !--nz level (local)
 
-        if ( ip == 0 ) lbz2 = 1
+        if ( ip == 0 ) lbz = 1
             !--no 0-level for non-MPI compilations
             !--yes this is confusing, and may change this
 
-        read (1) phi(:, :, lbz2:ubz)
+        read (1) phi(:, :, lbz:ubz)
 
         close (1)
 
@@ -114,10 +114,10 @@ if ( merge_MPI ) then
         open (1, file=MPI_fname(ip), form='unformatted')
 
         !--overlap is 1:nz_local-1 for brindex
-        lbz2 = ip * (nz-1) / np + 1   !--1 level (local)
-        ubz = lbz2 + (nz-1) / np - 1  !--nz-1 level (local)
+        lbz = ip * (nz-1) / np + 1   !--1 level (local)
+        ubz = lbz + (nz-1) / np - 1  !--nz-1 level (local)
     
-        read (1) brindex(:, :, lbz2:ubz)
+        read (1) brindex(:, :, lbz:ubz)
 
         close (1)
 
@@ -173,10 +173,10 @@ if (merge_MPI) then
             !  overlapping is OK
             !--problem here  with pressure: 0 layer???
             
-        lbz2 = ip * (nz-1) / np + 1  !--1 level (local)
-        ubz = lbz2 + (nz-1) / np     !--nz level (local)
+        lbz = ip * (nz-1) / np + 1  !--1 level (local)
+        ubz = lbz + (nz-1) / np     !--nz level (local)
     
-        read (1) u(:, :, lbz2:ubz), v(:, :, lbz2:ubz), w(:, :, lbz2:ubz)
+        read (1) u(:, :, lbz:ubz), v(:, :, lbz:ubz), w(:, :, lbz:ubz)
             !--do not read remaining contents of file
             
         close (1)
@@ -221,9 +221,9 @@ if (merge_MPI) then
         open (1, file=MPI_fname(ip), form='unformatted')
             !--note the small overlap: gives us an opportunity to check the
             !  overlapping is OK
-        lbz2 = ip * (nz-1) / np + 1  !--1 level (local)
-        ubz = lbz2 + (nz-1) / np     !--nz level (local)
-        read (1) fx(:, :, lbz2:ubz), fy(:, :, lbz2:ubz), fz(:, :, lbz2:ubz)
+        lbz = ip * (nz-1) / np + 1  !--1 level (local)
+        ubz = lbz + (nz-1) / np     !--nz level (local)
+        read (1) fx(:, :, lbz:ubz), fy(:, :, lbz:ubz), fz(:, :, lbz:ubz)
         close (1)
 
     end do

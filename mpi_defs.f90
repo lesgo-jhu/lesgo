@@ -81,7 +81,7 @@ return
 end subroutine initialize_mpi
 
 !**********************************************************************
-subroutine mpi_sync_real_array( var, lbz2, isync )
+subroutine mpi_sync_real_array( var, lbz, isync )
 !**********************************************************************
 ! 
 ! This subroutine provides a generic method for syncing arrays in
@@ -99,7 +99,7 @@ subroutine mpi_sync_real_array( var, lbz2, isync )
 ! Arguments:
 !
 ! var   : three dimensional array to be sync'd accross processors 
-! lbz2  : the lower bound of var for the z index; its specification resolves
+! lbz   : the lower bound of var for the z index; its specification resolves
 !         descrepencies between arrays indexed starting at 0 from those at 1
 ! isync : flag for determining the type of synchronization and takes on values, 
 !         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS 
@@ -114,8 +114,8 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.mpi_sync_real_array'
 
-real(rprec), dimension(:,:,lbz2:), intent(INOUT) :: var
-integer, intent(in) :: lbz2
+real(rprec), dimension(:,:,lbz:), intent(INOUT) :: var
+integer, intent(in) :: lbz
 integer, intent(in) :: isync
 
 !integer :: lbx,ubx
@@ -126,7 +126,7 @@ integer :: mpi_datasize
 
 !lbx=lbound(var,1); ubx=ubound(var,1)
 !lby=lbound(var,2); uby=ubound(var,2)
-!lbz2=lbound(var,3); ubz=ubound(var,3)
+!lbz=lbound(var,3); ubz=ubound(var,3)
 
 ! Get size of var array in x and y directions
 sx=size(var,1)
@@ -135,7 +135,7 @@ sy=size(var,2)
 ubz=ubound(var,3)
 
 ! We are assuming that the array var has nz as the upper bound - checking this
-if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz2:nz z dimensions.')
+if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz:nz z dimensions.')
 
 !  Set mpi data size
 mpi_datasize = sx*sy
@@ -146,12 +146,12 @@ if(isync == MPI_SYNC_DOWN) then
 
 elseif( isync == MPI_SYNC_UP) then
 
-   if( lbz2 /= 0 ) call error( sub_name, 'Cannot SYNC_UP with variable with non-zero starting index')
+   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_UP with variable with non-zero starting index')
    call sync_up()
 
 elseif( isync == MPI_SYNC_DOWNUP) then
 
-   if( lbz2 /= 0 ) call error( sub_name, 'Cannot SYNC_DOWNUP with variable with non-zero starting index')
+   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_DOWNUP with variable with non-zero starting index')
    call sync_down()
    call sync_up()
 
