@@ -3,19 +3,24 @@ module functions
 !**********************************************************************
 use messages
 use types, only : rprec
-use param, only: lbz
 implicit none
 save
 private
-public interp_to_uv_grid, trilinear_interp, linear_interp, cell_indx, plane_avg_3D
-public buff_indx, points_avg_3D, det2D
+public interp_to_uv_grid, &
+     trilinear_interp, &
+     linear_interp, &
+     cell_indx, &
+     plane_avg_3D, &
+     buff_indx, &
+     points_avg_3D, & 
+     det2D
 
 character (*), parameter :: mod_name = 'functions'
 
 contains
 
 !**********************************************************************
-function interp_to_uv_grid(var, lbz2) result(var_uv)
+function interp_to_uv_grid(var, lbz) result(var_uv)
 !**********************************************************************
 !  This function interpolates the array var, which resides on the w-grid,
 !  onto the uv-grid variable var_uv using linear interpolation. It is 
@@ -39,8 +44,8 @@ $endif
 
 implicit none
 
-real(rprec), dimension(:,:,lbz2:), intent(IN) :: var
-integer, intent(in) :: lbz2
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
@@ -52,9 +57,9 @@ sx=size(var,1)
 sy=size(var,2)
 ubz=ubound(var,3)
 
-if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz2:nz z dimensions.')
+if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z dimensions.')
 
-allocate(var_uv(sx,sy,lbz2:ubz))
+allocate(var_uv(sx,sy,lbz:ubz))
 
 !do k=1,ubz-1
 !  do j=1,uby
@@ -72,13 +77,13 @@ $if ($MPI)
 if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
 !  Sync all overlapping data
-if( lbz2 == 0 ) then
-  call mpi_sync_real_array( var_uv, lbz2, MPI_SYNC_DOWNUP )
-elseif( lbz2 == 1 ) then
+if( lbz == 0 ) then
+  call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWNUP )
+elseif( lbz == 1 ) then
   ! call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
   !                   var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
   !                   comm, status, ierr)
-  call mpi_sync_real_array( var_uv, lbz2, MPI_SYNC_DOWN )
+  call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWN )
 endif                    
 
 $else
@@ -111,12 +116,12 @@ integer function cell_indx(indx,dx,px)
 !  or
 !  1<= cell_indx <= Ny
 !  or
-!  $lbz <= cell_indx < Nz
+!  lbz <= cell_indx < Nz
 !
 use types, only : rprec
 use grid_defs
 use messages 
-use param, only : nx, ny, nz, L_x, L_y, L_z
+use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
 implicit none
 
 character (*), intent (in) :: indx
@@ -222,7 +227,7 @@ return
 end function cell_indx
 
 !**********************************************************************
-real(rprec) function trilinear_interp(var,lbz2,xyz)
+real(rprec) function trilinear_interp(var,lbz,xyz)
 !**********************************************************************
 !
 !  This subroutine perform trilinear interpolation for a point that
@@ -236,7 +241,7 @@ real(rprec) function trilinear_interp(var,lbz2,xyz)
 !  that var is on the uv-grid
 !
 !  The variable sent to this subroutine should have a lower-bound-on-z 
-!  (lbz2) set as an input so the k-index will match the k-index of z.  
+!  (lbz) set as an input so the k-index will match the k-index of z.  
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
@@ -246,8 +251,8 @@ use sim_param, only : u,v
 use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
 implicit none
 
-integer, intent(IN) :: lbz2
-real(rprec), dimension(:,:,lbz2:), intent(IN) :: var
+integer, intent(IN) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(IN), dimension(3) :: xyz
 
@@ -275,9 +280,9 @@ u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 ! Determine istart, jstart, kstart by calling cell_indx
 istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
 jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx('k',dz,xyz(3)) ! lbz2 <= kstart < Nz
+kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
-! Extra term with kstart accounts for shift in var k-index if lbz2.ne.1
+! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 ! Set +1 values
 istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index
@@ -356,7 +361,7 @@ return
 end function linear_interp
 
 !**********************************************************************
-real(rprec) function plane_avg_3D(var, lbz2, bp1, bp2, bp3, nzeta, neta)
+real(rprec) function plane_avg_3D(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
@@ -378,8 +383,8 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,lbz2:) :: var
-integer, intent(IN) :: lbz2   !lower bound on z (lbz) for variable sent
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
+integer, intent(IN) :: lbz   !lower bound on z (lbz) for variable sent
 real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
@@ -446,7 +451,7 @@ do j=1,neta
       !cell_center(2) = modulo(cell_center(2), L_y)
         
       !  Perform trilinear interpolation       
-      var_sum = var_sum + trilinear_interp(var, lbz2, cell_center)
+      var_sum = var_sum + trilinear_interp(var, lbz, cell_center)
       nsum = nsum + 1
 
     endif
@@ -487,7 +492,7 @@ return
 end function plane_avg_3D
 
 !**********************************************************************
-real(rprec) function points_avg_3D(var, lbz2, npoints, points)
+real(rprec) function points_avg_3D(var, lbz, npoints, points)
 !**********************************************************************
 !
 !  This subroutine computes the arithmetic average of a specified 
@@ -504,8 +509,8 @@ use grid_defs
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,lbz2:) :: var
-integer, intent(IN) :: lbz2      !lower bound on z (lbz) for variable sent
+real(rprec), intent(IN), dimension(:,:,lbz:) :: var
+integer, intent(IN) :: lbz      !lower bound on z (lbz) for variable sent
 integer, intent(IN) :: npoints
 real(rprec), intent(IN), dimension(3,npoints) :: points
 
@@ -558,7 +563,7 @@ do n=1, npoints
     !jstart = autowrap_j( cell_indx('j', dy, yp) )
     !kstart = cell_indx('k', dz, zp)
         
-    var_sum = var_sum + trilinear_interp(var, lbz2, (/ xp, yp, zp /))
+    var_sum = var_sum + trilinear_interp(var, lbz, (/ xp, yp, zp /))
     nsum = nsum + 1
     
   endif
