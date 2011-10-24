@@ -50,7 +50,7 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = no
+USE_LVLSET = yes
   SMOOTH_VEL = no
 
   USE_CYL_SKEW_LS = no
@@ -87,9 +87,9 @@ ifeq ($(FCOMP),ifort)
     LIBS += -lcgaml-intel
   endif
 
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
-  FFLAGS = -axSSE4.2 -ftz -ip -O3
+  #FFLAGS = -axSSE4.2 -ftz -ip -O3
   FFLAGS += -warn all -shared-intel
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   # Work around for real -> complex dummy array assignment
