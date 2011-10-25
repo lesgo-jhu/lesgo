@@ -2327,12 +2327,14 @@ do k=jzmin,jzmax
 enddo
 
 !  Sync entire tavg_t structure
+$if($MPI)
 call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TSTATS, down, 1,  &
                    tavg_t(:,:,nz), nx*ny, MPI_TSTATS, up, 1,   &
                    comm, status, ierr)
 call mpi_sendrecv (tavg_t(:,:,nz-1), nx*ny, MPI_TSTATS, up, 2,  &
                    tavg_t(:,:,0), nx*ny, MPI_TSTATS, down, 2,   &
                    comm, status, ierr)
+$endif
 
 ! Anything with velocity is on the w-grid so these
 !   values for coord==0 at k=1 should be zeroed (otherwise bogus)
