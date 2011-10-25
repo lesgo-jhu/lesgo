@@ -13,7 +13,7 @@ public interp_to_uv_grid, &
      plane_avg_3D, &
      buff_indx, &
      points_avg_3D, & 
-     det2D
+     det2D, interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -33,6 +33,8 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 !  NOTE: It is assumed that the size of var and var_uv are the same as the
 !  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
 !  nodes - no interpolation is performed for k=0 and k=nz
+!
+!  It is assumed that the array var has been synced if using MPI.
 
 use types, only : rprec
 use param,only : nz
@@ -102,6 +104,73 @@ return
 !$endif
 
 end function interp_to_uv_grid
+
+!**********************************************************************
+function interp_to_w_grid(var, lbz) result(var_w)
+!**********************************************************************
+!  This function interpolates the array var, which resides on the uv-grid,
+!  onto the w-grid variable var_w using linear interpolation. It is 
+!  important to note that message passing is required for MPI cases and 
+!  all processors must call this routine. If this subroutine is call from a 
+!  only a subset of the total processors, the code will hang due to the usage
+!  of the syncronous send/recv functions and certain processors waiting
+!  to recv data but it never gets there.
+!
+!  NOTE: It is assumed that the size of var and var_w are the same as the
+!  coord (processor) domain and that k=nz-1 (k=0) and k=1 (k=nz) are overlap
+!  nodes - no interpolation is performed for k=0 and k=nz
+!
+!  ALSO: Bogus values at coord==0 and k==0 might lead to problems with the 
+!  k==1 interpolated value.  Velocities and sgs stresses (txx,txy,tyy,tzz)
+!  are exactly zero at this point (k==1 on the w-grid), though, and can 
+!  therefore be set manually after this interpolation.
+
+use types, only : rprec
+use param,only : nz
+use messages
+$if ($MPI)
+use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
+$endif
+
+implicit none
+
+real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer, intent(in) :: lbz
+real(rprec), allocatable, dimension(:,:,:) :: var_w
+
+integer :: sx,sy,ubz
+integer :: i,j,k
+
+character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
+
+sx=size(var,1)
+sy=size(var,2)
+ubz=ubound(var,3)
+
+if( ubz .ne. nz ) call error( 'interp_to_w_grid', 'Input array must lbz:nz z dimensions.')
+
+allocate(var_w(sx,sy,lbz:ubz))
+
+! Perform the interpolation - does not work for lbz level
+var_w(:,:,lbz+1:ubz) = 0.5_rprec * (var(:,:,lbz:ubz-1) + var(:,:,lbz+1:ubz))
+
+
+$if ($MPI)
+
+!  Sync all overlapping data
+if( lbz == 0 ) then
+  call mpi_sync_real_array( var_w, lbz, MPI_SYNC_DOWNUP )
+elseif( lbz == 1 ) then
+  call mpi_sync_real_array( var_w, lbz, MPI_SYNC_DOWN )
+endif                    
+
+$endif
+  
+return 
+
+
+end function interp_to_w_grid
 
 !**********************************************************************
 integer function cell_indx(indx,dx,px)
