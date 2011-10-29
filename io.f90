@@ -1148,7 +1148,9 @@ $if($LVLSET)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine force_tot()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
+$endif
 implicit none
 
 ! Zero bogus values
