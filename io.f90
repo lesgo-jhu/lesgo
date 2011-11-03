@@ -2140,7 +2140,9 @@ use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-use param, only : MPI_RPREC, rank_of_coord, comm, ierr, down, up, status
+use param, only : MPI_RPREC, coord_of_rank, &
+     rank_of_coord, comm, &
+     ierr, down, up, status
 use stat_defs, only : rs, tavg
 $endif
 $if($LVLSET)
@@ -2152,8 +2154,11 @@ implicit none
 include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
-character(64) :: fname_out, fname_vel, fname_vel2, fname_ddz, &
-  fname_tau, fname_f, fname_rs, fname_cs
+character(64) :: fname_out, fname_vel, &
+     fname_vel2, fname_ddz, &
+     fname_tau, fname_f, &
+     fname_rs, fname_cs
+
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
   fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
@@ -2162,23 +2167,19 @@ integer :: i,j,k
 
 $if($MPI)
 character(64) :: temp
-real(rprec), allocatable, dimension(:) :: z_tot, zw_tot
-integer :: MPI_RS, MPI_CNPY, MPI_TSTATS
+
+integer :: MPI_RS, MPI_CNPY, MPI_TAVG
 integer :: rs_type(1), rs_block(1), rs_disp(1)
 integer :: cnpy_type(1), cnpy_block(1), cnpy_disp(1)
 integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
 
-integer :: ip, kbuf_start, kbuf_end, ktot_start, ktot_end
-integer, allocatable, dimension(:) :: gather_coord
-
+! Definitions for reconstructing z-planar averaged data
+integer :: sendsize
+integer, allocatable, dimension(:) :: recvsize, recvstride
+real(rprec), allocatable, dimension(:) :: z_tot, zw_tot
 type(rs), allocatable, dimension(:) :: rs_zplane_tot_t
-type(rs), allocatable, dimension(:) :: rs_zplane_buf_t
-
 type(rs), allocatable, dimension(:) :: cnpy_zplane_tot_t
-type(rs), allocatable, dimension(:) :: cnpy_zplane_buf_t
-
 type(tavg), allocatable, dimension(:) :: tavg_zplane_tot_t
-type(tavg), allocatable, dimension(:) :: tavg_zplane_buf_t
 
 $endif
 
@@ -2186,6 +2187,7 @@ logical :: opn
 
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
+
 real(rprec), parameter :: favg = real(nx*ny,kind=rprec)
 
 $if($LVLSET)
@@ -2263,7 +2265,7 @@ close(1)
 call type_zero_bogus( tavg_t(:,:,nz) )
 
 $if($MPI)
-
+! Build MPI types for derived types
 rs_type = MPI_RPREC
 rs_block = 6 ! Number of rs subtypes
 rs_disp = 0
@@ -2288,33 +2290,19 @@ if(ierr /= 0) call error(sub_name,'Error in setting MPI_CNPY:', ierr)
 Call MPI_Type_commit(MPI_CNPY,ierr)  
 if(ierr /= 0) call error(sub_name,'Error in committing MPI_CNPY:', ierr)
    
-call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TSTATS, ierr)
-if(ierr /= 0) call error(sub_name,'Error in setting MPI_TSTATS:', ierr)
-Call MPI_Type_commit(MPI_TSTATS,ierr)
-if(ierr /= 0) call error(sub_name,'Error in committing MPI_TSTATS:', ierr)
+call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TAVG, ierr)
+if(ierr /= 0) call error(sub_name,'Error in setting MPI_TAVG:', ierr)
+Call MPI_Type_commit(MPI_TAVG,ierr)
+if(ierr /= 0) call error(sub_name,'Error in committing MPI_TAVG:', ierr)
 
-if( coord == 0 ) then 
-
-  !  Allocate space only on base processor for assembled z-plane data
-  ! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
-  ! *_buf_t contains the overlap data and is used to recieve the z-plane data from all other nodes
-  allocate(rs_zplane_tot_t(nz_tot), rs_zplane_buf_t(nz*nproc))
-  allocate(cnpy_zplane_tot_t(nz_tot), cnpy_zplane_buf_t(nz*nproc))
-  allocate(tavg_zplane_tot_t(nz_tot), tavg_zplane_buf_t(nz*nproc))
-  
-  allocate(z_tot(nz_tot),zw_tot(nz_tot))
-  ! In order to ensure that *_tot_t is assembled correctly we make sure that the processor number 
-  ! is consistent with the spatial location
-  allocate(gather_coord(nproc))
-    
-  do k=1, nz_tot
-  
-    z_tot(k) = (dble(k) - 0.5_rprec) * dz
-    
-  enddo
-    zw_tot = z_tot - 0.5_rprec*dz  
-
-endif
+!  Allocate space only on base processor for assembled z-plane data
+! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
+! All processes need to allocate the space even though it is not directly used
+allocate(z_tot(nz_tot))
+allocate(zw_tot(nz_tot))
+allocate(rs_zplane_tot_t(nz_tot))
+allocate(cnpy_zplane_tot_t(nz_tot))
+allocate(tavg_zplane_tot_t(nz_tot))
 
 $endif
 
@@ -2330,11 +2318,11 @@ enddo
 
 !  Sync entire tavg_t structure
 $if($MPI)
-call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TSTATS, down, 1,  &
-                   tavg_t(:,:,nz), nx*ny, MPI_TSTATS, up, 1,   &
+call mpi_sendrecv (tavg_t(:,:,1), nx*ny, MPI_TAVG, down, 1,  &
+                   tavg_t(:,:,nz), nx*ny, MPI_TAVG, up, 1,   &
                    comm, status, ierr)
-call mpi_sendrecv (tavg_t(:,:,nz-1), nx*ny, MPI_TSTATS, up, 2,  &
-                   tavg_t(:,:,0), nx*ny, MPI_TSTATS, down, 2,   &
+call mpi_sendrecv (tavg_t(:,:,nz-1), nx*ny, MPI_TAVG, up, 2,  &
+                   tavg_t(:,:,0), nx*ny, MPI_TAVG, down, 2,   &
                    comm, status, ierr)
 $endif
 
@@ -2398,9 +2386,7 @@ do k = 1, nz
 
   do j = 1, ny
     do i = 1, nx
-    
       rs_zplane_t(k) = rs_zplane_t(k) .ADD. rs_t(i,j,k) 
-
     enddo    
   enddo
 
@@ -2418,10 +2404,8 @@ do k = 1, nz
 
   do j=1, Ny
     do i=1, Nx
-
       cnpy_avg_t = cnpy_avg_t .ADD. cnpy_tavg_mul( tavg_t(i,j,k) )
       tavg_avg_t = tavg_avg_t .ADD. tavg_t(i,j,k)
-      
     enddo
   enddo
 
@@ -2624,50 +2608,55 @@ call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
 
 $endif
 
-! Construct zplane data 
+! Reconstruct z-plane data 
 $if($MPI)
 
-  ! Gather to coord = 0
-  call mpi_gather( rs_zplane_t, nz, MPI_RS, rs_zplane_buf_t, nz, &
-    MPI_RS, rank_of_coord(0), comm, ierr)
-    
-  call mpi_gather( cnpy_zplane_t, nz, MPI_CNPY, cnpy_zplane_buf_t, nz, &
-    MPI_CNPY, rank_of_coord(0), comm, ierr)    
-    
-  call mpi_gather( tavg_zplane_t, nz, MPI_TSTATS, tavg_zplane_buf_t, nz, &
-    MPI_TSTATS, rank_of_coord(0), comm, ierr)   
+  allocate(recvsize(nproc),recvstride(nproc))
+
+  sendsize=nz-1
+  recvsize=nz-1
+  recvstride=coord_of_rank*(nz-1)
+
+  ! Set very bottom values
+  if( coord == 0 ) then
+
+     z_tot(1) = z(1)
+     zw_tot(1) = zw(1)
+     rs_zplane_tot_t(1) = rs_zplane_t(1)
+     cnpy_zplane_tot_t(1) = cnpy_zplane_t(1)
+     tavg_zplane_tot_t(1) = tavg_zplane_t(1)
+
+  endif
+
+  call mpi_gatherv( z(2), sendsize, MPI_RPREC, &
+       z_tot(2), recvsize, recvstride, MPI_RPREC, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( zw(2), sendsize, MPI_RPREC, &
+       zw_tot(2), recvsize, recvstride, MPI_RPREC, &
+       rank_of_coord(0), comm, ierr)
   
+  call mpi_gatherv( rs_zplane_t(2), sendsize, MPI_RS, &
+       rs_zplane_tot_t(2), recvsize, recvstride, MPI_RS, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( cnpy_zplane_t(2), sendsize, MPI_CNPY, &
+       cnpy_zplane_tot_t(2), recvsize, recvstride, MPI_CNPY, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( tavg_zplane_t(2), sendsize, MPI_TAVG, &
+       tavg_zplane_tot_t(2), recvsize, recvstride, MPI_TAVG, &
+       rank_of_coord(0), comm, ierr)
+
+  deallocate(recvsize, recvstride)
+
   call MPI_Type_free (MPI_RS, ierr)
   call MPI_Type_free (MPI_CNPY, ierr)
-  call mpi_type_free (MPI_TSTATS, ierr)    
-  
-  !  Get the rank that was used for mpi_gather (ensure that assembly of {rs,tavg}_zplane_tot_t is
-  !  done in increasing coord; gather to coord = 0
-  call mpi_gather( coord, 1, MPI_INTEGER, gather_coord, 1, &
-  MPI_INTEGER, rank_of_coord(0), comm, ierr)
-  
+  call mpi_type_free (MPI_TAVG, ierr)    
+
+  ! Write reconstructed data only if bottom processor
   if( coord == 0 ) then
   
-  !  Need to remove overlapping nodes
-  !! Set initial block of data  
-  !  rs_zplane_tot_t(1:nz) = rs_zplane_buf_t(1:nz)
-  !  cnpy_zplane_tot_t(1:nz) = cnpy_zplane_buf_t(1:nz)
-  !  tavg_zplane_tot_t(1:nz) = tavg_zplane_buf_t(1:nz)
-    
-    do ip=1, nproc
-      
-      kbuf_start = gather_coord(ip)*nz + 1
-      kbuf_end   = kbuf_start + nz - 1
-      
-      ktot_start = kbuf_start - gather_coord(ip)
-      ktot_end = ktot_start + nz - 1
-                
-      rs_zplane_tot_t(ktot_start:ktot_end) = rs_zplane_buf_t(kbuf_start:kbuf_end)
-      cnpy_zplane_tot_t(ktot_start:ktot_end) = cnpy_zplane_buf_t(kbuf_start:kbuf_end)
-      tavg_zplane_tot_t(ktot_start:ktot_end) = tavg_zplane_buf_t(kbuf_start:kbuf_end)
-      
-    enddo   
-    
     call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
       '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)
     call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
@@ -2714,11 +2703,11 @@ $if($MPI)
       '"z", "<cs2>"', numtostr(coord,6), 2)
     call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
       (/ tavg_zplane_tot_t % cs_opt2 /), 0, zw_tot)        
-      
-    deallocate(tavg_zplane_tot_t, tavg_zplane_buf_t)
-    deallocate(rs_zplane_tot_t, rs_zplane_buf_t)
-    deallocate(cnpy_zplane_tot_t, cnpy_zplane_buf_t)
-    deallocate(z_tot, zw_tot, gather_coord)
+
+    deallocate(z_tot, zw_tot)      
+    deallocate(tavg_zplane_tot_t)
+    deallocate(rs_zplane_tot_t)
+    deallocate(cnpy_zplane_tot_t)
   
   endif
 
