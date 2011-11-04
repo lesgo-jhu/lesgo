@@ -104,6 +104,9 @@ use sim_param, only : u, v, w, theta
 use immersedbc, only : fx, fy, fz
 use io, only : inflow_read
 use messages, only : error
+$if($CPS)
+use concurrent_precursor
+$endif
 implicit none
 
 character (*), parameter :: sub_name = 'inflow_cond'
@@ -113,17 +116,11 @@ integer :: istart, istart_w
 integer :: imid
 integer :: iend, iend_w
 
-integer :: icount
+$if($CPS)
+integer :: indx
+$endif
 
 real (rprec) :: alpha, beta
-
-type vel_sample_type
-   integer :: n
-   integer :: istart, iend
-   integer :: icount, isample
-end type vel_sample_type
-
-type( vel_sample_type ) :: vel_sample_t
 
 !--these may be out of 1, ..., nx
 iend = floor (buff_end * nx + 1._rprec)
@@ -139,23 +136,7 @@ if (read_inflow_file) then  !--read vel inflow @ jx = iend_w from file
 
    call inflow_read ()  !--this sets u, v, w at (iend_w,:,:)
 
-elseif( inflow_sample_velocity ) then  
-   
-   ! Zero counter
-   vel_sample_t % icount=0
-
-   ! Sample size same as buffer region
-   vel_sample_t % n = iend - istart + 1
-
-   vel_sample_t % iend = floor (inflow_sample_location * nx ) + 1
-   vel_sample_t % istart = vel_sample_t % iend - vel_sample_t % n + 1
-
-   ! if( vel_sample_t % iend < 1 .or. vel_sample_t % iend > nx .or. &
-   !      vel_sample_t % istart < 1 .or. vel_sample_t % istart > nx ) then
-   !    call error(sub_name,'Sample region extends beyond domain boundaries')
-   ! endif
-
-else     
+elseif(.false.) then
 
    ! Use laminar inflow
    u(iend_w, :, :) = face_avg
@@ -164,15 +145,19 @@ else
 
 end if
 
+$if($CPS)
+indx=0
+$endif
+
 !--skip istart since we know vel at istart, iend already
 do i = istart + 1, iend - 1
 
   i_w = modulo (i - 1, nx) + 1
 
   ! Linear profile
-  !factor = real ( i - istart, rprec ) / real ( iend - istart, rprec )
+  !beta = real ( i - istart, rprec ) / real ( iend - istart, rprec )
   ! Sine profile
-  !factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
+  !beta = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
   !                                       / (iend - istart)) )
   ! Sine profile with plateau
   if ( i > imid ) then 
@@ -184,25 +169,40 @@ do i = istart + 1, iend - 1
 
   alpha = 1.0_rprec - beta
 
-  if( inflow_sample_velocity ) then
+  ! if( inflow_sample_velocity ) then
 
-     vel_sample_t % icount = vel_sample_t % icount + 1
-     vel_sample_t % isample = modulo( vel_sample_t % istart + vel_sample_t % icount - 1, nx ) + 1
+  !    vel_sample_t % icount = vel_sample_t % icount + 1
+  !    vel_sample_t % isample = modulo( vel_sample_t % istart + vel_sample_t % icount - 1, nx ) + 1
 
-     u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * u(vel_sample_t % isample, 1:ny, 1:nz) 
-     v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * v(vel_sample_t % isample, 1:ny, 1:nz)
-     w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * w(vel_sample_t % isample, 1:ny, 1:nz)
+  !    u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * u(vel_sample_t % isample, 1:ny, 1:nz) 
+  !    v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * v(vel_sample_t % isample, 1:ny, 1:nz)
+  !    w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * w(vel_sample_t % isample, 1:ny, 1:nz)
 
-  else
+  ! else
+  $if($CPS)
 
-     u(i_w, 1:ny, 1:nz) = alpha * u(istart_w, 1:ny, 1:nz) + beta * u(iend_w, 1:ny, 1:nz)
-     v(i_w, 1:ny, 1:nz) = alpha * v(istart_w, 1:ny, 1:nz) + beta * v(iend_w, 1:ny, 1:nz)
-     w(i_w, 1:ny, 1:nz) = alpha * w(istart_w, 1:ny, 1:nz) + beta * w(iend_w, 1:ny, 1:nz)
+  indx = indx + 1
 
-  endif
+  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * vel_sample_t % u(indx, 1:ny, 1:nz) 
+  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * vel_sample_t % v(indx, 1:ny, 1:nz)
+  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * vel_sample_t % w(indx, 1:ny, 1:nz)
+  
+  $else
+
+  u(i_w, 1:ny, 1:nz) = alpha * u(istart_w, 1:ny, 1:nz) + beta * u(iend_w, 1:ny, 1:nz)
+  v(i_w, 1:ny, 1:nz) = alpha * v(istart_w, 1:ny, 1:nz) + beta * v(iend_w, 1:ny, 1:nz)
+  w(i_w, 1:ny, 1:nz) = alpha * w(istart_w, 1:ny, 1:nz) + beta * w(iend_w, 1:ny, 1:nz)
+
+  $endif
+!  endif
 
 end do
 
+$if($CPS)
+if( indx .ne. vel_sample_t % nx ) call error( sub_name, 'Mismatch in expected sample size')
+$endif
+
+return
 end subroutine inflow_cond
 
 !**********************************************************************
@@ -216,7 +216,10 @@ use sim_param
 use immersedbc
 use messages
 $if($MPI)
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+  use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
+  $if($CPS)
+  use concurrent_precursor, only : synchronize_cps
+  $endif
 $endif
 implicit none
 
@@ -283,6 +286,10 @@ do jz = jz_min, nz - 1
     end do
   end do
 end do
+
+$if($CPS)
+call synchronize_cps()
+$endif
 
 if ( inflow ) call inflow_cond ()
 

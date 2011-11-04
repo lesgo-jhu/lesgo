@@ -13,6 +13,7 @@ EXE = lesgo
 
 SRCS =  cfl.f90 \
 	clocks.f90 \
+	concurrent_precursor.f90 \
 	convec.f90 \
         derivatives.f90 \
         dealias1.f90 \
@@ -74,6 +75,8 @@ RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90 rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90
 
+CPS_SRCS = concurrent_precursor.f90
+
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
 endif
@@ -91,11 +94,15 @@ ifeq ($(USE_CYL_SKEW_LS), yes)
 endif
 
 ifeq ($(USE_RNS_LS), yes)
-	SRCS += $(RNS_LS_SRCS)
+  SRCS += $(RNS_LS_SRCS)
 endif
 
 ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
+endif
+
+ifeq ( $(USE_CPS), yes)
+  SRCS += $(CPS_SRCS)
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'

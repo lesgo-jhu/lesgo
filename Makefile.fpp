@@ -77,3 +77,7 @@ endif
 ifeq ($(USE_DYN_TN), yes)
   FPP += -DDYN_TN
 endif
+
+ifeq ($(USE_CPS), yes)
+  FPP += -DCPS
+endif

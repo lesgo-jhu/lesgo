@@ -16,6 +16,9 @@ use cfl_mod
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
+  $if($CPS)
+  use concurrent_precursor, only : initialize_cps
+  $endif
 $endif
 
 $if ($LVLSET)
@@ -73,7 +76,10 @@ call sim_param_init ()
 
 ! Initialize MPI
 $if ($MPI)
-call initialize_mpi()
+  call initialize_mpi()
+  $if($CPS)
+    call initialize_cps()
+  $endif
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
