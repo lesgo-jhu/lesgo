@@ -91,7 +91,6 @@ write(2,i_fmt) 'ubc : ', ubc
 write(2,x2c_fmt) 'lbc_mom : ', lbc_mom
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
-write(2,l_fmt) 'use_fringe_forcing : ', use_fringe_forcing
 write(2,f_fmt) 'buff_end : ', buff_end
 write(2,f_fmt) 'buff_len : ', buff_len
 write(2,f_fmt) 'face_avg : ', face_avg

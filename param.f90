@@ -173,7 +173,6 @@ module param
   ! prescribed inflow:   
   logical,parameter::inflow=.false.
   ! if inflow is true the following should be set:
-    logical, parameter :: use_fringe_forcing = .false.  
     ! position of right end of buffer region, as a fraction of L_x
     real (rprec), parameter :: buff_end = 1._rprec
     ! length of buffer region as a fraction of L_x
