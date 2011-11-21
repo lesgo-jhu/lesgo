@@ -39,11 +39,7 @@ cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 cfl = dt * maxval( (/ cfl_u, cfl_v, cfl_w /) )
 
 $if($MPI)
-  $if($CPS)
-    call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
-  $else
-    call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, comm ierr)
-  $endif
+  call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
   cfl = cfl_buf
 $endif
 
@@ -86,11 +82,7 @@ dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 dt = cfl / maxval( (/ dt_inv_u, dt_inv_v, dt_inv_w /) )
 
 $if($MPI)
-  $if($CPS)
   call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, MPI_COMM_WORLD, ierr)
-  $else
-  call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, comm, ierr)
-  $endif
   dt = dt_buf
 $endif
 
