@@ -216,8 +216,8 @@ do jz = 1,nz
    
     ! Inflow (???)
         if (inflow) then  !--may need to change this
-            iend = floor (buff_end * nx + 1._rprec)
-            istart = floor ((buff_end - buff_len) * nx + 1._rprec)
+            iend = floor (fringe_region_end * nx + 1._rprec)
+            istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
 
             Tn=merge(.1_rprec*const*S**2,MM,MM.le..1_rprec*const*S**2)
             MM=Tn

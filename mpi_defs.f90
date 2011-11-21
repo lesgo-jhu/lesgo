@@ -75,8 +75,6 @@ call mpi_intercomm_create( localComm, 0, MPI_COMM_WORLD, remoteLeader, 1, interC
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
   .true., comm, ierr)
 
-!write(*,'(a,4i3)') 'program black, world_np, world_rank, color, remoteLeader : ', world_np, world_rank, color, remoteLeader
-
 $else
 
 call mpi_comm_size (MPI_COMM_WORLD, np, ierr)

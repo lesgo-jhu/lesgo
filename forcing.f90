@@ -96,13 +96,13 @@ subroutine inflow_cond ()
 !  forcing or by modulating directly the velocity in the fringe region.
 !
 use types, only : rprec
-use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
-                  buff_end, buff_len, &
+use param, only : uniform_inflow, inflow_velocity, &
+                  nx, ny, nz, pi, &
+                  fringe_region_end, fringe_region_len, &
                   L_x, dt, dx
-use param, only : inflow_sample_velocity, inflow_sample_location, coord
+use param, only : coord
 use sim_param, only : u, v, w, theta
 use immersedbc, only : fx, fy, fz
-use io, only : inflow_read
 use messages, only : error
 $if($CPS)
 use concurrent_precursor
@@ -123,23 +123,18 @@ $endif
 real (rprec) :: alpha, beta
 
 !--these may be out of 1, ..., nx
-iend = floor (buff_end * nx + 1._rprec)
-imid = floor (( buff_end - buff_len / 4 ) * nx + 1._rprec)
-istart = floor ((buff_end - buff_len) * nx + 1._rprec)
+iend = floor (fringe_region_end * nx + 1._rprec)
+imid = floor (( fringe_region_end - fringe_region_len / 4 ) * nx + 1._rprec)
+istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
 
 !--wrapped versions
 iend_w = modulo (iend - 1, nx) + 1
 istart_w = modulo (istart - 1, nx) + 1
 
-!--read from file
-if (read_inflow_file) then  !--read vel inflow @ jx = iend_w from file
-
-   call inflow_read ()  !--this sets u, v, w at (iend_w,:,:)
-
-elseif(.false.) then
+if( uniform_inflow ) then
 
    ! Use laminar inflow
-   u(iend_w, :, :) = face_avg
+   u(iend_w, :, :) = inflow_velocity
    v(iend_w, :, :) = 0._rprec
    w(iend_w, :, :) = 0._rprec
 
@@ -169,16 +164,6 @@ do i = istart + 1, iend - 1
 
   alpha = 1.0_rprec - beta
 
-  ! if( inflow_sample_velocity ) then
-
-  !    vel_sample_t % icount = vel_sample_t % icount + 1
-  !    vel_sample_t % isample = modulo( vel_sample_t % istart + vel_sample_t % icount - 1, nx ) + 1
-
-  !    u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * u(vel_sample_t % isample, 1:ny, 1:nz) 
-  !    v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * v(vel_sample_t % isample, 1:ny, 1:nz)
-  !    w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * w(vel_sample_t % isample, 1:ny, 1:nz)
-
-  ! else
   $if($CPS)
 
   indx = indx + 1
@@ -194,7 +179,6 @@ do i = istart + 1, iend - 1
   w(i_w, 1:ny, 1:nz) = alpha * w(istart_w, 1:ny, 1:nz) + beta * w(iend_w, 1:ny, 1:nz)
 
   $endif
-!  endif
 
 end do
 
@@ -309,7 +293,7 @@ $endif
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 
   if (force_top_bot .and. inflow) then
-    u(:, :, nz) = face_avg
+    u(:, :, nz) = inflow_velocity
     v(:, :, nz) = 0._rprec
   else
     ! no-stress top
@@ -326,7 +310,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   ! just a test
   !if (lbc_mom == 'stress free') then
   !  if (force_top_bot) then
-  !    u(:, :, 1) = face_avg
+  !    u(:, :, 1) = inflow_velocity
   !    v(:, :, 1) = 0._rprec
   !  else
   !    u(:, :, 1) = u(:, :, 2)

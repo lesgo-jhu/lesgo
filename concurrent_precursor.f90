@@ -34,7 +34,7 @@ subroutine initialize_cps()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : nx, ny, nz
 use param, only : coord, rank_of_coord, status, ierr
-use param, only : buff_end, buff_len
+use param, only : fringe_region_end, fringe_region_len
 use messages
 use mpi
 implicit none
@@ -46,9 +46,9 @@ character (*), parameter :: sub_name = mod_name // '.initialize_cps'
 if( color == BLUE ) then
 
    !--these may be out of 1, ..., nx
-   vel_sample_t % iend = floor (buff_end * nx + 1._rprec) - 1
-   vel_sample_t % imid = floor (( buff_end - buff_len / 4 ) * nx + 1._rprec)
-   vel_sample_t % istart = floor ((buff_end - buff_len) * nx + 1._rprec) + 1
+   vel_sample_t % iend = floor (fringe_region_end * nx + 1._rprec) - 1
+   vel_sample_t % imid = floor (( fringe_region_end - fringe_region_len / 4 ) * nx + 1._rprec)
+   vel_sample_t % istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec) + 1
 
    if( vel_sample_t % iend < 1 .or. vel_sample_t % iend > nx ) call error(sub_name,'iend out of bounds')
    if( vel_sample_t % istart < 1 .or. vel_sample_t % istart > nx ) call error(sub_name,'istart out of bounds')

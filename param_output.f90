@@ -91,15 +91,10 @@ write(2,i_fmt) 'ubc : ', ubc
 write(2,x2c_fmt) 'lbc_mom : ', lbc_mom
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
-write(2,f_fmt) 'buff_end : ', buff_end
-write(2,f_fmt) 'buff_len : ', buff_len
-write(2,f_fmt) 'face_avg : ', face_avg
-write(2,l_fmt) 'read_inflow_file : ', read_inflow_file
-write(2,l_fmt) 'write_inflow_file : ', write_inflow_file
-write(2,i_fmt) 'jt_start_write : ', jt_start_write
+write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
+write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
+write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
 write(2,l_fmt) 'force_top_bot : ', force_top_bot
-write(2,l_fmt) 'inflow_sample_velocity : ', inflow_sample_velocity
-write(2,f_fmt) 'inflow_sample_location : ', inflow_sample_location
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
 write(2,f_fmt) 'mean_p_force : ', mean_p_force
 write(2,c_fmt) ''

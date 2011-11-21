@@ -6,7 +6,7 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
+use io, only : openfiles, output_loop, output_final, jt_total, stats_init
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use immersedbc, only : fxa, fya, fza
@@ -525,9 +525,6 @@ do jt=1,nsteps
     call output_loop (jt)  
     !RNS: Determine if instantaneous plane velocities are to be recorded
         
-    ! Write inflow_BC file for future use
-    if (write_inflow_file) call inflow_write () 
-
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
        
