@@ -7,14 +7,14 @@ implicit none
 save
 private
 
-public :: interComm, color, RED, BLACK
+public :: interComm, color, RED, BLUE
 public :: vel_sample_t
 public :: initialize_cps, synchronize_cps
 
 character (*), parameter :: mod_name = 'concurrent_precursor'
 
 integer, parameter :: RED=0 ! Upstream domain (producer)
-integer, parameter :: BLACK=1 ! Downstream domain (consumer) 
+integer, parameter :: BLUE=1 ! Downstream domain (consumer) 
 
 integer :: interComm, color
 
@@ -43,7 +43,7 @@ character (*), parameter :: sub_name = mod_name // '.initialize_cps'
 
 !integer :: rankTest, coordTest
 
-if( color == BLACK ) then
+if( color == BLUE ) then
 
    !--these may be out of 1, ..., nx
    vel_sample_t % iend = floor (buff_end * nx + 1._rprec) - 1
@@ -66,7 +66,7 @@ if( color == BLACK ) then
 
 elseif( color == RED ) then
 
-   ! Receive from downstream domain (BLACK) 
+   ! Receive from downstream domain (BLUE) 
    call mpi_recv( vel_sample_t % nx , 1, MPI_INT, &
         rank_of_coord(coord), 1, interComm, status, ierr)
 
@@ -119,7 +119,7 @@ w_p      => vel_sample_t % w
 sendsize = nx_p * ny * nz
 recvsize = sendsize
 
-if( color == BLACK ) then
+if( color == BLUE ) then
 
    ! Recieve sampled velocities from upstream (RED)
    call mpi_recv( u_p(1,1,1) , recvsize, MPI_RPREC, &
@@ -136,7 +136,7 @@ elseif( color == RED ) then
    v_p(:,:,:) = v( istart_p:iend_p, 1:ny, 1:nz)
    w_p(:,:,:) = w( istart_p:iend_p, 1:ny, 1:nz)
 
-   ! Send sampled velocities to downstream domain (BLACK)
+   ! Send sampled velocities to downstream domain (BLUE)
    call mpi_send( u_p(1,1,1), sendsize, MPI_RPREC, &
         rank_of_coord(coord), 1, interComm, ierr )
    call mpi_send( v_p(1,1,1), sendsize, MPI_RPREC, &

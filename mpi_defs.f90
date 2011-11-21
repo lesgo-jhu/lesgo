@@ -57,7 +57,7 @@ if( world_rank < world_np / 2 ) then
    color = RED
    remoteLeader = world_np / 2
 else
-   color = BLACK
+   color = BLUE
    remoteLeader = 0
 endif
 
