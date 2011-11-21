@@ -13,7 +13,6 @@ EXE = lesgo
 
 SRCS =  cfl.f90 \
 	clocks.f90 \
-	concurrent_precursor.f90 \
 	convec.f90 \
         derivatives.f90 \
         dealias1.f90 \
@@ -101,7 +100,7 @@ ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
 endif
 
-ifeq ( $(USE_CPS), yes)
+ifeq ($(USE_CPS), yes)
   SRCS += $(CPS_SRCS)
 endif
 
