@@ -10,7 +10,7 @@ integer::jx,jy,jz,seed,z
 if (inflow) then
 
   ! uniform flow case:
-  ubar = face_avg
+  ubar = inflow_velocity
 
 else
 

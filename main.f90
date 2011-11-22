@@ -6,7 +6,7 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
+use io, only : openfiles, output_loop, output_final, jt_total, stats_init
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use immersedbc, only : fxa, fya, fza
@@ -16,6 +16,9 @@ use cfl_mod
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
+  $if($CPS)
+  use concurrent_precursor, only : initialize_cps
+  $endif
 $endif
 
 $if ($LVLSET)
@@ -73,7 +76,10 @@ call sim_param_init ()
 
 ! Initialize MPI
 $if ($MPI)
-call initialize_mpi()
+  call initialize_mpi()
+  $if($CPS)
+    call initialize_cps()
+  $endif
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
@@ -519,9 +525,6 @@ do jt=1,nsteps
     call output_loop (jt)  
     !RNS: Determine if instantaneous plane velocities are to be recorded
         
-    ! Write inflow_BC file for future use
-    if (write_inflow_file) call inflow_write () 
-
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
        
