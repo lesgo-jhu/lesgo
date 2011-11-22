@@ -60,10 +60,6 @@ if( color == BLUE ) then
    call mpi_send( vel_sample_t % nx, 1, MPI_INT, &
         rank_of_coord(coord), 1, interComm, ierr )
 
-   allocate( vel_sample_t % u( vel_sample_t % nx, ny, nz) )
-   allocate( vel_sample_t % v( vel_sample_t % nx, ny, nz) )
-   allocate( vel_sample_t % w( vel_sample_t % nx, ny, nz) )
-
 elseif( color == RED ) then
 
    ! Receive from downstream domain (BLUE) 
@@ -76,15 +72,16 @@ elseif( color == RED ) then
    if( vel_sample_t % iend < 1 .or. vel_sample_t % iend > nx ) call error(sub_name,'iend out of bounds')
    if( vel_sample_t % istart < 1 .or. vel_sample_t % istart > nx ) call error(sub_name,'istart out of bounds')
 
-   allocate( vel_sample_t % u( vel_sample_t % nx, ny, nz))
-   allocate( vel_sample_t % v( vel_sample_t % nx, ny, nz))
-   allocate( vel_sample_t % w( vel_sample_t % nx, ny, nz))
-
 else
 
   call error(sub_name,'Erroneous color specification')
 
 endif
+
+allocate( vel_sample_t % u( vel_sample_t % nx, ny, nz) )
+allocate( vel_sample_t % v( vel_sample_t % nx, ny, nz) )
+allocate( vel_sample_t % w( vel_sample_t % nx, ny, nz) )
+
 
 return
 end subroutine initialize_cps
