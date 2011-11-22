@@ -34,19 +34,12 @@ $if ($DEBUG)
 use debug_mod
 $endif
 
-!$undefine $MPI
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 implicit none      
 !complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
 real(kind=rprec), dimension(ld, ny, 0:nz) :: p_hat
 
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::rH_x,rH_y,rH_z
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz)::H_x,H_y,H_z
+real(kind=rprec),dimension(ld,ny,lbz:nz)::rH_x,rH_y,rH_z
+!complex(kind=rprec),dimension(lh,ny,lbz:nz)::H_x,H_y,H_z
 !equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
 
 real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw

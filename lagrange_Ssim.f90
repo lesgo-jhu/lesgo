@@ -28,12 +28,6 @@ $endif
 
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif

@@ -3,18 +3,14 @@
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS
+use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS, lbz
 use derivatives, only : ddx, ddy, ddz_uv
 
 implicit none
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-real(kind=rprec),dimension(ld,ny,$lbz:nz),intent(out)::divt
-real (rprec), dimension (ld, ny, $lbz:nz), intent (in) :: tx, ty, tz
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::dtxdx,dtydy, dtzdz
+
+real(kind=rprec),dimension(ld,ny,lbz:nz),intent(out)::divt
+real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
+real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 integer::jx,jy,jz
 
 $if ($VERBOSE)
@@ -23,20 +19,20 @@ $endif
 
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
-call ddx(tx, dtxdx, $lbz)
+call ddx(tx, dtxdx, lbz)
 $if ($MPI)
   dtxdx(:, :, 0) = BOGUS
 $endif
 
 !--ty 1:nz => dtydy 1:nz
-call ddy(ty, dtydy, $lbz)
+call ddy(ty, dtydy, lbz)
 $if ($MPI)
   dtydy(:, :, 0) = BOGUS
 $endif
 
 !--tz 0:nz-1 (special case) => dtzdz 1:nz-1 (default), 2:nz-1 (bottom),
 !                                    1:nz (top)
-call ddz_uv(tz, dtzdz, $lbz)
+call ddz_uv(tz, dtzdz, lbz)
 $if ($MPI)
   dtzdz(:, :, 0) = BOGUS
 $endif

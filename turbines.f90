@@ -12,15 +12,6 @@ $endif
 
 implicit none
 
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 save
 private
 
@@ -1026,13 +1017,13 @@ nullify(y,z)
 y => grid_t % y
 z => grid_t % z
 
-allocate(w_uv(ld,ny,$lbz:nz))
+allocate(w_uv(ld,ny,lbz:nz))
 
 $if ($MPI)
     call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
-!call interp_to_uv_grid(w, w_uv, $lbz, w_uv_tag_turbines)
-w_uv = interp_to_uv_grid(w, $lbz)
+!call interp_to_uv_grid(w, w_uv, lbz, w_uv_tag_turbines)
+w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
 

@@ -24,16 +24,10 @@ $endif
 use cfl_mod, only : get_max_cfl
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 real(rprec), dimension(3) :: xyz_past
-real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_LM, tempF_MM, tempF_QN, tempF_NN
+real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM, tempF_QN, tempF_NN
 $if ($DYN_TN)
-real(rprec), dimension(ld,ny,$lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
+real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
 $endif
 integer :: i,j,k,kmin,jz
 
@@ -89,14 +83,14 @@ z => grid_t % z
                 xyz_past(3) = z(k) - w(i,j,k)*lagran_dt               
 
                 ! Interpolate   
-                F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)                          
+                F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
                 $if ($DYN_TN)
-                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
+                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 $endif 
             enddo
             enddo
@@ -112,14 +106,14 @@ z => grid_t % z
                     xyz_past(3) = z(k) - max(0.0_rprec,w(i,j,k))*lagran_dt                                             
                     
                     ! Interpolate
-                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)                      
+                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
                     $if ($DYN_TN)
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,$lbz:nz),$lbz,xyz_past)    
+                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
                     $endif
                 enddo
                 enddo    

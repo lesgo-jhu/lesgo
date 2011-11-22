@@ -2,7 +2,7 @@
 module rns_base_ls
 !**********************************************************************
 use types, only : rprec
-use param, only : ld, ny, nz
+use param, only : ld, ny, nz, lbz
 implicit none
 
 save
@@ -13,15 +13,6 @@ private :: rprec
 private :: ld, ny, nz
 
 !public r_elem_t, beta_elem_t, b_elem_t
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 !---------------------------------------------------
 ! RNS PARAMETERS
@@ -125,7 +116,7 @@ type(primary_struct_type_2), pointer, dimension(:) :: b_elem_t
 !integer, pointer, dimension(:) :: reslv_to_rbeta_map
 !integer, pointer, dimension(:) :: beta_to_rbeta_map
 
-real(rprec) :: chi(ld, ny, $lbz:nz)
+real(rprec) :: chi(ld, ny, lbz:nz)
 logical :: chi_initialized = .false.
 
 integer :: nr_elem, nbeta_elem, nb_elem

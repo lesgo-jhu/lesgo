@@ -1,18 +1,8 @@
-  $if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-  $else
-  $define $lbz 1
-  $endif
-
-
   !**********************************************************************
   module cyl_skew_pre_base_ls
     !**********************************************************************
     use types, only : rprec, vec3d
-    use param, only : pi, BOGUS
+    use param, only : pi, BOGUS, lbz
     use cyl_skew_base_ls
     use cyl_skew_ls, only : fill_tree_array_ls
 
@@ -162,7 +152,7 @@
     if(use_bottom_surf) then
        gcs_t(:,:,:)%itype=0
        !  Loop over all global coordinates
-       do k=$lbz,nz_tot
+       do k=lbz,nz_tot
           gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
           if(gcs_t(1,1,k)%phi <= 0.) then
              !if(.not. brindx_set) then
@@ -240,7 +230,7 @@
       implicit none
 
       !  Allocate x,y,z for all coordinate systems
-      allocate(gcs_t(nx_proc,ny,$lbz:nz_tot))
+      allocate(gcs_t(nx_proc,ny,lbz:nz_tot))
 
       return
     end subroutine allocate_arrays
@@ -264,7 +254,7 @@
 
       integer :: i,j,k
 
-      do k=$lbz,nz_tot
+      do k=lbz,nz_tot
          do j=1,ny
             do i=1,nx_proc
                $if($MPI)
@@ -330,7 +320,7 @@
              $endif
              
 
-             do k=$lbz,nz_tot
+             do k=lbz,nz_tot
 
                 do j=1,ny
 
@@ -668,10 +658,10 @@
 
     nullify(brindx_loc_id_p)
 
-    allocate(z_w($lbz:nz_tot))
+    allocate(z_w(lbz:nz_tot))
 
     !  Create w-grid (physical grid)
-    do k=$lbz,nz_tot
+    do k=lbz,nz_tot
        z_w(k) = gcs_t(1,1,k)%xyz(3) - dz/2.
     enddo
 
@@ -679,7 +669,7 @@
 
     !  Do not set top most chi value; for MPI jobs
     !  this is the overlap node and must be sync'd
-    do k=$lbz,nz_tot
+    do k=lbz,nz_tot
        do j=1,ny
 
           $if ($MPI)
@@ -810,7 +800,7 @@
     nullify(bplane_p,tplane_p)
 
     !  Set clindx based on brindx
-    do k=$lbz,nz_tot
+    do k=lbz,nz_tot
        do j=1,ny
           do i=1,nx_proc
 
@@ -1386,8 +1376,8 @@
       integer, pointer, dimension(:) :: br_loc_id_p
 
       $if($MPI)
-      sendcnt = nx_proc * ny * (nz_tot - $lbz + 1)
-      !gcs_t(:,:,$lbz)%phi = BOGUS
+      sendcnt = nx_proc * ny * (nz_tot - lbz + 1)
+      !gcs_t(:,:,lbz)%phi = BOGUS
       $endif
 
       $if($MPI)
@@ -1427,11 +1417,11 @@
 
       else
 
-         allocate(phi(ld,ny,$lbz:nz_tot))
-         allocate(chi(ld,ny,$lbz:nz_tot))
-         allocate(brindx(ld,ny,$lbz:nz_tot))
-         allocate(clindx(ld,ny,$lbz:nz_tot))
-         allocate(x(nx+1),y(ny+1),z($lbz:nz_tot))
+         allocate(phi(ld,ny,lbz:nz_tot))
+         allocate(chi(ld,ny,lbz:nz_tot))
+         allocate(brindx(ld,ny,lbz:nz_tot))
+         allocate(clindx(ld,ny,lbz:nz_tot))
+         allocate(x(nx+1),y(ny+1),z(lbz:nz_tot))
 
          !  Initialize
          phi=BOGUS
@@ -1471,7 +1461,7 @@
             !    iend = nx_proc*(n+1)
             ! endif
 
-            recvcnt = (iend-istart+1) * ny * (nz_tot - $lbz + 1)
+            recvcnt = (iend-istart+1) * ny * (nz_tot - lbz + 1)
             write(*,*) 'n, istart, iend, recvcnt : ', n, istart, iend, recvcnt
             ierr=1
             call mpi_recv( phi(istart:iend,:,:), recvcnt, MPI_RPREC, n, 1, &
@@ -1527,13 +1517,13 @@
       if( global_rank_csp == 0 ) then
 
          !  Write processor files for lesgo
-         allocate(phi_proc(ld,ny,$lbz:nz))
-         allocate(rbrindx_proc(ld,ny,$lbz:nz))
-         allocate(rclindx_proc(ld,ny,$lbz:nz))
-         allocate(chi_proc(ld,ny,$lbz:nz))
+         allocate(phi_proc(ld,ny,lbz:nz))
+         allocate(rbrindx_proc(ld,ny,lbz:nz))
+         allocate(rclindx_proc(ld,ny,lbz:nz))
+         allocate(chi_proc(ld,ny,lbz:nz))
 
-         allocate(brindx_proc(ld,ny,$lbz:nz))
-         allocate(clindx_proc(ld,ny,$lbz:nz))
+         allocate(brindx_proc(ld,ny,lbz:nz))
+         allocate(clindx_proc(ld,ny,lbz:nz))
 
          !  Write data files
          do n=0,nproc-1
@@ -1550,7 +1540,7 @@
             clindx_proc = 0
             chi_proc = BOGUS
 
-            if(kend-kstart+1 /= nz-$lbz+1) then
+            if(kend-kstart+1 /= nz-lbz+1) then
                write(*,*) 'z dimension for proc ',n,' not specified correctly'
             endif
 
@@ -1569,11 +1559,11 @@
             fname = trim (fname) // temp
 
             call write_tecplot_header_ND(fname, 'rewind', 7, &
-                 (/ Nx+1, Ny+1, Nz-$lbz+1 /), &
+                 (/ Nx+1, Ny+1, Nz-lbz+1 /), &
                  '"x", "y", "z", "phi", "brindx", "clindx", "chi"', &
                  numtostr(n,6), 2)
 
-            call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, nz-$lbz+1,&
+            call write_real_data_3D( fname, 'append', 'formatted', 4, Nx, Ny, nz-lbz+1,&
                  (/phi_proc(1:nx,:,:), rbrindx_proc(1:nx,:,:), rclindx_proc(1:nx,:,:), chi_proc(1:nx,:,:)/),&
                  4, x, y, z(kstart:kend))
 

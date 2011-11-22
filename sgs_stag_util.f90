@@ -450,12 +450,6 @@ $endif
 
 implicit none
 
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-
 integer::jx,jy,jz
 integer :: jz_min
 

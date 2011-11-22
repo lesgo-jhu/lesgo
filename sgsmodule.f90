@@ -1,18 +1,12 @@
 module sgsmodule
 use types,only:rprec
-use param,only:ld,nx,ny,nz
+use param,only:ld,nx,ny,nz,lbz
 implicit none
 private ld,nx,ny,nz,rprec
 
-$if ($MPI)
-    $define $lbz 0
-$else
-    $define $lbz 1
-$endif
-
 ! The following are for dynamic Lagranrian SGS models (model=4,5) 
 real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-real(kind=rprec),dimension(ld,ny,$lbz:nz)::F_LM,F_MM,F_QN,F_NN,Beta
+real(kind=rprec),dimension(ld,ny,lbz:nz)::F_LM,F_MM,F_QN,F_NN,Beta
 !  Ensure that is this is initialized
 real(kind=rprec) :: lagran_dt = 0._rprec
 
@@ -21,8 +15,8 @@ real(kind=rprec) :: lagran_dt = 0._rprec
 !   F_deedt2 is the running average of [d(eij*eij)/dt]^2
 !   ee_past is the array (eij*eij) for the past timestep
 $if ($DYN_TN)
-real(kind=rprec),dimension(ld,ny,$lbz:nz) :: F_ee2, F_deedt2
-real(kind=rprec),dimension(ld,ny,$lbz:nz) :: ee_past
+real(kind=rprec),dimension(ld,ny,lbz:nz) :: F_ee2, F_deedt2
+real(kind=rprec),dimension(ld,ny,lbz:nz) :: ee_past
 $endif
 
 !real(kind=rprec),dimension(ld,ny,nz)::Betaclip  !--not used

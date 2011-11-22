@@ -1,7 +1,8 @@
 !**********************************************************************
 program main
 !**********************************************************************
-use types, only : rprec, clock_type, clock_time, clock_start, clock_end
+use types, only : rprec
+use clocks 
 use param
 use sim_param
 use grid_defs, only : grid_build
@@ -46,15 +47,6 @@ $endif
 
 use messages
 implicit none
-
-$if ($MPI)
-  !--this dimensioning adds a ghost layer for finite differences
-  !--its simpler to have all arrays dimensioned the same, even though
-  !  some components do not need ghost layer
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
 
 character (*), parameter :: sub_name = 'main'
 
@@ -171,11 +163,11 @@ $endif
 
 $if($MPI)
   if(coord == 0) then
-     call clock_end( clock_t )
+     call clock_stop( clock_t )
      write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
   endif
 $else
-  call clock_end( clock_t )
+  call clock_stop( clock_t )
   write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
 $endif
 
@@ -230,18 +222,18 @@ do jt=1,nsteps
   
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    call filt_da (u, dudx, dudy, $lbz)
-    call filt_da (v, dvdx, dvdy, $lbz)
-    call filt_da (w, dwdx, dwdy, $lbz)
+    call filt_da (u, dudx, dudy, lbz)
+    call filt_da (v, dvdx, dvdy, lbz)
+    call filt_da (w, dwdx, dwdy, lbz)
          
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
-    call ddz_uv(u, dudz, $lbz)
-    call ddz_uv(v, dvdz, $lbz)
+    call ddz_uv(u, dudz, lbz)
+    call ddz_uv(v, dvdz, lbz)
        
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
-    call ddz_w(w, dwdz, $lbz)
+    call ddz_w(w, dwdz, lbz)
 
     ! Debug
     $if ($DEBUG)
@@ -534,8 +526,8 @@ do jt=1,nsteps
     if (modulo (jt, wbase) == 0) then
        
        ! Get the ending time for the iteration
-       call clock_end( clock_t )
-       call clock_end( clock_total_t )
+       call clock_stop( clock_t )
+       call clock_stop( clock_total_t )
 
        
         ! Calculate rms divergence of velocity
@@ -606,7 +598,7 @@ call turbines_finalize ()   ! must come before MPI finalize
 $endif    
 
 ! Stop wall clock
-call clock_end( clock_total_t )
+call clock_stop( clock_total_t )
 $if($MPI)
   if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
 $else

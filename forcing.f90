@@ -51,7 +51,6 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-use param, only : inflow, use_fringe_forcing
 use immersedbc, only : fx, fy, fz
 $if ($LVLSET)
 use level_set, only : level_set_forcing
@@ -84,35 +83,8 @@ $endif
 
 $endif
 
-!  Compute forces used to enforce velocity in fringe region
-!  Based on IBM forcing
-if ( inflow .and. use_fringe_forcing ) call inflow_cond ()
-
 return
 end subroutine forcing_induced
-
-!**********************************************************************
-function fringe_blend ( x )
-!**********************************************************************
-use types, only : rp => rprec
-implicit none
-
-real (rp) :: fringe_blend
-
-real (rp), intent (in) :: x
-
-real (rp) :: arg
-
-if ( x <= 0.0_rp ) then
-    fringe_blend = 0.0_rp
-else if ( x >= 1.0_rp ) then
-    fringe_blend = 1.0_rp
-else
-    arg = 1.0_rp / ( x - 1 ) + 1.0_rp / x
-    fringe_blend = 1.0_rp / ( 1.0_rp + exp ( arg ) )
-end if
-
-end function fringe_blend
 
 !**********************************************************************
 subroutine inflow_cond ()
@@ -125,25 +97,33 @@ subroutine inflow_cond ()
 !
 use types, only : rprec
 use param, only : face_avg, nx, ny, nz, pi, read_inflow_file,      &
-                  buff_end, buff_len, use_fringe_forcing,  &
+                  buff_end, buff_len, &
                   L_x, dt, dx
-use param, only : inflow_sample_velocity, inflow_sample_location
+use param, only : inflow_sample_velocity, inflow_sample_location, coord
 use sim_param, only : u, v, w, theta
 use immersedbc, only : fx, fy, fz
 use io, only : inflow_read
+use messages, only : error
 implicit none
+
+character (*), parameter :: sub_name = 'inflow_cond'
 
 integer :: i, i_w
 integer :: istart, istart_w
 integer :: imid
 integer :: iend, iend_w
 
-integer :: isample
+integer :: icount
 
-real (rprec) :: factor
-real (rprec) :: fringe_blend
-real (rprec) :: x1, x2
-real (rprec) :: delta_r, delta_f
+real (rprec) :: alpha, beta
+
+type vel_sample_type
+   integer :: n
+   integer :: istart, iend
+   integer :: icount, isample
+end type vel_sample_type
+
+type( vel_sample_type ) :: vel_sample_t
 
 !--these may be out of 1, ..., nx
 iend = floor (buff_end * nx + 1._rprec)
@@ -157,22 +137,30 @@ istart_w = modulo (istart - 1, nx) + 1
 !--read from file
 if (read_inflow_file) then  !--read vel inflow @ jx = iend_w from file
 
-  call inflow_read ()  !--this sets u, v, w at (iend_w,:,:)
+   call inflow_read ()  !--this sets u, v, w at (iend_w,:,:)
 
 elseif( inflow_sample_velocity ) then  
+   
+   ! Zero counter
+   vel_sample_t % icount=0
 
-   isample = floor (inflow_sample_location * nx ) + 1
-   ! Wrap the location
-   isample = modulo( isample - 1, nx ) + 1
-   u(iend_w, :, :) = u(isample,:,:)
-   v(iend_w, :, :) = v(isample,:,:)
-   w(iend_w, :, :) = w(isample,:,:)
+   ! Sample size same as buffer region
+   vel_sample_t % n = iend - istart + 1
+
+   vel_sample_t % iend = floor (inflow_sample_location * nx ) + 1
+   vel_sample_t % istart = vel_sample_t % iend - vel_sample_t % n + 1
+
+   ! if( vel_sample_t % iend < 1 .or. vel_sample_t % iend > nx .or. &
+   !      vel_sample_t % istart < 1 .or. vel_sample_t % istart > nx ) then
+   !    call error(sub_name,'Sample region extends beyond domain boundaries')
+   ! endif
 
 else     
 
-  u(iend_w, :, :) = face_avg
-  v(iend_w, :, :) = 0._rprec
-  w(iend_w, :, :) = 0._rprec
+   ! Use laminar inflow
+   u(iend_w, :, :) = face_avg
+   v(iend_w, :, :) = 0._rprec
+   w(iend_w, :, :) = 0._rprec
 
 end if
 
@@ -181,53 +169,37 @@ do i = istart + 1, iend - 1
 
   i_w = modulo (i - 1, nx) + 1
 
-  !--fringe function approach: uses forces
-  if ( use_fringe_forcing ) then
-  
-      delta_r = 0.5_rprec * buff_len * L_x
-      delta_f = 0.125_rprec * buff_len * L_x
-      
-      x1 = ( i - istart ) * dx / delta_r
-      x2 = ( i - iend ) * dx / delta_f + 1.0_rprec
-      
-      factor = (1.0_rprec / dt) * ( fringe_blend ( x1 ) - fringe_blend ( x2 ) )
+  ! Linear profile
+  !factor = real ( i - istart, rprec ) / real ( iend - istart, rprec )
+  ! Sine profile
+  !factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
+  !                                       / (iend - istart)) )
+  ! Sine profile with plateau
+  if ( i > imid ) then 
+     beta = 1._rprec
+  else
+     beta = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
+          / (imid - istart)) )
+  endif
 
-      !--assumes fx is cleared after each time step CHECK THIS
-      !--this form is only valid for constant inflow (experimental), need
-      !  to alter for general inflows (e.g. turbulent)
-      fx(i_w, 1:ny, 1:nz) =  &  !fx(i_w, 1:ny, 1:nz) +             &
-                            factor * ( u(iend_w, 1:ny, 1:nz)  &
-                                       - u(i_w, 1:ny, 1:nz) )
-      fy(i_w, 1:ny, 1:nz) =  &  !fy(i_w, 1:ny, 1:nz) +             &
-                            factor * ( v(iend_w, 1:ny, 1:nz)  &
-                                       - v(i_w, 1:ny, 1:nz) )
-      fz(i_w, 1:ny, 1:nz) =  &  !fz(i_w, 1:ny, 1:nz) +             &
-                            factor * ( w(iend_w, 1:ny, 1:nz)  &
-                                       - w(i_w, 1:ny, 1:nz) )
+  alpha = 1.0_rprec - beta
+
+  if( inflow_sample_velocity ) then
+
+     vel_sample_t % icount = vel_sample_t % icount + 1
+     vel_sample_t % isample = modulo( vel_sample_t % istart + vel_sample_t % icount - 1, nx ) + 1
+
+     u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * u(vel_sample_t % isample, 1:ny, 1:nz) 
+     v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * v(vel_sample_t % isample, 1:ny, 1:nz)
+     w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * w(vel_sample_t % isample, 1:ny, 1:nz)
 
   else
-      
-      ! Linear profile
-      !factor = real ( i - istart, rprec ) / real ( iend - istart, rprec )
-      ! Sine profile
-      !factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
-      !                                       / (iend - istart)) )
-      ! Sine profile with plateau
-      if ( i > imid ) then 
-        factor = 1._rprec
-      else
-        factor = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
-                                             / (imid - istart)) )
-      endif
 
-      u(i_w, 1:ny, 1:nz) = u(istart_w, 1:ny, 1:nz) + factor *               &
-                            (u(iend_w, 1:ny, 1:nz) - u(istart_w, 1:ny, 1:nz))
-      v(i_w, 1:ny, 1:nz) = v(istart_w, 1:ny, 1:nz) + factor *               &
-                            (v(iend_w, 1:ny, 1:nz) - v(istart_w, 1:ny, 1:nz))
-      w(i_w, 1:ny, 1:nz) = w(istart_w, 1:ny, 1:nz) + factor *               &
-                            (w(iend_w, 1:ny, 1:nz) - w(istart_w, 1:ny, 1:nz))
+     u(i_w, 1:ny, 1:nz) = alpha * u(istart_w, 1:ny, 1:nz) + beta * u(iend_w, 1:ny, 1:nz)
+     v(i_w, 1:ny, 1:nz) = alpha * v(istart_w, 1:ny, 1:nz) + beta * v(iend_w, 1:ny, 1:nz)
+     w(i_w, 1:ny, 1:nz) = alpha * w(istart_w, 1:ny, 1:nz) + beta * w(iend_w, 1:ny, 1:nz)
 
-  end if
+  endif
 
 end do
 
@@ -312,7 +284,7 @@ do jz = jz_min, nz - 1
   end do
 end do
 
-if ( inflow .and. (.not. use_fringe_forcing) ) call inflow_cond ()
+if ( inflow ) call inflow_cond ()
 
 !--left this stuff last, so BCs are still enforced, no matter what
 !  inflow_cond does

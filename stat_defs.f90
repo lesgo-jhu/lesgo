@@ -367,10 +367,11 @@ end function tavg_scalar_mul
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_interp_to_uv_grid( a ) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only: lbz
 use functions, only : interp_to_uv_grid
 implicit none
 
-type(tavg), dimension(:,:,:), intent(in) :: a
+type(tavg), dimension(:,:,lbz:), intent(in) :: a
 type(tavg), allocatable, dimension(:,:,:) :: c
 
 integer :: ubx, uby, ubz
@@ -379,21 +380,48 @@ ubx = ubound(a,1)
 uby = ubound(a,2)
 ubz = ubound(a,3)
 
-allocate(c(ubx,uby,ubz))
+allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-c % dudz =  interp_to_uv_grid( a % dudz, 1 )
-c % dvdz =  interp_to_uv_grid( a % dvdz, 1 )
-
-c % txz =  interp_to_uv_grid( a % txz, 1 )
-c % tyz =  interp_to_uv_grid( a % tyz, 1 )
-
-c % fz = interp_to_uv_grid( a % fz, 1 )
+!c % fz = interp_to_uv_grid( a % fz, lbz )
 
 return
 
 end function tavg_interp_to_uv_grid
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function tavg_interp_to_w_grid( a ) result(c)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only: lbz
+use functions, only : interp_to_w_grid
+implicit none
+
+type(tavg), dimension(:,:,lbz:), intent(in) :: a
+type(tavg), allocatable, dimension(:,:,:) :: c
+
+integer :: ubx, uby, ubz
+
+ubx = ubound(a,1)
+uby = ubound(a,2)
+ubz = ubound(a,3)
+
+allocate(c(ubx,uby,lbz:ubz))
+
+c = a
+
+c % txx =  interp_to_w_grid( a % txx, lbz )
+c % txy =  interp_to_w_grid( a % txy, lbz )
+c % tyy =  interp_to_w_grid( a % tyy, lbz )
+c % tzz =  interp_to_w_grid( a % tzz, lbz )
+
+c % fx = interp_to_w_grid( a % fx, lbz )
+c % fy = interp_to_w_grid( a % fy, lbz )
+
+return
+
+end function tavg_interp_to_w_grid
+
 
 !//////////////////////////////////////////////////////////////////////
 !///////////////////// RS OPERATORS ///////////////////////////////////
@@ -456,10 +484,11 @@ end function rs_scalar_div
 !//////////////////////////////////////////////////////////////////////
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function rs_compute( a ) result(c)
+function rs_compute( a , lbz2) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
-type(tavg), dimension(:,:,:), intent(in) :: a
+integer, intent(in) :: lbz2
+type(tavg), dimension(:,:,lbz2:), intent(in) :: a
 type(rs), allocatable, dimension(:,:,:) :: c
 
 integer :: ubx, uby, ubz
@@ -468,7 +497,7 @@ ubx=ubound(a,1)
 uby=ubound(a,2)
 ubz=ubound(a,3)
 
-allocate(c(ubx,uby,ubz))
+allocate(c(ubx,uby,lbz2:ubz))
 
 c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v

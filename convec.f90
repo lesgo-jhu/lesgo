@@ -21,12 +21,8 @@ use debug_mod
 $endif
 
 implicit none
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-real (rprec), dimension (ld, ny, $lbz:nz), intent (out) :: cx, cy, cz
+
+real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -39,8 +35,8 @@ integer :: jz_min
 real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
 !real(kind=rprec),dimension(ld_big,ny2,nz)::cc_big
 !--save forces heap storage
-real (rprec), save, dimension (ld_big, ny2, $lbz:nz) :: u1_big, u2_big, u3_big
-!real (rprec), dimension (ld_big, ny2, $lbz:nz) :: u1_big, u2_big, u3_big
+real (rprec), save, dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
+!real (rprec), dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
 !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
 !--save forces heap storage 
 real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
@@ -60,7 +56,7 @@ $endif
 
 const=1._rprec/(nx*ny)
 !$omp parallel do default(shared) private(jz)		
-do jz = $lbz, nz
+do jz = lbz, nz
   !--MPI: u1_big, u2_big needed at jz = 0, u3_big not needed though
   !--MPI: could get u{1,2}_big
 ! use cx,cy,cz for temp storage here! 
