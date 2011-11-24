@@ -2,6 +2,10 @@ Notes on lesgo by:
       Stuart Chester
       Jason Graham
 
+//////////////////////////////////////////////////////////////////////
+/// DISCLAIMER                                                     ///
+//////////////////////////////////////////////////////////////////////
+
 Please keep in mind that many parts of the code were developed without a
 clear idea of exactly where the program was headed, since various ideas
 are tried and discarded as part of the research process.  This means
@@ -59,14 +63,14 @@ The following dependencies are required in order to compile lesgo:
   Currently all of the data output is written in Tecplot format. tecryte
   is a library that we have developed to write data to Tecplot formatted
   files. All of the data is written in block format and has been
-  optimized to work well over distributed file systems.
+  optimized to work well over both local and distributed file systems.
 
 
 //////////////////////////////////////////////////////////////////////
 /// LES FLOW SOLVER                                                ///
 //////////////////////////////////////////////////////////////////////
 
-The LES flow solver is parallelized with MPI.  The key here is the
+The LES flow solver is parallelized with MPI. The key here is the
 pressure solver. I chose to use a pipelining technique to parallelize
 this, since it is simple and there isn't really any better options for
 parallelizing the solution of many small tridiagonal systems.  The best
