@@ -70,15 +70,23 @@ The following dependencies are required in order to compile lesgo:
 /// LES FLOW SOLVER                                                ///
 //////////////////////////////////////////////////////////////////////
 
-The LES flow solver is parallelized with MPI. The key here is the
-pressure solver. I chose to use a pipelining technique to parallelize
-this, since it is simple and there isn't really any better options for
-parallelizing the solution of many small tridiagonal systems.  The best
-size of the chunks to send "down the pipeline" can be controlled via the
-variable "chunksize", and WILL depend on the computer hardware and
-simulation size.  It would probably advantageous to add a routine that
-adjusts the chunk size automatically by making speed measurements at the
-beginning of the simulation.
+The LES flow solver is a psuedo-spectral solver in which spectral
+discretization is applied in the longitudinal and spanwise directions
+(x and y, repsectively) and in the vertical (z) direction 2nd order
+finite differences are applied. The solver solves the filtered N-S
+equations in the high-Re limit in which molecular viscosity effects
+are neglected. Boundary conditions along the x-y perimeter are
+periodic where a log-law stress is applied at the bottom surface. 
+
+he LES flow solver is parallelized with MPI. The key
+here is the pressure solver. I chose to use a pipelining technique to
+parallelize this, since it is simple and there isn't really any better
+options for parallelizing the solution of many small tridiagonal
+systems.  The best size of the chunks to send "down the pipeline" can
+be controlled via the variable "chunksize", and WILL depend on the
+computer hardware and simulation size.  It would probably advantageous
+to add a routine that adjusts the chunk size automatically by making
+speed measurements at the beginning of the simulation.
 
 The flow domain is evenly divided in the vertical (z) direction between
 the MPI processes.  Each MPI-process has its "own" z-levels indexed by
