@@ -58,12 +58,23 @@ The following dependencies are required in order to compile lesgo:
   e.g., some array dimensions. The Makefile runs the preprocessor as a
   step in compilation.
 
-* tecryte (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte/)
+* tecryte (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
 
   Currently all of the data output is written in Tecplot format. tecryte
   is a library that we have developed to write data to Tecplot formatted
   files. All of the data is written in block format and has been
   optimized to work well over both local and distributed file systems.
+
+OPTIONAL:
+
+* MPI implementation:
+
+  A MPI implementation will be required for MPI support. The code has
+  been developed and used successfully with MPICH2
+  (http://www.mcs.anl.gov/research/projects/mpich2/) but others such as
+  OpenMPI may work as well.
+
+* lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
 
 
 //////////////////////////////////////////////////////////////////////
