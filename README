@@ -20,16 +20,16 @@ of the code you are using to find out what they really do.
 The code can simulate turbulent flow over tree geometries and is divided
 into several major parts:
 
-1) LES flow solver
+* LES flow solver
 
-2) Level set immersed boundary implementation (level_set*.f90).
+* Level set immersed boundary implementation (level_set*.f90).
 
-3) Renormalized numerical simulation (subgrid force modeling; depends
-   on IB implementation)
+* Renormalized numerical simulation (subgrid force modeling; depends
+  on IB implementation)
 
-4) Wind farm modeling 
+* Wind farm modeling 
 
-5) Concurrent precursor simulation
+* Concurrent precursor simulation
 
 Each part will be discussed in their respective sections.
 
@@ -76,6 +76,8 @@ OPTIONAL:
 
 * lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
 
+  lesgo-tools provides a set of scripts that aid in working with stable snapshots of lesgo. 
+
 
 //////////////////////////////////////////////////////////////////////
 /// LES FLOW SOLVER                                                ///
@@ -86,9 +88,10 @@ discretization is applied in the longitudinal and spanwise directions (x
 and y, repsectively) and in the vertical (z) direction 2nd order finite
 differences are applied. The solver solves the filtered N-S equations in
 the high-Re limit in which molecular viscosity effects are neglected. An
-eddy viscosity closer model is applied for the subgrid scale
+eddy viscosity closure model is applied for the subgrid scale
 stresses. Boundary conditions along the x-y perimeter are periodic where
-a log-law stress is applied at the bottom surface. In addition to the
+a log-law stress is applied at the bottom surface; a stress free
+condition is applied at the top (channel center) boundary. In addition to the
 bottom wall, solid surfaces represented by the immersed boundary method
 also apply a log-law stress boundary condition. The 2nd order
 Adams-Bashforth method is used for the time integration; a static time
@@ -96,9 +99,17 @@ step or CFL based dynamic time step may also be specified. Continuity is
 preserved by solving the pressure poisson equation using a direct TDMA
 solver.
 
-The LES flow solver is parallelized with MPI. The key here is the
-pressure solver. A pipelining technique was chosen to parallelize this,
-since it is simple and there isn't really any better options for
+* MPI DOMAIN DECOMPOSITION
+
+The LES flow solver is parallelized with MPI. The flow domain is evenly
+divided in the vertical (z) direction between the MPI processes.  Each
+MPI-process has its "own" z-levels indexed by k = 1 to nz-1. The
+z-levels k = 0 and k = nz are overlap nodes and are only for holding
+data that has been copied from the process below or above the current
+one.
+
+For the pressure solver a pipelining technique was chosen to parallelize
+the TDMA, since it is simple and there isn't really any better options for
 parallelizing the solution of many small tridiagonal systems.  The best
 size of the chunks to send "down the pipeline" can be controlled via the
 variable "chunksize", and WILL depend on the computer hardware and
@@ -106,35 +117,39 @@ simulation size.  It would probably advantageous to add a routine that
 adjusts the chunk size automatically by making speed measurements at the
 beginning of the simulation.
 
-The flow domain is evenly divided in the vertical (z) direction between
-the MPI processes.  Each MPI-process has its "own" z-levels indexed by
-jz = 1 to nz-1.  The z-levels jz = 0 and jz = nz are only for holding
-data that has been copied from the process below or above the current
-one.
-
 The immersed boundary forces are used by the trees and level set code,
 so if something is changed here, then check dependent parts of the code
 in those modules.
-
 
 //////////////////////////////////////////////////////////////////////
 /// LEVEL SET IMMERSED BOUNDARY METHOD                             ///
 //////////////////////////////////////////////////////////////////////
 
+For representing solid objects in the flow domain, the level set
+immersed boundary method is used. All objects are represeted using a
+level set or signed distance function (phi) where phi = 0 on the
+surface, phi < 0 inside objects and phi > 0 otherwise. For each grid
+point in the computational domain the minimum distance to any one of the
+objects in the domain must be computed and assigned to phi. The code
+will then use phi to compute the surface normals which is then used to
+apply the log-law stress within a small "band" along a the surface
+boundary. For all grid points on or inside of the surface the
+velocity is forced to zero using a direct forcing approach.
+
 To use the level set modules in a simulation, a file "phi.out"
 containing the signed distance function data must be created first.
 This must be generated with a separate program, see the program in
-"trees_pre_ls.f90" for making the tree level set files.  I recommend
-making the signed distance function exact if possible, or at least
-sampled at a higher resolution than the computational grid.  There are
-many adjustable parameters within level_set.f90 that control how the
-boundary conditions at the level set surface are applied.  If you
-encounter problems (e.g., kinks in velocity profiles), try adjusting
-some of these (e.g., length scale parameters that control how close a
-given point must be to the surface before an certain action is taken).
-Just make sure to read all code associated with some of these
-parameters, since some are experimental, and may not be ready for "prime
-time".
+"trees_pre_ls.f90" or "cyl_skew_pre_ls.f90" for making the level set
+files. It is recommended making the signed distance function exact if
+possible, or at least sampled at a higher resolution than the
+computational grid.  There are many adjustable parameters within
+level_set.f90 that control how the boundary conditions at the level set
+surface are applied.  If you encounter problems (e.g., kinks in velocity
+profiles), try adjusting some of these (e.g., length scale parameters
+that control how close a given point must be to the surface before an
+certain action is taken).  Just make sure to read all code associated
+with some of these parameters, since some are experimental, and may not
+be ready for "prime time".
 
 The variables "nphitop", "nphibot", etc., control how many extra
 z-levels are copied between MPI processes when determining boundary
@@ -156,30 +171,11 @@ conditions faster that the other processes will have to wait, so unless
 they are given something useful to do, it is probably not worth the
 effort.
 
- 
-//////////////////////////////////////////////////////////////////////
-/// RENORMALIZED NUMERICAL SIMULATION                              ///
-//////////////////////////////////////////////////////////////////////
+* CREATING TREES WITH "trees_pre_ls"
 
-TREES 
-
-The trees modules rely heavily on the tree and branch data structures
-(derived types) defined in "trees_base_ls.f90". These data structures
-can handle non-fractal trees, but most of the routines that do the
-actual work assume self similar fractal trees. Since a tree generally
-consists of a trunk and generations of sub-branches, most routines in
-"trees_ls.f90", etc., use recursive routines to visit each branch of the
-tree data structure. This usually looks like this: a routine takes a
-branch as input and does whatever operations it needs to on that branch
-before calling itself, but now with each of the input branch's
-child-branches as input. The value of "fmodel" in "trees_base_ls.f90"
-sets the RNS force model used: d is for drag only, d_germano is for drag
-only and the Germano formulation, dls stand for drag-lift-side forces,
-and nba stands for normal-binormal-axial.
-
-As with the level set modules, there are many options (some not all
-fully supported), so read the code as much a possible to determine what
-they do.
+The program "trees_pre_ls" may be used for For the most part the "trees" modules have been deprecated for
+implementing Renormalized Numerical Simulation, but have been left
+intact to provide support for using "trees_pre_ls"
 
 To do a simulation using the trees, the user has to write a "trees.conf"
 file. An example is:
@@ -243,6 +239,32 @@ branch index arrays (brindex.out).
 
 After running trees_pre_ls.f90, you should be all set to begin an LES or RNS/LES
 computation.
+
+ 
+//////////////////////////////////////////////////////////////////////
+/// RENORMALIZED NUMERICAL SIMULATION                              ///
+//////////////////////////////////////////////////////////////////////
+
+TREES 
+
+The trees modules rely heavily on the tree and branch data structures
+(derived types) defined in "trees_base_ls.f90". These data structures
+can handle non-fractal trees, but most of the routines that do the
+actual work assume self similar fractal trees. Since a tree generally
+consists of a trunk and generations of sub-branches, most routines in
+"trees_ls.f90", etc., use recursive routines to visit each branch of the
+tree data structure. This usually looks like this: a routine takes a
+branch as input and does whatever operations it needs to on that branch
+before calling itself, but now with each of the input branch's
+child-branches as input. The value of "fmodel" in "trees_base_ls.f90"
+sets the RNS force model used: d is for drag only, d_germano is for drag
+only and the Germano formulation, dls stand for drag-lift-side forces,
+and nba stands for normal-binormal-axial.
+
+As with the level set modules, there are many options (some not all
+fully supported), so read the code as much a possible to determine what
+they do.
+
 
 The trees modules are isolated from the LES core and level set modules
 as much as possible, but some dependence was unavoidable, so always
