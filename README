@@ -2,9 +2,9 @@ Notes on lesgo by:
       Stuart Chester
       Jason Graham
 
-//////////////////////////////////////////////////////////////////////
-/// DISCLAIMER                                                     ///
-//////////////////////////////////////////////////////////////////////
+========================================================================
+			       DISCLAIMER
+========================================================================
 
 Please keep in mind that many parts of the code were developed without a
 clear idea of exactly where the program was headed, since various ideas
@@ -13,9 +13,10 @@ that code organization is not optimal in some spots, and that not all
 options are fully implemented.  My advice is ALWAYS read whatever parts
 of the code you are using to find out what they really do.
 
-//////////////////////////////////////////////////////////////////////
-/// OVERVIEW                                                       ///
-//////////////////////////////////////////////////////////////////////
+
+========================================================================
+				OVERVIEW
+========================================================================
 
 The code can simulate turbulent flow over tree geometries and is divided
 into several major parts:
@@ -33,9 +34,10 @@ into several major parts:
 
 Each part will be discussed in their respective sections.
 
-//////////////////////////////////////////////////////////////////////
-/// DEPENDENCIES                                                   ///
-//////////////////////////////////////////////////////////////////////
+
+========================================================================
+			      DEPENDENCIES
+========================================================================
 
 The following dependencies are required in order to compile lesgo:
 
@@ -65,7 +67,9 @@ The following dependencies are required in order to compile lesgo:
   files. All of the data is written in block format and has been
   optimized to work well over both local and distributed file systems.
 
-OPTIONAL:
+------------------------------------------------------------------------
+				OPTIONAL
+------------------------------------------------------------------------
 
 * MPI implementation:
 
@@ -79,9 +83,9 @@ OPTIONAL:
   lesgo-tools provides a set of scripts that aid in working with stable snapshots of lesgo. 
 
 
-//////////////////////////////////////////////////////////////////////
-/// LES FLOW SOLVER                                                ///
-//////////////////////////////////////////////////////////////////////
+========================================================================
+			    LES FLOW SOLVER
+========================================================================
 
 The LES flow solver is a psuedo-spectral solver in which spectral
 discretization is applied in the longitudinal and spanwise directions (x
@@ -99,7 +103,9 @@ step or CFL based dynamic time step may also be specified. Continuity is
 preserved by solving the pressure poisson equation using a direct TDMA
 solver.
 
-* MPI DOMAIN DECOMPOSITION
+------------------------------------------------------------------------
+			MPI DOMAIN DECOMPOSITION
+------------------------------------------------------------------------
 
 The LES flow solver is parallelized with MPI. The flow domain is evenly
 divided in the vertical (z) direction between the MPI processes.  Each
@@ -121,9 +127,10 @@ The immersed boundary forces are used by the trees and level set code,
 so if something is changed here, then check dependent parts of the code
 in those modules.
 
-//////////////////////////////////////////////////////////////////////
-/// LEVEL SET IMMERSED BOUNDARY METHOD                             ///
-//////////////////////////////////////////////////////////////////////
+
+========================================================================
+		   LEVEL SET IMMERSED BOUNDARY METHOD
+========================================================================
 
 For representing solid objects in the flow domain, the level set
 immersed boundary method is used. All objects are represeted using a
@@ -171,11 +178,14 @@ conditions faster that the other processes will have to wait, so unless
 they are given something useful to do, it is probably not worth the
 effort.
 
-* CREATING TREES WITH "trees_pre_ls"
+------------------------------------------------------------------------
+		   CREATING TREES WITH "trees_pre_ls"
+------------------------------------------------------------------------
 
-The program "trees_pre_ls" may be used for For the most part the "trees" modules have been deprecated for
-implementing Renormalized Numerical Simulation, but have been left
-intact to provide support for using "trees_pre_ls"
+The program "trees_pre_ls" may be used for For the most part the "trees"
+modules have been deprecated for implementing Renormalized Numerical
+Simulation, but have been left intact to provide support for using
+"trees_pre_ls"
 
 To do a simulation using the trees, the user has to write a "trees.conf"
 file. An example is:
@@ -241,9 +251,9 @@ After running trees_pre_ls.f90, you should be all set to begin an LES or RNS/LES
 computation.
 
  
-//////////////////////////////////////////////////////////////////////
-/// RENORMALIZED NUMERICAL SIMULATION                              ///
-//////////////////////////////////////////////////////////////////////
+========================================================================
+		   RENORMALIZED NUMERICAL SIMULATION
+========================================================================
 
 TREES 
 
@@ -273,9 +283,9 @@ check that these parts are "in sync".
 SKEWED CYLINDERS TREES
 
 
-//////////////////////////////////////////////////////////////////////
-/// DATA OUTPUT                                                    ///
-//////////////////////////////////////////////////////////////////////
+========================================================================
+			      DATA OUTPUT
+========================================================================
 
 The master switch for all data output in the code is in param.f90. The
 switch for controlling this is called output. All parameters for
