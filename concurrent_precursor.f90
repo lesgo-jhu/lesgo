@@ -9,7 +9,9 @@ private
 
 public :: interComm, color, RED, BLUE
 public :: vel_sample_t
-public :: initialize_cps, synchronize_cps
+public :: create_mpi_comms_cps, &
+     initialize_cps, &
+     synchronize_cps
 
 character (*), parameter :: mod_name = 'concurrent_precursor'
 
@@ -28,6 +30,50 @@ end type vel_sample_type
 type(vel_sample_type), target :: vel_sample_t 
 
 contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine create_mpi_comms_cps( localComm )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine does two things. It first splits the MPI_COMM_WORLD
+! communicator into two communicators (localComm). The two new
+! communicators are then bridged to create an intercommunicator
+! (interComm).
+! 
+use mpi
+use param, only : ierr
+implicit none
+
+integer, intent(out) :: localComm
+
+integer :: world_np, world_rank
+integer :: remoteLeader
+integer :: memberKey
+
+! Get number of processors in world comm
+call mpi_comm_size (MPI_COMM_WORLD, world_np, ierr)
+call mpi_comm_rank (MPI_COMM_WORLD, world_rank, ierr)
+
+! Set color and remote leader for intercommunicator interComm
+if( world_rank < world_np / 2 ) then
+   color = RED
+   remoteLeader = world_np / 2
+else
+   color = BLUE
+   remoteLeader = 0
+endif
+
+! Generate member key
+memberKey=modulo(world_rank, world_np / 2)
+
+! Split the world communicator into intracommunicators localComm
+call MPI_Comm_split(MPI_COMM_WORLD, color, memberKey, localComm, ierr)
+
+! Create intercommunicator interComm
+call mpi_intercomm_create( localComm, 0, MPI_COMM_WORLD, remoteLeader, 1, interComm, ierr)
+
+return
+end subroutine create_mpi_comms_cps
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine initialize_cps()

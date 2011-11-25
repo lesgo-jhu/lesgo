@@ -29,13 +29,7 @@ $endif
 implicit none
 
 integer :: ip, np, coords(1)
-
-$if($CPS)
-integer :: world_np, world_rank
-integer :: remoteLeader
-integer :: memberKey
 integer :: localComm
-$endif
 
 !--check for consistent preprocessor & param.f90 definitions of 
 !  MPI and $MPI
@@ -48,43 +42,18 @@ call mpi_init (ierr)
 
 $if($CPS)
 
-! Get number of processors in world comm
-call mpi_comm_size (MPI_COMM_WORLD, world_np, ierr)
-call mpi_comm_rank (MPI_COMM_WORLD, world_rank, ierr)
-
-! Set color and remote leader for intercommunicator interComm
-if( world_rank < world_np / 2 ) then
-   color = RED
-   remoteLeader = world_np / 2
-else
-   color = BLUE
-   remoteLeader = 0
-endif
-
-memberKey=modulo(world_rank, world_np / 2)
-
-! Split the world communicator into intracommunicators localComm
-call MPI_Comm_split(MPI_COMM_WORLD, color, memberKey, localComm, ierr)
-call mpi_comm_size (localComm, np, ierr)
-call mpi_comm_rank (localComm, global_rank, ierr)
-
-! Create intercommunicator interComm
-call mpi_intercomm_create( localComm, 0, MPI_COMM_WORLD, remoteLeader, 1, interComm, ierr)
-
-!--set up a 1d cartesian topology with localComm creates
-call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
-  .true., comm, ierr)
+  ! Create the local communicator (split from MPI_COMM_WORLD)
+  ! This also sets the globally defined intercommunicator (bridge)
+  call create_mpi_comms_cps( localComm ) 
 
 $else
 
-call mpi_comm_size (MPI_COMM_WORLD, np, ierr)
-call mpi_comm_rank (MPI_COMM_WORLD, global_rank, ierr)
-
-  !--set up a 1d cartesian topology 
-call mpi_cart_create (MPI_COMM_WORLD, 1, (/ nproc /), (/ .false. /),  &
-  .true., comm, ierr)
+  localComm = MPI_COMM_WORLD
 
 $endif
+
+call mpi_comm_size (localComm, np, ierr)
+call mpi_comm_rank (localComm, global_rank, ierr)
 
 !--check if run-time number of processes agrees with nproc parameter
 if (np /= nproc) then
@@ -92,6 +61,10 @@ if (np /= nproc) then
                ' not equal to nproc = ', nproc
   stop
 end if
+
+  !--set up a 1d cartesian topology 
+call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
+  .true., comm, ierr)
 
 !--slight problem here for ghost layers:
 !  u-node info needs to be shifted up to proc w/ rank "up",
