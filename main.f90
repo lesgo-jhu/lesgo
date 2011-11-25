@@ -36,10 +36,6 @@ use level_set_base, only : global_CD_calc
 
 $endif
 
-$if ($TREES_LS)
-use trees_ls, only : trees_ls_finalize, trees_ls_init
-$endif
-
 $if ($TURBINES)
 use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
@@ -120,13 +116,6 @@ $if ($LVLSET)
     call rns_init_ls ()
   $endif
   
-  ! Initialize fractal trees
-  $if ($TREES_LS)
-  !--this must come after initial, since fx, fy, fz are set 0 there
-  !  and this call may read fx, fy, fz from a file
-    call trees_ls_init ()
-  $endif          
-
 $endif
 
 ! Initialize velocity field
@@ -586,9 +575,6 @@ call output_final (jt)
 
 ! Level set:
 $if ($LVLSET)
-  $if ($TREES_LS)
-  call trees_ls_finalize ()
-  $endif
 
   $if ($RNS_LS)
   call rns_finalize_ls ()

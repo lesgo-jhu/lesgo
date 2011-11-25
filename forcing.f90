@@ -53,16 +53,12 @@ subroutine forcing_induced()
 use types, only : rprec
 use immersedbc, only : fx, fy, fz
 $if ($LVLSET)
-use level_set, only : level_set_forcing
-$if($RNS_LS)
-use rns_ls, only : rns_elem_force_ls
-$endif
-$if ($TREES_LS)
-  use trees_ls
-$endif
+  use level_set, only : level_set_forcing
+  $if($RNS_LS)
+  use rns_ls, only : rns_elem_force_ls
+  $endif
 $endif
 implicit none
-
 
 ! Initialize
 fx = 0._rprec
@@ -73,13 +69,6 @@ $if($LVLSET)
 
 !  Compute the level set IBM forces
 call level_set_forcing ()
-
-$if($TREES_LS)
-!--this must come after call to level_set_forcing
-!--in /a posteriori/ test, this adds SGS branch force
-!--in /a priori/ test, this does not modify force
-call trees_ls_calc ()
-$endif
 
 $endif
 

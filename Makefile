@@ -60,12 +60,6 @@ SRCS =  cfl.f90 \
 	wallstress.f90 \
 	wallstress_dns.f90
 
-#--these also depend on linear_simple.f90
-TREES_LS_SRCS = string_util.f90 \
-		trees_ls.f90 trees_base_ls.f90 trees_fmodel_ls.f90 \
-                trees_io_ls.f90 trees_post_mod_ls.f90 trees_setup_ls.f90 \
-		trees_global_fmask_ls.f90
-
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
 CYL_SKEW_LS_SRCS = cyl_skew_base_ls.f90 cyl_skew_ls.f90
@@ -78,10 +72,6 @@ CPS_SRCS = concurrent_precursor.f90
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
-endif
-
-ifeq ($(USE_TREES_LS), yes)
-  SRCS += $(TREES_LS_SRCS)
 endif
 
 ifeq ($(USE_LVLSET), yes)
@@ -123,50 +113,6 @@ prof:
 # Other support programs are listed below this point
 convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
-
-# This part is experimental
-trees_pre:  trees_pre.f90 $(OPATH)/types.o \
-            $(OPATH)/param.o $(OPATH)/messages.o \
-            $(OPATH)/string_util.o \
-	    $(OPATH)/trees_base.o $(OPATH)/trees_setup.o  \
-	    $(OPATH)/trees_output.o
-	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
-
-trees_pre_ls:  trees_pre_ls.f90 $(OPATH)/types.o $(OPATH)/param.o $(OPATH)/messages.o \
-	$(OPATH)/string_util.o $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-	$(OPATH)/trees_io_ls.o $(OPATH)/trees_global_fmask_ls.o
-	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
-
-trees_apri_ls:  trees_apri_ls.f90 $(OPATH)/types.o \
-	$(OPATH)/param.o $(OPATH)/messages.o \
-	$(OPATH)/string_util.o \
-	$(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-	$(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-	$(OPATH)/trees_aprioriCD_ls.o
-	$(FC) -o $@ $(FFLAGS) $^ $(LDFLAGS)
-
-trees_full_apri_ls:  trees_full_apri_ls.f90 $(OPATH)/types.o \
-	        $(OPATH)/param.o $(OPATH)/sim_param_vel.o \
-                $(OPATH)/messages.o $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_fmodel_ls.o $(OPATH)/trees_ls.o \
-		$(OPATH)/level_set_base.o $(OPATH)/trees_global_fmask_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-trees_post_ls:  trees_post_ls.f90 $(OPATH)/types.o \
-                $(OPATH)/param.o $(OPATH)/messages.o \
-                $(OPATH)/string_util.o \
-                $(OPATH)/trees_base_ls.o $(OPATH)/trees_setup_ls.o \
-                $(OPATH)/trees_io_ls.o $(OPATH)/linear_simple.o \
-                $(OPATH)/trees_post_mod_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
-
-merge_phi:  merge_phi.f90 $(OPATH)/types.o \
-            $(OPATH)/param.o $(OPATH)/messages.o \
-            $(OPATH)/string_util.o \
-            $(OPATH)/trees_base_ls.o
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $^
 
 # This doesn't remove .mod files--should be OK as long a dependency list 
 # for the .o files is correct.
