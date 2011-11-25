@@ -378,7 +378,7 @@ do jt=1,nsteps
         call DEBUG_write (dpdx(:, :, 1:nz), 'main.a.dpdx')
         call DEBUG_write (dpdy(:, :, 1:nz), 'main.a.dpdy')
         call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
-        call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
+        call DEBUG_write (fxa(:, :, 1:nz), 'main.a.fxa')
         call DEBUG_write (force, 'main.a.force')
     end if
     $endif
