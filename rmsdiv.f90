@@ -3,16 +3,23 @@ subroutine rmsdiv(rms)
 ! l_1 norm or something.
 use types,only:rprec
 use param
-use param2
-use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz
+use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz 
+!use sim_param, only : dudx, dvdy, dwdz, dudy, dvdx, u, v, w
 use io, only : jt_total
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 implicit none
 integer::jx,jy,jz
 integer :: jz_max
 real(kind=rprec)::rms
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
+$endif
+
 logical, parameter :: norm_magdu = .false.
 
 logical, parameter :: write_out = .false.
@@ -29,6 +36,15 @@ real (rprec) :: magdu, div
 $if ($MPI)
   real (rprec) :: rms_global
 $endif
+
+!! Calculate velocity derivatives
+!! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+!call filt_da (u, dudx, dudy)
+!call filt_da (v, dvdx, dvdy)
+
+!! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
+!!  except bottom coord, only 1:nz-1
+!call ddz_w(dwdz,w)
 
 !---------------------------------------------------------------------
 
@@ -111,7 +127,9 @@ $if ($MPI)
   !if (rank == 0) rms = rms_global/nproc  !--its rank here, not coord
 $endif
 
+$if ($DEBUG)
 if (DEBUG) call DEBUG_write (du(1:nx, 1:ny, 1:nz) + dv(1:nx, 1:ny, 1:nz) +  &
                              dw(1:nx, 1:ny, 1:nz), 'rmsdiv')
+$endif
 
 end subroutine rmsdiv

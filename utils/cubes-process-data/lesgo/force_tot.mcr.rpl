@@ -1,0 +1,31 @@
+#!MC 1200
+# Created by Tecplot 360 build 12.2.0.9077
+$!VarSet |MFBD| = '.'
+$!READDATASET  '<DATASET>'
+  READDATAOPTION = NEW
+  RESETSTYLE = YES
+  INCLUDETEXT = NO
+  INCLUDEGEOM = NO
+  INCLUDECUSTOMLABELS = NO
+  VARLOADMODE = BYNAME
+  ASSIGNSTRANDIDS = YES
+  INITIALPLOTTYPE = CARTESIAN3D
+  VARNAMELIST = '"x" "y" "z" "phi" "<f<sub>x</sub>>" "<f<sub>y</sub>>" "<f<sub>z</sub>>"'
+$!EXTENDEDCOMMAND 
+  COMMANDPROCESSORID = 'CFDAnalyzer3'
+  COMMAND = 'SetFieldVariables ConvectionVarsAreMomentum=\'F\' UVar=5 VVar=6 WVar=7'
+$!EXTENDEDCOMMAND 
+  COMMANDPROCESSORID = 'CFDAnalyzer3'
+  COMMAND = 'Calculate Function=\'VELOCITYMAG\' CalculateOnDemand=\'T\''
+$!EXTENDEDCOMMAND 
+  COMMANDPROCESSORID = 'CFDAnalyzer3'
+  COMMAND = 'Integrate ScalarVar=8 XVariable=1 YVariable=2 ZVariable=3'
+$!PICK SETMOUSEMODE
+  MOUSEMODE = SELECT
+$!EXTENDEDCOMMAND 
+  COMMANDPROCESSORID = 'CFDAnalyzer3'
+  COMMAND = 'Integrate [1-<NPROC>] ScalarVar=8 XVariable=1 YVariable=2 ZVariable=3 KRange={MIN =1 MAX = -1 SKIP = 1}'
+$!EXTENDEDCOMMAND 
+  COMMANDPROCESSORID = 'CFDAnalyzer3'
+  COMMAND = 'SaveIntegrationResults FileName=\'./Out.txt\''
+$!RemoveVar |MFBD|

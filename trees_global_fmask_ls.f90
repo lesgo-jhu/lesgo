@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module trees_global_fmask_ls
-use param2, only : ld, nx, ny, nz, dx, dy, dz
+use param, only : ld, nx, ny, nz, dx, dy, dz
 use trees_base_ls
 implicit none
 
@@ -9,7 +9,7 @@ private
 
 public :: global_fmask
 public :: calc_global_fmask_ta
-public :: read_global_fmask, alloc_trees_global_fmask_ls
+public :: read_global_fmask
 
 character (*), parameter :: mod_name = 'trees_global_fmask_ls'
 character (*), parameter :: raw_suffix = '.out'
@@ -28,23 +28,12 @@ logical, parameter :: do_filter_global_fmask = .true.
 integer :: np
 logical :: MPI_split
 
-real (rp), allocatable, dimension(:,:,:) :: global_fmask  !--experimental
+real (rp) :: global_fmask(ld, ny, nz)  !--experimental
     !--nonzero where unres force is to be applied and contents may be filtered
     !--could dimension in a smarter way to save space
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
-
-!**********************************************************************
-subroutine alloc_trees_global_fmask_ls
-!**********************************************************************
-implicit none
-
-allocate(global_fmask(ld, ny, nz))
-
-return
-end subroutine alloc_trees_global_fmask_ls
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--this is usually called from trees_pre_ls
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -63,8 +52,9 @@ real (rp) :: r
 type (branch_type) :: br  !--to simplify argument passing
 
 !---------------------------------------------------------------------
-
-if ( VERBOSE ) call enter_sub ( sub_name )
+$if ($VERBOSE)
+call enter_sub ( sub_name )
+$endif
 
 !--set module copies
 np = nnp
@@ -103,7 +93,9 @@ if ( do_filter_global_fmask ) call filter_global_fmask ()
 call write_global_fmask ()
 call write_fmt_global_fmask ()
 
-if ( VERBOSE ) call exit_sub ( sub_name )
+$if ($VERBOSE)
+call exit_sub ( sub_name )
+$endif
 
 end subroutine calc_global_fmask_ta
 
@@ -246,9 +238,12 @@ real (rp) :: x_tmp(nd), y_tmp(nd)
 
 type ( branch_type ) :: sbr
 
-!---------------------------------------------------------------------
+logical :: DEBUG=.false.
 
-if ( VERBOSE ) call enter_sub ( sub_name )
+!---------------------------------------------------------------------
+$if ($VERBOSE)
+call enter_sub ( sub_name )
+$endif
 
 if ( br % gen <= gen_max ) call calc_global_fmask ( br )
 
@@ -318,7 +313,9 @@ if ( br % gen < gen_max ) then  !--recursion
 
 end if
 
-if ( VERBOSE ) call exit_sub ( sub_name )
+$if ($VERBOSE)
+call exit_sub ( sub_name )
+$endif
     
 end subroutine calc_global_fmask_br
 
@@ -385,8 +382,6 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.filter_global_fmask'
 
-logical, parameter :: VERBOSE = .true.
-
 integer :: i, j, k
 integer :: ii, jj, kk
 integer :: iimin, jjmin, kkmin
@@ -398,8 +393,9 @@ real (rp) :: filtval
 real (rp), allocatable :: wksp( :, :, : )
     
 !---------------------------------------------------------------------
-
-if ( VERBOSE ) call enter_sub ( sub_name )
+$if ($VERBOSE)
+call enter_sub ( sub_name )
+$endif
 
 allocate ( wksp(ld, ny, nz) )
 
@@ -409,7 +405,9 @@ total_in = sum ( wksp )  !--to calculate normalization factor
 
 do k = 1, nz - 1
 
-  if ( VERBOSE ) call mesg ( sub_name, 'starting k =', k )
+  $if ($VERBOSE)
+  call mesg ( sub_name, 'starting k =', k )
+  $endif
   !x(3) = pt_of_grid ( k, 3, 1 )
 
   do j = 1, ny
@@ -468,7 +466,9 @@ global_fmask = global_fmask * total_in / total
 
 deallocate ( wksp )
 
-if ( VERBOSE ) call exit_sub ( sub_name )
+$if ($VERBOSE)
+call exit_sub ( sub_name )
+$endif
     
 end subroutine filter_global_fmask
 

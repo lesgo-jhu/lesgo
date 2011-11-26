@@ -1,24 +1,28 @@
 ! For use with staggered grid LES
 ! JDA, 23 Jan 96
-! zo is nondimensionalized, zo1 not!
-!--provides txz, tyz, dudz, dvdz at jz=1
+!--provides txz, tyz (w-nodes) and dudz, dvdz (w-nodes) at jz=1
 subroutine wallstress ()
 use types,only:rprec
-use param, only : vonk
-use param2,only:dz,ld,lh,nx,ny,nz,lbc_mom
+use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom,zo
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
-use bottombc,only:zo,psi_m,phi_m
 use test_filtermodule
 implicit none
 integer::jx,jy
 real(kind=rprec),dimension(nx,ny)::ustar,u_avg,denom
 real(kind=rprec),dimension(ld,ny)::u1,v1
 real(kind=rprec)::const
+real(kind=rprec),dimension(nx,ny)::phi_m,psi_m
 
 select case (lbc_mom)
 
   case ('wall')
-
+    ! See John D. Albertson's dissertation, eqns (2.46)-(2.52)
+    ! For dudz and dvdz at wall, we should use derivwall.f90
+    
+    ! Also, see:
+    ! E. Bou-Zeid, C. Meneveau & M.B. Parlange, “A scale-dependent Lagrangian dynamic model
+    !   for large eddy simulation of complex turbulent flows" (2005) -- Appendix    
+    
     !TS Remove the following line when obukhov.f is used
     psi_m=0._rprec
     phi_m=1._rprec

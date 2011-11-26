@@ -1,6 +1,4 @@
-!**********************************************************************
 subroutine press_stag(p_hat,dfdx,dfdy)   
-!**********************************************************************
 ! p_hat contains the physical space pressure on exit
 !-------------------    
 ! Boundary Layer version with 4th order derivs in vertical.
@@ -25,36 +23,35 @@ subroutine press_stag(p_hat,dfdx,dfdy)
 !-------------------          
 use types,only:rprec
 use param
-use param2
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
 use fft
 use immersedbc,only:fx,fy,fz  ! only for forcing experiment
+
+$if ($DEBUG)
 use debug_mod
+$endif
 !$undefine $MPI
 $if ($MPI)
   use mpi_transpose_mod
 $endif
 implicit none      
-
-complex(kind=rprec),allocatable, dimension(:,:,:) :: p_hat
-complex(kind=rprec),allocatable, dimension(:,:,:) :: H_x,H_y,H_z
-real(kind=rprec),allocatable, dimension(:,:,:) :: rH_x,rH_y,rH_z
-
+complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
+real(kind=rprec),dimension(ld,ny,nz)::rH_x,rH_y,rH_z
+complex(kind=rprec),dimension(lh,ny,nz)::H_x,H_y,H_z
 equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
-
-real(kind=rprec),allocatable, dimension(:,:) :: rtopw, rbottomw
-complex(kind=rprec),allocatable, dimension(:,:)::topw, bottomw
+real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
+complex(kind=rprec),dimension(lh,ny)::topw,bottomw
 equivalence (rtopw,topw),(rbottomw,bottomw)
-
-complex(kind=rprec), allocatable, dimension(:,:),intent(out)::dfdx,dfdy
-
-real(kind=rprec)::const,ignore_me
-
+complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
+real(kind=rprec)::const
 ! remove this stuff!
 integer::jx,jy,jz,k
 
 character (64) :: fname
+
+$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
+$endif
 
 $if ($MPI)
   !--for now, we will do the transpose stuff out-of-place,
@@ -87,15 +84,9 @@ $else
   real(kind=rprec),dimension(nz+1)::a1,b1,c1
 $endif
 
+$if ($DEBUG)
 if (DEBUG) write (*, *) $str($context_doc), coord, ' started press_stag'
-
-!  Allocate local arrays
-allocate(p_hat(lh,ny,0:nz))
-allocate(H_x(lh,ny,nz),H_y(lh,ny,nz),H_z(lh,ny,nz))
-allocate(rH_x(ld,ny,nz),rH_y(ld,ny,nz),rH_z(ld,ny,nz))
-allocate(rtopw(ld,ny), rbottomw(ld,ny))
-allocate(topw(lh,ny),bottomw(lh,ny))
-allocate(dfdx(lh,ny,nz),dfdy(lh,ny,nz))
+$endif
 
 !$if ($MPI)
 !  if (.not. init) then
@@ -128,21 +119,25 @@ do jz=1,nz
    rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
    rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
 
-   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),ignore_me)
-   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),ignore_me)     
+   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
+   write(*,*) 'rH_x(1,1,jz) = ', rH_x(1,1,jz)
+   write(*,*) 'H_x(1,1,jz) = ', H_x(1,1,jz)
+   write(*,*) '--------'
+   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
+   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)     
 end do
 
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   ! sc: could do out of place transform if wanted to...
   rbottomw(:,:)=const*divtz(:,:,1)
-  call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),fftwNull_p)
 end if
 if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
   rtopw(:,:)=const*divtz(:,:,nz)
-  call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),ignore_me)
+  call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
 end if
 
+$if ($DEBUG)
 if (DEBUG) then
   write (*, *) 'divtz:'
   write (*, *) '(1, 1, 1): ', divtz(1, 1, 1)
@@ -162,6 +157,7 @@ if (DEBUG) then
   end do
   close (1)
 end if
+$endif
 
 ! set oddballs to 0
 ! probably can get rid of this if we're more careful below
@@ -177,6 +173,7 @@ topw(:,ny/2+1)=0._rprec
 bottomw(lh,:)=0._rprec
 bottomw(:,ny/2+1)=0._rprec
 
+$if ($DEBUG)
 if (DEBUG) then
   write (*, *) 'bottomw:'
   write (*, *) '(1, 1): ', bottomw(1, 1)
@@ -209,9 +206,7 @@ if (DEBUG) then
     end do
   end do
   close (1)
-end if
 
-if (DEBUG) then
   write (*, *) 'H_x:'
   write (*, *) '(1, 1, 1): ', H_x(1, 1, 1)
   write (*, *) '(2, 1, 1): ', H_x(2, 1, 1)
@@ -266,9 +261,11 @@ if (DEBUG) then
   end do
   close (1)
 end if
+$endif
 
-
+$if ($DEBUG)
 if (DEBUG) write (*, *) $str($context_doc), coord, ' before mpi-if'
+$endif
 
 $if ($MPI)
   !--I think this is where we do the transpose
@@ -293,7 +290,9 @@ $if ($MPI)
   call mpi_transpose_top_line (H_y, H_y_t)
   call mpi_transpose_top_line (H_z, H_z_t)
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), coord, ' after mpi_transpose H'
+  $endif
 
   !--transpose topw, bottomw (different since they are not "full" arrays)
   !--only coordinates 0, nproc-1 take part in sending, all procs recv
@@ -318,11 +317,12 @@ $if ($MPI)
 
   end if
 
-  if (DEBUG) write (*, *) $str($context_doc), coord, ' after bottomw'
-
+  $if ($DEBUG)
   if (DEBUG) then
+    write (*, *) $str($context_doc), coord, ' after bottomw'
     write (*, *) $str($context_doc), coord, 'bottomw_t(1,1) = ', bottomw_t(1, 1)
   end if
+  $endif
 
   if (coord == nproc-1) then  !--send topw
 
@@ -344,7 +344,9 @@ $if ($MPI)
 
   end if
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), coord, ' after topw'
+  $endif
 
   do jx = 1, nx_t/2  !--jx is now third dimension
 
@@ -369,12 +371,14 @@ $if ($MPI)
           p_hat_t(jz, jy, jx) = p_hat_t(jz-1, jy, jx) + H_z_t(jz, jy, jx) * dz
         end do
 
+        $if ($DEBUG)
         if (DEBUG) then
           write (*, *) '0-wave ', coord, ' p_hat_t(1) =', p_hat_t(1, 1, 1)
           write (*, *) '0-wave ', coord, ' p_hat_t(0) =', p_hat_t(0, 1, 1)
           write (*, *) '0-wave ', coord, ' jx, jy =', jx, jy
           write (*, *) '0-wave ', coord, ' dz =', dz
         end if
+        $endif
 
       else
 
@@ -402,14 +406,6 @@ $if ($MPI)
         b1(nz_t+1) = 1._rprec
         c1(nz_t+1) = 0._rprec
 
-        !if (DEBUG) then
-        !  write (*, *) 'jx, jy = ', jx, jy
-        !  write (*, *) 'a1 = ', a1
-        !  write (*, *) 'b1 = ', b1
-        !  write (*, *) 'c1 = ', c1
-        !  write (*, *) 'RHS_col = ', RHS_col
-        !end if
-
         !--tridiagonal solver
         !--modified to handle complex
         call tridag (a1, b1, c1, RHS_col, p_col, nz_t+1)
@@ -427,7 +423,9 @@ $if ($MPI)
     end do  !--end jy loop
   end do  !--end jx loop
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), coord, ' after jy,jx loops'
+  $endif
 
   !--transpose p_hat back
   !--do not need to transpose back H or bottomw or topw
@@ -485,12 +483,14 @@ $if ($MPI)
                    
   end if
 
+  $if ($DEBUG)
   if (DEBUG) then
     write (*, *) coord, 'pre: p_hat(3,2,0)=', p_hat(3,2,0)
     write (*, *) coord, 'pre: p_hat(3,2,1)=', p_hat(3,2,1)
     write (*, *) coord, 'pre: p_hat(3,2,nz-1)=', p_hat(3,2,nz-1)
     write (*, *) coord, 'pre: p_hat(3,2,nz)=', p_hat(3,2,nz)
   end if
+  $endif
 
   !--reintroduce overlap at nz-1 <-> 0, nz <-> 1 here
   call mpi_sendrecv (p_hat(1, 1, nz-1), lh*ny, MPI_CPREC, up, 1,  &
@@ -500,6 +500,7 @@ $if ($MPI)
                      p_hat(1, 1, nz), lh*ny, MPI_CPREC, up, 2,  &
                      comm, status, ierr)
 
+  $if ($DEBUG)
   if (DEBUG) then
     write (*, *) coord, 'post: p_hat(3,2,0)=', p_hat(3,2,0)
     write (*, *) coord, 'post: p_hat(3,2,1)=', p_hat(3,2,1)
@@ -508,9 +509,7 @@ $if ($MPI)
     if (coord == 0) then
       write (*, *) coord, 'compare: p_hat_t(:, 2, 3) =', p_hat_t(:, 2, 3)
     end if
-  end if
 
-  if (DEBUG) then
     write (*, *) 'p_hat_t:'
     write (*, *) '(0, 1, 1): ', p_hat_t(0, 1, 1)
     write (*, *) '(0, 2, 2): ', p_hat_t(0, 2, 2)
@@ -518,12 +517,15 @@ $if ($MPI)
     write (*, *) '(2, 1, 1): ', p_hat_t(2, 1, 1)
     write (*, *) '(1, 1, 2): ', p_hat_t(1, 1, 2)
   end if
+  $endif
 
   !--need to make sure x-Nyquist freqs are zero here
   p_hat(lh, :, :) = 0._rprec
 
+  $if ($DEBUG)
   if (DEBUG) write (*, *) $str($context_doc), coord, ' after transpose p_hat'
-
+  $endif
+  
 $else
   !==========================================================================
   ! Loop over (Kx,Ky) to solve for Pressure amplitudes
@@ -544,12 +546,15 @@ $else
   ! does the (:,:,1) entry need to be real as in original?
   ! p_hat(jx,jy,0) should be 0. here
           p_hat(jx,jy,1)=p_hat(jx,jy,0)-dz*bottomw(jx,jy)
+
+          $if ($DEBUG)
           if (DEBUG) then
             write (*, *) '0-wave: p_hat(1, 1, 1) = ', p_hat(1, 1, 1)
             write (*, *) '0-wave: p_hat(1, 1, 0) = ', p_hat(1, 1, 0)
             write (*, *) '0-wave: jx, jy =', jx, jy
             write (*, *) '0-wave: dz =', dz
           end if
+          $endif
           do jz=2,nz
             p_hat(jx,jy,jz)=p_hat(jx,jy,jz-1)+H_z(jx,jy,jz)*dz
           end do   
@@ -607,7 +612,9 @@ $else
   end do
 $endif
 
+$if ($DEBUG)
 if (DEBUG) call DEBUG_write (p_hat, 'press_stag.d.p_hat')
+$endif
 
 !=========================================================================== 
 !...Now need to get p_hat(wave,level) to physical p(jx,jy,jz)   
@@ -615,7 +622,7 @@ if (DEBUG) call DEBUG_write (p_hat, 'press_stag.d.p_hat')
 
 if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
 
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),ignore_me)
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 do jz=1,nz
 do jy=1,ny
 do jx=1,lh
@@ -625,9 +632,9 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
-call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),ignore_me)
-call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),ignore_me)
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),ignore_me)
+call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
+call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
 end do
 
 $if ($MPI)
@@ -669,15 +676,4 @@ $if ($MPI)
   end subroutine mpi_transpose_top_line
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 $endif
-
-return
-
-!  Deallocate local memory
-deallocate(p_hat)
-deallocate(H_x,H_y,H_z)
-deallocate(rH_x,rH_y,rH_z)
-deallocate(rtopw, rbottomw)
-deallocate(topw,bottomw)
-deallocate(dfdx,dfdy)
-
 end subroutine press_stag

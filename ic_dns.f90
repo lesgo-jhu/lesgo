@@ -1,7 +1,6 @@
 subroutine ic_dns()
 use types,only:rprec
 use param
-use param2
 use sim_param,only:u,v,w
 implicit none
 real(kind=rprec),dimension(nz)::ubar
@@ -11,7 +10,7 @@ integer::jx,jy,jz,seed,z
 if (inflow) then
 
   ! uniform flow case:
-  ubar = face_avg
+  ubar = inflow_velocity
 
 else
 

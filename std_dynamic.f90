@@ -9,8 +9,7 @@ subroutine std_dynamic(Cs_opt2,S11,S12,S13,S22,S23,S33)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary. mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param, only:  USE_MPI, coord
-use param2,only:ld,ny,nz,dx,dy,dz
+use param,only:ld,ny,nz,dx,dy,dz, USE_MPI, coord
 use sim_param,only:u,v,w
 use test_filtermodule
 implicit none

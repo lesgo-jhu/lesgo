@@ -1,58 +1,36 @@
-!**********************************************************************
 module sgsmodule
-!**********************************************************************
 use types,only:rprec
-use param2,only:ld,ny,nz
+use param,only:ld,nx,ny,nz,lbz
 implicit none
-private ld,ny,nz
-!TS In genreal, ofttime is 1.5 (Meneveau et al., 1996)
-real(kind=rprec),parameter::opftime=1.5_rprec
-real(kind=rprec),allocatable, dimension(:,:,:) :: F_LM,F_MM,F_QN,F_NN,Beta
+private ld,nx,ny,nz,rprec
+
+! The following are for dynamic Lagranrian SGS models (model=4,5) 
+real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
+real(kind=rprec),dimension(ld,ny,lbz:nz)::F_LM,F_MM,F_QN,F_NN,Beta
+!  Ensure that is this is initialized
+real(kind=rprec) :: lagran_dt = 0._rprec
+
+! The following are for dynamically updating T, the timescale for Lagrangian averaging
+!   F_ee2 is the running average of (eij*eij)^2
+!   F_deedt2 is the running average of [d(eij*eij)/dt]^2
+!   ee_past is the array (eij*eij) for the past timestep
+$if ($DYN_TN)
+real(kind=rprec),dimension(ld,ny,lbz:nz) :: F_ee2, F_deedt2
+real(kind=rprec),dimension(ld,ny,lbz:nz) :: ee_past
+$endif
+
 !real(kind=rprec),dimension(ld,ny,nz)::Betaclip  !--not used
-!xxxx----- Added by Vij - 04/14/04--xxxx----------------
-! Nu_t is needed for scalar sgs
-! For more details look into scalars_module.f90
-$if ($MPI)
-  real (rprec), allocatable, dimension(:,:,:) :: Nu_t
-$else
-  real(kind=rprec), allocatable, dimension(:,:,:)::Nu_t
-$endif
-!xxxx---- Vij change ends here --xxxx-------------
-real(kind=rprec),allocatable, dimension(:,:,:)::u_lag,v_lag,w_lag
+
+real(rprec), dimension(ld, ny, nz) :: Nu_t      ! eddy viscosity
 integer ::jt_count
-real(kind=rprec),allocatable, dimension(:,:,:)::Cs_opt2!,Cs_opt2_avg
-                 !--Cs_opt2_avg commented to save mem.
+real(kind=rprec),dimension(ld,ny,nz)::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
+integer :: count_clip, count_all
+
+!**********************************************************************                 
 contains
+!**********************************************************************                 
 
-!**********************************************************************
-subroutine alloc_sgsmodule()
-!**********************************************************************
-implicit none
-
-allocate(F_LM(ld,ny,nz))
-allocate(F_MM(ld,ny,nz))
-allocate(F_QN(ld,ny,nz))
-allocate(F_NN(ld,ny,nz))
-allocate(Beta(ld,ny,nz))
-allocate(Nu_t(ld,ny,nz))
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
-$endif
-allocate(u_lag(ld,ny,$lbz:nz))
-allocate(v_lag(ld,ny,$lbz:nz))
-allocate(w_lag(ld,ny,$lbz:nz))
-
-allocate(Cs_opt2(ld,ny,nz))
-
-return
-end subroutine alloc_sgsmodule
-
-!**********************************************************************
 real(kind=rprec) function rtnewt(A, jz)
-!**********************************************************************
 use types,only:rprec
 integer,parameter :: jmax=100
 real(kind=rprec) :: x1,x2,xacc

@@ -1,7 +1,6 @@
 program trees_pre_ls
-use types, rp => rprec
-use param, only :  BOGUS
-use param2, only : nx, ny, nztot => nz,
+use types, only : rprec
+use param, only : nx, ny, nz, BOGUS, nproc
 use trees_base_ls, only : grid_initialize, pt_of_grid
 use trees_setup_ls, only : fill_tree_array, sdistfcn_tree_array
 use trees_io_ls, only : draw_tree_array
@@ -21,10 +20,10 @@ logical, parameter :: do_calc_global_fmask = .true.
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI
 character (*), parameter :: MPI_suffix = '.c'
-integer, parameter :: np = 1
-logical, parameter :: MPI_split = .false.
+integer, parameter :: np = 4
+logical, parameter :: MPI_split = .true.
 
-integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
+!integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
 
 character (128) :: fphi_out_MPI, fphi_raw_out_MPI
 character (128) :: fbrindex_out_MPI, fbrindex_raw_out_MPI
@@ -34,20 +33,23 @@ integer :: i, j, k, ktot
 integer :: lbz, ubz
 integer, allocatable :: brindex(:, :, :)
 
-real (rp), allocatable :: phi(:, :, :)
-real (rp) :: x, y, z
+real (rprec), allocatable :: phi(:, :, :)
+real (rprec) :: x, y, z
 
 !---------------------------------------------------------------------
 
 if (MPI_split) then
 
-  !--prompt user for chunks to process
-  write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', np-1, '):'
-  read (*, *) ipmin
-  write (*, *) 'read ipmin = ', ipmin
-  write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', np-1, '):'
-  read (*, *) ipmax
-  write (*, *) 'read ipmax = ', ipmax
+!   !--prompt user for chunks to process
+!   write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', np-1, '):'
+!   read (*, *) ipmin
+!   write (*, *) 'read ipmin = ', ipmin
+!   write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', np-1, '):'
+!   read (*, *) ipmax
+!   write (*, *) 'read ipmax = ', ipmax
+
+  ipmin = 0
+  ipmax = np - 1
 
   if  ((ipmin < 0) .or. (ipmin > np - 1)) then
     write (*, *) 'invalid ipmin = ', ipmin
@@ -75,7 +77,6 @@ end if
 call grid_initialize ()
 call fill_tree_array ()
 call draw_tree_array (fdraw_out)
-!stop 'draw-only-mode'
 
 allocate ( phi( nx+2, ny, 0:nz ) )
 allocate ( brindex( nx+2, ny, nz ) )
@@ -89,6 +90,7 @@ do ip = ipmin, ipmax
   if (ip == 0) phi(:, :, 0) = BOGUS
 
   write (*, '(1x,a,i0,a,i0)') 'chunk ', ip, ' of ', np-1
+
   !write (*, *) 'np = ', np 
   !write (*, *) 'trees_pre: size (phi)= ', size (phi, 1), size (phi, 2),  &
   !             size (phi, 3) - 1  !--(-1) since ignore 0-level

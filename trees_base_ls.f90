@@ -1,4 +1,6 @@
+!**********************************************************************
 module trees_base_ls
+!**********************************************************************
 use types, only : rp => rprec
 !use precision
 use messages
@@ -11,7 +13,8 @@ private :: mod_name
 
 character (*), parameter :: mod_name = 'trees_base_ls'
 
-character (*), parameter :: branch_cross_section = 'circular'
+character (*), parameter :: branch_cross_section = 'square'
+!character (*), parameter :: branch_cross_section = 'circular'
                             !--'circular', 'square'
                             !--only for trees_pre: 'square+plate'
 
@@ -20,6 +23,7 @@ integer, parameter :: nzone = 1  ! # of averaging zones for dyn. Cd
 integer, parameter :: tree_node = 1  ! trees based on u, v, or w nodes
 
 !--specify force model to be used
+!--
 $define $fmodel nba
                 !--d, d_germano, dls, nba
 $if ($fmodel eq "d")
@@ -37,8 +41,9 @@ $endif
 character (*), parameter :: fmodel = $str($fmodel)
 integer, parameter :: nfcoeff = $nfcoeff
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-logical, parameter :: VERBOSE = .false.
+$endif
 
 !--beware, some of these are no longer in use
 logical, parameter :: use_tecplot = .true.
@@ -76,12 +81,12 @@ type branch_type
                        !--i.e. the branch generation
   integer :: n_sub_branch = -1  ! number of children this br. has
   integer :: zone = -1 ! zone of this branch, if using multi-zone avging
-  
+
   integer :: nrespt = -1  !--number grid pts inside this (resolved) branch
 
   integer :: nbboxpt = -1  !--number of pts in bbox
   integer, pointer :: bboxpt(:, :) => NULL ()
-  
+
   logical :: resolved  ! whether or not this br. is resolved
 
   !--defaults should be assigned now, any non-defaults will be read
@@ -117,7 +122,7 @@ type branch_type
   real (rp) :: velscale(nd) = 0._rp ! avg. vel. in bounding box
 
   ! unit vectors holding this branch's coordinate directions
-  ! in the absolute coordinate frame  
+  ! in the absolute coordinate frame
   real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
   type (branch_type), pointer :: sub_branch(:) => NULL ()
@@ -147,7 +152,7 @@ type tree_type
   real (rp) :: trunk_twist = 0._rp
   real (rp), pointer :: twist(:) => NULL ()  !--size n_sub_branch
   real (rp) :: x0(nd) = 0._rp
-  
+
   !type (branch_type) :: trunk
   type (branch_type), pointer :: trunk => NULL ()
 
@@ -163,7 +168,7 @@ $if ($XLF)
 $else
   type (tree_type), allocatable :: tree_array(:)  !--experimental
   !type (tree_type) :: tree_array(n_tree)
-$endif                   
+$endif
 
 !--branch array (more convenient to access than linked list)
 
@@ -193,10 +198,17 @@ $else
   type (grid_type) :: grid
 $endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
 function cross_product (a, b)
+!**********************************************************************
+!
+!  This function computes the cross product of vectors a and b (a x b) 
+!  with dimensions nd.
+!
+
 implicit none
 
 real (rp) :: cross_product(nd)
@@ -211,8 +223,9 @@ cross_product(3) = a(1) * b(2) - a(2) * b(1)
 
 end function cross_product
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 function delta (h, x)
+!**********************************************************************
 implicit none
 
 real (rp) :: delta
@@ -235,11 +248,10 @@ end if
 
 end function delta
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! this depends on the param module
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine grid_initialize ()
-use param2, only : nx, ny, nz, dx, dy, dz
+!**********************************************************************
+use param, only : nx, ny, nz, dx, dy, dz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.grid_initialize'
@@ -247,12 +259,15 @@ character (*), parameter :: sub_name = mod_name // '.grid_initialize'
 integer :: i, j
 integer :: tmp(nd), not_i(nd-1)
 
-real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)
+!real (rp), parameter :: thresh = 10._rp * epsilon (1._rp)a
+real (rp), parameter :: thresh = 1e-6
 
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
-if (DEBUG) call enter_sub (sub_name)
 
+$if ($DEBUG)
+if (DEBUG) call enter_sub (sub_name)
+$endif
 !  Set grid dimensions to those of global values
 grid % nx = (/ nx, ny, nz /)
 
@@ -276,13 +291,10 @@ grid % x_min (:, 2) = (/ 0._rp, 0._rp, dz / 2._rp /)
 grid % x_min (:, 3) = (/ 0._rp, 0._rp, 0._rp /)
 
 ! determine which nodes are staggered
-!  Loop over number of dimensions
 do i = 1, nd
-  write(*,*) 'j = ', j
+
   tmp = (/ ( j, j=1, nd ) /)
-  write(*,*) 'tmp = ', tmp
   not_i = pack (tmp, tmp /= i)
-  write(*,*) 'not_i = ', not_i
 
   ! this is the definition of staggered (i.e. our convention)
   ! note (-) in front of dx/2 part--could arguably be a (+)
@@ -302,21 +314,23 @@ do i = 1, nd
 
 end do
 
-write(*,*) 'nd = ', nd
-write(*,*) 'grid%staggered = ', grid%staggered
-write(*,*) 'epsilon = ', epsilon(0.)
-
 grid % initialized = .true.
 
+$if ($DEBUG)
 if (DEBUG) call exit_sub (sub_name)
+$endif
 
 end subroutine grid_initialize
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! finds nearest grid point corresponding to real position x
-! must be a better way to combine the following 2 routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
 function grid_nearest_of_pt (x, d, node)
+!**********************************************************************
+! 
+! This function finds nearest grid point corresponding to real position 
+! x must be a better way to combine the following 2 routines.
+!
+
 implicit none
 
 integer :: grid_nearest_of_pt
@@ -346,8 +360,10 @@ grid_nearest_of_pt = nint ( (x - (grid % x_min(d, node))) /  &
 
 end function grid_nearest_of_pt
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 function grid_of_pt (x, d, node)
+!**********************************************************************
+
 implicit none
 
 integer :: grid_of_pt
@@ -376,8 +392,9 @@ grid_of_pt = floor ( (x - (grid % x_min(d, node))) / (grid % dx(d)) ) + 1
 
 end function grid_of_pt
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***************************************************************
 function mag (a)
+!***************************************************************
 implicit none
 
 real (rp) :: mag
@@ -390,8 +407,19 @@ mag = sqrt(dot_product(a, a))
 
 end function mag
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!***************************************************************
 function pt_of_grid (i, d, node)
+!***************************************************************
+!  This subroutine computes the x,y,z location for the entire domain.
+!  The partitions in the z direction are handled by passing in the 
+!  global node value in the z direction. 
+!
+!  Inputs:
+!
+!  i	- ith node
+!  d	- dimension specifying x, y, or z
+!  node	- specifies either the u,v, or w grid
+!
 use param, only : coord
 implicit none
 
@@ -421,23 +449,23 @@ end if
 !  stop
 !end if
 
-$if ($MPI)
+!$if ($MPI)
 
-  if (d == nd) then
-    pt_of_grid = (grid % x_min(d, node)) +                           &
-                 (coord * (grid % nx(d) - 1) + i - 1) * (grid % dx(d))
-  else
-    pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
-  end if
-  
-$else
+!   if (d == nd) then
+!     pt_of_grid = (grid % x_min(d, node)) +                           &
+!                  (coord * (grid % nx(d) - 1) + i - 1) * (grid % dx(d))
+!   else
+!     pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
+!   end if
 
-  pt_of_grid = (grid % x_min(d, node)) + (i - 1) * (grid % dx(d))
-  
-$endif
+!$else
+
+pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
+
+!$endif
+
 
 
 end function pt_of_grid
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module trees_base_ls

@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -q batch
+
+#PBS -l nodes=4
+
+#PBS -l walltime=24:00:00
+
+echo $PBS_JOBID
+
+cd $PBS_O_WORKDIR
+
+mpiexec -f $PBS_NODEFILE ./lesgo > lesgo.out
+
+

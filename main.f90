@@ -1,119 +1,81 @@
+!**********************************************************************
 program main
-use types,only:rprec
+!**********************************************************************
+use types, only : rprec
+use clocks 
 use param
-use param2
 use sim_param
-!!$use io, only : output_loop, output_final, inflow_write,  &
-!!$            avg_stats
-use io, only : openfiles, output_loop, output_final, jt_total
+use grid_defs, only : grid_build
+use io, only : openfiles, output_loop, output_final, jt_total, stats_init
 use fft
-use immersedbc
+use derivatives, only : filt_da, ddz_uv, ddz_w
+use immersedbc, only : fxa, fya, fza
 use test_filtermodule
 use topbc,only:setsponge,sponge
-use bottombc,only:num_patch,avgpatch
-use scalars_module,only:beta_scal,obukhov,theta_all_in_one,RHS_T,RHS_Tf
-use scalars_module2,only:patch_or_remote
+use cfl_mod 
+
+$if ($MPI)
+  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
+  $if($CPS)
+  use concurrent_precursor, only : initialize_cps
+  $endif
+$endif
+
 $if ($LVLSET)
-  use level_set, only : level_set_init, level_set_cylinder_CD,  &
-                        level_set_smooth_vel
+use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set_base, only : global_CD_calc
+  
+  $if ($RNS_LS)
+  use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
+  
+    $if ($CYL_SKEW_LS)
+    use rns_cyl_skew_ls, only : rns_init_ls
+    $endif
+  
+  $endif
+
 $endif
-$if ($TREES_LS)
-  use trees_ls, only : trees_ls_finalize, trees_ls_init
+
+$if ($TURBINES)
+use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
-use debug_mod  !--just for debugging
+
+$if ($DEBUG)
+use debug_mod
+$endif
+
 use messages
 implicit none
 
-integer,parameter::wbase=100  !--controls the frequency of screen diagnostics
-integer, parameter :: nenergy = 1  !--frequency of writes to check_ke.dat
-
 character (*), parameter :: sub_name = 'main'
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-
-!--for trees_CV, we need the SGS stress, so it was moved to sim_params
-!  also, the equivalence was removed, since this overwrites what we need
-!  also for same reason cx,cy,cz put in sim_params
-!real(kind=rprec),dimension(ld,ny,nz)::divtx,divty,divtz
-!real(kind=rprec), dimension(ld,ny,nz)::cx,cy,cz,&
-!     divtx,divty,divtz
-!real(kind=rprec),dimension(ld,ny,nz)::cx,cy,cz,&
-!     txx,txy,txz,tyy,tyz,tzz,divtx,divty,divtz
-!equivalence (txx,divtx),(tyy,divty),(tzz,divtz)
-real(kind=rprec) rmsdivvel,ke
-real (rprec):: tt
-real (rprec) :: force
-$if ($MPI)
-  integer :: ip, np, coords(1)
 $endif
 
-!---------------------------------------------------------------------
-!  Check if read inflow from file is being specified; it currently does
-!  not work
-if(inflow) then
-  write(*,*) 'Error: read inflow conditions from file has been specified!'
-  write(*,*) 'This capability does not currently work. Please set to false.'
-  stop
-endif
-!  Create output directory
+real(kind=rprec) rmsdivvel,ke, maxcfl
+real (rprec):: tt
+real (rprec) :: force
+
+type(clock_type) :: clock_t, clock_total_t
+
+! Start the clocks, both local and total
+call clock_start( clock_t )
+clock_total_t = clock_t
+
+! Create output directory
 call system("mkdir -vp output")
+
+! INITIALIZATION
+! Define simulation parameters
 call sim_param_init ()
-!  Initialized statics arrays
-call stats_init()
-!  Allocate arrays based on input values
-call alloc()
 
+! Initialize MPI
 $if ($MPI)
-  !--check for consistent preprocessor & param.f90 definitions of 
-  !  MPI and $MPI
-  if (.not. USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
-
-  call mpi_init (ierr)
-  call mpi_comm_size (MPI_COMM_WORLD, np, ierr)
-  call mpi_comm_rank (MPI_COMM_WORLD, global_rank, ierr)
-
-  !--check if run-time number of processes agrees with nproc parameter
-  if (np /= nproc) then
-    write (*, *) 'runtime number of procs = ', np,  &
-                 ' not equal to nproc = ', nproc
-    stop
-  end if
-
-  !--set up a 1d cartesian topology 
-  call mpi_cart_create (MPI_COMM_WORLD, 1, (/ nproc /), (/ .false. /),  &
-                        .true., comm, ierr)
-  !--slight problem here for ghost layers:
-  !  u-node info needs to be shifted up to proc w/ rank "up",
-  !  w-node info needs to be shifted down to proc w/ rank "down"
-  call mpi_cart_shift (comm, 0, 1, down, up, ierr)
-  call mpi_comm_rank (comm, rank, ierr)
-  call mpi_cart_coords (comm, rank, 1, coords, ierr)
-  coord = coords(1)  !--use coord (NOT rank) to determine global position
-
-  write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
-
-  !--rank->coord and coord->rank conversions
-  do ip = 0, np-1
-    call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
-    call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
-  end do
-
-  write (*, *) 'Hello! from process with coord = ', coord
-
-  !--set the MPI_RPREC variable
-  if (rprec == kind (1.e0)) then
-    MPI_RPREC = MPI_REAL
-    MPI_CPREC = MPI_COMPLEX
-  else if (rprec == kind (1.d0)) then
-    MPI_RPREC = MPI_DOUBLE_PRECISION
-    MPI_CPREC = MPI_DOUBLE_COMPLEX
-  else
-    write (*, *) 'error defining MPI_RPREC/MPI_CPREC'
-    stop
-  end if
+  call initialize_mpi()
+  $if($CPS)
+    call initialize_cps()
+  $endif
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
@@ -123,444 +85,518 @@ $else
     write (*, *) 'inconsistent use of USE_MPI and $MPI'
     stop
   end if
-
-  !--leave this blank or put in coord
-  !write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
   chcoord = ''
-
 $endif
 
+$if($MPI)
+  if(coord == 0) call param_output()
+$else
+  call param_output()
+$endif
+
+! Initialize uv grid (calculate x,y,z vectors)
+call grid_build()
+
+!  Initialize variables used for output statistics and instantaneous data
+call stats_init()
+
+! Initialize time variable
 tt=0
 
-!--only coord 0 needs to do this since at the bottom
-!--roughness information then needs to be broadcast
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  call patch_or_remote ()
-!end if
+! Initialize turbines
+$if ($TURBINES)
+  call turbines_init()    !must occur before initial is called
+$endif
 
-call initial()
-!--could move this into something like initial ()
+! If using level set method
 $if ($LVLSET)
   call level_set_init ()
+
+  $if ($RNS_LS)
+    call rns_init_ls ()
+  $endif
+  
 $endif
 
-$if ($TREES_LS)
-  !--this must come after initial, since fx, fy, fz are set 0 there
-  !  and this call may read fx, fy, fz from a file
-  call trees_ls_init ()
-$endif
+! Initialize velocity field
+call initial()
 
-! formulate the fft plans--may want to use FFTW_USE_WISDOM
-! initialize the kx,ky arrays
+! Formulate the fft plans--may want to use FFTW_USE_WISDOM
+! Initialize the kx,ky arrays
 call init_fft()
-! Open output files      
+    
+! Open output files (total_time.dat and check_ke.out)  
 call openfiles()
 
-!--initialize test filter
-!--this is used for lower BC, even if no dynamic model
+! Initialize test filter
+! this is used for lower BC, even if no dynamic model
 call test_filter_init (2._rprec * filter_size, G_test)
 
 if (model == 3 .or. model == 5) then  !--scale dependent dynamic
-
   call test_filter_init (4._rprec * filter_size, G_test_test)
 end if
 
+! Initialize sponge variable for top BC, if applicable
 if (ubc == 1) call setsponge()
+    
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-  print *, 'Number of timesteps', nsteps
-  print *, 'dt and Cs = ', dt, cs
-  if (model == 1) print *, 'Co = ', Co
-  print *, 'Nx, Ny, Nz = ', nx, ny, nz
-  print *, 'Lx, Ly, Lz = ', L_x, L_y, L_z
-  if (USE_MPI) print *, 'Number of processes = ', nproc
-  print *, 'Number of patches = ', num_patch
-  !print *, 'sampling stats every ', c_count, ' timesteps'
-  !print *, 'writing stats every ', p_count, ' timesteps'
-  if (molec) print*, 'molecular viscosity (dimensional) ', nu_molec
-end if
-
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
   call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
   call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
 end if
+$endif
 
-!--MPI: u,v,w should be set at jz = 0:nz before getting here, except
-!  bottom process which is BOGUS (starts at 1)
-! time Loop
+$if($CFL_DT)
+if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
+  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
+  dt = get_cfl_dt() 
+  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+endif
+$endif
 
-do jt=1,nsteps   
-
-  jt_total = jt_total + 1  !--moved from io.f90
-
-  if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
-
-  ! advance total time
-  tt=tt+dt
-
-  ! save previous time's right-hand-sides for Adams-Bashforth Integration
-  !  (In subroutine "STEP" use first order time advancement on first time 
-  !  step).
-  !if (jt > 1) then    
-     RHSx_f = RHSx
-     RHSy_f = RHSy
-     RHSz_f = RHSz
-  !end if
-
-  if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) call obukhov (jt)
-
-  $if ($LVLSET)
-    !call level_set_smooth_vel (u, v, w)
-  $endif
-
-  !--no MPI here yet
-  if (use_bldg) then
-    call building_interp (u, v, w, .04_rprec, 3)
-    call building_interp (dudx, dvdx, dwdx, .04_rprec, 3)
-    call building_interp (dudy, dvdy, dwdy, .04_rprec, 3)
-  end if
-
-  if (DEBUG) then
-    call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
-    call DEBUG_write (v(:, :, 1:nz), 'main.p.v')
-    call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
-  end if
-
-  ! kill oddballs and calculate horizontal derivatives
-  !--MPI: all these arrays are 0:nz
-  !--MPI: on exit, u,dudx,dudy,v,dvdx,dvdy,w,dwdx,dwdy valid on jz=0:nz,
-  !  except on bottom process (0 level set to BOGUS, starts at 1)
-  call filt_da (u, dudx, dudy)
-  call filt_da (v, dvdx, dvdy)
-  call filt_da (w, dwdx, dwdy)
-   ! finite differences
-   !--MPI: on exit of ddz_uv, have dudz, dvdz at 1:nz, except
-   !  bottom process has 2:nz
-   call ddz_uv(dudz,u)
-   call ddz_uv(dvdz,v)
-   !--MPI: on exit of ddz_w, have dwdz at 0:nz-1, except top process
-   !  has 0:nz, and bottom process has 1:nz-1
-   call ddz_w(dwdz,w)
-
-  if (DEBUG) then
-    call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
-    call DEBUG_write (v(:, :, 1:nz), 'main.q.v')
-    call DEBUG_write (w(:, :, 1:nz), 'main.q.w')
-    call DEBUG_write (dudx(:, :, 1:nz), 'main.q.dudx')
-    call DEBUG_write (dudy(:, :, 1:nz), 'main.q.dudy')
-    call DEBUG_write (dudz(:, :, 1:nz), 'main.q.dudz')
-    call DEBUG_write (dvdx(:, :, 1:nz), 'main.q.dvdx')
-    call DEBUG_write (dvdy(:, :, 1:nz), 'main.q.dvdy')
-    call DEBUG_write (dvdz(:, :, 1:nz), 'main.q.dvdz')
-    call DEBUG_write (dwdx(:, :, 1:nz), 'main.q.dwdx')
-    call DEBUG_write (dwdy(:, :, 1:nz), 'main.q.dwdy')
-    call DEBUG_write (dwdz(:, :, 1:nz), 'main.q.dwdz')
-  end if
-
-!TS calculate wall stress and calculate derivatives at wall
-   if (dns_bc) then
-     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-       call wallstress_dns ()
-     end if
-   else
-!TS "impose" wall stress and calculate derivatives at wall
-     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
-       call wallstress ()  !--provides txz, tyz, dudz, dvdz at jz=1
-                           !--MPI: bottom process only
-     end if
-     if(use_bldg) call walldudx_building
-   end if
-
-! compute turbulent viscosity (const.)
-  if (dns_bc .and. molec) then
-    call dns_stress(txx,txy,txz,tyy,tyz,tzz)
-  else
-    !--MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz
-    call sgs_stag()	    
-  end if
-  if(use_bldg)then
-     call wallstress_building(txy,txz,tyz)
-     call building_mask(u,v,w)
+$if($MPI)
+  if(coord == 0) then
+     call clock_stop( clock_t )
+     write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
   endif
+$else
+  call clock_stop( clock_t )
+  write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
+$endif
 
-!xx----VK -ADDED FOR SCALARS !! --xxxxxx
-!TS ADD sflux_flag
-  if(S_FLAG.and.(jt.GE.SCAL_INIT))  then
-  call theta_all_in_one(jt)
-  else
-  beta_scal=0._rprec
-!  print *,'buoyancy term set to zero !!'
-  end if
-!xx----VK -ADDED FOR SCALARS !! --xxxxxx
+! BEGIN TIME LOOP
+do jt=1,nsteps   
+   
+   ! Get the starting time for the iteration
+   call clock_start( clock_t )
 
-  $if ($MPI)
-     !--exchange ghost-node information for tij
-     !--send stuff up to ghost nodes
-     !--move this into sgs_stag?
-     call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
-                        tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
-                        comm, status, ierr)
-  $endif
+    $if($CFL_DT)
+      dt_f = dt
 
-! compute divergence of SGS shear stresses     
-! note: the divt's and the diagonal elements of t are equivalenced!
-!--actually, they are not equivalenced in this version
-  if (DEBUG) then
-    call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
-    call DEBUG_write (divty(:, :, 1:nz), 'main.r.divty')
-    call DEBUG_write (divtz(:, :, 1:nz), 'main.r.divtz')
-    call DEBUG_write (txx(:, :, 1:nz), 'main.r.txx')
-    call DEBUG_write (txy(:, :, 1:nz), 'main.r.txy')
-    call DEBUG_write (txz(:, :, 1:nz), 'main.r.txz')
-    call DEBUG_write (tyy(:, :, 1:nz), 'main.r.tyy')
-    call DEBUG_write (tyz(:, :, 1:nz), 'main.r.tyz')
-    call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
-  end if
+      dt = get_cfl_dt()
 
-  !--provides divtz 1:nz-1
-  call divstress_uv(divtx, txx, txy, txz)
-  call divstress_uv(divty, txy, tyy, tyz)
-  !--provides divtz 1:nz-1, except 1:nz at top process
-  call divstress_w(divtz, txz, tyz, tzz)
+      dt_dim = dt * z_i / u_star
+    
+      tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
+      tadv2 = 1._rprec - tadv1
 
- ! --------- NOTE ----------
- !  When using the ifort compiler for a 
- !  grid resolution > 32^3, during execution
- !  a segmentation fault is recieved somewhere 
- !  just be for this section (JSG - 1/23/09)
- !
- 
-  if (DEBUG) then
-    call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
-    call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
-    call DEBUG_write (divtz(:, :, 1:nz), 'main.s.divtz')
-  end if
+    $endif
 
-  if (DEBUG) then
-    call DEBUG_write (RHSx(:, :, 1:nz), 'main.preconvec.RHSx')
-  end if
+    ! Advance time
+    jt_total = jt_total + 1 
+    total_time = total_time + dt
+    total_time_dim = total_time_dim + dt_dim
+    tt=tt+dt
+  
+    ! Debug
+    $if ($DEBUG)
+        if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
+    $endif
 
-  if (VERBOSE) write (*, *) 'main about to call convec'
+    ! Save previous time's right-hand-sides for Adams-Bashforth Integration
+    ! NOTE: RHS does not contain the pressure gradient
+    RHSx_f = RHSx
+    RHSy_f = RHSy
+    RHSz_f = RHSz
 
-  !--provides RHS{x,y,z} 1:nz-1
-  call convec(RHSx,RHSy,RHSz)
+    ! Level set: smooth velocity
+    $if ($LVLSET_SMOOTH_VEL)
+      call level_set_smooth_vel (u, v, w)
+    $endif
 
-  if (DEBUG) then
-    call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
-  end if
-
-  if (use_bldg) call building_mask (u, v, w)
-
-! Compute preliminary RHS matrices for pressure calculation
-  RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
-  RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
-  RHSz(:, :, 1:nz-1) = -RHSz(:, :, 1:nz-1) - divtz(:, :, 1:nz-1)
-
-  if (S_FLAG .and. (.not.sflux_flag)) then
-    !--add buoyancy term...only valid for theta
-    RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) + beta_scal(:, :, 1:nz-1)
-    if (mod (jt, 1000) == 0) print *, 'Adding buoyancy_term'
-    !print *,'buoyancy_term=',jt,maxval(beta_scal),minval(beta_scal)
-  end if
-
-  if (coriolis_forcing) then
-    ! This is to put in the coriolis forcing using coriol,ug and vg as
-    ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
-    ! Note that ug and vg are non-dimensional (using u_star in param.f90)
-    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) +                 &
-                         coriol * v(:, :, 1:nz-1) - coriol * vg
-    RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) -                 &
-                         coriol * u(:, :, 1:nz-1) + coriol * ug
-  end if
-
-   !--calculate u^(*) (intermediate vel field)
-   !  at this stage, p, dpdx_i are from previous time step
-   !  (assumes old dpdx has NOT been added to RHSx_f, etc)
-   !  we add force (mean press forcing) here so that u^(*) is as close
-   !  to the final velocity as possible
-
-   if (use_mean_p_force) then
-     force = mean_p_force
-   else
-     force = 0._rprec
-   end if
-
-  if ((jt == 1) .and. (.not. initu)) then
-    ! if initu, then this is read from the initialization file
-    ! else for the first step put RHS_f=RHS
-    !--i.e. at first step, take an Euler step
-    RHSx_f=RHSx
-    RHSy_f=RHSy
-    RHSz_f=RHSz
-  end if
-
-  if (DEBUG) then
-    call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
-    call DEBUG_write (v(:, :, 1:nz), 'main.a.v')
-    call DEBUG_write (w(:, :, 1:nz), 'main.a.w')
-    call DEBUG_write (RHSx(:, :, 1:nz), 'main.a.RHSx')
-    call DEBUG_write (RHSy(:, :, 1:nz), 'main.a.RHSy')
-    call DEBUG_write (RHSz(:, :, 1:nz), 'main.a.RHSz')
-    call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSx_f')
-    call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSy_f')
-    call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSz_f')
-    call DEBUG_write (dpdx(:, :, 1:nz), 'main.a.dpdx')
-    call DEBUG_write (dpdy(:, :, 1:nz), 'main.a.dpdy')
-    call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
-    call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
-    call DEBUG_write (force, 'main.a.force')
-    if (USE_MPI) then
-      if (coord == 1) write (*, *) "RHSx(1, 1, 1'=17) =", RHSx(1, 1, 1)
-    else
-      write (*, *) "RHSx(1, 1, 17) =", RHSx(1, 1, 17)
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
+        call DEBUG_write (v(:, :, 1:nz), 'main.p.v')
+        call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
     end if
-  end if
+    $endif
+  
+    ! Calculate velocity derivatives
+    ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+    call filt_da (u, dudx, dudy, lbz)
+    call filt_da (v, dvdx, dvdy, lbz)
+    call filt_da (w, dwdx, dwdy, lbz)
+         
+    ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
+    !  except bottom coord, only 2:nz
+    call ddz_uv(u, dudz, lbz)
+    call ddz_uv(v, dvdz, lbz)
+       
+    ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
+    !  except bottom coord, only 1:nz-1
+    call ddz_w(w, dwdz, lbz)
 
-   !--only 1:nz-1 are valid
-   u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                           &
-                     dt * ( tadv1 * RHSx(:, :, 1:nz-1) +         &
-                            tadv2 * RHSx_f(:, :, 1:nz-1) + force )
-   v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                    &
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
+        call DEBUG_write (v(:, :, 1:nz), 'main.q.v')
+        call DEBUG_write (w(:, :, 1:nz), 'main.q.w')
+        call DEBUG_write (dudx(:, :, 1:nz), 'main.q.dudx')
+        call DEBUG_write (dudy(:, :, 1:nz), 'main.q.dudy')
+        call DEBUG_write (dudz(:, :, 1:nz), 'main.q.dudz')
+        call DEBUG_write (dvdx(:, :, 1:nz), 'main.q.dvdx')
+        call DEBUG_write (dvdy(:, :, 1:nz), 'main.q.dvdy')
+        call DEBUG_write (dvdz(:, :, 1:nz), 'main.q.dvdz')
+        call DEBUG_write (dwdx(:, :, 1:nz), 'main.q.dwdx')
+        call DEBUG_write (dwdy(:, :, 1:nz), 'main.q.dwdy')
+        call DEBUG_write (dwdz(:, :, 1:nz), 'main.q.dwdz')
+    end if
+    $endif
+
+    ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
+    !   using the velocity log-law
+    !   MPI: bottom process only
+    if (dns_bc) then
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            call wallstress_dns ()
+        end if
+    else    ! "impose" wall stress 
+        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            call wallstress ()                            
+        end if
+    end if    
+
+    ! Calculate turbulent (subgrid) stress for entire domain
+    !   using the model specified in param.f90 (Smag, LASD, etc)
+    !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
+    if (dns_bc .and. molec) then
+        call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+    else        
+        call sgs_stag()
+    end if
+
+    ! Exchange ghost node information (since coords overlap) for tau_zz
+    !   send info up (from nz-1 below to 0 above)
+    $if ($MPI)
+        call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
+                           tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
+                           comm, status, ierr)
+    $endif
+
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
+        call DEBUG_write (divty(:, :, 1:nz), 'main.r.divty')
+        call DEBUG_write (divtz(:, :, 1:nz), 'main.r.divtz')
+        call DEBUG_write (txx(:, :, 1:nz), 'main.r.txx')
+        call DEBUG_write (txy(:, :, 1:nz), 'main.r.txy')
+        call DEBUG_write (txz(:, :, 1:nz), 'main.r.txz')
+        call DEBUG_write (tyy(:, :, 1:nz), 'main.r.tyy')
+        call DEBUG_write (tyz(:, :, 1:nz), 'main.r.tyz')
+        call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
+    end if
+    $endif    
+    
+    ! Compute divergence of SGS shear stresses     
+    !   the divt's and the diagonal elements of t are not equivalenced in this version
+    !   provides divtz 1:nz-1, except 1:nz at top process
+    call divstress_uv(divtx, txx, txy, txz)
+    call divstress_uv(divty, txy, tyy, tyz)    
+    call divstress_w(divtz, txz, tyz, tzz)
+
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
+        call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
+        call DEBUG_write (divtz(:, :, 1:nz), 'main.s.divtz')
+        call DEBUG_write (RHSx(:, :, 1:nz), 'main.preconvec.RHSx')
+    end if
+    $endif
+
+    ! Calculates u x (omega) term in physical space
+    !   uses 3/2 rule for dealiasing
+    !   stores this term in RHS (right hand side) variable
+    call convec(RHSx,RHSy,RHSz)
+
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
+    end if
+    $endif
+
+    ! Add div-tau term to RHS variable 
+    !   this will be used for pressure calculation
+    RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
+    RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
+    RHSz(:, :, 1:nz-1) = -RHSz(:, :, 1:nz-1) - divtz(:, :, 1:nz-1)
+
+    ! Coriolis: add forcing to RHS
+    if (coriolis_forcing) then
+        ! This is to put in the coriolis forcing using coriol,ug and vg as
+        ! precribed in param.f90. (ug,vg) specfies the geostrophic wind vector
+        ! Note that ug and vg are non-dimensional (using u_star in param.f90)
+        RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) +                 &
+                             coriol * v(:, :, 1:nz-1) - coriol * vg
+        RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) -                 &
+                             coriol * u(:, :, 1:nz-1) + coriol * ug
+    end if
+
+    !--calculate u^(*) (intermediate vel field)
+    !  at this stage, p, dpdx_i are from previous time step
+    !  (assumes old dpdx has NOT been added to RHSx_f, etc)
+    !  we add force (mean press forcing) here so that u^(*) is as close
+    !  to the final velocity as possible
+    if (use_mean_p_force) then
+        force = mean_p_force
+    else
+        force = 0._rprec
+    end if
+  
+    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
+
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
+        call DEBUG_write (v(:, :, 1:nz), 'main.a.v')
+        call DEBUG_write (w(:, :, 1:nz), 'main.a.w')
+        call DEBUG_write (RHSx(:, :, 1:nz), 'main.a.RHSx')
+        call DEBUG_write (RHSy(:, :, 1:nz), 'main.a.RHSy')
+        call DEBUG_write (RHSz(:, :, 1:nz), 'main.a.RHSz')
+        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSx_f')
+        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSy_f')
+        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSz_f')
+        call DEBUG_write (dpdx(:, :, 1:nz), 'main.a.dpdx')
+        call DEBUG_write (dpdy(:, :, 1:nz), 'main.a.dpdy')
+        call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
+        call DEBUG_write (fxa(:, :, 1:nz), 'main.a.fxa')
+        call DEBUG_write (force, 'main.a.force')
+    end if
+    $endif
+
+    !//////////////////////////////////////////////////////
+    !/// APPLIED FORCES                                 ///
+    !//////////////////////////////////////////////////////
+    !  Applied forcing (forces are added to RHS{x,y,z})
+    call forcing_applied()
+
+    !  Update RHS with applied forcing
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
+    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
+
+    !//////////////////////////////////////////////////////
+    !/// EULER INTEGRATION CHECK                        ///
+    !////////////////////////////////////////////////////// 
+    ! Set RHS*_f if necessary (first timestep) 
+    if ((jt == 1) .and. (.not. initu)) then
+      ! if initu, then this is read from the initialization file
+      ! else for the first step put RHS_f=RHS
+      !--i.e. at first step, take an Euler step
+      RHSx_f=RHSx
+      RHSy_f=RHSy
+      RHSz_f=RHSz
+    end if    
+
+    !//////////////////////////////////////////////////////
+    !/// INTERMEDIATE VELOCITY                          ///
+    !//////////////////////////////////////////////////////     
+    ! Calculate intermediate velocity field
+    !   only 1:nz-1 are valid
+    u(:, :, 1:nz-1) = u(:, :, 1:nz-1) +                   &
+                     dt * ( tadv1 * RHSx(:, :, 1:nz-1) +  &
+                            tadv2 * RHSx_f(:, :, 1:nz-1) )
+    v(:, :, 1:nz-1) = v(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSy(:, :, 1:nz-1) +  &
                             tadv2 * RHSy_f(:, :, 1:nz-1) )
-   w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                    &
+    w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
 
-  $if ($MPI)
-    !--after this point, u,v,w at jz = 0 are not useful, until updated
-    u(:, :, 0) = BOGUS
-    v(:, :, 0) = BOGUS
-    w(:, :, 0) = BOGUS
-  $endif
+    ! Set unused values to BOGUS so unintended uses will be noticable
+    $if ($MPI)
+        u(:, :, 0) = BOGUS
+        v(:, :, 0) = BOGUS
+        w(:, :, 0) = BOGUS
+    $endif
+    !--this is an experiment
+    !--u, v, w at jz = nz are not useful either, except possibly w(nz), but that
+    !  is supposed to zero anyway?
+    !--this has to do with what bc are imposed on intermediate velocity    
+    u(:, :, nz) = BOGUS
+    v(:, :, nz) = BOGUS
+    w(:, :, nz) = BOGUS
 
-  !--this is an experiment
-  u(:, :, nz) = BOGUS
-  v(:, :, nz) = BOGUS
-  w(:, :, nz) = BOGUS
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
+        call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
+        call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
+    end if
+    $endif
 
-  !--this is an experiment
-  !u(:, :, nz) = u(:, :, nz-1)  !BOGUS
-  !v(:, :, nz) = v(:, :, nz-1)  !BOGUS
-  !w(:, :, nz) = 0._rprec  !BOGUS
+    !//////////////////////////////////////////////////////
+    !/// PRESSURE SOLUTION                              ///
+    !//////////////////////////////////////////////////////
+    ! Solve Poisson equation for pressure
+    !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
+    !   do not need to store p --> only need gradient
+    !   provides p, dpdx, dpdy at 0:nz-1
+    call press_stag_array (p, dpdx, dpdy)
 
-  !--u, v, w at jz = nz are not useful either, except possibly w(nz), but that
-  !  is supposed to zero anyway?
-  !--this has to do with what bc are imposed on intermediate velocity
+    ! Calculate dpdz
+    !   note: p has additional level at z=-dz/2 for this derivative
+    dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) -   &
+                                p(1:nx, 1:ny, 0:nz-2)) / dz
+    dpdz(:, :, nz) = BOGUS
 
-  if (DEBUG) then
-    call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
-    call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
-    call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
-  end if
+    ! Add pressure gradients to RHS variables (for next time step)
+    !   could avoid storing pressure gradients - add directly to RHS
+    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
+    RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
+    RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
-  if (DEBUG) write (*, *) 'main: before press_stag'
-  !--solve Poisson equation for pressure
-  !--do we ever need p itself, or only its gradient? -> probably
-  !  do not need to store p
-  !call press_stag (p, dpdx, dpdy)
-  !--provides p, dpdx, dpdy at 0:nz-1
-  call press_stag_array (p, dpdx, dpdy)
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
+        call DEBUG_write (dpdy(:, :, 1:nz), 'main.dpdy')
+        call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
+    end if
+    $endif
 
-  if (DEBUG) write (*, *) 'main: after press_stag'
+    ! Debug
+    $if ($DEBUG)
+    if (DEBUG) then
+        call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
+        call DEBUG_write (v(:, :, 1:nz), 'main.d.v')
+        call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
+    end if
+    $endif
 
-  !--calculate dpdz here
-  !--careful, p is not dimensioned the same as the others
-  dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) -   &
-                              p(1:nx, 1:ny, 0:nz-2)) / dz
-  dpdz(:, :, nz) = BOGUS
+    !//////////////////////////////////////////////////////
+    !/// INDUCED FORCES                                 ///
+    !//////////////////////////////////////////////////////    
+    ! Calculate external forces induced forces. These are
+    ! stored in fx,fy,fz arrays. We are calling induced 
+    ! forces before applied forces as some of the applied
+    ! forces (RNS) depend on the induced forces and the 
+    ! two are assumed independent
+    call forcing_induced()
 
-  !--if really wanted to, could avoid storing pressure gradients
-  !  just add them directly to RHS in press_stag
-  RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
-  RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
-  RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    !//////////////////////////////////////////////////////
+    !/// PROJECTION STEP                                ///
+    !//////////////////////////////////////////////////////   
+    ! Projection method provides u,v,w for jz=1:nz
+    !   uses fx,fy,fz calculated above
+    !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
+    call project ()
 
-  if (DEBUG) then
-    !--note: only 1:nz-1 valid here
-    call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
-    call DEBUG_write (dpdy(:, :, 1:nz), 'main.dpdy')
-    call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
-  end if
+    $if($LVLSET and $RNS_LS)
+    !  Compute the relavent force information ( include reference quantities, CD, etc.)
+    !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
+    !  made here.
+    call rns_elem_force_ls()
+    $endif
+   
+    ! Perform conditional averaging - for turbines
+    $if ($TURBINES)
+        call turbines_cond_avg()
+    $endif       
 
-  call forcing ()
+    ! Write ke to file
+    if (modulo (jt, nenergy) == 0) call energy (ke)
 
-  if (DEBUG) then
-    call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
-    call DEBUG_write (v(:, :, 1:nz), 'main.d.v')
-    call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
-  end if
+    $if ($LVLSET)
+      if( global_CD_calc ) call level_set_global_CD ()
+    $endif
 
-  !--provides u, v, w at 1:nz 
-  call project ()
+    ! Write output files
+    call output_loop (jt)  
+    !RNS: Determine if instantaneous plane velocities are to be recorded
+        
+    ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
+    if (modulo (jt, wbase) == 0) then
+       
+       ! Get the ending time for the iteration
+       call clock_stop( clock_t )
+       call clock_stop( clock_total_t )
 
-  $if ($MPI)
-    !--exchange ghost-node information
-    !--send stuff up to ghost layer (0) (for z-derivs)
-    !--nz should already be in sync with 1 level: done in project()
-    call mpi_sendrecv (u(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
-                       u(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
-                       comm, status, ierr)
+       
+        ! Calculate rms divergence of velocity
+       !   only written to screen, not used otherwise
+       call rmsdiv (rmsdivvel)
+       maxcfl = get_max_cfl()
 
-    call mpi_sendrecv (v(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
-                       v(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
-                       comm, status, ierr)
+       
+       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+          write(*,*)
+          write(*,'(a)') '========================================'
+          write(*,'(a)') 'Time step information:'
+          write(*,'(a,i9)') '  Iteration: ', jt
+          write(*,'(a,E15.7)') '  Time step: ', dt
+          $if($CFL_DT)
+          write(*,'(a,E15.7)') '  CFL: ', maxcfl
+          $endif
+          write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
+          write(*,*) 
+          write(*,'(a)') 'Flow field information:'          
+          write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
+          write(*,'(a,E15.7)') '  Kinetic energy: ', ke
+          ! $if($CFL_DT)
+          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
+          ! $else
+          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
+          ! $endif  
+          write(*,*)
+          write(*,'(1a)') 'Simulation wall times (s): '
+          write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_time( clock_total_t )
+          write(*,'(a)') '========================================'
+       end if
 
-    call mpi_sendrecv (w(1, 1, nz-1), ld*ny, MPI_RPREC, up, 3,  &
-                       w(1, 1, 0), ld*ny, MPI_RPREC, down, 3,   &
-                       comm, status, ierr)
-  $endif
-
-  !--MPI: at this point, have u, v, w at 0:nz
-
-  if (modulo (jt, nenergy) == 0) call energy (ke)
-
-!!$  call avg_stats ()  !--only does something once every n_avg_stats steps
-
-  $if ($LVLSET)
-    call level_set_cylinder_CD ()
-  $endif
-
-  if (modulo (jt, wbase) == 0) then
-
-    call rmsdiv (rmsdivvel)
-
-    if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
-
-      write (6, 7777) jt, dt, rmsdivvel, ke
-
-      if ((S_FLAG) .or. (coriolis_forcing)) then
-        write (6, 7778) wt_s, S_FLAG, patch_flag, remote_flag, &
-                        coriolis_forcing, ug*u_star
-      end if
     end if
 
-  end if
-   
-7777 format ('jt,dt,rmsdivvel,ke:',1x,i6.6,3(1x,e9.4))
-7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
-             &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
+    ! $if($CFL_DT)
+    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
+    ! $else
+    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
+    ! $endif
+    ! 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
+    !      &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
 
-  call output_loop (jt)
+end do
+! END TIME LOOP
 
-  if (write_inflow_file) call inflow_write ()
-                              !--for creating inflow_BC file
-
-  if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
-
-end do  !--end time loop
+! Finalize
 close(2)
-if (output) call output_final (jt)
+    
+! Write total_time.dat and tavg files
+call output_final (jt)
 
-$if ($TREES_LS)
-  call trees_ls_finalize ()
+! Level set:
+$if ($LVLSET)
+
+  $if ($RNS_LS)
+  call rns_finalize_ls ()
+  $endif
 $endif
 
+! Turbines:
+$if ($TURBINES)
+call turbines_finalize ()   ! must come before MPI finalize
+$endif    
+
+! Stop wall clock
+call clock_stop( clock_total_t )
+$if($MPI)
+  if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
+$else
+  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
+$endif
+
+! MPI:
 $if ($MPI)
-  call mpi_finalize (ierr)
+call mpi_finalize (ierr)
 $endif
-
-stop
 
 end program main

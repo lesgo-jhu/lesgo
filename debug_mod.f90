@@ -34,8 +34,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function fname (tag)
 !use param, only : jt, coord 
-use param, only : coord
-use param2, only : jt => jt_total 
+use param, only : jt => jt_total, coord
 implicit none
 
 character (fname_len) :: fname

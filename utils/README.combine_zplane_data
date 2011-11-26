@@ -1,0 +1,5 @@
+To combine all zplane_avg files into one Tecplot file:
+
+1) Open combine_zplane_data.sh using a text editor and change nz, file_loc, and temp_loc as necessary
+2) Run the script using ./combine_zplane_data.sh
+3) The final Tecplot-ready data file (zplane_avg_combined.dat) is located in the output folder

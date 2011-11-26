@@ -1,15 +1,16 @@
-!**********************************************************************
 module level_set
-!**********************************************************************
 use types, rp => rprec
 use param
-use param2
 !use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, VERBOSE,   &
 !                  vonK, lbc_mom, USE_MPI, coord, nproc, up, down,       &
 !                  comm, ierr, MPI_RPREC, 
 use test_filtermodule, only : filter_size
 use messages
+
+$if ($DEBUG)
 use debug_mod
+$endif
+
 use level_set_base
 implicit none
 
@@ -17,15 +18,17 @@ save
 private
 
 public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
-public :: level_set_cylinder_CD, level_set_smooth_vel, level_set_lag_dyn
+public :: level_set_global_CD
+public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
-public :: phi, alloc_level_set
+public :: level_set_vel_err
 
 character (*), parameter :: mod_name = 'level_set'
 
 integer, parameter :: nd = 3
 
 $if ($MPI)
+  ! Make sure all values (top and bottom) are less than Nz
   integer, parameter :: nphitop = 3
   integer, parameter :: nphibot = 2
   integer, parameter :: nveltop = 1
@@ -46,105 +49,154 @@ $else
 $endif
 
 !--these are the extra overlap arrays required for BC with MPI
-real (rp), allocatable, dimension (:,:,:) :: phitop
-real (rp), allocatable, dimension (:,:,:) :: phibot
-real (rp), allocatable, dimension (:,:,:) :: utop, vtop, wtop
-real (rp), allocatable, dimension (:,:,:) :: ubot, vbot, wbot
-real (rp), allocatable, dimension (:,:,:) :: txxtop, txytop, txztop,  &
+real (rp), dimension (ld, ny, nphitop) :: phitop
+real (rp), dimension (ld, ny, nphibot) :: phibot
+real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
+real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
+real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
                                           tyytop, tyztop, tzztop
-real (rp), allocatable, dimension (:,:,:) :: txxbot, txybot, txzbot,  &
+real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
                                           tyybot, tyzbot, tzzbot
 !--really only needed for Lagrangian SGS models
-real (rp), allocatable, dimension (:,:,:) :: FMMbot
-real (rp), allocatable, dimension (:,:,:) :: FMMtop
+real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
+real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-logical, parameter :: vel_BC = .false.  !--means we are forcing velocity for
-                                        !  level set BC
-logical, parameter :: use_log_profile = .false.
-logical, parameter :: use_enforce_un = .false.
-logical, parameter :: physBC = .true.
-logical, parameter :: use_smooth_tau = .true.
-logical, parameter :: use_extrap_tau_log = .false.
-logical, parameter :: use_extrap_tau_simple = .true.
-logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau
-                                                  !--wont work w/extra_tau_log
-
-real (rp), parameter :: z0 = 0.0001_rp
-                        !--nondimensional roughness length of surface
-
-logical :: phi_cutoff_is_set = .false.
-logical :: phi_0_is_set = .false.
+$endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
-!real (rp) :: phi(ld, ny, $lbz:nz)
-
-real(rp), allocatable, dimension(:,:,:,:) :: norm !--normal vector
+!real (rp) :: phi(ld, ny, lbz:nz)
+real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
                                   !--may want to change so only normals
-                                  !  near 0-set are stored						  
+                                  !  near 0-set are stored
 !--experimental: desired velocities for IB method
-real(rp), allocatable, dimension(:,:,:) :: udes, vdes, wdes
+real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 
 !**********************************************************************
-subroutine alloc_level_set()
+subroutine level_set_vel_err() 
 !**********************************************************************
+!
+!  This subroutine computes the error in the final velocity field (u^{m+1})
+!  with respect to the desired IBM velocity (here zero). The averaged 
+!  value is written to file
+!
+use types, only : rprec
+use param, only : nx, ny, nz, total_time
+use sim_param, only : u, v, w
+$if ($MPI)
+use mpi
+use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+$endif
 implicit none
 
-!--these are the extra overlap arrays required for BC with MPI
-allocate(phitop(ld, ny, nphitop))
-allocate(phibot(ld, ny, nphibot))
-allocate(utop(ld, ny, nveltop)) 
-allocate(vtop(ld, ny, nveltop)) 
-allocate(wtop(ld, ny, nveltop)) 
+include 'tecryte.h'
 
-allocate(ubot(ld, ny, nvelbot)) 
-allocate(vbot(ld, ny, nvelbot)) 
-allocate(wbot(ld, ny, nvelbot)) 
+character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
+character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
 
-allocate(txxtop(ld,ny,ntautop))
-allocate(txytop(ld,ny,ntautop))
-allocate(txztop(ld,ny,ntautop))
-allocate(tyytop(ld,ny,ntautop))
-allocate(tyztop(ld,ny,ntautop))
-allocate(tzztop(ld,ny,ntautop))
-
-allocate(txxbot(ld,ny,ntaubot))
-allocate(txybot(ld,ny,ntaubot))
-allocate(txzbot(ld,ny,ntaubot))
-allocate(tyybot(ld,ny,ntaubot))
-allocate(tyzbot(ld,ny,ntaubot))
-allocate(tzzbot(ld,ny,ntaubot))
-
-!  Check if using Lagrangian SGS model										  
-if(model == 4 .or. model == 5) then										  
-!--really only needed for Lagrangian SGS models
-  allocate(FMMbot(ld,ny,nFMMbot))
-  allocate(FMMtop(ld,ny,nFMMtop))
-endif
-
-$if ($MPI)
-  $define $lbz 0
-$else
-  $define $lbz 1
+integer :: i,j,k
+integer :: uv_err_navg, w_err_navg
+real(rprec) :: u_err, v_err, w_err
+$if($MPI)
+real(rprec) :: u_err_global, v_err_global, w_err_global
 $endif
 
-allocate(norm(nd, ld, ny, $lbz:nz))
-allocate(udes(ld, ny, $lbz:nz), vdes(ld, ny, $lbz:nz), wdes(ld, ny, $lbz:nz))
+!  Initialize values
+uv_err_navg = 0
+w_err_navg = 0 
+u_err = 0._rprec
+v_err = 0._rprec
+w_err = 0._rprec
+
+!  Sum over bottom plane
+k=1
+do j=1, ny
+  do i=1, nx
+
+    if( phi(i,j,k) <= 0._rprec ) then
+      uv_err_navg = uv_err_navg + 1
+      u_err = u_err + abs( u(i,j,k) )
+      v_err = v_err + abs( v(i,j,k) )
+    endif
+
+  enddo
+enddo
+
+!  Sum over rest of planes
+do k=2, nz-1
+  do j=1, ny
+    do i=1, nx
+
+      if( phi(i,j,k) <= 0._rprec ) then
+        uv_err_navg = uv_err_navg + 1
+        u_err = u_err + abs( u(i,j,k) )
+        v_err = v_err + abs( v(i,j,k) )
+      endif
+
+
+      if( phi(i,j,k) + phi(i,j,k-1) <= 0._rprec ) then
+        w_err_navg = w_err_navg + 1
+        w_err = w_err + abs( w(i,j,k) )
+      endif
+      
+    enddo
+  enddo
+enddo
+
+if( uv_err_navg == 0 ) then
+  u_err = 0._rprec
+  v_err = 0._rprec
+else
+  u_err = u_err / uv_err_navg
+  v_err = v_err / uv_err_navg
+endif
+
+if( w_err_navg == 0 ) then
+  w_err = 0._rprec
+else
+  w_err = w_err / w_err_navg
+endif
+
+$if( $MPI )
+
+  call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  call mpi_reduce (w_err, w_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+
+  if( rank == 0 ) then
+  
+    u_err = u_err_global / nproc
+    v_err = v_err_global / nproc
+    w_err = w_err_global / nproc
+
+    call write_real_data(fname_write, 'append', 'formatted', 2, &
+                         (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+
+  endif
+
+$else
+
+call write_real_data(fname_write, 'append', 'formatted', 2, &
+                     (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+
+$endif
+
+
+
+
 
 return
-end subroutine alloc_level_set
-
+end subroutine level_set_vel_err
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--sets Cs2 to epsilon inside solid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!**********************************************************************
 subroutine level_set_Cs_lag_dyn ()
-!**********************************************************************
 use sgsmodule, only : Cs_opt2
 implicit none
 
@@ -158,8 +210,9 @@ integer :: s
 real (rp) :: phix
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 do k = 1, nz
 
@@ -182,7 +235,9 @@ do k = 1, nz
 
 end do
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_Cs_lag_dyn
 
@@ -194,9 +249,8 @@ end subroutine level_set_Cs_lag_dyn
 !  * zeroes F_LM inside solid
 !  * applies neumann condition on F_MM at solid surface
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!**********************************************************************
 subroutine level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
-!**********************************************************************
+use param, only: lbz
 use sim_param, only : u, v, w
 implicit none
 
@@ -210,15 +264,16 @@ logical, parameter :: lag_dyn_modify_beta = .true.
 real (rp) :: phi_c
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !--part 1: smooth variables
 phi_c = 0._rp
 
-call smooth (phi_c, $lbz, u)
-call smooth (phi_c, $lbz, v)
-call smooth (phi_c, $lbz, w, 'w')
+call smooth (phi_c, lbz, u)
+call smooth (phi_c, lbz, v)
+call smooth (phi_c, lbz, w, 'w')
 
 call smooth (phi_c, 1, S11, 'w')
 call smooth (phi_c, 1, S12, 'w')
@@ -236,13 +291,14 @@ call neumann_F_MM ()
 !--part 4 (optional): modify beta
 if (lag_dyn_modify_beta) call modify_beta ()
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_lag_dyn
 
-!**********************************************************************
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine modify_beta ()
-!**********************************************************************
 use sgsmodule, only : beta
 implicit none
 
@@ -260,8 +316,9 @@ real (rp) :: dmin
 real (rp) :: z
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
@@ -297,7 +354,9 @@ do k = 1, nz
 
 end do
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine modify_beta
 
@@ -306,9 +365,7 @@ end subroutine modify_beta
 !--only applies neumann condition to 1:nz-1 though, so additional
 !  sync between nz and 1' is needed
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!**********************************************************************
 subroutine neumann_F_MM ()
-!**********************************************************************
 use sgsmodule, only : F_MM
 implicit none
 
@@ -327,8 +384,9 @@ real (rp) :: x(nd), xp(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 phi1 = -sqrt (dx**2 + dy**2 + dz**2)
 phi2 = 0._rp
@@ -348,7 +406,7 @@ do k = 1, nz - 1
   else
     s = 1  !--w-nodes
   end if
-  
+
   do j = 1, ny
     do i = 1, nx
 
@@ -383,7 +441,9 @@ $if ($MPI)
                      comm, status, ierr)
 $endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 $if ($MPI)
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -435,8 +495,9 @@ real (rp) :: phix
 real (rp) :: phi_F_LM
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !phi_F_LM = 0._rp
 phi_F_LM = filter_size * dx  !--experimental
@@ -472,7 +533,9 @@ $if ($MPI)
                      comm, status, ierr)
 $endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine zero_F_LM
 
@@ -501,8 +564,9 @@ real (rp) :: grad
 real (rp) :: phi_min
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 A(1, :) = x_hat
 A(2, :) = y_hat
@@ -573,7 +637,9 @@ else
   dwdy(i, j, k) = G(3, 2)
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine modify_dutdn
 
@@ -582,7 +648,7 @@ end subroutine modify_dutdn
 !--this avoids using fit3
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau_simple ()
-use param2, only : jt
+use param, only : jt
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -594,7 +660,7 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -603,7 +669,7 @@ character (128) :: fname
 
 integer :: i, j, k
 !--experiment to reduce time spent on looping over fluid pts
-integer, save :: imn, imx, jmn, jmx
+integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
 integer :: imn_used, imx_used, jmn_used, jmx_used
 integer :: nbad
 integer :: kmn
@@ -621,14 +687,9 @@ real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-
-!  Moved from declarations (where save was used)
-imn=1
-imx=nx
-jmn=1
-jmx=ny
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 if (use_output) then
 
@@ -674,7 +735,8 @@ if (output) then
   write (lun, *) 'dphi = ', dphi
 end if
 
-!--initial values for _used variables
+!  initial values for _used variables
+!  setting to non-previously used values
 imn_used = nx
 imx_used = 1
 jmn_used = ny
@@ -693,6 +755,7 @@ do k = 1, nz - 1
 
       if ((-phi_c <= phi_x) .and. (phi_x < phi_0)) then
 
+        ! Find bounding box for all "banded" points"
         imn_used = min (imn_used, i)
         imx_used = max (imx_used, i)
         jmn_used = min (jmn_used, j)
@@ -700,10 +763,12 @@ do k = 1, nz - 1
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
 
-        !if (DEBUG) then
-        !  call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
-        !  call mesg (sub_name, 'x =', x)
-        !end if
+        $if ($DEBUG)
+        if (DEBUG) then
+          call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
+          call mesg (sub_name, 'x =', x)
+        end if
+        $endif
         
         n_hat = norm(:, i, j, k)
 
@@ -833,7 +898,9 @@ do k = 1, nz - 1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, '# u bad points =', nbad)
+$endif
 nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
@@ -972,7 +1039,9 @@ do k = kmn, nz - 1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, '# w bad points =', nbad)
+$endif
 
 imn = imn_used
 imx = imx_used
@@ -984,7 +1053,9 @@ if (output) then
   close (lun)
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau_simple
 
@@ -1019,8 +1090,9 @@ real (rp) :: v1(nd), v1t(nd)
 real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !--assumes phi_cutoff is set. CAREFUL
 !--set phi_a
@@ -1248,19 +1320,21 @@ do k = 2, nz
   end do
 end do
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau_log
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_un ()
-use param2, only : jt  !--plus stuff above
+use param, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_un'
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 
@@ -1273,8 +1347,9 @@ real (rp) :: vel1(nd), vel2(nd)
 real (rp) :: vel1_n, vel2_n
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !--need to experiment with these values
 if (phi_0_is_set) then
@@ -1415,29 +1490,21 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
   end do
 end do
 
-!if (DEBUG) then
-!
-!  fname = 
-!  open (1, file=fname)
-!  write (1, *) 'variables = "jx" "jy" "jz" "udes" "vdes" "wdes"'
-!  write (1, *) 'zone, f=point, i=', nx, ', j=', ny, 'k=', nz
-!  close (1)
-!
-!end if
-
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine enforce_un
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_log_profile ()
-use param2, only : jt  !--plus stuff above
+use param, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_log_profile'
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 
@@ -1593,16 +1660,6 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
   end do
 end do
 
-!if (DEBUG) then
-!
-!  fname = 
-!  open (1, file=fname)
-!  write (1, *) 'variables = "jx" "jy" "jz" "udes" "vdes" "wdes"'
-!  write (1, *) 'zone, f=point, i=', nx, ', j=', ny, 'k=', nz
-!  close (1)
-!
-!end if
-
 end subroutine enforce_log_profile
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1610,6 +1667,9 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use functions, only : cell_indx
+use messages
 implicit none
 
 integer, intent (in) :: albz
@@ -1629,16 +1689,36 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ks, ks1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
+
+nullify(autowrap_i, autowrap_j)
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+!  Could replace floor() with cell_indx (JSG)
+!i = autowrap_i( floor (xmod(1) / dx + 1._rp) )
+!j = autowrap_j( floor (xmod(2) / dy + 1._rp) )
+
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 if (present (node)) then
 
@@ -1654,10 +1734,9 @@ else  !-default to u-nodes
 
 end if
 
-ks = floor (x(3) / dz + s)
+!  This needs special treatment for u and w
+ks = floor (xmod(3) / dz + s)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range, i = ', i, n_l,  &
                  'x = ', x, n_l,                  &
@@ -1669,6 +1748,8 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+
+!--need to bounds check ks
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
@@ -1686,15 +1767,17 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ks1 = ks + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w1 = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w2 = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -1763,11 +1846,21 @@ $endif
 a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
       w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 end subroutine interp_scal
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
+use functions, only : cell_indx
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use messages
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -1780,22 +1873,38 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ku, ku1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
 real (rp) :: f(8)
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 s = 0.5_rp
-ku = floor (x(3) / dz + s)
+ku = floor (xmod(3) / dz + s)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
@@ -1804,6 +1913,7 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+!--need to bounds check ku
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
@@ -1822,15 +1932,17 @@ end if
 
 !--try to handle boundaries nicely for the +1 indices
 
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -1874,15 +1986,22 @@ call fill_f (tzzbot, tzztop, tzz)
 tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)        
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine fill_f (abot, atop, a)
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, $lbz:nz)  !--since tij are $lbz:nz
+real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
@@ -1949,6 +2068,10 @@ end subroutine interp_tij_u
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
+use functions, only : cell_indx
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use messages
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -1961,22 +2084,38 @@ integer :: i, j, k
 integer :: i1, j1, k1
 integer :: kw, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: s
 real (rp) :: x1, x2, x3
 real (rp) :: w(8)
 real (rp) :: f(8)
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx('i', dx, xmod(1)) )
+j = autowrap_j( cell_indx('j', dy, xmod(2)) )
 
 s = 1._rp
-kw = floor (x(3) / dz + s)
+kw = floor (xmod(3) / dz + s)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
@@ -1985,6 +2124,7 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+!--need to bounds check kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
@@ -2003,15 +2143,17 @@ end if
 
 !--try to handle boundaries nicely for the +1 indices
 
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 kw1 = kw + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + s) - s)
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + s) - s)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -2032,15 +2174,25 @@ call fill_f (tyzbot, tyztop, tyz)
 tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
+!**********************************************************************
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
+
+!**********************************************************************
 subroutine fill_f (abot, atop, a)
+!**********************************************************************
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: abot(ld, ny, ntaubot)
 real (rp), intent (in) :: atop(ld, ny, ntautop)
-real (rp), intent (in) :: a(ld, ny, $lbz:nz)  !--since tij are $lbz:nz
+real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
@@ -2101,14 +2253,19 @@ $endif
 
 end subroutine fill_f
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end subroutine interp_tij_w
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
+subroutine interp_phi (x, phi_x)
+!**********************************************************************
+!
 !--performs tri-linear interpolation to obtain phi at point x
 !--assumes phi is on u-nodes
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine interp_phi (x, phi_x)
+!
+use functions, only : cell_indx
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use messages
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2118,20 +2275,37 @@ character (*), parameter :: sub_name = mod_name // '.interp_phi'
 
 integer :: i, j, k, ku
 integer :: i1, j1, k1, ku1
-integer :: l  !--debug
+
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 
 real (rp) :: x1, x2, x3
 real (rp) :: w(8), f(8)
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
-ku = floor (x(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx( 'i', dx, xmod(1) ) )
+j = autowrap_j( cell_indx( 'j', dy, xmod(2) ) )
+
+ku = floor (xmod(3) / dz + 0.5_rp) !--assumes phi on u-nodes
 
 !--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
   write (msg, *) 'i out of range', n_l,            &
                  '(i, j, ku) = ', i, j, ku, n_l,   &
@@ -2146,6 +2320,7 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, msg)
 end if
 
+!--need to bounds check ku
 !--non-MPI has 0-sized nphibot, nphitop
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
@@ -2165,15 +2340,19 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3 = x(3) / dz - (floor (x(3) / dz + 0.5_rp) - 0.5_rp)
+!  Computes fraction of dx,dy,dz that point exists from 
+!  starting i,j,k of cell
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3 = xmod(3) / dz - (floor (xmod(3) / dz + 0.5_rp) - 0.5_rp)
 
 w(1) = (1._rp - x1) * (1._rp - x2) * (1._rp - x3)
 w(2) = (    x1    ) * (1._rp - x2) * (1._rp - x3)
@@ -2243,6 +2422,12 @@ $endif
 phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 end subroutine interp_phi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2253,6 +2438,10 @@ end subroutine interp_phi
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
+use functions, only : cell_indx
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use messages
+
 implicit none
 
 real (rp), intent (in) :: x(nd)
@@ -2263,20 +2452,36 @@ character (*), parameter :: sub_name = mod_name // '.interp_vel'
 integer :: i, j, k, ku, kw
 integer :: i1, j1, k1, ku1, kw1
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: x1, x2, x3u, x3w
 real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 real (rp) :: f1, f2, f3, f4, f5, f6, f7, f8
 
+real (rp) :: xmod(nd) ! Spatial location of autowrapped point
+
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call enter_sub( sub_name )
+$endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
+
 !---------------------------------------------------------------------
+xmod=x ! Initialize
+xmod(1)=modulo(x(1),L_x) ! Ensures i is located in the domain
+xmod(2)=modulo(x(2),L_y) ! Ensures j is located in the domain
 
 !--calculate indices
-i = floor (x(1) / dx + 1._rp)
-j = floor (x(2) / dy + 1._rp)
-ku = floor (x(3) / dz + 0.5_rp)
-kw = floor (x(3) / dz + 1._rp)
+!i = floor (xmod(1) / dx + 1._rp)
+!j = floor (xmod(2) / dy + 1._rp)
+i = autowrap_i( cell_indx( 'i', dx, xmod(1) ) )
+j = autowrap_j( cell_indx( 'j', dy, xmod(2) ) )
+ku = floor (xmod(3) / dz + 0.5_rp)  !--assumes phi on u-nodes
+kw = floor (xmod(3) / dz + 1._rp)
 
-!--need to bounds check i, j, ku, kw
-!--in future, may want to autowrap i, j
 if ((i < 1) .or. (i > nx)) then
   call error (sub_name, 'i out of range, i =', i)
 end if
@@ -2285,6 +2490,7 @@ if ((j < 1) .or. (j > ny)) then
   call error (sub_name, 'j out of range, j =', j)
 end if
 
+!--need to bounds check ku, kw
 if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
@@ -2310,17 +2516,19 @@ else
 end if
 
 !--try to handle boundaries nicely for the +1 indices
-i1 = modulo (i, nx) + 1
-j1 = modulo (j, ny) + 1
+!i1 = modulo (i, nx) + 1
+!j1 = modulo (j, ny) + 1
+i1 = autowrap_i( i + 1 )
+j1 = autowrap_j( j + 1 )
 
 ku1 = ku + 1
 kw1 = kw + 1
 
 !--calculate interpolation weights
-x1 = modulo (x(1), dx) / dx
-x2 = modulo (x(2), dy) / dy
-x3u = x(3) / dz - (floor (x(3) / dz + 0.5_rp) - 0.5_rp)
-x3w = modulo (x(3), dz) / dz
+x1 = modulo (xmod(1), dx) / dx
+x2 = modulo (xmod(2), dy) / dy
+x3u = xmod(3) / dz - (floor (xmod(3) / dz + 0.5_rp) - 0.5_rp)
+x3w = modulo (xmod(3), dz) / dz
 
 w1 = (1._rp - x1) * (1._rp - x2) * (1._rp - x3u)
 w2 = (    x1    ) * (1._rp - x2) * (1._rp - x3u)
@@ -2517,24 +2725,32 @@ $endif
 vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
+nullify(autowrap_i, autowrap_j)
+
+$if($VERBOSE)
+call exit_sub( sub_name )
+$endif
+
 end subroutine interp_vel
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--a driver routine for calling smooth routine with stresses
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth_tau (phi_c, txx, txy, txz, tyy, tyz, tzz)
+use param, only: lbz
 implicit none
 
 real (rp), intent (in) :: phi_c
 
-real (rp), intent (in out), dimension (ld, ny, $lbz:nz) ::  &
+real (rp), intent (in out), dimension (ld, ny, lbz:nz) ::  &
                                  txx, txy, txz, tyy, tyz, tzz
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !if (phi_cutoff_is_set) then
 !  phi_c = -phi_cutoff - 10._rp * epsilon (0._rp)
@@ -2547,14 +2763,16 @@ if (VERBOSE) call enter_sub (sub_name)
 !phi_c = -(filter_size * sqrt (dx**2 + dy**2 + dz**2) +  &
 !          10._rp * epsilon (0._rp))
 
-call smooth (phi_c, $lbz, txx)
-call smooth (phi_c, $lbz, txy)
-call smooth (phi_c, $lbz, txz, node='w')
-call smooth (phi_c, $lbz, tyy)
-call smooth (phi_c, $lbz, tyz, node='w')
-call smooth (phi_c, $lbz, tzz)
+call smooth (phi_c, lbz, txx)
+call smooth (phi_c, lbz, txy)
+call smooth (phi_c, lbz, txz, node='w')
+call smooth (phi_c, lbz, tyy)
+call smooth (phi_c, lbz, tyz, node='w')
+call smooth (phi_c, lbz, tzz)
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine smooth_tau
 
@@ -2565,35 +2783,39 @@ end subroutine smooth_tau
 !--modifies u, v, w.  Be careful.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_smooth_vel (u, v, w)
+use param, only: lbz
 implicit none
 
-real (rp), intent (in out), dimension (ld, ny, $lbz:nz) :: u, v, w
+real (rp), intent (in out), dimension (ld, ny, lbz:nz) :: u, v, w
 
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 
-real (rp) :: phi_c
+real (rp), parameter :: phi_c = 0._rp !--any pt with phi < 0 is smoothed
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
-
-phi_c = 0._rp  !--any pt with phi < 0 is smoothed
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
 call smooth (phi_c, lbound (w, 3), w, node='w')
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_smooth_vel
-
+ 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--smoothes in-place, so be careful
 !--uses SOR for laplace equation to acheive smoothing
 !--only smoothes region phi < phi0
-!--does NOT work near boundaries (of grid)!
+!--Used to NOT work near boundaries (of grid), but does now as
+!--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
+use grid_defs, only : grid_t !autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -2602,7 +2824,9 @@ real (rp), intent (in out) :: a(ld, ny, albz:nz)
 character (*), intent (in), optional :: node  !--'u' or 'w'
 
 character (*), parameter :: sub_name = mod_name // '.smooth'
-character (*), parameter :: mode = 'xy'  !--'xy', '3d'
+
+! Moved to level_set_base (renamed to smooth_mode )
+!character (*), parameter :: mode = 'xy'  !--'xy', '3d'
 
 integer, parameter :: niter = 5  !--number of SOR iterations
 
@@ -2614,12 +2838,23 @@ integer :: nnbr  !--number of neighbors
 integer :: iter
 integer :: kmin, kmax
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: phi1
 real (rp) :: update
 
-!---------------------------------------------------------------------
+! For autowrapping points: im1 = i-1, ip1 = i+1, etc.
+integer :: im1, ip1, jm1, jp1
 
-if (VERBOSE) call enter_sub (sub_name)
+!---------------------------------------------------------------------
+nullify(autowrap_i, autowrap_j)
+
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
+
+autowrap_i => grid_t % autowrap_i
+autowrap_j => grid_t % autowrap_j
 
 if (present (node)) then
 
@@ -2635,22 +2870,25 @@ else
 
 end if
 
-select case (mode)
+select case (smooth_mode)
   case ('xy')
     kmin = 1
     kmax = nz
   case ('3d')
     kmin = 2  !--this is not MPI-enabled
     kmax = nz - 1
+    $if($MPI)
+    call error (sub_name, 'smooth_mode 3d not MPI compliant')
+    $endif
   case default
-    call error (sub_name, 'invalid mode =' // mode)
+    call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
 end select
 
 do iter = 1, niter
   
   do k = kmin, kmax
-    do j = 2, ny-1
-      do i = 2, nx-1
+    do j = 1, ny
+      do i = 1, nx
 
         if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
              (k == s) ) then
@@ -2662,18 +2900,24 @@ do iter = 1, niter
 
         if (phi1 < phi0) then  !--note its less than
 
-          select case (mode)
+          !  Autowrap boundary points
+          im1 = autowrap_i(i-1)
+          ip1 = autowrap_i(i+1)
+          jm1 = autowrap_j(j-1)
+          jp1 = autowrap_j(j+1)
+
+          select case (smooth_mode)
             case ('xy')
               nnbr = 4
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k)) / nnbr
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k)) / nnbr
             case ('3d')
               nnbr = 6
-              update = (a(i-1, j, k) + a(i+1, j, k) +     &
-                        a(i, j-1, k) + a(i, j+1, k) +     &
+              update = (a(im1, j, k) + a(ip1, j, k) +     &
+                        a(i, jm1, k) + a(i, jp1, k) +     &
                         a(i, j, k-1) + a(i, j, k+1)) / nnbr
             case default
-              call error (sub_name, 'invalid mode =' // mode)
+              call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
           end select
 
           a(i, j, k) = (1._rp - omega) * a(i, j, k) + omega * update 
@@ -2686,35 +2930,40 @@ do iter = 1, niter
 
 end do
 
-if (VERBOSE) call exit_sub (sub_name)
+nullify(autowrap_i, autowrap_j)
+
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine smooth
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--this routine relies on user-supplied data about the projected area
-!  of the cylinder, because it is hard to get exact values from the
+!  of the level set object, because it is hard to get exact values from the
 !  level set alone
 !--may want to put option to append to previous output, if it exists
 !--also calculates CL (coeff. of lift)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_cylinder_CD ()
-use param2, only : jt, dt, L_y, L_z
+subroutine level_set_global_CD ()
+use param, only : jt, jt_total, dt, L_y, L_z
 use immersedbc, only : fx, fy, fz
 use sim_param, only : u
-use io, only : jt_total
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.level_set_cylinder_CD'
-character (*), parameter :: fCD_out = 'output/cylinder_CD.dat'
+include 'tecryte.h'
+
+character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
+character (*), parameter :: fCD_out = 'output/global_CD.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
-integer, parameter :: Ldir = 2
-                      !--lift direction:
-                      !  2 when cyl-axis is z
-                      !  3 when cyl axis is y
+!integer, parameter :: Ldir = 2
+!                      !--lift direction:
+!                      !  2 when cyl-axis is z
+!                      !  3 when cyl axis is y
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 
 real (rp), parameter :: Ap = 1._rp * 1._rp  !--projected area
 
@@ -2724,7 +2973,6 @@ logical :: opn, exst
 real (rp) :: CD, CL
 real (rp) :: Uinf   !--velocity scale used in calculation of CD
 real (rp) :: fD, fL      !--drag, lift force
-real (rp) :: dV
 real (rp) :: fD_global, fL_global, Uinf_global
 
 !---------------------------------------------------------------------
@@ -2745,7 +2993,6 @@ select case (Ldir)
     call error (sub_name, 'invalid Ldir =', Ldir)
 end select
 
-!  Uinf is defined as the average U velocity at the inflow plane.
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
@@ -2768,44 +3015,48 @@ $else
 
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+$if($MPI)
+if( coord == 0 ) then
+$endif 
 
   CD = fD_global / (0.5_rp * Ap * Uinf_global**2)
   CL = fL_global / (0.5_rp * Ap * Uinf_global**2)
 
-  inquire (lun, exist=exst, opened=opn)
+  if( .not. file_init ) then
 
-  if (.not. exst) call error (sub_name, 'unit', lun, ' nonexistant')
-  if (opn) call error (sub_name, 'unit', lun, ' is already open')
+    inquire (file=fCD_out, exist=exst, opened=opn)
 
-  open (lun, file=fCD_out, position='append')
+    !  Check that output is not already opened
+    if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-  if (.not. file_init) then  !--set up file for output
+    if( .not. exst ) then
 
-    !--write a header
-    write (lun, '(a,es12.5)') '# Ap = ', Ap
-    write (lun, '(a)') '# t, CD, fD, CL, fL, Uinf' 
+      call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
+
+    endif
 
     file_init = .true.
 
-  end if
+  endif
 
+  call write_real_data(fCD_out, 'append', 'formatted', 6, &
+    (/ total_time, CD, fD_global, CL, fL_global, Uinf_global /))
+
+  $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
+  $endif
 
-  !--output to file
-  write (lun, '(6(es12.5,1x))') (jt_total * dt), CD, fD_global,  &
-                                CL, fL_global, Uinf_global
-
-  close (lun)  !--only do this to force a flush
-
+$if($MPI)
 end if
+$endif
 
-end subroutine level_set_cylinder_CD
+end subroutine level_set_global_CD
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
-use param, only : vonK
-use param2, only: Co, dx, dy, dz, nx, ny, nz, n => nnn 
+use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => nnn 
 use sgsmodule, only : Cs_opt2
 implicit none
 
@@ -2823,8 +3074,9 @@ real (rp) :: dmin, z
 real (rp) :: phi_tmp
 
 !----------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 if (.not. initialized) then
 
@@ -2899,7 +3151,9 @@ if (.not. initialized) then
 
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_Cs
 
@@ -2924,11 +3178,11 @@ integer :: datasize
 integer :: kstart
 
 logical, save :: phi_synced = .false.
-logical, save :: norm_synced = .false.
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !--this logic MUST match that in level_set_BC
 if (.not. use_log_profile) then
@@ -3009,7 +3263,9 @@ if (.not. use_log_profile) then
   
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine mpi_sync
 $endif
@@ -3018,6 +3274,7 @@ $endif
 $if ($MPI)
 subroutine mpi_sync_tau ()
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.mpi_sync_tau'
@@ -3033,44 +3290,51 @@ integer :: kstart
 !--first step synchronize tij to make is valid at 0:nz
 
 !--send 1 level down to nz
-call mpi_sendrecv (txx(1, 1, 1), ld*ny, MPI_RPREC, down, tag+51,  &
-                   txx(1, 1, nz), ld*ny, MPI_RPREC, up, tag+51,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+52,  &
-                   txy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+52,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+53,  &
-                   txz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+53,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+54,  &
-                   tyy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+54,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+55,  &
-                   tyz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+55,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tzz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+56,  &
-                         tzz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+56,   &
-                         comm, status, ierr)
+! call mpi_sendrecv (txx(1, 1, 1), ld*ny, MPI_RPREC, down, tag+51,  &
+!                    txx(1, 1, nz), ld*ny, MPI_RPREC, up, tag+51,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+52,  &
+!                    txy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+52,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+53,  &
+!                    txz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+53,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyy(1, 1, 1), ld*ny, MPI_RPREC, down, tag+54,  &
+!                    tyy(1, 1, nz), ld*ny, MPI_RPREC, up, tag+54,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+55,  &
+!                    tyz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+55,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tzz(1, 1, 1), ld*ny, MPI_RPREC, down, tag+56,  &
+!                          tzz(1, 1, nz), ld*ny, MPI_RPREC, up, tag+56,   &
+!                          comm, status, ierr)
 
-!--send nz-1 level up to 0 level
-call mpi_sendrecv (txx(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+61,  &
-                   txx(1, 1, 0), ld*ny, MPI_RPREC, down, tag+61,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+62,  &
-                   txy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+62,   &
-                   comm, status, ierr)
-call mpi_sendrecv (txz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+63,  &
-                   txz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+63,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+64,  &
-                   tyy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+64,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tyz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+65,  &
-                   tyz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+65,   &
-                   comm, status, ierr)
-call mpi_sendrecv (tzz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+66,  &
-                   tzz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+66,   &
-                   comm, status, ierr)
+! !--send nz-1 level up to 0 level
+! call mpi_sendrecv (txx(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+61,  &
+!                    txx(1, 1, 0), ld*ny, MPI_RPREC, down, tag+61,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+62,  &
+!                    txy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+62,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (txz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+63,  &
+!                    txz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+63,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyy(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+64,  &
+!                    tyy(1, 1, 0), ld*ny, MPI_RPREC, down, tag+64,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tyz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+65,  &
+!                    tyz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+65,   &
+!                    comm, status, ierr)
+! call mpi_sendrecv (tzz(1, 1, nz-1), ld*ny, MPI_RPREC, up, tag+66,  &
+!                    tzz(1, 1, 0), ld*ny, MPI_RPREC, down, tag+66,   &
+!                    comm, status, ierr)
+
+call mpi_sync_real_array( txx, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txy, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyy, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tzz, 0, MPI_SYNC_DOWNUP )
 
 !--at this point, tij 0:nz are valid (1:nz at bottom, 0:nz-1 at top)
 
@@ -3143,11 +3407,14 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
-!logical, parameter :: DEBUG = .true.
+$if ($DEBUG)
+logical, parameter :: DEBUG = .false.
+$endif
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 $if ($MPI)
   call mpi_sync ()
@@ -3178,6 +3445,7 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
 
   else
   
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.a.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.a.txy')
@@ -3186,9 +3454,11 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.a.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.a.tzz')
     end if
+    $endif
 
     call interp_tau ()
 
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.b.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.b.txy')
@@ -3197,13 +3467,14 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.b.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.b.tzz')
     end if
-
+    $endif
     if (use_extrap_tau_simple) then
       call extrap_tau_simple ()
     else
       call extrap_tau ()
     end if
 
+    $if ($DEBUG)
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.c.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.c.txy')
@@ -3211,7 +3482,8 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.c.tyy')
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.c.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.c.tzz')
-    end if
+    end if 
+    $endif
 
   end if
 
@@ -3221,6 +3493,7 @@ if (use_smooth_tau) then
   !--phi_cutoff is set at start of this routine, so no need to check is_set
   call smooth_tau (-phi_cutoff, txx, txy, txz, tyy, tyz, tzz)
 
+  $if ($DEBUG)
   if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.d.txx')
     call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.d.txy')
@@ -3229,10 +3502,13 @@ if (use_smooth_tau) then
     call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.d.tyz')
     call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.d.tzz')
   end if
+  $endif
 
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_BC
 
@@ -3240,7 +3516,7 @@ end subroutine level_set_BC
 !--now, we also need to do extrapolation passes for dead/solid nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau ()
-use param2, only : jt  !--just for debug
+use param, only : jt  !--just for debug
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -3249,8 +3525,9 @@ character (*), parameter :: sub_name = mod_name // '.extrap_tau'
 character (*), parameter :: fmt1 = '(4(i0,1x))'
 integer, parameter :: lun1 = 1
 
+$if ($DEBUG)
 logical, parameter :: DEBUG = .false.
-
+$endif
 !real (rp), parameter :: phi_0 = 0._rp * z0  !--should be consistent with interp
 
 integer :: i, j, k, m, id
@@ -3260,15 +3537,18 @@ integer :: pt(nd), s(nd)
 integer :: indx(nd, 7), list(nd, 7)
 integer :: nxi(nd)
 
+$if ($DEBUG)
 logical, save :: first_call = .true.
+$endif
 
 real (rp) :: phi_c, phiw, phiw_m
 real (rp) :: sphi
 real (rp) :: normw(nd)
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 if (phi_cutoff_is_set) then
   phi_c = phi_cutoff
@@ -3282,6 +3562,7 @@ end if
 
 nxi = (/ nx, ny, nz /)
 
+$if ($DEBUG)
 if (DEBUG) then
   if (first_call) then
     open (lun1, file='level_set_extrap-u.dat')
@@ -3289,13 +3570,15 @@ if (DEBUG) then
     write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
   end if
 end if
-
+$endif
 !--u-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) nlist = 0
+      $endif
 
       if ((phi(i, j, k) < phi_0) .and. (phi(i, j, k) >= -phi_c)) then
 
@@ -3314,7 +3597,7 @@ do k = 2, nz-1
 
           indx(:, m) = pt + d_2 * s
 
-          !if (DEBUG) then
+          $if ($DEBUG)
           if (DEBUG .and. jt >= 615) then
             call mesg (sub_name, '(i, j, k)=', (/ i, j, k /))
             call mesg (sub_name, 'pt=', pt)
@@ -3322,6 +3605,7 @@ do k = 2, nz-1
             call mesg (sub_name, 's=', s)
             call mesg (sub_name, 'indx(:,', m, ') =', indx(:, m))
           end if
+          $endif
 
           do id = 1, nd
             if ( (indx(id, m) < 1) .or. (indx(id, m) > nxi(id)) ) then
@@ -3385,6 +3669,7 @@ do k = 2, nz-1
 
       end if
  
+      $if ($DEBUG)
       if (DEBUG) then
         if (jt >= 615) then
           call mesg (sub_name, 'pt =', pt)
@@ -3394,31 +3679,39 @@ do k = 2, nz-1
           call mesg (sub_name, 'tzz =', tzz(pt(1), pt(2), pt(3)))
         end if
       end if
-
+      $endif
+ 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
+      $endif
 
     end do
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG .and. first_call) then
   close (lun1)
   open (lun1, file='level_set_extrap-w.dat')
   write (lun1, *) 'variables = "i" "j" "k" "nlist"'
   write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
 end if
+$endif
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done extrapolation (u)')
+$endif
 
 !--w-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) nlist = 0
-
+      $endif
       phiw = (phi(i, j, k) + phi(i, j, k-1)) / 2._rp
       
       if ((phiw < phi_0) .and. (phiw >= -phi_c)) then
@@ -3490,6 +3783,7 @@ do k = 2, nz-1
        
       end if
       
+      $if ($DEBUG)
       if (DEBUG) then
         if (jt >= 615) then
           call mesg (sub_name, 'pt =', pt)
@@ -3497,29 +3791,37 @@ do k = 2, nz-1
           call mesg (sub_name, 'tyz =', tyz(pt(1), pt(2), pt(3)))
         end if
       end if
+      $endif
 
+      $if ($DEBUG)
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
-
+      $endif
     end do
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done extrapolation (w)')
+$endif
 
+$if ($DEBUG)
 if (DEBUG .and. first_call) then
   close (lun1)
   first_call = .false.
 end if
+$endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine extrap_tau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tau ()
-use param2, only : jt  !--in addition to stuff above
+use param, only : jt  !--in addition to stuff above
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz,             &
                       dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 implicit none
@@ -3532,7 +3834,7 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .true.
+!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -3543,7 +3845,7 @@ character (128) :: fname
 integer :: i, j, k
 integer :: kmin, kmax
 !--experiment for skipping unsed points
-integer, save :: imn, imx, jmn, jmx
+integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
 integer :: imn_used, imx_used, jmn_used, jmx_used
 
 logical :: output
@@ -3558,14 +3860,9 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 real (rp) :: x(nd), xv(nd)
 
 !---------------------------------------------------------------------
-
-!  Moved from declarations (where save was used)
-imn = 1
-imx = nx
-jmn = 1
-jmx = ny
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 if (use_output) then
 
@@ -3747,7 +4044,9 @@ do k = 1, nz-1
   end do
 end do
 
+$if ($DEBUG)
 if (DEBUG) call mesg (sub_name, 'done interpolation (u)')
+$endif
 
 if (output) write (lun, *) 'w-node pass'
 
@@ -3904,7 +4203,9 @@ $if ($MPI)
   call mpi_sync_tau ()
 $endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine interp_tau
 
@@ -3922,7 +4223,9 @@ real (rp), intent (in out) :: t(ld, ny, nz)
 
 character (*), parameter :: sub_name = mod_name // '.fit3'
 
-logical, parameter :: DEBUG = .true.
+$if ($DEBUG)
+logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: counter
 integer :: m, q
@@ -3937,9 +4240,9 @@ real (rp) :: A(3, 3), coeff(3), t_known(3)
 real (rp) :: dxi(nd-1)
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
-
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 if (nl < 3) call error (sub_name, 'nl should be >= 3')
 
 counter = 0
@@ -4004,6 +4307,7 @@ if (.not. failed) then
 
   call solve_linear (A, t_known, coeff)
 
+  $if ($DEBUG)
   if (DEBUG) then
     if (coeff(1) > 1.e7_rp) then
       call mesg (sub_name, 'A(1, :) =', A(1, :))
@@ -4014,6 +4318,7 @@ if (.not. failed) then
       call error (sub_name, 'coeff(1) too big')
     end if
   end if
+  $endif
 
   !--we only need coeff(1)
   t(p(1), p(2), p(3)) = coeff(1)
@@ -4032,25 +4337,33 @@ else  !--just average all the points, for now
 
 end if
 
-!if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
+$if ($DEBUG)
+if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
+$endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine fit3
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--set fx, fy, fz at 1:nz-1
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!**********************************************************************
 subroutine level_set_forcing ()
-use param, only : tadv1, BOGUS  !--in addition to param vars above
-use param2, only: dt 
+!**********************************************************************
+! 
+! Set fx, fy, fz at 1:nz-1
+!
+use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
 use immersedbc, only : fx, fy, fz
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
 
-!logical, parameter :: DEBUG = .true.
+$if ($DEBUG)
+logical, parameter :: DEBUG = .false.
+$endif
 
 integer :: i, j, k
 integer :: k_min
@@ -4058,8 +4371,9 @@ integer :: k_min
 real (rp) :: Rx, Ry, Rz
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 !--this is experimental
 if (vel_BC) then
@@ -4073,30 +4387,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
   do j = 1, ny
     do i = 1, nx
 
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-        
-        fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-  
-      else if (vel_BC) then
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-
-      end if
+      call level_set_force_xy()
 
       !--no w-node part here: the velocity should be zero b/c of BCs
 
@@ -4115,45 +4406,8 @@ do k = k_min, nz - 1
   do j = 1, ny
     do i = 1, nx
 
-      if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-        
-        fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
-        fy(i, j, k) = (-v(i, j, k)/dt - Ry)
-
-      else if (vel_BC) then
-
-        ! forces after pressure update
-        Rx = -tadv1 * dpdx(i, j, k)
-        Ry = -tadv1 * dpdy(i, j, k)
-
-        if (udes(i, j, k) < huge (1._rp) / 2) then
-          fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
-        end if
-
-        if (vdes(i, j, k) < huge (1._rp) / 2) then
-          fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
-        end if
-        
-      end if
-
-      if (phi(i, j, k) + phi(i, j, k-1) <= 0._rp) then  !--w-nodes
-
-        Rz = -tadv1 * dpdz(i, j, k)
-        fz(i, j, k) = (-w(i, j, k)/dt - Rz)
-
-      else if (vel_BC) then
-
-        Rz = -tadv1 * dpdz(i, j, k)
-
-        if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
-          fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
-        end if
-
-      end if
+      call level_set_force_xy()
+      call level_set_force_z()
 
     end do
   end do
@@ -4161,8 +4415,19 @@ end do
 
 fx(:, :, nz) = BOGUS
 fy(:, :, nz) = BOGUS
-fz(:, :, nz) = BOGUS
 
+!Setting 0 at physical top boundary
+$if($MPI)
+  if( coord == nproc - 1 ) then
+    fz(:, :, nz) = 0._rprec
+  else
+    fz(:, :, nz) = BOGUS
+  endif
+$else
+  fz(:,:,nz) = 0._rprec
+$endif
+
+$if ($DEBUG)
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
   call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
@@ -4171,70 +4436,148 @@ if (DEBUG) then
   call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
   call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
 end if
+$endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
+
+return
+
+contains
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_xy()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
+  
+  Rx = -tadv1 * dpdx(i, j, k)
+  Ry = -tadv1 * dpdy(i, j, k)        
+  fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+  fy(i, j, k) = (-v(i, j, k)/dt - Ry)
+
+
+else if (vel_BC) then
+       
+  ! forces after pressure update
+  Rx = -tadv1 * dpdx(i, j, k)
+  Ry = -tadv1 * dpdy(i, j, k)
+
+  if (udes(i, j, k) < huge (1._rp) / 2) then
+    fx(i, j, k) = ((udes(i, j, k) - u(i, j, k)) / dt - Rx)
+  end if
+
+  if (vdes(i, j, k) < huge (1._rp) / 2) then
+    fy(i, j, k) = ((vdes(i, j, k) - v(i, j, k)) / dt - Ry)
+  end if
+
+end if
+
+return
+end subroutine level_set_force_xy
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_force_z()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+! Original FV
+if (phi(i,j,k) + phi(i,j,k-1) <= 0._rp) then  !--w-nodes
+
+  Rz = -tadv1 * dpdz(i, j, k)
+  fz(i, j, k) = (-w(i, j, k)/dt - Rz)
+
+else if (vel_BC) then
+
+  Rz = -tadv1 * dpdz(i, j, k)
+
+  if (wdes(i, j, k) < huge (1._rp) / 2._rp) then
+    fz(i, j, k) = ((wdes(i, j, k) - w(i, j, k)) / dt - Rz)
+  end if
+
+end if
+
+return
+end subroutine level_set_force_z
 
 end subroutine level_set_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--calculated centered differences, excetp 1-sided differences at edges
+!--calculated centered differences, excetp 1-sided differences at top and
+!--bottom edges
 !--this assumes f(:, :, nz) is valid
 !--will insert BOGUS at nz-level, unless its the top process
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function safe_cd (i, j, k, d, f)
-use param2, only : dx, dy, dz  !--in addition to those above
+real(rp) function safe_cd (i, j, k, d, f)
+use param, only : dx, dy, dz, lbz  !--in addition to those above
+use grid_defs, only : grid_t ! autowrap_i, autowrap_j
 implicit none
-
-real (rp) :: safe_cd
 
 integer, intent (in) :: i, j, k
 integer, intent (in) :: d  !--d is dimension to difference along
-real (rp), intent (in) :: f(ld, ny, $lbz:nz)
+real (rp), intent (in) :: f(ld, ny, lbz:nz)
 
 character (*), parameter :: sub_name = mod_name // '.safe_cd'
 
 integer :: n
 
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
 real (rp) :: delta
+
+nullify( autowrap_i, autowrap_j )
+
+autowrap_i => grid_t % autowrap_i  
+autowrap_j => grid_t % autowrap_j
 
 !---------------------------------------------------------------------
 
 select case (d)
   case (1)
-    n = nx
     delta = dx
 
-    if (i == 1) then
+    !  Commented (JSG)
+    !n = nx
+    !if (i == 1) then
 
-      safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
+    !  safe_cd = ( f(i + 1, j, k) - f(i, j, k) ) / delta
 
-    else if (i == n) then
+    !else if (i == n) then
 
-      safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
+    !  safe_cd = ( f(i, j, k) - f(i - 1, j, k) ) / delta
 
-    else
+    !else
 
-      safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
+    !  safe_cd = ( f(i + 1, j, k) - f(i - 1, j, k) ) / (2._rp * delta)
 
-    end if
+    !end if
+
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(autowrap_i(i + 1), j, k) - f(autowrap_i(i - 1), j, k) ) / (2._rp * delta)
     
   case (2)
-    n = ny
+ 
     delta = dy
+    !  Commented (JSG)
+    ! n = ny
+    !if (j == 1) then
 
-    if (j == 1) then
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j, k) ) / delta
+    !else if (j == n) then
 
-    else if (j == n) then
+    !  safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
 
-      safe_cd = ( f(i, j, k) - f(i, j - 1, k) ) / delta
+    !else
 
-    else
+    !  safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
 
-      safe_cd = ( f(i, j + 1, k) - f(i, j - 1, k) ) /  (2._rp * delta)
+    !end if
 
-    end if
+    !  Using autowrap to take care of edges
+    safe_cd = ( f(i, autowrap_j(j + 1), k) - f(i, autowrap_j(j - 1), k) ) /  (2._rp * delta)
 
   case (3)
     n = nz
@@ -4263,6 +4606,8 @@ select case (d)
   case default
     call error (sub_name, 'invalid d =', d)
 end select
+
+nullify( autowrap_i, autowrap_j )
 
 end function safe_cd
 
@@ -4333,7 +4678,7 @@ end subroutine fix_norm
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--uses centered finite differences to calculate unit normal from 
 !  the signed distance function
-!--uses 1-sided finite differences near boundaries
+!--uses 1-sided finite differences near top and bottom boundaries
 !--not caring about speed too much here
 !--always returns a unit vector
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4358,8 +4703,9 @@ integer :: ierr
 real (rp) :: ntmp(nd)
 
 !---------------------------------------------------------------------
-
-if (VERBOSE) call enter_sub (sub_name)
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 nbad = 0
 bad = iBOGUS
@@ -4432,7 +4778,9 @@ $if ($MPI)
 
 $endif
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine fill_norm
 
@@ -4446,8 +4794,6 @@ integer, intent (in) :: i, j, k
 real (rp), intent (in) :: eps
 
 character (*), parameter :: sub_name = mod_name // '.avg_norm'
-
-integer :: navg
 
 real (rp) :: avg(nd)
 
@@ -4496,7 +4842,7 @@ end function mag
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_init ()
-use param2, only : dx, dy, dz  !--in addition to those above
+use param, only : dx, dy, dz, lbz  !--in addition to those above
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'
@@ -4507,7 +4853,7 @@ character (*), parameter :: MPI_suffix = '.c'
 
 integer, parameter :: lun = 1
 
-logical, parameter :: do_write_norm = .false.
+logical, parameter :: do_write_norm = .true.
 
 character (128) :: fphi_in, fnorm_out
 
@@ -4518,8 +4864,19 @@ logical :: exst, opn
 real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
-if (VERBOSE) call enter_sub (sub_name)
+$if($MPI)
+!  Check that the buffer arrays DO NOT extent beyond neighboring processors
+if( nphitop >= Nz .or. nphibot >= Nz .or. &
+    nveltop >= Nz .or. nvelbot >= Nz .or. &
+    ntautop >= Nz .or. ntaubot >= Nz .or. &
+    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
+
+  call error( sub_name, 'Buffer array extents beyond neighboring processor')
+$endif
 
 inquire (unit=lun, exist=exst, opened=opn)
 
@@ -4537,8 +4894,15 @@ inquire (file=fphi_in, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
+$if ($READ_BIG_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
+$else
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-read (lun) phi(:, :, $lbz:nz)
+$endif
+
+read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
            !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
 close (lun)
@@ -4588,7 +4952,9 @@ if (do_write_norm) then
 
 end if
 
-if (VERBOSE) call exit_sub (sub_name)
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine level_set_init
 
