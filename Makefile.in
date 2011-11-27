@@ -13,6 +13,8 @@ INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
+HOSTNAME = $(shell hostname -s)
+
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
 
@@ -32,7 +34,7 @@ DEVEL=no
 OUTPUT_EXTRA=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
@@ -115,7 +117,11 @@ ifeq ($(FCOMP),gfortran)
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = gfortran
+    ifeq ($(HOSTNAME), panoramix)
+      FC = gfortran44
+    else
+      FC = gfortran
+    endif
   endif
 
   LIBS += -ltecryte
