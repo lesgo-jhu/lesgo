@@ -9,7 +9,7 @@ use types, only : rprec
 save
 private
 
-public :: strcat, numtostr, eat_white_space, uppercase
+public :: strcat, numtostr, eat_whitespace, uppercase
 
 interface strcat
   module procedure strcat_aa, strcat_ai, strcat_ar
@@ -227,7 +227,7 @@ end function numtostr_i
 !end subroutine strcat_aiaiai
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine eat_white_space (buff, whtspc)
+subroutine eat_whitespace (buff, whtspc)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! eats leading and intermediate whitespace, fill trailing space with
@@ -257,7 +257,7 @@ end if
 
 buff = transfer (tmp, buff)
 
-end subroutine eat_white_space
+end subroutine eat_whitespace
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function uppercase(str) result(ucstr)
