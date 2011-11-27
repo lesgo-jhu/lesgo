@@ -62,26 +62,33 @@ module param
   real (rprec), parameter :: BOGUS = -1234567890._rprec
   real(rprec),parameter::pi=3.1415926535897932384626433_rprec
 
-  integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1 
+  !integer,parameter:: nx=64,ny=64,nz=(64)/nproc + 1 
+  integer :: Nx, Ny, Nz
   
-  integer, parameter :: nz_tot = (nz - 1) * nproc + 1
-  integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
-  integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
+  !integer, parameter :: nz_tot = (nz - 1) * nproc + 1
+  !integer,parameter:: nx2=3*nx/2,ny2=3*ny/2
+  !integer,parameter:: lh=nx/2+1,ld=2*lh,lh_big=nx2/2+1,ld_big=2*lh_big
+  integer :: nz_tot
+  integer :: nx2, ny2
+  integer :: lh, ld, lh_big, ld_big
 
   ! this value is dimensional [m]:
-  real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+  !real(rprec),parameter::z_i=1000._rprec   !dimensions in meters, height of BL
+  real(rprec) :: z_i
     
   ! these values should be non-dimensionalized by z_i: 
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
-  real(rprec),parameter::L_x= 2*pi
-  real(rprec),parameter::L_y= L_x
-  real(rprec),parameter::L_z= 1.0_rprec
+  !real(rprec),parameter::L_x= 2*pi
+  !real(rprec),parameter::L_y= L_x
+  !real(rprec),parameter::L_z= 1.0_rprec
   !real(rprec),parameter::L_y=ny*L_x/nx               ! ensure dy=dx
   !real(rprec),parameter::L_z=(nz_tot - 1)*L_x/nx  ! ensure dz = dx
+  real(rprec) :: L_x, L_y, L_z
 
   ! these values are also non-dimensionalized by z_i:
-  real(rprec),parameter::dz=L_z/(nz_tot-1.) ! or (L_z/nproc)/(nz - 1)
-  real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
+  !real(rprec),parameter::dz=L_z/(nz_tot-1.) ! or (L_z/nproc)/(nz - 1)
+  !real(rprec),parameter::dx=L_x/nx,dy=L_y/ny
+  real(rprec) :: dx, dy, dz
   
 !---------------------------------------------------
 ! MODEL PARAMETERS
@@ -90,19 +97,25 @@ module param
   ! Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
   ! Models type: 1->static prandtl, 2->Dynamic
-  integer,parameter::model=5,models=1,nnn=2
+  !integer,parameter::model=5,models=1,nnn=2
+  integer :: model, models, nnn
 
   ! timesteps between dynamic Cs updates           
-  integer, parameter :: cs_count = 5
+  !integer, parameter :: cs_count = 5
+  integer :: cs_count
+
   ! When to start dynamic Cs calculations
-  integer,parameter::DYN_init=100
+  !integer,parameter::DYN_init=100
+  integer :: DYN_init
   
   ! Cs is the Smagorinsky Constant
   ! Co and nnn are used in the mason model for smagorisky coeff
-  real(kind=rprec),parameter::Co=0.16_rprec
+  !real(kind=rprec),parameter::Co=0.16_rprec
+  real(rprec) :: Co
   
   ! test filter type: 1->cut off 2->Gaussian 3->Top-hat
-  integer,parameter::ifilter=1
+  !integer,parameter::ifilter=1
+  integer :: ifilter
 
   ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
@@ -113,24 +126,30 @@ module param
   ! Coriolis stuff
   ! coriol=non-dim coriolis parameter,
   ! ug=horiz geostrophic vel, vg=transverse geostrophic vel
-  logical,parameter::coriolis_forcing=.false.
-  real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
-       ug=u_star/u_star,vg=0._rprec/u_star
+  !logical,parameter::coriolis_forcing=.false.
+  !real(rprec),parameter::coriol=9.125E-05*z_i/u_star,      &
+  !     ug=u_star/u_star,vg=0._rprec/u_star
+  logical :: coriolis_forcing
+  real(rprec) :: coriol, ug, vg
 
   ! nu_molec is dimensional m^2/s
-  real(rprec),parameter::nu_molec=1.14e-5_rprec   
+  !real(rprec),parameter::nu_molec=1.14e-5_rprec   
+  real(rprec) :: nu_molec
     
-  logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
+  !logical,parameter::molec=.false.,sgs=.true.,dns_bc=.false.  
+  logical :: molec, sgs, dns_bc
   
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
 
-  integer, parameter :: nsteps = 1500
+  !integer, parameter :: nsteps = 1500
+  integer :: nsteps
  
   $if($CFL_DT)
   
-  real(rprec), parameter :: cfl = 0.05
+  !real(rprec), parameter :: cfl = 0.05
+  real(rprec) :: cfl
   real(rprec) :: dt, dt_f, dt_dim, cfl_f
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
@@ -138,8 +157,10 @@ module param
   
   $else
   
-  real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
-  real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
+  !real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
+  !real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
+  real(rprec) :: dt
+  real(rprec) :: dt_dim
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
   real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
@@ -158,39 +179,52 @@ module param
 !---------------------------------------------------  
 
   ! initu = true to read from a file; false to create with random noise
-  logical, parameter :: initu = .false.
+  !logical, parameter :: initu = .false.
+  logical :: initu
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
-  logical, parameter :: inilag = .true.
+  !logical, parameter :: inilag = .true.
+  logical :: inilag
 
   ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
-  integer,parameter::ubc=0
+  !integer,parameter::ubc=0
+  integer :: ubc
   ! lbc: lower boundary condition:  'wall', 'stress free'
-  character (*), parameter :: lbc_mom = 'wall'
+  !character (*), parameter :: lbc_mom = 'wall'
+  character(50) :: lbc_mom
   
   ! lower boundary condition, roughness length
-  real (rprec), parameter :: zo = 0.0001_rprec  ! nondimensional  
+  !real (rprec), parameter :: zo = 0.0001_rprec  ! nondimensional  
+  real(rprec) :: zo
 
   ! prescribed inflow:   
-  logical,parameter::inflow=.false.
+  !logical,parameter::inflow=.false.
+  logical :: inflow
   ! if inflow is true the following should be set:
     ! position of right end of fringe region, as a fraction of L_x
-    real (rprec), parameter :: fringe_region_end = 1._rprec
+    !real (rprec), parameter :: fringe_region_end = 1._rprec
+    real(rprec) :: fringe_region_end
     ! length of fringe region as a fraction of L_x
-    real (rprec), parameter :: fringe_region_len = 0.125_rprec  
+    !real (rprec), parameter :: fringe_region_len = 0.125_rprec  
+    real(rprec) :: fringe_region_len
 
     ! Use uniform inflow instead of concurrent precursor inflow
-    logical, parameter :: uniform_inflow = .false.
-      real (rprec), parameter :: inflow_velocity = 1.0_rprec
+    !logical, parameter :: uniform_inflow = .false.
+    logical :: uniform_inflow
+      !real (rprec), parameter :: inflow_velocity = 1.0_rprec
+      real(rprec) :: inflow_velocity
       ! velocities are forced to the inflow velocity
-      logical, parameter :: force_top_bot = .false.
+      !logical, parameter :: force_top_bot = .false.
+      logical :: force_top_bot
 
     ! Use concurrent precursor setup instead of uniform inflow
     ! Make sure USE_CPS=true in Makefile.in
     logical, parameter :: concurrent_precursor_inflow = .true. 
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
-  logical, parameter :: use_mean_p_force = .true.
-  real (rprec), parameter :: mean_p_force = 1._rprec / L_z
+  !logical, parameter :: use_mean_p_force = .true.
+  logical :: use_mean_p_force
+  !real (rprec), parameter :: mean_p_force = 1._rprec / L_z
+  real(rprec) :: mean_p_force
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
