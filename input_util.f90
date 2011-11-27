@@ -24,7 +24,7 @@ subroutine read_input_conf ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 use messages
-use strmod, only : eat_whtspc, uppercase
+use strmod, only : eat_whitespace, uppercase
 implicit none
 
 character (*), parameter :: sub = 'read_conf'
@@ -140,7 +140,7 @@ contains
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine domain_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use settings
+use param
 implicit none
 
 do 
@@ -185,7 +185,7 @@ end subroutine domain_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine model_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use settings
+use param
 implicit none
 
 do 
@@ -251,7 +251,7 @@ end subroutine model_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine time_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use settings
+use param
 implicit none
 
 do 
@@ -293,7 +293,7 @@ end subroutine  time_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use settings
+use param
 implicit none
 
 do 
@@ -352,7 +352,7 @@ end subroutine  flow_cond_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use settings
+use param
 implicit none
 
 do 
@@ -494,7 +494,7 @@ do
   read (lun, '(a)', iostat=ios) buff
   if (ios /= 0) exit
 
-  call eat_white_space (buff)
+  call eat_whitespace (buff)
 
   if (verify (buff, ' ') == 0) cycle  !--drop blank lines
   
