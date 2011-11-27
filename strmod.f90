@@ -9,7 +9,7 @@ use types, only : rprec
 save
 private
 
-public :: strcat, numtostr
+public :: strcat, numtostr, eat_white_space, uppercase
 
 interface strcat
   module procedure strcat_aa, strcat_ai, strcat_ar
@@ -226,6 +226,72 @@ end function numtostr_i
 !return
 !end subroutine strcat_aiaiai
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine eat_white_space (buff, whtspc)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! eats leading and intermediate whitespace, fill trailing space with
+! blanks
+!
 
+implicit none
+
+character (*), intent (inout) :: buff
+character (*), intent (in), optional :: whtspc  !--override default
+
+character (*), parameter :: whtspc_default = achar (9) // achar (32)
+                            !--add more characters here if needed
+character (1), parameter :: fill_char = ' '
+
+character (1) :: tmp (len (buff))
+character (1) :: fill (len (buff))
+
+fill = fill_char
+tmp = transfer (buff, tmp)
+
+if (present (whtspc)) then
+  tmp = pack (tmp, scan (tmp, whtspc) == 0, fill)
+else
+  tmp = pack (tmp, scan (tmp, whtspc_default) == 0, fill)
+end if
+
+buff = transfer (tmp, buff)
+
+end subroutine eat_white_space
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function uppercase(str) result(ucstr)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! convert specified string to upper case
+!
+character (len=*):: str
+character (len=len_trim(str)):: ucstr
+
+ilen=len_trim(str)
+ioffset=iachar('A')-iachar('a')
+iquote=0
+ucstr=str
+do i=1,ilen
+  iav=iachar(str(i:i))
+  if(iquote==0 .and. (iav==34 .or.iav==39)) then
+    iquote=1
+    iqc=iav
+    cycle
+  end if
+  if(iquote==1 .and. iav==iqc) then
+    iquote=0
+    cycle
+  end if
+  if (iquote==1) cycle
+  if(iav >= iachar('a') .and. iav <= iachar('z')) then
+    ucstr(i:i)=achar(iav+ioffset)
+  else
+    ucstr(i:i)=str(i:i)
+  end if
+end do
+return
+
+end function uppercase
 
 end module strmod
