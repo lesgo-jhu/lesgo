@@ -61,21 +61,21 @@ do jz=1,nz
 
    end if
 
-   call test_filter(u_bar,G_test)
-   call test_filter(v_bar,G_test)
-   call test_filter(w_bar,G_test)
-   call test_filter(L11,G_test)  ! in-place filtering
-   L11 = L11 - u_bar*u_bar
-   call test_filter(L12,G_test)
-   L12 = L12 - u_bar*v_bar
-   call test_filter(L13,G_test)
-   L13 = L13 - u_bar*w_bar
-   call test_filter(L22,G_test)
-   L22 = L22 - v_bar*v_bar
-   call test_filter(L23,G_test)
-   L23 = L23 - v_bar*w_bar
-   call test_filter(L33,G_test)
-   L33 = L33 - w_bar*w_bar
+    call test_filter ( u_bar )   ! in-place filtering
+    call test_filter ( v_bar )
+    call test_filter ( w_bar )
+    call test_filter ( L11 )  
+    L11 = L11 - u_bar*u_bar  
+    call test_filter ( L12 )
+    L12 = L12 - u_bar*v_bar
+    call test_filter ( L13 )
+    L13 = L13 - u_bar*w_bar
+    call test_filter ( L22 )
+    L22 = L22 - v_bar*v_bar
+    call test_filter ( L23 )
+    L23 = L23 - v_bar*w_bar
+    call test_filter ( L33 )
+    L33 = L33 - w_bar*w_bar  
 !        print*, u_bar/u(:,:,jz)
 !        print*, L23(5,5)
 
@@ -92,12 +92,12 @@ do jz=1,nz
    S23_bar(:,:) = S23(:,:,jz)  
    S33_bar(:,:) = S33(:,:,jz)  
 
-   call test_filter(S11_bar,G_test)
-   call test_filter(S12_bar,G_test)
-   call test_filter(S13_bar,G_test)
-   call test_filter(S22_bar,G_test)
-   call test_filter(S23_bar,G_test)
-   call test_filter(S33_bar,G_test)
+    call test_filter ( S11_bar )
+    call test_filter ( S12_bar )
+    call test_filter ( S13_bar )
+    call test_filter ( S22_bar )
+    call test_filter ( S23_bar )
+    call test_filter ( S33_bar )
 
    S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 + &
           2._rprec*(S12_bar**2 + S13_bar**2 + S23_bar**2)))
@@ -109,12 +109,12 @@ do jz=1,nz
    S_S23_bar(:,:) = S(:,:)*S23(:,:,jz)
    S_S33_bar(:,:) = S(:,:)*S33(:,:,jz)
 
-   call test_filter(S_S11_bar,G_test)
-   call test_filter(S_S12_bar,G_test)
-   call test_filter(S_S13_bar,G_test)
-   call test_filter(S_S22_bar,G_test)
-   call test_filter(S_S23_bar,G_test)
-   call test_filter(S_S33_bar,G_test)     
+    call test_filter ( S_S11_bar )
+    call test_filter ( S_S12_bar )
+    call test_filter ( S_S13_bar )
+    call test_filter ( S_S22_bar )
+    call test_filter ( S_S23_bar )
+    call test_filter ( S_S33_bar )      
 
 ! now put beta back into M_ij
    const = 2._rprec*delta**2
