@@ -14,28 +14,63 @@ use sgsmodule,only:rtnewt
 use test_filtermodule
 implicit none
 integer :: jz
-real(kind=rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
-real(kind=rprec), dimension(nz), intent (out) :: Cs_opt2
-real(kind=rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
-real(kind=rprec), dimension(ld,ny) :: Q11,Q12,Q13,Q22,Q23,Q33
-real(kind=rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
-equivalence (M11,Q11), (M12,Q12), (M13,Q13), (M22,Q22), (M23,Q23),&
-     (M33,Q33)
-real(kind=rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
+real(kind=rprec), dimension(:,:,:), intent (inout) :: S11,S12,S13,S22,S23,S33
+real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
+
+real(kind=rprec), dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
+real(kind=rprec), allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
+real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
+
+real(kind=rprec), dimension(:,:), allocatable :: S_bar,S11_bar,S12_bar,&
      S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
      S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-real(kind=rprec), dimension(ld,ny) :: S_hat,S11_hat,S12_hat,&
+real(kind=rprec), dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
-real(kind=rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
-real(kind=rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
-real(kind=rprec), dimension(ld,ny) :: S
+
+real(kind=rprec), dimension(:,:), allocatable :: u_bar,v_bar,w_bar
+real(kind=rprec), dimension(:,:), allocatable :: u_hat,v_hat,w_hat
+
+real(kind=rprec), dimension(:,:), allocatable :: S
 real(kind=rprec) :: delta, const
 real(kind=rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
-real(kind=rprec), dimension(nz) :: beta
+real(kind=rprec), dimension(:), allocatable :: beta
 !TSreal(kind=rprec) :: rtnewt
 character(len=24)::fname
+
+! Allocate arrays
+    allocate ( L11(ld,ny), L12(ld,ny), L13(ld,ny), &
+               L22(ld,ny), L23(ld,ny), L33(ld,ny) )
+
+    allocate ( Q11(ld,ny), Q12(ld,ny), Q13(ld,ny), &
+               Q22(ld,ny), Q23(ld,ny), Q33(ld,ny) )
+
+    M11 => Q11
+    M12 => Q12
+    M13 => Q13
+    M22 => Q22
+    M23 => Q23
+    M33 => Q33
+
+    allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
+             S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
+             S33_bar(ld,ny), S_S11_bar(ld,ny), S_S12_bar(ld,ny), &
+             S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
+             S33_bar(ld,ny) )
+
+    allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
+             S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &
+             S33_hat(ld,ny), S_S11_hat(ld,ny), S_S12_hat(ld,ny), &
+             S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
+             S33_hat(ld,ny) )
+
+    allocate ( u_bar(ld,ny), v_bar(ld,ny), w_bar(ld,ny) )
+
+    allocate ( u_hat(ld,ny), v_hat(ld,ny), w_hat(ld,ny) )
+
+    allocate ( S(ld,ny), beta(nz) )
+
 
 delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
 
@@ -73,22 +108,23 @@ do jz=1,nz
    w_hat = w_bar
 ! would be neat to have some rotating storage or something so we don't 
 !   have to do this (use pointers)
-   
-   call test_filter(u_bar,G_test)
-   call test_filter(v_bar,G_test)
-   call test_filter(w_bar,G_test)
-   call test_filter(L11,G_test)  ! in-place filtering
-   L11 = L11 - u_bar*u_bar
-   call test_filter(L12,G_test)
+
+   ! Filter first term and add the second term to get the final value
+   call test_filter ( u_bar )   ! in-place filtering
+   call test_filter ( v_bar )
+   call test_filter ( w_bar )
+   call test_filter ( L11 )  
+   L11 = L11 - u_bar*u_bar  
+   call test_filter ( L12 )
    L12 = L12 - u_bar*v_bar
-   call test_filter(L13,G_test)
+   call test_filter ( L13 )
    L13 = L13 - u_bar*w_bar
-   call test_filter(L22,G_test)
+   call test_filter ( L22 )
    L22 = L22 - v_bar*v_bar
-   call test_filter(L23,G_test)
+   call test_filter ( L23 )
    L23 = L23 - v_bar*w_bar
-   call test_filter(L33,G_test)
-   L33 = L33 - w_bar*w_bar
+   call test_filter ( L33 )
+   L33 = L33 - w_bar*w_bar  
    
    Q11 = u_bar*u_bar
    Q12 = u_bar*v_bar
@@ -97,20 +133,20 @@ do jz=1,nz
    Q23 = v_bar*w_bar
    Q33 = w_bar*w_bar
 
-   call test_filter(u_hat,G_test_test)
-   call test_filter(v_hat,G_test_test)
-   call test_filter(w_hat,G_test_test)
-   call test_filter(Q11,G_test_test)
+   call test_test_filter ( u_hat )
+   call test_test_filter ( v_hat )
+   call test_test_filter ( w_hat )
+   call test_test_filter ( Q11 )
    Q11 = Q11 - u_hat*u_hat
-   call test_filter(Q12,G_test_test)
+   call test_test_filter ( Q12 )
    Q12 = Q12 - u_hat*v_hat
-   call test_filter(Q13,G_test_test)
+   call test_test_filter ( Q13 )
    Q13 = Q13 - u_hat*w_hat
-   call test_filter(Q22,G_test_test)
+   call test_test_filter ( Q22 )
    Q22 = Q22 - v_hat*v_hat
-   call test_filter(Q23,G_test_test)
+   call test_test_filter ( Q23 )
    Q23 = Q23 - v_hat*w_hat
-   call test_filter(Q33,G_test_test)
+   call test_test_filter ( Q33 )
    Q33 = Q33 - w_hat*w_hat
    
 ! calculate |S|
@@ -133,19 +169,19 @@ do jz=1,nz
    S23_hat = S23_bar
    S33_hat = S33_bar
    
-   call test_filter(S11_bar,G_test)
-   call test_filter(S12_bar,G_test)
-   call test_filter(S13_bar,G_test)
-   call test_filter(S22_bar,G_test)
-   call test_filter(S23_bar,G_test)
-   call test_filter(S33_bar,G_test)
+   call test_filter ( S11_bar )
+   call test_filter ( S12_bar )
+   call test_filter ( S13_bar )
+   call test_filter ( S22_bar )
+   call test_filter ( S23_bar )
+   call test_filter ( S33_bar )
 
-   call test_filter(S11_hat,G_test_test)
-   call test_filter(S12_hat,G_test_test)
-   call test_filter(S13_hat,G_test_test)
-   call test_filter(S22_hat,G_test_test)
-   call test_filter(S23_hat,G_test_test)
-   call test_filter(S33_hat,G_test_test)
+   call test_test_filter ( S11_hat )
+   call test_test_filter ( S12_hat )
+   call test_test_filter ( S13_hat )
+   call test_test_filter ( S22_hat )
+   call test_test_filter ( S23_hat )
+   call test_test_filter ( S33_hat )
 
    S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 + &
         2._rprec*(S12_bar**2 + S13_bar**2 + S23_bar**2)))
@@ -167,19 +203,19 @@ do jz=1,nz
    S_S23_hat = S_S23_bar
    S_S33_hat = S_S33_bar
 
-   call test_filter(S_S11_bar,G_test)
-   call test_filter(S_S12_bar,G_test)
-   call test_filter(S_S13_bar,G_test)
-   call test_filter(S_S22_bar,G_test)
-   call test_filter(S_S23_bar,G_test)
-   call test_filter(S_S33_bar,G_test)     
+   call test_filter ( S_S11_bar )
+   call test_filter ( S_S12_bar )
+   call test_filter ( S_S13_bar )
+   call test_filter ( S_S22_bar )
+   call test_filter ( S_S23_bar )
+   call test_filter ( S_S33_bar )     
    
-   call test_filter(S_S11_hat,G_test_test)
-   call test_filter(S_S12_hat,G_test_test)
-   call test_filter(S_S13_hat,G_test_test)
-   call test_filter(S_S22_hat,G_test_test)
-   call test_filter(S_S23_hat,G_test_test)
-   call test_filter(S_S33_hat,G_test_test)     
+   call test_test_filter ( S_S11_hat )
+   call test_test_filter ( S_S12_hat )
+   call test_test_filter ( S_S13_hat )
+   call test_test_filter ( S_S22_hat )
+   call test_test_filter ( S_S23_hat )
+   call test_test_filter ( S_S33_hat )     
 
 ! note: check that the Nyquist guys are zero!
 ! the 1./(nx*ny) is not really neccessary, but in practice it does 
