@@ -1692,13 +1692,13 @@ if(point_calc) then
 
       !  Can't concatenate an empty string
       point_t(i) % fname=''
-      call strcat(point_t(i) % fname,'output/vel.x-')
-      call strcat(point_t(i) % fname, point_loc(i)%xyz(1))
-      call strcat(point_t(i) % fname,'.y-')
-      call strcat(point_t(i) % fname,point_loc(i)%xyz(2))
-      call strcat(point_t(i) % fname,'.z-')
-      call strcat(point_t(i) % fname,point_loc(i)%xyz(3))
-      call strcat(point_t(i) % fname,'.dat')
+      call string_concat(point_t(i) % fname,'output/vel.x-')
+      call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
+      call string_concat(point_t(i) % fname,'.y-')
+      call string_concat(point_t(i) % fname,point_loc(i)%xyz(2))
+      call string_concat(point_t(i) % fname,'.z-')
+      call string_concat(point_t(i) % fname,point_loc(i)%xyz(3))
+      call string_concat(point_t(i) % fname,'.dat')
    
       !  Add tecplot header if file does not exist
       inquire (file=point_t(i) % fname, exist=exst)
@@ -1721,13 +1721,13 @@ if(point_calc) then
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 
     point_t(i) % fname=''
-    call strcat(point_t(i) % fname,'output/vel.x-')
-    call strcat(point_t(i) % fname, point_loc(i)%xyz(1))
-    call strcat(point_t(i) % fname,'.y-')
-    call strcat(point_t(i) % fname,point_loc(i)%xyz(2))
-    call strcat(point_t(i) % fname,'.z-')
-    call strcat(point_t(i) % fname,point_loc(i)%xyz(3))
-    call strcat(point_t(i) % fname,'.dat')
+    call string_concat(point_t(i) % fname,'output/vel.x-')
+    call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
+    call string_concat(point_t(i) % fname,'.y-')
+    call string_concat(point_t(i) % fname,point_loc(i)%xyz(2))
+    call string_concat(point_t(i) % fname,'.z-')
+    call string_concat(point_t(i) % fname,point_loc(i)%xyz(3))
+    call string_concat(point_t(i) % fname,'.dat')
 
     !  Add tecplot header if file does not exist
     inquire (file=point_t(i) % fname, exist=exst)
