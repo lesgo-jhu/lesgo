@@ -147,8 +147,9 @@ do
     read (buff(equal_pos+1:), *) L_z
   case default
      
-    call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-                'at line', line)
+    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
+    !             'at line', line)
+     call message( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
   end select
 
 enddo
@@ -244,8 +245,9 @@ do
 
   case default
      
-    call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-                'at line', line)
+    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
+    !             'at line', line)
+     call message( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
   end select
 
 enddo
