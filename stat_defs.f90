@@ -28,7 +28,7 @@ type rs
 end type rs
 
 type spectra
-  real(rprec), dimension(lh) :: power
+  real(rprec), dimension(:), allocatable :: power
   integer :: istart, coord
   real(rprec) :: ldiff 
 end type spectra
