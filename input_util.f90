@@ -106,44 +106,6 @@ end do
 
 close (lun)
 
-! write(*,*) 'GRID SETTINGS : '
-! write(*,'(a16,i9)')    'Nx : ', Nx
-! write(*,'(a16,i9)')    'Ny : ', Ny
-! write(*,'(a16,f12.6)')  'Lx : ', Lx
-! write(*,'(a16,f12.6)') 'Ly : ', Ly
-! write(*,'(a16,l)') 'non_uniform : ', non_uniform
-! write(*,'(a16,f12.6)') 'alpha : ', alpha
-
-! write(*,*) ''
-! write(*,*) 'TIME SETTINGS : '
-! write(*,'(a16,f12.6)') 'dt : ', dt
-! write(*,'(a16,i9)') 'Nmax : ', Nmax
-
-! write(*,*) ''
-! write(*,*) 'AVERAGING SETTINGS : '
-! write(*,'(a16,l)') 'avg_compute : ', avg_compute
-! write(*,'(a16,i9)') 'avg_start : ', avg_start
-
-! write(*,*) ''
-! write(*,*) 'OUTPUT SETTINGS : '
-! write(*,'(a16,i9)') 'output_skip : ', output_skip
-! write(*,'(a16,a)') 'output_path : ', output_path
-! write(*,'(a22,l)') 'output_stream_func : ', output_stream_func
-! write(*,*) ''
-! write(*,*) 'SOLVER SETTINGS : '
-! write(*,'(a16,e12.6)') 'eps : ', eps
-
-! write(*,*) ''
-! write(*,*) 'FLOW SETTINGS : '
-! write(*,'(a16,f12.6)') 'Re : ', Re
-
-! write(*,*) ''
-! write(*,*) 'BC SETTINGS : '
-! write(*,'(a16,2f12.6)') 'Ue : ', Ue
-! write(*,'(a16,2f12.6)') 'Uw : ', Uw
-! write(*,'(a16,2f12.6)') 'Un : ', Un
-! write(*,'(a16,2f12.6)') 'Us : ', Us
-
 contains
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -159,7 +121,10 @@ do
   if (ios /= 0) call error( sub, 'Bad read in block')
 
   ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) return 
+  if( block_exit_pos == 1 ) then
+     call set_dependents()
+     return 
+  endif
 
   ! Check that the data entry conforms to correct format
   call checkentry()  
@@ -171,14 +136,14 @@ do
   case ('NY')
      read (buff(equal_pos+1:), *) Ny
   case ('NZ') 
-     read (buff(equal_pos+1:), *) Nz
+     read (buff(equal_pos+1:), *) Nz_tot
   case ('Z_I')
     read (buff(equal_pos+1:), *) z_i
-  case ('L_X')
+  case ('LX')
     read (buff(equal_pos+1:), *) L_x
-  case ('L_Y')
+  case ('LY')
     read (buff(equal_pos+1:), *) L_y
-  case ('L_Z')
+  case ('LZ')
     read (buff(equal_pos+1:), *) L_z
   case default
      
@@ -189,6 +154,37 @@ do
 enddo
 
 return
+
+contains
+
+!-----------------------------------------------------------------------
+subroutine set_dependents()
+!-----------------------------------------------------------------------
+!
+! This subroutine sets the dependents using the data read in from the
+! input file.
+!
+implicit none
+
+! Set the processor owned vertical grid spacing
+nz = ( nz_tot - 1 ) / nproc + 1 
+! Grid size for dealiasing
+nx2 = 3 * nx / 2
+ny2 = 3 * ny / 2
+! Grid size for FFT's
+lh = nx / 2 + 1
+ld = 2 * lh
+lh_big = nx2 / 2 + 1
+ld_big = 2 * lh_big
+
+! Grid spacing
+dx = L_x / nx
+dy = L_y / ny
+dz = L_z / ( nz_tot - 1 )
+
+return
+end subroutine set_dependents
+
 end subroutine domain_block
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -216,7 +212,7 @@ do
   case ('MODELS')
      read (buff(equal_pos+1:), *) models
   case ('NNN') 
-     read (buff(equal_pos+1:), *) nnn
+     read (buff(equal_pos+1:), *) wall_damp_exp
   case ('CS_COUNT')
     read (buff(equal_pos+1:), *) cs_count
   case ('DYN_INIT')
@@ -227,12 +223,12 @@ do
     read (buff(equal_pos+1:), *) ifilter
   case ('U_STAR')
     read (buff(equal_pos+1:), *) u_star
-  case ('PR')
-    read (buff(equal_pos+1:), *) Pr
   case ('VONK')
     read (buff(equal_pos+1:), *) vonk
   case ('CORIOLIS_FORCING')
     read (buff(equal_pos+1:), *) coriolis_forcing
+  case ('CORIOL')
+    read (buff(equal_pos+1:), *) coriol
   case ('UG')
     read (buff(equal_pos+1:), *) ug
   case ('VG')
