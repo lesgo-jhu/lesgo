@@ -35,7 +35,7 @@ subroutine read_input_conf ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 use messages
-use strmod, only : eat_whitespace, uppercase
+use string_util, only : eat_whitespace, uppercase
 implicit none
 
 character (*), parameter :: sub = 'read_conf'
