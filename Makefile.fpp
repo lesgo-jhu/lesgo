@@ -30,10 +30,6 @@ ifeq ($(USE_CFL_DT), yes)
   FPP += -DCFL_DT
 endif
 
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
-endif
-
 ifeq ($(WRITE_ENDIAN),LITTLE)
   FPP += -DWRITE_LITTLE_ENDIAN
 endif
