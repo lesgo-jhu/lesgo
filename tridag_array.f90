@@ -12,7 +12,7 @@ real(kind=rprec),dimension(lh, ny, nz+1),intent(in):: a, b, c
 real(rprec), dimension(ld,ny,nz+1), intent(in) :: r
 real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 
-integer, parameter :: n = nz+1
+integer :: n
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -24,6 +24,7 @@ real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
 integer :: ir, ii
 
+n = nz+1
 !--want to skip ny/2+1 and 1, 1
 
 $if ($MPI)
