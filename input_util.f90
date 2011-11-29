@@ -409,17 +409,23 @@ do
     read (buff(equal_pos+1:), *) nenergy
 
   case ('LAG_CFL_COUNT')
-    read (buff(equal_pos+1:), *) cfl_count
+    read (buff(equal_pos+1:), *) lag_cfl_count
 
   case ('TAVG_CALC')
     read (buff(equal_pos+1:), *) tavg_calc
   case ('TAVG_NSTART')
     read (buff(equal_pos+1:), *) tavg_nstart
+  case ('TAVG_NEND')
+    read (buff(equal_pos+1:), *) tavg_nend
 
   case ('POINT_CALC')
     read (buff(equal_pos+1:), *) point_calc
   case ('POINT_NSTART')
     read (buff(equal_pos+1:), *) point_nstart
+  case ('POINT_NEND')
+    read (buff(equal_pos+1:), *) point_nend
+  case ('POINT_NSKIP')
+    read (buff(equal_pos+1:), *) point_nskip
   case ('POINT_NLOC')
     read (buff(equal_pos+1:), *) point_nloc
   case ('POINT_LOC')
@@ -430,11 +436,19 @@ do
     read (buff(equal_pos+1:), *) domain_calc
   case ('DOMAIN_NSTART')
     read (buff(equal_pos+1:), *) domain_nstart
+  case ('DOMAIN_NEND')
+    read (buff(equal_pos+1:), *) domain_nend
+  case ('DOMAIN_NSKIP')
+    read (buff(equal_pos+1:), *) domain_nskip
 
   case ('XPLANE_CALC')
     read (buff(equal_pos+1:), *) xplane_calc
   case ('XPLANE_NSTART')
     read (buff(equal_pos+1:), *) xplane_nstart
+  case ('XPLANE_NEND')
+    read (buff(equal_pos+1:), *) xplane_nend
+  case ('XPLANE_NSKIP')
+    read (buff(equal_pos+1:), *) xplane_nskip
   case ('XPLANE_NLOC')
     read (buff(equal_pos+1:), *) xplane_nloc
   case ('XPLANE_LOC')
@@ -445,6 +459,10 @@ do
     read (buff(equal_pos+1:), *) yplane_calc
   case ('YPLANE_NSTART')
     read (buff(equal_pos+1:), *) yplane_nstart
+  case ('YPLANE_NEND')
+    read (buff(equal_pos+1:), *) yplane_nend
+  case ('YPLANE_NSKIP')
+    read (buff(equal_pos+1:), *) yplane_nskip
   case ('YPLANE_NLOC')
     read (buff(equal_pos+1:), *) yplane_nloc
   case ('YPLANE_LOC')
@@ -455,6 +473,10 @@ do
     read (buff(equal_pos+1:), *) zplane_calc
   case ('ZPLANE_NSTART')
     read (buff(equal_pos+1:), *) zplane_nstart
+  case ('ZPLANE_NEND')
+    read (buff(equal_pos+1:), *) zplane_nend
+  case ('ZPLANE_NSKIP')
+    read (buff(equal_pos+1:), *) zplane_nskip
   case ('ZPLANE_NLOC')
     read (buff(equal_pos+1:), *) zplane_nloc
   case ('ZPLANE_LOC')
