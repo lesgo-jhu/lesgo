@@ -8,7 +8,7 @@ use param, only : ld, nx, ny, nz, nz_tot, path,  &
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
 use sgsmodule,only:Cs_opt2
-use strmod
+use string_util
 use messages
 
 implicit none
@@ -249,7 +249,7 @@ $endif
 
 $if($LVLSET)
 use level_set_base, only : phi
-use immersedbc, only : fx, fy, fz, fxa, fya, fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
 use param, only : sgs_model
@@ -1526,7 +1526,7 @@ subroutine stats_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
-use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz
+use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz,lh
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
@@ -1587,6 +1587,7 @@ if(spectra_calc) then
   do k=1,spectra_nloc
 
     !  Initialize sub-arrays
+    allocate( spectra_t(k)%power(lh) )
     spectra_t(k) % power = 0._rprec
 
     $if ($MPI)
@@ -1815,7 +1816,7 @@ use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
-use immersedbc, only : fx, fy, fz, fxa, fya, fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -1959,13 +1960,15 @@ logical :: opn
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
 
-real(rprec), parameter :: favg = real(nx*ny,kind=rprec)
+real(rprec) :: favg
 
 $if($LVLSET)
 real(rprec) :: fx_global, fy_global, fz_global
 $endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
+
+favg = real(nx*ny,kind=rprec)
 
 nullify(x,y,z,zw)
 
