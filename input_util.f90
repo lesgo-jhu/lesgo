@@ -17,6 +17,17 @@ character (*), parameter :: block_exit = '}'
 character (*), parameter :: equal = '='
 character (*), parameter :: esyntax = 'syntax error at line'
 
+! Delimiters used for reading vectors and points
+character(*), parameter :: delim_minor=','
+character(*), parameter :: delim_major='//'
+
+! Default buffer length for characters of unknown length
+integer, parameter :: BUFF_LEN = 256
+
+interface parse_vector
+  module procedure parse_vector_real, parse_vector_point3D
+end interface
+
 contains
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -30,7 +41,7 @@ implicit none
 character (*), parameter :: sub = 'read_conf'
 
 integer, parameter :: lun = 1
-integer, parameter :: BUFF_LEN = 256
+
 
 character (BUFF_LEN) :: buff
 
@@ -133,9 +144,7 @@ close (lun)
 ! write(*,'(a16,2f12.6)') 'Un : ', Un
 ! write(*,'(a16,2f12.6)') 'Us : ', Us
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine domain_block()
@@ -391,7 +400,7 @@ do
     read (buff(equal_pos+1:), *) point_nloc
   case ('POINT_LOC')
      allocate( point_loc( point_nloc ) )
-     read (buff(equal_pos+1:), *) point_loc
+     call parse_vector( buff(equal_pos+1:), point_loc )
 
   case ('DOMAIN_CALC')
     read (buff(equal_pos+1:), *) domain_calc
@@ -406,7 +415,7 @@ do
     read (buff(equal_pos+1:), *) xplane_nloc
   case ('XPLANE_LOC')
      allocate( xplane_loc( xplane_nloc ) )
-     read (buff(equal_pos+1:), *) xplane_loc
+     call parse_vector( buff(equal_pos+1:), xplane_loc )
 
   case ('YPLANE_CALC')
     read (buff(equal_pos+1:), *) yplane_calc
@@ -416,7 +425,7 @@ do
     read (buff(equal_pos+1:), *) yplane_nloc
   case ('YPLANE_LOC')
      allocate( yplane_loc( yplane_nloc ) )
-     read (buff(equal_pos+1:), *) yplane_loc
+     call parse_vector( buff(equal_pos+1:), yplane_loc )
 
   case ('ZPLANE_CALC')
     read (buff(equal_pos+1:), *) zplane_calc
@@ -426,7 +435,7 @@ do
     read (buff(equal_pos+1:), *) zplane_nloc
   case ('ZPLANE_LOC')
      allocate( zplane_loc( zplane_nloc ) )
-     read (buff(equal_pos+1:), *) zplane_loc
+     call parse_vector( buff(equal_pos+1:), zplane_loc )
 
   case ('SPECTRA_CALC')
     read (buff(equal_pos+1:), *) spectra_calc
@@ -438,7 +447,7 @@ do
     read (buff(equal_pos+1:), *) spectra_nloc
   case ('SPECTRA_LOC')
      allocate( spectra_loc( spectra_nloc ) )
-     read (buff(equal_pos+1:), *) spectra_loc
+     call parse_vector( buff(equal_pos+1:), spectra_loc )
 
   case default
      
@@ -473,14 +482,15 @@ subroutine readline(lun, line, buff, block_entry_pos, &
 ! This subroutine reads the specified line and determines the attributes
 ! of the contents of the line.
 !
-use strmod
+use string_util, only : eat_whitespace
 implicit none
 
 integer, intent(in) :: lun
 integer, intent(inout) :: line
 
 character(*), intent(inout) :: buff
-integer, intent(out) :: block_entry_pos, block_exit_pos, &
+integer, intent(out) :: block_entry_pos, &
+                        block_exit_pos, &
                         equal_pos, ios
 
 block_entry_pos = 0
@@ -509,5 +519,61 @@ do
 enddo 
 return
 end subroutine readline
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine parse_vector_real( string, vector )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+use string_util, only : split_string
+
+implicit none
+
+character(*), intent(in) :: string
+real(rprec), dimension(:), intent(inout) :: vector
+character(BUFF_LEN), dimension(:), allocatable :: svector
+
+! Get the number of elements in the vector
+nelem = size(vector,1)
+allocate( svector( nelem ) )
+
+call split_string( string, delim_minor, nelem, svector )
+read( svector, * ) vector
+
+deallocate(svector)
+
+return
+end subroutine parse_vector_real
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine parse_vector_point3D( string, vector )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec, point3D
+use string_util, only : split_string
+
+implicit none
+
+character(*), intent(in) :: string
+type(point3D), dimension(:), intent(inout) :: vector
+character(BUFF_LEN), allocatable, dimension(:) :: svector
+
+real(rprec), dimension(3) :: vector_minor
+
+! Get the number of elements in the vector
+nelem = size(vector,1)
+
+allocate( svector( nelem ) )
+
+! Split based on major delimiter
+call split_string( string, delim_major, nelem, svector )
+! Now parse result string 
+do n=1, nelem
+   call parse_vector_real( svector(n), vector_minor )
+   vector(n) = point3D( vector_minor(1), vector_minor(2), vector_minor(3) )
+enddo
+
+deallocate(svector)
+
+return
+end subroutine parse_vector_point3D
 
 end module input_mod
