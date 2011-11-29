@@ -33,7 +33,7 @@ subroutine rns_forcing_ls()
 !
 use types, only : rprec
 use sim_param, only : u, v
-use immersedbc, only : fxa, fya
+use sim_param, only : fxa, fya
 use messages
 
 $if($MPI)
@@ -162,7 +162,7 @@ subroutine rns_elem_force_ls()
 use types, only : rprec
 use messages
 use sim_param, only : u, v
-use immersedbc, only : fx, fy
+use sim_param, only : fx, fy
 use functions, only : points_avg_3D
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
@@ -990,7 +990,7 @@ use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
 use sim_param, only : u, v
 use functions, only : points_avg_3D
-use immersedbc, only : fx, fy
+use sim_param, only : fx, fy
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.r_elem_force'
@@ -1099,7 +1099,7 @@ end subroutine r_elem_force
 subroutine r_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 
 implicit none
 
@@ -1180,7 +1180,7 @@ end subroutine r_elem_data_write
 subroutine beta_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 
 implicit none
 
@@ -1278,7 +1278,7 @@ end subroutine beta_elem_data_write
 subroutine b_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 implicit none
 
 include 'tecryte.h'
