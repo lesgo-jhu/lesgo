@@ -1,3 +1,7 @@
+!***********************************************************************
+subroutine convec (cx,cy,cz)
+!***********************************************************************
+!
 ! c = - (u X vort)
 !...Compute rotational convective term in physical space  (X-mom eq.)
 !...For staggered grid
@@ -9,7 +13,7 @@
 !
 ! uses 3/2-rule for dealiasing 
 !-- for more info see Canuto 1991 Spectral Methods (0387522050), chapter 7
-subroutine convec (cx,cy,cz)
+!
 use types,only:rprec
 use param
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
