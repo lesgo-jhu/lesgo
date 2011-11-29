@@ -63,7 +63,7 @@ write(2,x3i_fmt) 'model, nnn : ', model, nnn
 write(2,f_fmt) 'Co : ', Co
 write(2,i_fmt) 'cs_count : ', cs_count
 write(2,i_fmt) 'ifilter : ', ifilter
-write(2,x2f_fmt) 'u_star, Pr : ', u_star, Pr
+write(2,x2f_fmt) 'u_star : ', u_star
 write(2,f_fmt) 'vonk : ', vonk
 write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
 write(2,x3f_fmt) 'coriol : ', coriol, ug, vg

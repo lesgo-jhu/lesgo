@@ -97,7 +97,7 @@ module param
   integer,parameter::ifilter=1
 
   ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
-  real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
+  real(rprec),parameter::u_star=0.45_rprec
 
   ! von Karman constant     
   real(rprec),parameter::vonk=0.4_rprec   
