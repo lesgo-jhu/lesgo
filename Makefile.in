@@ -49,7 +49,7 @@ WRITE_ENDIAN = DEFAULT
 READ_ENDIAN = DEFAULT
 
 #--not fully supported by all parts of the code
-USE_DYNALLOC = no
+USE_DYNALLOC = yes
 #--still experimental
 
 USE_LVLSET = no
