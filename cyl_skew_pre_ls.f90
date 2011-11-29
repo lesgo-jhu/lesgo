@@ -1196,7 +1196,7 @@
       use param, only :  MPI_RPREC,ierr, nproc, status
       use cyl_skew_pre_base_ls, only : nx_proc
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-      use strmod, only : numtostr
+      use string_util, only : numtostr
       implicit none
       include 'tecryte.h'
 
@@ -1352,7 +1352,7 @@
       use cyl_skew_pre_base_ls, only : nx_proc, stride
       $endif
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-      use strmod, only : numtostr
+      use string_util, only : numtostr
       implicit none
       include 'tecryte.h'
 
