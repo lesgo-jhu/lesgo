@@ -209,10 +209,8 @@ do
   select case (uppercase(buff(1:equal_pos-1)))
 
   case ('MODEL')
-     read (buff(equal_pos+1:), *) model
-  case ('MODELS')
-     read (buff(equal_pos+1:), *) models
-  case ('NNN') 
+     read (buff(equal_pos+1:), *) sgs_model
+  case ('WALL_DAMP_EXP') 
      read (buff(equal_pos+1:), *) wall_damp_exp
   case ('CS_COUNT')
     read (buff(equal_pos+1:), *) cs_count
@@ -269,7 +267,10 @@ do
 
 
   ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) return 
+  if( block_exit_pos == 1 ) then
+     call set_dependents()
+     return 
+  endif
 
   ! Check that the data entry conforms to correct format
   call checkentry()
@@ -296,6 +297,25 @@ do
 enddo
 
 return
+
+contains
+
+!-----------------------------------------------------------------------
+subroutine set_dependents()
+!-----------------------------------------------------------------------
+implicit none
+
+$if(not $CFL_DT)
+! Set dimensional time step
+dt_dim = dt * z_i / u_star
+! Set AB2 integration coefficients
+tadv1 = 1.5_rprec
+tadv2 = 1.0_rprec - tadv1
+$endif
+
+return
+end subroutine set_dependents
+
 end subroutine  time_block
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -151,12 +151,9 @@ module param
   
   !real(rprec), parameter :: cfl = 0.05
   real(rprec) :: cfl
-  real(rprec) :: dt, dt_f, dt_dim, cfl_f
+  real(rprec) :: dt_f, cfl_f
   
-  ! time advance parameters (Adams-Bashforth, 2nd order accurate)
-  real (rprec) :: tadv1, tadv2
-  
-  $else
+  $endif
   
   !real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
   !real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
@@ -164,7 +161,8 @@ module param
   real(rprec) :: dt_dim
   
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
-  real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
+  !real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
+  real(rprec) :: tadv1, tadv2
   
   $endif
   
