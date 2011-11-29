@@ -59,7 +59,7 @@ write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'MODEL PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
-write(2,x3i_fmt) 'model, models, nnn : ', model, models, nnn
+write(2,x3i_fmt) 'model, nnn : ', model, nnn
 write(2,f_fmt) 'Co : ', Co
 write(2,i_fmt) 'cs_count : ', cs_count
 write(2,i_fmt) 'ifilter : ', ifilter

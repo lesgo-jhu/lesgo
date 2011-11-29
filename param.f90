@@ -82,8 +82,7 @@ module param
 
   ! Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
-  ! Models type: 1->static prandtl, 2->Dynamic
-  integer,parameter::model=5,models=1,nnn=2
+  integer,parameter::model=5, nnn=2
 
   ! timesteps between dynamic Cs updates           
   integer, parameter :: cs_count = 5
