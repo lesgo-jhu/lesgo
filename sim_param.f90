@@ -29,6 +29,9 @@ real (rprec), dimension (:, :, :), allocatable :: p
 
 real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 
+real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
+                                                  fxa, fya, fza
+
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
 
@@ -62,6 +65,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'txz, tyz, tzz,' //           &
                                              'p,' //                       &
                                              'divtx, divty, divtz,' //     &
+                                             'fx, fy, fz,' //              &
+                                             'fxa, fya, fza,' //           &
                                              'theta, q'
 
 $if ($DEBUG)
@@ -311,6 +316,30 @@ do i = 1, size ( array )
     case ( 'divtz' )
         allocate ( divtz(ld, ny, lbz:nz) )
         divtz = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fx' )
+        allocate ( fx(ld, ny, nz) )
+        fx = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fy' )
+        allocate ( fy(ld, ny, nz) )
+        fy = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )  
+    case ( 'fz' )
+        allocate ( fz(ld, ny, nz) )
+        fz = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fxa' )
+        allocate ( fxa(ld, ny, nz) )
+        fxa = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fya' )
+        allocate ( fya(ld, ny, nz) )
+        fya = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )  
+    case ( 'fza' )
+        allocate ( fza(ld, ny, nz) )
+        fza = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case ( 'theta' )
         allocate ( theta(ld, ny, nz) )
