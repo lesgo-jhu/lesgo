@@ -42,7 +42,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
 do jz=lbz,nz
@@ -95,7 +97,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
 do jz=lbz,nz    
@@ -143,7 +147,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 !...Loop through horizontal slices
 do jz=lbz,nz
@@ -314,7 +320,9 @@ real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec/(nx*ny)
 
 ! loop through horizontal slices
 do jz=lbz,nz
