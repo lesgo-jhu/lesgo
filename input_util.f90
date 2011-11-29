@@ -287,6 +287,10 @@ do
   case('DT')
      read (buff(equal_pos+1:), *) dt
   $endif
+
+  case('CUMULATIVE_TIME')
+     read (buff(equal_pos+1:), *) cumulative_time
+ 
   case default
      
     ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &

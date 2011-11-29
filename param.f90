@@ -166,7 +166,8 @@ module param
   
   $endif
   
-  logical, parameter :: cumulative_time = .false.        ! to use total_time.dat
+  !logical, parameter :: cumulative_time = .false.        ! to use total_time.dat
+  logical :: cumulative_time
   character (*), parameter :: fcumulative_time = path // 'total_time.dat'
   
   integer :: jt                 ! global time-step counter
