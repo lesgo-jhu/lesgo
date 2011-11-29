@@ -122,36 +122,36 @@ do jz = 1,nz
         Q33 = w_bar*w_bar
 
         ! Filter first term and add the second term to get the final value
-        call test_filter(u_bar,G_test)   ! in-place filtering
-        call test_filter(v_bar,G_test)
-        call test_filter(w_bar,G_test)
-        call test_filter(L11,G_test)  
+        call test_filter ( u_bar )   ! in-place filtering
+        call test_filter ( v_bar )
+        call test_filter ( w_bar )
+        call test_filter ( L11 )  
         L11 = L11 - u_bar*u_bar  
-        call test_filter(L12,G_test)
+        call test_filter ( L12 )
         L12 = L12 - u_bar*v_bar
-        call test_filter(L13,G_test)
+        call test_filter ( L13 )
         L13 = L13 - u_bar*w_bar
-        call test_filter(L22,G_test)
+        call test_filter ( L22 )
         L22 = L22 - v_bar*v_bar
-        call test_filter(L23,G_test)
+        call test_filter ( L23 )
         L23 = L23 - v_bar*w_bar
-        call test_filter(L33,G_test)
+        call test_filter ( L33 )
         L33 = L33 - w_bar*w_bar       
         
-        call test_filter(u_hat,G_test_test)
-        call test_filter(v_hat,G_test_test)
-        call test_filter(w_hat,G_test_test)
-        call test_filter(Q11,G_test_test)
+        call test_test_filter ( u_hat )
+        call test_test_filter ( v_hat )
+        call test_test_filter ( w_hat )
+        call test_test_filter ( Q11 )
         Q11 = Q11 - u_hat*u_hat
-        call test_filter(Q12,G_test_test)
+        call test_test_filter ( Q12 )
         Q12 = Q12 - u_hat*v_hat
-        call test_filter(Q13,G_test_test)
+        call test_test_filter ( Q13 )
         Q13 = Q13 - u_hat*w_hat
-        call test_filter(Q22,G_test_test)
+        call test_test_filter ( Q22 )
         Q22 = Q22 - v_hat*v_hat
-        call test_filter(Q23,G_test_test)
+        call test_test_filter ( Q23 )
         Q23 = Q23 - v_hat*w_hat
-        call test_filter(Q33,G_test_test)
+        call test_test_filter ( Q33 )
         Q33 = Q33 - w_hat*w_hat
 
     ! Calculate |S|
@@ -174,19 +174,19 @@ do jz = 1,nz
         S23_hat = S23_bar
         S33_hat = S33_bar       
 
-        call test_filter(S11_bar,G_test)
-        call test_filter(S12_bar,G_test)
-        call test_filter(S13_bar,G_test)
-        call test_filter(S22_bar,G_test)
-        call test_filter(S23_bar,G_test)
-        call test_filter(S33_bar,G_test)
+        call test_filter ( S11_bar )
+        call test_filter ( S12_bar )
+        call test_filter ( S13_bar )
+        call test_filter ( S22_bar )
+        call test_filter ( S23_bar )
+        call test_filter ( S33_bar )
 
-        call test_filter(S11_hat,G_test_test)
-        call test_filter(S12_hat,G_test_test)
-        call test_filter(S13_hat,G_test_test)
-        call test_filter(S22_hat,G_test_test)
-        call test_filter(S23_hat,G_test_test)
-        call test_filter(S33_hat,G_test_test)
+        call test_test_filter ( S11_hat )
+        call test_test_filter ( S12_hat )
+        call test_test_filter ( S13_hat )
+        call test_test_filter ( S22_hat )
+        call test_test_filter ( S23_hat )
+        call test_test_filter ( S33_hat )
         
     ! Calculate |S_bar| (the test-filtered Sij)      
         S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 +&
@@ -211,19 +211,19 @@ do jz = 1,nz
         S_S23_hat(:,:) = S_S23_bar(:,:)
         S_S33_hat(:,:) = S_S33_bar(:,:)
 
-        call test_filter(S_S11_bar,G_test)
-        call test_filter(S_S12_bar,G_test)
-        call test_filter(S_S13_bar,G_test)
-        call test_filter(S_S22_bar,G_test)
-        call test_filter(S_S23_bar,G_test)
-        call test_filter(S_S33_bar,G_test)     
+        call test_filter ( S_S11_bar )
+        call test_filter ( S_S12_bar )
+        call test_filter ( S_S13_bar )
+        call test_filter ( S_S22_bar )
+        call test_filter ( S_S23_bar )
+        call test_filter ( S_S33_bar )     
 
-        call test_filter(S_S11_hat,G_test_test)
-        call test_filter(S_S12_hat,G_test_test)
-        call test_filter(S_S13_hat,G_test_test)
-        call test_filter(S_S22_hat,G_test_test)
-        call test_filter(S_S23_hat,G_test_test)
-        call test_filter(S_S33_hat,G_test_test)  
+        call test_test_filter ( S_S11_hat )
+        call test_test_filter ( S_S12_hat )
+        call test_test_filter ( S_S13_hat )
+        call test_test_filter ( S_S22_hat )
+        call test_test_filter ( S_S23_hat )
+        call test_test_filter ( S_S33_hat )  
 
     ! Calculate Mij and Nij          
         M11 = const*(S_S11_bar - tf1_2*S_bar*S11_bar)
