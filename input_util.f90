@@ -69,8 +69,6 @@ do
 
   if (ios /= 0) exit
 
-  write(*,*) buff
-
   if (block_entry_pos == 0) then  !--for now, invalid format if no block entry found
     call error (sub, 'block entry not found on line', line) 
   end if
@@ -115,8 +113,6 @@ subroutine domain_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 implicit none
-
-write(*,*) 'Im in domain_block'
 
 do 
 
