@@ -16,6 +16,7 @@ use sgsmodule, only : sgsmodule_init
 use sgs_stag_param, only : sgs_stag_init, sgs_stag
 use convec_util, only : convec
 use press_util, only : press_stag_array
+use input_util, only : read_input_conf
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
@@ -65,6 +66,9 @@ type(clock_type) :: clock_t, clock_total_t
 ! Start the clocks, both local and total
 call clock_start( clock_t )
 clock_total_t = clock_t
+
+! Read input file
+call read_input_conf()
 
 ! Create output directory
 call system("mkdir -vp output")
