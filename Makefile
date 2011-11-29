@@ -29,7 +29,6 @@ SRCS =  cfl.f90 \
 	grid.f90 \
         ic.f90 \
 	ic_dns.f90 \
-	immersedbc.f90 \
 	initial.f90 \
 	input.f90 \
 	interpolag_Sdep.f90 \
@@ -52,7 +51,6 @@ SRCS =  cfl.f90 \
 	std_dynamic.f90 \
 	string_util.f90 \
         test_filtermodule.f90 \
-	topbc.f90 \
         tridag.f90 \
 	tridag_array.f90 \
 	types.f90 \
