@@ -152,7 +152,7 @@ module param
   !real(rprec), parameter :: cfl = 0.05
   real(rprec) :: cfl
   real(rprec) :: dt_f, cfl_f
-  
+
   $endif
   
   !real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
@@ -163,8 +163,6 @@ module param
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
   !real (rprec), parameter :: tadv1 = 1.5_rprec, tadv2 = 1._rprec - tadv1
   real(rprec) :: tadv1, tadv2
-  
-  $endif
   
   !logical, parameter :: cumulative_time = .false.        ! to use total_time.dat
   logical :: cumulative_time
@@ -185,7 +183,7 @@ module param
   !logical, parameter :: inilag = .true.
   logical :: inilag
 
-  ! ubc: upper boundary condition: ubc=0 stress free lid, ubc=1 sponge
+  ! ubc: upper boundary condition: ubc=0 stress free lid
   !integer,parameter::ubc=0
   integer :: ubc
   ! lbc: lower boundary condition:  'wall', 'stress free'
