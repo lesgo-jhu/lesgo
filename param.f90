@@ -214,10 +214,6 @@ module param
       !logical, parameter :: force_top_bot = .false.
       logical :: force_top_bot
 
-    ! Use concurrent precursor setup instead of uniform inflow
-    ! Make sure USE_CPS=true in Makefile.in
-    logical, parameter :: concurrent_precursor_inflow = .true. 
-
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   !logical, parameter :: use_mean_p_force = .true.
   logical :: use_mean_p_force
