@@ -13,7 +13,7 @@ use sim_param, only : fxa, fya, fza
 use test_filtermodule
 use cfl_mod 
 use sgsmodule, only : sgsmodule_init
-use sgs_stag, only: sgs_stag_init
+use sgs_stag_param, only: sgs_stag_init, sgs_stag
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
