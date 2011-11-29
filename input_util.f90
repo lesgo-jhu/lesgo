@@ -578,6 +578,8 @@ character(*), intent(in) :: string
 real(rprec), dimension(:), intent(inout) :: vector
 character(BUFF_LEN), dimension(:), allocatable :: svector
 
+integer :: nelem
+
 ! Get the number of elements in the vector
 nelem = size(vector,1)
 allocate( svector( nelem ) )
@@ -602,6 +604,7 @@ character(*), intent(in) :: string
 type(point3D), dimension(:), intent(inout) :: vector
 character(BUFF_LEN), allocatable, dimension(:) :: svector
 
+integer :: n, nelem
 real(rprec), dimension(3) :: vector_minor
 
 ! Get the number of elements in the vector
@@ -614,7 +617,7 @@ call split_string( string, delim_major, nelem, svector )
 ! Now parse result string 
 do n=1, nelem
    call parse_vector_real( svector(n), vector_minor )
-   vector(n) = point3D( vector_minor(1), vector_minor(2), vector_minor(3) )
+   vector(n) = point3D( (/ vector_minor(1), vector_minor(2), vector_minor(3) /) )
 enddo
 
 deallocate(svector)
