@@ -197,7 +197,7 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
-     case ('MODEL')
+     case ('SGS_MODEL')
         read (buff(equal_pos+1:), *) sgs_model
      case ('WALL_DAMP_EXP') 
         read (buff(equal_pos+1:), *) wall_damp_exp
