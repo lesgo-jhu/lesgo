@@ -2947,7 +2947,7 @@ end subroutine smooth
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_global_CD ()
 use param, only : jt, jt_total, dt, L_y, L_z
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
@@ -4355,7 +4355,7 @@ subroutine level_set_forcing ()
 !
 use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 
 implicit none
 
