@@ -96,7 +96,7 @@ module param
 
   ! Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
-  !integer,parameter::model=5, nnn=2
+  !integer,parameter::model=5, wall_damp_exp=2
   integer :: sgs_model, wall_damp_exp
 
   ! timesteps between dynamic Cs updates           
@@ -108,7 +108,7 @@ module param
   integer :: DYN_init
   
   ! Cs is the Smagorinsky Constant
-  ! Co and nnn are used in the mason model for smagorisky coeff
+  ! Co and wall_damp_exp are used in the mason model for smagorisky coeff
   !real(kind=rprec),parameter::Co=0.16_rprec
   real(rprec) :: Co
   
@@ -117,7 +117,8 @@ module param
   integer :: ifilter
 
   ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
-  real(rprec),parameter::u_star=0.45_rprec
+  !real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
+  real(rprec) :: u_star
 
   ! von Karman constant     
   real(rprec),parameter::vonk=0.4_rprec   

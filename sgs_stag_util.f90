@@ -124,21 +124,21 @@ if (sgs) then
 
                     ! z's nondimensional, l here is on uv-nodes
                     zz(1) = 0.5_rprec * dz                    
-                    l(1) = ( Co**(nnn)*(vonk*zz(1))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                    l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                 
                     do jz = 2, nz
                         ! z's nondimensional, l here is on w-nodes
                         zz(jz) = (jz - 1) * dz                        
-                        l(jz) = ( Co**(nnn)*(vonk*zz(jz))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                     end do
                 else
                     do jz = 1, nz
                         ! z's nondimensional, l here is on w-nodes
                         zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
-                        l(jz) = ( Co**(nnn)*(vonk*zz(jz))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                     end do 
                 end if
 

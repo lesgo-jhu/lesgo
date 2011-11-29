@@ -3056,7 +3056,7 @@ end subroutine level_set_global_CD
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
-use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => nnn 
+use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => wall_damp_exp 
 use sgsmodule, only : Cs_opt2
 implicit none
 
