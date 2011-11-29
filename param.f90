@@ -121,7 +121,8 @@ module param
   real(rprec) :: u_star
 
   ! von Karman constant     
-  real(rprec),parameter::vonk=0.4_rprec   
+  !real(rprec),parameter::vonk=0.4_rprec   
+  real(rprec) :: vonk
   
   ! Coriolis stuff
   ! coriol=non-dim coriolis parameter,
