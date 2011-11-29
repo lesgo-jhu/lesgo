@@ -25,7 +25,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
 use fft
-use immersedbc,only:fx,fy,fz  ! only for forcing experiment
+use sim_param,only:fx,fy,fz  ! only for forcing experiment
 
 $if ($DEBUG)
 use debug_mod
