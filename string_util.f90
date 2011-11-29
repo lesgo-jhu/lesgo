@@ -18,7 +18,7 @@ public :: string_concat, &
      count_string_occur
 
 interface string_concat
-  module procedure string_concat_aa, string_concat_ai, string_concat_ar
+  module procedure strcat_aa, strcat_ai, strcat_ar
 end interface
 
 ! Explicit interface for overloaded function to convert
@@ -44,7 +44,13 @@ character(*), intent(IN) :: str2
 str1 = trim(adjustl(str1)) // str2
 
 return
-one
+end subroutine strcat_aa
+
+!**********************************************************************
+subroutine strcat_ar(str1, r1)
+!**********************************************************************
+use types, only : rprec
+implicit none
 
 character(*), intent(INOUT) :: str1
 real(rprec), intent(IN) :: r1
@@ -56,6 +62,23 @@ call strcat(str1,trim(adjustl(str2)))
 
 return
 end subroutine strcat_ar
+
+!**********************************************************************
+subroutine strcat_ai(str1, i1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str1
+integer, intent(IN) :: i1
+character(120) :: str2
+
+write (str2,int_fmt) i1
+
+call strcat(str1,trim(adjustl(str2)))
+
+return
+end subroutine strcat_ai
 
 !**********************************************************************
 function numtostr_r( a, n ) result(c)
@@ -156,6 +179,7 @@ function uppercase(str) result(ucstr)
 !
 character (len=*):: str
 character (len=len_trim(str)):: ucstr
+integer :: i, ilen, iav, ioffset, iqc, iquote
 
 ilen=len_trim(str)
 ioffset=iachar('A')-iachar('a')
