@@ -120,72 +120,62 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-  ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) then
-     call set_dependents()
-     return 
-  endif
-
   ! Check that the data entry conforms to correct format
   call checkentry()  
 
-  select case (uppercase(buff(1:equal_pos-1)))
-
-  case ('NX')
-     read (buff(equal_pos+1:), *) Nx
-  case ('NY')
-     read (buff(equal_pos+1:), *) Ny
-  case ('NZ') 
-     read (buff(equal_pos+1:), *) Nz_tot
-  case ('Z_I')
-    read (buff(equal_pos+1:), *) z_i
-  case ('LX')
-    read (buff(equal_pos+1:), *) L_x
-  case ('LY')
-    read (buff(equal_pos+1:), *) L_y
-  case ('LZ')
-    read (buff(equal_pos+1:), *) L_z
-  case default
+  if( block_exit_pos == 0 ) then
      
-    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-    !             'at line', line)
-     call message( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
-  end select
+     select case (uppercase(buff(1:equal_pos-1)))
 
+     case ('NX')
+        read (buff(equal_pos+1:), *) Nx
+     case ('NY')
+        read (buff(equal_pos+1:), *) Ny
+     case ('NZ') 
+        read (buff(equal_pos+1:), *) Nz_tot
+     case ('Z_I')
+        read (buff(equal_pos+1:), *) z_i
+     case ('LX')
+        read (buff(equal_pos+1:), *) L_x
+     case ('LY')
+        read (buff(equal_pos+1:), *) L_y
+     case ('LZ')
+        read (buff(equal_pos+1:), *) L_z
+     case default
+        call message( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
+     end select
+
+  elseif ( block_exit_pos == 1 ) then
+
+     ! Set dependant variables
+     
+     ! Set the processor owned vertical grid spacing
+     nz = ( nz_tot - 1 ) / nproc + 1 
+     ! Grid size for dealiasing
+     nx2 = 3 * nx / 2
+     ny2 = 3 * ny / 2
+     ! Grid size for FFT's
+     lh = nx / 2 + 1
+     ld = 2 * lh
+     lh_big = nx2 / 2 + 1
+     ld_big = 2 * lh_big
+     
+     ! Grid spacing
+     dx = L_x / nx
+     dy = L_y / ny
+     dz = L_z / ( nz_tot - 1 )
+
+     return
+
+  else
+
+     call error( sub, 'GRID data block not formatted correctly:' // buff(1:equal_pos-1) )
+
+  endif
+     
 enddo
 
 return
-
-contains
-
-!-----------------------------------------------------------------------
-subroutine set_dependents()
-!-----------------------------------------------------------------------
-!
-! This subroutine sets the dependents using the data read in from the
-! input file.
-!
-implicit none
-
-! Set the processor owned vertical grid spacing
-nz = ( nz_tot - 1 ) / nproc + 1 
-! Grid size for dealiasing
-nx2 = 3 * nx / 2
-ny2 = 3 * ny / 2
-! Grid size for FFT's
-lh = nx / 2 + 1
-ld = 2 * lh
-lh_big = nx2 / 2 + 1
-ld_big = 2 * lh_big
-
-! Grid spacing
-dx = L_x / nx
-dy = L_y / ny
-dz = L_z / ( nz_tot - 1 )
-
-return
-end subroutine set_dependents
-
 end subroutine domain_block
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -198,55 +188,60 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
-
-  ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) return 
+  if (ios /= 0) call error( sub, 'Bad read in block') 
 
   ! Check that the data entry conforms to correct format
   call checkentry()  
 
-  select case (uppercase(buff(1:equal_pos-1)))
+  if( block_exit_pos == 0 ) then
 
-  case ('MODEL')
-     read (buff(equal_pos+1:), *) sgs_model
-  case ('WALL_DAMP_EXP') 
-     read (buff(equal_pos+1:), *) wall_damp_exp
-  case ('CS_COUNT')
-    read (buff(equal_pos+1:), *) cs_count
-  case ('DYN_INIT')
-    read (buff(equal_pos+1:), *) DYN_init
-  case ('CO')
-    read (buff(equal_pos+1:), *) Co
-  case ('IFILTER')
-    read (buff(equal_pos+1:), *) ifilter
-  case ('U_STAR')
-    read (buff(equal_pos+1:), *) u_star
-  case ('VONK')
-    read (buff(equal_pos+1:), *) vonk
-  case ('CORIOLIS_FORCING')
-    read (buff(equal_pos+1:), *) coriolis_forcing
-  case ('CORIOL')
-    read (buff(equal_pos+1:), *) coriol
-  case ('UG')
-    read (buff(equal_pos+1:), *) ug
-  case ('VG')
-    read (buff(equal_pos+1:), *) vg
-  case ('NU_MOLEC')
-    read (buff(equal_pos+1:), *) nu_molec
-  case ('MOLEC')
-    read (buff(equal_pos+1:), *) molec
-  case ('SGS')
-    read (buff(equal_pos+1:), *) sgs
-  case ('DNS_BC')
-    read (buff(equal_pos+1:), *) dns_bc
+     select case (uppercase(buff(1:equal_pos-1)))
 
-  case default
+     case ('MODEL')
+        read (buff(equal_pos+1:), *) sgs_model
+     case ('WALL_DAMP_EXP') 
+        read (buff(equal_pos+1:), *) wall_damp_exp
+     case ('CS_COUNT')
+        read (buff(equal_pos+1:), *) cs_count
+     case ('DYN_INIT')
+        read (buff(equal_pos+1:), *) DYN_init
+     case ('CO')
+        read (buff(equal_pos+1:), *) Co
+     case ('IFILTER')
+        read (buff(equal_pos+1:), *) ifilter
+     case ('U_STAR')
+        read (buff(equal_pos+1:), *) u_star
+     case ('VONK')
+        read (buff(equal_pos+1:), *) vonk
+     case ('CORIOLIS_FORCING')
+        read (buff(equal_pos+1:), *) coriolis_forcing
+     case ('CORIOL')
+        read (buff(equal_pos+1:), *) coriol
+     case ('UG')
+        read (buff(equal_pos+1:), *) ug
+     case ('VG')
+        read (buff(equal_pos+1:), *) vg
+     case ('NU_MOLEC')
+        read (buff(equal_pos+1:), *) nu_molec
+     case ('MOLEC')
+        read (buff(equal_pos+1:), *) molec
+     case ('SGS')
+        read (buff(equal_pos+1:), *) sgs
+     case ('DNS_BC')
+        read (buff(equal_pos+1:), *) dns_bc
+     case default
+        call message( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
      
-    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-    !             'at line', line)
-     call message( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
-  end select
+  else
+     
+     call error( sub, 'MODEL data block not formatted correctly:' // buff(1:equal_pos-1) )
+
+  endif
 
 enddo
 
@@ -265,61 +260,51 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-
-  ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) then
-     call set_dependents()
-     return 
-  endif
-
   ! Check that the data entry conforms to correct format
   call checkentry()
 
-  select case (uppercase(buff(1:equal_pos-1)))
+  if( block_exit_pos == 0 ) then
 
-  case ('NSTEPS')
-    read (buff(equal_pos+1:), *) nsteps
+     select case (uppercase(buff(1:equal_pos-1)))
 
-  $if($CFL_DT)
-  case ('CFL')
-    read (buff(equal_pos+1:), *) cfl
-  $else
-  case('DT')
-     read (buff(equal_pos+1:), *) dt
-  $endif
+     case ('NSTEPS')
+        read (buff(equal_pos+1:), *) nsteps
 
-  case('CUMULATIVE_TIME')
-     read (buff(equal_pos+1:), *) cumulative_time
- 
-  case default
-     
-    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-    !             'at line', line)
-     call message( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
-  end select
+     $if($CFL_DT)
+     case ('CFL')
+        read (buff(equal_pos+1:), *) cfl
+     $else
+     case('DT')
+        read (buff(equal_pos+1:), *) dt
+     $endif
+
+     case('CUMULATIVE_TIME')
+        read (buff(equal_pos+1:), *) cumulative_time
+     case default
+        call message( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     ! Set dependent data
+     $if(not $CFL_DT)
+     ! Set dimensional time step
+     dt_dim = dt * z_i / u_star
+     ! Set AB2 integration coefficients
+     tadv1 = 1.5_rprec
+     tadv2 = 1.0_rprec - tadv1
+     $endif
+     return
+
+  else
+
+     call error( sub, 'TIME data block not formatted correctly:' // buff(1:equal_pos-1) )
+
+  endif
 
 enddo
 
 return
-
-contains
-
-!-----------------------------------------------------------------------
-subroutine set_dependents()
-!-----------------------------------------------------------------------
-implicit none
-
-$if(not $CFL_DT)
-! Set dimensional time step
-dt_dim = dt * z_i / u_star
-! Set AB2 integration coefficients
-tadv1 = 1.5_rprec
-tadv2 = 1.0_rprec - tadv1
-$endif
-
-return
-end subroutine set_dependents
-
 end subroutine  time_block
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -334,48 +319,55 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-
-  ! Check if we have found a block exit
-  if( block_exit_pos == 1 ) return 
-
   ! Check that the data entry conforms to correct format
   call checkentry()
 
-  select case (uppercase(buff(1:equal_pos-1)))
+  if( block_exit_pos == 0 ) then
 
-  case ('INITU')
-    read (buff(equal_pos+1:), *) initu
-  case ('INILAG')
-    read (buff(equal_pos+1:), *) inilag
-  case ('UBC')
-    read (buff(equal_pos+1:), *) ubc
-  case ('LBC_MOM')
-    Read (buff(equal_pos+1:), *) lbc_mom
-  case ('ZO')
-    read (buff(equal_pos+1:), *) zo
-  case ('INFLOW')
-    read (buff(equal_pos+1:), *) inflow
-  case ('FRINGE_REGION_END')
-    read (buff(equal_pos+1:), *) fringe_region_end
-  case ('FRINGE_REGION_LEN')
-    read (buff(equal_pos+1:), *) fringe_region_len
-  case ('UNIFORM_INFLOW')
-    read (buff(equal_pos+1:), *) uniform_inflow
-  case ('INFLOW_VELOCITY')
-    read (buff(equal_pos+1:), *) inflow_velocity
-  case ('FORCE_TOP_BOT')
-    read (buff(equal_pos+1:), *) force_top_bot
-  case ('USE_MEAN_P_FORCE')
-    read (buff(equal_pos+1:), *) use_mean_p_force
-  case ('MEAN_P_FORCE')
-    read (buff(equal_pos+1:), *) mean_p_force
+     select case (uppercase(buff(1:equal_pos-1)))
 
-  case default
-     
-    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-    !             'at line', line)
-     call message( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
-  end select
+     case ('INITU')
+        read (buff(equal_pos+1:), *) initu
+     case ('INILAG')
+        read (buff(equal_pos+1:), *) inilag
+     case ('UBC')
+        read (buff(equal_pos+1:), *) ubc
+     case ('LBC_MOM')
+        Read (buff(equal_pos+1:), *) lbc_mom
+     case ('ZO')
+        read (buff(equal_pos+1:), *) zo
+     case ('INFLOW')
+        read (buff(equal_pos+1:), *) inflow
+     case ('FRINGE_REGION_END')
+        read (buff(equal_pos+1:), *) fringe_region_end
+     case ('FRINGE_REGION_LEN')
+        read (buff(equal_pos+1:), *) fringe_region_len
+     case ('UNIFORM_INFLOW')
+        read (buff(equal_pos+1:), *) uniform_inflow
+     case ('INFLOW_VELOCITY')
+        read (buff(equal_pos+1:), *) inflow_velocity
+     case ('FORCE_TOP_BOT')
+        read (buff(equal_pos+1:), *) force_top_bot
+     case ('USE_MEAN_P_FORCE')
+        read (buff(equal_pos+1:), *) use_mean_p_force
+     case ('MEAN_P_FORCE')
+        read (buff(equal_pos+1:), *) mean_p_force
+
+     case default
+
+        call message( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
+
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, 'FLOW_COND data block not formatted correctly:' // buff(1:equal_pos-1) )
+
+  endif
 
 enddo
 
@@ -395,112 +387,119 @@ do
   if (ios /= 0) call error( sub, 'Bad read in block')
 
 
-  if( block_exit_pos == 1 ) return ! Exit block '}' found
-
     ! Check that the data entry conforms to correct format
   call checkentry()
 
-  select case (uppercase(buff(1:equal_pos-1)))
+  if( block_exit_pos == 0 ) then
 
-  case ('WBASE')
-    read (buff(equal_pos+1:), *) wbase
+     select case (uppercase(buff(1:equal_pos-1)))
 
-  case ('NENERGY')
-    read (buff(equal_pos+1:), *) nenergy
+     case ('WBASE')
+        read (buff(equal_pos+1:), *) wbase
 
-  case ('LAG_CFL_COUNT')
-    read (buff(equal_pos+1:), *) lag_cfl_count
+     case ('NENERGY')
+        read (buff(equal_pos+1:), *) nenergy
 
-  case ('TAVG_CALC')
-    read (buff(equal_pos+1:), *) tavg_calc
-  case ('TAVG_NSTART')
-    read (buff(equal_pos+1:), *) tavg_nstart
-  case ('TAVG_NEND')
-    read (buff(equal_pos+1:), *) tavg_nend
+     case ('LAG_CFL_COUNT')
+        read (buff(equal_pos+1:), *) lag_cfl_count
 
-  case ('POINT_CALC')
-    read (buff(equal_pos+1:), *) point_calc
-  case ('POINT_NSTART')
-    read (buff(equal_pos+1:), *) point_nstart
-  case ('POINT_NEND')
-    read (buff(equal_pos+1:), *) point_nend
-  case ('POINT_NSKIP')
-    read (buff(equal_pos+1:), *) point_nskip
-  case ('POINT_NLOC')
-    read (buff(equal_pos+1:), *) point_nloc
-  case ('POINT_LOC')
-     allocate( point_loc( point_nloc ) )
-     call parse_vector( buff(equal_pos+1:), point_loc )
+     case ('TAVG_CALC')
+        read (buff(equal_pos+1:), *) tavg_calc
+     case ('TAVG_NSTART')
+        read (buff(equal_pos+1:), *) tavg_nstart
+     case ('TAVG_NEND')
+        read (buff(equal_pos+1:), *) tavg_nend
 
-  case ('DOMAIN_CALC')
-    read (buff(equal_pos+1:), *) domain_calc
-  case ('DOMAIN_NSTART')
-    read (buff(equal_pos+1:), *) domain_nstart
-  case ('DOMAIN_NEND')
-    read (buff(equal_pos+1:), *) domain_nend
-  case ('DOMAIN_NSKIP')
-    read (buff(equal_pos+1:), *) domain_nskip
+     case ('POINT_CALC')
+        read (buff(equal_pos+1:), *) point_calc
+     case ('POINT_NSTART')
+        read (buff(equal_pos+1:), *) point_nstart
+     case ('POINT_NEND')
+        read (buff(equal_pos+1:), *) point_nend
+     case ('POINT_NSKIP')
+        read (buff(equal_pos+1:), *) point_nskip
+     case ('POINT_NLOC')
+        read (buff(equal_pos+1:), *) point_nloc
+     case ('POINT_LOC')
+        allocate( point_loc( point_nloc ) )
+        call parse_vector( buff(equal_pos+1:), point_loc )
 
-  case ('XPLANE_CALC')
-    read (buff(equal_pos+1:), *) xplane_calc
-  case ('XPLANE_NSTART')
-    read (buff(equal_pos+1:), *) xplane_nstart
-  case ('XPLANE_NEND')
-    read (buff(equal_pos+1:), *) xplane_nend
-  case ('XPLANE_NSKIP')
-    read (buff(equal_pos+1:), *) xplane_nskip
-  case ('XPLANE_NLOC')
-    read (buff(equal_pos+1:), *) xplane_nloc
-  case ('XPLANE_LOC')
-     allocate( xplane_loc( xplane_nloc ) )
-     call parse_vector( buff(equal_pos+1:), xplane_loc )
+     case ('DOMAIN_CALC')
+        read (buff(equal_pos+1:), *) domain_calc
+     case ('DOMAIN_NSTART')
+        read (buff(equal_pos+1:), *) domain_nstart
+     case ('DOMAIN_NEND')
+        read (buff(equal_pos+1:), *) domain_nend
+     case ('DOMAIN_NSKIP')
+        read (buff(equal_pos+1:), *) domain_nskip
 
-  case ('YPLANE_CALC')
-    read (buff(equal_pos+1:), *) yplane_calc
-  case ('YPLANE_NSTART')
-    read (buff(equal_pos+1:), *) yplane_nstart
-  case ('YPLANE_NEND')
-    read (buff(equal_pos+1:), *) yplane_nend
-  case ('YPLANE_NSKIP')
-    read (buff(equal_pos+1:), *) yplane_nskip
-  case ('YPLANE_NLOC')
-    read (buff(equal_pos+1:), *) yplane_nloc
-  case ('YPLANE_LOC')
-     allocate( yplane_loc( yplane_nloc ) )
-     call parse_vector( buff(equal_pos+1:), yplane_loc )
+     case ('XPLANE_CALC')
+        read (buff(equal_pos+1:), *) xplane_calc
+     case ('XPLANE_NSTART')
+        read (buff(equal_pos+1:), *) xplane_nstart
+     case ('XPLANE_NEND')
+        read (buff(equal_pos+1:), *) xplane_nend
+     case ('XPLANE_NSKIP')
+        read (buff(equal_pos+1:), *) xplane_nskip
+     case ('XPLANE_NLOC')
+        read (buff(equal_pos+1:), *) xplane_nloc
+     case ('XPLANE_LOC')
+        allocate( xplane_loc( xplane_nloc ) )
+        call parse_vector( buff(equal_pos+1:), xplane_loc )
 
-  case ('ZPLANE_CALC')
-    read (buff(equal_pos+1:), *) zplane_calc
-  case ('ZPLANE_NSTART')
-    read (buff(equal_pos+1:), *) zplane_nstart
-  case ('ZPLANE_NEND')
-    read (buff(equal_pos+1:), *) zplane_nend
-  case ('ZPLANE_NSKIP')
-    read (buff(equal_pos+1:), *) zplane_nskip
-  case ('ZPLANE_NLOC')
-    read (buff(equal_pos+1:), *) zplane_nloc
-  case ('ZPLANE_LOC')
-     allocate( zplane_loc( zplane_nloc ) )
-     call parse_vector( buff(equal_pos+1:), zplane_loc )
+     case ('YPLANE_CALC')
+        read (buff(equal_pos+1:), *) yplane_calc
+     case ('YPLANE_NSTART')
+        read (buff(equal_pos+1:), *) yplane_nstart
+     case ('YPLANE_NEND')
+        read (buff(equal_pos+1:), *) yplane_nend
+     case ('YPLANE_NSKIP')
+        read (buff(equal_pos+1:), *) yplane_nskip
+     case ('YPLANE_NLOC')
+        read (buff(equal_pos+1:), *) yplane_nloc
+     case ('YPLANE_LOC')
+        allocate( yplane_loc( yplane_nloc ) )
+        call parse_vector( buff(equal_pos+1:), yplane_loc )
 
-  case ('SPECTRA_CALC')
-    read (buff(equal_pos+1:), *) spectra_calc
-  case ('SPECTRA_NSTART')
-    read (buff(equal_pos+1:), *) spectra_nstart
-  case ('SPECTRA_NEND')
-    read (buff(equal_pos+1:), *) spectra_nend
-  case ('SPECTRA_NLOC')
-    read (buff(equal_pos+1:), *) spectra_nloc
-  case ('SPECTRA_LOC')
-     allocate( spectra_loc( spectra_nloc ) )
-     call parse_vector( buff(equal_pos+1:), spectra_loc )
+     case ('ZPLANE_CALC')
+        read (buff(equal_pos+1:), *) zplane_calc
+     case ('ZPLANE_NSTART')
+        read (buff(equal_pos+1:), *) zplane_nstart
+     case ('ZPLANE_NEND')
+        read (buff(equal_pos+1:), *) zplane_nend
+     case ('ZPLANE_NSKIP')
+        read (buff(equal_pos+1:), *) zplane_nskip
+     case ('ZPLANE_NLOC')
+        read (buff(equal_pos+1:), *) zplane_nloc
+     case ('ZPLANE_LOC')
+        allocate( zplane_loc( zplane_nloc ) )
+        call parse_vector( buff(equal_pos+1:), zplane_loc )
 
-  case default
-     
-    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-    !             ' at line', line)
-     call message( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
-  end select
+     case ('SPECTRA_CALC')
+        read (buff(equal_pos+1:), *) spectra_calc
+     case ('SPECTRA_NSTART')
+        read (buff(equal_pos+1:), *) spectra_nstart
+     case ('SPECTRA_NEND')
+        read (buff(equal_pos+1:), *) spectra_nend
+     case ('SPECTRA_NLOC')
+        read (buff(equal_pos+1:), *) spectra_nloc
+     case ('SPECTRA_LOC')
+        allocate( spectra_loc( spectra_nloc ) )
+        call parse_vector( buff(equal_pos+1:), spectra_loc )
+
+     case default
+        call message( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, 'OUTPUT data block not formatted correctly:' // buff(1:equal_pos-1) )
+
+  endif
 
 enddo
 
