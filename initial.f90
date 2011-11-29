@@ -10,8 +10,8 @@ $if ($DYN_TN)
 use sgsmodule, only:F_ee2,F_deedt2,ee_past
 $endif
 
-use immersedbc,only:fx,fy,fz
-use immersedbc,only:fxa,fya,fza
+use sim_param,only:fx,fy,fz
+use sim_param,only:fxa,fya,fza
 
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
