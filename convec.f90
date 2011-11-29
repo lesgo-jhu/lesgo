@@ -22,7 +22,8 @@ $endif
 
 implicit none
 
-real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
+!real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
+real (rprec), dimension (:, :, :), intent (out) :: cx, cy, cz
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -31,23 +32,41 @@ $endif
 integer::jz
 integer :: jz_min
 
-!--save forces heap storage
-real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
-!real(kind=rprec),dimension(ld_big,ny2,nz)::cc_big
-!--save forces heap storage
-real (rprec), save, dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
-!real (rprec), dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
+! !--save forces heap storage
+! real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
+! !--save forces heap storage
+! real (rprec), save, dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
+! !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
+! !--save forces heap storage 
+! real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
+!                                                    vort3_big
+
+real(rprec), save, allocatable, dimension(:,:,:)::cc_big
+real (rprec), save, allocatable, dimension (:,:,:) :: u1_big, u2_big, u3_big
 !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
-!--save forces heap storage 
-real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
-                                                   vort3_big
-!real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
-!--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
+real (rprec), save, allocatable, dimension (:, :, :) :: vort1_big, vort2_big, vort3_big
+logical, save :: arrays_allocated = .false. 
+
 real(kind=rprec) :: const
 
 $if ($VERBOSE)
 write (*, *) 'started convec'
 $endif
+
+if( .not. arrays_allocated ) then
+
+   allocate( cc_big( ld_big,ny2,nz ) )
+   allocate( u1_big(ld_big, ny2, lbz:nz), &
+        u2_big(ld_big, ny2, lbz:nz), &
+        u3_big(ld_big, ny2, lbz:nz) )
+   allocate( vort1_big( ld_big,ny2,nz ), &
+        vort2_big( ld_big,ny2,nz ), &
+        vort3_big( ld_big,ny2,nz ) )
+
+   arrays_allocated = .true. 
+
+endif
+
 !...Recall dudz, and dvdz are on UVP node for k=1 only
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
 

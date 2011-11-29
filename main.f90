@@ -47,6 +47,8 @@ $endif
 use messages
 implicit none
 
+include 'convec.h'
+
 character (*), parameter :: sub_name = 'main'
 
 $if ($DEBUG)
