@@ -252,7 +252,7 @@ use level_set_base, only : phi
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
-use param, only : model
+use param, only : sgs_model
 use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
@@ -306,7 +306,7 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
 $if($OUTPUT_EXTRA)
 !  Allocate arrays and interpolate to uv grid for LDSM output
-if( model == 4 .or. model == 5 ) then
+if( sgs_model == 4 .or. sgs_model == 5 ) then
 
   if( itype == 3 .or. itype == 4 .or. itype == 5 ) then
 
@@ -320,7 +320,7 @@ if( model == 4 .or. model == 5 ) then
     Cs_opt2_uv = interp_to_uv_grid( Cs_opt2(1:nx,1:ny,1:nz), 1 )
     Nu_t_uv = interp_to_uv_grid( Nu_t(1:nx,1:ny,1:nz), 1 )
 
-    if( model == 5) then
+    if( sgs_model == 5) then
 
       allocate( F_QN_uv(nx, ny, nz), F_NN_uv(nx,ny,nz) )
 
@@ -672,7 +672,7 @@ elseif(itype==3) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
@@ -726,7 +726,7 @@ elseif(itype==3) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-    elseif( model == 5 ) then
+    elseif( sgs_model == 5 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
@@ -883,7 +883,7 @@ elseif(itype==4) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
@@ -937,7 +937,7 @@ elseif(itype==4) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-    elseif( model == 5 ) then
+    elseif( sgs_model == 5 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
@@ -1093,7 +1093,7 @@ elseif(itype==5) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
       allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
@@ -1141,7 +1141,7 @@ elseif(itype==5) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-     elseif( model == 5 ) then
+     elseif( sgs_model == 5 ) then
  
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
       allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))

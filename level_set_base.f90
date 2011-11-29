@@ -33,7 +33,7 @@ logical, parameter :: use_modify_dutdn = .false.  !--only works w/interp_tau; no
                                                   !  (default = .false.)
 
 ! Enables scale dependent Cs evaluations (not dynamic evaluation)
-! Used when model=4 in param module
+! Used when sgs_model=4 in param module
 logical, parameter :: lag_dyn_modify_beta = .true.
 
 ! Configures the mode in which SOR smoothing is applied in the IB

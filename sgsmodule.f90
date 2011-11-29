@@ -4,7 +4,7 @@ use param,only:ld,nx,ny,nz,lbz
 implicit none
 private ld,nx,ny,nz,rprec
 
-! The following are for dynamic Lagranrian SGS models (model=4,5) 
+! The following are for dynamic Lagranrian SGS models (sgs_model=4,5) 
 real(kind=rprec),parameter::opftime=1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
 real(kind=rprec),dimension(ld,ny,lbz:nz)::F_LM,F_MM,F_QN,F_NN,Beta
 !  Ensure that is this is initialized

@@ -57,7 +57,7 @@ if(initu)then
 
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
-    select case (model)
+    select case (sgs_model)
       case (1)
         read (12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz)
@@ -94,7 +94,7 @@ if(initu)then
                    F_QN(:,:,1:nz), F_NN(:,:,1:nz)
         end if
       case default
-        write (*, *) 'initial: invalid model number'
+        write (*, *) 'initial: invalid sgs_model number'
     end select
 
     !call energy (ke)

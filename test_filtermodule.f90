@@ -43,7 +43,7 @@ subroutine test_filter_init(alpha,G_test)
 ! spectral cutoff filter at width alpha*delta
 ! note the normalization for FFT's is already in G! (see 1/(nx*ny))
 use types,only:rprec
-use param,only:lh,nx,ny,dx,dy,pi,ifilter,model
+use param,only:lh,nx,ny,dx,dy,pi,ifilter,sgs_model
 use fft
 implicit none
 real(kind=rprec):: alpha, delta, kc2
@@ -51,7 +51,7 @@ real(kind=rprec),dimension(lh,ny) :: G_test
 G_test=1._rprec/(nx*ny)  ! normalization for the forward FFT
 delta = alpha*sqrt(dx*dy)  ! "2d-delta", not full 3d one
 if(ifilter==1) then ! spectral cutoff filter
-   if (model==6.OR.model==7) then
+   if (sgs_model==6.OR.sgs_model==7) then
       print *, 'Use Gaussian or Top-hat filter for mixed models'
       stop
    endif

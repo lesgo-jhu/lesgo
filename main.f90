@@ -134,7 +134,7 @@ call openfiles()
 ! this is used for lower BC, even if no dynamic model
 call test_filter_init (2._rprec * filter_size, G_test)
 
-if (model == 3 .or. model == 5) then  !--scale dependent dynamic
+if (sgs_model == 3 .or. sgs_model == 5) then  !--scale dependent dynamic
   call test_filter_init (4._rprec * filter_size, G_test_test)
 end if
 

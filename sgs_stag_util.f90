@@ -97,7 +97,7 @@ $endif
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
 $if ($CFL_DT)
-    if (model == 4 .OR. model==5) then
+    if (sgs_model == 4 .OR. sgs_model==5) then
       if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
         lagran_dt = lagran_dt + dt
       endif
@@ -107,7 +107,7 @@ $else
 $endif
 
 if (sgs) then 
-    if((model == 1))then  ! Traditional Smagorinsky model
+    if((sgs_model == 1))then  ! Traditional Smagorinsky model
 
         $if ($LVLSET)
             l = delta
@@ -145,7 +145,7 @@ if (sgs) then
             end if
         $endif
 
-    else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to model)
+    else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to sgs_model)
    
         l = delta       ! recall: l is the filter size
         
@@ -157,19 +157,19 @@ if (sgs) then
         elseif ( ((jt.GE.DYN_init).OR.(initu)) .AND. (mod(jt,cs_count)==0) ) then
         ! Update Sij, Cs every cs_count timesteps (specified in param)
         
-            if (jt ==DYN_init) print *,'running dynamic model = ',model
+            if (jt ==DYN_init) print *,'running dynamic sgs_model = ',sgs_model
             
-            if (model == 2) then        ! Standard dynamic model
+            if (sgs_model == 2) then        ! Standard dynamic model
                 call std_dynamic(ziko,S11,S12,S13,S22,S23,S33)
                 forall (jz = 1:nz) Cs_opt2(:, :, jz) = ziko(jz)
-            else if (model==3) then     ! Plane average dynamic model
+            else if (sgs_model==3) then     ! Plane average dynamic model
                 call scaledep_dynamic(ziko,S11,S12,S13,S22,S23,S33)
                 do jz = 1, nz
                     Cs_opt2(:, :, jz) = ziko(jz)
                 end do
-            else if (model==4.) then    ! Lagrangian scale similarity model
+            else if (sgs_model==4.) then    ! Lagrangian scale similarity model
                 call lagrange_Ssim(S11,S12,S13,S22,S23,S33)
-            elseif (model==5) then      ! Lagrangian scale dependent model
+            elseif (sgs_model==5) then      ! Lagrangian scale dependent model
                 call lagrange_Sdep(S11,S12,S13,S22,S23,S33)
             end if       
         end if

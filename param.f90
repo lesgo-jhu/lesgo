@@ -98,7 +98,7 @@ module param
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
   ! Models type: 1->static prandtl, 2->Dynamic
   !integer,parameter::model=5,models=1,nnn=2
-  integer :: model, models, nnn
+  integer :: sgs_model, sgs_scalar_models, wall_damp_exp
 
   ! timesteps between dynamic Cs updates           
   !integer, parameter :: cs_count = 5
