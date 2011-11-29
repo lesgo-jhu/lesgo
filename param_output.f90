@@ -103,7 +103,7 @@ write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,i_fmt) 'wbase : ', wbase
 write(2,i_fmt) 'nenergy : ', nenergy
-write(2,i_fmt) 'cfl_count : ', cfl_count
+write(2,i_fmt) 'lag_cfl_count : ', lag_cfl_count
 write(2,l_fmt) 'tavg_calc : ', tavg_calc
 write(2,x2i_fmt) 'tavg_nstart, tavg_nend : ', tavg_nstart, tavg_nend
 write(2,l_fmt) 'point_calc : ', point_calc

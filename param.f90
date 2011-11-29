@@ -234,8 +234,8 @@ module param
 
   ! how often to display Lagrangian CFL condition of 
   ! dynamic SGS models
-  !integer,parameter::cfl_count=1000
-  integer :: cfl_count
+  !integer,parameter::lag_cfl_count=1000
+  integer :: lag_cfl_count
 
   ! records time-averaged data to files ./output/*_avg.dat
   !logical, parameter :: tavg_calc = .true.
