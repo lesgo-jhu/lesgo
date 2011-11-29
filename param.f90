@@ -231,52 +231,80 @@ module param
 !---------------------------------------------------
 
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
-  integer,parameter::wbase=100
+  !integer,parameter::wbase=100
+  integer :: wbase
   
   ! how often to write ke to check_ke.out
-  integer, parameter :: nenergy = 100
+  !integer, parameter :: nenergy = 100
+  integer :: nenergy
 
   ! how often to display Lagrangian CFL condition of 
   ! dynamic SGS models
-  integer,parameter::cfl_count=1000
+  !integer,parameter::cfl_count=1000
+  integer :: cfl_count
 
   ! records time-averaged data to files ./output/*_avg.dat
-  logical, parameter :: tavg_calc = .true.
-  integer, parameter :: tavg_nstart = 50000, tavg_nend = nsteps
+  !logical, parameter :: tavg_calc = .true.
+  !integer, parameter :: tavg_nstart = 50000, tavg_nend = nsteps
+  logical :: tavg_calc
+  integer :: tavg_nstart, tavg_nend
 
   ! turns instantaneous velocity recording on or off
-  logical, parameter :: point_calc = .true.
-  integer, parameter :: point_nstart = 50000, point_nend = nsteps, point_nskip = 100
-  integer, parameter :: point_nloc = 1
-  type(point3D), parameter, dimension(point_nloc) :: point_loc = (/ &
-        point3D( (/ L_x / 2, L_y / 2, L_z / 2 /) ) &
-        /)
+  !logical, parameter :: point_calc = .true.
+  !integer, parameter :: point_nstart = 50000, point_nend = nsteps, point_nskip = 100
+  !integer, parameter :: point_nloc = 1
+  !type(point3D), parameter, dimension(point_nloc) :: point_loc = (/ &
+  !      point3D( (/ L_x / 2, L_y / 2, L_z / 2 /) ) &
+  !      /)
+  logical :: point_calc
+  integer :: point_nstart, point_nend, point_nskip
+  integer :: point_nloc
+  type(point3D), allocatable, dimension(:) :: point_loc
 
   ! domain instantaneous output
-  logical, parameter :: domain_calc = .true.
-  integer, parameter :: domain_nstart = 50000, domain_nend = nsteps, domain_nskip = 50000
+  !logical, parameter :: domain_calc = .true.
+  !integer, parameter :: domain_nstart = 50000, domain_nend = nsteps, domain_nskip = 50000
+  logical :: domain_calc
+  integer :: domain_nstart, domain_nend, domain_nskip
   
   ! x-plane instantaneous output
-  logical, parameter :: xplane_calc   = .true.
-  integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 10000
-  integer, parameter :: xplane_nloc   = 2
-  real(rprec), parameter, dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
+  !logical, parameter :: xplane_calc   = .true.
+  !integer, parameter :: xplane_nstart = 50000, xplane_nend = nsteps, xplane_nskip  = 10000
+  !integer, parameter :: xplane_nloc   = 2
+  !real(rprec), parameter, dimension(xplane_nloc) :: xplane_loc = (/ L_x/4._rprec, L_x/2._rprec /)
+  logical :: xplane_calc
+  integer :: xplane_nstart, xplane_nend, xplane_nskip
+  integer :: xplane_nloc
+  real(rprec), allocatable, dimension(:) :: xplane_loc
 
   ! y-plane instantaneous output
-  logical, parameter :: yplane_calc   = .false.
-  integer, parameter :: yplane_nstart = 50000, yplane_nend = nsteps, yplane_nskip  = 50000
-  integer, parameter :: yplane_nloc   = 2
-  real(rprec), parameter, dimension(yplane_nloc) :: yplane_loc = (/ L_y/4._rprec, L_y/2._rprec  /)  
+  ! logical, parameter :: yplane_calc   = .false.
+  ! integer, parameter :: yplane_nstart = 50000, yplane_nend = nsteps, yplane_nskip  = 50000
+  ! integer, parameter :: yplane_nloc   = 2
+  ! real(rprec), parameter, dimension(yplane_nloc) :: yplane_loc = (/ L_y/4._rprec, L_y/2._rprec  /)  
+  logical :: yplane_calc
+  integer :: yplane_nstart, yplane_nend, yplane_nskip
+  integer :: yplane_nloc
+  real(rprec), allocatable, dimension(:) :: yplane_loc
 
   ! z-plane instantaneous output
-  logical, parameter :: zplane_calc   = .true.
-  integer, parameter :: zplane_nstart = 50000, zplane_nend = nsteps, zplane_nskip  = 10000
-  integer, parameter :: zplane_nloc   = 3
-  real(rprec), parameter, dimension(zplane_nloc) :: zplane_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
+  ! logical, parameter :: zplane_calc   = .true.
+  ! integer, parameter :: zplane_nstart = 50000, zplane_nend = nsteps, zplane_nskip  = 10000
+  ! integer, parameter :: zplane_nloc   = 3
+  ! real(rprec), parameter, dimension(zplane_nloc) :: zplane_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /)
+  logical :: zplane_calc
+  integer :: zplane_nstart, zplane_nend, zplane_nskip
+  integer :: zplane_nloc
+  real(rprec), allocatable, dimension(:) :: zplane_loc
 
-  logical, parameter :: spectra_calc = .true.
-  integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
-  integer, parameter :: spectra_nloc = 3
-  real(rprec), parameter, dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
+  ! logical, parameter :: spectra_calc = .true.
+  ! integer, parameter :: spectra_nstart = 50000, spectra_nend = nsteps
+  ! integer, parameter :: spectra_nloc = 3
+  ! real(rprec), parameter, dimension(spectra_nloc) :: spectra_loc = (/ 0.1_rprec, 0.25_rprec, 0.5_rprec /) 
+  logical :: spectra_calc
+  integer :: spectra_nstart, spectra_nend
+  integer :: spectra_nloc
+  real(rprec), allocatable, dimension(:) :: spectra_loc
+
 
 end module param
