@@ -5,7 +5,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t !x,y,z
 use io
 use messages
-use strmod, only : numtostr
+use string_util, only : numtostr
 $if ($MPI)
   use mpi_defs
 $endif
@@ -991,7 +991,7 @@ end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
 use sim_param, only: u,v,w
-use immersedbc, only : fxa, fya, fza
+use sim_param, only : fxa, fya, fza
 use grid_defs, only: grid_t !y,z
 use functions, only: interp_to_uv_grid
 $if ($MPI)
