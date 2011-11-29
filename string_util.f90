@@ -58,7 +58,7 @@ character(120) :: str2
 
 write (str2,real_fmt) r1
 
-call strcat(str1,trim(adjustl(str2)))
+call string_concat(str1,trim(adjustl(str2)))
 
 return
 end subroutine strcat_ar
@@ -75,7 +75,7 @@ character(120) :: str2
 
 write (str2,int_fmt) i1
 
-call strcat(str1,trim(adjustl(str2)))
+call string_concat(str1,trim(adjustl(str2)))
 
 return
 end subroutine strcat_ai
