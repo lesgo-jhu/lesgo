@@ -8,7 +8,7 @@ subroutine forcing_applied()
 !  in the evaluation of u* so that mass conservation is preserved.
 !
 use types, only : rprec
-use immersedbc, only : fxa, fya, fza
+use sim_param, only : fxa, fya, fza
 
 $if ($LVLSET)
 $if ($RNS_LS)
@@ -51,7 +51,7 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 $if ($LVLSET)
   use level_set, only : level_set_forcing
   $if($RNS_LS)
@@ -91,7 +91,7 @@ use param, only : uniform_inflow, inflow_velocity, &
                   L_x, dt, dx
 use param, only : coord
 use sim_param, only : u, v, w, theta
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 use messages, only : error
 $if($CPS)
 use concurrent_precursor
@@ -186,7 +186,6 @@ subroutine project ()
 !
 use param
 use sim_param
-use immersedbc
 use messages
 $if($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
