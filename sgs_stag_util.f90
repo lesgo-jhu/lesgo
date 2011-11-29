@@ -13,7 +13,7 @@ use types,only:rprec
 
 
 private 
-public S11, S12, S22, S33, S13, S23, sgs_stag, calc_Sij
+public S11, S12, S22, S33, S13, S23, sgs_stag_init, sgs_stag, calc_Sij
 
 real (rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
 
