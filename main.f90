@@ -9,10 +9,11 @@ use grid_defs, only : grid_build
 use io, only : openfiles, output_loop, output_final, jt_total, stats_init
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
-use immersedbc, only : fxa, fya, fza
+use sim_param, only : fxa, fya, fza
 use test_filtermodule
-use topbc,only:setsponge,sponge
 use cfl_mod 
+use sgsmodule, only : sgsmodule_init
+use sgs_stag, only: sgs_stag_init
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
@@ -46,8 +47,6 @@ $endif
 
 use messages
 implicit none
-
-include 'convec.h'
 
 character (*), parameter :: sub_name = 'main'
 
@@ -130,17 +129,13 @@ call init_fft()
 ! Open output files (total_time.dat and check_ke.out)  
 call openfiles()
 
-! Initialize test filter
+! Initialize test filter(s)
 ! this is used for lower BC, even if no dynamic model
-call test_filter_init (2._rprec * filter_size, G_test)
-
-if (sgs_model == 3 .or. sgs_model == 5) then  !--scale dependent dynamic
-  call test_filter_init (4._rprec * filter_size, G_test_test)
-end if
-
-! Initialize sponge variable for top BC, if applicable
-if (ubc == 1) call setsponge()
+  call test_filter_init ( )
     
+! Initialize sgs variables
+call sgsmodule_init()
+call sgs_stag_init()
 
 $if ($DEBUG)
 if (DEBUG) then
