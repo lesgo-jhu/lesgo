@@ -97,9 +97,9 @@ do
 
   case default
 
-     call error (sub, 'invalid block label ' // buff(1:equal_pos-1) //  &
-          'at line', line)
-
+     ! call error (sub, 'invalid block label ' // buff(1:equal_pos-1) //  &
+     !      'at line', line)
+     call message( sub, 'Found unused input block :' // buff(1:equal_pos-1) )
   end select
   
 end do
@@ -288,8 +288,9 @@ do
   $endif
   case default
      
-    call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-                'at line', line)
+    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
+    !             'at line', line)
+     call message( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
   end select
 
 enddo
@@ -347,8 +348,9 @@ do
 
   case default
      
-    call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-                'at line', line)
+    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
+    !             'at line', line)
+     call message( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
   end select
 
 enddo
@@ -449,8 +451,9 @@ do
 
   case default
      
-    call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
-                ' at line', line)
+    ! call error (sub, 'invalid block data value ' // buff(1:equal_pos-1) //  &
+    !             ' at line', line)
+     call message( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
   end select
 
 enddo
