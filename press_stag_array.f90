@@ -1,3 +1,12 @@
+module press_util
+
+implicit none
+
+private
+public press_stag_array
+
+contains
+
 !**********************************************************************
 subroutine press_stag_array(p_hat,dfdx,dfdy)   
 !**********************************************************************
@@ -35,22 +44,15 @@ use debug_mod
 $endif
 
 implicit none      
-!complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
-real(kind=rprec), dimension(ld, ny, 0:nz) :: p_hat
 
-real(kind=rprec),dimension(ld,ny,lbz:nz)::rH_x,rH_y,rH_z
-!complex(kind=rprec),dimension(lh,ny,lbz:nz)::H_x,H_y,H_z
-!equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
+real(rprec), dimension(:, :, :), intent(inout) :: p_hat
+real(rprec), dimension(:, :, :), intent(inout) :: dfdx,dfdy
 
-real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
-!complex(kind=rprec),dimension(lh,ny)::topw,bottomw
-!equivalence (rtopw,topw),(rbottomw,bottomw)
+real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
+real(rprec) , dimension(:, :), allocatable :: rtopw, rbottomw
 
-!complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
-real(kind=rprec), dimension(ld, ny, nz), intent(out)::dfdx,dfdy
+real(rprec) ::const
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
-! remove this stuff!
 integer::jx,jy,jz,k
 
 integer :: ir, ii ! Used for complex emulation of real array
@@ -64,13 +66,20 @@ $endif
 
 integer :: jz_min
 
-!complex(kind=rprec),dimension(lh, ny, nz+1)::RHS_col
-real(kind=rprec), dimension(ld, ny, nz+1) :: RHS_col
-real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
+real(rprec), dimension(:, :, :), allocatable :: RHS_col
+real(rprec), dimension(:, :, :), allocatable :: a,b,c
 
-real(kind=rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
+real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
+const = 1._rprec/(nx*ny)
+
+! Allocate
+allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
+allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
+allocate ( RHS_col(ld,ny,nz+1) )
+allocate ( a(lh,ny,nz+1), b(lh,ny,nz+1), c(lh,ny,nz+1) )
+
 $if ($VERBOSE)
 write (*, *) 'started press_stag_array'
 $endif
@@ -479,3 +488,5 @@ write (*, *) 'finished press_stag_array'
 $endif
 
 end subroutine press_stag_array
+
+end module press_util
