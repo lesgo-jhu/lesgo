@@ -10,14 +10,28 @@
 module sgs_stag_param
 !**********************************************************************
 use types,only:rprec
-use param, only:ld,ny,nz
+
 
 private 
-public S11, S12, S22, S33, S13, S23
+public S11, S12, S22, S33, S13, S23, sgs_stag, calc_Sij
 
-real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
+real (rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
 
-end module sgs_stag_param
+contains
+
+!**********************************************************************
+subroutine sgs_stag_init ()
+!**********************************************************************
+use param, only:ld,ny,nz
+
+implicit none
+
+! Allocate arrays
+    allocate ( S11(ld,ny,nz), S12(ld,ny,nz), S13(ld,ny,nz), &
+               S22(ld,ny,nz), S23(ld,ny,nz), S33(ld,ny,nz) )
+
+
+end subroutine sgs_stag_init
 
 !**********************************************************************
 subroutine sgs_stag ()
@@ -26,7 +40,6 @@ subroutine sgs_stag ()
 
 use types,only:rprec
 use param
-use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
 use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
@@ -441,7 +454,6 @@ subroutine calc_Sij
 
 use types,only:rprec
 use param
-use sgs_stag_param
 use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 
 $if ($MPI)
@@ -565,3 +577,5 @@ end do
 
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end module sgs_stag_param
