@@ -1,5 +1,5 @@
 !**********************************************************************
-module input_mod
+module input_util
 !**********************************************************************
 implicit none
 
@@ -38,7 +38,7 @@ use messages
 use string_util, only : eat_whitespace, uppercase
 implicit none
 
-character (*), parameter :: sub = 'read_conf'
+character (*), parameter :: sub = 'read_input_conf'
 
 integer, parameter :: lun = 1
 
@@ -55,6 +55,8 @@ logical :: exst
 ! Check that the configuration file exists
 inquire (file=input_conf, exist=exst)
 
+write(*,*) 'input_conf : ', input_conf
+
 if (exst) then
   open (lun, file=input_conf, action='read')
 else
@@ -66,7 +68,10 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
+
   if (ios /= 0) exit
+
+  write(*,*) buff
 
   if (block_entry_pos == 0) then  !--for now, invalid format if no block entry found
     call error (sub, 'block entry not found on line', line) 
@@ -97,9 +102,8 @@ do
 
   case default
 
-     ! call error (sub, 'invalid block label ' // buff(1:equal_pos-1) //  &
-     !      'at line', line)
-     call message( sub, 'Found unused input block :' // buff(1:equal_pos-1) )
+     call mesg( sub, 'Found unused input block :' // buff(1:equal_pos-1) )
+
   end select
   
 end do
@@ -114,16 +118,18 @@ subroutine domain_block()
 use param
 implicit none
 
+write(*,*) 'Im in domain_block'
+
 do 
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-  ! Check that the data entry conforms to correct format
-  call checkentry()  
-
   if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry() 
      
      select case (uppercase(buff(1:equal_pos-1)))
 
@@ -142,12 +148,12 @@ do
      case ('LZ')
         read (buff(equal_pos+1:), *) L_z
      case default
-        call message( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
      end select
 
   elseif ( block_exit_pos == 1 ) then
 
-     ! Set dependant variables
+     ! === Set dependant variables ===
      
      ! Set the processor owned vertical grid spacing
      nz = ( nz_tot - 1 ) / nproc + 1 
@@ -190,10 +196,10 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block') 
 
-  ! Check that the data entry conforms to correct format
-  call checkentry()  
-
   if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()  
 
      select case (uppercase(buff(1:equal_pos-1)))
 
@@ -230,7 +236,7 @@ do
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
      case default
-        call message( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -260,10 +266,11 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-  ! Check that the data entry conforms to correct format
-  call checkentry()
 
   if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
 
      select case (uppercase(buff(1:equal_pos-1)))
 
@@ -281,7 +288,7 @@ do
      case('CUMULATIVE_TIME')
         read (buff(equal_pos+1:), *) cumulative_time
      case default
-        call message( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -319,10 +326,10 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-  ! Check that the data entry conforms to correct format
-  call checkentry()
-
   if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
 
      select case (uppercase(buff(1:equal_pos-1)))
 
@@ -355,7 +362,7 @@ do
 
      case default
 
-        call message( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
 
      end select
 
@@ -386,11 +393,10 @@ do
                  equal_pos, ios )
   if (ios /= 0) call error( sub, 'Bad read in block')
 
-
-    ! Check that the data entry conforms to correct format
-  call checkentry()
-
   if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
 
      select case (uppercase(buff(1:equal_pos-1)))
 
@@ -488,7 +494,7 @@ do
         call parse_vector( buff(equal_pos+1:), spectra_loc )
 
      case default
-        call message( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -625,4 +631,4 @@ deallocate(svector)
 return
 end subroutine parse_vector_point3D
 
-end module input_mod
+end module input_util
