@@ -55,8 +55,6 @@ logical :: exst
 ! Check that the configuration file exists
 inquire (file=input_conf, exist=exst)
 
-write(*,*) 'input_conf : ', input_conf
-
 if (exst) then
   open (lun, file=input_conf, action='read')
 else
