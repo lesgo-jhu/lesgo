@@ -49,7 +49,6 @@ SRCS =  cfl.f90 \
 	sgsmodule.f90 \
 	sim_param.f90 \
 	stat_defs.f90 \
-	strmod.f90 \
 	std_dynamic.f90 \
 	string_util.f90 \
         test_filtermodule.f90 \
