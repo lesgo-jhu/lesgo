@@ -1,3 +1,12 @@
+module convec_util
+
+implicit none
+
+private
+public convec
+
+contains
+
 !***********************************************************************
 subroutine convec (cx,cy,cz)
 !***********************************************************************
@@ -293,3 +302,5 @@ write (*, *) 'finished convec'
 $endif
 
 end subroutine convec
+
+end module convec_util
