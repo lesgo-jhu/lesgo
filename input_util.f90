@@ -105,6 +105,12 @@ do
   case default
 
      call mesg( sub, 'Found unused input block: ' // buff(1:equal_pos-1) )
+     ! Now need to 'fast-forward' untile we reach the end of the block
+     do while ( block_exit_pos == 0 )
+        call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+             equal_pos, ios )
+        if (ios /= 0) exit ! exit if end of file is reached
+     enddo
 
   end select
   
