@@ -263,7 +263,7 @@ do while (istop .ne. 1)
    pos = index( buff, delim )
    
    if( pos > 0 ) then
-      sarray(n) = buff(:pos-delim_len)
+      sarray(n) = buff(:pos-1)
    else
       ! Assuming this is the last segment
       sarray(n) = trim( adjustl( buff ) )
