@@ -45,7 +45,8 @@ $endif
 
 implicit none      
 
-real(rprec), dimension(:, :, :), intent(inout) :: p_hat
+! z indexing must start at 0 for p_hat 
+real(rprec), dimension(:, :, 0:), intent(inout) :: p_hat
 real(rprec), dimension(:, :, :), intent(inout) :: dfdx,dfdy
 
 real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
