@@ -63,11 +63,15 @@ else
   j_min = 2  !--this is only for backward pass
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+  if (coord == nproc-1) then
+    j_max = n
+  else
+    j_max = n-1
+  endif
+$else
   j_max = n
-else
-  j_max = n-1
-end if
+$endif
 
 do j = 2, j_max
 
@@ -141,11 +145,15 @@ if (DEBUG) then
 end if
 $endif
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-!  j_max = n-1
-!else
+!$if ($MPI)
+!  if (coord == nproc-1) then
+!    j_max = n
+!  else
+!    j_max = n-1
+!  endif
+!$else
 !  j_max = n
-!end if
+!$endif
 
 do j = n-1, j_min, -1
 
