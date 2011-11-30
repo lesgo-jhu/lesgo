@@ -13,8 +13,9 @@ real(kind=rprec),dimension(lh, ny, nz+1),intent(in):: a, b, c
 real(rprec), dimension(ld,ny,nz+1), intent(in) :: r
 real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 
-integer, parameter :: n = nz+1
-integer, parameter :: nchunks = ny  !--need to experiment to get right value
+! integer, parameter :: n = nz+1
+! integer, parameter :: nchunks = ny  !--need to experiment to get right value
+integer :: n, nchunks
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -34,6 +35,10 @@ real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
 
 !--want to skip ny/2+1 and 1, 1
+
+! Initialize variables
+n = nz + 1
+nchunks = ny
 
 chunksize = ny / nchunks  !--make sure nchunks divides ny evenly
 
