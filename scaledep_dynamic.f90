@@ -13,64 +13,75 @@ use sim_param,only:path,u,v,w
 use sgsmodule,only:rtnewt
 use test_filtermodule
 implicit none
+
 integer :: jz
 real(kind=rprec), dimension(:,:,:), intent (inout) :: S11,S12,S13,S22,S23,S33
 real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
 
-real(kind=rprec), dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
-real(kind=rprec), allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
+real(kind=rprec), save, dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
+real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
 
-real(kind=rprec), dimension(:,:), allocatable :: S_bar,S11_bar,S12_bar,&
+real(kind=rprec), save, dimension(:,:), allocatable :: S_bar,S11_bar,S12_bar,&
      S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
      S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-real(kind=rprec), dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
+real(kind=rprec), save, dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 
-real(kind=rprec), dimension(:,:), allocatable :: u_bar,v_bar,w_bar
-real(kind=rprec), dimension(:,:), allocatable :: u_hat,v_hat,w_hat
+real(kind=rprec), save, dimension(:,:), allocatable :: u_bar,v_bar,w_bar
+real(kind=rprec), save, dimension(:,:), allocatable :: u_hat,v_hat,w_hat
 
-real(kind=rprec), dimension(:,:), allocatable :: S
+real(kind=rprec), save, dimension(:,:), allocatable :: S
+real(kind=rprec), save, dimension(:), allocatable :: beta
+
+logical, save :: arrays_allocated = .false. 
+
 real(kind=rprec) :: delta, const
 real(kind=rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
-real(kind=rprec), dimension(:), allocatable :: beta
+
 !TSreal(kind=rprec) :: rtnewt
 character(len=24)::fname
 
 ! Allocate arrays
-    allocate ( L11(ld,ny), L12(ld,ny), L13(ld,ny), &
-               L22(ld,ny), L23(ld,ny), L33(ld,ny) )
+if( .not. arrays_allocated ) then
 
-    allocate ( Q11(ld,ny), Q12(ld,ny), Q13(ld,ny), &
-               Q22(ld,ny), Q23(ld,ny), Q33(ld,ny) )
+   allocate ( L11(ld,ny), L12(ld,ny), L13(ld,ny), &
+        L22(ld,ny), L23(ld,ny), L33(ld,ny) )
 
-    M11 => Q11
-    M12 => Q12
-    M13 => Q13
-    M22 => Q22
-    M23 => Q23
-    M33 => Q33
+   allocate ( Q11(ld,ny), Q12(ld,ny), Q13(ld,ny), &
+        Q22(ld,ny), Q23(ld,ny), Q33(ld,ny) )
 
-    allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
-             S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
-             S33_bar(ld,ny), S_S11_bar(ld,ny), S_S12_bar(ld,ny), &
-             S_S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
-             S_S33_bar(ld,ny) )
+   allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
+        S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
+        S33_bar(ld,ny), S_S11_bar(ld,ny), S_S12_bar(ld,ny), &
+        S_S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
+        S_S33_bar(ld,ny) )
 
-    allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
-             S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &
-             S33_hat(ld,ny), S_S11_hat(ld,ny), S_S12_hat(ld,ny), &
-             S_S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
-             S_S33_hat(ld,ny) )
+   allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
+        S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &
+        S33_hat(ld,ny), S_S11_hat(ld,ny), S_S12_hat(ld,ny), &
+        S_S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
+        S_S33_hat(ld,ny) )
 
-    allocate ( u_bar(ld,ny), v_bar(ld,ny), w_bar(ld,ny) )
+   allocate ( u_bar(ld,ny), v_bar(ld,ny), w_bar(ld,ny) )
 
-    allocate ( u_hat(ld,ny), v_hat(ld,ny), w_hat(ld,ny) )
+   allocate ( u_hat(ld,ny), v_hat(ld,ny), w_hat(ld,ny) )
 
-    allocate ( S(ld,ny), beta(nz) )
+   allocate ( S(ld,ny), beta(nz) )
 
+   arrays_allocated = .true. 
+
+endif
+
+! Associate pointers
+M11 => Q11
+M12 => Q12
+M13 => Q13
+M22 => Q22
+M23 => Q23
+M33 => Q33
 
 delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
 
@@ -290,5 +301,9 @@ end do
 !    end do
 !    close(1)
 ! end if
+
+! Nullify pointers
+! Associate pointers
+nullify( M11, M12, M13, M22, M23, M33 )
 
 end subroutine scaledep_dynamic
