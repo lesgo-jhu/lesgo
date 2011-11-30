@@ -29,8 +29,8 @@ public
     real(rprec) :: lagran_dt = 0._rprec
 
 ! For scale dependent models (3,5)
-    real(rprec), dimension(:,:), allocatable :: Q11,Q12,Q13,Q22,Q23,Q33
-    real(rprec), dimension(:,:), allocatable :: N11,N12,N13,N22,N23,N33
+    real(rprec), dimension(:,:), allocatable :: Q11,Q12,Q13,Q22,Q23,Q33     ! these are only for model 5
+    real(rprec), dimension(:,:), allocatable :: N11,N12,N13,N22,N23,N33     ! these are only for model 5
 
     real(rprec), dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,S13_hat, &
                                      S22_hat,S23_hat,S33_hat,S_S11_hat,S_S12_hat,S_S13_hat, &
