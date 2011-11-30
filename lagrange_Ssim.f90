@@ -50,9 +50,7 @@ real(rprec) :: opftdelta,powcoeff
 character (64) :: fnamek, tempk
 
 integer :: istart, iend, ihi, ilo, jhi, jlo
-integer :: jz
-integer :: ii
-integer :: i, j
+integer :: jz, ii, i, j
 
 logical, save :: F_LM_MM_init = .false.
 

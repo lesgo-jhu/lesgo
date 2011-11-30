@@ -17,9 +17,10 @@ use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 use test_filtermodule
 implicit none
+
+real(rprec), dimension(nz),intent(out):: Cs_1D
+real(rprec) :: const
 integer :: jz
-real(kind=rprec), dimension(nz),intent(out):: Cs_1D
-real(kind=rprec) :: const
 
 do jz=1,nz
 ! using L_ij as temp storage here
