@@ -36,7 +36,7 @@ implicit none
 
 integer :: jx,jy,jz
 integer :: i
-integer :: counter1,counter2,counter3,counter4,counter5
+integer :: counter1
 integer :: istart, iend
 
 real(rprec):: tf1,tf2,tf1_2,tf2_2 ! Size of the second test filter
@@ -44,7 +44,6 @@ real(rprec) :: fractus
 real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 
-real(rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert
 real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
 real(rprec), dimension(ld,ny) :: ee_now
 
@@ -352,7 +351,6 @@ do jz = 1,nz
         Beta(:,:,jz)=&
              (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
         counter1=0      
-        counter2=0
         
         do jx=1,Nx
         do jy=1,Ny
@@ -379,15 +377,7 @@ do jz = 1,nz
         Cs_opt2(ld-1,:,jz) = zero
         ! Clip, if necessary
         Cs_opt2(:,:,jz)=max(zero,Cs_opt2(:,:,jz))
-
-    ! Save planar averages every 200 timesteps (not currently written anywhere?)
-    !    if (mod(jt,200) == 0) then
-    !       LMvert(jz) = sum(sum(LM,DIM=1),DIM=1)/ny/nx
-    !       MMvert(jz) = sum(sum(MM,DIM=1),DIM=1)/ny/nx
-    !       QNvert(jz) = sum(sum(QN,DIM=1),DIM=1)/ny/nx
-    !       NNvert(jz) = sum(sum(NN,DIM=1),DIM=1)/ny/nx
-    !    end if
-         
+ 
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
 
