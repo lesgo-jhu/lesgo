@@ -12,7 +12,7 @@ use param, only : cfl, cfl_f
 $endif
 use cfl_mod
 use io, only : stats_init
-use sgs_stag_util, only : sgs_stag_init
+use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
@@ -110,7 +110,7 @@ call openfiles()
 call test_filter_init( )
     
 ! Initialize sgs variables
-call sgs_stag_init()
+call sgs_param_init()
 
 ! Initialize concurrent precursor stuff
 $if($MPI and $CPS)

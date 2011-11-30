@@ -12,10 +12,10 @@ subroutine lagrange_Sdep(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgs_stag_util,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
+use sgs_param,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
 use test_filtermodule
 $if ($DYN_TN)
-use sgs_stag_util, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 $if($LVLSET)
 use level_set, only : level_set_Cs_lag_dyn

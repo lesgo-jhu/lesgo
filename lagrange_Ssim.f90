@@ -10,7 +10,7 @@ subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgs_stag_util,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
+use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
 use test_filtermodule
 use messages
 $if ($DEBUG)
@@ -20,7 +20,7 @@ $if ($LVLSET)
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 $endif
 $if ($DYN_TN)
-use sgs_stag_util, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP

@@ -9,7 +9,7 @@
 
 include Makefile.in
 
-EXE = lesgo
+EXE := lesgo
 
 SRCS =  cfl.f90 \
 	clocks.f90 \
@@ -45,6 +45,7 @@ SRCS =  cfl.f90 \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 \
+	sgs_param.f90 \
         sgs_stag.f90 \
 	sim_param.f90 \
 	stat_defs.f90 \
@@ -70,10 +71,12 @@ CPS_SRCS = concurrent_precursor.f90
 
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
+  EXE := $(EXE)-mpi
 endif
 
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
+  EXE := $(EXE)-ls
 endif
 
 ifeq ($(USE_CYL_SKEW_LS), yes)
@@ -82,6 +85,7 @@ endif
 
 ifeq ($(USE_RNS_LS), yes)
   SRCS += $(RNS_LS_SRCS)
+  EXE := $(EXE)-rns
 endif
 
 ifeq ($(USE_TURBINES), yes)
@@ -90,6 +94,7 @@ endif
 
 ifeq ($(USE_CPS), yes)
   SRCS += $(CPS_SRCS)
+  EXE := $(EXE)-cps
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'

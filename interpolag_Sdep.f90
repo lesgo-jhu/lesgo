@@ -14,9 +14,9 @@ subroutine interpolag_Sdep()
 
 use types,only:rprec
 use param
-use sgs_stag_util, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
+use sgs_param, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
 $if ($DYN_TN)
-use sgs_stag_util, only: F_ee2, F_deedt2, ee_past
+use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
 use sim_param,only:u,v,w
 use grid_defs,only:grid_t 

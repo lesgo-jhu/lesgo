@@ -7,7 +7,7 @@ use param, only : ld, nx, ny, nz, nz_tot, path,  &
                   total_time_dim, lbz, jzmin, jzmax
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
-use sgs_stag_util,only:Cs_opt2
+use sgs_param,only:Cs_opt2
 use string_util
 use messages
 
@@ -253,7 +253,7 @@ use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
 use param, only : sgs_model
-use sgs_stag_util, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
+use sgs_param, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
 include 'tecryte.h'      
@@ -1351,9 +1351,9 @@ subroutine checkpoint (lun)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 use param, only : nz
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
-use sgs_stag_util, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
-use sgs_stag_util, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 implicit none
 

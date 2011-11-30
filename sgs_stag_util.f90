@@ -1,3 +1,19 @@
+!***********************************************************************
+module sgs_stag_util
+!***********************************************************************
+implicit none
+
+save 
+private
+
+public sgs_stag, rtnewt
+
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine sgs_stag ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
 ! Calculates turbulent (subgrid) stress for entire domain
 !   using the model specified in param.f90 (Smag, LASD, etc)
 !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
@@ -6,111 +22,14 @@
 !
 !   module is used to share Sij values b/w subroutines
 !     (avoids memory error when arrays are very large)
-!**********************************************************************
-module sgs_stag_util
-!**********************************************************************
-use types, only : rprec
-
-save
-private rprec
-public
-
-! For all sgs models
-    real(rprec) :: delta, nu
-    real(rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
-    real(rprec), dimension(:,:,:), allocatable :: Nu_t      ! eddy viscosity
-    integer ::jt_count
-    real(rprec), dimension(:,:,:), allocatable ::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
-    integer :: count_clip, count_all
-
-! For Lagrangian models (4,5)
-    real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta
-    real(rprec) :: lagran_dt = 0._rprec
-
-! The following are for dynamically updating T, the timescale for Lagrangian averaging
-!   F_ee2 is the running average of (eij*eij)^2
-!   F_deedt2 is the running average of [d(eij*eij)/dt]^2
-!   ee_past is the array (eij*eij) for the past timestep
-    $if ($DYN_TN)
-    real(rprec), dimension(:,:,:), allocatable :: F_ee2, F_deedt2
-    real(rprec), dimension(:,:,:), allocatable :: ee_past
-    $endif
-
-contains
-
-!**********************************************************************
-subroutine sgs_stag_init ()
-!**********************************************************************
-use param, only : ld,ny,nz,lbz,molec,nu_molec,u_star,z_i,dx,dy,dz
-use test_filtermodule,only:filter_size
-
-implicit none
-
-! Allocate arrays
-
-    ! For all sgs models:
-    allocate ( S11(ld,ny,nz), &
-         S12(ld,ny,nz), &
-         S13(ld,ny,nz), &
-         S22(ld,ny,nz), &
-         S23(ld,ny,nz), &
-         S33(ld,ny,nz) )
-
-    allocate ( Nu_t(ld,ny,nz), Cs_opt2(ld,ny,nz) )
-
-        S11 = 0.0_rprec
-        S12 = 0.0_rprec
-        S13 = 0.0_rprec
-        S22 = 0.0_rprec
-        S23 = 0.0_rprec
-        S33 = 0.0_rprec
-
-        Nu_t = 0.0_rprec
-        Cs_opt2 = 0.0_rprec
-
-    ! For Lagrangian models:
-    allocate ( F_LM(ld,ny,lbz:nz), F_MM(ld,ny,lbz:nz), &
-               F_QN(ld,ny,lbz:nz), F_NN(ld,ny,lbz:nz), &
-               Beta(ld,ny,lbz:nz) )
-
-        F_LM = 0.0_rprec
-        F_MM = 0.0_rprec
-        F_QN = 0.0_rprec
-        F_NN = 0.0_rprec
-        Beta = 0.0_rprec
-
-    ! Lagrangian zero-crossing time scale variables
-    $if ($DYN_TN)
-    allocate ( F_ee2(ld,ny,lbz:nz), F_deedt2(ld,ny,lbz:nz), &
-               ee_past(ld,ny,lbz:nz) }
-
-        F_ee2 = 0.0_rprec
-        F_deedt2 = 0.0_rprec
-        ee_past = 0.0_rprec
-    $endif
-
-! Set constants
-    delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
-
-    if (molec) then
-        nu = (nu_molec/(u_star*z_i))    ! dimensionless
-    else
-        nu = 0._rprec
-    end if   
-
-return
-end subroutine sgs_stag_init
-
-!**********************************************************************
-subroutine sgs_stag ()
-!**********************************************************************
+!
 ! put everything onto w-nodes, follow original version
 
 use types,only:rprec
 use param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
+use sgs_param
 use messages
 
 $if ($MPI)
@@ -122,7 +41,7 @@ use debug_mod
 $endif
 
 $if ($LVLSET)
-  use level_set, only : level_set_BC, level_set_Cs, level_set_smooth_vel
+  use level_set, only : level_set_BC, level_set_Cs
 $endif
 implicit none
 
@@ -495,7 +414,7 @@ $endif
 end subroutine sgs_stag
 
 !**********************************************************************
-subroutine calc_Sij
+subroutine calc_Sij()
 !**********************************************************************
 ! Calculate the resolved strain rate tensor, Sij = 0.5(djui - diuj)
 !   values are stored on w-nodes (1:nz)
@@ -503,7 +422,7 @@ subroutine calc_Sij
 use types,only:rprec
 use param
 use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
-
+use sgs_param
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
@@ -624,6 +543,7 @@ end do
 !$ffohmygod end parallel do
 
 end subroutine calc_Sij
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !-----------------------------------------------------------------------
