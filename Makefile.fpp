@@ -48,9 +48,6 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
-  ifeq ($(SMOOTH_VEL), yes)
-    FPP += -DLVLSET_SMOOTH_VEL
-  endif
 endif
 
 ifeq ($(USE_CYL_SKEW_LS), yes)

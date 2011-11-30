@@ -19,7 +19,7 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set, only : level_set_global_CD, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
   $if ($RNS_LS)
@@ -107,11 +107,6 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
-
-    ! Level set: smooth velocity
-    $if ($LVLSET_SMOOTH_VEL)
-      call level_set_smooth_vel (u, v, w)
-    $endif
 
     ! Debug
     $if ($DEBUG)
