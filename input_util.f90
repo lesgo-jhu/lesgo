@@ -127,6 +127,8 @@ use types, only : rprec
 use param
 implicit none
 
+character(*), parameter :: block_name = 'DOMAIN'
+
 do 
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -155,7 +157,7 @@ do
      case ('LZ')
         read (buff(equal_pos+1:), *) L_z
      case default
-        call mesg( sub, 'Found unused data value in GRID block: ' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif ( block_exit_pos == 1 ) then
@@ -183,7 +185,7 @@ do
 
   else
 
-     call error( sub, 'GRID data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
      
@@ -197,6 +199,8 @@ subroutine model_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 implicit none
+
+character(*), parameter :: block_name = 'MODEL'
 
 do 
 
@@ -244,7 +248,9 @@ do
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
      case default
-        call mesg( sub, 'Found unused data value in MODEL block: ' // buff(1:equal_pos-1) )
+
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -252,8 +258,8 @@ do
      return
      
   else
-     
-     call error( sub, 'MODEL data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -268,6 +274,8 @@ subroutine time_block()
 use types, only : rprec
 use param
 implicit none
+
+character(*), parameter :: block_name = 'TIME'
 
 do 
 
@@ -297,7 +305,8 @@ do
      case('CUMULATIVE_TIME')
         read (buff(equal_pos+1:), *) cumulative_time
      case default
-        call mesg( sub, 'Found unused data value in TIME block: ' // buff(1:equal_pos-1) )
+
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -314,7 +323,7 @@ do
 
   else
 
-     call error( sub, 'TIME data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -328,6 +337,8 @@ subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 implicit none
+
+character(*), parameter :: block_name = 'FLOW_COND'
 
 do 
 
@@ -371,7 +382,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in FLOW_COND block: ' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -381,7 +392,7 @@ do
 
   else
 
-     call error( sub, 'FLOW_COND data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -395,6 +406,8 @@ subroutine output_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 implicit none
+
+character(*), parameter :: block_name = 'OUTPUT'
 
 do 
 
@@ -503,7 +516,8 @@ do
         call parse_vector( buff(equal_pos+1:), spectra_loc )
 
      case default
-        call mesg( sub, 'Found unused data value in OUTPUT block: ' // buff(1:equal_pos-1) )
+
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -512,7 +526,7 @@ do
 
   else
 
-     call error( sub, 'OUTPUT data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -527,6 +541,8 @@ subroutine level_set_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use level_set_base
 implicit none
+
+character(*), parameter :: block_name = 'LEVEL_SET'
 
 do 
 
@@ -589,7 +605,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in LEVEL_SET block: ' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -599,7 +615,7 @@ do
 
   else
 
-     call error( sub, 'LEVEL_SET data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
