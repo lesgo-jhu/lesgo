@@ -156,7 +156,8 @@ do
      ! === Set dependant variables ===
      
      ! Set the processor owned vertical grid spacing
-     nz = ( nz_tot - 1 ) / nproc + 1 
+     nz = ceiling ( 1.*nz_tot / nproc ) + 1
+     nz_tot = ( nz - 1 )*nproc + 1 
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
      ny2 = 3 * ny / 2
