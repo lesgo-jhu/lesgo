@@ -7,12 +7,13 @@
 !   module is used to share Sij values b/w subroutines
 !     (avoids memory error when arrays are very large)
 !**********************************************************************
-module sgs_stag_param
+module sgs_stag_util
 !**********************************************************************
-use types,only:rprec
+use types, only : rprec
 
-
+save
 private 
+
 public S11, S12, S22, S33, S13, S23, sgs_stag_init, sgs_stag, calc_Sij
 
 real (rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
@@ -22,15 +23,19 @@ contains
 !**********************************************************************
 subroutine sgs_stag_init ()
 !**********************************************************************
-use param, only:ld,ny,nz
+use param, only : ld, ny, nz
 
 implicit none
 
 ! Allocate arrays
-    allocate ( S11(ld,ny,nz), S12(ld,ny,nz), S13(ld,ny,nz), &
-               S22(ld,ny,nz), S23(ld,ny,nz), S33(ld,ny,nz) )
+allocate ( S11(ld,ny,nz), &
+     S12(ld,ny,nz), &
+     S13(ld,ny,nz), &
+     S22(ld,ny,nz), &
+     S23(ld,ny,nz), &
+     S33(ld,ny,nz) )
 
-
+return
 end subroutine sgs_stag_init
 
 !**********************************************************************
@@ -578,4 +583,4 @@ end do
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-end module sgs_stag_param
+end module sgs_stag_util
