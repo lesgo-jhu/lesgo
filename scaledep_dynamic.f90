@@ -11,7 +11,7 @@ use types,only:rprec
 use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
 use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
-use sgs_param,only:S11,S12,S13,S22,S23,S33
+use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S
 use sgs_param,only:L11,L12,L13,L22,L23,L33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
@@ -31,12 +31,11 @@ real(kind=rprec), save, dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
 real(kind=rprec), save, dimension(:,:), allocatable :: u_bar,v_bar,w_bar
 real(kind=rprec), save, dimension(:,:), allocatable :: u_hat,v_hat,w_hat
 
-real(kind=rprec), save, dimension(:,:), allocatable :: S
 real(kind=rprec), save, dimension(:), allocatable :: beta
 
 logical, save :: arrays_allocated = .false. 
 
-real(kind=rprec) :: delta, const
+real(kind=rprec) :: const
 real(kind=rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
 
@@ -69,8 +68,6 @@ M13 => Q13
 M22 => Q22
 M23 => Q23
 M33 => Q33
-
-delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
 
 do jz=1,nz
 ! using L_ij as temp storage here

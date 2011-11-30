@@ -52,7 +52,7 @@ logical, parameter :: DEBUG = .false.
 $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
+real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
 real(kind=rprec) :: const
 
 integer::jx,jy,jz,k

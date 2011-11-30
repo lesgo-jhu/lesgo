@@ -11,7 +11,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
-use sgs_param,only:S11,S12,S13,S22,S23,S33,delta
+use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
@@ -45,7 +45,6 @@ real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
 real(rprec), dimension(ld,ny) :: ee_now
 
 real(rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
-real(rprec), dimension(ld,ny) :: S
 real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
 

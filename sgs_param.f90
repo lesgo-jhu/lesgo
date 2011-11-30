@@ -21,6 +21,7 @@ public
     real(rprec), dimension(:,:), allocatable :: S_bar,S11_bar,S12_bar,S13_bar, &
                                      S22_bar,S23_bar,S33_bar,S_S11_bar,S_S12_bar,S_S13_bar, &
                                      S_S22_bar, S_S23_bar, S_S33_bar
+    real(rprec), dimension(:,:), allocatable :: S
 
 ! For Lagrangian models (4,5)
     real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
@@ -66,6 +67,8 @@ implicit none
         S_S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
         S_S33_bar(ld,ny) )
 
+    allocate ( S(ld,ny) )
+
         S11 = 0.0_rprec; S12 = 0.0_rprec; S13 = 0.0_rprec
         S22 = 0.0_rprec; S23 = 0.0_rprec; S33 = 0.0_rprec
 
@@ -84,6 +87,8 @@ implicit none
         S_S12_bar(ld,ny) = 0.0_rprec; S_S13_bar(ld,ny) = 0.0_rprec
         S_S22_bar(ld,ny) = 0.0_rprec; S_S23_bar(ld,ny) = 0.0_rprec
         S_S33_bar(ld,ny) = 0.0_rprec;
+
+        S = 0.0_rprec
 
     ! For Lagrangian models:
     allocate ( F_LM(ld,ny,lbz:nz), F_MM(ld,ny,lbz:nz), &
