@@ -46,7 +46,7 @@ SRCS =  cfl.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 \
 	sgs_param.f90 \
-        sgs_stag.f90 \
+        sgs_stag_util.f90 \
 	sim_param.f90 \
 	stat_defs.f90 \
 	std_dynamic.f90 \
