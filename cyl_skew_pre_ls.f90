@@ -10,6 +10,10 @@
 
     save
 
+    public
+
+    private rprec, vec3D, pi, BOGUS, lbz, fill_tree_array_ls
+
     $if($MPI)
     logical :: output_local=.false.
     $endif
@@ -17,15 +21,11 @@
 
     !  Defined local processor definitions
     $if($MPI)
+    integer, parameter :: nproc_lesgo = 4 ! MUST SET THIS 
     integer :: nx_proc
     integer :: nproc_csp, global_rank_csp
     integer :: stride
     $endif
-
-    !  cs{0,1} all correspond to vectors with the origin at the
-    !  corresponding coordinate system
-    type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
-    type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
 
     !  vectors do not have starting point a origin of corresponding
     !  coordinate system
@@ -42,6 +42,11 @@
     logical :: in_bottom_surf, btw_planes
 
     integer, dimension(3) :: cyl_loc
+
+   !  cs{0,1} all correspond to vectors with the origin at the
+    !  corresponding coordinate system
+    type(cs0), target, allocatable, dimension(:,:,:) :: gcs_t
+    type(cs1) :: lcs_t, slcs_t, sgcs_t, ecs_t
 
   end module cyl_skew_pre_base_ls
 
@@ -84,12 +89,14 @@
   !**********************************************************************
   subroutine initialize()
     !**********************************************************************
-    use param, only : nx, nz_tot, BOGUS
+    use types, only : rprec
+    use param, only : nx, lbz, nz_tot, BOGUS
+    use input_util, only : read_input_conf
     use cyl_skew_pre_base_ls, only : gcs_t, ntree
     $if($MPI)
     use mpi
-    use param, only : ierr
-    use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
+    use param, only : ierr, nz, nz_tot, dz, nproc, L_z
+    use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc, nproc_lesgo
     $endif
     use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
     use cyl_skew_ls, only : fill_tree_array_ls
@@ -103,8 +110,17 @@
     integer :: nx_remain, nx_extra
     $endif
 
-    $if ($MPI)
-    !call initialize_mpi ()
+    $if($MPI)
+    ! Since we are using a number of procesors that differ from what
+    ! will be used by lesgo we must set what we expect to use.
+    nproc = nproc_lesgo
+    $endif
+
+    ! Read lesgo.conf to get simulation setup
+    call read_input_conf()
+
+    $if($MPI)
+
     call initialize_mpi_csp ()
 
     ! Load balancing: any left over get consumed in rank order, one-by-one
@@ -130,7 +146,6 @@
        write(*,*) 'Error in x decomposition - nx_proc_sum, nx : ', nx_proc_sum, nx
        stop
     endif
-
 
     $endif
 
@@ -179,7 +194,6 @@
 
     enddo
 
-
     return
 
   contains
@@ -190,7 +204,8 @@
       !**********************************************************************
       use mpi
       use types, only : rprec
-      use param, only : ierr, MPI_RPREC
+      use param, only : ierr, nproc, MPI_RPREC
+      use cyl_skew_pre_base_ls, only : nproc_lesgo
       implicit none
 
       !--check for consistent preprocessor & param.f90 definitions of
@@ -221,7 +236,7 @@
     !**********************************************************************
     subroutine allocate_arrays()
       !**********************************************************************
-      use param, only : ny, nz_tot
+      use param, only : ny, lbz, nz_tot
       $if($MPI)
       use cyl_skew_pre_base_ls, only : nx_proc
       $else
@@ -243,7 +258,7 @@
       ! grid_build()
       !
       use types, only : rprec
-      use param, only : ny,nz_tot,dx,dy,dz
+      use param, only : ny,lbz,nz_tot,dx,dy,dz
       $if($MPI)
       use cyl_skew_pre_base_ls, only : nx_proc, stride
       $else
@@ -284,7 +299,7 @@
     $else
     use param, only : nx_proc => nx
     $endif
-    use param, only : ny, nz_tot
+    use param, only : ny, lbz, nz_tot
     use cyl_skew_base_ls, only : tr_t
     use cyl_skew_pre_base_ls, only : gcs_t
 
@@ -343,8 +358,6 @@
           enddo
        enddo
     enddo
-
-
 
     return
   end subroutine main_loop
@@ -632,7 +645,7 @@
     $else
     use param, only : nx_proc => nx
     $endif
-    use param, only : ny, nz_tot, dz
+    use param, only : ny, lbz, nz_tot, dz
     use messages
     use cyl_skew_pre_base_ls, only : gcs_t
     use cyl_skew_base_ls, only : tr_t, ngen, filt_width, brindx_to_loc_id
@@ -869,6 +882,8 @@
     !  delta - filter width
     !  chi   - filtered indicator function
     !
+    use types, only : rprec
+    use param, only : pi
     use cyl_skew_pre_base_ls
     implicit none
 
@@ -1192,7 +1207,8 @@
       ! the processors.
       !
       use mpi
-      use param, only : nx, ny, nz, nz_tot,dx,dy
+      use types, only : rprec
+      use param, only : nx, ny, nz, nz_tot,dx,dy, BOGUS
       use param, only :  MPI_RPREC,ierr, nproc, status
       use cyl_skew_pre_base_ls, only : nx_proc
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
@@ -1346,9 +1362,10 @@
       $if($MPI)
       use mpi
       $endif
-      use param, only : ld, nx, ny, nz, nz_tot,dx,dy
+      use types, only : rprec
+      use param, only : ld, nx, ny, nz, lbz, nz_tot,dx,dy, BOGUS
       $if($MPI)
-      use param, only :  MPI_RPREC,ierr, nproc, status
+      use param, only :  MPI_RPREC, ierr, nproc, status
       use cyl_skew_pre_base_ls, only : nx_proc, stride
       $endif
       !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
@@ -1736,6 +1753,7 @@
       !  drag force data for individual generations. In order to use this
       !  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
       !
+      use types, only : rprec
       use param, only : nz,dz
 
       implicit none
