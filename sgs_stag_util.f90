@@ -401,11 +401,16 @@ txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
 tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
-  
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then  !assuming stress-free lid?
+ 
+$if ($MPI) 
+  if (coord == nproc-1) then  !assuming stress-free lid?
     txz(:,:,nz)=0._rprec
     tyz(:,:,nz)=0._rprec
-end if
+  end if
+$else
+  txz(:,:,nz)=0._rprec
+  tyz(:,:,nz)=0._rprec
+$endif
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
