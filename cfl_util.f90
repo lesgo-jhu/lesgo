@@ -5,6 +5,11 @@ module cfl_mod
 ! This module provides the subroutines/functions for getting CFL related
 ! quantities 
 !
+save 
+private
+
+public get_max_cfl, get_cfl_dt
+
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
