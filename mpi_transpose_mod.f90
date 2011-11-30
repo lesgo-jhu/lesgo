@@ -39,7 +39,6 @@ integer :: bs
 integer :: ip
 integer :: up, down
 integer :: status(MPI_STATUS_SIZE)
-integer, save :: src(np-1), dest(np-1)
 
 integer :: i, j, k, jx, jy, jz
 
@@ -47,7 +46,20 @@ logical, save :: init = .false.
 
 complex (rp) :: tmpout(mx/np, my, mz), tmpin(mx/np, my, mz)
 
+!integer, save :: src(np-1), dest(np-1)
+integer, save, allocatable, dimension(:) :: src, dest
+
+logical, save :: arrays_allocated = .false.
+
 !---------------------------------------------------------------------
+
+if( .not. arrays_allocated ) then
+   allocate(src(np-1))
+   allocate(dest(np-1))
+   
+   arrays_allocated = .true.
+
+endif
 
 $if ($DEBUG)
 if (DEBUG) then
