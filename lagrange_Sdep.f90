@@ -14,6 +14,7 @@ use param
 use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
 use sgs_param,only:S11,S12,S13,S22,S23,S33
+use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use test_filtermodule
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
@@ -38,9 +39,7 @@ real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 
 real(rprec), dimension(ld,ny) :: S
-real(rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
 real(rprec), dimension(ld,ny) :: Q11,Q12,Q13,Q22,Q23,Q33
-real(rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
 real(rprec), dimension(ld,ny) :: N11,N12,N13,N22,N23,N33
 
 real(rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert

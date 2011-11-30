@@ -12,6 +12,7 @@ use param
 use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
 use sgs_param,only:S11,S12,S13,S22,S23,S33
+use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use test_filtermodule
 use messages
 $if ($DEBUG)
@@ -36,8 +37,6 @@ $endif
 character (*), parameter :: sub_name = 'lagrange_Ssim'
 real (rprec), parameter :: eps = 1.e-32_rprec
 
-real(rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
-real(rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
 real(rprec), dimension(ld,ny) :: fourbeta
 
 real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac

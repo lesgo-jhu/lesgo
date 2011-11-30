@@ -12,13 +12,13 @@ use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
 use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
 use sgs_param,only:S11,S12,S13,S22,S23,S33
+use sgs_param,only:L11,L12,L13,L22,L23,L33
 use test_filtermodule
 implicit none
 
 integer :: jz
 real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
 
-real(kind=rprec), save, dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
 real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
 
@@ -46,12 +46,6 @@ character(len=24)::fname
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
-
-   allocate ( L11(ld,ny), L12(ld,ny), L13(ld,ny), &
-        L22(ld,ny), L23(ld,ny), L33(ld,ny) )
-
-   allocate ( Q11(ld,ny), Q12(ld,ny), Q13(ld,ny), &
-        Q22(ld,ny), Q23(ld,ny), Q33(ld,ny) )
 
    allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
         S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
