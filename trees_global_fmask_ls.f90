@@ -104,7 +104,7 @@ end subroutine calc_global_fmask_ta
 !  know some MPI stuff from param
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine read_global_fmask ()
-use param, only : coord, nproc, USE_MPI
+use param, only : coord, nproc
 implicit none
 
 integer, parameter :: lun = 1
@@ -113,15 +113,15 @@ character (128) :: fname
 
 !---------------------------------------------------------------------
 
-if ( USE_MPI ) then
+$if ($MPI)
 
     write ( fname, '(a,a,a,i0)' ) gfmask_base, raw_suffix, MPI_suffix, coord
     
-else
+$else
 
     write ( fname, '(a,a)' ) gfmask_base, raw_suffix
 
-end if
+$endif
 
 open ( lun, file=fname, action='read', position='rewind', &
        form='unformatted' )
