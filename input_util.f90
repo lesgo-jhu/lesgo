@@ -106,6 +106,11 @@ do
        call rns_block()
     $endif
 
+    $if($CYL_SKEW_LS)
+    case ('CYL_SKEW')
+       call cyl_skew_block()
+    $endif
+
   $endif
 
   case default
@@ -634,7 +639,7 @@ $if($RNS_LS)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine rns_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use level_set_base
+use rns_base_ls
 implicit none
 
 character(*), parameter :: block_name = 'RNS'
@@ -697,6 +702,86 @@ enddo
 
 return
 end subroutine  rns_block
+$endif
+
+$if($CYL_SKEW_LS)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine cyl_skew_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use cyl_skew_base_ls
+implicit none
+
+character(*), parameter :: block_name = 'CYL_SKEW'
+
+do 
+
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub, 'Bad read in block')
+
+  if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+
+     case ('ZROT_ANGLE') 
+        read (buff(equal_pos+1:), *) zrot_angle
+        ! Convert to radians
+        zrot_angle = pi * zrot_angle / 180.0_rprec
+     case ('SKEW_ANGLE')
+        read (buff(equal_pos+1:), *) skew_angle
+        ! Convert to radians
+        skew_angle = pi * skew_angle / 180.0_rprec
+     case ('USE_BOTTOM_SURF')
+        read (buff(equal_pos+1:), *) use_bottom_surf
+     case ('Z_BOTTOM_SURF')
+        Read (buff(equal_pos+1:), *) z_bottom_surf
+     case ('NTREE')
+        read (buff(equal_pos+1:), *) ntree
+     case ('TREE_LOCATION')
+        allocate( tree_location( ntree ) )
+        call parse_vector(buff(equal_pos+1:), tree_location )
+     case ('NGEN')
+        read (buff(equal_pos+1:), *) ngen
+     case ('NGEN_RESLV')
+        read (buff(equal_pos+1:), *) ngen_reslv
+     case ('NBRANCH')
+        read (buff(equal_pos+1:), *) nbranch
+     case ('D')
+        read (buff(equal_pos+1:), *) d
+     case ('L')
+        read (buff(equal_pos+1:), *) l
+     case ('OFFSET')
+        read (buff(equal_pos+1:), *) offset
+     case ('SCALE_FACT')
+        read (buff(equal_pos+1:), *) scale_fact
+     case ('FILTER_CHI')
+        read (buff(equal_pos+1:), *) filter_chi
+     case ('FILTER_WIDTH')
+        read (buff(equal_pos+1:), *) filter_width
+
+     case default
+
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+  endif
+
+enddo
+
+return
+end subroutine  cyl_skew_block
 $endif
 
 $endif

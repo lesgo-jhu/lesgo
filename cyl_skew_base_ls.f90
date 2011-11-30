@@ -2,7 +2,7 @@
 module cyl_skew_base_ls
 !**********************************************************************
 use types, only : rprec, point3D
-use param, only : pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz,z_i
+use param, only : pi
 
 implicit none
 
@@ -10,8 +10,8 @@ save
 
 public
 
-private :: rprec
-private :: pi,nproc,nx,ny,nz,nz_tot,L_x,L_y,L_z,dx,dy,dz
+private :: rprec, point3D
+private :: pi
 private :: mod_name
 
 character (*), parameter :: mod_name = 'cyl_skew_base_ls'
@@ -20,35 +20,50 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 ! CYL_SKEW TREE PARAMETERS
 !--------------------------------------------------- 
 
-real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
-real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
+! real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
+! real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
+real(rprec), zrot_angle = -90._rprec*pi/180._rprec
+real(rprec), skew_angle = 45._rprec*pi/180._rprec
 
-logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
-real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
+! logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
+! real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
+logical, :: use_bottom_surf = .false. !  True for making a bottom surface
+real(rprec) :: z_bottom_surf = 0.0_rprec ! Already in non-dimensional units
 
-integer, parameter :: ntree = 1
+! integer, parameter :: ntree = 1
+! type(point3D), parameter, dimension(ntree) :: tree_location = (/ &
+!      point3D( (/ L_x / 2, L_y / 2, z_bottom_surf /) ) &
+!      /)
+integer :: ntree = 1
+type(point3D), allocatable, dimension(:) :: tree_location 
 
-type(point3D), parameter, dimension(ntree) :: tree_location = (/ &
-     point3D( (/ L_x / 2, L_y / 2, z_bottom_surf /) ) &
-     /)
 
-integer, parameter :: ngen = 1
-integer, parameter :: ngen_reslv = 1
+! integer, parameter :: ngen = 1
+! integer, parameter :: ngen_reslv = 1
 
-integer, parameter :: nbranch = 1
+! integer, parameter :: nbranch = 1
+
+integer :: ngen = 5
+integer :: ngen_reslv = 2
+integer :: nbranch = 3
 
 !  Make sure they are non-dimensional
 !  dm = 28.8 mm
 !  hm = 50.4 mm
 !  offset = 9 mm
-real(rprec), parameter :: d = 1._rprec
-real(rprec), parameter :: l = 1._rprec
-real(rprec), parameter :: offset = 0._rprec
+! real(rprec), parameter :: d = 1._rprec
+! real(rprec), parameter :: l = 1._rprec
+! real(rprec), parameter :: offset = 0._rprec
 
-real(rprec), parameter :: scale_fact = 0.5_rprec
+real(rprec) :: d = 1._rprec
+real(rprec  :: l = 1._rprec
+real(rprec) :: offset = 0.1_rprec
 
-logical, parameter :: filter_chi = .false.
-real(rprec), parameter :: filt_width = 2._rprec*dx  !  Filter width for filtered indicator function
+
+real(rprec) :: scale_fact = 0.5_rprec
+
+logical :: filter_chi = .false.
+real(rprec) :: filt_width = 0.125  !  Filter width for filtered indicator function
 
 !---------------------------------------------------
 !
