@@ -12,28 +12,92 @@ module sgs_stag_util
 use types, only : rprec
 
 save
-private 
+private rprec
+public
 
-public S11, S12, S22, S33, S13, S23, sgs_stag_init, sgs_stag, calc_Sij
+! For all sgs models
+    real(rprec) :: delta, nu
+    real(rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
+    real(rprec), dimension(:,:,:), allocatable :: Nu_t      ! eddy viscosity
+    integer ::jt_count
+    real(rprec), dimension(:,:,:), allocatable ::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
+    integer :: count_clip, count_all
 
-real (rprec), dimension (:,:,:), allocatable :: S11, S12, S22, S33, S13, S23
+! For Lagrangian models (4,5)
+    real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
+    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta
+    real(rprec) :: lagran_dt = 0._rprec
+
+! The following are for dynamically updating T, the timescale for Lagrangian averaging
+!   F_ee2 is the running average of (eij*eij)^2
+!   F_deedt2 is the running average of [d(eij*eij)/dt]^2
+!   ee_past is the array (eij*eij) for the past timestep
+    $if ($DYN_TN)
+    real(rprec), dimension(:,:,:), allocatable :: F_ee2, F_deedt2
+    real(rprec), dimension(:,:,:), allocatable :: ee_past
+    $endif
 
 contains
 
 !**********************************************************************
 subroutine sgs_stag_init ()
 !**********************************************************************
-use param, only : ld, ny, nz
+use param, only : ld,ny,nz,lbz,molec,nu_molec,u_star,z_i,dx,dy,dz
+use test_filtermodule,only:filter_size
 
 implicit none
 
 ! Allocate arrays
-allocate ( S11(ld,ny,nz), &
-     S12(ld,ny,nz), &
-     S13(ld,ny,nz), &
-     S22(ld,ny,nz), &
-     S23(ld,ny,nz), &
-     S33(ld,ny,nz) )
+
+    ! For all sgs models:
+    allocate ( S11(ld,ny,nz), &
+         S12(ld,ny,nz), &
+         S13(ld,ny,nz), &
+         S22(ld,ny,nz), &
+         S23(ld,ny,nz), &
+         S33(ld,ny,nz) )
+
+    allocate ( Nu_t(ld,ny,nz), Cs_opt2(ld,ny,nz) )
+
+        S11 = 0.0_rprec
+        S12 = 0.0_rprec
+        S13 = 0.0_rprec
+        S22 = 0.0_rprec
+        S23 = 0.0_rprec
+        S33 = 0.0_rprec
+
+        Nu_t = 0.0_rprec
+        Cs_opt2 = 0.0_rprec
+
+    ! For Lagrangian models:
+    allocate ( F_LM(ld,ny,lbz:nz), F_MM(ld,ny,lbz:nz), &
+               F_QN(ld,ny,lbz:nz), F_NN(ld,ny,lbz:nz), &
+               Beta(ld,ny,lbz:nz) )
+
+        F_LM = 0.0_rprec
+        F_MM = 0.0_rprec
+        F_QN = 0.0_rprec
+        F_NN = 0.0_rprec
+        Beta = 0.0_rprec
+
+    ! Lagrangian zero-crossing time scale variables
+    $if ($DYN_TN)
+    allocate ( F_ee2(ld,ny,lbz:nz), F_deedt2(ld,ny,lbz:nz), &
+               ee_past(ld,ny,lbz:nz) }
+
+        F_ee2 = 0.0_rprec
+        F_deedt2 = 0.0_rprec
+        ee_past = 0.0_rprec
+    $endif
+
+! Set constants
+    delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
+
+    if (molec) then
+        nu = (nu_molec/(u_star*z_i))    ! dimensionless
+    else
+        nu = 0._rprec
+    end if   
 
 return
 end subroutine sgs_stag_init
@@ -47,8 +111,6 @@ use types,only:rprec
 use param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
-use test_filtermodule,only:filter_size
 use messages
 
 $if ($MPI)
@@ -72,7 +134,7 @@ $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
-real(kind=rprec) :: delta, nu, const
+real(kind=rprec) :: const
 
 integer::jx,jy,jz,k
 integer :: jz_min
@@ -81,7 +143,6 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
 
 $if ($DEBUG)
@@ -224,13 +285,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
 
     case ('wall') 
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
-    !   recall: for this case, Sij are stored on uvp-nodes
-        
-        if (molec) then
-            nu = (nu_molec/(u_star*z_i))    ! dimensionless
-        else
-            nu = 0._rprec
-        end if      
+    !   recall: for this case, Sij are stored on uvp-nodes        
         
         if (sgs) then
             !$comp parallel do default(shared) private(jx,jy,const)
@@ -263,13 +318,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
        
     case ('stress free')
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
-    !   recall: for this case, Sij are stored on w-nodes    
-    
-        if (molec) then
-            nu = (nu_molec/(u_star*z_i))    ! dimensionless
-        else
-            nu = 0._rprec
-        end if   
+    !   recall: for this case, Sij are stored on w-nodes      
         
         if (sgs) then
             !$comp parallel do default(shared) private(jx,jy,const)
@@ -321,12 +370,6 @@ end if
 !   txx, txy, tyy, tzz not needed at nz (so they aren't calculated)
 !     txz, tyz at nz will be done later
 !   txx, txy, tyy, tzz (uvp-nodes) and txz, tyz (w-nodes)
-
-if (molec) then
-    nu=(nu_molec/(u_star*z_i))  ! dimensionless
-else 
-    nu=0._rprec
-end if
 
 if (sgs) then 
     !$comp parallel do default(shared) private(jx,jy,jz,const)	 
@@ -582,5 +625,32 @@ end do
 
 end subroutine calc_Sij
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!-----------------------------------------------------------------------
+real(kind=rprec) function rtnewt(A, jz)
+!-----------------------------------------------------------------------
+use types,only:rprec
+integer,parameter :: jmax=100
+real(kind=rprec) :: x1,x2,xacc
+integer :: j, jz
+real(kind=rprec) :: df,dx,f
+real(kind=rprec), dimension(0:5) :: A
+x1 = 0._rprec
+x2 = 15._rprec  ! try to find the largest root first....hmm
+xacc = 0.001_rprec ! doesn't need to be that accurate...
+rtnewt = 0.5_rprec*(x1+x2)
+do j=1,jmax
+   f = A(0)+rtnewt*(A(1)+rtnewt*(A(2)+rtnewt*(A(3)+rtnewt*(A(4)+rtnewt*A(5)))))
+   df = A(1) + rtnewt*(2._rprec*A(2) + rtnewt*(3._rprec*A(3) +&
+        rtnewt*(4._rprec*A(4) + rtnewt*(5._rprec*A(5)))))
+   dx=f/df
+   rtnewt = rtnewt - dx
+!        if ((x1-rtnewt)*(rtnewt-x2) < 0.) STOP 'rtnewt out of bounds'
+   if (abs(dx) < xacc) return
+end do
+rtnewt = 1._rprec  ! if dont converge fast enough
+write(6,*) 'using beta=1 at jz= ', jz
+end function rtnewt
+!-----------------------------------------------------------------------
 
 end module sgs_stag_util

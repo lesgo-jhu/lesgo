@@ -4,10 +4,9 @@ subroutine initial()
 use types,only:rprec
 use param
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
-!use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
-use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+use sgs_stag_util, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
-use sgsmodule, only:F_ee2,F_deedt2,ee_past
+use sgs_stag_util, only:F_ee2,F_deedt2,ee_past
 $endif
 
 use sim_param,only:fx,fy,fz

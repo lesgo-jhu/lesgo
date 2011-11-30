@@ -367,7 +367,7 @@ end subroutine level_set_vel_err
 !--sets Cs2 to epsilon inside solid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs_lag_dyn ()
-use sgsmodule, only : Cs_opt2
+use sgs_stag_util, only : Cs_opt2
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_Cs_lag_dyn'
@@ -469,7 +469,7 @@ end subroutine level_set_lag_dyn
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine modify_beta ()
-use sgsmodule, only : beta
+use sgs_stag_util, only : beta
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.modify_beta'
@@ -536,7 +536,7 @@ end subroutine modify_beta
 !  sync between nz and 1' is needed
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine neumann_F_MM ()
-use sgsmodule, only : F_MM
+use sgs_stag_util, only : F_MM
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.neumann_F_MM'
@@ -651,7 +651,7 @@ end subroutine neumann_F_MM
 !--only operates on 1:nz-1, MAY NEED 1:nz for complete consistency!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine zero_F_LM ()
-use sgsmodule, only : F_LM
+use sgs_stag_util, only : F_LM
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.zero_F_LM'
@@ -3234,7 +3234,7 @@ end subroutine level_set_global_CD
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
 use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => wall_damp_exp 
-use sgsmodule, only : Cs_opt2
+use sgs_stag_util, only : Cs_opt2
 implicit none
 
 real (rp), intent (in) :: delta

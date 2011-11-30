@@ -14,7 +14,10 @@ subroutine interpolag_Ssim ()
 
 use types,only:rprec
 use param
-use sgsmodule
+use sgs_stag_util, only: F_LM, F_MM, lagran_dt
+$if ($DYN_TN)
+use sgs_stag_util, only: F_ee2, F_deedt2, ee_past
+$endif
 use messages
 use sim_param,only:u,v,w
 use grid_defs,only:grid_t 

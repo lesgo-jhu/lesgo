@@ -10,7 +10,7 @@ subroutine scaledep_dynamic(Cs_opt2,S11,S12,S13,S22,S23,S33)
 use types,only:rprec
 use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
 use sim_param,only:path,u,v,w
-use sgsmodule,only:rtnewt
+use sgs_stag_util,only:rtnewt
 use test_filtermodule
 implicit none
 
