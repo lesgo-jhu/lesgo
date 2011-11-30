@@ -99,7 +99,9 @@ z => grid_t % z
             enddo
             enddo               
         ! Top-most level should not allow negative w
-            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.nproc-1)) then
+            $if ($MPI)
+            if (coord.eq.nproc-1) then
+            $endif
                 k = nz
                 do j=1,ny
                 do i=1,nx
@@ -120,7 +122,9 @@ z => grid_t % z
                     $endif
                 enddo
                 enddo    
-            endif          
+            $if ($MPI)
+            endif     
+            $endif     
         
          ! Share new data between overlapping nodes
          $if ($MPI)

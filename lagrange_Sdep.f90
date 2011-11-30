@@ -361,10 +361,15 @@ do jz = 1,nz
         end do
 
         !--MPI: this is not valid
-        if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) .and.  &
-             (jz == nz) ) then
-          Beta(:,:,jz)=1._rprec
-        end if
+        $if ($MPI) 
+          if ((coord == nproc-1).and.(jz == nz)) then
+            Beta(:,:,jz)=1._rprec
+          endif
+        $else
+          if (jz == nz) then
+            Beta(:,:,jz)=1._rprec
+          endif
+        $endif
         
     ! Clip Beta and set Cs_opt2 for each point in the plane
         do jy = 1, ny

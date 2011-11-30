@@ -143,15 +143,16 @@ subroutine ic()
      if (coord == 0) then
         w(1:nx, 1:ny, 1) = 0._rprec
      end if
-     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-        w(1:nx, 1:ny, nz) = 0._rprec
-     endif
 
-     !...BC for U, V
-     if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+     $if ($MPI)
+     if (coord == nproc-1) then
+     $endif    
+        w(1:nx, 1:ny, nz) = 0._rprec
         u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
         v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
+     $if ($MPI)
      end if
+     $endif
 
   end if
 

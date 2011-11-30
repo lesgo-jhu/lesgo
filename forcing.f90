@@ -278,7 +278,9 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 $endif
 
 !--enfore bc at top
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+if (coord == nproc-1) then
+$endif
 
   if (force_top_bot .and. inflow) then
     u(:, :, nz) = inflow_velocity
@@ -292,7 +294,9 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 
   w(:, :, nz)=0._rprec
 
-end if
+$if ($MPI)
+endif
+$endif
 
 if (coord == 0) then
   ! just a test
