@@ -162,7 +162,7 @@ write(2,l_fmt) 'vel_BC : ', vel_BC
 write(2,l_fmt) 'use_log_profile : ', use_log_profile
 write(2,l_fmt) 'use_enforce_un : ', use_enforce_un
 write(2,l_fmt) 'physBC : ', physBC
-write(2,f_fmt) 'z0 : ', z0
+write(2,f_fmt) 'zo_level_set : ', zo_level_set
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'SMOOTHING PARAMETERS'

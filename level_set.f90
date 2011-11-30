@@ -615,7 +615,7 @@ else
   call error (sub_name, 'trying to use unset phi_cutoff')
 end if
 
-grad = sqrt (abs (tau)) / (vonK * (max (phi_min, phix) + z0))
+grad = sqrt (abs (tau)) / (vonK * (max (phi_min, phix) + zo_level_set))
 
 Gp(1, 3) = grad
 
@@ -1139,7 +1139,7 @@ do k = 1, nz - 1
 
           call interp_phi (x1, phi1)
 
-          tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
+          tau_w = -(mag (v1t) * vonk / log (phi1 / zo_level_set))**2
 
           !--next step is to rotate
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -1272,7 +1272,7 @@ do k = 2, nz
 
           call interp_phi (x1, phi1)
 
-          tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
+          tau_w = -(mag (v1t) * vonk / log (phi1 / zo_level_set))**2
 
           !--next step is to rotate
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -1569,7 +1569,7 @@ do k = 1, nz - 1
           vel2_p = vel2 - vel2_n * n_hat
         
           vel1_n = vel2_n * (phi1 / phi2)**2
-          vel1_p = vel2_p * (log (1._rp + phi1 / z0) / log (1._rp + phi2 / z0))
+          vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
           vel1 = vel1_p + vel1_n * n_hat
 
@@ -1635,7 +1635,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           vel2_p = vel2 - vel2_n * n_hat
         
           vel1_n = vel2_n * (phi1 / phi2)**2
-          vel1_p = vel2_p * (log (1._rp + phi1 / z0) / log (1._rp + phi2 / z0))
+          vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
           vel1 = vel1_p + vel1_n * n_hat
 
@@ -3100,7 +3100,7 @@ if (.not. initialized) then
         end if
 
         !--sorry, this splitting is ugly
-        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + z0))**n  &
+        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + zo_level_set))**n  &
                               )**(-2._rp / n)
 
       end do
@@ -3140,7 +3140,7 @@ if (.not. initialized) then
         end if
       
         !--sorry, this splitting is ugly
-        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + z0))**n  &
+        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + zo_level_set))**n  &
                               )**(-2._rp / n)
 
       end do
@@ -3528,7 +3528,7 @@ integer, parameter :: lun1 = 1
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
-!real (rp), parameter :: phi_0 = 0._rp * z0  !--should be consistent with interp
+!real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--should be consistent with interp
 
 integer :: i, j, k, m, id
 integer :: counter, nlist
@@ -3838,7 +3838,7 @@ integer, parameter :: lun = 1
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
-!real (rp), parameter :: phi_0 = 0._rp * z0  !--this is adjustable
+!real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--this is adjustable
 
 character (128) :: fname
 
@@ -3973,9 +3973,9 @@ do k = 1, nz-1
           z_hat = n_hat
 
           if (physBC) then
-            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / zo_level_set))**2
           else
-            tau = -(kappa * mag (vel_t) / log (1._rp + phix / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phix / zo_level_set))**2
           end if
 
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -4122,9 +4122,9 @@ do k = kmin, kmax
           z_hat = n_hat
 
           if (physBC) then
-            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / zo_level_set))**2
           else
-            tau = -(kappa * mag (vel_t) / log (1._rp + phix / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phix / zo_level_set))**2
           end if
           
           txz(i, j, k) = (x_hat(1) * z_hat(3) + z_hat(1) * x_hat(3)) * tau
