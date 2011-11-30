@@ -657,7 +657,7 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
-     case ('RNS_TREE') 
+     case ('RNS_NTREE') 
         read (buff(equal_pos+1:), *) rns_ntree
      case ('RNS_TREE_LAYOUT')
         read (buff(equal_pos+1:), *) rns_tree_layout
