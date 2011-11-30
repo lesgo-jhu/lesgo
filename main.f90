@@ -62,7 +62,6 @@ tt = 0
 ! Initialize all data
 call initialize()
 
-
 $if($MPI)
   if(coord == 0) then
      call clock_stop( clock_t )
@@ -212,10 +211,8 @@ do jt=1,nsteps
     end if
     $endif
 
-    ! Calculates u x (omega) term in physical space
-    !   uses 3/2 rule for dealiasing
-    !   stores this term in RHS (right hand side) variable
-    !call convec(RHSx,RHSy,RHSz)
+    ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
+    ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
 
     ! Debug
