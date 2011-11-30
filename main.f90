@@ -6,40 +6,30 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : openfiles, output_loop, output_final, jt_total, stats_init
+use io, only : output_loop, output_final, jt_total
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
-use sim_param, only : fxa, fya, fza
 use test_filtermodule
-use cfl_mod 
-use sgsmodule, only : sgsmodule_init
-use sgs_stag_param, only : sgs_stag_init, sgs_stag
-use input_util, only : read_input_conf
+use cfl_mod
+
+use sgs_stag_util, only : sgs_stag
 
 $if ($MPI)
-  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
-  $if($CPS)
-  use concurrent_precursor, only : initialize_cps
-  $endif
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set, only : level_set_global_CD, level_set_smooth_vel, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
   $if ($RNS_LS)
   use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
-  
-    $if ($CYL_SKEW_LS)
-    use rns_cyl_skew_ls, only : rns_init_ls
-    $endif
-  
   $endif
 
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
+use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
 
 $if ($DEBUG)
@@ -61,101 +51,17 @@ real (rprec) :: force
 
 type(clock_type) :: clock_t, clock_total_t
 
+
 ! Start the clocks, both local and total
 call clock_start( clock_t )
 clock_total_t = clock_t
 
-! Read input file
-call read_input_conf()
-
-! Create output directory
-call system("mkdir -vp output")
-
-! INITIALIZATION
-! Define simulation parameters
-call sim_param_init ()
-
-! Initialize MPI
-$if ($MPI)
-  call initialize_mpi()
-  $if($CPS)
-    call initialize_cps()
-  $endif
-$else
-  if (nproc /= 1) then
-    write (*, *) 'nproc /=1 for non-MPI run is an error'
-    stop
-  end if
-  if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
-  chcoord = ''
-$endif
-
-$if($MPI)
-  if(coord == 0) call param_output()
-$else
-  call param_output()
-$endif
-
-! Initialize uv grid (calculate x,y,z vectors)
-call grid_build()
-
-!  Initialize variables used for output statistics and instantaneous data
-call stats_init()
-
 ! Initialize time variable
-tt=0
+tt = 0
 
-! Initialize turbines
-$if ($TURBINES)
-  call turbines_init()    !must occur before initial is called
-$endif
+! Initialize all data
+call initialize()
 
-! If using level set method
-$if ($LVLSET)
-  call level_set_init ()
-
-  $if ($RNS_LS)
-    call rns_init_ls ()
-  $endif
-  
-$endif
-
-! Initialize velocity field
-call initial()
-
-! Formulate the fft plans--may want to use FFTW_USE_WISDOM
-! Initialize the kx,ky arrays
-call init_fft()
-    
-! Open output files (total_time.dat and check_ke.out)  
-call openfiles()
-
-! Initialize test filter(s)
-! this is used for lower BC, even if no dynamic model
-  call test_filter_init ( )
-    
-! Initialize sgs variables
-call sgsmodule_init()
-call sgs_stag_init()
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
-  call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
-  call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
-end if
-$endif
-
-$if($CFL_DT)
-if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
-  dt = get_cfl_dt() 
-  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
-endif
-$endif
 
 $if($MPI)
   if(coord == 0) then
