@@ -36,7 +36,7 @@ $endif
 implicit none
 
 !real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
-real (rprec), dimension (:, :, :), intent (out) :: cx, cy, cz
+real (rprec), dimension (:, :,lbz:), intent (out) :: cx, cy, cz
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
