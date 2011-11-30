@@ -98,7 +98,7 @@ do
 
   case default
 
-     call mesg( sub, 'Found unused input block :' // buff(1:equal_pos-1) )
+     call mesg( sub, 'Found unused input block: ' // buff(1:equal_pos-1) )
 
   end select
   
@@ -142,7 +142,7 @@ do
      case ('LZ')
         read (buff(equal_pos+1:), *) L_z
      case default
-        call mesg( sub, 'Found unused data value in GRID block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in GRID block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif ( block_exit_pos == 1 ) then
@@ -169,7 +169,7 @@ do
 
   else
 
-     call error( sub, 'GRID data block not formatted correctly:' // buff(1:equal_pos-1) )
+     call error( sub, 'GRID data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
      
@@ -230,7 +230,7 @@ do
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
      case default
-        call mesg( sub, 'Found unused data value in MODEL block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in MODEL block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -239,7 +239,7 @@ do
      
   else
      
-     call error( sub, 'MODEL data block not formatted correctly:' // buff(1:equal_pos-1) )
+     call error( sub, 'MODEL data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -251,6 +251,7 @@ end subroutine model_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine time_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
 use param
 implicit none
 
@@ -282,7 +283,7 @@ do
      case('CUMULATIVE_TIME')
         read (buff(equal_pos+1:), *) cumulative_time
      case default
-        call mesg( sub, 'Found unused data value in TIME block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in TIME block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -299,7 +300,7 @@ do
 
   else
 
-     call error( sub, 'TIME data block not formatted correctly:' // buff(1:equal_pos-1) )
+     call error( sub, 'TIME data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -356,7 +357,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in FLOW_COND block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in FLOW_COND block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -366,7 +367,7 @@ do
 
   else
 
-     call error( sub, 'FLOW_COND data block not formatted correctly:' // buff(1:equal_pos-1) )
+     call error( sub, 'FLOW_COND data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -488,7 +489,7 @@ do
         call parse_vector( buff(equal_pos+1:), spectra_loc )
 
      case default
-        call mesg( sub, 'Found unused data value in OUTPUT block :' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in OUTPUT block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -497,7 +498,7 @@ do
 
   else
 
-     call error( sub, 'OUTPUT data block not formatted correctly:' // buff(1:equal_pos-1) )
+     call error( sub, 'OUTPUT data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
