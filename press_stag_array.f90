@@ -29,7 +29,7 @@ use types,only:rprec
 use param
 use messages
 use sim_param, only: u,v,w,divtz
-use sim_param, only: p,dpdx,dpdy
+use sim_param, only: p,dpdx,dpdy,dpdz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 $if ($DEBUG)
@@ -40,7 +40,7 @@ implicit none
 
 ! z indexing must start at 0 for p_hat 
 real(rprec), pointer, dimension(:, :, :) :: p_hat
-real(rprec), pointer, dimension(:, :, :) :: dfdx,dfdy
+real(rprec), pointer, dimension(:, :, :) :: dfdx,dfdy,dfdz
 
 real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
 real(rprec) , dimension(:, :), allocatable :: rtopw, rbottomw
@@ -72,6 +72,7 @@ const = 1._rprec/(nx*ny)
 p_hat => p
 dfdx => dpdx
 dfdy => dpdy
+dfdz => dpdz
 
 ! Allocate arrays
 allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
@@ -482,8 +483,15 @@ dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
 
+! Final step compute the z-derivative of p_hat
+! Calculate dpdz
+!   note: p has additional level at z=-dz/2 for this derivative
+dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
+     p_hat(1:nx, 1:ny, 0:nz-2)) / dz
+dfdz(:, :, nz) = BOGUS
+
 ! Associate pointers
-nullify(p_hat, dfdx, dfdy)
+nullify(p_hat, dfdx, dfdy, dfdz)
 
 ! Allocate arrays
 deallocate ( rH_x, rH_y, rH_z )

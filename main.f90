@@ -442,15 +442,8 @@ do jt=1,nsteps
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
-    !   provides p, dpdx, dpdy at 0:nz-1
-    !call press_stag_array (p, dpdx, dpdy)
+    !   provides p, dpdx, dpdy, dpdz at 0:nz-1
     call press_stag_array()
-
-    ! Calculate dpdz
-    !   note: p has additional level at z=-dz/2 for this derivative
-    dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) -   &
-                                p(1:nx, 1:ny, 0:nz-2)) / dz
-    dpdz(:, :, nz) = BOGUS
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
