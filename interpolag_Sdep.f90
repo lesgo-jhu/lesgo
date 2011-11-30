@@ -68,7 +68,7 @@ z => grid_t % z
         ! Variables x,y,z_lag, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
         ! Interpolation out of top/bottom of domain is not permitted.
         ! Note: x,y,z_lag values are only good for k=1:nz-1 within each proc
-            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.0)) then
+            if ( coord.eq.0 ) then
                 kmin = 2                    
                 ! At the bottom-most level (at the wall) the velocities are zero.
                 ! Since there is no movement the values of F_LM, F_MM, etc should

@@ -1082,7 +1082,7 @@ nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   kmn = 2
 else
   kmn = 1
@@ -3257,7 +3257,7 @@ $endif
 
 if (.not. initialized) then
 
-  if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
 
     jz = 1
 
@@ -4236,7 +4236,7 @@ if (output) write (lun, *) 'w-node pass'
 
 !--w-node pass
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   kmin = 2
 else
   kmin = 1
@@ -4565,7 +4565,7 @@ if (vel_BC) then
   if (use_log_profile) call enforce_log_profile ()
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   k = 1
   do j = 1, ny
@@ -4819,7 +4819,7 @@ if (present (ierr)) ierr = 0
 
 do k1 = 1, -1, -2
 
-  !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  !if (coord == 0) then
   !  if ((k1 == -1) .and. (k == 1)) exit  !--same as cycle here
   !end if
 

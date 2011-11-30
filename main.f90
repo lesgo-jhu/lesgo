@@ -154,11 +154,11 @@ do jt=1,nsteps
     !   using the velocity log-law
     !   MPI: bottom process only
     if (dns_bc) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             call wallstress_dns ()
         end if
     else    ! "impose" wall stress 
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             call wallstress ()                            
         end if
     end if    
@@ -423,7 +423,7 @@ do jt=1,nsteps
        maxcfl = get_max_cfl()
 
        
-       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+       if (coord == 0) then
           write(*,*)
           write(*,'(a)') '========================================'
           write(*,'(a)') 'Time step information:'

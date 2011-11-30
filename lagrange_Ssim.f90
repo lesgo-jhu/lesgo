@@ -190,7 +190,7 @@ do jz = 1,nz
                 F_LM(ld-1:ld,:,jz)=1._rprec
 
                 if (jz == 1) then
-                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                    if (coord == 0) then
                         write (*, *) 'LM(1, 1)=', LM(1, 1)
                         write (*, *) 'MM(1, 1)=', MM(1, 1)
                         write (*, *) 'M11(1, 1)=', M11(1, 1)

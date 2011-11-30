@@ -81,7 +81,7 @@ $if ($VERBOSE)
 write (*, *) 'started press_stag_array'
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   p_hat(:, :, 0) = (0._rprec, 0._rprec)
 else
   p_hat(:, :, 0) = BOGUS
@@ -133,7 +133,7 @@ else
   rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
 end if
@@ -183,7 +183,7 @@ end if
 $endif
 
 !--switch order of inner/outer loops here
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   !  a,b,c are treated as the real part of a complex array
   a(:, :, 1) = BOGUS  !--was 0._rprec
@@ -401,7 +401,7 @@ $if ($MPI)
   call mpi_recv (p_hat(1:2, 1, 1), 2, MPI_RPREC, down, 8, comm, status, ierr)
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   !p_hat(1, 1, 0) = 0._rprec
   !p_hat(1, 1, 1) = p_hat(1, 1, 0) - dz * bottomw(1, 1)

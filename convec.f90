@@ -104,8 +104,7 @@ do jz = 1, nz
 !--if du1d3, du2d3 are on u-nodes for jz=1, then we need a special
 !  definition of the vorticity in that case which also interpolates
 !  du3d1, du3d2 to the u-node at jz=1
-   if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-        (jz == 1) ) then
+   if ( (coord == 0) .and. (jz == 1) ) then
         
      select case (lbc_mom)
        case ('wall')
@@ -154,7 +153,7 @@ end do
 ! redefinition of const
 const=1._rprec/(nx2*ny2)
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,2)))
@@ -190,7 +189,7 @@ end do
 ! CY
 ! const should be 1./(nx2*ny2) here
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,2)))
@@ -225,7 +224,7 @@ end do
 
 ! CZ
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)

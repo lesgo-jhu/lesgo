@@ -41,7 +41,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 end if
 
 ! w-nodes
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! leave the wall level alone: taken care of with wall stress
   !--assume here that wall stress has already been set (for MPI)
   jz_min = 2

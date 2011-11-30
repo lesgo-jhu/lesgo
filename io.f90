@@ -3,7 +3,7 @@ module io
 !///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, path,  &
-                  USE_MPI, coord, rank, nproc, jt_total, total_time, &
+                  coord, rank, nproc, jt_total, total_time, &
                   total_time_dim, lbz, jzmin, jzmax
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
@@ -51,7 +51,7 @@ if (cumulative_time) then
     
     close (1)
   else  !--assume this is the first run on cumulative time
-    if( .not. USE_MPI .or. ( USE_MPI .and. coord == 0 ) ) then
+    if( coord == 0 ) then
       write (*, *) '--> Assuming jt_total = 0, total_time = 0., total_time_dim = 0.'
     endif
     jt_total = 0
@@ -92,7 +92,7 @@ if(tavg_calc) then
 !  Check if we are in the time interval for running summations
   if(jt >= tavg_nstart .and. jt <= tavg_nend) then
     if(jt == tavg_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+      if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
         write(*,*) '-------------------------------'   
@@ -111,7 +111,7 @@ if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
   if(jt >= spectra_nstart .and. jt <= spectra_nend) then
     if(jt == spectra_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+      if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
         write(*,*) '-------------------------------'
@@ -131,7 +131,7 @@ endif
 if(point_calc) then
   if(jt >= point_nstart .and. jt <= point_nend .and. ( jt == point_nstart .or. mod(jt,point_nskip)==0) ) then
     if(jt == point_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then   
+      if (coord == 0) then   
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous point velocities from ', point_nstart, ' to ', point_nend
         write(*,"(1a,i9)") 'Iteration skip:', point_nskip
@@ -146,7 +146,7 @@ endif
 if(domain_calc) then
   if(jt >= domain_nstart .and. jt <= domain_nend .and. ( jt == domain_nstart .or. mod(jt,domain_nskip)==0) ) then
     if(jt == domain_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous domain velocities from ', domain_nstart, ' to ', domain_nend
         write(*,"(1a,i9)") 'Iteration skip:', domain_nskip
@@ -162,7 +162,7 @@ endif
 if(xplane_calc) then
   if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( jt == xplane_nstart .or. mod(jt,xplane_nskip)==0) ) then
     if(jt == xplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous x-plane velocities from ', xplane_nstart, ' to ', xplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', xplane_nskip
@@ -178,7 +178,7 @@ endif
 if(yplane_calc) then
   if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( jt == yplane_nstart .or. mod(jt,yplane_nskip)==0) ) then
     if(jt == yplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous y-plane velocities from ', yplane_nstart, ' to ', yplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', yplane_nskip
@@ -193,7 +193,7 @@ endif
 if(zplane_calc) then
   if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( jt == zplane_nstart .or. mod(jt,zplane_nskip)==0) ) then
     if(jt == zplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous z-plane velocities from ', zplane_nstart, ' to ', zplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', zplane_nskip
@@ -1439,7 +1439,7 @@ $endif
 
 !  Update total_time.dat after simulation
 !if ((cumulative_time) .and. (lun == lun_default)) then
-  if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
 
@@ -1750,7 +1750,7 @@ end subroutine stats_init
 subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
-use param, only : coord, dt, USE_MPI, Nx, Ny, Nz
+use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
 use param, only : tavg_nstart, tavg_nend
@@ -1778,7 +1778,7 @@ $endif
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   !  Nothing to read in
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous time averaged data - starting from scratch.'
   endif
@@ -2338,7 +2338,7 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
 
   $endif
   
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     open(unit = 1, file = "output/force_total_avg.dat", status="unknown", position="rewind") 
     write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
     close(1)
@@ -2574,7 +2574,7 @@ subroutine spectra_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use messages
-use param, only : coord, dt, USE_MPI, spectra_nloc, lh, nx
+use param, only : coord, dt, spectra_nloc, lh, nx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
 
@@ -2600,7 +2600,7 @@ $endif
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   !  Nothing to read in
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous spectra data - starting from scratch.'
   endif

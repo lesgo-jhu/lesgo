@@ -41,7 +41,7 @@ $if ($MPI)
   divt(:, :, 0) = BOGUS
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
   do jy=1,ny
   do jx=1,nx

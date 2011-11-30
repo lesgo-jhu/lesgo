@@ -118,7 +118,7 @@ if (sgs) then
                 l = delta        
             else       
                 ! The variable "l" calculated below is l_sgs/Co where l_sgs is from JDA eqn(2.30)
-                if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (coord == 0) then
 
                     ! z's nondimensional, l here is on uv-nodes
                     zz(1) = 0.5_rprec * dz                    
@@ -198,7 +198,7 @@ end do
 !$comp end parallel do
 
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
     select case (lbc_mom)
 
@@ -437,7 +437,7 @@ real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 ! Calculate Sij for jz=1 (coord==0 only)
 !   stored on uvp-nodes (this level only) for 'wall'
 !   stored on w-nodes (all) for 'stress free'
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
     select case (lbc_mom)
 

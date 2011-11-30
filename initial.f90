@@ -54,7 +54,7 @@ if(initu)then
   $endif
   
 
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
+    if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
 
     select case (sgs_model)
       case (1)
@@ -109,11 +109,11 @@ if(initu)then
 
 else
   if (dns_bc) then
-     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial velocity field with DNS BCs'
+     if (coord == 0) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial fields'
-       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity field'
+    if (coord == 0) write(*,*) '--> Creating initial fields'
+       if (coord == 0) write(*,*) '----> Creating initial velocity field'
        call ic()
   end if
 end if

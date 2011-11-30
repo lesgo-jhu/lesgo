@@ -235,7 +235,7 @@ do jz = 1, nz - 1
   end do
 end do
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   jz_min = 2
 else
   jz_min = 1
@@ -294,7 +294,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! just a test
   !if (lbc_mom == 'stress free') then
   !  if (force_top_bot) then

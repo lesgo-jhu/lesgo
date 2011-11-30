@@ -129,7 +129,7 @@ $endif
 ! Initialize dt if needed to force 1st order Euler
 $if($CFL_DT)
 if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
+  if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
   dt = get_cfl_dt() 
   dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
 endif

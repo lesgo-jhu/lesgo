@@ -36,7 +36,7 @@ $if ($MPI)
   call mpi_recv(u(1,1,1), ld*ny, MPI_RPREC, down, 3, comm, status, ierr)
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   do jy = 1, ny
     do jx = 1, lh-1

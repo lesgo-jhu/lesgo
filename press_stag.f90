@@ -127,7 +127,7 @@ do jz=1,nz
    call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)     
 end do
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! sc: could do out of place transform if wanted to...
   rbottomw(:,:)=const*divtz(:,:,1)
   call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),fftwNull_p)

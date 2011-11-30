@@ -49,7 +49,7 @@ contains
 subroutine rns_init_ls()
 !**********************************************************************
 use messages
-use param, only : USE_MPI, coord
+use param, only : coord
 use cyl_skew_ls, only : fill_tree_array_ls
 use rns_ls, only : rns_force_init_ls
 
@@ -57,7 +57,7 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_init_ls'
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) 'Initializing RNS Data Structure'
   write(*,*) ' '
@@ -107,11 +107,11 @@ call fill_beta_elem()
 call fill_b_elem()
 !----- Fill RNS_CYL_SKEW Data Structures -----
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) 'ncluster_reslv : ', ncluster_reslv
 endif
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) 'RNS Data Structure Initialized'
   write(*,*) ' '
@@ -127,7 +127,7 @@ end subroutine rns_init_ls
 !**********************************************************************
 subroutine clindx_init ()
 !**********************************************************************
-use param, only : iBOGUS, coord, nz, USE_MPI
+use param, only : iBOGUS, coord, nz
 use messages
 implicit none
 
@@ -142,7 +142,7 @@ $endif
 logical :: opn, exst
 
 !---------------------------------------------------------------------
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> loading clindx'
   write(*,*) 'size(clindx,1) : ', size(clindx,1)
 endif
@@ -277,7 +277,7 @@ end subroutine chi_init
 subroutine fill_rns_tree_map ()
 !**********************************************************************
 use messages
-use param, only : USE_MPI, coord
+use param, only : coord
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_rns_tree_map'
@@ -287,7 +287,7 @@ integer :: n, nt
 allocate( rns_to_cyl_skew_tree_map( rns_ntree ) )
 allocate( cyl_skew_to_rns_tree_map( ntree ) )
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling RNS Tree Mapping'
   write(*,*) ' '
@@ -320,7 +320,7 @@ select case (rns_tree_layout)
 
 end select
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 write(*,*) '----> RNS To CYL_SKEW Tree Mapping : '
 write(*,*) '| ID       | RNS NT   |'
 do n=1, rns_ntree
@@ -342,7 +342,7 @@ end subroutine fill_rns_tree_map
 !**********************************************************************
 subroutine set_nr_elem()
 !**********************************************************************
-use param, only : USE_MPI, coord
+use param, only : coord
 implicit none
 
 integer :: nt, ng, nc
@@ -353,7 +353,7 @@ type(generation), pointer :: gen_t_p
 !  Nullify all pointers
 nullify(tr_t_p, gen_t_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Setting RNS NR_ELEM'
   write(*,*) ' '
@@ -384,7 +384,7 @@ do nt = 1, rns_ntree
   
 enddo
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 write(*,*) '----> NR_ELEM : ', nr_elem
 endif
 
@@ -394,7 +394,7 @@ end subroutine set_nr_elem
 !**********************************************************************
 subroutine set_nb_elem()
 !**********************************************************************
-use param, only : USE_MPI, coord
+use param, only : coord
 implicit none
 
 integer :: nt, nc
@@ -404,7 +404,7 @@ type(generation), pointer :: gen_t_p
 !  Nullify all pointers
 nullify(gen_t_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Setting RNS NB_ELEM'
   write(*,*) ' '
@@ -426,7 +426,7 @@ do nt = 1, rns_ntree
   
 enddo
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 write(*,*) '----> NB_ELEM : ', nb_elem
 endif
 
@@ -436,7 +436,7 @@ end subroutine set_nb_elem
 !**********************************************************************
 subroutine set_nbeta_elem()
 !**********************************************************************
-use param, only : USE_MPI, coord
+use param, only : coord
 use messages
 implicit none
 
@@ -449,7 +449,7 @@ type(generation), pointer :: gen_t_p
 !  Nullify all pointers
 nullify(gen_t_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Setting RNS NBETA_ELEM'
   write(*,*) ' '
@@ -474,7 +474,7 @@ do nt = 1, rns_ntree
   
 enddo
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 write(*,*) '----> NBETA_ELEM : ', nbeta_elem
 endif
 
@@ -484,7 +484,7 @@ end subroutine set_nbeta_elem
 !!**********************************************************************
 !subroutine fill_elem_ref_region(elem, nelem, ref_region_t)
 !!**********************************************************************
-!use param, only : dy, dz, USE_MPI, coord
+!use param, only : dy, dz, coord
 !use param, only : nx, ny, nz
 !use messages
 !use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -519,7 +519,7 @@ end subroutine set_nbeta_elem
 !nullify(cl_t_p, br_t_p)
 !nullify(ref_region_t_p)
 
-!if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+!if (coord == 0) then
 !  write(*,*) ' '
 !  write(*,*) '--> Filling R_ELEM Reference Plane Arrays'
 !  write(*,*) ' '
@@ -614,7 +614,7 @@ end subroutine set_nbeta_elem
 !  !  Finally initialize velocity reference components
 !  ref_region_t_p % u = 0._rprec
 !  
-!  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+!  if (coord == 0) then
 !    write(*,'(i12,i11,f11.6, 9f9.4)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
 !  endif  
 !  
@@ -715,7 +715,7 @@ end subroutine set_nbeta_elem
 subroutine fill_cl_to_r_elem_map()
 !**********************************************************************
 use messages
-use param, only : coord, USE_MPI
+use param, only : coord
 implicit none
 
 integer :: n, nt, ng, nc
@@ -737,7 +737,7 @@ allocate( r_elem_to_basecl_map( nr_elem ) )
 r_elem_to_basecl_map=-1
 
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling RNS R_ELEM and Cluster Mapping'
   write(*,*) ' '
@@ -772,7 +772,7 @@ do nt = 1, rns_ntree
 enddo
 
 !  Output elem indx to cluster mapping
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> RNS Element Base Cluster ID : '
   write(*,*) '| ID       | NT       | NG       | NC       |'
   do n=1, nr_elem
@@ -789,7 +789,7 @@ end subroutine fill_cl_to_r_elem_map
 !**********************************************************************
 subroutine fill_cl_to_beta_elem_map
 !**********************************************************************
-use param, only : USE_MPI, coord
+use param, only : coord
 implicit none
 
 integer :: ncount, nt, ng, nc, n
@@ -812,7 +812,7 @@ cl_to_beta_elem_map = -1
 allocate( beta_elem_to_basecl_map( nbeta_elem ) )
 beta_elem_to_basecl_map=-1
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling RNS BETA_ELEM and Cluster Mapping'
   write(*,*) ' '
@@ -883,7 +883,7 @@ do nt = 1, rns_ntree
 enddo
 
 !  Output elem indx to cluster mapping
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> RNS Element Base Cluster ID : '
   write(*,*) '| ID       | NT       | NG       | NC       |'
   do n=1, nbeta_elem
@@ -901,7 +901,7 @@ end subroutine fill_cl_to_beta_elem_map
 subroutine fill_cl_to_b_elem_map
 !**********************************************************************
 use cyl_skew_base_ls, only : tr_t, tree, generation
-use param, only : USE_MPI, coord
+use param, only : coord
 implicit none
 
 integer :: ncount, nt, ng, nc, n
@@ -923,7 +923,7 @@ cl_to_b_elem_map = -1
 allocate( b_elem_to_basecl_map( nb_elem ) )
 b_elem_to_basecl_map=-1
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling B_ELEM and Cluster Mapping'
   write(*,*) ' '
@@ -997,7 +997,7 @@ do nt = 1, rns_ntree
 enddo
 
 !  Output elem indx to cluster mapping
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> RNS Element Base Cluster ID : '
   write(*,*) '| ID       | NT       | NG       | NC       |'
   do n=1, nb_elem
@@ -1039,7 +1039,7 @@ end subroutine fill_r_elem
 !**********************************************************************
 subroutine fill_r_elem_ref_region()
 !**********************************************************************
-use param, only : dx, dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -1069,7 +1069,7 @@ nullify(hbot_p, htop_p)
 nullify(cl_t_p, br_t_p)
 nullify(ref_region_t_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling R_ELEM Reference Plane Arrays'
   write(*,*) ' '
@@ -1130,7 +1130,7 @@ do n=1, nr_elem
   !  Finally initialize velocity reference components
   ref_region_t_p % u = 0._rprec
   
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,'(i12,i11,f11.6, 9f9.4)') n, r_elem_t(n) % ref_region_t % npoint, r_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
   endif   
       
@@ -1152,7 +1152,7 @@ subroutine fill_r_elem_indx_array
 !  This subroutine gets the indx_array for r_elem. 
 !
 use types, only : rprec
-use param, only : nx,ny,nz, coord, USE_MPI
+use param, only : nx,ny,nz, coord
 use level_set_base, only : phi
 use messages
 $if($MPI)
@@ -1180,7 +1180,7 @@ nullify(indx_p)
 nullify(npoint_p)
 nullify(cl_loc_id_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling R_ELEM Index Array'
   write(*,*) ' '
@@ -1273,7 +1273,7 @@ $else
 npoint_global(:) = r_elem_t(:) % indx_array_t % npoint
 $endif
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> Index Array Information : '
   write(*,*) '| ID       | NPOINT   |'
   do n=1, nr_elem
@@ -1313,7 +1313,7 @@ end subroutine fill_beta_elem
 !**********************************************************************
 subroutine fill_beta_elem_ref_region()
 !**********************************************************************
-use param, only : dx, dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t
@@ -1342,7 +1342,7 @@ nullify(hbot_p, htop_p)
 nullify(cl_t_p)
 nullify(ref_region_t_p)
   
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling BETA_ELEM Reference Plane Arrays'
   write(*,*) ' '
@@ -1403,7 +1403,7 @@ do n=1, nbeta_elem
   !  Finally initialize velocity reference components
   ref_region_t_p % u = 0._rprec
   
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,'(i12,i11,f11.6, 9f9.4)') n, beta_elem_t(n) % ref_region_t % npoint, beta_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
   endif     
       
@@ -1424,7 +1424,7 @@ subroutine fill_beta_elem_indx_array
 !  This subroutine gets the indx_array for beta_elem. 
 !
 use types, only : rprec
-use param, only : nx,ny,nz, coord, USE_MPI
+use param, only : nx,ny,nz, coord
 use level_set_base, only : phi
 use messages
 $if($MPI)
@@ -1451,7 +1451,7 @@ nullify(indx_p)
 nullify(npoint_p)
 nullify(cl_loc_id_p)
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling BETA_ELEM Index Array'
   write(*,*) ' '
@@ -1545,7 +1545,7 @@ $else
 npoint_global(:) = beta_elem_t(:) % indx_array_t % npoint
 $endif
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> Index Array Information : '
   write(*,*) '| ID       | NPOINT   |'
   do n=1, nbeta_elem
@@ -1585,7 +1585,7 @@ end subroutine fill_b_elem
 !**********************************************************************
 subroutine fill_b_elem_ref_region()
 !**********************************************************************
-use param, only : dx, dy, dz, USE_MPI, coord
+use param, only : dx, dy, dz, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -1617,7 +1617,7 @@ nullify(hbot_p, htop_p)
 nullify(tr_t_p, gen_t_p, cl_t_p, br_t_p)
 nullify(ref_region_t_p)
   
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Filling B_ELEM Reference Plane Arrays'
   write(*,*) ' '
@@ -1679,7 +1679,7 @@ do n=1, nb_elem
     !  Finally initialize velocity reference components
     ref_region_t_p % u = 0._rprec
     
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,'(i12,i11,f11.6, 9f9.4)') n, b_elem_t(n) % ref_region_t % npoint, b_elem_t(n) % ref_region_t % area, p1(:), p2(:), p3(:)
   endif      
       
@@ -1699,7 +1699,7 @@ subroutine set_b_elem_children()
 !**********************************************************************
 !  This subroutine sets the r_elem and beta_elem (children) which belong to 
 !  each B region
-use param, only : dy, dz, USE_MPI, coord
+use param, only : dy, dz, coord
 use param, only : nx, ny, nz
 use messages
 use cyl_skew_base_ls, only : tr_t, tree, generation
@@ -1719,7 +1719,7 @@ nullify(clindx_p, b_elem_indx_p)
 allocate(pre_r_child_t( nb_elem ))
 allocate(pre_beta_child_t( nb_elem ))
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) ' '
   write(*,*) '--> Setting B_ELEM Children'
   write(*,*) ' '
@@ -1799,7 +1799,7 @@ enddo
 
 deallocate( pre_beta_child_t )
 
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   write(*,*) '----> Children Element Information : '
   write(*,*) '| ID       | NR_ELEM  | CHILD ID         |'
   do n=1, nb_elem

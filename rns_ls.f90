@@ -42,7 +42,7 @@ use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
 
-use param, only : dx, dy, dz, coord, jt, USE_MPI
+use param, only : dx, dy, dz, coord, jt
 
 implicit none
 
@@ -125,7 +125,7 @@ end subroutine rns_forcing_ls
 subroutine rns_elem_output()
 !**********************************************************************
 !
-use param, only : jt, USE_MPI, coord
+use param, only : jt, coord
 use messages
 !!$if($CYL_SKEW_LS)
 !!use cyl_skew_base_ls, only : ngen, ngen_reslv
@@ -138,7 +138,7 @@ $if($VERBOSE)
 call enter_sub(sub_name)
 $endif
   
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
+if (coord == 0) then
 
   call r_elem_data_write()
   call beta_elem_data_write()
@@ -984,7 +984,7 @@ subroutine r_elem_force()
 !
 use types, only : rprec
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt, wbase
+use param, only : nx, ny, nz, dx, dy, dz, coord, jt, wbase
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -1392,7 +1392,7 @@ subroutine rns_force_init_ls ()
 !  This subroutine reads the last BETA force data from a previous simulation
 !
 use types, only : rprec
-use param, only : coord, USE_MPI
+use param, only : coord
 use messages
 implicit none
 
@@ -1420,7 +1420,7 @@ $endif
 inquire (file=fname, exist=exst)
 
 if (.not. exst) then
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous RNS force data - starting from scratch.'
   endif
