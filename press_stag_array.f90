@@ -29,7 +29,7 @@ use types,only:rprec
 use param
 use messages
 use sim_param, only: u,v,w,divtz
-use sim_param, only: p,dpdx,dpdy,dpdz
+use sim_param, only: p_hat => p, dfdx => dpdx, dfdy => dpdy, dfdz => dpdz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 $if ($DEBUG)
@@ -37,10 +37,6 @@ use debug_mod
 $endif
 
 implicit none      
-
-! z indexing must start at 0 for p_hat 
-real(rprec), pointer, dimension(:, :, :) :: p_hat
-real(rprec), pointer, dimension(:, :, :) :: dfdx,dfdy,dfdz
 
 real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
 real(rprec) , dimension(:, :), allocatable :: rtopw, rbottomw
@@ -67,12 +63,6 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
 const = 1._rprec/(nx*ny)
-
-! Associate pointers
-p_hat => p
-dfdx => dpdx
-dfdy => dpdy
-dfdz => dpdz
 
 ! Allocate arrays
 allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
@@ -490,10 +480,7 @@ dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
      p_hat(1:nx, 1:ny, 0:nz-2)) / dz
 dfdz(:, :, nz) = BOGUS
 
-! Associate pointers
-nullify(p_hat, dfdx, dfdy, dfdz)
-
-! Allocate arrays
+! Deallocate arrays
 deallocate ( rH_x, rH_y, rH_z )
 deallocate ( rtopw, rbottomw )
 deallocate ( RHS_col )

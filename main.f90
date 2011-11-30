@@ -315,7 +315,8 @@ do jt=1,nsteps
     ! Calculates u x (omega) term in physical space
     !   uses 3/2 rule for dealiasing
     !   stores this term in RHS (right hand side) variable
-    call convec(RHSx,RHSy,RHSz)
+    !call convec(RHSx,RHSy,RHSz)
+    call convec()
 
     ! Debug
     $if ($DEBUG)
@@ -442,7 +443,7 @@ do jt=1,nsteps
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
-    !   provides p, dpdx, dpdy, dpdz at 0:nz-1
+    !   provides p, dpdx, dpdy at 0:nz-1 and dpdz at 1:nz-1
     call press_stag_array()
 
     ! Add pressure gradients to RHS variables (for next time step)

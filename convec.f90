@@ -8,7 +8,7 @@ public convec
 contains
 
 !***********************************************************************
-subroutine convec (cx,cy,cz)
+subroutine convec ()
 !***********************************************************************
 !
 ! c = - (u X vort)
@@ -27,6 +27,7 @@ use types,only:rprec
 use param
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
+use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
 $if ($DEBUG)
@@ -34,9 +35,6 @@ use debug_mod
 $endif
 
 implicit none
-
-!real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
-real (rprec), dimension (:, :,lbz:), intent (out) :: cx, cy, cz
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
