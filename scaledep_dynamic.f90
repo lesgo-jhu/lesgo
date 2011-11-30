@@ -15,6 +15,9 @@ use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
+use sgs_param,only:u_hat,v_hat,w_hat
+use sgs_param,only:S_hat,S11_hat,S12_hat,S13_hat,S22_hat,S23_hat,S33_hat
+use sgs_param,only:S_S11_hat,S_S12_hat,S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 use test_filtermodule
 implicit none
 
@@ -23,12 +26,6 @@ real(kind=rprec), dimension(:), intent (inout) :: Cs_1D
 
 real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
-
-real(kind=rprec), save, dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
-     S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
-     S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
-
-real(kind=rprec), save, dimension(:,:), allocatable :: u_hat,v_hat,w_hat
 
 real(kind=rprec), save, dimension(:), allocatable :: beta
 
@@ -44,17 +41,10 @@ character(len=24)::fname
 ! Allocate arrays
 if( .not. arrays_allocated ) then
 
-   allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
-        S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &
-        S33_hat(ld,ny), S_S11_hat(ld,ny), S_S12_hat(ld,ny), &
-        S_S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
-        S_S33_hat(ld,ny) )
+   allocate ( Q11(ld,ny), Q12(ld,ny), Q13(ld,ny), &
+        Q22(ld,ny), Q23(ld,ny), Q33(ld,ny) )
 
-   allocate ( u_bar(ld,ny), v_bar(ld,ny), w_bar(ld,ny) )
-
-   allocate ( u_hat(ld,ny), v_hat(ld,ny), w_hat(ld,ny) )
-
-   allocate ( S(ld,ny), beta(nz) )
+   allocate ( beta(nz) )
 
    arrays_allocated = .true. 
 

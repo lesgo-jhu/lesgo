@@ -17,6 +17,10 @@ use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
+use sgs_param,only:u_hat,v_hat,w_hat
+use sgs_param,only:Q11,Q12,Q13,Q22,Q23,Q33,N11,N12,N13,N22,N23,N33
+use sgs_param,only:S_hat,S11_hat,S12_hat,S13_hat,S22_hat,S23_hat,S33_hat
+use sgs_param,only:S_S11_hat,S_S12_hat,S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 use test_filtermodule
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
@@ -40,18 +44,9 @@ real(rprec) :: fractus
 real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 
-real(rprec), dimension(ld,ny) :: Q11,Q12,Q13,Q22,Q23,Q33
-real(rprec), dimension(ld,ny) :: N11,N12,N13,N22,N23,N33
-
 real(rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert
 real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
 real(rprec), dimension(ld,ny) :: ee_now
-
-real(rprec), dimension(ld,ny) :: S_hat,S11_hat,S12_hat,&
-     S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
-     S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
-
-real(rprec), dimension(ld,ny) :: u_hat,v_hat,w_hat
 
 real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
