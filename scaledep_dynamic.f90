@@ -13,6 +13,8 @@ use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
 use sgs_param,only:S11,S12,S13,S22,S23,S33
 use sgs_param,only:L11,L12,L13,L22,L23,L33
+use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
+use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 use test_filtermodule
 implicit none
 
@@ -22,9 +24,6 @@ real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
 real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
 
-real(kind=rprec), save, dimension(:,:), allocatable :: S_bar,S11_bar,S12_bar,&
-     S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
-     S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 real(kind=rprec), save, dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
@@ -46,12 +45,6 @@ character(len=24)::fname
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
-
-   allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
-        S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
-        S33_bar(ld,ny), S_S11_bar(ld,ny), S_S12_bar(ld,ny), &
-        S_S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
-        S_S33_bar(ld,ny) )
 
    allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
         S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &

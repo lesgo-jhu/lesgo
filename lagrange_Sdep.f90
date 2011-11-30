@@ -15,6 +15,8 @@ use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
 use sgs_param,only:S11,S12,S13,S22,S23,S33
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
+use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
+use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 use test_filtermodule
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
@@ -46,9 +48,6 @@ real(rprec), dimension(nz) :: LMvert,MMvert,QNvert,NNvert
 real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
 real(rprec), dimension(ld,ny) :: ee_now
 
-real(rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
-     S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
-     S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
 real(rprec), dimension(ld,ny) :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
