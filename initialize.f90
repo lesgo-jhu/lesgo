@@ -90,6 +90,7 @@ call level_set_base_init()
 call level_set_init ()
 
   $if ($RNS_LS)
+  call rns_base_init_ls()
   call rns_init_ls ()
   $endif
  
