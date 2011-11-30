@@ -56,14 +56,14 @@ character(len=24)::fname
     allocate ( S_bar(ld,ny), S11_bar(ld,ny), S12_bar(ld,ny), &
              S13_bar(ld,ny), S22_bar(ld,ny), S23_bar(ld,ny), &
              S33_bar(ld,ny), S_S11_bar(ld,ny), S_S12_bar(ld,ny), &
-             S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
-             S33_bar(ld,ny) )
+             S_S13_bar(ld,ny), S_S22_bar(ld,ny), S_S23_bar(ld,ny), &
+             S_S33_bar(ld,ny) )
 
     allocate ( S_hat(ld,ny), S11_hat(ld,ny), S12_hat(ld,ny), &
              S13_hat(ld,ny), S22_hat(ld,ny), S23_hat(ld,ny), &
              S33_hat(ld,ny), S_S11_hat(ld,ny), S_S12_hat(ld,ny), &
-             S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
-             S33_hat(ld,ny) )
+             S_S13_hat(ld,ny), S_S22_hat(ld,ny), S_S23_hat(ld,ny), &
+             S_S33_hat(ld,ny) )
 
     allocate ( u_bar(ld,ny), v_bar(ld,ny), w_bar(ld,ny) )
 
