@@ -48,13 +48,6 @@ $endif
 
 !---------------------------------------------------------------------
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-  jz_max = nz-1
-else
-  !jz_max = nz
-  jz_max = nz-1
-end if
-
 rms = 0._rprec
 
 if (norm_magdu) then
