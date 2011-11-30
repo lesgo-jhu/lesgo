@@ -55,7 +55,7 @@ real(rprec):: delta_test, kc2_test, delta_test_test, kc2_test_test
 
 
 ! Second test filter, if necessary
-if (sgs_model == 3 .or. sgs_model == 5) then  !--scale dependent dynamic
+if ((sgs_model == 3) .or. (sgs_model == 5)) then  !--scale dependent dynamic
 
     ! Allocate the arrays
         allocate ( G_test_test(lh,ny) )
