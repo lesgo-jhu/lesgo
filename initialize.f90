@@ -112,7 +112,7 @@ call openfiles()
 
 ! Initialize test filter(s)
 ! this is used for lower BC, even if no dynamic model
-call test_filter_init ( )
+call test_filter_init( )
     
 ! Initialize sgs variables
 call sgsmodule_init()
@@ -134,7 +134,6 @@ if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
   dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
 endif
 $endif
-
 
 return
 end subroutine initialize
