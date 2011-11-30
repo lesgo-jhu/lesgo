@@ -70,13 +70,8 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-! real(kind=rprec),dimension(nz)::l,ziko,zz
-! real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
-real(kind=rprec), save, allocatable, dimension(:) :: l, ziko, zz
-real(kind=rprec), save, allocatable, dimension(:,:) :: txzp, tyzp,S
-
-logical, save :: arrays_allocated = .false.
-
+real(kind=rprec),dimension(nz)::l,ziko,zz
+real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
 real(kind=rprec) :: delta, nu, const
 
 integer::jx,jy,jz,k
@@ -85,15 +80,6 @@ integer :: jz_min
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
-
-if( .not. arrays_allocated ) then
-   
-   allocate( l(nz), ziko(nz), zz(nz) )
-   allocate( txzp(ld,ny), tyzp(ld,ny), S(ld,ny) )
-
-   arrays_allocated = .true.
-
-endif
 
 delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
