@@ -100,6 +100,12 @@ do
   case ('LEVEL_SET')
      
      call level_set_block()
+
+    $if($RNS_LS)
+    case ('RNS')
+       call rns_block()
+    $endif
+
   $endif
 
   case default
@@ -623,6 +629,76 @@ enddo
 
 return
 end subroutine  level_set_block
+
+$if($RNS_LS)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine rns_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use level_set_base
+implicit none
+
+character(*), parameter :: block_name = 'RNS'
+
+do 
+
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub, 'Bad read in block')
+
+  if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+
+     case ('RNS_TREE') 
+        read (buff(equal_pos+1:), *) rns_tree
+     case ('RNS_TREE_LAYOUT')
+        read (buff(equal_pos+1:), *) rns_tree_layout
+     case ('TEMPORAL_WEIGHT')
+        read (buff(equal_pos+1:), *) temporal_weight
+     case ('TCONST')
+        Read (buff(equal_pos+1:), *) Tconst
+     case ('WEIGHT_NSTART')
+        read (buff(equal_pos+1:), *) weight_nstart
+     case ('TEMPORAL_MODEL')
+        read (buff(equal_pos+1:), *) temporal_model
+     case ('SPATIAL_MODEL')
+        read (buff(equal_pos+1:), *) spatial_model
+     case ('OUTPUT_NSKIP')
+        read (buff(equal_pos+1:), *) output_nskip
+     case ('CD_RAMP_NSTEP')
+        read (buff(equal_pos+1:), *) CD_ramp_nstep
+     case ('ALPHA_WIDTH')
+        read (buff(equal_pos+1:), *) alpha_width
+     case ('ALPHA_DIST')
+        read (buff(equal_pos+1:), *) alpha_dist
+     case ('CHI_CUTOFF')
+        read (buff(equal_pos+1:), *) chi_cutoff
+
+     case default
+
+        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+  endif
+
+enddo
+
+return
+end subroutine  rns_block
+$endif
+
 $endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
