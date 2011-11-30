@@ -11,7 +11,7 @@ use types,only:rprec
 use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
 use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
-use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S
+use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
@@ -28,7 +28,6 @@ real(kind=rprec), save, dimension(:,:), allocatable :: S_hat,S11_hat,S12_hat,&
      S13_hat,S22_hat,S23_hat,S33_hat,S_S11_hat, S_S12_hat,&
      S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 
-real(kind=rprec), save, dimension(:,:), allocatable :: u_bar,v_bar,w_bar
 real(kind=rprec), save, dimension(:,:), allocatable :: u_hat,v_hat,w_hat
 
 real(kind=rprec), save, dimension(:), allocatable :: beta
