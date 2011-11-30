@@ -29,7 +29,8 @@ use mpi_defs, only : initialize_mpi
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init 
+use level_set_base, only : level_set_base_init 
+use level_set, only : level_set_init
   $if ($RNS_LS and $CYL_SKEW_LS)
   use rns_cyl_skew_ls, only : rns_init_ls
   $endif
@@ -86,6 +87,7 @@ $endif
 
 ! If using level set method
 $if ($LVLSET)
+call level_set_base_init()
 call level_set_init ()
 
   $if ($RNS_LS)

@@ -27,39 +27,45 @@ character (*), parameter :: mod_name = 'level_set'
 
 integer, parameter :: nd = 3
 
-$if ($MPI)
-  ! Make sure all values (top and bottom) are less than Nz
-  integer, parameter :: nphitop = 3
-  integer, parameter :: nphibot = 2
-  integer, parameter :: nveltop = 1
-  integer, parameter :: nvelbot = 1
-  integer, parameter :: ntautop = 3
-  integer, parameter :: ntaubot = 2
-  integer, parameter :: nFMMtop = 1
-  integer, parameter :: nFMMbot = 1
-$else
-  integer, parameter :: nphitop = 0
-  integer, parameter :: nphibot = 0
-  integer, parameter :: nveltop = 0
-  integer, parameter :: nvelbot = 0
-  integer, parameter :: ntautop = 0
-  integer, parameter :: ntaubot = 0
-  integer, parameter :: nFMMtop = 0
-  integer, parameter :: nFMMbot = 0
-$endif
+! $if ($MPI)
+!   ! Make sure all values (top and bottom) are less than Nz
+!   integer, parameter :: nphitop = 3
+!   integer, parameter :: nphibot = 2
+!   integer, parameter :: nveltop = 1
+!   integer, parameter :: nvelbot = 1
+!   integer, parameter :: ntautop = 3
+!   integer, parameter :: ntaubot = 2
+!   integer, parameter :: nFMMtop = 1
+!   integer, parameter :: nFMMbot = 1
+! $else
+!   integer, parameter :: nphitop = 0
+!   integer, parameter :: nphibot = 0
+!   integer, parameter :: nveltop = 0
+!   integer, parameter :: nvelbot = 0
+!   integer, parameter :: ntautop = 0
+!   integer, parameter :: ntaubot = 0
+!   integer, parameter :: nFMMtop = 0
+!   integer, parameter :: nFMMbot = 0
+! $endif
 
-!--these are the extra overlap arrays required for BC with MPI
-real (rp), dimension (ld, ny, nphitop) :: phitop
-real (rp), dimension (ld, ny, nphibot) :: phibot
-real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
-real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
-real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
-                                          tyytop, tyztop, tzztop
-real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
-                                          tyybot, tyzbot, tzzbot
-!--really only needed for Lagrangian SGS models
-real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
-real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
+! !--these are the extra overlap arrays required for BC with MPI
+! real (rp), dimension (ld, ny, nphitop) :: phitop
+! real (rp), dimension (ld, ny, nphibot) :: phibot
+! real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
+! real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
+! real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
+!                                           tyytop, tyztop, tzztop
+! real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
+!                                           tyybot, tyzbot, tzzbot
+! !--really only needed for Lagrangian SGS models
+! real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
+! real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
+
+! real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
+!                                   !--may want to change so only normals
+!                                   !  near 0-set are stored
+! !--experimental: desired velocities for IB method
+! real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -67,15 +73,179 @@ $endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
-!real (rp) :: phi(ld, ny, lbz:nz)
-real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
-                                  !--may want to change so only normals
-                                  !  near 0-set are stored
+
+
+!--these are the extra overlap arrays required for BC with MPI
+real (rp), allocatable, dimension(:,:,:) :: phitop
+real (rp), allocatable, dimension(:,:,:) :: phibot
+real (rp), allocatable, dimension(:,:,:) :: utop, vtop, wtop
+real (rp), allocatable, dimension(:,:,:) :: ubot, vbot, wbot
+real (rp), allocatable, dimension(:,:,:) :: txxtop, txytop, txztop,  &
+                                            tyytop, tyztop, tzztop
+real (rp), allocatable, dimension(:,:,:) :: txxbot, txybot, txzbot,  &
+                                            tyybot, tyzbot, tzzbot
+!--really only needed for Lagrangian SGS models
+real (rp), allocatable, dimension (:,:,:) :: FMMbot
+real (rp), allocatable, dimension (:,:,:) :: FMMtop
+
+real (rp), allocatable, dimension(:,:,:,:) :: norm !--normal vector
+                                                 !--may want to change so only normals
+                                                 !  near 0-set are stored
 !--experimental: desired velocities for IB method
-real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
+real (rp), allocatable, dimension(:,:,:) :: udes, vdes, wdes
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_init ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : dx, dy, dz, lbz  !--in addition to those above
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.level_set_init'
+
+character (*), parameter :: fphi_in_base = 'phi.out'
+character (*), parameter :: fnorm_out_base = 'norm.dat'
+character (*), parameter :: MPI_suffix = '.c'
+
+integer, parameter :: lun = 1
+
+logical, parameter :: do_write_norm = .true.
+
+character (128) :: fphi_in, fnorm_out
+
+integer :: i, j, k
+
+logical :: exst, opn
+
+real (rp) :: x, y, z
+
+!---------------------------------------------------------------------
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
+
+$if($MPI)
+!  Check that the buffer arrays DO NOT extent beyond neighboring processors
+if( nphitop >= Nz .or. nphibot >= Nz .or. &
+    nveltop >= Nz .or. nvelbot >= Nz .or. &
+    ntautop >= Nz .or. ntaubot >= Nz .or. &
+    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
+
+  call error( sub_name, 'Buffer array extents beyond neighboring processor')
+$endif
+
+! Allocate all arrays defined in level_set 
+! !--these are the extra overlap arrays required for BC with MPI
+allocate( phitop(ld, ny, nphitop) )
+allocate( phibot(ld, ny, nphibot) )
+allocate( utop(ld, ny, nveltop), vtop(ld, ny, nveltop), wtop(ld, ny, nveltop) )
+allocate( ubot(ld, ny, nvelbot), vbot(ld, ny, nvelbot), wbot(ld, ny, nvelbot) )
+allocate( txxtop(ld, ny, ntautop), &
+          txytop(ld, ny, ntautop), &
+          txztop(ld, ny, ntautop), &
+          tyytop(ld, ny, ntautop), &
+          tyztop(ld, ny, ntautop), &
+          tzztop(ld, ny, ntautop) )
+allocate( txxbot(ld, ny, ntaubot), &
+          txybot(ld, ny, ntaubot), &
+          txzbot(ld, ny, ntaubot), &
+          tyybot(ld, ny, ntaubot), &
+          tyzbot(ld, ny, ntaubot), &
+          tzzbot(ld, ny, ntaubot) )
+! !--really only needed for Lagrangian SGS models
+allocate( FMMbot(ld, ny, nFMMbot) )
+allocate( FMMtop(ld, ny, nFMMtop) )
+
+allocate( norm(nd, ld, ny, lbz:nz) )!--normal vector
+!                                   !--may want to change so only normals
+!                                   !  near 0-set are stored
+! !--experimental: desired velocities for IB method
+if( vel_BC ) allocate( udes(ld, ny, lbz:nz), &
+                       vdes(ld, ny, lbz:nz), &
+                       wdes(ld, ny, lbz:nz) )
+
+inquire (unit=lun, exist=exst, opened=opn)
+
+if (.not. exst) call error (sub_name, 'lun =', lun, 'does not exist')
+if (opn) call error (sub_name, 'lun =', lun, 'is already open')
+
+$if ($MPI)
+  write (fphi_in, '(a,a,i0)') trim (fphi_in_base), MPI_suffix, coord
+$else
+  fphi_in = trim (fphi_in_base)
+$endif
+
+inquire (file=fphi_in, exist=exst, opened=opn)
+
+if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
+if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
+
+$if ($READ_BIG_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
+$else
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
+$endif
+
+read (lun) phi(:, :, lbz:nz)
+           !--phi(:, :, 0) will be BOGUS at coord == 0
+           !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
+close (lun)
+
+call mesg (sub_name, 'level set function initialized')
+
+!--calculate the normal
+!--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
+call fill_norm ()
+
+if (do_write_norm) then
+
+  $if ($MPI)
+    write (fnorm_out, '(a,a,i0)') trim (fnorm_out_base), MPI_suffix, coord
+  $else
+    fnorm_out = trim (fnorm_out_base)
+  $endif
+
+  !--output normal in ascii, for checking purposes
+  !--recall nz-level is BOGUS
+  open (lun, file=fnorm_out, action='write')
+
+  write (lun, '(a)') 'variables = "x" "y" "z" "n1" "n2" "n3"'
+  write (lun, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny, ', k=', nz-1
+
+  do k = 1, nz-1
+
+    z = (k - 0.5_rp) * dz
+
+    do j = 1, ny
+
+      y = (j - 1) * dy
+    
+      do i = 1, nx
+
+        x = (i - 1) * dx
+      
+        write (lun, '(6(1x,es12.5))') x, y, z, norm(:, i, j, k)
+
+      end do
+    
+    end do
+
+  end do
+
+  close (lun)
+
+end if
+
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
+
+end subroutine level_set_init
 
 !**********************************************************************
 subroutine level_set_vel_err() 
@@ -669,7 +839,8 @@ character (128) :: fname
 
 integer :: i, j, k
 !--experiment to reduce time spent on looping over fluid pts
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+!integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 integer :: nbad
 integer :: kmn
@@ -690,6 +861,12 @@ real (rp) :: n_hat(nd)
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+! Set default values
+imn = 1
+imx = nx
+jmn = 1
+jmx = ny
 
 if (use_output) then
 
@@ -3844,8 +4021,9 @@ character (128) :: fname
 
 integer :: i, j, k
 integer :: kmin, kmax
-!--experiment for skipping unsed points
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+!--experiment for skipping un
+!integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 
 logical :: output
@@ -3863,6 +4041,12 @@ real (rp) :: x(nd), xv(nd)
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+! Set default values
+imn = 1
+imx = nx
+jmn = 1
+jmx = ny
 
 if (use_output) then
 
@@ -4839,124 +5023,6 @@ real (rp), intent (in) :: v(nd)
 mag = sqrt (dot_product (v, v))
 
 end function mag
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_init ()
-use param, only : dx, dy, dz, lbz  !--in addition to those above
-implicit none
-
-character (*), parameter :: sub_name = mod_name // '.level_set_init'
-
-character (*), parameter :: fphi_in_base = 'phi.out'
-character (*), parameter :: fnorm_out_base = 'norm.dat'
-character (*), parameter :: MPI_suffix = '.c'
-
-integer, parameter :: lun = 1
-
-logical, parameter :: do_write_norm = .true.
-
-character (128) :: fphi_in, fnorm_out
-
-integer :: i, j, k
-
-logical :: exst, opn
-
-real (rp) :: x, y, z
-
-!---------------------------------------------------------------------
-$if ($VERBOSE)
-call enter_sub (sub_name)
-$endif
-
-$if($MPI)
-!  Check that the buffer arrays DO NOT extent beyond neighboring processors
-if( nphitop >= Nz .or. nphibot >= Nz .or. &
-    nveltop >= Nz .or. nvelbot >= Nz .or. &
-    ntautop >= Nz .or. ntaubot >= Nz .or. &
-    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
-
-  call error( sub_name, 'Buffer array extents beyond neighboring processor')
-$endif
-
-inquire (unit=lun, exist=exst, opened=opn)
-
-if (.not. exst) call error (sub_name, 'lun =', lun, 'does not exist')
-if (opn) call error (sub_name, 'lun =', lun, 'is already open')
-
-$if ($MPI)
-  write (fphi_in, '(a,a,i0)') trim (fphi_in_base), MPI_suffix, coord
-$else
-  fphi_in = trim (fphi_in_base)
-$endif
-
-inquire (file=fphi_in, exist=exst, opened=opn)
-
-if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
-if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
-
-$if ($READ_BIG_ENDIAN)
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
-$else
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-$endif
-
-read (lun) phi(:, :, lbz:nz)
-           !--phi(:, :, 0) will be BOGUS at coord == 0
-           !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
-close (lun)
-
-call mesg (sub_name, 'level set function initialized')
-
-!--calculate the normal
-!--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
-call fill_norm ()
-
-if (do_write_norm) then
-
-  $if ($MPI)
-    write (fnorm_out, '(a,a,i0)') trim (fnorm_out_base), MPI_suffix, coord
-  $else
-    fnorm_out = trim (fnorm_out_base)
-  $endif
-
-  !--output normal in ascii, for checking purposes
-  !--recall nz-level is BOGUS
-  open (lun, file=fnorm_out, action='write')
-
-  write (lun, '(a)') 'variables = "x" "y" "z" "n1" "n2" "n3"'
-  write (lun, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny, ', k=', nz-1
-
-  do k = 1, nz-1
-
-    z = (k - 0.5_rp) * dz
-
-    do j = 1, ny
-
-      y = (j - 1) * dy
-    
-      do i = 1, nx
-
-        x = (i - 1) * dx
-      
-        write (lun, '(6(1x,es12.5))') x, y, z, norm(:, i, j, k)
-
-      end do
-    
-    end do
-
-  end do
-
-  close (lun)
-
-end if
-
-$if ($VERBOSE)
-call exit_sub (sub_name)
-$endif
-
-end subroutine level_set_init
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function cross_product (a, b)

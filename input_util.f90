@@ -561,6 +561,25 @@ do
         read (buff(equal_pos+1:), *) smooth_mode
      case ('ZO_LEVEL_SET')
         read (buff(equal_pos+1:), *) zo_level_set
+     
+     $if($MPI)
+     case ('NPHITOP')
+        read (buff(equal_pos+1:), *) nphitop
+     case ('NPHIBOT')
+        read (buff(equal_pos+1:), *) nphibot
+     case ('NVELTOP')
+        read (buff(equal_pos+1:), *) nveltop
+     case ('NVELBOT')
+        read (buff(equal_pos+1:), *) nvelbot
+     case ('NTAUTOP')
+        read (buff(equal_pos+1:), *) ntautop
+     case ('NTAUBOT')
+        read (buff(equal_pos+1:), *) ntaubot
+     case ('NFMMTOP')
+        read (buff(equal_pos+1:), *) nFMMtop
+     case ('NFMMBOT')
+        read (buff(equal_pos+1:), *) nFMMbot
+     $endif
 
      case default
 

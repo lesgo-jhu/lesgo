@@ -7,7 +7,7 @@ implicit none
 save
 
 public
-private :: rp, ld, ny, nz, dx
+private :: rp, ld, ny, nz, dx, lbz
 
 !private
 !public :: phi
@@ -69,6 +69,45 @@ logical :: phi_cutoff_is_set = .false.
 logical :: phi_0_is_set = .false.
 
 
-real (rp) :: phi(ld, ny, lbz:nz)
+!real (rp) :: phi(ld, ny, lbz:nz)
+real(rp), allocatable, dimension(:,:,:) :: phi
+
+$if ($MPI)
+  ! Make sure all values (top and bottom) are less than Nz
+  integer :: nphitop = 3
+  integer :: nphibot = 2
+  integer :: nveltop = 1
+  integer :: nvelbot = 1
+  integer :: ntautop = 3
+  integer :: ntaubot = 2
+  integer :: nFMMtop = 1
+  integer :: nFMMbot = 1
+$else
+  integer, parameter :: nphitop = 0
+  integer, parameter :: nphibot = 0
+  integer, parameter :: nveltop = 0
+  integer, parameter :: nvelbot = 0
+  integer, parameter :: ntautop = 0
+  integer, parameter :: ntaubot = 0
+  integer, parameter :: nFMMtop = 0
+  integer, parameter :: nFMMbot = 0
+$endif
+
+
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_base_init()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine initializes all arrays defined in level_set_base
+!
+implicit none
+
+allocate( phi( ld, ny, lbz:nz ) )
+
+return
+end subroutine level_set_base_init
+
 
 end module level_set_base
