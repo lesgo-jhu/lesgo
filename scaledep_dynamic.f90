@@ -1,7 +1,7 @@
 ! this is the w-node version
-!--provides Cs_opt2 1:nz
+!--provides Cs_1D 1:nz
 !--MPI: requires u,v 0:nz, except bottom process only 1:nz
-subroutine scaledep_dynamic(Cs_opt2)
+subroutine scaledep_dynamic(Cs_1D)
 ! standard dynamic model to calculate the Smagorinsky coefficient
 ! this is done layer-by-layer to save memory
 ! note: we need to calculate |S| here, too.
@@ -19,7 +19,7 @@ use test_filtermodule
 implicit none
 
 integer :: jz
-real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
+real(kind=rprec), dimension(:), intent (inout) :: Cs_1D
 
 real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
@@ -268,10 +268,10 @@ do jz=1,nz
    M23 = const*(S_S23_bar - 4._rprec*beta(jz)*S_bar*S23_bar)
    M33 = const*(S_S33_bar - 4._rprec*beta(jz)*S_bar*S33_bar)
         
-   Cs_opt2(jz) = sum(L11*M11 + L22*M22 + L33*M33 + 2._rprec*(L12*M12 +&
+   Cs_1D(jz) = sum(L11*M11 + L22*M22 + L33*M33 + 2._rprec*(L12*M12 +&
         L13*M13 + L23*M23)) /&
         sum(M11**2 + M22**2 + M33**2 + 2._rprec*(M12**2 + M13**2 + M23**2))
-   Cs_opt2(jz) = max(0._rprec, real(Cs_opt2(jz),kind=rprec))
+   Cs_1D(jz) = max(0._rprec, real(Cs_1D(jz),kind=rprec))
 end do
 
 ! Commented by JSG: this should be implemented in a way that supports

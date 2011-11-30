@@ -1,7 +1,7 @@
 ! this is the w-node version
-!--provides Cs_opt2 1:nz
+!--provides Cs_1D 1:nz
 !--MPI: requires u,v 0:nz, except bottom process only 1:nz
-subroutine std_dynamic(Cs_opt2)
+subroutine std_dynamic(Cs_1D)
 ! standard dynamic model to calculate the Smagorinsky coefficient
 ! this is done layer-by-layer to save memory
 ! everything is done to be on uv-nodes
@@ -18,7 +18,7 @@ use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_ba
 use test_filtermodule
 implicit none
 integer :: jz
-real(kind=rprec), dimension(nz),intent(out):: Cs_opt2
+real(kind=rprec), dimension(nz),intent(out):: Cs_1D
 real(kind=rprec) :: const
 
 do jz=1,nz
@@ -121,10 +121,10 @@ do jz=1,nz
    M33 = const*(S_S33_bar - 4._rprec*S_bar*S33_bar)
 !        print*,M11,M22
         
-   Cs_opt2(jz)=&
+   Cs_1D(jz)=&
         sum(L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23))/&
         sum(M11**2 + M22**2 + M33**2 + 2._rprec*(M12**2 + M13**2 + M23**2))
-   Cs_opt2(jz) = max(0._rprec, Cs_opt2(jz))
+   Cs_1D(jz) = max(0._rprec, Cs_1D(jz))
 end do
 
 end subroutine std_dynamic
