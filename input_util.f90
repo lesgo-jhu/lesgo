@@ -96,6 +96,12 @@ do
 
      call output_block()
 
+  $if($LVLSET)
+  case ('LEVEL_SET')
+     
+     call level_set_block()
+  $endif
+
   case default
 
      call mesg( sub, 'Found unused input block: ' // buff(1:equal_pos-1) )
@@ -506,6 +512,75 @@ enddo
 
 return
 end subroutine  output_block
+
+$if($LVLSET)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use level_set_base
+implicit none
+
+do 
+
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub, 'Bad read in block')
+
+  if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+
+     case ('GLOBAL_CD_CALC') 
+        read (buff(equal_pos+1:), *) global_CD_calc
+     case ('LDIR')
+        read (buff(equal_pos+1:), *) Ldir
+     case ('VEL_BC')
+        read (buff(equal_pos+1:), *) vel_bc
+     case ('USE_LOG_PROFILE')
+        Read (buff(equal_pos+1:), *) use_log_profile
+     case ('USE_ENFORCE_UN')
+        read (buff(equal_pos+1:), *) use_enforce_un
+     case ('PHYSBC')
+        read (buff(equal_pos+1:), *) physBC
+     case ('USE_SMOOTH_TAU')
+        read (buff(equal_pos+1:), *) use_smooth_tau
+     case ('USE_EXTRAP_TAU_LOG')
+        read (buff(equal_pos+1:), *) use_extrap_tau_log
+     case ('USE_EXTRAP_TAU_SIMPLE')
+        read (buff(equal_pos+1:), *) use_extrap_tau_simple
+     case ('USE_MODIFY_DUTDN')
+        read (buff(equal_pos+1:), *) use_modify_dutdn
+     case ('LAG_DYN_MODIFY_BETA')
+        read (buff(equal_pos+1:), *) lag_dyn_modify_beta
+     case ('SMOOTH_MODE')
+        read (buff(equal_pos+1:), *) smooth_mode
+     case ('ZO_LEVEL_SET')
+        read (buff(equal_pos+1:), *) zo_level_set
+
+     case default
+
+        call mesg( sub, 'Found unused data value in FLOW_COND block: ' // buff(1:equal_pos-1) )
+
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, 'FLOW_COND data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+  endif
+
+enddo
+
+return
+end subroutine  level_set_block
+$endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkentry()
