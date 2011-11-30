@@ -1,5 +1,5 @@
 module param
-  use types,only:rprec,point3D
+  use types, only : rprec, point3D
   $if ($MPI)
   use mpi
   $endif
@@ -16,10 +16,8 @@ module param
 
   $if ($MPI)
   $define $MPI_LOGICAL .true.
-  $define $NPROC 4
   $else
   $define $MPI_LOGICAL .false.
-  $define $NPROC 1
   $endif
 
   logical, parameter :: USE_MPI = $MPI_LOGICAL
@@ -40,7 +38,7 @@ module param
 
   !--this stuff must be defined, even if not using MPI
   character (8) :: chcoord  !--holds character representation of coord
-  integer, parameter :: nproc = $NPROC  !--this must be 1 if no MPI
+  integer :: nproc = 1 !--this must be 1 if no MPI
   integer :: ierr
   integer :: comm
   integer :: up, down
@@ -48,7 +46,7 @@ module param
   integer :: MPI_RPREC, MPI_CPREC
   integer :: rank = -1   !--init to bogus (so its defined, even if no MPI)
   integer :: coord = -1  !--same here
-  integer :: rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1)
+  integer, allocatable, dimension(:) ::  rank_of_coord, coord_of_rank
   integer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
   !--end mpi stuff
   
