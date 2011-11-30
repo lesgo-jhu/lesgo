@@ -2,7 +2,7 @@
 !--provides Cs_opt2 1:nz
 !--MPI: required u,v on 0:nz, except bottom node 1:nz
 
-subroutine lagrange_Sdep(S11,S12,S13,S22,S23,S33)
+subroutine lagrange_Sdep()
 ! standard dynamic model to calculate the Smagorinsky coefficient
 ! this is done layer-by-layer to save memory
 ! everything is done to be on uv-nodes
@@ -13,6 +13,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,opftime,lagran_dt
+use sgs_param,only:S11,S12,S13,S22,S23,S33
 use test_filtermodule
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
@@ -33,7 +34,6 @@ integer :: istart, iend
 
 real(rprec):: tf1,tf2,tf1_2,tf2_2 ! Size of the second test filter
 real(rprec) :: fractus
-real(rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
 real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 

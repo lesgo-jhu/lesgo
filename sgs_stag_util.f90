@@ -158,17 +158,17 @@ if (sgs) then
             if (jt ==DYN_init) print *,'running dynamic sgs_model = ',sgs_model
             
             if (sgs_model == 2) then        ! Standard dynamic model
-                call std_dynamic(ziko,S11,S12,S13,S22,S23,S33)
+                call std_dynamic(ziko)
                 forall (jz = 1:nz) Cs_opt2(:, :, jz) = ziko(jz)
             else if (sgs_model==3) then     ! Plane average dynamic model
-                call scaledep_dynamic(ziko,S11,S12,S13,S22,S23,S33)
+                call scaledep_dynamic(ziko)
                 do jz = 1, nz
                     Cs_opt2(:, :, jz) = ziko(jz)
                 end do
             else if (sgs_model==4.) then    ! Lagrangian scale similarity model
-                call lagrange_Ssim(S11,S12,S13,S22,S23,S33)
+                call lagrange_Ssim()
             elseif (sgs_model==5) then      ! Lagrangian scale dependent model
-                call lagrange_Sdep(S11,S12,S13,S22,S23,S33)
+                call lagrange_Sdep()
             end if       
         end if
  

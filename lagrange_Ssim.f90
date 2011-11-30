@@ -3,7 +3,7 @@
 !--provides Cs_opt2 1:nz
 !--MPI: requires u,v on 0:nz, except bottom node 1:nz
 
-subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
+subroutine lagrange_Ssim()
 ! The purpose of this subroutine is to (dynamically) calculate Cs_opt2
 !   See Meneveau, Lund, Cabot, JFM, 319: 353-385 (1996)
 !   DOI: 10.1017/S0022112096007379
@@ -11,6 +11,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
+use sgs_param,only:S11,S12,S13,S22,S23,S33
 use test_filtermodule
 use messages
 $if ($DEBUG)
@@ -32,7 +33,6 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-real (rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
 character (*), parameter :: sub_name = 'lagrange_Ssim'
 real (rprec), parameter :: eps = 1.e-32_rprec
 

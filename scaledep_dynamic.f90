@@ -1,7 +1,7 @@
 ! this is the w-node version
 !--provides Cs_opt2 1:nz
 !--MPI: requires u,v 0:nz, except bottom process only 1:nz
-subroutine scaledep_dynamic(Cs_opt2,S11,S12,S13,S22,S23,S33)
+subroutine scaledep_dynamic(Cs_opt2)
 ! standard dynamic model to calculate the Smagorinsky coefficient
 ! this is done layer-by-layer to save memory
 ! note: we need to calculate |S| here, too.
@@ -11,11 +11,11 @@ use types,only:rprec
 use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
 use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
+use sgs_param,only:S11,S12,S13,S22,S23,S33
 use test_filtermodule
 implicit none
 
 integer :: jz
-real(kind=rprec), dimension(:,:,:), intent (inout) :: S11,S12,S13,S22,S23,S33
 real(kind=rprec), dimension(:), intent (inout) :: Cs_opt2
 
 real(kind=rprec), save, dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
