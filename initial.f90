@@ -124,14 +124,13 @@ $if ($MPI)
   call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
   call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
   
+  if (coord == 0) then
+    !--set 0-level velocities to BOGUS
+    u(:, :, lbz) = BOGUS
+    v(:, :, lbz) = BOGUS
+    w(:, :, lbz) = BOGUS
+  end if
 $endif
-
-if (USE_MPI .and. coord == 0) then
-  !--set 0-level velocities to BOGUS
-  u(:, :, lbz) = BOGUS
-  v(:, :, lbz) = BOGUS
-  w(:, :, lbz) = BOGUS
-end if
 
 !  Open vel.out (lun_default in io) for final output
 $if ($WRITE_BIG_ENDIAN)
