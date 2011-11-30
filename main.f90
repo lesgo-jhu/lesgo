@@ -14,7 +14,6 @@ use test_filtermodule
 use cfl_mod 
 use sgsmodule, only : sgsmodule_init
 use sgs_stag_param, only : sgs_stag_init, sgs_stag
-use convec_util, only : convec
 use input_util, only : read_input_conf
 
 $if ($MPI)
