@@ -45,22 +45,10 @@ $endif
 
 implicit none
 
-! Read input file
-call read_input_conf()
-
-! Create output directory
-call system("mkdir -vp output")
-
-! INITIALIZATION
-! Define simulation parameters
-call sim_param_init ()
 
 ! Initialize MPI
 $if ($MPI)
   call initialize_mpi()
-  $if($CPS)
-    call initialize_cps()
-  $endif
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
@@ -73,11 +61,17 @@ $else
   chcoord = ''
 $endif
 
-$if($MPI)
-  if(coord == 0) call param_output()
-$else
-  call param_output()
-$endif
+! Create output directory
+if( coord == 0 ) call system("mkdir -p output")
+
+! Read input file
+! This obtains all major data defined in param
+call read_input_conf()
+! Write simulation data to file
+if(coord == 0) call param_output()
+
+! Define simulation parameters
+call sim_param_init ()
 
 ! Initialize uv grid (calculate x,y,z vectors)
 call grid_build()
@@ -117,6 +111,11 @@ call test_filter_init( )
 ! Initialize sgs variables
 call sgsmodule_init()
 call sgs_stag_init()
+
+! Initialize concurrent precursor stuff
+$if($MPI and $CPS)
+call initialize_cps()
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then
