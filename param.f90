@@ -44,8 +44,8 @@ module param
   integer :: up, down
   integer :: global_rank
   integer :: MPI_RPREC, MPI_CPREC
-  integer :: rank = -1   !--init to bogus (so its defined, even if no MPI)
-  integer :: coord = -1  !--same here
+  integer :: rank = 0   !--init to bogus (so its defined, even if no MPI)
+  integer :: coord = 0  !--same here
   integer, allocatable, dimension(:) ::  rank_of_coord, coord_of_rank
   integer :: jzmin, jzmax  ! levels that "belong" to this processor, set w/ grid
   !--end mpi stuff
