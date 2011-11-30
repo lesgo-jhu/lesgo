@@ -21,7 +21,7 @@ private :: ld, ny, nz, lbz
 !integer, parameter :: rns_ntree = 4 ! Number of unique trees 
 ! vtree-3
 !integer, parameter :: rns_ntree = 3 ! Number of unique trees
-integer :: rns_tree = 1 
+integer :: rns_ntree = 1 
 
 !  Options: 'default', 'kc-3'
 ! kc-3

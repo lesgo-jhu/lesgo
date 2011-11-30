@@ -22,12 +22,12 @@ character (*), parameter :: mod_name = 'cyl_skew_base_ls'
 
 ! real(rprec), parameter :: zrot_angle = -90._rprec*pi/180._rprec
 ! real(rprec), parameter :: skew_angle = 45._rprec*pi/180._rprec
-real(rprec), zrot_angle = -90._rprec*pi/180._rprec
-real(rprec), skew_angle = 45._rprec*pi/180._rprec
+real(rprec) :: zrot_angle = -90._rprec*pi/180._rprec
+real(rprec) :: skew_angle = 45._rprec*pi/180._rprec
 
 ! logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 ! real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
-logical, :: use_bottom_surf = .false. !  True for making a bottom surface
+logical :: use_bottom_surf = .false. !  True for making a bottom surface
 real(rprec) :: z_bottom_surf = 0.0_rprec ! Already in non-dimensional units
 
 ! integer, parameter :: ntree = 1
@@ -56,7 +56,7 @@ integer :: nbranch = 3
 ! real(rprec), parameter :: offset = 0._rprec
 
 real(rprec) :: d = 1._rprec
-real(rprec  :: l = 1._rprec
+real(rprec) :: l = 1._rprec
 real(rprec) :: offset = 0.1_rprec
 
 
@@ -69,7 +69,7 @@ real(rprec) :: filt_width = 0.125  !  Filter width for filtered indicator functi
 !
 !---------------------------------------------------
 
-integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside, lun
+integer, dimension(:), allocatable :: igen, kbottom, kbottom_inside, ktop, ktop_inside
 integer, dimension(:,:,:), allocatable :: itype
 real(rprec), dimension(:), allocatable :: dz_bottom, dz_top
 

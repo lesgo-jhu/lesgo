@@ -658,7 +658,7 @@ do
      select case (uppercase(buff(1:equal_pos-1)))
 
      case ('RNS_TREE') 
-        read (buff(equal_pos+1:), *) rns_tree
+        read (buff(equal_pos+1:), *) rns_ntree
      case ('RNS_TREE_LAYOUT')
         read (buff(equal_pos+1:), *) rns_tree_layout
      case ('TEMPORAL_WEIGHT')
@@ -708,7 +708,12 @@ $if($CYL_SKEW_LS)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine cyl_skew_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use cyl_skew_base_ls
+use types, only : rprec
+use param, only : pi
+use cyl_skew_base_ls, only : zrot_angle, skew_angle, use_bottom_surf, &
+                             z_bottom_surf, ntree, tree_location, &
+                             ngen, ngen_reslv, nbranch, d, l, offset, &
+                             scale_fact, filter_chi, filt_width
 implicit none
 
 character(*), parameter :: block_name = 'CYL_SKEW'
@@ -717,6 +722,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
+
   if (ios /= 0) call error( sub, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
@@ -759,8 +765,8 @@ do
         read (buff(equal_pos+1:), *) scale_fact
      case ('FILTER_CHI')
         read (buff(equal_pos+1:), *) filter_chi
-     case ('FILTER_WIDTH')
-        read (buff(equal_pos+1:), *) filter_width
+     case ('FILT_WIDTH')
+        read (buff(equal_pos+1:), *) filt_width
 
      case default
 

@@ -40,7 +40,8 @@ integer, pointer, dimension(:) :: b_elem_to_basecl_map
 integer, pointer, dimension(:) :: rns_to_cyl_skew_tree_map
 integer, pointer, dimension(:) :: cyl_skew_to_rns_tree_map
 
-integer :: clindx(ld, ny, lbz:nz)
+!integer :: clindx(ld, ny, lbz:nz)
+integer, allocatable, dimension(:,:,:) :: clindx
 logical :: clindx_initialized = .false.
 
 contains
@@ -141,13 +142,14 @@ $endif
 
 logical :: opn, exst
 
+! Allocate clindx
+allocate( clindx( ld, ny, lbz:nz ) )
+
 !---------------------------------------------------------------------
 if (coord == 0) then
   write(*,*) '----> loading clindx'
   write(*,*) 'size(clindx,1) : ', size(clindx,1)
 endif
-
-
 
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')

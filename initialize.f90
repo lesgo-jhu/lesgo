@@ -30,6 +30,9 @@ $endif
 $if ($LVLSET)
 use level_set_base, only : level_set_base_init 
 use level_set, only : level_set_init
+  $if ($RNS_LS) 
+  use rns_base_ls, only : rns_base_init_ls
+  $endif
   $if ($RNS_LS and $CYL_SKEW_LS)
   use rns_cyl_skew_ls, only : rns_init_ls
   $endif

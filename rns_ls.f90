@@ -1122,9 +1122,9 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1134,15 +1134,15 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1152,15 +1152,15 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1205,9 +1205,9 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1217,15 +1217,15 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1235,9 +1235,9 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"<greek>k</greek><sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"<greek>k</greek><sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1247,15 +1247,15 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1301,9 +1301,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1313,15 +1313,15 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1331,9 +1331,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"error<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
   endif 
@@ -1343,9 +1343,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"error_norm<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error_norm<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1355,15 +1355,15 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif
