@@ -8,7 +8,7 @@ subroutine scaledep_dynamic(Cs_1D)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary.  mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dx,dy,dz, jt, USE_MPI, coord
+use param,only:ld,nx,ny,nz,dx,dy,dz, jt, coord
 use sim_param,only:path,u,v,w
 use sgs_stag_util,only:rtnewt
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
@@ -60,8 +60,7 @@ M33 => Q33
 
 do jz=1,nz
 ! using L_ij as temp storage here
-   if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-        (jz == 1) ) then
+   if ( (coord == 0) .and. (jz == 1) ) then
      !!! watch the 0.25's: w = c*z**z near wall, so get 0.25
      ! put on uvp-nodes
      L11(:,:) = u(:,:,1)*u(:,:,1)  ! uv-node

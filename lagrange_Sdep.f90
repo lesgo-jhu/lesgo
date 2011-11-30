@@ -82,8 +82,7 @@ do jz = 1,nz
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
         ! (except for very first level which should be on uvp-nodes)
-        if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-            (jz == 1) ) then  ! uvp-nodes
+        if ( ( coord == 0 ) .and. (jz == 1) ) then  ! uvp-nodes
             u_bar(:,:) = u(:,:,1)
             v_bar(:,:) = v(:,:,1)
             w_bar(:,:) = .25_rprec*w(:,:,2)

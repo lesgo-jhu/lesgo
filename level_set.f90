@@ -386,8 +386,7 @@ $endif
 
 do k = 1, nz
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0
   else
     s = 1
@@ -494,8 +493,7 @@ delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
 do k = 1, nz
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0
   else
     s = 1
@@ -570,8 +568,7 @@ $endif
 
 do k = 1, nz - 1
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0  !--u-nodes
   else
     s = 1  !--w-nodes
@@ -674,8 +671,7 @@ phi_F_LM = filter_size * dx  !--experimental
 
 do k = 1, nz - 1
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0  !--use phi at u-node
   else
     s = 1
@@ -1927,7 +1923,7 @@ end if
 
 
 !--need to bounds check ks
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
   if (ks < -nbot + albz) call error (sub_name,                       &
@@ -2091,7 +2087,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check ku
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
   if (ku < -ntaubot) call error (sub_name,                       &
@@ -2302,7 +2298,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check kw
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
   if (kw < -ntaubot) call error (sub_name,                       &
@@ -2499,7 +2495,7 @@ end if
 
 !--need to bounds check ku
 !--non-MPI has 0-sized nphibot, nphitop
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
   if (ku < -nphibot) call error (sub_name,                     &
@@ -2668,7 +2664,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check ku, kw
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
@@ -3067,8 +3063,7 @@ do iter = 1, niter
     do j = 1, ny
       do i = 1, nx
 
-        if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-             (k == s) ) then
+        if ( (coord == 0) .and. (k == s) ) then
           !--avoid phi(0)
           phi1 = phi(i, j, k)
         else
@@ -4767,8 +4762,7 @@ select case (d)
     n = nz
     delta = dz
 
-    if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0))  &
-         .and. (k == 1) ) then
+    if ( (coord == 0) .and. (k == 1) ) then
 
       safe_cd = ( f(i, j, k + 1) - f(i, j, k) ) / delta
 

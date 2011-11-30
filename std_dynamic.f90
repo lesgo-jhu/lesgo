@@ -9,7 +9,7 @@ subroutine std_dynamic(Cs_1D)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary. mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:ld,ny,nz,dx,dy,dz, USE_MPI, coord
+use param,only:ld,ny,nz,dx,dy,dz, coord
 use sim_param,only:u,v,w
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
@@ -25,8 +25,7 @@ integer :: jz
 do jz=1,nz
 ! using L_ij as temp storage here
 !!! watch the 0.25's:  recall w = c*z^2 close to wall, so get 0.25
-   if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-        (jz == 1) ) then
+   if ( (coord == 0) .and. (jz == 1) ) then
 
      ! put on uvp-nodes
      L11(:,:) = u(:,:,1)*u(:,:,1)  ! uv-node
