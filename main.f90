@@ -61,7 +61,6 @@ type(clock_type) :: clock_t, clock_total_t
 
 ! Start the clocks, both local and total
 call clock_start( clock_t )
-clock_total_t = clock_t
 
 ! Create output directory
 call system("mkdir -vp output")
@@ -165,6 +164,8 @@ $else
   call clock_stop( clock_t )
   write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
 $endif
+
+call clock_start( clock_total_t )
 
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
