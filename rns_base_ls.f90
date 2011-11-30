@@ -10,7 +10,7 @@ save
 public
 
 private :: rprec
-private :: ld, ny, nz
+private :: ld, ny, nz, lbz
 
 !public r_elem_t, beta_elem_t, b_elem_t
 
@@ -20,37 +20,48 @@ private :: ld, ny, nz
 ! kc-3
 !integer, parameter :: rns_ntree = 4 ! Number of unique trees 
 ! vtree-3
-integer, parameter :: rns_ntree = 3 ! Number of unique trees
+!integer, parameter :: rns_ntree = 3 ! Number of unique trees
+integer :: rns_tree = 1 
 
 !  Options: 'default', 'kc-3'
 ! kc-3
 !character(*), parameter :: rns_tree_layout = 'kc-3'
 ! vtree-3
-character(*), parameter :: rns_tree_layout = 'default'
-
+!character(*), parameter :: rns_tree_layout = 'default'
+character(25) :: rns_tree_layout = 'default'
 
 !  Weighting/averaging: Off - 0, On - 1
-integer, parameter :: temporal_weight = 0
+!integer, parameter :: temporal_weight = 0
+integer :: temporal_weight = 1
   
   ! Time weighting constant
-  real(rprec), parameter :: Tconst = 1.0_rprec
+  !real(rprec), parameter :: Tconst = 1.0_rprec
+  real(rprec) :: Tconst = 1.0_rprec
   ! Time step to start weighting
-  integer, parameter :: weight_nstart = 20000
+  !integer, parameter :: weight_nstart = 20000
+  integer :: weight_nstart = 10000
 
 !  Explict - 1, Implicit - 2
-integer, parameter :: temporal_model = 1
+!integer, parameter :: temporal_model = 1
+integer :: temporal_model = 1
 
 !  Local - 1, Global - 2
-integer, parameter :: spatial_model = 2
+!integer, parameter :: spatial_model = 2
+integer :: spatial_model = 1
 
-integer, parameter :: output_nskip = 10
-integer, parameter :: CD_ramp_nstep = 10000
+!integer, parameter :: output_nskip = 10
+!integer, parameter :: CD_ramp_nstep = 10000
+integer :: output_nskip = 10
+integer :: CD_ramp_nstep = 5000
 
 !  Parameters for setting reference regions
-real(rprec), parameter :: alpha_width = 2.0_rprec
-real(rprec), parameter :: alpha_dist = 0.571428571_rprec
+!real(rprec), parameter :: alpha_width = 2.0_rprec
+!real(rprec), parameter :: alpha_dist = 0.571428571_rprec
+real(rprec) :: alpha_width = 1.0
+real(rprec) :: alpha_dist = 0.5
 
-real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
+!real(rprec), parameter :: chi_cutoff = 1.0e-9_rprec
+real(rprec) :: chi_cutoff = 1.0e-9
 
 ! Number of spatial dimensions (MUST BE 2)
 integer, parameter :: ndim = 2
@@ -58,6 +69,11 @@ integer, parameter :: ndim = 2
 !---------------------------------------------------
 ! 
 !---------------------------------------------------  
+
+integer :: nr_elem, nbeta_elem, nb_elem
+!real(rprec) :: chi(ld, ny, lbz:nz)
+real(rprec), allocatable, dimension(:,:,:) :: chi
+logical :: chi_initialized = .false.
 
 ! ---- Secondary structures ----
 type ref_region
@@ -116,9 +132,16 @@ type(primary_struct_type_2), pointer, dimension(:) :: b_elem_t
 !integer, pointer, dimension(:) :: reslv_to_rbeta_map
 !integer, pointer, dimension(:) :: beta_to_rbeta_map
 
-real(rprec) :: chi(ld, ny, lbz:nz)
-logical :: chi_initialized = .false.
+contains
 
-integer :: nr_elem, nbeta_elem, nb_elem
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine rns_base_init_ls
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+allocate( chi( ld, ny, lbz:nz ) )
+
+return
+end subroutine rns_base_init_ls
 
 end module rns_base_ls
