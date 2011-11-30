@@ -117,6 +117,7 @@ contains
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine domain_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
 use param
 implicit none
 
@@ -156,8 +157,8 @@ do
      ! === Set dependant variables ===
      
      ! Set the processor owned vertical grid spacing
-     nz = ceiling ( 1.*nz_tot / nproc ) + 1
-     nz_tot = ( nz - 1 )*nproc + 1 
+     nz = ceiling ( real( nz_tot, rprec ) / nproc ) + 1
+     nz_tot = ( nz - 1 ) * nproc + 1 
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
      ny2 = 3 * ny / 2
