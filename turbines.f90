@@ -890,13 +890,14 @@ do b=1,nloc
     wind_farm_t%turbine_t(b)%num_nodes = 0.
     count_n = 0
     count_i = 1
-    if (.not. USE_MPI) then
-        k_start = 1
-        k_end = nz
-    else !this is the global k. searching over local k=1,nz-1 (to avoid overlap)
+    $if ($MPI)
         k_start = 1+coord*(nz-1)
         k_end = nz-1+coord*(nz-1)
-    endif
+    $else
+        k_start = 1
+        k_end = nz
+    $endif
+
 	do k=k_start,k_end  !global k     
 		do j=1,ny
 			do i=1,nx
@@ -915,14 +916,7 @@ do b=1,nloc
 	wind_farm_t%turbine_t(b)%num_nodes = count_n
     
     if (count_n > 0) then
-        if (.not. USE_MPI) then
-            write (string1, '(i3)') b
-            string1 = trim(adjustl(string1))
-            write (string2, '(i4)') count_n
-            string2 = trim(adjustl(string2))            
-          
-            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes' 
-        else
+        $if ($MPI)
             write (string1, '(i3)') b
             string1 = trim(adjustl(string1))
             write (string2, '(i4)') count_n
@@ -931,7 +925,14 @@ do b=1,nloc
             string3 = trim(adjustl(string3))             
 
             write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
-        endif
+        $else
+            write (string1, '(i3)') b
+            string1 = trim(adjustl(string1))
+            write (string2, '(i4)') count_n
+            string2 = trim(adjustl(string2))            
+          
+            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes' 
+        $endif
     endif
 
 enddo
