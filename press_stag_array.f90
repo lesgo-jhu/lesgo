@@ -38,8 +38,7 @@ $endif
 
 implicit none      
 
-real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
-real(rprec) , dimension(:, :), allocatable :: rtopw, rbottomw
+
 
 real(rprec) :: const
 
@@ -56,8 +55,12 @@ $endif
 
 integer :: jz_min
 
-real(rprec), dimension(:, :, :), allocatable :: RHS_col
-real(rprec), dimension(:, :, :), allocatable :: a,b,c
+real(rprec), save, dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
+real(rprec), save, dimension(:, :), allocatable :: rtopw, rbottomw
+real(rprec), save, dimension(:, :, :), allocatable :: RHS_col
+real(rprec), save, dimension(:, :, :), allocatable :: a,b,c
+
+logical, save :: arrays_allocated = .false.
 
 real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
@@ -65,10 +68,14 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 const = 1._rprec/(nx*ny)
 
 ! Allocate arrays
-allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
-allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
-allocate ( RHS_col(ld,ny,nz+1) )
-allocate ( a(lh,ny,nz+1), b(lh,ny,nz+1), c(lh,ny,nz+1) )
+if( .not. arrays_allocated ) then
+   allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
+   allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
+   allocate ( RHS_col(ld,ny,nz+1) )
+   allocate ( a(lh,ny,nz+1), b(lh,ny,nz+1), c(lh,ny,nz+1) )
+
+   arrays_allocated = .true.
+endif
 
 $if ($VERBOSE)
 write (*, *) 'started press_stag_array'
@@ -480,11 +487,11 @@ dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
      p_hat(1:nx, 1:ny, 0:nz-2)) / dz
 dfdz(:, :, nz) = BOGUS
 
-! Deallocate arrays
-deallocate ( rH_x, rH_y, rH_z )
-deallocate ( rtopw, rbottomw )
-deallocate ( RHS_col )
-deallocate ( a, b, c )
+! ! Deallocate arrays
+! deallocate ( rH_x, rH_y, rH_z )
+! deallocate ( rtopw, rbottomw )
+! deallocate ( RHS_col )
+! deallocate ( a, b, c )
 
 
 $if ($VERBOSE)
