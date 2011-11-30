@@ -96,12 +96,11 @@ subroutine test_filter ( f )
 !**********************************************************************
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
-use param,only:ld,lh,ny
 use fft
 use emul_complex, only : OPERATOR(.MULR.)
 implicit none
 
-  real(rprec), dimension(ld,ny), intent(inout) :: f
+  real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
@@ -120,12 +119,11 @@ subroutine test_test_filter ( f )
 !**********************************************************************
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
-use param,only:ld,lh,ny
 use fft
 use emul_complex, only : OPERATOR(.MULR.)
 implicit none
 
-  real(rprec), dimension(ld,ny), intent(inout) :: f
+  real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
