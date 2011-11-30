@@ -562,7 +562,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in FLOW_COND block: ' // buff(1:equal_pos-1) )
+        call mesg( sub, 'Found unused data value in LEVEL_SET block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -572,7 +572,7 @@ do
 
   else
 
-     call error( sub, 'FLOW_COND data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub, 'LEVEL_SET data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
