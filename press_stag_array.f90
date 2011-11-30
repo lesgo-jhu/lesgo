@@ -124,24 +124,30 @@ $endif
 rH_x(1:ld:2,:,nz) = BOGUS
 rH_y(1:ld:2,:,nz) = BOGUS
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-  !H_z(:, :, nz) = (0._rprec, 0._rprec)
+$if ($MPI)
+  if (coord == nproc-1) then
+    rH_z(:,:,nz) = 0._rprec
+  else  
+    rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
+  endif
+$else
   rH_z(:,:,nz) = 0._rprec
-else
-  !H_z(:, :, nz) = BOGUS  !--perhaps this should be 0 on top process?
-  !Careful - only update real values (odd indicies)
-  rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
-end if
+$endif
 
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI) 
+  if (coord == nproc-1) then
+    rtopw(:, :) = const * divtz(:, :, nz)
+    call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
+  endif
+$else
   rtopw(:, :) = const * divtz(:, :, nz)
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
-end if
+$endif
 
 ! set oddballs to 0
 ! probably can get rid of this if we're more careful below
@@ -211,8 +217,9 @@ else
 
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-
+$if ($MPI) 
+if (coord == nproc-1) then
+$endif
   !--top nodes
   a(:, :, nz+1) = -1._rprec
   b(:, :, nz+1) = 1._rprec
@@ -236,8 +243,10 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
     $endif
   end if
   $endif
-
-end if
+  !
+$if ($MPI)
+endif
+$endif
 
 $if ($DEBUG)
 if (DEBUG) write (*, *) coord, ' before H send/recv'

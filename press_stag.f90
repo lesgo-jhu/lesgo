@@ -132,10 +132,15 @@ if (coord == 0) then
   rbottomw(:,:)=const*divtz(:,:,1)
   call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),fftwNull_p)
 end if
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+  if (coord == nproc-1) then
+    rtopw(:,:)=const*divtz(:,:,nz)
+    call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
+  endif
+$else
   rtopw(:,:)=const*divtz(:,:,nz)
   call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
-end if
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then
