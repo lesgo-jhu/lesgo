@@ -1,14 +1,6 @@
-module press_util
-
-implicit none
-
-private
-public press_stag_array
-
-contains
-
 !**********************************************************************
-subroutine press_stag_array(p_hat,dfdx,dfdy)   
+!subroutine press_stag_array(p_hat,dfdx,dfdy)   
+subroutine press_stag_array()   
 !**********************************************************************
 ! p_hat contains the physical space pressure on exit
 !--provides p_hat, dfdx, dfdy 0:nz-1
@@ -36,7 +28,8 @@ subroutine press_stag_array(p_hat,dfdx,dfdy)
 use types,only:rprec
 use param
 use messages
-use sim_param,only:u,v,w,divtz
+use sim_param, only: u,v,w,divtz
+use sim_param, only: p,dpdx,dpdy
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 $if ($DEBUG)
@@ -46,13 +39,13 @@ $endif
 implicit none      
 
 ! z indexing must start at 0 for p_hat 
-real(rprec), dimension(:, :, 0:), intent(inout) :: p_hat
-real(rprec), dimension(:, :, :), intent(inout) :: dfdx,dfdy
+real(rprec), pointer, dimension(:, :, :) :: p_hat
+real(rprec), pointer, dimension(:, :, :) :: dfdx,dfdy
 
 real(rprec) , dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
 real(rprec) , dimension(:, :), allocatable :: rtopw, rbottomw
 
-real(rprec) ::const
+real(rprec) :: const
 
 integer::jx,jy,jz,k
 
@@ -75,7 +68,12 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 !---------------------------------------------------------------------
 const = 1._rprec/(nx*ny)
 
-! Allocate
+! Associate pointers
+p_hat => p
+dfdx => dpdx
+dfdy => dpdy
+
+! Allocate arrays
 allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
 allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
 allocate ( RHS_col(ld,ny,nz+1) )
@@ -484,10 +482,18 @@ dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
 
+! Associate pointers
+nullify(p_hat, dfdx, dfdy)
+
+! Allocate arrays
+deallocate ( rH_x, rH_y, rH_z )
+deallocate ( rtopw, rbottomw )
+deallocate ( RHS_col )
+deallocate ( a, b, c )
+
+
 $if ($VERBOSE)
 write (*, *) 'finished press_stag_array'
 $endif
 
 end subroutine press_stag_array
-
-end module press_util

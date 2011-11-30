@@ -20,12 +20,13 @@ real (rprec), dimension (:, :, :), allocatable :: dudx, dudy, dudz,  &
                                                   RHSx, RHSy, RHSz,  &
                                                   RHSx_f, RHSy_f, RHSz_f
 
-real (rprec), dimension (:, :, :), allocatable :: dpdx, dpdy, dpdz
+real (rprec), target, dimension (:, :, :), allocatable :: dpdx, dpdy
+real (rprec), dimension(:, :, :), allocatable :: dpdz
 
 real (rprec), dimension (:, :, :), allocatable :: txx, txy, tyy
 real (rprec), dimension (:, :, :), allocatable :: txz, tyz, tzz
 
-real (rprec), dimension (:, :, :), allocatable :: p
+real (rprec), target, dimension (:, :, :), allocatable :: p
 
 real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 

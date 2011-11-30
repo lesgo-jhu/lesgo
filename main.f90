@@ -15,7 +15,6 @@ use cfl_mod
 use sgsmodule, only : sgsmodule_init
 use sgs_stag_param, only : sgs_stag_init, sgs_stag
 use convec_util, only : convec
-use press_util, only : press_stag_array
 use input_util, only : read_input_conf
 
 $if ($MPI)
@@ -444,7 +443,8 @@ do jt=1,nsteps
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
     !   provides p, dpdx, dpdy at 0:nz-1
-    call press_stag_array (p, dpdx, dpdy)
+    !call press_stag_array (p, dpdx, dpdy)
+    call press_stag_array()
 
     ! Calculate dpdz
     !   note: p has additional level at z=-dz/2 for this derivative
