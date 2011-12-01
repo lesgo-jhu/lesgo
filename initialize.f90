@@ -73,6 +73,8 @@ if(coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
+! Initialize sgs variables
+call sgs_param_init()
 
 ! Initialize uv grid (calculate x,y,z vectors)
 call grid_build()
@@ -97,22 +99,20 @@ call level_set_init ()
  
 $endif
 
-! Initialize velocity field
-call initial()
-
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays
 call init_fft()
-    
-! Open output files (total_time.dat and check_ke.out)  
-call openfiles()
 
 ! Initialize test filter(s)
 ! this is used for lower BC, even if no dynamic model
 call test_filter_init( )
+
+! Initialize velocity field
+call initial()
     
-! Initialize sgs variables
-call sgs_param_init()
+! Open output files (total_time.dat and check_ke.out)  
+call openfiles()
+    
 
 ! Initialize concurrent precursor stuff
 $if($MPI and $CPS)
