@@ -79,7 +79,8 @@ do jt=1,nsteps
    ! Get the starting time for the iteration
    call clock_start( clock_t )
 
-    $if($CFL_DT)
+   if( use_cfl_dt ) then
+      
       dt_f = dt
 
       dt = get_cfl_dt()
@@ -89,13 +90,13 @@ do jt=1,nsteps
       tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
       tadv2 = 1._rprec - tadv1
 
-    $endif
+   endif
 
-    ! Advance time
-    jt_total = jt_total + 1 
-    total_time = total_time + dt
-    total_time_dim = total_time_dim + dt_dim
-    tt=tt+dt
+   ! Advance time
+   jt_total = jt_total + 1 
+   total_time = total_time + dt
+   total_time_dim = total_time_dim + dt_dim
+   tt=tt+dt
   
     ! Debug
     $if ($DEBUG)
@@ -429,19 +430,12 @@ do jt=1,nsteps
           write(*,'(a)') 'Time step information:'
           write(*,'(a,i9)') '  Iteration: ', jt
           write(*,'(a,E15.7)') '  Time step: ', dt
-          $if($CFL_DT)
           write(*,'(a,E15.7)') '  CFL: ', maxcfl
-          $endif
           write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
           write(*,*) 
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
-          ! $if($CFL_DT)
-          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
-          ! $else
-          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
-          ! $endif  
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
           write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
@@ -450,14 +444,6 @@ do jt=1,nsteps
        end if
 
     end if
-
-    ! $if($CFL_DT)
-    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
-    ! $else
-    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
-    ! $endif
-    ! 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
-    !      &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
 
 end do
 ! END TIME LOOP

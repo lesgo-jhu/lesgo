@@ -7,9 +7,7 @@ subroutine initialize()
 !
 use types, only : rprec
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
-$if($CFL_DT)
-use param, only : cfl, cfl_f
-$endif
+use param, only : use_cfl_dt, cfl, cfl_f
 use cfl_mod
 use io, only : stats_init
 use sgs_param, only : sgs_param_init
@@ -130,13 +128,13 @@ end if
 $endif
 
 ! Initialize dt if needed to force 1st order Euler
-$if($CFL_DT)
-if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-  if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
-  dt = get_cfl_dt() 
-  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+if( use_cfl_dt ) then
+   if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
+      if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
+      dt = get_cfl_dt() 
+      dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+   endif
 endif
-$endif
 
 return
 end subroutine initialize

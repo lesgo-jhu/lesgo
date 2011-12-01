@@ -51,7 +51,6 @@ $endif
 return
 end function get_max_cfl
 
-$if($CFL_DT)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function get_cfl_dt() result(dt)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -93,6 +92,5 @@ $endif
 
 return
 end function get_cfl_dt
-$endif
 
 end module cfl_mod

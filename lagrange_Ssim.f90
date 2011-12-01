@@ -333,13 +333,11 @@ $if ($LVLSET)
     call level_set_Cs_lag_dyn ()
 $endif
 
-$if ($CFL_DT)
-    ! Reset variable for use during next set of cs_count timesteps
-    lagran_dt = 0.0_rprec
-$endif
+! Reset variable for use during next set of cs_count timesteps
+if( use_cfl_dt ) lagran_dt = 0.0_rprec
 
 $if ($VERBOSE)
-    call exit_sub(sub_name)
+call exit_sub(sub_name)
 $endif
 
 end subroutine lagrange_Ssim

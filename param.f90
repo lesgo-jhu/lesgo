@@ -146,16 +146,13 @@ module param
 
   !integer, parameter :: nsteps = 1500
   integer :: nsteps = 50000
- 
-  $if($CFL_DT)
-  
+
+  logical :: use_cfl_dt = .false.  
   !real(rprec), parameter :: cfl = 0.05
   real(rprec) :: cfl = 0.05
-  real(rprec) :: dt_f, cfl_f
+  real(rprec) :: dt_f=2.0e-4, cfl_f=0.05
 
-  $endif
-  
-  !real (rprec), parameter :: dt = 2.0e-4_rprec              ! dt=2.e-4 usually works for 64^3
+  !real (rprec), parameter :: dt = 2.0e-4_rprec          ! dt=2.e-4 usually works for 64^3
   !real (rprec), parameter :: dt_dim = dt*z_i/u_star     ! dimensional time step in seconds
   real(rprec) :: dt = 2.0e-4_rprec
   real(rprec) :: dt_dim

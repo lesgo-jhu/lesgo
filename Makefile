@@ -69,10 +69,6 @@ TURBINES_SRCS = turbines.f90
 
 CPS_SRCS = concurrent_precursor.f90
 
-ifeq ($(USE_CFL_DT), yes)
-  EXE := $(EXE)-cfl
-endif
-
 ifeq ($(USE_MPI), yes)
   SRCS += mpi_transpose_mod.f90 tridag_array_pipelined.f90 mpi_defs.f90
   EXE := $(EXE)-mpi
@@ -83,13 +79,14 @@ ifeq ($(USE_LVLSET), yes)
   EXE := $(EXE)-ls
 endif
 
-ifeq ($(USE_CYL_SKEW_LS), yes)
-  SRCS += $(CYL_SKEW_LS_SRCS)
-endif
-
 ifeq ($(USE_RNS_LS), yes)
   SRCS += $(RNS_LS_SRCS)
   EXE := $(EXE)-rns
+endif
+
+ifeq ($(USE_CYL_SKEW_LS), yes)
+  SRCS += $(CYL_SKEW_LS_SRCS)
+  EXE := $(EXE)-cs
 endif
 
 ifeq ($(USE_TURBINES), yes)

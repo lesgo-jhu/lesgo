@@ -34,13 +34,9 @@ DEVEL=no
 OUTPUT_EXTRA=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
-# Set dt based on CFL condition
-USE_CFL_DT = yes
-
-# Write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
 WRITE_ENDIAN = DEFAULT
 
@@ -48,7 +44,7 @@ WRITE_ENDIAN = DEFAULT
 # Options: DEFAULT, LITTLE, or BIG
 READ_ENDIAN = DEFAULT
 
-USE_LVLSET = yes
+USE_LVLSET = no
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
 

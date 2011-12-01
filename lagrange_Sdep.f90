@@ -404,10 +404,8 @@ $if ($LVLSET)
     call level_set_Cs_lag_dyn ()
 $endif
 
-$if ($CFL_DT)
-    ! Reset variable for use during next set of cs_count timesteps
-    lagran_dt = 0.0_rprec
-$endif
+! Reset variable for use during next set of cs_count timesteps
+if( use_cfl_dt ) lagran_dt = 0.0_rprec
 
 $if ($VERBOSE)
     write (*, *) 'finished lagrange_Sdep'

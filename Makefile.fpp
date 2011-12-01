@@ -26,10 +26,6 @@ ifeq ($(USE_MPI), yes)
   LIBS += -lmpichf90 -lfmpich -lmpich
 endif
 
-ifeq ($(USE_CFL_DT), yes)
-  FPP += -DCFL_DT
-endif
-
 ifeq ($(WRITE_ENDIAN),LITTLE)
   FPP += -DWRITE_LITTLE_ENDIAN
 endif

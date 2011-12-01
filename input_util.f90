@@ -305,13 +305,14 @@ do
      case ('NSTEPS')
         read (buff(equal_pos+1:), *) nsteps
 
-     $if($CFL_DT)
+     case ('USE_CFL_DT') 
+        read (buff(equal_pos+1:), *) use_cfl_dt
+        
      case ('CFL')
         read (buff(equal_pos+1:), *) cfl
-     $else
+
      case('DT')
         read (buff(equal_pos+1:), *) dt
-     $endif
 
      case('CUMULATIVE_TIME')
         read (buff(equal_pos+1:), *) cumulative_time
@@ -323,13 +324,14 @@ do
   elseif( block_exit_pos == 1 ) then
 
      ! Set dependent data
-     $if(not $CFL_DT)
-     ! Set dimensional time step
-     dt_dim = dt * z_i / u_star
-     ! Set AB2 integration coefficients
-     tadv1 = 1.5_rprec
-     tadv2 = 1.0_rprec - tadv1
-     $endif
+     if( .not. use_cfl_dt ) then
+       ! Set dimensional time step
+       dt_dim = dt * z_i / u_star
+       ! Set AB2 integration coefficients
+       tadv1 = 1.5_rprec
+       tadv2 = 1.0_rprec - tadv1
+     endif
+
      return
 
   else
@@ -797,7 +799,7 @@ subroutine checkentry()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-if( equal_pos == 0 ) call error( sub, 'Bad read in block at line', line)
+if( equal_pos == 0 ) call error( sub, 'Bad read in block at line', line, ': ' // trim(adjustl(buff)))
 !--invalid if nothing after equals
 if (len_trim (buff) == equal_pos) call error (sub, 'nothing after equals sign in line', line) 
 

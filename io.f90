@@ -29,9 +29,7 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($CFL_DT)
-use param, only : dt, cfl_f
-$endif
+use param, only : use_cfl_dt, dt, cfl_f
 use sim_param,only:path
 
 implicit none
@@ -61,11 +59,13 @@ if (cumulative_time) then
 
 end if
 
-$if($CFL_DT)
-dt = dt_r
-cfl_f = cfl_r
-$endif
+! Update dynamic time stepping info if required; otherwise discard.
+if( use_cfl_dt ) then
+   dt = dt_r
+   cfl_f = cfl_r
+endif
 
+return
 end subroutine openfiles
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1390,11 +1390,8 @@ subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
-$if($CFL_DT)
-use param, only : cfl
-$else
+use param, only : use_cfl_dt, cfl
 use cfl_mod, only : get_max_cfl
-$endif
 
 implicit none
 
@@ -1431,11 +1428,11 @@ close (lun)
 
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
-$if($CFL_DT)
-cfl_w = cfl
-$else
-cfl_w = get_max_cfl()
-$endif
+if( use_cfl_dt ) then
+   cfl_w = cfl
+else
+   cfl_w = get_max_cfl()
+endif
 
 !  Update total_time.dat after simulation
 !if ((cumulative_time) .and. (lun == lun_default)) then
