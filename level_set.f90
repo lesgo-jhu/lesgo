@@ -127,6 +127,10 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
+! First check that the grid spacing is equal in all directions
+if( ( dx .ne. dy ) .or. ( dx .ne. dz ) .or. ( dy .ne. dz ) ) &
+   call error( sub_name, 'level set requires that dx=dy=dz -> adjust domain parameters')
+
 $if($MPI)
 !  Check that the buffer arrays DO NOT extent beyond neighboring processors
 if( nphitop >= Nz .or. nphibot >= Nz .or. &
