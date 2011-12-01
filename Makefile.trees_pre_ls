@@ -17,7 +17,8 @@ SRCS = 	trees_pre_ls.f90 \
      trees_io_ls.f90 \
      trees_global_fmask_ls.f90 \
      types.f90 param.f90 \
-     messages.f90 string_util.f90
+     messages.f90 string_util.f90 \
+     input.f90 level_set_base.f90
      
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
