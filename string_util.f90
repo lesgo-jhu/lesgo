@@ -238,14 +238,14 @@ if( len_trim(string) == 0 ) then
    stop
 endif
 
-! Initialize position of delimiter
-pos=0
+! Initialize position of delimiter (rewind a bit)
+pos=-delim_len+1
 ! Initialize stop flag
 istop=0
 ! Initialize string buffer
 buff = string
 
-n = 0 
+n = 0
 do while (istop .ne. 1)
 
    n = n + 1
