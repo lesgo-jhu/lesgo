@@ -235,13 +235,17 @@ else
   jz_min = 1
 end if
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+!$if ($MPI)
+!  if (coord == nproc-1) then
+!    cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
+!    jz_max = nz - 1
+!  else
+!    jz_max = nz
+!  endif
+!$else
 !  cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
-!
 !  jz_max = nz - 1
-!else
-!  jz_max = nz
-!end if
+!$endif
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
