@@ -31,7 +31,7 @@ SRCS =  cfl.f90 \
 	ic_dns.f90 \
 	initial.f90 \
 	initialize.f90 \
-	input.f90 \
+	input_util.f90 \
 	interpolag_Sdep.f90 \
 	interpolag_Ssim.f90 \
 	io.f90 \
