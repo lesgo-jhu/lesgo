@@ -234,7 +234,7 @@ end do
 !--also, what happens when called with tzz? 
 $if ($MPI) 
 
-  if (coord = nproc-1) then
+  if (coord == nproc-1) then
     dfdz(:,:,nz)=0._rprec  !--do not need to do this...
   else
     do jy=1,ny
