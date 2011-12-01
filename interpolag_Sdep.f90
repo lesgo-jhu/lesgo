@@ -24,7 +24,7 @@ use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
-use cfl_mod, only : get_max_cfl
+use cfl_util, only : get_max_cfl
 implicit none
 
 real(rprec), dimension(3) :: xyz_past

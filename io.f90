@@ -1391,7 +1391,7 @@ use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
 use param, only : use_cfl_dt, cfl
-use cfl_mod, only : get_max_cfl
+use cfl_util, only : get_max_cfl
 
 implicit none
 

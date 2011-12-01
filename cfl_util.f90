@@ -1,5 +1,5 @@
 !**********************************************************************
-module cfl_mod
+module cfl_util
 !**********************************************************************
 !
 ! This module provides the subroutines/functions for getting CFL related
@@ -93,4 +93,4 @@ $endif
 return
 end function get_cfl_dt
 
-end module cfl_mod
+end module cfl_util

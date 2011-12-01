@@ -8,7 +8,7 @@ subroutine initialize()
 use types, only : rprec
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f
-use cfl_mod
+use cfl_util
 use io, only : stats_init
 use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
