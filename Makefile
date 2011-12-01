@@ -11,7 +11,7 @@ include Makefile.in
 
 EXE = lesgo
 
-SRCS =  cfl.f90 \
+SRCS =  cfl_util.f90 \
 	clocks.f90 \
 	convec.f90 \
         derivatives.f90 \
