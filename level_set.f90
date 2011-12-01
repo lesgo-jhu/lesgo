@@ -2,7 +2,7 @@ module level_set
 use types, rp => rprec
 use param
 !use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, VERBOSE,   &
-!                  vonK, lbc_mom, USE_MPI, coord, nproc, up, down,       &
+!                  vonK, lbc_mom, coord, nproc, up, down,       &
 !                  comm, ierr, MPI_RPREC, 
 use test_filtermodule, only : filter_size
 use messages
@@ -1935,13 +1935,17 @@ else
                                      (/ ks, -nbot + albz /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
-else
-  if (ks > nz + ntop - 1) call error (sub_name,                      &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
+  else
+    if (ks > nz + ntop - 1) call error (sub_name,                      &
                                       'out of range (ks, ksmax) =',  &
                                       (/ ks, nz + ntop - 1 /))
-end if
+  endif
+$else
+  if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2099,13 +2103,17 @@ else
                                  (/ ku, -ntaubot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-else
-  if (ku > nz + ntautop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  else
+    if (ku > nz + ntautop - 1) call error (sub_name,                     &
                                          'out of range (ku, kumax) =', &
                                          (/ ku, nz + ntautop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2310,13 +2318,17 @@ else
                                  (/ kw, -ntaubot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-else
-  if (kw > nz + ntautop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+  else
+    if (kw > nz + ntautop - 1) call error (sub_name,                     &
                                          'out of range (kw, kwmax) =', &
                                          (/ kw, nz + ntautop - 1 /)) 
-end if
+  endif
+$else
+  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2507,14 +2519,18 @@ else
                                  (/ ku, -nphibot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-else
-  !--(-1) needed since we will use ku + 1 below!!!!
-  if (ku > nz + nphitop - 1) call error (sub_name,                      &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  else
+    !--(-1) needed since we will use ku + 1 below!!!!
+    if (ku > nz + nphitop - 1) call error (sub_name,                      &
                                          'out of range (ku, kumax) =',  &
                                          (/ ku, nz + nphitop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2680,17 +2696,22 @@ else
                                  (/ kw, -nvelbot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-else
-  if (ku > nz + nveltop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+    if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+  else
+    if (ku > nz + nveltop - 1) call error (sub_name,                     &
                                          'out of range (ku, kumax) =', &
                                          (/ ku, nz + nveltop - 1 /))
-  if (kw > nz + nveltop - 1) call error (sub_name,                      &
+    if (kw > nz + nveltop - 1) call error (sub_name,                      &
                                          'out of range (kw, kwmax) =',  &
                                          (/ kw, nz + nveltop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -3302,11 +3323,11 @@ if (.not. initialized) then
 
         else  !--also take wall into account
 
-          if (USE_MPI) then
+          $if ($MPI)
             z = (coord * (nz - 1) + jz - 1) * dz
-          else
+          $else
             z = (jz - 1) * dz
-          end if
+          $endif
           
           phi_tmp = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
                               !--MPI: requires phi(k=0)
@@ -4241,12 +4262,6 @@ else
   kmin = 1
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc - 1)) then
-  kmax = nz - 1 !--not certain this is what we want here, maybe nz
-else
-  kmax = nz - 1
-end if
-
 do k = kmin, kmax
   do j = jmn, jmx
     do i = imn, imx
@@ -4773,11 +4788,15 @@ select case (d)
     else if (k == n) then  !--this should not happen anymore
                            !--this routine only called with 1:nz-1
       call error (sub_name, 'called with k == nz')
-      !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc - 1)) then
-      !  safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
-      !else
-      !  safe_cd = BOGUS
-      !end if
+      !$if ($MPI)
+      !  if (coord == nproc-1) then
+      !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
+      !  else
+      !    safe_cd = BOGUS
+      !  endif
+      !$else
+      !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
+      !$endif
 
     else
 
