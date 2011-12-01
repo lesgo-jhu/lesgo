@@ -13,7 +13,7 @@ EXE = lesgo
 
 SRCS =  \
 	bottombc.f90 \
-        cfl.f90 convec.f90 \
+        cfl_util.f90 convec.f90 \
 	ddx.f90 ddxy.f90 ddy.f90 ddz_uv.f90 ddz_w.f90 \
         dealias1.f90 dealias2.f90 debug_mod.f90 \
         divstress_uv.f90 divstress_w.f90 dns_stress.f90 \
@@ -27,7 +27,7 @@ SRCS =  \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 scalars_module.f90 scalars_module2.f90 \
-        sgs_stag.f90 sgsmodule.f90 sim_param.f90 stat_defs.f90 \
+        sgs_stag_util.f90 sgsmodule.f90 sim_param.f90 stat_defs.f90 \
 	strmod.f90 \
 	std_dynamic.f90 string_util.f90 \
         test_filtermodule.f90 topbc.f90 \
