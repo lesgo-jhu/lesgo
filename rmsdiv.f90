@@ -48,7 +48,9 @@ $endif
 
 !---------------------------------------------------------------------
 
+! Initialize variables
 rms = 0._rprec
+jz_max = nz - 1
 
 if (norm_magdu) then
 
