@@ -14,7 +14,7 @@ EXE = cyl_skew_pre_ls
 SRCS = cyl_skew_base_ls.f90 \
      cyl_skew_ls.f90 \
      cyl_skew_pre_ls.f90 \
-     input.f90 \
+     input_util.f90 \
      param.f90 \
      types.f90 \
      messages.f90 \
