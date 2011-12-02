@@ -1,6 +1,7 @@
 !**********************************************************************
 module input_util
 !**********************************************************************
+use types, only : rprec
 implicit none
 
 save 
@@ -23,6 +24,9 @@ character(*), parameter :: delim_major='//'
 
 ! Default buffer length for characters of unknown length
 integer, parameter :: BUFF_LEN = 256
+
+! Thresh hold for evaluating differences in floating point values.
+real(rprec), parameter :: thresh = 1.0e-6_rprec
 
 interface parse_vector
   module procedure parse_vector_real, parse_vector_point3D
@@ -115,7 +119,7 @@ do
 
   case default
 
-     call mesg( sub, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
+     if(coord == 0) call mesg( sub, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
      ! Now need to 'fast-forward' untile we reach the end of the block
      do while ( block_exit_pos == 0 )
         call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -140,12 +144,8 @@ implicit none
 
 character(*), parameter :: block_name = 'DOMAIN'
 
-! Thresh hold for evaluating differences in floating point values.
-real(rprec), parameter :: thresh = 1.0e-6_rprec
-
-integer :: N_read
-real(rprec) :: L_read
-
+integer :: ival_read
+real(rprec) :: val_read
 
 do 
 
@@ -177,7 +177,7 @@ do
      case ('UNIFORM_SPACING')
         read (buff(equal_pos+1:), *) uniform_spacing
      case default
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif ( block_exit_pos == 1 ) then
@@ -187,9 +187,9 @@ do
      ! Set the processor owned vertical grid spacing
      nz = ceiling ( real( nz_tot, rprec ) / nproc ) + 1
      ! Recompute nz_tot to be compliant with computed nz
-     N_read = nz_tot
+     ival_read = nz_tot
      nz_tot = ( nz - 1 ) * nproc + 1 
-     if( N_read /= nz_tot ) &
+     if( coord == 0 .AND. ival_read /= nz_tot ) &
           call mesg( sub, 'Reseting Nz (total) to: ', nz_tot )          
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
@@ -207,15 +207,15 @@ do
      if( uniform_spacing ) then
 
         ! Adjust L_y
-        L_read = L_y
+        val_read = L_y
         L_y = ny * dx
-        if( abs( L_read - L_y ) <= thresh ) &
+        if( coord == 0 .AND. abs( val_read - L_y ) >= thresh ) &
              call mesg( sub, 'Reseting Ly to: ', L_y )
 
         ! Adjust L_z
-        L_read = L_z
+        val_read = L_z
         L_z = (nz_tot - 1 ) * dx
-        if( abs( L_read - L_z ) <= thresh ) &
+        if( coord == 0 .AND. abs( val_read - L_z ) >= thresh ) &
              call mesg( sub, 'Reseting Lz to: ', L_z )
 
      endif
@@ -292,7 +292,7 @@ do
         read (buff(equal_pos+1:), *) dns_bc
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -350,7 +350,7 @@ do
         read (buff(equal_pos+1:), *) cumulative_time
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -384,6 +384,8 @@ use param
 implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
+
+real(rprec) :: val_read 
 
 do 
 
@@ -422,16 +424,29 @@ do
         read (buff(equal_pos+1:), *) force_top_bot
      case ('USE_MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) use_mean_p_force
+     case ('EVAL_MEAN_P_FORCE')
+           read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
 
-     case default
+     case default      
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
   elseif( block_exit_pos == 1 ) then
+
+     if( use_mean_p_force .AND. eval_mean_p_force ) then
+
+        val_read = mean_p_force
+        ! Evaluate the mean pressure force
+        mean_p_force = 1.0_rprec / L_z
+        if( coord == 0 .AND. abs( val_read - mean_p_force ) >= thresh )  &
+             call mesg( sub, 'Reseting mean_p_force to: ', mean_p_force ) 
+
+     endif
+
 
      return
 
@@ -562,7 +577,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -650,7 +665,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -718,7 +733,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -804,7 +819,7 @@ do
 
      case default
 
-        call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 

@@ -215,6 +215,8 @@ module param
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   !logical, parameter :: use_mean_p_force = .true.
   logical :: use_mean_p_force = .true.
+  ! Specify whether mean_p_force should be evaluated as 1/L_z
+  logical :: eval_mean_p_force = .false. 
   !real (rprec), parameter :: mean_p_force = 1._rprec / L_z
   real(rprec) :: mean_p_force = 1.0_rprec
   
