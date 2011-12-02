@@ -83,6 +83,7 @@ module param
   !real(rprec),parameter::L_z= 1.0_rprec
   !real(rprec),parameter::L_y=ny*L_x/nx               ! ensure dy=dx
   !real(rprec),parameter::L_z=(nz_tot - 1)*L_x/nx  ! ensure dz = dx
+  logical :: uniform_spacing = .false.
   real(rprec) :: L_x = 2.0*pi, L_y=2.0*pi, L_z=1.0_rprec
 
   ! these values are also non-dimensionalized by z_i:

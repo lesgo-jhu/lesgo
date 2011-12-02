@@ -140,6 +140,13 @@ implicit none
 
 character(*), parameter :: block_name = 'DOMAIN'
 
+! Thresh hold for evaluating differences in floating point values.
+real(rprec), parameter :: thresh = 1.0e-6_rprec
+
+integer :: N_read
+real(rprec) :: L_read
+
+
 do 
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -167,6 +174,8 @@ do
         read (buff(equal_pos+1:), *) L_y
      case ('LZ')
         read (buff(equal_pos+1:), *) L_z
+     case ('UNIFORM_SPACING')
+        read (buff(equal_pos+1:), *) uniform_spacing
      case default
         call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
@@ -177,7 +186,11 @@ do
      
      ! Set the processor owned vertical grid spacing
      nz = ceiling ( real( nz_tot, rprec ) / nproc ) + 1
+     ! Recompute nz_tot to be compliant with computed nz
+     N_read = nz_tot
      nz_tot = ( nz - 1 ) * nproc + 1 
+     if( N_read /= nz_tot ) &
+          call mesg( sub, 'Reseting Nz (total) to: ', nz_tot )          
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
      ny2 = 3 * ny / 2
@@ -186,9 +199,28 @@ do
      ld = 2 * lh
      lh_big = nx2 / 2 + 1
      ld_big = 2 * lh_big
-     
-     ! Grid spacing
+
+     ! Grid spacing (x direction)
      dx = L_x / nx
+
+     ! Check if we are to enforce uniform grid spacing
+     if( uniform_spacing ) then
+
+        ! Adjust L_y
+        L_read = L_y
+        L_y = ny * dx
+        if( abs( L_read - L_y ) <= thresh ) &
+             call mesg( sub, 'Reseting Ly to: ', L_y )
+
+        ! Adjust L_z
+        L_read = L_z
+        L_z = (nz_tot - 1 ) * dx
+        if( abs( L_read - L_z ) <= thresh ) &
+             call mesg( sub, 'Reseting Lz to: ', L_z )
+
+     endif
+     
+     ! Grid spacing (y and z directions)
      dy = L_y / ny
      dz = L_z / ( nz_tot - 1 )
 
