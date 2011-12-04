@@ -12,7 +12,7 @@ private :: rp, ld, ny, nz, dx
 !private
 !public :: phi
 
-logical, parameter :: global_CD_calc = .true. ! Compute global CD based on inflow velocity
+logical, parameter :: global_CD_calc = .false. ! Compute global CD based on inflow velocity
 integer, parameter :: Ldir = 2
                       !--lift direction:
                       !  2 when lift direction is y
