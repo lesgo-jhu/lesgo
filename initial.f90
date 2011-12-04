@@ -4,14 +4,13 @@ subroutine initial()
 use types,only:rprec
 use param
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
-!use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
-use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
-use sgsmodule, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 
-use immersedbc,only:fx,fy,fz
-use immersedbc,only:fxa,fya,fza
+use sim_param,only:fx,fy,fz
+use sim_param,only:fxa,fya,fza
 
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -55,9 +54,9 @@ if(initu)then
   $endif
   
 
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
+    if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
 
-    select case (model)
+    select case (sgs_model)
       case (1)
         read (12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz)
@@ -94,7 +93,7 @@ if(initu)then
                    F_QN(:,:,1:nz), F_NN(:,:,1:nz)
         end if
       case default
-        write (*, *) 'initial: invalid model number'
+        write (*, *) 'initial: invalid sgs_model number'
     end select
 
     !call energy (ke)
@@ -110,11 +109,11 @@ if(initu)then
 
 else
   if (dns_bc) then
-     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial velocity field with DNS BCs'
+     if (coord == 0) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial fields'
-       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity field'
+    if (coord == 0) write(*,*) '--> Creating initial fields'
+       if (coord == 0) write(*,*) '----> Creating initial velocity field'
        call ic()
   end if
 end if
@@ -125,14 +124,13 @@ $if ($MPI)
   call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
   call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
   
+  if (coord == 0) then
+    !--set 0-level velocities to BOGUS
+    u(:, :, lbz) = BOGUS
+    v(:, :, lbz) = BOGUS
+    w(:, :, lbz) = BOGUS
+  end if
 $endif
-
-if (USE_MPI .and. coord == 0) then
-  !--set 0-level velocities to BOGUS
-  u(:, :, lbz) = BOGUS
-  v(:, :, lbz) = BOGUS
-  w(:, :, lbz) = BOGUS
-end if
 
 !  Open vel.out (lun_default in io) for final output
 $if ($WRITE_BIG_ENDIAN)

@@ -25,7 +25,7 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w,RHSx,RHSy,RHSz,RHSx_f,RHSy_f,RHSz_f, divtz
 use fft
-use immersedbc,only:fx,fy,fz  ! only for forcing experiment
+use sim_param,only:fx,fy,fz  ! only for forcing experiment
 
 $if ($DEBUG)
 use debug_mod
@@ -127,15 +127,20 @@ do jz=1,nz
    call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)     
 end do
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! sc: could do out of place transform if wanted to...
   rbottomw(:,:)=const*divtz(:,:,1)
   call rfftwnd_f77_one_real_to_complex(forw,rbottomw(:,:),fftwNull_p)
 end if
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+  if (coord == nproc-1) then
+    rtopw(:,:)=const*divtz(:,:,nz)
+    call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
+  endif
+$else
   rtopw(:,:)=const*divtz(:,:,nz)
   call rfftwnd_f77_one_real_to_complex(forw,rtopw(:,:),fftwNull_p)
-end if
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then

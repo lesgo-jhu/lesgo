@@ -13,8 +13,6 @@ logical :: sim_param_initialized = .false.
 !  ifort 8.1 ok
 !  xlf segfaults when in MPI mode 256^3/32 cpu (need to test other combos)
     
-$if ( $DYNALLOC )
-    
 real (rprec), dimension (:, :, :), allocatable :: u, v, w
 real (rprec), dimension (:, :, :), allocatable :: dudx, dudy, dudz,  &
                                                   dvdx, dvdy, dvdz,  &
@@ -27,46 +25,27 @@ real (rprec), dimension (:, :, :), allocatable :: dpdx, dpdy, dpdz
 real (rprec), dimension (:, :, :), allocatable :: txx, txy, tyy
 real (rprec), dimension (:, :, :), allocatable :: txz, tyz, tzz
 
-real (rprec), dimension (:, :, :), allocatable :: p
+real (rprec), target, dimension (:, :, :), allocatable :: p
 
 real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
+
+real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
+                                                  fxa, fya, fza
 
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
 
-$else
 
-real (rprec), dimension (ld, ny, lbz:nz) :: u, v, w
-real (rprec), dimension (ld, ny, lbz:nz) :: dudx, dudy, dudz,    &
-                                             dvdx, dvdy, dvdz,    &
-                                             dwdx, dwdy, dwdz,    &
-                                             RHSx, RHSy, RHSz,    &
-                                             RHSx_f, RHSy_f, RHSz_f
-
-real (rprec), dimension (ld, ny, nz) :: dpdx=0._rprec,  &
-                                        dpdy=0._rprec,  &
-                                        dpdz=0._rprec
-
-real (rprec), dimension (ld, ny, lbz:nz) :: txx, txy, tyy
-real (rprec), dimension (ld, ny, lbz:nz) :: txz, tyz, tzz
-
-real(kind=rprec),dimension(ld,ny,0:nz)::p
-
-real (rprec), dimension (ld, ny, lbz:nz) :: divtx, divty, divtz
-
-! Added for scalars
-real(kind=rprec),dimension(ld,ny,nz)::theta,q
-
-$endif
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine sim_param_init ( array_list_opt )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! 
 !--this is needed to make some post-processing code compilable, since
 !  is only allocates the space to be used
 !--initialized all data to zero
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine sim_param_init ( array_list_opt )
+!
 implicit none
 
 character (*), intent (in), optional :: array_list_opt
@@ -86,6 +65,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'txz, tyz, tzz,' //           &
                                              'p,' //                       &
                                              'divtx, divty, divtz,' //     &
+                                             'fx, fy, fz,' //              &
+                                             'fxa, fya, fza,' //           &
                                              'theta, q'
 
 $if ($DEBUG)
@@ -96,8 +77,6 @@ character (narray_name_len * narray_max) :: array_list
 character (narray_name_len) :: array(narray_max)
 character (narray_name_len) :: alloced_array(narray_max)
 
-
-$if ( $DYNALLOC )
 
 integer :: i
 integer :: ios
@@ -338,6 +317,30 @@ do i = 1, size ( array )
         allocate ( divtz(ld, ny, lbz:nz) )
         divtz = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fx' )
+        allocate ( fx(ld, ny, nz) )
+        fx = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fy' )
+        allocate ( fy(ld, ny, nz) )
+        fy = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )  
+    case ( 'fz' )
+        allocate ( fz(ld, ny, nz) )
+        fz = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fxa' )
+        allocate ( fxa(ld, ny, nz) )
+        fxa = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'fya' )
+        allocate ( fya(ld, ny, nz) )
+        fya = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )  
+    case ( 'fza' )
+        allocate ( fza(ld, ny, nz) )
+        fza = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case ( 'theta' )
         allocate ( theta(ld, ny, nz) )
         theta = 0.0_rprec
@@ -370,9 +373,6 @@ if ( DEBUG ) then
     
 end if
 $endif
-
-$endif
-    !--do nothing if not using dynamic allocation
 
 end subroutine sim_param_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -6,38 +6,30 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : openfiles, output_loop, output_final, jt_total, stats_init
+use io, only : output_loop, output_final, jt_total
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
-use immersedbc, only : fxa, fya, fza
 use test_filtermodule
-use topbc,only:setsponge,sponge
-use cfl_mod 
+use cfl_util
+
+use sgs_stag_util, only : sgs_stag
 
 $if ($MPI)
-  use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
-  $if($CPS)
-  use concurrent_precursor, only : initialize_cps
-  $endif
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_init, level_set_global_CD, level_set_smooth_vel, level_set_vel_err
+use level_set, only : level_set_global_CD, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
   $if ($RNS_LS)
   use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
-  
-    $if ($CYL_SKEW_LS)
-    use rns_cyl_skew_ls, only : rns_init_ls
-    $endif
-  
   $endif
 
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
+use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
 $endif
 
 $if ($DEBUG)
@@ -59,101 +51,15 @@ real (rprec) :: force
 
 type(clock_type) :: clock_t, clock_total_t
 
+
 ! Start the clocks, both local and total
 call clock_start( clock_t )
 
-! Create output directory
-call system("mkdir -vp output")
-
-! INITIALIZATION
-! Define simulation parameters
-call sim_param_init ()
-
-! Initialize MPI
-$if ($MPI)
-  call initialize_mpi()
-  $if($CPS)
-    call initialize_cps()
-  $endif
-$else
-  if (nproc /= 1) then
-    write (*, *) 'nproc /=1 for non-MPI run is an error'
-    stop
-  end if
-  if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
-  chcoord = ''
-$endif
-
-$if($MPI)
-  if(coord == 0) call param_output()
-$else
-  call param_output()
-$endif
-
-! Initialize uv grid (calculate x,y,z vectors)
-call grid_build()
-
-!  Initialize variables used for output statistics and instantaneous data
-call stats_init()
-
 ! Initialize time variable
-tt=0
+tt = 0
 
-! Initialize turbines
-$if ($TURBINES)
-  call turbines_init()    !must occur before initial is called
-$endif
-
-! If using level set method
-$if ($LVLSET)
-  call level_set_init ()
-
-  $if ($RNS_LS)
-    call rns_init_ls ()
-  $endif
-  
-$endif
-
-! Initialize velocity field
-call initial()
-
-! Formulate the fft plans--may want to use FFTW_USE_WISDOM
-! Initialize the kx,ky arrays
-call init_fft()
-    
-! Open output files (total_time.dat and check_ke.out)  
-call openfiles()
-
-! Initialize test filter
-! this is used for lower BC, even if no dynamic model
-call test_filter_init (2._rprec * filter_size, G_test)
-
-if (model == 3 .or. model == 5) then  !--scale dependent dynamic
-  call test_filter_init (4._rprec * filter_size, G_test_test)
-end if
-
-! Initialize sponge variable for top BC, if applicable
-if (ubc == 1) call setsponge()
-    
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
-  call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
-  call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
-end if
-$endif
-
-$if($CFL_DT)
-if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-  if(.not. USE_MPI .or. ( USE_MPI .and. coord == 0)) write(*,*) '--> Using 1st order Euler for first time step.' 
-  dt = get_cfl_dt() 
-  dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
-endif
-$endif
+! Initialize all data
+call initialize()
 
 $if($MPI)
   if(coord == 0) then
@@ -173,7 +79,8 @@ do jt=1,nsteps
    ! Get the starting time for the iteration
    call clock_start( clock_t )
 
-    $if($CFL_DT)
+   if( use_cfl_dt ) then
+      
       dt_f = dt
 
       dt = get_cfl_dt()
@@ -183,13 +90,13 @@ do jt=1,nsteps
       tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
       tadv2 = 1._rprec - tadv1
 
-    $endif
+   endif
 
-    ! Advance time
-    jt_total = jt_total + 1 
-    total_time = total_time + dt
-    total_time_dim = total_time_dim + dt_dim
-    tt=tt+dt
+   ! Advance time
+   jt_total = jt_total + 1 
+   total_time = total_time + dt
+   total_time_dim = total_time_dim + dt_dim
+   tt=tt+dt
   
     ! Debug
     $if ($DEBUG)
@@ -201,11 +108,6 @@ do jt=1,nsteps
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
-
-    ! Level set: smooth velocity
-    $if ($LVLSET_SMOOTH_VEL)
-      call level_set_smooth_vel (u, v, w)
-    $endif
 
     ! Debug
     $if ($DEBUG)
@@ -253,11 +155,11 @@ do jt=1,nsteps
     !   using the velocity log-law
     !   MPI: bottom process only
     if (dns_bc) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             call wallstress_dns ()
         end if
     else    ! "impose" wall stress 
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             call wallstress ()                            
         end if
     end if    
@@ -311,10 +213,9 @@ do jt=1,nsteps
     end if
     $endif
 
-    ! Calculates u x (omega) term in physical space
-    !   uses 3/2 rule for dealiasing
-    !   stores this term in RHS (right hand side) variable
-    call convec(RHSx,RHSy,RHSz)
+    ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
+    ! dealiasing. Stores this term in RHS (right hand side) variable
+    call convec()
 
     ! Debug
     $if ($DEBUG)
@@ -441,14 +342,8 @@ do jt=1,nsteps
     ! Solve Poisson equation for pressure
     !   div of momentum eqn + continuity (div-vel=0) yields Poisson eqn
     !   do not need to store p --> only need gradient
-    !   provides p, dpdx, dpdy at 0:nz-1
-    call press_stag_array (p, dpdx, dpdy)
-
-    ! Calculate dpdz
-    !   note: p has additional level at z=-dz/2 for this derivative
-    dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) -   &
-                                p(1:nx, 1:ny, 0:nz-2)) / dz
-    dpdz(:, :, nz) = BOGUS
+    !   provides p, dpdx, dpdy at 0:nz-1 and dpdz at 1:nz-1
+    call press_stag_array()
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
@@ -529,25 +424,18 @@ do jt=1,nsteps
        maxcfl = get_max_cfl()
 
        
-       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+       if (coord == 0) then
           write(*,*)
           write(*,'(a)') '========================================'
           write(*,'(a)') 'Time step information:'
           write(*,'(a,i9)') '  Iteration: ', jt
           write(*,'(a,E15.7)') '  Time step: ', dt
-          $if($CFL_DT)
           write(*,'(a,E15.7)') '  CFL: ', maxcfl
-          $endif
           write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
           write(*,*) 
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
-          ! $if($CFL_DT)
-          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl, tadv1, tadv2
-          ! $else
-          ! write (6, 7777) jt, dt, rmsdivvel, ke, maxcfl
-          ! $endif  
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
           write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
@@ -556,14 +444,6 @@ do jt=1,nsteps
        end if
 
     end if
-
-    ! $if($CFL_DT)
-    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl,tadv1,tadv2:',1x,i6.6,4(1x,e9.4),2(1x,f9.4))
-    ! $else
-    ! 7777 format ('jt,dt,rmsdivvel,ke,cfl:',1x,i6.6,4(1x,e9.4))
-    ! $endif
-    ! 7778 format ('wt_s(K-m/s),Scalars,patch_flag,remote_flag,&
-    !      &coriolis,Ug(m/s):',(f7.3,1x,L2,1x,i2,1x,i2,1x,L2,1x,f7.3))
 
 end do
 ! END TIME LOOP

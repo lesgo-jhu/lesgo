@@ -8,7 +8,7 @@ subroutine forcing_applied()
 !  in the evaluation of u* so that mass conservation is preserved.
 !
 use types, only : rprec
-use immersedbc, only : fxa, fya, fza
+use sim_param, only : fxa, fya, fza
 
 $if ($LVLSET)
 $if ($RNS_LS)
@@ -51,7 +51,7 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 $if ($LVLSET)
   use level_set, only : level_set_forcing
   $if($RNS_LS)
@@ -91,7 +91,7 @@ use param, only : uniform_inflow, inflow_velocity, &
                   L_x, dt, dx
 use param, only : coord
 use sim_param, only : u, v, w, theta
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 use messages, only : error
 $if($CPS)
 use concurrent_precursor
@@ -186,7 +186,6 @@ subroutine project ()
 !
 use param
 use sim_param
-use immersedbc
 use messages
 $if($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -236,7 +235,7 @@ do jz = 1, nz - 1
   end do
 end do
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   jz_min = 2
 else
   jz_min = 1
@@ -279,7 +278,9 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 $endif
 
 !--enfore bc at top
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+if (coord == nproc-1) then
+$endif
 
   if (force_top_bot .and. inflow) then
     u(:, :, nz) = inflow_velocity
@@ -293,9 +294,11 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
 
   w(:, :, nz)=0._rprec
 
-end if
+$if ($MPI)
+endif
+$endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! just a test
   !if (lbc_mom == 'stress free') then
   !  if (force_top_bot) then

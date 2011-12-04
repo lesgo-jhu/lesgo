@@ -2,7 +2,7 @@ module level_set
 use types, rp => rprec
 use param
 !use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, VERBOSE,   &
-!                  vonK, lbc_mom, USE_MPI, coord, nproc, up, down,       &
+!                  vonK, lbc_mom, coord, nproc, up, down,       &
 !                  comm, ierr, MPI_RPREC, 
 use test_filtermodule, only : filter_size
 use messages
@@ -27,39 +27,45 @@ character (*), parameter :: mod_name = 'level_set'
 
 integer, parameter :: nd = 3
 
-$if ($MPI)
-  ! Make sure all values (top and bottom) are less than Nz
-  integer, parameter :: nphitop = 3
-  integer, parameter :: nphibot = 2
-  integer, parameter :: nveltop = 1
-  integer, parameter :: nvelbot = 1
-  integer, parameter :: ntautop = 3
-  integer, parameter :: ntaubot = 2
-  integer, parameter :: nFMMtop = 1
-  integer, parameter :: nFMMbot = 1
-$else
-  integer, parameter :: nphitop = 0
-  integer, parameter :: nphibot = 0
-  integer, parameter :: nveltop = 0
-  integer, parameter :: nvelbot = 0
-  integer, parameter :: ntautop = 0
-  integer, parameter :: ntaubot = 0
-  integer, parameter :: nFMMtop = 0
-  integer, parameter :: nFMMbot = 0
-$endif
+! $if ($MPI)
+!   ! Make sure all values (top and bottom) are less than Nz
+!   integer, parameter :: nphitop = 3
+!   integer, parameter :: nphibot = 2
+!   integer, parameter :: nveltop = 1
+!   integer, parameter :: nvelbot = 1
+!   integer, parameter :: ntautop = 3
+!   integer, parameter :: ntaubot = 2
+!   integer, parameter :: nFMMtop = 1
+!   integer, parameter :: nFMMbot = 1
+! $else
+!   integer, parameter :: nphitop = 0
+!   integer, parameter :: nphibot = 0
+!   integer, parameter :: nveltop = 0
+!   integer, parameter :: nvelbot = 0
+!   integer, parameter :: ntautop = 0
+!   integer, parameter :: ntaubot = 0
+!   integer, parameter :: nFMMtop = 0
+!   integer, parameter :: nFMMbot = 0
+! $endif
 
-!--these are the extra overlap arrays required for BC with MPI
-real (rp), dimension (ld, ny, nphitop) :: phitop
-real (rp), dimension (ld, ny, nphibot) :: phibot
-real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
-real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
-real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
-                                          tyytop, tyztop, tzztop
-real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
-                                          tyybot, tyzbot, tzzbot
-!--really only needed for Lagrangian SGS models
-real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
-real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
+! !--these are the extra overlap arrays required for BC with MPI
+! real (rp), dimension (ld, ny, nphitop) :: phitop
+! real (rp), dimension (ld, ny, nphibot) :: phibot
+! real (rp), dimension (ld, ny, nveltop) :: utop, vtop, wtop
+! real (rp), dimension (ld, ny, nvelbot) :: ubot, vbot, wbot
+! real (rp), dimension (ld, ny, ntautop) :: txxtop, txytop, txztop,  &
+!                                           tyytop, tyztop, tzztop
+! real (rp), dimension (ld, ny, ntaubot) :: txxbot, txybot, txzbot,  &
+!                                           tyybot, tyzbot, tzzbot
+! !--really only needed for Lagrangian SGS models
+! real (rp), dimension (ld, ny, nFMMbot) :: FMMbot
+! real (rp), dimension (ld, ny, nFMMtop) :: FMMtop
+
+! real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
+!                                   !--may want to change so only normals
+!                                   !  near 0-set are stored
+! !--experimental: desired velocities for IB method
+! real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -67,15 +73,183 @@ $endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
-!real (rp) :: phi(ld, ny, lbz:nz)
-real (rp) :: norm(nd, ld, ny, lbz:nz) !--normal vector
-                                  !--may want to change so only normals
-                                  !  near 0-set are stored
+
+
+!--these are the extra overlap arrays required for BC with MPI
+real (rp), allocatable, dimension(:,:,:) :: phitop
+real (rp), allocatable, dimension(:,:,:) :: phibot
+real (rp), allocatable, dimension(:,:,:) :: utop, vtop, wtop
+real (rp), allocatable, dimension(:,:,:) :: ubot, vbot, wbot
+real (rp), allocatable, dimension(:,:,:) :: txxtop, txytop, txztop,  &
+                                            tyytop, tyztop, tzztop
+real (rp), allocatable, dimension(:,:,:) :: txxbot, txybot, txzbot,  &
+                                            tyybot, tyzbot, tzzbot
+!--really only needed for Lagrangian SGS models
+real (rp), allocatable, dimension (:,:,:) :: FMMbot
+real (rp), allocatable, dimension (:,:,:) :: FMMtop
+
+real (rp), allocatable, dimension(:,:,:,:) :: norm !--normal vector
+                                                 !--may want to change so only normals
+                                                 !  near 0-set are stored
 !--experimental: desired velocities for IB method
-real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
+real (rp), allocatable, dimension(:,:,:) :: udes, vdes, wdes
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine level_set_init ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : dx, dy, dz, lbz  !--in addition to those above
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.level_set_init'
+
+character (*), parameter :: fphi_in_base = 'phi.out'
+character (*), parameter :: fnorm_out_base = 'norm.dat'
+character (*), parameter :: MPI_suffix = '.c'
+
+integer, parameter :: lun = 1
+
+logical, parameter :: do_write_norm = .true.
+
+character (128) :: fphi_in, fnorm_out
+
+integer :: i, j, k
+
+logical :: exst, opn
+
+real (rp) :: x, y, z
+
+!---------------------------------------------------------------------
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
+
+! First check that the grid spacing is equal in all directions
+if( ( dx .ne. dy ) .or. ( dx .ne. dz ) .or. ( dy .ne. dz ) ) &
+   call error( sub_name, 'level set requires that dx=dy=dz -> adjust domain parameters')
+
+$if($MPI)
+!  Check that the buffer arrays DO NOT extent beyond neighboring processors
+if( nphitop >= Nz .or. nphibot >= Nz .or. &
+    nveltop >= Nz .or. nvelbot >= Nz .or. &
+    ntautop >= Nz .or. ntaubot >= Nz .or. &
+    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
+
+  call error( sub_name, 'Buffer array extents beyond neighboring processor')
+$endif
+
+! Allocate all arrays defined in level_set 
+! !--these are the extra overlap arrays required for BC with MPI
+allocate( phitop(ld, ny, nphitop) )
+allocate( phibot(ld, ny, nphibot) )
+allocate( utop(ld, ny, nveltop), vtop(ld, ny, nveltop), wtop(ld, ny, nveltop) )
+allocate( ubot(ld, ny, nvelbot), vbot(ld, ny, nvelbot), wbot(ld, ny, nvelbot) )
+allocate( txxtop(ld, ny, ntautop), &
+          txytop(ld, ny, ntautop), &
+          txztop(ld, ny, ntautop), &
+          tyytop(ld, ny, ntautop), &
+          tyztop(ld, ny, ntautop), &
+          tzztop(ld, ny, ntautop) )
+allocate( txxbot(ld, ny, ntaubot), &
+          txybot(ld, ny, ntaubot), &
+          txzbot(ld, ny, ntaubot), &
+          tyybot(ld, ny, ntaubot), &
+          tyzbot(ld, ny, ntaubot), &
+          tzzbot(ld, ny, ntaubot) )
+! !--really only needed for Lagrangian SGS models
+allocate( FMMbot(ld, ny, nFMMbot) )
+allocate( FMMtop(ld, ny, nFMMtop) )
+
+allocate( norm(nd, ld, ny, lbz:nz) )!--normal vector
+!                                   !--may want to change so only normals
+!                                   !  near 0-set are stored
+! !--experimental: desired velocities for IB method
+if( vel_BC ) allocate( udes(ld, ny, lbz:nz), &
+                       vdes(ld, ny, lbz:nz), &
+                       wdes(ld, ny, lbz:nz) )
+
+inquire (unit=lun, exist=exst, opened=opn)
+
+if (.not. exst) call error (sub_name, 'lun =', lun, 'does not exist')
+if (opn) call error (sub_name, 'lun =', lun, 'is already open')
+
+$if ($MPI)
+  write (fphi_in, '(a,a,i0)') trim (fphi_in_base), MPI_suffix, coord
+$else
+  fphi_in = trim (fphi_in_base)
+$endif
+
+inquire (file=fphi_in, exist=exst, opened=opn)
+
+if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
+if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
+
+$if ($READ_BIG_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
+$elseif ($READ_LITTLE_ENDIAN)
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
+$else
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
+$endif
+
+read (lun) phi(:, :, lbz:nz)
+           !--phi(:, :, 0) will be BOGUS at coord == 0
+           !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
+close (lun)
+
+call mesg (sub_name, 'level set function initialized')
+
+!--calculate the normal
+!--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
+call fill_norm ()
+
+if (do_write_norm) then
+
+  $if ($MPI)
+    write (fnorm_out, '(a,a,i0)') trim (fnorm_out_base), MPI_suffix, coord
+  $else
+    fnorm_out = trim (fnorm_out_base)
+  $endif
+
+  !--output normal in ascii, for checking purposes
+  !--recall nz-level is BOGUS
+  open (lun, file=fnorm_out, action='write')
+
+  write (lun, '(a)') 'variables = "x" "y" "z" "n1" "n2" "n3"'
+  write (lun, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny, ', k=', nz-1
+
+  do k = 1, nz-1
+
+    z = (k - 0.5_rp) * dz
+
+    do j = 1, ny
+
+      y = (j - 1) * dy
+    
+      do i = 1, nx
+
+        x = (i - 1) * dx
+      
+        write (lun, '(6(1x,es12.5))') x, y, z, norm(:, i, j, k)
+
+      end do
+    
+    end do
+
+  end do
+
+  close (lun)
+
+end if
+
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
+
+end subroutine level_set_init
 
 !**********************************************************************
 subroutine level_set_vel_err() 
@@ -197,7 +371,7 @@ end subroutine level_set_vel_err
 !--sets Cs2 to epsilon inside solid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs_lag_dyn ()
-use sgsmodule, only : Cs_opt2
+use sgs_param, only : Cs_opt2
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_Cs_lag_dyn'
@@ -216,8 +390,7 @@ $endif
 
 do k = 1, nz
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0
   else
     s = 1
@@ -299,7 +472,7 @@ end subroutine level_set_lag_dyn
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine modify_beta ()
-use sgsmodule, only : beta
+use sgs_param, only : beta
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.modify_beta'
@@ -324,8 +497,7 @@ delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
 do k = 1, nz
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0
   else
     s = 1
@@ -366,7 +538,7 @@ end subroutine modify_beta
 !  sync between nz and 1' is needed
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine neumann_F_MM ()
-use sgsmodule, only : F_MM
+use sgs_param, only : F_MM
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.neumann_F_MM'
@@ -400,8 +572,7 @@ $endif
 
 do k = 1, nz - 1
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0  !--u-nodes
   else
     s = 1  !--w-nodes
@@ -481,7 +652,7 @@ end subroutine neumann_F_MM
 !--only operates on 1:nz-1, MAY NEED 1:nz for complete consistency!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine zero_F_LM ()
-use sgsmodule, only : F_LM
+use sgs_param, only : F_LM
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.zero_F_LM'
@@ -504,8 +675,7 @@ phi_F_LM = filter_size * dx  !--experimental
 
 do k = 1, nz - 1
 
-  if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-       (k == 1) ) then
+  if ( (coord == 0) .and. (k == 1) ) then
     s = 0  !--use phi at u-node
   else
     s = 1
@@ -615,7 +785,7 @@ else
   call error (sub_name, 'trying to use unset phi_cutoff')
 end if
 
-grad = sqrt (abs (tau)) / (vonK * (max (phi_min, phix) + z0))
+grad = sqrt (abs (tau)) / (vonK * (max (phi_min, phix) + zo_level_set))
 
 Gp(1, 3) = grad
 
@@ -669,7 +839,8 @@ character (128) :: fname
 
 integer :: i, j, k
 !--experiment to reduce time spent on looping over fluid pts
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+!integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 integer :: nbad
 integer :: kmn
@@ -690,6 +861,12 @@ real (rp) :: n_hat(nd)
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+! Set default values
+imn = 1
+imx = nx
+jmn = 1
+jmx = ny
 
 if (use_output) then
 
@@ -905,7 +1082,7 @@ nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   kmn = 2
 else
   kmn = 1
@@ -1139,7 +1316,7 @@ do k = 1, nz - 1
 
           call interp_phi (x1, phi1)
 
-          tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
+          tau_w = -(mag (v1t) * vonk / log (phi1 / zo_level_set))**2
 
           !--next step is to rotate
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -1272,7 +1449,7 @@ do k = 2, nz
 
           call interp_phi (x1, phi1)
 
-          tau_w = -(mag (v1t) * vonk / log (phi1 / z0))**2
+          tau_w = -(mag (v1t) * vonk / log (phi1 / zo_level_set))**2
 
           !--next step is to rotate
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -1569,7 +1746,7 @@ do k = 1, nz - 1
           vel2_p = vel2 - vel2_n * n_hat
         
           vel1_n = vel2_n * (phi1 / phi2)**2
-          vel1_p = vel2_p * (log (1._rp + phi1 / z0) / log (1._rp + phi2 / z0))
+          vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
           vel1 = vel1_p + vel1_n * n_hat
 
@@ -1635,7 +1812,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           vel2_p = vel2 - vel2_n * n_hat
         
           vel1_n = vel2_n * (phi1 / phi2)**2
-          vel1_p = vel2_p * (log (1._rp + phi1 / z0) / log (1._rp + phi2 / z0))
+          vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
           vel1 = vel1_p + vel1_n * n_hat
 
@@ -1750,7 +1927,7 @@ end if
 
 
 !--need to bounds check ks
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ks < 1) call error (sub_name, 'ks out of range, ks =', ks)
 else
   if (ks < -nbot + albz) call error (sub_name,                       &
@@ -1758,13 +1935,17 @@ else
                                      (/ ks, -nbot + albz /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
-else
-  if (ks > nz + ntop - 1) call error (sub_name,                      &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
+  else
+    if (ks > nz + ntop - 1) call error (sub_name,                      &
                                       'out of range (ks, ksmax) =',  &
                                       (/ ks, nz + ntop - 1 /))
-end if
+  endif
+$else
+  if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -1914,7 +2095,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check ku
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
   if (ku < -ntaubot) call error (sub_name,                       &
@@ -1922,13 +2103,17 @@ else
                                  (/ ku, -ntaubot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-else
-  if (ku > nz + ntautop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  else
+    if (ku > nz + ntautop - 1) call error (sub_name,                     &
                                          'out of range (ku, kumax) =', &
                                          (/ ku, nz + ntautop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2125,7 +2310,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check kw
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
   if (kw < -ntaubot) call error (sub_name,                       &
@@ -2133,13 +2318,17 @@ else
                                  (/ kw, -ntaubot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-else
-  if (kw > nz + ntautop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+  else
+    if (kw > nz + ntautop - 1) call error (sub_name,                     &
                                          'out of range (kw, kwmax) =', &
                                          (/ kw, nz + ntautop - 1 /)) 
-end if
+  endif
+$else
+  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2322,7 +2511,7 @@ end if
 
 !--need to bounds check ku
 !--non-MPI has 0-sized nphibot, nphitop
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
 else
   if (ku < -nphibot) call error (sub_name,                     &
@@ -2330,14 +2519,18 @@ else
                                  (/ ku, -nphibot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-else
-  !--(-1) needed since we will use ku + 1 below!!!!
-  if (ku > nz + nphitop - 1) call error (sub_name,                      &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  else
+    !--(-1) needed since we will use ku + 1 below!!!!
+    if (ku > nz + nphitop - 1) call error (sub_name,                      &
                                          'out of range (ku, kumax) =',  &
                                          (/ ku, nz + nphitop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2491,7 +2684,7 @@ if ((j < 1) .or. (j > ny)) then
 end if
 
 !--need to bounds check ku, kw
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == 0)) ) then
+if ( coord == 0 ) then
   if (ku < 1) call error (sub_name, 'ku out of range, ku =', ku)
   if (kw < 1) call error (sub_name, 'kw out of range, kw =', kw)
 else
@@ -2503,17 +2696,22 @@ else
                                  (/ kw, -nvelbot /))
 end if
 
-if ( (.not. USE_MPI) .or. (USE_MPI .and. (coord == nproc - 1)) ) then
-  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-else
-  if (ku > nz + nveltop - 1) call error (sub_name,                     &
+$if ($MPI)
+  if (coord == nproc-1) then
+    if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+    if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+  else
+    if (ku > nz + nveltop - 1) call error (sub_name,                     &
                                          'out of range (ku, kumax) =', &
                                          (/ ku, nz + nveltop - 1 /))
-  if (kw > nz + nveltop - 1) call error (sub_name,                      &
+    if (kw > nz + nveltop - 1) call error (sub_name,                      &
                                          'out of range (kw, kwmax) =',  &
                                          (/ kw, nz + nveltop - 1 /))
-end if
+  endif
+$else
+  if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
+  if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
+$endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2890,8 +3088,7 @@ do iter = 1, niter
     do j = 1, ny
       do i = 1, nx
 
-        if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-             (k == s) ) then
+        if ( (coord == 0) .and. (k == s) ) then
           !--avoid phi(0)
           phi1 = phi(i, j, k)
         else
@@ -2947,7 +3144,7 @@ end subroutine smooth
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_global_CD ()
 use param, only : jt, jt_total, dt, L_y, L_z
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
@@ -3056,8 +3253,8 @@ end subroutine level_set_global_CD
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
-use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => nnn 
-use sgsmodule, only : Cs_opt2
+use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => wall_damp_exp 
+use sgs_param, only : Cs_opt2
 implicit none
 
 real (rp), intent (in) :: delta
@@ -3080,7 +3277,7 @@ $endif
 
 if (.not. initialized) then
 
-  if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
 
     jz = 1
 
@@ -3100,7 +3297,7 @@ if (.not. initialized) then
         end if
 
         !--sorry, this splitting is ugly
-        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + z0))**n  &
+        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + zo_level_set))**n  &
                               )**(-2._rp / n)
 
       end do
@@ -3126,11 +3323,11 @@ if (.not. initialized) then
 
         else  !--also take wall into account
 
-          if (USE_MPI) then
+          $if ($MPI)
             z = (coord * (nz - 1) + jz - 1) * dz
-          else
+          $else
             z = (jz - 1) * dz
-          end if
+          $endif
           
           phi_tmp = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
                               !--MPI: requires phi(k=0)
@@ -3140,7 +3337,7 @@ if (.not. initialized) then
         end if
       
         !--sorry, this splitting is ugly
-        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + z0))**n  &
+        Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + zo_level_set))**n  &
                               )**(-2._rp / n)
 
       end do
@@ -3528,7 +3725,7 @@ integer, parameter :: lun1 = 1
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
-!real (rp), parameter :: phi_0 = 0._rp * z0  !--should be consistent with interp
+!real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--should be consistent with interp
 
 integer :: i, j, k, m, id
 integer :: counter, nlist
@@ -3838,14 +4035,15 @@ integer, parameter :: lun = 1
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
-!real (rp), parameter :: phi_0 = 0._rp * z0  !--this is adjustable
+!real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--this is adjustable
 
 character (128) :: fname
 
 integer :: i, j, k
 integer :: kmin, kmax
-!--experiment for skipping unsed points
-integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+!--experiment for skipping un
+!integer, save :: imn = 1, imx = nx, jmn = 1, jmx = ny
+integer :: imn, imx, jmn, jmx
 integer :: imn_used, imx_used, jmn_used, jmx_used
 
 logical :: output
@@ -3863,6 +4061,12 @@ real (rp) :: x(nd), xv(nd)
 $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
+
+! Set default values
+imn = 1
+imx = nx
+jmn = 1
+jmx = ny
 
 if (use_output) then
 
@@ -3973,9 +4177,9 @@ do k = 1, nz-1
           z_hat = n_hat
 
           if (physBC) then
-            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / zo_level_set))**2
           else
-            tau = -(kappa * mag (vel_t) / log (1._rp + phix / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phix / zo_level_set))**2
           end if
 
           !--special case: only nonzero t_{i'j'} is t_{1'3'} & t_{3'1'}
@@ -4052,16 +4256,10 @@ if (output) write (lun, *) 'w-node pass'
 
 !--w-node pass
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   kmin = 2
 else
   kmin = 1
-end if
-
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc - 1)) then
-  kmax = nz - 1 !--not certain this is what we want here, maybe nz
-else
-  kmax = nz - 1
 end if
 
 do k = kmin, kmax
@@ -4122,9 +4320,9 @@ do k = kmin, kmax
           z_hat = n_hat
 
           if (physBC) then
-            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phi_c / zo_level_set))**2
           else
-            tau = -(kappa * mag (vel_t) / log (1._rp + phix / z0))**2
+            tau = -(kappa * mag (vel_t) / log (1._rp + phix / zo_level_set))**2
           end if
           
           txz(i, j, k) = (x_hat(1) * z_hat(3) + z_hat(1) * x_hat(3)) * tau
@@ -4355,7 +4553,7 @@ subroutine level_set_forcing ()
 !
 use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
 use sim_param
-use immersedbc, only : fx, fy, fz
+use sim_param, only : fx, fy, fz
 
 implicit none
 
@@ -4381,7 +4579,7 @@ if (vel_BC) then
   if (use_log_profile) call enforce_log_profile ()
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   k = 1
   do j = 1, ny
@@ -4583,19 +4781,22 @@ select case (d)
     n = nz
     delta = dz
 
-    if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0))  &
-         .and. (k == 1) ) then
+    if ( (coord == 0) .and. (k == 1) ) then
 
       safe_cd = ( f(i, j, k + 1) - f(i, j, k) ) / delta
 
     else if (k == n) then  !--this should not happen anymore
                            !--this routine only called with 1:nz-1
       call error (sub_name, 'called with k == nz')
-      !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc - 1)) then
-      !  safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
-      !else
-      !  safe_cd = BOGUS
-      !end if
+      !$if ($MPI)
+      !  if (coord == nproc-1) then
+      !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
+      !  else
+      !    safe_cd = BOGUS
+      !  endif
+      !$else
+      !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
+      !$endif
 
     else
 
@@ -4635,7 +4836,7 @@ if (present (ierr)) ierr = 0
 
 do k1 = 1, -1, -2
 
-  !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  !if (coord == 0) then
   !  if ((k1 == -1) .and. (k == 1)) exit  !--same as cycle here
   !end if
 
@@ -4839,124 +5040,6 @@ real (rp), intent (in) :: v(nd)
 mag = sqrt (dot_product (v, v))
 
 end function mag
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_init ()
-use param, only : dx, dy, dz, lbz  !--in addition to those above
-implicit none
-
-character (*), parameter :: sub_name = mod_name // '.level_set_init'
-
-character (*), parameter :: fphi_in_base = 'phi.out'
-character (*), parameter :: fnorm_out_base = 'norm.dat'
-character (*), parameter :: MPI_suffix = '.c'
-
-integer, parameter :: lun = 1
-
-logical, parameter :: do_write_norm = .true.
-
-character (128) :: fphi_in, fnorm_out
-
-integer :: i, j, k
-
-logical :: exst, opn
-
-real (rp) :: x, y, z
-
-!---------------------------------------------------------------------
-$if ($VERBOSE)
-call enter_sub (sub_name)
-$endif
-
-$if($MPI)
-!  Check that the buffer arrays DO NOT extent beyond neighboring processors
-if( nphitop >= Nz .or. nphibot >= Nz .or. &
-    nveltop >= Nz .or. nvelbot >= Nz .or. &
-    ntautop >= Nz .or. ntaubot >= Nz .or. &
-    nFMMtop >= Nz .or. nFMMbot >= Nz )  &
-
-  call error( sub_name, 'Buffer array extents beyond neighboring processor')
-$endif
-
-inquire (unit=lun, exist=exst, opened=opn)
-
-if (.not. exst) call error (sub_name, 'lun =', lun, 'does not exist')
-if (opn) call error (sub_name, 'lun =', lun, 'is already open')
-
-$if ($MPI)
-  write (fphi_in, '(a,a,i0)') trim (fphi_in_base), MPI_suffix, coord
-$else
-  fphi_in = trim (fphi_in_base)
-$endif
-
-inquire (file=fphi_in, exist=exst, opened=opn)
-
-if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
-if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
-
-$if ($READ_BIG_ENDIAN)
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
-$else
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-$endif
-
-read (lun) phi(:, :, lbz:nz)
-           !--phi(:, :, 0) will be BOGUS at coord == 0
-           !--for now, phi(:, :, nz) will be valid at coord = nproc - 1
-close (lun)
-
-call mesg (sub_name, 'level set function initialized')
-
-!--calculate the normal
-!--provides 0:nz-1, except at coord = 0 it provides 1:nz-1
-call fill_norm ()
-
-if (do_write_norm) then
-
-  $if ($MPI)
-    write (fnorm_out, '(a,a,i0)') trim (fnorm_out_base), MPI_suffix, coord
-  $else
-    fnorm_out = trim (fnorm_out_base)
-  $endif
-
-  !--output normal in ascii, for checking purposes
-  !--recall nz-level is BOGUS
-  open (lun, file=fnorm_out, action='write')
-
-  write (lun, '(a)') 'variables = "x" "y" "z" "n1" "n2" "n3"'
-  write (lun, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny, ', k=', nz-1
-
-  do k = 1, nz-1
-
-    z = (k - 0.5_rp) * dz
-
-    do j = 1, ny
-
-      y = (j - 1) * dy
-    
-      do i = 1, nx
-
-        x = (i - 1) * dx
-      
-        write (lun, '(6(1x,es12.5))') x, y, z, norm(:, i, j, k)
-
-      end do
-    
-    end do
-
-  end do
-
-  close (lun)
-
-end if
-
-$if ($VERBOSE)
-call exit_sub (sub_name)
-$endif
-
-end subroutine level_set_init
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function cross_product (a, b)

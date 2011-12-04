@@ -46,8 +46,8 @@ call ddy(ty, dtydy, lbz)
 call ddz_w(tz, dtzdz, lbz)
 !$if ($MPI)
 !  dtzdz(:, :, 0) = BOGUS
+!  if (coord < nproc-1) dtzdz(:, :, nz) = BOGUS
 !$endif
-!if (USE_MPI .and. coord < nproc-1) dtzdz(:, :, nz) = BOGUS
 
 !--MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the

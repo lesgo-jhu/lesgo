@@ -1,5 +1,6 @@
 !**********************************************************************
-subroutine press_stag_array(p_hat,dfdx,dfdy)   
+!subroutine press_stag_array(p_hat,dfdx,dfdy)   
+subroutine press_stag_array()   
 !**********************************************************************
 ! p_hat contains the physical space pressure on exit
 !--provides p_hat, dfdx, dfdy 0:nz-1
@@ -27,7 +28,8 @@ subroutine press_stag_array(p_hat,dfdx,dfdy)
 use types,only:rprec
 use param
 use messages
-use sim_param,only:u,v,w,divtz
+use sim_param, only: u,v,w,divtz
+use sim_param, only: p_hat => p, dfdx => dpdx, dfdy => dpdy, dfdz => dpdz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 $if ($DEBUG)
@@ -35,22 +37,11 @@ use debug_mod
 $endif
 
 implicit none      
-!complex(kind=rprec),dimension(lh,ny,0:nz)::p_hat
-real(kind=rprec), dimension(ld, ny, 0:nz) :: p_hat
 
-real(kind=rprec),dimension(ld,ny,lbz:nz)::rH_x,rH_y,rH_z
-!complex(kind=rprec),dimension(lh,ny,lbz:nz)::H_x,H_y,H_z
-!equivalence (rH_x,H_x),(rH_y,H_y),(rH_z,H_z)
 
-real(kind=rprec),dimension(ld,ny)::rtopw, rbottomw
-!complex(kind=rprec),dimension(lh,ny)::topw,bottomw
-!equivalence (rtopw,topw),(rbottomw,bottomw)
 
-!complex(kind=rprec),dimension(lh,ny,nz),intent(out)::dfdx,dfdy
-real(kind=rprec), dimension(ld, ny, nz), intent(out)::dfdx,dfdy
+real(rprec) :: const
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
-! remove this stuff!
 integer::jx,jy,jz,k
 
 integer :: ir, ii ! Used for complex emulation of real array
@@ -64,18 +55,33 @@ $endif
 
 integer :: jz_min
 
-!complex(kind=rprec),dimension(lh, ny, nz+1)::RHS_col
-real(kind=rprec), dimension(ld, ny, nz+1) :: RHS_col
-real(kind=rprec),dimension(lh, ny, nz+1)::a,b,c
+real(rprec), save, dimension(:, :, :), allocatable :: rH_x,rH_y,rH_z
+real(rprec), save, dimension(:, :), allocatable :: rtopw, rbottomw
+real(rprec), save, dimension(:, :, :), allocatable :: RHS_col
+real(rprec), save, dimension(:, :, :), allocatable :: a,b,c
 
-real(kind=rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
+logical, save :: arrays_allocated = .false.
+
+real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
+const = 1._rprec/(nx*ny)
+
+! Allocate arrays
+if( .not. arrays_allocated ) then
+   allocate ( rH_x(ld,ny,lbz:nz), rH_y(ld,ny,lbz:nz), rH_z(ld,ny,lbz:nz) )
+   allocate ( rtopw(ld,ny), rbottomw(ld,ny) )
+   allocate ( RHS_col(ld,ny,nz+1) )
+   allocate ( a(lh,ny,nz+1), b(lh,ny,nz+1), c(lh,ny,nz+1) )
+
+   arrays_allocated = .true.
+endif
+
 $if ($VERBOSE)
 write (*, *) 'started press_stag_array'
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   p_hat(:, :, 0) = (0._rprec, 0._rprec)
 else
   p_hat(:, :, 0) = BOGUS
@@ -118,24 +124,30 @@ $endif
 rH_x(1:ld:2,:,nz) = BOGUS
 rH_y(1:ld:2,:,nz) = BOGUS
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-  !H_z(:, :, nz) = (0._rprec, 0._rprec)
+$if ($MPI)
+  if (coord == nproc-1) then
+    rH_z(:,:,nz) = 0._rprec
+  else  
+    rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
+  endif
+$else
   rH_z(:,:,nz) = 0._rprec
-else
-  !H_z(:, :, nz) = BOGUS  !--perhaps this should be 0 on top process?
-  !Careful - only update real values (odd indicies)
-  rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
-end if
+$endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI) 
+  if (coord == nproc-1) then
+    rtopw(:, :) = const * divtz(:, :, nz)
+    call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
+  endif
+$else
   rtopw(:, :) = const * divtz(:, :, nz)
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
-end if
+$endif
 
 ! set oddballs to 0
 ! probably can get rid of this if we're more careful below
@@ -177,7 +189,7 @@ end if
 $endif
 
 !--switch order of inner/outer loops here
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   !  a,b,c are treated as the real part of a complex array
   a(:, :, 1) = BOGUS  !--was 0._rprec
@@ -205,8 +217,9 @@ else
 
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-
+$if ($MPI) 
+if (coord == nproc-1) then
+$endif
   !--top nodes
   a(:, :, nz+1) = -1._rprec
   b(:, :, nz+1) = 1._rprec
@@ -230,8 +243,10 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
     $endif
   end if
   $endif
-
-end if
+  !
+$if ($MPI)
+endif
+$endif
 
 $if ($DEBUG)
 if (DEBUG) write (*, *) coord, ' before H send/recv'
@@ -395,7 +410,7 @@ $if ($MPI)
   call mpi_recv (p_hat(1:2, 1, 1), 2, MPI_RPREC, down, 8, comm, status, ierr)
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   !p_hat(1, 1, 0) = 0._rprec
   !p_hat(1, 1, 1) = p_hat(1, 1, 0) - dz * bottomw(1, 1)
@@ -473,6 +488,20 @@ end do
 dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
+
+! Final step compute the z-derivative of p_hat
+! Calculate dpdz
+!   note: p has additional level at z=-dz/2 for this derivative
+dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
+     p_hat(1:nx, 1:ny, 0:nz-2)) / dz
+dfdz(:, :, nz) = BOGUS
+
+! ! Deallocate arrays
+! deallocate ( rH_x, rH_y, rH_z )
+! deallocate ( rtopw, rbottomw )
+! deallocate ( RHS_col )
+! deallocate ( a, b, c )
+
 
 $if ($VERBOSE)
 write (*, *) 'finished press_stag_array'

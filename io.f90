@@ -3,12 +3,12 @@ module io
 !///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
 use param, only : ld, nx, ny, nz, nz_tot, path,  &
-                  USE_MPI, coord, rank, nproc, jt_total, total_time, &
+                  coord, rank, nproc, jt_total, total_time, &
                   total_time_dim, lbz, jzmin, jzmax
 use param, only : cumulative_time, fcumulative_time
 use sim_param, only : w, dudz, dvdz
-use sgsmodule,only:Cs_opt2
-use strmod
+use sgs_param,only:Cs_opt2
+use string_util
 use messages
 
 implicit none
@@ -29,9 +29,7 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($CFL_DT)
-use param, only : dt, cfl_f
-$endif
+use param, only : use_cfl_dt, dt, cfl_f
 use sim_param,only:path
 
 implicit none
@@ -51,7 +49,7 @@ if (cumulative_time) then
     
     close (1)
   else  !--assume this is the first run on cumulative time
-    if( .not. USE_MPI .or. ( USE_MPI .and. coord == 0 ) ) then
+    if( coord == 0 ) then
       write (*, *) '--> Assuming jt_total = 0, total_time = 0., total_time_dim = 0.'
     endif
     jt_total = 0
@@ -61,11 +59,13 @@ if (cumulative_time) then
 
 end if
 
-$if($CFL_DT)
-dt = dt_r
-cfl_f = cfl_r
-$endif
+! Update dynamic time stepping info if required; otherwise discard.
+if( use_cfl_dt ) then
+   dt = dt_r
+   cfl_f = cfl_r
+endif
 
+return
 end subroutine openfiles
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -92,7 +92,7 @@ if(tavg_calc) then
 !  Check if we are in the time interval for running summations
   if(jt >= tavg_nstart .and. jt <= tavg_nend) then
     if(jt == tavg_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+      if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
         write(*,*) '-------------------------------'   
@@ -111,7 +111,7 @@ if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
   if(jt >= spectra_nstart .and. jt <= spectra_nend) then
     if(jt == spectra_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+      if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
         write(*,*) '-------------------------------'
@@ -131,7 +131,7 @@ endif
 if(point_calc) then
   if(jt >= point_nstart .and. jt <= point_nend .and. ( jt == point_nstart .or. mod(jt,point_nskip)==0) ) then
     if(jt == point_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then   
+      if (coord == 0) then   
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous point velocities from ', point_nstart, ' to ', point_nend
         write(*,"(1a,i9)") 'Iteration skip:', point_nskip
@@ -146,7 +146,7 @@ endif
 if(domain_calc) then
   if(jt >= domain_nstart .and. jt <= domain_nend .and. ( jt == domain_nstart .or. mod(jt,domain_nskip)==0) ) then
     if(jt == domain_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous domain velocities from ', domain_nstart, ' to ', domain_nend
         write(*,"(1a,i9)") 'Iteration skip:', domain_nskip
@@ -162,7 +162,7 @@ endif
 if(xplane_calc) then
   if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( jt == xplane_nstart .or. mod(jt,xplane_nskip)==0) ) then
     if(jt == xplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous x-plane velocities from ', xplane_nstart, ' to ', xplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', xplane_nskip
@@ -178,7 +178,7 @@ endif
 if(yplane_calc) then
   if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( jt == yplane_nstart .or. mod(jt,yplane_nskip)==0) ) then
     if(jt == yplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous y-plane velocities from ', yplane_nstart, ' to ', yplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', yplane_nskip
@@ -193,7 +193,7 @@ endif
 if(zplane_calc) then
   if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( jt == zplane_nstart .or. mod(jt,zplane_nskip)==0) ) then
     if(jt == zplane_nstart) then
-      if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then        
+      if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous z-plane velocities from ', zplane_nstart, ' to ', zplane_nend
         write(*,"(1a,i9)") 'Iteration skip:', zplane_nskip
@@ -249,11 +249,11 @@ $endif
 
 $if($LVLSET)
 use level_set_base, only : phi
-use immersedbc, only : fx, fy, fz, fxa, fya, fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
 use param, only : dx,dy,dz
-use param, only : model
-use sgsmodule, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
+use param, only : sgs_model
+use sgs_param, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
 include 'tecryte.h'      
@@ -306,7 +306,7 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
 $if($OUTPUT_EXTRA)
 !  Allocate arrays and interpolate to uv grid for LDSM output
-if( model == 4 .or. model == 5 ) then
+if( sgs_model == 4 .or. sgs_model == 5 ) then
 
   if( itype == 3 .or. itype == 4 .or. itype == 5 ) then
 
@@ -320,7 +320,7 @@ if( model == 4 .or. model == 5 ) then
     Cs_opt2_uv = interp_to_uv_grid( Cs_opt2(1:nx,1:ny,1:nz), 1 )
     Nu_t_uv = interp_to_uv_grid( Nu_t(1:nx,1:ny,1:nz), 1 )
 
-    if( model == 5) then
+    if( sgs_model == 5) then
 
       allocate( F_QN_uv(nx, ny, nz), F_NN_uv(nx,ny,nz) )
 
@@ -672,7 +672,7 @@ elseif(itype==3) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
@@ -726,7 +726,7 @@ elseif(itype==3) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-    elseif( model == 5 ) then
+    elseif( sgs_model == 5 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
@@ -883,7 +883,7 @@ elseif(itype==4) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(beta_s(nx,nz),Cs_opt2_s(nx,nz))
@@ -937,7 +937,7 @@ elseif(itype==4) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-    elseif( model == 5 ) then
+    elseif( sgs_model == 5 ) then
 
       allocate(F_LM_s(nx,nz),F_MM_s(nx,nz))
       allocate(F_QN_s(nx,nz),F_NN_s(nx,nz))
@@ -1093,7 +1093,7 @@ elseif(itype==5) then
     !/// WRITE LDSM                           ///
     !////////////////////////////////////////////
 
-    if( model == 4 ) then
+    if( sgs_model == 4 ) then
 
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
       allocate(beta_s(nx,ny),Cs_opt2_s(nx,ny))
@@ -1141,7 +1141,7 @@ elseif(itype==5) then
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
-     elseif( model == 5 ) then
+     elseif( sgs_model == 5 ) then
  
       allocate(F_LM_s(nx,ny),F_MM_s(nx,ny))
       allocate(F_QN_s(nx,ny),F_NN_s(nx,ny))
@@ -1351,9 +1351,9 @@ subroutine checkpoint (lun)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 use param, only : nz
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
-use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
-use sgsmodule, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 implicit none
 
@@ -1390,11 +1390,8 @@ subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
-$if($CFL_DT)
-use param, only : cfl
-$else
-use cfl_mod, only : get_max_cfl
-$endif
+use param, only : use_cfl_dt, cfl
+use cfl_util, only : get_max_cfl
 
 implicit none
 
@@ -1431,15 +1428,15 @@ close (lun)
 
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
-$if($CFL_DT)
-cfl_w = cfl
-$else
-cfl_w = get_max_cfl()
-$endif
+if( use_cfl_dt ) then
+   cfl_w = cfl
+else
+   cfl_w = get_max_cfl()
+endif
 
 !  Update total_time.dat after simulation
 !if ((cumulative_time) .and. (lun == lun_default)) then
-  if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     !--only do this for true final output, not intermediate recording
     open (1, file=fcumulative_time)
 
@@ -1526,7 +1523,7 @@ subroutine stats_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
-use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz
+use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz,lh
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
@@ -1587,6 +1584,7 @@ if(spectra_calc) then
   do k=1,spectra_nloc
 
     !  Initialize sub-arrays
+    allocate( spectra_t(k)%power(lh) )
     spectra_t(k) % power = 0._rprec
 
     $if ($MPI)
@@ -1691,13 +1689,13 @@ if(point_calc) then
 
       !  Can't concatenate an empty string
       point_t(i) % fname=''
-      call strcat(point_t(i) % fname,'output/vel.x-')
-      call strcat(point_t(i) % fname, point_loc(i)%xyz(1))
-      call strcat(point_t(i) % fname,'.y-')
-      call strcat(point_t(i) % fname,point_loc(i)%xyz(2))
-      call strcat(point_t(i) % fname,'.z-')
-      call strcat(point_t(i) % fname,point_loc(i)%xyz(3))
-      call strcat(point_t(i) % fname,'.dat')
+      call string_concat(point_t(i) % fname,'output/vel.x-')
+      call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
+      call string_concat(point_t(i) % fname,'.y-')
+      call string_concat(point_t(i) % fname,point_loc(i)%xyz(2))
+      call string_concat(point_t(i) % fname,'.z-')
+      call string_concat(point_t(i) % fname,point_loc(i)%xyz(3))
+      call string_concat(point_t(i) % fname,'.dat')
    
       !  Add tecplot header if file does not exist
       inquire (file=point_t(i) % fname, exist=exst)
@@ -1720,13 +1718,13 @@ if(point_calc) then
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 
     point_t(i) % fname=''
-    call strcat(point_t(i) % fname,'output/vel.x-')
-    call strcat(point_t(i) % fname, point_loc(i)%xyz(1))
-    call strcat(point_t(i) % fname,'.y-')
-    call strcat(point_t(i) % fname,point_loc(i)%xyz(2))
-    call strcat(point_t(i) % fname,'.z-')
-    call strcat(point_t(i) % fname,point_loc(i)%xyz(3))
-    call strcat(point_t(i) % fname,'.dat')
+    call string_concat(point_t(i) % fname,'output/vel.x-')
+    call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
+    call string_concat(point_t(i) % fname,'.y-')
+    call string_concat(point_t(i) % fname,point_loc(i)%xyz(2))
+    call string_concat(point_t(i) % fname,'.z-')
+    call string_concat(point_t(i) % fname,point_loc(i)%xyz(3))
+    call string_concat(point_t(i) % fname,'.dat')
 
     !  Add tecplot header if file does not exist
     inquire (file=point_t(i) % fname, exist=exst)
@@ -1749,7 +1747,7 @@ end subroutine stats_init
 subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
-use param, only : coord, dt, USE_MPI, Nx, Ny, Nz
+use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
 use param, only : tavg_nstart, tavg_nend
@@ -1777,7 +1775,7 @@ $endif
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   !  Nothing to read in
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous time averaged data - starting from scratch.'
   endif
@@ -1815,7 +1813,7 @@ use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
-use immersedbc, only : fx, fy, fz, fxa, fya, fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -1959,13 +1957,15 @@ logical :: opn
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
 
-real(rprec), parameter :: favg = real(nx*ny,kind=rprec)
+real(rprec) :: favg
 
 $if($LVLSET)
 real(rprec) :: fx_global, fy_global, fz_global
 $endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
+
+favg = real(nx*ny,kind=rprec)
 
 nullify(x,y,z,zw)
 
@@ -2335,7 +2335,7 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
 
   $endif
   
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     open(unit = 1, file = "output/force_total_avg.dat", status="unknown", position="rewind") 
     write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
     close(1)
@@ -2571,7 +2571,7 @@ subroutine spectra_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use messages
-use param, only : coord, dt, USE_MPI, spectra_nloc, lh, nx
+use param, only : coord, dt, spectra_nloc, lh, nx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
 
@@ -2597,7 +2597,7 @@ $endif
 inquire (file=fname, exist=exst)
 if (.not. exst) then
   !  Nothing to read in
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous spectra data - starting from scratch.'
   endif

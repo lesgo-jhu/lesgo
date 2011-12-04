@@ -1,10 +1,11 @@
 program trees_pre_ls
 use types, only : rprec
 use param, only : nx, ny, nz, BOGUS, nproc
+use input_util, only : read_input_conf
 use trees_base_ls, only : grid_initialize, pt_of_grid
 use trees_setup_ls, only : fill_tree_array, sdistfcn_tree_array
 use trees_io_ls, only : draw_tree_array
-use trees_global_fmask_ls, only : calc_global_fmask_ta
+use trees_global_fmask_ls, only : global_fmask_init, calc_global_fmask_ta
 implicit none
 
 !character (*), parameter :: ftrees_conf = 'trees.conf'
@@ -71,8 +72,10 @@ else
   
 end if
 
-!write (*, *) 'reading ' // ftrees_conf
-!call read_trees_conf ()
+! First set the number of processors to run lesgo
+nproc = np
+! Now load the lesgo case information from lesgo.conf
+call read_input_conf()
 
 call grid_initialize ()
 call fill_tree_array ()
@@ -249,8 +252,9 @@ deallocate ( brindex )
 deallocate ( phi )
 
 if (do_calc_global_fmask) then  !--global fmask initialization
-    call calc_global_fmask_ta ( np, MPI_split )
-        !--this also writes to file, which is why we pass MPI stuff
+   call global_fmask_init()
+   call calc_global_fmask_ta ( np, MPI_split )
+   !--this also writes to file, which is why we pass MPI stuff
 end if
 
 end program trees_pre_ls

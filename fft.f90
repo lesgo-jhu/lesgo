@@ -18,7 +18,9 @@ public :: fftwNull_p
 
 ! plans
 integer*8::forw,back,forw_big,back_big, forw_spectra
-real(kind=rprec),dimension(lh,ny) :: kx,ky,k2
+!real(kind=rprec),dimension(lh,ny) :: kx,ky,k2
+real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
+
 complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
 integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
@@ -65,6 +67,9 @@ subroutine init_wavenumber()
 use param,only:lh,nx,ny,L_x,L_y,pi
 implicit none
 integer :: jx,jy
+
+! Allocate wavenumbers
+allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
 
 do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)

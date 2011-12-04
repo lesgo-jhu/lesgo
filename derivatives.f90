@@ -42,7 +42,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
 do jz=lbz,nz
@@ -95,7 +97,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 ! Loop through horizontal slices
 do jz=lbz,nz    
@@ -143,7 +147,9 @@ integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec / ( nx * ny )
 
 !...Loop through horizontal slices
 do jz=lbz,nz
@@ -186,7 +192,7 @@ subroutine ddz_uv(f, dfdz, lbz)
 !  bottom process it only supplies 2:nz
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
+use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
 implicit none
 
 integer, intent(in) :: lbz
@@ -226,15 +232,23 @@ end do
 !--should integrate this into the above loop, explicit zeroing is not
 !  needed, since dudz, dvdz are forced to zero by copying the u, v fields
 !--also, what happens when called with tzz? 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI) 
+
+  if (coord == nproc-1) then
+    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+  else
+    do jy=1,ny
+    do jx=1,nx
+       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+    end do
+    end do
+  endif
+
+$else
+
   dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-else
-  do jy=1,ny
-  do jx=1,nx
-     dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
-  end do
-  end do
-end if
+
+$endif
 
 return
 end subroutine ddz_uv
@@ -250,7 +264,7 @@ subroutine ddz_w(f, dfdz, lbz)
 !  has 1:nz-1
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz, USE_MPI, coord, nproc, BOGUS
+use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
 implicit none
 
 integer, intent(in) :: lbz
@@ -269,24 +283,20 @@ end do
 end do
 end do
 
-if (USE_MPI .and. coord == 0) then
-  !--bottom process cannot calculate dfdz(jz=0)
-  dfdz(:, :, lbz) = BOGUS
-end if
-
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-  !--this is not needed
-  ! Stress free lid (ubc)
-  !if (ubc==0) then stop
-
-  !else
-  !--do not need to do this
+$if ($MPI)
+    if (coord == 0) then
+      !--bottom process cannot calculate dfdz(jz=0)
+      dfdz(:, :, lbz) = BOGUS
+    endif
+    if (coord == nproc-1) then
+      dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
+    else
+      dfdz(:, :, nz) = BOGUS
+    end if
+$else
   dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
-  !end if
-else
-  !--does not supply dfdz(:, :, nz)
-  dfdz(:, :, nz) = BOGUS
-end if
+$endif
+
 
 end subroutine ddz_w
 
@@ -314,7 +324,9 @@ real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
 
-real(kind=rprec), parameter ::const = 1._rprec/(nx*ny)
+real(rprec) :: const
+
+const = 1._rprec/(nx*ny)
 
 ! loop through horizontal slices
 do jz=lbz,nz

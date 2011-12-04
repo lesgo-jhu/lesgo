@@ -1,10 +1,15 @@
 !**********************************************************************
-module cfl_mod
+module cfl_util
 !**********************************************************************
 !
 ! This module provides the subroutines/functions for getting CFL related
 ! quantities 
 !
+save 
+private
+
+public get_max_cfl, get_cfl_dt
+
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -46,7 +51,6 @@ $endif
 return
 end function get_max_cfl
 
-$if($CFL_DT)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function get_cfl_dt() result(dt)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -88,6 +92,5 @@ $endif
 
 return
 end function get_cfl_dt
-$endif
 
-end module cfl_mod
+end module cfl_util

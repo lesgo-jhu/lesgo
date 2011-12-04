@@ -13,8 +13,9 @@ real(kind=rprec),dimension(lh, ny, nz+1),intent(in):: a, b, c
 real(rprec), dimension(ld,ny,nz+1), intent(in) :: r
 real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 
-integer, parameter :: n = nz+1
-integer, parameter :: nchunks = ny  !--need to experiment to get right value
+! integer, parameter :: n = nz+1
+! integer, parameter :: nchunks = ny  !--need to experiment to get right value
+integer :: n, nchunks
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -34,6 +35,10 @@ real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
 
 !--want to skip ny/2+1 and 1, 1
+
+! Initialize variables
+n = nz + 1
+nchunks = ny
 
 chunksize = ny / nchunks  !--make sure nchunks divides ny evenly
 
@@ -184,11 +189,15 @@ do q = 1, nchunks
 !  write (*, fmt) coord, ': P2: gam(2,2,n) = ', gam(2, 2, n)
 !end if
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-!  j_max = n-1
-!else
+!$if ($MPI)
+!  if (coord == nproc-1) then
+!    j_max = n
+!  else
+!    j_max = n-1
+!  endif
+!$else
 !  j_max = n
-!end if
+!$endif
 
   do j = n-1, j_min, -1
 

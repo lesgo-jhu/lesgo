@@ -1,15 +1,151 @@
+!**********************************************************************
 module string_util
+!**********************************************************************
+!
+!  This module contains the generic subroutines and functions for
+!  manipulating strings
+!
 implicit none
 
-public
+save
+private
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+public :: string_concat, &
+     numtostr, &
+     eat_whitespace, &
+     uppercase, &
+     split_string, &
+     count_string_occur
+
+interface string_concat
+  module procedure strcat_aa, strcat_ai, strcat_ar
+end interface
+
+! Explicit interface for overloaded function to convert
+! reals and integer to strings
+interface numtostr
+  module procedure numtostr_r, numtostr_i
+end interface
+
+character(*), parameter :: int_fmt='(i0)'
+character(*), parameter :: real_fmt='(f9.4)'
+
 contains
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--eats leading and intermediate whitespace, fill trailing space with
-!  blanks
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine eat_whtspc (buff, whtspc)
+
+!**********************************************************************
+subroutine strcat_aa(str1, str2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str1
+character(*), intent(IN) :: str2
+
+str1 = trim(adjustl(str1)) // str2
+
+return
+end subroutine strcat_aa
+
+!**********************************************************************
+subroutine strcat_ar(str1, r1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str1
+real(rprec), intent(IN) :: r1
+character(120) :: str2
+
+write (str2,real_fmt) r1
+
+call string_concat(str1,trim(adjustl(str2)))
+
+return
+end subroutine strcat_ar
+
+!**********************************************************************
+subroutine strcat_ai(str1, i1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str1
+integer, intent(IN) :: i1
+character(120) :: str2
+
+write (str2,int_fmt) i1
+
+call string_concat(str1,trim(adjustl(str2)))
+
+return
+end subroutine strcat_ai
+
+!**********************************************************************
+function numtostr_r( a, n ) result(c)
+!**********************************************************************
+!
+! This function converts the real variable a to a string b
+!
+! Inputs
+! a : real, scalar value to convert
+! n : length of string to return 
+!
+use types, only : rprec
+implicit none
+
+real(rprec), intent(in) :: a
+integer, intent(in) :: n
+integer, parameter :: l=2*kind(a)+2
+character(l) :: b
+character(n) :: c
+character(25) :: fmt
+
+write(*,*) 'a : ', a
+write( fmt, '("(f",i0,".",i0,")")' ) l, l/2
+write(*,*) 'fmt : ', fmt
+
+write(b,fmt) a
+write(*,*) 'b : ', b
+
+b = trim(adjustl(b))
+c = b(:n)
+write(*,*) 'c : ', c
+return
+end function numtostr_r
+
+!**********************************************************************
+function numtostr_i( a, n ) result(c)
+!**********************************************************************
+!
+! This function converts the real variable a to a string b
+!
+! Inputs
+! a : real, scalar value to convert
+! n : length of string to return 
+!
+implicit none
+
+integer, intent(in) :: a
+integer, intent(in) :: n
+integer, parameter :: l = 2*kind(a)+2
+character(l) :: b
+character(n) :: c
+
+write(b,'(i0)') a
+b = adjustl(b)
+c = b(:n)
+
+return
+end function numtostr_i
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine eat_whitespace (buff, whtspc)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! eats leading and intermediate whitespace, fill trailing space with
+! blanks
+!
+
 implicit none
 
 character (*), intent (inout) :: buff
@@ -22,8 +158,6 @@ character (1), parameter :: fill_char = ' '
 character (1) :: tmp (len (buff))
 character (1) :: fill (len (buff))
 
-!---------------------------------------------------------------------
-
 fill = fill_char
 tmp = transfer (buff, tmp)
 
@@ -35,14 +169,124 @@ end if
 
 buff = transfer (tmp, buff)
 
-end subroutine eat_whtspc
+end subroutine eat_whitespace
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--count occurences of substring in string
-!--does not count occurence to overlap, e.g. eee is 1 occurence of ee,
-!  *unless* optional argument overlap = 'yes', then its 2
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function countocc (string, substring, overlap)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function uppercase(str) result(ucstr)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! convert specified string to upper case
+!
+character (len=*):: str
+character (len=len_trim(str)):: ucstr
+integer :: i, ilen, iav, ioffset, iqc, iquote
+
+ilen=len_trim(str)
+ioffset=iachar('A')-iachar('a')
+iquote=0
+ucstr=str
+do i=1,ilen
+  iav=iachar(str(i:i))
+  if(iquote==0 .and. (iav==34 .or.iav==39)) then
+    iquote=1
+    iqc=iav
+    cycle
+  end if
+  if(iquote==1 .and. iav==iqc) then
+    iquote=0
+    cycle
+  end if
+  if (iquote==1) cycle
+  if(iav >= iachar('a') .and. iav <= iachar('z')) then
+    ucstr(i:i)=achar(iav+ioffset)
+  else
+    ucstr(i:i)=str(i:i)
+  end if
+end do
+return
+
+end function uppercase
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine split_string( string, delim, nseg, sarray )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine splits 'string' based on the specified delimiter
+! 'delim'. Specified is the number of string segments 'nseg' to return
+! by 'sarray'
+!
+implicit none
+
+character(*), intent(in) :: string, delim
+integer, intent(in) :: nseg
+
+character(*), dimension(nseg), intent(inout) :: sarray
+
+! String buffers (assuming length)
+character(128) :: buff_old, buff
+integer :: pos, istop, n
+
+! Length of the delimiter
+integer :: delim_len
+
+! Get the length of the delimiter (excluding trailing whitespace)
+delim_len = len_trim(delim)
+
+! First make sure string is not empty
+if( len_trim(string) == 0 ) then
+   write(*,*) 'Specified string is empty'
+   stop
+endif
+
+! Initialize position of delimiter (rewind a bit)
+pos=-delim_len+1
+! Initialize stop flag
+istop=0
+! Initialize string buffer
+buff = string
+
+n = 0
+do while (istop .ne. 1)
+
+   n = n + 1
+
+   if( n > nseg ) then
+      write(*,*) 'Number of found segments greater than the specified number'
+      stop
+   endif
+
+   ! Save old buffer
+   buff_old = buff
+   ! New buffer starts after first delimiter position of old buffer
+   buff = trim( adjustl( buff_old(pos+delim_len:) ) )
+   ! Get the position of the first delmiter in the new buffer
+   pos = index( buff, delim )
+   
+   if( pos > 0 ) then
+      sarray(n) = buff(:pos-1)
+   else
+      ! Assuming this is the last segment
+      sarray(n) = trim( adjustl( buff ) )
+      istop = 1
+   endif
+
+end do 
+
+if( n .ne. nseg ) then
+   write(*,*) 'Warning: number of found segments not equal to the specified number'
+endif 
+
+return
+end subroutine split_string
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function count_string_occur (string, substring, overlap) result( countocc )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function counts the number of occurences of 'substring' in
+! 'string' --does not count occurence to overlap, e.g. eee is 1 occurence
+! of ee, *unless* optional argument overlap = 'yes', then its 2
+
 implicit none
 
 integer :: countocc
@@ -51,8 +295,6 @@ character (*), intent (in) :: string, substring
 logical, intent (in), optional :: overlap
 
 integer :: i, p, m
-
-!---------------------------------------------------------------------
 
 m = len (substring) - 1
 if (present (overlap)) then
@@ -68,6 +310,6 @@ do while (i /= 0)
   i = index (string(p:), substring)
 end do
 
-end function countocc
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+end function count_string_occur
+
 end module string_util
