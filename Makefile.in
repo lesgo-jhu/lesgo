@@ -8,10 +8,12 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
+
+HOSTNAME = $(shell hostname -s)
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
 q64 = no
@@ -32,7 +34,7 @@ DEVEL=no
 OUTPUT_EXTRA=no
 
 # watch the whitespace here
-USE_MPI = yes
+USE_MPI = no
 USE_OPENMP = no
 
 # Set dt based on CFL condition
@@ -50,14 +52,18 @@ READ_ENDIAN = DEFAULT
 USE_DYNALLOC = no
 #--still experimental
 
-USE_LVLSET = yes
+USE_LVLSET = no
   SMOOTH_VEL = no
 
-  USE_CYL_SKEW_LS = no
   USE_RNS_LS = no
-  USE_TREES_LS = no
+
+  USE_CYL_SKEW_LS = no
 
 USE_TURBINES = no
+
+# Concurrent precursor simulation 
+# Requires configuration of two builds: upstream and downstream
+USE_CPS=no
 
 # Calc Lag-avg timescale w. error autocorrelation
 USE_DYN_TN = no
@@ -111,7 +117,11 @@ ifeq ($(FCOMP),gfortran)
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    FC = gfortran44
+    ifeq ($(HOSTNAME), panoramix)
+      FC = gfortran44
+    else
+      FC = gfortran
+    endif
   endif
 
   LIBS += -ltecryte
@@ -125,7 +135,7 @@ ifeq ($(FCOMP),gfortran)
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p
-  LDFLAGS = 
+  LDFLAGS =
   MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR) $(INCLPATH)
 endif

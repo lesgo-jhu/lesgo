@@ -16,7 +16,6 @@ integer, parameter :: MPI_SYNC_DOWN=1
 integer, parameter :: MPI_SYNC_UP=2
 integer, parameter :: MPI_SYNC_DOWNUP=3
 
-
 contains
 
 !**********************************************************************
@@ -24,9 +23,13 @@ subroutine initialize_mpi()
 !**********************************************************************
 use types, only : rprec
 use param
+$if($CPS)
+use concurrent_precursor
+$endif
 implicit none
 
 integer :: ip, np, coords(1)
+integer :: localComm
 
 !--check for consistent preprocessor & param.f90 definitions of 
 !  MPI and $MPI
@@ -36,10 +39,23 @@ if (.not. USE_MPI) then
 end if
 
 call mpi_init (ierr)
-call mpi_comm_size (MPI_COMM_WORLD, np, ierr)
-call mpi_comm_rank (MPI_COMM_WORLD, global_rank, ierr)
 
-  !--check if run-time number of processes agrees with nproc parameter
+$if($CPS)
+
+  ! Create the local communicator (split from MPI_COMM_WORLD)
+  ! This also sets the globally defined intercommunicator (bridge)
+  call create_mpi_comms_cps( localComm ) 
+
+$else
+
+  localComm = MPI_COMM_WORLD
+
+$endif
+
+call mpi_comm_size (localComm, np, ierr)
+call mpi_comm_rank (localComm, global_rank, ierr)
+
+!--check if run-time number of processes agrees with nproc parameter
 if (np /= nproc) then
   write (*, *) 'runtime number of procs = ', np,  &
                ' not equal to nproc = ', nproc
@@ -47,11 +63,12 @@ if (np /= nproc) then
 end if
 
   !--set up a 1d cartesian topology 
-call mpi_cart_create (MPI_COMM_WORLD, 1, (/ nproc /), (/ .false. /),  &
+call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
   .true., comm, ierr)
-  !--slight problem here for ghost layers:
-  !  u-node info needs to be shifted up to proc w/ rank "up",
-  !  w-node info needs to be shifted down to proc w/ rank "down"
+
+!--slight problem here for ghost layers:
+!  u-node info needs to be shifted up to proc w/ rank "up",
+!  w-node info needs to be shifted down to proc w/ rank "down"
 call mpi_cart_shift (comm, 0, 1, down, up, ierr)
 call mpi_comm_rank (comm, rank, ierr)
 call mpi_cart_coords (comm, rank, 1, coords, ierr)

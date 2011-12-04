@@ -13,13 +13,12 @@ use param,only:ld,ny,nz
 implicit none
 private
 public fx,fy,fz,fxa,fya,fza
-!       u_des,v_des,w_des
-       
 
-!real(kind=rprec),dimension(ld,ny,nz)::u_des,v_des,w_des
-real(kind=rprec),dimension(ld,ny,nz)::fx = 0._rprec ,fy = 0._rprec ,fz = 0._rprec
-
-! Added for use with applied forces
-real(kind=rprec),dimension(ld,ny,nz) :: fxa = 0._rprec ,fya = 0._rprec ,fza = 0._rprec
+real(kind=rprec),dimension(ld,ny,nz) :: fx = 0._rprec, &
+     fy = 0._rprec, &
+     fz = 0._rprec
+real(kind=rprec),dimension(ld,ny,nz) :: fxa = 0._rprec, &
+     fya = 0._rprec, &
+     fza = 0._rprec
 
 end module immersedbc

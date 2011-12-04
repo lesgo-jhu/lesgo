@@ -6,7 +6,7 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : openfiles, output_loop, output_final, jt_total, inflow_write, stats_init
+use io, only : openfiles, output_loop, output_final, jt_total, stats_init
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use immersedbc, only : fxa, fya, fza
@@ -16,6 +16,9 @@ use cfl_mod
 
 $if ($MPI)
   use mpi_defs, only : initialize_mpi, mpi_sync_real_array, MPI_SYNC_UP
+  $if($CPS)
+  use concurrent_precursor, only : initialize_cps
+  $endif
 $endif
 
 $if ($LVLSET)
@@ -31,10 +34,6 @@ use level_set_base, only : global_CD_calc
   
   $endif
 
-$endif
-
-$if ($TREES_LS)
-use trees_ls, only : trees_ls_finalize, trees_ls_init
 $endif
 
 $if ($TURBINES)
@@ -62,7 +61,6 @@ type(clock_type) :: clock_t, clock_total_t
 
 ! Start the clocks, both local and total
 call clock_start( clock_t )
-clock_total_t = clock_t
 
 ! Create output directory
 call system("mkdir -vp output")
@@ -73,7 +71,10 @@ call sim_param_init ()
 
 ! Initialize MPI
 $if ($MPI)
-call initialize_mpi()
+  call initialize_mpi()
+  $if($CPS)
+    call initialize_cps()
+  $endif
 $else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
@@ -114,13 +115,6 @@ $if ($LVLSET)
     call rns_init_ls ()
   $endif
   
-  ! Initialize fractal trees
-  $if ($TREES_LS)
-  !--this must come after initial, since fx, fy, fz are set 0 there
-  !  and this call may read fx, fy, fz from a file
-    call trees_ls_init ()
-  $endif          
-
 $endif
 
 ! Initialize velocity field
@@ -170,6 +164,8 @@ $else
   call clock_stop( clock_t )
   write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
 $endif
+
+call clock_start( clock_total_t )
 
 ! BEGIN TIME LOOP
 do jt=1,nsteps   
@@ -372,7 +368,7 @@ do jt=1,nsteps
         call DEBUG_write (dpdx(:, :, 1:nz), 'main.a.dpdx')
         call DEBUG_write (dpdy(:, :, 1:nz), 'main.a.dpdy')
         call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
-        call DEBUG_write (fx(:, :, 1:nz), 'main.a.fx')
+        call DEBUG_write (fxa(:, :, 1:nz), 'main.a.fxa')
         call DEBUG_write (force, 'main.a.force')
     end if
     $endif
@@ -519,9 +515,6 @@ do jt=1,nsteps
     call output_loop (jt)  
     !RNS: Determine if instantaneous plane velocities are to be recorded
         
-    ! Write inflow_BC file for future use
-    if (write_inflow_file) call inflow_write () 
-
     ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
     if (modulo (jt, wbase) == 0) then
        
@@ -583,9 +576,6 @@ call output_final (jt)
 
 ! Level set:
 $if ($LVLSET)
-  $if ($TREES_LS)
-  call trees_ls_finalize ()
-  $endif
 
   $if ($RNS_LS)
   call rns_finalize_ls ()

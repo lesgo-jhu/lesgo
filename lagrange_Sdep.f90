@@ -267,9 +267,9 @@ do jz = 1,nz
 
     ! Inflow (???)        
         if(inflow)then
-           iend = floor (buff_end * nx + 1._rprec)
+           iend = floor (fringe_region_end * nx + 1._rprec)
            iend = modulo (iend - 1, nx) + 1
-           istart = floor ((buff_end - buff_len) * nx + 1._rprec)
+           istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
            istart = modulo (istart - 1, nx) + 1
            
            Tn=merge(.1_rprec*const*S**2,MM,MM.le..1_rprec*const*S**2)

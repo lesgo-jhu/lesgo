@@ -30,16 +30,16 @@ subroutine ic()
 
 
   !if (DEBUG) then
-  !  u = face_avg
+  !  u = inflow_velocity
   !  v = 0._rprec
   !  w = 0._rprec
   !  return
   !end if
 
-  if ((inflow) .and. (.not. read_inflow_file)) then  !--no turbulence
+  if ( inflow .and. uniform_inflow ) then  !--no turbulence
 
-     u = face_avg 
-     v = 0.05_rprec * face_avg
+     u = inflow_velocity 
+     v = 0.05_rprec * inflow_velocity
      w = 0._rprec
 
   else 

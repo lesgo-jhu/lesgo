@@ -89,8 +89,7 @@ module param
 
   ! Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
-  ! Models type: 1->static prandtl, 2->Dynamic
-  integer,parameter::model=5,models=1,nnn=2
+  integer,parameter::model=5, nnn=2
 
   ! timesteps between dynamic Cs updates           
   integer, parameter :: cs_count = 5
@@ -105,7 +104,7 @@ module param
   integer,parameter::ifilter=1
 
   ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
-  real(rprec),parameter::u_star=0.45_rprec,Pr=.4_rprec
+  real(rprec),parameter::u_star=0.45_rprec
 
   ! von Karman constant     
   real(rprec),parameter::vonk=0.4_rprec   
@@ -173,27 +172,20 @@ module param
   ! prescribed inflow:   
   logical,parameter::inflow=.false.
   ! if inflow is true the following should be set:
-    ! position of right end of buffer region, as a fraction of L_x
-    real (rprec), parameter :: buff_end = 1._rprec
-    ! length of buffer region as a fraction of L_x
-    real (rprec), parameter :: buff_len = 0.125_rprec  
-    real (rprec), parameter :: face_avg = 1.0_rprec
-    ! true to read from file; false to set as constant
-    ! read from file is not working properly
-    logical, parameter :: read_inflow_file = .false.
-    logical, parameter :: write_inflow_file = .false.
-    ! records at position jx_s
-    integer, parameter :: jt_start_write = 6
-    ! forcing along top and bottom bdrys
-    ! if inflow is true and force_top_bot is true, then the top & bottom
-    ! velocities are forced to the inflow velocity
-    logical, parameter :: force_top_bot = .false.
+    ! position of right end of fringe region, as a fraction of L_x
+    real (rprec), parameter :: fringe_region_end = 1._rprec
+    ! length of fringe region as a fraction of L_x
+    real (rprec), parameter :: fringe_region_len = 0.125_rprec  
 
-    ! If true the inflow will be forced to the velocity at a sampled location
-    ! Use instead of face_avg and read_inflow_file
-    logical, parameter :: inflow_sample_velocity=.true.
-    ! Sample location as a fraction of L_x
-    real(rprec), parameter :: inflow_sample_location=0.5_rprec
+    ! Use uniform inflow instead of concurrent precursor inflow
+    logical, parameter :: uniform_inflow = .false.
+      real (rprec), parameter :: inflow_velocity = 1.0_rprec
+      ! velocities are forced to the inflow velocity
+      logical, parameter :: force_top_bot = .false.
+
+    ! Use concurrent precursor setup instead of uniform inflow
+    ! Make sure USE_CPS=true in Makefile.in
+    logical, parameter :: concurrent_precursor_inflow = .true. 
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical, parameter :: use_mean_p_force = .true.

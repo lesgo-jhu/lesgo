@@ -50,11 +50,6 @@ ifeq ($(READ_ENDIAN),BIG)
   FPP += -DREAD_BIG_ENDIAN
 endif
 
-
-ifeq ($(USE_TREES_LS), yes)
-  FPP += -DTREES_LS
-endif
-
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
   ifeq ($(SMOOTH_VEL), yes)
@@ -76,4 +71,8 @@ endif
 
 ifeq ($(USE_DYN_TN), yes)
   FPP += -DDYN_TN
+endif
+
+ifeq ($(USE_CPS), yes)
+  FPP += -DCPS
 endif

@@ -1,118 +1,195 @@
-Notes on "JHSC-trees" code by Stuart Chester
-Additions by Jason Graham
+Notes on lesgo by:
+      Stuart Chester
+      Jason Graham
 
-The code can simulate turbulent flow over tree geometries and is divided into 3
-parts:
+========================================================================
+			       DISCLAIMER
+========================================================================
 
-1) LES flow solver
-2) Level set immersed boundary implementation (level_set*.f90).
-3) Tree analysis (trees*_ls.f90, the "ls" stands for "level set").  Contains
-BRS/RNS code.
-
-To compile the code a fortran 95 compiler is required, along with the following
-two tools:
-
-* makedepf90 (http://www.helsinki.fi/~eedelman/makedepf90.html)
-The Makefile makes use of this to determine file dependencies.
-
-* fpx3 (http://wwwuser.gwdg.de/~jbehren/fpx3.html)
-A fortran preprocessor.  The main reason this is used is to isolate calls to MPI
-libraries, so that if someone wants to run the code in non-MPI mode, then it
-will compile cleanly and
-the compiler/linker will not complain about missing MPI libraries.
-fpx3 macros are also used to hide some other definitions from the compiler,
-e.g., some array dimensions. The Makefile runs the preprocessor as a step in
-compilation.
-
-Please keep in mind that many parts of the code were developed without a clear
-idea of exactly where the program was headed, since various ideas are tried and
-discarded as part of the research process.  This means that code organization is
-not optimal in some spots, and that not all options are fully implemented.  My
-advice is ALWAYS read whatever parts of the code you are using to find out what
-they really do.
+Please keep in mind that many parts of the code were developed without a
+clear idea of exactly where the program was headed, since various ideas
+are tried and discarded as part of the research process.  This means
+that code organization is not optimal in some spots, and that not all
+options are fully implemented.  My advice is ALWAYS read whatever parts
+of the code you are using to find out what they really do.
 
 
+========================================================================
+				OVERVIEW
+========================================================================
 
-LES CODE
+The code can simulate turbulent flow over tree geometries and is divided
+into several major parts:
 
-The LES flow solver is parallelized with MPI.  The key here is the pressure
-solver. I chose to use a pipelining technique to parallelize this, since it is
-simple and there isn't really any better options for parallelizing the solution
-of many small tridiagonal systems.  The best size of the chunks to send "down
-the pipeline" can be controlled via the variable "chunksize", and WILL depend on
-the computer hardware and simulation size.  It would probably advantageous to
-add a routine that adjusts the chunk size automatically by making speed
-measurements at the beginning of the 
-simulation. 
+* LES flow solver
 
-The flow domain is evenly divided in the vertical (z) direction between the MPI
-processes.  Each MPI-process has its "own" z-levels indexed by jz = 1 to nz-1.
-The z-levels jz = 0 and jz = nz are only for holding data that has been copied
-from the process below or above the current one.
+* Level set immersed boundary implementation (level_set*.f90).
 
-The immersed boundary forces are used by the trees and level set code, so if
-something is changed here, then check dependent parts of the code in those
-modules.
+* Renormalized numerical simulation (subgrid force modeling; depends
+  on IB implementation)
+
+* Wind farm modeling 
+
+* Concurrent precursor simulation
+
+Each part will be discussed in their respective sections.
 
 
+========================================================================
+			      DEPENDENCIES
+========================================================================
 
-LEVEL SET
+The following dependencies are required in order to compile lesgo:
 
-To use the level set modules in a simulation, a file "phi.out" containing the
-signed distance function data must be created first.  This must be generated
-with a separate program, see the program in "trees_pre_ls.f90" for making the
-tree level set files.
-I recommend making the signed distance function exact if possible, or at
-least sampled at a higher resolution than the computational grid.
-There are many adjustable parameters within level_set.f90 that control how the
-boundary conditions at the level set surface are applied.  If you encounter
-problems (e.g., kinks in velocity profiles), try adjusting some of these (e.g.,
-length scale parameters that control how close a given point must be to the
-surface before an certain action is taken).  Just make sure to read all code
-associated with some of these parameters, since some are experimental, and may
-not be ready for "prime time".
+* Fortran 95 compiler: 
 
-The variables "nphitop", "nphibot", etc., control how many extra z-levels are
-copied between MPI processes when determining boundary conditions (at top and
-bottom of the process-local domain).  The values to use here are geometry
-dependent, and it is pretty hard to determine in advance exactly what they
-should be. These values should be as small as possible so the MPI transfers
-involve the least amount of data.  Right now, my approach has been to pick some
-initial values and
-when the code fails, then increase the values.  the good news here is that all
+  Most modern compilers will work fine. Ones that have been used
+  successfully are G95, GFortran (>= 4.4), Intel, and PGI
+
+* makedepf90 (http://www.helsinki.fi/~eedelman/makedepf90.html) 
+
+  The Makefile makes use of this to determine file dependencies.
+
+* fpx3 (http://wwwuser.gwdg.de/~jbehren/fpx3)
+
+  This is a fortran preprocessor. The main reason this is used is to
+  isolate calls to MPI libraries, so that if someone wants to run the
+  code in non-MPI mode, then it will compile cleanly and the
+  compiler/linker will not complain about missing MPI libraries. fpx3
+  macros are also used to hide some other definitions from the compiler,
+  e.g., some array dimensions. The Makefile runs the preprocessor as a
+  step in compilation.
+
+* tecryte (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
+
+  Currently all of the data output is written in Tecplot format. tecryte
+  is a library that we have developed to write data to Tecplot formatted
+  files. All of the data is written in block format and has been
+  optimized to work well over both local and distributed file systems.
+
+------------------------------------------------------------------------
+				OPTIONAL
+------------------------------------------------------------------------
+
+* MPI implementation:
+
+  A MPI implementation will be required for MPI support. The code has
+  been developed and used successfully with MPICH2
+  (http://www.mcs.anl.gov/research/projects/mpich2/) but others such as
+  OpenMPI may work as well.
+
+* lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
+
+  lesgo-tools provides a set of scripts that aid in working with stable snapshots of lesgo. 
+
+
+========================================================================
+			    LES FLOW SOLVER
+========================================================================
+
+The LES flow solver is a psuedo-spectral solver in which spectral
+discretization is applied in the longitudinal and spanwise directions (x
+and y, repsectively) and in the vertical (z) direction 2nd order finite
+differences are applied. The solver solves the filtered N-S equations in
+the high-Re limit in which molecular viscosity effects are neglected. An
+eddy viscosity closure model is applied for the subgrid scale
+stresses. Boundary conditions along the x-y perimeter are periodic where
+a log-law stress is applied at the bottom surface; a stress free
+condition is applied at the top (channel center) boundary. In addition to the
+bottom wall, solid surfaces represented by the immersed boundary method
+also apply a log-law stress boundary condition. The 2nd order
+Adams-Bashforth method is used for the time integration; a static time
+step or CFL based dynamic time step may also be specified. Continuity is
+preserved by solving the pressure poisson equation using a direct TDMA
+solver.
+
+------------------------------------------------------------------------
+			MPI DOMAIN DECOMPOSITION
+------------------------------------------------------------------------
+
+The LES flow solver is parallelized with MPI. The flow domain is evenly
+divided in the vertical (z) direction between the MPI processes.  Each
+MPI-process has its "own" z-levels indexed by k = 1 to nz-1. The
+z-levels k = 0 and k = nz are overlap nodes and are only for holding
+data that has been copied from the process below or above the current
+one.
+
+For the pressure solver a pipelining technique was chosen to parallelize
+the TDMA, since it is simple and there isn't really any better options for
+parallelizing the solution of many small tridiagonal systems.  The best
+size of the chunks to send "down the pipeline" can be controlled via the
+variable "chunksize", and WILL depend on the computer hardware and
+simulation size.  It would probably advantageous to add a routine that
+adjusts the chunk size automatically by making speed measurements at the
+beginning of the simulation.
+
+The immersed boundary forces are used by the trees and level set code,
+so if something is changed here, then check dependent parts of the code
+in those modules.
+
+
+========================================================================
+		   LEVEL SET IMMERSED BOUNDARY METHOD
+========================================================================
+
+For representing solid objects in the flow domain, the level set
+immersed boundary method is used. All objects are represeted using a
+level set or signed distance function (phi) where phi = 0 on the
+surface, phi < 0 inside objects and phi > 0 otherwise. For each grid
+point in the computational domain the minimum distance to any one of the
+objects in the domain must be computed and assigned to phi. The code
+will then use phi to compute the surface normals which is then used to
+apply the log-law stress within a small "band" along a the surface
+boundary. For all grid points on or inside of the surface the
+velocity is forced to zero using a direct forcing approach.
+
+To use the level set modules in a simulation, a file "phi.out"
+containing the signed distance function data must be created first.
+This must be generated with a separate program, see the program in
+"trees_pre_ls.f90" or "cyl_skew_pre_ls.f90" for making the level set
+files. It is recommended making the signed distance function exact if
+possible, or at least sampled at a higher resolution than the
+computational grid.  There are many adjustable parameters within
+level_set.f90 that control how the boundary conditions at the level set
+surface are applied.  If you encounter problems (e.g., kinks in velocity
+profiles), try adjusting some of these (e.g., length scale parameters
+that control how close a given point must be to the surface before an
+certain action is taken).  Just make sure to read all code associated
+with some of these parameters, since some are experimental, and may not
+be ready for "prime time".
+
+The variables "nphitop", "nphibot", etc., control how many extra
+z-levels are copied between MPI processes when determining boundary
+conditions (at top and bottom of the process-local domain).  The values
+to use here are geometry dependent, and it is pretty hard to determine
+in advance exactly what they should be. These values should be as small
+as possible so the MPI transfers involve the least amount of data.
+Right now, my approach has been to pick some initial values and when the
+code fails, then increase the values.  the good news here is that all
 the code using these is manually bounds-checked, so if an out-of-bounds
-reference is made, the code should always die with an error message saying which
-parameter is the problem and offer a suggestion as to what a better value would
-be. Another weakness is that the number of extra z-levels is the same for all
-processes, when for maximum efficiency, they really should be allowed to differ.
- It should be possible to have the code auto-dimension the "nphitop", etc.,  for
-each process.  On the other hand, this means that those processes that finish
-their boundary conditions faster that the other processes will have to wait, so
-unless they are given something useful to do, it is probably not worth the
+reference is made, the code should always die with an error message
+saying which parameter is the problem and offer a suggestion as to what
+a better value would be. Another weakness is that the number of extra
+z-levels is the same for all processes, when for maximum efficiency,
+they really should be allowed to differ.  It should be possible to have
+the code auto-dimension the "nphitop", etc., for each process.  On the
+other hand, this means that those processes that finish their boundary
+conditions faster that the other processes will have to wait, so unless
+they are given something useful to do, it is probably not worth the
 effort.
 
- 
+------------------------------------------------------------------------
+		   CREATING TREES WITH "trees_pre_ls"
+------------------------------------------------------------------------
 
-TREES
+The program "trees_pre_ls" may be used for For the most part the "trees"
+modules have been deprecated for implementing Renormalized Numerical
+Simulation, but have been left intact to provide support for using
+"trees_pre_ls"
 
-The trees modules rely heavily on the tree and branch data structures (derived
-types) defined in "trees_base_ls.f90".  These data structures can handle
-non-fractal trees, but most of the routines that do the actual work assume self
-similar fractal trees.  Since a tree generally consists of a trunk and
-generations of sub-branches, most routines in "trees_ls.f90", etc., use
-recursive routines to visit each branch of the tree data structure.  This
-usually looks like this:  a routine takes a branch as input and does whatever
-operations it needs to on that branch before calling itself, but now with each
-of the input branch's child-branches as input. The value of "fmodel" in
-"trees_base_ls.f90" sets the RNS force model used: d is for drag only, d_germano
-is for drag only and the Germano formulation, dls stand for drag-lift-side
-forces, and nba stands for normal-binormal-axial.
+To do a simulation using the trees, the user has to write a "trees.conf"
+file. An example is:
 
-As with the level set modules, there are many options (some not all fully
-supported), so read the code as much a possible to determine what they do.
-
-To do a simulation using the trees, the user has to write a "trees.conf" file. 
-An example is:
 --------------begin trees.conf-----------
 # This is a trees configuration file
 # this is a comment, it begins with a #
@@ -140,53 +217,81 @@ tree = {
 }
 --------------end trees.conf--------------
 
-This creates a tree structure with 2 generations of branches (the trunk counts
-as generation zero), with each branch having 4 sub-branches.  The length of each
-the trunk is 0.3125 and the diameter of the trunk is 0.125.
-If the add_cap option is true, then the actual length of the tree trunk will be
-l + d/2 = 0.3125 + 0.125/2 = 0.375.
-The center of the base of the trunk is at x0 (given as x,y,z coordinates).  The
-branches are not tapered.  The ratio of lengths between a branch and each of its
-sub-branches is 0.48.  The directions of the sub-branches, relative to the
-parent-branch coordinate system are
-sub-branch 1: (-0.49, -0.85, -.17)
-sub-branch 2: (0, 0, 1)
-sub-branch 3: (-0.49, 0.85, -0.17)
-sub-branch 4: (0.98, 0, -0.17)
-To see how the branch-local coordinate systems are defined, see
-trees_setup_ls.f90. Three sub-branches are placed 75 % of the way along the
-parent branch (root_height), and one is at the top of the parent branch.
-Each sub-branch has a twist about its own branch axis applied to it.  The trunk
-can be twisted separately, but this line has been commented out.  The maximum
-resolved generation(max_res_gen) used in RNS is generation 1, note that there
-n_gen = 2 is one more than the last resolved generation.  The is mean that
-generation two are the unresolved RNS branches.  Even if you want to simulate
-more that one unresolved branch generation, right now the code expects
-max_res_gen + 1 = n_gen.  Note that although the relations between a branch and
-its sub-branches are defined in trees.conf, iterated function systems (IFS) ARE
-NOT USED to describe the trees.  Instead, a sub-branch is defined only by
-reference to its parent branch.
+This creates a tree structure with 2 generations of branches (the trunk
+counts as generation zero), with each branch having 4 sub-branches.  The
+length of each the trunk is 0.3125 and the diameter of the trunk is
+0.125.  If the add_cap option is true, then the actual length of the
+tree trunk will be l + d/2 = 0.3125 + 0.125/2 = 0.375.  The center of
+the base of the trunk is at x0 (given as x,y,z coordinates).  The
+branches are not tapered.  The ratio of lengths between a branch and
+each of its sub-branches is 0.48.  The directions of the sub-branches,
+relative to the parent-branch coordinate system are sub-branch 1:
+(-0.49, -0.85, -.17) sub-branch 2: (0, 0, 1) sub-branch 3: (-0.49, 0.85,
+-0.17) sub-branch 4: (0.98, 0, -0.17) To see how the branch-local
+coordinate systems are defined, see trees_setup_ls.f90. Three
+sub-branches are placed 75 % of the way along the parent branch
+(root_height), and one is at the top of the parent branch.  Each
+sub-branch has a twist about its own branch axis applied to it.  The
+trunk can be twisted separately, but this line has been commented out.
+The maximum resolved generation(max_res_gen) used in RNS is generation
+1, note that there n_gen = 2 is one more than the last resolved
+generation.  The is mean that generation two are the unresolved RNS
+branches.  Even if you want to simulate more that one unresolved branch
+generation, right now the code expects max_res_gen + 1 = n_gen.  Note
+that although the relations between a branch and its sub-branches are
+defined in trees.conf, iterated function systems (IFS) ARE NOT USED to
+describe the trees.  Instead, a sub-branch is defined only by reference
+to its parent branch.
 
-Next, use trees_pre_ls.f90 to read the trees.conf file and calculate the level
-set function required by the level set routines, as well as the branch index
-arrays (brindex.out).
+Next, use trees_pre_ls.f90 to read the trees.conf file and calculate the
+level set function required by the level set routines, as well as the
+branch index arrays (brindex.out).
 
 After running trees_pre_ls.f90, you should be all set to begin an LES or RNS/LES
 computation.
 
-The trees modules are isolated from the LES core and level set modules as much
-as possible, but some dependence was unavoidable, so always check that these
-parts are "in sync".
+ 
+========================================================================
+		   RENORMALIZED NUMERICAL SIMULATION
+========================================================================
+
+TREES 
+
+The trees modules rely heavily on the tree and branch data structures
+(derived types) defined in "trees_base_ls.f90". These data structures
+can handle non-fractal trees, but most of the routines that do the
+actual work assume self similar fractal trees. Since a tree generally
+consists of a trunk and generations of sub-branches, most routines in
+"trees_ls.f90", etc., use recursive routines to visit each branch of the
+tree data structure. This usually looks like this: a routine takes a
+branch as input and does whatever operations it needs to on that branch
+before calling itself, but now with each of the input branch's
+child-branches as input. The value of "fmodel" in "trees_base_ls.f90"
+sets the RNS force model used: d is for drag only, d_germano is for drag
+only and the Germano formulation, dls stand for drag-lift-side forces,
+and nba stands for normal-binormal-axial.
+
+As with the level set modules, there are many options (some not all
+fully supported), so read the code as much a possible to determine what
+they do.
 
 
+The trees modules are isolated from the LES core and level set modules
+as much as possible, but some dependence was unavoidable, so always
+check that these parts are "in sync".
+
+SKEWED CYLINDERS TREES
 
 
-DATA OUTPUT
+========================================================================
+			      DATA OUTPUT
+========================================================================
 
-The master switch for all data output in the code is in param.f90. The switch
-for controlling this is called output. All parameters for controlling what, when
-and how frequent data is computed or recorded is in stats_init.f90. A brief
-description of what each setting does is given below.
+The master switch for all data output in the code is in param.f90. The
+switch for controlling this is called output. All parameters for
+controlling what, when and how frequent data is computed or recorded is
+in stats_init.f90. A brief description of what each setting does is
+given below.
 
 1) tavg_t - type for time averaged statistics
 
