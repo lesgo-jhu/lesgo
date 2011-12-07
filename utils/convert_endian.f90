@@ -106,9 +106,10 @@ real(rp), allocatable, dimension(:,:,:,:) :: vars
 !/// READ DATA                      ///
 !//////////////////////////////////////
 call read_input_arguments()
-
+!write(*,*) 'nx, ny, nz, nvar : ', nx, ny, nz, nvar
 ! Allocate space
 allocate(vars(nx,ny,nz,nvar))
+vars=0.0
 
 if(iendian == 1) then
   read_endian = 'little_endian'
@@ -121,37 +122,24 @@ else
   stop
 endif
 
-read_endian = trim(adjustl(read_endian))
-write_endian = trim(adjustl(write_endian))
-
 ! Load the data
-write(*,*) 'Loading input file :', trim(adjustl(fbase))
-!inquire (file=fbase, exist=fexist)
-!if (exst) then
-open (101, file=fbase)
-!else
-!   write(*,*) 'Specified file does not exist'
-!   stop
-!endif
-
-open (101, file=fbase, form='unformatted', convert=read_endian)
-read (101) vars
-close (101)
+write(*,*) 'Converting file : ', trim(adjustl(fbase))
+open (1, file=fbase, form='unformatted', convert=trim(adjustl(read_endian)))
+read(1) vars
+close (1)
 
 if( backup ) then
    ! Save a copy
    fname = trim(adjustl(fbase)) // '.save'
    write(*,*) 'Backing up input file to : ', trim(adjustl(fname))
-   open(202, file=fname, form='unformatted', convert=read_endian)
-   write (202) vars
-   close (202)
+   call system('cp ' // trim(adjustl(fbase)) // ' ' // trim(adjustl(fname))) 
 endif
 
 ! Now over write the original file
-write(*,*) 'Converting endian'
-open (101, file=fbase, form='unformatted', convert=write_endian)
-write (101) vars
-close (101)
+write(*,*) 'Converting from ' // trim(adjustl(read_endian)) // ' to ' // trim(adjustl(write_endian))
+open (1, file=fbase, form='unformatted', convert=trim(adjustl(write_endian)))
+write (1) vars
+close (1)
 
 write(*,*) 'Conversion complete'
 
@@ -227,7 +215,7 @@ input: do while (n < narg)
      if( n > narg ) call print_error_message('nz not specified')
      read(arg(n),*) nz
 
-  elseif( arg(n) == '-nvar' ) then 
+  elseif( arg(n) == '-n' ) then 
 
      n=n+1
      ! Check that argument specified
