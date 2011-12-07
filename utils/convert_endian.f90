@@ -1,30 +1,91 @@
-module convert_types
+module convert_endian_base
 implicit none
 integer, parameter :: rp = kind (1.d0)
-end module convert_types
 
+character(128) :: fbase
+logical :: backup=.false.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--interpolate initial conditions-in physical space
-!--for now, handle MPI files by reading all files one large array
-!  will change later if it is a problem
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-program convert_endian
-use convert_types
+! 1 - little to big endian; 2 - big to little endian
+integer :: iendian = 1
+
+! Exact size of the variables and number of variables
+integer :: nx=32, ny=32 , nz=32, nvar=3
+
+end module convert_endian_base
+
+!************************************************************
+module messages
+!************************************************************
+!
+!  This module contains functions for printing spectrum 
+!  messages to screen.
+!
+!  Authors:
+!    Jason Graham <jgraha8@gmail.com>
+!
 implicit none
 
-character (*), parameter :: path='./output'
-character (*), parameter :: fbase = path // 'uvw.$FITER.out'
-character (*), parameter :: MPI_suffix = '.c'  !--must be proc number
+contains
 
-logical, parameter :: DEBUG = .true.
-logical, parameter :: MPI = .true.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine print_error_message( message )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
 
-integer, parameter :: np = 128  !--must be 1 when MPI_s is false
-integer, parameter :: iendian = 2 ! 1 - little to big endian; 2 - big to little endian
+character(*), intent(in) :: message
 
-!--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx =128, ny = 128, nz = 193
+write(*,*) 'convert-endian: ' // message
+stop
+end subroutine print_error_message
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine print_message( message )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+character(*), intent(in) :: message
+
+write(*,*) 'convert-endian: ' // message
+
+end subroutine print_message
+
+!************************************************************
+subroutine print_help_message()
+!************************************************************
+!
+! Subroutine used to print help message of convert-endian
+!
+! Authors:
+!     Jason Graham <jgraha8@gmail.com>
+!
+write(*,*) 'Usage:'
+write(*,*) '  convert-endian [options] -e {1|2} -nx <nx> -ny <ny> -nz <nz> -n <n> file'
+write(*,*) ' '
+write(*,*) 'Options:'
+write(*,*) '  -b                       Backup input file'
+write(*,*) ' '
+write(*,*) 'Arguments:'
+write(*,*) '  -e                       Endian conversion flag: 1 - little to endian; 2 - endian to little'
+write(*,*) '  -nx                      Set the number of dimensions in x-direction'
+write(*,*) '  -ny                      Set the number of dimensions in y-direction'
+write(*,*) '  -nz                      Set the number of dimensions in z-direction'
+write(*,*) '  -n                       Set the number of variables'
+write(*,*) ' '
+write(*,*) 'NOTE: the order of arguments are arbitrary'
+end subroutine print_help_message
+
+end module messages
+
+program convert_endian
+use convert_endian_base
+implicit none
+
+!character (*), parameter :: path='./output'
+!character (*), parameter :: fbase = path // 'uvw.$FITER.out'
+!character (*), parameter :: MPI_suffix = '.c'  !--must be proc number
+
+!logical, parameter :: MPI = .true.
+
 
 character (64) :: fmt
 character (128) :: fname
@@ -34,20 +95,20 @@ integer :: ip
 integer :: lbz, ubz
 integer :: i, j, k
 
-!--save is here, b/c xlf likes to make these automatic!
-real (rp), save, dimension (nx+2, ny, nz) :: u, v, w,       &
-                                                     Rx, Ry , Rz,   &
-                                                     cs, FLM, FMM,  &
-                                                     FQN, FNN
-real (rp) :: ke1 (ny, nz)  !--ke summed in xdir
-real (rp) :: ke
+logical :: fexist
+
+! Array which holds the data
+real(rp), allocatable, dimension(:,:,:,:) :: vars
 
 !---------------------------------------------------------------------
 
-if ((.not. MPI) .and. (np /= 1)) then
-  write (*, *) 'when MPI is false, must have np = 1'
-  stop
-end if
+!//////////////////////////////////////
+!/// READ DATA                      ///
+!//////////////////////////////////////
+call read_input_arguments()
+
+! Allocate space
+allocate(vars(nx,ny,nz,nvar))
 
 if(iendian == 1) then
   read_endian = 'little_endian'
@@ -63,91 +124,135 @@ endif
 read_endian = trim(adjustl(read_endian))
 write_endian = trim(adjustl(write_endian))
 
-if(DEBUG) then
-  write(*,*) 'read_endian = ', read_endian
-  write(*,*) 'write_endian = ', write_endian
+! Load the data
+write(*,*) 'Loading input file :', trim(adjustl(fbase))
+!inquire (file=fbase, exist=fexist)
+!if (exst) then
+open (101, file=fbase)
+!else
+!   write(*,*) 'Specified file does not exist'
+!   stop
+!endif
+
+open (101, file=fbase, form='unformatted', convert=read_endian)
+read (101) vars
+close (101)
+
+if( backup ) then
+   ! Save a copy
+   fname = trim(adjustl(fbase)) // '.save'
+   write(*,*) 'Backing up input file to : ', trim(adjustl(fname))
+   open(202, file=fname, form='unformatted', convert=read_endian)
+   write (202) vars
+   close (202)
 endif
 
-write (*, '(1x,a)') 'Going to interpolate "' // fbase // '"'
+! Now over write the original file
+write(*,*) 'Converting endian'
+open (101, file=fbase, form='unformatted', convert=write_endian)
+write (101) vars
+close (101)
 
-fmt = '(1x,5(a,i0))'
-write (*, fmt) 'start size is (', nx, ' X ', ny,' X ', nz, ') / ',  &
-               np, ' process(es), kind = ', rp
-
-!--can save ram by doing one array at a time, but this requires changing
-!  the output format to the following
-!  write (1) array1
-!  write (1) array2
-!  etc.
-if (.not. MPI) then 
-
-  open (1, file=fbase, form='unformatted', convert=read_endian)
-  read (1) u, v, w, Rx, Ry, Rz, cs, FLM, FMM, FQN, FNN
-  close (1)
-
-  !--save a copy
-  !--need 'system' command to copy fbase to fsave more efficiently?
-  open (1, file=fbase, form='unformatted', convert=write_endian)
-  write (1) u, v, w, Rx, Ry, Rz, cs, FLM, FMM, FQN, FNN
-  close (1)
-
-else
-
-  do ip = 0, np-1
-
-    write (fname, '(a,a,i0)') trim (fbase), MPI_suffix, ip
-    open (1, file=fname, form='unformatted')
-
-    lbz = ip * (nz-1)/np + 1
-    ubz = lbz + (nz-1)/np   
-    read (1) u(:, :, lbz:ubz), v(:, :, lbz:ubz), w(:, :, lbz:ubz),     &
-             Rx(:, :, lbz:ubz), Ry(:, :, lbz:ubz), Rz(:, :, lbz:ubz),  &
-             cs(:, :, lbz:ubz), FLM(:, :, lbz:ubz),                      &
-             FMM(:, :, lbz:ubz), FQN(:, :, lbz:ubz), FNN(:, :, lbz:ubz)
-
-    close (1)
-
-    !--save a copy
-    write (fname, '(a,a,i0)') trim (fbase), MPI_suffix, ip
-    open (1, file=fname, form='unformatted',convert='big_endian')
-
-    lbz = ip * (nz-1)/np + 1
-    ubz = lbz + (nz-1)/np   
-
-    write(1) u(:, :, lbz:ubz), v(:, :, lbz:ubz), w(:, :, lbz:ubz),     &
-             Rx(:, :, lbz:ubz), Ry(:, :, lbz:ubz), Rz(:, :, lbz:ubz),  &
-             cs(:, :, lbz:ubz), FLM(:, :, lbz:ubz),                      &
-             FMM(:, :, lbz:ubz), FQN(:, :, lbz:ubz), FNN(:, :, lbz:ubz)
-    close (1)
-   
-  end do
-
-end if
-
-if (DEBUG) then
-
-  ke1 = 0._rp
-  do k = 1, nz
-    do j = 1, ny
-      do i = 1, nx
-        ke1(j, k) = ke1(j, k) + 0.5_rp * (u(i, j, k)**2 +     &
-                                                v(i, j, k)**2 +     &
-                                                w(i, j, k)**2)
-      end do
-    end do
-  end do
-
-  ke = 0._rp
-  do k = 1, nz
-    do j = 1, ny
-      ke = ke + ke1(j, k)
-    end do
-  end do
-  ke = ke / (nx * ny * nz)
-
-  write (*, *) 'ke = ', ke
-
-end if
+write(*,*) 'Conversion complete'
 
 stop
 end program convert_endian
+
+!************************************************************
+subroutine read_input_arguments()
+!************************************************************
+!
+!  Subroutine used to read input arguments from command line
+!
+!  Written by: 
+!    Adrien Thormann
+!    Jason Graham <jgraha8@gmail.com>
+!
+  
+use convert_endian_base
+use messages
+implicit none
+integer :: n, narg
+character(64), allocatable, dimension(:) :: arg
+logical :: input_filename_read = .false.
+logical :: exst = .false.
+
+narg = command_argument_count()  !  Get total number of input arguments
+if( narg == 0 ) call print_error_message( 'no input file' )
+
+!  Read input arguments
+allocate(arg(1:narg))
+do n = 1, narg
+  call get_command_argument(n, arg(n))
+  arg(n) = trim(adjustl(arg(n)))
+enddo
+
+!
+! March through command line argument array
+!
+n=0
+input: do while (n < narg) 
+
+  n=n+1
+
+  if(arg(n) == '-b') then
+
+     backup = .true.
+
+  elseif(arg(n) == '-e') then
+
+     n=n+1
+     ! Check that argument specified
+     if( n > narg ) call print_error_message('endian conversion flag not specified')
+     read(arg(n),*) iendian
+
+  elseif( arg(n) == '-nx' ) then 
+
+     n=n+1
+     ! Check that argument specified
+     if( n > narg ) call print_error_message('nx not specified')
+     read(arg(n),*) nx
+
+  elseif( arg(n) == '-ny' ) then 
+
+     n=n+1
+     ! Check that argument specified
+     if( n > narg ) call print_error_message('ny not specified')
+     read(arg(n),*) ny
+
+  elseif( arg(n) == '-nz' ) then 
+
+     n=n+1
+     ! Check that argument specified
+     if( n > narg ) call print_error_message('nz not specified')
+     read(arg(n),*) nz
+
+  elseif( arg(n) == '-nvar' ) then 
+
+     n=n+1
+     ! Check that argument specified
+     if( n > narg ) call print_error_message('nvar not specified')
+     read(arg(n),*) nvar
+
+
+  elseif(arg(n) == '-h' .or. arg(n) == '--help') then
+    call print_help_message()
+    stop
+  else 
+     read(arg(n),*) fbase
+     input_filename_read = .true.
+  endif
+enddo input
+
+!  Check that an input file has been read
+if( .not. input_filename_read ) call print_error_message('no input file')
+
+! Check that input file exists
+inquire(file=fbase,exist=exst)
+if( .not. exst ) call print_error_message('input file does not exist')
+
+return
+end subroutine read_input_arguments
+
+
+
