@@ -13,7 +13,6 @@ public
     real(rprec), dimension(:,:,:), allocatable :: Nu_t      ! eddy viscosity
     integer ::jt_count
     real(rprec), dimension(:,:,:), allocatable ::Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
-    integer :: count_clip, count_all
 
     real(rprec), dimension(:,:), allocatable :: L11,L12,L13,L22,L23,L33
     real(rprec), dimension(:,:), allocatable :: M11,M12,M13,M22,M23,M33
@@ -23,9 +22,12 @@ public
                                      S_S22_bar, S_S23_bar, S_S33_bar
     real(rprec), dimension(:,:), allocatable :: S, u_bar,v_bar,w_bar
 
+! For all dynamic models (2-5)
+    real(rprec), dimension(:,:,:), allocatable :: ee_now
+
 ! For Lagrangian models (4,5)
     real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta
+    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta, Tn_all
     real(rprec) :: lagran_dt = 0._rprec
 
 ! For scale dependent models (3,5)
@@ -100,22 +102,30 @@ implicit none
         S = 0.0_rprec
         u_bar = 0.0_rprec; v_bar = 0.0_rprec; w_bar = 0.0_rprec
 
+    ! For dynamic models:
+    if (sgs_model .ne. 1) then
+        allocate ( ee_now(ld,ny,lbz:nz) )
+
+        ee_now = 0.0_rprec
+    endif
+
     ! For Lagrangian models:
     if ((sgs_model .eq. 4).or.(sgs_model .eq. 5)) then
         allocate ( F_LM(ld,ny,lbz:nz), F_MM(ld,ny,lbz:nz), &
                    F_QN(ld,ny,lbz:nz), F_NN(ld,ny,lbz:nz), &
-                   Beta(ld,ny,lbz:nz) )
+                   Beta(ld,ny,lbz:nz), Tn_all(ld,ny,lbz:nz) )
 
             F_LM = 0.0_rprec
             F_MM = 0.0_rprec
             F_QN = 0.0_rprec
             F_NN = 0.0_rprec
             Beta = 0.0_rprec
+            Tn_all = 0.0_rprec
     
         ! Lagrangian zero-crossing time scale variables
         $if ($DYN_TN)
         allocate ( F_ee2(ld,ny,lbz:nz), F_deedt2(ld,ny,lbz:nz), &
-                   ee_past(ld,ny,lbz:nz) }
+                   ee_past(ld,ny,lbz:nz) )
 
             F_ee2 = 0.0_rprec
             F_deedt2 = 0.0_rprec
