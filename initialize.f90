@@ -8,6 +8,7 @@ subroutine initialize()
 use types, only : rprec
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f
+use param, only : sgs_hist_calc
 use cfl_util
 use io, only : stats_init
 use sgs_param, only : sgs_param_init
@@ -17,6 +18,7 @@ use sim_param, only : sim_param_init
 use grid_defs, only : grid_build
 use fft, only : init_fft
 use io, only : openfiles
+use sgs_hist
 
 $if ($MPI)
 use mpi_defs, only : initialize_mpi
@@ -118,6 +120,11 @@ call openfiles()
 $if($MPI and $CPS)
 call initialize_cps()
 $endif
+
+! Initialize sgs variable histogram calc
+if (sgs_hist_calc) then
+  call sgs_hist_init()
+endif
 
 $if ($DEBUG)
 if (DEBUG) then
