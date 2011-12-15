@@ -35,6 +35,9 @@ end type spectra
 
 real(rprec) :: spectra_total_time
 real(rprec) :: tavg_total_time
+$if($OUTPUT_EXTRA)
+real(rprec) :: tavg_total_time_sgs
+$endif
 
 !  Sums performed over time
 type tavg
@@ -44,6 +47,18 @@ type tavg
   real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2
 end type tavg
+
+!  Sums performed over time
+$if($OUTPUT_EXTRA)
+type tavg_sgs
+  real(rprec) :: Tn, Nu_t
+  real(rprec) :: F_LM, F_MM, F_QN, F_NN
+  real(rprec) :: ee_now
+  $if ($DYN_TN)
+  real(rprec) :: F_ee2, F_deedt2
+  $endif
+end type tavg_sgs
+$endif
 
 $if ($TURBINES)
 type turbine 
@@ -75,8 +90,27 @@ type wind_farm
   !logical, pointer, dimension(:) :: cond_avg_flag_lo,cond_avg_flag_hi
 end type wind_farm
     
-type(wind_farm)        :: wind_farm_t
+type(wind_farm) :: wind_farm_t
 $endif
+
+type hist
+    real(rprec) :: bmin, bmax, db                    
+    integer :: nbins       
+    real(rprec), allocatable, dimension(:) :: bins      
+    real(rprec), allocatable, dimension(:) :: vals       
+end type hist
+
+type hist_zplanes   ! a collection of histograms (one for each zplane) for a single variable
+    integer, allocatable, dimension(:) :: istart, coord
+    real(rprec), allocatable, dimension(:) :: ldiff
+    type(hist), allocatable, dimension(:) :: hist_t     
+end type hist_zplanes
+
+! could also have histograms for points or for the entire domain...
+type(hist_zplanes) :: HISTcs2_t
+type(hist_zplanes) :: HISTtn_t
+type(hist_zplanes) :: HISTnu_t
+type(hist_zplanes) :: HISTee_t
 
 type(point), allocatable, dimension(:) :: point_t
 type(plane), allocatable, dimension(:) :: xplane_t, yplane_t
@@ -84,6 +118,10 @@ type(zplane), allocatable, dimension(:) :: zplane_t
 
 type(tavg), allocatable, dimension(:,:,:) :: tavg_t
 type(tavg), allocatable, dimension(:) :: tavg_zplane_t
+
+$if ($OUTPUT_EXTRA)
+type(tavg_sgs), allocatable, dimension(:,:,:) :: tavg_sgs_t
+$endif
 
 type(rs), allocatable, dimension(:,:,:) :: rs_t
 type(rs), allocatable, dimension(:) :: rs_zplane_t, cnpy_zplane_t
@@ -99,7 +137,11 @@ INTERFACE OPERATOR (.SUB.)
 END INTERFACE
 
 INTERFACE OPERATOR (.DIV.)
-  MODULE PROCEDURE tavg_scalar_div, rs_scalar_div
+  $if($OUTPUT_EXTRA)
+    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, tavg_sgs_scalar_div
+  $else
+    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div
+  $endif  
 END INTERFACE
 
 INTERFACE OPERATOR (.MUL.)
@@ -107,11 +149,19 @@ INTERFACE OPERATOR (.MUL.)
 END INTERFACE
 
 INTERFACE type_set
-  MODULE PROCEDURE tavg_set, rs_set
+  $if($OUTPUT_EXTRA)
+    MODULE PROCEDURE tavg_set, rs_set, tavg_sgs_set
+  $else
+    MODULE PROCEDURE tavg_set, rs_set
+  $endif  
 END INTERFACE
 
 INTERFACE type_zero_bogus
   MODULE PROCEDURE tavg_zero_bogus_2D, tavg_zero_bogus_3D
+END INTERFACE
+
+INTERFACE hist_binit
+  MODULE PROCEDURE hist_binit_1D, hist_binit_2D, hist_binit_3D
 END INTERFACE
 
 contains
@@ -364,6 +414,33 @@ c % cs_opt2 = a % cs_opt2 * b
 return
 end function tavg_scalar_mul
 
+$if($OUTPUT_EXTRA)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function tavg_sgs_scalar_div( a, b ) result(c)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+implicit none
+
+type(tavg_sgs), intent(in) :: a
+real(rprec), intent(in) :: b
+type(tavg_sgs) :: c
+
+c % Tn = a % Tn / b
+c % Nu_t = a % Nu_t / b
+c % F_LM = a % F_LM / b
+c % F_MM = a % F_MM / b
+c % F_QN = a % F_QN / b
+c % F_NN = a % F_NN / b
+c % ee_now = a % ee_now / b
+$if($DYN_TN)
+c % F_ee2 = a % F_ee2 / b
+c % F_deedt2 = a % F_deedt2 / b
+$endif
+
+return
+end function tavg_sgs_scalar_div
+$endif
+
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_interp_to_uv_grid( a ) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -422,8 +499,6 @@ return
 
 end function tavg_interp_to_w_grid
 
-
-!//////////////////////////////////////////////////////////////////////
 !///////////////////// RS OPERATORS ///////////////////////////////////
 !//////////////////////////////////////////////////////////////////////
 
@@ -568,6 +643,31 @@ c % cs_opt2 = a
 return
 end subroutine tavg_set
 
+$if($OUTPUT_EXTRA)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tavg_sgs_set( c, a )
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+implicit none
+real(rprec), intent(in) :: a
+type(tavg_sgs), intent(out) :: c
+
+c % Tn =  a
+c % Nu_t =  a
+c % F_LM =  a
+c % F_MM =  a
+c % F_QN =  a
+c % F_NN =  a
+c % ee_now = a
+$if($DYN_TN)
+c % F_ee2 = a
+c % F_deedt2 = a
+$endif
+
+return
+end subroutine tavg_sgs_set
+$endif
+
 !//////////////////////////////////////////////////////////////////////
 !/////////////////// SPECIAL RS SUBROUTINES ///////////////////////////
 !//////////////////////////////////////////////////////////////////////
@@ -589,6 +689,216 @@ c % upvp = a
 
 return
 end subroutine rs_set
+
+!//////////////////////////////////////////////////////////////////////
+!/////////////////// SPECIAL HIST SUBROUTINES /////////////////////////
+!//////////////////////////////////////////////////////////////////////
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine hist_binit_1D( a, var, phi_ls )
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine takes the values in var and bins them in the histogram
+!   a only if the location is outside a body (level set function phi>0 )
+!
+! If phi_ls is not included as an input then all values are binned
+!
+! Inputs:
+!   a   :: the histogram to be updated
+!   var :: the values that will be used to update the histogram
+!   phi_ls :: the level set function (phi from level_set_base module)
+
+use types, only : rprec
+implicit none
+
+type(hist), intent(inout) :: a                
+real(rprec), intent(in), dimension(:) :: var
+real(rprec), intent(in), dimension(:), optional :: phi_ls ! phi_ls<0 is inside a body
+
+integer :: dim1, i, ib
+real(rprec) :: countme
+
+! Determine length of input arrays
+    dim1 = size(var,1)
+
+    !! Check that phi_ls is the same length as var (if present)
+    !if (present (phi_ls)) then
+    !    if ( size(phi_ls,1) .ne. dim1 ) then
+    !        write(*,*) 'In hist_binit_1D: size of phi_ls should match size of var'
+    !        stop
+    !    endif
+    !endif
+
+! Prepare temp array and counting variable
+    countme = 1.0_rprec
+    
+$if ($LVLSET) 
+    if (present (phi_ls)) then
+        do i=1,dim1
+            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
+            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i)) )  
+
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+    else
+$endif
+        do i=1,dim1
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+$if ($LVLSET) 
+    endif
+$endif
+
+return
+end subroutine hist_binit_1D
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine hist_binit_2D( a, var, phi_ls )
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine takes the values in var and bins them in the histogram
+!   a only if the location is outside a body (level set function phi>0 )
+!
+! If phi_ls is not included as an input then all values are binned
+!
+! Inputs:
+!   a   :: the histogram to be updated
+!   var :: the values that will be used to update the histogram
+!   phi_ls :: the level set function (phi from level_set_base module)
+
+use types, only : rprec
+implicit none
+
+type(hist), intent(inout) :: a                
+real(rprec), intent(in), dimension(:,:) :: var
+real(rprec), intent(in), dimension(:,:), optional :: phi_ls 
+
+integer :: dim1, dim2, i, j, ib
+real(rprec) :: countme
+
+! Determine length of input arrays
+    dim1 = size(var,1)
+    dim2 = size(var,2)
+
+    !! Check that phi_ls is the same length as var (if present)
+    !if (present (phi_ls)) then
+    !    if (( size(phi_ls,1) .ne. dim1 ).or.( size(phi_ls,2) .ne. dim2 )) then
+    !        write(*,*) 'In hist_binit_2D: size of phi_ls should match size of var'
+    !        stop
+    !    endif
+    !endif
+
+! Prepare temp array and counting variable
+    countme = 1.0_rprec
+    
+$if ($LVLSET) 
+    if (present (phi_ls)) then
+        do j=1,dim2
+        do i=1,dim1
+            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
+            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i,j)) )  
+
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i,j)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+        enddo
+    else
+$endif
+        do j=1,dim2
+        do i=1,dim1
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i,j)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+        enddo
+$if ($LVLSET) 
+    endif
+$endif
+
+return
+end subroutine hist_binit_2D
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine hist_binit_3D( a, var, phi_ls )
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine takes the values in var and bins them in the histogram
+!   a only if the location is outside a body (level set function phi>0 )
+!
+! If phi_ls is not included as an input then all values are binned
+!
+! Inputs:
+!   a   :: the histogram to be updated
+!   var :: the values that will be used to update the histogram
+!   phi_ls :: the level set function (phi from level_set_base module)
+
+use types, only : rprec
+implicit none
+
+type(hist), intent(inout) :: a                
+real(rprec), intent(in), dimension(:,:,:) :: var
+real(rprec), intent(in), dimension(:,:,:), optional :: phi_ls 
+
+integer :: dim1, dim2, dim3, i, j, k, ib
+real(rprec) :: countme
+
+! Determine length of input arrays
+    dim1 = size(var,1)
+    dim2 = size(var,2)
+    dim3 = size(var,3)
+
+    !! Check that phi_ls is the same length as var (if present)
+    !if (present (phi_ls)) then
+    !    if ( size(phi_ls,1) .ne. dim1 ) then
+    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (1)'
+    !        stop
+    !    endif
+    !    if ( size(phi_ls,2) .ne. dim2 ) then
+    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (2)'
+    !        stop
+    !    endif
+    !    if ( size(phi_ls,3) .ne. dim3 ) then
+    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (3)'
+    !        stop
+    !   endif
+    !endif
+
+! Prepare temp array and counting variable
+    countme = 1.0_rprec
+    
+$if ($LVLSET) 
+    if (present (phi_ls)) then
+        do k=1,dim3
+        do j=1,dim2
+        do i=1,dim1
+            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
+            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i,j,k)) )  
+
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i,j,k)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+        enddo
+        enddo
+    else
+$endif
+        do k=1,dim3
+        do j=1,dim2
+        do i=1,dim1
+            ! Determine which bin and add 1.0 to that val
+            ib = min( ceiling( max(var(i,j,k)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
+            a%vals(ib) = a%vals(ib) + countme
+        enddo
+        enddo
+        enddo
+$if ($LVLSET) 
+    endif
+$endif
+
+return
+end subroutine hist_binit_3D
 
 end module stat_defs
 
