@@ -10,11 +10,12 @@ subroutine lagrange_Ssim()
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
+use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,lagran_dt
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
+use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
 $if ($DEBUG)
@@ -42,15 +43,20 @@ real (rprec), parameter :: eps = 1.e-32_rprec
 real(rprec), dimension(ld,ny) :: fourbeta
 
 real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
-real(rprec), dimension(ld,ny) :: ee_now
 
 real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
 
+$if ($OUTPUT_EXTRA)
 character (64) :: fnamek, tempk
+integer :: count_all, count_clip
+$endif
 
-integer :: istart, iend, ihi, ilo, jhi, jlo
-integer :: jz, ii, i, j
+!integer :: ihi, ilo, jhi, jlo
+integer :: istart, iend
+integer :: jz
+integer :: ii
+integer :: i, j
 
 logical, save :: F_LM_MM_init = .false.
 
@@ -78,9 +84,11 @@ call interpolag_Ssim()
 !   the running averages, F_LM(:,:,jz) and F_MM(:,:,jz), which are used to 
 !   calculate Cs_opt2(:,:,jz).
 do jz = 1,nz
+    $if ($OUTPUT_EXTRA)
     ! Reset counting variables for Cs clipping stats
     count_all = 0
     count_clip = 0
+    $endif
 
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
@@ -173,11 +181,9 @@ do jz = 1,nz
         LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
         MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
         
-    ! Calculate ee_now (the current value of eij*eij)
-            $if ($DYN_TN)       
-            ee_now = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+    ! Calculate ee_now (the current value of eij*eij)    
+            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
                     -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2
-            $endif   
             
     ! Initialize (???)
         if (inilag) then
@@ -243,10 +249,10 @@ do jz = 1,nz
 
             $if ($DYN_TN)
             ! note: the instantaneous value of the derivative is a Lagrangian average
-            F_ee2(:,:,jz) = epsi*ee_now**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
-            F_deedt2(:,:,jz) = epsi*( ((ee_now-ee_past(:,:,jz))/lagran_dt)**2 ) &
+            F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
+            F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
                                   + (1._rprec-epsi)*F_deedt2(:,:,jz)
-            ee_past(:,:,jz) = ee_now
+            ee_past(:,:,jz) = ee_now(:,:,jz)
             $endif   
             
     ! Calculate Cs_opt2 (use only one of the methods below)
@@ -271,6 +277,7 @@ do jz = 1,nz
         ! Directly
             !Cs_opt2(:,:,jz) = LM(:,:)/MM(:,:)
 
+    $if($OUTPUT_EXTRA)
     ! Count how often Cs is clipped
         do i=1,nx
         do j=1,ny
@@ -278,9 +285,12 @@ do jz = 1,nz
             count_all = count_all + 1
         enddo
         enddo
-        ! Clip Cs if necessary
+    $endif
+
+    ! Clip Cs if necessary
         Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz)) 
    
+    $if($OUTPUT_EXTRA)
     ! Write average Tn for this level to file
         ! Create filename
         if ((jz+coord*(nz-1)).lt.10) then
@@ -289,9 +299,9 @@ do jz = 1,nz
             write (tempk, '(i2)') (jz + coord*(nz-1))
         endif      
         $if ($DYN_TN)
-        fnamek = trim('output/Tn_new_') // trim(tempk)
+        fnamek = trim('output/Tn_dyn_') // trim(tempk)
         $else
-        fnamek = trim('output/Tn_old_') // trim(tempk)
+        fnamek = trim('output/Tn_mlc_') // trim(tempk)
         $endif
         fnamek = trim(fnamek) // trim('.dat')
        
@@ -304,8 +314,12 @@ do jz = 1,nz
         fnamek = trim('output/clip_') // trim(tempk)
         fnamek = trim(fnamek) // trim('.dat')   
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-        write(2,*) jt,count_clip,count_all,real(count_clip)/real(count_all)
+        write(2,*) jt,real(count_clip)/real(count_all)
         close(2)   
+    $endif    
+
+    ! Save Tn to 3D array for use with tavg_sgs
+    Tn_all(:,:,jz) = Tn(:,:)    
     
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
@@ -319,6 +333,7 @@ end do
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
+        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
     $endif   
 
 $if ($DEBUG)

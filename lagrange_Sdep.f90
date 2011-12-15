@@ -17,7 +17,7 @@ use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-use sgs_param,only:u_hat,v_hat,w_hat
+use sgs_param,only:u_hat,v_hat,w_hat,ee_now,Tn_all
 use sgs_param,only:Q11,Q12,Q13,Q22,Q23,Q33,N11,N12,N13,N22,N23,N33
 use sgs_param,only:S_hat,S11_hat,S12_hat,S13_hat,S22_hat,S23_hat,S33_hat
 use sgs_param,only:S_S11_hat,S_S12_hat,S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
@@ -35,8 +35,6 @@ $endif
 implicit none
 
 integer :: jx,jy,jz
-integer :: i
-integer :: counter1
 integer :: istart, iend
 
 real(rprec):: tf1,tf2,tf1_2,tf2_2 ! Size of the second test filter
@@ -45,7 +43,6 @@ real(rprec) :: Betaclip  !--scalar to save mem., otherwise (ld,ny,nz)
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 
 real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
-real(rprec), dimension(ld,ny) :: ee_now
 
 real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
@@ -54,6 +51,12 @@ real(rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
 
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
+
+$if ($OUTPUT_EXTRA)
+integer :: i, j
+character (64) :: fnamek, tempk
+integer :: count_all, count_clip
+$endif
 
 !---------------------------------------------------------------------
 $if ($VERBOSE)
@@ -78,6 +81,12 @@ call interpolag_Sdep()
 !   Then update the running averages, F_*(:,:,jz), which are used to 
 !   calculate Cs_opt2(:,:,jz).
 do jz = 1,nz
+    $if ($OUTPUT_EXTRA)
+    ! Reset counting variables for Cs clipping stats
+    count_all = 0
+    count_clip = 0
+    $endif
+
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
         ! (except for very first level which should be on uvp-nodes)
@@ -234,12 +243,10 @@ do jz = 1,nz
         QN = Q11*N11+Q22*N22+Q33*N33+2._rprec*(Q12*N12+Q13*N13+Q23*N23)
         NN = N11**2+N22**2+N33**2+2._rprec*(N12**2+N13**2+N23**2)
 
-    ! Calculate ee_now (the current value of eij*eij)
-            $if ($DYN_TN)       
-            ee_now = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
-                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2
-            $endif           
-        
+    ! Calculate ee_now (the current value of eij*eij) 
+            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2     
+ 
     ! Initialize (???)        
         if (inilag) then
           if ((.not. F_LM_MM_init) .and. (jt == cs_count .or. jt == DYN_init)) then
@@ -333,10 +340,10 @@ do jz = 1,nz
 
             $if ($DYN_TN)
             ! note: the instantaneous value of the derivative is a Lagrangian average
-            F_ee2(:,:,jz) = epsi*ee_now**2 + (1._rprec-epsi)*F_ee2(:,:,jz)          
-            F_deedt2(:,:,jz) = epsi*( ((ee_now-ee_past(:,:,jz))/lagran_dt)**2 ) &
+            F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)          
+            F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
                                   + (1._rprec-epsi)*F_deedt2(:,:,jz)
-            ee_past(:,:,jz) = ee_now
+            ee_past(:,:,jz) = ee_now(:,:,jz)
             $endif   
 
     ! Calculate Cs_opt2 (for 4-delta filter)
@@ -347,18 +354,9 @@ do jz = 1,nz
         ! Clip, if necessary
         Cs_opt2_4d(:,:)=max(zero,Cs_opt2_4d(:,:))
 
-    ! Calculate Beta and count how many are clipped
+    ! Calculate Beta
         Beta(:,:,jz)=&
              (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
-        counter1=0      
-        
-        do jx=1,Nx
-        do jy=1,Ny
-           if (Beta(jx,jy,jz).LE.1/(tf1*tf2)) then
-              counter1=counter1+1
-           end if
-        end do
-        end do
 
         !--MPI: this is not valid
         $if ($MPI) 
@@ -380,9 +378,51 @@ do jz = 1,nz
         end do
         Cs_opt2(ld,:,jz) = zero
         Cs_opt2(ld-1,:,jz) = zero
-        ! Clip, if necessary
+
+    $if($OUTPUT_EXTRA)
+    ! Count how often Cs is clipped
+        do i=1,nx
+        do j=1,ny
+            if (real(Cs_opt2(i,j,jz)).lt.real(zero)) count_clip = count_clip + 1
+            count_all = count_all + 1
+        enddo
+        enddo
+    $endif
+
+    ! Clip, if necessary
         Cs_opt2(:,:,jz)=max(zero,Cs_opt2(:,:,jz))
- 
+   
+    $if($OUTPUT_EXTRA)
+    ! Write average Tn for this level to file
+        ! Create filename
+        if ((jz+coord*(nz-1)).lt.10) then
+            write (tempk, '(i1)') (jz + coord*(nz-1))
+        elseif ((jz+coord*(nz-1)).lt.100) then
+            write (tempk, '(i2)') (jz + coord*(nz-1))
+        endif      
+        $if ($DYN_TN)
+        fnamek = trim('output/Tn_dyn_') // trim(tempk)
+        $else
+        fnamek = trim('output/Tn_mlc_') // trim(tempk)
+        $endif
+        fnamek = trim(fnamek) // trim('.dat')
+       
+        ! Write
+        open(unit=2,file=fnamek,action='write',position='append',form='formatted')
+        write(2,*) jt,sum(Tn(1:nx,1:ny))/(nx*ny)
+        close(2)
+        
+    ! Also write clipping stats to file
+        fnamek = trim('output/clip_') // trim(tempk)
+        fnamek = trim(fnamek) // trim('.dat')   
+        open(unit=2,file=fnamek,action='write',position='append',form='formatted')
+        write(2,*) jt,real(count_clip)/real(count_all)
+        close(2)   
+    $endif     
+
+    ! Save Tn to 3D array for use with tavg_sgs
+    Tn_all(:,:,jz) = Tn(:,:)
+    
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
 
@@ -397,6 +437,7 @@ end do
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
+        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )  
     $endif   
 
 $if ($LVLSET)
