@@ -1360,19 +1360,10 @@ implicit none
 integer, intent (in) :: lun
 
 !---------------------------------------------------------------------
-
-    $if ($DYN_TN) 
-      write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
-                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                  Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
-                  F_QN(:,:,1:nz), F_NN(:,:,1:nz),                         &
-                  F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)                
-    $else
       write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
                   F_QN(:,:,1:nz), F_NN(:,:,1:nz)
-    $endif
 
 end subroutine checkpoint
 
@@ -1392,18 +1383,23 @@ use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-
+$if($DYN_TN)
+use sgs_param, only: F_ee2, F_deedt2, ee_past
+$endif
 implicit none
 
 integer,intent(in)::jt
 integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
 integer, parameter :: lun_default = 11
-integer::i,fid
 integer :: lun
 
 logical :: opn
 
 real(rprec) :: cfl_w
+
+$if ($DYN_TN)
+character (64) :: fname_dyn_tn, temp
+$endif
 
 !---------------------------------------------------------------------
 
@@ -1453,6 +1449,27 @@ if(tavg_calc) call tavg_finalize()
 !  Check if spectra is to be computed
 if(spectra_calc) call spectra_finalize()
  
+$if ($DYN_TN) 
+! Write running average variables to file
+  fname_dyn_tn = path // 'dyn_tn.out'
+  $if ($MPI)
+    write (temp, '(".c",i0)') coord
+    fname_dyn_tn = trim(fname_dyn_tn) // temp
+  $endif
+  
+  $if ($WRITE_BIG_ENDIAN)
+  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind',convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind',convert='little_endian')
+  $else
+  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind')
+  $endif
+
+  write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
+
+  close(13)
+$endif
+
 return
 end subroutine output_final
 
@@ -1534,6 +1551,9 @@ use grid_defs, only : grid_t
 use functions, only : cell_indx
 use stat_defs, only : point_t, xplane_t, yplane_t, zplane_t
 use stat_defs, only : tavg_t, tavg_zplane_t, spectra_t
+$if($OUTPUT_EXTRA)
+use stat_defs, only : tavg_sgs_t
+$endif
 use stat_defs, only : type_set
 implicit none
 
@@ -1541,7 +1561,7 @@ include 'tecryte.h'
 
 !character(120) :: cx,cy,cz
 character(120) :: var_list
-integer :: fid, i,j,k
+integer :: i,j,k
 
 logical :: exst
 
@@ -1558,11 +1578,18 @@ if( tavg_calc ) then
   allocate(tavg_t(nx,ny,lbz:nz))
   allocate(tavg_zplane_t(nz))
 
+  $if($OUTPUT_EXTRA)
+  allocate(tavg_sgs_t(nx,ny,nz))
+  $endif
+
   ! Initialize the derived types tavg_t and tavg_zplane_t  
   do k=1,Nz
     do j=1, Ny
       do i=1, Nx
         call type_set( tavg_t(i,j,k), 0._rprec )
+        $if($OUTPUT_EXTRA)
+        call type_set( tavg_sgs_t(i,j,k), 0._rprec )
+        $endif        
       enddo
     enddo
 
@@ -1750,11 +1777,17 @@ subroutine tavg_init()
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
+$if($OUTPUT_EXTRA)
+use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
+$endif
 use param, only : tavg_nstart, tavg_nend
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.tavg_init'
 character (*), parameter :: ftavg_in = 'tavg.out'
+$if($OUTPUT_EXTRA)
+character (*), parameter :: ftavg_sgs_in = 'tavg_sgs.out'
+$endif
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
 $endif
@@ -1780,26 +1813,65 @@ if (.not. exst) then
     write(*,*)'No previous time averaged data - starting from scratch.'
   endif
 
-  tavg_total_time = 0._rprec
+    tavg_total_time = 0._rprec
  
-  return
+else
+
+    $if ($READ_BIG_ENDIAN)
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='big_endian')
+    $elseif ($READ_LITTLE_ENDIAN)
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='little_endian')  
+    $else
+    open (1, file=fname, action='read', position='rewind',  &
+      form='unformatted')
+    $endif
+
+    read (1) tavg_total_time
+    read (1) tavg_t
+
+    close(1)
+
 endif
 
-$if ($READ_BIG_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='little_endian')  
-$else
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted')
+!------
+$if($OUTPUT_EXTRA)
+
+    $if ($MPI)
+    write (fname, '(a,a,i0)') ftavg_sgs_in, MPI_suffix, coord
+    $else
+    fname = trim(adjustl(ftavg_sgs_in))
+    $endif
+
+    inquire (file=fname, exist=exst)
+    if (.not. exst) then
+        !  Nothing to read in
+        if(coord == 0) then
+            write(*,*) ' '
+            write(*,*)'No previous time averaged data (sgs) - starting from scratch.'
+        endif
+
+        tavg_total_time_sgs = 0._rprec  
+    else
+        $if ($READ_BIG_ENDIAN)
+        open (1, file=fname, action='read', position='rewind',  &
+          form='unformatted', convert='big_endian')
+        $elseif ($READ_LITTLE_ENDIAN)
+        open (1, file=fname, action='read', position='rewind',  &
+          form='unformatted', convert='little_endian')  
+        $else
+        open (1, file=fname, action='read', position='rewind',  &
+          form='unformatted')
+        $endif
+
+        read (1) tavg_total_time_sgs
+        read (1) tavg_sgs_t
+
+        close(1)    
+    endif
+    
 $endif
-
-read (1) tavg_total_time
-read (1) tavg_t
-
-close(1)
 
 return
 end subroutine tavg_init
@@ -1811,6 +1883,10 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
+$if($OUTPUT_EXTRA)
+use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
+use sgs_param
+$endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 use sim_param, only : fx, fy, fz, fxa, fya, fza
@@ -1880,6 +1956,22 @@ do k=1,jzmax        ! these do not have a k=0 level (needed by coord==0)
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
       
+    $if($OUTPUT_EXTRA)
+      ! === w-grid variables === 
+      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt
+
+      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt
+      $if ($DYN_TN)
+      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt
+      $endif     
+    $endif
+    
     enddo
   enddo
 enddo
@@ -1889,6 +1981,9 @@ deallocate( u_w, v_w )
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + dt
+$if($OUTPUT_EXTRA)
+tavg_total_time_sgs = tavg_total_time_sgs + dt
+$endif
 
 return
 
@@ -1905,6 +2000,9 @@ use stat_defs, only :  operator(.ADD.), operator(.SUB.)
 use stat_defs, only : type_set, type_zero_bogus
 use stat_defs, only : tavg_interp_to_uv_grid, tavg_interp_to_w_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
+$if($OUTPUT_EXTRA)
+use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
+$endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
@@ -1931,7 +2029,13 @@ character(64) :: fname_out, fname_vel, &
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
   fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
-  
+$if($OUTPUT_EXTRA)  
+character(64) :: fname_sgs_out, fname_sgs_TnNu, fname_sgs_Fsub
+  !$if($DYN_TN)
+  character(64) :: fname_sgs_ee
+  !$endif
+$endif  
+
 integer :: i,j,k
 
 $if($MPI)
@@ -1998,6 +2102,15 @@ fname_rs_zplane = 'output/rs_zplane.dat'
 fname_cnpy_zplane = 'output/cnpy_zplane.dat'
 fname_cs_zplane = 'output/cs_opt2_zplane.dat'
 
+$if($OUTPUT_EXTRA)  
+fname_sgs_out = 'tavg_sgs.out'
+fname_sgs_TnNu = 'output/TnNu_avg.dat'
+fname_sgs_Fsub = 'output/Fsub_avg.dat'
+  !$if($DYN_TN)
+  fname_sgs_ee = 'output/ee_avg.dat'
+  !$endif
+$endif  
+
 $if ($MPI)
 !  For MPI implementation     
   write (temp, '(".c",i0)') coord
@@ -2011,6 +2124,15 @@ $if ($MPI)
   fname_rs = trim (fname_rs) // temp
   fname_cs = trim (fname_cs) // temp
    
+  $if($OUTPUT_EXTRA)  
+  fname_sgs_out = trim (fname_sgs_out) // temp
+  fname_sgs_TnNu = trim (fname_sgs_TnNu) // temp
+  fname_sgs_Fsub = trim (fname_sgs_Fsub) // temp
+    !$if($DYN_TN)
+    fname_sgs_ee = trim (fname_sgs_ee) // temp
+    !$endif
+  $endif    
+  
 $endif
 
 !  Write data to tavg.out
@@ -2031,6 +2153,25 @@ $endif
 write (1) tavg_total_time
 write (1) tavg_t
 close(1)
+
+!----
+$if($OUTPUT_EXTRA)
+    !  Write data to tavg_sgs.out
+    $if ($WRITE_BIG_ENDIAN)
+    open (1, file=fname_sgs_out, action='write', position='rewind', &
+      form='unformatted', convert='big_endian')
+    $elseif ($WRITE_LITTLE_ENDIAN)
+    open (1, file=fname_sgs_out, action='write', position='rewind', &
+      form='unformatted', convert='little_endian')
+    $else
+    open (1, file=fname_sgs_out, action='write', position='rewind', form='unformatted')
+    $endif
+
+    ! write the entire structures
+    write (1) tavg_total_time_sgs
+    write (1) tavg_sgs_t
+    close(1)
+$endif
 
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
@@ -2086,6 +2227,16 @@ do k=jzmin,jzmax
     enddo
   enddo
 enddo
+
+$if ($OUTPUT_EXTRA)
+do k=1,jzmax
+  do j=1, Ny
+    do i=1, Nx
+      tavg_sgs_t(i,j,k) = tavg_sgs_t(i,j,k) .DIV. tavg_total_time_sgs
+    enddo
+  enddo
+enddo
+$endif
 
 !  Sync entire tavg_t structure
 $if($MPI)
@@ -2406,7 +2557,97 @@ call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
 
 $endif
 
-! Reconstruct z-plane data 
+
+!----
+$if($OUTPUT_EXTRA)
+    $if($LVLSET)
+
+    call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+    !  write phi and x,y,z
+    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
+      (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+      (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), 4)  
+
+    $else
+
+    call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+      (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), &
+      4, x, y, zw(1:nz))
+
+    $endif
+    
+    
+    $if($LVLSET)
+
+    call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+    !  write phi and x,y,z
+    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
+      (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+      (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), 4)  
+
+    $else
+
+    call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+      (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), &
+      4, x, y, zw(1:nz))
+
+    $endif    
+    
+    $if($DYN_TN)
+      $if($LVLSET)
+
+      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+         '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+      !  write phi and x,y,z
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+        (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), 4)  
+
+      $else
+
+      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+         '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+        (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), &
+        4, x, y, zw(1:nz))
+
+      $endif        
+    $else
+      $if($LVLSET)
+
+      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+         '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
+      !  write phi and x,y,z
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+        (/ tavg_sgs_t % ee_now /), 4)  
+
+      $else
+
+      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+         '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
+      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+        (/ tavg_sgs_t % ee_now /), &
+        4, x, y, zw(1:nz))
+
+      $endif        
+    $endif
+    
+$endif
+!----
+
+
+! Construct zplane data 
 $if($MPI)
 
   allocate(recvsize(nproc),recvstride(nproc))
@@ -2559,7 +2800,11 @@ call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
   
 $endif
 
+
 deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
+$if($OUTPUT_EXTRA)
+deallocate(tavg_sgs_t)
+$endif
 
 nullify(x,y,z,zw)
 
