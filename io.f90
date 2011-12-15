@@ -1957,25 +1957,48 @@ do k=1,jzmax        ! these do not have a k=0 level (needed by coord==0)
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
       
     $if($OUTPUT_EXTRA)
-      ! === w-grid variables === 
-      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt
+      ! === w-grid variables ===
       tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt
-      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt
-      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt
-      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt
-      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt
-
-      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt
-      $if ($DYN_TN)
-      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt
-      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt
-      $endif     
     $endif
     
     enddo
   enddo
 enddo
 
+$if ($OUTPUT_EXTRA)
+if (sgs_model.gt.1) then
+do k=1,jzmax       
+  do j=1,ny
+    do i=1,nx
+      ! === w-grid variables ===
+      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt
+    enddo
+  enddo
+enddo
+endif
+$endif
+
+$if ($OUTPUT_EXTRA)
+if (sgs_model.gt.3) then
+do k=1,jzmax       
+  do j=1,ny
+    do i=1,nx
+      ! === w-grid variables ===
+      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt
+
+      $if ($DYN_TN)
+      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt
+      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt
+      $endif         
+    enddo
+  enddo
+enddo
+endif
+$endif
 
 deallocate( u_w, v_w )
 
