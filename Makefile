@@ -45,6 +45,7 @@ SRCS =  cfl_util.f90 \
 	press_stag_array.f90 \
         ran3.f90 rmsdiv.f90 \
         scaledep_dynamic.f90 \
+	sgs_hist.f90 \
 	sgs_param.f90 \
         sgs_stag_util.f90 \
 	sim_param.f90 \
@@ -96,6 +97,10 @@ endif
 ifeq ($(USE_CPS), yes)
   SRCS += $(CPS_SRCS)
   EXE := $(EXE)-cps
+endif
+
+ifeq ($(OUTPUT_EXTRA), yes)
+  EXE := $(EXE)-exout
 endif
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
