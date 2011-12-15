@@ -283,7 +283,7 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
         !endif
 
         !if ( HISTtn_t % coord(k) == coord) then
-
+         if (sgs_model.gt.3) then
             ! Interpolate variables to z-plane location
             do j=1,ny
             do i=1,nx
@@ -300,6 +300,7 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
                 call hist_binit( HISTtn_t % hist_t(k), tn_plane )
             $endif
 
+         endif
         !endif 
 
         !if ( HISTnu_t % coord(k) == coord) then
@@ -323,7 +324,7 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
         !endif 
 
         !if ( HISTee_t % coord(k) == coord) then
-
+         if (sgs_model.gt.1) then
             ! Interpolate variables to z-plane location
             do j=1,ny
             do i=1,nx
@@ -339,6 +340,7 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
             $else
                 call hist_binit( HISTee_t % hist_t(k), ee_plane )
             $endif
+          endif
 
         endif
 
