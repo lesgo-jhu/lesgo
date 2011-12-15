@@ -117,6 +117,10 @@ do
 
   $endif
 
+  case ('SGS_HIST')
+
+     call sgs_hist_block()
+
   case default
 
      if(coord == 0) call mesg( sub, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
@@ -840,6 +844,90 @@ end subroutine  cyl_skew_block
 $endif
 
 $endif
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine sgs_hist_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param
+implicit none
+
+character(*), parameter :: block_name = 'SGS_HIST'
+
+do 
+
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub, 'Bad read in block')
+
+  if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+
+     case ('SGS_HIST_CALC')
+        read (buff(equal_pos+1:), *) sgs_hist_calc
+     case ('SGS_HIST_CUMULATIVE')
+        read (buff(equal_pos+1:), *) sgs_hist_cumulative
+
+     case ('SGS_HIST_NSTART')
+        read (buff(equal_pos+1:), *) sgs_hist_nstart
+     case ('SGS_HIST_NSKIP')
+        read (buff(equal_pos+1:), *) sgs_hist_nskip
+     case ('SGS_HIST_NLOC')
+        read (buff(equal_pos+1:), *) sgs_hist_nloc
+     case ('SGS_HIST_LOC')
+        allocate( sgs_hist_loc( sgs_hist_nloc ) )
+        call parse_vector( buff(equal_pos+1:), sgs_hist_loc )
+
+     case ('CS2_BMIN')
+        read (buff(equal_pos+1:), *) cs2_bmin
+     case ('CS2_BMAX')
+        read (buff(equal_pos+1:), *) cs2_bmax
+     case ('CS2_NBINS')
+        read (buff(equal_pos+1:), *) cs2_nbins
+
+     case ('TN_BMIN')
+        read (buff(equal_pos+1:), *) tn_bmin
+     case ('TN_BMAX')
+        read (buff(equal_pos+1:), *) tn_bmax
+     case ('TN_NBINS')
+        read (buff(equal_pos+1:), *) tn_nbins
+
+     case ('NU_BMIN')
+        read (buff(equal_pos+1:), *) nu_bmin
+     case ('NU_BMAX')
+        read (buff(equal_pos+1:), *) nu_bmax
+     case ('NU_NBINS')
+        read (buff(equal_pos+1:), *) nu_nbins
+
+     case ('EE_BMIN')
+        read (buff(equal_pos+1:), *) ee_bmin
+     case ('EE_BMAX')
+        read (buff(equal_pos+1:), *) ee_bmax
+     case ('EE_NBINS')
+        read (buff(equal_pos+1:), *) ee_nbins
+
+     case default
+
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+  endif
+
+enddo
+
+return
+end subroutine  sgs_hist_block
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkentry()
