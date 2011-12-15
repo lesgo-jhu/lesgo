@@ -103,6 +103,10 @@ ifeq ($(OUTPUT_EXTRA), yes)
   EXE := $(EXE)-exout
 endif
 
+ifeq ($(USE_DYN_TN), yes)
+  EXE := $(EXE)-dyntn
+endif
+
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
