@@ -11,7 +11,7 @@ use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
 use cfl_util
-
+use sgs_hist
 use sgs_stag_util, only : sgs_stag
 
 $if ($MPI)
@@ -37,6 +37,7 @@ use debug_mod
 $endif
 
 use messages
+
 implicit none
 
 character (*), parameter :: sub_name = 'main'
@@ -60,6 +61,7 @@ tt = 0
 
 ! Initialize all data
 call initialize()
+
 
 $if($MPI)
   if(coord == 0) then
@@ -465,7 +467,12 @@ $endif
 ! Turbines:
 $if ($TURBINES)
 call turbines_finalize ()   ! must come before MPI finalize
-$endif    
+$endif   
+
+! SGS variable histograms
+if (sgs_hist_calc) then
+  call sgs_hist_finalize()
+endif
 
 ! Stop wall clock
 call clock_stop( clock_total_t )
