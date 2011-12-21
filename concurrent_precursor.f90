@@ -242,7 +242,7 @@ use messages, only : error
 use fringe_util, only : fringe_weighting
 implicit none
 
-character (*), parameter :: sub_name = 'inflow_cond'
+character (*), parameter :: sub_name = 'inflow_cond_cps'
 
 integer :: i, i_w, index
 real (rprec) :: alpha, beta
