@@ -243,7 +243,7 @@ contains
 
   !**********************************************************************
   subroutine allocate_arrays()
-    !**********************************************************************
+  !**********************************************************************
     use param, only : ny, lbz, nz_tot
     $if($MPI)
     use cyl_skew_pre_base_ls, only : nx_proc
@@ -260,7 +260,7 @@ contains
 
   !**********************************************************************
   subroutine generate_grid()
-    !**********************************************************************
+  !**********************************************************************
     ! This subroutine generates the xyz values on all the points in the domain
     ! (global coordinate system) in gcs_t using the grid generation routine
     ! grid_build()
