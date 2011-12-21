@@ -90,7 +90,7 @@
   subroutine initialize()
     !**********************************************************************
     use types, only : rprec
-    use param, only : nx, lbz, nz_tot, BOGUS
+    use param, only : nx, ny, lbz, nz_tot, BOGUS
     use input_util, only : read_input_conf
     use cyl_skew_pre_base_ls, only : gcs_t, ntree
     $if($MPI)
@@ -98,17 +98,19 @@
     use param, only : ierr, nz, nz_tot, dz, nproc, L_z
     use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc, nproc_lesgo
     $endif
-    use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, ngen, tr_t
+    use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, use_top_surf, z_top_surf, ngen, tr_t
     use cyl_skew_ls, only : fill_tree_array_ls
 
     implicit none
 
-    integer :: ng, k
+    integer :: ng, i, j, k
 
     $if($MPI)
     integer :: nx_proc_sum
     integer :: nx_remain, nx_extra
     $endif
+    
+    real(rprec) :: dist
 
     $if($MPI)
     ! Since we are using a number of procesors that differ from what
@@ -162,20 +164,31 @@
     gcs_t(:,:,:)%iset=0
 
     !  Initialize the point to surface association
-    gcs_t(:,:,:)%itype=-1 !  0 - bottom, 1 - elsewhere
+    gcs_t(:,:,:)%itype=-1 !  0 - bottom/top, 1 - elsewhere
 
     if(use_bottom_surf) then
        gcs_t(:,:,:)%itype=0
        !  Loop over all global coordinates
        do k=lbz,nz_tot
           gcs_t(:,:,k)%phi = gcs_t(:,:,k)%xyz(3) - z_bottom_surf
-          if(gcs_t(1,1,k)%phi <= 0.) then
-             !if(.not. brindx_set) then
-             !  gcs_t(:,:,k)%brindx = -1
-             !  gcs_t(:,:,k)%clindx = -1
-             !endif
-          endif
+       enddo
+    endif
 
+    ! Set level set distance for top surface
+    if(use_top_surf) then
+       !  Loop over all global coordinates
+       do k=lbz,nz_tot
+          do j=1,ny
+             do i=1,nx_proc          
+                if( gcs_t( i,j,k) % phi > 0.0_rprec ) then
+                   
+                   dist = -( gcs_t(i,j,k)%xyz(3) - z_top_surf )
+                   if( dist <= dabs( gcs_t(i,j,k) % phi ) ) &
+                        gcs_t(i,j,k)%phi = dist
+
+                endif
+             enddo
+          enddo
        enddo
     endif
 
@@ -334,14 +347,11 @@
              call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
              $endif
              
-
              do k=lbz,nz_tot
-
                 do j=1,ny
-
-
                    do i=1,nx_proc
 
+                      ! Only operate on exterior points (trivial handling of intersection of objects)
                       if(gcs_t(i,j,k)%phi > 0._rprec) then
                          call pt_loc(nt,ng,nc,nb,i,j,k)
                          call point_dist(nt,ng,nc,nb,i,j,k)
@@ -349,7 +359,6 @@
                       endif
 
                    enddo
-
                 enddo
              enddo
 

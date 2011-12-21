@@ -240,6 +240,8 @@ write(2,f_fmt) 'offset : ', offset
 write(2,f_fmt) 'scale_fact : ', scale_fact
 write(2,l_fmt) 'use_bottom_surf : ', use_bottom_surf
 write(2,f_fmt) 'z_bottom_surf : ', z_bottom_surf
+write(2,l_fmt) 'use_bottom_surf : ', use_top_surf
+write(2,f_fmt) 'z_bottom_surf : ', z_top_surf
 write(2,l_fmt) 'filter_chi : ', filter_chi
 write(2,f_fmt) 'filt_width : ', filt_width
 $endif

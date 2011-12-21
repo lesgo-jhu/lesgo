@@ -28,7 +28,9 @@ real(rprec) :: skew_angle = 45._rprec*pi/180._rprec
 ! logical, parameter :: use_bottom_surf = .true. !  True for making a bottom surface
 ! real(rprec), parameter :: z_bottom_surf = 0.6_rprec ! Already in non-dimensional units
 logical :: use_bottom_surf = .false. !  True for making a bottom surface
-real(rprec) :: z_bottom_surf = 0.0_rprec ! Already in non-dimensional units
+real(rprec) :: z_bottom_surf = 0.0_rprec ! Non-dimensional
+logical :: use_top_surf = .false.
+real(rprec) :: z_top_surf = 0.0_rprec ! Non-dimensional
 
 ! integer, parameter :: ntree = 1
 ! type(point3D), parameter, dimension(ntree) :: tree_location = (/ &
