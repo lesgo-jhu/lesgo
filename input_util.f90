@@ -189,7 +189,8 @@ do
      ! === Set dependant variables ===
      
      ! Set the processor owned vertical grid spacing
-     nz = ceiling ( real( nz_tot, rprec ) / nproc ) + 1
+     nz = floor ( real( nz_tot, rprec ) / nproc ) + 1
+
      ! Recompute nz_tot to be compliant with computed nz
      ival_read = nz_tot
      nz_tot = ( nz - 1 ) * nproc + 1 
