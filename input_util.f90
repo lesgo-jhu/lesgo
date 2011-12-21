@@ -7,7 +7,7 @@ implicit none
 save 
 private
 
-public read_input_conf
+public :: read_input_conf
 
 character (*), parameter :: input_conf = 'lesgo.conf'
 character (*), parameter :: comment = '!'
@@ -432,8 +432,6 @@ do
         read (buff(equal_pos+1:), *) fringe_region_end
      case ('FRINGE_REGION_LEN')
         read (buff(equal_pos+1:), *) fringe_region_len
-     case ('UNIFORM_INFLOW')
-        read (buff(equal_pos+1:), *) uniform_inflow
      case ('INFLOW_VELOCITY')
         read (buff(equal_pos+1:), *) inflow_velocity
      case ('FORCE_TOP_BOT')

@@ -1,6 +1,30 @@
 !**********************************************************************
-subroutine forcing_applied()
+module forcing
 !**********************************************************************
+!
+! Provides subroutines and functions for computing forcing terms on the
+! velocity field. Provides driver routine for IBM forces
+! (forcing_induced), driver routine for RNS, turbine, etc. forcing
+! (forcing_applied), and for the projection step. Also included are
+! routines for enforcing a uniform inflow and the fringe region
+! treatment.
+!
+implicit none
+
+save
+
+private
+
+public :: forcing_applied, &
+          forcing_induced, &
+          inflow_cond, &
+          project
+
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine forcing_applied()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 !  This subroutine acts as a driver for applying pointwise body forces
 !  into the domain. Subroutines contained here should modify f{x,y,z}a
@@ -39,9 +63,9 @@ $endif
    
 end subroutine forcing_applied
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine forcing_induced()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  
 !  These forces are designated as induced forces such that they are 
 !  chosen to obtain a desired velocity at time
@@ -75,112 +99,65 @@ $endif
 return
 end subroutine forcing_induced
 
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine inflow_cond ()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
-!  Enforces prescribed inflow condition. Options are either a uniform
-!  inflow velocity or an inlet velocity field generated from a precursor
-!  simulation. The inflow condition is enforced using either an IBM type
-!  forcing or by modulating directly the velocity in the fringe region.
+!  Enforces prescribed inflow condition based on an uniform inflow
+!  velocity.
 !
 use types, only : rprec
-use param, only : uniform_inflow, inflow_velocity, &
-                  nx, ny, nz, pi, &
-                  fringe_region_end, fringe_region_len, &
-                  L_x, dt, dx
+use param, only : inflow_velocity, nx, ny, nz, &
+                  fringe_region_end, fringe_region_len
 use param, only : coord
 use sim_param, only : u, v, w, theta
 use sim_param, only : fx, fy, fz
 use messages, only : error
-$if($CPS)
-use concurrent_precursor
-$endif
+use fringe_util
 implicit none
 
 character (*), parameter :: sub_name = 'inflow_cond'
 
 integer :: i, i_w
 integer :: istart, istart_w
-integer :: imid
+integer :: iplateau
 integer :: iend, iend_w
-
-$if($CPS)
-integer :: indx
-$endif
 
 real (rprec) :: alpha, beta
 
 !--these may be out of 1, ..., nx
-iend = floor (fringe_region_end * nx + 1._rprec)
-imid = floor (( fringe_region_end - fringe_region_len / 4 ) * nx + 1._rprec)
-istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
+call fringe_init( istart, iplateau, iend )
 
 !--wrapped versions
 iend_w = modulo (iend - 1, nx) + 1
 istart_w = modulo (istart - 1, nx) + 1
 
-if( uniform_inflow ) then
-
-   ! Use laminar inflow
-   u(iend_w, :, :) = inflow_velocity
-   v(iend_w, :, :) = 0._rprec
-   w(iend_w, :, :) = 0._rprec
-
-end if
-
-$if($CPS)
-indx=0
-$endif
+! Set end of domain
+u(iend_w, :, :) = inflow_velocity
+v(iend_w, :, :) = 0._rprec
+w(iend_w, :, :) = 0._rprec
 
 !--skip istart since we know vel at istart, iend already
 do i = istart + 1, iend - 1
 
   i_w = modulo (i - 1, nx) + 1
 
-  ! Linear profile
-  !beta = real ( i - istart, rprec ) / real ( iend - istart, rprec )
-  ! Sine profile
-  !beta = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
-  !                                       / (iend - istart)) )
-  ! Sine profile with plateau
-  if ( i > imid ) then 
-     beta = 1._rprec
-  else
-     beta = 0.5_rprec * ( 1._rprec - cos (pi * real (i - istart, rprec)  &
-          / (imid - istart)) )
-  endif
-
+  beta = fringe_weighting( i, istart, iplateau )
   alpha = 1.0_rprec - beta
 
-  $if($CPS)
-
-  indx = indx + 1
-
-  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * vel_sample_t % u(indx, 1:ny, 1:nz) 
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * vel_sample_t % v(indx, 1:ny, 1:nz)
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * vel_sample_t % w(indx, 1:ny, 1:nz)
-  
-  $else
-
-  u(i_w, 1:ny, 1:nz) = alpha * u(istart_w, 1:ny, 1:nz) + beta * u(iend_w, 1:ny, 1:nz)
-  v(i_w, 1:ny, 1:nz) = alpha * v(istart_w, 1:ny, 1:nz) + beta * v(iend_w, 1:ny, 1:nz)
-  w(i_w, 1:ny, 1:nz) = alpha * w(istart_w, 1:ny, 1:nz) + beta * w(iend_w, 1:ny, 1:nz)
-
-  $endif
+  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
+  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * inflow_velocity
+  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * inflow_velocity
 
 end do
-
-$if($CPS)
-if( indx .ne. vel_sample_t % nx ) call error( sub_name, 'Mismatch in expected sample size')
-$endif
 
 return
 end subroutine inflow_cond
 
-!**********************************************************************
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine project ()
-!**********************************************************************
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! provides u, v, w at 1:nz 
 !
@@ -190,7 +167,7 @@ use messages
 $if($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
   $if($CPS)
-  use concurrent_precursor, only : synchronize_cps
+  use concurrent_precursor, only : synchronize_cps, inflow_cond_cps
   $endif
 $endif
 implicit none
@@ -261,9 +238,10 @@ end do
 
 $if($CPS)
 call synchronize_cps()
-$endif
-
+call inflow_cond_cps()
+$else
 if ( inflow ) call inflow_cond ()
+$endif
 
 !--left this stuff last, so BCs are still enforced, no matter what
 !  inflow_cond does
@@ -315,3 +293,5 @@ if (coord == 0) then
 end if
 
 end subroutine project
+
+end module forcing

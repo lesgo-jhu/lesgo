@@ -13,7 +13,7 @@ use test_filtermodule
 use cfl_util
 use sgs_hist
 use sgs_stag_util, only : sgs_stag
-
+use forcing
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif

@@ -25,6 +25,7 @@ SRCS =  cfl_util.f90 \
         energy.f90 \
         fft.f90 \
 	forcing.f90 \
+	fringe_util.f90 \
 	functions.f90 \
 	grid.f90 \
         ic.f90 \
@@ -75,6 +76,11 @@ ifeq ($(USE_MPI), yes)
   EXE := $(EXE)-mpi
 endif
 
+ifeq ($(USE_CPS), yes)
+  SRCS += $(CPS_SRCS)
+  EXE := $(EXE)-cps
+endif
+
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
   EXE := $(EXE)-ls
@@ -92,11 +98,6 @@ endif
 
 ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
-endif
-
-ifeq ($(USE_CPS), yes)
-  SRCS += $(CPS_SRCS)
-  EXE := $(EXE)-cps
 endif
 
 ifeq ($(OUTPUT_EXTRA), yes)
