@@ -164,6 +164,8 @@ do
      
      select case (uppercase(buff(1:equal_pos-1)))
 
+     case ('NPROC')
+        read (buff(equal_pos+1:), *) nproc
      case ('NX')
         read (buff(equal_pos+1:), *) Nx
      case ('NY')
@@ -187,6 +189,15 @@ do
   elseif ( block_exit_pos == 1 ) then
 
      ! === Set dependant variables ===
+     $if( not $MPI )
+     if( nproc /= 1 ) then
+        ival_read = nproc
+        ! Reset to 1
+        nproc=1
+        if( coord == 0 ) &
+             call mesg( sub, 'Reseting nproc to: ', nproc )          
+     endif
+     $endif
      
      ! Set the processor owned vertical grid spacing
      nz = floor ( real( nz_tot, rprec ) / nproc ) + 1

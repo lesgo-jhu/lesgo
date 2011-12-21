@@ -28,6 +28,7 @@ use concurrent_precursor
 $endif
 implicit none
 
+integer :: np
 integer :: ip, coords(1)
 integer :: localComm
 
@@ -40,27 +41,27 @@ end if
 
 call mpi_init (ierr)
 
+! Set the local communicator
 $if($CPS)
-
   ! Create the local communicator (split from MPI_COMM_WORLD)
   ! This also sets the globally defined intercommunicator (bridge)
   call create_mpi_comms_cps( localComm ) 
-
 $else
-
   localComm = MPI_COMM_WORLD
-
 $endif
 
-call mpi_comm_size (localComm, nproc, ierr)
+call mpi_comm_size (localComm, np, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)
 
-! !--check if run-time number of processes agrees with nproc parameter
-! if (np /= nproc) then
-!   write (*, *) 'runtime number of procs = ', np,  &
-!                ' not equal to nproc = ', nproc
-!   stop
-! end if
+!--check if run-time number of processes agrees with nproc parameter
+if (np /= nproc) then
+  write (*, *) 'runtime number of procs = ', np,  &
+               ' not equal to nproc = ', nproc
+  stop
+else
+   nproc = np 
+endif
+
   !--set up a 1d cartesian topology 
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
   .true., comm, ierr)

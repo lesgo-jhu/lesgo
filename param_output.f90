@@ -44,13 +44,9 @@ write(2,c_fmt) 'PARAM'
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
-write(2,c_fmt) 'MPI PARAMETERS'
-write(2,c_fmt) '---------------------------------------------------'
-write(2,i_fmt) 'nproc : ', nproc
-write(2,c_fmt) ''
-write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'COMPUTATIONAL DOMAIN PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
+write(2,i_fmt) 'nproc : ', nproc
 write(2,x4i_fmt) 'nx, ny, nz, nz_tot : ', nx, ny, nz, nz_tot
 write(2,f_fmt) 'z_i : ', z_i
 write(2,x3f_fmt) 'L_x, L_y, L_z : ', L_x, L_y, L_z

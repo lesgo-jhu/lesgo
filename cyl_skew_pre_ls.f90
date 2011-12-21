@@ -21,7 +21,6 @@ module cyl_skew_pre_base_ls
 
   !  Defined local processor definitions
   $if($MPI)
-  integer, parameter :: nproc_lesgo = 4 ! MUST SET THIS 
   integer :: nx_proc
   integer :: nproc_csp, global_rank_csp
   integer :: stride
@@ -88,7 +87,7 @@ subroutine initialize()
   $if($MPI)
   use mpi
   use param, only : ierr, nz, nz_tot, dz, nproc, L_z
-  use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc, nproc_lesgo
+  use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
   $else
   use param, only : nx_proc => nx
   $endif
@@ -105,12 +104,6 @@ subroutine initialize()
   $endif
 
   real(rprec) :: dist
-
-  $if($MPI)
-  ! Since we are using a number of procesors that differ from what
-  ! will be used by lesgo we must set what we expect to use.
-  nproc = nproc_lesgo
-  $endif
 
   ! Read lesgo.conf to get simulation setup
   call read_input_conf()
@@ -213,7 +206,6 @@ contains
     use mpi
     use types, only : rprec
     use param, only : ierr, nproc, MPI_RPREC
-    use cyl_skew_pre_base_ls, only : nproc_lesgo
     implicit none
 
     !--check for consistent preprocessor & param.f90 definitions of

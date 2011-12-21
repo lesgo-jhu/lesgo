@@ -48,6 +48,12 @@ $endif
 
 implicit none
 
+! Create output directory
+if( coord == 0 ) call system("mkdir -p output")
+
+! Read input file
+! This obtains all major data defined in param
+call read_input_conf()
 
 ! Initialize MPI
 $if ($MPI)
@@ -64,12 +70,6 @@ $else
   chcoord = ''
 $endif
 
-! Create output directory
-if( coord == 0 ) call system("mkdir -p output")
-
-! Read input file
-! This obtains all major data defined in param
-call read_input_conf()
 ! Write simulation data to file
 if(coord == 0) call param_output()
 

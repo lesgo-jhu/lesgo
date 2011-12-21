@@ -21,10 +21,7 @@ logical, parameter :: do_calc_global_fmask = .false.
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI
 character (*), parameter :: MPI_suffix = '.c'
-integer, parameter :: np = 4
 logical, parameter :: MPI_split = .true.
-
-!integer, parameter :: nz = (nztot - 1) / np +1  !--local nz
 
 character (128) :: fphi_out_MPI, fphi_raw_out_MPI
 character (128) :: fbrindex_out_MPI, fbrindex_raw_out_MPI
@@ -39,43 +36,41 @@ real (rprec) :: x, y, z
 
 !---------------------------------------------------------------------
 
+! Now load the lesgo case information from lesgo.conf
+call read_input_conf()
+
 if (MPI_split) then
 
 !   !--prompt user for chunks to process
-!   write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', np-1, '):'
+!   write (*, '(1x,a,2(i0,a))') 'Enter starting chunk (', 0, '..', nproc-1, '):'
 !   read (*, *) ipmin
 !   write (*, *) 'read ipmin = ', ipmin
-!   write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', np-1, '):'
+!   write (*, '(1x,a,2(i0,a))') 'Enter ending chunk (', ipmin, '..', nproc-1, '):'
 !   read (*, *) ipmax
 !   write (*, *) 'read ipmax = ', ipmax
 
   ipmin = 0
-  ipmax = np - 1
+  ipmax = nproc - 1
 
-  if  ((ipmin < 0) .or. (ipmin > np - 1)) then
+  if  ((ipmin < 0) .or. (ipmin > nproc - 1)) then
     write (*, *) 'invalid ipmin = ', ipmin
     stop
-  else if ((ipmax < ipmin) .or. (ipmax > np - 1)) then
+  else if ((ipmax < ipmin) .or. (ipmax > nproc - 1)) then
     write (*, *) 'invalid ipmax = ', ipmax
     stop
   end if
 
 else
 
-  if (np /= 1) then
-    write (*, *) 'np must be 1 for when MPI_split is false'
+  if (nproc /= 1) then
+    write (*, *) 'nproc must be 1 for when MPI_split is false'
     stop
   end if
 
   ipmin = 0
-  ipmax = np - 1
+  ipmax = nproc - 1
   
 end if
-
-! First set the number of processors to run lesgo
-nproc = np
-! Now load the lesgo case information from lesgo.conf
-call read_input_conf()
 
 call grid_initialize ()
 call fill_tree_array ()
@@ -92,9 +87,9 @@ do ip = ipmin, ipmax
 
   if (ip == 0) phi(:, :, 0) = BOGUS
 
-  write (*, '(1x,a,i0,a,i0)') 'chunk ', ip, ' of ', np-1
+  write (*, '(1x,a,i0,a,i0)') 'chunk ', ip, ' of ', nproc-1
 
-  !write (*, *) 'np = ', np 
+  !write (*, *) 'nproc = ', nproc 
   !write (*, *) 'trees_pre: size (phi)= ', size (phi, 1), size (phi, 2),  &
   !             size (phi, 3) - 1  !--(-1) since ignore 0-level
 
@@ -106,8 +101,8 @@ do ip = ipmin, ipmax
     open (1, file=fphi_raw_out_MPI, form='unformatted')
 
     !--note some overlap here for local 0, nz levels (less MPI comms later)
-    !lbz = ip * (nz - 1) / np       !--0 level (local)
-    !ubz = lbz + (nz - 1) / np + 1  !--nz level (local)
+    !lbz = ip * (nz - 1) / nproc       !--0 level (local)
+    !ubz = lbz + (nz - 1) / nproc + 1  !--nz level (local)
 
     write (1) phi(:, :, 0:nz)  !--each file gets 0:nz_local
       
@@ -119,8 +114,8 @@ do ip = ipmin, ipmax
     open (1, file=fbrindex_raw_out_MPI, form='unformatted')
 
     !--overlap is different from above: brindex is only 1:nz_local-1
-    !lbz = ip * (nz - 1) / np + 1   !--1 level (local)
-    !ubz = lbz + (nz - 1) / np - 1  !--nz-1 level (local)
+    !lbz = ip * (nz - 1) / nproc + 1   !--1 level (local)
+    !ubz = lbz + (nz - 1) / nproc - 1  !--nz-1 level (local)
 
     write (1) brindex(:, :, 1:nz-1)
 
@@ -134,8 +129,8 @@ do ip = ipmin, ipmax
       write (1, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny,  &
                              ', k=', nz + 1
 
-      !lbz = ip * (nz - 1) / np       !--0-level
-      !ubz = lbz + (nz - 1) / np + 1  !--nz-level
+      !lbz = ip * (nz - 1) / nproc       !--0-level
+      !ubz = lbz + (nz - 1) / nproc + 1  !--nz-level
 
       do k = 0, nz
 
@@ -165,8 +160,8 @@ do ip = ipmin, ipmax
       write (1, '(3(a,i0))') 'zone, f=point, i=', nx, ', j=', ny,  &
                              ', k=', nz - 1
 
-      !lbz = ip * (nz - 1) / np + 1      !--1 level
-      !ubz = lbz + (nz - 1) / np - 1  !--nz-1 level
+      !lbz = ip * (nz - 1) / nproc + 1      !--1 level
+      !ubz = lbz + (nz - 1) / nproc - 1  !--nz-1 level
 
       do k = 1, nz-1
 
@@ -253,7 +248,7 @@ deallocate ( phi )
 
 if (do_calc_global_fmask) then  !--global fmask initialization
    call global_fmask_init()
-   call calc_global_fmask_ta ( np, MPI_split )
+   call calc_global_fmask_ta ( nproc, MPI_split )
    !--this also writes to file, which is why we pass MPI stuff
 end if
 
