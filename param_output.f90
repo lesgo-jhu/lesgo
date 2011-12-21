@@ -150,13 +150,13 @@ write(2,i_fmt) 'sgs_hist_nloc : ', sgs_hist_nloc
 do n=1,sgs_hist_nloc
   write(2,if_fmt) 'n, sgs_hist_loc(n) : ', n, sgs_hist_loc(n)
 enddo
-write(2,x2i_fmt) 'cs2_bmin, cs2_bmax : ', cs2_bmin, cs2_bmax
+write(2,x2f_fmt) 'cs2_bmin, cs2_bmax : ', cs2_bmin, cs2_bmax
 write(2,i_fmt) 'cs2_nbins : ', cs2_nbins
-write(2,x2i_fmt) 'tn_bmin, tn_bmax : ', tn_bmin, tn_bmax
+write(2,x2f_fmt) 'tn_bmin, tn_bmax : ', tn_bmin, tn_bmax
 write(2,i_fmt) 'tn_nbins : ', tn_nbins
-write(2,x2i_fmt) 'nu_bmin, nu_bmax : ', nu_bmin, nu_bmax
+write(2,x2f_fmt) 'nu_bmin, nu_bmax : ', nu_bmin, nu_bmax
 write(2,i_fmt) 'nu_nbins : ', nu_nbins
-write(2,x2i_fmt) 'ee_bmin, ee_bmax : ', ee_bmin, ee_bmax
+write(2,x2f_fmt) 'ee_bmin, ee_bmax : ', ee_bmin, ee_bmax
 write(2,i_fmt) 'ee_nbins : ', ee_nbins
 
 $if($LVLSET)
