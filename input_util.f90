@@ -23,7 +23,7 @@ character(*), parameter :: delim_minor=','
 character(*), parameter :: delim_major='//'
 
 ! Default buffer length for characters of unknown length
-integer, parameter :: BUFF_LEN = 256
+integer, parameter :: BUFF_LEN = 1024
 
 ! Thresh hold for evaluating differences in floating point values.
 real(rprec), parameter :: thresh = 1.0e-6_rprec

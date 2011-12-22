@@ -223,7 +223,7 @@ integer, intent(in) :: nseg
 character(*), dimension(nseg), intent(inout) :: sarray
 
 ! String buffers (assuming length)
-character(128) :: buff_old, buff
+character(1024) :: buff_old, buff
 integer :: pos, istop, n
 
 ! Length of the delimiter
