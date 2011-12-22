@@ -43,7 +43,7 @@ subroutine ic()
   if ( inflow ) then  !--no turbulence
      call uniform_ic()
   else
-     call boundary_layer_ic
+     call boundary_layer_ic()
   end if
 
   $endif
@@ -85,6 +85,7 @@ implicit none
 interface
    function ran3(idum)
      integer(4) idum
+     real(8) :: ran3
    end function ran3
 end interface
 
@@ -118,7 +119,6 @@ do jz=1,nz
    ! Not critical - may delete
    arg = 0.357*arg
    $endif
-
 
    $if ($TURBINES)
    call turbine_vel_init (zo_turbines)
