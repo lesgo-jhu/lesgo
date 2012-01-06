@@ -4256,6 +4256,9 @@ if (output) write (lun, *) 'w-node pass'
 
 !--w-node pass
 
+! For all processors
+kmax = nz - 1
+
 if (coord == 0) then
   kmin = 2
 else
