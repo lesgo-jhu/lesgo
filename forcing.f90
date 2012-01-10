@@ -238,7 +238,7 @@ end do
 
 $if($CPS)
 call synchronize_cps()
-call inflow_cond_cps()
+if( inflow ) call inflow_cond_cps()
 $else
 if ( inflow ) call inflow_cond ()
 $endif

@@ -92,19 +92,14 @@ character (*), parameter :: sub_name = mod_name // '.initialize_cps'
 
 !integer :: rankTest, coordTest
 
-real(rprec), pointer, dimension(:,:,:) :: u_p, v_p, w_p
 integer, pointer :: nx_p, istart_p, iplateau_p, iend_p
 
-nullify( u_p, v_p, w_p )
 nullify( nx_p, istart_p, iplateau_p, iend_p )
 
 istart_p   => vel_sample_t % istart
 iplateau_p => vel_sample_t % iplateau
 iend_p     => vel_sample_t % iend
 nx_p       => vel_sample_t % nx
-u_p        => vel_sample_t % u
-v_p        => vel_sample_t % v
-w_p        => vel_sample_t % w
 
 if( color == BLUE ) then
 
@@ -139,11 +134,10 @@ else
 endif
 
 ! Allocate the sample block
-allocate( u_p( nx_p, ny, nz ) )
-allocate( v_p( nx_p, ny, nz ) )
-allocate( w_p( nx_p, ny, nz ) )
+allocate( vel_sample_t % u( nx_p, ny, nz ) )
+allocate( vel_sample_t % v( nx_p, ny, nz ) )
+allocate( vel_sample_t % w( nx_p, ny, nz ) )
 
-nullify( u_p, v_p, w_p )
 nullify( nx_p, istart_p, iplateau_p, iend_p )
 
 return
@@ -256,6 +250,7 @@ nullify( nx_p, istart_p, iplateau_p, iend_p )
 u_p        => vel_sample_t % u
 v_p        => vel_sample_t % v
 w_p        => vel_sample_t % w
+nx_p       => vel_sample_t % nx
 istart_p   => vel_sample_t % istart
 iplateau_p => vel_sample_t % iplateau
 iend_p     => vel_sample_t % iend
