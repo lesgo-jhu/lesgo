@@ -14,14 +14,17 @@ subroutine interpolag_Sdep()
 
 use types,only:rprec
 use param
-use sgsmodule
+use sgs_param, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
+$if ($DYN_TN)
+use sgs_param, only: F_ee2, F_deedt2, ee_past
+$endif
 use sim_param,only:u,v,w
 use grid_defs,only:grid_t 
 use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
-use cfl_mod, only : get_max_cfl
+use cfl_util, only : get_max_cfl
 implicit none
 
 real(rprec), dimension(3) :: xyz_past
@@ -65,7 +68,7 @@ z => grid_t % z
         ! Variables x,y,z_lag, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
         ! Interpolation out of top/bottom of domain is not permitted.
         ! Note: x,y,z_lag values are only good for k=1:nz-1 within each proc
-            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.0)) then
+            if ( coord.eq.0 ) then
                 kmin = 2                    
                 ! At the bottom-most level (at the wall) the velocities are zero.
                 ! Since there is no movement the values of F_LM, F_MM, etc should
@@ -96,7 +99,9 @@ z => grid_t % z
             enddo
             enddo               
         ! Top-most level should not allow negative w
-            if ((.not. USE_MPI) .or. (USE_MPI .and. coord.eq.nproc-1)) then
+            $if ($MPI)
+            if (coord.eq.nproc-1) then
+            $endif
                 k = nz
                 do j=1,ny
                 do i=1,nx
@@ -117,7 +122,9 @@ z => grid_t % z
                     $endif
                 enddo
                 enddo    
-            endif          
+            $if ($MPI)
+            endif     
+            $endif     
         
          ! Share new data between overlapping nodes
          $if ($MPI)
@@ -134,7 +141,7 @@ z => grid_t % z
 
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases
-    if (mod (jt, cfl_count) .eq. 0) then
+    if (mod (jt, lag_cfl_count) .eq. 0) then
         lcfl = get_max_cfl()
         lcfl = lcfl*lagran_dt/dt  
         $if($MPI)

@@ -2,7 +2,7 @@ subroutine dns_stress(txx,txy,txz,tyy,tyz,tzz)
 ! using the 'sgs' sign convention for stress, so there is a - sign
 use types,only:rprec
 use param,only:ld,ld_big,nx,ny,nz,z_i,u_star,nu_molec,  &
-               USE_MPI, coord, nproc, BOGUS
+               coord, nproc, BOGUS
 use sim_param,only:dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 implicit none
 real(kind=rprec),dimension(ld,ny,nz),intent(out)::txx,txy,txz,tyy, tyz,tzz
@@ -31,17 +31,21 @@ end do
 end do
 
 !--if values not needed, set to bogus value (easier to catch errors)
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+if (coord == nproc-1) then
+$endif
   ! top values of txx, txy, tyy, tzz not needed for stress free bc's
   !--if values not needed, set to bogus value (easier to catch errors)
   txx(:,:,nz) = BOGUS
   txy(:,:,nz) = BOGUS
   tyy(:,:,nz) = BOGUS
   tzz(:,:,nz) = BOGUS
-end if
+$if ($MPI)
+endif
+$endif
 
 ! w-nodes
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! leave the wall level alone: taken care of with wall stress
   !--assume here that wall stress has already been set (for MPI)
   jz_min = 2
@@ -60,21 +64,27 @@ do jz = jz_min, nz-1
   end do
 end do
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI) 
+  if (coord == nproc-1) then
+    ! stress-free lid: this should check which bc options we use
+    txz(:,:,nz)=0._rprec
+    tyz(:,:,nz)=0._rprec
+  else
+    !--nz here saves communication in MPI version: can only do this since
+    !  dudz, dwdx, dvdz, dwdy are available at nz (not true w/ all components)
+    do jy = 1, ny
+      do jx = 1, nx
+        S13 = 0.5_rprec*(dudz(jx,jy,nz)+dwdx(jx,jy,nz))
+        S23 = 0.5_rprec*(dvdz(jx,jy,nz)+dwdy(jx,jy,nz))
+        txz(jx,jy,nz) = -2._rprec*nu*S13
+        tyz(jx,jy,nz) = -2._rprec*nu*S23
+      enddo
+    enddo
+  endif
+$else
   ! stress-free lid: this should check which bc options we use
   txz(:,:,nz)=0._rprec
   tyz(:,:,nz)=0._rprec
-else
-  !--nz here saves communication in MPI version: can only do this since
-  !  dudz, dwdx, dvdz, dwdy are available at nz (not true w/ all components)
-  do jy = 1, ny
-    do jx = 1, nx
-      S13 = 0.5_rprec*(dudz(jx,jy,nz)+dwdx(jx,jy,nz))
-      S23 = 0.5_rprec*(dvdz(jx,jy,nz)+dwdy(jx,jy,nz))
-      txz(jx,jy,nz) = -2._rprec*nu*S13
-      tyz(jx,jy,nz) = -2._rprec*nu*S23
-    end do
-  end do
-end if
+$endif
 
 end subroutine dns_stress

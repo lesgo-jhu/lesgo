@@ -26,14 +26,6 @@ ifeq ($(USE_MPI), yes)
   LIBS += -lmpichf90 -lfmpich -lmpich
 endif
 
-ifeq ($(USE_CFL_DT), yes)
-  FPP += -DCFL_DT
-endif
-
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
-endif
-
 ifeq ($(WRITE_ENDIAN),LITTLE)
   FPP += -DWRITE_LITTLE_ENDIAN
 endif
@@ -52,9 +44,6 @@ endif
 
 ifeq ($(USE_LVLSET), yes)
   FPP += -DLVLSET
-  ifeq ($(SMOOTH_VEL), yes)
-    FPP += -DLVLSET_SMOOTH_VEL
-  endif
 endif
 
 ifeq ($(USE_CYL_SKEW_LS), yes)

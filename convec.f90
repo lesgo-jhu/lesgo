@@ -1,3 +1,7 @@
+!***********************************************************************
+subroutine convec ()
+!***********************************************************************
+!
 ! c = - (u X vort)
 !...Compute rotational convective term in physical space  (X-mom eq.)
 !...For staggered grid
@@ -9,11 +13,12 @@
 !
 ! uses 3/2-rule for dealiasing 
 !-- for more info see Canuto 1991 Spectral Methods (0387522050), chapter 7
-subroutine convec (cx,cy,cz)
+!
 use types,only:rprec
 use param
 use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
                       du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
+use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
 $if ($DEBUG)
@@ -22,8 +27,6 @@ $endif
 
 implicit none
 
-real (rprec), dimension (ld, ny, lbz:nz), intent (out) :: cx, cy, cz
-
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
@@ -31,23 +34,41 @@ $endif
 integer::jz
 integer :: jz_min
 
-!--save forces heap storage
-real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
-!real(kind=rprec),dimension(ld_big,ny2,nz)::cc_big
-!--save forces heap storage
-real (rprec), save, dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
-!real (rprec), dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
+! !--save forces heap storage
+! real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
+! !--save forces heap storage
+! real (rprec), save, dimension (ld_big, ny2, lbz:nz) :: u1_big, u2_big, u3_big
+! !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
+! !--save forces heap storage 
+! real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
+!                                                    vort3_big
+
+real(rprec), save, allocatable, dimension(:,:,:)::cc_big
+real (rprec), save, allocatable, dimension (:,:,:) :: u1_big, u2_big, u3_big
 !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
-!--save forces heap storage 
-real (rprec), save, dimension (ld_big, ny2, nz) :: vort1_big, vort2_big,  &
-                                                   vort3_big
-!real (rprec), dimension (ld_big, ny2, nz) :: vort1_big, vort2_big, vort3_big
-!--MPI: only vort1_big(1:nz), vort2_big(1:nz), vort3_big(1:nz-1) are used
+real (rprec), save, allocatable, dimension (:, :, :) :: vort1_big, vort2_big, vort3_big
+logical, save :: arrays_allocated = .false. 
+
 real(kind=rprec) :: const
 
 $if ($VERBOSE)
 write (*, *) 'started convec'
 $endif
+
+if( .not. arrays_allocated ) then
+
+   allocate( cc_big( ld_big,ny2,nz ) )
+   allocate( u1_big(ld_big, ny2, lbz:nz), &
+        u2_big(ld_big, ny2, lbz:nz), &
+        u3_big(ld_big, ny2, lbz:nz) )
+   allocate( vort1_big( ld_big,ny2,nz ), &
+        vort2_big( ld_big,ny2,nz ), &
+        vort3_big( ld_big,ny2,nz ) )
+
+   arrays_allocated = .true. 
+
+endif
+
 !...Recall dudz, and dvdz are on UVP node for k=1 only
 !...So du2 does not vary from arg2a to arg2b in 1st plane (k=1)
 
@@ -83,8 +104,7 @@ do jz = 1, nz
 !--if du1d3, du2d3 are on u-nodes for jz=1, then we need a special
 !  definition of the vorticity in that case which also interpolates
 !  du3d1, du3d2 to the u-node at jz=1
-   if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-        (jz == 1) ) then
+   if ( (coord == 0) .and. (jz == 1) ) then
         
      select case (lbc_mom)
        case ('wall')
@@ -133,7 +153,7 @@ end do
 ! redefinition of const
 const=1._rprec/(nx2*ny2)
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,2)))
@@ -169,7 +189,7 @@ end do
 ! CY
 ! const should be 1./(nx2*ny2) here
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,2)))
@@ -204,7 +224,7 @@ end do
 
 ! CZ
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
@@ -215,13 +235,17 @@ else
   jz_min = 1
 end if
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+!$if ($MPI)
+!  if (coord == nproc-1) then
+!    cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
+!    jz_max = nz - 1
+!  else
+!    jz_max = nz
+!  endif
+!$else
 !  cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
-!
 !  jz_max = nz - 1
-!else
-!  jz_max = nz
-!end if
+!$endif
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
@@ -270,3 +294,4 @@ write (*, *) 'finished convec'
 $endif
 
 end subroutine convec
+

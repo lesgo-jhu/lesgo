@@ -100,7 +100,7 @@ $else
 $endif
 
 !if ( flush ) then
-!  if ((.not. USE_MPI) .or. (USE_MPI .and. rank == 0)) then
+!  if (rank == 0) then
 !    close (13)
 !    open ( 13, file=path//'output/check_ke.out', position='append' )
 !  end if

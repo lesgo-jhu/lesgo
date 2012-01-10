@@ -5,7 +5,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t !x,y,z
 use io
 use messages
-use strmod, only : numtostr
+use string_util, only : numtostr
 $if ($MPI)
   use mpi_defs
 $endif
@@ -331,7 +331,7 @@ z => grid_t % z
 
 !create files to store turbine forcing data
     if (.not. turbine_cumulative_time) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
             do s=1,nloc
                 fname = 'turbine/turbine_'
@@ -349,7 +349,7 @@ z => grid_t % z
     large_node_array = 0.
     call turbines_nodes(large_node_array)
 
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    if (coord == 0) then
       !to write the node locations to file
       fname0 = 'turbine/nodes_unfiltered.dat'
       call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
@@ -366,7 +366,7 @@ z => grid_t % z
     eps = dt_dim/T_avg_dim / (1. + dt_dim/T_avg_dim)
     
     if (turbine_cumulative_time) then
-        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        if (coord == 0) then
             fname4 = 'turbine/turbine_u_d_T.dat'
             inquire (file=fname4, exist=exst)
             if (exst) then
@@ -428,7 +428,7 @@ z => grid_t % z
 !        fname = 'turbine/turbine_cond_avg_hi_time.dat'
 !        inquire (file=fname, exist=exst)
 !        if (exst) then
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
+!            if (coord == 0) then 
 !                write(*,*) 'Reading from file turbine_cond_avg_hi_time.dat'
 !            endif       
 !            inquire (unit=1, opened=opn)
@@ -440,12 +440,12 @@ z => grid_t % z
 !            read(1,*) old_time
 !            close (1)
 !          
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then 
+!            if (coord == 0) then 
 !                write(*,*) 'Reading turbine cond_avg_hi files'
 !            endif
 !            call turbine_read_ca_hi()
 !        else  
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write (*, *) 'File ', trim(fname), ' not found'
 !                write (*, *) 'Starting conditional average (hi) from scratch'
 !            endif
@@ -454,7 +454,7 @@ z => grid_t % z
 !        fname = 'turbine/turbine_cond_avg_lo_time.dat'
 !        inquire (file=fname, exist=exst)
 !        if (exst) then
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write(*,*) 'Reading from file turbine_cond_avg_lo_time.dat'
 !            endif    
 !            inquire (unit=1, opened=opn)
@@ -466,18 +466,18 @@ z => grid_t % z
 !            read(1,*) old_time
 !            close (1)
 !                
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write(*,*) 'Reading turbine cond_avg_lo files'
 !            endif            
 !            call turbine_read_ca_lo()           
 !        else  
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write (*, *) 'File ', trim(fname), ' not found'
 !                write (*, *) 'Starting conditional average (lo) from scratch'
 !            endif
 !        endif                
 !    else 
-!        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!        if (coord == 0) then
 !            write (*, *) 'Starting conditional average (hi and lo) from scratch'
 !        endif
 !    endif   
@@ -489,7 +489,7 @@ z => grid_t % z
 !        inquire (file=fname2, exist=exst2)
 !        
 !        if (exst .and. exst2) then
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
 !            endif
 !            inquire (unit=1, opened=opn)
@@ -506,7 +506,7 @@ z => grid_t % z
 !            if (rms_same_for_all) then
 !                ca_limit_mean_averaged = abs(sum(ca_limit_mean)/nloc)
 !                ca_limit_rms_averaged = abs(sum(ca_limit_rms)/nloc)
-!                if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!                if (coord == 0) then
 !                    write(*,*) 'Cond Avg Limits (all):',ca_limit_mean_averaged,'+/- mult*',ca_limit_rms_averaged
 !                endif                
 !                wind_farm_t%turbine_t(:)%cond_avg_ud_hi = ca_limit_mean_averaged + &
@@ -522,7 +522,7 @@ z => grid_t % z
 !                enddo  
 !            endif
 !        else
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
 !            endif
 !        endif
@@ -582,7 +582,7 @@ do s=1,nloc
 
     !identify "search area"
     R_t = p_dia/2.
-            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            !if (coord == 0) then
             !    if (verbose) then
             !      write(*,*) '     rad:',R_t
             !      write(*,*) '     dx:',dx
@@ -599,7 +599,7 @@ do s=1,nloc
     p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     p_nhat3 = sin(pi*p_theta2/180.)
-            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            !if (coord == 0) then
             !    if (verbose) then
             !      write(*,*) '     n_hat', p_nhat1, p_nhat2, p_nhat3
             !    endif
@@ -609,7 +609,7 @@ do s=1,nloc
     icp = nint(p_xloc/dx)
     jcp = nint(p_yloc/dy)
     kcp = nint(p_height/dz + 0.5)
-            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            !if (coord == 0) then
             !    if (verbose) then
             !      write(*,*) '     turbine center (i,j,k)',icp,jcp,kcp
             !      write(*,*) '     turbine center (x,y,z)',x(icp),y(jcp),z_tot(kcp)
@@ -625,7 +625,7 @@ do s=1,nloc
     max_j = jcp+jmax
     min_k = max((kcp-kmax),1)
     max_k = min((kcp+kmax),nz_tot)
-            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+            !if (coord == 0) then
             !    if (verbose) then
             !      write(*,*) '     i limits, range', min_i, max_i, dx*(max_i-min_i)
             !      write(*,*) '     j limits, range', min_j, max_j, dy*(max_j-min_j)
@@ -672,7 +672,7 @@ do s=1,nloc
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 !if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
                 if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
-                    !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                    !if (coord == 0) then
                     !    if (verbose) then
                     !      write(*,*) '     FOUND NODE', i,j,k
                     !    endif
@@ -690,7 +690,7 @@ do s=1,nloc
     enddo
     wind_farm_t%turbine_t(s)%num_nodes = count_n
 
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    if (coord == 0) then
         write(*,*) '     Turbine #',s,'has',count_n,'unfiltered nodes in entire domain'
     endif
     
@@ -742,14 +742,14 @@ delta2 = wind_farm_t%alpha**2 * (dx**2 + dy**2 + dz**2)
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
 g = g/sumG
-    !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    !if (coord == 0) then
     !    if (verbose) then
     !        write(*,*) 'Convolution function created.'
     !    endif
     !endif
 
 !display the convolution function
-    !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    !if (coord == 0) then
     !    if(.false.) then
     !      write(*,*) 'Convolution function'
     !      write(*,*) g
@@ -758,7 +758,7 @@ g = g/sumG
     !endif
 
     !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then    
+    if (coord == 0) then    
         i=nx/2
         j=ny/2
         do k2=1,nz_tot
@@ -783,7 +783,7 @@ g = g/sumG
 !filter indicator function for each turbine
 do b=1,nloc
     
-    !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    !if (coord == 0) then
     !    if (verbose) then
     !        write(*,*) 'Filtering turbine Number ',b
     !    endif
@@ -809,7 +809,7 @@ do b=1,nloc
         max_k = wind_farm_t%turbine_t(b)%nodes_max(6) 
         cut = wind_farm_t%trunc   
 
-        !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        !if (coord == 0) then
         !    if (verbose) then
         !        write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
         !    endif
@@ -856,7 +856,7 @@ do b=1,nloc
     	enddo
         enddo
 
-        !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+        !if (coord == 0) then
         !    if (verbose) then
         !        write(*,*) 'Convolution complete for turbine ',b
         !    endif
@@ -878,7 +878,7 @@ do b=1,nloc
     turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
 	out_a = turbine_vol/sumA*out_a
 
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    if (coord == 0) then
         large_node_array_filtered = large_node_array_filtered + out_a
     endif
 
@@ -890,13 +890,14 @@ do b=1,nloc
     wind_farm_t%turbine_t(b)%num_nodes = 0.
     count_n = 0
     count_i = 1
-    if (.not. USE_MPI) then
-        k_start = 1
-        k_end = nz
-    else !this is the global k. searching over local k=1,nz-1 (to avoid overlap)
+    $if ($MPI)
         k_start = 1+coord*(nz-1)
         k_end = nz-1+coord*(nz-1)
-    endif
+    $else
+        k_start = 1
+        k_end = nz
+    $endif
+
 	do k=k_start,k_end  !global k     
 		do j=1,ny
 			do i=1,nx
@@ -915,14 +916,7 @@ do b=1,nloc
 	wind_farm_t%turbine_t(b)%num_nodes = count_n
     
     if (count_n > 0) then
-        if (.not. USE_MPI) then
-            write (string1, '(i3)') b
-            string1 = trim(adjustl(string1))
-            write (string2, '(i4)') count_n
-            string2 = trim(adjustl(string2))            
-          
-            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes' 
-        else
+        $if ($MPI)
             write (string1, '(i3)') b
             string1 = trim(adjustl(string1))
             write (string2, '(i4)') count_n
@@ -931,7 +925,14 @@ do b=1,nloc
             string3 = trim(adjustl(string3))             
 
             write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
-        endif
+        $else
+            write (string1, '(i3)') b
+            string1 = trim(adjustl(string1))
+            write (string2, '(i4)') count_n
+            string2 = trim(adjustl(string2))            
+          
+            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes' 
+        $endif
     endif
 
 enddo
@@ -953,7 +954,7 @@ enddo
             call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
             call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    if (coord == 0) then
         fname3 = 'turbine/nodes_filtered.dat'
         call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
         call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
@@ -991,7 +992,7 @@ end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
 use sim_param, only: u,v,w
-use immersedbc, only : fxa, fya, fza
+use sim_param, only : fxa, fya, fza
 use grid_defs, only: grid_t !y,z
 use functions, only: interp_to_uv_grid
 $if ($MPI)
@@ -1076,7 +1077,7 @@ $if ($MPI)
 $endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then           
+if (coord == 0) then           
 
     !for each turbine:        
         do s=1,nloc            
@@ -1241,7 +1242,7 @@ z => grid_t % z
 
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then  
+    if (coord == 0) then  
         fname4 = 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
@@ -1258,7 +1259,7 @@ z => grid_t % z
 !    call turbine_fin_ca_lo()    
 !    
 !    do s=1,nloc
-!        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!        if (coord == 0) then
 !            write(*,*)
 !            write(*,*) 'turbine:',s
 !            write(*,*) 'cond_avg_time_hi',wind_farm_t%turbine_t(s)%cond_avg_time_hi
@@ -1270,12 +1271,12 @@ z => grid_t % z
 !    enddo        
 !   
 !!write cond_avg_time array to file (for multiple runs)
-!    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!    if (coord == 0) then
 !        call turbine_fin_ca_times()
 !    endif   
 
 !write x,y,z arrays to file so cond_avg domains can be reconstructed for use in Tecplot
-    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+    if (coord == 0) then
         fname = 'turbine/nxLx.dat'
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark13')   
@@ -1375,7 +1376,7 @@ character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_hi'
 !            wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi* &
 !                wind_farm_t%turbine_t(s)%cond_avg_time_hi 
 !        else
-!            if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!            if (coord == 0) then
 !                write(*,*) 'File ', trim(fname), ' not found...'
 !            endif
 !        endif
@@ -1417,7 +1418,7 @@ character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_lo'
 !        wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo* &
 !              wind_farm_t%turbine_t(s)%cond_avg_time_lo 
 !    else
-!        if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!        if (coord == 0) then
 !            write(*,*) 'File ', trim(fname), ' not found...'
 !        endif
 !    endif
@@ -1436,7 +1437,7 @@ character (*), parameter :: sub_name = mod_name // '.turbines_cond_avg_hi'
 !!apply conditional averaging if necessary
 !    do s=1,nloc
 !        if(wind_farm_t%cond_avg_flag_hi(s)) then            
-!            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) write(*,*) 'hi'
+!            !if (coord == 0) write(*,*) 'hi'
 !            wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) = & 
 !                wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
 !            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) = &
@@ -1460,7 +1461,7 @@ character (*), parameter :: sub_name = mod_name // '.turbines_cond_avg_lo'
 !!apply conditional averaging if necessary
 !    do s=1,nloc
 !        if(wind_farm_t%cond_avg_flag_lo(s)) then            
-!            !if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) write(*,*) 'lo'
+!            !if (coord == 0) write(*,*) 'lo'
 !            wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) = & 
 !                wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
 !            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) = &
@@ -1480,7 +1481,7 @@ subroutine turbine_fin_ca_hi()
 implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_hi'
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!if (coord == 0) then
 !    write(*,*) 'Writing turbine cond_avg_hi files'
 !endif
 
@@ -1532,7 +1533,7 @@ subroutine turbine_fin_ca_lo()
 implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_lo'
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+!if (coord == 0) then
 !    write(*,*) 'Writing turbine cond_avg_lo files'
 !endif
 

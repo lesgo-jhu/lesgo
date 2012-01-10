@@ -915,7 +915,7 @@ end subroutine fill_tree_array
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine read_trees_conf ()
 use messages
-use string_util, only : eat_whtspc
+use string_util, only : eat_whitespace
 implicit none
 
 character (*), parameter :: sub = 'read_trees_conf'
@@ -988,7 +988,7 @@ do
   line = line + 1
 
   !--remove leading/intermediate whitespace
-  call eat_whtspc (buff)
+  call eat_whitespace (buff)
 
   if (verify (buff, ' ') == 0) cycle  !--drop blank lines
   
@@ -1092,7 +1092,8 @@ do
         call error (sub, 'n_sub_branch must be specified before rel_dir')
       end if
       read (buff(eqpos+1:), *) tree_array(i_tree) % rel_dir
-	  write(*,*) 'tree_array(i_tree) % rel_dir = ', tree_array(i_tree) % rel_dir
+      write(*,*) 'tree_array(i_tree) % rel_dir = ', tree_array(i_tree) % rel_dir
+      
       do i = 1, n_sub_branch
         call mesg (sub, 'rel_dir =', tree_array(i_tree) % rel_dir(:, i))
       end do

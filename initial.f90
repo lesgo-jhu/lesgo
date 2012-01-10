@@ -4,14 +4,13 @@ subroutine initial()
 use types,only:rprec
 use param
 use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
-!use sgsmodule , only : Cs_opt2, Cs_opt2_avg, F_LM, F_MM, F_QN, F_NN 
-use sgsmodule , only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
+use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
-use sgsmodule, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 
-use immersedbc,only:fx,fy,fz
-use immersedbc,only:fxa,fya,fza
+use sim_param,only:fx,fy,fz
+use sim_param,only:fxa,fya,fza
 
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -21,7 +20,8 @@ implicit none
 
 logical, parameter :: use_add_random = .false.
 
-character (64) :: fname, temp
+character (64) :: fname, temp, fname_dyn_tn
+logical :: exst
 
 integer::i,jz
 
@@ -32,70 +32,64 @@ fx=0._rprec;fy=0._rprec;fz=0._rprec
 fxa=0._rprec; fya=0._rprec; fza=0._rprec
 
 $if ($DYN_TN)
-!Eventually want to read these in from file, but for now, just initialize to zero
+!Will be over-written if read from dyn_tn.out files
 ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
 $endif
 
 fname = path // 'vel.out'
+fname_dyn_tn = path // 'dyn_tn.out'
 $if ($MPI)
   write (temp, '(".c",i0)') coord
   fname = trim (fname) // temp
+  fname_dyn_tn = trim (fname_dyn_tn) // temp
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
 
 if(initu)then
 
-  $if ($READ_BIG_ENDIAN)
-  open(12,file=fname,form='unformatted', convert='big_endian')
-  $elseif ($READ_LITTLE_ENDIAN)
-  open(12,file=fname,form='unformatted', convert='little_endian')
-  $else
-  open(12,file=fname,form='unformatted')
-  $endif
+    $if ($READ_BIG_ENDIAN)
+    open(12,file=fname,form='unformatted', convert='big_endian')
+    $elseif ($READ_LITTLE_ENDIAN)
+    open(12,file=fname,form='unformatted', convert='little_endian')
+    $else
+    open(12,file=fname,form='unformatted')
+    $endif
   
-
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
-    select case (model)
-      case (1)
-        read (12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),       &
-                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz)
-      case (2:3)
-        read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                 RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                 Cs_opt2(:,:,1:nz)              
-      case (4)
-        if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
-          read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                    Cs_opt2(:,:,1:nz)
+    read(12) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+             RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+             Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+             F_QN(:,:,1:nz), F_NN(:,:,1:nz)        
+
+    $if ($DYN_TN)
+    ! Read dynamic timescale running averages from file
+
+      if (cumulative_time) then
+
+        inquire (file=fname_dyn_tn, exist=exst)
+        if (exst) then
+
+            $if ($READ_BIG_ENDIAN)
+            open(13,file=fname_dyn_tn,form='unformatted', convert='big_endian')
+            $elseif ($READ_LITTLE_ENDIAN)
+            open(13,file=fname_dyn_tn,form='unformatted', convert='little_endian')
+            $else
+            open(13,file=fname_dyn_tn,form='unformatted')
+            $endif
+
+            read(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
+
         else
-        $if($DYN_TN)
-          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
-                   F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
-        $else
-          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz)   
-        $endif
-        end if
-      case (5)
-        if (inilag) then  !--not sure if Cs_opt2 should be there, just quickie
-          read (12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                    RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                    Cs_opt2(:,:,1:nz)
-        else
-          read(12) u(:, :, 1:nz),v(:, :, 1:nz),w(:, :, 1:nz),             &
-                   RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                   Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
-                   F_QN(:,:,1:nz), F_NN(:,:,1:nz)
-        end if
-      case default
-        write (*, *) 'initial: invalid model number'
-    end select
+
+            write(*,*) trim(fname_dyn_tn), ' not found - using default values'
+
+        endif
+
+      endif
+
+    $endif
 
     !call energy (ke)
 
@@ -107,14 +101,15 @@ if(initu)then
 7780 format('jz, ubar, vbar, wbar:',(1x,I3,1x,F9.4,1x,F9.4,1x,F9.4))
 
   close(12) 
+  close(13)
 
 else
   if (dns_bc) then
-     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial velocity field with DNS BCs'
+     if (coord == 0) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else
-    if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Creating initial fields'
-       if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '----> Creating initial velocity field'
+    if (coord == 0) write(*,*) '--> Creating initial fields'
+       if (coord == 0) write(*,*) '----> Creating initial velocity field'
        call ic()
   end if
 end if
@@ -125,14 +120,13 @@ $if ($MPI)
   call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
   call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
   
+  if (coord == 0) then
+    !--set 0-level velocities to BOGUS
+    u(:, :, lbz) = BOGUS
+    v(:, :, lbz) = BOGUS
+    w(:, :, lbz) = BOGUS
+  end if
 $endif
-
-if (USE_MPI .and. coord == 0) then
-  !--set 0-level velocities to BOGUS
-  u(:, :, lbz) = BOGUS
-  v(:, :, lbz) = BOGUS
-  w(:, :, lbz) = BOGUS
-end if
 
 !  Open vel.out (lun_default in io) for final output
 $if ($WRITE_BIG_ENDIAN)

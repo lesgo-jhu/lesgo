@@ -29,8 +29,8 @@ select case (lbc_mom)
 
     u1=u(:,:,1)
     v1=v(:,:,1)
-    call test_filter(u1,G_test)
-    call test_filter(v1,G_test)
+    call test_filter ( u1 )
+    call test_filter ( v1 )
     denom=log(0.5_rprec*dz/zo)-psi_m
     u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
     ustar=u_avg*vonk/denom

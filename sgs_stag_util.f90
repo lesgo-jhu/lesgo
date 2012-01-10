@@ -1,3 +1,19 @@
+!***********************************************************************
+module sgs_stag_util
+!***********************************************************************
+implicit none
+
+save 
+private
+
+public sgs_stag, rtnewt
+
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine sgs_stag ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
 ! Calculates turbulent (subgrid) stress for entire domain
 !   using the model specified in param.f90 (Smag, LASD, etc)
 !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
@@ -6,31 +22,14 @@
 !
 !   module is used to share Sij values b/w subroutines
 !     (avoids memory error when arrays are very large)
-!**********************************************************************
-module sgs_stag_param
-!**********************************************************************
-use types,only:rprec
-use param, only:ld,ny,nz
-
-private 
-public S11, S12, S22, S33, S13, S23
-
-real (rprec), dimension (ld, ny, nz) :: S11, S12, S22, S33, S13, S23
-
-end module sgs_stag_param
-
-!**********************************************************************
-subroutine sgs_stag ()
-!**********************************************************************
+!
 ! put everything onto w-nodes, follow original version
 
 use types,only:rprec
 use param
-use sgs_stag_param
 use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
                     txx, txy, txz, tyy, tyz, tzz
-use sgsmodule,only:Cs_opt2,Nu_t,lagran_dt
-use test_filtermodule,only:filter_size
+use sgs_param
 use messages
 
 $if ($MPI)
@@ -42,8 +41,11 @@ use debug_mod
 $endif
 
 $if ($LVLSET)
-  use level_set, only : level_set_BC, level_set_Cs, level_set_smooth_vel
+  use level_set, only : level_set_BC, level_set_Cs
 $endif
+
+use sgs_hist, only: sgs_hist_update_vals
+
 implicit none
 
 character (*), parameter :: sub_name = 'sgs_stag'
@@ -53,8 +55,8 @@ logical, parameter :: DEBUG = .false.
 $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-real(kind=rprec),dimension(ld,ny) :: txzp, tyzp,S
-real(kind=rprec) :: delta, nu, const
+real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
+real(kind=rprec) :: const
 
 integer::jx,jy,jz,k
 integer :: jz_min
@@ -63,7 +65,6 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
 
 $if ($DEBUG)
@@ -97,7 +98,7 @@ $endif
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
 $if ($CFL_DT)
-    if (model == 4 .OR. model==5) then
+    if (sgs_model == 4 .OR. sgs_model==5) then
       if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
         lagran_dt = lagran_dt + dt
       endif
@@ -107,7 +108,7 @@ $else
 $endif
 
 if (sgs) then 
-    if((model == 1))then  ! Traditional Smagorinsky model
+    if((sgs_model == 1))then  ! Traditional Smagorinsky model
 
         $if ($LVLSET)
             l = delta
@@ -120,32 +121,32 @@ if (sgs) then
                 l = delta        
             else       
                 ! The variable "l" calculated below is l_sgs/Co where l_sgs is from JDA eqn(2.30)
-                if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                if (coord == 0) then
 
                     ! z's nondimensional, l here is on uv-nodes
                     zz(1) = 0.5_rprec * dz                    
-                    l(1) = ( Co**(nnn)*(vonk*zz(1))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                    l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                 
                     do jz = 2, nz
                         ! z's nondimensional, l here is on w-nodes
                         zz(jz) = (jz - 1) * dz                        
-                        l(jz) = ( Co**(nnn)*(vonk*zz(jz))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                     end do
                 else
                     do jz = 1, nz
                         ! z's nondimensional, l here is on w-nodes
                         zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
-                        l(jz) = ( Co**(nnn)*(vonk*zz(jz))**(-nnn) +  &
-                                (delta)**(-nnn) )**(-1._rprec/nnn)
+                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
                     end do 
                 end if
 
             end if
         $endif
 
-    else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to model)
+    else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to sgs_model)
    
         l = delta       ! recall: l is the filter size
         
@@ -157,20 +158,20 @@ if (sgs) then
         elseif ( ((jt.GE.DYN_init).OR.(initu)) .AND. (mod(jt,cs_count)==0) ) then
         ! Update Sij, Cs every cs_count timesteps (specified in param)
         
-            if (jt ==DYN_init) print *,'running dynamic model = ',model
+            if (jt ==DYN_init) print *,'running dynamic sgs_model = ',sgs_model
             
-            if (model == 2) then        ! Standard dynamic model
-                call std_dynamic(ziko,S11,S12,S13,S22,S23,S33)
+            if (sgs_model == 2) then        ! Standard dynamic model
+                call std_dynamic(ziko)
                 forall (jz = 1:nz) Cs_opt2(:, :, jz) = ziko(jz)
-            else if (model==3) then     ! Plane average dynamic model
-                call scaledep_dynamic(ziko,S11,S12,S13,S22,S23,S33)
+            else if (sgs_model==3) then     ! Plane average dynamic model
+                call scaledep_dynamic(ziko)
                 do jz = 1, nz
                     Cs_opt2(:, :, jz) = ziko(jz)
                 end do
-            else if (model==4.) then    ! Lagrangian scale similarity model
-                call lagrange_Ssim(S11,S12,S13,S22,S23,S33)
-            elseif (model==5) then      ! Lagrangian scale dependent model
-                call lagrange_Sdep(S11,S12,S13,S22,S23,S33)
+            else if (sgs_model==4.) then    ! Lagrangian scale similarity model
+                call lagrange_Ssim()
+            elseif (sgs_model==5) then      ! Lagrangian scale dependent model
+                call lagrange_Sdep()
             end if       
         end if
  
@@ -199,20 +200,21 @@ end do
 end do
 !$comp end parallel do
 
+! Update the values for the sgs-variable histograms
+  if (sgs_hist_calc) then
+  if ( (jt.ge.sgs_hist_nstart) .and. (mod(jt,sgs_hist_nskip).eq.0) ) then
+    call sgs_hist_update_vals( )
+  endif
+  endif
+
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
     select case (lbc_mom)
 
     case ('wall') 
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
-    !   recall: for this case, Sij are stored on uvp-nodes
-        
-        if (molec) then
-            nu = (nu_molec/(u_star*z_i))    ! dimensionless
-        else
-            nu = 0._rprec
-        end if      
+    !   recall: for this case, Sij are stored on uvp-nodes        
         
         if (sgs) then
             !$comp parallel do default(shared) private(jx,jy,const)
@@ -245,13 +247,7 @@ if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
        
     case ('stress free')
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
-    !   recall: for this case, Sij are stored on w-nodes    
-    
-        if (molec) then
-            nu = (nu_molec/(u_star*z_i))    ! dimensionless
-        else
-            nu = 0._rprec
-        end if   
+    !   recall: for this case, Sij are stored on w-nodes      
         
         if (sgs) then
             !$comp parallel do default(shared) private(jx,jy,const)
@@ -303,12 +299,6 @@ end if
 !   txx, txy, tyy, tzz not needed at nz (so they aren't calculated)
 !     txz, tyz at nz will be done later
 !   txx, txy, tyy, tzz (uvp-nodes) and txz, tyz (w-nodes)
-
-if (molec) then
-    nu=(nu_molec/(u_star*z_i))  ! dimensionless
-else 
-    nu=0._rprec
-end if
 
 if (sgs) then 
     !$comp parallel do default(shared) private(jx,jy,jz,const)	 
@@ -421,11 +411,16 @@ txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
 tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
-  
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then  !assuming stress-free lid?
+ 
+$if ($MPI) 
+  if (coord == nproc-1) then  !assuming stress-free lid?
     txz(:,:,nz)=0._rprec
     tyz(:,:,nz)=0._rprec
-end if
+  end if
+$else
+  txz(:,:,nz)=0._rprec
+  tyz(:,:,nz)=0._rprec
+$endif
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -434,16 +429,15 @@ $endif
 end subroutine sgs_stag
 
 !**********************************************************************
-subroutine calc_Sij
+subroutine calc_Sij()
 !**********************************************************************
 ! Calculate the resolved strain rate tensor, Sij = 0.5(djui - diuj)
 !   values are stored on w-nodes (1:nz)
 
 use types,only:rprec
 use param
-use sgs_stag_param
 use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
-
+use sgs_param
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
@@ -458,7 +452,7 @@ real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 ! Calculate Sij for jz=1 (coord==0 only)
 !   stored on uvp-nodes (this level only) for 'wall'
 !   stored on w-nodes (all) for 'stress free'
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
     select case (lbc_mom)
 
@@ -564,4 +558,34 @@ end do
 !$ffohmygod end parallel do
 
 end subroutine calc_Sij
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!-----------------------------------------------------------------------
+real(kind=rprec) function rtnewt(A, jz)
+!-----------------------------------------------------------------------
+use types,only:rprec
+integer,parameter :: jmax=100
+real(kind=rprec) :: x1,x2,xacc
+integer :: j, jz
+real(kind=rprec) :: df,dx,f
+real(kind=rprec), dimension(0:5) :: A
+x1 = 0._rprec
+x2 = 15._rprec  ! try to find the largest root first....hmm
+xacc = 0.001_rprec ! doesn't need to be that accurate...
+rtnewt = 0.5_rprec*(x1+x2)
+do j=1,jmax
+   f = A(0)+rtnewt*(A(1)+rtnewt*(A(2)+rtnewt*(A(3)+rtnewt*(A(4)+rtnewt*A(5)))))
+   df = A(1) + rtnewt*(2._rprec*A(2) + rtnewt*(3._rprec*A(3) +&
+        rtnewt*(4._rprec*A(4) + rtnewt*(5._rprec*A(5)))))
+   dx=f/df
+   rtnewt = rtnewt - dx
+!        if ((x1-rtnewt)*(rtnewt-x2) < 0.) STOP 'rtnewt out of bounds'
+   if (abs(dx) < xacc) return
+end do
+rtnewt = 1._rprec  ! if dont converge fast enough
+write(6,*) 'using beta=1 at jz= ', jz
+end function rtnewt
+!-----------------------------------------------------------------------
+
+end module sgs_stag_util

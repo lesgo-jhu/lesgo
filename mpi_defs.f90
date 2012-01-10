@@ -28,7 +28,8 @@ use concurrent_precursor
 $endif
 implicit none
 
-integer :: ip, np, coords(1)
+integer :: np
+integer :: ip, coords(1)
 integer :: localComm
 
 !--check for consistent preprocessor & param.f90 definitions of 
@@ -40,16 +41,13 @@ end if
 
 call mpi_init (ierr)
 
+! Set the local communicator
 $if($CPS)
-
   ! Create the local communicator (split from MPI_COMM_WORLD)
   ! This also sets the globally defined intercommunicator (bridge)
   call create_mpi_comms_cps( localComm ) 
-
 $else
-
   localComm = MPI_COMM_WORLD
-
 $endif
 
 call mpi_comm_size (localComm, np, ierr)
@@ -60,7 +58,9 @@ if (np /= nproc) then
   write (*, *) 'runtime number of procs = ', np,  &
                ' not equal to nproc = ', nproc
   stop
-end if
+else
+   nproc = np 
+endif
 
   !--set up a 1d cartesian topology 
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
@@ -76,8 +76,9 @@ coord = coords(1)  !--use coord (NOT rank) to determine global position
 
 write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
 
-  !--rank->coord and coord->rank conversions
-do ip = 0, np-1
+!--rank->coord and coord->rank conversions
+allocate( rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1) )
+do ip = 0, nproc-1
   call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
   call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
 end do

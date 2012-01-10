@@ -83,7 +83,7 @@ contains
 !!**********************************************************************
 !subroutine cyl_skew_CD_ls ()
 !!**********************************************************************
-!use immersedbc, only : fx
+!use sim_param, only : fx
 !use sim_param, only : u
 !use io, only : jt_total
 !use messages

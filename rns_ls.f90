@@ -33,7 +33,7 @@ subroutine rns_forcing_ls()
 !
 use types, only : rprec
 use sim_param, only : u, v
-use immersedbc, only : fxa, fya
+use sim_param, only : fxa, fya
 use messages
 
 $if($MPI)
@@ -42,7 +42,7 @@ use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
 
-use param, only : dx, dy, dz, coord, jt, USE_MPI
+use param, only : dx, dy, dz, coord, jt
 
 implicit none
 
@@ -125,7 +125,7 @@ end subroutine rns_forcing_ls
 subroutine rns_elem_output()
 !**********************************************************************
 !
-use param, only : jt, USE_MPI, coord
+use param, only : jt, coord
 use messages
 !!$if($CYL_SKEW_LS)
 !!use cyl_skew_base_ls, only : ngen, ngen_reslv
@@ -138,7 +138,7 @@ $if($VERBOSE)
 call enter_sub(sub_name)
 $endif
   
-if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) then
+if (coord == 0) then
 
   call r_elem_data_write()
   call beta_elem_data_write()
@@ -162,7 +162,7 @@ subroutine rns_elem_force_ls()
 use types, only : rprec
 use messages
 use sim_param, only : u, v
-use immersedbc, only : fx, fy
+use sim_param, only : fx, fy
 use functions, only : points_avg_3D
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
@@ -984,13 +984,13 @@ subroutine r_elem_force()
 !
 use types, only : rprec
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, USE_MPI, jt, wbase
+use param, only : nx, ny, nz, dx, dy, dz, coord, jt, wbase
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
 use sim_param, only : u, v
 use functions, only : points_avg_3D
-use immersedbc, only : fx, fy
+use sim_param, only : fx, fy
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.r_elem_force'
@@ -1099,14 +1099,14 @@ end subroutine r_elem_force
 subroutine r_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 
 implicit none
 
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_r_elem_CD.dat'
+character(*), parameter :: fname_CD = path // 'output/rns_r_elem_cd.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_r_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
 
@@ -1122,9 +1122,9 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1134,15 +1134,15 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1152,15 +1152,15 @@ if( .not. r_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nr_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1180,14 +1180,14 @@ end subroutine r_elem_data_write
 subroutine beta_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 
 implicit none
 
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_CD.dat'
+character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_cd.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_force.dat'
 character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
@@ -1205,9 +1205,9 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1217,15 +1217,15 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1235,9 +1235,9 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"<greek>k</greek><sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"<greek>k</greek><sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1247,15 +1247,15 @@ if( .not. beta_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nbeta_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1278,13 +1278,13 @@ end subroutine beta_elem_data_write
 subroutine b_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
-use strmod
+use string_util
 implicit none
 
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_b_elem_CD.dat'
+character(*), parameter :: fname_CD = path // 'output/rns_b_elem_cd.dat'
 character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
 character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
@@ -1301,9 +1301,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"CD<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1313,15 +1313,15 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fx<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"fy<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1331,9 +1331,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"error<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
   endif 
@@ -1343,9 +1343,9 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"error_norm<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error_norm<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
   endif  
@@ -1355,15 +1355,15 @@ if( .not. b_elem_data_init ) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"u<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo
     do n = 1, nb_elem
       !  Create variable list name:
-      call strcat(var_list, ',"v<sub>')
-      call strcat(var_list, n)
-      call strcat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>')
+      call string_concat(var_list, n)
+      call string_concat(var_list, '</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
   endif
@@ -1392,7 +1392,7 @@ subroutine rns_force_init_ls ()
 !  This subroutine reads the last BETA force data from a previous simulation
 !
 use types, only : rprec
-use param, only : coord, USE_MPI
+use param, only : coord
 use messages
 implicit none
 
@@ -1420,7 +1420,7 @@ $endif
 inquire (file=fname, exist=exst)
 
 if (.not. exst) then
-  if(.not. USE_MPI .or. (USE_MPI .and. coord == 0)) then
+  if (coord == 0) then
     write(*,*) ' '
     write(*,*)'No previous RNS force data - starting from scratch.'
   endif

@@ -8,6 +8,7 @@ save
 private
 
 public :: global_fmask
+public :: global_fmask_init
 public :: calc_global_fmask_ta
 public :: read_global_fmask
 
@@ -28,13 +29,26 @@ logical, parameter :: do_filter_global_fmask = .true.
 integer :: np
 logical :: MPI_split
 
-real (rp) :: global_fmask(ld, ny, nz)  !--experimental
+!real (rp) :: global_fmask(ld, ny, nz)  !--experimental
+real(rp), allocatable, dimension(:,:,:) :: global_fmask
     !--nonzero where unres force is to be applied and contents may be filtered
     !--could dimension in a smarter way to save space
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine global_fmask_init()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+allocate( global_fmask(ld,ny,nz) )
+
+return
+end subroutine global_fmask_init
+
+
 !--this is usually called from trees_pre_ls
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine calc_global_fmask_ta ( nnp, MMPI_split )
@@ -104,7 +118,7 @@ end subroutine calc_global_fmask_ta
 !  know some MPI stuff from param
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine read_global_fmask ()
-use param, only : coord, nproc, USE_MPI
+use param, only : coord, nproc
 implicit none
 
 integer, parameter :: lun = 1
@@ -113,15 +127,15 @@ character (128) :: fname
 
 !---------------------------------------------------------------------
 
-if ( USE_MPI ) then
+$if ($MPI)
 
     write ( fname, '(a,a,a,i0)' ) gfmask_base, raw_suffix, MPI_suffix, coord
     
-else
+$else
 
     write ( fname, '(a,a)' ) gfmask_base, raw_suffix
 
-end if
+$endif
 
 open ( lun, file=fname, action='read', position='rewind', &
        form='unformatted' )

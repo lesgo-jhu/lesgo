@@ -3,14 +3,19 @@
 !--provides Cs_opt2 1:nz
 !--MPI: requires u,v on 0:nz, except bottom node 1:nz
 
-subroutine lagrange_Ssim(S11,S12,S13,S22,S23,S33)
+subroutine lagrange_Ssim()
 ! The purpose of this subroutine is to (dynamically) calculate Cs_opt2
 !   See Meneveau, Lund, Cabot, JFM, 319: 353-385 (1996)
 !   DOI: 10.1017/S0022112096007379
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
-use sgsmodule,only:F_LM,F_MM,Beta,Cs_opt2,opftime,count_clip,count_all,lagran_dt
+use sgs_param,only:F_LM,F_MM,Beta,Cs_opt2,opftime,lagran_dt
+use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
+use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
+use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
+use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
+use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
 $if ($DEBUG)
@@ -20,7 +25,7 @@ $if ($LVLSET)
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 $endif
 $if ($DYN_TN)
-use sgsmodule, only:F_ee2,F_deedt2,ee_past
+use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -32,29 +37,23 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-real (rprec), dimension(ld,ny,nz) :: S11,S12,S13,S22,S23,S33
 character (*), parameter :: sub_name = 'lagrange_Ssim'
 real (rprec), parameter :: eps = 1.e-32_rprec
 
-real(rprec), dimension(ld,ny) :: L11,L12,L13,L22,L23,L33
-real(rprec), dimension(ld,ny) :: M11,M12,M13,M22,M23,M33
 real(rprec), dimension(ld,ny) :: fourbeta
 
 real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
-real(rprec), dimension(ld,ny) :: ee_now
 
-real(rprec), dimension(ld,ny) :: S_bar,S11_bar,S12_bar,&
-     S13_bar,S22_bar,S23_bar,S33_bar,S_S11_bar, S_S12_bar,&
-     S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-
-real(rprec), dimension(ld,ny) :: u_bar,v_bar,w_bar
-real(rprec), dimension(ld,ny) :: S
-real(rprec) :: delta,const
+real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
 
+$if ($OUTPUT_EXTRA)
 character (64) :: fnamek, tempk
+integer :: count_all, count_clip
+$endif
 
-integer :: istart, iend, ihi, ilo, jhi, jlo
+!integer :: ihi, ilo, jhi, jlo
+integer :: istart, iend
 integer :: jz
 integer :: ii
 integer :: i, j
@@ -67,7 +66,6 @@ call enter_sub (sub_name)
 $endif
 
 ! Set coefficients
-    delta = filter_size*(dx*dy*dz)**(1._rprec/3._rprec)
     opftdelta = opftime*delta
     powcoeff = -1._rprec/8._rprec
     const = 2._rprec*delta**2
@@ -86,15 +84,16 @@ call interpolag_Ssim()
 !   the running averages, F_LM(:,:,jz) and F_MM(:,:,jz), which are used to 
 !   calculate Cs_opt2(:,:,jz).
 do jz = 1,nz
+    $if ($OUTPUT_EXTRA)
     ! Reset counting variables for Cs clipping stats
     count_all = 0
     count_clip = 0
+    $endif
 
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
         ! (except for very first level which should be on uvp-nodes)
-        if ( ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) .and.  &
-            (jz == 1) ) then  ! uvp-nodes
+        if ( ( coord == 0 ) .and. (jz == 1) ) then  ! uvp-nodes
             u_bar(:,:) = u(:,:,1)
             v_bar(:,:) = v(:,:,1)
             w_bar(:,:) = .25_rprec*w(:,:,2)
@@ -113,21 +112,21 @@ do jz = 1,nz
        L33=w_bar*w_bar
        
        ! Filter first term and add the second term to get the final value
-       call test_filter(u_bar,G_test)   ! in-place filtering
-       call test_filter(v_bar,G_test)
-       call test_filter(w_bar,G_test)
-       call test_filter(L11,G_test)  
+       call test_filter ( u_bar )   ! in-place filtering
+       call test_filter ( v_bar )
+       call test_filter ( w_bar )
+       call test_filter ( L11 )  
        L11 = L11 - u_bar*u_bar  
-       call test_filter(L12,G_test)
+       call test_filter ( L12 )
        L12 = L12 - u_bar*v_bar
-       call test_filter(L13,G_test)
+       call test_filter ( L13 )
        L13 = L13 - u_bar*w_bar
-       call test_filter(L22,G_test)
+       call test_filter ( L22 )
        L22 = L22 - v_bar*v_bar
-       call test_filter(L23,G_test)
+       call test_filter ( L23 )
        L23 = L23 - v_bar*w_bar
-       call test_filter(L33,G_test)
-       L33 = L33 - w_bar*w_bar
+       call test_filter ( L33 )
+       L33 = L33 - w_bar*w_bar       
 
     ! Calculate |S|
         S(:,:) = sqrt(2._rprec*(S11(:,:,jz)**2+S22(:,:,jz)**2+S33(:,:,jz)**2+&
@@ -142,12 +141,12 @@ do jz = 1,nz
        S23_bar(:,:) = S23(:,:,jz)  
        S33_bar(:,:) = S33(:,:,jz)
 
-       call test_filter(S11_bar,G_test)
-       call test_filter(S12_bar,G_test)
-       call test_filter(S13_bar,G_test)
-       call test_filter(S22_bar,G_test)
-       call test_filter(S23_bar,G_test)
-       call test_filter(S33_bar,G_test)
+       call test_filter ( S11_bar )
+       call test_filter ( S12_bar )
+       call test_filter ( S13_bar )
+       call test_filter ( S22_bar )
+       call test_filter ( S23_bar )
+       call test_filter ( S33_bar )
 
     ! Calculate |S_bar| (the test-filtered Sij)      
         S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 +&
@@ -161,12 +160,12 @@ do jz = 1,nz
        S_S23_bar(:,:) = S(:,:)*S23(:,:,jz)
        S_S33_bar(:,:) = S(:,:)*S33(:,:,jz)
 
-       call test_filter(S_S11_bar,G_test)
-       call test_filter(S_S12_bar,G_test)
-       call test_filter(S_S13_bar,G_test)
-       call test_filter(S_S22_bar,G_test)
-       call test_filter(S_S23_bar,G_test)
-       call test_filter(S_S33_bar,G_test)       
+       call test_filter ( S_S11_bar )
+       call test_filter ( S_S12_bar )
+       call test_filter ( S_S13_bar )
+       call test_filter ( S_S22_bar )
+       call test_filter ( S_S23_bar )
+       call test_filter ( S_S33_bar )         
    
     ! Calculate Mij
         fourbeta=4._rprec*Beta(:,:,jz)
@@ -182,11 +181,9 @@ do jz = 1,nz
         LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
         MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
         
-    ! Calculate ee_now (the current value of eij*eij)
-            $if ($DYN_TN)       
-            ee_now = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+    ! Calculate ee_now (the current value of eij*eij)    
+            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
                     -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2
-            $endif   
             
     ! Initialize (???)
         if (inilag) then
@@ -198,7 +195,7 @@ do jz = 1,nz
                 F_LM(ld-1:ld,:,jz)=1._rprec
 
                 if (jz == 1) then
-                    if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+                    if (coord == 0) then
                         write (*, *) 'LM(1, 1)=', LM(1, 1)
                         write (*, *) 'MM(1, 1)=', MM(1, 1)
                         write (*, *) 'M11(1, 1)=', M11(1, 1)
@@ -252,10 +249,10 @@ do jz = 1,nz
 
             $if ($DYN_TN)
             ! note: the instantaneous value of the derivative is a Lagrangian average
-            F_ee2(:,:,jz) = epsi*ee_now**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
-            F_deedt2(:,:,jz) = epsi*( ((ee_now-ee_past(:,:,jz))/lagran_dt)**2 ) &
+            F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
+            F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
                                   + (1._rprec-epsi)*F_deedt2(:,:,jz)
-            ee_past(:,:,jz) = ee_now
+            ee_past(:,:,jz) = ee_now(:,:,jz)
             $endif   
             
     ! Calculate Cs_opt2 (use only one of the methods below)
@@ -280,6 +277,7 @@ do jz = 1,nz
         ! Directly
             !Cs_opt2(:,:,jz) = LM(:,:)/MM(:,:)
 
+    $if($OUTPUT_EXTRA)
     ! Count how often Cs is clipped
         do i=1,nx
         do j=1,ny
@@ -287,9 +285,12 @@ do jz = 1,nz
             count_all = count_all + 1
         enddo
         enddo
-        ! Clip Cs if necessary
+    $endif
+
+    ! Clip Cs if necessary
         Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz)) 
    
+    $if($OUTPUT_EXTRA)
     ! Write average Tn for this level to file
         ! Create filename
         if ((jz+coord*(nz-1)).lt.10) then
@@ -298,9 +299,9 @@ do jz = 1,nz
             write (tempk, '(i2)') (jz + coord*(nz-1))
         endif      
         $if ($DYN_TN)
-        fnamek = trim('output/Tn_new_') // trim(tempk)
+        fnamek = trim('output/Tn_dyn_') // trim(tempk)
         $else
-        fnamek = trim('output/Tn_old_') // trim(tempk)
+        fnamek = trim('output/Tn_mlc_') // trim(tempk)
         $endif
         fnamek = trim(fnamek) // trim('.dat')
        
@@ -313,8 +314,12 @@ do jz = 1,nz
         fnamek = trim('output/clip_') // trim(tempk)
         fnamek = trim(fnamek) // trim('.dat')   
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-        write(2,*) jt,count_clip,count_all,real(count_clip)/real(count_all)
+        write(2,*) jt,real(count_clip)/real(count_all)
         close(2)   
+    $endif    
+
+    ! Save Tn to 3D array for use with tavg_sgs
+    Tn_all(:,:,jz) = Tn(:,:)    
     
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
@@ -328,6 +333,7 @@ end do
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
+        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
     $endif   
 
 $if ($DEBUG)
@@ -342,13 +348,11 @@ $if ($LVLSET)
     call level_set_Cs_lag_dyn ()
 $endif
 
-$if ($CFL_DT)
-    ! Reset variable for use during next set of cs_count timesteps
-    lagran_dt = 0.0_rprec
-$endif
+! Reset variable for use during next set of cs_count timesteps
+if( use_cfl_dt ) lagran_dt = 0.0_rprec
 
 $if ($VERBOSE)
-    call exit_sub(sub_name)
+call exit_sub(sub_name)
 $endif
 
 end subroutine lagrange_Ssim

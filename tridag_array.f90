@@ -12,7 +12,7 @@ real(kind=rprec),dimension(lh, ny, nz+1),intent(in):: a, b, c
 real(rprec), dimension(ld,ny,nz+1), intent(in) :: r
 real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 
-integer, parameter :: n = nz+1
+integer :: n
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -24,6 +24,7 @@ real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
 integer :: ir, ii
 
+n = nz+1
 !--want to skip ny/2+1 and 1, 1
 
 $if ($MPI)
@@ -35,7 +36,7 @@ $if ($MPI)
   call mpi_recv(u(1,1,1), ld*ny, MPI_RPREC, down, 3, comm, status, ierr)
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
 
   do jy = 1, ny
     do jx = 1, lh-1
@@ -62,11 +63,15 @@ else
   j_min = 2  !--this is only for backward pass
 end if
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI)
+  if (coord == nproc-1) then
+    j_max = n
+  else
+    j_max = n-1
+  endif
+$else
   j_max = n
-else
-  j_max = n-1
-end if
+$endif
 
 do j = 2, j_max
 
@@ -140,11 +145,15 @@ if (DEBUG) then
 end if
 $endif
 
-!if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
-!  j_max = n-1
-!else
+!$if ($MPI)
+!  if (coord == nproc-1) then
+!    j_max = n
+!  else
+!    j_max = n-1
+!  endif
+!$else
 !  j_max = n
-!end if
+!$endif
 
 do j = n-1, j_min, -1
 

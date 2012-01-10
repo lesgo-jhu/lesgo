@@ -3,7 +3,7 @@
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,nx,ny,nz, USE_MPI, nproc, coord, BOGUS, lbz
+use param,only:ld,nx,ny,nz, nproc, coord, BOGUS, lbz
 use derivatives, only : ddx, ddy, ddz_uv
 
 implicit none
@@ -41,7 +41,7 @@ $if ($MPI)
   divt(:, :, 0) = BOGUS
 $endif
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
+if (coord == 0) then
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
   do jy=1,ny
   do jx=1,nx
@@ -69,17 +69,25 @@ end do
 !--set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-if ((.not. USE_MPI) .or. (USE_MPI .and. coord == nproc-1)) then
+$if ($MPI) 
+  if (coord == nproc-1) then
+    do jy=1,ny
+    do jx=1,nx              
+       divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
+    end do
+    end do
+    divt(ld-1:ld, :, nz) = 0._rprec
+  else
+    divt(:, :, nz) = BOGUS
+  endif
+$else
   do jy=1,ny
   do jx=1,nx              
      divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
   end do
   end do
-
   divt(ld-1:ld, :, nz) = 0._rprec
-else
-  divt(:, :, nz) = BOGUS
-end if
+$endif
 
 $if ($VERBOSE)
 write (*, *) 'finished divstress_w'

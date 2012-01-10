@@ -44,13 +44,9 @@ write(2,c_fmt) 'PARAM'
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
-write(2,c_fmt) 'MPI PARAMETERS'
-write(2,c_fmt) '---------------------------------------------------'
-write(2,i_fmt) 'nproc : ', nproc
-write(2,c_fmt) ''
-write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'COMPUTATIONAL DOMAIN PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
+write(2,i_fmt) 'nproc : ', nproc
 write(2,x4i_fmt) 'nx, ny, nz, nz_tot : ', nx, ny, nz, nz_tot
 write(2,f_fmt) 'z_i : ', z_i
 write(2,x3f_fmt) 'L_x, L_y, L_z : ', L_x, L_y, L_z
@@ -59,7 +55,7 @@ write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'MODEL PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
-write(2,x3i_fmt) 'model, nnn : ', model, nnn
+write(2,x3i_fmt) 'sgs_model, wall_damp_exp : ', sgs_model, wall_damp_exp
 write(2,f_fmt) 'Co : ', Co
 write(2,i_fmt) 'cs_count : ', cs_count
 write(2,i_fmt) 'ifilter : ', ifilter
@@ -103,7 +99,7 @@ write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,i_fmt) 'wbase : ', wbase
 write(2,i_fmt) 'nenergy : ', nenergy
-write(2,i_fmt) 'cfl_count : ', cfl_count
+write(2,i_fmt) 'lag_cfl_count : ', lag_cfl_count
 write(2,l_fmt) 'tavg_calc : ', tavg_calc
 write(2,x2i_fmt) 'tavg_nstart, tavg_nend : ', tavg_nstart, tavg_nend
 write(2,l_fmt) 'point_calc : ', point_calc
@@ -143,6 +139,22 @@ do n=1,spectra_nloc
   write(2,if_fmt) 'n, spectra_loc(n) : ', n, spectra_loc(n)
 enddo
 
+write(2,l_fmt) 'sgs_hist_calc : ', sgs_hist_calc
+write(2,l_fmt) 'sgs_hist_cumulative : ', sgs_hist_cumulative
+write(2,x2i_fmt) 'sgs_hist_nstart, sgs_hist_nskip : ', sgs_hist_nstart, sgs_hist_nskip
+write(2,i_fmt) 'sgs_hist_nloc : ', sgs_hist_nloc
+do n=1,sgs_hist_nloc
+  write(2,if_fmt) 'n, sgs_hist_loc(n) : ', n, sgs_hist_loc(n)
+enddo
+write(2,x2f_fmt) 'cs2_bmin, cs2_bmax : ', cs2_bmin, cs2_bmax
+write(2,i_fmt) 'cs2_nbins : ', cs2_nbins
+write(2,x2f_fmt) 'tn_bmin, tn_bmax : ', tn_bmin, tn_bmax
+write(2,i_fmt) 'tn_nbins : ', tn_nbins
+write(2,x2f_fmt) 'nu_bmin, nu_bmax : ', nu_bmin, nu_bmax
+write(2,i_fmt) 'nu_nbins : ', nu_nbins
+write(2,x2f_fmt) 'ee_bmin, ee_bmax : ', ee_bmin, ee_bmax
+write(2,i_fmt) 'ee_nbins : ', ee_nbins
+
 $if($LVLSET)
 write(2,c_fmt) ''
 write(2,c_fmt) '**********************************************************************'
@@ -162,7 +174,7 @@ write(2,l_fmt) 'vel_BC : ', vel_BC
 write(2,l_fmt) 'use_log_profile : ', use_log_profile
 write(2,l_fmt) 'use_enforce_un : ', use_enforce_un
 write(2,l_fmt) 'physBC : ', physBC
-write(2,f_fmt) 'z0 : ', z0
+write(2,f_fmt) 'zo_level_set : ', zo_level_set
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'SMOOTHING PARAMETERS'
@@ -224,6 +236,8 @@ write(2,f_fmt) 'offset : ', offset
 write(2,f_fmt) 'scale_fact : ', scale_fact
 write(2,l_fmt) 'use_bottom_surf : ', use_bottom_surf
 write(2,f_fmt) 'z_bottom_surf : ', z_bottom_surf
+write(2,l_fmt) 'use_bottom_surf : ', use_top_surf
+write(2,f_fmt) 'z_bottom_surf : ', z_top_surf
 write(2,l_fmt) 'filter_chi : ', filter_chi
 write(2,f_fmt) 'filt_width : ', filt_width
 $endif
