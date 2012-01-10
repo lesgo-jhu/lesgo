@@ -32,11 +32,7 @@ subroutine ic()
 
   $if( $CPS ) 
 
-  if( inflow ) then
-     call boundary_layer_ic()
-  else
-     call error(sub_name, 'Inconsistent use of USE_CPS and inflow flags')
-  endif
+  call boundary_layer_ic()
 
   $else
   
