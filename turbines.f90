@@ -57,6 +57,7 @@ contains
 
 subroutine turbines_init()
 implicit none
+include 'tecryte.h'
 
 real(rprec) :: ran3
 real(rprec) :: minspace, tempx, tempy
@@ -550,6 +551,8 @@ subroutine turbines_filter_ind()
 !       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 implicit none
+include 'tecryte.h'
+
 character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
 
 real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
@@ -844,7 +847,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null()
-real(rprec), pointer :: p_u_d_T => null(), p_dia => null(), p_thk=> null(), p_f_n => null()
+real(rprec), pointer :: p_u_d_T => null(), p_f_n => null()
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
@@ -942,9 +945,10 @@ if (coord == 0) then
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
-          
-                call write_real_data(fname, 'append', 'formatted', 5, (/jt_total*dt_dim,&
-                p_u_d,p_u_d_T,p_f_n,Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)/)) 
+
+                open(unit=1,file=fname,action='write',position='append',form='formatted')
+                write(1,*) jt_total*dt_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
+                close(1)
                 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
