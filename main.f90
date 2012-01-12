@@ -29,7 +29,7 @@ use level_set_base, only : global_CD_calc
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize, turbines_cond_avg
+use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize
 $endif
 
 $if ($DEBUG)
@@ -396,11 +396,6 @@ do jt=1,nsteps
     call rns_elem_force_ls()
     $endif
    
-    ! Perform conditional averaging - for turbines
-    $if ($TURBINES)
-        call turbines_cond_avg()
-    $endif       
-
     ! Write ke to file
     if (modulo (jt, nenergy) == 0) call energy (ke)
 
