@@ -91,7 +91,11 @@ subroutine initialize()
   $else
   use param, only : nx_proc => nx
   $endif
-  use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, use_top_surf, z_top_surf, ngen, tr_t
+  use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, &
+       use_top_surf, z_top_surf, &
+       use_left_surf, y_left_surf, &
+       use_right_surf, y_right_surf, &
+       ngen, tr_t
   use cyl_skew_ls, only : fill_tree_array_ls
 
   implicit none
@@ -151,7 +155,7 @@ subroutine initialize()
   gcs_t(:,:,:)%iset=0
 
   !  Initialize the point to surface association
-  gcs_t(:,:,:)%itype=-1 !  0 - bottom/top, 1 - elsewhere
+  gcs_t(:,:,:)%itype=-1 !  0 - bottom/top/right/left, 1 - elsewhere
 
   if(use_bottom_surf) then
      gcs_t(:,:,:)%itype=0
@@ -171,6 +175,44 @@ subroutine initialize()
               if( gcs_t( i,j,k) % phi > 0.0_rprec ) then
 
                  dist = -( gcs_t(i,j,k)%xyz(3) - z_top_surf )
+                 if( dist <= dabs( gcs_t(i,j,k) % phi )) &
+                      gcs_t(i,j,k)%phi = dist
+
+              endif
+           enddo
+        enddo
+     enddo
+  endif
+
+  ! Set level set distance for right vertical surface
+  if(use_right_surf) then
+     gcs_t(:,:,:)%itype=0
+     !  Loop over all global coordinates
+     do k=lbz,nz_tot
+        do j=1,ny
+           do i=1,nx_proc          
+              if( gcs_t( i,j,k) % phi > 0.0_rprec ) then
+
+                 dist = gcs_t(i,j,k)%xyz(2) - y_right_surf
+                 if( dist <= dabs( gcs_t(i,j,k) % phi ) ) &
+                      gcs_t(i,j,k)%phi = dist
+
+              endif
+           enddo
+        enddo
+     enddo
+  endif
+
+  ! Set level set distance for right vertical surface
+  if(use_left_surf) then
+     gcs_t(:,:,:)%itype=0
+     !  Loop over all global coordinates
+     do k=lbz,nz_tot
+        do j=1,ny
+           do i=1,nx_proc          
+              if( gcs_t( i,j,k) % phi > 0.0_rprec ) then
+
+                 dist = - ( gcs_t(i,j,k)%xyz(2) - y_left_surf )
                  if( dist <= dabs( gcs_t(i,j,k) % phi ) ) &
                       gcs_t(i,j,k)%phi = dist
 

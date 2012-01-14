@@ -27,6 +27,11 @@ logical :: use_bottom_surf = .false. !  True for making a bottom surface
 real(rprec) :: z_bottom_surf = 0.0_rprec ! Non-dimensional
 logical :: use_top_surf = .false.
 real(rprec) :: z_top_surf = 0.0_rprec ! Non-dimensional
+logical :: use_left_surf = .false.
+real(rprec) :: y_left_surf = 0.0_rprec ! Non-dimensional
+logical :: use_right_surf = .false.
+real(rprec) :: y_right_surf = 0.0_rprec ! Non-dimensional
+
 
 ! Tree settings
 integer :: ntree = 1
