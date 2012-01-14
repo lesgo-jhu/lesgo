@@ -238,6 +238,10 @@ write(2,l_fmt) 'use_bottom_surf : ', use_bottom_surf
 write(2,f_fmt) 'z_bottom_surf : ', z_bottom_surf
 write(2,l_fmt) 'use_bottom_surf : ', use_top_surf
 write(2,f_fmt) 'z_bottom_surf : ', z_top_surf
+write(2,l_fmt) 'use_right_surf : ', use_right_surf
+write(2,f_fmt) 'y_right_surf : ', y_right_surf
+write(2,l_fmt) 'use_left_surf : ', use_left_surf
+write(2,f_fmt) 'y_left_surf : ', y_left_surf
 write(2,l_fmt) 'filter_chi : ', filter_chi
 write(2,f_fmt) 'filt_width : ', filt_width
 $endif

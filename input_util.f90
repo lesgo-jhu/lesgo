@@ -773,8 +773,11 @@ subroutine cyl_skew_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
 use param, only : pi
-use cyl_skew_base_ls, only : zrot_angle, skew_angle, use_bottom_surf, &
-                             z_bottom_surf, use_top_surf, z_top_surf, &
+use cyl_skew_base_ls, only : zrot_angle, skew_angle, &
+                             use_bottom_surf, z_bottom_surf, &
+                             use_top_surf, z_top_surf, &
+                             use_left_surf, y_left_surf, &
+                             use_right_surf, y_right_surf, &
                              ntree, tree_location, &
                              ngen, ngen_reslv, nbranch, d, l, offset, &
                              scale_fact, filter_chi, filt_width
@@ -812,6 +815,14 @@ do
         read (buff(equal_pos+1:), *) use_top_surf
      case ('Z_TOP_SURF')
         Read (buff(equal_pos+1:), *) z_top_surf
+     case ('USE_RIGHT_SURF')
+        read (buff(equal_pos+1:), *) use_right_surf
+     case ('Y_RIGHT_SURF')
+        Read (buff(equal_pos+1:), *) y_right_surf
+     case ('USE_LEFT_SURF')
+        read (buff(equal_pos+1:), *) use_left_surf
+     case ('Y_LEFT_SURF')
+        Read (buff(equal_pos+1:), *) y_left_surf
      case ('NTREE')
         read (buff(equal_pos+1:), *) ntree
      case ('TREE_LOCATION')
