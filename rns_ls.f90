@@ -1392,12 +1392,12 @@ subroutine rns_force_init_ls ()
 !  This subroutine reads the last BETA force data from a previous simulation
 !
 use types, only : rprec
-use param, only : coord
+use param, only : coord, path
 use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
-character (*), parameter :: fname_in = 'rns_force.out'
+character (*), parameter :: fname_in = path // 'rns_force.out'
 character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
@@ -1451,12 +1451,12 @@ subroutine rns_finalize_ls()
 ! 
 !  This subroutine writes all restart data to file
 !
-use param, only : coord
+use param, only : coord, path
 use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
-character (*), parameter :: fname_out = 'rns_force.out'
+character (*), parameter :: fname_out = path // 'rns_force.out'
 
 character (128) :: fname
 $if ($MPI)

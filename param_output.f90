@@ -16,7 +16,7 @@ implicit none
 
 integer :: n
 
-character(*), parameter :: fname = 'lesgo_param.out'
+character(*), parameter :: fname = path // 'lesgo_param.out'
 
 character(*), parameter :: c_fmt = '(a)'
 character(*), parameter :: x2c_fmt = '(2a)'

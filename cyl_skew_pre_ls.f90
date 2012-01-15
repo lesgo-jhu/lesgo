@@ -1239,6 +1239,7 @@ contains
     !
     use mpi
     use types, only : rprec
+    use param, only : path
     use param, only : nx, ny, nz, nz_tot,dx,dy, BOGUS
     use param, only :  MPI_RPREC,ierr, nproc, status
     use cyl_skew_pre_base_ls, only : nx_proc
@@ -1360,7 +1361,7 @@ contains
     write(*,*) 'Finalized local to global send/receive'
 
     !  Open file which to write global data
-    write (fname,*) 'cyl_skew_ls_local.dat'
+    write (fname,*) path // 'cyl_skew_ls_local.dat'
     fname = trim(adjustl(fname))
 
     write (temp, '(".c",i0)') global_rank_csp
@@ -1393,6 +1394,7 @@ contains
     use mpi
     $endif
     use types, only : rprec
+    use param, only : path
     use param, only : ld, nx, ny, nz, lbz, nz_tot,dx,dy, BOGUS
     $if($MPI)
     use param, only :  MPI_RPREC, ierr, nproc, status
@@ -1433,7 +1435,7 @@ contains
 
        !write(*,*) 'global_rank_csp, sendcnt : ',  global_rank_csp, sendcnt
        !  Open file which to write global data
-       write (fname,*) 'x.dat'
+       write (fname,*) path // 'x.dat'
        fname = trim(adjustl(fname))
 
        write (temp, '(".c",i0)') global_rank_csp
@@ -1599,7 +1601,7 @@ contains
           chi_proc(:,:,:) = chi(:,:,kstart:kend)
 
           !  Open file which to write global data
-          write (fname,*) 'cyl_skew_ls.dat'
+          write (fname,*) path // 'cyl_skew_ls.dat'
           fname = trim(adjustl(fname))
 
           write (temp, '(".c",i0)') n
@@ -1615,13 +1617,13 @@ contains
                4, x, y, z(kstart:kend))
 
           !  Open file which to write global data
-          write (fname_phi,*) 'phi.out'
+          write (fname_phi,*) path // 'phi.out'
           fname_phi = trim(adjustl(fname_phi))
-          write (fname_brindx,*) 'brindx.out'
+          write (fname_brindx,*) path // 'brindx.out'
           fname_brindx = trim(adjustl(fname_brindx))
-          write (fname_clindx,*) 'clindx.out'
+          write (fname_clindx,*) path // 'clindx.out'
           fname_clindx = trim(adjustl(fname_clindx))
-          write (fname_chi,*) 'chi.out'
+          write (fname_chi,*) path // 'chi.out'
           fname_chi = trim(adjustl(fname_chi))
 
 
@@ -1694,7 +1696,7 @@ contains
     !write(*,*) 'No output yet for single processor'
 
     !  Open file which to write global data
-    write (fname,*) 'cyl_skew_ls.dat'
+    write (fname,*) path // 'cyl_skew_ls.dat'
     fname = trim(adjustl(fname))
 
     call write_tecplot_header_ND(fname, 'rewind', 7, &
@@ -1707,13 +1709,13 @@ contains
          4, x, y, z(1:Nz))
 
     !  Open file which to write global data
-    write (fname_phi,*) 'phi.out'
+    write (fname_phi,*) path // 'phi.out'
     fname_phi = trim(adjustl(fname_phi))
-    write (fname_brindx,*) 'brindx.out'
+    write (fname_brindx,*) path // 'brindx.out'
     fname_brindx = trim(adjustl(fname_brindx))
-    write (fname_clindx,*) 'clindx.out'
+    write (fname_clindx,*) path // 'clindx.out'
     fname_clindx = trim(adjustl(fname_clindx))
-    write (fname_chi,*) 'chi.out'
+    write (fname_chi,*) path // 'chi.out'
     fname_chi = trim(adjustl(fname_chi))
 
     !  Write binary data for lesgo
@@ -1784,6 +1786,7 @@ contains
     !  capability the Makefile flag should be set to USE_CYLINDER_SKEW=yes
     !
     use types, only : rprec
+    use param, only : path
     use param, only : nz,dz
 
     implicit none
@@ -1864,7 +1867,7 @@ contains
     enddo
 
     !  Open file which to write global data
-    write (fname,*) 'cyl_skew_gen_ls.out'
+    write (fname,*) path // 'cyl_skew_gen_ls.out'
     fname = trim(adjustl(fname))
 
     if(nproc > 1) then
@@ -1892,6 +1895,7 @@ contains
   !**********************************************************************
   subroutine point_assoc()
     !**********************************************************************
+    use param, only : path
     use param, only : nx, ny, nz
     $if ($MPI)
     use param, only : nproc, coord
@@ -1902,7 +1906,7 @@ contains
     integer :: i,j,k
 
     !  Open file which to write global data
-    write (fname,*) 'cyl_skew_point_ls.out'
+    write (fname,*) path // 'cyl_skew_point_ls.out'
     fname = trim(adjustl(fname))
 
     if(nproc > 1) then

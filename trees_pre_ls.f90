@@ -1,5 +1,6 @@
 program trees_pre_ls
 use types, only : rprec
+use param, only : path
 use param, only : nx, ny, nz, BOGUS, nproc
 use input_util, only : read_input_conf
 use trees_base_ls, only : grid_initialize, pt_of_grid
@@ -8,12 +9,12 @@ use trees_io_ls, only : draw_tree_array
 use trees_global_fmask_ls, only : global_fmask_init, calc_global_fmask_ta
 implicit none
 
-!character (*), parameter :: ftrees_conf = 'trees.conf'
-character (*), parameter :: fdraw_out = 'draw_tree_array.dat'
-character (*), parameter :: fphi_out = 'phi.dat'
-character (*), parameter :: fphi_raw_out = 'phi.out'
-character (*), parameter :: fbrindex_out = 'brindex.dat'
-character (*), parameter :: fbrindex_raw_out = 'brindex.out'
+!character (*), parameter :: ftrees_conf = path // 'trees.conf'
+character (*), parameter :: fdraw_out = path // 'draw_tree_array.dat'
+character (*), parameter :: fphi_out = path // 'phi.dat'
+character (*), parameter :: fphi_raw_out = path // 'phi.out'
+character (*), parameter :: fbrindex_out = path // 'brindex.dat'
+character (*), parameter :: fbrindex_raw_out = path // 'brindex.out'
 
 logical, parameter :: do_write_ascii = .true.
 logical, parameter :: do_calc_global_fmask = .false.
