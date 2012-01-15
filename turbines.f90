@@ -334,7 +334,7 @@ z => grid_t % z
         if (coord == 0) then
             var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
             do s=1,nloc
-                fname = 'turbine/turbine_'
+                fname = path // 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -351,7 +351,7 @@ z => grid_t % z
 
     if (coord == 0) then
       !to write the node locations to file
-      fname0 = 'turbine/nodes_unfiltered.dat'
+      fname0 = path // 'turbine/nodes_unfiltered.dat'
       call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
       call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
@@ -367,7 +367,7 @@ z => grid_t % z
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
-            fname4 = 'turbine/turbine_u_d_T.dat'
+            fname4 = path // 'turbine/turbine_u_d_T.dat'
             inquire (file=fname4, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
@@ -425,7 +425,7 @@ z => grid_t % z
 
 !    !set initial values (read from file or use default)
 !    if (turbine_cumulative_ca_time) then                           
-!        fname = 'turbine/turbine_cond_avg_hi_time.dat'
+!        fname = path // 'turbine/turbine_cond_avg_hi_time.dat'
 !        inquire (file=fname, exist=exst)
 !        if (exst) then
 !            if (coord == 0) then 
@@ -451,7 +451,7 @@ z => grid_t % z
 !            endif
 !        endif     
 !            
-!        fname = 'turbine/turbine_cond_avg_lo_time.dat'
+!        fname = path // 'turbine/turbine_cond_avg_lo_time.dat'
 !        inquire (file=fname, exist=exst)
 !        if (exst) then
 !            if (coord == 0) then
@@ -483,9 +483,9 @@ z => grid_t % z
 !    endif   
 !    
 !    if (read_rms_from_file) then
-!        fname = 'turbine/turbine_all_mean.dat'
+!        fname = path // 'turbine/turbine_all_mean.dat'
 !        inquire (file=fname, exist=exst)
-!        fname2 = 'turbine/turbine_all_rms.dat'
+!        fname2 = path // 'turbine/turbine_all_rms.dat'
 !        inquire (file=fname2, exist=exst2)
 !        
 !        if (exst .and. exst2) then
@@ -529,7 +529,7 @@ z => grid_t % z
 !    endif          
 
 if (coord .eq. nproc-1) then
-    fname='output/vel_top_of_domain.dat'
+    fname=path // 'output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
@@ -770,7 +770,7 @@ g = g/sumG
         enddo
 
         !if (.false.) then
-        !    fname0 = 'turbine/convolution_function.dat'
+        !    fname0 = path // 'turbine/convolution_function.dat'
         !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
         !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
 
@@ -948,14 +948,14 @@ enddo
         enddo   
         enddo
         !write to file with .dat.c* extension
-            fname3 = 'turbine/nodes_filtered_c.dat'
+            fname3 = path // 'turbine/nodes_filtered_c.dat'
             write (temp, '(".c",i0)') coord
             fname3 = trim (fname3) // temp
             call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
             call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if (coord == 0) then
-        fname3 = 'turbine/nodes_filtered.dat'
+        fname3 = path // 'turbine/nodes_filtered.dat'
         call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
         call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
     endif
@@ -1105,7 +1105,7 @@ if (coord == 0) then
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
 
             !write values to file                   
-                fname = 'turbine/turbine_'
+                fname = path // 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -1215,7 +1215,7 @@ deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    fname='output/vel_top_of_domain.dat'
+    fname=path // 'output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
@@ -1243,7 +1243,7 @@ z => grid_t % z
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
-        fname4 = 'turbine/turbine_u_d_T.dat'    
+        fname4 = path // 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
         open (unit=1,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
@@ -1277,7 +1277,7 @@ z => grid_t % z
 
 !write x,y,z arrays to file so cond_avg domains can be reconstructed for use in Tecplot
     if (coord == 0) then
-        fname = 'turbine/nxLx.dat'
+        fname = path // 'turbine/nxLx.dat'
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark13')   
         open (unit=1,file = fname, status='unknown',form='formatted', action='write',position='rewind')
@@ -1285,7 +1285,7 @@ z => grid_t % z
         close (1)         
     endif
                           
-    fname = 'turbine/xyz.dat'
+    fname = path // 'turbine/xyz.dat'
     $if ($MPI)
         write (temp, '(".c",i0)') coord
         fname = trim (fname) // temp   
@@ -1351,7 +1351,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_hi'
 
 !do s=1,nloc
-!    fname = 'turbine/cond_avg_hi_'    
+!    fname = path // 'turbine/cond_avg_hi_'    
 !    write (temp, '(i0)') s
 !    fname2 = trim (fname) // temp
 !    fname = trim (fname2) // '_vel.dat'                            
@@ -1392,7 +1392,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_lo'
 
 !do s=1,nloc
-!    fname = 'turbine/cond_avg_lo_'    
+!    fname = path // 'turbine/cond_avg_lo_'    
 !    write (temp, '(i0)') s
 !    fname2 = trim (fname) // temp
 !    fname = trim (fname2) // '_vel.dat'                            
@@ -1494,7 +1494,7 @@ character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_hi'
 !                wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi *mult       
 !            endif
 !            
-!            fname = 'turbine/cond_avg_hi_'    
+!            fname = path // 'turbine/cond_avg_hi_'    
 !            write (temp, '(i0)') s
 !            fname2 = trim (fname) // temp
 !            fname = trim (fname2) // '_vel.dat'                            
@@ -1546,7 +1546,7 @@ character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_lo'
 !                wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo *mult 
 !            endif
 !                       
-!            fname3 = 'turbine/cond_avg_lo_'    
+!            fname3 = path // 'turbine/cond_avg_lo_'    
 !            write (temp2, '(i0)') s
 !            fname4 = trim (fname3) // temp2
 !            fname3 = trim (fname4) // '_vel.dat'                            
@@ -1585,7 +1585,7 @@ subroutine turbine_fin_ca_times()
 implicit none
 character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_times'
 
-    !fname4 = 'turbine/turbine_cond_avg_hi_time.dat'
+    !fname4 = path // 'turbine/turbine_cond_avg_hi_time.dat'
     !inquire (unit=2, opened=opn)
     !if (opn) call error (sub_name, 'unit 2 already open, mark10')    
     !open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
@@ -1595,7 +1595,7 @@ character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_times'
     !write(2,*) nsteps*dt
     !close (2)  
     !        
-    !fname4 = 'turbine/turbine_cond_avg_lo_time.dat'
+    !fname4 = path // 'turbine/turbine_cond_avg_lo_time.dat'
     !inquire (unit=2, opened=opn)
     !if (opn) call error (sub_name, 'unit 2 already open, mark11')    
     !open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')

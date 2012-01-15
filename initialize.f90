@@ -6,6 +6,7 @@ subroutine initialize()
 ! subroutines.
 !
 use types, only : rprec
+use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f
 use param, only : sgs_hist_calc
@@ -48,8 +49,10 @@ $endif
 
 implicit none
 
+character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
+
 ! Create output directory
-if( coord == 0 ) call system("mkdir -p output")
+if( coord == 0 ) call system( make_output_dir )
 
 ! Read input file
 ! This obtains all major data defined in param

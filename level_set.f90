@@ -101,13 +101,14 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine level_set_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : path
 use param, only : dx, dy, dz, lbz  !--in addition to those above
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'
 
-character (*), parameter :: fphi_in_base = 'phi.out'
-character (*), parameter :: fnorm_out_base = 'norm.dat'
+character (*), parameter :: fphi_in_base = path // 'phi.out'
+character (*), parameter :: fnorm_out_base = path // 'norm.dat'
 character (*), parameter :: MPI_suffix = '.c'
 
 integer, parameter :: lun = 1
@@ -823,7 +824,7 @@ use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.extrap_tau_simple'
-character (*), parameter :: fprefix = 'output/extrap_tau_simple.'
+character (*), parameter :: fprefix = path // 'output/extrap_tau_simple.'
 character (*), parameter :: fmta3r = '(a,3(es12.5,1x))'
 character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 
@@ -3151,7 +3152,7 @@ implicit none
 include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
-character (*), parameter :: fCD_out = 'output/global_CD.dat'
+character (*), parameter :: fCD_out = path // 'output/global_CD.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
@@ -3713,6 +3714,7 @@ end subroutine level_set_BC
 !--now, we also need to do extrapolation passes for dead/solid nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau ()
+use param, only : path
 use param, only : jt  !--just for debug
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 implicit none
@@ -3762,7 +3764,7 @@ nxi = (/ nx, ny, nz /)
 $if ($DEBUG)
 if (DEBUG) then
   if (first_call) then
-    open (lun1, file='level_set_extrap-u.dat')
+    open (lun1, file=path // 'level_set_extrap-u.dat')
     write (lun1, *) 'variables = "i" "j" "k" "nlist"'
     write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
   end if
@@ -3891,7 +3893,7 @@ end do
 $if ($DEBUG)
 if (DEBUG .and. first_call) then
   close (lun1)
-  open (lun1, file='level_set_extrap-w.dat')
+  open (lun1, file=path // 'level_set_extrap-w.dat')
   write (lun1, *) 'variables = "i" "j" "k" "nlist"'
   write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
 end if
@@ -4018,13 +4020,14 @@ end subroutine extrap_tau
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tau ()
+use param, only : path
 use param, only : jt  !--in addition to stuff above
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz,             &
                       dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.interp_tau'
-character (*), parameter :: fprefix = 'output/interp_tau.'
+character (*), parameter :: fprefix = path // 'output/interp_tau.'
 character (*), parameter :: fmta3r = '(a,3(es12.5,1x))'
 character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 

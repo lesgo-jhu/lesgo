@@ -401,9 +401,9 @@ do jz = 1,nz
             write (tempk, '(i2)') (jz + coord*(nz-1))
         endif      
         $if ($DYN_TN)
-        fnamek = trim('output/Tn_dyn_') // trim(tempk)
+        fnamek = path // trim('output/Tn_dyn_') // trim(tempk)
         $else
-        fnamek = trim('output/Tn_mlc_') // trim(tempk)
+        fnamek = path // trim('output/Tn_mlc_') // trim(tempk)
         $endif
         fnamek = trim(fnamek) // trim('.dat')
        
@@ -413,7 +413,7 @@ do jz = 1,nz
         close(2)
         
     ! Also write clipping stats to file
-        fnamek = trim('output/clip_') // trim(tempk)
+        fnamek = path // trim('output/clip_') // trim(tempk)
         fnamek = trim(fnamek) // trim('.dat')   
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
         write(2,*) jt,real(count_clip)/real(count_all)

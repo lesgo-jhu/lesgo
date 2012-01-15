@@ -2,6 +2,7 @@
 module input_util
 !**********************************************************************
 use types, only : rprec
+use param, only : path
 implicit none
 
 save 
@@ -9,7 +10,7 @@ private
 
 public :: read_input_conf
 
-character (*), parameter :: input_conf = 'lesgo.conf'
+character (*), parameter :: input_conf = path // 'lesgo.conf'
 character (*), parameter :: comment = '!'
 !character (*), parameter :: ldelim = '('  !--no whitespace allowed
 !character (*), parameter :: rdelim = ')'  !--no whitespace allowed

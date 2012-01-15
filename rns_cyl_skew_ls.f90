@@ -128,12 +128,13 @@ end subroutine rns_init_ls
 !**********************************************************************
 subroutine clindx_init ()
 !**********************************************************************
+use param, only : path
 use param, only : iBOGUS, coord, nz
 use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.clindx_init'
-character (*), parameter :: fname_in = 'clindx.out'
+character (*), parameter :: fname_in = path // 'clindx.out'
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
 
@@ -204,13 +205,14 @@ end subroutine clindx_init
 !**********************************************************************
 subroutine chi_init ()
 !**********************************************************************
+use param, only : path
 use param, only : iBOGUS, coord, nz
 use messages
 use types, only : rprec
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.chi_init'
-character (*), parameter :: fchi_in = 'chi.out'
+character (*), parameter :: fchi_in = path // 'chi.out'
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
 
