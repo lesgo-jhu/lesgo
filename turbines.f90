@@ -307,7 +307,7 @@ turbine_in_proc_array = 0
         if (coord == 0) then
             var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
             do s=1,nloc
-                fname = path // 'turbine/turbine_'
+                fname = 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -324,7 +324,7 @@ turbine_in_proc_array = 0
 
     if (coord == 0) then
       !to write the node locations to file
-      fname0 = path // 'turbine/nodes_unfiltered.dat'
+      fname0 = 'turbine/nodes_unfiltered.dat'
       call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
       call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
@@ -340,7 +340,7 @@ turbine_in_proc_array = 0
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
-            fname4 = path // 'turbine/turbine_u_d_T.dat'
+            fname4 = 'turbine/turbine_u_d_T.dat'
             inquire (file=fname4, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
@@ -370,142 +370,8 @@ turbine_in_proc_array = 0
         enddo    
     endif
    
-<<<<<<< turbines.f90
-=======
-!!set variables for conditional averaging
-!!options (set above and applied here):
-!!   1. continue/complete conditional averaging from a previous run (turbine_cumulative_ca_time)
-!!       therefore needs to read in velocities and times
-!!   2. set cond. avg. limits based on mean & rms values from a previous run (read_rms_from_file)
-!!       can be applied to each turbine individually or can average and apply same condition to all
-!!       (rms_same_for_all)
-
-!    !default initilization
-!        wind_farm_t%cond_avg_flag_hi = .false.     !init - do not change this value
-!        wind_farm_t%cond_avg_flag_lo = .false.     !init - do not change this value 
-!        ca_limit_mean = 0.
-!        ca_limit_rms = 0.
-!             
-!        do k=1,nloc
-!            wind_farm_t%turbine_t(k)%u_cond_avg_hi = 0.          
-!            wind_farm_t%turbine_t(k)%v_cond_avg_hi = 0.          
-!            wind_farm_t%turbine_t(k)%w_cond_avg_hi = 0.                             
-!            wind_farm_t%turbine_t(k)%cond_avg_time_hi = 0.  
-!                    
-!            wind_farm_t%turbine_t(k)%u_cond_avg_lo = 0.      
-!            wind_farm_t%turbine_t(k)%v_cond_avg_lo = 0.          
-!            wind_farm_t%turbine_t(k)%w_cond_avg_lo = 0.                          
-!            wind_farm_t%turbine_t(k)%cond_avg_time_lo = 0.  
-!        enddo
-
-!    !set initial values (read from file or use default)
-!    if (turbine_cumulative_ca_time) then                           
-!        fname = path // 'turbine/turbine_cond_avg_hi_time.dat'
-!        inquire (file=fname, exist=exst)
-!        if (exst) then
-!            if (coord == 0) then 
-!                write(*,*) 'Reading from file turbine_cond_avg_hi_time.dat'
-!            endif       
-!            inquire (unit=1, opened=opn)
-!            if (opn) call error (sub_name, 'unit 1 already open, mark2')            
-!            open (1, file=fname)
-!            do i=1,nloc
-!                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi    
-!            enddo   
-!            read(1,*) old_time
-!            close (1)
-!          
-!            if (coord == 0) then 
-!                write(*,*) 'Reading turbine cond_avg_hi files'
-!            endif
-!            call turbine_read_ca_hi()
-!        else  
-!            if (coord == 0) then
-!                write (*, *) 'File ', trim(fname), ' not found'
-!                write (*, *) 'Starting conditional average (hi) from scratch'
-!            endif
-!        endif     
-!            
-!        fname = path // 'turbine/turbine_cond_avg_lo_time.dat'
-!        inquire (file=fname, exist=exst)
-!        if (exst) then
-!            if (coord == 0) then
-!                write(*,*) 'Reading from file turbine_cond_avg_lo_time.dat'
-!            endif    
-!            inquire (unit=1, opened=opn)
-!            if (opn) call error (sub_name, 'unit 1 already open, mark3')            
-!            open (1, file=fname)
-!            do i=1,nloc
-!                read(1,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo    
-!            enddo    
-!            read(1,*) old_time
-!            close (1)
-!                
-!            if (coord == 0) then
-!                write(*,*) 'Reading turbine cond_avg_lo files'
-!            endif            
-!            call turbine_read_ca_lo()           
-!        else  
-!            if (coord == 0) then
-!                write (*, *) 'File ', trim(fname), ' not found'
-!                write (*, *) 'Starting conditional average (lo) from scratch'
-!            endif
-!        endif                
-!    else 
-!        if (coord == 0) then
-!            write (*, *) 'Starting conditional average (hi and lo) from scratch'
-!        endif
-!    endif   
-!    
-!    if (read_rms_from_file) then
-!        fname = path // 'turbine/turbine_all_mean.dat'
-!        inquire (file=fname, exist=exst)
-!        fname2 = path // 'turbine/turbine_all_rms.dat'
-!        inquire (file=fname2, exist=exst2)
-!        
-!        if (exst .and. exst2) then
-!            if (coord == 0) then
-!                write(*,*) 'Determining conditional averaging limits from files turbine_all_{mean,rms}.dat'
-!            endif
-!            inquire (unit=1, opened=opn)
-!            if (opn) call error (sub_name, 'unit 1 already open, mark4')            
-!            open (1, file=fname, action='read', position='rewind', form='formatted')
-!            read (1,*) ca_limit_mean(1:nloc)
-!            close (1)
-!            inquire (unit=2, opened=opn)
-!            if (opn) call error (sub_name, 'unit 2 already open, mark5')            
-!            open (2, file=fname2, action='read', position='rewind', form='formatted')
-!            read (2,*) ca_limit_rms(1:nloc)
-!            close (2)        
-!            
-!            if (rms_same_for_all) then
-!                ca_limit_mean_averaged = abs(sum(ca_limit_mean)/nloc)
-!                ca_limit_rms_averaged = abs(sum(ca_limit_rms)/nloc)
-!                if (coord == 0) then
-!                    write(*,*) 'Cond Avg Limits (all):',ca_limit_mean_averaged,'+/- mult*',ca_limit_rms_averaged
-!                endif                
-!                wind_farm_t%turbine_t(:)%cond_avg_ud_hi = ca_limit_mean_averaged + &
-!                    rms_mult_hi*ca_limit_rms_averaged       
-!                wind_farm_t%turbine_t(:)%cond_avg_ud_lo = ca_limit_mean_averaged - &
-!                    rms_mult_lo*ca_limit_rms_averaged 
-!            else           
-!                do k=1,nloc                  
-!                    wind_farm_t%turbine_t(k)%cond_avg_ud_hi = abs(ca_limit_mean(k)) + &
-!                        rms_mult_hi*abs(ca_limit_rms(k))       
-!                    wind_farm_t%turbine_t(k)%cond_avg_ud_lo = abs(ca_limit_mean(k)) - &
-!                        rms_mult_lo*abs(ca_limit_rms(k))        
-!                enddo  
-!            endif
-!        else
-!            if (coord == 0) then
-!                write(*,*) 'Error reading from file(s) turbine_all_{mean,rms}.dat'
-!            endif
-!        endif
-!    endif          
-
->>>>>>> 1.1.2.53.2.1
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
+    fname='output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
@@ -748,7 +614,7 @@ g = g/sumG
         enddo
 
         !if (.false.) then
-        !    fname0 = path // 'turbine/convolution_function.dat'
+        !    fname0 = 'turbine/convolution_function.dat'
         !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
         !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
 
@@ -926,14 +792,14 @@ enddo
         enddo   
         enddo
         !write to file with .dat.c* extension
-            fname3 = path // 'turbine/nodes_filtered_c.dat'
+            fname3 = 'turbine/nodes_filtered_c.dat'
             write (temp, '(".c",i0)') coord
             fname3 = trim (fname3) // temp
             call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
             call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if (coord == 0) then
-        fname3 = path // 'turbine/nodes_filtered.dat'
+        fname3 = 'turbine/nodes_filtered.dat'
         call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
         call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
     endif
@@ -1075,7 +941,7 @@ if (coord == 0) then
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
 
             !write values to file                   
-                fname = path // 'turbine/turbine_'
+                fname = 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -1160,7 +1026,7 @@ deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
+    fname='output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
@@ -1188,7 +1054,7 @@ z => grid_t % z
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
-        fname4 = path // 'turbine/turbine_u_d_T.dat'    
+        fname4 = 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
         open (unit=1,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
@@ -1199,51 +1065,6 @@ z => grid_t % z
         close (1)  
     endif   
     
-<<<<<<< turbines.f90
-=======
-!!finalize conditional averaging      
-!    call turbine_fin_ca_hi()    
-!    call turbine_fin_ca_lo()    
-!    
-!    do s=1,nloc
-!        if (coord == 0) then
-!            write(*,*)
-!            write(*,*) 'turbine:',s
-!            write(*,*) 'cond_avg_time_hi',wind_farm_t%turbine_t(s)%cond_avg_time_hi
-!            write(*,*) 'cond_avg_time_lo',wind_farm_t%turbine_t(s)%cond_avg_time_lo
-!            write(*,*) 'total_time',nsteps*dt+old_time
-!            write(*,*) 'Fraction of time that (hi) condition was met: ', wind_farm_t%turbine_t(s)%cond_avg_time_hi/(nsteps*dt+old_time)
-!            write(*,*) 'Fraction of time that (lo) condition was met: ', wind_farm_t%turbine_t(s)%cond_avg_time_lo/(nsteps*dt+old_time)
-!        endif                   
-!    enddo        
-!   
-!!write cond_avg_time array to file (for multiple runs)
-!    if (coord == 0) then
-!        call turbine_fin_ca_times()
-!    endif   
-
-!write x,y,z arrays to file so cond_avg domains can be reconstructed for use in Tecplot
-    if (coord == 0) then
-        fname = path // 'turbine/nxLx.dat'
-        inquire (unit=1, opened=opn)
-        if (opn) call error (sub_name, 'unit 1 already open, mark13')   
-        open (unit=1,file = fname, status='unknown',form='formatted', action='write',position='rewind')
-        write (1,*) nx,ny,nz,L_x,L_y,L_z
-        close (1)         
-    endif
-                          
-    fname = path // 'turbine/xyz.dat'
-    $if ($MPI)
-        write (temp, '(".c",i0)') coord
-        fname = trim (fname) // temp   
-    $endif       
-    inquire (unit=1, opened=opn)
-    if (opn) call error (sub_name, 'unit 1 already open, mark14')   
-    open (unit=1,file = fname, status='unknown',form='formatted', action='write',position='rewind')
-    write (1,*) x,y,z
-    close (1)      
-    
->>>>>>> 1.1.2.53.2.1
 !deallocate
     deallocate(wind_farm_t%turbine_t) 
     deallocate(buffer_array)
@@ -1288,271 +1109,4 @@ real(rprec) :: cft,nu_w,exp_KE
 end subroutine turbine_vel_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-<<<<<<< turbines.f90
-=======
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_read_ca_hi()
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_hi'
-
-!do s=1,nloc
-!    fname = path // 'turbine/cond_avg_hi_'    
-!    write (temp, '(i0)') s
-!    fname2 = trim (fname) // temp
-!    fname = trim (fname2) // '_vel.dat'                            
-!    $if ($MPI)
-!        write (temp, '(".c",i0)') coord
-!        fname = trim (fname) // temp   
-!    $endif 
-!    inquire (file=fname, exist=exst)
-!    if (exst) then     
-!        inquire (unit=1, opened=opn)
-!        if (opn) call error (sub_name, 'unit 1 already open, mark7')                
-!            open (1, file=fname, action='read', position='rewind', form='unformatted')
-!            read (1) wind_farm_t%turbine_t(s)%u_cond_avg_lo
-!            read (1) wind_farm_t%turbine_t(s)%v_cond_avg_lo  
-!            read (1) wind_farm_t%turbine_t(s)%w_cond_avg_lo
-!            close (1)   
-!            
-!            wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi* &
-!                wind_farm_t%turbine_t(s)%cond_avg_time_hi
-!            wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi* &
-!                wind_farm_t%turbine_t(s)%cond_avg_time_hi 
-!            wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi* &
-!                wind_farm_t%turbine_t(s)%cond_avg_time_hi 
-!        else
-!            if (coord == 0) then
-!                write(*,*) 'File ', trim(fname), ' not found...'
-!            endif
-!        endif
-!enddo
-
-end subroutine turbine_read_ca_hi
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_read_ca_lo()
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_read_ca_lo'
-
-!do s=1,nloc
-!    fname = path // 'turbine/cond_avg_lo_'    
-!    write (temp, '(i0)') s
-!    fname2 = trim (fname) // temp
-!    fname = trim (fname2) // '_vel.dat'                            
-!    $if ($MPI)
-!        write (temp, '(".c",i0)') coord
-!        fname = trim (fname) // temp   
-!    $endif 
-
-!    inquire (file=fname, exist=exst)
-!    if (exst) then
-!        inquire (unit=2, opened=opn)
-!        if (opn) call error (sub_name, 'unit 2 already open, mark8')    
-!        open (2, file=fname, action='read', position='rewind', form='unformatted')                  
-!        read (2) wind_farm_t%turbine_t(s)%u_cond_avg_lo
-!        read (2) wind_farm_t%turbine_t(s)%v_cond_avg_lo  
-!        read (2) wind_farm_t%turbine_t(s)%w_cond_avg_lo
-!        close (2)   
-!        
-!        wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo* &
-!              wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-!        wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo* &
-!              wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-!        wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo* &
-!              wind_farm_t%turbine_t(s)%cond_avg_time_lo 
-!    else
-!        if (coord == 0) then
-!            write(*,*) 'File ', trim(fname), ' not found...'
-!        endif
-!    endif
-!enddo
-
-end subroutine turbine_read_ca_lo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_cond_avg_hi()
-use sim_param, only: u,v,w
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbines_cond_avg_hi'
-
-!!apply conditional averaging if necessary
-!    do s=1,nloc
-!        if(wind_farm_t%cond_avg_flag_hi(s)) then            
-!            !if (coord == 0) write(*,*) 'hi'
-!            wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) = & 
-!                wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) = &
-!                wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) = &
-!                wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%cond_avg_time_hi = wind_farm_t%turbine_t(s)%cond_avg_time_hi + dt
-!        endif 
-!    enddo  
-    
-end subroutine turbines_cond_avg_hi
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_cond_avg_lo()
-use sim_param, only: u,v,w
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbines_cond_avg_lo'
-
-!!apply conditional averaging if necessary
-!    do s=1,nloc
-!        if(wind_farm_t%cond_avg_flag_lo(s)) then            
-!            !if (coord == 0) write(*,*) 'lo'
-!            wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) = & 
-!                wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz) + u(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) = &
-!                wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz) + v(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) = &
-!                wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz) + w(1:nx,1:ny,1:nz)*dt
-!            wind_farm_t%turbine_t(s)%cond_avg_time_lo = wind_farm_t%turbine_t(s)%cond_avg_time_lo + dt
-!        endif 
-!    enddo  
-    
-end subroutine turbines_cond_avg_lo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_fin_ca_hi()
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_hi'
-
-!if (coord == 0) then
-!    write(*,*) 'Writing turbine cond_avg_hi files'
-!endif
-
-!    do s=1,nloc
-!        if(wind_farm_t%turbine_t(s)%cond_avg_calc_hi) then        
-!            if (wind_farm_t%turbine_t(s)%cond_avg_time_hi .gt. 0.) then
-!                mult = 1./wind_farm_t%turbine_t(s)%cond_avg_time_hi
-!                wind_farm_t%turbine_t(s)%u_cond_avg_hi = wind_farm_t%turbine_t(s)%u_cond_avg_hi *mult   
-!                wind_farm_t%turbine_t(s)%v_cond_avg_hi = wind_farm_t%turbine_t(s)%v_cond_avg_hi *mult
-!                wind_farm_t%turbine_t(s)%w_cond_avg_hi = wind_farm_t%turbine_t(s)%w_cond_avg_hi *mult       
-!            endif
-!            
-!            fname = path // 'turbine/cond_avg_hi_'    
-!            write (temp, '(i0)') s
-!            fname2 = trim (fname) // temp
-!            fname = trim (fname2) // '_vel.dat'                            
-!            $if ($MPI)
-!                write (temp, '(".c",i0)') coord
-!                fname = trim (fname) // temp   
-!            $endif 
-!       
-!            !call write_tecplot_header_ND(fname,'rewind', 6, (/nx,ny,nz/), &
-!            !    '"x","y","z","u","v","w"', 1, 1)                 
-!            !call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%u_cond_avg_hi(:,:,1:nz)/), 0, x(1:nx), y(1:ny), z(1:nz))                
-!            !call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%v_cond_avg_hi(:,:,1:nz)/), 0)                   
-!            !call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%w_cond_avg_hi(:,:,1:nz)/), 0)                           
-
-!            inquire (unit=1, opened=opn)
-!            if (opn) call error (sub_name, 'unit 1 already open, mark12')
-!            open (1, file=fname, action='write', position='rewind', form='unformatted')
-!            ! write the entire structures
-!            write (1) wind_farm_t%turbine_t(s)%u_cond_avg_hi
-!            write (1) wind_farm_t%turbine_t(s)%v_cond_avg_hi  
-!            write (1) wind_farm_t%turbine_t(s)%w_cond_avg_hi
-!            close (1)        
-!            
-!        endif  
-!    enddo
-
-end subroutine turbine_fin_ca_hi
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_fin_ca_lo()
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_lo'
-
-!if (coord == 0) then
-!    write(*,*) 'Writing turbine cond_avg_lo files'
-!endif
-
-!    do s=1,nloc
-!        if(wind_farm_t%turbine_t(s)%cond_avg_calc_lo) then           
-!            if (wind_farm_t%turbine_t(s)%cond_avg_time_lo .gt. 0.) then
-!                mult = 1./wind_farm_t%turbine_t(s)%cond_avg_time_lo  
-!                wind_farm_t%turbine_t(s)%u_cond_avg_lo = wind_farm_t%turbine_t(s)%u_cond_avg_lo *mult
-!                wind_farm_t%turbine_t(s)%v_cond_avg_lo = wind_farm_t%turbine_t(s)%v_cond_avg_lo *mult
-!                wind_farm_t%turbine_t(s)%w_cond_avg_lo = wind_farm_t%turbine_t(s)%w_cond_avg_lo *mult 
-!            endif
-!                       
-!            fname3 = path // 'turbine/cond_avg_lo_'    
-!            write (temp2, '(i0)') s
-!            fname4 = trim (fname3) // temp2
-!            fname3 = trim (fname4) // '_vel.dat'                            
-!            $if ($MPI)
-!                write (temp2, '(".c",i0)') coord
-!                fname3 = trim (fname3) // temp2   
-!            $endif        
-!            
-!            !call write_tecplot_header_ND(fname3,'rewind', 6, (/nx,ny,nz/), &
-!            !    '"x","y","z","u","v","w"', 1, 1)           
-!            !call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%u_cond_avg_lo(:,:,1:nz)/), 0, x(1:nx), y(1:ny), z(1:nz))                
-!            !call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%v_cond_avg_lo(:,:,1:nz)/), 0)                   
-!            !call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, &
-!            !    (/wind_farm_t%turbine_t(s)%w_cond_avg_lo(:,:,1:nz)/), 0)       
-!            
-!            inquire (unit=1, opened=opn)
-!            if (opn) call error (sub_name, 'unit 1 already open, mark9')
-!            open (1, file=fname3, action='write', position='rewind', form='unformatted')
-!            ! write the entire structures
-!            write (1) wind_farm_t%turbine_t(s)%u_cond_avg_lo
-!            write (1) wind_farm_t%turbine_t(s)%v_cond_avg_lo  
-!            write (1) wind_farm_t%turbine_t(s)%w_cond_avg_lo
-!            close (1)
-!                
-!        endif   
-!    enddo 
-
-end subroutine turbine_fin_ca_lo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbine_fin_ca_times()
-
-implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_fin_ca_times'
-
-    !fname4 = path // 'turbine/turbine_cond_avg_hi_time.dat'
-    !inquire (unit=2, opened=opn)
-    !if (opn) call error (sub_name, 'unit 2 already open, mark10')    
-    !open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
-    !do i=1,nloc
-    !    write(2,*) wind_farm_t%turbine_t(i)%cond_avg_time_hi
-    !enddo   
-    !write(2,*) nsteps*dt
-    !close (2)  
-    !        
-    !fname4 = path // 'turbine/turbine_cond_avg_lo_time.dat'
-    !inquire (unit=2, opened=opn)
-    !if (opn) call error (sub_name, 'unit 2 already open, mark11')    
-    !open (unit = 2,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
-    !do i=1,nloc
-    !    write(2,*) wind_farm_t%turbine_t(i)%cond_avg_time_lo
-    !enddo    
-    !write(2,*) nsteps*dt
-    !close (2)   
-
-end subroutine turbine_fin_ca_times
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
->>>>>>> 1.1.2.53.2.1
 end module turbines
