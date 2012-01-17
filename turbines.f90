@@ -307,7 +307,7 @@ turbine_in_proc_array = 0
         if (coord == 0) then
             var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
             do s=1,nloc
-                fname = 'turbine/turbine_'
+                fname = path // 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -324,7 +324,7 @@ turbine_in_proc_array = 0
 
     if (coord == 0) then
       !to write the node locations to file
-      fname0 = 'turbine/nodes_unfiltered.dat'
+      fname0 = path // 'turbine/nodes_unfiltered.dat'
       call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
       call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
@@ -340,7 +340,7 @@ turbine_in_proc_array = 0
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
-            fname4 = 'turbine/turbine_u_d_T.dat'
+            fname4 = path // 'turbine/turbine_u_d_T.dat'
             inquire (file=fname4, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
@@ -371,7 +371,7 @@ turbine_in_proc_array = 0
     endif
    
 if (coord .eq. nproc-1) then
-    fname='output/vel_top_of_domain.dat'
+    fname=path // 'output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
@@ -614,7 +614,7 @@ g = g/sumG
         enddo
 
         !if (.false.) then
-        !    fname0 = 'turbine/convolution_function.dat'
+        !    fname0 = path // 'turbine/convolution_function.dat'
         !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
         !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
 
@@ -792,14 +792,14 @@ enddo
         enddo   
         enddo
         !write to file with .dat.c* extension
-            fname3 = 'turbine/nodes_filtered_c.dat'
+            fname3 = path // 'turbine/nodes_filtered_c.dat'
             write (temp, '(".c",i0)') coord
             fname3 = trim (fname3) // temp
             call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
             call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if (coord == 0) then
-        fname3 = 'turbine/nodes_filtered.dat'
+        fname3 = path // 'turbine/nodes_filtered.dat'
         call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
         call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
     endif
@@ -941,7 +941,7 @@ if (coord == 0) then
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
 
             !write values to file                   
-                fname = 'turbine/turbine_'
+                fname = path // 'turbine/turbine_'
                 write (temp, '(i0)') s
                 fname2 = trim (fname) // temp
                 fname = trim (fname2) // '_forcing.dat'
@@ -1026,7 +1026,7 @@ deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    fname='output/vel_top_of_domain.dat'
+    fname=path // 'output/vel_top_of_domain.dat'
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
@@ -1054,7 +1054,7 @@ z => grid_t % z
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
-        fname4 = 'turbine/turbine_u_d_T.dat'    
+        fname4 = path // 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
         open (unit=1,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
