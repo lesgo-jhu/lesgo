@@ -64,7 +64,7 @@ endif
 
   !--set up a 1d cartesian topology 
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
-  .true., comm, ierr)
+  .false., comm, ierr)
 
 !--slight problem here for ghost layers:
 !  u-node info needs to be shifted up to proc w/ rank "up",

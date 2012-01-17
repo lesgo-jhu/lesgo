@@ -76,6 +76,9 @@ subroutine boundary_layer_ic()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Log profile that is modified to flatten at z=z_i
 ! This is a hot mess (JSG 20111221)
+$if($CYL_SKEW_LS)
+use cyl_skew_base_ls
+$endif
 implicit none
 
 interface
@@ -106,6 +109,14 @@ do jz=1,nz
    $else
    z=(jz-.5_rprec)*dz
    $endif
+
+   ! Another kludge for creating a channel profile. For now ignoring location of actual surface.
+   $if($CYL_SKEW_LS)
+   if( use_top_surf ) then
+      if( z > L_z / 2 ) z = L_z - z
+   endif
+   $endif
+
    ! IC in equilibrium with rough surface (rough dominates in effective zo)
    arg2=z/zo
    arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
