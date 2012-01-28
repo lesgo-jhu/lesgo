@@ -122,6 +122,12 @@ do
 
      call sgs_hist_block()
 
+  $if ($TURBINES)
+  case ('TURBINES')
+  
+     call turbines_block()
+  $endif
+
   case default
 
      if(coord == 0) call mesg( sub, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
@@ -955,6 +961,86 @@ enddo
 
 return
 end subroutine  sgs_hist_block
+
+$if ($TURBINES)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine turbines_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use turbines_base
+implicit none
+
+character(*), parameter :: block_name = 'TURBINES'
+
+do 
+
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub, 'Bad read in block')
+
+  if( block_exit_pos == 0 ) then
+
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+
+     case ('NUM_X')
+        read (buff(equal_pos+1:), *) num_x
+     case ('NUM_Y')
+        read (buff(equal_pos+1:), *) num_y
+
+     case ('DIA_ALL')
+        read (buff(equal_pos+1:), *) dia_all
+     case ('HEIGHT_ALL')
+        read (buff(equal_pos+1:), *) height_all
+     case ('THK_ALL')
+        read (buff(equal_pos+1:), *) thk_all
+
+     case ('ORIENTATION')
+        read (buff(equal_pos+1:), *) orientation
+     case ('STAG_PERC')
+        read (buff(equal_pos+1:), *) stag_perc
+
+     case ('THETA1_ALL')
+        read (buff(equal_pos+1:), *) theta1_all
+     case ('THETA2_ALL')
+        read (buff(equal_pos+1:), *) theta2_all
+
+     case ('CT_PRIME')
+        read (buff(equal_pos+1:), *) Ct_prime
+     case ('CT_NOPRIME')
+        read (buff(equal_pos+1:), *) Ct_noprime
+
+     case ('T_AVG_DIM')
+        read (buff(equal_pos+1:), *) T_avg_dim
+
+     case ('ALPHA')
+        read (buff(equal_pos+1:), *) alpha
+     case ('TRUNC')
+        read (buff(equal_pos+1:), *) trunc
+     case ('FILTER_CUTOFF')
+        read (buff(equal_pos+1:), *) filter_cutoff
+
+     case default
+
+        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+     end select
+
+  elseif( block_exit_pos == 1 ) then
+
+     return
+
+  else
+
+     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+
+  endif
+
+enddo
+
+return
+end subroutine  turbines_block
+$endif !($TURBINES)
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkentry()
