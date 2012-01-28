@@ -1,6 +1,7 @@
 module turbines
 use types,only:rprec
 use param
+use turbines_base
 use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t !x,y,z
 use io
@@ -17,14 +18,9 @@ private
 
 public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 
-integer :: nloc 
-integer :: num_x,num_y
-real(rprec) :: height_all,dia_all,thk_all,theta1_all,theta2_all
-real(rprec) :: Ct_prime,Ct_noprime !thrust coefficient
 real(rprec) :: Ct_prime_05
-real(rprec) :: T_avg_dim, T_avg_dim_file
+real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
-real(rprec) :: sx,sy
 
 character (64) :: fname, fname0, fname2, fname3, fname4, var_list, temp, temp2, dummy_char
 real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations
@@ -49,7 +45,6 @@ integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 
 character (*), parameter :: mod_name = 'turbines'
-real(rprec) :: const, percent
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -58,12 +53,6 @@ contains
 subroutine turbines_init()
 implicit none
 include 'tecryte.h'
-
-real(rprec) :: ran3
-real(rprec) :: minspace, tempx, tempy
-real :: clock_time
-integer :: seed
-logical :: redoflag
 
 real(rprec), pointer, dimension(:) :: x,y,z
 
@@ -82,214 +71,8 @@ allocate(turbine_in_proc_array(nproc-1))
 allocate(z_tot(nz_tot))
 turbine_in_proc_array = 0
 
-!##############################  SET BY USER  ############################################
-!set turbine parameters
-!turbines are numbered as follows:
-!   #1 = turbine nearest (x,y)=(0,0)
-!   #2 = next turbine in the x-direction, etc.
-
-    num_x = 4               !number of turbines in x-direction
-    num_y = 6               !number of turbines in y-direction  
-    nloc = num_x*num_y      !number of turbines (locations) 
-
-    nullify(wind_farm_t%turbine_t)
     nullify(buffer_array)
-    allocate(wind_farm_t%turbine_t(nloc)) 
     allocate(buffer_array(nloc))
-
-    !!Evenly-spaced, not staggered
-    !    !x,y-locations
-    !        k=1
-    !        do j=1,num_y
-    !            do i=1,num_x
-    !                wind_farm_t%turbine_t(k)%xloc = L_x*real(2*i-1)/real(2*num_x)
-    !                wind_farm_t%turbine_t(k)%yloc = L_y*real(2*j-1)/real(2*num_y)
-    !                k = k + 1
-    !            enddo
-    !        enddo
-    !    !height, diameter, and thickness
-    !        height_all = 100.       !turbine height, dimensional [m]
-    !        dia_all = 100.	        !turbine diameter, dimensional [m]
-    !        thk_all = 10.	        !turbine disk thickness, dimensional [m]    
-    !    !non-dimensionalize values by z_i
-    !        height_all = height_all/z_i
-    !        dia_all = dia_all/z_i
-    !        thk_all = thk_all/z_i
-    !        thk_all = max(thk_all,dx*1.01)	 
-    !        wind_farm_t%turbine_t(:)%height = height_all
-    !        wind_farm_t%turbine_t(:)%dia = dia_all
-    !        wind_farm_t%turbine_t(:)%thk = thk_all                      
-    !        wind_farm_t%turbine_t(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
-        
-    !!Evenly-spaced, horizontally staggered only
-    !    !x,y-locations
-    !        k=1
-    !        do j=1,num_y
-    !            do i=1,num_x
-    !                wind_farm_t%turbine_t(k)%xloc = L_x*real(2*i-1)/real(2*num_x)
-    !                wind_farm_t%turbine_t(k)%yloc = mod(L_y*real(2*j-1)/real(2*num_y)+mod(i+1,2)*L_y/real(2*num_y)+L_y,L_y)
-    !                k = k + 1
-    !            enddo
-    !        enddo   
-    !    !height, diameter, and thickness
-    !        height_all = 100.       !turbine height, dimensional [m]
-    !        dia_all = 100.	        !turbine diameter, dimensional [m]
-    !        thk_all = 10.	        !turbine disk thickness, dimensional [m]            
-    !        height_all = height_all/z_i
-    !        dia_all = dia_all/z_i
-    !        thk_all = thk_all/z_i
-    !        thk_all = max(thk_all,dx*1.01)	         
-    !        
-    !        wind_farm_t%turbine_t(:)%height = height_all
-    !        wind_farm_t%turbine_t(:)%dia = dia_all
-    !        wind_farm_t%turbine_t(:)%thk = thk_all                   
-    !        wind_farm_t%turbine_t(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)      
-    
-    !!Evenly-spaced, only vertically staggered (rows, 80&120 scaled)    
-    !    !x,y-locations
-    !        k=1
-    !        do j=1,num_y
-    !            do i=1,num_x
-    !                wind_farm_t%turbine_t(k)%xloc = L_x*real(2*i-1)/real(2*num_x)
-    !                wind_farm_t%turbine_t(k)%yloc = L_y*real(2*j-1)/real(2*num_y)
-    !                k = k + 1
-    !            enddo
-    !        enddo 
-    !    !height, diameter, and thickness
-    !        do s=1,nloc,2
-    !            height_all = 120.       !turbine height, dimensional [m]
-    !            dia_all = 120.	        !turbine diameter, dimensional [m]
-    !            thk_all = 12.	        !turbine disk thickness, dimensional [m]    
-    !                !non-dimensionalize values by z_i
-    !                height_all = height_all/z_i
-    !                dia_all = dia_all/z_i
-    !                thk_all = thk_all/z_i
-    !                thk_all = max(thk_all,dx*1.01)	                
-    !            wind_farm_t%turbine_t(s)%height = height_all
-    !            wind_farm_t%turbine_t(s)%dia = dia_all
-    !            wind_farm_t%turbine_t(s)%thk = thk_all                      
-    !            wind_farm_t%turbine_t(s)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)  
-    !        enddo
-    !        do s=2,nloc,2
-    !            height_all = 80.       !turbine height, dimensional [m]
-    !            dia_all = 80.	        !turbine diameter, dimensional [m]
-    !            thk_all = 8.	        !turbine disk thickness, dimensional [m]    
-    !                !non-dimensionalize values by z_i
-    !                height_all = height_all/z_i
-    !                dia_all = dia_all/z_i
-    !                thk_all = thk_all/z_i
-    !                thk_all = max(thk_all,dx*1.01)	                
-    !            wind_farm_t%turbine_t(s)%height = height_all
-    !            wind_farm_t%turbine_t(s)%dia = dia_all
-    !            wind_farm_t%turbine_t(s)%thk = thk_all                      
-    !            wind_farm_t%turbine_t(s)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)  
-    !        enddo    
-    !        !AVERAGE
-    !            height_all = 100.       !turbine height, dimensional [m]
-    !            dia_all = 100.	        !turbine diameter, dimensional [m]
-    !            thk_all = 10.	        !turbine disk thickness, dimensional [m]    
-    !                !non-dimensionalize values by z_i
-    !                height_all = height_all/z_i
-    !                dia_all = dia_all/z_i
-    !                thk_all = thk_all/z_i
-    !                thk_all = max(thk_all,dx*1.01)	            
-            
-    !!Evenly-spaced, only vertically staggered (checkerboard, height only 90/110) - for num_x even
-    !    !height, diameter, and thickness    
-    !        height_all = 100.       !turbine height, dimensional [m]
-    !        dia_all = 100.	        !turbine diameter, dimensional [m]
-    !        thk_all = 10.	        !turbine disk thickness, dimensional [m]    
-    !            !non-dimensionalize values by z_i
-    !            height_all = height_all/z_i
-    !            dia_all = dia_all/z_i
-    !            thk_all = thk_all/z_i
-    !            thk_all = max(thk_all,dx*1.01)  
-    !         percent = 10.           !percentage to increase/decrease turbine height
-    !    !x,y-locations
-    !        k=1
-    !        do j=1,num_y
-    !            do i=1,num_x
-    !                wind_farm_t%turbine_t(k)%xloc = L_x*real(2*i-1)/real(2*num_x)
-    !                wind_farm_t%turbine_t(k)%yloc = L_y*real(2*j-1)/real(2*num_y)
-    !                
-    !                const = 2.*mod((i+j),2)-1.
-    
-    !                wind_farm_t%turbine_t(k)%height = height_all*(1.+const*percent/100.)
-    !                wind_farm_t%turbine_t(k)%dia = dia_all
-    !                wind_farm_t%turbine_t(k)%thk = thk_all                      
-    !                wind_farm_t%turbine_t(k)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)                  
-    !                
-    !                k = k + 1
-    !            enddo
-    !        enddo
-    
-    !Randomly-spaced
-        minspace = 2.0
-        !height, diameter, and thickness
-            height_all = 100.       !turbine height, dimensional [m]
-            dia_all = 100.	        !turbine diameter, dimensional [m]
-            thk_all = 10.	        !turbine disk thickness, dimensional [m]    
-        !non-dimensionalize values by z_i
-            height_all = height_all/z_i
-            dia_all = dia_all/z_i
-            thk_all = thk_all/z_i
-            thk_all = max(thk_all,dx*1.01)	 
-            wind_farm_t%turbine_t(:)%height = height_all
-            wind_farm_t%turbine_t(:)%dia = dia_all
-            wind_farm_t%turbine_t(:)%thk = thk_all                      
-            wind_farm_t%turbine_t(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)   
-        !x,y-locations
-            call cpu_time(clock_time) 
-            !first location
-                seed = clock_time
-                wind_farm_t%turbine_t(1)%xloc = L_x*ran3(seed)
-                wind_farm_t%turbine_t(1)%yloc = L_y*ran3(seed+1)
-            !other locations
-                do k=2,nloc
-                    redoflag = .true.
-                    do while (redoflag)
-                        redoflag = .false.
-                        seed = k*clock_time
-                        tempx = L_x*ran3(seed)
-                        seed = k*clock_time+1
-                        tempy = L_y*ran3(seed)
-                        do p=1,(k-1)
-                            if (abs(tempx-wind_farm_t%turbine_t(p)%xloc).lt.(minspace*dia_all)) then
-                                redoflag = .true.
-                            elseif (abs(tempy-wind_farm_t%turbine_t(p)%yloc).lt.(minspace*dia_all)) then
-                                redoflag = .true.    
-                            endif
-                        enddo
-                    enddo
-                    wind_farm_t%turbine_t(k)%xloc = tempx
-                    wind_farm_t%turbine_t(k)%yloc = tempy        
-                enddo            
-        
-    
-    !orientation (angles)
-        !same values for all
-            theta1_all = 0.     !angle CCW(from above) from -x direction [degrees]
-            theta2_all = 0.     !angle above the horizontal, from -x dir [degrees]
-            
-            wind_farm_t%turbine_t(:)%theta1 = theta1_all
-            wind_farm_t%turbine_t(:)%theta2 = theta2_all 
-
-    !filtering operation
-        wind_farm_t%ifilter = 2    !Filter type: 2-> Gaussian is the only option (currently)	
-        wind_farm_t%alpha = 1.5    !filter size is alpha*(grid spacing)
-        wind_farm_t%trunc = 3               !truncated Gaussian - how many grid points in any direction
-        wind_farm_t%filter_cutoff = 1e-2    !ind only includes values above this cutoff
-
-    !other
-        turbine_cumulative_time = .true.    !true to read u_d_T values from file        
-        
-        Ct_prime = 1.33     !thrust coefficient
-        Ct_noprime = 0.75   !a=1/4
-        T_avg_dim = 600.    !time-averaging 'window' for one-sided exp. weighting (seconds)
-        
-        sx = L_x/(num_x*dia_all)        !spacing in x-dir, multiple of DIA            
-        sy = L_y/(num_y*dia_all)        !spacing in y-dir, multiple of DIA
-!#########################################################################################
 
 !new variables for optimization:
     Ct_prime_05 = -0.5*Ct_prime
@@ -572,7 +355,7 @@ z => grid_t % z
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
 !if(wind_farm_t%ifilter==2) then		!2-> Gaussian
-delta2 = wind_farm_t%alpha**2 * (dx**2 + dy**2 + dz**2)
+delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
       do k=1,nz_tot
         do j=1,ny
           do i=1,nx
@@ -651,7 +434,7 @@ do b=1,nloc
         max_j = wind_farm_t%turbine_t(b)%nodes_max(4) 
         min_k = wind_farm_t%turbine_t(b)%nodes_max(5)
         max_k = wind_farm_t%turbine_t(b)%nodes_max(6) 
-        cut = wind_farm_t%trunc   
+        cut = trunc   
 
         !if (coord == 0) then
         !    if (verbose) then
@@ -671,9 +454,9 @@ do b=1,nloc
           !for each (i4,j4,k), center convolution function on that point and 'integrate' 
           !relative coords are (ssx,ssy,ssz). absolute coords of other/surrounding points are (i2,j2,k2)
           !only need to consider other/surrounding points near (i4,j4,k) since conv. function is compact
-          do k2=max(k-wind_farm_t%trunc,1),min(k+wind_farm_t%trunc,nz_tot)     !currently using truncated Gaussian
-          do j2=j-wind_farm_t%trunc,j+wind_farm_t%trunc
-          do i2=i-wind_farm_t%trunc,i+wind_farm_t%trunc
+          do k2=max(k-trunc,1),min(k+trunc,nz_tot)     !currently using truncated Gaussian
+          do j2=j-trunc,j+trunc
+          do i2=i-trunc,i+trunc
 
             i3 = mod(i2+nx-1,nx)+1      !since values may be out 1-nx,1-ny domain (spectral BCs)
             j3 = mod(j2+ny-1,ny)+1             
@@ -711,7 +494,7 @@ do b=1,nloc
     do k=1,nz_tot
 	  do j=1,ny
 	    do i=1,nx
-            if (out_a(i,j,k) < wind_farm_t%filter_cutoff) then
+            if (out_a(i,j,k) < filter_cutoff) then
 	            out_a(i,j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
             else
                 sumA = sumA + out_a(i,j,k)*dx*dy*dz
@@ -745,7 +528,7 @@ do b=1,nloc
 	do k=k_start,k_end  !global k     
 		do j=1,ny
 			do i=1,nx
-				if (out_a(i,j,k) > wind_farm_t%filter_cutoff) then
+				if (out_a(i,j,k) > filter_cutoff) then
                     wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)		
 					wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
 					wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
@@ -854,8 +637,6 @@ real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
 
-integer :: w_uv_tag_turbines = -1
-
 nullify(y,z)
 y => grid_t % y
 z => grid_t % z
@@ -865,7 +646,6 @@ allocate(w_uv(ld,ny,lbz:nz))
 $if ($MPI)
     call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
-!call interp_to_uv_grid(w, w_uv, lbz, w_uv_tag_turbines)
 w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
