@@ -40,6 +40,7 @@ use level_set, only : level_set_init
 $endif
 
 $if ($TURBINES)
+use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 $endif
 
@@ -89,6 +90,7 @@ call stats_init()
 
 ! Initialize turbines
 $if ($TURBINES)
+call turbines_base_init()
 call turbines_init()    !must occur before initial is called
 $endif
 
