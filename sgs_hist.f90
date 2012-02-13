@@ -11,12 +11,12 @@ private
 public sgs_hist_init, sgs_hist_update_vals, sgs_hist_finalize
 
 ! Used for reading and writing data to file (for cumulative runs)
-    character(*), parameter :: fname_cs2_base = 'output/hist_cs2.z-'
-    character(*), parameter :: fname_tn_base = 'output/hist_tn.z-'
-    character(*), parameter :: fname_nu_base = 'output/hist_nu.z-'
-    character(*), parameter :: fname_ee_base = 'output/hist_ee.z-'
-    character(*), parameter :: fname_histp_base = 'hist_param.out'
-    character(*), parameter :: fname_histv_base = 'hist_vals.out'
+    character(*), parameter :: fname_cs2_base = path // 'output/hist_cs2.z-'
+    character(*), parameter :: fname_tn_base = path // 'output/hist_tn.z-'
+    character(*), parameter :: fname_nu_base = path // 'output/hist_nu.z-'
+    character(*), parameter :: fname_ee_base = path // 'output/hist_ee.z-'
+    character(*), parameter :: fname_histp_base = path // 'hist_param.out'
+    character(*), parameter :: fname_histv_base = path // 'hist_vals.out'
     character(64) :: temp, cl, fname_cs2, fname_tn, fname_nu, fname_ee
     character(64) :: fname_histp, fname_histv
 

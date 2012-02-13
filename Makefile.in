@@ -34,7 +34,7 @@ DEVEL=no
 OUTPUT_EXTRA=no
 
 # watch the whitespace here
-USE_MPI = no
+USE_MPI = yes
 USE_OPENMP = no
 
 # Options: DEFAULT, LITTLE, or BIG
@@ -44,7 +44,7 @@ WRITE_ENDIAN = DEFAULT
 # Options: DEFAULT, LITTLE, or BIG
 READ_ENDIAN = DEFAULT
 
-USE_LVLSET = no
+USE_LVLSET = yes
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
 
@@ -52,7 +52,7 @@ USE_TURBINES = no
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-USE_CPS=no
+USE_CPS=yes
 
 # Calc Lag-avg timescale w. error autocorrelation
 USE_DYN_TN = no
@@ -119,7 +119,7 @@ ifeq ($(FCOMP),gfortran)
   endif
 
   FFLAGS = -O0 -fbounds-check
-  #FFLAGS = -O2
+  #FFLAGS = -O3
 #  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g

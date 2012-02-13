@@ -67,7 +67,7 @@ CYL_SKEW_LS_SRCS = cyl_skew_base_ls.f90 cyl_skew_ls.f90
 
 RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90 rns_cyl_skew_ls.f90
 
-TURBINES_SRCS = turbines.f90
+TURBINES_SRCS = turbines.f90 turbines_base.f90
 
 CPS_SRCS = concurrent_precursor.f90
 
@@ -98,6 +98,7 @@ endif
 
 ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
+  EXE := $(EXE)-turbines
 endif
 
 ifeq ($(OUTPUT_EXTRA), yes)

@@ -231,6 +231,7 @@ subroutine inst_write(itype)
 ! clean things up a bit
 !
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
+use param, only : path
 use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
@@ -364,7 +365,7 @@ elseif(itype==2) then
   !  Convert total iteration time to string
   write(ct,*) jt_total
   !  Open file which to write global data
-  write (fname,*) 'output/vel.', trim(adjustl(ct)),'.dat'
+  write (fname,*) path // 'output/vel.', trim(adjustl(ct)),'.dat'
   fname = trim(adjustl(fname))
 
   $if ($MPI)
@@ -415,7 +416,7 @@ elseif(itype==2) then
     call force_tot()
 
     !  Open file which to write global data
-    write (fname,*) 'output/force.', trim(adjustl(ct)),'.dat'
+    write (fname,*) path // 'output/force.', trim(adjustl(ct)),'.dat'
     fname = trim(adjustl(fname))
 
     $if ($MPI)
@@ -458,7 +459,7 @@ elseif(itype==2) then
     divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
     !  Open file which to write global data
-    write (fname,*) 'output/divvel.', trim(adjustl(ct)),'.dat'
+    write (fname,*) path // 'output/divvel.', trim(adjustl(ct)),'.dat'
     fname = trim(adjustl(fname))
 
     $if ($MPI)
@@ -496,7 +497,7 @@ elseif(itype==2) then
     !////////////////////////////////////////////
 
     !  Open file which to write global data
-    write (fname,*) 'output/pressure.', trim(adjustl(ct)),'.dat'
+    write (fname,*) path // 'output/pressure.', trim(adjustl(ct)),'.dat'
     fname = trim(adjustl(fname))
   
     $if ($MPI)
@@ -543,7 +544,7 @@ elseif(itype==2) then
     !////////////////////////////////////////////
 
     !  Open file which to write global data
-    write (fname,*) 'output/RHS.', trim(adjustl(ct)),'.dat'
+    write (fname,*) path // 'output/RHS.', trim(adjustl(ct)),'.dat'
     fname = trim(adjustl(fname))
 
     $if ($MPI)
@@ -600,7 +601,7 @@ elseif(itype==3) then
     write(cl,'(F9.4)') xplane_loc(i)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/vel.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/vel.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -630,7 +631,7 @@ elseif(itype==3) then
 
     $if($LVLSET)
 
-    write(fname,*) 'output/force.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/force.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -700,7 +701,7 @@ elseif(itype==3) then
         enddo
       enddo
 
-      write(fname,*) 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       $if ($MPI)
@@ -761,7 +762,7 @@ elseif(itype==3) then
         enddo
       enddo
 
-      write(fname,*) 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       $if ($MPI)
@@ -817,7 +818,7 @@ elseif(itype==4) then
     write(cl,'(F9.4)') yplane_loc(j)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/vel.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/vel.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -847,7 +848,7 @@ elseif(itype==4) then
   
   $if($LVLSET)
   
-    write(fname,*) 'output/force.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/force.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     $if ($MPI)
@@ -911,7 +912,7 @@ elseif(itype==4) then
         enddo
       enddo
 
-      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       $if ($MPI)
@@ -972,7 +973,7 @@ elseif(itype==4) then
         enddo
       enddo
 
-      write(fname,*) 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       $if ($MPI)
@@ -1032,7 +1033,7 @@ elseif(itype==5) then
     write(cl,'(F9.4)') zplane_loc(k)
     !  Convert total iteration time to string
     write(ct,*) jt_total
-    write(fname,*) 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
@@ -1059,7 +1060,7 @@ elseif(itype==5) then
     
     $if($LVLSET)
     
-    write(fname,*) 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+    write(fname,*) path // 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
     fname=trim(adjustl(fname))
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
@@ -1121,7 +1122,7 @@ elseif(itype==5) then
         enddo
       enddo
 
-      write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
@@ -1176,7 +1177,7 @@ elseif(itype==5) then
         enddo
       enddo      
 
-      write(fname,*) 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
+      write(fname,*) path // 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
       fname=trim(adjustl(fname))
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
@@ -1540,6 +1541,7 @@ subroutine stats_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
+use param, only : path
 use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz,lh
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
@@ -1715,7 +1717,7 @@ if(point_calc) then
       point_t(i) % zdiff = point_loc(i)%xyz(3) - z(point_t(i) % kstart)
 
       !  Can't concatenate an empty string
-      point_t(i) % fname=''
+      point_t(i) % fname=path
       call string_concat(point_t(i) % fname,'output/vel.x-')
       call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
       call string_concat(point_t(i) % fname,'.y-')
@@ -1744,7 +1746,7 @@ if(point_calc) then
     !write(cy,'(F9.4)') point_t%xyz(2,i)
     !write(cz,'(F9.4)') point_t%xyz(3,i)
 
-    point_t(i) % fname=''
+    point_t(i) % fname=path
     call string_concat(point_t(i) % fname,'output/vel.x-')
     call string_concat(point_t(i) % fname, point_loc(i)%xyz(1))
     call string_concat(point_t(i) % fname,'.y-')
@@ -1774,6 +1776,7 @@ end subroutine stats_init
 subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
+use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg_t, tavg_total_time, operator(.MUL.)
@@ -1784,9 +1787,9 @@ use param, only : tavg_nstart, tavg_nend
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.tavg_init'
-character (*), parameter :: ftavg_in = 'tavg.out'
+character (*), parameter :: ftavg_in = path // 'tavg.out'
 $if($OUTPUT_EXTRA)
-character (*), parameter :: ftavg_sgs_in = 'tavg_sgs.out'
+character (*), parameter :: ftavg_sgs_in = path // 'tavg_sgs.out'
 $endif
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
@@ -2106,31 +2109,31 @@ zw => grid_t % zw
 
 ! All processors need not do this, but that is ok
 !  Set file names
-fname_out = 'tavg.out'
+fname_out = path // 'tavg.out'
 
-fname_vel = 'output/vel_avg.dat'
-fname_vel2 = 'output/vel2_avg.dat'
-fname_ddz = 'output/ddz_avg.dat'
-fname_tau = 'output/tau_avg.dat'
-fname_f = 'output/force_avg.dat'
-fname_rs = 'output/rs.dat'
-fname_cs = 'output/cs_opt2.dat'
+fname_vel = path // 'output/vel_avg.dat'
+fname_vel2 = path // 'output/vel2_avg.dat'
+fname_ddz = path // 'output/ddz_avg.dat'
+fname_tau = path // 'output/tau_avg.dat'
+fname_f = path // 'output/force_avg.dat'
+fname_rs = path // 'output/rs.dat'
+fname_cs = path // 'output/cs_opt2.dat'
 
-fname_vel_zplane = 'output/vel_zplane_avg.dat'
-fname_vel2_zplane = 'output/vel2_zplane_avg.dat'
-fname_ddz_zplane = 'output/ddz_zplane_avg.dat'
-fname_tau_zplane = 'output/tau_zplane_avg.dat'
-fname_f_zplane = 'output/force_zplane_avg.dat'
-fname_rs_zplane = 'output/rs_zplane.dat'
-fname_cnpy_zplane = 'output/cnpy_zplane.dat'
-fname_cs_zplane = 'output/cs_opt2_zplane.dat'
+fname_vel_zplane = path // 'output/vel_zplane_avg.dat'
+fname_vel2_zplane = path // 'output/vel2_zplane_avg.dat'
+fname_ddz_zplane = path // 'output/ddz_zplane_avg.dat'
+fname_tau_zplane = path // 'output/tau_zplane_avg.dat'
+fname_f_zplane = path // 'output/force_zplane_avg.dat'
+fname_rs_zplane = path // 'output/rs_zplane.dat'
+fname_cnpy_zplane = path // 'output/cnpy_zplane.dat'
+fname_cs_zplane = path // 'output/cs_opt2_zplane.dat'
 
 $if($OUTPUT_EXTRA)  
-fname_sgs_out = 'tavg_sgs.out'
-fname_sgs_TnNu = 'output/TnNu_avg.dat'
-fname_sgs_Fsub = 'output/Fsub_avg.dat'
+fname_sgs_out = path // 'tavg_sgs.out'
+fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
+fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
   !$if($DYN_TN)
-  fname_sgs_ee = 'output/ee_avg.dat'
+  fname_sgs_ee = path // 'output/ee_avg.dat'
   !$endif
 $endif  
 
@@ -2510,7 +2513,7 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
   $endif
   
   if (coord == 0) then
-    open(unit = 1, file = "output/force_total_avg.dat", status="unknown", position="rewind") 
+    open(unit = 1, file = path // "output/force_total_avg.dat", status="unknown", position="rewind") 
     write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
     close(1)
   endif
@@ -2838,13 +2841,14 @@ end subroutine tavg_finalize
 subroutine spectra_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
+use param, only : path
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
-character (*), parameter :: fspectra_in = 'spectra.out'
+character (*), parameter :: fspectra_in = path // 'spectra.out'
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
 $endif
@@ -2972,6 +2976,7 @@ end subroutine spectra_compute
 subroutine spectra_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
+use param, only : path
 use param, only : lh, spectra_nloc, spectra_loc
 use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
@@ -2993,7 +2998,7 @@ integer :: i, k
 logical :: opn
 
 !  Set file names
-fname_out = 'spectra.out'
+fname_out = path // 'spectra.out'
 
 $if ($MPI)
 !  For MPI implementation     
@@ -3014,7 +3019,7 @@ do k=1,spectra_nloc
   !  Create unique file name
   write(cl,'(F9.4)') spectra_loc(k)
   !  Convert total iteration time to string
-  write(fname,*) 'output/spectra.z-',trim(adjustl(cl)),'.dat'
+  write(fname,*) path // 'output/spectra.z-',trim(adjustl(cl)),'.dat'
   fname=trim(adjustl(fname))
 
   !  Omitting Nyquist from output
