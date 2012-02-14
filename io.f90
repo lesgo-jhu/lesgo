@@ -129,7 +129,7 @@ endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_calc) then
-  if(jt >= point_nstart .and. jt <= point_nend .and. ( jt == point_nstart .or. mod(jt,point_nskip)==0) ) then
+  if(jt >= point_nstart .and. jt <= point_nend .and. ( mod(jt-point_nstart,point_nskip)==0) ) then
     if(jt == point_nstart) then
       if (coord == 0) then   
         write(*,*) '-------------------------------'   
@@ -144,7 +144,7 @@ endif
   
 !  Determine if instantaneous domain velocities are to be recorded
 if(domain_calc) then
-  if(jt >= domain_nstart .and. jt <= domain_nend .and. ( jt == domain_nstart .or. mod(jt,domain_nskip)==0) ) then
+  if(jt >= domain_nstart .and. jt <= domain_nend .and. ( mod(jt-domain_nstart,domain_nskip)==0) ) then
     if(jt == domain_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
@@ -160,7 +160,7 @@ endif
 
 !  Determine if instantaneous x-plane velocities are to be recorded
 if(xplane_calc) then
-  if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( jt == xplane_nstart .or. mod(jt,xplane_nskip)==0) ) then
+  if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( mod(jt-xplane_nstart,xplane_nskip)==0) ) then
     if(jt == xplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
@@ -176,7 +176,7 @@ endif
 
 !  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_calc) then
-  if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( jt == yplane_nstart .or. mod(jt,yplane_nskip)==0) ) then
+  if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( mod(jt-yplane_nstart,yplane_nskip)==0) ) then
     if(jt == yplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
@@ -191,7 +191,7 @@ endif
 
 !  Determine if instantaneous z-plane velocities are to be recorded
 if(zplane_calc) then
-  if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( jt == zplane_nstart .or. mod(jt,zplane_nskip)==0) ) then
+  if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( mod(jt-zplane_nstart,zplane_nskip)==0) ) then
     if(jt == zplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
