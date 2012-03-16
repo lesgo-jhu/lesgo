@@ -479,6 +479,8 @@ $endif
 
 ! MPI:
 $if ($MPI)
+! First make sure everyone in has finished
+call mpi_barrier( MPI_COMM_WORLD, ierr )
 call mpi_finalize (ierr)
 $endif
 
