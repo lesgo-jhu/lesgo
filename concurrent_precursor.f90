@@ -113,7 +113,7 @@ if( color == BLUE ) then
    nx_p = iend_p - istart_p
    
    ! Send size of the sample block to upstream domain (RED)
-   call mpi_send( nx_p , 1, MPI_INT, &
+   call mpi_send( nx_p , 1, MPI_INTEGER, &
         rank_of_coord(coord), 1, interComm, ierr )
 
    ! Now setup fringe weights 
@@ -129,7 +129,7 @@ if( color == BLUE ) then
 elseif( color == RED ) then
 
    ! Receive from downstream domain (BLUE) the length of the sample block
-   call mpi_recv( nx_p , 1, MPI_INT, &
+   call mpi_recv( nx_p , 1, MPI_INTEGER, &
         rank_of_coord(coord), 1, interComm, status, ierr)
    
    ! Should end up as nx + 1 (this eventually gets wrapped) 

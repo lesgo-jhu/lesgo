@@ -80,7 +80,8 @@ write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
 allocate( rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1) )
 do ip = 0, nproc-1
   call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
-  call mpi_cart_coords (comm, ip, 1, coord_of_rank(ip), ierr)
+  call mpi_cart_coords (comm, ip, 1, coords, ierr)
+  coord_of_rank(ip) = coords(1)
 end do
 
 !--set the MPI_RPREC variable
