@@ -1887,6 +1887,7 @@ subroutine tavg_compute()
 use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
 $if($OUTPUT_EXTRA)
+use param, only : sgs_model
 use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
 use sgs_param
 $endif

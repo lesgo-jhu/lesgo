@@ -117,7 +117,8 @@ if (sgs) then
             ! Parameters (Co and nn) for wallfunction defined in param.f90
             Cs_opt2 = Co**2  ! constant coefficient
             
-            if (lbc_mom == 'stress free') then
+            if (lbc_mom == 0) then
+               ! Stress free
                 l = delta        
             else       
                 ! The variable "l" calculated below is l_sgs/Co where l_sgs is from JDA eqn(2.30)
@@ -212,40 +213,7 @@ if (coord == 0) then
 
     select case (lbc_mom)
 
-    case ('wall') 
-    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
-    !   recall: for this case, Sij are stored on uvp-nodes        
-        
-        if (sgs) then
-            !$comp parallel do default(shared) private(jx,jy,const)
-            do jy=1,ny
-            do jx=1,nx         
-                const = Nu_t(jx,jy,1)   
-                
-                txx(jx,jy,1) = -2._rprec*(const+nu)*S11(jx,jy,1)
-                txy(jx,jy,1) = -2._rprec*(const+nu)*S12(jx,jy,1)
-                tyy(jx,jy,1) = -2._rprec*(const+nu)*S22(jx,jy,1)
-                tzz(jx,jy,1) = -2._rprec*(const+nu)*S33(jx,jy,1)
-            end do
-            end do
-            !$comp end parallel do
-        else    
-            !$comp parallel do default(shared) private(jx,jy,const)
-            const = 0._rprec
-            do jy=1,ny
-            do jx=1,nx      
-                ! const = 0. (therefore, removed from expressions below)
-                
-                txx(jx,jy,1) = -2._rprec*(nu)*S11(jx,jy,1)
-                txy(jx,jy,1) = -2._rprec*(nu)*S12(jx,jy,1)
-                tyy(jx,jy,1) = -2._rprec*(nu)*S22(jx,jy,1)
-                tzz(jx,jy,1) = -2._rprec*(nu)*S33(jx,jy,1)
-            end do
-            end do
-            !$comp end parallel do
-        end if       
-       
-    case ('stress free')
+    case (0) ! Stress free
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
     !   recall: for this case, Sij are stored on w-nodes      
         
@@ -286,6 +254,40 @@ if (coord == 0) then
             !$comp end parallel do
         end if                     
 
+    case (1) ! Wall
+       
+    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
+    !   recall: for this case, Sij are stored on uvp-nodes        
+        
+        if (sgs) then
+            !$comp parallel do default(shared) private(jx,jy,const)
+            do jy=1,ny
+            do jx=1,nx         
+                const = Nu_t(jx,jy,1)   
+                
+                txx(jx,jy,1) = -2._rprec*(const+nu)*S11(jx,jy,1)
+                txy(jx,jy,1) = -2._rprec*(const+nu)*S12(jx,jy,1)
+                tyy(jx,jy,1) = -2._rprec*(const+nu)*S22(jx,jy,1)
+                tzz(jx,jy,1) = -2._rprec*(const+nu)*S33(jx,jy,1)
+            end do
+            end do
+            !$comp end parallel do
+        else    
+            !$comp parallel do default(shared) private(jx,jy,const)
+            const = 0._rprec
+            do jy=1,ny
+            do jx=1,nx      
+                ! const = 0. (therefore, removed from expressions below)
+                
+                txx(jx,jy,1) = -2._rprec*(nu)*S11(jx,jy,1)
+                txy(jx,jy,1) = -2._rprec*(nu)*S12(jx,jy,1)
+                tyy(jx,jy,1) = -2._rprec*(nu)*S22(jx,jy,1)
+                tzz(jx,jy,1) = -2._rprec*(nu)*S33(jx,jy,1)
+            end do
+            end do
+            !$comp end parallel do
+        end if       
+       
     end select
   
     jz_min = 2      ! since first level already calculated
@@ -456,7 +458,32 @@ if (coord == 0) then
 
     select case (lbc_mom)
 
-    case ('wall')
+    case (0) ! Stress free
+
+        do jy=1,ny
+        do jx=1,nx              ! Sij values are supposed to be on w-nodes for this case
+                                !   does that mean they (Sij) should all be zero?
+            ux=dudx(jx,jy,1)    ! check this, WAS 0.5_rprec*(dudx(jx,jy,1) + dudx(jx,jy,1))
+            uy=dudy(jx,jy,1)    ! check this
+            uz=dudz(jx,jy,1)  
+            vx=dvdx(jx,jy,1)    ! check this
+            vy=dvdy(jx,jy,1)    ! check this
+            vz=dvdz(jx,jy,1) 
+            wx=dwdx(jx,jy,1)  
+            wy=dwdy(jx,jy,1)  
+            wz=0.5_rprec*(dwdz(jx,jy,1) + 0._rprec)     ! check this
+                              
+            ! these values are stored on w-nodes
+            S11(jx,jy,1)=ux          
+            S12(jx,jy,1)=0.5_rprec*(uy+vx) 
+            S13(jx,jy,1)=0.5_rprec*(uz+wx) 
+            S22(jx,jy,1)=vy          
+            S23(jx,jy,1)=0.5_rprec*(vz+wy) 
+            S33(jx,jy,1)=wz          
+        end do
+        end do
+
+    case (1) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
     
@@ -482,31 +509,6 @@ if (coord == 0) then
         end do
         end do
   
-    case ('stress free') 
-
-        do jy=1,ny
-        do jx=1,nx              ! Sij values are supposed to be on w-nodes for this case
-                                !   does that mean they (Sij) should all be zero?
-            ux=dudx(jx,jy,1)    ! check this, WAS 0.5_rprec*(dudx(jx,jy,1) + dudx(jx,jy,1))
-            uy=dudy(jx,jy,1)    ! check this
-            uz=dudz(jx,jy,1)  
-            vx=dvdx(jx,jy,1)    ! check this
-            vy=dvdy(jx,jy,1)    ! check this
-            vz=dvdz(jx,jy,1) 
-            wx=dwdx(jx,jy,1)  
-            wy=dwdy(jx,jy,1)  
-            wz=0.5_rprec*(dwdz(jx,jy,1) + 0._rprec)     ! check this
-                              
-            ! these values are stored on w-nodes
-            S11(jx,jy,1)=ux          
-            S12(jx,jy,1)=0.5_rprec*(uy+vx) 
-            S13(jx,jy,1)=0.5_rprec*(uz+wx) 
-            S22(jx,jy,1)=vy          
-            S23(jx,jy,1)=0.5_rprec*(vz+wy) 
-            S33(jx,jy,1)=wz          
-        end do
-        end do
-
     end select
   
     jz_min = 2      ! since first level already calculated

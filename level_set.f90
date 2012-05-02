@@ -510,12 +510,13 @@ do k = 1, nz
       phix = 0.5_rp * (phi(i, j, k) + phi(i, j, k-s))
 
       if (phix > 0._rp) then
-
-        if (lbc_mom == 'stress free') then
-          dmin = phix
+         
+        if (lbc_mom == 0) then
+           ! Stress free
+           dmin = phix
         else
-          z = (k - 1) * dz
-          dmin = min (z, phix)
+           z = (k - 1) * dz
+           dmin = min (z, phix)
         end if
         
         beta(i, j, k) = 1._rp - c1 * exp (-c2 * dmin / delta)
@@ -3286,15 +3287,15 @@ if (.not. initialized) then
     do jy = 1, ny
       do jx = 1, nx
 
-        if (lbc_mom == 'stress free') then
-
-          dmin = phi(jx, jy, jz)
+        if (lbc_mom == 0) then
+           ! Stress free
+           dmin = phi(jx, jy, jz)
 
         else
 
-          z = (jz - 0.5_rp) * dz
-          dmin = min (phi(jx, jy, jz), z)
-
+           z = (jz - 0.5_rp) * dz
+           dmin = min (phi(jx, jy, jz), z)
+          
         end if
 
         !--sorry, this splitting is ugly
@@ -3317,9 +3318,9 @@ if (.not. initialized) then
     do jy = 1, ny
       do jx = 1, nx
 
-        if (lbc_mom == 'stress free') then
-
-          dmin = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
+        if (lbc_mom == 0) then
+           ! Stress free
+           dmin = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
                            !--MPI: requires phi(k=0)
 
         else  !--also take wall into account
