@@ -181,12 +181,10 @@ module param
   !logical, parameter :: inilag = .true.
   logical :: inilag = .true.
 
-  ! ubc: upper boundary condition: ubc=0 stress free lid
-  !integer,parameter::ubc=0
+  ! ubc: upper boundary condition: 0 - stress free lid, 1 - sponge
   integer :: ubc = 0
-  ! lbc: lower boundary condition:  'wall', 'stress free'
-  !character (*), parameter :: lbc_mom = 'wall'
-  character(50) :: lbc_mom = 'wall'
+  ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
+  integer :: lbc_mom = 1
   
   ! lower boundary condition, roughness length
   !real (rprec), parameter :: zo = 0.0001_rprec  ! nondimensional  

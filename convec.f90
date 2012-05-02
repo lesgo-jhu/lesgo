@@ -107,7 +107,15 @@ do jz = 1, nz
    if ( (coord == 0) .and. (jz == 1) ) then
         
      select case (lbc_mom)
-       case ('wall')
+
+     ! Stress free
+     case (0)
+
+         cx(:, :, 1) = 0._rprec
+         cy(:, :, 1) = 0._rprec
+
+      ! Wall
+      case (1)
 
          !--du3d2(jz=1) should be 0, so we could use this
          cx(:, :, 1) = const * ( 0.5_rprec * (du3d2(:, :, 1) +  &
@@ -117,11 +125,6 @@ do jz = 1, nz
          cy(:, :, 1) = const * ( du1d3(:, :, 1) -               &
                                  0.5_rprec * (du3d1(:, :, 1) +  &
                                               du3d1(:, :, 2)) )
-
-       case ('stress free')
-
-         cx(:, :, 1) = 0._rprec
-         cy(:, :, 1) = 0._rprec
 
      end select
 

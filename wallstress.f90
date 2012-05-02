@@ -15,7 +15,14 @@ real(kind=rprec),dimension(nx,ny)::phi_m,psi_m
 
 select case (lbc_mom)
 
-  case ('wall')
+  case (0) ! Stress free
+
+    txz(:, :, 1) = 0._rprec
+    tyz(:, :, 1) = 0._rprec
+    dudz(:, :, 1) = 0._rprec
+    dvdz(:, :, 1) = 0._rprec
+
+  case (1) ! Wall
     ! See John D. Albertson's dissertation, eqns (2.46)-(2.52)
     ! For dudz and dvdz at wall, we should use derivwall.f90
     
@@ -53,13 +60,6 @@ select case (lbc_mom)
        dvdz(jx,jy,1)=merge(0._rprec,dvdz(jx,jy,1),v(jx,jy,1).eq.0._rprec)
     end do
     end do
-
-  case ('stress free')
-
-    txz(:, :, 1) = 0._rprec
-    tyz(:, :, 1) = 0._rprec
-    dudz(:, :, 1) = 0._rprec
-    dvdz(:, :, 1) = 0._rprec
 
   case default
 

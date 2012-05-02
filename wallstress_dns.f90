@@ -7,7 +7,14 @@ integer::jx,jy
 
 select case (lbc_mom)
 
-  case ('wall')
+  case (0) ! Stress free
+
+    txz(:, :, 1) = 0._rprec
+    tyz(:, :, 1) = 0._rprec
+    dudz(:, :, 1) = 0._rprec
+    dvdz(:, :, 1) = 0._rprec
+
+  case (1) ! Wall
     do jy=1,ny
     do jx=1,nx
        txz(jx,jy,1)=-nu_molec/(z_i*u_star)*u(jx,jy,1)/(0.5_rprec*dz)
@@ -16,13 +23,6 @@ select case (lbc_mom)
        dvdz(jx,jy,1)=v(jx,jy,1)/(0.5_rprec*dz)
     end do
     end do
-
-  case ('stress free')
-
-    txz(:, :, 1) = 0._rprec
-    tyz(:, :, 1) = 0._rprec
-    dudz(:, :, 1) = 0._rprec
-    dvdz(:, :, 1) = 0._rprec
 
   case default
 
