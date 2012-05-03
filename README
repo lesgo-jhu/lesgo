@@ -369,12 +369,5 @@ zplane_t) will have appended to the afore mentioned file names the processor
 number that created the file. The processor number used is coords in lesgo which
 is arranged to be in the increasing z-direction.
 
-Added work around for writing large 3D data: only write 3 variables
-at a time; since things are written in block format this can be
-done with mulitple calls to write_real_data_3D. General rule of
-thumb keep the number of points passed to write_real_data_3D 
-less than 1000000.
-
 TREATMENT OF POINTS AND PERIODICITY
 
-More to come ...
