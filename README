@@ -278,19 +278,6 @@ for controlling this is called output. All parameters for controlling what, when
 and how frequent data is computed or recorded is in stats_init.f90. A brief
 description of what each setting does is given below.
 
-1) tavg_t - type for time averaged statistics
-
-Settings:
-a) calc - controls the output of the average velocity field for the entire
-domain; Reynold stress calculations will force this flag to be true if required;
-output file: uvw_avg.dat
-
-b) nstart - iteration number of the current simulation which time averaging
-starts
-
-c) nend - iteration number of the current simulation which time averaging ends
-
-
 2) rs_t - controls the calculation of Reynolds stress; depends on tavg_t
 
 Settings:
@@ -359,6 +346,7 @@ since things are written in block format this can be done with mulitple calls to
 write_real_data_3D. General rule of thumb keep the number of points passed to
 write_real_data_3D less than 1000000.
 
+test 3
 TREATMENT OF POINTS AND PERIODICITY
 
 More to come ...
