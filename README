@@ -18,22 +18,26 @@ they really do.
 				    OVERVIEW
 ================================================================================
 
-The code can simulate turbulent flow over tree geometries and is divided into
-several major parts:
+The code lesgo solves the filtered N-S equations in the high-Re
+limit. Originally lesgo was designed to simulate flow in the atmospheric
+boundary layer but has been extended and used to simulate flow over tree
+canopies, wall mounted cubes, cylinders in free stream turbulence, tind turbine
+arrays, and others. At its core is the LES flow solver. Built on top of the
+solver are modules that provide additional functionality such as an immersed
+boundary method, wind farm modeling, and others. The following is a list of the
+major components of lesgo:
 
-* LES flow solver
+* LES Flow Solver
 
-* Level set immersed boundary implementation (level_set*.f90).
+* Level Set Immersed Boundary Method
 
-* Renormalized numerical simulation (subgrid force modeling; depends
-  on IB implementation)
+* Renormalized Numerical Simulation 
 
 * Wind farm modeling 
 
 * Concurrent precursor simulation
 
-Each part will be discussed in their respective sections.
-
+Each of these components are discussed in details in the following sections.
 
 ================================================================================
 				  DEPENDENCIES
@@ -124,7 +128,6 @@ The immersed boundary forces are used by the trees and level set code, so if
 something is changed here, then check dependent parts of the code in those
 modules.
 
-
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
 ================================================================================
@@ -134,10 +137,11 @@ boundary method is used. All objects are represeted using a level set or signed
 distance function (phi) where phi = 0 on the surface, phi < 0 inside objects and
 phi > 0 otherwise. For each grid point in the computational domain the minimum
 distance to any one of the objects in the domain must be computed and assigned
-to phi. The code will then use phi to compute the surface normals which is then
-used to apply the log-law stress within a small "band" along a the surface
-boundary. For all grid points on or inside of the surface the velocity is forced
-to zero using a direct forcing approach.
+to the variable phi using a preprocessing program. The code will then use phi to
+compute the surface normals which is then used to apply the log-law stress
+within a small "band" along a the surface boundary. For all grid points on or
+inside of the surface the velocity is forced to zero using a direct forcing
+approach.
 
 To use the level set modules in a simulation, a file "phi.out" containing the
 signed distance function data must be created first.  This must be generated
