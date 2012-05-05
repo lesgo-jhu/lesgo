@@ -1,3 +1,0 @@
-variables = "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yx</sub>>", "<t<sub>zz</sub>>","<dudz>","<dvdz>","<fx>","<fy>","<fz>","<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>","<u>","<v>","<w>","<cs>","<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"
-ZONE T="        0", DATAPACKING=BLOCK, i= temp_nz                                                                            
-DT=( DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE DOUBLE)  
