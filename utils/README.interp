@@ -1,0 +1,12 @@
+This file contains details for building the interpolation program interp. To
+configure and build:
+
+1) Set parameters in interp.f90
+
+2) Create a symbolic link to Makefile.fpp to build directory:
+   
+     ln -s ../Makefile.fpp
+
+3) Build interp:
+
+     make -f Makefile.interp
