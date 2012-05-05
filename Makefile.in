@@ -59,7 +59,7 @@ USE_DYN_TN = no
 
 FPP = fpx3
 
-include Makefile.fpp
+include $(MK_INCL_PATH)/Makefile.fpp
 
 # Directory for the .o files
 OPATH = obj

@@ -7,6 +7,7 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
+MK_INCL_PATH=.
 include Makefile.in
 
 EXE := lesgo
