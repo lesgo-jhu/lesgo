@@ -7,7 +7,8 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-include ../Makefile.in
+MK_INCL_PATH=../..
+include $(MK_INCL_PATH)/Makefile.in
 
 EXE = interp
 
@@ -20,7 +21,7 @@ include .depend_interp
 .depend_interp: $(SRCS)
 	mkdir -p $(OPATH) $(MPATH);
 	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend_interp
-        
+
 .PHONY : clean
 clean:
 	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod

@@ -3,10 +3,8 @@ configure and build:
 
 1) Set parameters in interp.f90
 
-2) Create a symbolic link to Makefile.fpp to build directory:
-   
-     ln -s ../Makefile.fpp
+2) Set compiler parameters in Makefile.in in the top lesgo directory.
 
-3) Build interp:
+2) Build interp by running:
 
-     make -f Makefile.interp
+     make
