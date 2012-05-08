@@ -1,6 +1,8 @@
-Notes on lesgo by:
-      Stuart Chester
-      Jason Graham
+Written by:
+
+  Stuart Chester
+  
+  Jason Graham <jgraha8@gmail.com>
 
 ================================================================================
 				   DISCLAIMER
@@ -13,17 +15,16 @@ not optimal in some spots, and that not all options are fully implemented.  My
 advice is ALWAYS read whatever parts of the code you are using to find out what
 they really do.
 
-
 ================================================================================
 				    OVERVIEW
 ================================================================================
 
-The code lesgo solves the filtered N-S equations in the high-Re
-limit. Originally lesgo was designed to simulate flow in the atmospheric
-boundary layer but has been extended and used to simulate flow over tree
-canopies, wall mounted cubes, cylinders in free stream turbulence, tind turbine
-arrays, and others. At its core is the LES flow solver. Built on top of the
-solver are modules that provide additional functionality such as an immersed
+The code lesgo solves the filtered N-S equations in the high-Re limit on a
+cartisian mesh. Originally lesgo was designed to simulate flow in the
+atmospheric boundary layer but has been extended and used to simulate flow over
+tree canopies, wall mounted cubes, cylinders in free stream turbulence, wind
+turbine arrays, and others. At its core is the LES flow solver. Built on top of
+the solver are modules that provide additional functionality such as an immersed
 boundary method, wind farm modeling, and others. The following is a list of the
 major components of lesgo:
 
@@ -37,7 +38,7 @@ major components of lesgo:
 
 * Concurrent precursor simulation
 
-Each of these components are discussed in details in the following sections.
+Each of these components are discussed in detail in the following sections.
 
 ================================================================================
 				  DEPENDENCIES
@@ -86,6 +87,47 @@ The following dependencies are required in order to compile lesgo:
   lesgo-tools provides a set of scripts that aid in working with stable
   snapshots of lesgo and post processing data.
 
+================================================================================
+				GETTING STARTED
+================================================================================
+
+To get started, you'll need to configure two files: "Makefile.in" and
+"lesgo.conf". The file "Makefile.in", in addition to compiler settings, has
+preprocessor flags for compiling in different functionality (MPI support,
+immersed boundary support, etc.). The file "lesgo.conf" is the input file for
+the code which you'll set your case up. It is commented fairly well and is
+hopefully self-descriptive enough to get started.
+
+Once you configure "Makefile.in" for your system compile lesgo using:
+
+  make
+
+or
+
+  make -jN
+
+for building using N threads.
+
+The resulting executable name will reflect the functionality that you have
+configured into the executable. For instance, for serial lesgo with no addtional
+bells and whistles the executable will be called 'lesgo'; if you turned on MPI
+support it will be called 'lesgo-mpi'. Once you have an executable there is no
+need to recompile for running different cases--this is done using "lesgo.conf".
+
+To configure your case simply update "lesgo.conf" appropriately. As mentioned
+above, "lesgo.conf" should be commented well enough to get started. If anything
+is unclear, feel free to contact one of the authors listed at the top of the
+file.
+
+When running, lesgo will output data to the directory "output". Also during
+execution, lesgo writes information to screen based on the value "wbase" in
+"lesgo.conf". This information includes time step information, CPU time,
+velocity divergence, etc. and is helpful for monitoring the case. Another
+important file for monitoring the simulation is the file "output/check_ke.out"
+which has the average kinetic energy of the field. Typically the kinetic energy
+will decay during the spinup period and asymptote once stationarity is
+reached. This gives a good indicator for determining when to start taking
+statistics.
 
 ================================================================================
 				LES FLOW SOLVER
@@ -95,39 +137,76 @@ The LES flow solver is a psuedo-spectral solver in which spectral discretization
 is applied in the longitudinal and spanwise directions (x and y, repsectively)
 and in the vertical (z) direction 2nd order finite differences are applied. The
 solver solves the filtered N-S equations in the high-Re limit in which molecular
-viscosity effects are neglected. An eddy viscosity closure model is applied for
-the subgrid scale stresses. Boundary conditions along the x-y perimeter are
-periodic where a log-law stress is applied at the bottom surface; a stress free
-condition is applied at the top (channel center) boundary. Solid objects are
-represented using a level set immersed boundary method. In addition to the
-bottom wall, solid surfaces represented by the immersed boundary method also
-apply a log-law stress boundary condition. The 2nd order Adams-Bashforth method
-is used for the time integration; a static time step or CFL based dynamic time
-step may also be specified. Continuity is preserved by solving the pressure
-poisson equation using a direct TDMA solver.
+viscosity effects are generally neglected. An eddy viscosity closure model is
+applied for the subgrid scale stresses. Boundary conditions along the x-y
+perimeter are periodic where a log-law stress is applied at the bottom surface;
+a stress free condition is applied at the top (channel center) boundary. Solid
+objects are represented using a level set immersed boundary method. In addition
+to the bottom wall, solid surfaces represented by the immersed boundary method
+also apply a log-law stress boundary condition. For temporal integration the
+explict 2nd order Adams-Bashforth method is used. Time stepping occurs using
+either a static time step or dynamic CFL based dynamic time step. Continuity is
+preserved by solving the pressure poisson equation using a direct TDMA solver.
 
 --------------------------------------------------------------------------------
 			    MPI DOMAIN DECOMPOSITION
 --------------------------------------------------------------------------------
 
 The LES flow solver is parallelized with MPI. The flow domain is evenly divided
-in the vertical (z) direction between the MPI processes.  Each MPI-process has
+in the vertical (z) direction between the MPI processes. Each MPI-process has
 its "own" z-levels indexed by k = 1 to nz-1. The z-levels k = 0 and k = nz are
 overlap nodes and are only for holding data that has been copied from the
-process below or above the current one.
+process below or above the current one. For the main flow solver, the only
+overlap data that is required is for the vertical derivatives. Since the
+spectral discretization occurs along the slab planes no additional overlap data
+is required. In the future, it may be advantageous to also decompose the slabs
+along the y-direction and utilize the parallel FFTW3 MPI library in order to
+increase scalability for large domains. 
 
 For the pressure solver a pipelining technique was chosen to parallelize the
 TDMA, since it is simple and there isn't really any better options for
-parallelizing the solution of many small tridiagonal systems.  The best size of
+parallelizing the solution of many small tridiagonal systems. The best size of
 the chunks to send "down the pipeline" can be controlled via the variable
-"chunksize", and WILL depend on the computer hardware and simulation size.  It
+"chunksize", and WILL depend on the computer hardware and simulation size. It
 would probably advantageous to add a routine that adjusts the chunk size
 automatically by making speed measurements at the beginning of the simulation.
 
-The immersed boundary forces are used by the trees and level set code, so if
-something is changed here, then check dependent parts of the code in those
-modules.
+--------------------------------------------------------------------------------
+			       VARIABLE LOCATIONS
+--------------------------------------------------------------------------------
 
+The code employs a staggered grid along the vertical direction. This means that
+not all variables are stored on the same grid. We call the two grids the 'uv'
+grid and the 'w' grid, where the grids are distinguished based on the location
+of the velocity components. The only difference is that the 'uv' grid is shift
++dz/2 in the vertical direction, where dz is the vertical grid spacing. Also,
+the 'w' grid conforms to the physical domain such that the first grid point lies
+at z=0 and the last grid point at z=L_z where L_z is the domain height.
+
+The following is a list of the variables and the grid they exist on. The names
+are the same as found in lesgo.
+
+        Variables			'uv' grid	'w' grid
+ =======================                =========       =========
+ u, v, p				    X
+ w							    X
+ dudx, dudy, dvdx, dvdy			    X
+ dudz, dvdz                                                 X
+ dwdx, dwdy 						    X
+ dwdz  					    X
+ dpdx, dpdy				    X
+ dpdz  					                    X
+ txx, txy, tyy, tzz			    X
+ txz, tyz						    X
+ RHSx, RHSy				    X
+ RHSz							    X
+ divtx, divty                               X
+ divtz							    X
+
+Important to note that when all 'uv' grid variables are written to output files
+for plotting they are interpolated to the 'w' grid. This step is also performed
+when time averaging variables.
+ 
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
 ================================================================================
@@ -145,15 +224,16 @@ approach.
 
 To use the level set modules in a simulation, a file "phi.out" containing the
 signed distance function data must be created first.  This must be generated
-with a separate program, see the program in "trees_pre_ls.f90" or
-"cyl_skew_pre_ls.f90" for making the level set files. It is recommended making
+with a separate program (see the program in "trees_pre_ls.f90" or
+"cyl_skew_pre_ls.f90" for making the level set files). It is recommended making
 the signed distance function exact if possible, or at least sampled at a higher
 resolution than the computational grid.  There are many adjustable parameters
-within level_set.f90 that control how the boundary conditions at the level set
-surface are applied.  If you encounter problems (e.g., kinks in velocity
+within the level set module that control how the boundary conditions at the
+level set surface are applied. These are listed in the input file lesgo.conf
+within the LEVEL_SET block. If you encounter problems (e.g., kinks in velocity
 profiles), try adjusting some of these (e.g., length scale parameters that
 control how close a given point must be to the surface before an certain action
-is taken).  Just make sure to read all code associated with some of these
+is taken). Just make sure to read all code associated with some of these
 parameters, since some are experimental, and may not be ready for "prime time".
 
 The variables "nphitop", "nphibot", etc., control how many extra z-levels are
@@ -161,29 +241,56 @@ copied between MPI processes when determining boundary conditions (at top and
 bottom of the process-local domain).  The values to use here are geometry
 dependent, and it is pretty hard to determine in advance exactly what they
 should be. These values should be as small as possible so the MPI transfers
-involve the least amount of data.  Right now, my approach has been to pick some
+involve the least amount of data. Right now, my approach has been to pick some
 initial values and when the code fails, then increase the values.  the good news
 here is that all the code using these is manually bounds-checked, so if an
 out-of-bounds reference is made, the code should always die with an error
 message saying which parameter is the problem and offer a suggestion as to what
-a better value would be. Another weakness is that the number of extra z-levels
-is the same for all processes, when for maximum efficiency, they really should
-be allowed to differ.  It should be possible to have the code auto-dimension the
-"nphitop", etc., for each process.  On the other hand, this means that those
-processes that finish their boundary conditions faster that the other processes
-will have to wait, so unless they are given something useful to do, it is
-probably not worth the effort.
+a better value would be. To adjust these parameters add to the LEVEL_SET input
+block a line that has the variable that needs to be modified. For example, if
+you run into an error regarding nphitop, add to the LEVEL_SET block a line such
+as:
+
+  nphitop = 3
+
+These are omitted by default from lesgo.conf since the defaults seem to work in
+general.
+
+Another weakness is that the number of extra z-levels is the same for all
+processes, when for maximum efficiency, they really should be allowed to differ.
+It should be possible to have the code auto-dimension the "nphitop", etc., for
+each process.  On the other hand, this means that those processes that finish
+their boundary conditions faster that the other processes will have to wait, so
+unless they are given something useful to do, it is probably not worth the
+effort.
 
 --------------------------------------------------------------------------------
 		       CREATING TREES WITH "trees_pre_ls"
 --------------------------------------------------------------------------------
 
-The program "trees_pre_ls" may be used for For the most part the "trees" modules
-have been deprecated for implementing Renormalized Numerical Simulation, but
-have been left intact to provide support for using "trees_pre_ls"
+The program "trees_pre_ls" may be used for generating the "phi" field for the
+level set module. This is a legacy program that generates fractal trees with
+either round or square branches. It was originally created to also generate
+information for RNS simulations. This feature in the trees module however has
+been deprecated and is now replaced by the RNS module. So all of the trees
+modules are retained solely for generated the "phi" using "trees_pre_ls".
+
+In addtion to trees, it may also be used to easily generate an array of wall
+mounted cubes which is commonly used as one of the test cases for lesgo (see
+directory "utils/cubes-process-data").
+
+To use this program, you'll first need to compile it. This is done by
+configuring "Makefile.in" and "lesgo.conf" as mentioned in the GETTING STARTED
+section. There are a couple settings in "trees_pre_ls.f90" that may have to be
+adjusted. Now just compile "trees_pre_ls" using:
+
+  make -f Makefile.trees_pre_ls
+
+This should generate the program "trees_pre_ls". 
 
 To do a simulation using the trees, the user has to write a "trees.conf"
-file. An example is:
+file. The file "trees.conf" is the input file for trees_pre_ls ("lesgo.conf" is
+also required by trees_pre_ls). An example "trees.conf" is:
 
 --------------begin trees.conf-----------
 # This is a trees configuration file
@@ -235,116 +342,16 @@ its sub-branches are defined in trees.conf, iterated function systems (IFS) ARE
 NOT USED to describe the trees.  Instead, a sub-branch is defined only by
 reference to its parent branch.
 
-Next, use trees_pre_ls.f90 to read the trees.conf file and calculate the level
-set function required by the level set routines, as well as the branch index
-arrays (brindex.out).
-
-After running trees_pre_ls.f90, you should be all set to begin an LES or RNS/LES
-computation.
-
+Next, run "trees_pre_ls" and the level set function required by the level set
+routines will be calculated. After running "trees_pre_ls", you should be all set
+to begin an LES computation.
  
 ================================================================================
 		       RENORMALIZED NUMERICAL SIMULATION
 ================================================================================
 
-TREES 
-
-The trees modules rely heavily on the tree and branch data structures (derived
-types) defined in "trees_base_ls.f90". These data structures can handle
-non-fractal trees, but most of the routines that do the actual work assume self
-similar fractal trees. Since a tree generally consists of a trunk and
-generations of sub-branches, most routines in "trees_ls.f90", etc., use
-recursive routines to visit each branch of the tree data structure. This usually
-looks like this: a routine takes a branch as input and does whatever operations
-it needs to on that branch before calling itself, but now with each of the input
-branch's child-branches as input. The value of "fmodel" in "trees_base_ls.f90"
-sets the RNS force model used: d is for drag only, d_germano is for drag only
-and the Germano formulation, dls stand for drag-lift-side forces, and nba stands
-for normal-binormal-axial.
-
-As with the level set modules, there are many options (some not all fully
-supported), so read the code as much a possible to determine what they do.
-
-
-The trees modules are isolated from the LES core and level set modules as much
-as possible, but some dependence was unavoidable, so always check that these
-parts are "in sync".
-
-SKEWED CYLINDERS TREES
-
-
 ================================================================================
 				  DATA OUTPUT
 ================================================================================
-
-The master switch for all data output in the code is in param.f90. The switch
-for controlling this is called output. All parameters for controlling what, when
-and how frequent data is computed or recorded is in stats_init.f90. A brief
-description of what each setting does is given below.
-
-2) rs_t - controls the calculation of Reynolds stress; depends on tavg_t
-
-Settings:
-a) calc - controls the output of Reynolds stresses for the entire domain; output
-file: rs.dat
-
-
-3) point_t - controls the recording of instantaneous velocity and a specified
-point
-
-Settings:
-a) calc - turn on/off recordings; output file: uvw_inst-{xloc}-{yloc}-{zloc}.dat
-(where xloc,yloc,zloc is specified by xyz)
-
-b) nstart - iteration number of the current simulation which recording starts
-
-c) nend   - iteration number of the current simulation which recording ends
-
-d) nskip  - number of iterations to skip between recordings
-
-e) nloc - number of points (or locations) to record (maximum 10)
-
-f) xyz - x,y,z location of point to record; important - the first dimension
-determines either x,y,or z and the second dimension is the location number (ex:
-xyz(3,2) - z location of 2nd specified point)
-
-
-4) domain_t - type for writing instantaneous velocity field of entire domain to
-file
-
-Settings:
-a) calc - turn on/off recordings; output file: uvw.{iteration}.out; these files
-are binary data and must be converted to Tecplot formatted files using
-lesgo_post
-
-b) nstart - iteration number of the current simulation which recording starts
-
-c) nend   - iteration number of the current simulation which recording ends
-
-d) nskip  - number of iterations to skip between recordings
-
-
-5) plane_t - type used for recording y (yplane_t) and z (zplane_t) plane time
-averaged velocity 
-
-Settings: 
-a) calc - turn on/off recordings; output file: uvw_avg.{y,z}-{loc}.dat (where
-loc is the specified plane location)
-
-b) nstart - iteration number of the current simulation which recording starts
-
-c) nend   - iteration number of the current simulation which recording ends
-
-d) nloc - number of planes (or locations) to record (maximum 10)
-
-e) loc - plane value to record (ex: loc(1)=1.25)
-
-NOTE: When running MPI jobs all the output files mentioned above that store
-non-constant z valued information (so everything except for point_t and
-zplane_t) will have appended to the afore mentioned file names the processor
-number that created the file. The processor number used is coords in lesgo which
-is arranged to be in the increasing z-direction.
-
-TREATMENT OF POINTS AND PERIODICITY
 
 More to come ...
