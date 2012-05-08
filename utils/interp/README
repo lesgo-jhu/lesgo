@@ -1,10 +1,15 @@
-This file contains details for building the interpolation program interp. To
-configure and build:
+The program "interp" reads "vel.out" files from one simulation and interpolates
+the data to the domain of the desired simulation.
 
-1) Set parameters in interp.f90
+To configure and build:
 
-2) Set compiler parameters in Makefile.in in the top lesgo directory.
+  1) Set parameters in "interp.f90"
 
-2) Build interp by running:
+  2) Set compiler parameters in "Makefile.in" in the top lesgo directory.
 
-     make
+  3) Build interp by running:
+
+       make
+
+Now execute "interp" in the directory that the "vel.out" files from the old
+simulations are located.
