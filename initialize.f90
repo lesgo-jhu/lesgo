@@ -78,7 +78,7 @@ $endif
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
 ! the input was read correctly and is sane.
-! if(coord == 0) call param_output()
+if(coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
