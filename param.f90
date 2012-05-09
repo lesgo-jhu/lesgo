@@ -9,7 +9,11 @@ module param
 
   private rprec  !--this is dumb.
   public
-  
+
+!---------------------------------------------------
+! GLOBAL PARAMETERS
+!---------------------------------------------------  
+  integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
 !---------------------------------------------------
 ! MPI PARAMETERS
 !---------------------------------------------------
