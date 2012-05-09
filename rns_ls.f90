@@ -610,7 +610,7 @@ do n=1,nb_elem
   
 enddo
 
-if( jt < weight_nstart ) then
+if( jt_total < weight_nstart ) then
 
   call b_elem_CD_GE()
   
@@ -697,7 +697,7 @@ call Lsim( b_gamma_gsum, LBB_p )
 b_elem_t(:) % force_t % LAB = LAB_p
 b_elem_t(:) % force_t % LBB = LBB_p
 
-if( jt < weight_nstart ) then
+if( jt_total < weight_nstart ) then
 
   call b_elem_CD_GE()
     
@@ -755,7 +755,7 @@ do n=1,nb_elem
   
 enddo
 
-if( jt < weight_nstart ) then
+if( jt_total < weight_nstart ) then
 
   !call b_elem_CD_GID()
   call b_elem_CD_GI()
@@ -844,7 +844,7 @@ call Lsim( b_m_msum, LBB_p )
 b_elem_t(:) % force_t % LAB = LAB_p
 b_elem_t(:) % force_t % LBB = LBB_p
 
-if( jt < weight_nstart ) then
+if( jt_total < weight_nstart ) then
 
   !call b_elem_CD_GID()
   call b_elem_CD_GI()
