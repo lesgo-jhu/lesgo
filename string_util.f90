@@ -27,6 +27,8 @@ interface numtostr
   module procedure numtostr_r, numtostr_i
 end interface
 
+character (*), parameter :: mod_name = 'string_util'
+
 character(*), parameter :: int_fmt='(i0)'
 character(*), parameter :: real_fmt='(f9.4)'
 
@@ -212,15 +214,21 @@ subroutine split_string( string, delim, nseg, sarray )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! This subroutine splits 'string' based on the specified delimiter
-! 'delim'. Specified is the number of string segments 'nseg' to return
-! by 'sarray'
+! 'delim'. The number of segments 'nseg' is determined from the string
+! based on the delimiter. The output string vector 'sarray' is allocated
+! in this subroutine. 
 !
+use param, only : CHAR_BUFF_LENGTH
+use messages
+
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.split_string'
+ 
 character(*), intent(in) :: string, delim
-integer, intent(in) :: nseg
+integer, intent(out) :: nseg
 
-character(*), dimension(nseg), intent(inout) :: sarray
+character(CHAR_BUFF_LENGTH), allocatable, dimension(:), intent(inout) :: sarray
 
 ! String buffers (assuming length)
 character(1024) :: buff_old, buff
@@ -233,10 +241,13 @@ integer :: delim_len
 delim_len = len_trim(delim)
 
 ! First make sure string is not empty
-if( len_trim(string) == 0 ) then
-   write(*,*) 'Specified string is empty'
-   stop
-endif
+if( len_trim(string) == 0 ) call error( sub_name, 'specified string is empty')
+
+! Get the number of segments based on the delimiter count
+nseg = count_string_occur (string, delim) + 1
+
+! Now allocate string vector
+allocate(sarray(nseg))
 
 ! Initialize position of delimiter (rewind a bit)
 pos=-delim_len+1
@@ -246,14 +257,11 @@ istop=0
 buff = string
 
 n = 0
-do while (istop .ne. 1)
-
+do 
    n = n + 1
-
-   if( n > nseg ) then
-      write(*,*) 'Number of found segments greater than the specified number'
-      stop
-   endif
+   
+   ! If there are more segments than what is expected stop searching
+   if( n > nseg ) exit
 
    ! Save old buffer
    buff_old = buff
@@ -267,13 +275,15 @@ do while (istop .ne. 1)
    else
       ! Assuming this is the last segment
       sarray(n) = trim( adjustl( buff ) )
-      istop = 1
+      exit
    endif
 
 end do 
 
-if( n .ne. nseg ) then
-   write(*,*) 'Warning: number of found segments not equal to the specified number'
+if( n < nseg ) then
+   call error( sub_name, 'number of found segments less than specified number')
+elseif( n > nseg ) then
+   call error( sub_name, 'number of found segments greater than specified number')
 endif 
 
 return
@@ -313,3 +323,4 @@ end do
 end function count_string_occur
 
 end module string_util
+
