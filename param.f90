@@ -11,7 +11,7 @@ module param
   public
 
 !*******************************************************************************
-!***          ALL NON-PARAMETER DEFINITIONS MUST BE INITIALIZED              ***
+!***  ALL NON-PARAMETER DEFINITIONS READ BY INPUT FILE MUST BE INITIALIZED   ***
 !*******************************************************************************
 
 !---------------------------------------------------
