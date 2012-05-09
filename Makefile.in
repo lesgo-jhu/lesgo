@@ -44,7 +44,7 @@ WRITE_ENDIAN = DEFAULT
 # Options: DEFAULT, LITTLE, or BIG
 READ_ENDIAN = DEFAULT
 
-USE_LVLSET = yes
+USE_LVLSET = no
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
 
@@ -52,7 +52,7 @@ USE_TURBINES = no
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-USE_CPS=yes
+USE_CPS=no
 
 # Calc Lag-avg timescale w. error autocorrelation
 USE_DYN_TN = no
