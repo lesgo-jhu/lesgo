@@ -18,7 +18,7 @@ public :: string_concat, &
      count_string_occur
 
 interface string_concat
-  module procedure strcat_aa, strcat_ai, strcat_ar
+  module procedure strcat_aa, strcat_ai, strcat_ar, strcat_aaia
 end interface
 
 ! Explicit interface for overloaded function to convert
@@ -81,6 +81,24 @@ call string_concat(str1,trim(adjustl(str2)))
 
 return
 end subroutine strcat_ai
+
+!**********************************************************************
+subroutine strcat_aaia(str1, str2, i1, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str1
+character(*), intent(IN) :: str2
+integer, intent(IN) :: i1
+character(*), intent(IN) :: str3
+
+call string_concat(str1,str2)
+call string_concat(str1,i1)
+call string_concat(str1,str3)
+
+return
+end subroutine strcat_aaia
 
 !**********************************************************************
 function numtostr_r( a, n ) result(c)
