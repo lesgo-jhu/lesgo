@@ -38,14 +38,17 @@ real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
-
+!RICHARD: Dummy time for calling averaging function only limited number of times
+real(rprec) :: dt_tavgcompute
+real(rprec) :: dt_tavg_previous  
+  
 !  Sums performed over time
 type tavg
   real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, txy, tyy, txz, tyz, tzz
   real(rprec) :: fx, fy, fz
-  real(rprec) :: cs_opt2
+  real(rprec) :: cs_opt2  
 end type tavg
 
 !  Sums performed over time
