@@ -202,7 +202,7 @@ do jx=1,nx
     S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)*S11(jx,jy,jz) +           S22(jx,jy,jz)*S22(jx,jy,jz) +&
                                S33(jx,jy,jz)*S33(jx,jy,jz) + 2._rprec*(S12(jx,jy,jz)*S12(jx,jy,jz) +&
                                S13(jx,jy,jz)*S13(jx,jy,jz) +           S23(jx,jy,jz)*S23(jx,jy,jz) )))
-    Nu_t(jx,jy,jz)=const5*Cs_opt2(jx,jy,jz)*(l(jz)*l(jz))
+    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)*l(jz))
 !    S(jx,jy) = sqrt(2._rprec*(S11(jx,jy,jz)**2 + S22(jx,jy,jz)**2 +&
 !        S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
 !        S13(jx,jy,jz)**2 + S23(jx,jy,jz)**2)))
