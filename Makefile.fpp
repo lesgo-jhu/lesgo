@@ -64,3 +64,7 @@ endif
 ifeq ($(USE_CPS), yes)
   FPP += -DCPS
 endif
+
+ifeq ($(USE_BINARY), yes)
+  FPP += -DBINARY
+endif
