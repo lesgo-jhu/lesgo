@@ -18,7 +18,10 @@ public :: string_concat, &
      count_string_occur
 
 interface string_concat
-  module procedure strcat_aa, strcat_ai, strcat_ar, strcat_aaia
+  module procedure string_concat_aa, string_concat_ai, string_concat_ar, &
+                   string_concat_aaia, string_concat_aara, &
+                   string_concat_aaiaia, string_concat_aarara, &
+                   string_concat_aaiaiaia, string_concat_aararara
 end interface
 
 ! Explicit interface for overloaded function to convert
@@ -29,76 +32,170 @@ end interface
 
 character (*), parameter :: mod_name = 'string_util'
 
-character(*), parameter :: int_fmt='(i0)'
-character(*), parameter :: real_fmt='(f9.4)'
+!character(*), parameter :: int_fmt='(i0)'
+!character(*), parameter :: real_fmt='(f9.4)'
+character(*), parameter :: ai_fmt='(a,i0)'
+character(*), parameter :: ar_fmt='(a,f9.4)'
 
 contains
 
 !**********************************************************************
-subroutine strcat_aa(str1, str2)
+subroutine string_concat_aa(str, str1)
 !**********************************************************************
 use types, only : rprec
 implicit none
 
-character(*), intent(INOUT) :: str1
-character(*), intent(IN) :: str2
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
 
-str1 = trim(adjustl(str1)) // str2
+str = trim(adjustl(str)) // str1
 
 return
-end subroutine strcat_aa
+end subroutine string_concat_aa
 
 !**********************************************************************
-subroutine strcat_ar(str1, r1)
+subroutine string_concat_ar(str, r)
 !**********************************************************************
 use types, only : rprec
 implicit none
 
-character(*), intent(INOUT) :: str1
+character(*), intent(INOUT) :: str
+real(rprec), intent(IN) :: r
+
+write(str, ar_fmt) str, r
+
+return
+end subroutine string_concat_ar
+
+!**********************************************************************
+subroutine string_concat_ai(str, i)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+integer, intent(IN) :: i
+
+write(str, ai_fmt) str, i
+
+return
+end subroutine string_concat_ai
+
+!**********************************************************************
+subroutine string_concat_aaia(str, str1, i1, str2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
+integer, intent(IN) :: i1
+character(*), intent(IN) :: str2
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+
+return
+end subroutine string_concat_aaia
+
+!**********************************************************************
+subroutine string_concat_aara(str, str1, r1, str2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
 real(rprec), intent(IN) :: r1
-character(120) :: str2
-
-write (str2,real_fmt) r1
-
-call string_concat(str1,trim(adjustl(str2)))
-
-return
-end subroutine strcat_ar
-
-!**********************************************************************
-subroutine strcat_ai(str1, i1)
-!**********************************************************************
-use types, only : rprec
-implicit none
-
-character(*), intent(INOUT) :: str1
-integer, intent(IN) :: i1
-character(120) :: str2
-
-write (str2,int_fmt) i1
-
-call string_concat(str1,trim(adjustl(str2)))
-
-return
-end subroutine strcat_ai
-
-!**********************************************************************
-subroutine strcat_aaia(str1, str2, i1, str3)
-!**********************************************************************
-use types, only : rprec
-implicit none
-
-character(*), intent(INOUT) :: str1
 character(*), intent(IN) :: str2
-integer, intent(IN) :: i1
-character(*), intent(IN) :: str3
 
-call string_concat(str1,str2)
-call string_concat(str1,i1)
-call string_concat(str1,str3)
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
 
 return
-end subroutine strcat_aaia
+end subroutine string_concat_aara
+
+!**********************************************************************
+subroutine string_concat_aaiaia(str, str1, i1, str2, i2, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+integer, intent(IN) :: i1, i2
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_aaiaia
+
+!**********************************************************************
+subroutine string_concat_aarara(str, str1, r1, str2, r2, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+real(rprec), intent(IN) :: r1, r2
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_aarara
+
+!**********************************************************************
+subroutine string_concat_aaiaiaia(str, str1, i1, str2, i2, str3, i3, str4)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3, str4
+integer, intent(IN) :: i1, i2, i3
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+call string_concat(str,str3)
+call string_concat(str,i3)
+call string_concat(str,str4)
+
+return
+end subroutine string_concat_aaiaiaia
+
+!**********************************************************************
+subroutine string_concat_aararara(str, str1, r1, str2, r2, str3, r3, str4)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3, str4
+real(rprec), intent(IN) :: r1, r2, r3
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+call string_concat(str,str3)
+call string_concat(str,r3)
+call string_concat(str,str4)
+
+return
+end subroutine string_concat_aararara
 
 !**********************************************************************
 function numtostr_r( a, n ) result(c)
