@@ -276,26 +276,4 @@ module param
   real(rprec) :: ee_bmin = 0.0_rprec, ee_bmax = 100.0_rprec
   integer :: ee_nbins = 10000
 
-  logical :: sgs_hist_calc = .false.
-  logical :: sgs_hist_cumulative = .false.
-  integer :: sgs_hist_nstart = 5000, sgs_hist_nskip = 2
-  integer :: sgs_hist_nloc = 3
-  real(rprec), allocatable, dimension(:) :: sgs_hist_loc   ! size=sgs_hist_nloc
-
-  ! Limits for Cs^2 (square of Smagorinsky coefficient)
-  real(rprec) :: cs2_bmin = 0.0_rprec, cs2_bmax = 0.15_rprec
-  integer :: cs2_nbins = 1000
-
-  ! Limits for Tn (Lagrangian time-averaging timescale, models 4,5 only)
-  real(rprec) :: tn_bmin = 0.0_rprec, tn_bmax = 1.0_rprec
-  integer :: tn_nbins = 1000
-
-  ! Limits for Nu_t (turbulent eddy viscosity)
-  real(rprec) :: nu_bmin = 0.0_rprec, nu_bmax = 0.03_rprec
-  integer :: nu_nbins = 1000
-
-  ! Limits for ee (error for Germano identity)
-  real(rprec) :: ee_bmin = 0.0_rprec, ee_bmax = 100.0_rprec
-  integer :: ee_nbins = 10000
-
 end module param
