@@ -40,7 +40,7 @@ implicit none
 
 
 
-real(rprec) :: const
+real(rprec) :: const,const2,const3,const4
 
 integer::jx,jy,jz,k
 
@@ -89,15 +89,20 @@ end if
 
 !==========================================================================
 ! Get the right hand side ready 
-! Loop over levels    
+! Loop over levels
+const2=const/tadv1/dt    
 do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! temp storage for sum of RHS terms.  normalized for fft
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
-   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
-   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+! RICHARD OPTIMIZATION 
+!   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
+!   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
+!   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+   rH_x(:, :, jz) = const2 * u(:, :, jz) 
+   rH_y(:, :, jz) = const2 * v(:, :, jz) 
+   rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
@@ -307,6 +312,8 @@ if (DEBUG) then
 end if
 $endif
 
+const3=1._rprec/(dz*dz)
+const4=1._rprec/(dz)
 do jz = jz_min, nz
   do jy = 1, ny
 
@@ -326,9 +333,17 @@ do jz = jz_min, nz
       !RHS_col(jx, jy, jz) = eye * (kx(jx, jy) * H_x(jx, jy, jz-1) +   &
       !                             ky(jx, jy) * H_y(jx, jy, jz-1)) +  &
       !                      (H_z(jx, jy, jz) - H_z(jx, jy, jz-1)) / dz
-      a(jx, jy, jz) = 1._rprec/(dz**2)
-      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
-      c(jx, jy, jz) = 1._rprec/(dz**2)   
+
+!RICHARD OPTIMIZATION see top of loop for const3
+!      a(jx, jy, jz) = 1._rprec/(dz**2)
+!      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
+!      c(jx, jy, jz) = 1._rprec/(dz**2)   
+      a(jx, jy, jz) = const3
+      b(jx, jy, jz) = -(kx(jx, jy)*kx(jx, jy) + ky(jx, jy)*ky(jx, jy) + 2._rprec*const3)
+      c(jx, jy, jz) = const3   
+
+
+
       !  Compute eye * kx * H_x 
 !      call mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
       aH_x = rH_x(ir:ii, jy, jz-1) .MULI. kx(jx,jy)
@@ -337,7 +352,9 @@ do jz = jz_min, nz
 !      call mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
       aH_y = rH_y(ir:ii, jy, jz-1) .MULI. ky(jx,jy) 
 
-      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
+!RICHARD OPTIMIZATION see top of loop for const4
+!      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
+      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
