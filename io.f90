@@ -1371,8 +1371,7 @@ $if ($DYN_TN)
 ! Write running average variables to file
   fname_dyn_tn = path // 'dyn_tn.out'
   $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname_dyn_tn = trim(fname_dyn_tn) // temp
+  call string_concat( fname_dyn_tn, '.c', coord)
   $endif
   
   $if ($WRITE_BIG_ENDIAN)
@@ -1711,10 +1710,9 @@ integer :: i,j,k
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
+fname = ftavg_in
 $if ($MPI)
-write (fname, '(a,a,i0)') ftavg_in, MPI_suffix, coord
-$else
-fname = trim(adjustl(ftavg_in))
+call string_concat( fname, MPI_suffix, coord )
 $endif
 
 inquire (file=fname, exist=exst)
@@ -1750,10 +1748,9 @@ endif
 !------
 $if($OUTPUT_EXTRA)
 
+    fname = ftavg_sgs_in
     $if ($MPI)
-    write (fname, '(a,a,i0)') ftavg_sgs_in, MPI_suffix, coord
-    $else
-    fname = trim(adjustl(ftavg_sgs_in))
+    call string_concat( fname, MPI_suffix, coord )
     $endif
 
     inquire (file=fname, exist=exst)
@@ -2042,31 +2039,29 @@ $if($OUTPUT_EXTRA)
 fname_sgs_out = path // 'tavg_sgs.out'
 fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
 fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
-  !$if($DYN_TN)
-  fname_sgs_ee = path // 'output/ee_avg.dat'
-  !$endif
+!$if($DYN_TN)
+fname_sgs_ee = path // 'output/ee_avg.dat'
+!$endif
 $endif  
 
 $if ($MPI)
 !  For MPI implementation     
-  write (temp, '(".c",i0)') coord
-  fname_out = trim (fname_out) // temp
-  
-  fname_vel = trim (fname_vel) // temp
-  fname_vel2 = trim (fname_vel2) // temp
-  fname_ddz = trim (fname_ddz) // temp
-  fname_tau = trim (fname_tau) // temp
-  fname_f = trim (fname_f) // temp
-  fname_rs = trim (fname_rs) // temp
-  fname_cs = trim (fname_cs) // temp
-   
+  call string_concat( fname_out, '.c', coord)
+  call string_concat( fname_vel, '.c', coord)
+  call string_concat( fname_vel2, '.c', coord)
+  call string_concat( fname_ddz, '.c', coord)
+  call string_concat( fname_tau, '.c', coord)
+  call string_concat( fname_f, '.c', coord)
+  call string_concat( fname_rs, '.c', coord)
+  call string_concat( fname_cs, '.c', coord)
+
   $if($OUTPUT_EXTRA)  
-  fname_sgs_out = trim (fname_sgs_out) // temp
-  fname_sgs_TnNu = trim (fname_sgs_TnNu) // temp
-  fname_sgs_Fsub = trim (fname_sgs_Fsub) // temp
-    !$if($DYN_TN)
-    fname_sgs_ee = trim (fname_sgs_ee) // temp
-    !$endif
+  call string_concat( fname_sgs_out, '.c', coord)
+  call string_concat( fname_sgs_TnNu, '.c', coord)
+  call string_concat( fname_sgs_Fsub, '.c', coord)
+ !$if($DYN_TN)
+  call string_concat( fname_sgs_ee, '.c', coord)
+ !$endif
   $endif    
   
 $endif
@@ -2421,12 +2416,14 @@ call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
   fz_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fz)
 
   $endif
-  
-  if (coord == 0) then
-    open(unit = 1, file = path // "output/force_total_avg.dat", status="unknown", position="rewind") 
-    write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
-    close(1)
-  endif
+
+  $if($OUTPUT_EXTRA)
+  ! if (coord == 0) then
+  !   open(unit = 1, file = path // "output/force_total_avg.dat", status="unknown", position="rewind") 
+  !   write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
+  !   close(1)
+  ! endif
+  $endif
 
 $else
 
@@ -2770,10 +2767,9 @@ integer :: k
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
+fname = fspectra_in
 $if ($MPI)
-write (fname, '(a,a,i0)') fspectra_in, MPI_suffix, coord
-$else
-fname = trim(adjustl(fspectra_in))
+call string_concat( fname, MPI_suffix, coord )
 $endif
 
 inquire (file=fname, exist=exst)
@@ -2911,9 +2907,7 @@ logical :: opn
 fname_out = path // 'spectra.out'
 
 $if ($MPI)
-!  For MPI implementation     
-  write (temp, '(".c",i0)') coord
-  fname_out = trim (fname_out) // temp  
+call string_concat( fname_out, '.c', coord )
 $endif
 
 !  Loop over all zplane locations
@@ -2927,10 +2921,8 @@ do k=1,spectra_nloc
   spectra_t(k) % power = (spectra_t(k) % power / Ny) / spectra_total_time
 
   !  Create unique file name
-  write(cl,'(F9.4)') spectra_loc(k)
-  !  Convert total iteration time to string
-  write(fname,*) path // 'output/spectra.z-',trim(adjustl(cl)),'.dat'
-  fname=trim(adjustl(fname))
+  fname = path
+  call string_concat( fname, 'output/spectra.z-', spectra_loc(k),'.dat' )
 
   !  Omitting Nyquist from output
   call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
