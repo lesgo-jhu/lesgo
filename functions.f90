@@ -235,11 +235,14 @@ select case (indx)
 
    endif
 
+$if ($DEBUG)
+if (DEBUG) then
    if( cell_indx > Nx .or. cell_indx < 1)  then
      write(*,*) 'px, dx, L_x, cell_indx : ', px, dx, L_x, cell_indx
      call error(func_name, 'Specified point is not in spatial domain (x-direction)')
    endif
-
+endif   
+$endif
 
   case ('j')
 
@@ -262,11 +265,15 @@ select case (indx)
       cell_indx = floor (px / dx) + 1
 
    endif
-
+   
+$if ($DEBUG)
+if (DEBUG) then
    if( cell_indx > Ny .or. cell_indx < 1)  then
       write(*,*) 'px, dx, L_y, cell_indx : ', px, dx, L_y, cell_indx
       call error(func_name, 'Specified point is not in spatial domain (y-direction)')
    endif
+endif   
+$endif
 
   !  Need to compute local distance to get local k index
   case ('k')
@@ -282,11 +289,19 @@ select case (indx)
 
     endif
 
+$if ($DEBUG)
+if (DEBUG) then
     if( cell_indx >= Nz .or. cell_indx < lbz) call error(func_name, 'Specified point is not in spatial domain (z-direction)')    
+endif
+$endif
 
+$if ($DEBUG)
+if (DEBUG) then
   case default
 
     call error (func_name, 'invalid indx =' // indx)
+endif    
+$endif
 
 end select
 
@@ -383,23 +398,31 @@ zdiff = xyz(3) - z(kstart)
 !u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
 !u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
 !u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
-u1 = linear_interp(var(istart,  jstart,  kstart), &
-                   var(istart1, jstart,  kstart), &
-                   dx, xdiff)
-u2 = linear_interp(var(istart,  jstart1, kstart), &
-                   var(istart1, jstart1, kstart), &
-                   dx, xdiff)
-u3 = linear_interp(var(istart,  jstart,  kstart1), &
-                   var(istart1, jstart,  kstart1), &
-                   dx, xdiff)
-u4 = linear_interp(var(istart,  jstart1, kstart1), &
-                   var(istart1, jstart1, kstart1), &
-                   dx, xdiff)
+!u1 = linear_interp(var(istart,  jstart,  kstart), &
+!                   var(istart1, jstart,  kstart), &
+!                   dx, xdiff)
+!u2 = linear_interp(var(istart,  jstart1, kstart), &
+!                   var(istart1, jstart1, kstart), &
+!                   dx, xdiff)
+!u3 = linear_interp(var(istart,  jstart,  kstart1), &
+!                   var(istart1, jstart,  kstart1), &
+!                   dx, xdiff)
+!u4 = linear_interp(var(istart,  jstart1, kstart1), &
+!                   var(istart1, jstart1, kstart1), &
+!                   dx, xdiff)
+u1=var(istart,  jstart,  kstart)  + (xdiff) * (var(istart1, jstart,  kstart)  - var(istart,  jstart,  kstart)) / dx
+u2=var(istart,  jstart1, kstart)  + (xdiff) * (var(istart1, jstart1, kstart)  - var(istart,  jstart1, kstart)) / dx
+u3=var(istart,  jstart,  kstart1) + (xdiff) * (var(istart1, jstart,  kstart1) - var(istart,  jstart,  kstart1)) / dx
+u4=var(istart,  jstart1, kstart1) + (xdiff) * (var(istart1, jstart1, kstart1) - var(istart,  jstart1, kstart1)) / dx
+
 !  Perform interpolations in y-direction
-u5 = linear_interp(u1,u2,dy,ydiff)
-u6 = linear_interp(u3,u4,dy,ydiff)
+!u5 = linear_interp(u1,u2,dy,ydiff)
+!u6 = linear_interp(u3,u4,dy,ydiff)
+u5=u1 + (ydiff) * (u2 - u1) / dy
+u6=u3 + (ydiff) * (u4 - u3) / dy
 !  Perform interpolation in z-direction
-trilinear_interp = linear_interp(u5,u6,dz,zdiff)
+!trilinear_interp = linear_interp(u5,u6,dz,zdiff)
+trilinear_interp = u5 + (zdiff) * (u6 - u5) / dz
 
 nullify(x,y,z)
 nullify(autowrap_i, autowrap_j)
