@@ -62,7 +62,7 @@ implicit none
 character(*), intent(INOUT) :: str
 real(rprec), intent(IN) :: r
 
-write(str, ar_fmt) str, r
+write(str, ar_fmt) trim(adjustl(str)), r
 
 return
 end subroutine string_concat_ar
@@ -76,7 +76,7 @@ implicit none
 character(*), intent(INOUT) :: str
 integer, intent(IN) :: i
 
-write(str, ai_fmt) str, i
+write(str, ai_fmt) trim(adjustl(str)), i
 
 return
 end subroutine string_concat_ai
