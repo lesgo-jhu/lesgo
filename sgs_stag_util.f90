@@ -57,6 +57,10 @@ $endif
 real(kind=rprec),dimension(nz)::l,ziko,zz
 real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
 real(kind=rprec) :: const
+real(kind=rprec) :: const2 !RICHARD: USED FOR OPTIMIZATION
+real(kind=rprec) :: const3 !RICHARD: USED FOR OPTIMIZATION
+real(kind=rprec) :: const4 !RICHARD: USED FOR OPTIMIZATION
+real(kind=rprec) :: const5 !RICHARD: USED FOR OPTIMIZATION
 
 integer::jx,jy,jz,k
 integer :: jz_min
@@ -106,6 +110,7 @@ $if ($CFL_DT)
 $else
     lagran_dt = cs_count*dt
 $endif
+
 
 if (sgs) then 
     if((sgs_model == 1))then  ! Traditional Smagorinsky model
@@ -180,6 +185,7 @@ if (sgs) then
  
 end if 
 
+
 $if ($DEBUG)
 if (DEBUG) then
     call DEBUG_write (Cs_opt2, 'sgs_stag.Cs_opt2')
@@ -189,13 +195,18 @@ $endif
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
 !$comp parallel do default(shared) private(jx,jy,jz)
+!RICHARD OPTIMIZATION: EXPLICITLY WRITE THE MULTIPLICATION AND DO NOT USE POWER FOR SPEED
 do jz = 1, nz
 do jy=1,ny
 do jx=1,nx
-    S(jx,jy) = sqrt(2._rprec*(S11(jx,jy,jz)**2 + S22(jx,jy,jz)**2 +&
-        S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
-        S13(jx,jy,jz)**2 + S23(jx,jy,jz)**2)))
-    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)**2)
+    S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)*S11(jx,jy,jz) +           S22(jx,jy,jz)*S22(jx,jy,jz) +&
+                               S33(jx,jy,jz)*S33(jx,jy,jz) + 2._rprec*(S12(jx,jy,jz)*S12(jx,jy,jz) +&
+                               S13(jx,jy,jz)*S13(jx,jy,jz) +           S23(jx,jy,jz)*S23(jx,jy,jz) )))
+    Nu_t(jx,jy,jz)=const5*Cs_opt2(jx,jy,jz)*(l(jz)*l(jz))
+!    S(jx,jy) = sqrt(2._rprec*(S11(jx,jy,jz)**2 + S22(jx,jy,jz)**2 +&
+!        S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
+!        S13(jx,jy,jz)**2 + S23(jx,jy,jz)**2)))
+!    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)**2)
 end do
 end do
 end do
@@ -207,7 +218,7 @@ end do
     call sgs_hist_update_vals( )
   endif
   endif
-
+  
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
 if (coord == 0) then
 
@@ -304,26 +315,37 @@ end if
 
 if (sgs) then 
     !$comp parallel do default(shared) private(jx,jy,jz,const)	 
-
+    !RICHARD OPTIMIZATION
+    
+    const3=-2._rprec*(nu)*0.5_rprec
+    const4=-2._rprec*(nu)
     do jz=jz_min, nz-1
     do jy=1,ny
     do jx=1,nx
        
-       const=0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
-       
-            txx(jx,jy,jz)=-2._rprec*(const+nu)*&
-                0.5_rprec*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
-            txy(jx,jy,jz)=-2._rprec*(const+nu)*&
-                0.5_rprec*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
-            tyy(jx,jy,jz)=-2._rprec*(const+nu)*&
-                0.5_rprec*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
-            tzz(jx,jy,jz)=-2._rprec*(const+nu)*&
-                0.5_rprec*(S33(jx,jy,jz) + S33(jx,jy,jz+1))
-                
-        const=Nu_t(jx,jy,jz)                
-        
-            txz(jx,jy,jz)=-2._rprec*(const + nu) * S13(jx,jy,jz)
-            tyz(jx,jy,jz)=-2._rprec*(const + nu) * S23(jx,jy,jz)        
+!       const=0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
+!            txx(jx,jy,jz)=-2._rprec*(const+nu)*&
+!                0.5_rprec*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
+!            txy(jx,jy,jz)=-2._rprec*(const+nu)*&
+!                0.5_rprec*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
+!            tyy(jx,jy,jz)=-2._rprec*(const+nu)*&
+!                0.5_rprec*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
+!            tzz(jx,jy,jz)=-2._rprec*(const+nu)*&
+!                0.5_rprec*(S33(jx,jy,jz) + S33(jx,jy,jz+1))
+!		const=Nu_t(jx,jy,jz)                
+!        
+!            txz(jx,jy,jz)=-2._rprec*(const + nu) * S13(jx,jy,jz)
+!            tyz(jx,jy,jz)=-2._rprec*(const + nu) * S23(jx,jy,jz)        
+
+       const =-0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
+	   const2=-2._rprec*Nu_t(jx,jy,jz)                
+
+            txx(jx,jy,jz)=(const+const3)*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
+            txy(jx,jy,jz)=(const+const3)*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
+            tyy(jx,jy,jz)=(const+const3)*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
+            tzz(jx,jy,jz)=(const+const3)*(S33(jx,jy,jz) + S33(jx,jy,jz+1))        
+            txz(jx,jy,jz)=(const2+const4)* S13(jx,jy,jz)
+            tyz(jx,jy,jz)=(const2+const4)* S23(jx,jy,jz)        
                 
     end do
     end do
@@ -333,7 +355,6 @@ if (sgs) then
 else    
     
     !$comp parallel do default(shared) private(jx,jy,jz,const)	
-
     const=0._rprec  ! removed from tij expressions below since it's zero
     
     do jz=jz_min, nz-1
@@ -358,7 +379,7 @@ else
     !$comp end parallel do 
 
 end if    
-   
+      
 $if ($DEBUG)
 if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.a')
@@ -399,20 +420,22 @@ $if ($MPI)
     call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
 
     ! Set bogus values (easier to catch if there's an error)
-    txx(:, :, 0) = BOGUS
-    txy(:, :, 0) = BOGUS
-    txz(:, :, 0) = BOGUS
-    tyy(:, :, 0) = BOGUS
-    tyz(:, :, 0) = BOGUS
-    tzz(:, :, 0) = BOGUS 
+!RICHARD: OPTIMIZATION
+!    txx(:, :, 0) = BOGUS
+!    txy(:, :, 0) = BOGUS
+!    txz(:, :, 0) = BOGUS
+!    tyy(:, :, 0) = BOGUS
+!    tyz(:, :, 0) = BOGUS
+!    tzz(:, :, 0) = BOGUS 
 
 $endif
 
 ! Set bogus values (easier to catch if there's an error)
-txx(:, :, nz) = BOGUS
-txy(:, :, nz) = BOGUS
-tyy(:, :, nz) = BOGUS
-tzz(:, :, nz) = BOGUS
+!RICHARD: OPTIMIZATION
+!txx(:, :, nz) = BOGUS
+!txy(:, :, nz) = BOGUS
+!tyy(:, :, nz) = BOGUS
+!tzz(:, :, nz) = BOGUS
  
 $if ($MPI) 
   if (coord == nproc-1) then  !assuming stress-free lid?
@@ -486,26 +509,37 @@ if (coord == 0) then
     case (1) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
-    
+    !RICHARD: OPTIMIZATION
         do jy=1,ny
         do jx=1,nx              
-            ux=dudx(jx,jy,1)  
-            uy=dudy(jx,jy,1)  
-            uz=dudz(jx,jy,1)    ! dudz on uvp-node for jz==1 (wallstress.f90)
-            vx=dvdx(jx,jy,1)  
-            vy=dvdy(jx,jy,1)  
-            vz=dvdz(jx,jy,1)    ! dvdz on uvp-node for jz==1 (wallstress.f90)
-            wx=0.5_rprec*(dwdx(jx,jy,1)+dwdx(jx,jy,2)) 
-            wy=0.5_rprec*(dwdy(jx,jy,1)+dwdy(jx,jy,2))  
-            wz=dwdz(jx,jy,1) 
+!            ux=dudx(jx,jy,1)  
+!            uy=dudy(jx,jy,1)  
+!            uz=dudz(jx,jy,1)    ! dudz on uvp-node for jz==1 (wallstress.f90)
+!            vx=dvdx(jx,jy,1)  
+!            vy=dvdy(jx,jy,1)  
+!            vz=dvdz(jx,jy,1)    ! dvdz on uvp-node for jz==1 (wallstress.f90)
+!            wx=0.5_rprec*(dwdx(jx,jy,1)+dwdx(jx,jy,2)) 
+!            wy=0.5_rprec*(dwdy(jx,jy,1)+dwdy(jx,jy,2))  
+!            wz=dwdz(jx,jy,1) 
          
             ! these values stored on uvp-nodes
-            S11(jx,jy,1)=ux         
-            S12(jx,jy,1)=0.5_rprec*(uy+vx) 
-            S13(jx,jy,1)=0.5_rprec*(uz+wx) 
-            S22(jx,jy,1)=vy          
-            S23(jx,jy,1)=0.5_rprec*(vz+wy) 
-            S33(jx,jy,1)=wz         
+!            S11(jx,jy,1)=ux         
+!            S12(jx,jy,1)=0.5_rprec*(uy+vx) 
+!            S13(jx,jy,1)=0.5_rprec*(uz+wx) 
+!            S22(jx,jy,1)=vy          
+!            S23(jx,jy,1)=0.5_rprec*(vz+wy) 
+!            S33(jx,jy,1)=wz         
+          
+            ! these values stored on uvp-nodes
+            S11(jx,jy,1)=dudx(jx,jy,1)         
+            S12(jx,jy,1)=0.5_rprec*(dudy(jx,jy,1)+dvdx(jx,jy,1)) 
+            wx=0.5_rprec*(dwdx(jx,jy,1)+dwdx(jx,jy,2)) 
+            S13(jx,jy,1)=0.5_rprec*(dudz(jx,jy,1)+wx) 
+            S22(jx,jy,1)=dvdy(jx,jy,1)          
+            wy=0.5_rprec*(dwdy(jx,jy,1)+dwdy(jx,jy,2))             
+            S23(jx,jy,1)=0.5_rprec*(dvdz(jx,jy,1)+wy) 
+            S33(jx,jy,1)=dwdz(jx,jy,1)         
+
         end do
         end do
   
@@ -535,29 +569,36 @@ $endif
 !   values are stored on w-nodes
 !   dudz, dvdz, dwdx, dwdy are already stored on w-nodes
 !$vvohmygod parallel do default(shared) private(jx,jy,jz)	
+!RICHARD: OPTIMIZATION
 do jz=jz_min, nz
 do jy=1,ny
 do jx=1,nx              
-    ux=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1)) 
+!    ux=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1)) 
+!    uy=0.5_rprec*(dudy(jx,jy,jz) + dudy(jx,jy,jz-1))  
+!    uz=dudz(jx,jy,jz)  
+!    vx=0.5_rprec*(dvdx(jx,jy,jz) + dvdx(jx,jy,jz-1))  
+!    vy=0.5_rprec*(dvdy(jx,jy,jz) + dvdy(jx,jy,jz-1))  
+!    vz=dvdz(jx,jy,jz)  
+!    wx=dwdx(jx,jy,jz)  
+!    wy=dwdy(jx,jy,jz)  
+!    wz=0.5_rprec*(dwdz(jx,jy,jz) + dwdz(jx,jy,jz-1)) 
+!    S11(jx,jy,jz)=ux         
+!    S12(jx,jy,jz)=0.5_rprec*(uy+vx) 
+!    S13(jx,jy,jz)=0.5_rprec*(uz+wx) 
+!    S22(jx,jy,jz)=vy          
+!    S23(jx,jy,jz)=0.5_rprec*(vz+wy) 
+!    S33(jx,jy,jz)=wz          
+    S11(jx,jy,jz)=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1))          
     uy=0.5_rprec*(dudy(jx,jy,jz) + dudy(jx,jy,jz-1))  
-    uz=dudz(jx,jy,jz)  
     vx=0.5_rprec*(dvdx(jx,jy,jz) + dvdx(jx,jy,jz-1))  
-    vy=0.5_rprec*(dvdy(jx,jy,jz) + dvdy(jx,jy,jz-1))  
-    vz=dvdz(jx,jy,jz)  
-    wx=dwdx(jx,jy,jz)  
-    wy=dwdy(jx,jy,jz)  
-    wz=0.5_rprec*(dwdz(jx,jy,jz) + dwdz(jx,jy,jz-1)) 
-    
-    S11(jx,jy,jz)=ux         
     S12(jx,jy,jz)=0.5_rprec*(uy+vx) 
-    S13(jx,jy,jz)=0.5_rprec*(uz+wx) 
-    S22(jx,jy,jz)=vy          
-    S23(jx,jy,jz)=0.5_rprec*(vz+wy) 
-    S33(jx,jy,jz)=wz          
+    S13(jx,jy,jz)=0.5_rprec*(dudz(jx,jy,jz) + dwdx(jx,jy,jz)) 
+    S22(jx,jy,jz)=0.5_rprec*(dvdy(jx,jy,jz) + dvdy(jx,jy,jz-1))          
+    S23(jx,jy,jz)=0.5_rprec*(dvdz(jx,jy,jz) + dwdy(jx,jy,jz)) 
+    S33(jx,jy,jz)=0.5_rprec*(dwdz(jx,jy,jz) + dwdz(jx,jy,jz-1))          
 end do
 end do
 end do
-!$ffohmygod end parallel do
 
 end subroutine calc_Sij
 
