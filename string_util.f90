@@ -19,8 +19,9 @@ public :: string_concat, &
 
 interface string_concat
   module procedure string_concat_aa, string_concat_ai, string_concat_ar, &
+                   string_concat_aai, string_concat_aar, &
                    string_concat_aaia, string_concat_aara, &
-                   string_concat_aaiaia, string_concat_aarara, &
+                   string_concat_aaiaia, string_concat_aarara, string_concat_aaraia, &
                    string_concat_aaiaiaia, string_concat_aararara
 end interface
 
@@ -32,10 +33,8 @@ end interface
 
 character (*), parameter :: mod_name = 'string_util'
 
-!character(*), parameter :: int_fmt='(i0)'
-!character(*), parameter :: real_fmt='(f9.4)'
-character(*), parameter :: ai_fmt='(a,i0)'
-character(*), parameter :: ar_fmt='(a,f9.4)'
+character(*), parameter :: iformat='(i0)'
+character(*), parameter :: rformat='(f18.6)'
 
 contains
 
@@ -48,7 +47,7 @@ implicit none
 character(*), intent(INOUT) :: str
 character(*), intent(IN) :: str1
 
-str = trim(adjustl(str)) // str1
+str = trim(adjustl(str)) // trim(adjustl(str1))
 
 return
 end subroutine string_concat_aa
@@ -61,8 +60,10 @@ implicit none
 
 character(*), intent(INOUT) :: str
 real(rprec), intent(IN) :: r
+character(32) :: buff
 
-write(str, ar_fmt) trim(adjustl(str)), r
+write(buff,rformat) r
+call string_concat( str, buff )
 
 return
 end subroutine string_concat_ar
@@ -75,11 +76,45 @@ implicit none
 
 character(*), intent(INOUT) :: str
 integer, intent(IN) :: i
+character(32) :: buff
 
-write(str, ai_fmt) trim(adjustl(str)), i
+write(buff,iformat) i
+call string_concat( str, buff )
 
 return
 end subroutine string_concat_ai
+
+!**********************************************************************
+subroutine string_concat_aai(str, str1, i1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
+integer, intent(IN) :: i1
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+
+return
+end subroutine string_concat_aai
+
+!**********************************************************************
+subroutine string_concat_aar(str, str1, r1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
+real(rprec), intent(IN) :: r1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+
+return
+end subroutine string_concat_aar
 
 !**********************************************************************
 subroutine string_concat_aaia(str, str1, i1, str2)
@@ -154,6 +189,26 @@ call string_concat(str,str3)
 
 return
 end subroutine string_concat_aarara
+
+!**********************************************************************
+subroutine string_concat_aaraia(str, str1, r1, str2, i1, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+real(rprec) :: r1
+integer, intent(IN) :: i1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,i1)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_aaraia
 
 !**********************************************************************
 subroutine string_concat_aaiaiaia(str, str1, i1, str2, i2, str3, i3, str4)
