@@ -12,4 +12,9 @@ To configure and build:
        make
 
 Now execute "interp" in the directory that the "vel.out" files from the old
-simulations are located.
+simulations are located. The old input files are saved under save.vel.out. Note that
+you have to throw away the tavg.* files in the home directory. These data are
+NOT interpolated.
+
+
+

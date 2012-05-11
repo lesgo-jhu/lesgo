@@ -7,10 +7,10 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-MK_INCL_PATH=../..
+MK_INCL_PATH=../
 include $(MK_INCL_PATH)/Makefile.in
 
-EXE = interp
+EXE = interp2
 
 SRCS =  interp.f90
 

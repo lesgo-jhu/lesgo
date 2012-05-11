@@ -18,17 +18,17 @@ character (*), parameter :: fbase = path // 'vel.out'
 character (*), parameter :: fsave = path // 'save.vel.out'
 character (*), parameter :: MPI_suffix = '.c'  !--must be proc number
 
-logical, parameter :: DEBUG = .true.
+logical, parameter :: DEBUG = .false.
 logical, parameter :: MPI_s = .true.
 logical, parameter :: MPI_b = .true.
 
-integer, parameter :: np_s = 64 !--must be 1 when MPI_s is false
-integer, parameter :: np_b = 64 !--must to 1 when MPI_b is false
+integer, parameter :: sgs_model = 1 ! Because less data is written to the file when sgs_model=1
+integer, parameter :: np_s = 2 !--must be 1 when MPI_s is false
+integer, parameter :: np_b = 2 !--must to 1 when MPI_b is false
 
 !--MPI: these are the total sizes (include all processes)
-integer, parameter :: nx_s = 256, ny_s = 74, nz_s = 129
-integer, parameter :: nx_b = 256, ny_b = 74, nz_b = 193
-
+integer, parameter :: nx_s = 16, ny_s = 16, nz_s = 17 
+integer, parameter :: nx_b = 32, ny_b = 32, nz_b = 33
 character (64) :: fmt
 character (128) :: fname
 
@@ -87,8 +87,12 @@ if (.not. MPI_s) then
   open (1, file=fbase, action='read', position='rewind',  &
     form='unformatted')
   $endif
+  if(sgs_model==1) then
   read (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s, FLM_s, FMM_s, FQN_s, FNN_s
   close (1)
+  else
+  read (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s
+  endif
 
   !--save a copy
   !--need 'system' command to copy fbase to fsave more efficiently?
@@ -102,9 +106,12 @@ if (.not. MPI_s) then
   open (1, file=fsave, action='write', position='rewind',  &
     form='unformatted')
   $endif
-
+  if(sgs_model==1) then
   write (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s, FLM_s, FMM_s, FQN_s, FNN_s
   close (1)
+  else
+  write (1) u_s, v_s, w_s, Rx_s, Ry_s, Rz_s, cs_s
+  endif 
 
 else
 
@@ -123,13 +130,19 @@ else
     $endif
 
     lbz = ip * (nz_s-1)/np_s + 1
-    ubz = lbz + (nz_s-1)/np_s   
+    ubz = lbz + (nz_s-1)/np_s
+    if (sgs_model==1) then
+    read (1) u_s(:, :, lbz:ubz), v_s(:, :, lbz:ubz), w_s(:, :, lbz:ubz),     &
+             Rx_s(:, :, lbz:ubz), Ry_s(:, :, lbz:ubz), Rz_s(:, :, lbz:ubz),  &
+             cs_s(:, :, lbz:ubz)
+    close (1)
+    else
     read (1) u_s(:, :, lbz:ubz), v_s(:, :, lbz:ubz), w_s(:, :, lbz:ubz),     &
              Rx_s(:, :, lbz:ubz), Ry_s(:, :, lbz:ubz), Rz_s(:, :, lbz:ubz),  &
              cs_s(:, :, lbz:ubz), FLM_s(:, :, lbz:ubz),                      &
              FMM_s(:, :, lbz:ubz), FQN_s(:, :, lbz:ubz), FNN_s(:, :, lbz:ubz)
-
     close (1)
+    endif
 
     !--save a copy
     write (fname, '(a,a,i0)') trim (fsave), MPI_suffix, ip
@@ -145,13 +158,19 @@ else
     $endif
 
     lbz = ip * (nz_s-1)/np_s + 1
-    ubz = lbz + (nz_s-1)/np_s   
+    ubz = lbz + (nz_s-1)/np_s
+    if(sgs_model==1) then   
+    write (1) u_s(:, :, lbz:ubz), v_s(:, :, lbz:ubz), w_s(:, :, lbz:ubz),     &
+              Rx_s(:, :, lbz:ubz), Ry_s(:, :, lbz:ubz), Rz_s(:, :, lbz:ubz),  &
+              cs_s(:, :, lbz:ubz)
+    close (1)
+    else
     write (1) u_s(:, :, lbz:ubz), v_s(:, :, lbz:ubz), w_s(:, :, lbz:ubz),     &
               Rx_s(:, :, lbz:ubz), Ry_s(:, :, lbz:ubz), Rz_s(:, :, lbz:ubz),  &
               cs_s(:, :, lbz:ubz), FLM_s(:, :, lbz:ubz),                      &
               FMM_s(:, :, lbz:ubz), FQN_s(:, :, lbz:ubz), FNN_s(:, :, lbz:ubz)
-
     close (1)
+    endif
    
   end do
 
@@ -189,10 +208,12 @@ call interpolate (nx_s, ny_s, nz_s, Rx_s, nx_b, ny_b, nz_b, Rx_b)
 call interpolate (nx_s, ny_s, nz_s, Ry_s, nx_b, ny_b, nz_b, Ry_b)
 call interpolate (nx_s, ny_s, nz_s, Rz_s, nx_b, ny_b, nz_b, Rz_b)
 call interpolate (nx_s, ny_s, nz_s, cs_s, nx_b, ny_b, nz_b, cs_b)
+if(sgs_model.gt.1) then
 call interpolate (nx_s, ny_s, nz_s, FLM_s, nx_b, ny_b, nz_b, FLM_b)
 call interpolate (nx_s, ny_s, nz_s, FMM_s, nx_b, ny_b, nz_b, FMM_b)
 call interpolate (nx_s, ny_s, nz_s, FQN_s, nx_b, ny_b, nz_b, FQN_b)
 call interpolate (nx_s, ny_s, nz_s, FNN_s, nx_b, ny_b, nz_b, FNN_b)
+endif
 
 if (.not. MPI_b) then
 
@@ -206,8 +227,13 @@ if (.not. MPI_b) then
     open (1, file=fbase, action='write', position='rewind',  &
       form='unformatted')
     $endif
+  if(sgs_model==1) then
+  write (1) u_b, v_b, w_b, Rx_b, Ry_b, Rz_b, cs_b
+  close (1)
+  else
   write (1) u_b, v_b, w_b, Rx_b, Ry_b, Rz_b, cs_b, FLM_b, FMM_b, FQN_b, FNN_b
   close (1)
+  endif
 
 else
 
@@ -227,12 +253,18 @@ else
 
     lbz = ip * (nz_b-1)/np_b + 1
     ubz = lbz + (nz_b-1)/np_b  !--corresponds to nz in main code  
+    if(sgs_model==1) then
+    write (1) u_b(:, :, lbz:ubz), v_b(:, :, lbz:ubz), w_b(:, :, lbz:ubz),     &
+              Rx_b(:, :, lbz:ubz), Ry_b(:, :, lbz:ubz), Rz_b(:, :, lbz:ubz),  &
+              cs_b(:, :, lbz:ubz)
+    close (1)
+    else
     write (1) u_b(:, :, lbz:ubz), v_b(:, :, lbz:ubz), w_b(:, :, lbz:ubz),     &
               Rx_b(:, :, lbz:ubz), Ry_b(:, :, lbz:ubz), Rz_b(:, :, lbz:ubz),  &
               cs_b(:, :, lbz:ubz), FLM_b(:, :, lbz:ubz),                      &
               FMM_b(:, :, lbz:ubz), FQN_b(:, :, lbz:ubz), FNN_b(:, :, lbz:ubz)
-
     close (1)
+    endif
 
   end do
 
