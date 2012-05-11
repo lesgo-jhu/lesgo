@@ -263,11 +263,7 @@ integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
-character(25) :: cl, ct
 character (64) :: fname
-$if($MPI)
-character(64) :: temp
-$endif
 character(256) :: var_list
 integer :: n, i, j, k, nvars
 
@@ -345,9 +341,9 @@ if(itype==1) then
     $endif
 
     call write_real_data(point_t(n) % fname, 'append', 'formatted', 4, (/ total_time, &
-         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
+                         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
+                         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
+                         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
 
 
     $if ($MPI)
@@ -362,15 +358,10 @@ elseif(itype==2) then
   !/// WRITE VELOCITY                       ///
   !////////////////////////////////////////////
 
-  !  Convert total iteration time to string
-  write(ct,*) jt_total
-  !  Open file which to write global data
-  write (fname,*) path // 'output/vel.', trim(adjustl(ct)),'.dat'
-  fname = trim(adjustl(fname))
-
+  fname = path
+  call string_concat( fname, 'output/vel.', jt_total, '.dat')
   $if ($MPI)
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
+    call string_concat( fname, '.c', coord )
   $endif
 
   $if($LVLSET)
@@ -386,17 +377,13 @@ elseif(itype==2) then
 
   $if($LVLSET)
   call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-    (/ u(1:nx,1:ny,1:nz), &
-    v(1:nx,1:ny,1:nz), &
-    w_uv(1:nx,1:ny,1:nz), &
-    phi(1:nx,1:ny,1:nz)/), & 
-    4, x, y, z(1:nz))
+                          (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), &
+                          w_uv(1:nx,1:ny,1:nz), phi(1:nx,1:ny,1:nz)/), & 
+                          4, x, y, z(1:nz))
   $else
   call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), &
-    v(1:nx,1:ny,1:nz), &
-    w_uv(1:nx,1:ny,1:nz) /), &
-    4, x, y, z(1:nz))
+                          (/ u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), &
+                          w_uv(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
   $endif
 
   $if($MPI)
@@ -416,12 +403,11 @@ elseif(itype==2) then
     call force_tot()
 
     !  Open file which to write global data
-    write (fname,*) path // 'output/force.', trim(adjustl(ct)),'.dat'
-    fname = trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/force.', jt_total, '.dat')
 
     $if ($MPI)
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+      call string_concat( fname, '.c', coord )
     $endif
 
     var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
@@ -430,11 +416,8 @@ elseif(itype==2) then
     call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
          trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
     call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-      (/ fx_tot, &
-      fy_tot, &
-      fz_tot, &
-      phi(1:nx,1:ny,1:nz) /), &
-      4, x, y, z(1:nz))
+                            (/ fx_tot, fy_tot, fz_tot, &
+                            phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
 
     deallocate(fx_tot, fy_tot, fz_tot)
 
@@ -459,12 +442,11 @@ elseif(itype==2) then
     divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
     !  Open file which to write global data
-    write (fname,*) path // 'output/divvel.', trim(adjustl(ct)),'.dat'
-    fname = trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/divvel.', jt_total, '.dat')
 
     $if ($MPI)
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+      call string_concat( fname, '.c', coord )
     $endif
 
     $if($LVLSET)
@@ -497,12 +479,11 @@ elseif(itype==2) then
     !////////////////////////////////////////////
 
     !  Open file which to write global data
-    write (fname,*) path // 'output/pressure.', trim(adjustl(ct)),'.dat'
-    fname = trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/pressure.', jt_total, '.dat')
   
     $if ($MPI)
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+      call string_concat( fname, '.c', coord )
     $endif
 
     call pressure_sync()
@@ -513,23 +494,18 @@ elseif(itype==2) then
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 5, nx, ny,nz, &
-           (/ p(1:nx,1:ny,1:nz), &
-           dpdx(1:nx,1:ny,1:nz), &
-           dpdy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1), &
-           phi(1:nx,1:ny,1:nz) /), &
-           4, x, y, z(1:nz))
+                              (/ p(1:nx,1:ny,1:nz), dpdx(1:nx,1:ny,1:nz), &
+                              dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1), &
+                              phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
     $else
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
       nvars = 7
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-        (/ p(1:nx,1:ny,1:nz), &
-        dpdx(1:nx,1:ny,1:nz), &
-        dpdy(1:nx,1:ny,1:nz), &
-        interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), &
-        4, x, y, z(1:nz))
+                              (/ p(1:nx,1:ny,1:nz), dpdx(1:nx,1:ny,1:nz), &
+                              dpdy(1:nx,1:ny,1:nz), interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), &
+                              4, x, y, z(1:nz))
     $endif
 
     $if($MPI)
@@ -544,13 +520,12 @@ elseif(itype==2) then
     !////////////////////////////////////////////
 
     !  Open file which to write global data
-    write (fname,*) path // 'output/RHS.', trim(adjustl(ct)),'.dat'
-    fname = trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/RHS.', jt_total, '.dat')
 
     $if ($MPI)
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-    $endif  
+      call string_concat( fname, '.c', coord )
+    $endif
   
     call RHS_sync()
 
@@ -560,21 +535,18 @@ elseif(itype==2) then
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-           (/ RHSx(1:nx,1:ny,1:nz), &
-           RHSy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1), &
-           phi(1:nx,1:ny,1:nz) /), & 
-           4, x, y, z(1:nz))
+                              (/ RHSx(1:nx,1:ny,1:nz), RHSy(1:nx,1:ny,1:nz), &
+                              interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1), &
+                              phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
     $else
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
       nvars = 6
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
-           (/ RHSx(1:nx,1:ny,1:nz), &
-           RHSy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), &
-           4, x, y, z(1:nz))
+                              (/ RHSx(1:nx,1:ny,1:nz), RHSy(1:nx,1:ny,1:nz), &
+                              interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), &
+                              4, x, y, z(1:nz))
     $endif
 
     $if($MPI)
@@ -598,16 +570,11 @@ elseif(itype==3) then
 !  Loop over all xplane locations
   do i=1,xplane_nloc
 
-    write(cl,'(F9.4)') xplane_loc(i)
-    !  Convert total iteration time to string
-    write(ct,*) jt_total
-    write(fname,*) path // 'output/vel.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/vel.x-', xplane_loc(i), '.', jt_total, '.dat')
 
     $if ($MPI)
-!  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+      call string_concat( fname, '.c', coord )
     $endif
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
@@ -631,13 +598,11 @@ elseif(itype==3) then
 
     $if($LVLSET)
 
-    write(fname,*) path // 'output/force.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/force.x-', xplane_loc(i), '.', jt_total, '.dat')
 
     $if ($MPI)
-    !  For MPI implementation
-    write (temp, '(".c",i0)') coord
-    fname = trim (fname) // temp
+    call string_concat( fname, '.c', coord )
     $endif
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
@@ -701,14 +666,12 @@ elseif(itype==3) then
         enddo
       enddo
 
-      write(fname,*) path // 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname, 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
 
       $if ($MPI)
-      !  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-      $endif      
+      call string_concat( fname, '.c', coord )
+      $endif
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
@@ -718,12 +681,8 @@ elseif(itype==3) then
            trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
       call write_real_data_3D(fname, 'append', 'formatted', 5, 1,ny,nz, &
-           (/ F_LM_s, &
-           F_MM_s, &
-           beta_s, &
-           Cs_opt2_s, &
-           Nu_t_s /), &
-           2, (/ xplane_loc(i) /), y, z(1:nz)) 
+                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                              2, (/ xplane_loc(i) /), y, z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -762,14 +721,12 @@ elseif(itype==3) then
         enddo
       enddo
 
-      write(fname,*) path // 'output/ldsm.x-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname , 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
 
       $if ($MPI)
-      !  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-      $endif      
+      call string_concat( fname, '.c', coord )
+      $endif
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "F<sub>QN</sub>", "F<sub>NN</sub>"'
@@ -780,14 +737,8 @@ elseif(itype==3) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
       call write_real_data_3D(fname, 'append', 'formatted', 7, 1,ny,nz, &
-        (/ F_LM_s, &
-        F_MM_s, &
-        F_QN_s, &
-        F_NN_s, &
-        beta_s, &
-        Cs_opt2_s, &
-        Nu_t_s /), &
-        2, (/ xplane_loc(i) /), y, z(1:nz)) 
+                             (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                             2, (/ xplane_loc(i) /), y, z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -815,16 +766,11 @@ elseif(itype==4) then
 !  Loop over all yplane locations
   do j=1,yplane_nloc
 
-    write(cl,'(F9.4)') yplane_loc(j)
-    !  Convert total iteration time to string
-    write(ct,*) jt_total
-    write(fname,*) path // 'output/vel.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
 
     $if ($MPI)
-!  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+    call string_concat( fname, '.c', coord )
     $endif
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
@@ -846,17 +792,15 @@ elseif(itype==4) then
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
       (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
-  $if($LVLSET)
-  
-    write(fname,*) path // 'output/force.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+    $if($LVLSET)
+
+    fname = path
+    call string_concat( fname, 'output/force.y-', yplane_loc(j), '.', jt_total, '.dat')
 
     $if ($MPI)
-!  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
+    call string_concat( fname, '.c', coord )
     $endif
-  
+
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
       '"x", "y", "z", "fx", "fy", "fz"', numtostr(coord,6), 2, real(total_time,4))  
   
@@ -912,14 +856,12 @@ elseif(itype==4) then
         enddo
       enddo
 
-      write(fname,*) path // 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname, 'output/ldsm.y-', yplane_loc(j), '.', jt_total, '.dat')
 
       $if ($MPI)
-      !  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-      $endif      
+      call string_concat( fname, '.c', coord )
+      $endif
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
@@ -929,12 +871,8 @@ elseif(itype==4) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
       call write_real_data_3D(fname, 'append', 'formatted', 5, nx,1,nz, &
-        (/ F_LM_s, &
-        F_MM_s, &
-        beta_s, &
-        Cs_opt2_s, &
-        Nu_t_s /), &
-        1, x, (/ yplane_loc(j) /), z(1:nz)) 
+                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -973,14 +911,12 @@ elseif(itype==4) then
         enddo
       enddo
 
-      write(fname,*) path // 'output/ldsm.y-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname, 'output/ldsm.y-', yplane_loc(j), '.', jt_total,'.dat')
 
       $if ($MPI)
-      !  For MPI implementation
-      write (temp, '(".c",i0)') coord
-      fname = trim (fname) // temp
-      $endif      
+      call string_concat( fname, '.c', coord )
+      $endif
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ',  "F<sub>QN</sub>", "F<sub>NN</sub>"'
@@ -991,14 +927,8 @@ elseif(itype==4) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
       call write_real_data_3D(fname, 'append', 'formatted', 7, nx,1,nz, &
-        (/ F_LM_s, &
-        F_MM_s, &
-        F_QN_s, &
-        F_NN_s, &
-        beta_s, &
-        Cs_opt2_s, &
-        Nu_t_s /), &
-        1, x, (/ yplane_loc(j) /), z(1:nz)) 
+                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1030,11 +960,8 @@ elseif(itype==5) then
     if(zplane_t(k) % coord == coord) then
     $endif
 
-    write(cl,'(F9.4)') zplane_loc(k)
-    !  Convert total iteration time to string
-    write(ct,*) jt_total
-    write(fname,*) path // 'output/vel.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+    fname = path
+    call string_concat( fname, 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
       '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
@@ -1059,9 +986,9 @@ elseif(itype==5) then
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
     
     $if($LVLSET)
-    
-    write(fname,*) path // 'output/force.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-    fname=trim(adjustl(fname))
+
+    fname = path
+    call string_concat( fname, 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
       '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
@@ -1122,8 +1049,8 @@ elseif(itype==5) then
         enddo
       enddo
 
-      write(fname,*) path // 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname, 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
@@ -1133,12 +1060,8 @@ elseif(itype==5) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
       call write_real_data_3D(fname, 'append', 'formatted', 5, nx,ny,1, &
-        (/ F_LM_s, &
-        F_MM_s, &
-        beta_s, &
-        Cs_opt2_s, &
-        Nu_t_s /), &
-        4, x, y, (/ zplane_loc(k) /) )
+                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                              4, x, y, (/ zplane_loc(k) /) )
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1177,8 +1100,8 @@ elseif(itype==5) then
         enddo
       enddo      
 
-      write(fname,*) path // 'output/ldsm.z-',trim(adjustl(cl)),'.',trim(adjustl(ct)),'.dat'
-      fname=trim(adjustl(fname))
+      fname = path
+      call string_concat( fname, 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "F<sub>QN</sub>", "F<sub>NN</sub>"'
@@ -1189,14 +1112,8 @@ elseif(itype==5) then
         trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
       call write_real_data_3D(fname, 'append', 'formatted', 7, nx,ny,1, &
-        (/ F_LM_s, &
-        F_MM_s, &
-        F_QN_s, &
-        F_NN_s, &
-        beta_s, &
-        Cs_opt2_s, &
-        Nu_t_s /), &
-        4, x, y, (/ zplane_loc(k) /) )         
+                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+                              4, x, y, (/ zplane_loc(k) /) )         
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
