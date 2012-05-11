@@ -111,12 +111,19 @@ do jz = 1,nz
         L22=v_bar*v_bar
         L33=w_bar*w_bar              
 
-        Q11 = u_bar*u_bar
-        Q12 = u_bar*v_bar
-        Q13 = u_bar*w_bar
-        Q22 = v_bar*v_bar
-        Q23 = v_bar*w_bar
-        Q33 = w_bar*w_bar
+	    !RICHARD OPTIMIZATION
+	    Q11=L11
+	    Q12=L12
+	    Q13=L13
+	    Q22=L22
+	    Q23=L23
+	    Q33=L33
+!        Q11 = u_bar*u_bar
+!        Q12 = u_bar*v_bar
+!        Q13 = u_bar*w_bar
+!        Q22 = v_bar*v_bar
+!        Q23 = v_bar*w_bar
+!        Q33 = w_bar*w_bar
 
         ! Filter first term and add the second term to get the final value
         call test_filter ( u_bar )   ! in-place filtering
@@ -152,8 +159,13 @@ do jz = 1,nz
         Q33 = Q33 - w_hat*w_hat
 
     ! Calculate |S|
-        S(:,:) = sqrt(2._rprec*(S11(:,:,jz)**2+S22(:,:,jz)**2+S33(:,:,jz)**2+&
-            2._rprec*(S12(:,:,jz)**2+S13(:,:,jz)**2+S23(:,:,jz)**2)))        
+    !RICHARD OPTIMIZATION
+!        S(:,:) = sqrt(2._rprec*(S11(:,:,jz)**2+S22(:,:,jz)**2+S33(:,:,jz)**2+&
+!            2._rprec*(S12(:,:,jz)**2+S13(:,:,jz)**2+S23(:,:,jz)**2)))        
+        S(:,:) = sqrt(2._rprec*(S11(:,:,jz)*S11(:,:,jz)+S22(:,:,jz)*S22(:,:,jz)+S33(:,:,jz)*S33(:,:,jz)+&
+            2._rprec*(S12(:,:,jz)*S12(:,:,jz)+S13(:,:,jz)*S13(:,:,jz)+S23(:,:,jz)*S23(:,:,jz))))        
+
+
             
     ! Select Sij for this level for test-filtering, saving results as Sij_bar
     !   note: Sij is already on w-nodes
@@ -185,13 +197,20 @@ do jz = 1,nz
         call test_test_filter ( S23_hat )
         call test_test_filter ( S33_hat )
         
-    ! Calculate |S_bar| (the test-filtered Sij)      
-        S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 +&
-            2._rprec*(S12_bar**2 + S13_bar**2 + S23_bar**2)))
+    ! Calculate |S_bar| (the test-filtered Sij)   
+    !RICHARD OPTIMIZATION   
+!        S_bar = sqrt(2._rprec*(S11_bar**2 + S22_bar**2 + S33_bar**2 +&
+!            2._rprec*(S12_bar**2 + S13_bar**2 + S23_bar**2)))
+        S_bar = sqrt(2._rprec*(S11_bar*S11_bar + S22_bar*S22_bar + S33_bar*S33_bar +&
+            2._rprec*(S12_bar*S12_bar + S13_bar*S13_bar + S23_bar*S23_bar)))
 
     ! Calculate |S_hat| (the test-test-filtered Sij)     
-        S_hat = sqrt(2._rprec*(S11_hat**2 + S22_hat**2 + S33_hat**2 +&
-            2._rprec*(S12_hat**2 + S13_hat**2 + S23_hat**2)))
+    !RICHARD OPTIMIZATION
+!        S_hat = sqrt(2._rprec*(S11_hat**2 + S22_hat**2 + S33_hat**2 +&
+!            2._rprec*(S12_hat**2 + S13_hat**2 + S23_hat**2)))
+        S_hat = sqrt(2._rprec*(S11_hat*S11_hat + S22_hat*S22_hat + S33_hat*S33_hat +&
+            2._rprec*(S12_hat*S12_hat + S13_hat*S13_hat + S23_hat*S23_hat)))
+
 
     ! Calculate |S|Sij then test-filter this quantity 
         S_S11_bar(:,:) = S(:,:)*S11(:,:,jz)
@@ -237,15 +256,22 @@ do jz = 1,nz
         N23 = const*(S_S23_hat - tf2_2*S_hat*S23_hat)
         N33 = const*(S_S33_hat - tf2_2*S_hat*S33_hat)
 
-    ! Calculate LijMij, MijMij, etc for each point in the plane        
+    ! Calculate LijMij, MijMij, etc for each point in the plane
+    !RICHARD OPTIMIZATION        
         LM = L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
-        MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
+        MM = M11*M11+M22*M22+M33*M33+2._rprec*(M12*M12+M13*M13+M23*M23)
+!        MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
         QN = Q11*N11+Q22*N22+Q33*N33+2._rprec*(Q12*N12+Q13*N13+Q23*N23)
-        NN = N11**2+N22**2+N33**2+2._rprec*(N12**2+N13**2+N23**2)
+        NN = N11*N11+N22*N22+N33*N33+2._rprec*(N12*N12+N13*N13+N23*N23)        
+!        NN = N11**2+N22**2+N33**2+2._rprec*(N12**2+N13**2+N23**2)
 
     ! Calculate ee_now (the current value of eij*eij) 
-            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
-                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2     
+    !RICHARD OPTIMIZATION
+!            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+!                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2     
+            ee_now(:,:,jz) = L11*L11+L22*L22+L33*L33+2._rprec*(L12*L12+L13*L13+L23*L23) &
+                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)*Cs_opt2(:,:,jz)     
+
  
     ! Initialize (???)        
         if (inilag) then
