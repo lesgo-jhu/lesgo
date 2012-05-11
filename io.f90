@@ -2471,13 +2471,6 @@ call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
      tavg_t(:,:,1:nz) % w /), &
      4, x, y, zw(1:nz))
 $elseif($BINARY)
-    do i=1,nx
-    do j=1,ny
-    do k=1,nz
-    write(*,*) i,j,k,tavg_t(i,j,k)%u
-    enddo
-    enddo
-    enddo 
     ! RICHARD
      open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
      write(13,rec=1) (((tavg_t(i,j,k)%u   ,i=1,nx),j=1,ny),k=1,nz)
