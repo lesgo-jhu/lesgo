@@ -421,21 +421,21 @@ $if ($MPI)
 
     ! Set bogus values (easier to catch if there's an error)
 !RICHARD: OPTIMIZATION
-!    txx(:, :, 0) = BOGUS
-!    txy(:, :, 0) = BOGUS
-!    txz(:, :, 0) = BOGUS
-!    tyy(:, :, 0) = BOGUS
-!    tyz(:, :, 0) = BOGUS
-!    tzz(:, :, 0) = BOGUS 
+    txx(:, :, 0) = BOGUS
+    txy(:, :, 0) = BOGUS
+    txz(:, :, 0) = BOGUS
+    tyy(:, :, 0) = BOGUS
+    tyz(:, :, 0) = BOGUS
+    tzz(:, :, 0) = BOGUS 
 
 $endif
 
 ! Set bogus values (easier to catch if there's an error)
 !RICHARD: OPTIMIZATION
-!txx(:, :, nz) = BOGUS
-!txy(:, :, nz) = BOGUS
-!tyy(:, :, nz) = BOGUS
-!tzz(:, :, nz) = BOGUS
+txx(:, :, nz) = BOGUS
+txy(:, :, nz) = BOGUS
+tyy(:, :, nz) = BOGUS
+tzz(:, :, nz) = BOGUS
  
 $if ($MPI) 
   if (coord == nproc-1) then  !assuming stress-free lid?
