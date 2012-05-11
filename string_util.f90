@@ -123,9 +123,8 @@ use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
-character(*), intent(IN) :: str1
+character(*), intent(IN) :: str1, str2
 integer, intent(IN) :: i1
-character(*), intent(IN) :: str2
 
 call string_concat(str,str1)
 call string_concat(str,i1)
@@ -141,9 +140,8 @@ use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
-character(*), intent(IN) :: str1
+character(*), intent(IN) :: str1, str2
 real(rprec), intent(IN) :: r1
-character(*), intent(IN) :: str2
 
 call string_concat(str,str1)
 call string_concat(str,r1)
