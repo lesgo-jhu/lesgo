@@ -8,10 +8,9 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
-
 use sim_param,only:fx,fy,fz
 use sim_param,only:fxa,fya,fza
-
+use string_util, only : string_concat
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
