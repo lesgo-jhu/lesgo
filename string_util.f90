@@ -21,6 +21,7 @@ interface string_concat
   module procedure string_concat_aa, string_concat_ai, string_concat_ar, &
                    string_concat_aai, string_concat_aar, &
                    string_concat_aaia, string_concat_aara, &
+                   string_concat_aaiai, string_concat_aarar, &
                    string_concat_aaiaia, string_concat_aarara, string_concat_aaraia, &
                    string_concat_aaiaiaia, string_concat_aararara
 end interface
@@ -187,6 +188,42 @@ call string_concat(str,str3)
 
 return
 end subroutine string_concat_aarara
+
+!**********************************************************************
+subroutine string_concat_aaiai(str, str1, i1, str2, i2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+integer, intent(IN) :: i1, i2
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+
+return
+end subroutine string_concat_aaiai
+
+!**********************************************************************
+subroutine string_concat_aarar(str, str1, r1, str2, r2 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+real(rprec), intent(IN) :: r1, r2
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+
+return
+end subroutine string_concat_aarar
 
 !**********************************************************************
 subroutine string_concat_aaraia(str, str1, r1, str2, i1, str3)
