@@ -17,7 +17,7 @@ public sgs_hist_init, sgs_hist_update_vals, sgs_hist_finalize
     character(*), parameter :: fname_ee_base = path // 'output/hist_ee.z-'
     character(*), parameter :: fname_histp_base = path // 'hist_param.out'
     character(*), parameter :: fname_histv_base = path // 'hist_vals.out'
-    character(64) :: temp, cl, fname_cs2, fname_tn, fname_nu, fname_ee
+    character(64) :: cl, fname_cs2, fname_tn, fname_nu, fname_ee
     character(64) :: fname_histp, fname_histv
 
 !*********************************************************************
@@ -31,6 +31,7 @@ subroutine sgs_hist_init()
 
 use grid_defs, only : grid_t
 use functions, only : cell_indx
+use string_util, only : string_concat
 implicit none
 
 integer :: k, n
@@ -43,9 +44,9 @@ real(rprec) :: L_z_test
   if (sgs_hist_cumulative) then
     ! Check if files exist
       ! Build file name      
-        write (temp, '(".c",i0)') coord
-        write(fname_histp,*) fname_histp_base,trim(adjustl(temp))
-        write(fname_histv,*) fname_histv_base,trim(adjustl(temp))
+        fname_histp = ''; call string_concat( fname_histp, fname_histp_base // '.c', coord )
+        fname_histv = ''; call string_concat( fname_histv, fname_histv_base // '.c', coord )
+
       ! Check for existence
         inquire (file=fname_histp, exist=exstp)
         inquire (file=fname_histv, exist=exstv)
@@ -359,11 +360,9 @@ include 'tecryte.h'
 
     integer :: k
 
-
 ! Write structures to file (to continue analysis, if necessary)
-    write (temp, '(".c",i0)') coord
-    write(fname_histp,*) fname_histp_base,trim(adjustl(temp))
-    write(fname_histv,*) fname_histv_base,trim(adjustl(temp))
+    fname_histp=''; call string_concat( fname_histp, fname_histp_base // '.c', coord )
+    fname_histv=''; call string_concat( fname_histv, fname_histv_base // '.c', coord )
 
     open(unit=1,file=fname_histp,position='rewind',action='write',form='formatted')
         write(1,*) nproc, nz_tot, L_z
