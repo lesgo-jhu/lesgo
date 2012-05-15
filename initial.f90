@@ -20,7 +20,7 @@ implicit none
 
 logical, parameter :: use_add_random = .false.
 
-character (64) :: fname, temp, fname_dyn_tn
+character (64) :: fname, fname_dyn_tn
 logical :: exst
 
 integer::i,jz
@@ -39,9 +39,8 @@ $endif
 fname = path // 'vel.out'
 fname_dyn_tn = path // 'dyn_tn.out'
 $if ($MPI)
-  write (temp, '(".c",i0)') coord
-  fname = trim (fname) // temp
-  fname_dyn_tn = trim (fname_dyn_tn) // temp
+  call string_concat( fname, '.c', coord )
+  call string_concat( fname_dyn_tn, '.c', coord )
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
