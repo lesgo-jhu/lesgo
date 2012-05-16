@@ -24,6 +24,7 @@ real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
 real(rprec) :: alpha        ! filter size as multiple of grid spacing
 integer :: trunc            ! Gaussian filter truncated after this many gridpoints
 real(rprec) :: filter_cutoff  ! indicator function only includes values above this threshold
+logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines

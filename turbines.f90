@@ -41,7 +41,7 @@ character (4) :: string1, string2, string3
 logical :: exst, exst2, opn
 
 logical :: turbine_in_proc=.false.      !init, do not change this
-logical :: turbine_cumulative_time, turbine_cumulative_ca_time=.false.  !init, do not change this
+logical :: turbine_cumulative_ca_time=.false.  !init, do not change this
 
 real(rprec), pointer, dimension(:) :: buffer_array
 real(rprec) :: buffer, mult
