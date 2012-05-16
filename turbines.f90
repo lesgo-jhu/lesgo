@@ -734,7 +734,7 @@ if (coord == 0) then
                 fname = trim (fname2) // '_forcing.dat'
 
                 open(unit=1,file=fname,action='write',position='append',form='formatted')
-                write(1,*) jt_total*dt_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
+                write(1,*) total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
                 close(1)
                 
             !write force to array that will be transferred via MPI    
