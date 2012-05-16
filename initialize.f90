@@ -148,6 +148,7 @@ if( use_cfl_dt ) then
       if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
       dt = get_cfl_dt() 
       dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+      dt_dim = dt * z_i / u_star
    endif
 endif
 
