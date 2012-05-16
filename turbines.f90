@@ -119,7 +119,7 @@ turbine_in_proc_array = 0
     call turbines_filter_ind()
     
 !set variables for time-averaging velocity 
-    eps = dt_dim/T_avg_dim / (1. + dt_dim/T_avg_dim)
+!    eps = (dt*z_i / u_star)/T_avg_dim / (1. +(dt*z_i / u_star)/T_avg_dim)
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
@@ -714,6 +714,7 @@ if (coord == 0) then
             p_u_d = disk_avg_vels(s) * wind_farm_t%turbine_t(s)%vol_c
     
         !add this current value to the "running average" (first order relaxation)
+            eps = (dt* z_i / u_star) / T_avg_dim / (1. +(dt * z_i / u_star) / T_avg_dim)
             p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
         !calculate total thrust force for each turbine  (per unit mass)
