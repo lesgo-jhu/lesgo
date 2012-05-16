@@ -88,13 +88,13 @@ ifeq ($(FCOMP),ifort)
   #FFLAGS = -O0 -check bounds -g -debug all -traceback
   #FFLAGS = -O3 -ip -ipo -ftz
   #FFLAGS = -axSSE4.2 -ftz -ip -O3
+  FFLAGS = -O3 -ipo -zero
   #FFLAGS += -warn all -shared-intel
   #FFLAGS += -warn all -mcmodel=medium -shared-intel
   # Work around for real -> complex dummy array assignment
   # FFLAGS += -warn nointerfaces
   # Fix segmentation faults (stack overflows)
-  #FFLAGS += -heap-arrays
-  FFLAGS = -O3 -ipo -zero -mcmodel=medium
+  FFLAGS += -heap-arrays
   #FDEBUG = -g -debug all
   FPROF = -p
   LDFLAGS = -threads
