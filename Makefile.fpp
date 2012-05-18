@@ -23,20 +23,6 @@ endif
 
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
-<<<<<<< Makefile.fpp
-<<<<<<< Makefile.fpp
-=======
-=======
->>>>>>> 1.5.2.1
-endif
-
-ifeq ($(USE_CFL_DT), yes)
-  FPP += -DCFL_DT
-endif
-
-ifeq ($(USE_DYNALLOC),yes)
-  FPP += -DDYNALLOC
->>>>>>> 1.4.6.2
 endif
 
 ifeq ($(WRITE_ENDIAN),LITTLE)
