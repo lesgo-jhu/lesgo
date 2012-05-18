@@ -23,7 +23,6 @@ endif
 
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
-  LIBS += -lmpichf90 -lfmpich -lmpich
 endif
 
 ifeq ($(USE_CFL_DT), yes)
