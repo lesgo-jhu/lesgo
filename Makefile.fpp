@@ -24,7 +24,10 @@ endif
 ifeq ($(USE_MPI), yes)
   FPP += -DMPI
 <<<<<<< Makefile.fpp
+<<<<<<< Makefile.fpp
 =======
+=======
+>>>>>>> 1.5.2.1
 endif
 
 ifeq ($(USE_CFL_DT), yes)
