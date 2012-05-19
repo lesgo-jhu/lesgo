@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 FCOMP = ifort
 INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib
+LIBPATH = -L${HOME}/lib -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 HOSTNAME = $(shell hostname -s)
