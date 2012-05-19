@@ -18,11 +18,14 @@ private
 
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
-public jt_total, openfiles, output_loop, output_final
+public jt_total, openfiles, energy, output_loop, output_final
 
 public stats_init
 
 character (*), parameter :: mod_name = 'io'
+
+! Output file id's (see README for assigned values)
+integer, parameter :: ke_fid = 1000
 
 contains
 
@@ -38,6 +41,11 @@ logical :: exst
 
 ! Temporary values used to read time step and CFL from file
 real(rprec) :: dt_r, cfl_r
+
+! Open output files
+! Kinetic energy (check_ke.dat)
+open (unit = ke_fid, file = path // 'output/check_ke.dat', status='unknown',form='formatted', &
+     action='write',position='append') 
 
 if (cumulative_time) then
 
@@ -67,6 +75,117 @@ endif
 
 return
 end subroutine openfiles
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine energy (ke)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types,only:rprec
+use param
+use sim_param,only:u,v,w
+use messages
+$if ($XLF)
+  use ieee_arithmetic  !--for NAN checking
+$endif
+implicit none
+
+include 'tecryte.h'
+
+character (*), parameter :: sub_name = 'energy'
+
+integer, parameter :: NAN_MAX = 10
+                      !--write this many NAN's before calling error (to aid
+                      !  diagnosis of problem)
+
+$if ($DEBUG)
+logical, parameter :: DEBUG = .true.
+$endif
+
+!logical, parameter :: flush = .true.
+
+integer :: jx, jy, jz
+integer :: nan_count
+
+$if($DEBUG)
+logical :: nan
+$endif
+
+real(kind=rprec)::KE,temp_w
+$if ($MPI)
+  real (rprec) :: ke_global
+$endif
+
+! Initialize variables
+nan_count = 0
+ke=0._rprec
+
+z_loop: do jz=1,nz-1
+    do jy=1,ny
+        do jx=1,nx
+            
+            temp_w = 0.5_rprec*(w(jx,jy,jz)+w(jx,jy,jz+1))
+            ke = ke + (u(jx,jy,jz)**2+v(jx,jy,jz)**2+temp_w**2)
+            
+            $if ($DEBUG)
+            if (DEBUG) then
+                $if ($IFORT || $IFC)
+                    nan = isnan (ke)
+                $elsif ($XLF)
+                    !--this is a bit verbose, should make into sub-program
+                    if (ieee_support_datatype (ke)) then
+                        if (ieee_support_nan (ke)) nan = ieee_is_nan (ke)
+                    end if
+                $endif
+ 
+                if (nan) then
+                    nan_count = nan_count + 1
+                    write (*, *) 'NaN in ke at (jx, jy, jz) =', jx, jy, jz
+                    write (*, *) 'jt = ', jt
+                    write (*, *) 'u = ', u(jx, jy, jz)
+                    write (*, *) 'v = ', v(jx, jy, jz)
+                    write (*, *) 'w = ', w(jx, jy, jz)
+                    if ( nan_count >= NAN_MAX ) exit z_loop
+                end if
+            end if
+            $endif 
+            
+        end do
+    end do
+end do z_loop
+
+! Perform spatial averaging
+ke = ke*0.5_rprec/(nx*ny*(nz-1))
+
+! Check if NaN's where found
+if ( nan_count > 0 ) call error (sub_name, 'NaN found')
+
+$if ($MPI)
+
+  call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  if (rank == 0) then  !--note its rank here, not coord
+    ke = ke_global/nproc
+    !ke = ke_global
+    !write (13, *) total_time, ke
+
+    call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
+
+  end if
+  !if (rank == 0) ke = ke_global/nproc  !--its rank here, not coord
+
+$else
+
+!  write (13, *) total_time, ke
+  call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
+
+$endif
+
+!if ( flush ) then
+!  if (rank == 0) then
+!    close (13)
+!    open ( 13, file=path//'output/check_ke.out', position='append' )
+!  end if
+!end if
+
+end subroutine energy
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_loop(jt)
@@ -344,11 +463,11 @@ if(itype==1) then
     $endif
 
     ! Want to replace with write based on fid
-    call write_real_data(point_t(n) % fname, 'append', 'formatted', 4, (/ total_time, &
-                         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-                         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-                         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
-
+    call write_real_data(point_t(n) % fid, 'formatted', 4, (/ total_time, &
+         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
+         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
+         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
+    
 
     $if ($MPI)
     endif
@@ -1573,7 +1692,7 @@ implicit none
 include 'tecryte.h'
 
 !character(120) :: cx,cy,cz
-character(120) :: var_list
+character(120) :: var_list, fname
 integer :: i,j,k
 
 logical :: exst
@@ -1712,61 +1831,47 @@ if(point_calc) then
 
   !  Intialize the coord values (-1 shouldn't be used as coord so initialize to this)
   point_t % coord=-1
+  point_t % fid = -1
 
   do i=1,point_nloc
-!  Find the processor in which this point lives
-  $if ($MPI)
+    !  Find the processor in which this point lives
+    $if ($MPI)
     if(point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
-      point_t(i) % coord = coord
-  
-      point_t(i) % istart = cell_indx('i',dx,point_loc(i)%xyz(1))
-      point_t(i) % jstart = cell_indx('j',dy,point_loc(i)%xyz(2))
-      point_t(i) % kstart = cell_indx('k',dz,point_loc(i)%xyz(3))
-  
-      point_t(i) % xdiff = point_loc(i)%xyz(1) - x(point_t(i) % istart)
-      point_t(i) % ydiff = point_loc(i)%xyz(2) - y(point_t(i) % jstart)
-      point_t(i) % zdiff = point_loc(i)%xyz(3) - z(point_t(i) % kstart)
+    $endif
 
-      !  Can't concatenate an empty string
-      point_t(i) % fname=path
-      call string_concat(point_t(i) % fname,'output/vel.x-', point_loc(i)%xyz(1), &
-                         '.y-', point_loc(i)%xyz(2), &
-                         '.z-', point_loc(i)%xyz(3),'.dat')
-   
-      !  Add tecplot header if file does not exist
-      inquire (file=point_t(i) % fname, exist=exst)
-      if (.not. exst) then
-        var_list = '"t", "u", "v", "w"'
-        call write_tecplot_header_xyline(point_t(i) % fname, 'rewind', var_list)
-      endif 
+    point_t(i) % coord = coord
   
-    endif
-  $else
-    point_t(i) % coord = 0
     point_t(i) % istart = cell_indx('i',dx,point_loc(i)%xyz(1))
     point_t(i) % jstart = cell_indx('j',dy,point_loc(i)%xyz(2))
     point_t(i) % kstart = cell_indx('k',dz,point_loc(i)%xyz(3))
-    point_t(i) % xdiff = point_loc(i)%xyz(1) - x(point_t(i) % istart) 
-    point_t(i) % ydiff = point_loc(i)%xyz(2) - y(point_t(i) % jstart) 
+    
+    point_t(i) % xdiff = point_loc(i)%xyz(1) - x(point_t(i) % istart)
+    point_t(i) % ydiff = point_loc(i)%xyz(2) - y(point_t(i) % jstart)
     point_t(i) % zdiff = point_loc(i)%xyz(3) - z(point_t(i) % kstart)
-    !write(cx,'(F9.4)') point_t%xyz(1,i)
-    !write(cy,'(F9.4)') point_t%xyz(2,i)
-    !write(cz,'(F9.4)') point_t%xyz(3,i)
-
-    point_t(i) % fname=path
-    call string_concat(point_t(i) % fname,'output/vel.x-', point_loc(i)%xyz(1), &
-                       '.y-', point_loc(i)%xyz(2), &
-                       '.z-', point_loc(i)%xyz(3), '.dat')
-
+    
+    !  Can't concatenate an empty string
+    fname=path
+    call string_concat(fname,'output/vel.x-', point_loc(i)%xyz(1), &
+         '.y-', point_loc(i)%xyz(2), &
+         '.z-', point_loc(i)%xyz(3),'.dat')
+    
     !  Add tecplot header if file does not exist
-    inquire (file=point_t(i) % fname, exist=exst)
+    inquire (file=fname, exist=exst)
     if (.not. exst) then
-      var_list = '"t (s)", "u", "v", "w"'
-      call write_tecplot_header_xyline(point_t(i) % fname, 'rewind', var_list)
-    endif 
+       var_list = '"t", "u", "v", "w"'
+       call write_tecplot_header_xyline(fname, 'rewind', var_list)
+    endif
+    
+    ! Generate file id: ( point data: 1001 - 1999 )
+    point_t(i) % fid = 1000 + i
+    ! Open file
+    open (unit = point_t(i) % fid,file = fname, status='old',form='formatted', &
+         action='write',position='append') 
+    
+    $if($MPI)
+    endif
+    $endif
 
-  $endif
-  
   enddo
 endif
 
