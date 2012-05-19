@@ -8,7 +8,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include
 LIBPATH = -L${HOME}/lib -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
@@ -45,7 +45,7 @@ WRITE_ENDIAN = DEFAULT
 READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
-USE_BINARY=yes
+USE_BINARY=no
 
 USE_LVLSET = no
   USE_RNS_LS = no
