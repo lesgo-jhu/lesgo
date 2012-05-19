@@ -64,7 +64,7 @@ The following dependencies are required in order to compile lesgo:
   definitions from the compiler, e.g., some array dimensions. The Makefile runs
   the preprocessor as a step in compilation.
 
-* tecryte (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
+* tecryte >= 2.0 (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
 
   Currently all of the data output is written in Tecplot format. tecryte is a
   library that we have developed to write data to Tecplot formatted files. All
