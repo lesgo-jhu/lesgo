@@ -10,7 +10,7 @@ public
 type point
   integer :: istart, jstart, kstart, coord
   real(rprec) :: xdiff, ydiff, zdiff
-  character(64) :: fname
+  integer :: fid
 end type point
 
 type plane
