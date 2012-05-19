@@ -10,7 +10,7 @@
 MK_INCL_PATH=../
 include $(MK_INCL_PATH)/Makefile.in
 
-EXE = interp2
+EXE = interp
 
 SRCS =  interp.f90
 
