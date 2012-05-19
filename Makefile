@@ -23,7 +23,6 @@ SRCS =  cfl_util.f90 \
 	divstress_w.f90 \
 	dns_stress.f90 \
         emul_complex.f90 \
-        energy.f90 \
         fft.f90 \
 	forcing.f90 \
 	fringe_util.f90 \
