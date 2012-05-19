@@ -358,5 +358,34 @@ File ID reservations:
 
   Standard output:
 
-  1) Kinetic energy (check_ke.dat): 1000
-  2) Point data: 1001 - 1999
+    kinetic energy (check_ke.dat): 999
+    point data:                    1001 - 1999
+    domain data: 		   2001 - 2999
+    xplane data: 		   3001 - 3999
+    yplane data: 		   4001 - 4999
+    zplane data: 		   5001 - 5999
+    spectra data: 		   6001 - 6999
+
+  Level set output: 		   7001-7999	   
+
+  RNS output: 			   8001-8999
+  
+    rns_r_elem_cd.dat:		   8001
+    rns_r_elem_force.dat: 	   8002
+    rns_r_elem_vel.dat: 	   8003
+
+    rns_beta_elem_cd.dat: 	   8004
+    rns_beta_elem_force.dat: 	   8005
+    rns_beta_elem_kappa.dat: 	   8006
+    rns_beta_elem_vel.dat: 	   8007
+
+    rns_b_elem_cd.dat: 		   8008
+    rns_b_elem_error.dat:	   8009
+    rns_b_elem_error_norm.dat: 	   8010
+    rns_b_elem_force.dat: 	   8011
+    rns_b_elem_vel.dat: 	   8012
+
+  Cyl_skew output: 		   9001-9999
+
+  Turbines output: 		   10001-10999
+
