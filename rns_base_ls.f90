@@ -13,20 +13,20 @@ private :: rprec
 private :: ld, ny, nz, lbz
 
 ! Output file id's
-integer, parameter :: r_elem_cd_fid = 7001
-integer, parameter :: r_elem_force_fid = 7002
-integer, parameter :: r_elem_vel_fid = 7003
+integer, parameter :: r_elem_cd_fid = 8001
+integer, parameter :: r_elem_force_fid = 8002
+integer, parameter :: r_elem_vel_fid = 8003
 
-integer, parameter :: beta_elem_cd_fid = 7004
-integer, parameter :: beta_elem_force_fid = 7005
-integer, parameter :: beta_elem_kappa_fid = 7006
-integer, parameter :: beta_elem_vel_fid = 7007
+integer, parameter :: beta_elem_cd_fid = 8004
+integer, parameter :: beta_elem_force_fid = 8005
+integer, parameter :: beta_elem_kappa_fid = 8006
+integer, parameter :: beta_elem_vel_fid = 8007
 
-integer, parameter :: b_elem_cd_fid = 7008
-integer, parameter :: b_elem_error_fid = 7009
-integer, parameter :: b_elem_error_norm_fid = 7010
-integer, parameter :: b_elem_force_fid = 7011
-integer, parameter :: b_elem_vel_fid = 7012
+integer, parameter :: b_elem_cd_fid = 8008
+integer, parameter :: b_elem_error_fid = 8009
+integer, parameter :: b_elem_error_norm_fid = 8010
+integer, parameter :: b_elem_force_fid = 8011
+integer, parameter :: b_elem_vel_fid = 8012
 
 !public r_elem_t, beta_elem_t, b_elem_t
 
