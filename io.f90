@@ -18,14 +18,14 @@ private
 
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
-public jt_total, openfiles, energy, output_loop, output_final
+public jt_total, openfiles, closefiles, energy, output_loop, output_final
 
 public stats_init
 
 character (*), parameter :: mod_name = 'io'
 
 ! Output file id's (see README for assigned values)
-integer, parameter :: ke_fid = 999
+integer :: ke_fid
 
 contains
 
@@ -37,15 +37,16 @@ use sim_param,only:path
 
 implicit none
 
+include 'tecryte.h'
+
 logical :: exst
 
 ! Temporary values used to read time step and CFL from file
 real(rprec) :: dt_r, cfl_r
 
-! Open output files
+! Open output files using tecryte library
 ! Kinetic energy (check_ke.dat)
-open (unit = ke_fid, file = path // 'output/check_ke.dat', status='unknown',form='formatted', &
-     action='write',position='append') 
+ke_fid = open_file( path // 'output/check_ke.dat', 'append', 'formatted' )
 
 if (cumulative_time) then
 
@@ -75,6 +76,21 @@ endif
 
 return
 end subroutine openfiles
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine closefiles()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine is used to close all open files used by the main
+! program. These files are opened by calling 'openfiles'.
+!
+implicit none
+
+! Close kinetic energy file
+close( ke_fid )
+
+return
+end subroutine closefiles
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine energy (ke)
@@ -1857,16 +1873,15 @@ if(point_calc) then
     
     !  Add tecplot header if file does not exist
     inquire (file=fname, exist=exst)
-    if (.not. exst) then
+    if (exst) then
+       point_t(i) % fid = open_file( fname, 'append', 'formatted' )
+    else
+
+       point_t(i) % fid = open_file( fname, 'rewind', 'formatted' )
        var_list = '"t", "u", "v", "w"'
-       call write_tecplot_header_xyline(fname, 'rewind', var_list)
+       call write_tecplot_header_xyline( point_t(i) % fid, var_list )
+
     endif
-    
-    ! Generate file id: ( point data: 1001 - 1999 )
-    point_t(i) % fid = 1000 + i
-    ! Open file
-    open (unit = point_t(i) % fid,file = fname, status='old',form='formatted', &
-         action='write',position='append') 
     
     $if($MPI)
     endif
