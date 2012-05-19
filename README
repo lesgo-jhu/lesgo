@@ -354,4 +354,9 @@ to begin an LES computation.
 				  DATA OUTPUT
 ================================================================================
 
-More to come ...
+File ID reservations:
+
+  Standard output:
+
+  1) Kinetic energy (check_ke.dat): 1000
+  2) Point data: 1001 - 1999
