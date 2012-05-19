@@ -23,13 +23,13 @@ use level_set, only : level_set_global_CD, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
   $if ($RNS_LS)
-  use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
+  use rns_ls, only : rns_elem_force_ls
   $endif
 
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize
+use turbines, only : turbines_forcing, turbine_vel_init
 $endif
 
 $if ($DEBUG)
@@ -451,37 +451,12 @@ close(2)
 ! Write total_time.dat and tavg files
 call output_final (jt)
 
-! Level set:
-$if ($LVLSET)
-
-  $if ($RNS_LS)
-  call rns_finalize_ls ()
-  $endif
-$endif
-
-! Turbines:
-$if ($TURBINES)
-call turbines_finalize ()   ! must come before MPI finalize
-$endif   
-
-! SGS variable histograms
-if (sgs_hist_calc) then
-  call sgs_hist_finalize()
-endif
-
 ! Stop wall clock
 call clock_stop( clock_total_t )
-$if($MPI)
-  if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
-$else
-  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
-$endif
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
 
-! MPI:
-$if ($MPI)
-! First make sure everyone in has finished
-call mpi_barrier( MPI_COMM_WORLD, ierr )
-call mpi_finalize (ierr)
-$endif
+call finalize()
+
+if(coord == 0 ) write(*,'(a)') 'Simulation complete'
 
 end program main
