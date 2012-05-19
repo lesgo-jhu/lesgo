@@ -1107,7 +1107,7 @@ include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_r_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_r_elem_force.dat'
+character(*), parameter :: fname_force = path // 'output/rns_r_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
 
 
@@ -1125,9 +1125,11 @@ if( .not. r_elem_data_init ) then
       call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+    open (unit = r_elem_cd_fid, file = fname_cd, status='old',form='formatted', &
+         action='write',position='append') 
   endif
 
-  inquire (file=fname_fD, exist=exst)
+  inquire (file=fname_force, exist=exst)
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nr_elem
@@ -1144,7 +1146,10 @@ if( .not. r_elem_data_init ) then
     ! Write the total fy name
     call string_concat(var_list, ',"fy_tot"')
 
-    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(fname_force, 'rewind', trim(adjustl(var_list)))
+    open (unit = r_elem_force_fid, file = fname_force, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif
 
   inquire (file=fname_vel, exist=exst)
@@ -1159,24 +1164,27 @@ if( .not. r_elem_data_init ) then
       call string_concat(var_list, ',"v<sub>',n,'</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+    open (unit = r_elem_vel_fid, file = fname_vel, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif
 
   r_elem_data_init = .true.
 
 endif  
 
-call write_real_data(fname_CD, 'append', 'formatted', nr_elem + 1, &
-                     (/ total_time, r_elem_t(:) % force_t % CD /))
+call write_real_data(r_elem_cd_fid, 'formatted', nr_elem + 1, &
+     (/ total_time, r_elem_t(:) % force_t % CD /))
 
-call write_real_data(fname_fD, 'append', 'formatted', ndim*(nr_elem+1)+1, &
-                     (/ total_time, -r_elem_t(:) % force_t % fx, &
-                     -sum( r_elem_t(:) % force_t % fx ), &
-                     -r_elem_t(:) % force_t % fy, &
-                     -sum( r_elem_t(:) % force_t % fy ) /))
+call write_real_data(r_elem_force_fid, 'formatted', ndim*(nr_elem+1)+1, &
+     (/ total_time, -r_elem_t(:) % force_t % fx, &
+     -sum( r_elem_t(:) % force_t % fx ), &
+     -r_elem_t(:) % force_t % fy, &
+     -sum( r_elem_t(:) % force_t % fy ) /))
 
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nr_elem+1, &
-                     (/ total_time, r_elem_t(:) % ref_region_t % u, &
-                     r_elem_t(:) % ref_region_t % v /))
+call write_real_data(r_elem_vel_fid, 'formatted', ndim*nr_elem+1, &
+     (/ total_time, r_elem_t(:) % ref_region_t % u, &
+     r_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine r_elem_data_write
@@ -1193,7 +1201,7 @@ include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_force.dat'
+character(*), parameter :: fname_force = path // 'output/rns_beta_elem_force.dat'
 character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
 
@@ -1213,10 +1221,13 @@ if( .not. beta_elem_data_init ) then
          !  Create variable list name:
          call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
       enddo
-      call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+      call write_tecplot_header_xyline(fname_cd, 'rewind', trim(adjustl(var_list)))
+      open (unit = beta_elem_cd_fid, file = fname_cd, status='old',form='formatted', &
+           action='write',position='append') 
+
    endif
 
-   inquire (file=fname_fD, exist=exst)
+   inquire (file=fname_force, exist=exst)
    if (.not. exst) then
       var_list = '"t"'
       do n = 1, nbeta_elem
@@ -1233,7 +1244,10 @@ if( .not. beta_elem_data_init ) then
       ! Write the total fy name
       call string_concat(var_list, ',"fy_tot"')
 
-      call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+      call write_tecplot_header_xyline(fname_force, 'rewind', trim(adjustl(var_list)))
+      open (unit = beta_elem_force_fid, file = fname_force, status='old',form='formatted', &
+           action='write',position='append') 
+
    endif
 
    inquire (file=fname_kappa, exist=exst)
@@ -1244,6 +1258,9 @@ if( .not. beta_elem_data_init ) then
          call string_concat(var_list, ',"<greek>k</greek><sub>',n,'</sub>"')
       enddo
       call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
+      open (unit = beta_elem_kappa_fid, file = fname_kappa, status='old',form='formatted', &
+           action='write',position='append') 
+
    endif
 
    inquire (file=fname_vel, exist=exst)
@@ -1258,6 +1275,8 @@ if( .not. beta_elem_data_init ) then
          call string_concat(var_list, ',"v<sub>',n,'</sub>"')
       enddo
       call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+      open (unit = beta_elem_vel_fid, file = fname_vel, status='old',form='formatted', &
+           action='write',position='append') 
    endif
 
    beta_elem_data_init = .true. 
@@ -1265,21 +1284,21 @@ if( .not. beta_elem_data_init ) then
 endif  
 
 ! Write all the data to file
-call write_real_data(fname_CD, 'append', 'formatted', nbeta_elem + 1, &
-                     (/ total_time, beta_elem_t(:) % force_t % CD /))
+call write_real_data(beta_elem_cd_fid, 'formatted', nbeta_elem + 1, &
+     (/ total_time, beta_elem_t(:) % force_t % CD /))
 
-call write_real_data(fname_fD, 'append', 'formatted', ndim*(nbeta_elem + 1) + 1, &
-                     (/ total_time, -beta_elem_t(:) % force_t % fx, &
-                     -sum(beta_elem_t(:) % force_t % fx), &
-                     -beta_elem_t(:) % force_t % fy, &
-                     -sum(beta_elem_t(:) % force_t % fy) /))
+call write_real_data(beta_elem_force_fid, 'formatted', ndim*(nbeta_elem + 1) + 1, &
+     (/ total_time, -beta_elem_t(:) % force_t % fx, &
+     -sum(beta_elem_t(:) % force_t % fx), &
+     -beta_elem_t(:) % force_t % fy, &
+     -sum(beta_elem_t(:) % force_t % fy) /))
 
-call write_real_data(fname_kappa, 'append', 'formatted', nbeta_elem + 1, &
-                     (/ total_time, beta_elem_t(:) % force_t % kappa /))
+call write_real_data(beta_elem_kappa_fid, 'formatted', nbeta_elem + 1, &
+     (/ total_time, beta_elem_t(:) % force_t % kappa /))
 
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nbeta_elem+1, &
-                     (/ total_time, beta_elem_t(:) % ref_region_t % u, &
-                     beta_elem_t(:) % ref_region_t % v /))
+call write_real_data(beta_elem_vel_fid, 'formatted', ndim*nbeta_elem+1, &
+     (/ total_time, beta_elem_t(:) % ref_region_t % u, &
+     beta_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine beta_elem_data_write
@@ -1295,7 +1314,7 @@ include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
 character(*), parameter :: fname_CD = path // 'output/rns_b_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
+character(*), parameter :: fname_force = path // 'output/rns_b_elem_force.dat'
 character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
 character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
 character(*), parameter :: fname_error_norm = path // 'output/rns_b_elem_error_norm.dat'
@@ -1314,9 +1333,12 @@ if( .not. b_elem_data_init ) then
       call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+    open (unit = b_elem_cd_fid, file = fname_cd, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif
 
-  inquire (file=fname_fD, exist=exst)
+  inquire (file=fname_force, exist=exst)
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
@@ -1329,7 +1351,10 @@ if( .not. b_elem_data_init ) then
       call string_concat(var_list, ',"fy<sub>',n,'</sub>"')
     enddo  
     call string_concat(var_list, ',"fy_tot"')
-    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(fname_force, 'rewind', trim(adjustl(var_list)))
+    open (unit = b_elem_force_fid, file = fname_force, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif
 
   inquire (file=fname_error, exist=exst)
@@ -1340,6 +1365,9 @@ if( .not. b_elem_data_init ) then
       call string_concat(var_list, ',"error<sub>',n,'</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
+    open (unit = b_elem_error_fid, file = fname_error, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif 
 
   inquire (file=fname_error_norm, exist=exst)
@@ -1350,6 +1378,9 @@ if( .not. b_elem_data_init ) then
       call string_concat(var_list, ',"error_norm<sub>',n,'</sub>"')
     enddo
     call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
+    open (unit = b_elem_error_norm_fid, file = fname_error_norm, status='old',form='formatted', &
+         action='write',position='append') 
+
   endif  
 
   inquire (file=fname_vel, exist=exst)
@@ -1364,6 +1395,9 @@ if( .not. b_elem_data_init ) then
       call string_concat(var_list, ',"v<sub>',n,'</sub>"')
     enddo  
     call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+    open (unit = b_elem_vel_fid, file = fname_vel, status='old',form='formatted', &
+         action='write',position='append') 
+    
   endif
 
   b_elem_data_init = .true. 
@@ -1371,24 +1405,24 @@ if( .not. b_elem_data_init ) then
 endif       
 
 
-call write_real_data(fname_CD, 'append', 'formatted', nb_elem + 1, &
-                     (/ total_time, b_elem_t(:) % force_t % CD /))
+call write_real_data(b_elem_cd_fid, 'formatted', nb_elem + 1, &
+     (/ total_time, b_elem_t(:) % force_t % CD /))
 
-call write_real_data(fname_fD, 'append', 'formatted', ndim*(nb_elem+1)+1, &
-                     (/ total_time, -b_elem_t(:) % force_t % fx, &
-                     -sum(b_elem_t(:) % force_t % fx), &
-                     -b_elem_t(:) % force_t % fy, &
-                     -sum(b_elem_t(:) % force_t % fy) /))
+call write_real_data(b_elem_force_fid, 'formatted', ndim*(nb_elem+1)+1, &
+     (/ total_time, -b_elem_t(:) % force_t % fx, &
+     -sum(b_elem_t(:) % force_t % fx), &
+     -b_elem_t(:) % force_t % fy, &
+     -sum(b_elem_t(:) % force_t % fy) /))
 
-call write_real_data(fname_error, 'append', 'formatted', nb_elem+1, &
-                     (/ total_time, b_elem_t(:) % force_t % error /))
+call write_real_data(b_elem_error_fid, 'formatted', nb_elem+1, &
+     (/ total_time, b_elem_t(:) % force_t % error /))
 
-call write_real_data(fname_error_norm, 'append', 'formatted', nb_elem+1, &
+call write_real_data(b_elem_error_norm_fid, 'formatted', nb_elem+1, &
                      (/ total_time, b_elem_t(:) % force_t % error_norm /))
 
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nb_elem+1, &
-                     (/ total_time, b_elem_t(:) % ref_region_t % u, &
-                     b_elem_t(:) % ref_region_t % v /))
+call write_real_data(b_elem_vel_fid, 'formatted', ndim*nb_elem+1, &
+     (/ total_time, b_elem_t(:) % ref_region_t % u, &
+     b_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine b_elem_data_write
