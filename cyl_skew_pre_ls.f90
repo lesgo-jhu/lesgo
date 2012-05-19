@@ -1595,9 +1595,9 @@ contains
 
           !  Open file which to write global data
           fname_phi = ''; call string_concat( fname_phi, path // 'phi.out.c', n )
-          fname_brindx = ''; call string_concat( fname_brindx, path // 'phi.out.c', n )
-          fname_clindx = ''; call string_concat( fname_clindx, path // 'phi.out.c', n )
-          fname_chi = ''; call string_concat( fname_chi, path // 'phi.out.c', n )
+          fname_brindx = ''; call string_concat( fname_brindx, path // 'brindx.out.c', n )
+          fname_clindx = ''; call string_concat( fname_clindx, path // 'clindx.out.c', n )
+          fname_chi = ''; call string_concat( fname_chi, path // 'chi.out.c', n )
 
           !  Write binary data for lesgo
           $if ($WRITE_BIG_ENDIAN)
@@ -1673,13 +1673,9 @@ contains
 
     !  Open file which to write global data
     write (fname_phi,*) path // 'phi.out'
-    fname_phi = trim(adjustl(fname_phi))
     write (fname_brindx,*) path // 'brindx.out'
-    fname_brindx = trim(adjustl(fname_brindx))
     write (fname_clindx,*) path // 'clindx.out'
-    fname_clindx = trim(adjustl(fname_clindx))
     write (fname_chi,*) path // 'chi.out'
-    fname_chi = trim(adjustl(fname_chi))
 
     !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
@@ -1862,6 +1858,7 @@ contains
     $if ($MPI)
     use param, only : nproc, coord
     $endif
+    use string_util, only : string_concat
     implicit none
 
     character(64) :: fname
