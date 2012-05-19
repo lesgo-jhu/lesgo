@@ -266,7 +266,7 @@ integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
-character (64) :: fname,fname2
+character (64) :: fname
 character(256) :: var_list
 integer :: n, i, j, k, nvars
 
@@ -343,6 +343,7 @@ if(itype==1) then
     if(point_t(n) % coord == coord) then
     $endif
 
+    ! Want to replace with write based on fid
     call write_real_data(point_t(n) % fname, 'append', 'formatted', 4, (/ total_time, &
                          trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
                          trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
@@ -361,47 +362,51 @@ elseif(itype==2) then
   !/// WRITE VELOCITY                       ///
   !////////////////////////////////////////////
 
-   fname = path
-   fname2 = path
-   call string_concat( fname, 'output/vel.', jt_total, '.dat')
-   call string_concat( fname2, 'output/binary_vel.', jt_total,'.dat')
-   $if ($MPI)
-   call string_concat( fname, '.c', coord )
-   call string_concat( fname2, '.c', coord )
-   $endif
-
-  $if($LVLSET)
-  var_list = '"x", "y", "z", "u", "v", "w", "phi"'
-  nvars = 7
+  fname = path
+  $if( $BINARY )
+  call string_concat( fname, 'output/binary_vel.', jt_total,'.dat')
   $else
-  var_list = '"x", "y", "z", "u", "v", "w"'
-  nvars = 6
+  call string_concat( fname, 'output/vel.', jt_total, '.dat')
   $endif
-  
-  $if($LVLSET)
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-       trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-    (/ u(1:nx,1:ny,1:nz), &
-    v(1:nx,1:ny,1:nz), &
-    w_uv(1:nx,1:ny,1:nz), &
-    phi(1:nx,1:ny,1:nz)/), & 
-    4, x, y, z(1:nz))
-  $elseif($BINARY)
+
+  $if ($MPI)
+  call string_concat( fname, '.c', coord )
+  $endif
+ 
+  $if($BINARY)
+
   ! RICHARD
-   open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-   write(13,rec=1) (((u(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-   write(13,rec=2) (((v(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-   write(13,rec=3) (((w_uv(i,j,k),i=1,nx),j=1,ny),k=1,nz)
-   close(13)
-  $else   
-  call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-       trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-  call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-    (/ u(1:nx,1:ny,1:nz), &
-    v(1:nx,1:ny,1:nz), &
-    w_uv(1:nx,1:ny,1:nz) /), &
-    4, x, y, z(1:nz))
+  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+  write(13,rec=1) (((u(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+  write(13,rec=2) (((v(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+  write(13,rec=3) (((w_uv(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+  close(13)
+
+  $else
+
+    $if($LVLSET)
+    var_list = '"x", "y", "z", "u", "v", "w", "phi"'
+    nvars = 7
+    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+    call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
+         (/ u(1:nx,1:ny,1:nz), &
+         v(1:nx,1:ny,1:nz), &
+         w_uv(1:nx,1:ny,1:nz), &
+         phi(1:nx,1:ny,1:nz)/), & 
+         4, x, y, z(1:nz))
+    $else   
+    var_list = '"x", "y", "z", "u", "v", "w"'
+    nvars = 6
+    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+         (/ u(1:nx,1:ny,1:nz), &
+         v(1:nx,1:ny,1:nz), &
+         w_uv(1:nx,1:ny,1:nz) /), &
+         4, x, y, z(1:nz))
+    $endif
+  
   $endif
   
 
@@ -413,6 +418,7 @@ elseif(itype==2) then
   $endif
 
   !  Output instantaneous force field 
+  $if( not BINARY )
   $if($LVLSET)
     !////////////////////////////////////////////
     !/// WRITE FORCES                         ///
@@ -421,15 +427,13 @@ elseif(itype==2) then
     ! Compute the total forces 
     call force_tot()
 
-      !  Open file which to write global data
-     fname = path
-     fname2 = path
-     call string_concat( fname, 'output/force.', jt_total, '.dat')
-     call string_concat( fname2, 'output/binary_force.', jt_total,'.dat')
-     $if ($MPI)
-     call string_concat( fname, '.c', coord )
-     call string_concat( fname2, '.c', coord )
-     $endif
+    !  Open file which to write global data
+    fname = path
+    call string_concat( fname, 'output/force.', jt_total, '.dat')
+
+    $if ($MPI)
+    call string_concat( fname, '.c', coord )
+    $endif
 
     var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
     nvars = 7
@@ -450,6 +454,7 @@ elseif(itype==2) then
     $endif
 
   $endif
+  $endif
 
   $if($DEBUG)
 
@@ -462,35 +467,42 @@ elseif(itype==2) then
     allocate(divvel(nx,ny,nz))
     divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
-      !  Open file which to write global data
+    !  Open file which to write global data
     fname = path
-    fname2 = path
+    $if( $BINARY )
+    call string_concat( fname, 'output/binary_divvel.', jt_total,'.dat')
+    $else
     call string_concat( fname, 'output/divvel.', jt_total, '.dat')
-    call string_concat( fname2, 'output/binary_divvel.', jt_total,'.dat')
-    $if ($MPI)
-      call string_concat( fname, '.c', coord )
-      call string_concat( fname2, '.c', coord )
     $endif
 
-    $if($LVLSET)
+    $if ($MPI)
+      call string_concat( fname, '.c', coord )
+    $endif
+
+    $if($BINARY)
+    ! RICHARD
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+    write(13,rec=1) (((divvel(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    close(13)
+     
+    $else
+  
+      $if($LVLSET)
       var_list = '"x", "y", "z", "divvel", "phi"'
       nvars = 5
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
            (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
-    $elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((divvel(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-    $else   
+      $else   
       var_list = '"x", "y", "z", "divvel"'
       nvars = 4
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
            trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
       call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
            (/ divvel /), 4, x, y, z(1:nz))
+      $endif
+
     $endif
 
     deallocate(divvel)
@@ -509,17 +521,32 @@ elseif(itype==2) then
     !  Open file which to write global data
 
     fname = path
-    fname2 = path
+    $if($BINARY)
+    call string_concat( fname, 'output/binary_pressure.', jt_total,'.dat')
+    $else
     call string_concat( fname, 'output/pressure.', jt_total, '.dat')
-    call string_concat( fname2, 'output/binary_pressure.', jt_total,'.dat')
+    $endif
+
     $if ($MPI)
     call string_concat( fname, '.c', coord )
-    call string_concat( fname2, 'c.', coord )
     $endif
 
     call pressure_sync()
 
-    $if($LVLSET)
+    $if($BINARY)
+
+    ! RICHARD
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+    write(13,rec=1) (((p(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    write(13,rec=2) (((dpdx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
+    write(13,rec=4) (((interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
+    close(13)
+
+    $else
+    
+      $if($LVLSET)
+
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz", "phi"'
       nvars = 8
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
@@ -531,15 +558,9 @@ elseif(itype==2) then
            interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1), &
            phi(1:nx,1:ny,1:nz) /), &
            4, x, y, z(1:nz))
-    $elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((p(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((dpdx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
-     write(13,rec=4) (((interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-    $else
+
+      $else
+
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
       nvars = 7
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
@@ -550,6 +571,9 @@ elseif(itype==2) then
         dpdy(1:nx,1:ny,1:nz), &
         interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), &
         4, x, y, z(1:nz))
+
+      $endif
+
     $endif
 
     $if($MPI)
@@ -565,16 +589,31 @@ elseif(itype==2) then
 
     !  Open file which to write global data
     fname = path
+    $if($BINARY)
+    call string_concat( fname2, 'output/binary_RHS.', jt_total,'.dat')
+    $else
     call string_concat( fname, 'output/RHS.', jt_total, '.dat')
-    call string_concat( fname2, 'output/binary_RHS.', jt_total,'.dat')                    
+    $endif
+
     $if ($MPI)
-      call string_concat( fname, '.c', coord )
-      call string_concat( fname2, '.c', coord)
+    call string_concat( fname, '.c', coord )
     $endif
   
     call RHS_sync()
 
-    $if($LVLSET)
+    $if($BINARY)
+    ! RICHARD
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+    write(13,rec=1) (((RHSx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    write(13,rec=2) (((RHSy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
+    write(13,rec=4) (((interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
+    close(13)
+    
+    $else
+
+      $if($LVLSET)
+      
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz", "phi"'
       nvars = 7
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
@@ -585,15 +624,9 @@ elseif(itype==2) then
            interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1), &
            phi(1:nx,1:ny,1:nz) /), & 
            4, x, y, z(1:nz))
-    $elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((RHSx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((RHSy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
-     write(13,rec=4) (((interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-    $else
+
+      $else
+
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
       nvars = 6
       call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
@@ -603,6 +636,9 @@ elseif(itype==2) then
            RHSy(1:nx,1:ny,1:nz), &
            interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), &
            4, x, y, z(1:nz))
+
+      $endif
+
     $endif
 
     $if($MPI)
@@ -2363,357 +2399,316 @@ enddo
 
 
 ! ----- Write all the 3D data -----
-! -- Work around for large data: only write 3 variables at a time. Since things are
-! -- written in block format this can be done with mulitple calls to
-! -- write_real_data_3D.
-$if ($LVLSET)
+$if($BINARY)
 
-call write_tecplot_header_ND(fname_vel, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
-!  write phi and x,y,z
-call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
-     (/ phi(1:nx,1:ny,1:nz), &
-     tavg_t(:,:,1:nz) % u, &
-     tavg_t(:,:,1:nz) % v, &
-     tavg_t(:,:,1:nz) % w /), &
-     4, x, y, zw(1:nz))
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%u   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((tavg_t(i,j,k)%v   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((tavg_t(i,j,k)%w   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
-call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
-call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz) % u, &
-  tavg_t(:,:,1:nz) % v, &
-  tavg_t(:,:,1:nz) % w /), &
-  4, x, y, zw(1:nz))
+! RICHARD
+open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%u   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((tavg_t(i,j,k)%v   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=3) (((tavg_t(i,j,k)%w   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-$endif
+! RICHARD
+open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%u2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((tavg_t(i,j,k)%v2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=3) (((tavg_t(i,j,k)%w2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=4) (((tavg_t(i,j,k)%uw   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=5) (((tavg_t(i,j,k)%vw   ,i=1,nx),j=1,ny),k=1,nz)   
+write(13,rec=6) (((tavg_t(i,j,k)%uv   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-$if($LVLSET)
+! RICHARD
+open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%dudz   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((tavg_t(i,j,k)%dvdz   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-call write_tecplot_header_ND(fname_vel2, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-   numtostr(coord,6), 2)
-!  write phi and x,y,z
-call write_real_data_3D(fname_vel2, 'append', 'formatted', 7, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  tavg_t(:,:,1:nz) % u2, &
-  tavg_t(:,:,1:nz) % v2, &
-  tavg_t(:,:,1:nz) % w2, &
-  tavg_t(:,:,1:nz) % uw, &
-  tavg_t(:,:,1:nz) % vw, &
-  tavg_t(:,:,1:nz) % uv /), &
-  4, x, y, zw(1:nz))
+! RICHARD
+open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%txx   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((tavg_t(i,j,k)%txy   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=3) (((tavg_t(i,j,k)%tyy   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=4) (((tavg_t(i,j,k)%txz   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=5) (((tavg_t(i,j,k)%tyz   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=6) (((tavg_t(i,j,k)%tzz   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%u2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((tavg_t(i,j,k)%v2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((tavg_t(i,j,k)%w2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=4) (((tavg_t(i,j,k)%uw   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=5) (((tavg_t(i,j,k)%vw   ,i=1,nx),j=1,ny),k=1,nz)   
-     write(13,rec=6) (((tavg_t(i,j,k)%uv   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
+! RICHARD
+open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%fx   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((tavg_t(i,j,k)%fy   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=3) (((tavg_t(i,j,k)%fz   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-   numtostr(coord,6), 2)
-call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz) % u2, &
-  tavg_t(:,:,1:nz) % v2, &
-  tavg_t(:,:,1:nz) % w2, &
-  tavg_t(:,:,1:nz) % uw, &
-  tavg_t(:,:,1:nz) % vw, &
-  tavg_t(:,:,1:nz) % uv /), &
-  4, x, y, zw(1:nz))
+! RICHARD
+open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((rs_t(i,j,k)%up2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=2) (((rs_t(i,j,k)%vp2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=3) (((rs_t(i,j,k)%wp2   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=4) (((rs_t(i,j,k)%upwp   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=5) (((rs_t(i,j,k)%vpwp   ,i=1,nx),j=1,ny),k=1,nz)
+write(13,rec=6) (((rs_t(i,j,k)%upvp   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-$endif
+! RICHARD
+open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+write(13,rec=1) (((tavg_t(i,j,k)%cs_opt2   ,i=1,nx),j=1,ny),k=1,nz)
+close(13)
 
-$if($LVLSET)  
-
-call write_tecplot_header_ND(fname_ddz, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-!  write phi and x,y,z
-call write_real_data_3D(fname_ddz, 'append', 'formatted', 3, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  tavg_t(:,:,1:nz) % dudz, &
-  tavg_t(:,:,1:nz) % dvdz /), &
-  4, x, y, zw(1:nz))
-
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%dudz   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((tavg_t(i,j,k)%dvdz   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
 $else
 
-call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz) % dudz, &
-  tavg_t(:,:,1:nz) % dvdz /), &
-  4, x, y, zw(1:nz))
+  $if ($LVLSET)
 
-$endif
+  call write_tecplot_header_ND(fname_vel, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % u, &
+       tavg_t(:,:,1:nz) % v, &
+       tavg_t(:,:,1:nz) % w /), &
+       4, x, y, zw(1:nz))
 
-$if($LVLSET)
+  call write_tecplot_header_ND(fname_vel2, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+       numtostr(coord,6), 2)
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_vel2, 'append', 'formatted', 7, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % u2, &
+       tavg_t(:,:,1:nz) % v2, &
+       tavg_t(:,:,1:nz) % w2, &
+       tavg_t(:,:,1:nz) % uw, &
+       tavg_t(:,:,1:nz) % vw, &
+       tavg_t(:,:,1:nz) % uv /), &
+       4, x, y, zw(1:nz))
 
-call write_tecplot_header_ND(fname_tau, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-   numtostr(coord,6), 2)  
-!  write phi and x,y,z
-call write_real_data_3D(fname_tau, 'append', 'formatted', 7, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  tavg_t(:,:,1:nz) % txx, &
-  tavg_t(:,:,1:nz) % txy, &
-  tavg_t(:,:,1:nz) % tyy, &
-  tavg_t(:,:,1:nz) % txz, &
-  tavg_t(:,:,1:nz) % tyz, &
-  tavg_t(:,:,1:nz) % tzz /), &
-  4, x, y, zw(1:nz))
+  call write_tecplot_header_ND(fname_ddz, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_ddz, 'append', 'formatted', 3, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % dudz, &
+       tavg_t(:,:,1:nz) % dvdz /), &
+       4, x, y, zw(1:nz))
 
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%txx   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((tavg_t(i,j,k)%txy   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((tavg_t(i,j,k)%tyy   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=4) (((tavg_t(i,j,k)%txz   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=5) (((tavg_t(i,j,k)%tyz   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=6) (((tavg_t(i,j,k)%tzz   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
+  call write_tecplot_header_ND(fname_tau, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+       numtostr(coord,6), 2)  
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_tau, 'append', 'formatted', 7, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % txx, &
+       tavg_t(:,:,1:nz) % txy, &
+       tavg_t(:,:,1:nz) % tyy, &
+       tavg_t(:,:,1:nz) % txz, &
+       tavg_t(:,:,1:nz) % tyz, &
+       tavg_t(:,:,1:nz) % tzz /), &
+       4, x, y, zw(1:nz))
 
-call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-   numtostr(coord,6), 2)
-call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz) % txx, &
-  tavg_t(:,:,1:nz) % txy, &
-  tavg_t(:,:,1:nz) % tyy, &
-  tavg_t(:,:,1:nz) % txz, &
-  tavg_t(:,:,1:nz) % tyz, &
-  tavg_t(:,:,1:nz) % tzz /), &
-  4, x, y, zw(1:nz))
+  call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+       numtostr(coord,6), 2)
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % fx, &
+       tavg_t(:,:,1:nz) % fy, &
+       tavg_t(:,:,1:nz) % fz /), &
+       4, x, y, zw(1:nz))
 
-$endif  
+    $if($MPI)
 
-$if($LVLSET)
+    call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fx), fx_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fy), fy_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fz), fz_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
 
-call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
-   numtostr(coord,6), 2)
-!  write phi and x,y,z
-call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  tavg_t(:,:,1:nz) % fx, &
-  tavg_t(:,:,1:nz) % fy, &
-  tavg_t(:,:,1:nz) % fz /), &
-  4, x, y, zw(1:nz))
+    $else
 
-  $if($MPI)
+    fx_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fx)
+    fy_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fy)
+    fz_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fz)
+    
+    $endif
 
-  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fx), fx_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fy), fy_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  call mpi_allreduce(sum(tavg_t(1:nx,1:ny,1:nz-1)%fz), fz_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+  call write_tecplot_header_ND(fname_rs, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+       numtostr(coord,6), 2)  
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_rs, 'append', 'formatted', 7, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       rs_t(:,:,1:nz)%up2, &
+       rs_t(:,:,1:nz)%vp2, &
+       rs_t(:,:,1:nz)%wp2, &
+       rs_t(:,:,1:nz)%upwp, &
+       rs_t(:,:,1:nz)%vpwp, &
+       rs_t(:,:,1:nz)%upvp /), &
+       4, x, y, zw(1:nz))
+  
+  call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "phi", "<cs2>"', numtostr(coord,6), 2)
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_cs, 'append', 'formatted', 2, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz), &
+       tavg_t(:,:,1:nz) % cs_opt2 /), &
+       4, x, y, zw(1:nz))
 
   $else
 
-  fx_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fx)
-  fy_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fy)
-  fz_global = sum(tavg_t(1:nx,1:ny,1:nz-1)%fz)
+  call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+  call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz) % u, &
+       tavg_t(:,:,1:nz) % v, &
+       tavg_t(:,:,1:nz) % w /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+       numtostr(coord,6), 2)
+  call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz) % u2, &
+       tavg_t(:,:,1:nz) % v2, &
+       tavg_t(:,:,1:nz) % w2, &
+       tavg_t(:,:,1:nz) % uw, &
+       tavg_t(:,:,1:nz) % vw, &
+       tavg_t(:,:,1:nz) % uv /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+  call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz) % dudz, &
+       tavg_t(:,:,1:nz) % dvdz /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+       numtostr(coord,6), 2)
+  call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz) % txx, &
+       tavg_t(:,:,1:nz) % txy, &
+       tavg_t(:,:,1:nz) % tyy, &
+       tavg_t(:,:,1:nz) % txz, &
+       tavg_t(:,:,1:nz) % tyz, &
+       tavg_t(:,:,1:nz) % tzz /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+       numtostr(coord,6), 2)
+  call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz) % fx, &
+       tavg_t(:,:,1:nz) % fy, &
+       tavg_t(:,:,1:nz) % fz /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+       numtostr(coord,6), 2)
+  call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
+       (/ rs_t(:,:,1:nz)%up2, &
+       rs_t(:,:,1:nz)%vp2, &
+       rs_t(:,:,1:nz)%wp2, &
+       rs_t(:,:,1:nz)%upwp, &
+       rs_t(:,:,1:nz)%vpwp, &
+       rs_t(:,:,1:nz)%upvp /), &
+       4, x, y, zw(1:nz))
+
+  call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<cs2>"', numtostr(coord,6), 2)
+  call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
+       (/ tavg_t(:,:,1:nz)% cs_opt2 /), &
+       4, x, y, zw(1:nz))
 
   $endif
 
-  $if($OUTPUT_EXTRA)
-  ! if (coord == 0) then
-  !   open(unit = 1, file = path // "output/force_total_avg.dat", status="unknown", position="rewind") 
-  !   write(1,'(a,3e15.6)') '<fx>, <fy>, <fz> : ', fx_global, fy_global, fz_global
-  !   close(1)
-  ! endif
-  $endif
-
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%fx   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((tavg_t(i,j,k)%fy   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((tavg_t(i,j,k)%fz   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
-
-call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
-   numtostr(coord,6), 2)
-call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz) % fx, &
-  tavg_t(:,:,1:nz) % fy, &
-  tavg_t(:,:,1:nz) % fz /), &
-  4, x, y, zw(1:nz))
-
 $endif
-  
-$if($LVLSET)
-
-call write_tecplot_header_ND(fname_rs, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
-   numtostr(coord,6), 2)  
-!  write phi and x,y,z
-call write_real_data_3D(fname_rs, 'append', 'formatted', 7, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  rs_t(:,:,1:nz)%up2, &
-  rs_t(:,:,1:nz)%vp2, &
-  rs_t(:,:,1:nz)%wp2, &
-  rs_t(:,:,1:nz)%upwp, &
-  rs_t(:,:,1:nz)%vpwp, &
-  rs_t(:,:,1:nz)%upvp /), &
-  4, x, y, zw(1:nz))
-
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((rs_t(i,j,k)%up2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=2) (((rs_t(i,j,k)%vp2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=3) (((rs_t(i,j,k)%wp2   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=4) (((rs_t(i,j,k)%upwp   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=5) (((rs_t(i,j,k)%vpwp   ,i=1,nx),j=1,ny),k=1,nz)
-     write(13,rec=6) (((rs_t(i,j,k)%upvp   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
-
-call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
-   numtostr(coord,6), 2)
-call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
-  (/ rs_t(:,:,1:nz)%up2, &
-  rs_t(:,:,1:nz)%vp2, &
-  rs_t(:,:,1:nz)%wp2, &
-  rs_t(:,:,1:nz)%upwp, &
-  rs_t(:,:,1:nz)%vpwp, &
-  rs_t(:,:,1:nz)%upvp /), &
-  4, x, y, zw(1:nz))
-
-$endif
-
-$if($LVLSET)
-
-call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "phi", "<cs2>"', numtostr(coord,6), 2)
-!  write phi and x,y,z
-call write_real_data_3D(fname_cs, 'append', 'formatted', 2, nx, ny, nz, &
-  (/ phi(1:nx,1:ny,1:nz), &
-  tavg_t(:,:,1:nz) % cs_opt2 /), &
-  4, x, y, zw(1:nz))
-
-$elseif($BINARY)
-    ! RICHARD
-     open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-     write(13,rec=1) (((tavg_t(i,j,k)%cs_opt2   ,i=1,nx),j=1,ny),k=1,nz)
-     close(13)
-$else
-
-call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-   '"x", "y", "z", "<cs2>"', numtostr(coord,6), 2)
-call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
-  (/ tavg_t(:,:,1:nz)% cs_opt2 /), &
-  4, x, y, zw(1:nz))
-
-$endif
-
 
 !----
 $if($OUTPUT_EXTRA)
-    $if($LVLSET)
 
-    call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+  $if($LVLSET)
+
+  call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
        '"x", "y", "z", "phi", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
-    !  write phi and x,y,z
-    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
-      (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
-      (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), 4)  
-
-    $else
-
-    call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
-    call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
-      (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), &
-      4, x, y, zw(1:nz))
-
-    $endif
-    
-    
-    $if($LVLSET)
-
-    call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
+  !  write phi and x,y,z
+  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+       (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), 4)  
+  
+  call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
        '"x", "y", "z", "phi", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
     !  write phi and x,y,z
-    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
-      (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
-      (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), 4)  
+  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
+       (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+       (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), 4)  
 
-    $else
+  $else
+  
+  call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+       '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+       (/ tavg_sgs_t % Tn, tavg_sgs_t % Nu_t /), &
+       4, x, y, zw(1:nz))
 
-    call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+  call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
        '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
-    call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
-      (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), &
-      4, x, y, zw(1:nz))
+  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+       (/ tavg_sgs_t % F_LM, tavg_sgs_t % F_MM, tavg_sgs_t % F_QN, tavg_sgs_t % F_NN /), &
+       4, x, y, zw(1:nz))
 
-    $endif    
+  $endif
+  
     
-    $if($DYN_TN)
-      $if($LVLSET)
+  $if($DYN_TN)
+    
+    $if($LVLSET)
 
-      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
          '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-      !  write phi and x,y,z
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-        (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), 4)  
+    !  write phi and x,y,z
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+         (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+         (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), 4)  
 
-      $else
-
-      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-         '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-        (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), &
-        4, x, y, zw(1:nz))
-
-      $endif        
     $else
-      $if($LVLSET)
+    
+    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+         '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+         (/ tavg_sgs_t % ee_now, tavg_sgs_t % F_ee2, tavg_sgs_t % F_deedt2 /), &
+         4, x, y, zw(1:nz))
+    
+    $endif        
+    
+  $else
+  
+    $if($LVLSET)
 
-      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
          '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
-      !  write phi and x,y,z
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-        (/ tavg_sgs_t % ee_now /), 4)  
+    !  write phi and x,y,z
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+         (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+         (/ tavg_sgs_t % ee_now /), 4)  
+    
+    $else
 
-      $else
-
-      call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
          '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
-      call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-        (/ tavg_sgs_t % ee_now /), &
-        4, x, y, zw(1:nz))
+    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+         (/ tavg_sgs_t % ee_now /), &
+         4, x, y, zw(1:nz))
+    
+    $endif        
 
-      $endif        
-    $endif
+  $endif
     
 $endif
 !----
