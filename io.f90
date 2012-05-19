@@ -25,7 +25,7 @@ public stats_init
 character (*), parameter :: mod_name = 'io'
 
 ! Output file id's (see README for assigned values)
-integer, parameter :: ke_fid = 1000
+integer, parameter :: ke_fid = 999
 
 contains
 
