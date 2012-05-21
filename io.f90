@@ -1500,7 +1500,7 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : nz, checkpoint_file
+use param, only : nz, checkpoint_file, tavg_calc
 $if($MPI)
 use param, only : coord
 $endif
@@ -1562,7 +1562,7 @@ $if ($DYN_TN)
 $endif
 
 ! Checkpoint all time averaging restart data
-call tavg_checkpoint()
+if( tavg_calc ) call tavg_checkpoint()
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
