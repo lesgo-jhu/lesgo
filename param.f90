@@ -199,7 +199,7 @@ module param
   !logical, parameter :: tavg_calc = .true.
   !integer, parameter :: tavg_nstart = 50000, tavg_nend = nsteps
   logical :: tavg_calc = .false.
-  integer :: tavg_nstart = 1, tavg_nend = 50000
+  integer :: tavg_nstart = 1, tavg_nend = 50000, tavg_nskip = 100
 
   ! turns instantaneous velocity recording on or off
   !logical, parameter :: point_calc = .true.

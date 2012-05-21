@@ -212,14 +212,13 @@ subroutine output_loop(jt)
 !  calculations are performed here.
 !
 use param, only : checkpoint_data, checkpoint_nskip
-use param, only : tavg_calc, tavg_nstart, tavg_nend
+use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 use param, only : spectra_calc, spectra_nstart, spectra_nend
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use param, only : wbase !RICHARD
 implicit none
 integer,intent(in)::jt
 
@@ -232,7 +231,7 @@ endif
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tavg_nstart .and. jt <= tavg_nend) then
+  if(jt >= tavg_nstart .and. jt <= tavg_nend .and. ( mod(jt-tavg_nstart,tavg_nskip)==0)) then
     if(jt == tavg_nstart) then
       if (coord == 0) then
         write(*,*) '-------------------------------'   
@@ -243,11 +242,10 @@ if(tavg_calc) then
       call tavg_init()
 
     endif
-!  Compute running summations
-! RICHARD: only call the time averaging a limited number of times
-    if (modulo (jt, wbase) == 0) then
+    
+    !  Compute running summations
     call tavg_compute ()
-    endif
+
   endif 
   
 endif

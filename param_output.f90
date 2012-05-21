@@ -103,7 +103,7 @@ write(2,i_fmt) 'lag_cfl_count : ', lag_cfl_count
 write(2,l_fmt) 'checkpoint_data : ', checkpoint_data
 write(2,i_fmt) 'checkpoint_nskip : ', checkpoint_nskip
 write(2,l_fmt) 'tavg_calc : ', tavg_calc
-write(2,x2i_fmt) 'tavg_nstart, tavg_nend : ', tavg_nstart, tavg_nend
+write(2,x3i_fmt) 'tavg_nstart, tavg_nend, tavg_nskip : ', tavg_nstart, tavg_nend, tavg_nskip
 write(2,l_fmt) 'point_calc : ', point_calc
 write(2,x3i_fmt) 'point_nstart, point_nend, point_nskip : ', point_nstart, point_nend, point_nskip
 write(2,i_fmt) 'point_nloc : ', point_nloc

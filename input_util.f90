@@ -522,6 +522,8 @@ do
         read (buff(equal_pos+1:), *) tavg_nstart
      case ('TAVG_NEND')
         read (buff(equal_pos+1:), *) tavg_nend
+     case ('TAVG_NSKIP')
+        read (buff(equal_pos+1:), *) tavg_nskip
 
      case ('POINT_CALC')
         read (buff(equal_pos+1:), *) point_calc
