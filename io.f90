@@ -33,7 +33,7 @@ contains
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : use_cfl_dt, dt, cfl_f, path
-use stat_defs, only : tavg_time_stamp
+use stat_defs, only : tavg_time_stamp, spectra_time_stamp
 implicit none
 
 include 'tecryte.h'
@@ -53,7 +53,7 @@ if (cumulative_time) then
   if (exst) then
     open (1, file=fcumulative_time)
     
-    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp
+    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp
     
     close (1)
   else  !--assume this is the first run on cumulative time
@@ -64,6 +64,7 @@ if (cumulative_time) then
     total_time = 0.0_rprec
     total_time_dim = 0.0_rprec
     tavg_time_stamp = -1.0_rprec ! Set less than zero to avoid equality comparison of real
+    spectra_time_stamp = -1.0_rprec ! Set less than zero to avoid equality comparison of real
   end if
 
 end if
@@ -1500,7 +1501,7 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : nz, checkpoint_file, tavg_calc
+use param, only : nz, checkpoint_file, tavg_calc, spectra_calc
 $if($MPI)
 use param, only : coord
 $endif
@@ -1512,7 +1513,7 @@ $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_time_stamp
+use stat_defs, only : tavg_time_stamp, spectra_time_stamp
 use string_util, only : string_concat
 implicit none
 
@@ -1561,8 +1562,10 @@ $if ($DYN_TN)
   close(13)
 $endif
 
-! Checkpoint all time averaging restart data
+! Checkpoint time averaging restart data
 if( tavg_calc ) call tavg_checkpoint()
+! Checkpoint spectra restart data
+if( spectra_calc ) call spectra_checkpoint()
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -1579,7 +1582,7 @@ if (coord == 0) then
    !--only do this for true final output, not intermediate recording
    open (1, file=fcumulative_time)
 
-   write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w, tavg_time_stamp
+   write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w, tavg_time_stamp, spectra_time_stamp
 
    close(1)
 
@@ -1996,8 +1999,7 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use param, only : tavg_nskip
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
-use stat_defs, only : dt_tavg, tavg_time_stamp
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg_time_stamp
 $if($OUTPUT_EXTRA)
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
@@ -2011,6 +2013,8 @@ use functions, only : interp_to_w_grid
 implicit none
 
 integer :: i,j,k
+real(rprec) :: dt_tavg
+
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: u_w, v_w
 
@@ -2143,7 +2147,7 @@ end subroutine tavg_compute
 subroutine tavg_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use grid_defs, only : grid_t !x,y,z
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, dt_tavg, tavg
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, tavg
 use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t 
 use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only :  operator(.ADD.), operator(.SUB.)
@@ -3019,14 +3023,13 @@ end subroutine tavg_checkpoint
 subroutine spectra_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
-use param, only : path
+use param, only : path, checkpoint_spectra_file
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
-character (*), parameter :: fspectra_in = path // 'spectra.out'
 $if ($MPI)
 character (*), parameter :: MPI_suffix = '.c'
 $endif
@@ -3038,7 +3041,7 @@ integer :: k
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-fname = fspectra_in
+fname = checkpoint_spectra_file
 $if ($MPI)
 call string_concat( fname, MPI_suffix, coord )
 $endif
@@ -3074,12 +3077,6 @@ enddo
 
 close(1)
 
-!  Prepare for averaging
-do k=1, spectra_nloc
-  spectra_t(k) % power = spectra_t(k) % power * spectra_total_time
-enddo
-
-
 return
 end subroutine spectra_init
 
@@ -3089,8 +3086,8 @@ subroutine spectra_compute()
 use types, only : rprec
 use sim_param, only : u
 use param, only : Nx, Ny, dt, dz, lh
-use param, only : spectra_nloc
-use stat_defs, only : spectra_t, spectra_total_time
+use param, only : spectra_nloc, spectra_nskip
+use stat_defs, only : spectra_t, spectra_total_time, spectra_time_stamp
 use functions, only : linear_interp
 use fft, only : forw_spectra
 implicit none
@@ -3098,8 +3095,20 @@ implicit none
 integer :: i, j, k
 real(rprec), allocatable, dimension(:) :: ui, uhat, power
 
+real(rprec) :: nxny, dt_spectra
+
 ! Interpolation variable
 allocate(ui(nx), uhat(nx), power(lh))
+
+if( spectra_time_stamp < 0.0_rprec ) then
+   ! Approximating the very first dt_spectra
+   dt_spectra = spectra_nskip * dt
+else
+   dt_spectra = total_time - spectra_time_stamp
+endif
+spectra_time_stamp = total_time
+
+nxny = real(nx*ny,rprec)
 
 !  Loop over all spectra locations
 do k=1, spectra_nloc
@@ -3131,8 +3140,8 @@ do k=1, spectra_nloc
     enddo
     power(lh) = uhat(lh)**2 ! Nyquist
 
-    ! Sum jth component and normalize
-    spectra_t(k) % power = spectra_t(k) % power + power / nx
+    ! Sum jth component, normalize, and include averaging over y 
+    spectra_t(k) % power = spectra_t(k) % power + dt_spectra * power / nxny
 
   enddo
 
@@ -3164,22 +3173,11 @@ include 'tecryte.h'
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
 character(25) :: cl
 character (64) :: fname
-character(64) :: fname_out
-
-$if($MPI)
-character(64) :: temp
-$endif
 
 integer :: i, k
 
-logical :: opn
-
-!  Set file names
-fname_out = path // 'spectra.out'
-
-$if ($MPI)
-call string_concat( fname_out, '.c', coord )
-$endif
+! Perform final checkpoint 
+call spectra_checkpoint()
 
 !  Loop over all zplane locations
 do k=1,spectra_nloc
@@ -3188,8 +3186,8 @@ do k=1,spectra_nloc
   if(spectra_t(k) % coord == coord) then
   $endif
 
-  ! Finalize averaging for power spectra (averaging over y and time)
-  spectra_t(k) % power = (spectra_t(k) % power / Ny) / spectra_total_time
+  ! Finalize averaging for power spectra (averaging over time)
+  spectra_t(k) % power = spectra_t(k) % power / spectra_total_time
 
   !  Create unique file name
   fname = path
@@ -3206,19 +3204,49 @@ do k=1,spectra_nloc
   $endif
 
 enddo  
+  
+deallocate(spectra_t)
+
+return
+
+end subroutine spectra_finalize
+
+!*******************************************************************************
+subroutine spectra_checkpoint()
+!*******************************************************************************
+!
+! This subroutine writes the restart data and is to be called by 'checkpoint'
+! for intermediate checkpoints and by 'spectra_finalize' at the end of the 
+! simulation.    
+! 
+use param, only : checkpoint_spectra_file, spectra_nloc
+use stat_defs, only : spectra_t, spectra_total_time
+
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.spectra_checkpoint'
+character (64) :: fname
+
+logical :: opn
+integer :: k
+
+fname = checkpoint_spectra_file
+$if($MPI)
+call string_concat( fname, '.c', coord)
+$endif
 
 !  Write data to spectra.out
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($WRITE_BIG_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
+open (1, file=fname, action='write', position='rewind', &
   form='unformatted', convert='big_endian')
 $elseif ($WRITE_LITTLE_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
+open (1, file=fname, action='write', position='rewind', &
   form='unformatted', convert='little_endian')
 $else
-open (1, file=fname_out, action='write', position='rewind', form='unformatted')
+open (1, file=fname, action='write', position='rewind', form='unformatted')
 $endif
 
 ! write the accumulated time and power
@@ -3227,11 +3255,8 @@ do k=1, spectra_nloc
   write (1) spectra_t(k) % power
 enddo
 close(1)
-  
-deallocate(spectra_t)
 
 return
-
-end subroutine spectra_finalize
+end subroutine spectra_checkpoint
 
 end module io

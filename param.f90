@@ -24,6 +24,8 @@ module param
   $if($OUTPUT_EXTRA) 
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
   $endif
+  character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
+
 !---------------------------------------------------
 ! MPI PARAMETERS
 !---------------------------------------------------
@@ -225,7 +227,7 @@ module param
   real(rprec), allocatable, dimension(:) :: zplane_loc
 
   logical :: spectra_calc=.false.
-  integer :: spectra_nstart=10000, spectra_nend=50000
+  integer :: spectra_nstart=10000, spectra_nend=50000, spectra_nskip=100
   integer :: spectra_nloc=1
   real(rprec), allocatable, dimension(:) :: spectra_loc
 

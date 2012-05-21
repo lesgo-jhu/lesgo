@@ -38,10 +38,13 @@ real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
-! Time step used for time averaging computations
-real(rprec) :: dt_tavg
 ! Time stamp of last time averaging computation
 real(rprec) :: tavg_time_stamp  
+
+! Time step used for time averaging of spectra
+real(rprec) :: dt_spectra
+! Time stampe of last spectra computation
+real(rprec) :: spectra_time_stamp
   
 !  Sums performed over time
 type tavg

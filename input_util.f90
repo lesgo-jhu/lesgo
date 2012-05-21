@@ -586,6 +586,8 @@ do
         read (buff(equal_pos+1:), *) spectra_nstart
      case ('SPECTRA_NEND')
         read (buff(equal_pos+1:), *) spectra_nend
+     case ('SPECTRA_NSKIP')
+        read (buff(equal_pos+1:), *) spectra_nskip
      case ('SPECTRA_LOC')
         call parse_vector( buff(equal_pos+1:), spectra_nloc, spectra_loc )
 
