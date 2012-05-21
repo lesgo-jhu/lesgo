@@ -1997,7 +1997,7 @@ subroutine tavg_compute()
 use types, only : rprec
 use param, only : tavg_nskip
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
-use stat_defs, only : dt_tavg_compute, tavg_time_stamp
+use stat_defs, only : dt_tavg, tavg_time_stamp
 $if($OUTPUT_EXTRA)
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
@@ -2021,14 +2021,14 @@ u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( u(1:nx,1:ny,lbz:nz), lbz )
 v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( v(1:nx,1:ny,lbz:nz), lbz )
 
 !RICHARD
-! dt_tavg_compute should be the time between two consecutive calls to this function
+! dt_tavg should be the time between two consecutive calls to this function
 ! The first tavg_time_stamp is known from previous simulation as it is read from 'total_time.dat'
 ! The very first dt_tavg is not known 
 if( tavg_time_stamp < 0.0_rprec ) then
    ! Approximating the very first dt_tavg
-   dt_tavg_compute = tavg_nskip * dt
+   dt_tavg = tavg_nskip * dt
 else
-   dt_tavg_compute = total_time - tavg_time_stamp
+   dt_tavg = total_time - tavg_time_stamp
 endif
 tavg_time_stamp = total_time
 
@@ -2041,27 +2041,27 @@ do k=jzmin,jzmax
       w_p = w(i,j,k)
           
       ! === uv-grid variables ===
-      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg_compute
-      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg_compute
-      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg_compute
-      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg_compute
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
 
       ! === w-grid variables === 
-      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg_compute                    
-      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg_compute                         
-      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg_compute
-      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg_compute
-      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg_compute
-      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg_compute
-      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt_tavg_compute
-      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg_compute
-      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg_compute
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
+      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt_tavg
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
 
-      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg_compute
-      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg_compute
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
 
-      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg_compute
-      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg_compute
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
       
     enddo
   enddo
@@ -2074,18 +2074,18 @@ do k=1,jzmax        ! these do not have a k=0 level (needed by coord==0)
  
       ! === uv-grid variables === 
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
-      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg_compute 
-      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg_compute
+      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
+      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg
 
       ! === w-grid variables === 
-      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg_compute
+      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
 
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
-      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg_compute
+      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
       
     $if($OUTPUT_EXTRA)
       ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg_compute
+      tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
     $endif
     
     enddo
@@ -2098,7 +2098,7 @@ do k=1,jzmax
   do j=1,ny
     do i=1,nx
       ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg_compute
+      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
     enddo
   enddo
 enddo
@@ -2111,15 +2111,15 @@ do k=1,jzmax
   do j=1,ny
     do i=1,nx
       ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg_compute
-      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg_compute
-      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg_compute
-      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg_compute
-      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg_compute
+      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
+      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
+      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
+      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
+      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
 
       $if ($DYN_TN)
-      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg_compute
-      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg_compute
+      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
+      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
       $endif         
     enddo
   enddo
@@ -2130,9 +2130,9 @@ $endif
 deallocate( u_w, v_w )
 
 ! Update tavg_total_time for variable time stepping
-tavg_total_time = tavg_total_time + dt_tavg_compute
+tavg_total_time = tavg_total_time + dt_tavg
 $if($OUTPUT_EXTRA)
-tavg_total_time_sgs = tavg_total_time_sgs + dt_tavg_compute
+tavg_total_time_sgs = tavg_total_time_sgs + dt_tavg
 $endif
 
 return
@@ -2143,7 +2143,7 @@ end subroutine tavg_compute
 subroutine tavg_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use grid_defs, only : grid_t !x,y,z
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, dt_tavg_compute, tavg
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, dt_tavg, tavg
 use stat_defs, only : rs, rs_t, rs_zplane_t, cnpy_zplane_t 
 use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only :  operator(.ADD.), operator(.SUB.)

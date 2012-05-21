@@ -39,7 +39,7 @@ $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
 ! Time step used for time averaging computations
-real(rprec) :: dt_tavg_compute
+real(rprec) :: dt_tavg
 ! Time stamp of last time averaging computation
 real(rprec) :: tavg_time_stamp  
   
