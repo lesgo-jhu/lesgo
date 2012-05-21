@@ -178,9 +178,6 @@ module param
   ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
   !integer,parameter::wbase=100
   integer :: wbase = 100
-  !RICHARD: Dummy time for calling averaging function only limited number of times
-  real(rprec) :: dt_tavgcompute = 0.0_rprec
-  real(rprec) :: dt_tavg_previous =0.0_rprec
 
   ! how often to write ke to check_ke.out
   !integer, parameter :: nenergy = 100
