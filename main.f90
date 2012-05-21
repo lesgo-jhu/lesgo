@@ -404,7 +404,7 @@ do jt=1,nsteps
     $endif
 
     ! Write output files
-    call output_loop (jt)  
+    call output_loop()  
 
     if (modulo (jt, wbase) == 0) then
        
@@ -445,7 +445,7 @@ end do
 close(2)
     
 ! Write total_time.dat and tavg files
-call output_final (jt)
+call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total_t )
