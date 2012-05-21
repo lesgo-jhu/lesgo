@@ -204,13 +204,14 @@ $endif
 end subroutine energy
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine output_loop(jt)
+subroutine output_loop()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 !  This subroutine is called every time step and acts as a driver for 
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
+use param, only : jt, nsteps
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 use param, only : spectra_calc, spectra_nstart, spectra_nend
@@ -220,12 +221,12 @@ use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
 implicit none
-integer,intent(in)::jt
 
 ! Determine if we are to checkpoint intermediate times
 if( checkpoint_data ) then
    ! Now check if data should be checkpointed this time step
-   if (modulo (jt, checkpoint_nskip) == 0) call checkpoint()
+   ! Don't checkpoint for last time step since this is done in output_final
+   if ( jt < nsteps .and. modulo (jt, checkpoint_nskip) == 0) call checkpoint()
 endif 
 
 !  Determine if time summations are to be calculated
@@ -1505,8 +1506,8 @@ use param, only : coord
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-$if ($DYN_TN)
-use sgs_param, only:F_ee2,F_deedt2,ee_past
+$if($DYN_TN)
+use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
@@ -1539,6 +1540,26 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
 
+$if ($DYN_TN) 
+! Write running average variables to file
+  fname = path // 'dyn_tn.out'
+  $if ($MPI)
+  call string_concat( fname, '.c', coord)
+  $endif
+  
+  $if ($WRITE_BIG_ENDIAN)
+  open(unit=13,file=fname,form='unformatted',position='rewind',convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open(unit=13,file=fname,form='unformatted',position='rewind',convert='little_endian')
+  $else
+  open(unit=13,file=fname,form='unformatted',position='rewind')
+  $endif
+
+  write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
+
+  close(13)
+$endif
+
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
@@ -1550,15 +1571,15 @@ endif
 
 !  Update total_time.dat after simulation
 !if ((cumulative_time) .and. (lun == lun_default)) then
-  if (coord == 0) then
-    !--only do this for true final output, not intermediate recording
-    open (1, file=fcumulative_time)
+if (coord == 0) then
+   !--only do this for true final output, not intermediate recording
+   open (1, file=fcumulative_time)
 
-    write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w
+   write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w
 
-    close(1)
+   close(1)
 
-  end if
+end if
 !end if
 
 return
@@ -1566,20 +1587,11 @@ end subroutine checkpoint
 
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine output_final(jt)
+subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
-$if($DYN_TN)
-use sgs_param, only: F_ee2, F_deedt2, ee_past
-$endif
 implicit none
-
-integer,intent(in) :: jt
-
-$if ($DYN_TN)
-character (64) :: fname_dyn_tn, temp
-$endif
 
 ! Perform final checkpoing
 call checkpoint()
@@ -1589,26 +1601,6 @@ if(tavg_calc) call tavg_finalize()
 
 !  Check if spectra is to be computed
 if(spectra_calc) call spectra_finalize()
- 
-$if ($DYN_TN) 
-! Write running average variables to file
-  fname_dyn_tn = path // 'dyn_tn.out'
-  $if ($MPI)
-  call string_concat( fname_dyn_tn, '.c', coord)
-  $endif
-  
-  $if ($WRITE_BIG_ENDIAN)
-  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind',convert='big_endian')
-  $elseif ($WRITE_LITTLE_ENDIAN)
-  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind',convert='little_endian')
-  $else
-  open(unit=13,file=fname_dyn_tn,form='unformatted',position='rewind')
-  $endif
-
-  write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
-
-  close(13)
-$endif
 
 return
 end subroutine output_final
