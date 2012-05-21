@@ -20,7 +20,10 @@ module param
   integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
   character(*), parameter :: PATH = './'
   character(*), parameter :: checkpoint_file = path // 'vel.out'
-
+  character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
+  $if($OUTPUT_EXTRA) 
+  character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
+  $endif
 !---------------------------------------------------
 ! MPI PARAMETERS
 !---------------------------------------------------
