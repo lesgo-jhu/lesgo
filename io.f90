@@ -63,7 +63,7 @@ if (cumulative_time) then
     jt_total = 0
     total_time = 0.0_rprec
     total_time_dim = 0.0_rprec
-    tavg_time_stamp = 0.0_rprec
+    tavg_time_stamp = -1.0_rprec ! Set less than zero to avoid equality comparison of real
   end if
 
 end if
@@ -1996,7 +1996,8 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use param, only : tavg_nskip
-use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time, dt_tavg_compute, tavg_time_stamp
+use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
+use stat_defs, only : dt_tavg_compute, tavg_time_stamp
 $if($OUTPUT_EXTRA)
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs_t, tavg_total_time_sgs
@@ -2021,8 +2022,14 @@ v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( v(1:nx,1:ny,lbz:nz), lbz )
 
 !RICHARD
 ! dt_tavg_compute should be the time between two consecutive calls to this function
-! The first tavg_time_stamp is known as it is read from 'total_time.dat'
-dt_tavg_compute = total_time - tavg_time_stamp
+! The first tavg_time_stamp is known from previous simulation as it is read from 'total_time.dat'
+! The very first dt_tavg is not known 
+if( tavg_time_stamp < 0.0_rprec ) then
+   ! Approximating the very first dt_tavg
+   dt_tavg_compute = tavg_nskip * dt
+else
+   dt_tavg_compute = total_time - tavg_time_stamp
+endif
 tavg_time_stamp = total_time
 
 do k=jzmin,jzmax  
