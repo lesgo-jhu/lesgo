@@ -1561,6 +1561,9 @@ $if ($DYN_TN)
   close(13)
 $endif
 
+! Checkpoint all time averaging restart data
+call tavg_checkpoint()
+
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
@@ -2161,7 +2164,7 @@ implicit none
 include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
-character(64) :: fname_out, fname_vel, &
+character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
      fname_rs, fname_cs
@@ -2174,7 +2177,7 @@ character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
   fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
 $if($OUTPUT_EXTRA)  
-character(64) :: fname_sgs_out, fname_sgs_TnNu, fname_sgs_Fsub
+character(64) :: fname_sgs_TnNu, fname_sgs_Fsub
   !$if($DYN_TN)
   character(64) :: fname_sgs_ee
   !$endif
@@ -2199,8 +2202,6 @@ type(rs), allocatable, dimension(:) :: cnpy_zplane_tot_t
 type(tavg), allocatable, dimension(:) :: tavg_zplane_tot_t
 
 $endif
-
-logical :: opn
 
 type(rs) :: cnpy_avg_t
 type(tavg) :: tavg_avg_t
@@ -2227,8 +2228,6 @@ zw => grid_t % zw
 
 ! All processors need not do this, but that is ok
 !  Set file names
-fname_out = path // 'tavg.out'
-
 fname_vel = path // 'output/vel_avg.dat'
 fname_vel2 = path // 'output/vel2_avg.dat'
 fname_ddz = path // 'output/ddz_avg.dat'
@@ -2255,7 +2254,6 @@ fname_cnpy_zplane = path // 'output/cnpy_zplane.dat'
 fname_cs_zplane = path // 'output/cs_opt2_zplane.dat'
 
 $if($OUTPUT_EXTRA)  
-fname_sgs_out = path // 'tavg_sgs.out'
 fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
 fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
 !$if($DYN_TN)
@@ -2265,7 +2263,6 @@ $endif
   
 $if ($MPI)
   !  For MPI implementation     
-  call string_concat( fname_out, '.c', coord)
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
   call string_concat( fname_ddz, '.c', coord)
@@ -2275,7 +2272,6 @@ $if ($MPI)
   call string_concat( fname_cs, '.c', coord)
 
   $if($OUTPUT_EXTRA)  
-  call string_concat( fname_sgs_out, '.c', coord)
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
  !$if($DYN_TN)
@@ -2284,43 +2280,8 @@ $if ($MPI)
   $endif    
 $endif
 
-!  Write data to tavg.out
-inquire (unit=1, opened=opn)
-if (opn) call error (sub_name, 'unit 1 already open')
-
-$if ($WRITE_BIG_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
-  form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
-open (1, file=fname_out, action='write', position='rewind', &
-  form='unformatted', convert='little_endian')
-$else
-open (1, file=fname_out, action='write', position='rewind', form='unformatted')
-$endif
-
-! write the entire structures
-write (1) tavg_total_time
-write (1) tavg_t
-close(1)
-
-!----
-$if($OUTPUT_EXTRA)
-    !  Write data to tavg_sgs.out
-    $if ($WRITE_BIG_ENDIAN)
-    open (1, file=fname_sgs_out, action='write', position='rewind', &
-      form='unformatted', convert='big_endian')
-    $elseif ($WRITE_LITTLE_ENDIAN)
-    open (1, file=fname_sgs_out, action='write', position='rewind', &
-      form='unformatted', convert='little_endian')
-    $else
-    open (1, file=fname_sgs_out, action='write', position='rewind', form='unformatted')
-    $endif
-
-    ! write the entire structures
-    write (1) tavg_total_time_sgs
-    write (1) tavg_sgs_t
-    close(1)
-$endif
+! Final checkpoint all restart data
+call tavg_checkpoint()
 
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
@@ -2974,6 +2935,78 @@ nullify(x,y,z,zw)
 
 return
 end subroutine tavg_finalize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tavg_checkpoint()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine writes the restart data and is to be called by 'checkpoint'
+! for intermediate checkpoints and by 'tavg_finalize' at the end of the
+! simulation.
+!
+use param, only : checkpoint_tavg_file
+use stat_defs, only : tavg_total_time, tavg_t
+$if($OUTPUT_EXTRA)
+use param, only : checkpoint_tavg_sgs_file
+use stat_defs, only : tavg_total_time_sgs, tavg_sgs_t
+$endif
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.tavg_checkpoint'
+
+character(64) :: fname
+logical :: opn
+
+fname = checkpoint_tavg_file
+$if($MPI)
+call string_concat( fname, '.c', coord)
+$endif
+
+!  Write data to tavg.out
+inquire (unit=1, opened=opn)
+if (opn) call error (sub_name, 'unit 1 already open')
+
+$if ($WRITE_BIG_ENDIAN)
+open (1, file=fname, action='write', position='rewind', &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (1, file=fname, action='write', position='rewind', &
+  form='unformatted', convert='little_endian')
+$else
+open (1, file=fname, action='write', position='rewind', form='unformatted')
+$endif
+
+! write the entire structures
+write (1) tavg_total_time
+write (1) tavg_t
+close(1)
+
+!----
+$if($OUTPUT_EXTRA)
+fname = checkpoint_tavg_sgs_file
+  $if($MPI)
+  call string_concat( fname, '.c', coord)
+  $endif
+
+  !  Write data to tavg_sgs.out
+  $if ($WRITE_BIG_ENDIAN)
+  open (1, file=fname, action='write', position='rewind', &
+       form='unformatted', convert='big_endian')
+  $elseif ($WRITE_LITTLE_ENDIAN)
+  open (1, file=fname, action='write', position='rewind', &
+       form='unformatted', convert='little_endian')
+  $else
+  open (1, file=fname, action='write', position='rewind', form='unformatted')
+  $endif
+
+  ! write the entire structures
+  write (1) tavg_total_time_sgs
+  write (1) tavg_sgs_t
+  close(1)
+$endif
+
+return
+end subroutine tavg_checkpoint
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_init()
