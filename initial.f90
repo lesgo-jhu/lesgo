@@ -3,7 +3,7 @@ subroutine initial()
 !*******************************************************************************
 use types,only:rprec
 use param
-use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
+use sim_param, only : u,v,w,RHSx,RHSy,RHSz,theta,q
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
