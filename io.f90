@@ -1508,10 +1508,14 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
+use param, only : jt_total, total_time, total_time_dim, dt
+use param, only : use_cfl_dt, cfl
+use cfl_util, only : get_max_cfl
 use string_util, only : string_concat
 implicit none
 
 character(64) :: fname
+real(rprec) :: cfl_w
 
 fname = checkpoint_file
 $if ($MPI)
@@ -1535,33 +1539,7 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
 
-end subroutine checkpoint
-
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine output_final(jt)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use stat_defs, only : tavg_t, point_t
-use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
-use param, only : dt
-use param, only : use_cfl_dt, cfl
-use cfl_util, only : get_max_cfl
-$if($DYN_TN)
-use sgs_param, only: F_ee2, F_deedt2, ee_past
-$endif
-implicit none
-
-integer,intent(in) :: jt
-
-real(rprec) :: cfl_w
-
-$if ($DYN_TN)
-character (64) :: fname_dyn_tn, temp
-$endif
-
-! Perform final checkpoing
-call checkpoint()
-
+! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
 if( use_cfl_dt ) then
@@ -1582,6 +1560,29 @@ endif
 
   end if
 !end if
+
+return
+end subroutine checkpoint
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine output_final(jt)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use stat_defs, only : tavg_t, point_t
+use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
+$if($DYN_TN)
+use sgs_param, only: F_ee2, F_deedt2, ee_past
+$endif
+implicit none
+
+integer,intent(in) :: jt
+
+$if ($DYN_TN)
+character (64) :: fname_dyn_tn, temp
+$endif
+
+! Perform final checkpoing
+call checkpoint()
 
 !  Check if average quantities are to be recorded
 if(tavg_calc) call tavg_finalize()
