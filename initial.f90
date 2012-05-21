@@ -35,11 +35,12 @@ $if ($DYN_TN)
 ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
 $endif
 
-fname = path // 'vel.out'
+fname = checkpoint_file
 fname_dyn_tn = path // 'dyn_tn.out'
+
 $if ($MPI)
-  call string_concat( fname, '.c', coord )
-  call string_concat( fname_dyn_tn, '.c', coord )
+call string_concat( fname, '.c', coord )
+call string_concat( fname_dyn_tn, '.c', coord )
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
@@ -124,15 +125,6 @@ $if ($MPI)
     v(:, :, lbz) = BOGUS
     w(:, :, lbz) = BOGUS
   end if
-$endif
-
-!  Open vel.out (lun_default in io) for final output
-$if ($WRITE_BIG_ENDIAN)
-open(11,file=fname,form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
-open(11,file=fname,form='unformatted', convert='little_endian')
-$else
-open(11,file=fname,form='unformatted')
 $endif
 
 contains

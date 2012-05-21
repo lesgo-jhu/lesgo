@@ -18,7 +18,8 @@ module param
 ! GLOBAL PARAMETERS
 !---------------------------------------------------  
   integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
-  character (*), parameter :: PATH = './'
+  character(*), parameter :: PATH = './'
+  character(*), parameter :: checkpoint_file = path // 'vel.out'
 
 !---------------------------------------------------
 ! MPI PARAMETERS
@@ -189,6 +190,10 @@ module param
   ! dynamic SGS models
   !integer,parameter::lag_cfl_count=1000
   integer :: lag_cfl_count = 1000
+
+  ! Flags for controling checkpointing data
+  logical :: checkpoint_data = .false.
+  integer :: checkpoint_nskip = 10000
 
   ! records time-averaged data to files ./output/*_avg.dat
   !logical, parameter :: tavg_calc = .true.

@@ -511,6 +511,11 @@ do
      case ('LAG_CFL_COUNT')
         read (buff(equal_pos+1:), *) lag_cfl_count
 
+     case ('CHECKPOINT_DATA')
+        read (buff(equal_pos+1:), *) checkpoint_data
+     case ('CHECKPOINT_NSKIP')        
+        read (buff(equal_pos+1:), *) checkpoint_nskip
+
      case ('TAVG_CALC')
         read (buff(equal_pos+1:), *) tavg_calc
      case ('TAVG_NSTART')

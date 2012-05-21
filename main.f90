@@ -405,22 +405,18 @@ do jt=1,nsteps
 
     ! Write output files
     call output_loop (jt)  
-    !RNS: Determine if instantaneous plane velocities are to be recorded
-        
-    ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
+
     if (modulo (jt, wbase) == 0) then
        
        ! Get the ending time for the iteration
        call clock_stop( clock_t )
        call clock_stop( clock_total_t )
 
-       
         ! Calculate rms divergence of velocity
        !   only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
-       
        if (coord == 0) then
           write(*,*)
           write(*,'(a)') '========================================'

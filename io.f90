@@ -211,6 +211,7 @@ subroutine output_loop(jt)
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
+use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend
 use param, only : spectra_calc, spectra_nstart, spectra_nend
 use param, only : point_calc, point_nstart, point_nend, point_nskip
@@ -221,6 +222,12 @@ use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
 use param, only : wbase !RICHARD
 implicit none
 integer,intent(in)::jt
+
+! Determine if we are to checkpoint intermediate times
+if( checkpoint_data ) then
+   ! Now check if data should be checkpointed this time step
+   if (modulo (jt, checkpoint_nskip) == 0) call checkpoint()
+endif 
 
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
@@ -1492,40 +1499,50 @@ $endif
 end subroutine inst_write
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine checkpoint (lun)
+subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--assumes lun is open and positioned correctly
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-use param, only : nz
+use param, only : nz, checkpoint_file
+$if($MPI)
+use param, only : coord
+$endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
+use string_util, only : string_concat
 implicit none
 
-integer, intent (in) :: lun
+character(64) :: fname
 
-!---------------------------------------------------------------------
-      write (lun) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
-                  RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
-                  Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
-                  F_QN(:,:,1:nz), F_NN(:,:,1:nz)
+fname = checkpoint_file
+$if ($MPI)
+call string_concat( fname, '.c', coord )
+$endif
+
+!  Open vel.out (lun_default in io) for final output
+$if ($WRITE_BIG_ENDIAN)
+open(11,file=fname,form='unformatted', convert='big_endian', status='unknown', position='rewind')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open(11,file=fname,form='unformatted', convert='little_endian', status='unknown', position='rewind')
+$else
+open(11,file=fname,form='unformatted', status='unknown', position='rewind')
+$endif
+
+write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
+     Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
+     F_QN(:,:,1:nz), F_NN(:,:,1:nz)
+
+! Close the file to ensure that the data is flushed and written to file
+close(11)
 
 end subroutine checkpoint
 
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine output_final(jt, lun_opt)
+subroutine output_final(jt)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--lun_opt gives option for writing to different unit, and is used by
-!  inflow_write
-!--assumes the unit to write to (lun_default or lun_opt is already
-!  open for sequential unformatted writing
-!--this routine also closes the unit
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 use param, only : dt
@@ -1536,12 +1553,7 @@ use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
 implicit none
 
-integer,intent(in)::jt
-integer, intent (in), optional :: lun_opt  !--if present, write to unit lun
-integer, parameter :: lun_default = 11
-integer :: lun
-
-logical :: opn
+integer,intent(in) :: jt
 
 real(rprec) :: cfl_w
 
@@ -1549,26 +1561,8 @@ $if ($DYN_TN)
 character (64) :: fname_dyn_tn, temp
 $endif
 
-!---------------------------------------------------------------------
-
-if (present (lun_opt)) then
-  lun = lun_opt
-else
-  lun = lun_default
-end if
-
-inquire (unit=lun, opened=opn)
-
-if (.not. opn) then
-  write (*, *) 'output_final: lun=', lun, ' is not open'
-  stop
-end if
-
-rewind (lun)
-
-call checkpoint (lun)
-
-close (lun)
+! Perform final checkpoing
+call checkpoint()
 
 ! Set the current cfl to a temporary (write) value based whether CFL is
 ! specified or must be computed
