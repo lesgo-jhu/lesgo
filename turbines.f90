@@ -60,7 +60,7 @@ implicit none
 include 'tecryte.h'
 
 real(rprec), pointer, dimension(:) :: x,y,z
-
+integer :: s,dummy
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
 nullify(x,y,z)
@@ -91,19 +91,19 @@ turbine_in_proc_array = 0
     enddo
 
 !create files to store turbine forcing data
-    if (.not. turbine_cumulative_time) then
-        if (coord == 0) then
-            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
-            do s=1,nloc
-                fname = path // 'turbine/turbine_'
-                write (temp, '(i0)') s
-                fname2 = trim (fname) // temp
-                fname = trim (fname2) // '_forcing.dat'
-              
-                call write_tecplot_header_xyline(fname,'rewind', var_list)   
-            enddo
-        endif    
-    endif
+!    if (.not. turbine_cumulative_time) then
+!        if (coord == 0) then
+!            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
+!            do s=1,nloc
+!                fname = path // 'turbine/turbine_'
+!                write (temp, '(i0)') s
+!                fname2 = trim (fname) // temp
+!                fname = trim (fname2) // '_forcing.dat'
+!              
+!                call write_tecplot_header_xyline(fname,'rewind', var_list)   
+!            enddo
+!        endif    
+!    endif
     
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
@@ -122,8 +122,7 @@ turbine_in_proc_array = 0
 !3.normalize such that each turbine's ind integrates to turbine volume
 !4.split domain between processors 
     call turbines_filter_ind()
-    
-!set variables for time-averaging velocity 
+!iet variables for time-averaging velocity 
 !    eps = (dt*z_i / u_star)/T_avg_dim / (1. +(dt*z_i / u_star)/T_avg_dim)
     
     if (turbine_cumulative_time) then
@@ -163,6 +162,24 @@ if (coord .eq. nproc-1) then
     open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
+endif
+
+if (coord.eq. 0) then
+do s=1,nloc
+dummy=3000+s
+fname = path // 'turbine/turbine_'
+write (temp, '(i0)') s
+fname2 = trim (fname) // temp
+fname = trim (fname2) // '_forcing.dat'
+open(unit=dummy,file=fname,action='write',position='append',form='formatted')
+
+dummy=2000+s
+fname = path // 'turbine/turbine_'
+write (temp, '(i0)') s
+fname2 = trim (fname) // temp
+fname = trim (fname2) // '_velcenter.dat'
+open(unit=dummy,file=fname,action='write',position='append',form='formatted')
+enddo
 endif
 
 nullify(x,y,z)
@@ -327,8 +344,8 @@ do s=1,nloc
 enddo
 
 nullify(x,y,z)
-
 end subroutine turbines_nodes
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -352,7 +369,6 @@ real(rprec) :: turbine_vol
 real(rprec), pointer, dimension(:) :: x,y,z
 
 !logical :: verbose = .false.
-
 nullify(x,y,z)
 x => grid_t % x
 y => grid_t % y
@@ -480,12 +496,12 @@ do b=1,nloc
                 fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
                 out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
             endif    
-    	    
-    	  enddo
-    	  enddo
-          enddo
-    	enddo
-    	enddo
+        
+        enddo
+       enddo
+      enddo
+     enddo
+    enddo
         enddo
 
         !if (coord == 0) then
@@ -495,20 +511,20 @@ do b=1,nloc
         !endif
 
     !normalize this "indicator function" such that it integrates to turbine volume
-	sumA = 0.
+    sumA = 0.
     do k=1,nz_tot
-	  do j=1,ny
-	    do i=1,nx
+     do j=1,ny
+      do i=1,nx
             if (out_a(i,j,k) < filter_cutoff) then
-	            out_a(i,j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
+            out_a(i,j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
             else
                 sumA = sumA + out_a(i,j,k)*dx*dy*dz
             endif            
-	    enddo
-	  enddo
+      enddo
+     enddo
     enddo
     turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
-	out_a = turbine_vol/sumA*out_a
+    out_a = turbine_vol/sumA*out_a
 
     if (coord == 0) then
         large_node_array_filtered = large_node_array_filtered + out_a
@@ -530,22 +546,22 @@ do b=1,nloc
         k_end = nz
     $endif
 
-	do k=k_start,k_end  !global k     
-		do j=1,ny
-			do i=1,nx
-				if (out_a(i,j,k) > filter_cutoff) then
-                    wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)		
-					wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
-					wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
-					wind_farm_t%turbine_t(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
-                    count_n = count_n + 1
-					count_i = count_i + 1
-                    turbine_in_proc = .true.                    
-				endif
-			enddo
-		enddo
-	enddo
-	wind_farm_t%turbine_t(b)%num_nodes = count_n
+    do k=k_start,k_end  !global k     
+     do j=1,ny
+      do i=1,nx
+       if (out_a(i,j,k) > filter_cutoff) then
+        wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)
+        wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
+        wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
+        wind_farm_t%turbine_t(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
+        count_n = count_n + 1
+        count_i = count_i + 1
+        turbine_in_proc = .true.                    
+       endif
+      enddo
+     enddo
+    enddo
+    wind_farm_t%turbine_t(b)%num_nodes = count_n
     
     if (count_n > 0) then
         $if ($MPI)
@@ -575,7 +591,7 @@ enddo
         do l=1,wind_farm_t%turbine_t(b)%num_nodes
             i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)	
+            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
             temp_array_2(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
         enddo   
         enddo
@@ -596,12 +612,16 @@ enddo
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
 !############################################## 2
 $if ($MPI)
-    if (rank == 0) then
+    if (coord == 0) then
         if (turbine_in_proc) then
             print*,'Coord 0 has turbine nodes' 
         endif
         do i=1,nproc-1
-            call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, MPI_COMM_WORLD, status, ierr )
+$if ($CPS) ! Used because the upstream producing domain has the lower adresses   
+        call MPI_recv( buffer_logical, 1, MPI_logical, i+nproc, 2, MPI_COMM_WORLD, status, ierr )
+$else
+        call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, MPI_COMM_WORLD, status, ierr )
+$endif
             if (buffer_logical) then
                 write (string3, '(i3)') i
                 string3 = trim(adjustl(string3))       
@@ -611,13 +631,15 @@ $if ($MPI)
             endif
         enddo
     else
+$if ($CPS) ! See the above comment
+        call MPI_send( turbine_in_proc, 1, MPI_logical, 0+nproc, 2, MPI_COMM_WORLD, ierr )
+$else
         call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, MPI_COMM_WORLD, ierr )
+$endif
     endif
 $endif
-
 nullify(x,y,z)
 !##############################################
-
 end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -630,8 +652,8 @@ use functions, only: interp_to_uv_grid
 $if ($MPI)
     use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
-
 implicit none
+integer :: kstart, kend,dummy
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null()
@@ -655,6 +677,7 @@ w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
 
+
 !Each processor calculates the weighted disk-averaged velocity
 if (turbine_in_proc) then
 
@@ -671,13 +694,31 @@ if (turbine_in_proc) then
             do l=1,wind_farm_t%turbine_t(s)%num_nodes   
                 i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
                 j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
-                k2 = wind_farm_t%turbine_t(s)%nodes(l,3)	
+                k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
                 p_u_d = p_u_d + (wind_farm_t%turbine_t(s)%nhat(1)*u(i2,j2,k2) &
                                + wind_farm_t%turbine_t(s)%nhat(2)*v(i2,j2,k2) &
                                + wind_farm_t%turbine_t(s)%nhat(3)*w_uv(i2,j2,k2)) &
                     * wind_farm_t%turbine_t(s)%ind(l)        
-            enddo              
-
+             enddo
+                !write center disk velocity to file                   
+                if (modulo (jt, tbase) == 0) then
+                icp = nint(wind_farm_t%turbine_t(s)%xloc/dx)
+                jcp = nint(wind_farm_t%turbine_t(s)%yloc/dy)
+                kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
+                $if ($MPI)
+                k_start =  1+coord*(nz-1)
+                k_end = nz-1+coord*(nz-1)
+                $else
+                k_start = 1
+                k_end = nz
+                $endif
+                if (kcp>=k_start) then
+                if (kcp<=k_end) then
+                dummy=2000+s
+                write(dummy,*) total_time_dim, u(icp,jcp,kcp)
+                endif
+                endif
+                endif
         !write this value to the array (which will be sent to coord 0)
             disk_avg_vels(s) = p_u_d
             
@@ -685,20 +726,30 @@ if (turbine_in_proc) then
         
 endif        
 
+call mpi_barrier (comm,ierr)
+
 !send the disk-avg values to coord==0
 $if ($MPI) 
     !############################################## 3
-    if (rank == 0) then
+    if (coord == 0) then
         do i=1,turbine_in_proc_cnt
             j = turbine_in_proc_array(i)
             buffer_array = 0.
+$if ($CPS)
+            call MPI_recv( buffer_array, nloc, MPI_rprec, j+nproc, 3, MPI_COMM_WORLD, status, ierr )
+$else
             call MPI_recv( buffer_array, nloc, MPI_rprec, j, 3, MPI_COMM_WORLD, status, ierr )
+$endif
             disk_avg_vels = disk_avg_vels + buffer_array
             
         enddo              
                 
     elseif (turbine_in_proc) then
+$if ($CPS)
+        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0+nproc, 3, MPI_COMM_WORLD, ierr )
+$else
         call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, MPI_COMM_WORLD, ierr )
+$endif
     endif            
     !##############################################              
 $endif
@@ -728,15 +779,10 @@ if (coord == 0) then
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
 
             !write values to file                   
-                fname = path // 'turbine/turbine_'
-                write (temp, '(i0)') s
-                fname2 = trim (fname) // temp
-                fname = trim (fname2) // '_forcing.dat'
-
-                open(unit=1,file=fname,action='write',position='append',form='formatted')
-                write(1,*) total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
-                close(1)
-                
+                if (modulo (jt, tbase) == 0) then
+                dummy=3000+s
+                write(dummy,*) total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
+                endif 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
             
@@ -747,15 +793,23 @@ endif
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 $if ($MPI)
     !############################################## 5  
-        if (rank == 0) then
+        if (coord == 0) then
           
             do i=1,turbine_in_proc_cnt
                 j = turbine_in_proc_array(i)
+$if ($CPS)
+                call MPI_send( disk_force, nloc, MPI_rprec, j+nproc, 5, MPI_COMM_WORLD, ierr )
+$else
                 call MPI_send( disk_force, nloc, MPI_rprec, j, 5, MPI_COMM_WORLD, ierr )
+$endif
             enddo              
                         
         elseif (turbine_in_proc) then
+$if ($CPS)
+            call MPI_recv( disk_force, nloc, MPI_rprec, 0+nproc, 5, MPI_COMM_WORLD, status, ierr )
+$else
             call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, MPI_COMM_WORLD, status, ierr )
+$endif
         endif     
     !##############################################     
 $endif 
@@ -826,7 +880,6 @@ end subroutine turbines_forcing
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize ()
-
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
@@ -857,7 +910,6 @@ z => grid_t % z
     deallocate(buffer_array)
 
 nullify(x,y,z)
-
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -892,7 +944,6 @@ real(rprec) :: cft,nu_w,exp_KE
       write(*,*) 'zo_high: ',zo_high
       write(*,*) 'approx expected KE: ', exp_KE
     endif
-
 end subroutine turbine_vel_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
