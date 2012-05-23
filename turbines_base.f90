@@ -25,7 +25,8 @@ real(rprec) :: alpha        ! filter size as multiple of grid spacing
 integer :: trunc            ! Gaussian filter truncated after this many gridpoints
 real(rprec) :: filter_cutoff  ! indicator function only includes values above this threshold
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
-
+integer(rprec) :: tbase     ! Number of timesteps between the output
+ 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
@@ -131,7 +132,15 @@ real(rprec) :: sxx, syy, shift_base, const
     !orientation (angles)
         wind_farm_t%turbine_t(:)%theta1 = theta1_all
         wind_farm_t%turbine_t(:)%theta2 = theta2_all 
-       
+     $if ($CPS) ! Shift the turbines forward in order to use the simulation space more efficiently
+     k=1
+     do i = 1, num_x
+     do j = 1, num_y
+     wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -wind_farm_t%turbine_t(1)%xloc/2
+     k=k+1
+     enddo
+     enddo
+     $endif
  
 end subroutine turbines_base_init
 
