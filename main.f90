@@ -201,8 +201,9 @@ do jt=1,nsteps
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv(divtx, txx, txy, txz)
-    call divstress_uv(divty, txy, tyy, tyz)    
+    !call divstress_uv(divtx, txx, txy, txz)
+    !call divstress_uv(divty, txy, tyy, tyz)    
+    call divstress_uv2 (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
 
     ! Debug
