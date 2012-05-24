@@ -409,8 +409,8 @@ integer, intent(IN) :: itype
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
 character (64) :: fname
-!character(256) :: var_list
-integer :: n, i, j, k
+character(256) :: var_list
+integer :: n, i, j, k, nvars
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
@@ -1871,8 +1871,8 @@ if(point_calc) then
 
        point_t(i) % fid = open_file( fname, 'rewind', 'formatted' )
        var_list = '"t", "u", "v", "w"'
-! Compilation error
-       !call write_tecplot_header_xyline( point_t(i) % fid, var_list )
+       ! Compilation error
+       call write_tecplot_header_xyline( point_t(i) % fid, var_list )
 
     endif
     
