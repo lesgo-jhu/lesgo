@@ -1,16 +1,17 @@
-!--provides divt, jz=1:nz-1
-subroutine divstress_uv (divt, tx, ty, tz)
+subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 use types,only:rprec
 use param,only:ld,ny,nz,BOGUS,lbz 
-use derivatives, only : ddx, ddy, ddz_w
+use derivatives, only : ddx, ddy, ddz_w,ddxy
 
 implicit none
 
-real(kind=rprec),dimension(ld,ny,lbz:nz),intent(out)::divt
-real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
+real(kind=rprec),dimension(ld,ny,lbz:nz),intent(out)::divtx,divty
+real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 ! sc: we should be able to save some memory here!
 ! do this by writing a divergence subroutine--then do not store derivs 
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
+real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
+
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .true.
@@ -20,34 +21,27 @@ $if ($VERBOSE)
 write (*, *) 'started divstress_uv'
 $endif
  
-!if (DEBUG) then
-!  if (abs (dtxdx(ld, 1, 1) - 0._rprec) > 0.0001_rprec) then
-!    write (*, *) 'dtxdx (ld, 1, 1) is not 0'
-!    stop
-!  end if
-!end if
+! compute stress gradients      
+!--MPI: tx 1:nz-1 => dtxdx 1:nz-1
+call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
+
+!--MPI: ty 1:nz-1 => dtdy 1:nz-1
+!call ddy(txy, dtydy, lbz)
+
+!--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
+call ddz_w(txz, dtzdz, lbz)
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(tx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
-!$if ($MPI)
-!  dtdx(:, :, 0) = BOGUS
-!$endif
-!dtxdx(:, :, nz) = BOGUS
+!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddy(ty, dtydy, lbz)
-!$if ($MPI)
-!  dtdy(:, :, 0) = BOGUS
-!$endif
-!dtydy(:, :, nz) = BOGUS
+call ddy(tyy, dtydy2, lbz)
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
-call ddz_w(tz, dtzdz, lbz)
-!$if ($MPI)
-!  dtzdz(:, :, 0) = BOGUS
-!  if (coord < nproc-1) dtzdz(:, :, nz) = BOGUS
-!$endif
+call ddz_w(tyz, dtzdz2, lbz)
+
+call ddxy(txy , dtxdx2, dtydy, lbz)              
 
 !--MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the
@@ -56,19 +50,34 @@ call ddz_w(tz, dtzdz, lbz)
 !      dtzdz(:,:,1) = (tz(:,:,2)-tz(:,:,1))/(0.5*dz)
 
 !--only 1:nz-1 are valid
-divt(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
+divtx(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
                      dtzdz(:, :, 1:nz-1)
 
 !--Set ld-1, ld to 0 (or could do BOGUS)
-divt(ld-1:ld, :, 1:nz-1) = 0._rprec
+divtx(ld-1:ld, :, 1:nz-1) = 0._rprec
 
 $if ($MPI)
-  divt(:, :, 0) = BOGUS
+  divtx(:, :, 0) = BOGUS
 $endif
-divt(:, :, nz) = BOGUS
+divtx(:, :, nz) = BOGUS
+
+!--only 1:nz-1 are valid
+divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
+                     dtzdz2(:, :, 1:nz-1)
+
+!--Set ld-1, ld to 0 (or could do BOGUS)
+divty(ld-1:ld, :, 1:nz-1) = 0._rprec
+
+$if ($MPI)
+  divty(:, :, 0) = BOGUS
+$endif
+divty(:, :, nz) = BOGUS
+
+
 
 $if ($VERBOSE)
 write (*, *) 'finished divstress_uv'
 $endif
 
 end subroutine divstress_uv
+
