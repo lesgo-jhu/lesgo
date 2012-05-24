@@ -20,9 +20,9 @@ implicit none
 logical, parameter :: use_add_random = .false.
 
 character (64) :: fname, fname_dyn_tn
-logical :: exst
+!logical :: exst
 
-integer::i,jz
+integer::jz
 
 !real (rprec) :: ke
 
