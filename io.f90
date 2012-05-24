@@ -409,8 +409,8 @@ integer, intent(IN) :: itype
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
 character (64) :: fname
-character(256) :: var_list
-integer :: n, i, j, k, nvars
+!character(256) :: var_list
+integer :: n, i, j, k
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
@@ -1871,7 +1871,8 @@ if(point_calc) then
 
        point_t(i) % fid = open_file( fname, 'rewind', 'formatted' )
        var_list = '"t", "u", "v", "w"'
-       call write_tecplot_header_xyline( point_t(i) % fid, var_list )
+! Compilation error
+       !call write_tecplot_header_xyline( point_t(i) % fid, var_list )
 
     endif
     
@@ -1912,7 +1913,7 @@ $endif
 character (128) :: fname
 
 logical :: opn, exst
-integer :: i,j,k
+!integer :: i,j,k
 
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
@@ -2197,7 +2198,7 @@ $endif
 integer :: i,j,k
 
 $if($MPI)
-character(64) :: temp
+!character(64) :: temp
 
 integer :: MPI_RS, MPI_CNPY, MPI_TAVG
 integer :: rs_type(1), rs_block(1), rs_disp(1)
@@ -3171,10 +3172,10 @@ implicit none
 include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
-character(25) :: cl
+!character(25) :: cl
 character (64) :: fname
 
-integer :: i, k
+integer ::  k
 
 ! Perform final checkpoint 
 call spectra_checkpoint()
