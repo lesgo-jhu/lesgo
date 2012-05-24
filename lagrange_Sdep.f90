@@ -112,13 +112,13 @@ do jz = 1,nz
         L22=v_bar*v_bar
         L33=w_bar*w_bar              
 
-	    !RICHARD OPTIMIZATION
-	    Q11=L11
-	    Q12=L12
-	    Q13=L13
-	    Q22=L22
-	    Q23=L23
-	    Q33=L33
+         !RICHARD OPTIMIZATION
+         Q11=L11
+         Q12=L12
+         Q13=L13
+         Q22=L22
+         Q23=L23
+         Q33=L33
 !        Q11 = u_bar*u_bar
 !        Q12 = u_bar*v_bar
 !        Q13 = u_bar*w_bar

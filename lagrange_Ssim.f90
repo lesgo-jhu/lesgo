@@ -57,7 +57,7 @@ $endif
 integer :: istart, iend
 integer :: jz
 integer :: ii
-integer :: i, j
+integer :: i
 
 logical, save :: F_LM_MM_init = .false.
 

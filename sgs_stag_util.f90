@@ -55,14 +55,13 @@ logical, parameter :: DEBUG = .false.
 $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
-real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
+!real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
 real(kind=rprec) :: const
 real(kind=rprec) :: const2 !RICHARD: USED FOR OPTIMIZATION
 real(kind=rprec) :: const3 !RICHARD: USED FOR OPTIMIZATION
 real(kind=rprec) :: const4 !RICHARD: USED FOR OPTIMIZATION
-real(kind=rprec) :: const5 !RICHARD: USED FOR OPTIMIZATION
 
-integer::jx,jy,jz,k
+integer::jx,jy,jz
 integer :: jz_min
 
 $if ($VERBOSE)
@@ -338,7 +337,7 @@ if (sgs) then
 !            tyz(jx,jy,jz)=-2._rprec*(const + nu) * S23(jx,jy,jz)        
 
        const =-0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
-	   const2=-2._rprec*Nu_t(jx,jy,jz)                
+       const2=-2._rprec*Nu_t(jx,jy,jz)                
 
             txx(jx,jy,jz)=(const+const3)*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
             txy(jx,jy,jz)=(const+const3)*(S12(jx,jy,jz) + S12(jx,jy,jz+1))

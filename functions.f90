@@ -51,7 +51,7 @@ integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
-integer :: i,j,k
+!integer :: i,j,k
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
 
@@ -140,7 +140,7 @@ integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_w
 
 integer :: sx,sy,ubz
-integer :: i,j,k
+!integer :: i,j,k
 
 character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
 
@@ -342,7 +342,7 @@ real(rprec), intent(IN), dimension(3) :: xyz
 
 !real(rprec), dimension(2,2,2) :: uvar
 integer, parameter :: nvar = 3
-integer :: i,j,k
+!integer :: i,j,k
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
@@ -608,7 +608,8 @@ real(rprec), intent(IN), dimension(3,npoints) :: points
 
 character (*), parameter :: func_name = mod_name // '.points_avg_3D'
 
-integer :: istart, jstart, kstart, nsum
+!integer :: istart, jstart, kstart, nsum
+integer :: nsum
 integer :: n
 
 $if ($MPI)

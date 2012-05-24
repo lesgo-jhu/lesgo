@@ -37,7 +37,6 @@ real(kind=rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
 
 !TSreal(kind=rprec) :: rtnewt
-character(len=24)::fname
 real(rprec), dimension(ld,ny) :: LM,MM
 
 ! Allocate arrays

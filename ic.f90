@@ -24,7 +24,7 @@ subroutine ic()
 
   real(kind=rprec),dimension(nz)::ubar
   real(kind=rprec)::rms, noise, arg, arg2
-  real(kind=rprec)::z,w_star,T_star,q_star
+  real(kind=rprec)::z,w_star
 
   $if ($TURBINES)
   zo_turbines = 0._rprec

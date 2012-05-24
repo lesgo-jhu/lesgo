@@ -32,7 +32,7 @@ real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM, tempF_QN, tempF_NN
 $if ($DYN_TN)
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
 $endif
-integer :: i,j,k,kmin,jz
+integer :: i,j,k,kmin
 
 real (rprec) :: lcfl
 

@@ -42,11 +42,9 @@ implicit none
 
 real(rprec) :: const,const2,const3,const4
 
-integer::jx,jy,jz,k
+integer::jx,jy,jz
 
 integer :: ir, ii ! Used for complex emulation of real array
-
-character (64) :: fname
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
