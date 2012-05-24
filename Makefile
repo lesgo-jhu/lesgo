@@ -19,7 +19,7 @@ SRCS =  cfl_util.f90 \
         dealias1.f90 \
 	dealias2.f90 \
 	debug_mod.f90 \
-        divstress_uv.f90 \
+        divstress_uv2.f90 \
 	divstress_w.f90 \
 	dns_stress.f90 \
         emul_complex.f90 \
