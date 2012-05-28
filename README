@@ -206,6 +206,19 @@ are the same as found in lesgo.
 Important to note that when all 'uv' grid variables are written to output files
 for plotting they are interpolated to the 'w' grid. This step is also performed
 when time averaging variables.
+
+================================================================================
+				  DATA OUTPUT
+================================================================================
+
+File ID reservations:
+
+  Time signal data should be written using the tecryte library. The library
+  provides a mechanism for handling the file identifiers for files that will
+  remain open during the simulation. It simply provides the file identifier on a
+  first come first serve bases starting with 1001. So if any file identifiers
+  are to be used that are not provided by the tecryte library they should be
+  <=1000.
  
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
@@ -350,16 +363,8 @@ to begin an LES computation.
 		       RENORMALIZED NUMERICAL SIMULATION
 ================================================================================
 
-================================================================================
-				  DATA OUTPUT
-================================================================================
 
-File ID reservations:
-
-  Time signal data should be written using the tecryte library. The library
-  provides a mechanism for handling the file identifiers for files that will
-  remain open during the simulation. It simply provides the file identifier on a
-  first come first serve bases starting with 1001. So if any file identifiers
-  are to be used that are not provided by the tecryte library they should be
-  <=1000.
+================================================================================
+			CONCURRENT PRECURSOR SIMULATION
+================================================================================
 
