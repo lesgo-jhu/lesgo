@@ -368,3 +368,108 @@ to begin an LES computation.
 			CONCURRENT PRECURSOR SIMULATION
 ================================================================================
 
+
+
+================================================================================
+                                WIND-TURBINES
+================================================================================
+
+LESGO also has the ability to simulate an array of wind-turbines.  To use this
+feature set USE_TURBINES = yes in "Makefile.in".  The turbine-specific settings 
+are found in "lesgo.conf".  These will be discussed in detail below.  The 
+subroutines associated with the turbine calculations are found in the files 
+"turbines_base.f90" and "turbines.f90".  Note: this feature is fully compatible 
+with the MPI domain discretization.
+
+--------------------------------------------------------------------------------
+                              THE TURBINE MODEL
+--------------------------------------------------------------------------------
+
+Each turbine is represented as a drag disk with a force that depends on the 
+velocity at the disk (averaged in time and space).  This force is distributed 
+across several gridpoints that together represent the turbine.  For large arrays 
+the coarse grid resolution does not allow for the modelling of individual 
+blades. No tangential forces are applied to the flow, though it may prove
+beneficial to include these in the future (see Meyers 2010).
+
+The turbine force is given by 
+    F = -0.5 rho Ct' <Ud>^2 A        [Calaf, eqn 18]
+        rho is the fluid density
+        Ct' is the modified thrust coefficient
+        <Ud> is the disk- and time-averaged velocity 
+        A is the disk frontal area
+
+The velocity at the disk is averaged in time using a one-sided exponential 
+filter.  The filtering operation is as follows:
+    G(t) = integral_(-infinity)^(t) { g(t') * exp((t'-t)/T) / T } dt'
+        G is the time-averaged quantity (aka <Ud>)
+        g is the instantaneous quantity (aka Ud)
+        T is the time scale of the filter
+Taking the derivative with respect to time and using a first-order 
+discretization for the time derivative we find
+    G(t+dt) = (1-eps) * G(t) + eps * g(t+dt)
+        eps = (dt/T) / ( 1 + dt/T )
+        dt is the simulation time step
+        T is the time scale of the filter
+which is used to update the time-averaged quantity as the simulation progresses.
+
+The force is distributed across gridpoints using an indicator function which
+is determined during code initialization.  The gridpoints that fall within 
+each turbine radius are located.  To avoid Gibbs phenomenon with sharp gradients,
+this indicator function (currently 1 inside and 0 outside a turbine) is smoothed
+with a Gaussian filter.  To avoid calculating too many convolutions, the spatial
+extent of this filtering process is limited to a set number of gridpoints past 
+the turbine radius.  Also, to limit the spatial extent of each turbine, a
+minimum allowable value of the indicator function is specified.  Each gridpoint 
+with a non-zero indicator function applies a force on the flow.
+
+
+REFERENCES:
+Calaf, Meneveau, and Meyers. "Large eddy simulation study of fully developed
+wind-turbine array boundary layers." Physics of Fluids 22 (2010).
+http://dx.doi.org/10.1063/1.3291077
+
+Meyers and Meneveau.  "Large eddy simulations of large wind-turbine arrays in 
+the atmospheric boundary layer." AIAA Paper No. 2010-827.
+
+--------------------------------------------------------------------------------
+                       TURBINE SETTINGS IN "lesgo.conf"
+--------------------------------------------------------------------------------
+
+The first group of settings specifies the wind-turbine array geometry and
+orientation.  The user can set the number of turbines in each direction as well
+as their size.  Currently all turbines are set to be the same size, but this can
+easily be changed (only the input needs to be rewritten).  Several common 
+orientations (aligned, staggered, etc) are available and more can be added by 
+the user.
+
+The second group of settings relates to the turbine model.  The user is able to 
+specify the thrust coefficients Ct and Ct' as well as the time scale for the 
+exponential filter, T_avg_dim.  
+
+The third group of settings relates to the filtering of the indicator function.
+Finally, the user can choose to use the output from a previous simulation 
+(namely the file "turbine/turbine_u_d_T.dat") to continue during a new run by 
+setting turbine_cumulative_time = .true.
+
+--------------------------------------------------------------------------------
+                               TURBINE OUTPUTS
+--------------------------------------------------------------------------------
+
+All output files relating to the turbines can be found in the "turbine" folder.
+The indicator function is written to "nodes_filtered*" and "nodes_unfiltered*"
+Tecplot-formatted files.  It can be useful to load these files with data output
+to visualize the turbines, but this can be tricky with Tecplot (it requires
+interpolation between zones).
+
+The following quantities are also written to file for each turbine:
+    current time
+    instantaneous disk-averaged velocity
+    current time- and disk-averaged velocity
+    instantaneous total force for this turbine
+    instantaneous power for this turbine
+in the files "turbine_#_forcing.dat".
+
+Finally, the values of the time- and disk-averaged velocity for each turbine as
+well as the filtering time scale are written to file "turbine_u_d_T.dat".  
+These are needed to continue a simulation (turbine_cumulative_time flag).
