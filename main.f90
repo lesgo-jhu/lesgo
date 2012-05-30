@@ -317,6 +317,7 @@ do jt=1,nsteps
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
 
     ! Set unused values to BOGUS so unintended uses will be noticable
+    $if ($SAFETYMODE)
     $if ($MPI)
         u(:, :, 0) = BOGUS
         v(:, :, 0) = BOGUS
@@ -329,7 +330,8 @@ do jt=1,nsteps
     u(:, :, nz) = BOGUS
     v(:, :, nz) = BOGUS
     w(:, :, nz) = BOGUS
-
+    $endif
+    
     ! Debug
     $if ($DEBUG)
     if (DEBUG) then
