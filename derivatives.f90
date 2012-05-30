@@ -30,19 +30,22 @@ subroutine ddx(f,dfdx,lbz)
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
 use fft
-use emul_complex, only : OPERATOR(.MULI.)
+!use emul_complex, only : OPERATOR(.MULI.)
 implicit none
 
-integer::jz
+integer::jz,jy,jx,ii,ir,nx_c,ny_c,nx_r
 
-!  Original complex versions
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
 integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
+!real(rprec), dimension (2*lh, ny, lbz:nz) :: dfdx2
+real(rprec) :: const,dummy1
 
-real(rprec) :: const
+nx_c = (nx+2)/2
+nx_r = nx+2
+ny_c = ny
+!real dimension dfdx2(nx_c,ny_c,
+!allocate (dfdx2(nx_c,ny_c,l))
 
 const = 1._rprec / ( nx * ny )
 
@@ -64,8 +67,20 @@ do jz=lbz,nz
 
   !  Use complex emulation of dfdx to perform complex multiplication
   !  Optimized version for real(eye*kx)=0; only passing imaginary part of eye*kx
-  dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
+!  dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
 
+  do jy=1,ny_c !  Using outer loop to get contiguous memory access
+  do jx=1,nx_c
+    !  Real and imaginary indicies of a
+    ii = 2*jx
+    ir = ii-1
+    !  Perform multiplication
+    dummy1         =   dfdx(ir,jy,jz) * kx(jx,jy)
+    dfdx(ir,jy,jz) = - dfdx(ii,jy,jz) * kx(jx,jy)
+    dfdx(ii,jy,jz) =dummy1
+   enddo
+   enddo
+   
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
 
@@ -85,19 +100,18 @@ subroutine ddy(f,dfdy, lbz)
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
 use fft
-use emul_complex, only : OPERATOR(.MULI.)
+!use emul_complex, only : OPERATOR(.MULI.)
 implicit none      
 
-integer::jz
-
-!  Original complex versions
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
+integer::jz,jy,jx,ii,ir,nx_c,ny_c,nx_r
 integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
 
-real(rprec) :: const
+real(rprec) :: const,dummy1
+nx_c = (nx+2)/2
+nx_r = nx+2
+ny_c = ny
 
 const = 1._rprec / ( nx * ny )
 
@@ -119,8 +133,19 @@ do jz=lbz,nz
 
   !  Use complex emulation of dfdy to perform complex multiplication
   !  Optimized version for real(eye*ky)=0; only passing imaginary part of eye*ky
-  dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
-
+!  dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
+  do jy=1,ny_c !  Using outer loop to get contiguous memory access
+  do jx=1,nx_c
+    !  Real and imaginary indicies of a
+    ii = 2*jx
+    ir = ii-1
+    !  Perform multiplication
+    dummy1         =   dfdy(ir,jy,jz) * ky(jx,jy)
+    dfdy(ir,jy,jz) = - dfdy(ii,jy,jz) * ky(jx,jy)    
+    dfdy(ii,jy,jz)=dummy1
+   enddo
+   enddo
+   
   ! Perform inverse transform to get pseudospectral derivative
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)   
 
@@ -136,18 +161,19 @@ subroutine ddxy (f, dfdx, dfdy, lbz)
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz,dz
 use fft
-use emul_complex, only : OPERATOR(.MULI.)
+!use emul_complex, only : OPERATOR(.MULI.)
 implicit none
-integer::jz
+integer::jz,jy,jx,ii,ir,nx_c,ny_c,nx_r
 
 integer, intent(in) :: lbz
 ! only need complex treatment
-!complex(kind=rprec),dimension(lh,ny,nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,nz),intent(inout)::dfdx_c,dfdy_c
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
 
-real(rprec) :: const
+real(rprec) :: const,dummy1
+nx_c = (nx+2)/2
+nx_r = nx+2
+ny_c = ny
 
 const = 1._rprec / ( nx * ny )
 
@@ -168,14 +194,25 @@ do jz=lbz,nz
 ! derivatives: must to y's first here, because we're using dfdx as storage
    !dfdy_c(:,:,jz)=eye*ky(:,:)*dfdx_c(:,:,jz)
    !dfdx_c(:,:,jz)=eye*kx(:,:)*dfdx_c(:,:,jz)
-   dfdy(:,:,jz) = dfdx(:,:,jz) .MULI. ky
-   dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
+!   dfdy(:,:,jz) = dfdx(:,:,jz) .MULI. ky
+!   dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
 
+  do jy=1,ny_c !  Using outer loop to get contiguous memory access
+  do jx=1,nx_c
+    !  Real and imaginary indicies of a
+    ii = 2*jx
+    ir = ii-1
+    !  Perform multiplication
+    dfdy(ii,jy,jz) =   dfdx(ir,jy,jz) * ky(jx,jy)
+    dfdy(ir,jy,jz) = - dfdx(ii,jy,jz) * ky(jx,jy)
+    dummy1          =   dfdx(ir,jy,jz) * kx(jx,jy)
+    dfdx(ir,jy,jz)  = - dfdx(ii,jy,jz) * kx(jx,jy)
+    dfdx(ii,jy,jz)  =dummy1  
+   enddo
+   enddo
 ! the oddballs for derivatives should already be dead, since they are for f
 
 ! inverse transform 
-   !call rfftwnd_f77_one_complex_to_real(back,dfdx_c(:,:,jz),ignore_me)
-   !call rfftwnd_f77_one_complex_to_real(back,dfdy_c(:,:,jz),ignore_me)
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 
@@ -199,14 +236,16 @@ integer, intent(in) :: lbz
 real (rprec), dimension (:, :, lbz:), intent (in) :: f
 real (rprec), dimension(:, :, lbz:), intent (inout) :: dfdz
 
-integer::jx,jy,jz
+integer::jz,jy,jx
 real (rprec) :: const
 
 const=1._rprec/dz
 
 $if ($MPI)
 
+$if ($SAFETYMODE)
   dfdz(:, :, 0) = BOGUS
+$endif
 
   if (coord > 0) then
     !--ghost node information is available here
@@ -286,12 +325,16 @@ end do
 $if ($MPI)
     if (coord == 0) then
       !--bottom process cannot calculate dfdz(jz=0)
+$if ($SAFETYMODE)
       dfdz(:, :, lbz) = BOGUS
+$endif      
     endif
     if (coord == nproc-1) then
       dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
     else
+$if ($SAFETYMODE)
       dfdz(:, :, nz) = BOGUS
+$endif      
     end if
 $else
   dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
@@ -313,18 +356,20 @@ subroutine filt_da(f,dfdx,dfdy, lbz)
 use types,only:rprec
 use param,only:ld,lh,nx,ny,nz
 use fft
-use emul_complex, only : OPERATOR(.MULI.)
+!use emul_complex, only : OPERATOR(.MULI.)
 implicit none
-integer::jz
+integer::jz,jy,jx,ii,ir,nx_c,ny_c,nx_r
 
 integer, intent(in) :: lbz
 real(rprec), dimension(:, :, lbz:), intent(inout) :: f
 real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
+real(rprec) :: const
+nx_c = (nx+2)/2
+nx_r = nx+2
+ny_c = ny
 
 ! only need complex treatment
 !complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
-
-real(rprec) :: const
 
 const = 1._rprec/(nx*ny)
 
@@ -347,9 +392,20 @@ do jz=lbz,nz
   !  Compute in-plane derivatives
   !  dfdy_c(:,:,jz)=eye*ky(:,:)*f_c(:,:,jz) !  complex version
   !  dfdx_c(:,:,jz)=eye*kx(:,:)*f_c(:,:,jz) !  complex version
-  dfdx(:,:,jz) = f(:,:,jz) .MULI. kx
-  dfdy(:,:,jz) = f(:,:,jz) .MULI. ky
-
+  
+  do jy=1,ny_c !  Using outer loop to get contiguous memory access
+  do jx=1,nx_c
+    !  Real and imaginary indicies of a
+    ii = 2*jx
+    ir = ii-1
+    !  Perform multiplication
+    dfdx(ii,jy,jz) =   f(ir,jy,jz) * kx(jx,jy)
+    dfdx(ir,jy,jz) = - f(ii,jy,jz) * kx(jx,jy)
+    dfdy(ii,jy,jz) =   f(ir,jy,jz) * ky(jx,jy)
+    dfdy(ir,jy,jz) = - f(ii,jy,jz) * ky(jx,jy)    
+   enddo
+   enddo
+   
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 
   call rfftwnd_f77_one_complex_to_real(back,f(:,:,jz),fftwNull_p)
