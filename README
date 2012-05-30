@@ -1,8 +1,8 @@
 Written by:
 
   Stuart Chester
-  
   Jason Graham <jgraha8@gmail.com>
+  Claire Verhulst
 
 ================================================================================
 				   DISCLAIMER
@@ -211,14 +211,37 @@ when time averaging variables.
 				  DATA OUTPUT
 ================================================================================
 
+The output data from lesgo contains two types: 1) restart data and 2)
+visualization data. Below are listed the output files along with a description
+of their contents.
+
+  1) vel.out : Contains the core part of the restart data for lesgo. In this
+               file the velocity, right hand side of the momentum equation, and
+               several SGS variables are store. Essentially all the data
+               required from the previous time step or steps is located in these
+               files. 
+
+  2) tavg.out : Contains the time averaged data from the previous simulation. In
+                this file the running averages of the velocity, Reynolds stress,
+                etc. are store here and are used to maintain the averaging
+                between simulations.
+		
+  3) spectra.out : Contains the time averaged spectra data from
+                   the previous simulation.
+
+The visualization data is located in the directory "output". The "output"
+directory is created by making a system call and should work fine on all Unix
+based systems. The output to this directory depends on which output is is
+selected in the input file "lesgo.conf".
+
 File ID reservations:
 
-  Time signal data should be written using the tecryte library. The library
-  provides a mechanism for handling the file identifiers for files that will
-  remain open during the simulation. It simply provides the file identifier on a
-  first come first serve bases starting with 1001. So if any file identifiers
-  are to be used that are not provided by the tecryte library they should be
-  <=1000.
+  All data files that use a fixed file identifier should be opened using
+  "open_file" from the "tecryte" library. The library provides a mechanism for
+  handling the file identifiers of files that will remain open during the
+  simulation. It simply provides the file identifier on a first come first serve
+  bases starting with 1001. So if any file identifiers are to be used that are
+  not provided by the tecryte library they should be <=1000.
  
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
