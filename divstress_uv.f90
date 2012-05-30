@@ -56,10 +56,12 @@ divtx(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divtx(ld-1:ld, :, 1:nz-1) = 0._rprec
 
+$if ($SAFETYMODE)
 $if ($MPI)
   divtx(:, :, 0) = BOGUS
 $endif
 divtx(:, :, nz) = BOGUS
+$endif
 
 !--only 1:nz-1 are valid
 divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
@@ -68,11 +70,12 @@ divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divty(ld-1:ld, :, 1:nz-1) = 0._rprec
 
+$if ($SAFETYMODE)
 $if ($MPI)
   divty(:, :, 0) = BOGUS
 $endif
 divty(:, :, nz) = BOGUS
-
+$endif
 
 
 $if ($VERBOSE)
