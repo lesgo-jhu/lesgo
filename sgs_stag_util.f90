@@ -195,7 +195,7 @@ $endif
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
 !$comp parallel do default(shared) private(jx,jy,jz)
 !RICHARD OPTIMIZATION: EXPLICITLY WRITE THE MULTIPLICATION AND DO NOT USE POWER FOR SPEED
-do jz = 1, nz
+do jz=1,nz
 do jy=1,ny
 do jx=1,nx
     S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)*S11(jx,jy,jz) +           S22(jx,jy,jz)*S22(jx,jy,jz) +&
@@ -420,22 +420,26 @@ $if ($MPI)
 
     ! Set bogus values (easier to catch if there's an error)
 !RICHARD: OPTIMIZATION
+$if (SAFETYMODE)
     txx(:, :, 0) = BOGUS
     txy(:, :, 0) = BOGUS
     txz(:, :, 0) = BOGUS
     tyy(:, :, 0) = BOGUS
     tyz(:, :, 0) = BOGUS
     tzz(:, :, 0) = BOGUS 
+$endif
 
 $endif
 
 ! Set bogus values (easier to catch if there's an error)
 !RICHARD: OPTIMIZATION
+$if ($SAFETYMODE)
 txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
 tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
- 
+$endif 
+
 $if ($MPI) 
   if (coord == nproc-1) then  !assuming stress-free lid?
     txz(:,:,nz)=0._rprec
