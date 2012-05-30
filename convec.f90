@@ -274,15 +274,19 @@ end do
 !$omp end parallel do
 
 $if ($MPI)
+$if ($SAFETYMODE)
   cx(:, :, 0) = BOGUS
   cy(:, :, 0) = BOGUS
   cz(: ,:, 0) = BOGUS
+$endif  
 $endif
 
 !--top level is not valid
+$if ($SAFETYMODE)
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
 cz(:, :, nz) = BOGUS
+$endif
 
 $if ($DEBUG)
 if (DEBUG) then
