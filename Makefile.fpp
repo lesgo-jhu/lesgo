@@ -68,3 +68,7 @@ endif
 ifeq ($(USE_BINARY), yes)
   FPP += -DBINARY
 endif
+
+ifeq ($(USE_SAFETYMODE), yes)
+  FPP += -DSAFETYMODE
+endif
