@@ -46,6 +46,7 @@ READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
 USE_BINARY=no
+USE_SAFETYMODE=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no
