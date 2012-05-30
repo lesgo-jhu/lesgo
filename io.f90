@@ -409,8 +409,7 @@ integer, intent(IN) :: itype
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
 character (64) :: fname
-character(256) :: var_list
-integer :: n, i, j, k, nvars
+integer :: n, i, j, k
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
