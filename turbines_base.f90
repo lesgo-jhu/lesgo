@@ -10,21 +10,29 @@ implicit none
 ! The following values are read from the input file
 integer :: num_x            ! number of turbines in the x-direction
 integer :: num_y            ! number of turbines in the y-direction
+
 real(rprec) :: dia_all      ! baseline diameter in meters
 real(rprec) :: height_all   ! baseline height in meters
 real(rprec) :: thk_all      ! baseline thickness in meters
+
 integer :: orientation      ! orientation 1=aligned, 2=horiz stagger,
                             !  3=vert stagger by row, 4=vert stagger checkerboard
 real(rprec) :: stag_perc    ! stagger percentage from baseline
+
 real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zero)
 real(rprec) :: theta2_all   ! angle above horizontal
+
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
 real(rprec) :: Ct_noprime   ! thrust coefficient (default 0.75)
+
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
+
 real(rprec) :: alpha        ! filter size as multiple of grid spacing
 integer :: trunc            ! Gaussian filter truncated after this many gridpoints
 real(rprec) :: filter_cutoff  ! indicator function only includes values above this threshold
+
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
+
 integer(rprec) :: tbase     ! Number of timesteps between the output
  
 ! The following are derived from the values above
