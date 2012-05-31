@@ -28,6 +28,8 @@ DEBUG=no
 VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
+# Set extra safety measures 
+USE_SAFETYMODE=yes
 
 # Output additional quantities to file. May be useful
 # for diagnosing issues
@@ -46,7 +48,6 @@ READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
 USE_BINARY=no
-USE_SAFETYMODE=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no
