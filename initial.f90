@@ -19,8 +19,12 @@ implicit none
 
 logical, parameter :: use_add_random = .false.
 
-character (64) :: fname, fname_dyn_tn
-!logical :: exst
+character (64) :: fname
+
+$if ($DYN_TN)
+logical :: exst
+character (64) :: fname_dyn_tn
+$endif
 
 integer::jz
 
@@ -33,14 +37,16 @@ fxa=0._rprec; fya=0._rprec; fza=0._rprec
 $if ($DYN_TN)
 !Will be over-written if read from dyn_tn.out files
 ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
+fname_dyn_tn = path // 'dyn_tn.out'
+  $if ($MPI)
+  call string_concat( fname_dyn_tn, '.c', coord )
+  $endif
 $endif
 
 fname = checkpoint_file
-fname_dyn_tn = path // 'dyn_tn.out'
 
 $if ($MPI)
 call string_concat( fname, '.c', coord )
-call string_concat( fname_dyn_tn, '.c', coord )
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
