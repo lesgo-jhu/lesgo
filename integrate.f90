@@ -11,12 +11,12 @@ contains
 !  additional accuracy is required to do the cut "cells"
 !--x is assumed to equi-spaced
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function integrate_1d (per, ain, bin, dx, x, f)
+function integrate_1d (periodic, ain, bin, dx, x, f)
 implicit none
 
 real (rp) :: integrate_1d
 
-logical, intent (in) :: per  !--whether or not periodic
+logical, intent (in) :: periodic  !--whether or not periodic
 
 real (rp), intent (in) :: ain, bin, dx
 real (rp), intent (in) :: x(:), f(:)
@@ -55,7 +55,7 @@ else
   sgn = -1
 end if
 
-if (.not. per) then
+if (.not. periodic) then
   if ((a < x(1)) .or. (x(n) < b)) then
     write (*, *) 'a = ', a
     write (*, *) 'b = ', b
@@ -71,7 +71,7 @@ imin_0 = ceiling ((a - x(1)) / dx + 1)
 imax_0 = floor ((b - x(1)) / dx + 1)
 
 !--we will need to apply bdry treatment at some point
-if (per) then
+if (periodic) then
 
   imin = modulo (imin_0 - 1, n) + 1
   imax = modulo (imax_0 - 1, n) + 1
@@ -98,7 +98,7 @@ lfr = (xmin - a) / dx
 rfr = (b - xmax) / dx
 
 if (lfr > thresh) then  !--perform integration over left cut cell
-  if (per) then
+  if (periodic) then
 
     imin_p1 = modulo (imin_0, n) + 1
     imin_m1 = modulo (imin_0 - 2, n) + 1
@@ -137,7 +137,7 @@ end if
 
 if (rfr > thresh) then  !--perform integration over right cut cell
 
-  if (per) then
+  if (periodic) then
 
     imax_p1 = modulo (imax_0, n) + 1
     imax_m1 = modulo (imax_0 - 2, n) + 1
@@ -178,7 +178,7 @@ middle = 0.5_rp * (f(imin) + f(imax))
 
 do i = imin_0 + 1, imax_0 - 1
 
-  if (per) then
+  if (periodic) then
     ii = modulo (i - 1, n) + 1
   else
     ii = i
