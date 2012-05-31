@@ -135,20 +135,26 @@ real(rprec) :: sxx, syy, shift_base, const
         enddo
       enddo
 
-    endif
+    elseif (orientation.eq.5) then        
+    !Aligned, but shifted forward for efficient use of simulation space during CPS runs
+
+      ! Usual placement is baseline as set above
+
+      ! Shift the turbines forward
+      k=1
+      do i = 1, num_x
+        do j = 1, num_y
+          wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -wind_farm_t%turbine_t(1)%xloc/2
+          k=k+1
+        enddo
+      enddo
     
+    endif
+        
     !orientation (angles)
         wind_farm_t%turbine_t(:)%theta1 = theta1_all
-        wind_farm_t%turbine_t(:)%theta2 = theta2_all 
-     $if ($CPS) ! Shift the turbines forward in order to use the simulation space more efficiently
-     k=1
-     do i = 1, num_x
-     do j = 1, num_y
-     wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -wind_farm_t%turbine_t(1)%xloc/2
-     k=k+1
-     enddo
-     enddo
-     $endif
+        wind_farm_t%turbine_t(:)%theta2 = theta2_all
+
  
 end subroutine turbines_base_init
 
