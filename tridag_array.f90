@@ -18,7 +18,9 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-!character (64) :: fmt
+$if ($DEBUG)
+character (64) :: fmt
+$endif
 integer::jx, jy, j, j_min, j_max
 real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
