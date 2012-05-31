@@ -617,11 +617,8 @@ $if ($MPI)
             print*,'Coord 0 has turbine nodes' 
         endif
         do i=1,nproc-1
-$if ($CPS) ! Used because the upstream producing domain has the lower adresses   
-        call MPI_recv( buffer_logical, 1, MPI_logical, i+nproc, 2, MPI_COMM_WORLD, status, ierr )
-$else
-        call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, MPI_COMM_WORLD, status, ierr )
-$endif
+            call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
+
             if (buffer_logical) then
                 write (string3, '(i3)') i
                 string3 = trim(adjustl(string3))       
@@ -631,11 +628,7 @@ $endif
             endif
         enddo
     else
-$if ($CPS) ! See the above comment
-        call MPI_send( turbine_in_proc, 1, MPI_logical, 0+nproc, 2, MPI_COMM_WORLD, ierr )
-$else
-        call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, MPI_COMM_WORLD, ierr )
-$endif
+        call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
     endif
 $endif
 nullify(x,y,z)
@@ -735,21 +728,13 @@ $if ($MPI)
         do i=1,turbine_in_proc_cnt
             j = turbine_in_proc_array(i)
             buffer_array = 0.
-$if ($CPS)
-            call MPI_recv( buffer_array, nloc, MPI_rprec, j+nproc, 3, MPI_COMM_WORLD, status, ierr )
-$else
-            call MPI_recv( buffer_array, nloc, MPI_rprec, j, 3, MPI_COMM_WORLD, status, ierr )
-$endif
+            call MPI_recv( buffer_array, nloc, MPI_rprec, j, 3, comm, status, ierr )
             disk_avg_vels = disk_avg_vels + buffer_array
             
         enddo              
                 
     elseif (turbine_in_proc) then
-$if ($CPS)
-        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0+nproc, 3, MPI_COMM_WORLD, ierr )
-$else
-        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, MPI_COMM_WORLD, ierr )
-$endif
+        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
     endif            
     !##############################################              
 $endif
@@ -797,19 +782,11 @@ $if ($MPI)
           
             do i=1,turbine_in_proc_cnt
                 j = turbine_in_proc_array(i)
-$if ($CPS)
-                call MPI_send( disk_force, nloc, MPI_rprec, j+nproc, 5, MPI_COMM_WORLD, ierr )
-$else
-                call MPI_send( disk_force, nloc, MPI_rprec, j, 5, MPI_COMM_WORLD, ierr )
-$endif
+                call MPI_send( disk_force, nloc, MPI_rprec, j, 5, comm, ierr )
             enddo              
                         
         elseif (turbine_in_proc) then
-$if ($CPS)
-            call MPI_recv( disk_force, nloc, MPI_rprec, 0+nproc, 5, MPI_COMM_WORLD, status, ierr )
-$else
-            call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, MPI_COMM_WORLD, status, ierr )
-$endif
+            call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
         endif     
     !##############################################     
 $endif 
