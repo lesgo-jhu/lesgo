@@ -196,7 +196,7 @@ real(rprec), dimension( :, : ), intent(in) :: a_c
 real(rprec), allocatable, dimension(:, :) :: b
 
 !  Cached variables
-real(rprec) ::  a_c_i
+real(rprec) ::  a_c_i, cache
 
 integer :: i,j,ii,ir
 integer :: nx_r, nx_c, ny
@@ -224,9 +224,10 @@ do j=1, ny !  Using outer loop to get contiguous memory access
     !  Cache multi-usage variables
     a_c_i = a_c(i,j)
 
-    !  Perform multiplication
+    !  Perform multiplication (cache data to ensure sequential access)
+    cache = a(ir,j) * a_c_i
     b(ir,j) = - a(ii,j) * a_c_i
-    b(ii,j) =  a(ir,j) * a_c_i
+    b(ii,j) =  cache
 
   enddo
 enddo
