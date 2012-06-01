@@ -39,6 +39,7 @@ integer(rprec) :: tbase     ! Number of timesteps between the output
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
 real(rprec) :: sy           ! spacing in the y-direction
+real(rprec) :: dummy        ! used to shift the turbine positions
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -142,9 +143,10 @@ real(rprec) :: sxx, syy, shift_base, const
 
       ! Shift the turbines forward
       k=1
+      dummy=wind_farm_t%turbine_t(1)%xloc/2
       do i = 1, num_x
         do j = 1, num_y
-          wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -wind_farm_t%turbine_t(1)%xloc/2
+          wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -dummy
           k=k+1
         enddo
       enddo

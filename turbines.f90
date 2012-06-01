@@ -17,6 +17,7 @@ $if ($MPI)
 $endif
 
 implicit none
+include 'tecryte.h'
 
 save
 private
@@ -48,6 +49,7 @@ real(rprec) :: buffer, mult
 logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
+integer, dimension(:), allocatable :: file_id,file_id2
 
 character (*), parameter :: mod_name = 'turbines'
 
@@ -58,10 +60,9 @@ contains
 subroutine turbines_init()
 use string_util, only : string_splice
 implicit none
-include 'tecryte.h'
 
 real(rprec), pointer, dimension(:) :: x,y,z
-integer :: s,dummy
+integer :: s
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
 nullify(x,y,z)
@@ -75,6 +76,8 @@ allocate(large_node_array(nx,ny,nz_tot))
 allocate(large_node_array_filtered(nx,ny,nz_tot))
 allocate(turbine_in_proc_array(nproc-1))
 allocate(z_tot(nz_tot))
+allocate(file_id(nloc))
+allocate(file_id2(nloc))
 turbine_in_proc_array = 0
 
     nullify(buffer_array)
@@ -167,22 +170,10 @@ endif
 
 if (coord.eq. 0) then
 do s=1,nloc
-dummy=3000+s
-! fname = path // 'turbine/turbine_'
-! write (temp, '(i0)') s
-! fname2 = trim (fname) // temp
-! fname = trim (fname2) // '_forcing.dat'
 call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
-open(unit=dummy,file=fname,action='write',position='append',form='formatted')
-
-dummy=2000+s
-! fname = path // 'turbine/turbine_'
-! write (temp, '(i0)') s
-! fname2 = trim (fname) // temp
-! fname = trim (fname2) // '_velcenter.dat'
-
+file_id(s) = open_file( fname, 'append', 'formatted' )
 call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
-open(unit=dummy,file=fname,action='write',position='append',form='formatted')
+file_id2(s) = open_file( fname, 'append', 'formatted' )
 enddo
 endif
 
@@ -361,7 +352,6 @@ subroutine turbines_filter_ind()
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 use string_util, only : string_splice
 implicit none
-include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
 
@@ -658,7 +648,7 @@ $if ($MPI)
     use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
 implicit none
-integer :: kstart, kend,dummy
+
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null()
@@ -719,8 +709,7 @@ if (turbine_in_proc) then
                 $endif
                 if (kcp>=k_start) then
                 if (kcp<=k_end) then
-                dummy=2000+s
-                write(dummy,*) total_time_dim, u(icp,jcp,kcp)
+                call write_real_data( file_id2(s), 'formatted', 2, (/ total_time_dim, u(icp,jcp,kcp) /))
                 endif
                 endif
                 endif
@@ -774,11 +763,9 @@ if (coord == 0) then
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
-
             !write values to file                   
                 if (modulo (jt, tbase) == 0) then
-                dummy=3000+s
-                write(dummy,*) total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) 
+                call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
                 endif 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
