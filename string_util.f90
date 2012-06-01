@@ -49,7 +49,7 @@ end interface
 character (*), parameter :: mod_name = 'string_util'
 
 character(*), parameter :: iformat='(i0)'
-character(*), parameter :: rformat='(f18.6)'
+character(*), parameter :: rformat='(f18.5)'
 
 integer, parameter :: BUFF_LENGTH = 64
 
