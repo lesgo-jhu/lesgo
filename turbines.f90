@@ -56,6 +56,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
+use string_util, only : string_splice
 implicit none
 include 'tecryte.h'
 
@@ -167,17 +168,20 @@ endif
 if (coord.eq. 0) then
 do s=1,nloc
 dummy=3000+s
-fname = path // 'turbine/turbine_'
-write (temp, '(i0)') s
-fname2 = trim (fname) // temp
-fname = trim (fname2) // '_forcing.dat'
+! fname = path // 'turbine/turbine_'
+! write (temp, '(i0)') s
+! fname2 = trim (fname) // temp
+! fname = trim (fname2) // '_forcing.dat'
+call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
 open(unit=dummy,file=fname,action='write',position='append',form='formatted')
 
 dummy=2000+s
-fname = path // 'turbine/turbine_'
-write (temp, '(i0)') s
-fname2 = trim (fname) // temp
-fname = trim (fname2) // '_velcenter.dat'
+! fname = path // 'turbine/turbine_'
+! write (temp, '(i0)') s
+! fname2 = trim (fname) // temp
+! fname = trim (fname2) // '_velcenter.dat'
+
+call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
 open(unit=dummy,file=fname,action='write',position='append',form='formatted')
 enddo
 endif
@@ -355,6 +359,7 @@ subroutine turbines_filter_ind()
 !       1.smooth/filter indicator function                                  CHANGE IND
 !       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
+use string_util, only : string_splice
 implicit none
 include 'tecryte.h'
 
@@ -565,21 +570,26 @@ do b=1,nloc
     
     if (count_n > 0) then
         $if ($MPI)
-            write (string1, '(i3)') b
-            string1 = trim(adjustl(string1))
-            write (string2, '(i4)') count_n
-            string2 = trim(adjustl(string2)) 
-            write (string3, '(i3)') coord
-            string3 = trim(adjustl(string3))             
+            ! write (string1, '(i3)') b
+            ! string1 = trim(adjustl(string1))
+            ! write (string2, '(i4)') count_n
+            ! string2 = trim(adjustl(string2)) 
+            ! write (string3, '(i3)') coord
+            ! string3 = trim(adjustl(string3))             
+            !write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
 
-            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
+            call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
+            write(*,*) trim(string1)
+
         $else
-            write (string1, '(i3)') b
-            string1 = trim(adjustl(string1))
-            write (string2, '(i4)') count_n
-            string2 = trim(adjustl(string2))            
-          
-            write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes' 
+            ! write (string1, '(i3)') b
+            ! string1 = trim(adjustl(string1))
+            ! write (string2, '(i4)') count_n
+            ! string2 = trim(adjustl(string2))            
+
+            call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
+            write(*,*) trim(string1)
+
         $endif
     endif
 
@@ -596,11 +606,13 @@ enddo
         enddo   
         enddo
         !write to file with .dat.c* extension
-            fname3 = path // 'turbine/nodes_filtered_c.dat'
-            write (temp, '(".c",i0)') coord
-            fname3 = trim (fname3) // temp
-            call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
-            call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
+            !fname3 = path // 'turbine/nodes_filtered_c.dat'
+            ! write (temp, '(".c",i0)') coord
+            ! fname3 = trim (fname3) // temp
+        call string_splice( fname3, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
+        
+        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
+        call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if (coord == 0) then
         fname3 = path // 'turbine/nodes_filtered.dat'
@@ -614,7 +626,7 @@ enddo
 $if ($MPI)
     if (coord == 0) then
         if (turbine_in_proc) then
-            print*,'Coord 0 has turbine nodes' 
+            write(*,*),'Coord 0 has turbine nodes' 
         endif
         do i=1,nproc-1
             call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
@@ -622,7 +634,7 @@ $if ($MPI)
             if (buffer_logical) then
                 write (string3, '(i3)') i
                 string3 = trim(adjustl(string3))       
-                print*,'Coord ',trim(string3),' has turbine nodes'            
+                write(*,*),'Coord ',trim(string3),' has turbine nodes'            
                 turbine_in_proc_cnt = turbine_in_proc_cnt + 1
                 turbine_in_proc_array(turbine_in_proc_cnt) = i
             endif
