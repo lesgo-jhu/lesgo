@@ -377,7 +377,7 @@ character(BUFF_LENGTH) :: b1
 
 write(b1,rformat) r1
 !call string_splice(s, s1, trim(adjustl(buff)) )
-s = s1 // trim(b1)
+s = s1 // trim(adjustl(b1))
 
 return
 end subroutine string_splice_ar
@@ -393,8 +393,8 @@ integer, intent(in) :: i1
 character(BUFF_LENGTH) :: b1
 
 write(b1,iformat) i1
-!call string_splice(s, s1, trim(adjustl(b)))
-s = s1 // trim(b1)
+!call string_splice(s, s1, trim(adjustl(adjustl(b)))
+s = s1 // trim(adjustl(b1))
 
 return
 end subroutine string_splice_ai
@@ -411,7 +411,7 @@ character(BUFF_LENGTH) :: b1
 
 write(b1,iformat) i1
 
-s = s1 // trim(b1) // s2
+s = s1 // trim(adjustl(b1)) // s2
 
 return
 end subroutine string_splice_aia
@@ -429,7 +429,7 @@ character(BUFF_LENGTH) :: b1
 
 write(b1,rformat) r1
 
-s = s1 // trim(b1) // s2
+s = s1 // trim(adjustl(b1)) // s2
 
 return
 end subroutine string_splice_ara
@@ -447,7 +447,7 @@ character(BUFF_LENGTH) :: b1, b2
 write(b1,iformat) i1
 write(b2,iformat) i2
 
-s = s1 // trim(b1) // s2 // trim(b2)
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2))
 
 return
 end subroutine string_splice_aiai
@@ -466,7 +466,7 @@ character(BUFF_LENGTH) :: b1, b2
 write(b1,rformat) r1
 write(b2,rformat) r2
 
-s = s1 // trim(b1) // s2 // trim(b2)
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2))
 
 return
 end subroutine string_splice_arar
@@ -484,7 +484,7 @@ character(BUFF_LENGTH) :: b1, b2
 write(b1,iformat) i1
 write(b2,iformat) i2
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
 
 return
 end subroutine string_splice_aiaia
@@ -503,7 +503,7 @@ character(BUFF_LENGTH) :: b1, b2
 write(b1,rformat) r1
 write(b2,rformat) r2
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
 
 return
 end subroutine string_splice_arara
@@ -523,7 +523,7 @@ character(BUFF_LENGTH) :: b1, b2
 write(b1,rformat) r1
 write(b2,iformat) i2
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
 
 return
 end subroutine string_splice_araia
@@ -543,7 +543,7 @@ write(b1,iformat) i1
 write(b2,iformat) i2
 write(b3,iformat) i3
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3 // trim(b3)
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3))
 
 return
 end subroutine string_splice_aiaiai
@@ -563,7 +563,7 @@ write(b1,rformat) r1
 write(b2,rformat) r2
 write(b3,rformat) r3
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3 // trim(b3)
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3))
 
 return
 end subroutine string_splice_ararar
@@ -582,7 +582,7 @@ write(b1,iformat) i1
 write(b2,iformat) i2
 write(b3,iformat) i3
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3 // trim(b3) // s4
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3)) // s4
 
 return
 end subroutine string_splice_aiaiaia
@@ -602,7 +602,7 @@ write(b1,rformat) r1
 write(b2,rformat) r2
 write(b3,rformat) r3
 
-s = s1 // trim(b1) // s2 // trim(b2) // s3 // trim(b3) // s4
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3)) // s4
 
 return
 end subroutine string_splice_ararara
