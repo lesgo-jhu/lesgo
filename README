@@ -8,12 +8,12 @@ Written by:
 				   DISCLAIMER
 ================================================================================
 
-Please keep in mind that many parts of the code were developed without a clear
+"Please keep in mind that many parts of the code were developed without a clear
 idea of exactly where the program was headed, since various ideas are tried and
 discarded as part of the research process.  This means that code organization is
 not optimal in some spots, and that not all options are fully implemented.  My
 advice is ALWAYS read whatever parts of the code you are using to find out what
-they really do.
+they really do." - SC
 
 ================================================================================
 				    OVERVIEW
