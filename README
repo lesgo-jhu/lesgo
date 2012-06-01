@@ -512,7 +512,7 @@ the translation of the objects from a description of branches, generations,
 etc. in to the three RNS elements: r, beta, and b. This recasting for the
 description of the geometry is performed by the subroutine "rns_init_ls" in
 which the "r_elem_t", "beta_elem_t", and "b_elem_t" data structures are
-filled. These structures contain majority the information of the geometry to be
+filled. These structures contain majority of the geometric information to be
 modeled that is required by the RNS module. The subroutine "rns_init_ls" is NOT
 provided by the RNS module since this recasting does depend on the specifics of
 the geometry. Therefore it is required to develop this routine when new geometry
@@ -523,7 +523,7 @@ generate the filtered indicator function for the SGS geometry. In similar manner
 to the level set module which requires the level set function "phi" to express
 the resolved geometry, the subgrid scale geometry is represented by the filtered
 indicator function "chi". Effectively "chi" represents projection of the SGS
-branches onto the computational mesh.
+branches onto the computational mesh. 
 
 To summarize the requirements of the RNS module:
 
@@ -548,9 +548,49 @@ To summarize the requirements of the RNS module:
 				     USAGE
 --------------------------------------------------------------------------------
 
+To use the RNS module, it and the level set module must be added to the build
+and this is done by setting
 
+  USE_LVLSET = yes
+  USE_RNS_LS = yes
 
+in "Makefile.in". In addition it is required to include a module set that
+generates the RNS elements and "chi" field for the specific geometry of
+interest. As mentioned above, the only one currently availabe is the "cyl_skew"
+module set. It is added to the build by setting
 
+  USE_CYL_SKEW_LS = yes
+
+also in "Makefile.in". After building lesgo, you'll need to configure the
+modules in the input file "lesgo.conf". The level set module's configuration is
+in the "LVLSET" block. In most instances it will not be required to change any
+of the default settings. So if unsure, leave the level set settings at the
+default ones. There may be special cases that require adjustment of these
+settings and this is highlighted in the "LEVEL SET IMMERSED BOUNDARY METHOD"
+above. 
+
+The settings for the RNS module are in the "RNS" block. Here you will adjust how
+many RNS objects (called trees), their layout, and model settings. With the
+model settings there is a choice of the types of temporal filtering, numerical,
+and spatial treatments. The most robust configuration is given as
+
+  temporal_weight = 1
+  temporal_model = 1
+  spatial_model = 1
+
+There are other setting pertaining to the modeling, but the default ones should
+work fine. Of course they may be adjusted on a cases by case bases. The
+parameter that may be useful for starting a RNS simulation from scratch is
+"cd_ramp_nstep". This setting forces the drag coefficient to be linearly ramped
+during a spinup period which may be needed for stability.
+
+The final piece is to make sure the module that provides the translation routine
+for the RNS elements is configured. In most instances this has already been done
+when the "phi" and "chi" fields are generated.
+
+--------------------------------------------------------------------------------
+				     OUTPUT
+--------------------------------------------------------------------------------
 
 
 ================================================================================
