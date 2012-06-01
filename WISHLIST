@@ -15,14 +15,14 @@ ITEMS:
      variables written to file but any instance that a w-grid variable
      is operated against a uv-grid variable.
 
-(NN) Add checkpointing. This should also include periodic writes of the
+(CC) Add checkpointing. This should also include periodic writes of the
      time averaged data.
 
 (II) Create documentation. Good place to start is the README. Would be
      nice to have a formal pdf covering the basic background info, usage
      of lesgo, and any idiosyncrasies that are important to know
 
-(NN) Convert code to use an input file. This would be very nice! The
+(CC) Convert code to use an input file. This would be very nice! The
      code would need to fully implement dynamic allocation of arrays.
      Also need to consider the input format - 1) this could be a custom
      format where all info is read in a strings and using delimiters
@@ -30,7 +30,7 @@ ITEMS:
      express the input data using standard Fortran data types (probably
      the best way to go)
  
-(NN) Convert code to dynamic memory allocation. This is a good practice
+(CC) Convert code to dynamic memory allocation. This is a good practice
      in general, it will remove issues with the mcmodel for cases with
      large grids, and is a prequesite to use an input file for setting
      parameters. There is a dynamic allocation flag in Makefile.in but
