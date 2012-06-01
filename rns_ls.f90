@@ -1453,6 +1453,7 @@ subroutine rns_force_init_ls ()
 !
 use types, only : rprec
 use param, only : coord, path
+use string_util, only : string_splice
 use messages
 implicit none
 
@@ -1472,9 +1473,9 @@ inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($MPI)
-write (fname, '(a,a,i0)') fname_in, MPI_suffix, coord
+call string_splice( fname, fname_in // MPI_suffix, coord )
 $else
-fname = trim(adjustl(fname_in))
+fname = fname_in
 $endif
 
 inquire (file=fname, exist=exst)
@@ -1513,6 +1514,7 @@ subroutine rns_finalize_ls()
 !
 use param, only : coord, path
 use messages
+use string_util, only : string_splice
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
@@ -1532,9 +1534,9 @@ inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($MPI)
-write (fname, '(a,a,i0)') fname_out, MPI_suffix, coord
+call string_splice( fname, fname_out // MPI_suffix, coord )
 $else
-fname = trim(adjustl(fname_out))
+fname = fname_out
 $endif
 
 $if ($WRITE_BIG_ENDIAN)
