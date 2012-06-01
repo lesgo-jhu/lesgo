@@ -289,7 +289,10 @@ F) Data along z-planes
   * vel.z-<zloc>-<timestep>.dat : Instantanous velocity sampled at z location
                                   <zloc> for the time step <timestep>
   
-DEVELOPER NOTES:
+
+................................................................................
+				DEVELOPER NOTES
+................................................................................
 
 A) File ID reservations:
 
