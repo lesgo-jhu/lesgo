@@ -503,11 +503,10 @@ elseif(itype==2) then
   !/// WRITE VELOCITY                       ///
   !////////////////////////////////////////////
 
-  fname = path
   $if( $BINARY )
-  call string_concat( fname, 'output/binary_vel.', jt_total,'.dat')
+  call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
   $else
-  call string_concat( fname, 'output/vel.', jt_total, '.dat')
+  call string_splice( fname, path // 'output/vel.', jt_total, '.dat')
   $endif
 
   $if ($MPI)
@@ -569,8 +568,7 @@ elseif(itype==2) then
     call force_tot()
 
     !  Open file which to write global data
-    fname = path
-    call string_concat( fname, 'output/force.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/force.', jt_total, '.dat')
 
     $if ($MPI)
     call string_concat( fname, '.c', coord )
@@ -609,11 +607,10 @@ elseif(itype==2) then
     divvel = dudx(1:nx,1:ny,1:nz) + dvdy(1:nx,1:ny,1:nz) + dwdz(1:nx,1:ny,1:nz)
 
     !  Open file which to write global data
-    fname = path
     $if( $BINARY )
-    call string_concat( fname, 'output/binary_divvel.', jt_total,'.dat')
+    call string_splice( fname, path // 'output/binary_divvel.', jt_total,'.dat')
     $else
-    call string_concat( fname, 'output/divvel.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/divvel.', jt_total, '.dat')
     $endif
 
     $if ($MPI)
@@ -661,11 +658,10 @@ elseif(itype==2) then
 
     !  Open file which to write global data
 
-    fname = path
     $if($BINARY)
-    call string_concat( fname, 'output/binary_pressure.', jt_total,'.dat')
+    call string_splice( fname, path // 'output/binary_pressure.', jt_total,'.dat')
     $else
-    call string_concat( fname, 'output/pressure.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/pressure.', jt_total, '.dat')
     $endif
 
     $if ($MPI)
@@ -729,11 +725,10 @@ elseif(itype==2) then
     !////////////////////////////////////////////
 
     !  Open file which to write global data
-    fname = path
     $if($BINARY)
-    call string_concat( fname2, 'output/binary_RHS.', jt_total,'.dat')
+    call string_splice( fname, path // 'output/binary_RHS.', jt_total,'.dat')
     $else
-    call string_concat( fname, 'output/RHS.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/RHS.', jt_total, '.dat')
     $endif
 
     $if ($MPI)
@@ -744,7 +739,7 @@ elseif(itype==2) then
 
     $if($BINARY)
     ! RICHARD
-    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
     write(13,rec=1) (((RHSx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=2) (((RHSy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
@@ -803,8 +798,7 @@ elseif(itype==3) then
 !  Loop over all xplane locations
   do i=1,xplane_nloc
 
-     fname = path
-     call string_concat( fname, 'output/vel.x-', xplane_loc(i), '.', jt_total, '.dat')
+     call string_splice( fname, path // 'output/vel.x-', xplane_loc(i), '.', jt_total, '.dat')
   
      $if ($MPI)
        call string_concat( fname, '.c', coord )
@@ -831,8 +825,7 @@ elseif(itype==3) then
 
     $if($LVLSET)
 
-    fname = path
-    call string_concat( fname, 'output/force.x-', xplane_loc(i), '.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/force.x-', xplane_loc(i), '.', jt_total, '.dat')
 
     $if ($MPI)
     call string_concat( fname, '.c', coord )
@@ -901,8 +894,7 @@ elseif(itype==3) then
         enddo
       enddo
 
-      fname = path
-      call string_concat( fname, 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
+      call string_splice( fname, path // 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
 
       $if ($MPI)
       call string_concat( fname, '.c', coord )
@@ -956,8 +948,7 @@ elseif(itype==3) then
         enddo
       enddo
 
-      fname = path
-      call string_concat( fname , 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
+      call string_splice( fname , path // 'output/ldsm.x-', xplane_loc(i), '.', jt_total, '.dat')
 
       $if ($MPI)
       call string_concat( fname, '.c', coord )
@@ -1001,8 +992,7 @@ elseif(itype==4) then
 !  Loop over all yplane locations
   do j=1,yplane_nloc
 
-    fname = path
-    call string_concat( fname, 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
   
     $if ($MPI)
     call string_concat( fname, '.c', coord )
@@ -1030,8 +1020,7 @@ elseif(itype==4) then
   
     $if($LVLSET)
 
-    fname = path
-    call string_concat( fname, 'output/force.y-', yplane_loc(j), '.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/force.y-', yplane_loc(j), '.', jt_total, '.dat')
 
     $if ($MPI)
     call string_concat( fname, '.c', coord )
@@ -1092,8 +1081,7 @@ elseif(itype==4) then
         enddo
       enddo
 
-      fname = path
-      call string_concat( fname, 'output/ldsm.y-', yplane_loc(j), '.', jt_total, '.dat')
+      call string_splice( fname, path // 'output/ldsm.y-', yplane_loc(j), '.', jt_total, '.dat')
 
       $if ($MPI)
       call string_concat( fname, '.c', coord )
@@ -1147,8 +1135,7 @@ elseif(itype==4) then
         enddo
       enddo
 
-      fname = path
-      call string_concat( fname, 'output/ldsm.y-', yplane_loc(j), '.', jt_total,'.dat')
+      call string_splice( fname, path // 'output/ldsm.y-', yplane_loc(j), '.', jt_total,'.dat')
 
       $if ($MPI)
       call string_concat( fname, '.c', coord )
@@ -1196,8 +1183,7 @@ elseif(itype==5) then
     if(zplane_t(k) % coord == coord) then
     $endif
 
-    fname = path
-    call string_concat( fname, 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
       '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
@@ -1223,8 +1209,7 @@ elseif(itype==5) then
     
     $if($LVLSET)
 
-    fname = path
-    call string_concat( fname, 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
+    call string_splice( fname, path // 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
 
     call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
       '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
@@ -1285,8 +1270,7 @@ elseif(itype==5) then
         enddo
       enddo
 
-      fname = path
-      call string_concat( fname, 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
+      call string_splice( fname, path // 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
@@ -1336,8 +1320,7 @@ elseif(itype==5) then
         enddo
       enddo      
 
-      fname = path
-      call string_concat( fname, 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
+      call string_splice( fname, path // 'output/ldsm.z-', zplane_loc(k), '.', jt_total, '.dat')
 
       var_list = '"x", "y", "z", "F<sub>LM</sub>", "F<sub>MM</sub>"'
       var_list = trim(adjustl(var_list)) // ', "F<sub>QN</sub>", "F<sub>NN</sub>"'
@@ -1856,9 +1839,7 @@ if(point_calc) then
     point_t(i) % ydiff = point_loc(i)%xyz(2) - y(point_t(i) % jstart)
     point_t(i) % zdiff = point_loc(i)%xyz(3) - z(point_t(i) % kstart)
     
-    !  Can't concatenate an empty string
-    fname=path
-    call string_concat(fname,'output/vel.x-', point_loc(i)%xyz(1), &
+    call string_splice(fname, path // 'output/vel.x-', point_loc(i)%xyz(1), &
          '.y-', point_loc(i)%xyz(2), &
          '.z-', point_loc(i)%xyz(3),'.dat')
     
@@ -3190,8 +3171,7 @@ do k=1,spectra_nloc
   spectra_t(k) % power = spectra_t(k) % power / spectra_total_time
 
   !  Create unique file name
-  fname = path
-  call string_concat( fname, 'output/spectra.z-', spectra_loc(k),'.dat' )
+  call string_splice( fname, path // 'output/spectra.z-', spectra_loc(k),'.dat' )
 
   !  Omitting Nyquist from output
   call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
