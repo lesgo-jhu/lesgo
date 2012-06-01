@@ -28,15 +28,15 @@ the solver are modules that provide additional functionality such as an immersed
 boundary method, wind farm modeling, and others. The following is a list of the
 major components of lesgo:
 
-* LES Flow Solver
+  * LES Flow Solver
 
-* Level Set Immersed Boundary Method
+  * Level Set Immersed Boundary Method
 
-* Renormalized Numerical Simulation 
+  * Renormalized Numerical Simulation 
 
-* Wind farm modeling 
+  * Wind farm modeling 
 
-* Concurrent precursor simulation
+  * Concurrent precursor simulation
 
 Each of these components are discussed in detail in the following sections.
 
@@ -46,46 +46,46 @@ Each of these components are discussed in detail in the following sections.
 
 The following dependencies are required in order to compile lesgo:
 
-* Fortran 95 compiler: 
+  * Fortran 95 compiler: 
 
-  Most modern compilers will work fine. Ones that have been used successfully
-  are G95, GFortran (>= 4.4), Intel, and PGI
+    Most modern compilers will work fine. Ones that have been used successfully
+    are G95, GFortran (>= 4.4), Intel, and PGI
 
-* makedepf90 (http://www.helsinki.fi/~eedelman/makedepf90.html) 
+  * makedepf90 (http://www.helsinki.fi/~eedelman/makedepf90.html) 
 
-  The Makefile makes use of this to determine file dependencies.
+    The Makefile makes use of this to determine file dependencies.
 
-* fpx3 (http://wwwuser.gwdg.de/~jbehren/fpx3)
+  * fpx3 (http://wwwuser.gwdg.de/~jbehren/fpx3)
 
-  This is a fortran preprocessor. The main reason this is used is to isolate
-  calls to MPI libraries, so that if someone wants to run the code in non-MPI
-  mode, then it will compile cleanly and the compiler/linker will not complain
-  about missing MPI libraries. fpx3 macros are also used to hide some other
-  definitions from the compiler, e.g., some array dimensions. The Makefile runs
-  the preprocessor as a step in compilation.
+    This is a fortran preprocessor. The main reason this is used is to isolate
+    calls to MPI libraries, so that if someone wants to run the code in non-MPI
+    mode, then it will compile cleanly and the compiler/linker will not complain
+    about missing MPI libraries. fpx3 macros are also used to hide some other
+    definitions from the compiler, e.g., some array dimensions. The Makefile
+    runs the preprocessor as a step in compilation.
 
-* tecryte >= 2.1.1 (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
+  * tecryte >= 2.1.1 (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
 
-  Currently all of the data output is written in Tecplot format. tecryte is a
-  library that we have developed to write data to Tecplot formatted files. All
-  of the data is written in block format and has been optimized to work well
-  over both local and distributed file systems.
+    Currently all of the data output is written in Tecplot format. tecryte is a
+    library that we have developed to write data to Tecplot formatted files. All
+    of the data is written in block format and has been optimized to work well
+    over both local and distributed file systems.
 
 --------------------------------------------------------------------------------
 				    OPTIONAL
 --------------------------------------------------------------------------------
 
-* MPI implementation:
+  * MPI implementation:
 
-  A MPI implementation will be required for MPI support. The code has been
-  developed and used successfully with MPICH2
-  (http://www.mcs.anl.gov/research/projects/mpich2/) but others such as OpenMPI
-  work as well.
+    A MPI implementation will be required for MPI support. The code has been
+    developed and used successfully with MPICH2
+    (http://www.mcs.anl.gov/research/projects/mpich2/) but others such as
+    OpenMPI work as well.
 
-* lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
+  * lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
 
-  lesgo-tools provides a set of scripts that aid in working with stable
-  snapshots of lesgo and post processing data.
+    lesgo-tools provides a set of scripts that aid in working with stable
+    snapshots of lesgo and post processing data.
 
 ================================================================================
 				GETTING STARTED
@@ -212,14 +212,20 @@ when time averaging variables.
 ================================================================================
 
 The output data from lesgo contains two types: 1) restart data and 2)
-visualization data. Below are listed the output files along with a description
-of their contents.
+visualization data. Both types are described here. It should be noted that the
+file names for serial runs will only be listed. In the case of MPI runs some
+files will be appended with '.c<id>' where <id> is the z-ordered MPI rank used
+in the simulation. For files where this is applicable, it will be noted by the
+term 'MPI appendix'
+
+Below are listed the output files along with a description
+of their contents. These file use the 'MPI appendix'
 
   1) vel.out : Contains the core part of the restart data for lesgo. In this
                file the velocity, right hand side of the momentum equation, and
                several SGS variables are store. Essentially all the data
                required from the previous time step or steps is located in these
-               files. 
+               files.
 
   2) tavg.out : Contains the time averaged data from the previous simulation. In
                 this file the running averages of the velocity, Reynolds stress,
@@ -230,18 +236,69 @@ of their contents.
                    the previous simulation.
 
 The visualization data is located in the directory "output". The "output"
-directory is created by making a system call and should work fine on all Unix
-based systems. The output to this directory depends on which output is is
-selected in the input file "lesgo.conf".
+directory is created by making a 'mkdir' system call and should work fine on all
+Unix based systems. By default these file are written in Tecplot formatted files
+using the 'tecryte' library. The output to this directory depends on the
+settings in the OUTPUT block in the input file "lesgo.conf". In this section we
+will discuss the output from the core LES solver of lesgo. All data output from
+various modules will be discussed in their respective sections.
 
-File ID reservations:
+A) Time Averaged Data
 
-  All data files that use a fixed file identifier should be opened using
-  "open_file" from the "tecryte" library. The library provides a mechanism for
-  handling the file identifiers of files that will remain open during the
-  simulation. It simply provides the file identifier on a first come first serve
-  bases starting with 1001. So if any file identifiers are to be used that are
-  not provided by the tecryte library they should be <=1000.
+  1) Entire domain (these file use the 'MPI appendix')
+
+    * vel_avg.dat : Mean velocity field
+    * vel2_avg.dat : Mean of square products of the velocity field
+    * ddz_avg.dat : Mean of vertical gradients of several quanties
+    * force_avg.dat : Mean field of modeled forces (IBM, turbines, RNS, etc.)
+    * tau_avg.dat : Mean of the subgrid-scale stress tensor
+    * rs.dat : Reynolds stresses
+
+  2) Averaged over z-planes
+
+    * vel_zplane_avg.dat
+    * vel2_zplane_avg.dat
+    * ddz_zplane_avg.dat
+    * force_zplane_avg.dat
+    * tau_zplane_avg.dat
+    * rs_zplane.dat
+    * cnpy_zplane.dat : Canopy (dispersive) stresses
+    * cs_opt2_zplane.dat : Square of Smagorinsky coefficient from SGS modeling
+
+B) Domain Data (these files use the 'MPI appendix')
+
+  * vel.<timestep>.dat : Instantaneous velocity field at time step <timestep>
+
+C) Sampled Point Data
+
+  * vel.x-<xloc>.y-<yloc>.z-<zloc>.dat : Instantaneous velocity sampled at
+                                         point (<xloc>,<yloc>,<zloc>) 
+
+D) Data along x-planes (these files use the 'MPI appendix')
+
+  * vel.x-<xloc>-<timestep>.dat : Instantanous velocity sampled at x location
+                                  <xloc> for the time step <timestep>
+
+E) Data along y-planes (these files use the 'MPI appendix')
+
+  * vel.y-<yloc>-<timestep>.dat : Instantanous velocity sampled at y location
+                                  <yloc> for the time step <timestep>
+
+F) Data along z-planes
+
+  * vel.z-<zloc>-<timestep>.dat : Instantanous velocity sampled at z location
+                                  <zloc> for the time step <timestep>
+  
+DEVELOPER NOTES:
+
+A) File ID reservations:
+
+   All data files that use a fixed file identifier should be opened using
+   "open_file" from the "tecryte" library. The library provides a mechanism for
+   handling the file identifiers of files that will remain open during the
+   simulation. It simply provides the file identifier on a first come first
+   serve bases starting with 1001. So if any file identifiers are to be used
+   that are not provided by the tecryte library they should be <=1000.
  
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
@@ -381,6 +438,36 @@ reference to its parent branch.
 Next, run "trees_pre_ls" and the level set function required by the level set
 routines will be calculated. After running "trees_pre_ls", you should be all set
 to begin an LES computation.
+
+--------------------------------------------------------------------------------
+		       CREATING TREES WITH "cyl_skew_pre_ls"
+--------------------------------------------------------------------------------
+
+The program "cyl_skew_pre_ls" generates fractal trees with skewed cylinder
+branches. It stricly generates a single type of fractal tree which is composed
+of branch clusters. The branches in on of these clusters start from a collective
+base and are arranged in the z-direction. They spread outward relative to one
+another with increasing z-direction. Because of the specific type of tree, the
+parameter space for generating these trees is much smaller than the program
+"tree_pre_ls" and only requires a hand full of settings to setup. In addition to
+creating fractal trees it can be easily used for creating wall (such as for flow
+in a duct) or side walls in a channel.
+
+To use this program it is first required to set 
+
+  USE_CYL_SKEW_LS = yes
+
+in "Makefile.in". The program can then be built with
+
+  make -f Makefile.cyl_skew_pre_ls
+
+After it compiles, the input file "lesgo.conf" needs to be setup. In this case
+the 'DOMAIN' block has to be configured with the domain size and resolution that
+will be using in the simulation. To setup the trees, adjust the settings in the
+'CYL_SKEW' block. Once these are set the program can be executed. Note, if
+running in MPI, "cyl_skew_pre_ls" can be executed with an arbitrary number of
+processors and does not have to match the number of processors to be used in the
+"lesgo" simulation.
  
 ================================================================================
 		       RENORMALIZED NUMERICAL SIMULATION
