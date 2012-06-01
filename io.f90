@@ -2245,7 +2245,7 @@ fname_ddz = path // 'output/ddz_avg.dat'
 fname_tau = path // 'output/tau_avg.dat'
 fname_f = path // 'output/force_avg.dat'
 fname_rs = path // 'output/rs.dat'
-fname_cs = path // 'output/bcs_opt2.dat'
+fname_cs = path // 'output/cs_opt2.dat'
 
 fname_velb = path // 'output/binary_vel_avg.dat'
 fname_vel2b = path // 'output/binary_vel2_avg.dat'
