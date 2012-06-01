@@ -1122,9 +1122,9 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_r_elem_cd.dat'
-character(*), parameter :: fname_force = path // 'output/rns_r_elem_force.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/r_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/r_elem_force.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/r_elem_vel.dat'
 
 
 logical :: exst
@@ -1216,10 +1216,10 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_cd.dat'
-character(*), parameter :: fname_force = path // 'output/rns_beta_elem_force.dat'
-character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/beta_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/beta_elem_force.dat'
+character(*), parameter :: fname_kappa = path // 'output/rns/beta_elem_kappa.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/beta_elem_vel.dat'
 
 
 logical :: exst
@@ -1331,11 +1331,11 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_b_elem_cd.dat'
-character(*), parameter :: fname_force = path // 'output/rns_b_elem_force.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
-character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
-character(*), parameter :: fname_error_norm = path // 'output/rns_b_elem_error_norm.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/b_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/b_elem_force.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/b_elem_vel.dat'
+character(*), parameter :: fname_error = path // 'output/rns/b_elem_error.dat'
+character(*), parameter :: fname_error_norm = path // 'output/rns/b_elem_error_norm.dat'
 
 logical :: exst
 character(5000) :: var_list
