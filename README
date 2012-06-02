@@ -243,51 +243,51 @@ settings in the OUTPUT block in the input file "lesgo.conf". In this section we
 will discuss the output from the core LES solver of lesgo. All data output from
 various modules will be discussed in their respective sections.
 
-A) Time Averaged Data
+  A) Time Averaged Data
 
-  1) Entire domain (these file use the 'MPI appendix')
+    1) Entire domain (these file use the 'MPI appendix')
 
-    * vel_avg.dat : Mean velocity field
-    * vel2_avg.dat : Mean of square products of the velocity field
-    * ddz_avg.dat : Mean of vertical gradients of several quanties
-    * force_avg.dat : Mean field of modeled forces (IBM, turbines, RNS, etc.)
-    * tau_avg.dat : Mean of the subgrid-scale stress tensor
-    * rs.dat : Reynolds stresses
+      * vel_avg.dat  	    : Mean velocity field
+      * vel2_avg.dat 	    : Mean of square products of the velocity field
+      * ddz_avg.dat 	    : Mean of vertical gradients
+      * force_avg.dat 	    : Mean field of modeled forces (IBM, turbines, RNS, etc.)
+      * tau_avg.dat 	    : Mean of the subgrid-scale stress tensor
+      * rs.dat 		    : Reynolds stresses
 
   2) Averaged over z-planes
 
-    * vel_zplane_avg.dat
-    * vel2_zplane_avg.dat
-    * ddz_zplane_avg.dat
-    * force_zplane_avg.dat
-    * tau_zplane_avg.dat
-    * rs_zplane.dat
-    * cnpy_zplane.dat : Canopy (dispersive) stresses
-    * cs_opt2_zplane.dat : Square of Smagorinsky coefficient from SGS modeling
+    * vel_zplane_avg.dat    : Mean velocity field
+    * vel2_zplane_avg.dat   : Mean of square products of the velocity field
+    * ddz_zplane_avg.dat    : Mean of vertical gradients
+    * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc.)
+    * tau_zplane_avg.dat    : Mean of the subgrid-scale stress tensor
+    * rs_zplane.dat	    : Reynolds stresses
+    * cnpy_zplane.dat	    : Canopy (dispersive) stresses
+    * cs_opt2_zplane.dat    : Square of Smagorinsky coefficient from SGS modeling
 
 B) Domain Data (these files use the 'MPI appendix')
 
-  * vel.<timestep>.dat : Instantaneous velocity field at time step <timestep>
+  * vel.<timestep>.dat      : Instantaneous velocity field at time step <timestep>
 
 C) Sampled Point Data
 
-  * vel.x-<xloc>.y-<yloc>.z-<zloc>.dat : Instantaneous velocity sampled at
-                                         point (<xloc>,<yloc>,<zloc>) 
+  * vel.x-<xloc>.y-<yloc>.z-<zloc>.dat :
+    Instantaneous velocity sampled at point (<xloc>,<yloc>,<zloc>) 
 
 D) Data along x-planes (these files use the 'MPI appendix')
 
-  * vel.x-<xloc>-<timestep>.dat : Instantanous velocity sampled at x location
-                                  <xloc> for the time step <timestep>
+  * vel.x-<xloc>-<timestep>.dat :
+    Instantanous velocity sampled at x location <xloc> for the time step <timestep>
 
 E) Data along y-planes (these files use the 'MPI appendix')
 
-  * vel.y-<yloc>-<timestep>.dat : Instantanous velocity sampled at y location
-                                  <yloc> for the time step <timestep>
+  * vel.y-<yloc>-<timestep>.dat :
+    Instantanous velocity sampled at y location <yloc> for the time step <timestep>
 
 F) Data along z-planes
 
-  * vel.z-<zloc>-<timestep>.dat : Instantanous velocity sampled at z location
-                                  <zloc> for the time step <timestep>
+  * vel.z-<zloc>-<timestep>.dat : 
+    Instantanous velocity sampled at z location <zloc> for the time step <timestep>
   
 
 ................................................................................
@@ -307,6 +307,12 @@ A) File ID reservations:
 		       LEVEL SET IMMERSED BOUNDARY METHOD
 ================================================================================
 
+The immersed boundary technique used in lesgo is described in this section.
+
+--------------------------------------------------------------------------------
+				    OVERVIEW
+--------------------------------------------------------------------------------
+
 For representing solid objects in the flow domain, the level set immersed
 boundary method is used. All objects are represeted using a level set or signed
 distance function (phi) where phi = 0 on the surface, phi < 0 inside objects and
@@ -317,6 +323,10 @@ compute the surface normals which is then used to apply the log-law stress
 within a small "band" along a the surface boundary. For all grid points on or
 inside of the surface the velocity is forced to zero using a direct forcing
 approach.
+
+--------------------------------------------------------------------------------
+				     USAGE
+--------------------------------------------------------------------------------
 
 To use the level set modules in a simulation, a file "phi.out" containing the
 signed distance function data must be created first.  This must be generated
@@ -495,6 +505,19 @@ which the large scale hydrodynamic drag forces are measured from the level set
 module and are downscaled in order to infer the hydrodynamic drag forces due to
 the small scale branches.
 
+Additional information regarding the current RNS implementation and methodology
+can be found at:
+
+  * Graham, J., Meneveau, C., "Modeling turbulent flow over fractal trees using
+    Renormalized Numerical Simulation: Alternate formulations and numerical
+    experiments", Phys. of Fluids, submitted, under review (2012).
+
+  * J. Graham, K. Bai, C. Meneveau, and J. Katz. LES modeling and experimental
+    measurement of boundary layer flow over multi-scale, fractal canopies. In
+    H. Kuerten, B. Geurts, V. Armenio, and J. Froehlich, editors, Direct and
+    Large-Eddy Simulation VIII, volume 15 of ERCOFTAF Series, pages 233­238,
+    2011.
+
 --------------------------------------------------------------------------------
 				 IMPLEMENTATION
 --------------------------------------------------------------------------------
@@ -592,10 +615,113 @@ when the "phi" and "chi" fields are generated.
 				     OUTPUT
 --------------------------------------------------------------------------------
 
+The RNS module writes all output files to the directory "output/rns". During the
+simulation, time signals for the measured reference velocity, forces, and drag
+coefficients for the RNS elements are stored. Depending on the element type
+additional data is also written. The data files and their contents are discussed
+below.
+
+  A) r elements
+
+    * r_elem_cd.dat         : drag coefficient
+    * r_elem_vel.dat   	    : reference velocity
+    * r_elem_force.dat 	    : drag forces
+
+  B) beta elements
+
+    * beta_elem_cd.dat      : drag coefficient
+    * beta_elem_vel.dat     : reference velocity
+    * beta_elem_force.dat   : drag forces
+    * beta_elem_kappa.dat   : SGS force modeling coefficient
+
+  C) b elements
+  
+    * b_elem_cd.dat         : drag coefficient
+    * b_elem_vel.dat   	    : reference velocity
+    * b_elem_force.dat 	    : drag forces
+    * b_elem_error.data     : RNS error (difference in measured and modeled 
+                              forces)
+    * b_elem_error_norm.dat : RNS error normalization factor
+
 
 ================================================================================
 			CONCURRENT PRECURSOR SIMULATION
 ================================================================================
+
+lesgo has the ability to use an inflow condition instead of the standard
+periodic condition. The inflow can either be a uniform or laminar inflow or it
+can be turbulent inflow generated from a precursor simulation. In this section,
+the concurrent precursor simulation (CPS) module which is used to provide the
+precursor data in a concurrent framework is discussed.
+
+--------------------------------------------------------------------------------
+				    OVERVIEW
+--------------------------------------------------------------------------------
+
+Traditionally, when using inflow data from a precursor simulation, it is
+required that a complete simulation be conducted before the target simulation
+can be performed. During the precursor simulation the inflow data would be
+sampled and periodically written to file. Subsequently, this inflow data would
+then be read in by the target simulation. While this approach is conceptually
+simple, it does have several drawbacks such as the following:
+
+  1) Only one simulation is peformed at a given time, i.e. must have the data
+     from the precursor simulation before the target simulation can be executed.
+
+  2) May require significant disk space for large simulations.
+
+  3) Requires significant I/O which may be a hinderance for good computational
+     efficiency.
+
+  4) Must coordinate the precursor simulation with the target simulation to
+     ensure enough inflow data for the target simulation.
+
+To allieviate these issues, the CPS module performs the precursor simulation
+concurrently with the target simulation. Conceptually the approach is the same,
+except of writing the sampled inflow data from the precursor simulation to file
+it is copied in memory directly to the target simulation using MPI. Since both
+simulations are executed simultaneously, there is no waiting for the precursor
+simulation to complete and direct memory copies remove the I/O overhead both in
+speed and storage space.
+
+--------------------------------------------------------------------------------
+				 IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+In the CPS module the precursor simulation is conducted in the 'producer' domain
+and is called the 'red' domain. The target simulation occurs in the 'consumer'
+domain which is labeled the 'blue' domain. MPI communication between these
+domains and within themselves is controlled by defining appropriate MPI
+communicators. 
+
+At the start of the simulation the "MPI_COMM_WORLD" communicator is split into
+two local communicators "localComm" where the 'red' and 'blue' each have their
+own. lesgo then takes the local communicator and create a communicator called
+"comm" using the MPI cartesian topology functions. The communicator "comm" is
+used for all MPI communication within the 'red' or 'blue' domains and is the
+intracommuncator for these domains. The "comm" communicator is also used for
+standard MPI with CPS turned off, which results in no special treatment for
+point-to-point communication when using CPS.
+
+For communication between the 'red' and 'blue' domain an intercommunicator
+"interComm" is created. It essentially builds a communication bridge for each
+process in the 'red' domain to commnicate with the corresponding process in the
+'blue' domain.
+
+When using the CPS module, the simulation is executed as multiple program,
+multiple data (MPMD) paradigm. Therefore, the simulation is launched with "N"
+process and "N/2" get assigned to the 'red' domain and the other "N/2" are
+assigned to the 'blue' domain. Within the global "MPI_COMM_WORLD" communicator,
+the domains have global ranks assigned to them such that 0 to N/2-1 is given to
+the 'red' domain and N/2 to N-1 is assigned to the 'blue' domain. Once the local
+communicator "comm" is created each domain has the local ranks 0 to N/2-1
+assigned to each of the processes. The intercommunicator then takes these local
+ranks and maps rank "n" from 'red' to rank "n" in 'blue' creating the bridge for
+copying the inflow data.
+
+--------------------------------------------------------------------------------
+				     USAGE
+--------------------------------------------------------------------------------
 
 
 
