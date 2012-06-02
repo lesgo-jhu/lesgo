@@ -1244,7 +1244,7 @@ contains
     use param, only :  MPI_RPREC,ierr, nproc, status
     use cyl_skew_pre_base_ls, only : nx_proc
     !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-    use string_util, only : numtostr, string_concat
+    use string_util, only : numtostr, string_splice
     implicit none
     include 'tecryte.h'
 
@@ -1361,7 +1361,7 @@ contains
     write(*,*) 'Finalized local to global send/receive'
 
     !  Open file which to write global data
-    fname = ''; call string_concat( fname, path // 'cyl_skew_ls_local.dat.c', global_rank_csp )
+    call string_splice( fname, path // 'cyl_skew_ls_local.dat.c', global_rank_csp )
 
     call write_tecplot_header_ND(fname, 'rewind', 7, &
          (/ Nx_proc+1, Ny+1, Nz_tot /), &
@@ -1397,7 +1397,7 @@ contains
     use cyl_skew_pre_base_ls, only : nx_proc, stride
     $endif
     !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-    use string_util, only : numtostr, string_concat
+    use string_util, only : numtostr, string_splice
     implicit none
     include 'tecryte.h'
 
@@ -1582,7 +1582,7 @@ contains
           chi_proc(:,:,:) = chi(:,:,kstart:kend)
 
           !  Open file which to write global data
-          fname = ''; call string_concat( fname, path // 'cyl_skew_ls.dat.c', n )
+          call string_splice( fname, path // 'cyl_skew_ls.dat.c', n )
 
           call write_tecplot_header_ND(fname, 'rewind', 7, &
                (/ Nx+1, Ny+1, Nz-lbz+1 /), &
@@ -1594,10 +1594,10 @@ contains
                4, x, y, z(kstart:kend))
 
           !  Open file which to write global data
-          fname_phi = ''; call string_concat( fname_phi, path // 'phi.out.c', n )
-          fname_brindx = ''; call string_concat( fname_brindx, path // 'brindx.out.c', n )
-          fname_clindx = ''; call string_concat( fname_clindx, path // 'clindx.out.c', n )
-          fname_chi = ''; call string_concat( fname_chi, path // 'chi.out.c', n )
+          call string_splice( fname_phi, path // 'phi.out.c', n )
+          call string_splice( fname_brindx, path // 'brindx.out.c', n )
+          call string_splice( fname_clindx, path // 'clindx.out.c', n )
+          call string_splice( fname_chi, path // 'chi.out.c', n )
 
           !  Write binary data for lesgo
           $if ($WRITE_BIG_ENDIAN)
