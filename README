@@ -2,7 +2,7 @@ Written by:
 
   Stuart Chester
   Jason Graham <jgraha8@gmail.com>
-  Claire Verhulst
+  Claire Verhulst <cverhuls@gmail.com>
 
 ================================================================================
 				   DISCLAIMER
@@ -66,10 +66,9 @@ The following dependencies are required in order to compile lesgo:
 
   * tecryte >= 2.1.1 (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
 
-    Currently all of the data output is written in Tecplot format. tecryte is a
-    library that we have developed to write data to Tecplot formatted files. All
-    of the data is written in block format and has been optimized to work well
-    over both local and distributed file systems.
+    tecryte is a library that we have developed to write data and to manage
+    writing Tecplot formatted files. It has been optimized to work well over
+    both local and distributed file systems.
 
 --------------------------------------------------------------------------------
 				    OPTIONAL
@@ -85,7 +84,8 @@ The following dependencies are required in order to compile lesgo:
   * lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
 
     lesgo-tools provides a set of scripts that aid in working with stable
-    snapshots of lesgo and post processing data.
+    snapshots of lesgo and post processing data. It provides an update utility
+    for easily grabbing updates as they are pushed out.
 
 ================================================================================
 				GETTING STARTED
@@ -110,9 +110,9 @@ for building using N threads.
 
 The resulting executable name will reflect the functionality that you have
 configured into the executable. For instance, for serial lesgo with no addtional
-bells and whistles the executable will be called 'lesgo'; if you turned on MPI
-support it will be called 'lesgo-mpi'. Once you have an executable there is no
-need to recompile for running different cases--this is done using "lesgo.conf".
+bells and whistles the executable will be called "lesgo"; if you turned on MPI
+support it will be called "lesgo-mpi". Once you have an executable there is no
+need to recompile for running different cases - this is done using "lesgo.conf".
 
 To configure your case simply update "lesgo.conf" appropriately. As mentioned
 above, "lesgo.conf" should be commented well enough to get started. If anything
@@ -122,7 +122,7 @@ file.
 When running, lesgo will output data to the directory "output". Also during
 execution, lesgo writes information to screen based on the value "wbase" in
 "lesgo.conf". This information includes time step information, CPU time,
-velocity divergence, etc. and is helpful for monitoring the case. Another
+velocity divergence, etc and is helpful for monitoring the case. Another
 important file for monitoring the simulation is the file "output/check_ke.dat"
 which has the average kinetic energy of the field. Typically the kinetic energy
 will decay during the spinup period and asymptote once stationarity is
@@ -163,7 +163,7 @@ is required. In the future, it may be advantageous to also decompose the slabs
 along the y-direction and utilize the parallel FFTW3 MPI library in order to
 increase scalability for large domains. 
 
-For the pressure solver a pipelining technique was chosen to parallelize the
+For the pressure solver, a pipelining technique was chosen to parallelize the
 TDMA, since it is simple and there isn't really any better options for
 parallelizing the solution of many small tridiagonal systems. The best size of
 the chunks to send "down the pipeline" can be controlled via the variable
@@ -203,9 +203,7 @@ are the same as found in lesgo.
  divtx, divty                               X
  divtz							    X
 
-Important to note that when all 'uv' grid variables are written to output files
-for plotting they are interpolated to the 'w' grid. This step is also performed
-when time averaging variables.
+When writting data to file the variables are interpolated to the same grid.
 
 ================================================================================
 				  DATA OUTPUT
@@ -229,7 +227,7 @@ of their contents. These file use the 'MPI appendix'
 
   2) tavg.out : Contains the time averaged data from the previous simulation. In
                 this file the running averages of the velocity, Reynolds stress,
-                etc. are store here and are used to maintain the averaging
+                etc are store here and are used to maintain the averaging
                 between simulations.
 		
   3) spectra.out : Contains the time averaged spectra data from
@@ -250,7 +248,7 @@ various modules will be discussed in their respective sections.
       * vel_avg.dat  	    : Mean velocity field
       * vel2_avg.dat 	    : Mean of square products of the velocity field
       * ddz_avg.dat 	    : Mean of vertical gradients
-      * force_avg.dat 	    : Mean field of modeled forces (IBM, turbines, RNS, etc.)
+      * force_avg.dat 	    : Mean field of modeled forces (IBM, turbines, RNS, etc)
       * tau_avg.dat 	    : Mean of the subgrid-scale stress tensor
       * rs.dat 		    : Reynolds stresses
 
@@ -259,7 +257,7 @@ various modules will be discussed in their respective sections.
     * vel_zplane_avg.dat    : Mean velocity field
     * vel2_zplane_avg.dat   : Mean of square products of the velocity field
     * ddz_zplane_avg.dat    : Mean of vertical gradients
-    * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc.)
+    * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc)
     * tau_zplane_avg.dat    : Mean of the subgrid-scale stress tensor
     * rs_zplane.dat	    : Reynolds stresses
     * cnpy_zplane.dat	    : Canopy (dispersive) stresses
@@ -342,7 +340,7 @@ control how close a given point must be to the surface before an certain action
 is taken). Just make sure to read all code associated with some of these
 parameters, since some are experimental, and may not be ready for "prime time".
 
-The variables "nphitop", "nphibot", etc., control how many extra z-levels are
+The variables "nphitop", "nphibot", etc, control how many extra z-levels are
 copied between MPI processes when determining boundary conditions (at top and
 bottom of the process-local domain).  The values to use here are geometry
 dependent, and it is pretty hard to determine in advance exactly what they
@@ -364,7 +362,7 @@ general.
 
 Another weakness is that the number of extra z-levels is the same for all
 processes, when for maximum efficiency, they really should be allowed to differ.
-It should be possible to have the code auto-dimension the "nphitop", etc., for
+It should be possible to have the code auto-dimension the "nphitop", etc, for
 each process.  On the other hand, this means that those processes that finish
 their boundary conditions faster that the other processes will have to wait, so
 unless they are given something useful to do, it is probably not worth the
@@ -532,7 +530,7 @@ the RNS elements and is not explicitly used by the RNS module.
 
 Since the RNS module works directly with the RNS elements it is required to do
 the translation of the objects from a description of branches, generations,
-etc. in to the three RNS elements: r, beta, and b. This recasting for the
+etc in to the three RNS elements: r, beta, and b. This recasting for the
 description of the geometry is performed by the subroutine "rns_init_ls" in
 which the "r_elem_t", "beta_elem_t", and "b_elem_t" data structures are
 filled. These structures contain majority of the geometric information to be
@@ -723,13 +721,83 @@ copying the inflow data.
 				     USAGE
 --------------------------------------------------------------------------------
 
+The first step is to build in the CPS support into lesgo by setting
 
+  USE_MPI = yes
+  USE_CPS = yes
+
+in "Makefile.in". You will need to build in CPS support for both the 'red' and
+'blue' domain executables. Other support may be built for required functionality
+but at a minimum CPS is needed. An example for this is the setup for developing
+flow over a wind farm. In the 'red' domain we'd have standard boundary later
+flow so we'd set
+
+  USE_MPI = yes
+  USE_CPS = yes
+
+as above and build the executable. Then we'd also need to include the wind
+turbines module for the 'blue' domain so we'd set
+
+  USE_MPI = yes
+  USE_CPS = yes
+  USE_TURBINES = yes
+
+and build lesgo.
+
+Once the executables are built you can then setup your cases. For now we'll call
+the executable for the 'red' domain "lesgo-red" and the one for the 'blue'
+domain "lesgo-blue". Each domain will need it's own run directory so you'll have
+to create these; we'll call these directories "red" and "blue". The executables
+should then be placed in their respective run directory. A copy of the input
+file "lesgo.conf" will have to be place in each of the run directories. 
+
+Now the input files have to be configured. The number of processors should be
+set what will be used for each domain. So, for example, if each domain will use
+4 processes, then
+
+  nproc = 4
+
+in "lesgo.conf" for both cases. When submitting the job, you have to request the
+total number of processes being used. Continuing with the example you have to
+request 8 process if the 'red' and 'blue' domains use 4 each. The next important
+setting is the inflow flag "inflow". For the red domain it must be set to
+
+  inflow = .false.
+
+where the 'blue' domain will use
+
+  inflow = .true.
+
+To provide the inflow condition while numerically still using periodic boundary
+conditions, a fringe method is applied. The fringe method is a well established
+technique for forcing the velocity field to the desired, sampled field over a
+small region called the fringe region. There are several settings which control
+the location and size of this fringe region. 
+
+One constraint of the CPS module is that the grid spacing of the 'red' and
+'blue' domains must match. The domain lengths can be different, but the grid
+spacing must be the same to ensure accurate results. Another constraint is that
+because these simulation are synchronized, the same value for "dt" must be
+specified unless dynamic time steppping is used, then the same CFL value should
+be used for both domains.
+
+The specifics on launching the simulation depends on which MPI implementation is
+used. This is discussed below, assuming we are using executables named
+"lesgo-red" and "lesgo-blue" and run directories "red" and "blue" for the "red"
+and "blue" domains, respectively, with a total of "N" processes.
+
+  A) MPICH2 launch command
+
+     mpiexec -f <nodefile> -wdir red -n <N/2> ./lesgo-red : -wdir blue -n <N/2> ./lesgo-blue
+
+When running all diagonistic information is written to standard out with no
+specific order.
 
 ================================================================================
                                 WIND-TURBINES
 ================================================================================
 
-LESGO also has the ability to simulate an array of wind-turbines.  To use this
+lesgo also has the ability to simulate an array of wind-turbines.  To use this
 feature set USE_TURBINES = yes in "Makefile.in".  The turbine-specific settings 
 are found in "lesgo.conf".  These will be discussed in detail below.  The 
 subroutines associated with the turbine calculations are found in the files 
@@ -743,7 +811,7 @@ with the MPI domain discretization.
 Each turbine is represented as a drag disk with a force that depends on the 
 velocity at the disk (averaged in time and space).  This force is distributed 
 across several gridpoints that together represent the turbine.  For large arrays 
-the coarse grid resolution does not allow for the modelling of individual 
+the coarse grid resolution does not allow for the modeling of individual 
 blades. No tangential forces are applied to the flow, though it may prove
 beneficial to include these in the future (see Meyers 2010).
 
