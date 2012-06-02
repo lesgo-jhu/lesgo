@@ -1,54 +1,31 @@
+!*******************************************************************************
 subroutine padd (u_big,u)
+!*******************************************************************************
 ! puts arrays into larger, zero-padded arrays 
 ! automatically zeroes the oddballs
 use types,only:rprec
 use param,only:ld,ld_big,nx,ny,ny2
 implicit none
-integer::jx,jy
-integer :: ir, ii
-integer :: jy_off, jy_off_big
-
-! note we're calling with 2D arrays
-!complex(kind=rprec),dimension(lh,ny),intent(in)::u
-!complex(kind=rprec),dimension(lh_big,ny2),intent(out)::u_big
 
 !  u and u_big are interleaved as complex arrays
 real(kind=rprec), dimension(ld,ny), intent(in) :: u
 real(kind=rprec), dimension(ld_big,ny2), intent(out) :: u_big
 
+integer :: ny_h, j_s, j_big_s
+
+ny_h = ny/2
+
 ! make sure the big array is zeroed!
-u_big=0._rprec
-! note: the loops are split in an attempt to maintain locality
-! test it                   !
-do jy=1,ny/2
-  do jx=1,nx/2
+u_big(:,:) = 0._rprec
 
-    ii = 2*jx
-    ir = ii - 1
+! note: split access in an attempt to maintain locality
+u_big(:nx,:ny_h) = u(:nx,:ny_h)
 
-    ! skip the Nyquist frequency since it should be zero anyway
-    !u_big(jx,jy)=u(jx,jy)
-    u_big(ir:ii,jy) = u(ir:ii,jy)
+! Compute starting j locations for second transfer
+j_s = ny_h + 2
+j_big_s = ny2 - ny_h + 2
 
-  end do
-end do
-
-do jy=1,ny/2-1
-
-  !  Cache index
-  jy_off_big = jy+ny2-ny/2+1
-  jy_off     = jy+ny/2+1
-
-  do jx=1,nx/2
-  
-    ii = 2*jx
-    ir = ii - 1
-  
-    !u_big(jx,jy+ny2-ny/2+1)=u(jx,jy+ny/2+1)
-    u_big( ir:ii, jy_off_big ) = u( ir:ii, jy_off )
-
-  end do
-end do
+u_big(:nx,j_big_s:ny2) = u(:nx,j_s:ny)
 
 return
 end subroutine padd

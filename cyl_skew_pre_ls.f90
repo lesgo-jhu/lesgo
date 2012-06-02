@@ -1244,13 +1244,13 @@ contains
     use param, only :  MPI_RPREC,ierr, nproc, status
     use cyl_skew_pre_base_ls, only : nx_proc
     !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-    use string_util, only : numtostr
+    use string_util, only : numtostr, string_splice
     implicit none
     include 'tecryte.h'
 
     integer :: left, right
     integer :: sendcnt
-    character (64) :: fname, temp
+    character (64) :: fname
     integer, allocatable, dimension(:,:,:) :: brindx, clindx
     real(rprec), allocatable, dimension(:,:,:) :: phi, chi
     integer, allocatable, dimension(:,:) :: brindx_sbuf, brindx_rbuf, clindx_sbuf, clindx_rbuf
@@ -1361,11 +1361,7 @@ contains
     write(*,*) 'Finalized local to global send/receive'
 
     !  Open file which to write global data
-    write (fname,*) path // 'cyl_skew_ls_local.dat'
-    fname = trim(adjustl(fname))
-
-    write (temp, '(".c",i0)') global_rank_csp
-    fname = trim (fname) // temp
+    call string_splice( fname, path // 'cyl_skew_ls_local.dat.c', global_rank_csp )
 
     call write_tecplot_header_ND(fname, 'rewind', 7, &
          (/ Nx_proc+1, Ny+1, Nz_tot /), &
@@ -1401,11 +1397,11 @@ contains
     use cyl_skew_pre_base_ls, only : nx_proc, stride
     $endif
     !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
-    use string_util, only : numtostr
+    use string_util, only : numtostr, string_splice
     implicit none
     include 'tecryte.h'
 
-    character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi, temp
+    character (64) :: fname, fname_phi, fname_brindx, fname_clindx, fname_chi
     integer :: i,j,k,n
 
     integer :: istart, iend
@@ -1433,19 +1429,6 @@ contains
     !  Gather data one by one in rank order
     if( global_rank_csp > 0 ) then
 
-       !write(*,*) 'global_rank_csp, sendcnt : ',  global_rank_csp, sendcnt
-       !  Open file which to write global data
-       write (fname,*) path // 'x.dat'
-       fname = trim(adjustl(fname))
-
-       write (temp, '(".c",i0)') global_rank_csp
-       fname = trim (fname) // temp
-       open (1, file=fname, form='formatted',status='unknown',position='rewind')
-       do n=1,nx_proc
-          write(1,*) gcs_t(n,1,1)%xyz(1)
-       enddo
-       close (1)
-
        call mpi_ssend( stride, 1, MPI_INTEGER, 0, 6, &
             MPI_COMM_WORLD, ierr)
        call mpi_ssend( nx_proc, 1, MPI_INTEGER, 0, 7, &
@@ -1461,8 +1444,6 @@ contains
             MPI_COMM_WORLD, ierr)
        call mpi_send( gcs_t(:,1,1)%xyz(1), nx_proc, MPI_RPREC, 0, 5, &
             MPI_COMM_WORLD, ierr)
-
-
 
     else
 
@@ -1601,11 +1582,7 @@ contains
           chi_proc(:,:,:) = chi(:,:,kstart:kend)
 
           !  Open file which to write global data
-          write (fname,*) path // 'cyl_skew_ls.dat'
-          fname = trim(adjustl(fname))
-
-          write (temp, '(".c",i0)') n
-          fname = trim (fname) // temp
+          call string_splice( fname, path // 'cyl_skew_ls.dat.c', n )
 
           call write_tecplot_header_ND(fname, 'rewind', 7, &
                (/ Nx+1, Ny+1, Nz-lbz+1 /), &
@@ -1617,24 +1594,10 @@ contains
                4, x, y, z(kstart:kend))
 
           !  Open file which to write global data
-          write (fname_phi,*) path // 'phi.out'
-          fname_phi = trim(adjustl(fname_phi))
-          write (fname_brindx,*) path // 'brindx.out'
-          fname_brindx = trim(adjustl(fname_brindx))
-          write (fname_clindx,*) path // 'clindx.out'
-          fname_clindx = trim(adjustl(fname_clindx))
-          write (fname_chi,*) path // 'chi.out'
-          fname_chi = trim(adjustl(fname_chi))
-
-
-          write (temp, '(".c",i0)') n
-          fname_phi = trim (fname_phi) // temp
-          write (temp, '(".c",i0)') n
-          fname_brindx = trim (fname_brindx) // temp
-          write (temp, '(".c",i0)') n
-          fname_clindx = trim (fname_clindx) // temp
-          write (temp, '(".c",i0)') n
-          fname_chi = trim (fname_chi) // temp
+          call string_splice( fname_phi, path // 'phi.out.c', n )
+          call string_splice( fname_brindx, path // 'brindx.out.c', n )
+          call string_splice( fname_clindx, path // 'clindx.out.c', n )
+          call string_splice( fname_chi, path // 'chi.out.c', n )
 
           !  Write binary data for lesgo
           $if ($WRITE_BIG_ENDIAN)
@@ -1710,13 +1673,9 @@ contains
 
     !  Open file which to write global data
     write (fname_phi,*) path // 'phi.out'
-    fname_phi = trim(adjustl(fname_phi))
     write (fname_brindx,*) path // 'brindx.out'
-    fname_brindx = trim(adjustl(fname_brindx))
     write (fname_clindx,*) path // 'clindx.out'
-    fname_clindx = trim(adjustl(fname_clindx))
     write (fname_chi,*) path // 'chi.out'
-    fname_chi = trim(adjustl(fname_chi))
 
     !  Write binary data for lesgo
     $if ($WRITE_BIG_ENDIAN)
@@ -1788,9 +1747,10 @@ contains
     use types, only : rprec
     use param, only : path
     use param, only : nz,dz
+    use string_util, only : string_concat
 
     implicit none
-    character(64) :: fname, temp
+    character(64) :: fname
     integer :: ng, k
 
     real(rprec) :: bplane, tplane
@@ -1867,12 +1827,10 @@ contains
     enddo
 
     !  Open file which to write global data
-    write (fname,*) path // 'cyl_skew_gen_ls.out'
-    fname = trim(adjustl(fname))
+    fname = path // 'cyl_skew_gen_ls.out'
 
     if(nproc > 1) then
-       write (temp, '(".c",i0)') coord
-       fname = trim (fname) // temp
+       call string_concat( fname, '.c', coord )
     endif
 
     open (unit = 2,file = fname, status='unknown',form='formatted', &
@@ -1900,18 +1858,17 @@ contains
     $if ($MPI)
     use param, only : nproc, coord
     $endif
+    use string_util, only : string_concat
     implicit none
 
-    character(64) :: fname, temp
+    character(64) :: fname
     integer :: i,j,k
 
     !  Open file which to write global data
-    write (fname,*) path // 'cyl_skew_point_ls.out'
-    fname = trim(adjustl(fname))
+    fname = path // 'cyl_skew_point_ls.out'
 
     if(nproc > 1) then
-       write (temp, '(".c",i0)') coord
-       fname = trim (fname) // temp
+       call string_concat( fname, '.c', coord )
     endif
 
     open (unit = 2,file = fname, status='unknown',form='formatted', &

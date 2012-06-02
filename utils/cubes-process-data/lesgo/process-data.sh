@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Set flag to merge MPI vel_avg.dat.c* files to single vel_avg.dat file
-MPIMERGE=0
-NPROC=14
+MPIMERGE=1
+NPROC=4
 
 # Distance to subtract to zero cube
-XOFFSET=1.5; YOFFSET=2.0
+XOFFSET=1.5625; YOFFSET=2.0625
 
 # Spatial dimensions as set in the computational domain
 Nx=64; XMIN=0; XMAX=8.0
-Ny=32; YMIN=0; YMAX=4.0
+Ny=32; YMIN=0; YMAX=8.0
 Nz=29; ZMIN=0.0625; ZMAX=3.5625
 
 # Velocity spatial scale (DON'T TOUCH)

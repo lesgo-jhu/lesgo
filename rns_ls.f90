@@ -19,6 +19,22 @@ logical :: r_elem_data_init = .false.
 logical :: beta_elem_data_init = .false.
 logical :: b_elem_data_init = .false.
 
+! Output file id's
+integer :: r_elem_cd_fid, &
+           r_elem_force_fid, &
+           r_elem_vel_fid
+
+integer :: beta_elem_cd_fid, &
+           beta_elem_force_fid, &
+           beta_elem_kappa_fid, &
+           beta_elem_vel_fid
+
+integer :: b_elem_cd_fid, &
+           b_elem_error_fid, &
+           b_elem_error_norm_fid, &
+           b_elem_force_fid, &
+           b_elem_vel_fid
+
 contains
 
 !**********************************************************************
@@ -1106,9 +1122,9 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.r_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_r_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_r_elem_force.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_r_elem_vel.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/r_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/r_elem_force.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/r_elem_vel.dat'
 
 
 logical :: exst
@@ -1118,60 +1134,73 @@ integer :: n
 if( .not. r_elem_data_init ) then
 
   inquire (file=fname_CD, exist=exst)
+  r_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"CD<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
     enddo
-    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline( r_elem_cd_fid, trim(adjustl(var_list)) )
   endif
 
-  inquire (file=fname_fD, exist=exst)
+  inquire (file=fname_force, exist=exst)
+  r_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"fx<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>',n,'</sub>"')
     enddo
+    ! Write the total fx name
+    call string_concat(var_list, ',"fx_tot"')
+
     do n = 1, nr_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"fy<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>',n,'</sub>')
     enddo  
-    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+    ! Write the total fy name
+    call string_concat(var_list, ',"fy_tot"')
+    call write_tecplot_header_xyline( r_elem_force_fid, trim(adjustl(var_list)) )
+
   endif
 
   inquire (file=fname_vel, exist=exst)
+  r_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nr_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"u<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>',n,'</sub>"')
     enddo
     do n = 1, nr_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"v<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>',n,'</sub>"')
     enddo
-    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+
+    call write_tecplot_header_xyline( r_elem_vel_fid, trim(adjustl(var_list)) )
+
   endif
 
   r_elem_data_init = .true.
 
 endif  
 
-call write_real_data(fname_CD, 'append', 'formatted', nr_elem + 1, (/ total_time, r_elem_t(:) % force_t % CD /))
-call write_real_data(fname_fD, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, -r_elem_t(:) % force_t % fx, -r_elem_t(:) % force_t % fy /))
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nr_elem+1, (/ total_time, r_elem_t(:) % ref_region_t % u, r_elem_t(:) % ref_region_t % v /))
+call write_real_data(r_elem_cd_fid, 'formatted', nr_elem + 1, &
+     (/ total_time, r_elem_t(:) % force_t % CD /))
+
+call write_real_data(r_elem_force_fid, 'formatted', ndim*(nr_elem+1)+1, &
+     (/ total_time, -r_elem_t(:) % force_t % fx, &
+     -sum( r_elem_t(:) % force_t % fx ), &
+     -r_elem_t(:) % force_t % fy, &
+     -sum( r_elem_t(:) % force_t % fy ) /))
+
+call write_real_data(r_elem_vel_fid, 'formatted', ndim*nr_elem+1, &
+     (/ total_time, r_elem_t(:) % ref_region_t % u, &
+     r_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine r_elem_data_write
@@ -1187,10 +1216,10 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.beta_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_beta_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_beta_elem_force.dat'
-character(*), parameter :: fname_kappa = path // 'output/rns_beta_elem_kappa.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_beta_elem_vel.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/beta_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/beta_elem_force.dat'
+character(*), parameter :: fname_kappa = path // 'output/rns/beta_elem_kappa.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/beta_elem_vel.dat'
 
 
 logical :: exst
@@ -1199,77 +1228,95 @@ integer :: n
 
 
 if( .not. beta_elem_data_init ) then
-        
-  inquire (file=fname_CD, exist=exst)
-  if (.not. exst) then
-    var_list = '"t"'
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"CD<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo
-    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
-  endif
 
-  inquire (file=fname_fD, exist=exst)
-  if (.not. exst) then
-    var_list = '"t"'
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"fx<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"fy<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo  
-    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
-  endif  
+   ! Initialize files and headers
+   inquire (file=fname_CD, exist=exst)
+   beta_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
 
-  inquire (file=fname_kappa, exist=exst)
-  if (.not. exst) then
-    var_list = '"t"'
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"<greek>k</greek><sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo
-    call write_tecplot_header_xyline(fname_kappa, 'rewind', trim(adjustl(var_list)))
-  endif  
+   if (.not. exst) then
+      var_list = '"t"'
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
+      enddo
 
-  inquire (file=fname_vel, exist=exst)
-  if (.not. exst) then
-    var_list = '"t"'
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"u<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo
-    do n = 1, nbeta_elem
-      !  Create variable list name:
-      call string_concat(var_list, ',"v<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
-    enddo  
-    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
-  endif  
+      call write_tecplot_header_xyline( beta_elem_cd_fid, trim(adjustl(var_list)) )
 
-  beta_elem_data_init = .true. 
+   endif
+
+   inquire (file=fname_force, exist=exst)
+   beta_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+
+   if (.not. exst) then
+      var_list = '"t"'
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"fx<sub>',n,'</sub>"')
+      enddo
+      ! Write the total fx name
+      call string_concat(var_list, ',"fx_tot"')
+
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"fy<sub>',n,'</sub>"')
+      enddo
+      ! Write the total fy name
+      call string_concat(var_list, ',"fy_tot"')
+
+      call write_tecplot_header_xyline( beta_elem_force_fid, trim(adjustl(var_list)) )
+
+   endif
+
+   inquire (file=fname_kappa, exist=exst)
+   beta_elem_kappa_fid = open_file( fname_kappa, 'append', 'formatted' )
+
+   if (.not. exst) then
+      var_list = '"t"'
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"<greek>k</greek><sub>',n,'</sub>"')
+      enddo
+      call write_tecplot_header_xyline( beta_elem_kappa_fid, trim(adjustl(var_list)) )
+
+   endif
+
+   inquire (file=fname_vel, exist=exst)
+   beta_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+
+   if (.not. exst) then
+      var_list = '"t"'
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"u<sub>',n,'</sub>"')
+      enddo
+      do n = 1, nbeta_elem
+         !  Create variable list name:
+         call string_concat(var_list, ',"v<sub>',n,'</sub>"')
+      enddo
+      call write_tecplot_header_xyline(beta_elem_vel_fid, trim(adjustl(var_list)) )
+
+   endif
+
+   beta_elem_data_init = .true. 
 
 endif  
 
-call write_real_data(fname_CD, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % CD /))
-call write_real_data(fname_fD, 'append', 'formatted', ndim*nbeta_elem + 1, (/ total_time, -beta_elem_t(:) % force_t % fx, &
-  -beta_elem_t(:) % force_t % fy /))
-call write_real_data(fname_kappa, 'append', 'formatted', nbeta_elem + 1, (/ total_time, beta_elem_t(:) % force_t % kappa /))
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nbeta_elem+1, (/ total_time, beta_elem_t(:) % ref_region_t % u, &
-  beta_elem_t(:) % ref_region_t % v /))
+! Write all the data to file
+call write_real_data(beta_elem_cd_fid, 'formatted', nbeta_elem + 1, &
+     (/ total_time, beta_elem_t(:) % force_t % CD /))
+
+call write_real_data(beta_elem_force_fid, 'formatted', ndim*(nbeta_elem + 1) + 1, &
+     (/ total_time, -beta_elem_t(:) % force_t % fx, &
+     -sum(beta_elem_t(:) % force_t % fx), &
+     -beta_elem_t(:) % force_t % fy, &
+     -sum(beta_elem_t(:) % force_t % fy) /))
+
+call write_real_data(beta_elem_kappa_fid, 'formatted', nbeta_elem + 1, &
+     (/ total_time, beta_elem_t(:) % force_t % kappa /))
+
+call write_real_data(beta_elem_vel_fid, 'formatted', ndim*nbeta_elem+1, &
+     (/ total_time, beta_elem_t(:) % ref_region_t % u, &
+     beta_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine beta_elem_data_write
@@ -1284,11 +1331,11 @@ implicit none
 include 'tecryte.h'
 
 character(*), parameter :: sub_name = mod_name // '.b_elem_data_write'
-character(*), parameter :: fname_CD = path // 'output/rns_b_elem_cd.dat'
-character(*), parameter :: fname_fD = path // 'output/rns_b_elem_force.dat'
-character(*), parameter :: fname_vel = path // 'output/rns_b_elem_vel.dat'
-character(*), parameter :: fname_error = path // 'output/rns_b_elem_error.dat'
-character(*), parameter :: fname_error_norm = path // 'output/rns_b_elem_error_norm.dat'
+character(*), parameter :: fname_CD = path // 'output/rns/b_elem_cd.dat'
+character(*), parameter :: fname_force = path // 'output/rns/b_elem_force.dat'
+character(*), parameter :: fname_vel = path // 'output/rns/b_elem_vel.dat'
+character(*), parameter :: fname_error = path // 'output/rns/b_elem_error.dat'
+character(*), parameter :: fname_error_norm = path // 'output/rns/b_elem_error_norm.dat'
 
 logical :: exst
 character(5000) :: var_list
@@ -1297,75 +1344,78 @@ integer :: n
 if( .not. b_elem_data_init ) then
 
   inquire (file=fname_CD, exist=exst)
+  b_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"CD<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"CD<sub>',n,'</sub>"')
     enddo
-    call write_tecplot_header_xyline(fname_CD, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(b_elem_cd_fid, trim(adjustl(var_list)))
+
   endif
 
-  inquire (file=fname_fD, exist=exst)
+  inquire (file=fname_force, exist=exst)
+  b_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"fx<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fx<sub>',n,'</sub>"')
     enddo
+    call string_concat(var_list, ',"fx_tot"')
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"fy<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"fy<sub>',n,'</sub>"')
     enddo  
-    call write_tecplot_header_xyline(fname_fD, 'rewind', trim(adjustl(var_list)))
+    call string_concat(var_list, ',"fy_tot"')
+    call write_tecplot_header_xyline(b_elem_force_fid, trim(adjustl(var_list)))
+
   endif
 
   inquire (file=fname_error, exist=exst)
+  b_elem_error_fid = open_file( fname_error, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"error<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error<sub>',n,'</sub>"')
     enddo
-    call write_tecplot_header_xyline(fname_error, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(b_elem_error_fid, trim(adjustl(var_list)))
+
   endif 
 
   inquire (file=fname_error_norm, exist=exst)
+  b_elem_error_norm_fid = open_file( fname_error_norm, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"error_norm<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"error_norm<sub>',n,'</sub>"')
     enddo
-    call write_tecplot_header_xyline(fname_error_norm, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(b_elem_error_norm_fid, trim(adjustl(var_list)))
+
   endif  
 
   inquire (file=fname_vel, exist=exst)
+  b_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+
   if (.not. exst) then
     var_list = '"t"'
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"u<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"u<sub>',n,'</sub>"')
     enddo
     do n = 1, nb_elem
       !  Create variable list name:
-      call string_concat(var_list, ',"v<sub>')
-      call string_concat(var_list, n)
-      call string_concat(var_list, '</sub>"')
+      call string_concat(var_list, ',"v<sub>',n,'</sub>"')
     enddo  
-    call write_tecplot_header_xyline(fname_vel, 'rewind', trim(adjustl(var_list)))
+    call write_tecplot_header_xyline(b_elem_vel_fid, trim(adjustl(var_list)))
+    
   endif
 
   b_elem_data_init = .true. 
@@ -1373,14 +1423,24 @@ if( .not. b_elem_data_init ) then
 endif       
 
 
-call write_real_data(fname_CD, 'append', 'formatted', nb_elem + 1, (/ total_time, b_elem_t(:) % force_t % CD /))
-call write_real_data(fname_fD, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, -b_elem_t(:) % force_t % fx, &
-  -b_elem_t(:) % force_t % fy /))
-call write_real_data(fname_error, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error /))
-call write_real_data(fname_error_norm, 'append', 'formatted', nb_elem+1, (/ total_time, b_elem_t(:) % force_t % error_norm /))
+call write_real_data(b_elem_cd_fid, 'formatted', nb_elem + 1, &
+     (/ total_time, b_elem_t(:) % force_t % CD /))
 
+call write_real_data(b_elem_force_fid, 'formatted', ndim*(nb_elem+1)+1, &
+     (/ total_time, -b_elem_t(:) % force_t % fx, &
+     -sum(b_elem_t(:) % force_t % fx), &
+     -b_elem_t(:) % force_t % fy, &
+     -sum(b_elem_t(:) % force_t % fy) /))
 
-call write_real_data(fname_vel, 'append', 'formatted', ndim*nb_elem+1, (/ total_time, b_elem_t(:) % ref_region_t % u, b_elem_t(:) % ref_region_t % v /))
+call write_real_data(b_elem_error_fid, 'formatted', nb_elem+1, &
+     (/ total_time, b_elem_t(:) % force_t % error /))
+
+call write_real_data(b_elem_error_norm_fid, 'formatted', nb_elem+1, &
+                     (/ total_time, b_elem_t(:) % force_t % error_norm /))
+
+call write_real_data(b_elem_vel_fid, 'formatted', ndim*nb_elem+1, &
+     (/ total_time, b_elem_t(:) % ref_region_t % u, &
+     b_elem_t(:) % ref_region_t % v /))
 
 return
 end subroutine b_elem_data_write
@@ -1393,6 +1453,7 @@ subroutine rns_force_init_ls ()
 !
 use types, only : rprec
 use param, only : coord, path
+use string_util, only : string_splice
 use messages
 implicit none
 
@@ -1412,9 +1473,9 @@ inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($MPI)
-write (fname, '(a,a,i0)') fname_in, MPI_suffix, coord
+call string_splice( fname, fname_in // MPI_suffix, coord )
 $else
-fname = trim(adjustl(fname_in))
+fname = fname_in
 $endif
 
 inquire (file=fname, exist=exst)
@@ -1453,6 +1514,7 @@ subroutine rns_finalize_ls()
 !
 use param, only : coord, path
 use messages
+use string_util, only : string_splice
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
@@ -1472,9 +1534,9 @@ inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
 $if ($MPI)
-write (fname, '(a,a,i0)') fname_out, MPI_suffix, coord
+call string_splice( fname, fname_out // MPI_suffix, coord )
 $else
-fname = trim(adjustl(fname_out))
+fname = fname_out
 $endif
 
 $if ($WRITE_BIG_ENDIAN)
@@ -1496,6 +1558,22 @@ close (1)
 deallocate(r_elem_t)
 deallocate(beta_elem_t)
 deallocate(b_elem_t)
+
+! Close all opened files
+close( r_elem_cd_fid )
+close( r_elem_force_fid )
+close( r_elem_vel_fid )
+
+close( beta_elem_cd_fid )
+close( beta_elem_force_fid )
+close( beta_elem_kappa_fid )
+close( beta_elem_vel_fid )
+
+close( b_elem_cd_fid )
+close( b_elem_error_fid )
+close( b_elem_error_norm_fid )
+close( b_elem_force_fid )
+close( b_elem_vel_fid )
 
 return
 end subroutine rns_finalize_ls

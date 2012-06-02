@@ -21,7 +21,9 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
+$if ($DEBUG)
 character (64) :: fmt
+$endif
 
 !integer :: nchunks
 integer :: chunksize

@@ -10,7 +10,7 @@
 SHELL = /bin/bash
 FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib
+LIBPATH = -L${HOME}/lib -L/usr/local/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 HOSTNAME = $(shell hostname -s)
@@ -28,6 +28,8 @@ DEBUG=no
 VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
+# Set extra safety measures 
+USE_SAFETYMODE=yes
 
 # Output additional quantities to file. May be useful
 # for diagnosing issues
@@ -44,7 +46,10 @@ WRITE_ENDIAN = DEFAULT
 # Options: DEFAULT, LITTLE, or BIG
 READ_ENDIAN = DEFAULT
 
-USE_LVLSET = yes
+# Use binary output for output files
+USE_BINARY=no
+
+USE_LVLSET = no
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
 
@@ -52,7 +57,7 @@ USE_TURBINES = no
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-USE_CPS=yes
+USE_CPS=no
 
 # Calc Lag-avg timescale w. error autocorrelation
 USE_DYN_TN = no
@@ -82,12 +87,11 @@ ifeq ($(FCOMP),ifort)
     LIBS += -lcgaml-intel
   endif
 
-  FFLAGS = -O0 -check bounds -g -debug all -traceback
-  #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -ftz -ip -O3
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback
+  FFLAGS = -O3 -ip -ftz
+  #FFLAGS = -axSSE4.2 -ftz -
   FFLAGS += -warn all -shared-intel
-  #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  # Work around for real -> complex dummy array assignment
+    # Work around for real -> complex dummy array assignment
   # FFLAGS += -warn nointerfaces
   # Fix segmentation faults (stack overflows)
   FFLAGS += -heap-arrays
@@ -119,8 +123,9 @@ ifeq ($(FCOMP),gfortran)
   endif
 
   FFLAGS = -O0 -fbounds-check
+  #FFLAGS = -O3 -ffast-math -march=native -funroll-loops
   #FFLAGS = -O3
-#  FFLAGS = -O2 -ffree-form -ffixed-line-length-none
+  #FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall
   FDEBUG = -g
   FPROF = -p

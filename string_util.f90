@@ -11,15 +11,34 @@ save
 private
 
 public :: string_concat, &
+     string_splice, &
      numtostr, &
      eat_whitespace, &
      uppercase, &
      split_string, &
      count_string_occur
 
+! Concatenates the string. By default eats all trailing whitespace
 interface string_concat
-  module procedure strcat_aa, strcat_ai, strcat_ar
+  module procedure string_concat_a, string_concat_i, string_concat_r, &
+                   string_concat_ai, string_concat_ar, &
+                   string_concat_aia, string_concat_ara, &
+                   string_concat_aiai, string_concat_arar, &
+                   string_concat_aiaia, string_concat_arara, &
+                   string_concat_araia, &
+                   string_concat_aiaiai, string_concat_ararar, &
+                   string_concat_aiaiaia, string_concat_ararara
 end interface
+
+interface string_splice
+   module procedure string_splice_aa, string_splice_ai, string_splice_ar, &
+        string_splice_aia, string_splice_ara, &
+        string_splice_aiai, string_splice_arar, &
+        string_splice_aiaia, string_splice_arara, &
+        string_splice_araia, &
+        string_splice_aiaiai, string_splice_ararar, &
+        string_splice_aiaiaia, string_splice_ararara
+end interface string_splice
 
 ! Explicit interface for overloaded function to convert
 ! reals and integer to strings
@@ -27,58 +46,566 @@ interface numtostr
   module procedure numtostr_r, numtostr_i
 end interface
 
-character(*), parameter :: int_fmt='(i0)'
-character(*), parameter :: real_fmt='(f9.4)'
+character (*), parameter :: mod_name = 'string_util'
+
+character(*), parameter :: iformat='(i0)'
+character(*), parameter :: rformat='(f18.5)'
+
+integer, parameter :: BUFF_LENGTH = 64
 
 contains
 
+!///////////////////////////////////////////////////////////////////////////////
+!/// STRING_CONCAT
+!///////////////////////////////////////////////////////////////////////////////
+
 !**********************************************************************
-subroutine strcat_aa(str1, str2)
+subroutine string_concat_a(str, str1)
 !**********************************************************************
 use types, only : rprec
 implicit none
 
-character(*), intent(INOUT) :: str1
-character(*), intent(IN) :: str2
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
 
-str1 = trim(adjustl(str1)) // str2
+str = trim(adjustl(str)) // trim(adjustl(str1))
 
 return
-end subroutine strcat_aa
+end subroutine string_concat_a
 
 !**********************************************************************
-subroutine strcat_ar(str1, r1)
+subroutine string_concat_r(str, r)
 !**********************************************************************
 use types, only : rprec
 implicit none
 
-character(*), intent(INOUT) :: str1
-real(rprec), intent(IN) :: r1
-character(120) :: str2
+character(*), intent(INOUT) :: str
+real(rprec), intent(IN) :: r
+character(BUFF_LENGTH) :: buff
 
-write (str2,real_fmt) r1
-
-call string_concat(str1,trim(adjustl(str2)))
+write(buff,rformat) r
+call string_concat( str, buff )
 
 return
-end subroutine strcat_ar
+end subroutine string_concat_r
 
 !**********************************************************************
-subroutine strcat_ai(str1, i1)
+subroutine string_concat_i(str, i)
 !**********************************************************************
 use types, only : rprec
 implicit none
 
-character(*), intent(INOUT) :: str1
+character(*), intent(INOUT) :: str
+integer, intent(IN) :: i
+character(BUFF_LENGTH) :: buff
+
+write(buff,iformat) i
+call string_concat( str, buff )
+
+return
+end subroutine string_concat_i
+
+!**********************************************************************
+subroutine string_concat_ai(str, str1, i1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
 integer, intent(IN) :: i1
-character(120) :: str2
 
-write (str2,int_fmt) i1
-
-call string_concat(str1,trim(adjustl(str2)))
+call string_concat(str,str1)
+call string_concat(str,i1)
 
 return
-end subroutine strcat_ai
+end subroutine string_concat_ai
+
+!**********************************************************************
+subroutine string_concat_ar(str, str1, r1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1
+real(rprec), intent(IN) :: r1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+
+return
+end subroutine string_concat_ar
+
+!**********************************************************************
+subroutine string_concat_aia(str, str1, i1, str2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+integer, intent(IN) :: i1
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+
+return
+end subroutine string_concat_aia
+
+!**********************************************************************
+subroutine string_concat_ara(str, str1, r1, str2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+real(rprec), intent(IN) :: r1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+
+return
+end subroutine string_concat_ara
+
+!**********************************************************************
+subroutine string_concat_aiaia(str, str1, i1, str2, i2, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+integer, intent(IN) :: i1, i2
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_aiaia
+
+!**********************************************************************
+subroutine string_concat_arara(str, str1, r1, str2, r2, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+real(rprec), intent(IN) :: r1, r2
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_arara
+
+!**********************************************************************
+subroutine string_concat_aiai(str, str1, i1, str2, i2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+integer, intent(IN) :: i1, i2
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+
+return
+end subroutine string_concat_aiai
+
+!**********************************************************************
+subroutine string_concat_arar(str, str1, r1, str2, r2 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+real(rprec), intent(IN) :: r1, r2
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+
+return
+end subroutine string_concat_arar
+
+!**********************************************************************
+subroutine string_concat_araia(str, str1, r1, str2, i1, str3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+real(rprec) :: r1
+integer, intent(IN) :: i1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,i1)
+call string_concat(str,str3)
+
+return
+end subroutine string_concat_araia
+
+!**********************************************************************
+subroutine string_concat_aiaiai(str, str1, i1, str2, i2, str3, i3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+integer, intent(IN) :: i1, i2, i3
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+call string_concat(str,str3)
+call string_concat(str,i3)
+
+return
+end subroutine string_concat_aiaiai
+
+!**********************************************************************
+subroutine string_concat_ararar(str, str1, r1, str2, r2, str3, r3 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3
+real(rprec), intent(IN) :: r1, r2, r3
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+call string_concat(str,str3)
+call string_concat(str,r3)
+
+return
+end subroutine string_concat_ararar
+
+!**********************************************************************
+subroutine string_concat_aiaiaia(str, str1, i1, str2, i2, str3, i3, str4)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3, str4
+integer, intent(IN) :: i1, i2, i3
+
+call string_concat(str,str1)
+call string_concat(str,i1)
+call string_concat(str,str2)
+call string_concat(str,i2)
+call string_concat(str,str3)
+call string_concat(str,i3)
+call string_concat(str,str4)
+
+return
+end subroutine string_concat_aiaiaia
+
+!**********************************************************************
+subroutine string_concat_ararara(str, str1, r1, str2, r2, str3, r3, str4)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2, str3, str4
+real(rprec), intent(IN) :: r1, r2, r3
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,r2)
+call string_concat(str,str3)
+call string_concat(str,r3)
+call string_concat(str,str4)
+
+return
+end subroutine string_concat_ararara
+
+!///////////////////////////////////////////////////////////////////////////////
+!/// STRING_SPLICE
+!///////////////////////////////////////////////////////////////////////////////
+
+!*******************************************************************************
+subroutine string_splice_aa( s, s1, s2 )
+!*******************************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+
+s = s1 // s2
+
+return
+end subroutine string_splice_aa
+
+!**********************************************************************
+subroutine string_splice_ar(s, s1, r1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: s
+character(*), intent(in) :: s1
+real(rprec), intent(IN) :: r1
+character(BUFF_LENGTH) :: b1
+
+write(b1,rformat) r1
+!call string_splice(s, s1, trim(adjustl(buff)) )
+s = s1 // trim(adjustl(b1))
+
+return
+end subroutine string_splice_ar
+
+!**********************************************************************
+subroutine string_splice_ai(s, s1, i1)
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1
+integer, intent(in) :: i1
+character(BUFF_LENGTH) :: b1
+
+write(b1,iformat) i1
+!call string_splice(s, s1, trim(adjustl(adjustl(b)))
+s = s1 // trim(adjustl(b1))
+
+return
+end subroutine string_splice_ai
+
+!**********************************************************************
+subroutine string_splice_aia(s, s1, i1, s2 )
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+integer, intent(in) :: i1
+character(BUFF_LENGTH) :: b1
+
+write(b1,iformat) i1
+
+s = s1 // trim(adjustl(b1)) // s2
+
+return
+end subroutine string_splice_aia
+
+!**********************************************************************
+subroutine string_splice_ara(s, s1, r1, s2 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+real(rprec), intent(in) :: r1
+character(BUFF_LENGTH) :: b1
+
+write(b1,rformat) r1
+
+s = s1 // trim(adjustl(b1)) // s2
+
+return
+end subroutine string_splice_ara
+
+!**********************************************************************
+subroutine string_splice_aiai(s, s1, i1, s2, i2 )
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+integer, intent(in) :: i1, i2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,iformat) i1
+write(b2,iformat) i2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2))
+
+return
+end subroutine string_splice_aiai
+
+!**********************************************************************
+subroutine string_splice_arar(s, s1, r1, s2, r2 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+real(rprec), intent(in) :: r1, r2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,rformat) r1
+write(b2,rformat) r2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2))
+
+return
+end subroutine string_splice_arar
+
+!**********************************************************************
+subroutine string_splice_aiaia(s, s1, i1, s2, i2, s3 )
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3
+integer, intent(in) :: i1, i2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,iformat) i1
+write(b2,iformat) i2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
+
+return
+end subroutine string_splice_aiaia
+
+!**********************************************************************
+subroutine string_splice_arara(s, s1, r1, s2, r2, s3 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3
+real(rprec), intent(in) :: r1, r2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,rformat) r1
+write(b2,rformat) r2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
+
+return
+end subroutine string_splice_arara
+
+!**********************************************************************
+subroutine string_splice_araia(s, s1, r1, s2, i2, s3 )
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3
+real(rprec), intent(in) :: r1
+integer, intent(in) :: i2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,rformat) r1
+write(b2,iformat) i2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
+
+return
+end subroutine string_splice_araia
+
+
+!**********************************************************************
+subroutine string_splice_aiaiai(s, s1, i1, s2, i2, s3, i3)
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3
+integer, intent(in) :: i1, i2, i3
+character(BUFF_LENGTH) :: b1, b2, b3
+
+write(b1,iformat) i1
+write(b2,iformat) i2
+write(b3,iformat) i3
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3))
+
+return
+end subroutine string_splice_aiaiai
+
+!**********************************************************************
+subroutine string_splice_ararar(s, s1, r1, s2, r2, s3, r3)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3
+real(rprec), intent(in) :: r1, r2, r3
+character(BUFF_LENGTH) :: b1, b2, b3
+
+write(b1,rformat) r1
+write(b2,rformat) r2
+write(b3,rformat) r3
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3))
+
+return
+end subroutine string_splice_ararar
+
+!**********************************************************************
+subroutine string_splice_aiaiaia(s, s1, i1, s2, i2, s3, i3, s4)
+!**********************************************************************
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3, s4
+integer, intent(in) :: i1, i2, i3
+character(BUFF_LENGTH) :: b1, b2, b3
+
+write(b1,iformat) i1
+write(b2,iformat) i2
+write(b3,iformat) i3
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3)) // s4
+
+return
+end subroutine string_splice_aiaiaia
+
+!**********************************************************************
+subroutine string_splice_ararara(s, s1, r1, s2, r2, s3, r3, s4)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2, s3, s4
+real(rprec), intent(in) :: r1, r2, r3
+character(BUFF_LENGTH) :: b1, b2, b3
+
+write(b1,rformat) r1
+write(b2,rformat) r2
+write(b3,rformat) r3
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3 // trim(adjustl(b3)) // s4
+
+return
+end subroutine string_splice_ararara
 
 !**********************************************************************
 function numtostr_r( a, n ) result(c)
@@ -212,15 +739,21 @@ subroutine split_string( string, delim, nseg, sarray )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! This subroutine splits 'string' based on the specified delimiter
-! 'delim'. Specified is the number of string segments 'nseg' to return
-! by 'sarray'
+! 'delim'. The number of segments 'nseg' is determined from the string
+! based on the delimiter. The output string vector 'sarray' is allocated
+! in this subroutine. 
 !
+use param, only : CHAR_BUFF_LENGTH
+use messages
+
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.split_string'
+ 
 character(*), intent(in) :: string, delim
-integer, intent(in) :: nseg
+integer, intent(out) :: nseg
 
-character(*), dimension(nseg), intent(inout) :: sarray
+character(CHAR_BUFF_LENGTH), allocatable, dimension(:), intent(inout) :: sarray
 
 ! String buffers (assuming length)
 character(1024) :: buff_old, buff
@@ -233,10 +766,13 @@ integer :: delim_len
 delim_len = len_trim(delim)
 
 ! First make sure string is not empty
-if( len_trim(string) == 0 ) then
-   write(*,*) 'Specified string is empty'
-   stop
-endif
+if( len_trim(string) == 0 ) call error( sub_name, 'specified string is empty')
+
+! Get the number of segments based on the delimiter count
+nseg = count_string_occur (string, delim) + 1
+
+! Now allocate string vector
+allocate(sarray(nseg))
 
 ! Initialize position of delimiter (rewind a bit)
 pos=-delim_len+1
@@ -246,14 +782,11 @@ istop=0
 buff = string
 
 n = 0
-do while (istop .ne. 1)
-
+do 
    n = n + 1
-
-   if( n > nseg ) then
-      write(*,*) 'Number of found segments greater than the specified number'
-      stop
-   endif
+   
+   ! If there are more segments than what is expected stop searching
+   if( n > nseg ) exit
 
    ! Save old buffer
    buff_old = buff
@@ -267,13 +800,15 @@ do while (istop .ne. 1)
    else
       ! Assuming this is the last segment
       sarray(n) = trim( adjustl( buff ) )
-      istop = 1
+      exit
    endif
 
 end do 
 
-if( n .ne. nseg ) then
-   write(*,*) 'Warning: number of found segments not equal to the specified number'
+if( n < nseg ) then
+   call error( sub_name, 'number of found segments less than specified number')
+elseif( n > nseg ) then
+   call error( sub_name, 'number of found segments greater than specified number')
 endif 
 
 return
@@ -313,3 +848,4 @@ end do
 end function count_string_occur
 
 end module string_util
+

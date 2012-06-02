@@ -6,7 +6,7 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : output_loop, output_final, jt_total
+use io, only : energy, output_loop, output_final, jt_total
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -23,13 +23,13 @@ use level_set, only : level_set_global_CD, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
   $if ($RNS_LS)
-  use rns_ls, only : rns_finalize_ls, rns_elem_force_ls
+  use rns_ls, only : rns_elem_force_ls
   $endif
 
 $endif
 
 $if ($TURBINES)
-use turbines, only : turbines_forcing, turbine_vel_init, turbines_finalize
+use turbines, only : turbines_forcing, turbine_vel_init
 $endif
 
 $if ($DEBUG)
@@ -201,8 +201,9 @@ do jt=1,nsteps
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
-    call divstress_uv(divtx, txx, txy, txz)
-    call divstress_uv(divty, txy, tyy, tyz)    
+    !call divstress_uv(divtx, txx, txy, txz)
+    !call divstress_uv(divty, txy, tyy, tyz)    
+    call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
 
     ! Debug
@@ -316,6 +317,7 @@ do jt=1,nsteps
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
 
     ! Set unused values to BOGUS so unintended uses will be noticable
+    $if ($SAFETYMODE)
     $if ($MPI)
         u(:, :, 0) = BOGUS
         v(:, :, 0) = BOGUS
@@ -328,7 +330,8 @@ do jt=1,nsteps
     u(:, :, nz) = BOGUS
     v(:, :, nz) = BOGUS
     w(:, :, nz) = BOGUS
-
+    $endif
+    
     ! Debug
     $if ($DEBUG)
     if (DEBUG) then
@@ -404,23 +407,19 @@ do jt=1,nsteps
     $endif
 
     ! Write output files
-    call output_loop (jt)  
-    !RNS: Determine if instantaneous plane velocities are to be recorded
-        
-    ! Write "jt,dt,rmsdivvel,ke" (and) Coriolis/Scalar info to screen
+    call output_loop()  
+
     if (modulo (jt, wbase) == 0) then
        
        ! Get the ending time for the iteration
        call clock_stop( clock_t )
        call clock_stop( clock_total_t )
 
-       
         ! Calculate rms divergence of velocity
        !   only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
-       
        if (coord == 0) then
           write(*,*)
           write(*,'(a)') '========================================'
@@ -449,39 +448,14 @@ end do
 close(2)
     
 ! Write total_time.dat and tavg files
-call output_final (jt)
-
-! Level set:
-$if ($LVLSET)
-
-  $if ($RNS_LS)
-  call rns_finalize_ls ()
-  $endif
-$endif
-
-! Turbines:
-$if ($TURBINES)
-call turbines_finalize ()   ! must come before MPI finalize
-$endif   
-
-! SGS variable histograms
-if (sgs_hist_calc) then
-  call sgs_hist_finalize()
-endif
+call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total_t )
-$if($MPI)
-  if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
-$else
-  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
-$endif
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
 
-! MPI:
-$if ($MPI)
-! First make sure everyone in has finished
-call mpi_barrier( MPI_COMM_WORLD, ierr )
-call mpi_finalize (ierr)
-$endif
+call finalize()
+
+if(coord == 0 ) write(*,'(a)') 'Simulation complete'
 
 end program main

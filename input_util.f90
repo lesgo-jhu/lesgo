@@ -2,7 +2,7 @@
 module input_util
 !**********************************************************************
 use types, only : rprec
-use param, only : path
+use param, only : path, CHAR_BUFF_LENGTH
 implicit none
 
 save 
@@ -10,6 +10,8 @@ private
 
 public :: read_input_conf
 
+character (*), parameter :: mod_name = 'string_util'
+ 
 character (*), parameter :: input_conf = path // 'lesgo.conf'
 character (*), parameter :: comment = '!'
 !character (*), parameter :: ldelim = '('  !--no whitespace allowed
@@ -22,9 +24,6 @@ character (*), parameter :: esyntax = 'syntax error at line'
 ! Delimiters used for reading vectors and points
 character(*), parameter :: delim_minor=','
 character(*), parameter :: delim_major='//'
-
-! Default buffer length for characters of unknown length
-integer, parameter :: BUFF_LEN = 1024
 
 ! Thresh hold for evaluating differences in floating point values.
 real(rprec), parameter :: thresh = 1.0e-6_rprec
@@ -43,12 +42,12 @@ use messages
 use string_util, only : eat_whitespace, uppercase
 implicit none
 
-character (*), parameter :: sub = 'read_input_conf'
+character (*), parameter :: sub_name = mod_name // '.read_input_conf'
 
 integer, parameter :: lun = 1
 
 
-character (BUFF_LEN) :: buff
+character (CHAR_BUFF_LENGTH) :: buff
 
 integer :: block_entry_pos, block_exit_pos, equal_pos
 
@@ -63,7 +62,7 @@ inquire (file=input_conf, exist=exst)
 if (exst) then
   open (lun, file=input_conf, action='read')
 else
-  call error (sub, 'file ' // input_conf // ' does not exist')
+  call error (sub_name, 'file ' // input_conf // ' does not exist')
 end if
 
 line = 0
@@ -75,7 +74,7 @@ do
   if (ios /= 0) exit
 
   if (block_entry_pos == 0) then  !--for now, invalid format if no block entry found
-    call error (sub, 'block entry not found on line', line) 
+    call error (sub_name, 'block entry not found on line', line) 
   end if
 
   ! Find block
@@ -130,7 +129,7 @@ do
 
   case default
 
-     if(coord == 0) call mesg( sub, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
+     if(coord == 0) call mesg( sub_name, 'Found unused input block: ' // buff(1:block_entry_pos-1) )
      ! Now need to 'fast-forward' untile we reach the end of the block
      do while ( block_exit_pos == 0 )
         call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -162,7 +161,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -190,7 +189,7 @@ do
      case ('UNIFORM_SPACING')
         read (buff(equal_pos+1:), *) uniform_spacing
      case default
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif ( block_exit_pos == 1 ) then
@@ -202,7 +201,7 @@ do
         ! Reset to 1
         nproc=1
         if( coord == 0 ) &
-             call mesg( sub, 'Reseting nproc to: ', nproc )          
+             call mesg( sub_name, 'Reseting nproc to: ', nproc )          
      endif
      $endif
      
@@ -213,7 +212,7 @@ do
      ival_read = nz_tot
      nz_tot = ( nz - 1 ) * nproc + 1 
      if( coord == 0 .AND. ival_read /= nz_tot ) &
-          call mesg( sub, 'Reseting Nz (total) to: ', nz_tot )          
+          call mesg( sub_name, 'Reseting Nz (total) to: ', nz_tot )          
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
      ny2 = 3 * ny / 2
@@ -233,13 +232,13 @@ do
         val_read = L_y
         L_y = ny * dx
         if( coord == 0 .AND. abs( val_read - L_y ) >= thresh ) &
-             call mesg( sub, 'Reseting Ly to: ', L_y )
+             call mesg( sub_name, 'Reseting Ly to: ', L_y )
 
         ! Adjust L_z
         val_read = L_z
         L_z = (nz_tot - 1 ) * dx
         if( coord == 0 .AND. abs( val_read - L_z ) >= thresh ) &
-             call mesg( sub, 'Reseting Lz to: ', L_z )
+             call mesg( sub_name, 'Reseting Lz to: ', L_z )
 
      endif
      
@@ -251,7 +250,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
      
@@ -272,7 +271,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block') 
+  if (ios /= 0) call error( sub_name, 'Bad read in block') 
 
   if( block_exit_pos == 0 ) then
 
@@ -315,7 +314,7 @@ do
         read (buff(equal_pos+1:), *) dns_bc
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -325,7 +324,7 @@ do
      
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -347,7 +346,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
 
   if( block_exit_pos == 0 ) then
@@ -373,7 +372,7 @@ do
         read (buff(equal_pos+1:), *) cumulative_time
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -391,7 +390,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -414,7 +413,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -452,7 +451,7 @@ do
 
      case default      
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -464,7 +463,7 @@ do
         ! Evaluate the mean pressure force
         mean_p_force = 1.0_rprec / L_z
         if( coord == 0 .AND. abs( val_read - mean_p_force ) >= thresh )  &
-             call mesg( sub, 'Reseting mean_p_force to: ', mean_p_force ) 
+             call mesg( sub_name, 'Reseting mean_p_force to: ', mean_p_force ) 
 
      endif
 
@@ -473,7 +472,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -494,7 +493,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -512,27 +511,33 @@ do
      case ('LAG_CFL_COUNT')
         read (buff(equal_pos+1:), *) lag_cfl_count
 
+     case ('CHECKPOINT_DATA')
+        read (buff(equal_pos+1:), *) checkpoint_data
+     case ('CHECKPOINT_NSKIP')        
+        read (buff(equal_pos+1:), *) checkpoint_nskip
+
      case ('TAVG_CALC')
         read (buff(equal_pos+1:), *) tavg_calc
      case ('TAVG_NSTART')
         read (buff(equal_pos+1:), *) tavg_nstart
      case ('TAVG_NEND')
         read (buff(equal_pos+1:), *) tavg_nend
+     case ('TAVG_NSKIP')
+        read (buff(equal_pos+1:), *) tavg_nskip
 
      case ('POINT_CALC')
         read (buff(equal_pos+1:), *) point_calc
+     ! Only read if point data is to be recorded. It is important that the
+     ! following only be used elsewhere in the code if point_calc=.true.; also
+     ! it is required that point_calc be listed before the rest in lesgo.conf
      case ('POINT_NSTART')
-        read (buff(equal_pos+1:), *) point_nstart
+        if( point_calc ) read (buff(equal_pos+1:), *) point_nstart
      case ('POINT_NEND')
-        read (buff(equal_pos+1:), *) point_nend
+        if( point_calc ) read (buff(equal_pos+1:), *) point_nend
      case ('POINT_NSKIP')
-        read (buff(equal_pos+1:), *) point_nskip
-     case ('POINT_NLOC')
-        read (buff(equal_pos+1:), *) point_nloc
+        if( point_calc ) read (buff(equal_pos+1:), *) point_nskip
      case ('POINT_LOC')
-        allocate( point_loc( point_nloc ) )
-        call parse_vector( buff(equal_pos+1:), point_loc )
-
+           call parse_vector( buff(equal_pos+1:), point_nloc, point_loc )
      case ('DOMAIN_CALC')
         read (buff(equal_pos+1:), *) domain_calc
      case ('DOMAIN_NSTART')
@@ -550,11 +555,8 @@ do
         read (buff(equal_pos+1:), *) xplane_nend
      case ('XPLANE_NSKIP')
         read (buff(equal_pos+1:), *) xplane_nskip
-     case ('XPLANE_NLOC')
-        read (buff(equal_pos+1:), *) xplane_nloc
      case ('XPLANE_LOC')
-        allocate( xplane_loc( xplane_nloc ) )
-        call parse_vector( buff(equal_pos+1:), xplane_loc )
+        call parse_vector( buff(equal_pos+1:), xplane_nloc, xplane_loc )
 
      case ('YPLANE_CALC')
         read (buff(equal_pos+1:), *) yplane_calc
@@ -564,11 +566,8 @@ do
         read (buff(equal_pos+1:), *) yplane_nend
      case ('YPLANE_NSKIP')
         read (buff(equal_pos+1:), *) yplane_nskip
-     case ('YPLANE_NLOC')
-        read (buff(equal_pos+1:), *) yplane_nloc
      case ('YPLANE_LOC')
-        allocate( yplane_loc( yplane_nloc ) )
-        call parse_vector( buff(equal_pos+1:), yplane_loc )
+        call parse_vector( buff(equal_pos+1:), yplane_nloc, yplane_loc )
 
      case ('ZPLANE_CALC')
         read (buff(equal_pos+1:), *) zplane_calc
@@ -578,11 +577,8 @@ do
         read (buff(equal_pos+1:), *) zplane_nend
      case ('ZPLANE_NSKIP')
         read (buff(equal_pos+1:), *) zplane_nskip
-     case ('ZPLANE_NLOC')
-        read (buff(equal_pos+1:), *) zplane_nloc
      case ('ZPLANE_LOC')
-        allocate( zplane_loc( zplane_nloc ) )
-        call parse_vector( buff(equal_pos+1:), zplane_loc )
+        call parse_vector( buff(equal_pos+1:), zplane_nloc, zplane_loc )
 
      case ('SPECTRA_CALC')
         read (buff(equal_pos+1:), *) spectra_calc
@@ -590,15 +586,14 @@ do
         read (buff(equal_pos+1:), *) spectra_nstart
      case ('SPECTRA_NEND')
         read (buff(equal_pos+1:), *) spectra_nend
-     case ('SPECTRA_NLOC')
-        read (buff(equal_pos+1:), *) spectra_nloc
+     case ('SPECTRA_NSKIP')
+        read (buff(equal_pos+1:), *) spectra_nskip
      case ('SPECTRA_LOC')
-        allocate( spectra_loc( spectra_nloc ) )
-        call parse_vector( buff(equal_pos+1:), spectra_loc )
+        call parse_vector( buff(equal_pos+1:), spectra_nloc, spectra_loc )
 
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -607,7 +602,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -624,12 +619,11 @@ use level_set_base
 implicit none
 
 character(*), parameter :: block_name = 'LEVEL_SET'
-
 do 
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -686,7 +680,7 @@ do
 
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -696,7 +690,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -718,7 +712,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -754,7 +748,7 @@ do
 
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -764,7 +758,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -797,7 +791,7 @@ do
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
 
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -830,11 +824,8 @@ do
         read (buff(equal_pos+1:), *) use_left_surf
      case ('Y_LEFT_SURF')
         Read (buff(equal_pos+1:), *) y_left_surf
-     case ('NTREE')
-        read (buff(equal_pos+1:), *) ntree
      case ('TREE_LOCATION')
-        allocate( tree_location( ntree ) )
-        call parse_vector(buff(equal_pos+1:), tree_location )
+        call parse_vector(buff(equal_pos+1:), ntree, tree_location )
      case ('NGEN')
         read (buff(equal_pos+1:), *) ngen
      case ('NGEN_RESLV')
@@ -856,7 +847,7 @@ do
 
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
      end select
 
@@ -866,7 +857,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -890,7 +881,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -908,11 +899,8 @@ do
         read (buff(equal_pos+1:), *) sgs_hist_nstart
      case ('SGS_HIST_NSKIP')
         read (buff(equal_pos+1:), *) sgs_hist_nskip
-     case ('SGS_HIST_NLOC')
-        read (buff(equal_pos+1:), *) sgs_hist_nloc
      case ('SGS_HIST_LOC')
-        allocate( sgs_hist_loc( sgs_hist_nloc ) )
-        call parse_vector( buff(equal_pos+1:), sgs_hist_loc )
+        call parse_vector( buff(equal_pos+1:), sgs_hist_nloc, sgs_hist_loc )
 
      case ('CS2_BMIN')
         read (buff(equal_pos+1:), *) cs2_bmin
@@ -944,7 +932,7 @@ do
 
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -953,7 +941,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -975,7 +963,7 @@ do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub, 'Bad read in block')
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
@@ -1020,10 +1008,13 @@ do
         read (buff(equal_pos+1:), *) trunc
      case ('FILTER_CUTOFF')
         read (buff(equal_pos+1:), *) filter_cutoff
-
+     case ('TURBINE_CUMULATIVE_TIME')
+        read (buff(equal_pos+1:), *) turbine_cumulative_time
+     case ('TBASE')
+        read (buff(equal_pos+1:), *) tbase
      case default
 
-        if(coord == 0) call mesg( sub, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then
@@ -1032,7 +1023,7 @@ do
 
   else
 
-     call error( sub, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
 
@@ -1047,9 +1038,9 @@ subroutine checkentry()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-if( equal_pos == 0 ) call error( sub, 'Bad read in block at line', line, ': ' // trim(adjustl(buff)))
+if( equal_pos == 0 ) call error( sub_name, 'Bad read in block at line', line, ': ' // trim(adjustl(buff)))
 !--invalid if nothing after equals
-if (len_trim (buff) == equal_pos) call error (sub, 'nothing after equals sign in line', line) 
+if (len_trim (buff) == equal_pos) call error (sub_name, 'nothing after equals sign in line', line) 
 
 return
 end subroutine checkentry  
@@ -1103,25 +1094,33 @@ return
 end subroutine readline
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine parse_vector_real( string, vector )
+subroutine parse_vector_real( string, nelem, vector )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec
+use messages
 use string_util, only : split_string
 
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.parse_vector_real'
+
 character(*), intent(in) :: string
-real(rprec), dimension(:), intent(inout) :: vector
-character(BUFF_LEN), dimension(:), allocatable :: svector
-
-integer :: nelem
-
-! Get the number of elements in the vector
-nelem = size(vector,1)
-allocate( svector( nelem ) )
+integer, intent(out) :: nelem
+real(rprec), allocatable, dimension(:), intent(inout) :: vector
+character(CHAR_BUFF_LENGTH), dimension(:), allocatable :: svector
 
 call split_string( string, delim_minor, nelem, svector )
-read( svector, * ) vector
+
+if( allocated( vector ) ) then
+   ! Check that things are consistent
+   if( nelem /= size( vector ) ) call error( sub_name, 'mismatch in element number and vector size')
+else
+   ! Now allocate the output vector if not allocated outside of parse_vector_real
+   allocate( vector( nelem ) )
+endif
+
+! Read the string vector into the vector
+read( svector(1:nelem), * ) vector(1:nelem)
 
 deallocate(svector)
 
@@ -1129,31 +1128,51 @@ return
 end subroutine parse_vector_real
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine parse_vector_point3D( string, vector )
+subroutine parse_vector_point3D( string, nelem, vector )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use types, only : rprec, point3D
+use messages
 use string_util, only : split_string
 
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.parse_vector_point3d'
+
 character(*), intent(in) :: string
-type(point3D), dimension(:), intent(inout) :: vector
-character(BUFF_LEN), allocatable, dimension(:) :: svector
+integer, intent(out) :: nelem
+type(point3D), allocatable, dimension(:), intent(inout) :: vector
 
-integer :: n, nelem
-real(rprec), dimension(3) :: vector_minor
+character(CHAR_BUFF_LENGTH), allocatable, dimension(:) :: svector
 
-! Get the number of elements in the vector
-nelem = size(vector,1)
+integer :: n, nelem_minor
+real(rprec), allocatable, dimension(:) :: vector_minor
 
-allocate( svector( nelem ) )
+allocate( vector_minor(3) )
 
-! Split based on major delimiter
+! Split based on major delimiter (allocates svector)
 call split_string( string, delim_major, nelem, svector )
+
+if( allocated( vector ) ) then
+   ! Check that things are consistent
+   if( nelem /= size( vector ) ) call error( sub_name, 'mismatch in element number and vector size')
+else
+   ! Now allocate the output vector if not allocated outside of parse_vector_real
+   allocate( vector( nelem ) )
+endif
+
 ! Now parse result string 
 do n=1, nelem
-   call parse_vector_real( svector(n), vector_minor )
+
+   ! Dimension of the minor vector
+   nelem_minor = 3
+
+   call parse_vector_real( svector(n), nelem_minor, vector_minor )
+
+   ! Check that the number of elements has not been reset
+   if( nelem_minor /= 3 ) call error( sub_name, 'vector not specified correctly')
+
    vector(n) = point3D( (/ vector_minor(1), vector_minor(2), vector_minor(3) /) )
+
 enddo
 
 deallocate(svector)

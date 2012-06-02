@@ -20,25 +20,34 @@ $endif
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
 call ddx(tx, dtxdx, lbz)
+$if ($SAFETYMODE)
 $if ($MPI)
   dtxdx(:, :, 0) = BOGUS
 $endif
+$endif
+
 
 !--ty 1:nz => dtydy 1:nz
 call ddy(ty, dtydy, lbz)
+$if ($SAFETYMODE)
 $if ($MPI)
   dtydy(:, :, 0) = BOGUS
+$endif
 $endif
 
 !--tz 0:nz-1 (special case) => dtzdz 1:nz-1 (default), 2:nz-1 (bottom),
 !                                    1:nz (top)
 call ddz_uv(tz, dtzdz, lbz)
+$if ($SAFETYMODE)
 $if ($MPI)
   dtzdz(:, :, 0) = BOGUS
 $endif
+$endif
 
+$if ($SAFETYMODE)
 $if ($MPI)
   divt(:, :, 0) = BOGUS
+$endif
 $endif
 
 if (coord == 0) then
@@ -78,7 +87,9 @@ $if ($MPI)
     end do
     divt(ld-1:ld, :, nz) = 0._rprec
   else
+$if ($SAFETYMODE)
     divt(:, :, nz) = BOGUS
+$endif    
   endif
 $else
   do jy=1,ny

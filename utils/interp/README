@@ -1,0 +1,20 @@
+The program "interp" reads "vel.out" files from one simulation and interpolates
+the data to the domain of the desired simulation.
+
+To configure and build:
+
+  1) Set parameters in "interp.f90"
+
+  2) Set compiler parameters in "Makefile.in" in the top lesgo directory.
+
+  3) Build interp by running:
+
+       make
+
+Now execute "interp" in the directory that the "vel.out" files from the old
+simulations are located. The old input files are saved under save.vel.out. Note that
+you have to throw away the tavg.* files in the home directory. These data are
+NOT interpolated.
+
+
+

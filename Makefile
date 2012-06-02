@@ -7,6 +7,7 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
+MK_INCL_PATH=.
 include Makefile.in
 
 EXE := lesgo
@@ -22,8 +23,8 @@ SRCS =  cfl_util.f90 \
 	divstress_w.f90 \
 	dns_stress.f90 \
         emul_complex.f90 \
-        energy.f90 \
         fft.f90 \
+	finalize.f90 \
 	forcing.f90 \
 	fringe_util.f90 \
 	functions.f90 \
@@ -65,7 +66,9 @@ LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90
 
 CYL_SKEW_LS_SRCS = cyl_skew_base_ls.f90 cyl_skew_ls.f90
 
-RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90 rns_cyl_skew_ls.f90
+RNS_LS_SRCS = rns_base_ls.f90 rns_ls.f90
+
+RNS_CYL_SKEW_LS_SRCS = rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90 turbines_base.f90
 
@@ -88,6 +91,9 @@ endif
 
 ifeq ($(USE_RNS_LS), yes)
   SRCS += $(RNS_LS_SRCS)
+  ifeq ($(USE_CYL_SKEW_LS), yes)
+    SRCS += $(RNS_CYL_SKEW_LS_SRCS)
+  endif
   EXE := $(EXE)-rns
 endif
 

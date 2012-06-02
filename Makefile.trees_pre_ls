@@ -7,7 +7,8 @@
 # Also requires fpx3 fortran preprocessor available at
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
-include Makefile.in
+MK_INCL_PATH=.
+include $(MK_INCL_PATH)/Makefile.in
 
 EXE = trees_pre_ls
 

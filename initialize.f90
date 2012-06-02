@@ -8,7 +8,7 @@ subroutine initialize()
 use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
-use param, only : use_cfl_dt, cfl, cfl_f
+use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
 use cfl_util
 use io, only : stats_init
@@ -74,7 +74,10 @@ $else
   chcoord = ''
 $endif
 
-! Write simulation data to file
+! Write simulation data to file 
+! Commented out since we now have an input file and case information
+! can be preserved via it; may still be useful for double checking that
+! the input was read correctly and is sane.
 if(coord == 0) call param_output()
 
 ! Define simulation parameters
@@ -145,6 +148,7 @@ if( use_cfl_dt ) then
       if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
       dt = get_cfl_dt() 
       dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+      dt_dim = dt * z_i / u_star
    endif
 endif
 

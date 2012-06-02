@@ -40,13 +40,11 @@ implicit none
 
 
 
-real(rprec) :: const
+real(rprec) :: const,const2,const3,const4
 
-integer::jx,jy,jz,k
+integer::jx,jy,jz
 
 integer :: ir, ii ! Used for complex emulation of real array
-
-character (64) :: fname
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -84,20 +82,27 @@ $endif
 if (coord == 0) then
   p_hat(:, :, 0) = (0._rprec, 0._rprec)
 else
+$if ($SAFETYMODE)
   p_hat(:, :, 0) = BOGUS
+$endif  
 end if
 
 !==========================================================================
 ! Get the right hand side ready 
-! Loop over levels    
+! Loop over levels
+const2=const/tadv1/dt    
 do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! temp storage for sum of RHS terms.  normalized for fft
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
-   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
-   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+! RICHARD OPTIMIZATION 
+!   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
+!   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
+!   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+   rH_x(:, :, jz) = const2 * u(:, :, jz) 
+   rH_y(:, :, jz) = const2 * v(:, :, jz) 
+   rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
@@ -111,9 +116,11 @@ $if ($MPI)
 !  H_y(:, :, 0) = BOGUS
 !  H_z(:, :, 0) = BOGUS
   !Careful - only update real values (odd indicies)
+$if ($SAFETYMODE)
   rH_x(1:ld:2,:,0) = BOGUS
   rH_y(1:ld:2,:,0) = BOGUS
   rH_z(1:ld:2,:,0) = BOGUS
+$endif
 $endif
 
 !--experiment
@@ -121,14 +128,18 @@ $endif
 !H_x(:, :, nz) = BOGUS
 !H_y(:, :, nz) = BOGUS
 !Careful - only update real values (odd indicies)
+$if ($SAFETYMODE)
 rH_x(1:ld:2,:,nz) = BOGUS
 rH_y(1:ld:2,:,nz) = BOGUS
+$endif
 
 $if ($MPI)
   if (coord == nproc-1) then
     rH_z(:,:,nz) = 0._rprec
-  else  
+  else
+$if ($SAFETYMODE)
     rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
+$endif    
   endif
 $else
   rH_z(:,:,nz) = 0._rprec
@@ -179,12 +190,15 @@ rbottomw(:, ny/2+1)=0._rprec
 
 $if ($DEBUG)
 if (TRI_DEBUG) then
+
+$if ($SAFETYMODE)
   a = BOGUS
   b = BOGUS
   c = BOGUS
   !RHS_col = BOGUS
   !Careful - only update real values (odd indicies)
   RHS_col(1:ld:2,:,:) = BOGUS
+$endif
 end if
 $endif
 
@@ -192,7 +206,9 @@ $endif
 if (coord == 0) then
 
   !  a,b,c are treated as the real part of a complex array
+$if ($SAFETYMODE)
   a(:, :, 1) = BOGUS  !--was 0._rprec
+$endif  
   b(:, :, 1) = -1._rprec
   c(:, :, 1) = 1._rprec
   !RHS_col(:, :, 1) = -dz * bottomw(:, :)
@@ -200,7 +216,9 @@ if (coord == 0) then
 
   $if ($DEBUG)
   if (TRI_DEBUG) then
+  $if ($SAFETYMODE)
     a(:, :, 1) = BOGUS  !--was 0._rprec
+  $endif
     b(:, :, 1) = 2._rprec
     c(:, :, 1) = 1._rprec
     !RHS_col(:, :, 1) = 1._rprec
@@ -223,7 +241,10 @@ $endif
   !--top nodes
   a(:, :, nz+1) = -1._rprec
   b(:, :, nz+1) = 1._rprec
+  $if ($SAFETYMODE)
   c(:, :, nz+1) = BOGUS  !--was 0._rprec
+  $endif
+  
   !RHS_col(:, :, nz+1) = -topw(:, :) * dz
   RHS_col(:,:,nz+1) = -dz * rtopw(:,:)
 
@@ -231,7 +252,9 @@ $endif
   if (TRI_DEBUG) then
     a(:, :, nz+1) = 1._rprec
     b(:, :, nz+1) = 2._rprec
+    $if ($SAFETYMODE)
     c(:, :, nz+1) = BOGUS  !--was 0._rprec
+    $endif
     $if ($MPI)
       !RHS_col(:, :, nz+1) = real (nz+1 + coord * (nz-1), rprec)
       !Careful - only update real values (odd indicies)
@@ -307,6 +330,8 @@ if (DEBUG) then
 end if
 $endif
 
+const3=1._rprec/(dz*dz)
+const4=1._rprec/(dz)
 do jz = jz_min, nz
   do jy = 1, ny
 
@@ -326,18 +351,33 @@ do jz = jz_min, nz
       !RHS_col(jx, jy, jz) = eye * (kx(jx, jy) * H_x(jx, jy, jz-1) +   &
       !                             ky(jx, jy) * H_y(jx, jy, jz-1)) +  &
       !                      (H_z(jx, jy, jz) - H_z(jx, jy, jz-1)) / dz
-      a(jx, jy, jz) = 1._rprec/(dz**2)
-      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
-      c(jx, jy, jz) = 1._rprec/(dz**2)   
+
+!RICHARD OPTIMIZATION see top of loop for const3
+!      a(jx, jy, jz) = 1._rprec/(dz**2)
+!      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
+!      c(jx, jy, jz) = 1._rprec/(dz**2)   
+      a(jx, jy, jz) = const3
+      b(jx, jy, jz) = -(kx(jx, jy)*kx(jx, jy) + ky(jx, jy)*ky(jx, jy) + 2._rprec*const3)
+      c(jx, jy, jz) = const3   
+
+
+
       !  Compute eye * kx * H_x 
 !      call mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
-      aH_x = rH_x(ir:ii, jy, jz-1) .MULI. kx(jx,jy)
+!      aH_x = rH_x(ir:ii, jy, jz-1) .MULI. kx(jx,jy)
 
       !  Compute eye * ky * H_y
 !      call mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
-      aH_y = rH_y(ir:ii, jy, jz-1) .MULI. ky(jx,jy) 
+!      aH_y = rH_y(ir:ii, jy, jz-1) .MULI. ky(jx,jy) 
 
-      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
+       aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx,jy) 
+       aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx,jy) 
+       aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx,jy) 
+       aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
+
+!RICHARD OPTIMIZATION see top of loop for const4
+!      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
+      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
@@ -406,7 +446,6 @@ $endif
 !--zero-wavenumber solution
 $if ($MPI)
   !--wait for p_hat(1, 1, 1) from "down"
-  !call mpi_recv (p_hat(1, 1, 1), 1, MPI_CPREC, down, 8, comm, status, ierr)
   call mpi_recv (p_hat(1:2, 1, 1), 2, MPI_RPREC, down, 8, comm, status, ierr)
 $endif
 
@@ -434,13 +473,9 @@ $endif
 $if ($MPI)
   !--make sure 0 <-> nz-1 are syncronized
   !-- 1 <-> nz should be in sync already
-  !call mpi_sendrecv (p_hat(1, 1, nz-1), lh*ny, MPI_CPREC, up, 2,  &
-  !                   p_hat(1, 1, 0), lh*ny, MPI_CPREC, down, 2,   &
-  !                   comm, status, ierr)
   call mpi_sendrecv (p_hat(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
                      p_hat(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
                      comm, status, ierr)  
-
 $endif
 
 !--zero the nyquist freqs
@@ -472,9 +507,13 @@ do jx=1,lh
    !dfdy(jx,jy,jz)=eye*ky(jx,jy)*p_hat(jx,jy,jz)
    !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
    !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
-   dfdx(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. kx(jx,jy) 
-   dfdy(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. ky(jx,jy) 
-   
+   !dfdx(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. kx(jx,jy) 
+   !dfdy(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. ky(jx,jy) 
+
+   dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx,jy) 
+   dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx,jy) 
+   dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx,jy) 
+   dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx,jy) 
 
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
@@ -485,16 +524,20 @@ call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
 end do
 
 !--nz level is not needed elsewhere (although its valid)
+$if ($SAFETYMODE)
 dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
+$endif
 
 ! Final step compute the z-derivative of p_hat
 ! Calculate dpdz
 !   note: p has additional level at z=-dz/2 for this derivative
 dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
      p_hat(1:nx, 1:ny, 0:nz-2)) / dz
+$if ($SAFETYMODE)
 dfdz(:, :, nz) = BOGUS
+$endif
 
 ! ! Deallocate arrays
 ! deallocate ( rH_x, rH_y, rH_z )

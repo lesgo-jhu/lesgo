@@ -35,9 +35,6 @@ implicit none
 
 integer::jz
 
-!  Original complex versions
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
 integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
@@ -89,10 +86,7 @@ use emul_complex, only : OPERATOR(.MULI.)
 implicit none      
 
 integer::jz
-
-!  Original complex versions
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,$lbz:nz),intent(inout)::dfdx_c  
+  
 integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
@@ -142,8 +136,6 @@ integer::jz
 
 integer, intent(in) :: lbz
 ! only need complex treatment
-!complex(kind=rprec),dimension(lh,ny,nz),intent(in)::f_c
-!complex(kind=rprec),dimension(lh,ny,nz),intent(inout)::dfdx_c,dfdy_c
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
 real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx,dfdy
 
@@ -174,8 +166,6 @@ do jz=lbz,nz
 ! the oddballs for derivatives should already be dead, since they are for f
 
 ! inverse transform 
-   !call rfftwnd_f77_one_complex_to_real(back,dfdx_c(:,:,jz),ignore_me)
-   !call rfftwnd_f77_one_complex_to_real(back,dfdy_c(:,:,jz),ignore_me)
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 
@@ -206,7 +196,9 @@ const=1._rprec/dz
 
 $if ($MPI)
 
+$if ($SAFETYMODE)
   dfdz(:, :, 0) = BOGUS
+$endif
 
   if (coord > 0) then
     !--ghost node information is available here
@@ -286,12 +278,16 @@ end do
 $if ($MPI)
     if (coord == 0) then
       !--bottom process cannot calculate dfdz(jz=0)
+$if ($SAFETYMODE)
       dfdz(:, :, lbz) = BOGUS
+$endif      
     endif
     if (coord == nproc-1) then
       dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
     else
+$if ($SAFETYMODE)
       dfdz(:, :, nz) = BOGUS
+$endif      
     end if
 $else
   dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
@@ -320,9 +316,6 @@ integer::jz
 integer, intent(in) :: lbz
 real(rprec), dimension(:, :, lbz:), intent(inout) :: f
 real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
-
-! only need complex treatment
-!complex(rprec), dimension (lh, ny, $lbz:nz) :: f_c, dfdx_c, dfdy_c
 
 real(rprec) :: const
 

@@ -40,7 +40,7 @@ integer :: ip
 integer :: up, down
 integer :: status(MPI_STATUS_SIZE)
 
-integer :: i, j, k, jx, jy, jz
+integer :: i, k, jx, jz
 
 logical, save :: init = .false.
 

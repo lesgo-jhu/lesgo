@@ -18,6 +18,7 @@ use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_ba
 use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
+use string_util, only : string_concat
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -48,7 +49,7 @@ real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
 
 $if ($OUTPUT_EXTRA)
-character (64) :: fnamek, tempk
+character (64) :: fnamek
 integer :: count_all, count_clip
 $endif
 
@@ -56,7 +57,7 @@ $endif
 integer :: istart, iend
 integer :: jz
 integer :: ii
-integer :: i, j
+integer :: i
 
 logical, save :: F_LM_MM_init = .false.
 
@@ -292,27 +293,21 @@ do jz = 1,nz
    
     $if($OUTPUT_EXTRA)
     ! Write average Tn for this level to file
-        ! Create filename
-        if ((jz+coord*(nz-1)).lt.10) then
-            write (tempk, '(i1)') (jz + coord*(nz-1))
-        elseif ((jz+coord*(nz-1)).lt.100) then
-            write (tempk, '(i2)') (jz + coord*(nz-1))
-        endif      
+        fnamek = path
         $if ($DYN_TN)
-        fnamek = path // trim('output/Tn_dyn_') // trim(tempk)
+        call string_concat( fnamek, 'output/Tn_dyn_', jz + coord*(nz-1), '.dat' )
         $else
-        fnamek = path // trim('output/Tn_mlc_') // trim(tempk)
+        call string_concat( fnamek, 'output/Tn_mlc_', jz + coord*(nz-1), '.dat' )
         $endif
-        fnamek = trim(fnamek) // trim('.dat')
        
         ! Write
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
         write(2,*) jt,sum(Tn(1:nx,1:ny))/(nx*ny)
         close(2)
         
-    ! Also write clipping stats to file
-        fnamek = path // trim('output/clip_') // trim(tempk)
-        fnamek = trim(fnamek) // trim('.dat')   
+        ! Also write clipping stats to file
+        fnamek = path
+        call string_concat( fnamek, 'output/clip_', jz + coord*(nz-1), '.dat' )
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
         write(2,*) jt,real(count_clip)/real(count_all)
         close(2)   

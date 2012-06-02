@@ -10,7 +10,7 @@ public
 type point
   integer :: istart, jstart, kstart, coord
   real(rprec) :: xdiff, ydiff, zdiff
-  character(64) :: fname
+  integer :: fid
 end type point
 
 type plane
@@ -38,17 +38,24 @@ real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
+! Time stamp of last time averaging computation
+real(rprec) :: tavg_time_stamp  
 
+! Time step used for time averaging of spectra
+real(rprec) :: dt_spectra
+! Time stampe of last spectra computation
+real(rprec) :: spectra_time_stamp
+  
 !  Sums performed over time
 type tavg
   real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, txy, tyy, txz, tyz, tzz
   real(rprec) :: fx, fy, fz
-  real(rprec) :: cs_opt2
+  real(rprec) :: cs_opt2  
 end type tavg
 
-!  Sums performed over time
+!  Sums performed over time (for subgrid variables)
 $if($OUTPUT_EXTRA)
 type tavg_sgs
   real(rprec) :: Tn, Nu_t
@@ -60,26 +67,24 @@ type tavg_sgs
 end type tavg_sgs
 $endif
 
+! Types for including wind-turbines as drag disks
 $if ($TURBINES)
+! Single turbines
 type turbine 
   real(rprec) :: xloc, yloc, height, dia, thk
-  real(rprec) :: vol_c                        !term used for volume correction  
-  real(rprec) :: theta1                       !angle CCW(from above) from -x direction [degrees]
-  real(rprec) :: theta2                    !angle above the horizontal, from -x dir [degrees]
-  real(rprec), dimension(3) :: nhat           !(nx,ny,nz) of unit normal for each turbine
-  integer :: num_nodes                        !number of nodes associated with each turbine
-  integer, dimension(1500,3) :: nodes         !(i,j,k) of each included node
-  integer, dimension(6) :: nodes_max          !search area for nearby nodes
-  real(rprec) :: u_d, u_d_T                   !running time-average of mean disk velocity
-  real(rprec) :: f_n                          !normal force on turbine disk
-  real(rprec), dimension(1500) :: ind         !indicator function - weighting of each node
-        
-  !real(rprec), dimension (nx,ny,nz) :: u_cond_avg_lo, v_cond_avg_lo, w_cond_avg_lo
-  !real(rprec), dimension (nx,ny,nz) :: u_cond_avg_hi, v_cond_avg_hi, w_cond_avg_hi
-  !logical :: cond_avg_calc_lo,cond_avg_calc_hi
-  !real(rprec) :: cond_avg_ud_lo,cond_avg_ud_hi,cond_avg_time_lo,cond_avg_time_hi
+  real(rprec) :: vol_c                        ! term used for volume correction  
+  real(rprec) :: theta1                       ! angle CCW(from above) from -x direction [degrees]
+  real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
+  real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
+  integer :: num_nodes                        ! number of nodes associated with each turbine
+  integer, dimension(1500,3) :: nodes         ! (i,j,k) of each included node
+  integer, dimension(6) :: nodes_max          ! search area for nearby nodes
+  real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
+  real(rprec) :: f_n                          ! normal force on turbine disk
+  real(rprec), dimension(1500) :: ind         ! indicator function - weighting of each node
 end type turbine
 
+! A collection of wind-turbines
 type wind_farm
   type(turbine), pointer, dimension(:) :: turbine_t
 end type wind_farm
@@ -87,25 +92,29 @@ end type wind_farm
 type(wind_farm) :: wind_farm_t
 $endif
 
+! Histogram (single)
 type hist
-    real(rprec) :: bmin, bmax, db                    
-    integer :: nbins       
-    real(rprec), allocatable, dimension(:) :: bins      
-    real(rprec), allocatable, dimension(:) :: vals       
+    real(rprec) :: bmin, bmax, db             ! bin min, max, and spacing
+    integer :: nbins                          ! number of bins
+    real(rprec), allocatable, dimension(:) :: bins  ! bin centers
+    real(rprec), allocatable, dimension(:) :: vals  ! count for each bin (may be normalized)
 end type hist
 
-type hist_zplanes   ! a collection of histograms (one for each zplane) for a single variable
-    integer, allocatable, dimension(:) :: istart, coord
-    real(rprec), allocatable, dimension(:) :: ldiff
-    type(hist), allocatable, dimension(:) :: hist_t     
+! Collection of histograms (one for each zplane) for a single variable
+type hist_zplanes  
+    integer, allocatable, dimension(:) :: coord         ! processor where this plane exists
+    integer, allocatable, dimension(:) :: istart        ! nearest node below plane (for interpolation)
+    real(rprec), allocatable, dimension(:) :: ldiff     ! distance from istart to plane (for interpolation)
+    type(hist), allocatable, dimension(:) :: hist_t     ! the histograms for each plane
 end type hist_zplanes
 
-! could also have histograms for points or for the entire domain...
-type(hist_zplanes) :: HISTcs2_t
-type(hist_zplanes) :: HISTtn_t
-type(hist_zplanes) :: HISTnu_t
-type(hist_zplanes) :: HISTee_t
+! Create histogram groups here 
+type(hist_zplanes) :: HISTcs2_t   ! SGS coefficient, squared
+type(hist_zplanes) :: HISTtn_t    ! Lagrangian time scale
+type(hist_zplanes) :: HISTnu_t    ! Eddy viscosity
+type(hist_zplanes) :: HISTee_t    ! Error in SGS model
 
+! Create types for outputting data (instantaneous or averaged)
 type(point), allocatable, dimension(:) :: point_t
 type(plane), allocatable, dimension(:) :: xplane_t, yplane_t
 type(zplane), allocatable, dimension(:) :: zplane_t

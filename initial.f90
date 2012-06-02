@@ -3,15 +3,14 @@ subroutine initial()
 !*******************************************************************************
 use types,only:rprec
 use param
-use sim_param,only:path,u,v,w,RHSx,RHSy,RHSz,theta,q
+use sim_param, only : u,v,w,RHSx,RHSy,RHSz,theta,q
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
-
 use sim_param,only:fx,fy,fz
 use sim_param,only:fxa,fya,fza
-
+use string_util, only : string_concat
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
@@ -20,10 +19,14 @@ implicit none
 
 logical, parameter :: use_add_random = .false.
 
-character (64) :: fname, temp, fname_dyn_tn
-logical :: exst
+character (64) :: fname
 
-integer::i,jz
+$if ($DYN_TN)
+logical :: exst
+character (64) :: fname_dyn_tn
+$endif
+
+integer::jz
 
 !real (rprec) :: ke
 
@@ -34,14 +37,16 @@ fxa=0._rprec; fya=0._rprec; fza=0._rprec
 $if ($DYN_TN)
 !Will be over-written if read from dyn_tn.out files
 ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
+fname_dyn_tn = path // 'dyn_tn.out'
+  $if ($MPI)
+  call string_concat( fname_dyn_tn, '.c', coord )
+  $endif
 $endif
 
-fname = path // 'vel.out'
-fname_dyn_tn = path // 'dyn_tn.out'
+fname = checkpoint_file
+
 $if ($MPI)
-  write (temp, '(".c",i0)') coord
-  fname = trim (fname) // temp
-  fname_dyn_tn = trim (fname_dyn_tn) // temp
+call string_concat( fname, '.c', coord )
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
@@ -126,15 +131,6 @@ $if ($MPI)
     v(:, :, lbz) = BOGUS
     w(:, :, lbz) = BOGUS
   end if
-$endif
-
-!  Open vel.out (lun_default in io) for final output
-$if ($WRITE_BIG_ENDIAN)
-open(11,file=fname,form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
-open(11,file=fname,form='unformatted', convert='little_endian')
-$else
-open(11,file=fname,form='unformatted')
 $endif
 
 contains
