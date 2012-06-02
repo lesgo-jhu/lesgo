@@ -137,8 +137,15 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine rns_base_init_ls
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : path
 implicit none
 
+character(*), parameter :: mkdir_cmd = 'mkdir -p ' // path // 'output/rns'
+
+! Make output directory for RNS module
+call system(mkdir_cmd)
+
+! Allocate space for signed distance function
 allocate( chi( ld, ny, lbz:nz ) )
 
 return
