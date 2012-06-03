@@ -80,7 +80,7 @@ write (*, *) 'started press_stag_array'
 $endif
 
 if (coord == 0) then
-  p_hat(:, :, 0) = (0._rprec, 0._rprec)
+  p_hat(:, :, 0) = 0._rprec
 else
 $if ($SAFETYMODE)
   p_hat(:, :, 0) = BOGUS
