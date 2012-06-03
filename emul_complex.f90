@@ -131,8 +131,10 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
+$if ($SAFETYMODE)
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in input array sizes')
+$endif
 
 ! Allocate returned array
 allocate( b(nx_r, ny) )
@@ -207,8 +209,10 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
+$if ($SAFETYMODE)
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in array sizes')
+$endif
 
 ! Allocate the returned array
 allocate( b(nx_r, ny ) )
@@ -275,10 +279,12 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
+$if ($SAFETYMODE)
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in array sizes')
-
 ! Allocate the returned array
+$endif
+
 allocate(b(nx_r,ny))
 
 !  Emulate complex multiplication
