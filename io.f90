@@ -1602,11 +1602,13 @@ subroutine len_da_file(fname, lenrec, length)
 !  under the topic counting number of records in a Fortran direct file
 !--minor changes/renaming
 !
+use messages
 implicit none
 character (*), intent(in) :: fname  ! name of existing direct-access file
 integer, intent(in)       :: lenrec ! record length (O/S dependent units)
 integer, intent(out) :: length      ! number of records.
 !
+character(*), parameter :: sub_name = mod_name // '.len_dat_file'
 character (1) :: cdummy
 integer :: lunit, nlo, nhi, mid, kode
 logical :: exists, open
@@ -1625,8 +1627,8 @@ do lunit = 99, 1, -1
 end do
 open(unit=lunit, file=fname, access="direct", recl=lenrec, iostat=kode)
 if(kode /= 0) then
-  print *, 'error in len_da_file: ', trim(fname), ' does not exist'
-  return
+   call mesg( sub_name, 'error in len_da_file: ' // trim(fname) // ' does not exist' )
+   return
 end if
 !
 ! expansion phase
