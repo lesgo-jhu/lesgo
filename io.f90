@@ -516,7 +516,7 @@ elseif(itype==2) then
   $if($BINARY)
 
   ! RICHARD
-  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
   write(13,rec=1) (((u(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
   write(13,rec=2) (((v(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
   write(13,rec=3) (((w_uv(i,j,k),i=1,nx),j=1,ny),k=1,nz)
@@ -619,7 +619,7 @@ elseif(itype==2) then
 
     $if($BINARY)
     ! RICHARD
-    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) (((divvel(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     close(13)
      
@@ -673,7 +673,7 @@ elseif(itype==2) then
     $if($BINARY)
 
     ! RICHARD
-    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) (((p(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=2) (((dpdx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
@@ -739,7 +739,7 @@ elseif(itype==2) then
 
     $if($BINARY)
     ! RICHARD
-    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) (((RHSx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=2) (((RHSy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
     write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
@@ -2452,14 +2452,14 @@ enddo
 $if($BINARY)
 
 ! RICHARD
-open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%u   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((tavg_t(i,j,k)%v   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=3) (((tavg_t(i,j,k)%w   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%u2   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((tavg_t(i,j,k)%v2   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=3) (((tavg_t(i,j,k)%w2   ,i=1,nx),j=1,ny),k=1,nz)
@@ -2469,13 +2469,13 @@ write(13,rec=6) (((tavg_t(i,j,k)%uv   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%dudz   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((tavg_t(i,j,k)%dvdz   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%txx   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((tavg_t(i,j,k)%txy   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=3) (((tavg_t(i,j,k)%tyy   ,i=1,nx),j=1,ny),k=1,nz)
@@ -2485,14 +2485,14 @@ write(13,rec=6) (((tavg_t(i,j,k)%tzz   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%fx   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((tavg_t(i,j,k)%fy   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=3) (((tavg_t(i,j,k)%fz   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((rs_t(i,j,k)%up2   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=2) (((rs_t(i,j,k)%vp2   ,i=1,nx),j=1,ny),k=1,nz)
 write(13,rec=3) (((rs_t(i,j,k)%wp2   ,i=1,nx),j=1,ny),k=1,nz)
@@ -2502,7 +2502,7 @@ write(13,rec=6) (((rs_t(i,j,k)%upvp   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*8)
+open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) (((tavg_t(i,j,k)%cs_opt2   ,i=1,nx),j=1,ny),k=1,nz)
 close(13)
 
