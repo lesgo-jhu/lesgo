@@ -2256,7 +2256,16 @@ fname_sgs_ee = path // 'output/ee_avg.dat'
 $endif  
   
 $if ($MPI)
+  $if($BINARY)
   !  For MPI implementation     
+  call string_concat( fname_velb, '.c', coord)
+  call string_concat( fname_vel2b, '.c', coord)
+  call string_concat( fname_ddzb, '.c', coord)
+  call string_concat( fname_taub, '.c', coord)
+  call string_concat( fname_fb, '.c', coord)
+  call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_csb, '.c', coord)
+  $else
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
   call string_concat( fname_ddz, '.c', coord)
@@ -2264,7 +2273,8 @@ $if ($MPI)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
   call string_concat( fname_cs, '.c', coord)
-
+  $endif
+  
   $if($OUTPUT_EXTRA)  
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
