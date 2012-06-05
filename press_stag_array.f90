@@ -104,9 +104,18 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_y(:, :, jz) = const2 * v(:, :, jz) 
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
-   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)   
+  $if ($FFTW3)
+  call dfftw_execute_dft_r2c(plan_forward,const2*u(1:nx,1:ny,jz),rH_x(1:nx+2,1:ny,jz))
+  call dfftw_execute_dft_r2c(plan_forward,const2*v(1:nx,1:ny,jz),rH_y(1:nx+2,1:ny,jz))
+  call dfftw_execute_dft_r2c(plan_forward,const2*w(1:nx,1:ny,jz),rH_z(1:nx+2,1:ny,jz))
+  $else
+  rH_x(:, :, jz) = const2 * u(:, :, jz)
+  rH_y(:, :, jz) = const2 * v(:, :, jz)
+  rH_z(:, :, jz) = const2 * w(:, :, jz)
+  call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)
+  $endif
 end do
 
 
@@ -146,14 +155,25 @@ $else
 $endif
 
 if (coord == 0) then
+  $if ($FFTW3)
+  in2(1:nx,1:ny) = const * divtz(1:nx, 1:ny, 1)
+  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),rbottomw(1:nx+2,1:ny))
+  $else
   rbottomw(:, :) = const * divtz(:, :, 1)
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
+  $endif
+
 end if
 
 $if ($MPI) 
   if (coord == nproc-1) then
-    rtopw(:, :) = const * divtz(:, :, nz)
-    call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
+  $if ($FFTW3)
+  in2(1:nx,1:ny) = const * divtz(1:nx, 1:ny, nz)
+  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),rtopw(1:nx+2,1:ny))
+  $else
+  rtopw(:, :) = const * divtz(:, :, nz)
+  call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
+  $endif
   endif
 $else
   rtopw(:, :) = const * divtz(:, :, nz)
@@ -496,7 +516,11 @@ $if ($DEBUG)
 if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
+$if ($FFTW3)
+call dfftw_execute_dft_c2r(plan_backward,p_hat(1:nx+2,1:ny,0),   p_hat(1:nx,1:ny,0))    
+$else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
+$endif
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,lh
@@ -518,9 +542,15 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
+$if ($FFTW3)
+call dfftw_execute_dft_c2r(plan_backward,dfdx(1:nx+2,1:ny,jz) ,   dfdx(1:nx,1:ny,jz))
+call dfftw_execute_dft_c2r(plan_backward,dfdy(1:nx+2,1:ny,jz) ,   dfdy(1:nx,1:ny,jz))
+call dfftw_execute_dft_c2r(plan_backward,p_hat(1:nx+2,1:ny,jz),   p_hat(1:nx,1:ny,jz))    
+$else
 call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
+$endif
 end do
 
 !--nz level is not needed elsewhere (although its valid)

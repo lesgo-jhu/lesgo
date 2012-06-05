@@ -15,10 +15,20 @@ u_big=const*u_big
 ! Loop through horizontal slices
 do jz=1,nz
 ! perform forward FFT
-   call rfftwnd_f77_one_real_to_complex(forw_big,u_big(:,:,jz),fftwNull_p)    
-   call unpadd(u(:,:,jz),u_big(:,:,jz))
+  $if ($FFTW3)
+  inbig2(1:nx2,1:ny2)=u_big(1:nx2,1:ny2,jz)
+  call dfftw_execute_dft_r2c(plan_forward,inbig2(1:nx2,1:ny2),u_big(1:nx2+2,1:ny2,jz))
+  $else
+  call rfftwnd_f77_one_real_to_complex(forw_big,u_big(:,:,jz),fftwNull_p)
+  $endif
+  call unpadd(u(:,:,jz),u_big(:,:,jz))
 ! Back to physical space
+   $if ($FFTW3)
+   in2(1:nx,1:ny)=u(1:nx,1:ny,jz)
+   call dfftw_execute_dft_c2r(plan_backward_big,in2(1:nx+2,1:ny),   u(1:nx,1:ny,jz))     
+   $else
    call rfftwnd_f77_one_complex_to_real(back,u(:,:,jz),fftwNull_p)
+   $endif
 end do
 
 ! sc: do we need this?

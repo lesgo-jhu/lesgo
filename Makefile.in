@@ -9,10 +9,11 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib
-LIBS = $(LIBPATH) -lrfftw -lfftw 
-
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/opt/fftw-3.3/include
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/opt/fftw-3.3/lib
+LIBS = $(LIBPATH) -lfftw3 
+LIBS = $(LIBPATH) -lfftw3 -lfftw3_threads -lpthread
+#LIBS = $(LIBPATH) -lfftw3_mpi -lfftw3 -lfftw3f_mpi -lfftw3f -limf -lm
 HOSTNAME = $(shell hostname -s)
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -29,6 +30,7 @@ VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
 # Set extra safety measures 
+USE_FFTW3=yes
 USE_SAFETYMODE=yes
 
 # Output additional quantities to file. May be useful
@@ -88,7 +90,7 @@ ifeq ($(FCOMP),ifort)
   endif
 
   #FFLAGS = -O0 -check bounds -g -debug all -traceback
-  FFLAGS = -O3 -ip -ftz
+  FFLAGS = -O3
   #FFLAGS = -axSSE4.2 -ftz -
   FFLAGS += -warn all -shared-intel
     # Work around for real -> complex dummy array assignment
@@ -122,7 +124,7 @@ ifeq ($(FCOMP),gfortran)
     LIBS += -lcgaml
   endif
 
-  FFLAGS = -O0 -fbounds-check
+  FFLAGS = -O0 
   #FFLAGS = -O3 -ffast-math -march=native -funroll-loops
   #FFLAGS = -O3
   #FFLAGS = -O2 -ffree-form -ffixed-line-length-none

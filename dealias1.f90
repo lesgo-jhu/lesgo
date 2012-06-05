@@ -3,7 +3,7 @@ subroutine dealias1 (u,u_big)
 ! doesn't dealias anything
 ! note: this sort of trashes u
 use types,only:rprec
-use param,only:ld,ld_big,nx,ny,nz,ny2,dx,dy
+use param,only:ld,ld_big,nx,nx2,ny,nz,ny2,dx,dy
 use fft
 implicit none
 integer::jz
@@ -18,9 +18,19 @@ temp=const*u
 
 do jz=1,nz
 ! still need to normalize
-   call rfftwnd_f77_one_real_to_complex(forw,temp(:,:,jz),fftwNull_p)
+  $if ($FFTW3)
+  in2(1:nx,1:ny)=temp(1:nx,1:ny,jz)
+  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),temp(1:nx+2,1:ny,jz))
+  $else
+  call rfftwnd_f77_one_real_to_complex(forw,temp(:,:,jz),fftwNull_p)
+  $endif
 ! check padd syntax
    call padd(u_big(:,:,jz),temp(:,:,jz))
+   $if ($FFTW3)
+   inbig2(1:nx2,1:ny2)=u_big(1:nx2,1:ny2,jz)
+   call dfftw_execute_dft_c2r(plan_backward_big,inbig2(1:nx2+2,1:ny2),   u_big(1:nx2,1:ny2,jz))   
+   $else
    call rfftwnd_f77_one_complex_to_real(back_big,u_big(:,:,jz),fftwNull_p)
+   $endif
 end do
 end subroutine dealias1
