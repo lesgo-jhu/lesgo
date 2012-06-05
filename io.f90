@@ -3112,7 +3112,11 @@ do k=1, spectra_nloc
     ! 1) Compute uhat for the given j
     ui = ui - sum(ui) / Nx ! Remove the mean
     ! Compute FFT
+    $if ($FFTW3)
+    write(*,*) 'spectra not calculated yet in FFTW3 mode'
+    $else
     call rfftw_f77_one(forw_spectra, ui, uhat)
+    $endif
     !  Normalize
     uhat = uhat / Nx
 
