@@ -1995,6 +1995,8 @@ use functions, only : interp_to_w_grid
 
 implicit none
 
+character (*), parameter :: sub_name = mod_name // '.tavg_compute'
+
 integer :: i,j,k
 real(rprec) :: dt_tavg
 
