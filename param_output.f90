@@ -110,7 +110,7 @@ write(2,i_fmt) 'wbase : ', wbase
 write(2,i_fmt) 'nenergy : ', nenergy
 write(2,i_fmt) 'cfl_count : ', cfl_count
 write(2,l_fmt) 'tavg_calc : ', tavg_calc
-write(2,x2i_fmt) 'tavg_nstart, tavg_nend : ', tavg_nstart, tavg_nend
+write(2,x3i_fmt) 'tavg_nstart, tavg_nend, tavg_nskip : ', tavg_nstart, tavg_nend, tavg_nskip
 write(2,l_fmt) 'point_calc : ', point_calc
 write(2,x3i_fmt) 'point_nstart, point_nend, point_nskip : ', point_nstart, point_nend, point_nskip
 write(2,i_fmt) 'point_nloc : ', point_nloc
