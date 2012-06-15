@@ -210,7 +210,7 @@ module param
 
   ! records time-averaged data to files ./output/*_avg.dat
   logical, parameter :: tavg_calc = .true.
-  integer, parameter :: tavg_nstart = nsteps/2, tavg_nend = nsteps, tavg_nskip = 5
+  integer, parameter :: tavg_nstart = nsteps/2, tavg_nend = nsteps
 
   ! turns instantaneous velocity recording on or off
   logical, parameter :: point_calc = .true.

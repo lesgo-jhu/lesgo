@@ -170,7 +170,7 @@ subroutine output_loop(jt)
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
-use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
+use param, only : tavg_calc, tavg_nstart, tavg_nend
 use param, only : spectra_calc, spectra_nstart, spectra_nend
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
@@ -184,7 +184,7 @@ integer,intent(in)::jt
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tavg_nstart .and. jt <= tavg_nend .and. ( mod(jt-tavg_nstart,tavg_nskip)==0 ) ) then
+  if(jt >= tavg_nstart .and. jt <= tavg_nend) then
     if(jt == tavg_nstart) then
       if ((.not. USE_MPI) .or. (USE_MPI .and. coord == 0)) then
         write(*,*) '-------------------------------'   
@@ -2147,28 +2147,19 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use stat_defs, only : tavg_t, tavg_zplane_t, tavg_total_time
-use param, only : nx,ny,nz, dt, tavg_nskip
+use param, only : nx,ny,nz, dt
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 use immersedbc, only : fx, fy, fz, fxa, fya, fza
 use functions, only : interp_to_uv_grid
-use messages
+
 implicit none
 
 !use io, only : w_uv, w_uv_tag, dudz_uv, dudz_uv_tag, interp_to_uv_grid
-
-character (*), parameter :: sub_name = mod_name // '.tavg_compute'
-
 integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
-real(rprec), parameter :: dt_tavg = dt * tavg_nskip
-
 allocate(w_uv(nx,ny,$lbz:nz))
-
-$if($CFL_DT)
-if( tavg_nskip /=  1 ) call error( sub_name, 'tavg_nskip must be 1 with dynamic cfl')
-$endif
 
 !  Make sure w stuff has been interpolated to uv-grid
 w_uv(1:nx,1:ny,$lbz:nz) = interp_to_uv_grid( w(1:nx,1:ny,$lbz:nz), $lbz )
@@ -2182,35 +2173,35 @@ do k=1,nz
       w_p = w_uv(i,j,k)
           
       ! === uv-grid variables ===
-      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
-      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
-      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
-      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
-      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
-      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
-      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt_tavg
-      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
-      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt                    
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt                         
+      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt
 
-      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt
       
-      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
-      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg 
+      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt 
+      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt 
  
-      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg 
+      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt 
 
       ! === w-grid variables === 
       ! These need to be interpolated before written to file
-      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt
 
-      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt
 
-      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
+      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt
       
     enddo
   enddo
@@ -2219,7 +2210,7 @@ enddo
 deallocate( w_uv )
 
 ! Update tavg_total_time for variable time stepping
-tavg_total_time = tavg_total_time + dt_tavg
+tavg_total_time = tavg_total_time + dt
 
 return
 
