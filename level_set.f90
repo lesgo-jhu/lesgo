@@ -2845,7 +2845,7 @@ real (rp) :: phi1
 real (rp) :: update
 
 ! For autowrapping points: im1 = i-1, ip1 = i+1, etc.
-real(rp) :: im1, ip1, jm1, jp1
+integer :: im1, ip1, jm1, jp1
 
 !---------------------------------------------------------------------
 nullify(autowrap_i, autowrap_j)
