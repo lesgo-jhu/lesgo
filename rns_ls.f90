@@ -1457,7 +1457,7 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
-character (*), parameter :: fname_in = path // 'rns_force.out'
+character (*), parameter :: fname_in = path // 'rns.out'
 character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
@@ -1517,7 +1517,7 @@ use string_util, only : string_splice
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
-character (*), parameter :: fname_out = path // 'rns_force.out'
+character (*), parameter :: fname_out = path // 'rns.out'
 
 character (128) :: fname
 $if ($MPI)
