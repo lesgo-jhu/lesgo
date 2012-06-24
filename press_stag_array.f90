@@ -63,7 +63,11 @@ logical, save :: arrays_allocated = .false.
 real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
-const = 1._rprec/(nx*ny)
+! Specifiy cached constants
+const  = 1._rprec/(nx*ny)
+const2 = const/tadv1/dt
+const3 = 1._rprec/(dz**2)
+const4 = 1._rprec/(dz)
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
@@ -90,7 +94,6 @@ end if
 !==========================================================================
 ! Get the right hand side ready 
 ! Loop over levels
-const2=const/tadv1/dt    
 do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! temp storage for sum of RHS terms.  normalized for fft
 ! sc: recall that the old timestep guys already contain the pressure
@@ -330,8 +333,6 @@ if (DEBUG) then
 end if
 $endif
 
-const3=1._rprec/(dz*dz)
-const4=1._rprec/(dz)
 do jz = jz_min, nz
   do jy = 1, ny
 
