@@ -357,7 +357,7 @@ do jz = jz_min, nz
 !      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
 !      c(jx, jy, jz) = 1._rprec/(dz**2)   
       a(jx, jy, jz) = const3
-      b(jx, jy, jz) = -(kx(jx, jy)*kx(jx, jy) + ky(jx, jy)*ky(jx, jy) + 2._rprec*const3)
+      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
       c(jx, jy, jz) = const3   
 
 
