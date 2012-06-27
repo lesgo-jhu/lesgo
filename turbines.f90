@@ -168,14 +168,12 @@ if (coord .eq. nproc-1) then
     close(1)
 endif
 
-if (coord.eq. 0) then
 do s=1,nloc
 call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
 file_id(s) = open_file( fname, 'append', 'formatted' )
 call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
 file_id2(s) = open_file( fname, 'append', 'formatted' )
 enddo
-endif
 
 nullify(x,y,z)
 
