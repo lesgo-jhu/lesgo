@@ -42,6 +42,7 @@ module param
   !--this stuff must be defined, even if not using MPI
   ! Setting defaults for ones that can be used even with no MPI
   integer :: nproc = 1 !--this must be 1 if no MPI
+  integer :: runtime = 1 ! -- Maximum runtime in seconds
   integer :: rank = 0   !--init to 0 (so its defined, even if no MPI)
   integer :: coord = 0  !--same here
 
