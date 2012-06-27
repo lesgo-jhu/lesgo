@@ -172,6 +172,8 @@ do
 
      case ('NPROC')
         read (buff(equal_pos+1:), *) nproc
+     case ('RUNTIME')
+        read (buff(equal_pos+1:), *) runtime
      case ('NX')
         read (buff(equal_pos+1:), *) Nx
      case ('NY')
