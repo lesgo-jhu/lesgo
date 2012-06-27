@@ -696,7 +696,7 @@ if (turbine_in_proc) then
                     * wind_farm_t%turbine_t(s)%ind(l)        
              enddo
                 !write center disk velocity to file                   
-                if (modulo (jt, tbase) == 0) then
+                if (modulo (jt_total, tbase) == 0) then
                 icp = nint(wind_farm_t%turbine_t(s)%xloc/dx)
                 jcp = nint(wind_farm_t%turbine_t(s)%yloc/dy)
                 kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
@@ -709,7 +709,7 @@ if (turbine_in_proc) then
                 $endif
                 if (kcp>=k_start) then
                 if (kcp<=k_end) then
-                call write_real_data( file_id2(s), 'formatted', 2, (/ total_time_dim, u(icp,jcp,kcp) /))
+                call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
                 endif
                 endif
                 endif
@@ -764,7 +764,7 @@ if (coord == 0) then
         !force is normal to the surface (calc from u_d_T, normal to surface)
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
             !write values to file                   
-                if (modulo (jt, tbase) == 0) then
+                if (modulo (jt_total, tbase) == 0) then
                 call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
                 endif 
             !write force to array that will be transferred via MPI    
