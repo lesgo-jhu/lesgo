@@ -14,6 +14,7 @@ use cfl_util
 use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
+
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
@@ -22,10 +23,9 @@ $if ($LVLSET)
 use level_set, only : level_set_global_CD, level_set_vel_err
 use level_set_base, only : global_CD_calc
   
-  $if ($RNS_LS)
-  use rns_ls, only : rns_elem_force_ls
-  $endif
-
+$if ($RNS_LS)
+use rns_ls, only : rns_elem_force_ls
+$endif
 $endif
 
 $if ($TURBINES)
@@ -49,9 +49,8 @@ $endif
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
-
 type(clock_type) :: clock_t, clock_total_t
-
+integer dummy,dummy_buf
 
 ! Start the clocks, both local and total
 call clock_start( clock_t )
@@ -61,7 +60,6 @@ tt = 0
 
 ! Initialize all data
 call initialize()
-
 
 $if($MPI)
   if(coord == 0) then
@@ -84,9 +82,7 @@ do jt=1,nsteps
    if( use_cfl_dt ) then
       
       dt_f = dt
-
       dt = get_cfl_dt()
-
       dt_dim = dt * z_i / u_star
     
       tadv1 = 1._rprec + 0.5_rprec * dt / dt_f
@@ -100,7 +96,6 @@ do jt=1,nsteps
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
   
-    ! Debug
     $if ($DEBUG)
         if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
     $endif
@@ -111,7 +106,6 @@ do jt=1,nsteps
     RHSy_f = RHSy
     RHSz_f = RHSz
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
@@ -135,7 +129,6 @@ do jt=1,nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
@@ -183,7 +176,6 @@ do jt=1,nsteps
                            comm, status, ierr)
     $endif
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
@@ -201,12 +193,9 @@ do jt=1,nsteps
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
-    !call divstress_uv(divtx, txx, txy, txz)
-    !call divstress_uv(divty, txy, tyy, tyz)    
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
@@ -220,7 +209,6 @@ do jt=1,nsteps
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
@@ -257,7 +245,6 @@ do jt=1,nsteps
   
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
@@ -332,7 +319,6 @@ do jt=1,nsteps
     w(:, :, nz) = BOGUS
     $endif
     
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
@@ -356,7 +342,6 @@ do jt=1,nsteps
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
@@ -365,7 +350,6 @@ do jt=1,nsteps
     end if
     $endif
 
-    ! Debug
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
@@ -400,7 +384,7 @@ do jt=1,nsteps
     $endif
    
     ! Write ke to file
-    if (modulo (jt, nenergy) == 0) call energy (ke)
+    if (modulo (jt_total, nenergy) == 0) call energy (ke)
 
     $if ($LVLSET)
       if( global_CD_calc ) call level_set_global_CD ()
@@ -409,14 +393,16 @@ do jt=1,nsteps
     ! Write output files
     call output_loop()  
 
-    if (modulo (jt, wbase) == 0) then
+    ! Check the total time of the simulation up to this point on the master node and send this to all
+   
+    if (modulo (jt_total, wbase) == 0) then
        
        ! Get the ending time for the iteration
        call clock_stop( clock_t )
        call clock_stop( clock_total_t )
 
-        ! Calculate rms divergence of velocity
-       !   only written to screen, not used otherwise
+       ! Calculate rms divergence of velocity
+       ! only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
@@ -424,7 +410,7 @@ do jt=1,nsteps
           write(*,*)
           write(*,'(a)') '========================================'
           write(*,'(a)') 'Time step information:'
-          write(*,'(a,i9)') '  Iteration: ', jt
+          write(*,'(a,i9)') '  Iteration: ', jt_total
           write(*,'(a,E15.7)') '  Time step: ', dt
           write(*,'(a,E15.7)') '  CFL: ', maxcfl
           write(*,'(a,2E15.7)') '  AB2 TADV1, TADV2: ', tadv1, tadv2
@@ -439,10 +425,24 @@ do jt=1,nsteps
           write(*,'(a)') '========================================'
        end if
 
+       ! Determine the processor that has used most time and communicate this.
+       ! Needed to prevent to some processors abort and others not
+       dummy=clock_time( clock_total_t )
+       call mpi_allreduce(dummy, dummy_buf, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
+       dummy = dummy_buf
+       
+       ! If maximum time is surpassed go to the end of the program
+       if (dummy.ge.runtime) then
+         write(*,*) 'Simulation time is almost over. Go to end of the program'
+         goto 123
+       endif
+
     end if
 
 end do
 ! END TIME LOOP
+
+123 continue
 
 ! Finalize
 close(2)
