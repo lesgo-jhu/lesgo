@@ -670,7 +670,6 @@ w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
 
-
 !Each processor calculates the weighted disk-averaged velocity
 if (turbine_in_proc) then
 
@@ -707,6 +706,7 @@ if (turbine_in_proc) then
                 $endif
                 if (kcp>=k_start) then
                 if (kcp<=k_end) then
+                kcp=kcp-k_start+1
                 call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
                 endif
                 endif
