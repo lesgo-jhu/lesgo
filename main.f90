@@ -49,8 +49,14 @@ $endif
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: force
+
 type(clock_type) :: clock_t, clock_total_t
-integer dummy,dummy_buf
+real(rprec) :: clock_time_total
+
+$if($MPI)
+! Buffers used for MPI communication
+real(rprec) :: rbuffer
+$endif
 
 ! Start the clocks, both local and total
 call clock_start( clock_t )
@@ -74,7 +80,7 @@ $endif
 call clock_start( clock_total_t )
 
 ! BEGIN TIME LOOP
-do jt=1,nsteps   
+time_loop: do jt=1,nsteps   
    
    ! Get the starting time for the iteration
    call clock_start( clock_t )
@@ -401,6 +407,9 @@ do jt=1,nsteps
        call clock_stop( clock_t )
        call clock_stop( clock_total_t )
 
+       ! Go ahead and store the time since it is reused
+       clock_time_total = clock_time( clock_total_t )
+
        ! Calculate rms divergence of velocity
        ! only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
@@ -421,28 +430,27 @@ do jt=1,nsteps
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
           write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
-          write(*,'(1a,E15.7)') '  Cumulative: ', clock_time( clock_total_t )
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_time_total
           write(*,'(a)') '========================================'
        end if
 
        ! Determine the processor that has used most time and communicate this.
        ! Needed to prevent to some processors abort and others not
-       dummy=clock_time( clock_total_t )
-       call mpi_allreduce(dummy, dummy_buf, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
-       dummy = dummy_buf
+       $if($MPI)
+       call mpi_allreduce(clock_time_total, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
+       clock_time_total = rbuffer
+       $endif
        
        ! If maximum time is surpassed go to the end of the program
-       if (dummy.ge.runtime) then
-         write(*,*) 'Simulation time is almost over. Go to end of the program'
-         goto 123
+       if ( clock_time_total >= runtime ) then
+         write(*,*) 'Simulation time is almost over. Exiting time loop.'
+         exit time_loop
        endif
 
     end if
 
-end do
+end do time_loop
 ! END TIME LOOP
-
-123 continue
 
 ! Finalize
 close(2)
