@@ -51,7 +51,6 @@ real (rprec):: tt
 real (rprec) :: force
 
 type(clock_type) :: clock_t, clock_total_t
-real(rprec) :: clock_time_total
 
 $if($MPI)
 ! Buffers used for MPI communication
@@ -67,15 +66,10 @@ tt = 0
 ! Initialize all data
 call initialize()
 
-$if($MPI)
-  if(coord == 0) then
-     call clock_stop( clock_t )
-     write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
-  endif
-$else
-  call clock_stop( clock_t )
-  write(*,'(1a,E15.7)') 'Initialization time: ', clock_time( clock_t ) 
-$endif
+if(coord == 0) then
+   call clock_stop( clock_t )
+   write(*,'(1a,E15.7)') 'Initialization time: ', clock_t % time
+endif
 
 call clock_start( clock_total_t )
 
@@ -407,9 +401,6 @@ time_loop: do jt=1,nsteps
        call clock_stop( clock_t )
        call clock_stop( clock_total_t )
 
-       ! Go ahead and store the time since it is reused
-       clock_time_total = clock_time( clock_total_t )
-
        ! Calculate rms divergence of velocity
        ! only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
@@ -429,20 +420,20 @@ time_loop: do jt=1,nsteps
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
-          write(*,'(1a,E15.7)') '  Iteration: ', clock_time( clock_t )
-          write(*,'(1a,E15.7)') '  Cumulative: ', clock_time_total
+          write(*,'(1a,E15.7)') '  Iteration: ', clock_t % time
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_total_t % time
           write(*,'(a)') '========================================'
        end if
 
        ! Determine the processor that has used most time and communicate this.
        ! Needed to prevent to some processors abort and others not
        $if($MPI)
-       call mpi_allreduce(clock_time_total, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
-       clock_time_total = rbuffer
+       call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
+       clock_total_t % time = rbuffer
        $endif
        
        ! If maximum time is surpassed go to the end of the program
-       if ( clock_time_total >= runtime ) then
+       if ( clock_total_t % time >= real(runtime,rprec) ) then
          write(*,*) 'Simulation time is almost over. Exiting time loop.'
          exit time_loop
        endif
@@ -460,7 +451,7 @@ call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total_t )
-if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_time( clock_total_t )
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total_t % time
 
 call finalize()
 
