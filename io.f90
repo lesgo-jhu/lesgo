@@ -1327,6 +1327,9 @@ end subroutine inst_write
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine checkpoint (lun)
 use param, only : nz, S_FLAG
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgsmodule, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use scalars_module, only : RHS_T
@@ -1355,6 +1358,10 @@ else ! No SCALARS
     $endif
 end if
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 end subroutine checkpoint
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1367,6 +1374,9 @@ end subroutine checkpoint
 subroutine output_final(jt, lun_opt)
 use stat_defs, only : tavg_t, point_t
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 
 $if($CFL_DT)
 use param, only : dt, cfl
@@ -1402,7 +1412,6 @@ rewind (lun)
 call checkpoint (lun)
 
 close (lun)
-
 
 !  Update total_time.dat after simulation
 if ((cumulative_time) .and. (lun == lun_default)) then
@@ -2349,6 +2358,10 @@ write (1) tavg_total_time
 write (1) tavg_t
 close(1)
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
 
@@ -2495,6 +2508,9 @@ do k = 1, nz
   
 enddo
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! ----- Write all the 3D data -----
 ! -- Work around for large data: only write 3 variables at a time. Since things are
@@ -2832,6 +2848,11 @@ deallocate(tavg_t, tavg_zplane_t, rs_t, rs_zplane_t, cnpy_zplane_t)
 
 nullify(x,y,z)
 
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
 return
 end subroutine tavg_finalize
 
@@ -2974,6 +2995,9 @@ subroutine spectra_finalize()
 !**********************************************************************
 use types, only : rprec
 use param, only : lh, spectra_nloc, spectra_loc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
@@ -3053,8 +3077,12 @@ close(1)
   
 deallocate(spectra_t)
 
-return
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
+return
 end subroutine spectra_finalize
 
 end module io

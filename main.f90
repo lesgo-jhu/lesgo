@@ -666,6 +666,7 @@ $if ($LVLSET)
   $if ($RNS_LS)
   call rns_finalize_ls ()
   $endif
+
 $endif
 
 ! Turbines:
@@ -681,6 +682,7 @@ endif
 
 ! MPI:
 $if ($MPI)
+call mpi_barrier( comm, ierr )
 call mpi_finalize (ierr)
 $endif
 
