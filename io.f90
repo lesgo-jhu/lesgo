@@ -3238,6 +3238,9 @@ subroutine spectra_checkpoint()
 ! simulation.    
 ! 
 use param, only : checkpoint_spectra_file, spectra_nloc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use stat_defs, only : spectra_t, spectra_total_time
 
 implicit none
