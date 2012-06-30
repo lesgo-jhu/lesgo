@@ -1512,6 +1512,9 @@ subroutine rns_finalize_ls()
 !  This subroutine writes all restart data to file
 !
 use param, only : coord, path
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use messages
 use string_util, only : string_splice
 implicit none
@@ -1573,6 +1576,11 @@ close( b_elem_error_fid )
 close( b_elem_error_norm_fid )
 close( b_elem_force_fid )
 close( b_elem_vel_fid )
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine rns_finalize_ls

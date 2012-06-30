@@ -1487,6 +1487,7 @@ subroutine checkpoint ()
 use param, only : nz, checkpoint_file, tavg_calc, spectra_calc
 $if($MPI)
 use param, only : coord
+use param, only : comm, ierr
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
@@ -1525,6 +1526,10 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 $if ($DYN_TN) 
 ! Write running average variables to file
   fname = path // 'dyn_tn.out'
@@ -1543,6 +1548,11 @@ $if ($DYN_TN)
   write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
 
   close(13)
+
+  $if($MPI)
+  call mpi_barrier( comm, ierr )
+  $endif
+  
 $endif
 
 ! Checkpoint time averaging restart data
@@ -2288,6 +2298,10 @@ $endif
 ! Final checkpoint all restart data
 call tavg_checkpoint()
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
 
@@ -2460,6 +2474,9 @@ do k = 1, nz
   
 enddo
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! ----- Write all the 3D data -----
 $if($BINARY)
@@ -2938,6 +2955,11 @@ $endif
 
 nullify(x,y,z,zw)
 
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
 return
 end subroutine tavg_finalize
 
@@ -3158,6 +3180,9 @@ subroutine spectra_finalize()
 use types, only : rprec
 use param, only : path
 use param, only : lh, spectra_nloc, spectra_loc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
@@ -3248,6 +3273,11 @@ do k=1, spectra_nloc
   write (1) spectra_t(k) % power
 enddo
 close(1)
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine spectra_checkpoint
