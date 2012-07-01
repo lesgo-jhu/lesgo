@@ -51,11 +51,11 @@ if (cumulative_time) then
 
   inquire (file=fcumulative_time, exist=exst)
   if (exst) then
-    open (1, file=fcumulative_time)
-    
-    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp
-    
+
+    open (1, file=fcumulative_time)   
+    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp   
     close (1)
+    
   else  !--assume this is the first run on cumulative time
     if( coord == 0 ) then
       write (*, *) '--> Assuming jt_total = 0, total_time = 0.0'
@@ -212,7 +212,7 @@ subroutine output_loop()
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
-use param, only : jt, nsteps
+use param, only : nsteps, jt_total
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 use param, only : spectra_calc, spectra_nstart, spectra_nend
@@ -227,14 +227,15 @@ implicit none
 if( checkpoint_data ) then
    ! Now check if data should be checkpointed this time step
    ! Don't checkpoint for last time step since this is done in output_final
-   if ( jt < nsteps .and. modulo (jt, checkpoint_nskip) == 0) call checkpoint()
+!   if ( jt_total < nsteps .and. modulo (jt_total, checkpoint_nskip) == 0) call checkpoint()
+   if ( modulo (jt_total, checkpoint_nskip) == 0) call checkpoint()
 endif 
 
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tavg_nstart .and. jt <= tavg_nend .and. ( mod(jt-tavg_nstart,tavg_nskip)==0)) then
-    if(jt == tavg_nstart) then
+  if(jt_total >= tavg_nstart .and. jt_total <= tavg_nend .and. ( mod(jt_total-tavg_nstart,tavg_nskip)==0)) then
+    if(jt_total == tavg_nstart) then
       if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
@@ -254,8 +255,8 @@ endif
 
 if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
-  if(jt >= spectra_nstart .and. jt <= spectra_nend) then
-    if(jt == spectra_nstart) then
+  if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
+    if(jt_total == spectra_nstart) then
       if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
@@ -274,8 +275,8 @@ endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_calc) then
-  if(jt >= point_nstart .and. jt <= point_nend .and. ( mod(jt-point_nstart,point_nskip)==0) ) then
-    if(jt == point_nstart) then
+  if(jt_total >= point_nstart .and. jt_total <= point_nend .and. ( mod(jt_total-point_nstart,point_nskip)==0) ) then
+    if(jt_total == point_nstart) then
       if (coord == 0) then   
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous point velocities from ', point_nstart, ' to ', point_nend
@@ -289,8 +290,8 @@ endif
   
 !  Determine if instantaneous domain velocities are to be recorded
 if(domain_calc) then
-  if(jt >= domain_nstart .and. jt <= domain_nend .and. ( mod(jt-domain_nstart,domain_nskip)==0) ) then
-    if(jt == domain_nstart) then
+  if(jt_total >= domain_nstart .and. jt_total <= domain_nend .and. ( mod(jt_total-domain_nstart,domain_nskip)==0) ) then
+    if(jt_total == domain_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous domain velocities from ', domain_nstart, ' to ', domain_nend
@@ -305,8 +306,8 @@ endif
 
 !  Determine if instantaneous x-plane velocities are to be recorded
 if(xplane_calc) then
-  if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( mod(jt-xplane_nstart,xplane_nskip)==0) ) then
-    if(jt == xplane_nstart) then
+  if(jt_total >= xplane_nstart .and. jt_total <= xplane_nend .and. ( mod(jt_total-xplane_nstart,xplane_nskip)==0) ) then
+    if(jt_total == xplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous x-plane velocities from ', xplane_nstart, ' to ', xplane_nend
@@ -321,8 +322,8 @@ endif
 
 !  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_calc) then
-  if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( mod(jt-yplane_nstart,yplane_nskip)==0) ) then
-    if(jt == yplane_nstart) then
+  if(jt_total >= yplane_nstart .and. jt_total <= yplane_nend .and. ( mod(jt_total-yplane_nstart,yplane_nskip)==0) ) then
+    if(jt_total == yplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous y-plane velocities from ', yplane_nstart, ' to ', yplane_nend
@@ -336,8 +337,8 @@ endif
 
 !  Determine if instantaneous z-plane velocities are to be recorded
 if(zplane_calc) then
-  if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( mod(jt-zplane_nstart,zplane_nskip)==0) ) then
-    if(jt == zplane_nstart) then
+  if(jt_total >= zplane_nstart .and. jt_total <= zplane_nend .and. ( mod(jt_total-zplane_nstart,zplane_nskip)==0) ) then
+    if(jt_total == zplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous z-plane velocities from ', zplane_nstart, ' to ', zplane_nend
@@ -1486,6 +1487,7 @@ subroutine checkpoint ()
 use param, only : nz, checkpoint_file, tavg_calc, spectra_calc
 $if($MPI)
 use param, only : coord
+use param, only : comm, ierr
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
@@ -1524,6 +1526,10 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 $if ($DYN_TN) 
 ! Write running average variables to file
   fname = path // 'dyn_tn.out'
@@ -1542,6 +1548,11 @@ $if ($DYN_TN)
   write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
 
   close(13)
+
+  $if($MPI)
+  call mpi_barrier( comm, ierr )
+  $endif
+  
 $endif
 
 ! Checkpoint time averaging restart data
@@ -2256,7 +2267,16 @@ fname_sgs_ee = path // 'output/ee_avg.dat'
 $endif  
   
 $if ($MPI)
+  $if($BINARY)
   !  For MPI implementation     
+  call string_concat( fname_velb, '.c', coord)
+  call string_concat( fname_vel2b, '.c', coord)
+  call string_concat( fname_ddzb, '.c', coord)
+  call string_concat( fname_taub, '.c', coord)
+  call string_concat( fname_fb, '.c', coord)
+  call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_csb, '.c', coord)
+  $else
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
   call string_concat( fname_ddz, '.c', coord)
@@ -2264,7 +2284,8 @@ $if ($MPI)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
   call string_concat( fname_cs, '.c', coord)
-
+  $endif
+  
   $if($OUTPUT_EXTRA)  
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
@@ -2276,6 +2297,10 @@ $endif
 
 ! Final checkpoint all restart data
 call tavg_checkpoint()
+
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
@@ -2449,6 +2474,9 @@ do k = 1, nz
   
 enddo
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! ----- Write all the 3D data -----
 $if($BINARY)
@@ -2927,6 +2955,11 @@ $endif
 
 nullify(x,y,z,zw)
 
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
 return
 end subroutine tavg_finalize
 
@@ -3151,6 +3184,9 @@ subroutine spectra_finalize()
 use types, only : rprec
 use param, only : path
 use param, only : lh, spectra_nloc, spectra_loc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
@@ -3206,6 +3242,9 @@ subroutine spectra_checkpoint()
 ! simulation.    
 ! 
 use param, only : checkpoint_spectra_file, spectra_nloc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use stat_defs, only : spectra_t, spectra_total_time
 
 implicit none
@@ -3241,6 +3280,11 @@ do k=1, spectra_nloc
   write (1) spectra_t(k) % power
 enddo
 close(1)
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine spectra_checkpoint

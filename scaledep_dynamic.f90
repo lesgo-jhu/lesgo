@@ -270,19 +270,7 @@ do jz=1,nz
                     -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2  
 end do   
 
-! Commented by JSG: this should be implemented in a way that supports
-! MPI, writes to a single file for all times using tecryte.
-! if (modulo(jt,500) == 0) then
-!    write(fname,'(A13,i6.6)')path//'output/beta',jt
-!       open(1,file=fname,form='unformatted')
-!    do jz=1,nz
-!       write(1,*) jz, beta(jz)
-!    end do
-!    close(1)
-! end if
-
 ! Nullify pointers
-! Associate pointers
 nullify( M11, M12, M13, M22, M23, M33 )
 
 end subroutine scaledep_dynamic

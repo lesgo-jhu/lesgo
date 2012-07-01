@@ -196,10 +196,10 @@ $endif
 do jz=1,nz
 do jy=1,ny
 do jx=1,nx
-    S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)*S11(jx,jy,jz) +           S22(jx,jy,jz)*S22(jx,jy,jz) +&
-                               S33(jx,jy,jz)*S33(jx,jy,jz) + 2._rprec*(S12(jx,jy,jz)*S12(jx,jy,jz) +&
-                               S13(jx,jy,jz)*S13(jx,jy,jz) +           S23(jx,jy,jz)*S23(jx,jy,jz) )))
-    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)*l(jz))
+    S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)**2 +           S22(jx,jy,jz)**2 +&
+                               S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
+                               S13(jx,jy,jz)**2 +           S23(jx,jy,jz)**2 )))
+    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*l(jz)**2
 end do
 end do
 end do
@@ -222,16 +222,17 @@ if (coord == 0) then
         
         if (sgs) then
             do jy=1,ny
-            do jx=1,nx         
-                const=0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2))                
+            do jx=1,nx        
+               ! Total viscosity
+                const=0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2)) + nu
 !                txx(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S11(jx,jy,1) + S11(jx,jy,2))
 !                txy(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S12(jx,jy,1) + S12(jx,jy,2))
 !                tyy(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S22(jx,jy,1) + S22(jx,jy,2))
 !                tzz(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S33(jx,jy,1) + S33(jx,jy,2))
-                txx(jx,jy,1)=-(const+nu)*(S11(jx,jy,1) + S11(jx,jy,2))
-                txy(jx,jy,1)=-(const+nu)*(S12(jx,jy,1) + S12(jx,jy,2))
-                tyy(jx,jy,1)=-(const+nu)*(S22(jx,jy,1) + S22(jx,jy,2))
-                tzz(jx,jy,1)=-(const+nu)*(S33(jx,jy,1) + S33(jx,jy,2))
+                txx(jx,jy,1)=-const*(S11(jx,jy,1) + S11(jx,jy,2))
+                txy(jx,jy,1)=-const*(S12(jx,jy,1) + S12(jx,jy,2))
+                tyy(jx,jy,1)=-const*(S22(jx,jy,1) + S22(jx,jy,2))
+                tzz(jx,jy,1)=-const*(S33(jx,jy,1) + S33(jx,jy,2))
             end do
             end do
         else    

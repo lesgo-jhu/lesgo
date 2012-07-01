@@ -121,6 +121,8 @@ module param
 !---------------------------------------------------   
 
   integer :: nsteps = 50000
+  ! -- Maximum runtime in seconds. Simulation will exit if exceeded. (disabled by default)
+  integer :: runtime = -1 
 
   logical :: use_cfl_dt = .false.  
   real(rprec) :: cfl = 0.05

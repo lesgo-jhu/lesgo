@@ -179,7 +179,7 @@ use types, only : rprec
 use messages
 use sim_param, only : u, v
 use sim_param, only : fx, fy
-use functions, only : points_avg_3D
+use functions, only : points_avg_3d
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
 use mpi
@@ -240,8 +240,8 @@ do n=1, nbeta_elem
   npoint_p => beta_elem_t(n) % ref_region_t % npoint
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
+  u_p = points_avg_3d( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3d( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   beta_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -258,8 +258,8 @@ do n=1, nb_elem
   npoint_p => b_elem_t(n) % ref_region_t % npoint
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
+  u_p = points_avg_3d( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3d( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   b_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -750,7 +750,6 @@ subroutine b_elem_CD_LITW()
 !  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
-use functions, only : det2D
 implicit none
 
 !integer :: i1,i2, info
@@ -1005,7 +1004,7 @@ $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
 use sim_param, only : u, v
-use functions, only : points_avg_3D
+use functions, only : points_avg_3d
 use sim_param, only : fx, fy
 implicit none
 
@@ -1044,8 +1043,8 @@ do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
-  ref_region_t_p % v = points_avg_3D( v(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % u = points_avg_3d( u(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % v = points_avg_3d( v(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
@@ -1458,7 +1457,7 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
-character (*), parameter :: fname_in = path // 'rns_force.out'
+character (*), parameter :: fname_in = path // 'rns.out'
 character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
@@ -1513,12 +1512,15 @@ subroutine rns_finalize_ls()
 !  This subroutine writes all restart data to file
 !
 use param, only : coord, path
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use messages
 use string_util, only : string_splice
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
-character (*), parameter :: fname_out = path // 'rns_force.out'
+character (*), parameter :: fname_out = path // 'rns.out'
 
 character (128) :: fname
 $if ($MPI)
@@ -1574,6 +1576,11 @@ close( b_elem_error_fid )
 close( b_elem_error_norm_fid )
 close( b_elem_force_fid )
 close( b_elem_vel_fid )
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine rns_finalize_ls

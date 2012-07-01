@@ -70,6 +70,7 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,i_fmt) 'nsteps : ', nsteps
+write(2,i_fmt) 'runtime : ', runtime
 $if($CFL_DT)
 write(2,f_fmt) 'cfl : ', cfl
 $else
