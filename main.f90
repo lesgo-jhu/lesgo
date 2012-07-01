@@ -40,7 +40,7 @@ use messages
 
 implicit none
 
-character (*), parameter :: sub_name = 'main'
+character (*), parameter :: prog_name = 'main'
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -425,17 +425,22 @@ time_loop: do jt=1,nsteps
           write(*,'(a)') '========================================'
        end if
 
-       ! Determine the processor that has used most time and communicate this.
-       ! Needed to prevent to some processors abort and others not
-       $if($MPI)
-       call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
-       clock_total_t % time = rbuffer
-       $endif
+       ! Check if we are to check the allowable runtime
+       if( runtime > 0 ) then
+
+          ! Determine the processor that has used most time and communicate this.
+          ! Needed to prevent to some processors abort and others not
+          $if($MPI)
+          call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
+          clock_total_t % time = rbuffer
+          $endif
        
-       ! If maximum time is surpassed go to the end of the program
-       if ( clock_total_t % time >= real(runtime,rprec) ) then
-         write(*,*) 'Simulation time is almost over. Exiting time loop.'
-         exit time_loop
+          ! If maximum time is surpassed go to the end of the program
+          if ( clock_total_t % time >= real(runtime,rprec) ) then
+             call mesg( prog_name, 'Specified runtime exceeded. Exiting simulation.')
+             exit time_loop
+          endif
+
        endif
 
     end if
