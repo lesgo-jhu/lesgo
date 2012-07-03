@@ -1420,10 +1420,9 @@ open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
 $endif
 
-read (1) r_elem_t(:) % force_t 
-read (1) beta_elem_t(:) % force_t 
-read (1) b_elem_t(:) % force_t 
-close (1)
+read(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
+
+close(1)
 
 end subroutine rns_force_init_ls
 
@@ -1474,9 +1473,7 @@ open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
 $endif
 
-write(1) r_elem_t(:) % force_t 
-write(1) beta_elem_t(:) % force_t 
-write(1) b_elem_t(:) % force_t
+write(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
 close (1)
 
 deallocate(r_elem_t)
