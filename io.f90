@@ -20,7 +20,7 @@ private
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, closefiles, energy, output_loop, output_final
 
-public stats_init
+public output_init
 
 character (*), parameter :: mod_name = 'io'
 
@@ -1637,7 +1637,7 @@ return
 end subroutine len_da_file
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine stats_init ()
+subroutine output_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
@@ -1846,7 +1846,7 @@ endif
 nullify(x,y,z)
 
 return
-end subroutine stats_init
+end subroutine output_init
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_init()
