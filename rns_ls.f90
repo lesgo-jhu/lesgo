@@ -112,22 +112,10 @@ do n = 1, nbeta_elem
 enddo
 
 $if($MPI)
-! !  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-! call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!   fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!   comm, status, ierr)
-! call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!   fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!   comm, status, ierr)
-
 ! Sync applied forces
 call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
-
-
 $endif
-
-!endif
 
 $if($VERBOSE)
 call exit_sub(sub_name)
@@ -143,9 +131,6 @@ subroutine rns_elem_output()
 !
 use param, only : jt, coord
 use messages
-!!$if($CYL_SKEW_LS)
-!!use cyl_skew_base_ls, only : ngen, ngen_reslv
-!!$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
@@ -206,8 +191,6 @@ real(rprec), pointer :: area_p, u_p, v_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
 type(force_type_2), pointer :: force_t_p
-
-!real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -607,11 +590,7 @@ subroutine b_elem_CD_LETW()
 use param, only : wbase
 implicit none
 
-!integer :: i1,i2, info
-!integer, dimension(ndim) :: ipiv
-!real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_gamma_gsum, b_force_gsum
-!real(rprec), dimension(ndim,ndim) :: mata
 
 real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
@@ -637,36 +616,13 @@ if( jt_total < weight_nstart ) then
   
 else
 
-  !  Assemble matrices used for lambda calculations
-  !do i2=1,ndim
-  !  do i1=1,ndim
-  !    mata(i1,i2) = 0.5_rprec * sum( b_gamma(i1,:)*b_gamma(i2,:) / b_elem_t(:) % force_t % LBB )
-  !  enddo
-  !enddo
-
-  !  Creat RHS using lambda
-  !do n=1, ndim
-  !  lambda(n) = sum( b_force(n,:) - b_elem_t(:) % force_t % LAB * b_gamma(n,:) / &
-  !  b_elem_t(:) % force_t % LBB )
-  !enddo
-
-  !  Solve for the Lagrange multiplier
-  $if(DBLPREC)
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $else
-  !call sgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $endif
-
-  !lambda = (/ 0._rprec, 0._rprec /)
-  
-!  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LAB_p => b_elem_t(n) % force_t % LAB
     LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    !CD_p = -( 2._rprec * LAB_p + sum(lambda(:) * b_gamma(:,n)) ) / LBB_p
     CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
@@ -752,12 +708,7 @@ subroutine b_elem_CD_LITW()
 use param, only : wbase
 implicit none
 
-!integer :: i1,i2, info
-!integer, dimension(ndim) :: ipiv
-!real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
-!real(rprec), dimension(ndim,ndim) :: mata
-
 real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
 nullify(LAB_p, LBB_p, CD_p)
@@ -777,41 +728,17 @@ enddo
 
 if( jt_total < weight_nstart ) then
 
-  !call b_elem_CD_GID()
   call b_elem_CD_GI()
   
 else
 
-  !  Assemble matrices used for lambda calculations
-  !do i2=1,ndim
-  !  do i1=1,ndim
-  !    mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
-  !  enddo
-  !enddo
-
-  !  Creat RHS using lambda
-  !do n=1, ndim
-  !  lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
-  !  b_elem_t(:) % force_t % LBB )
-  !enddo
-
-  !  Solve for the Lagrange multiplier
-  $if(DBLPREC)
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $else
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $endif
-  
-  !lambda = (/ 0._rprec, 0._rprec /)
-
-!  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LAB_p => b_elem_t(n) % force_t % LAB
     LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    !CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
     CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
@@ -820,7 +747,6 @@ else
   
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
-    !write(*,*) '--> lambda : ', lambda
   endif  
 
 endif
@@ -866,7 +792,6 @@ b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt_total < weight_nstart ) then
 
-  !call b_elem_CD_GID()
   call b_elem_CD_GI()
     
 else
@@ -879,7 +804,6 @@ else
 
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GITW CD'
-    !write(*,*) '--> lambda : ', lambda
   endif 
 
 endif
@@ -1025,8 +949,6 @@ $endif
 
 type(ref_region), pointer :: ref_region_t_p
 type(indx_array), pointer :: indx_array_t_p
-
-!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
 
 $if($VERBOSE)
 call enter_sub(sub_name)
@@ -1498,10 +1420,9 @@ open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
 $endif
 
-read (1) r_elem_t(:) % force_t 
-read (1) beta_elem_t(:) % force_t 
-read (1) b_elem_t(:) % force_t 
-close (1)
+read(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
+
+close(1)
 
 end subroutine rns_force_init_ls
 
@@ -1552,9 +1473,7 @@ open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
 $endif
 
-write(1) r_elem_t(:) % force_t 
-write(1) beta_elem_t(:) % force_t 
-write(1) b_elem_t(:) % force_t
+write(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
 close (1)
 
 deallocate(r_elem_t)

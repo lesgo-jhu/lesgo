@@ -20,7 +20,7 @@ private
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, closefiles, energy, output_loop, output_final
 
-public stats_init
+public output_init
 
 character (*), parameter :: mod_name = 'io'
 
@@ -1386,19 +1386,9 @@ fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
 
 $if($MPI)
 !  Sync forces
-! call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fx_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (fy_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fy_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (fz_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fz_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
 call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
-
 $endif
 
 ! Put fz_tot on uv-grid
@@ -1424,23 +1414,10 @@ dpdz(:,:,nz) = dpdz(:,:,nz-1)
 
 $if($MPI)
 !  Sync pressure
-! call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)                   
 call mpi_sync_real_array( p, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdx, 1 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdy, 1 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdz, 1 , MPI_SYNC_DOWN )
-
 $endif
 
 return
@@ -1460,19 +1437,9 @@ RHSz(:,:,nz) = RHSz(:,:,nz-1)
 
 $if($MPI)
 !  Sync RHS
-! call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (RHSy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)                   
 call mpi_sync_real_array( RHSx, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( RHSy, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( RHSz, 0 , MPI_SYNC_DOWN )
-
 $endif
 
 return
@@ -1670,7 +1637,7 @@ return
 end subroutine len_da_file
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine stats_init ()
+subroutine output_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
@@ -1879,7 +1846,7 @@ endif
 nullify(x,y,z)
 
 return
-end subroutine stats_init
+end subroutine output_init
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_init()

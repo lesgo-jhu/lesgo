@@ -11,7 +11,7 @@ use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
 use cfl_util
-use io, only : stats_init
+use io, only : output_init
 use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
@@ -89,7 +89,7 @@ call sgs_param_init()
 call grid_build()
 
 !  Initialize variables used for output statistics and instantaneous data
-call stats_init()
+call output_init()
 
 ! Initialize turbines
 $if ($TURBINES)

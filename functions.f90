@@ -319,7 +319,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  for the point xyz
 !  
 !  istart, jstart, kstart are used to determine the cell location on the
-!  uv-grid; these are defined in stats_init
+!  uv-grid; these are defined in output_init
 !
 !  Takes care of putting w-grid variables onto the uv-grid; this assumes
 !  that var is on the uv-grid

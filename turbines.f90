@@ -11,7 +11,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t 
 use io
 use messages
-use string_util, only : numtostr
+use string_util
 $if ($MPI)
   use mpi_defs
 $endif
@@ -58,7 +58,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-use string_util, only : string_splice
+use string_util
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
@@ -169,10 +169,21 @@ if (coord .eq. nproc-1) then
 endif
 
 do s=1,nloc
+
+if(coord==0) then
 call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
 file_id(s) = open_file( fname, 'append', 'formatted' )
+endif
+
+! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
+! The problem can (not necessarily will show up) when different cores want to open the same file. 
+if(coord<nz_tot/4) then
 call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
+call string_concat (fname, '.c', coord)
+
 file_id2(s) = open_file( fname, 'append', 'formatted' )
+endif
+
 enddo
 
 nullify(x,y,z)
