@@ -11,7 +11,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t 
 use io
 use messages
-use string_util, only : numtostr
+use string_util
 $if ($MPI)
   use mpi_defs
 $endif
@@ -58,7 +58,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-use string_util, only : string_splice
+use string_util
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
@@ -170,10 +170,21 @@ endif
 
 if (coord.eq. 0) then
 do s=1,nloc
+
+if(coord==0) then
 call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
 file_id(s) = open_file( fname, 'append', 'formatted' )
+endif
+
+! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
+! The problem can (not necessarily will show up) when different cores want to open the same file. 
+if(coord<nz_tot/4) then
 call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
+call string_concat (fname, '.c', coord)
+
 file_id2(s) = open_file( fname, 'append', 'formatted' )
+endif
+
 enddo
 endif
 
@@ -672,7 +683,6 @@ w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
 
-
 !Each processor calculates the weighted disk-averaged velocity
 if (turbine_in_proc) then
 
@@ -709,6 +719,7 @@ if (turbine_in_proc) then
                 $endif
                 if (kcp>=k_start) then
                 if (kcp<=k_end) then
+                kcp=kcp-k_start+1
                 call write_real_data( file_id2(s), 'formatted', 2, (/ total_time_dim, u(icp,jcp,kcp) /))
                 endif
                 endif
