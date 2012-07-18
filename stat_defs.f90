@@ -24,7 +24,7 @@ type zplane
 end type zplane  
 
 type rs
-  real(rprec) :: up2, vp2, wp2, upwp, vpwp, upvp
+  real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp 
 end type rs
 
 type spectra
@@ -45,16 +45,17 @@ real(rprec) :: tavg_time_stamp
 real(rprec) :: dt_spectra
 ! Time stampe of last spectra computation
 real(rprec) :: spectra_time_stamp
-  
+
 !  Sums performed over time
 type tavg
-  real(rprec) :: u, v, w, u2, v2, w2, uw, vw, uv
+  real(rprec) :: u, v, w
+  real(rprec) :: u2, v2, w2, uv, uw, vw
   real(rprec) :: dudz, dvdz
-  real(rprec) :: txx, txy, tyy, txz, tyz, tzz
+  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
   real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2  
 end type tavg
-
+  
 !  Sums performed over time (for subgrid variables)
 $if($OUTPUT_EXTRA)
 type tavg_sgs
@@ -186,17 +187,17 @@ c % w = a % w + b % w
 c % u2 = a % u2 + b % u2
 c % v2 = a % v2 + b % v2
 c % w2 = a % w2 + b % w2
+c % uv = a % uv + b % uv
 c % uw = a % uw + b % uw
 c % vw = a % vw + b % vw
-c % uv = a % uv + b % uv
 c % dudz = a % dudz + b % dudz
 c % dvdz = a % dvdz + b % dvdz
 c % txx = a % txx + b % txx
-c % txy = a % txy + b % txy
 c % tyy = a % tyy + b % tyy
+c % tzz = a % tzz + b % tzz
+c % txy = a % txy + b % txy
 c % txz = a % txz + b % txz
 c % tyz = a % tyz + b % tyz
-c % tzz = a % tzz + b % tzz
 c % fx = a % fx + b % fx
 c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
@@ -218,17 +219,17 @@ c % w = a % w - b % w
 c % u2 = a % u2 - b % u2
 c % v2 = a % v2 - b % v2
 c % w2 = a % w2 - b % w2
-c % uw = a % uw - b % uw
-c % vw = a % vw - b % vw
 c % uv = a % uv - b % uv
+c % uw = a % uw - b % uw
+c % vw = a % vw - b % vw 
 c % dudz = a % dudz - b % dudz
 c % dvdz = a % dvdz - b % dvdz
 c % txx = a % txx - b % txx
-c % txy = a % txy - b % txy
 c % tyy = a % tyy - b % tyy
+c % tzz = a % tzz - b % tzz
+c % txy = a % txy - b % txy
 c % txz = a % txz - b % txz
 c % tyz = a % tyz - b % tyz
-c % tzz = a % tzz - b % tzz
 c % fx = a % fx - b % fx
 c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
@@ -253,17 +254,17 @@ c % w = a % w + b
 c % u2 = a % u2 + b
 c % v2 = a % v2 + b
 c % w2 = a % w2 + b
+c % uv = a % uv + b
 c % uw = a % uw + b
 c % vw = a % vw + b
-c % uv = a % uv + b
 c % dudz = a % dudz + b
 c % dvdz = a % dvdz + b
 c % txx = a % txx + b
-c % txy = a % txy + b
+c % tzz = a % tzz + b
 c % tyy = a % tyy + b
+c % txy = a % txy + b
 c % txz = a % txz + b
 c % tyz = a % tyz + b
-c % tzz = a % tzz + b
 c % fx = a % fx + b
 c % fy = a % fy + b
 c % fz = a % fz + b
@@ -281,11 +282,11 @@ implicit none
 type(tavg), dimension(:,:), intent(inout) :: c
 
 c % txx = 0._rprec
-c % txy = 0._rprec
 c % tyy = 0._rprec
+c % tzz = 0._rprec
+c % txy = 0._rprec
 c % txz = 0._rprec
 c % tyz = 0._rprec
-c % tzz = 0._rprec
 c % fx = 0._rprec
 c % fy = 0._rprec
 c % fz = 0._rprec
@@ -302,11 +303,11 @@ implicit none
 type(tavg), dimension(:,:,:), intent(inout) :: c
 
 c % txx = 0._rprec
-c % txy = 0._rprec
 c % tyy = 0._rprec
+c % tzz = 0._rprec
+c % txy = 0._rprec
 c % txz = 0._rprec
 c % tyz = 0._rprec
-c % tzz = 0._rprec
 c % fx = 0._rprec
 c % fy = 0._rprec
 c % fz = 0._rprec
@@ -331,17 +332,17 @@ c % w = a % w / b
 c % u2 = a % u2 / b
 c % v2 = a % v2 / b
 c % w2 = a % w2 / b
+c % uv = a % uv / b
 c % uw = a % uw / b
 c % vw = a % vw / b
-c % uv = a % uv / b
 c % dudz = a % dudz / b
 c % dvdz = a % dvdz / b
 c % txx = a % txx / b
-c % txy = a % txy / b
 c % tyy = a % tyy / b
+c % tzz = a % tzz / b
+c % txy = a % txy / b
 c % txz = a % txz / b
 c % tyz = a % tyz / b
-c % tzz = a % tzz / b
 c % fx = a % fx / b
 c % fy = a % fy / b
 c % fz = a % fz / b
@@ -363,17 +364,17 @@ c % w = a % w * b % w
 c % u2 = a % u2 * b % u2
 c % v2 = a % v2 * b % v2
 c % w2 = a % w2 * b % w2
+c % uv = a % uv * b % uv
 c % uw = a % uw * b % uw
 c % vw = a % vw * b % vw
-c % uv = a % uv * b % uv
 c % dudz = a % dudz * b % dudz
 c % dvdz = a % dvdz * b % dvdz
 c % txx = a % txx * b % txx
-c % txy = a % txy * b % txy
 c % tyy = a % tyy * b % tyy
+c % tzz = a % tzz * b % tzz
+c % txy = a % txy * b % txy
 c % txz = a % txz * b % txz
 c % tyz = a % tyz * b % tyz
-c % tzz = a % tzz * b % tzz
 c % fx = a % fx * b % fx
 c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
@@ -398,17 +399,17 @@ c % w = a % w * b
 c % u2 = a % u2 * b
 c % v2 = a % v2 * b
 c % w2 = a % w2 * b
+c % uv = a % uv * b
 c % uw = a % uw * b
 c % vw = a % vw * b
-c % uv = a % uv * b
 c % dudz = a % dudz * b
 c % dvdz = a % dvdz * b
 c % txx = a % txx * b
-c % txy = a % txy * b
 c % tyy = a % tyy * b
+c % tzz = a % tzz * b
+c % txy = a % txy * b
 c % txz = a % txz * b
 c % tyz = a % tyz * b
-c % tzz = a % tzz * b
 c % fx = a % fx * b
 c % fy = a % fy * b
 c % fz = a % fz * b
@@ -491,9 +492,9 @@ allocate(c(ubx,uby,lbz:ubz))
 c = a
 
 c % txx =  interp_to_w_grid( a % txx, lbz )
-c % txy =  interp_to_w_grid( a % txy, lbz )
 c % tyy =  interp_to_w_grid( a % tyy, lbz )
 c % tzz =  interp_to_w_grid( a % tzz, lbz )
+c % txy =  interp_to_w_grid( a % txy, lbz )
 
 c % fx = interp_to_w_grid( a % fx, lbz )
 c % fy = interp_to_w_grid( a % fy, lbz )
@@ -516,10 +517,11 @@ type(rs) :: c
 c % up2 = a % up2 + b % up2
 c % vp2 = a % vp2 + b % vp2
 c % wp2 = a % wp2 + b % wp2
+c % upvp = a % upvp + b % upvp
 c % upwp = a % upwp + b % upwp
 c % vpwp = a % vpwp + b % vpwp
-c % upvp = a % upvp + b % upvp
 
+return
 end function rs_add
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -533,10 +535,11 @@ type(rs) :: c
 c % up2 = a % up2 - b % up2
 c % vp2 = a % vp2 - b % vp2
 c % wp2 = a % wp2 - b % wp2
+c % upvp = a % upvp - b % upvp
 c % upwp = a % upwp - b % upwp
 c % vpwp = a % vpwp - b % vpwp
-c % upvp = a % upvp - b % upvp
 
+return
 end function rs_sub
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -551,10 +554,11 @@ type(rs) :: c
 c % up2 = a % up2 / b
 c % vp2 = a % vp2 / b 
 c % wp2 = a % wp2 / b
+c % upvp = a % upvp / b
 c % upwp = a % upwp / b 
 c % vpwp = a % vpwp / b 
-c % upvp = a % upvp / b
 
+return
 end function rs_scalar_div
 
 !//////////////////////////////////////////////////////////////////////
@@ -580,12 +584,11 @@ allocate(c(ubx,uby,lbz2:ubz))
 c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
 c % wp2 = a % w2 - a % w * a % w
+c % upvp = a % uv - a % u * a % v
 c % upwp = a % uw - a % u * a % w
 c % vpwp = a % vw - a % v * a % w
-c % upvp = a % uv - a % u * a % v
 
 return
-
 end function rs_compute
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -602,9 +605,9 @@ type(rs) :: c
 c % up2 = a % u * a % u
 c % vp2 = a % v * a % v
 c % wp2 = a % w * a % w
+c % upvp = a % u * a % v
 c % upwp = a % u * a % w
 c % vpwp = a % v * a % w
-c % upvp = a % u * a % v
 
 return
 end function cnpy_tavg_mul
@@ -627,17 +630,17 @@ c % w = a
 c % u2 = a
 c % v2 = a
 c % w2 = a
+c % uv = a
 c % uw = a
 c % vw = a
-c % uv = a
 c % dudz = a
 c % dvdz = a
 c % txx = a
-c % txy = a
 c % tyy = a
+c % tzz = a
+c % txy = a
 c % txz = a
 c % tyz = a
-c % tzz = a
 c % fx = a
 c % fy = a
 c % fz = a
@@ -686,9 +689,9 @@ type(rs), intent(out) :: c
 c % up2 = a
 c % vp2 = a
 c % wp2 = a
+c % upvp = a
 c % upwp = a
 c % vpwp = a
-c % upvp = a
 
 return
 end subroutine rs_set

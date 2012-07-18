@@ -1997,7 +1997,44 @@ else
 endif
 tavg_time_stamp = total_time
 
-do k=jzmin,jzmax  
+$if($MPI)
+k=0
+do j=1,ny
+   do i=1,nx
+
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
+      w_p = w(i,j,k)
+
+      ! === w-grid variables === 
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
+      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
+
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw + u_p * w_p * dt_tavg
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
+
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
+
+      ! === uv-grid variables ===
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      ! === w-grid variables === 
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
+
+   enddo
+enddo
+$endif
+
+do k=1,jzmax  
   do j=1,ny
     do i=1,nx
    
@@ -2005,90 +2042,81 @@ do k=jzmin,jzmax
       v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
           
-      ! === uv-grid variables ===
-      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
-
       ! === w-grid variables === 
       tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
       tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
       tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
+
       tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
       tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
       tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
-      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt_tavg
-      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
       tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw + u_p * w_p * dt_tavg
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
 
       tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
       tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
 
+      ! === uv-grid variables ===
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      ! === w-grid variables === 
       tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
       tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
-      
-    enddo
-  enddo
-enddo
 
-do k=1,jzmax        ! these do not have a k=0 level (needed by coord==0)
-                    ! this shoud be fixed in the near future...
-  do j=1,ny
-    do i=1,nx
- 
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
-      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg
-
       ! === w-grid variables === 
-      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
-
-      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
+      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
       
-    $if($OUTPUT_EXTRA)
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
-    $endif
-    
     enddo
   enddo
 enddo
 
 $if ($OUTPUT_EXTRA)
+do k=1,jzmax       
+  do j=1,ny
+    do i=1,nx
+       ! === w-grid variables ===
+       tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
+    enddo
+ enddo
+enddo
+
 if (sgs_model.gt.1) then
-do k=1,jzmax       
-  do j=1,ny
-    do i=1,nx
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
-    enddo
-  enddo
-enddo
+   do k=1,jzmax       
+      do j=1,ny
+         do i=1,nx
+            ! === w-grid variables ===
+            tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
+         enddo
+      enddo
+   enddo
 endif
-$endif
 
-$if ($OUTPUT_EXTRA)
 if (sgs_model.gt.3) then
-do k=1,jzmax       
-  do j=1,ny
-    do i=1,nx
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
-
-      $if ($DYN_TN)
-      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
-      $endif         
-    enddo
-  enddo
-enddo
+   do k=1,jzmax       
+      do j=1,ny
+         do i=1,nx
+            ! === w-grid variables ===
+            tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
+            
+            $if ($DYN_TN)
+            tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
+            $endif         
+         enddo
+      enddo
+   enddo
 endif
 $endif
 
