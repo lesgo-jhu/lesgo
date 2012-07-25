@@ -37,7 +37,9 @@ $endif
 
 implicit none      
 
-real(rprec) :: nxny_inv,rhs_pre,dz2_inv,dz_inv
+
+
+real(rprec) :: const,const2,const3,const4
 
 integer::jx,jy,jz
 
@@ -61,11 +63,10 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
 ! Specifiy cached constants
-nxny_inv  = 1._rprec/(nx*ny)
-! Prefactor to the RHS of the PPE
-rhs_pre = nxny_inv/tadv1/dt 
-dz2_inv = 1._rprec/(dz**2)
-dz_inv = 1._rprec/(dz)
+const  = 1._rprec/(nx*ny)
+const2 = const/tadv1/dt
+const3 = 1._rprec/(dz**2)
+const4 = 1._rprec/(dz)
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
@@ -97,12 +98,12 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-!   rH_x(:, :, jz) = nxny_inv / tadv1 * (u(:, :, jz) / dt)
-!   rH_y(:, :, jz) = nxny_inv / tadv1 * (v(:, :, jz) / dt)
-!   rH_z(:, :, jz) = nxny_inv / tadv1 * (w(:, :, jz) / dt)
-   rH_x(:, :, jz) = rhs_pre * u(:, :, jz) 
-   rH_y(:, :, jz) = rhs_pre * v(:, :, jz) 
-   rH_z(:, :, jz) = rhs_pre * w(:, :, jz) 
+!   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
+!   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
+!   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
+   rH_x(:, :, jz) = const2 * u(:, :, jz) 
+   rH_y(:, :, jz) = const2 * v(:, :, jz) 
+   rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
    call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
@@ -146,17 +147,17 @@ $else
 $endif
 
 if (coord == 0) then
-  rbottomw(:, :) = nxny_inv * divtz(:, :, 1)
+  rbottomw(:, :) = const * divtz(:, :, 1)
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
 end if
 
 $if ($MPI) 
   if (coord == nproc-1) then
-    rtopw(:, :) = nxny_inv * divtz(:, :, nz)
+    rtopw(:, :) = const * divtz(:, :, nz)
     call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
   endif
 $else
-  rtopw(:, :) = nxny_inv * divtz(:, :, nz)
+  rtopw(:, :) = const * divtz(:, :, nz)
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
 $endif
 
@@ -353,9 +354,9 @@ do jz = jz_min, nz
 !      a(jx, jy, jz) = 1._rprec/(dz**2)
 !      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
 !      c(jx, jy, jz) = 1._rprec/(dz**2)   
-      a(jx, jy, jz) = dz2_inv
-      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*dz2_inv)
-      c(jx, jy, jz) = dz2_inv   
+      a(jx, jy, jz) = const3
+      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
+      c(jx, jy, jz) = const3   
 
 
 
@@ -373,7 +374,7 @@ do jz = jz_min, nz
        aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
 
 !      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
-      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) * dz_inv
+      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
