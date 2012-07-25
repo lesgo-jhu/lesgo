@@ -20,7 +20,7 @@ private
 !!$     inflow_write, avg_stats
 public jt_total, openfiles, closefiles, energy, output_loop, output_final
 
-public stats_init
+public output_init
 
 character (*), parameter :: mod_name = 'io'
 
@@ -51,11 +51,11 @@ if (cumulative_time) then
 
   inquire (file=fcumulative_time, exist=exst)
   if (exst) then
-    open (1, file=fcumulative_time)
-    
-    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp
-    
+
+    open (1, file=fcumulative_time)   
+    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp   
     close (1)
+    
   else  !--assume this is the first run on cumulative time
     if( coord == 0 ) then
       write (*, *) '--> Assuming jt_total = 0, total_time = 0.0'
@@ -212,7 +212,7 @@ subroutine output_loop()
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
-use param, only : jt, nsteps
+use param, only : nsteps, jt_total
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 use param, only : spectra_calc, spectra_nstart, spectra_nend
@@ -227,14 +227,15 @@ implicit none
 if( checkpoint_data ) then
    ! Now check if data should be checkpointed this time step
    ! Don't checkpoint for last time step since this is done in output_final
-   if ( jt < nsteps .and. modulo (jt, checkpoint_nskip) == 0) call checkpoint()
+!   if ( jt_total < nsteps .and. modulo (jt_total, checkpoint_nskip) == 0) call checkpoint()
+   if ( modulo (jt_total, checkpoint_nskip) == 0) call checkpoint()
 endif 
 
 !  Determine if time summations are to be calculated
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
-  if(jt >= tavg_nstart .and. jt <= tavg_nend .and. ( mod(jt-tavg_nstart,tavg_nskip)==0)) then
-    if(jt == tavg_nstart) then
+  if(jt_total >= tavg_nstart .and. jt_total <= tavg_nend .and. ( mod(jt_total-tavg_nstart,tavg_nskip)==0)) then
+    if(jt_total == tavg_nstart) then
       if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
@@ -254,8 +255,8 @@ endif
 
 if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
-  if(jt >= spectra_nstart .and. jt <= spectra_nend) then
-    if(jt == spectra_nstart) then
+  if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
+    if(jt_total == spectra_nstart) then
       if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
@@ -274,8 +275,8 @@ endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_calc) then
-  if(jt >= point_nstart .and. jt <= point_nend .and. ( mod(jt-point_nstart,point_nskip)==0) ) then
-    if(jt == point_nstart) then
+  if(jt_total >= point_nstart .and. jt_total <= point_nend .and. ( mod(jt_total-point_nstart,point_nskip)==0) ) then
+    if(jt_total == point_nstart) then
       if (coord == 0) then   
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous point velocities from ', point_nstart, ' to ', point_nend
@@ -289,8 +290,8 @@ endif
   
 !  Determine if instantaneous domain velocities are to be recorded
 if(domain_calc) then
-  if(jt >= domain_nstart .and. jt <= domain_nend .and. ( mod(jt-domain_nstart,domain_nskip)==0) ) then
-    if(jt == domain_nstart) then
+  if(jt_total >= domain_nstart .and. jt_total <= domain_nend .and. ( mod(jt_total-domain_nstart,domain_nskip)==0) ) then
+    if(jt_total == domain_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous domain velocities from ', domain_nstart, ' to ', domain_nend
@@ -305,8 +306,8 @@ endif
 
 !  Determine if instantaneous x-plane velocities are to be recorded
 if(xplane_calc) then
-  if(jt >= xplane_nstart .and. jt <= xplane_nend .and. ( mod(jt-xplane_nstart,xplane_nskip)==0) ) then
-    if(jt == xplane_nstart) then
+  if(jt_total >= xplane_nstart .and. jt_total <= xplane_nend .and. ( mod(jt_total-xplane_nstart,xplane_nskip)==0) ) then
+    if(jt_total == xplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous x-plane velocities from ', xplane_nstart, ' to ', xplane_nend
@@ -321,8 +322,8 @@ endif
 
 !  Determine if instantaneous y-plane velocities are to be recorded
 if(yplane_calc) then
-  if(jt >= yplane_nstart .and. jt <= yplane_nend .and. ( mod(jt-yplane_nstart,yplane_nskip)==0) ) then
-    if(jt == yplane_nstart) then
+  if(jt_total >= yplane_nstart .and. jt_total <= yplane_nend .and. ( mod(jt_total-yplane_nstart,yplane_nskip)==0) ) then
+    if(jt_total == yplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous y-plane velocities from ', yplane_nstart, ' to ', yplane_nend
@@ -336,8 +337,8 @@ endif
 
 !  Determine if instantaneous z-plane velocities are to be recorded
 if(zplane_calc) then
-  if(jt >= zplane_nstart .and. jt <= zplane_nend .and. ( mod(jt-zplane_nstart,zplane_nskip)==0) ) then
-    if(jt == zplane_nstart) then
+  if(jt_total >= zplane_nstart .and. jt_total <= zplane_nend .and. ( mod(jt_total-zplane_nstart,zplane_nskip)==0) ) then
+    if(jt_total == zplane_nstart) then
       if (coord == 0) then        
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous z-plane velocities from ', zplane_nstart, ' to ', zplane_nend
@@ -516,10 +517,10 @@ elseif(itype==2) then
   $if($BINARY)
 
   ! RICHARD
-  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-  write(13,rec=1) (((u(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-  write(13,rec=2) (((v(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-  write(13,rec=3) (((w_uv(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+  write(13,rec=1) u(:nx,:ny,1:nz)
+  write(13,rec=2) v(:nx,:ny,1:nz)
+  write(13,rec=3) w_uv(:nx,:ny,1:nz)
   close(13)
 
   $else
@@ -619,8 +620,8 @@ elseif(itype==2) then
 
     $if($BINARY)
     ! RICHARD
-    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-    write(13,rec=1) (((divvel(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+    write(13,rec=1) divvel(:nx,:ny,1:nz)
     close(13)
      
     $else
@@ -673,11 +674,11 @@ elseif(itype==2) then
     $if($BINARY)
 
     ! RICHARD
-    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-    write(13,rec=1) (((p(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-    write(13,rec=2) (((dpdx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-    write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
-    write(13,rec=4) (((interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
+    open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+    write(13,rec=1) p(:nx,:ny,1:nz)
+    write(13,rec=2) dpdx(:nx,:ny,1:nz)
+    write(13,rec=3) dpdy(:nx,:ny,1:nz)
+    write(13,rec=4) interp_to_uv_grid(dpdz(:nx,:ny,1:nz),1)
     close(13)
 
     $else
@@ -739,11 +740,11 @@ elseif(itype==2) then
 
     $if($BINARY)
     ! RICHARD
-    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-    write(13,rec=1) (((RHSx(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-    write(13,rec=2) (((RHSy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)
-    write(13,rec=3) (((dpdy(i,j,k)   ,i=1,nx),j=1,ny),k=1,nz)               
-    write(13,rec=4) (((interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1)   ,i=1,nx),j=1,ny),k=1,nz)
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+    write(13,rec=1) RHSx(:nx,:ny,1:nz)
+    write(13,rec=2) RHSy(:nx,:ny,1:nz)
+    write(13,rec=3) dpdy(:nx,:ny,1:nz)
+    write(13,rec=4) interp_to_uv_grid(RHSz(:nx,:ny,1:nz),1)
     close(13)
     
     $else
@@ -1385,19 +1386,9 @@ fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
 
 $if($MPI)
 !  Sync forces
-! call mpi_sendrecv (fx_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fx_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (fy_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fy_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (fz_tot(:,:,1), nx*ny, MPI_RPREC, down, 1,  &
-!                    fz_tot(:,:,nz), nx*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
 call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
-
 $endif
 
 ! Put fz_tot on uv-grid
@@ -1423,23 +1414,10 @@ dpdz(:,:,nz) = dpdz(:,:,nz-1)
 
 $if($MPI)
 !  Sync pressure
-! call mpi_sendrecv (p(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    p(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (dpdz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    dpdz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)                   
 call mpi_sync_real_array( p, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdx, 1 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdy, 1 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( dpdz, 1 , MPI_SYNC_DOWN )
-
 $endif
 
 return
@@ -1459,19 +1437,9 @@ RHSz(:,:,nz) = RHSz(:,:,nz-1)
 
 $if($MPI)
 !  Sync RHS
-! call mpi_sendrecv (RHSx(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSx(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (RHSy(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSy(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)
-! call mpi_sendrecv (RHSz(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!                    RHSz(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!                    comm, status, ierr)                   
 call mpi_sync_real_array( RHSx, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( RHSy, 0 , MPI_SYNC_DOWN )
 call mpi_sync_real_array( RHSz, 0 , MPI_SYNC_DOWN )
-
 $endif
 
 return
@@ -1486,6 +1454,7 @@ subroutine checkpoint ()
 use param, only : nz, checkpoint_file, tavg_calc, spectra_calc
 $if($MPI)
 use param, only : coord
+use param, only : comm, ierr
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
@@ -1524,6 +1493,10 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
 $if ($DYN_TN) 
 ! Write running average variables to file
   fname = path // 'dyn_tn.out'
@@ -1542,6 +1515,11 @@ $if ($DYN_TN)
   write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
 
   close(13)
+
+  $if($MPI)
+  call mpi_barrier( comm, ierr )
+  $endif
+  
 $endif
 
 ! Checkpoint time averaging restart data
@@ -1602,11 +1580,13 @@ subroutine len_da_file(fname, lenrec, length)
 !  under the topic counting number of records in a Fortran direct file
 !--minor changes/renaming
 !
+use messages
 implicit none
 character (*), intent(in) :: fname  ! name of existing direct-access file
 integer, intent(in)       :: lenrec ! record length (O/S dependent units)
 integer, intent(out) :: length      ! number of records.
 !
+character(*), parameter :: sub_name = mod_name // '.len_dat_file'
 character (1) :: cdummy
 integer :: lunit, nlo, nhi, mid, kode
 logical :: exists, open
@@ -1625,8 +1605,8 @@ do lunit = 99, 1, -1
 end do
 open(unit=lunit, file=fname, access="direct", recl=lenrec, iostat=kode)
 if(kode /= 0) then
-  print *, 'error in len_da_file: ', trim(fname), ' does not exist'
-  return
+   call mesg( sub_name, 'error in len_da_file: ' // trim(fname) // ' does not exist' )
+   return
 end if
 !
 ! expansion phase
@@ -1657,7 +1637,7 @@ return
 end subroutine len_da_file
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine stats_init ()
+subroutine output_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
@@ -1866,7 +1846,7 @@ endif
 nullify(x,y,z)
 
 return
-end subroutine stats_init
+end subroutine output_init
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_init()
@@ -2017,7 +1997,44 @@ else
 endif
 tavg_time_stamp = total_time
 
-do k=jzmin,jzmax  
+$if($MPI)
+k=0
+do j=1,ny
+   do i=1,nx
+
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
+      w_p = w(i,j,k)
+
+      ! === w-grid variables === 
+      tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
+      tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
+      tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
+
+      tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
+      tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
+      tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
+      tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw + u_p * w_p * dt_tavg
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
+
+      tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
+
+      ! === uv-grid variables ===
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      ! === w-grid variables === 
+      tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
+
+   enddo
+enddo
+$endif
+
+do k=1,jzmax  
   do j=1,ny
     do i=1,nx
    
@@ -2025,90 +2042,81 @@ do k=jzmin,jzmax
       v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
           
-      ! === uv-grid variables ===
-      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
-      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
-
       ! === w-grid variables === 
       tavg_t(i,j,k)%u = tavg_t(i,j,k)%u + u_p * dt_tavg                    
       tavg_t(i,j,k)%v = tavg_t(i,j,k)%v + v_p * dt_tavg                         
       tavg_t(i,j,k)%w = tavg_t(i,j,k)%w + w_p * dt_tavg
+
       tavg_t(i,j,k)%u2 = tavg_t(i,j,k)%u2 + u_p * u_p * dt_tavg
       tavg_t(i,j,k)%v2 = tavg_t(i,j,k)%v2 + v_p * v_p * dt_tavg
       tavg_t(i,j,k)%w2 = tavg_t(i,j,k)%w2 + w_p * w_p * dt_tavg
-      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw+ u_p * w_p * dt_tavg
-      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
       tavg_t(i,j,k)%uv = tavg_t(i,j,k)%uv + u_p * v_p * dt_tavg
+      tavg_t(i,j,k)%uw = tavg_t(i,j,k)%uw + u_p * w_p * dt_tavg
+      tavg_t(i,j,k)%vw = tavg_t(i,j,k)%vw + v_p * w_p * dt_tavg
 
       tavg_t(i,j,k)%dudz = tavg_t(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
       tavg_t(i,j,k)%dvdz = tavg_t(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
 
+      ! === uv-grid variables ===
+      tavg_t(i,j,k)%txx = tavg_t(i,j,k)%txx + txx(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tyy = tavg_t(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%tzz = tavg_t(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
+      tavg_t(i,j,k)%txy = tavg_t(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      ! === w-grid variables === 
       tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
       tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
-      
-    enddo
-  enddo
-enddo
 
-do k=1,jzmax        ! these do not have a k=0 level (needed by coord==0)
-                    ! this shoud be fixed in the near future...
-  do j=1,ny
-    do i=1,nx
- 
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
-      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg
-
       ! === w-grid variables === 
-      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
-
-      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
+      tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
       
-    $if($OUTPUT_EXTRA)
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
-    $endif
-    
     enddo
   enddo
 enddo
 
 $if ($OUTPUT_EXTRA)
+do k=1,jzmax       
+  do j=1,ny
+    do i=1,nx
+       ! === w-grid variables ===
+       tavg_sgs_t(i,j,k)%Nu_t = tavg_sgs_t(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
+    enddo
+ enddo
+enddo
+
 if (sgs_model.gt.1) then
-do k=1,jzmax       
-  do j=1,ny
-    do i=1,nx
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
-    enddo
-  enddo
-enddo
+   do k=1,jzmax       
+      do j=1,ny
+         do i=1,nx
+            ! === w-grid variables ===
+            tavg_sgs_t(i,j,k)%ee_now = tavg_sgs_t(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
+         enddo
+      enddo
+   enddo
 endif
-$endif
 
-$if ($OUTPUT_EXTRA)
 if (sgs_model.gt.3) then
-do k=1,jzmax       
-  do j=1,ny
-    do i=1,nx
-      ! === w-grid variables ===
-      tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
-
-      $if ($DYN_TN)
-      tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
-      tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
-      $endif         
-    enddo
-  enddo
-enddo
+   do k=1,jzmax       
+      do j=1,ny
+         do i=1,nx
+            ! === w-grid variables ===
+            tavg_sgs_t(i,j,k)%Tn = tavg_sgs_t(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_LM = tavg_sgs_t(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_MM = tavg_sgs_t(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_QN = tavg_sgs_t(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_NN = tavg_sgs_t(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
+            
+            $if ($DYN_TN)
+            tavg_sgs_t(i,j,k)%F_ee2 = tavg_sgs_t(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
+            tavg_sgs_t(i,j,k)%F_deedt2 = tavg_sgs_t(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
+            $endif         
+         enddo
+      enddo
+   enddo
 endif
 $endif
 
@@ -2254,7 +2262,16 @@ fname_sgs_ee = path // 'output/ee_avg.dat'
 $endif  
   
 $if ($MPI)
+  $if($BINARY)
   !  For MPI implementation     
+  call string_concat( fname_velb, '.c', coord)
+  call string_concat( fname_vel2b, '.c', coord)
+  call string_concat( fname_ddzb, '.c', coord)
+  call string_concat( fname_taub, '.c', coord)
+  call string_concat( fname_fb, '.c', coord)
+  call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_csb, '.c', coord)
+  $else
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
   call string_concat( fname_ddz, '.c', coord)
@@ -2262,7 +2279,8 @@ $if ($MPI)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
   call string_concat( fname_cs, '.c', coord)
-
+  $endif
+  
   $if($OUTPUT_EXTRA)  
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
@@ -2274,6 +2292,10 @@ $endif
 
 ! Final checkpoint all restart data
 call tavg_checkpoint()
+
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! Zero bogus values
 call type_zero_bogus( tavg_t(:,:,nz) )
@@ -2447,63 +2469,66 @@ do k = 1, nz
   
 enddo
 
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
 
 ! ----- Write all the 3D data -----
 $if($BINARY)
 
 ! RICHARD
-open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%u   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((tavg_t(i,j,k)%v   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=3) (((tavg_t(i,j,k)%w   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%u
+write(13,rec=2) tavg_t(:nx,:ny,1:nz)%v
+write(13,rec=3) tavg_t(:nx,:ny,1:nz)%w
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%u2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((tavg_t(i,j,k)%v2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=3) (((tavg_t(i,j,k)%w2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=4) (((tavg_t(i,j,k)%uw   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=5) (((tavg_t(i,j,k)%vw   ,i=1,nx),j=1,ny),k=1,nz)   
-write(13,rec=6) (((tavg_t(i,j,k)%uv   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%u2
+write(13,rec=2) tavg_t(:nx,:ny,1:nz)%v2
+write(13,rec=3) tavg_t(:nx,:ny,1:nz)%w2
+write(13,rec=4) tavg_t(:nx,:ny,1:nz)%uw
+write(13,rec=5) tavg_t(:nx,:ny,1:nz)%vw
+write(13,rec=6) tavg_t(:nx,:ny,1:nz)%uv
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%dudz   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((tavg_t(i,j,k)%dvdz   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%dudz
+write(13,rec=2) tavg_t(:nx,:ny,1:nz)%dvdz
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%txx   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((tavg_t(i,j,k)%txy   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=3) (((tavg_t(i,j,k)%tyy   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=4) (((tavg_t(i,j,k)%txz   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=5) (((tavg_t(i,j,k)%tyz   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=6) (((tavg_t(i,j,k)%tzz   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%txx
+write(13,rec=2) tavg_t(:nx,:ny,1:nz)%txy
+write(13,rec=3) tavg_t(:nx,:ny,1:nz)%tyy
+write(13,rec=4) tavg_t(:nx,:ny,1:nz)%txz
+write(13,rec=5) tavg_t(:nx,:ny,1:nz)%tyz
+write(13,rec=6) tavg_t(:nx,:ny,1:nz)%tzz
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%fx   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((tavg_t(i,j,k)%fy   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=3) (((tavg_t(i,j,k)%fz   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%fx
+write(13,rec=2) tavg_t(:nx,:ny,1:nz)%fy
+write(13,rec=3) tavg_t(:nx,:ny,1:nz)%fz
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((rs_t(i,j,k)%up2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=2) (((rs_t(i,j,k)%vp2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=3) (((rs_t(i,j,k)%wp2   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=4) (((rs_t(i,j,k)%upwp   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=5) (((rs_t(i,j,k)%vpwp   ,i=1,nx),j=1,ny),k=1,nz)
-write(13,rec=6) (((rs_t(i,j,k)%upvp   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) rs_t(:nx,:ny,1:nz)%up2 
+write(13,rec=2) rs_t(:nx,:ny,1:nz)%vp2 
+write(13,rec=3) rs_t(:nx,:ny,1:nz)%wp2 
+write(13,rec=4) rs_t(:nx,:ny,1:nz)%upwp
+write(13,rec=5) rs_t(:nx,:ny,1:nz)%vpwp
+write(13,rec=6) rs_t(:nx,:ny,1:nz)%upvp
 close(13)
 
 ! RICHARD
-open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*2+12)
-write(13,rec=1) (((tavg_t(i,j,k)%cs_opt2   ,i=1,nx),j=1,ny),k=1,nz)
+open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg_t(:nx,:ny,1:nz)%cs_opt2 
 close(13)
 
 $else
@@ -2925,6 +2950,11 @@ $endif
 
 nullify(x,y,z,zw)
 
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
 return
 end subroutine tavg_finalize
 
@@ -3145,6 +3175,9 @@ subroutine spectra_finalize()
 use types, only : rprec
 use param, only : path
 use param, only : lh, spectra_nloc, spectra_loc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use fft, only : kx
 use stat_defs, only : spectra_t, spectra_total_time
 implicit none
@@ -3200,6 +3233,9 @@ subroutine spectra_checkpoint()
 ! simulation.    
 ! 
 use param, only : checkpoint_spectra_file, spectra_nloc
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use stat_defs, only : spectra_t, spectra_total_time
 
 implicit none
@@ -3235,6 +3271,11 @@ do k=1, spectra_nloc
   write (1) spectra_t(k) % power
 enddo
 close(1)
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine spectra_checkpoint

@@ -359,6 +359,9 @@ do
      case ('NSTEPS')
         read (buff(equal_pos+1:), *) nsteps
 
+     case ('RUNTIME')
+        read (buff(equal_pos+1:), *) runtime
+
      case ('USE_CFL_DT') 
         read (buff(equal_pos+1:), *) use_cfl_dt
         

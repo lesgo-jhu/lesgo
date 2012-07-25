@@ -112,22 +112,10 @@ do n = 1, nbeta_elem
 enddo
 
 $if($MPI)
-! !  Sync fxa; can't use mpi_sync_real_array since its not allocated from 0 -> nz
-! call mpi_sendrecv (fxa(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!   fxa(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!   comm, status, ierr)
-! call mpi_sendrecv (fya(:,:,1), ld*ny, MPI_RPREC, down, 1,  &
-!   fya(:,:,nz), ld*ny, MPI_RPREC, up, 1,   &
-!   comm, status, ierr)
-
 ! Sync applied forces
 call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
-
-
 $endif
-
-!endif
 
 $if($VERBOSE)
 call exit_sub(sub_name)
@@ -143,9 +131,6 @@ subroutine rns_elem_output()
 !
 use param, only : jt, coord
 use messages
-!!$if($CYL_SKEW_LS)
-!!use cyl_skew_base_ls, only : ngen, ngen_reslv
-!!$endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
@@ -179,7 +164,7 @@ use types, only : rprec
 use messages
 use sim_param, only : u, v
 use sim_param, only : fx, fy
-use functions, only : points_avg_3D
+use functions, only : points_avg_3d
 use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
 $if($MPI)
 use mpi
@@ -206,8 +191,6 @@ real(rprec), pointer :: area_p, u_p, v_p
 real(rprec), pointer, dimension(:,:) :: points_p
 
 type(force_type_2), pointer :: force_t_p
-
-!real(rprec) ::  CD_num, CD_denom
 
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
@@ -240,8 +223,8 @@ do n=1, nbeta_elem
   npoint_p => beta_elem_t(n) % ref_region_t % npoint
   points_p => beta_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
+  u_p = points_avg_3d( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3d( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   beta_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -258,8 +241,8 @@ do n=1, nb_elem
   npoint_p => b_elem_t(n) % ref_region_t % npoint
   points_p => b_elem_t(n) % ref_region_t % points
   
-  u_p = points_avg_3D( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
-  v_p = points_avg_3D( v(1:nx,:,1:nz), 1, npoint_p, points_p )
+  u_p = points_avg_3d( u(1:nx,:,1:nz), 1, npoint_p, points_p ) 
+  v_p = points_avg_3d( v(1:nx,:,1:nz), 1, npoint_p, points_p )
   
   cache = 0.5_rprec * sqrt( u_p**2 + v_p**2 ) * area_p
   b_gamma(:,n) = cache * (/ u_p, v_p /)
@@ -607,11 +590,7 @@ subroutine b_elem_CD_LETW()
 use param, only : wbase
 implicit none
 
-!integer :: i1,i2, info
-!integer, dimension(ndim) :: ipiv
-!real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_gamma_gsum, b_force_gsum
-!real(rprec), dimension(ndim,ndim) :: mata
 
 real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
@@ -637,36 +616,13 @@ if( jt_total < weight_nstart ) then
   
 else
 
-  !  Assemble matrices used for lambda calculations
-  !do i2=1,ndim
-  !  do i1=1,ndim
-  !    mata(i1,i2) = 0.5_rprec * sum( b_gamma(i1,:)*b_gamma(i2,:) / b_elem_t(:) % force_t % LBB )
-  !  enddo
-  !enddo
-
-  !  Creat RHS using lambda
-  !do n=1, ndim
-  !  lambda(n) = sum( b_force(n,:) - b_elem_t(:) % force_t % LAB * b_gamma(n,:) / &
-  !  b_elem_t(:) % force_t % LBB )
-  !enddo
-
-  !  Solve for the Lagrange multiplier
-  $if(DBLPREC)
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $else
-  !call sgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $endif
-
-  !lambda = (/ 0._rprec, 0._rprec /)
-  
-!  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LAB_p => b_elem_t(n) % force_t % LAB
     LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    !CD_p = -( 2._rprec * LAB_p + sum(lambda(:) * b_gamma(:,n)) ) / LBB_p
     CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
@@ -750,15 +706,9 @@ subroutine b_elem_CD_LITW()
 !  Used variable declarations from contained subroutine rns_elem_force_ls
 !
 use param, only : wbase
-use functions, only : det2D
 implicit none
 
-!integer :: i1,i2, info
-!integer, dimension(ndim) :: ipiv
-!real(rprec), dimension(ndim) :: lambda
 real(rprec), dimension(ndim) :: b_r_fsum, b_m_wsum, b_m_wsum2
-!real(rprec), dimension(ndim,ndim) :: mata
-
 real(rprec), pointer :: LAB_p, LBB_p, CD_p
 
 nullify(LAB_p, LBB_p, CD_p)
@@ -778,41 +728,17 @@ enddo
 
 if( jt_total < weight_nstart ) then
 
-  !call b_elem_CD_GID()
   call b_elem_CD_GI()
   
 else
 
-  !  Assemble matrices used for lambda calculations
-  !do i2=1,ndim
-  !  do i1=1,ndim
-  !    mata(i1,i2) = 0.5_rprec * sum( b_m(i1,:)*b_m(i2,:) / b_elem_t(:) % force_t % LBB )
-  !  enddo
-  !enddo
-
-  !  Creat RHS using lambda
-  !do n=1, ndim
-  !  lambda(n) = sum( b_r_force(n,:) - b_elem_t(:) % force_t % LAB * b_m(n,:) / &
-  !  b_elem_t(:) % force_t % LBB )
-  !enddo
-
-  !  Solve for the Lagrange multiplier
-  $if(DBLPREC)
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $else
-  !call dgesv( ndim, 1, mata, ndim, ipiv, lambda, ndim, info)
-  $endif
-  
-  !lambda = (/ 0._rprec, 0._rprec /)
-
-!  Compute CD
+  !  Compute CD
   do n = 1, nb_elem
   
     LAB_p => b_elem_t(n) % force_t % LAB
     LBB_p => b_elem_t(n) % force_t % LBB
     CD_p  => b_elem_t(n) % force_t % CD
 
-    !CD_p = ( 2._rprec * LAB_p + sum(lambda(:) * b_m(:,n)) ) / LBB_p
     CD_p = - LAB_p / LBB_p
 
     nullify( LAB_p, LBB_p, CD_p )   
@@ -821,7 +747,6 @@ else
   
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
-    !write(*,*) '--> lambda : ', lambda
   endif  
 
 endif
@@ -867,7 +792,6 @@ b_elem_t(:) % force_t % LBB = LBB_p
 
 if( jt_total < weight_nstart ) then
 
-  !call b_elem_CD_GID()
   call b_elem_CD_GI()
     
 else
@@ -880,7 +804,6 @@ else
 
   if(modulo(jt,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GITW CD'
-    !write(*,*) '--> lambda : ', lambda
   endif 
 
 endif
@@ -1005,7 +928,7 @@ $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
 use sim_param, only : u, v
-use functions, only : points_avg_3D
+use functions, only : points_avg_3d
 use sim_param, only : fx, fy
 implicit none
 
@@ -1027,8 +950,6 @@ $endif
 type(ref_region), pointer :: ref_region_t_p
 type(indx_array), pointer :: indx_array_t_p
 
-!if(coord == 0) call mesg(sub_name, 'Entered ' // sub_name)
-
 $if($VERBOSE)
 call enter_sub(sub_name)
 $endif
@@ -1044,8 +965,8 @@ do n = 1, nr_elem
 
   !  Get the reference velocity
   ref_region_t_p => r_elem_t( n ) % ref_region_t
-  ref_region_t_p % u = points_avg_3D( u(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
-  ref_region_t_p % v = points_avg_3D( v(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % u = points_avg_3d( u(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
+  ref_region_t_p % v = points_avg_3d( v(1:nx,:,1:nz), 1, ref_region_t_p % npoint, ref_region_t_p % points)
   
   indx_array_t_p => r_elem_t( n ) % indx_array_t
      
@@ -1458,7 +1379,7 @@ use messages
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
-character (*), parameter :: fname_in = path // 'rns_force.out'
+character (*), parameter :: fname_in = path // 'rns.out'
 character (128) :: fname
 $if ($MPI)
   character (*), parameter :: MPI_suffix = '.c'
@@ -1499,10 +1420,9 @@ open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
 $endif
 
-read (1) r_elem_t(:) % force_t 
-read (1) beta_elem_t(:) % force_t 
-read (1) b_elem_t(:) % force_t 
-close (1)
+read(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
+
+close(1)
 
 end subroutine rns_force_init_ls
 
@@ -1513,12 +1433,15 @@ subroutine rns_finalize_ls()
 !  This subroutine writes all restart data to file
 !
 use param, only : coord, path
+$if($MPI)
+use param, only : comm, ierr
+$endif
 use messages
 use string_util, only : string_splice
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
-character (*), parameter :: fname_out = path // 'rns_force.out'
+character (*), parameter :: fname_out = path // 'rns.out'
 
 character (128) :: fname
 $if ($MPI)
@@ -1550,9 +1473,7 @@ open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
 $endif
 
-write(1) r_elem_t(:) % force_t 
-write(1) beta_elem_t(:) % force_t 
-write(1) b_elem_t(:) % force_t
+write(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
 close (1)
 
 deallocate(r_elem_t)
@@ -1574,6 +1495,11 @@ close( b_elem_error_fid )
 close( b_elem_error_norm_fid )
 close( b_elem_force_fid )
 close( b_elem_vel_fid )
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
 
 return
 end subroutine rns_finalize_ls

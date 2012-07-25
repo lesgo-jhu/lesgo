@@ -9,7 +9,7 @@ XOFFSET=1.5625; YOFFSET=2.0625
 
 # Spatial dimensions as set in the computational domain
 Nx=64; XMIN=0; XMAX=8.0
-Ny=32; YMIN=0; YMAX=8.0
+Ny=64; YMIN=0; YMAX=8.0
 Nz=29; ZMIN=0.0625; ZMAX=3.5625
 
 # Velocity spatial scale (DON'T TOUCH)

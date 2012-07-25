@@ -10,10 +10,10 @@ public interp_to_uv_grid, &
      trilinear_interp, &
      linear_interp, &
      cell_indx, &
-     plane_avg_3D, &
      buff_indx, &
-     points_avg_3D, & 
-     det2D, interp_to_w_grid
+     points_avg_3d, & 
+     plane_avg_3d, &     
+     interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -319,7 +319,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  for the point xyz
 !  
 !  istart, jstart, kstart are used to determine the cell location on the
-!  uv-grid; these are defined in stats_init
+!  uv-grid; these are defined in output_init
 !
 !  Takes care of putting w-grid variables onto the uv-grid; this assumes
 !  that var is on the uv-grid
@@ -453,11 +453,11 @@ return
 end function linear_interp
 
 !**********************************************************************
-real(rprec) function plane_avg_3D(var, lbz, bp1, bp2, bp3, nzeta, neta)
+real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !**********************************************************************
 !
 !  This subroutine computes the average of a specified quantity on an arbitrary
-!  plane in 3D space. The bounding points, bp{1,2,3} are used to define the plane
+!  plane in 3d space. The bounding points, bp{1,2,3} are used to define the plane
 !  such that the zeta direction 2 -> 1 and the eta direction 2 -> 3.
 !
 !  When sending the variable to this subroutine, it is important that the
@@ -481,7 +481,7 @@ real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
 
 INTEGER, INTENT(IN) :: nzeta, neta
 
-character (*), parameter :: func_name = mod_name // '.plane_avg_3D'
+character (*), parameter :: func_name = mod_name // '.plane_avg_3d'
 
 integer :: i, j, nsum
 
@@ -567,13 +567,13 @@ $if ($MPI)
  endif
  
   !  Average over all procs; assuming distribution is even
- plane_avg_3D = var_sum_global / nsum_global
+ plane_avg_3d = var_sum_global / nsum_global
   
   !write(*,*) 'var_sum_global : ', var_sum_global
   
  $else
   
-  plane_avg_3D = var_sum / nsum
+  plane_avg_3d = var_sum / nsum
   
  $endif
    
@@ -581,10 +581,10 @@ nullify(z)
 
 return
 
-end function plane_avg_3D
+end function plane_avg_3d
 
 !**********************************************************************
-real(rprec) function points_avg_3D(var, lbz, npoints, points)
+real(rprec) function points_avg_3d(var, lbz, npoints, points)
 !**********************************************************************
 !
 !  This subroutine computes the arithmetic average of a specified 
@@ -606,7 +606,7 @@ integer, intent(IN) :: lbz      !lower bound on z (lbz) for variable sent
 integer, intent(IN) :: npoints
 real(rprec), intent(IN), dimension(3,npoints) :: points
 
-character (*), parameter :: func_name = mod_name // '.points_avg_3D'
+character (*), parameter :: func_name = mod_name // '.points_avg_3d'
 
 !integer :: istart, jstart, kstart, nsum
 integer :: nsum
@@ -676,11 +676,11 @@ if(nsum_global == 0) then
 endif
  
 !  Average over all procs; assuming distribution is even
-points_avg_3D = var_sum_global / nsum_global
+points_avg_3d = var_sum_global / nsum_global
   
 $else
   
-points_avg_3D = var_sum / nsum
+points_avg_3d = var_sum / nsum
   
 $endif
    
@@ -688,7 +688,7 @@ nullify(z)
 
 return
 
-end function points_avg_3D
+end function points_avg_3d
 
 !**********************************************************************
 integer function buff_indx(i,imax)
@@ -708,18 +708,5 @@ endif
   
 return
 end function buff_indx
-
-!**********************************************************************
-real(rprec) function det2D(A)
-!**********************************************************************
-!  Computes the determinant of the 2D matrix A
-!
-implicit none
-real(rprec), intent(IN), dimension(2,2) :: A
-
-det2D = A(1,1) * A(2,2) - A(1,2) * A(2,1)
-
-return
-end function det2D
 
 end module functions

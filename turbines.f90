@@ -11,7 +11,7 @@ use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t 
 use io
 use messages
-use string_util, only : numtostr
+use string_util
 $if ($MPI)
   use mpi_defs
 $endif
@@ -58,7 +58,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-use string_util, only : string_splice
+use string_util
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
@@ -168,14 +168,23 @@ if (coord .eq. nproc-1) then
     close(1)
 endif
 
-if (coord.eq. 0) then
 do s=1,nloc
+
+if(coord==0) then
 call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
 file_id(s) = open_file( fname, 'append', 'formatted' )
-call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
-file_id2(s) = open_file( fname, 'append', 'formatted' )
-enddo
 endif
+
+! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
+! The problem can (not necessarily will show up) when different cores want to open the same file. 
+if(coord<nz_tot/4) then
+call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
+call string_concat (fname, '.c', coord)
+
+file_id2(s) = open_file( fname, 'append', 'formatted' )
+endif
+
+enddo
 
 nullify(x,y,z)
 
@@ -672,7 +681,6 @@ w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
 
-
 !Each processor calculates the weighted disk-averaged velocity
 if (turbine_in_proc) then
 
@@ -696,7 +704,7 @@ if (turbine_in_proc) then
                     * wind_farm_t%turbine_t(s)%ind(l)        
              enddo
                 !write center disk velocity to file                   
-                if (modulo (jt, tbase) == 0) then
+                if (modulo (jt_total, tbase) == 0) then
                 icp = nint(wind_farm_t%turbine_t(s)%xloc/dx)
                 jcp = nint(wind_farm_t%turbine_t(s)%yloc/dy)
                 kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
@@ -709,7 +717,8 @@ if (turbine_in_proc) then
                 $endif
                 if (kcp>=k_start) then
                 if (kcp<=k_end) then
-                call write_real_data( file_id2(s), 'formatted', 2, (/ total_time_dim, u(icp,jcp,kcp) /))
+                kcp=kcp-k_start+1
+                call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
                 endif
                 endif
                 endif
@@ -764,7 +773,7 @@ if (coord == 0) then
         !force is normal to the surface (calc from u_d_T, normal to surface)
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
             !write values to file                   
-                if (modulo (jt, tbase) == 0) then
+                if (modulo (jt_total, tbase) == 0) then
                 call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
                 endif 
             !write force to array that will be transferred via MPI    

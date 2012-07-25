@@ -193,23 +193,16 @@ $endif
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
-!$comp parallel do default(shared) private(jx,jy,jz)
-!RICHARD OPTIMIZATION: EXPLICITLY WRITE THE MULTIPLICATION AND DO NOT USE POWER FOR SPEED
 do jz=1,nz
 do jy=1,ny
 do jx=1,nx
-    S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)*S11(jx,jy,jz) +           S22(jx,jy,jz)*S22(jx,jy,jz) +&
-                               S33(jx,jy,jz)*S33(jx,jy,jz) + 2._rprec*(S12(jx,jy,jz)*S12(jx,jy,jz) +&
-                               S13(jx,jy,jz)*S13(jx,jy,jz) +           S23(jx,jy,jz)*S23(jx,jy,jz) )))
-    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)*l(jz))
-!    S(jx,jy) = sqrt(2._rprec*(S11(jx,jy,jz)**2 + S22(jx,jy,jz)**2 +&
-!        S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
-!        S13(jx,jy,jz)**2 + S23(jx,jy,jz)**2)))
-!    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*(l(jz)**2)
+    S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)**2 +           S22(jx,jy,jz)**2 +&
+                               S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
+                               S13(jx,jy,jz)**2 +           S23(jx,jy,jz)**2 )))
+    Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*l(jz)**2
 end do
 end do
 end do
-!$comp end parallel do
 
 ! Update the values for the sgs-variable histograms
   if (sgs_hist_calc) then
@@ -228,40 +221,35 @@ if (coord == 0) then
     !   recall: for this case, Sij are stored on w-nodes      
         
         if (sgs) then
-            !$comp parallel do default(shared) private(jx,jy,const)
             do jy=1,ny
-            do jx=1,nx         
-                const=0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2))
-                
-                txx(jx,jy,1)=-2._rprec*(const+nu)*&
-                   0.5_rprec*(S11(jx,jy,1) + S11(jx,jy,2))
-                txy(jx,jy,1)=-2._rprec*(const+nu)*&
-                  0.5_rprec*(S12(jx,jy,1) + S12(jx,jy,2))
-                tyy(jx,jy,1)=-2._rprec*(const+nu)*&
-                  0.5_rprec*(S22(jx,jy,1) + S22(jx,jy,2))
-                tzz(jx,jy,1)=-2._rprec*(const+nu)*&
-                  0.5_rprec*(S33(jx,jy,1) + S33(jx,jy,2))
+            do jx=1,nx        
+               ! Total viscosity
+                const=0.5_rprec*(Nu_t(jx,jy,1) + Nu_t(jx,jy,2)) + nu
+!                txx(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S11(jx,jy,1) + S11(jx,jy,2))
+!                txy(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S12(jx,jy,1) + S12(jx,jy,2))
+!                tyy(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S22(jx,jy,1) + S22(jx,jy,2))
+!                tzz(jx,jy,1)=-2._rprec*(const+nu)*0.5_rprec*(S33(jx,jy,1) + S33(jx,jy,2))
+                txx(jx,jy,1)=-const*(S11(jx,jy,1) + S11(jx,jy,2))
+                txy(jx,jy,1)=-const*(S12(jx,jy,1) + S12(jx,jy,2))
+                tyy(jx,jy,1)=-const*(S22(jx,jy,1) + S22(jx,jy,2))
+                tzz(jx,jy,1)=-const*(S33(jx,jy,1) + S33(jx,jy,2))
             end do
             end do
-            !$comp end parallel do
         else    
-            !$comp parallel do default(shared) private(jx,jy,const)
             const = 0._rprec
             do jy=1,ny
             do jx=1,nx      
-                ! const = 0. (therefore, removed from expressions below)
-                
-                txx(jx,jy,1)=-2._rprec*(nu)*&
-                   0.5_rprec*(S11(jx,jy,1) + S11(jx,jy,2))
-                txy(jx,jy,1)=-2._rprec*(nu)*&
-                  0.5_rprec*(S12(jx,jy,1) + S12(jx,jy,2))
-                tyy(jx,jy,1)=-2._rprec*(nu)*&
-                  0.5_rprec*(S22(jx,jy,1) + S22(jx,jy,2))
-                tzz(jx,jy,1)=-2._rprec*(nu)*&
-                  0.5_rprec*(S33(jx,jy,1) + S33(jx,jy,2))
+                ! const = 0. (therefore, removed from expressions below)                
+!                txx(jx,jy,1)=-2._rprec*(nu)*0.5_rprec*(S11(jx,jy,1) + S11(jx,jy,2))
+!                txy(jx,jy,1)=-2._rprec*(nu)*0.5_rprec*(S12(jx,jy,1) + S12(jx,jy,2))
+!                tyy(jx,jy,1)=-2._rprec*(nu)*0.5_rprec*(S22(jx,jy,1) + S22(jx,jy,2))
+!                tzz(jx,jy,1)=-2._rprec*(nu)*0.5_rprec*(S33(jx,jy,1) + S33(jx,jy,2))
+                txx(jx,jy,1)=-(nu)*(S11(jx,jy,1) + S11(jx,jy,2))
+                txy(jx,jy,1)=-(nu)*(S12(jx,jy,1) + S12(jx,jy,2))
+                tyy(jx,jy,1)=-(nu)*(S22(jx,jy,1) + S22(jx,jy,2))
+                tzz(jx,jy,1)=-(nu)*(S33(jx,jy,1) + S33(jx,jy,2))
             end do
             end do
-            !$comp end parallel do
         end if                     
 
     case (1) ! Wall
@@ -270,32 +258,31 @@ if (coord == 0) then
     !   recall: for this case, Sij are stored on uvp-nodes        
         
         if (sgs) then
-            !$comp parallel do default(shared) private(jx,jy,const)
             do jy=1,ny
             do jx=1,nx         
-                const = Nu_t(jx,jy,1)   
-                
-                txx(jx,jy,1) = -2._rprec*(const+nu)*S11(jx,jy,1)
-                txy(jx,jy,1) = -2._rprec*(const+nu)*S12(jx,jy,1)
-                tyy(jx,jy,1) = -2._rprec*(const+nu)*S22(jx,jy,1)
-                tzz(jx,jy,1) = -2._rprec*(const+nu)*S33(jx,jy,1)
+!                const = Nu_t(jx,jy,1)                   
+!                txx(jx,jy,1) = -2._rprec*(const+nu)*S11(jx,jy,1)
+!                txy(jx,jy,1) = -2._rprec*(const+nu)*S12(jx,jy,1)
+!                tyy(jx,jy,1) = -2._rprec*(const+nu)*S22(jx,jy,1)
+!                tzz(jx,jy,1) = -2._rprec*(const+nu)*S33(jx,jy,1)
+                const = -2._rprec*(Nu_t(jx,jy,1)+nu)                   
+                txx(jx,jy,1) = const*S11(jx,jy,1)
+                txy(jx,jy,1) = const*S12(jx,jy,1)
+                tyy(jx,jy,1) = const*S22(jx,jy,1)
+                tzz(jx,jy,1) = const*S33(jx,jy,1)
             end do
             end do
-            !$comp end parallel do
         else    
-            !$comp parallel do default(shared) private(jx,jy,const)
             const = 0._rprec
             do jy=1,ny
             do jx=1,nx      
-                ! const = 0. (therefore, removed from expressions below)
-                
+                ! const = 0. (therefore, removed from expressions below)                
                 txx(jx,jy,1) = -2._rprec*(nu)*S11(jx,jy,1)
                 txy(jx,jy,1) = -2._rprec*(nu)*S12(jx,jy,1)
                 tyy(jx,jy,1) = -2._rprec*(nu)*S22(jx,jy,1)
                 tzz(jx,jy,1) = -2._rprec*(nu)*S33(jx,jy,1)
             end do
             end do
-            !$comp end parallel do
         end if       
        
     end select
@@ -313,69 +300,50 @@ end if
 !   txx, txy, tyy, tzz (uvp-nodes) and txz, tyz (w-nodes)
 
 if (sgs) then 
-    !$comp parallel do default(shared) private(jx,jy,jz,const)	 
-    !RICHARD OPTIMIZATION
-    
     const3=-2._rprec*(nu)*0.5_rprec
     const4=-2._rprec*(nu)
     do jz=jz_min, nz-1
     do jy=1,ny
     do jx=1,nx
-       
-!       const=0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
-!            txx(jx,jy,jz)=-2._rprec*(const+nu)*&
-!                0.5_rprec*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
-!            txy(jx,jy,jz)=-2._rprec*(const+nu)*&
-!                0.5_rprec*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
-!            tyy(jx,jy,jz)=-2._rprec*(const+nu)*&
-!                0.5_rprec*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
-!            tzz(jx,jy,jz)=-2._rprec*(const+nu)*&
-!                0.5_rprec*(S33(jx,jy,jz) + S33(jx,jy,jz+1))
-!		const=Nu_t(jx,jy,jz)                
-!        
-!            txz(jx,jy,jz)=-2._rprec*(const + nu) * S13(jx,jy,jz)
-!            tyz(jx,jy,jz)=-2._rprec*(const + nu) * S23(jx,jy,jz)        
-
+              
        const =-0.5_rprec*(Nu_t(jx,jy,jz) + Nu_t(jx,jy,jz+1))  
        const2=-2._rprec*Nu_t(jx,jy,jz)                
 
-            txx(jx,jy,jz)=(const+const3)*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
-            txy(jx,jy,jz)=(const+const3)*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
-            tyy(jx,jy,jz)=(const+const3)*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
-            tzz(jx,jy,jz)=(const+const3)*(S33(jx,jy,jz) + S33(jx,jy,jz+1))        
-            txz(jx,jy,jz)=(const2+const4)* S13(jx,jy,jz)
-            tyz(jx,jy,jz)=(const2+const4)* S23(jx,jy,jz)        
+       txx(jx,jy,jz)=(const+const3)*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
+       txy(jx,jy,jz)=(const+const3)*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
+       tyy(jx,jy,jz)=(const+const3)*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
+       tzz(jx,jy,jz)=(const+const3)*(S33(jx,jy,jz) + S33(jx,jy,jz+1))        
+       txz(jx,jy,jz)=(const2+const4)* S13(jx,jy,jz)
+       tyz(jx,jy,jz)=(const2+const4)* S23(jx,jy,jz)        
                 
     end do
     end do
     end do
-    !$comp end parallel do 
 
 else    
     
-    !$comp parallel do default(shared) private(jx,jy,jz,const)	
     const=0._rprec  ! removed from tij expressions below since it's zero
     
     do jz=jz_min, nz-1
     do jy=1,ny
     do jx=1,nx
        
-            txx(jx,jy,jz)=-2._rprec*(nu)*&
-                0.5_rprec*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
-            txy(jx,jy,jz)=-2._rprec*(nu)*&
-                0.5_rprec*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
-            tyy(jx,jy,jz)=-2._rprec*(nu)*&
-                0.5_rprec*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
-            tzz(jx,jy,jz)=-2._rprec*(nu)*&
-                0.5_rprec*(S33(jx,jy,jz) + S33(jx,jy,jz+1))            
+!       txx(jx,jy,jz)=-2._rprec*(nu)*0.5_rprec*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
+!       txy(jx,jy,jz)=-2._rprec*(nu)*0.5_rprec*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
+!       tyy(jx,jy,jz)=-2._rprec*(nu)*0.5_rprec*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
+!       tzz(jx,jy,jz)=-2._rprec*(nu)*0.5_rprec*(S33(jx,jy,jz) + S33(jx,jy,jz+1))            
+       txx(jx,jy,jz)=-(nu)*(S11(jx,jy,jz) + S11(jx,jy,jz+1))
+       txy(jx,jy,jz)=-(nu)*(S12(jx,jy,jz) + S12(jx,jy,jz+1))
+       tyy(jx,jy,jz)=-(nu)*(S22(jx,jy,jz) + S22(jx,jy,jz+1))
+       tzz(jx,jy,jz)=-(nu)*(S33(jx,jy,jz) + S33(jx,jy,jz+1))            
+
         
-            txz(jx,jy,jz)=-2._rprec*(nu) * S13(jx,jy,jz)
-            tyz(jx,jy,jz)=-2._rprec*(nu) * S23(jx,jy,jz)        
+       txz(jx,jy,jz)=-2._rprec*(nu) * S13(jx,jy,jz)
+       tyz(jx,jy,jz)=-2._rprec*(nu) * S23(jx,jy,jz)        
                 
     end do
     end do
     end do
-    !$comp end parallel do 
 
 end if    
       
@@ -407,19 +375,9 @@ $if ($MPI)
     ! txz,tyz calculated for 1:nz-1 (on w-nodes) except bottom process
     ! (only 2:nz-1) exchange information between processors to set
     ! values at nz from jz=1 above to jz=nz below
-
-    ! call mpi_sendrecv (txz(1, 1, 1), ld*ny, MPI_RPREC, down, 3,  &
-    !                  txz(1, 1, nz), ld*ny, MPI_RPREC, up, 3,   &
-    !                  comm, status, ierr)
-    ! call mpi_sendrecv (tyz(1, 1, 1), ld*ny, MPI_RPREC, down, 4,  &
-    !                  tyz(1, 1, nz), ld*ny, MPI_RPREC, up, 4,   &
-    !                  comm, status, ierr)
-
     call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
     call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
-
     ! Set bogus values (easier to catch if there's an error)
-!RICHARD: OPTIMIZATION
 $if (SAFETYMODE)
     txx(:, :, 0) = BOGUS
     txy(:, :, 0) = BOGUS
@@ -428,11 +386,9 @@ $if (SAFETYMODE)
     tyz(:, :, 0) = BOGUS
     tzz(:, :, 0) = BOGUS 
 $endif
-
 $endif
 
 ! Set bogus values (easier to catch if there's an error)
-!RICHARD: OPTIMIZATION
 $if ($SAFETYMODE)
 txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
@@ -512,7 +468,6 @@ if (coord == 0) then
     case (1) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
-    !RICHARD: OPTIMIZATION
         do jy=1,ny
         do jx=1,nx              
 !            ux=dudx(jx,jy,1)  
@@ -559,20 +514,12 @@ $if ($MPI)
     ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
     ! (only 1:nz-1) exchange information between processors to set
     ! values at nz from jz=1 above to jz=nz below
-
-    ! call mpi_sendrecv (dwdz(1, 1, 1), ld*ny, MPI_RPREC, down, 2,  &
-    !                  dwdz(1, 1, nz), ld*ny, MPI_RPREC, up, 2,   &
-    !                  comm, status, ierr)
-
     call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
-
 $endif
 
 ! Calculate Sij for the rest of the domain
 !   values are stored on w-nodes
 !   dudz, dvdz, dwdx, dwdy are already stored on w-nodes
-!$vvohmygod parallel do default(shared) private(jx,jy,jz)	
-!RICHARD: OPTIMIZATION
 do jz=jz_min, nz
 do jy=1,ny
 do jx=1,nx              
@@ -592,9 +539,9 @@ do jx=1,nx
 !    S23(jx,jy,jz)=0.5_rprec*(vz+wy) 
 !    S33(jx,jy,jz)=wz          
     S11(jx,jy,jz)=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1))          
-    uy=0.5_rprec*(dudy(jx,jy,jz) + dudy(jx,jy,jz-1))  
-    vx=0.5_rprec*(dvdx(jx,jy,jz) + dvdx(jx,jy,jz-1))  
-    S12(jx,jy,jz)=0.5_rprec*(uy+vx) 
+    uy=(dudy(jx,jy,jz) + dudy(jx,jy,jz-1))  
+    vx=(dvdx(jx,jy,jz) + dvdx(jx,jy,jz-1))  
+    S12(jx,jy,jz)=0.25_rprec*(uy+vx) 
     S13(jx,jy,jz)=0.5_rprec*(dudz(jx,jy,jz) + dwdx(jx,jy,jz)) 
     S22(jx,jy,jz)=0.5_rprec*(dvdy(jx,jy,jz) + dvdy(jx,jy,jz-1))          
     S23(jx,jy,jz)=0.5_rprec*(dvdz(jx,jy,jz) + dwdy(jx,jy,jz)) 

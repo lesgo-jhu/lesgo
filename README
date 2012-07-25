@@ -299,7 +299,8 @@ A) File ID reservations:
    handling the file identifiers of files that will remain open during the
    simulation. It simply provides the file identifier on a first come first
    serve bases starting with 1001. So if any file identifiers are to be used
-   that are not provided by the tecryte library they should be <=1000.
+   that are not provided by the tecryte library they should be <=1000, but this
+   is discouraged and should only be done if necessary.
  
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD
@@ -729,7 +730,7 @@ The first step is to build in the CPS support into lesgo by setting
 in "Makefile.in". You will need to build in CPS support for both the 'red' and
 'blue' domain executables. Other support may be built for required functionality
 but at a minimum CPS is needed. An example for this is the setup for developing
-flow over a wind farm. In the 'red' domain we'd have standard boundary later
+flow over a wind farm. In the 'red' domain we'd have standard boundary layer
 flow so we'd set
 
   USE_MPI = yes
