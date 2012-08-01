@@ -4,17 +4,11 @@ module turbines
 !      This routine creates the 'turbine' folder and starts the turbine forcing output files.
 !      It also creates the indicator function (Gaussian-filtered from binary locations - in or out)
 !      and sets values for turbine type (node locations, etc)
-use types,only:rprec
 use param
 use turbines_base
-use stat_defs, only:wind_farm_t
 use grid_defs, only: grid_t 
-use io
 use messages
 use string_util
-$if ($MPI)
-  use mpi_defs
-$endif
 
 implicit none
 include 'tecryte.h'
@@ -28,24 +22,21 @@ real(rprec) :: Ct_prime_05
 real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
 
-character (64) :: fname, fname0, fname2, fname3, fname4, var_list, temp, temp2, dummy_char
-real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations
-real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered
-
+character (100) :: string1
+real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations. Richard: Seems to be preventable easy
+real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered ! Richard: Seems to be preventable easy
 real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
-integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,nn,ssx,ssy,ssz, p
+integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,ssx,ssy,ssz, p
 integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
 integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 integer :: k_start, k_end
-character (4) :: string1, string2, string3
-logical :: exst, exst2, opn
+logical :: exst, opn
 
 logical :: turbine_in_proc=.false.      !init, do not change this
-logical :: turbine_cumulative_ca_time=.false.  !init, do not change this
 
 real(rprec), pointer, dimension(:) :: buffer_array
-real(rprec) :: buffer, mult
+real(rprec) :: buffer
 logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
@@ -58,11 +49,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-use string_util
+
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
-integer :: s
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
 nullify(x,y,z)
@@ -80,8 +70,8 @@ allocate(file_id(nloc))
 allocate(file_id2(nloc))
 turbine_in_proc_array = 0
 
-    nullify(buffer_array)
-    allocate(buffer_array(nloc))
+nullify(buffer_array)
+allocate(buffer_array(nloc))
 
 !new variables for optimization:
     Ct_prime_05 = -0.5*Ct_prime
@@ -94,21 +84,6 @@ turbine_in_proc_array = 0
         z_tot(k) = (k - 0.5_rprec) * dz
     enddo
 
-!create files to store turbine forcing data
-!    if (.not. turbine_cumulative_time) then
-!        if (coord == 0) then
-!            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
-!            do s=1,nloc
-!                fname = path // 'turbine/turbine_'
-!                write (temp, '(i0)') s
-!                fname2 = trim (fname) // temp
-!                fname = trim (fname2) // '_forcing.dat'
-!              
-!                call write_tecplot_header_xyline(fname,'rewind', var_list)   
-!            enddo
-!        endif    
-!    endif
-    
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
     large_node_array = 0.
@@ -116,9 +91,9 @@ turbine_in_proc_array = 0
 
     if (coord == 0) then
       !to write the node locations to file
-      fname0 = path // 'turbine/nodes_unfiltered.dat'
-      call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
-      call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
+      string1 = path // 'turbine/nodes_unfiltered.dat'
+      call write_tecplot_header_ND(string1,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
+      call write_real_data_3D(string1, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
     endif
 
 !1.smooth/filter indicator function                     
@@ -126,18 +101,16 @@ turbine_in_proc_array = 0
 !3.normalize such that each turbine's ind integrates to turbine volume
 !4.split domain between processors 
     call turbines_filter_ind()
-!iet variables for time-averaging velocity 
-!    eps = (dt*z_i / u_star)/T_avg_dim / (1. +(dt*z_i / u_star)/T_avg_dim)
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
-            fname4 = path // 'turbine/turbine_u_d_T.dat'
-            inquire (file=fname4, exist=exst)
+            string1 = path // 'turbine/turbine_u_d_T.dat'
+            inquire (file=string1, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
                 inquire (unit=1, opened=opn)
                 if (opn) call error (sub_name, 'unit 1 already open, mark1')                
-                open (1, file=fname4)
+                open (1, file=string1)
                 do i=1,nloc
                     read(1,*) wind_farm_t%turbine_t(i)%u_d_T    
                 enddo    
@@ -147,7 +120,7 @@ turbine_in_proc_array = 0
                 endif
                 close (1)
             else  
-                write (*, *) 'File ', trim(fname4), ' not found'
+                write (*, *) 'File ', trim(string1), ' not found'
                 write (*, *) 'Assuming u_d_T = -7. for all turbines'
                 do k=1,nloc
                     wind_farm_t%turbine_t(k)%u_d_T = -7.
@@ -162,27 +135,38 @@ turbine_in_proc_array = 0
     endif
    
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
-    open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
+    string1=path // 'output/vel_top_of_domain.dat'
+    open(unit=1,file=string1,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
 endif
 
+! Generate the files for the turbine forcing output
+do s=1,nloc
+   if(coord==0) then
+   call string_splice( string1, path // 'turbine/turbine_', s, '_forcing.dat' )
+   file_id(s) = open_file( string1, 'append', 'formatted' )
+   endif
+enddo
+
+! Generate the files for the turbine velocity output
 do s=1,nloc
 
-if(coord==0) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
-file_id(s) = open_file( fname, 'append', 'formatted' )
-endif
+$if ($MPI)
+   kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
+   k_start =  1+coord*(nz-1)
+   k_end = nz-1+coord*(nz-1)
 
-! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
-! The problem can (not necessarily will show up) when different cores want to open the same file. 
-if(coord<nz_tot/4) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
-call string_concat (fname, '.c', coord)
+   if (kcp>=k_start .and. kcp<=k_end) then
+       call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
+       call string_concat (string1, '.c', coord)
+       file_id2(s) = open_file( string1, 'append', 'formatted' )
+   endif
 
-file_id2(s) = open_file( fname, 'append', 'formatted' )
-endif
+$else
+   call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
+   file_id2(s) = open_file( string1, 'append', 'formatted' )
+$endif
 
 enddo
 
@@ -195,18 +179,17 @@ end subroutine turbines_init
 subroutine turbines_nodes(array)
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 implicit none
+
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
 real(rprec), dimension(nx,ny,nz_tot) :: array
 
+real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
-real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
 real(rprec), pointer, dimension(:) :: x, y, z
-
-!logical :: verbose = .false.
 
 nullify(x,y,z)
 
@@ -359,16 +342,19 @@ subroutine turbines_filter_ind()
 !       1.smooth/filter indicator function                                  CHANGE IND
 !       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
-use string_util, only : string_splice
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
 
-real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
+!real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
+! Richard: Commented out g_shift. This large array is not used  fg can easily be replaced by single double
+real(rprec), dimension(nx,ny,nz_tot) :: out_a, g
 real(rprec), dimension(nx,ny,nz_tot) :: temp_array
-real(rprec), dimension(nx,ny,nz) :: temp_array_2
+!real(rprec), dimension(nx,ny,nz) :: temp_array_2 ! Richard: Commented out to save i/o operations and memory
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
+real(rprec) :: fg ! Removed the 3D matrix as it is only used as a temporary dummy variable
 
 real(rprec), pointer, dimension(:) :: x,y,z
 
@@ -394,11 +380,6 @@ delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
 g = g/sumG
-    !if (coord == 0) then
-    !    if (verbose) then
-    !        write(*,*) 'Convolution function created.'
-    !    endif
-    !endif
 
 !display the convolution function
     !if (coord == 0) then
@@ -410,16 +391,16 @@ g = g/sumG
     !endif
 
     !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
-    if (coord == 0) then    
-        i=nx/2
-        j=ny/2
-        do k2=1,nz_tot
-          do j2=1,ny
-            do i2=1,nx
-            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
-            enddo
-          enddo
-        enddo
+!    if (coord == 0) then    
+!        i=nx/2
+!        j=ny/2
+!        do k2=1,nz_tot
+!          do j2=1,ny
+!            do i2=1,nx
+!            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
+!            enddo
+!          enddo
+!        enddo
 
         !if (.false.) then
         !    fname0 = path // 'turbine/convolution_function.dat'
@@ -430,7 +411,7 @@ g = g/sumG
         !        write(*,*) 'Convolution function written to Tecplot file.'
         !    endif
         !endif
-    endif
+!    endif
 
 !filter indicator function for each turbine
 do b=1,nloc
@@ -491,14 +472,18 @@ do b=1,nloc
             ssz = k2-k+(nz_tot-1)/2       !since no spectral BCs in z-direction
                              
             if( ssz < 1) then
-                fg(i2,j2,k2) = 0.
+                !fg(i2,j2,k2) = 0.
+                fg=0.
                 write(*,*) 'See turbines.f90, ssz < 1'                    
             elseif( ssz > nz_tot ) then
-                fg(i2,j2,k2) = 0.
+                !fg(i2,j2,k2) = 0.
+                fg=0.
                 write(*,*) 'See turbines.f90, ssz > nz_tot'                    
             else
-                fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
-                out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
+                !fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
+                !out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
+                fg = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
+                out_a(i4,j4,k) = out_a(i4,j4,k) + fg*dx*dy*dz
             endif    
         
         enddo
@@ -569,22 +554,11 @@ do b=1,nloc
     
     if (count_n > 0) then
         $if ($MPI)
-            ! write (string1, '(i3)') b
-            ! string1 = trim(adjustl(string1))
-            ! write (string2, '(i4)') count_n
-            ! string2 = trim(adjustl(string2)) 
-            ! write (string3, '(i3)') coord
-            ! string3 = trim(adjustl(string3))             
-            !write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
 
             call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
             write(*,*) trim(string1)
-
+            
         $else
-            ! write (string1, '(i3)') b
-            ! string1 = trim(adjustl(string1))
-            ! write (string2, '(i4)') count_n
-            ! string2 = trim(adjustl(string2))            
 
             call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
             write(*,*) trim(string1)
@@ -594,29 +568,26 @@ do b=1,nloc
 
 enddo
 
-    !test to make sure domain is divided correctly:
-        temp_array_2 = 0.
-        do b=1,nloc
-        do l=1,wind_farm_t%turbine_t(b)%num_nodes
-            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
-            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
-            temp_array_2(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
-        enddo   
-        enddo
-        !write to file with .dat.c* extension
-            !fname3 = path // 'turbine/nodes_filtered_c.dat'
-            ! write (temp, '(".c",i0)') coord
-            ! fname3 = trim (fname3) // temp
-        call string_splice( fname3, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
-        
-        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
-        call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
+!    !test to make sure domain is divided correctly:
+!        temp_array_2 = 0.
+!        do b=1,nloc
+!        do l=1,wind_farm_t%turbine_t(b)%num_nodes
+!            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
+!            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
+!            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
+!            temp_array_2(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
+!        enddo   
+!        enddo
+!        !write to file with .dat.c* extension
+!        call string_splice( string1, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
+!        
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
     if (coord == 0) then
-        fname3 = path // 'turbine/nodes_filtered.dat'
-        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
-        call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
+        string1 = path // 'turbine/nodes_filtered.dat'
+        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
+        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
     endif
 
 !each processor sends its value of turbine_in_proc
@@ -631,9 +602,8 @@ $if ($MPI)
             call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
 
             if (buffer_logical) then
-                write (string3, '(i3)') i
-                string3 = trim(adjustl(string3))       
-                write(*,*),'Coord ',trim(string3),' has turbine nodes'            
+                call string_splice( string1, 'Coord', i,' has turbine nodes')
+                write(*,*) trim(string1)
                 turbine_in_proc_cnt = turbine_in_proc_cnt + 1
                 turbine_in_proc_array(turbine_in_proc_cnt) = i
             endif
@@ -649,23 +619,18 @@ end subroutine turbines_filter_ind
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
-use sim_param, only: u,v,w
-use sim_param, only : fxa, fya, fza
-use grid_defs, only: grid_t !y,z
+use sim_param, only: u,v,w, fxa,fya,fza
 use functions, only: interp_to_uv_grid
-$if ($MPI)
-    use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
-$endif
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
-real(rprec), pointer :: p_u_d => null()
-real(rprec), pointer :: p_u_d_T => null(), p_f_n => null()
+real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
-real(rprec), allocatable, dimension(:,:,:) :: w_uv
+real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
 
 nullify(y,z)
@@ -677,6 +642,7 @@ allocate(w_uv(ld,ny,lbz:nz))
 $if ($MPI)
     call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
+
 w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
@@ -715,11 +681,9 @@ if (turbine_in_proc) then
                 k_start = 1
                 k_end = nz
                 $endif
-                if (kcp>=k_start) then
-                if (kcp<=k_end) then
+                if (kcp>=k_start .and. kcp<=k_end) then
                 kcp=kcp-k_start+1
                 call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
-                endif
                 endif
                 endif
         !write this value to the array (which will be sent to coord 0)
@@ -808,7 +772,7 @@ if (turbine_in_proc) then
             i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
             j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
-            ind2 = wind_farm_t%turbine_t(s)%ind(l)                        
+            ind2 = wind_farm_t%turbine_t(s)%ind(l)
             fxa(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2 
             !fya(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(2)*ind2   
             !fza(i2,j2,k2) = 0.5*disk_force(s)*wind_farm_t%turbine_t(s)%nhat(3)*ind2
@@ -852,8 +816,8 @@ deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
-    open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='append')
+    string1=path // 'output/vel_top_of_domain.dat'
+    open(unit=1,file=string1,status='unknown',form='formatted',action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 endif
@@ -869,32 +833,24 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
 
-real(rprec), pointer, dimension(:) :: x,y,z
-
-nullify(x,y,z)
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
-
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
-        fname4 = path // 'turbine/turbine_u_d_T.dat'    
+        string1 = path // 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
-        open (unit=1,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
+        open (unit=1,file = string1, status='unknown',form='formatted', action='write',position='rewind')
         do i=1,nloc
-            write(1,*) wind_farm_t%turbine_t(i)%u_d_T    
+            write(1,*) wind_farm_t%turbine_t(i)%u_d_T
         enddo           
-        write(1,*) T_avg_dim       
-        close (1)  
-    endif   
+        write(1,*) T_avg_dim
+        close (1)
+    endif
     
 !deallocate
-    deallocate(wind_farm_t%turbine_t) 
-    deallocate(buffer_array)
-
-nullify(x,y,z)
+deallocate(wind_farm_t%turbine_t) 
+deallocate(buffer_array)
+    
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
