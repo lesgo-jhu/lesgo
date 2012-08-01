@@ -39,7 +39,7 @@ integer(rprec) :: tbase     ! Number of timesteps between the output
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
 real(rprec) :: sy           ! spacing in the y-direction
-real(rprec) :: dummy        ! used to shift the turbine positions
+real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -150,12 +150,32 @@ real(rprec) :: sxx, syy, shift_base, const
           k=k+1
         enddo
       enddo
+
+      ! Shift in spanwise direction: Note that stag_perc is now used
+      k=1
+      dummy=stag_perc*(wind_farm_t%turbine_t(2)%yloc - wind_farm_t%turbine_t(1)%yloc)
+      do i = 1, num_x
+      do j = 1, num_y
+         dummy2=dummy*floor(real(k-1)/num_y)
+         wind_farm_t%turbine_t(k)%yloc=mod(wind_farm_t%turbine_t(k)%yloc +dummy2,pi)
+         k=k+1
+      enddo
+      enddo
+
+      ! Print the values to the file in order to check the turbine spacings
+      k=1
+      do i=1, num_x
+      do j=1, num_y
+        write(*,*) k,wind_farm_t%turbine_t(k)%xloc,wind_farm_t%turbine_t(k)%yloc
+        k=k+1
+      enddo
+      enddo
     
     endif
         
     !orientation (angles)
-        wind_farm_t%turbine_t(:)%theta1 = theta1_all
-        wind_farm_t%turbine_t(:)%theta2 = theta2_all
+    wind_farm_t%turbine_t(:)%theta1 = theta1_all
+    wind_farm_t%turbine_t(:)%theta2 = theta2_all
 
  
 end subroutine turbines_base_init
