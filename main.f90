@@ -48,7 +48,6 @@ $endif
 
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
-real (rprec) :: force
 
 type(clock_type) :: clock_t, clock_total_t
 
@@ -238,12 +237,8 @@ time_loop: do jt=1,nsteps
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
     if (use_mean_p_force) then
-        force = mean_p_force
-    else
-        force = 0._rprec
+        RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
-  
-    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
 
     $if ($DEBUG)
     if (DEBUG) then
@@ -429,7 +424,7 @@ time_loop: do jt=1,nsteps
        if( runtime > 0 ) then
 
           ! Determine the processor that has used most time and communicate this.
-          ! Needed to prevent to some processors abort and others not
+          ! Needed to make sure that all processors stop at the same time and not just some of them
           $if($MPI)
           call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
           clock_total_t % time = rbuffer
@@ -444,6 +439,12 @@ time_loop: do jt=1,nsteps
        endif
 
     end if
+
+    ! Added to make sure that a simulation stops when nsteps timesteps are completed among a combination of runs
+    if ( jt_total >= nsteps) then
+       call mesg( prog_name, 'Specified number of time steps reached. Exiting simulation.')
+       exit time_loop
+    endif
 
 end do time_loop
 ! END TIME LOOP
