@@ -23,8 +23,8 @@ real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
 
 character (100) :: string1
-real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations. Richard: Seems to be preventable easy
-real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered ! Richard: Seems to be preventable easy
+!real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations. Richard: ! removed large 3D array to limit memory use
+!real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered ! Richard: ! removed large 3D array to limit memory use
 real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
 integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,ssx,ssy,ssz, p
@@ -62,8 +62,8 @@ y => grid_t % y
 z => grid_t % z
 
 ! Allocate and initialize
-allocate(large_node_array(nx,ny,nz_tot))
-allocate(large_node_array_filtered(nx,ny,nz_tot))
+!allocate(large_node_array(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
+!allocate(large_node_array_filtered(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
 allocate(turbine_in_proc_array(nproc-1))
 allocate(z_tot(nz_tot))
 allocate(file_id(nloc))
@@ -86,15 +86,16 @@ allocate(buffer_array(nloc))
 
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
-    large_node_array = 0.
-    call turbines_nodes(large_node_array)
-
-    if (coord == 0) then
-      !to write the node locations to file
-      string1 = path // 'turbine/nodes_unfiltered.dat'
-      call write_tecplot_header_ND(string1,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
-      call write_real_data_3D(string1, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
-    endif
+!    large_node_array = 0.
+!    call turbines_nodes(large_node_array)
+    call turbines_nodes                  ! removed large 3D array to limit memory use
+    
+!    if (coord == 0) then
+!      !to write the node locations to file
+!      string1 = path // 'turbine/nodes_unfiltered.dat'
+!      call write_tecplot_header_ND(string1,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
+!      call write_real_data_3D(string1, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
+!    endif
 
 !1.smooth/filter indicator function                     
 !2.associate new nodes with turbines                               
@@ -176,14 +177,15 @@ end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_nodes(array)
+!subroutine turbines_nodes(array) ! removed large 3D array to limit memory use
+subroutine turbines_nodes
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
-real(rprec), dimension(nx,ny,nz_tot) :: array
+!real(rprec), dimension(nx,ny,nz_tot) :: array ! removed large 3D array to limit memory use
 
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
@@ -311,7 +313,7 @@ do s=1,nloc
                     !      write(*,*) '     FOUND NODE', i,j,k
                     !    endif
                     !endif
-                    array(i2,j2,k) = 1.
+!                    array(i2,j2,k) = 1.  ! removed large 3D array to limit memory use
                     wind_farm_t%turbine_t(s)%ind(count_i) = 1. 
                     wind_farm_t%turbine_t(s)%nodes(count_i,1) = i2
                     wind_farm_t%turbine_t(s)%nodes(count_i,2) = j2
@@ -515,9 +517,9 @@ do b=1,nloc
     turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
     out_a = turbine_vol/sumA*out_a
 
-    if (coord == 0) then
-        large_node_array_filtered = large_node_array_filtered + out_a
-    endif
+!    if (coord == 0) then
+!        large_node_array_filtered = large_node_array_filtered + out_a ! removed large 3D array to limit memory use
+!    endif
 
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
@@ -584,11 +586,11 @@ enddo
 !        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
 !        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
-    if (coord == 0) then
-        string1 = path // 'turbine/nodes_filtered.dat'
-        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
-        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
-    endif
+!    if (coord == 0) then
+!        string1 = path // 'turbine/nodes_filtered.dat'
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
+!    endif
 
 !each processor sends its value of turbine_in_proc
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
@@ -774,38 +776,6 @@ if (turbine_in_proc) then
             k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
             ind2 = wind_farm_t%turbine_t(s)%ind(l)
             fxa(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2 
-            !fya(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(2)*ind2   
-            !fza(i2,j2,k2) = 0.5*disk_force(s)*wind_farm_t%turbine_t(s)%nhat(3)*ind2
-            !fza(i2,j2,k2+1) = fza(i2,j2,k2)
-
-            !! adding fza forcing to determine effect on power extraction    
-            !!(u_d average time, 0.27 for 10min and 0.135 for 5min)
-            !if (z(k2).ge.wind_farm_t%turbine_t(s)%height) then
-            !!run5(1)
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2700.*total_time)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))   
-            !!run6(2)
-            !    !fza(i2,j2,k2) = 0.5 * 0.50*fxa(i2,j2,k2)*cos(2700.*total_time)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))                  
-            !!run3
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !    !sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))             
-            !!run4
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))               
-            !    !fxa(i2,j2,k2) = fxa(i2,j2,k2) - 2.*fza(i2,j2,k2)                
-            !!run7    
-            !    !fza(i2,j2,k2) = 0.5 * 0.50*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.135)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))  
-            !!run9
-            !    fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !      sin(pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))              
-
-            !!all runs    
-            !    fza(i2,j2,k2+1) = fza(i2,j2,k2)
-
-            !endif
-           
         enddo
 
     enddo
