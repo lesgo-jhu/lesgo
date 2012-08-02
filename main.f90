@@ -74,7 +74,7 @@ call clock_start( clock_total_t )
 
 ! BEGIN TIME LOOP
 time_loop: do jt=1,nsteps   
-   
+  
    ! Get the starting time for the iteration
    call clock_start( clock_t )
 
@@ -262,14 +262,29 @@ time_loop: do jt=1,nsteps
     !//////////////////////////////////////////////////////
     !/// APPLIED FORCES                                 ///
     !//////////////////////////////////////////////////////
+    !  In order to save memory the arrays fxa, fya, and fza are now only defined when needed.
+    !  For Levelset RNS all three arrays are assigned. 
+    !  For turbines at the moment only fxa is assigned.
+    !  Look in forcing_applied for calculation of forces.
+    !  Look in sim_param.f90 for the assignment of the arrays.
+        
     !  Applied forcing (forces are added to RHS{x,y,z})
     call forcing_applied()
 
     !  Update RHS with applied forcing
+    $if ($LVLSET)
+    $if ($RNS_LS)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
+    $endif
+    $endif
 
+    $if ($TURBINES)
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    $endif
+
+    
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
