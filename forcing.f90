@@ -32,32 +32,34 @@ subroutine forcing_applied()
 !  in the evaluation of u* so that mass conservation is preserved.
 !
 use types, only : rprec
-use sim_param, only : fxa, fya, fza
 
 $if ($LVLSET)
 $if ($RNS_LS)
+use sim_param, only : fxa, fya, fza
 use rns_ls, only : rns_forcing_ls
 $endif
 $endif
 
 $if ($TURBINES)
+use sim_param, only : fxa
 use turbines, only:turbines_forcing
 $endif
 
 implicit none
 
+$if ($LVLSET)
+$if ($RNS_LS)
 ! Reset applied force arrays
 fxa = 0._rprec
 fya = 0._rprec
 fza = 0._rprec
-
-$if ($LVLSET)
-$if ($RNS_LS)
 call rns_forcing_ls()
 $endif
 $endif
 
 $if ($TURBINES)
+! Reset applied force arrays
+fxa = 0._rprec
 call turbines_forcing ()
 $endif
    
@@ -75,22 +77,20 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-use sim_param, only : fx, fy, fz
 $if ($LVLSET)
   use level_set, only : level_set_forcing
+  use sim_param, only : fx, fy, fz
   $if($RNS_LS)
   use rns_ls, only : rns_elem_force_ls
   $endif
 $endif
 implicit none
 
+$if($LVLSET)
 ! Initialize
 fx = 0._rprec
 fy = 0._rprec
 fz = 0._rprec
-
-$if($LVLSET)
-
 !  Compute the level set IBM forces
 call level_set_forcing ()
 
@@ -111,7 +111,6 @@ use param, only : inflow_velocity, nx, ny, nz, &
                   fringe_region_end, fringe_region_len
 use param, only : coord
 use sim_param, only : u, v, w, theta
-use sim_param, only : fx, fy, fz
 use messages, only : error
 use fringe_util
 implicit none
@@ -190,10 +189,17 @@ do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
  
+$if( $LVLSET) 
       RHS = -tadv1 * dpdx(jx, jy, jz)
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
       RHS = -tadv1 * dpdy(jx, jy, jz)
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz))) 
+$else
+      RHS = -tadv1 * dpdx(jx, jy, jz)
+      u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS                 ))
+      RHS = -tadv1 * dpdy(jx, jy, jz)
+      v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS                 )) 
+$endif
 
       !if (DEBUG) then
       !  if ( isnan (u(jx, jy, jz)) ) then
@@ -222,9 +228,13 @@ do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
 
+$if( $LVLSET) 
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
-
+$else
+      RHS = -tadv1 * dpdz(jx, jy, jz)
+      w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS                 ))
+$endif
       !if (DEBUG) then
       !  if ( isnan (w(jx, jy, jz)) ) then
       !    write (*, *) 'nan in w at (jx, jy, jz) = ', jx, jy, jz
