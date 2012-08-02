@@ -410,7 +410,7 @@ integer, intent(IN) :: itype
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 !character (64) :: var_list
 character (64) :: fname
-integer :: n, i, j, k
+integer :: n, i, j, k,nvars
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
@@ -1380,9 +1380,21 @@ fz(:,:,nz) = 0._rprec
 
 !  Sum both the induced and applied forces
 allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
+
+! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
+$if($TURBINES)
+fx_tot = fxa(1:nx,1:ny,1:nz)
+fy_tot = 0._rprec
+fz_tot = 0._rprec
+$elseif($LVLSET)
 fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
 fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
 fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
+$else
+fx_tot = 0._rprec
+fy_tot = 0._rprec
+fz_tot = 0._rprec
+$endif
 
 $if($MPI)
 !  Sync forces
@@ -1968,7 +1980,12 @@ use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+$if($TURBINES)
+use sim_param, only : fxa
+$elseif($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
+$endif
+
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -2066,12 +2083,29 @@ do k=1,jzmax
       tavg_t(i,j,k)%txz = tavg_t(i,j,k)%txz + txz(i,j,k) * dt_tavg
       tavg_t(i,j,k)%tyz = tavg_t(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
 
+$if ($TURBINES)      
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
+      ! === uv-grid variables === 
+      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (             fxa(i,j,k)) * dt_tavg 
+!      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k)             ) * dt_tavg
+      ! === w-grid variables === 
+!      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k)             ) * dt_tavg
+$elseif ($LVLSET)
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
       tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg
       ! === w-grid variables === 
       tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
+$else
+      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
+      ! === uv-grid variables === 
+!      tavg_t(i,j,k)%fx = tavg_t(i,j,k)%fx + (fx(i,j,k)             ) * dt_tavg 
+!      tavg_t(i,j,k)%fy = tavg_t(i,j,k)%fy + (fy(i,j,k)             ) * dt_tavg
+      ! === w-grid variables === 
+!      tavg_t(i,j,k)%fz = tavg_t(i,j,k)%fz + (fz(i,j,k)             ) * dt_tavg
+$endif
+      
       tavg_t(i,j,k)%cs_opt2 = tavg_t(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
       
     enddo
