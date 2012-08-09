@@ -408,7 +408,7 @@ include 'tecryte.h'
 integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
-!character (64) :: var_list
+character (64) :: var_list
 character (64) :: fname
 integer :: n, i, j, k,nvars
 
