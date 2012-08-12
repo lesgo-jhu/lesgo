@@ -157,7 +157,7 @@ real(rprec) :: sxx, syy, shift_base, const
       do i = 1, num_x
       do j = 1, num_y
          dummy2=dummy*floor(real(k-1)/num_y)
-         wind_farm_t%turbine_t(k)%yloc=mod(wind_farm_t%turbine_t(k)%yloc +dummy2,pi)
+         wind_farm_t%turbine_t(k)%yloc=mod(wind_farm_t%turbine_t(k)%yloc +dummy2,L_y)
          k=k+1
       enddo
       enddo
