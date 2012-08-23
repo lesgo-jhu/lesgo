@@ -4,6 +4,8 @@ module turbines
 !      This routine creates the 'turbine' folder and starts the turbine forcing output files.
 !      It also creates the indicator function (Gaussian-filtered from binary locations - in or out)
 !      and sets values for turbine type (node locations, etc)
+!  (2) turbines_forcing
+!      Applies the drag-disk forcing
 use param
 use turbines_base
 use grid_defs, only: grid_t 
