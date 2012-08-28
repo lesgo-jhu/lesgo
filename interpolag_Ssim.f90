@@ -20,7 +20,7 @@ use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
 use messages
 use sim_param,only:u,v,w
-use grid_defs,only:grid_t 
+use grid_defs,only:grid 
 use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -50,9 +50,9 @@ call enter_sub (sub_name)
 $endif
 
 nullify(x,y,z)
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
+x => grid % x
+y => grid % y
+z => grid % z
 
 ! Perform (backwards) Lagrangian interpolation
     ! F_* arrays should be synced at this point (for MPI)

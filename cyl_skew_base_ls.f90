@@ -1,7 +1,7 @@
 !**********************************************************************
 module cyl_skew_base_ls
 !**********************************************************************
-use types, only : rprec, point3D
+use types, only : rprec, point3D_t
 use param, only : pi
 
 implicit none
@@ -10,7 +10,7 @@ save
 
 public
 
-private :: rprec, point3D
+private :: rprec, point3D_t
 private :: pi
 private :: mod_name
 
@@ -35,7 +35,7 @@ real(rprec) :: y_right_surf = 0.0_rprec ! Non-dimensional
 
 ! Tree settings
 integer :: ntree = 1
-type(point3D), allocatable, dimension(:) :: tree_location 
+type(point3D_t), allocatable, dimension(:) :: tree_location 
 
 ! Number of generations (total and resolved)
 integer :: ngen = 5
