@@ -11,15 +11,15 @@ implicit none
 save 
 private
 
-public clock_type, &
+public clock_t, &
      clock_start, &
      clock_stop
 
-type clock_type
+type clock_t
    real(rprec) :: start
    real(rprec) :: stop
    real(rprec) :: time
-end type clock_type
+end type clock_t
 
 !---------------------------------------------------------------------
 contains
@@ -30,7 +30,7 @@ subroutine clock_start( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-type(clock_type), intent(inout) :: this
+type(clock_t), intent(inout) :: this
 
 call cpu_time( this % start )
 
@@ -43,7 +43,7 @@ subroutine clock_stop( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-type(clock_type), intent(inout) :: this
+type(clock_t), intent(inout) :: this
 
 call cpu_time( this % stop )
 

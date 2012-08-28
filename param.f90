@@ -1,5 +1,5 @@
 module param
-  use types, only : rprec, point3D
+  use types, only : rprec, point3D_t
   $if ($MPI)
   use mpi
   $endif
@@ -204,7 +204,7 @@ module param
   logical :: point_calc = .false.
   integer :: point_nstart=1, point_nend=50000, point_nskip=10
   integer :: point_nloc=1
-  type(point3D), allocatable, dimension(:) :: point_loc
+  type(point3D_t), allocatable, dimension(:) :: point_loc
 
   ! domain instantaneous output
   logical :: domain_calc=.false.

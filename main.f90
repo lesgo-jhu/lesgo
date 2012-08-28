@@ -49,7 +49,7 @@ $endif
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
-type(clock_type) :: clock_t, clock_total_t
+type(clock_t) :: clock, clock_total
 
 $if($MPI)
 ! Buffers used for MPI communication
@@ -57,7 +57,7 @@ real(rprec) :: rbuffer
 $endif
 
 ! Start the clocks, both local and total
-call clock_start( clock_t )
+call clock_start( clock )
 
 ! Initialize time variable
 tt = 0
@@ -66,17 +66,17 @@ tt = 0
 call initialize()
 
 if(coord == 0) then
-   call clock_stop( clock_t )
-   write(*,'(1a,E15.7)') 'Initialization time: ', clock_t % time
+   call clock_stop( clock )
+   write(*,'(1a,E15.7)') 'Initialization time: ', clock % time
 endif
 
-call clock_start( clock_total_t )
+call clock_start( clock_total )
 
 ! BEGIN TIME LOOP
 time_loop: do jt=1,nsteps   
   
    ! Get the starting time for the iteration
-   call clock_start( clock_t )
+   call clock_start( clock )
 
    if( use_cfl_dt ) then
       
@@ -408,8 +408,8 @@ time_loop: do jt=1,nsteps
     if (modulo (jt_total, wbase) == 0) then
        
        ! Get the ending time for the iteration
-       call clock_stop( clock_t )
-       call clock_stop( clock_total_t )
+       call clock_stop( clock )
+       call clock_stop( clock_total )
 
        ! Calculate rms divergence of velocity
        ! only written to screen, not used otherwise
@@ -430,8 +430,8 @@ time_loop: do jt=1,nsteps
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
-          write(*,'(1a,E15.7)') '  Iteration: ', clock_t % time
-          write(*,'(1a,E15.7)') '  Cumulative: ', clock_total_t % time
+          write(*,'(1a,E15.7)') '  Iteration: ', clock % time
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
        end if
 
@@ -441,12 +441,12 @@ time_loop: do jt=1,nsteps
           ! Determine the processor that has used most time and communicate this.
           ! Needed to make sure that all processors stop at the same time and not just some of them
           $if($MPI)
-          call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
-          clock_total_t % time = rbuffer
+          call mpi_allreduce(clock_total % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
+          clock_total % time = rbuffer
           $endif
        
           ! If maximum time is surpassed go to the end of the program
-          if ( clock_total_t % time >= real(runtime,rprec) ) then
+          if ( clock_total % time >= real(runtime,rprec) ) then
              call mesg( prog_name, 'Specified runtime exceeded. Exiting simulation.')
              exit time_loop
           endif
@@ -471,8 +471,8 @@ close(2)
 call output_final()
 
 ! Stop wall clock
-call clock_stop( clock_total_t )
-if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total_t % time
+call clock_stop( clock_total )
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
 
 call finalize()
 
