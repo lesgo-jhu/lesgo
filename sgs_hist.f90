@@ -33,12 +33,14 @@ use grid_defs, only : grid
 use functions, only : cell_indx
 use string_util, only : string_concat
 implicit none
+include 'tecryte.h'
 
 integer :: k, n
 logical :: exstp = .false.
 logical :: exstv = .false.
 integer :: nproc_test, nz_tot_test
 real(rprec) :: L_z_test
+integer :: fid1, fid2
 
 ! If sgs_hist_cumulative is true, try to read data from files
   if (sgs_hist_cumulative) then
@@ -55,23 +57,23 @@ real(rprec) :: L_z_test
       ! Read data from file (overwrites values from lesgo.conf or param.f90)
         write(*,*) 'Reading from files:', fname_histp, fname_histv
 
-        open(unit=1,file=fname_histp,position='rewind',action='read',form='formatted')
-          read(1,*) nproc_test, nz_tot_test, L_z_test
+        fid1 = open_file ( fname_histp, 'rewind', 'formatted' )
+          read(fid1,*) nproc_test, nz_tot_test, L_z_test
           if ( (nproc_test.ne.nproc) .or. (nz_tot_test.ne.nz_tot) .or. (L_z_test.ne.L_z) ) then
             write(*,*) 'Sgs-hist cumulative time error: nproc, nz_tot, and L_z must match'
             write(*,*) 'Starting sgs-histograms from scratch'
             exstp = .false.
           else
-            read(1,*) sgs_hist_nloc
+            read(fid1,*) sgs_hist_nloc
             deallocate ( sgs_hist_loc )
             allocate ( sgs_hist_loc(sgs_hist_nloc) )
-            read(1,*) sgs_hist_loc
-            read(1,*) cs2_bmin, cs2_bmax, cs2_nbins
-            read(1,*) tn_bmin, tn_bmax, tn_nbins
-            read(1,*) nu_bmin, nu_bmax, nu_nbins
-            read(1,*) ee_bmin, ee_bmax, ee_nbins
+            read(fid1,*) sgs_hist_loc
+            read(fid1,*) cs2_bmin, cs2_bmax, cs2_nbins
+            read(fid1,*) tn_bmin, tn_bmax, tn_nbins
+            read(fid1,*) nu_bmin, nu_bmax, nu_nbins
+            read(fid1,*) ee_bmin, ee_bmax, ee_nbins
           endif
-        close(1)
+        close(fid1)
 
     else
       ! Start from scratch
@@ -225,14 +227,14 @@ real(rprec) :: L_z_test
 ! If reading from file, do so now for bins and vals
   if ( exstp .and. exstv ) then
 
-    open(unit=1,file=fname_histv,position='rewind',action='read',form='unformatted')
+    fid2 = open_file ( fname_histv, 'rewind', 'unformatted' )
       do k=1,sgs_hist_nloc
-        read(1) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
-        read(1) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals
-        read(1) HISTnu%hist(k)%bins, HISTnu%hist(k)%vals
-        read(1) HISTee%hist(k)%bins, HISTee%hist(k)%vals
+        read(fid2) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
+        read(fid2) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals
+        read(fid2) HISTnu%hist(k)%bins, HISTnu%hist(k)%vals
+        read(fid2) HISTee%hist(k)%bins, HISTee%hist(k)%vals
       enddo
-   close(1)
+   close(fid2)
 
   endif
 
@@ -359,34 +361,32 @@ implicit none
 include 'tecryte.h'
 
     integer :: k
-write(*,*) 'A'
+    integer :: fid1, fid2
 
 ! Write structures to file (to continue analysis, if necessary)
     fname_histp=''; call string_concat( fname_histp, fname_histp_base // '.c', coord )
     fname_histv=''; call string_concat( fname_histv, fname_histv_base // '.c', coord )
 
-write(*,*) 'B'
-    open(unit=1,file=fname_histp,position='rewind',action='write',form='formatted')
-        write(1,*) nproc, nz_tot, L_z
-        write(1,*) sgs_hist_nloc
-        write(1,*) sgs_hist_loc
-        write(1,*) cs2_bmin, cs2_bmax, cs2_nbins
-        write(1,*) tn_bmin, tn_bmax, tn_nbins
-        write(1,*) nu_bmin, nu_bmax, nu_nbins
-        write(1,*) ee_bmin, ee_bmax, ee_nbins
-    close(1)
+    fid1 = open_file ( fname_histp, 'rewind', 'formatted' )
+        write(fid1,*) nproc, nz_tot, L_z
+        write(fid1,*) sgs_hist_nloc
+        write(fid1,*) sgs_hist_loc
+        write(fid1,*) cs2_bmin, cs2_bmax, cs2_nbins
+        write(fid1,*) tn_bmin, tn_bmax, tn_nbins
+        write(fid1,*) nu_bmin, nu_bmax, nu_nbins
+        write(fid1,*) ee_bmin, ee_bmax, ee_nbins
+    close(fid1)
 
-write(*,*) 'C'
-    open(unit=1,file=fname_histv,position='rewind',action='write',form='unformatted')
+    fid2 = open_file ( fname_histv, 'rewind', 'unformatted' )
         do k=1,sgs_hist_nloc
-            write(1) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
-            write(1) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals
-            write(1) HISTnu%hist(k)%bins, HISTnu%hist(k)%vals
-            write(1) HISTee%hist(k)%bins, HISTee%hist(k)%vals
+            if (allocated(HISTcs2%hist(k)%bins)) write(fid2) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
+            if (allocated(HISTtn%hist(k)%bins)) write(fid2) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals
+            if (allocated(HISTnu%hist(k)%bins)) write(fid2) HISTnu%hist(k)%bins, HISTnu%hist(k)%vals
+            if (allocated(HISTee%hist(k)%bins)) write(fid2) HISTee%hist(k)%bins, HISTee%hist(k)%vals
         enddo
-    close(1)
+    close(fid2)
 
-write(*,*) 'D'
+
 ! Normalize and write final curves to file
 do k=1,sgs_hist_nloc
 
@@ -470,7 +470,6 @@ do k=1,sgs_hist_nloc
 
 enddo 
 
-write(*,*) 'E'
 ! Deallocate
     deallocate ( HISTcs2 % istart )
     deallocate ( HISTtn % istart )
