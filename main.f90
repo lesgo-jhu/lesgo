@@ -1,6 +1,11 @@
 !**********************************************************************
 program main
 !**********************************************************************
+!
+! Main file for lesgo solver 
+! Contains main time-loop
+! 
+
 use types, only : rprec
 use clocks 
 use param
