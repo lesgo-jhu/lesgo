@@ -460,12 +460,6 @@ time_loop: do jt=1,nsteps
 
     end if
 
-    ! ! Added to make sure that a simulation stops when nsteps timesteps are completed among a combination of runs
-    ! if ( jt_total >= nsteps) then
-    !    call mesg( prog_name, 'Specified number of time steps reached. Exiting simulation.')
-    !    exit time_loop
-    ! endif
-
 end do time_loop
 ! END TIME LOOP
 
