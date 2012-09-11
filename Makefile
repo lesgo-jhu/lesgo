@@ -138,6 +138,5 @@ convert_endian:	utils/convert_endian.f90
 # FOBJ is defined in .depend
 .PHONY : clean
 clean :
-	echo \0,0.,0.,0.,0.>./total_time.dat
 	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
 	rm -f t.*
