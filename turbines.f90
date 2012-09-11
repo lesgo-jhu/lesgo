@@ -168,23 +168,35 @@ if (coord .eq. nproc-1) then
     close(1)
 endif
 
+! Generate the files for the turbine forcing output
+do s=1,nloc
+    if(coord==0) then
+        call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
+        file_id(s) = open_file( fname, 'append', 'formatted' )
+    endif
+enddo
+
+! Generate the files for the turbine velocity output
 do s=1,nloc
 
-if(coord==0) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
-file_id(s) = open_file( fname, 'append', 'formatted' )
-endif
+    $if ($MPI)
+        kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
+        k_start =  1+coord*(nz-1)
+        k_end = nz-1+coord*(nz-1)
 
-! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
-! The problem can (not necessarily will show up) when different cores want to open the same file. 
-if(coord<nz_tot/4) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
-call string_concat (fname, '.c', coord)
+        if (kcp>=k_start .and. kcp<=k_end) then
+            call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
+            call string_concat (fname, '.c', coord)
+            file_id2(s) = open_file( fname, 'append', 'formatted' )
+        endif
 
-file_id2(s) = open_file( fname, 'append', 'formatted' )
-endif
+    $else
+        call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
+        file_id2(s) = open_file( fname, 'append', 'formatted' )
+    $endif
 
 enddo
+
 
 nullify(x,y,z)
 
