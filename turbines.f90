@@ -697,10 +697,11 @@ if (turbine_in_proc) then
         
 endif        
 
-call mpi_barrier (comm,ierr)
-
 !send the disk-avg values to coord==0
 $if ($MPI) 
+
+    call mpi_barrier (comm,ierr)
+
     !############################################## 3
     if (coord == 0) then
         do i=1,turbine_in_proc_cnt
