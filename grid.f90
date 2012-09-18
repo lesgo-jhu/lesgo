@@ -8,15 +8,15 @@ save
 private
 !public x, y, z, zw, grid_build, grid_built
 !public autowrap_i, autowrap_j
-public grid_t, grid_build
+public grid, grid_build
 
-type grid
+type grid_t
   logical :: built
   real(rprec), pointer, dimension(:) :: x, y, z, zw
   integer, pointer, dimension(:) :: autowrap_i, autowrap_j
-end type grid
+end type grid_t
 
-type(grid) :: grid_t
+type(grid_t) :: grid
 !real(rprec), allocatable, dimension(:) :: x, y, z, zw
 ! These need to be used in conjunction with modulo
 
@@ -47,21 +47,21 @@ nullify(autowrap_i,autowrap_j)
 
 !  x and y go to nx+1, ny+1 respectively for adding
 !  the buffered points for periodicity
-allocate(grid_t % x(nx+1),grid_t % y(ny+1))
-allocate(grid_t % z(lbz:nz), grid_t % zw(lbz:nz))
-allocate(grid_t % autowrap_i(0:nx+1), grid_t % autowrap_j(0:ny+1))
+allocate(grid % x(nx+1),grid % y(ny+1))
+allocate(grid % z(lbz:nz), grid % zw(lbz:nz))
+allocate(grid % autowrap_i(0:nx+1), grid % autowrap_j(0:ny+1))
 
 ! Initialize built
-grid_t % built = .false. 
+grid % built = .false. 
 
 ! Set pointers
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
-zw => grid_t %zw
+x => grid % x
+y => grid % y
+z => grid % z
+zw => grid %zw
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 do k=lbz,nz
   $if ($MPI)
@@ -86,7 +86,7 @@ autowrap_j(ny+1) = 1
 do i=1,nx; autowrap_i(i) = i; enddo
 do j=1,ny; autowrap_j(j) = j; enddo
      
-grid_t % built = .true. 
+grid % built = .true. 
 
 nullify(x,y,z,zw)
 nullify(autowrap_i,autowrap_j)

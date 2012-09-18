@@ -20,7 +20,7 @@ use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
 use messages
 use sim_param,only:u,v,w
-use grid_defs,only:grid_t 
+use grid_defs,only:grid 
 use functions, only:trilinear_interp
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -50,9 +50,9 @@ call enter_sub (sub_name)
 $endif
 
 nullify(x,y,z)
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
+x => grid % x
+y => grid % y
+z => grid % z
 
 ! Perform (backwards) Lagrangian interpolation
     ! F_* arrays should be synced at this point (for MPI)
@@ -67,9 +67,9 @@ z => grid_t % z
         $endif 
     
         ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
-        ! Variables x,y,z_lag, F_LM, F_MM, etc are on w-grid
+        ! Variables x,y,z, F_LM, F_MM, etc are on w-grid
         ! Interpolation out of top/bottom of domain is not permitted.
-        ! Note: x,y,z_lag values are only good for k=1:nz-1 within each proc
+        ! Note: x,y,z values are only good for k=1:nz-1 within each proc
             if ( coord.eq.0 ) then
                 kmin = 2 
                 ! At the bottom-most level (at the wall) the velocities are zero.
@@ -82,7 +82,7 @@ z => grid_t % z
             do k=kmin,nz-1
             do j=1,ny
             do i=1,nx
-                ! Determine position at previous timestep                   
+                ! Determine position at previous timestep (u,v interp to w-grid) 
                 xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
                 xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt
                 xyz_past(3) = z(k) - w(i,j,k)*lagran_dt
@@ -105,7 +105,7 @@ z => grid_t % z
                 k = nz
                 do j=1,ny
                 do i=1,nx
-                    ! Determine position at previous timestep
+                    ! Determine position at previous timestep (u,v interp to w-grid)
                     xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
                     xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt  
                     xyz_past(3) = z(k) - max(0.0_rprec,w(i,j,k))*lagran_dt

@@ -1133,7 +1133,7 @@ end subroutine parse_vector_real
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine parse_vector_point3D( string, nelem, vector )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec, point3D
+use types, only : rprec, point3D_t
 use messages
 use string_util, only : split_string
 
@@ -1143,7 +1143,7 @@ character (*), parameter :: sub_name = mod_name // '.parse_vector_point3d'
 
 character(*), intent(in) :: string
 integer, intent(out) :: nelem
-type(point3D), allocatable, dimension(:), intent(inout) :: vector
+type(point3D_t), allocatable, dimension(:), intent(inout) :: vector
 
 character(CHAR_BUFF_LENGTH), allocatable, dimension(:) :: svector
 
@@ -1174,7 +1174,7 @@ do n=1, nelem
    ! Check that the number of elements has not been reset
    if( nelem_minor /= 3 ) call error( sub_name, 'vector not specified correctly')
 
-   vector(n) = point3D( (/ vector_minor(1), vector_minor(2), vector_minor(3) /) )
+   vector(n) = point3D_t( (/ vector_minor(1), vector_minor(2), vector_minor(3) /) )
 
 enddo
 

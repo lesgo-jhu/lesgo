@@ -8,6 +8,11 @@ KEY:
 
 ITEMS:
 
+(NN) Convert output to use hdf5 format. This will provide a universal
+     format which can be loaded by most visualization software
+     packages and scripting/programming languages. It also provides
+     binary output which is currently lacking by the tecryte library.
+
 (CC) Check for consistant usage of variables existing on w-grid. There
      are several variables that are written to file that exisit on the
      w-grid - we need to make sure that they are correctly interpolated
@@ -18,7 +23,7 @@ ITEMS:
 (CC) Add checkpointing. This should also include periodic writes of the
      time averaged data.
 
-(II) Create documentation. Good place to start is the README. Would be
+(CC) Create documentation. Good place to start is the README. Would be
      nice to have a formal pdf covering the basic background info, usage
      of lesgo, and any idiosyncrasies that are important to know
 

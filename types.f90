@@ -18,19 +18,19 @@ $endif
 !integer, parameter :: rprec = selected_real_kind (6)
 !integer, parameter :: rprec = selected_real_kind (15)
 
-type vec3d
+type vec3d_t
   real(rprec) :: mag
   real(rprec), dimension(3) :: xyz
-end type vec3d
+end type vec3d_t
 
-type vec2d
+type vec2d_t
   real(rprec) :: mag
   real(rprec), dimension(2) :: xy
-end type vec2d
+end type vec2d_t
 
-type point3D
+type point3D_t
   real(rprec), dimension(3) :: xyz
-end type point3D
+end type point3D_t
 
 
 
