@@ -216,6 +216,8 @@ files will be appended with '.c<id>' where <id> is the z-ordered MPI rank used
 in the simulation. For files where this is applicable, it will be noted by the
 term 'MPI appendix'
 
+Currently we are adding HDF5 capability to the code
+
 Below are listed the output files along with a description
 of their contents. These file use the 'MPI appendix'
 
@@ -287,7 +289,6 @@ F) Data along z-planes
   * vel.z-<zloc>-<timestep>.dat : 
     Instantanous velocity sampled at z location <zloc> for the time step <timestep>
   
-
 ................................................................................
 				DEVELOPER NOTES
 ................................................................................
