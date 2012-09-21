@@ -33,8 +33,7 @@ end interface
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function fname (tag)
-!use param, only : jt, coord 
-use param, only : jt => jt_total, coord
+use param, only : jt_total, coord
 implicit none
 
 character (fname_len) :: fname
@@ -44,10 +43,10 @@ character (*), intent (in) :: tag
 !---------------------------------------------------------------------
 
 $if ($MPI)
-  write (fname, '(3a,i0,a,i0)') 'debug.', trim (tag), '.', jt,  &
+  write (fname, '(3a,i0,a,i0)') 'debug.', trim (tag), '.', jt_total,  &
                                 '.MPI.c', coord
 $else
-  write (fname, '(3a,i0)') 'debug.', trim (tag), '.', jt
+  write (fname, '(3a,i0)') 'debug.', trim (tag), '.', jt_total
 $endif
 
 if (len (trim (fname)) == fname_len) then

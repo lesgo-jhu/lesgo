@@ -4,17 +4,14 @@ subroutine rmsdiv(rms)
 use types,only:rprec
 use param
 use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz 
-!use sim_param, only : dudx, dvdy, dwdz, dudy, dvdx, u, v, w
-use io, only : jt_total
 
 $if ($DEBUG)
 use debug_mod
 $endif
 
 implicit none
-integer::jx,jy,jz
-integer :: jz_max
-real(kind=rprec)::rms
+integer :: jx, jy, jz, jz_max
+real(kind=rprec) :: rms
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -56,7 +53,7 @@ if (norm_magdu) then
 
   if (write_out) then
   
-    if (modulo (jt, nwrite_out) == 0) then
+    if (modulo (jt_total, nwrite_out) == 0) then
   
       write (file_out, '(a,i6.6,a)') 'output/div', jt_total+1, '.dat'
                                          !--+1 jt_total since jt_total not
@@ -85,7 +82,7 @@ if (norm_magdu) then
      end if
 
      if (write_out) then
-       if (modulo (jt, nwrite_out) == 0) then
+       if (modulo (jt_total, nwrite_out) == 0) then
          write (1, '(3(i0,1x),3(es12.5,1x))') jx, jy, jz, div, magdu,  &
                                    div / max (magdu, epsilon (0._rprec))
        end if
@@ -97,7 +94,7 @@ if (norm_magdu) then
   rms = rms / n
  
   if (write_out) then
-    if (modulo (jt, nwrite_out) == 0) close (1)
+    if (modulo (jt_total, nwrite_out) == 0) close (1)
   end if
 
 else

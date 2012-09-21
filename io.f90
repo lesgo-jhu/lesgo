@@ -156,7 +156,7 @@ z_loop: do jz=1,nz-1
                 if (nan) then
                     nan_count = nan_count + 1
                     write (*, *) 'NaN in ke at (jx, jy, jz) =', jx, jy, jz
-                    write (*, *) 'jt = ', jt
+                    write (*, *) 'jt_total = ', jt_total
                     write (*, *) 'u = ', u(jx, jy, jz)
                     write (*, *) 'v = ', v(jx, jy, jz)
                     write (*, *) 'w = ', w(jx, jy, jz)

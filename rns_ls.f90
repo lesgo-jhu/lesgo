@@ -58,7 +58,7 @@ use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
 $endif
 
-use param, only : dx, dy, dz, coord, jt
+use param, only : dx, dy, dz, coord
 
 implicit none
 
@@ -129,7 +129,7 @@ end subroutine rns_forcing_ls
 subroutine rns_elem_output()
 !**********************************************************************
 !
-use param, only : jt, coord
+use param, only : coord
 use messages
 implicit none
 
@@ -165,7 +165,7 @@ use messages
 use sim_param, only : u, v
 use sim_param, only : fx, fy
 use functions, only : points_avg_3d
-use param, only : nx, nz, dx, dy, dz, coord, jt, jt_total
+use param, only : nx, nz, dx, dy, dz, coord, jt_total
 $if($MPI)
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
@@ -459,7 +459,7 @@ call beta_elem_kappa()
 deallocate(beta_gamma, b_beta_gamma_sum)
 deallocate(b_gamma)
 
-if(modulo (jt, output_nskip) == 0) call rns_elem_output()
+if(modulo (jt_total, output_nskip) == 0) call rns_elem_output()
 
 $if($VERBOSE)
 call exit_sub(sub_name)
@@ -485,7 +485,7 @@ do n=1, nb_elem
     sum ( b_gamma(:,n) * b_gamma(:,n) )
 enddo
 
-if(modulo(jt,wbase)==0 .and. coord == 0) then
+if(modulo(jt_total,wbase)==0 .and. coord == 0) then
   write(*,*) '--> Computing LE CD'
 endif
 
@@ -517,7 +517,7 @@ enddo
     
 b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
-if(modulo(jt,wbase)==0 .and. coord == 0) then
+if(modulo(jt_total,wbase)==0 .and. coord == 0) then
   write(*,*) '--> Computing GE CD'
 endif
 
@@ -540,7 +540,7 @@ do n=1, nb_elem
     sum( b_m(:,n) * b_m(:,n) )
 enddo
 
-if(modulo(jt,wbase)==0 .and. coord == 0) then
+if(modulo(jt_total,wbase)==0 .and. coord == 0) then
   write(*,*) '--> Computing LI CD'
 endif
 
@@ -572,7 +572,7 @@ enddo
 
 b_elem_t(:) % force_t % CD = - CD_num / CD_denom
 
-if(modulo(jt,wbase)==0 .and. coord == 0) then
+if(modulo(jt_total,wbase)==0 .and. coord == 0) then
   write(*,*) '--> Computing GI CD'
 endif
 
@@ -629,7 +629,7 @@ else
 
   enddo
   
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
+  if(modulo(jt_total,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LETW CD'
   endif  
 
@@ -686,7 +686,7 @@ else
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
 
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
+  if(modulo(jt_total,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GETW CD'
   endif 
 
@@ -745,7 +745,7 @@ else
 
   enddo
   
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
+  if(modulo(jt_total,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing LITW CD'
   endif  
 
@@ -802,7 +802,7 @@ else
   !  Update all b elements
   b_elem_t(:) % force_t % CD = CD_p
 
-  if(modulo(jt,wbase)==0 .and. coord == 0) then
+  if(modulo(jt_total,wbase)==0 .and. coord == 0) then
     write(*,*) '--> Computing GITW CD'
   endif 
 
@@ -878,7 +878,7 @@ do n = 1, nbeta_elem
     
   kappa_p = CD_p * sum( beta_gamma(:,n) * beta_int(:) ) / ( sum( beta_int(:) * beta_int(:) ) )
     
-  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
+  if(coord == 0 .and. (modulo (jt_total, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'beta_indx, kappa, CD, beta_int : ', n, kappa_p, CD_p, beta_int
     
   nullify(kappa_p, CD_p)
   
@@ -923,7 +923,7 @@ subroutine r_elem_force()
 !
 use types, only : rprec
 use messages
-use param, only : nx, ny, nz, dx, dy, dz, coord, jt, wbase
+use param, only : nx, ny, nz, dx, dy, dz, coord, jt_total, wbase
 $if($MPI)
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
 $endif
@@ -1016,7 +1016,7 @@ do n = 1, nr_elem
   r_elem_t(n) % force_t % CD = -(fx_p * ref_region_t_p % u + fy_p * ref_region_t_p % v)/ &
     (0.5_rprec * ref_region_t_p % area * sqrt((ref_region_t_p % u)**2 + (ref_region_t_p % v)**2)**3)
   
-  if(coord == 0 .and. (modulo (jt, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'r_indx, fx, fy, CD : ', n, -fx_p, -fy_p, r_elem_t(n) % force_t % CD
+  if(coord == 0 .and. (modulo (jt_total, wbase) == 0)) write(*,'(1a,(1x,i3),4(1x,f9.4))') 'r_indx, fx, fy, CD : ', n, -fx_p, -fy_p, r_elem_t(n) % force_t % CD
 
   nullify(fx_p, fy_p)
   nullify(npoint_p, iarray_p)
