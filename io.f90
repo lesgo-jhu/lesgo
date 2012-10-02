@@ -408,9 +408,14 @@ include 'tecryte.h'
 integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
+$if($LVLSET)
 character (64) :: var_list
+$endif
 character (64) :: fname
-integer :: n, i, j, k,nvars
+integer :: n, i, j, k
+$if($LVLSET)
+integer :: nvars
+$endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
@@ -1206,7 +1211,7 @@ elseif(itype==5) then
       enddo
     enddo
     
-    $if ($BINARY
+    $if ($BINARY)
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*1*rprec)
     write(13,rec=1) ui(1:nx,1:ny,1)
     write(13,rec=2) vi(1:nx,1:ny,1)
