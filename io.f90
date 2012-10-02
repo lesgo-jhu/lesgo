@@ -1184,11 +1184,12 @@ elseif(itype==5) then
     if(zplane(k) % coord == coord) then
     $endif
 
-    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')
-
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
-
+    $if ($BINARY)
+    call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
+    $else
+    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')    
+    $endif
+    
     do j=1,Ny
       do i=1,Nx
 
@@ -1204,9 +1205,20 @@ elseif(itype==5) then
 
       enddo
     enddo
-
+    
+    $if ($BINARY
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*1*rprec)
+    write(13,rec=1) ui(1:nx,1:ny,1)
+    write(13,rec=2) vi(1:nx,1:ny,1)
+    write(13,rec=3) wi(1:nx,1:ny,1)
+    close(13)
+    
+    $else
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
+      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
+    $endif
     
     $if($LVLSET)
 
