@@ -9,8 +9,8 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 HOSTNAME = $(shell hostname -s)
@@ -87,8 +87,8 @@ ifeq ($(FCOMP),ifort)
     LIBS += -lcgaml-intel
   endif
 
-  #FFLAGS = -O0 -check bounds -g -debug all -traceback
-  FFLAGS = -O3 -ip -ftz
+  FFLAGS = -O0 -check bounds -g -debug all -traceback
+  #FFLAGS = -O3 -ip -ftz
   #FFLAGS = -axSSE4.2 -ftz -
   FFLAGS += -warn all -shared-intel
     # Work around for real -> complex dummy array assignment
@@ -117,13 +117,14 @@ ifeq ($(FCOMP),gfortran)
     endif
   endif
 
-  LIBS += -ltecryte
+  LIBS += -ltecryte -lhdf5_fortran -lhdf5 -lhdf5hl_fortran -lhdf5_hl -lz
   ifeq ($(USE_CYL_SKEW_LS),yes)
     LIBS += -lcgaml
   endif
 
-  #FFLAGS = -O0 -fbounds-check
-  FFLAGS = -O3 -ffast-math -march=native -funroll-loops
+
+  FFLAGS = -O0 -fbounds-check -g
+  #FFLAGS = -O3 -ffast-math -march=native -funroll-loops
   #FFLAGS = -O3
   #FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall

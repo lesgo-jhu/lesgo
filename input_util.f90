@@ -505,6 +505,9 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
+     case ('OUTPUT_FORMAT_HDF5')
+        read (buff(equal_pos+1:), *) output_format_hdf5
+
      case ('WBASE')
         read (buff(equal_pos+1:), *) wbase
 

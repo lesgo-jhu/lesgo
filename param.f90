@@ -181,6 +181,8 @@ module param
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
+  ! Write output format in hdf5
+  logical :: output_format_hdf5 = .false.
 
   ! how often to display stdout
   integer :: wbase = 100
