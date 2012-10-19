@@ -10,8 +10,9 @@ use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
+use param, only : tavg_calc
 use cfl_util
-use io, only : output_init
+use io, only : output_init,tavg_init
 use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
@@ -151,6 +152,15 @@ if( use_cfl_dt ) then
       dt_dim = dt * z_i / u_star
    endif
 endif
+
+! Initialize the averaging matrices
+if(tavg_calc) then
+   
+   if(coord==0) write(*,*) 'Initialize the time averaging data'
+   call tavg_init()
+
+endif
+
 
 return
 end subroutine initialize
