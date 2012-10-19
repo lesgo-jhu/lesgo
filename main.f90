@@ -473,9 +473,11 @@ end do time_loop
 
 ! Finalize
 close(2)
-    
+
+if(nstart<nsteps .and. nstart<tavg_nend) then
 ! Write total_time.dat and tavg files
 call output_final()
+endif
 
 ! Stop wall clock
 call clock_stop( clock_total )
@@ -483,6 +485,10 @@ if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_tota
 
 call finalize()
 
+if(jt_total >= nsteps) then
+if(coord == 0 ) write(*,'(a)') 'Simulation complete full number of timesteps reached'
+else
 if(coord == 0 ) write(*,'(a)') 'Simulation complete'
+endif
 
 end program main
