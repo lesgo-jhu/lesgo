@@ -18,7 +18,7 @@ private
 
 !!$public openfiles,output_loop,output_final,                   &
 !!$     inflow_write, avg_stats
-public jt_total, openfiles, closefiles, energy, output_loop, output_final
+public jt_total, openfiles, closefiles, energy, output_loop, output_final,tavg_init
 
 public output_init
 
@@ -241,16 +241,10 @@ if(tavg_calc) then
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
         write(*,*) '-------------------------------'   
       endif
-
-      call tavg_init()
-
-    endif
-    
+     endif     
     !  Compute running summations
     call tavg_compute ()
-
-  endif 
-  
+  endif   
 endif
 
 if( spectra_calc ) then
@@ -407,15 +401,17 @@ include 'tecryte.h'
 
 integer, intent(IN) :: itype
 
-character (*), parameter :: sub_name = mod_name // '.inst_write'
 $if($LVLSET)
 character (64) :: var_list
 $endif
-character (64) :: fname
-integer :: n, i, j, k
+
 $if($LVLSET)
 integer :: nvars
 $endif
+
+character (*), parameter :: sub_name = mod_name // '.inst_write'
+character (64) :: fname
+integer :: n, i, j, k
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
