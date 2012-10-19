@@ -486,7 +486,7 @@ if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_tota
 call finalize()
 
 if(jt_total >= nsteps) then
-if(coord == 0 ) write(*,'(a)') 'Simulation complete full number of timesteps reached'
+if(coord == 0 ) write(*,'(a)') 'Full number of time steps reached'
 else
 if(coord == 0 ) write(*,'(a)') 'Simulation complete'
 endif
