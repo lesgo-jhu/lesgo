@@ -221,7 +221,7 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use stat_defs, only : tavg_initialized
+use stat_defs, only : tavg_initialized, spectra_initialized
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -257,7 +257,7 @@ endif
 if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
   if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
-    if(jt_total == spectra_nstart) then
+    if( .not.  spectra_initialized ) then
       if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
@@ -1493,7 +1493,7 @@ $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_time_stamp, tavg_initialized, spectra_time_stamp
+use stat_defs, only : tavg_time_stamp, tavg_initialized, spectra_time_stamp, spectra_initialized
 use string_util, only : string_concat
 implicit none
 
@@ -1554,7 +1554,7 @@ $endif
 ! Checkpoint time averaging restart data
 if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
 ! Checkpoint spectra restart data
-if( spectra_calc ) call spectra_checkpoint()
+if( spectra_calc .and. spectra_initialized ) call spectra_checkpoint()
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -1585,7 +1585,7 @@ end subroutine checkpoint
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use stat_defs, only : tavg, point, tavg_initialized
+use stat_defs, only : tavg, point, tavg_initialized, spectra_initialized
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 implicit none
 
@@ -1596,7 +1596,7 @@ call checkpoint()
 if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
 
 !  Check if spectra is to be computed
-if(spectra_calc) call spectra_finalize()
+if(spectra_calc .and. spectra_initialized ) call spectra_finalize()
 
 return
 end subroutine output_final
@@ -3092,7 +3092,7 @@ use types, only : rprec
 use param, only : path, checkpoint_spectra_file
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
-use stat_defs, only : spectra, spectra_total_time
+use stat_defs, only : spectra, spectra_total_time, spectra_initialized
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
@@ -3142,6 +3142,9 @@ do k=1, spectra_nloc
 enddo
 
 close(1)
+
+! Set global switch that spectra as been initialized
+spectra_initialized = .false.
 
 return
 end subroutine spectra_init

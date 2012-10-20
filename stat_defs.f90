@@ -45,8 +45,10 @@ logical :: tavg_initialized = .false.
 
 ! Time step used for time averaging of spectra
 real(rprec) :: dt_spectra
-! Time stampe of last spectra computation
+! Time stamp of last spectra computation
 real(rprec) :: spectra_time_stamp
+! Switch for determining if time averaging has been initialized
+logical :: spectra_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
