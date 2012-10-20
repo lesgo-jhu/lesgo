@@ -40,6 +40,8 @@ real(rprec) :: tavg_total_time_sgs
 $endif
 ! Time stamp of last time averaging computation
 real(rprec) :: tavg_time_stamp  
+! Switch for determining if time averaging has been initialized
+logical :: tavg_initialized = .false.
 
 ! Time step used for time averaging of spectra
 real(rprec) :: dt_spectra

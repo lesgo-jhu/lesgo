@@ -221,6 +221,7 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
+use stat_defs, only : tavg_initialized
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -235,7 +236,7 @@ endif
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
   if(jt_total >= tavg_nstart .and. jt_total <= tavg_nend .and. ( mod(jt_total-tavg_nstart,tavg_nskip)==0)) then
-    if(jt_total == tavg_nstart) then
+    if( .not. tavg_initialized ) then
       if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
@@ -1492,7 +1493,7 @@ $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_time_stamp, spectra_time_stamp
+use stat_defs, only : tavg_time_stamp, tavg_initialized, spectra_time_stamp
 use string_util, only : string_concat
 implicit none
 
@@ -1551,7 +1552,7 @@ $if ($DYN_TN)
 $endif
 
 ! Checkpoint time averaging restart data
-if( tavg_calc ) call tavg_checkpoint()
+if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
 ! Checkpoint spectra restart data
 if( spectra_calc ) call spectra_checkpoint()
 
@@ -1584,7 +1585,7 @@ end subroutine checkpoint
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use stat_defs, only : tavg, point
+use stat_defs, only : tavg, point, tavg_initialized
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 implicit none
 
@@ -1592,7 +1593,7 @@ implicit none
 call checkpoint()
 
 !  Check if average quantities are to be recorded
-if(tavg_calc) call tavg_finalize()
+if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
 
 !  Check if spectra is to be computed
 if(spectra_calc) call spectra_finalize()
@@ -1883,7 +1884,8 @@ subroutine tavg_init()
 use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
-use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, operator(.MUL.)
+use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, tavg_initialized
+use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
@@ -1977,6 +1979,9 @@ $if($OUTPUT_EXTRA)
     endif
     
 $endif
+
+! Set global switch that tavg as been initialized
+tavg_initialized = .true. 
 
 return
 end subroutine tavg_init
