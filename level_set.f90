@@ -820,7 +820,7 @@ end subroutine modify_dutdn
 !--this avoids using fit3
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau_simple ()
-use param, only : jt
+use param, only : jt_total
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -872,11 +872,11 @@ jmx = ny
 
 if (use_output) then
 
-  if (modulo (jt, noutput) == 0) then
+  if (modulo (jt_total, noutput) == 0) then
 
     output = .true.
 
-    write (fname, '(a,i6.6,a)') trim (fprefix), jt, '.dat'
+    write (fname, '(a,i6.6,a)') trim (fprefix), jt_total, '.dat'
 
     inquire (unit=lun, exist=exst, opened=opn)
 
@@ -1507,7 +1507,6 @@ end subroutine extrap_tau_log
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_un ()
-use param, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
@@ -1677,7 +1676,6 @@ end subroutine enforce_un
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine enforce_log_profile ()
-use param, only : jt  !--plus stuff above
 use sim_param, only : u, v, w
 implicit none
 
@@ -1846,7 +1844,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 use functions, only : cell_indx
 use messages
 implicit none
@@ -1883,8 +1881,8 @@ $endif
 
 nullify(autowrap_i, autowrap_j)
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2041,7 +2039,7 @@ end subroutine interp_scal
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
 use functions, only : cell_indx
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -2071,8 +2069,8 @@ $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2256,7 +2254,7 @@ end subroutine interp_tij_u
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
 use functions, only : cell_indx
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -2286,8 +2284,8 @@ $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2455,7 +2453,7 @@ subroutine interp_phi (x, phi_x)
 !--assumes phi is on u-nodes
 !
 use functions, only : cell_indx
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 use messages
 implicit none
 
@@ -2480,8 +2478,8 @@ $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -2634,7 +2632,7 @@ end subroutine interp_phi
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 use functions, only : cell_indx
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 use messages
 
 implicit none
@@ -2661,8 +2659,8 @@ $if($VERBOSE)
 call enter_sub( sub_name )
 $endif
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 xmod=x ! Initialize
@@ -3015,7 +3013,7 @@ end subroutine level_set_smooth_vel
 !--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
-use grid_defs, only : grid_t !autowrap_i, autowrap_j
+use grid_defs, only : grid !autowrap_i, autowrap_j
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -3053,8 +3051,8 @@ $if ($VERBOSE)
 call enter_sub (sub_name)
 $endif
 
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 if (present (node)) then
 
@@ -3145,7 +3143,7 @@ end subroutine smooth
 !--also calculates CL (coeff. of lift)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_global_CD ()
-use param, only : jt, jt_total, dt, L_y, L_z
+use param, only : jt_total, dt, L_y, L_z
 use sim_param, only : fx, fy, fz
 use sim_param, only : u
 implicit none
@@ -3176,7 +3174,7 @@ real (rp) :: fD_global, fL_global, Uinf_global
 
 !---------------------------------------------------------------------
 
-if (modulo (jt, n_calc_CD) /= 0) return  !--do nothing
+if (modulo (jt_total, n_calc_CD) /= 0) return  !--do nothing
 
 fD = -sum (fx(1:nx, :, 1:nz-1)) * dx * dy * dz
      !--(-) since want force ON cylinder
@@ -3716,7 +3714,6 @@ end subroutine level_set_BC
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine extrap_tau ()
 use param, only : path
-use param, only : jt  !--just for debug
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 implicit none
 
@@ -3797,16 +3794,6 @@ do k = 2, nz-1
 
           indx(:, m) = pt + d_2 * s
 
-          $if ($DEBUG)
-          if (DEBUG .and. jt >= 615) then
-            call mesg (sub_name, '(i, j, k)=', (/ i, j, k /))
-            call mesg (sub_name, 'pt=', pt)
-            call mesg (sub_name, 'd_2=', d_2)
-            call mesg (sub_name, 's=', s)
-            call mesg (sub_name, 'indx(:,', m, ') =', indx(:, m))
-          end if
-          $endif
-
           do id = 1, nd
             if ( (indx(id, m) < 1) .or. (indx(id, m) > nxi(id)) ) then
               write (msg, '(3(a,i0),a)') 'indx(', id, ',', m, ')=',     &
@@ -3868,18 +3855,6 @@ do k = 2, nz-1
         end select
 
       end if
- 
-      $if ($DEBUG)
-      if (DEBUG) then
-        if (jt >= 615) then
-          call mesg (sub_name, 'pt =', pt)
-          call mesg (sub_name, 'txx =', txx(pt(1), pt(2), pt(3)))
-          call mesg (sub_name, 'txy =', txy(pt(1), pt(2), pt(3)))
-          call mesg (sub_name, 'tyy =', tyy(pt(1), pt(2), pt(3)))
-          call mesg (sub_name, 'tzz =', tzz(pt(1), pt(2), pt(3)))
-        end if
-      end if
-      $endif
  
       $if ($DEBUG)
       if (DEBUG .and. first_call) then
@@ -3984,16 +3959,6 @@ do k = 2, nz-1
       end if
       
       $if ($DEBUG)
-      if (DEBUG) then
-        if (jt >= 615) then
-          call mesg (sub_name, 'pt =', pt)
-          call mesg (sub_name, 'txz =', txz(pt(1), pt(2), pt(3)))
-          call mesg (sub_name, 'tyz =', tyz(pt(1), pt(2), pt(3)))
-        end if
-      end if
-      $endif
-
-      $if ($DEBUG)
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
@@ -4022,7 +3987,7 @@ end subroutine extrap_tau
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_tau ()
 use param, only : path
-use param, only : jt  !--in addition to stuff above
+use param, only : jt_total  !--in addition to stuff above
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz,             &
                       dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz
 implicit none
@@ -4074,11 +4039,11 @@ jmx = ny
 
 if (use_output) then
 
-  if (modulo (jt, noutput) == 0) then
+  if (modulo (jt_total, noutput) == 0) then
 
     output = .true.
 
-    write (fname, '(a,i6.6,a)') trim (fprefix), jt, '.dat'
+    write (fname, '(a,i6.6,a)') trim (fprefix), jt_total, '.dat'
 
     inquire (unit=lun, exist=exst, opened=opn)
 
@@ -4717,7 +4682,7 @@ end subroutine level_set_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 real(rp) function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz, lbz  !--in addition to those above
-use grid_defs, only : grid_t ! autowrap_i, autowrap_j
+use grid_defs, only : grid ! autowrap_i, autowrap_j
 implicit none
 
 integer, intent (in) :: i, j, k
@@ -4734,8 +4699,8 @@ real (rp) :: delta
 
 nullify( autowrap_i, autowrap_j )
 
-autowrap_i => grid_t % autowrap_i  
-autowrap_j => grid_t % autowrap_j
+autowrap_i => grid % autowrap_i  
+autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
 

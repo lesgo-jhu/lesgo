@@ -54,6 +54,21 @@ character (*), intent (in), optional :: array_list_opt
 integer, parameter :: narray_max = 128
 integer, parameter :: narray_name_len = 8  !--can increase if needed
 
+$if ($TURBINES)
+character (*), parameter :: array_list_def = 'u, v, w,' //                 &
+                                             'dudx, dudy, dudz,' //        &
+                                             'dvdx, dvdy, dvdz,' //        &
+                                             'dwdx, dwdy, dwdz,' //        &
+                                             'RHSx, RHSy, RHSz,' //        &
+                                             'RHSx_f, RHSy_f, RHSz_f,' //  &
+                                             'dpdx, dpdy, dpdz,' //        &
+                                             'txx, txy, tyy,' //           &
+                                             'txz, tyz, tzz,' //           &
+                                             'p,' //                       &
+                                             'divtx, divty, divtz,' //     &
+                                             'fxa,'           //           &
+                                             'theta, q'
+$elseif ($LVLSET)
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
                                              'dvdx, dvdy, dvdz,' //        &
@@ -68,6 +83,20 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'fx, fy, fz,' //              &
                                              'fxa, fya, fza,' //           &
                                              'theta, q'
+$else
+character (*), parameter :: array_list_def = 'u, v, w,' //                 &
+                                             'dudx, dudy, dudz,' //        &
+                                             'dvdx, dvdy, dvdz,' //        &
+                                             'dwdx, dwdy, dwdz,' //        &
+                                             'RHSx, RHSy, RHSz,' //        &
+                                             'RHSx_f, RHSy_f, RHSz_f,' //  &
+                                             'dpdx, dpdy, dpdz,' //        &
+                                             'txx, txy, tyy,' //           &
+                                             'txz, tyz, tzz,' //           &
+                                             'p,' //                       &
+                                             'divtx, divty, divtz,' //     &
+                                             'theta, q'
+$endif
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .true.
@@ -77,96 +106,10 @@ character (narray_name_len * narray_max) :: array_list
 character (narray_name_len) :: array(narray_max)
 character (narray_name_len) :: alloced_array(narray_max)
 
-
 integer :: i
 integer :: ios
 
 !---------------------------------------------------------------------
-
-
-!if ( .not. present ( arrays_to_init ) ) then
-!    !--initialize all arrays
-!    allocate ( u(ld, ny, lbz:nz),  &
-!               v(ld, ny, lbz:nz),  &
-!               w(ld, ny, lbz:nz) )
-!    
-!    u = 0.0_rprec
-!    v = 0.0_rprec
-!    w = 0.0_rprec
-!    
-!    allocate( dudx(ld, ny, lbz:nz),  &
-!              dudy(ld, ny, lbz:nz),  &
-!              dudz(ld, ny, lbz:nz),  &
-!              dvdx(ld, ny, lbz:nz),  &
-!              dvdy(ld, ny, lbz:nz),  &
-!              dvdz(ld, ny, lbz:nz),  &
-!              dwdx(ld, ny, lbz:nz),  &
-!              dwdy(ld, ny, lbz:nz),  &
-!              dwdz(ld, ny, lbz:nz),  &
-!              RHSx(ld, ny, lbz:nz),  &
-!              RHSy(ld, ny, lbz:nz),  &
-!              RHSz(ld, ny, lbz:nz),  &
-!              RHSx_f(ld, ny, lbz:nz),  &
-!              RHSy_f(ld, ny, lbz:nz),  &
-!              RHSz_f(ld, ny, lbz:nz) )
-!    
-!    dudx = 0.0_rprec
-!    dudy = 0.0_rprec
-!    dudz = 0.0_rprec
-!    dvdx = 0.0_rprec
-!    dvdy = 0.0_rprec
-!    dvdz = 0.0_rprec
-!    dwdx = 0.0_rprec
-!    dwdy = 0.0_rprec
-!    dwdz = 0.0_rprec
-!    RHSx = 0.0_rprec
-!    RHSy = 0.0_rprec
-!    RHSz = 0.0_rprec
-!    RHSx_f = 0.0_rprec
-!    RHSy_f = 0.0_rprec
-!    RHSz_f = 0.0_rprec
-!    
-!    allocate ( dpdx(ld, ny, nz),  &
-!               dpdy(ld, ny, nz),  &
-!               dpdz(ld, ny, nz) )
-!    
-!    dpdx = 0.0_rprec
-!    dpdy = 0.0_rprec
-!    dpdz = 0.0_rprec
-!
-!    allocate ( txx(ld, ny, lbz:nz),  &
-!               txy(ld, ny, lbz:nz),  &
-!               tyy(ld, ny, lbz:nz),  &
-!               txz(ld, ny, lbz:nz),  &
-!               tyz(ld, ny, lbz:nz),  &
-!               tzz(ld, ny, lbz:nz) )
-!
-!    txx = 0.0_rprec
-!    txy = 0.0_rprec
-!    tyy = 0.0_rprec
-!    txz = 0.0_rprec
-!    tyz = 0.0_rprec
-!    tzz = 0.0_rprec
-!    
-!    allocate ( p(ld, ny, 0:nz) )
-!    
-!    p = 0.0_rprec
-!    
-!    allocate ( divtx(ld, ny, lbz:nz),  &
-!               divty(ld, ny, lbz:nz),  &
-!               divtz(ld, ny, lbz:nz) )
-!    
-!    divtx = 0.0_rprec
-!    divty = 0.0_rprec
-!    divtz = 0.0_rprec
-!    
-!    allocate ( theta(ld, ny, nz),  &
-!               q(ld, ny, nz) )
-!    
-!    theta = 0.0_rprec
-!    q = 0.0_rprec
-!
-!else
 
 array = ''
 alloced_array = ''
@@ -318,15 +261,15 @@ do i = 1, size ( array )
         divtz = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case ( 'fx' )
-        allocate ( fx(ld, ny, nz) )
+        allocate ( fx(ld, ny, nz) )        
         fx = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case ( 'fy' )
-        allocate ( fy(ld, ny, nz) )
+        allocate ( fy(ld, ny, nz) )        
         fy = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )  
     case ( 'fz' )
-        allocate ( fz(ld, ny, nz) )
+        allocate ( fz(ld, ny, nz) )        
         fz = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case ( 'fxa' )

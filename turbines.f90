@@ -4,17 +4,13 @@ module turbines
 !      This routine creates the 'turbine' folder and starts the turbine forcing output files.
 !      It also creates the indicator function (Gaussian-filtered from binary locations - in or out)
 !      and sets values for turbine type (node locations, etc)
-use types,only:rprec
+!  (2) turbines_forcing
+!      Applies the drag-disk forcing
 use param
 use turbines_base
-use stat_defs, only:wind_farm_t
-use grid_defs, only: grid_t 
-use io
+use grid_defs, only: grid 
 use messages
 use string_util
-$if ($MPI)
-  use mpi_defs
-$endif
 
 implicit none
 include 'tecryte.h'
@@ -28,24 +24,21 @@ real(rprec) :: Ct_prime_05
 real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
 
-character (64) :: fname, fname0, fname2, fname3, fname4, var_list, temp, temp2, dummy_char
-real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations
-real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered
-
+character (100) :: string1
+!real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations. Richard: ! removed large 3D array to limit memory use
+!real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered ! Richard: ! removed large 3D array to limit memory use
 real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
-integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,nn,ssx,ssy,ssz, p
+integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,ssx,ssy,ssz, p
 integer :: imax,jmax,kmax,count_i,count_n,icp,jcp,kcp
 integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
 integer :: k_start, k_end
-character (4) :: string1, string2, string3
-logical :: exst, exst2, opn
+logical :: exst, opn
 
 logical :: turbine_in_proc=.false.      !init, do not change this
-logical :: turbine_cumulative_ca_time=.false.  !init, do not change this
 
 real(rprec), pointer, dimension(:) :: buffer_array
-real(rprec) :: buffer, mult
+real(rprec) :: buffer
 logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
@@ -58,30 +51,29 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-use string_util
+
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
-integer :: s
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
 nullify(x,y,z)
 
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
+x => grid % x
+y => grid % y
+z => grid % z
 
 ! Allocate and initialize
-allocate(large_node_array(nx,ny,nz_tot))
-allocate(large_node_array_filtered(nx,ny,nz_tot))
+!allocate(large_node_array(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
+!allocate(large_node_array_filtered(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
 allocate(turbine_in_proc_array(nproc-1))
 allocate(z_tot(nz_tot))
 allocate(file_id(nloc))
 allocate(file_id2(nloc))
 turbine_in_proc_array = 0
 
-    nullify(buffer_array)
-    allocate(buffer_array(nloc))
+nullify(buffer_array)
+allocate(buffer_array(nloc))
 
 !new variables for optimization:
     Ct_prime_05 = -0.5*Ct_prime
@@ -94,52 +86,36 @@ turbine_in_proc_array = 0
         z_tot(k) = (k - 0.5_rprec) * dz
     enddo
 
-!create files to store turbine forcing data
-!    if (.not. turbine_cumulative_time) then
-!        if (coord == 0) then
-!            var_list = '"t (s)", "u_d", "u_d_T", "f_n", "P"'           
-!            do s=1,nloc
-!                fname = path // 'turbine/turbine_'
-!                write (temp, '(i0)') s
-!                fname2 = trim (fname) // temp
-!                fname = trim (fname2) // '_forcing.dat'
-!              
-!                call write_tecplot_header_xyline(fname,'rewind', var_list)   
-!            enddo
-!        endif    
-!    endif
-    
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
-    large_node_array = 0.
-    call turbines_nodes(large_node_array)
-
-    if (coord == 0) then
-      !to write the node locations to file
-      fname0 = path // 'turbine/nodes_unfiltered.dat'
-      call write_tecplot_header_ND(fname0,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
-      call write_real_data_3D(fname0, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
-    endif
+!    large_node_array = 0.
+!    call turbines_nodes(large_node_array)
+    call turbines_nodes                  ! removed large 3D array to limit memory use
+    
+!    if (coord == 0) then
+!      !to write the node locations to file
+!      string1 = path // 'turbine/nodes_unfiltered.dat'
+!      call write_tecplot_header_ND(string1,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
+!      call write_real_data_3D(string1, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
+!    endif
 
 !1.smooth/filter indicator function                     
 !2.associate new nodes with turbines                               
 !3.normalize such that each turbine's ind integrates to turbine volume
 !4.split domain between processors 
     call turbines_filter_ind()
-!iet variables for time-averaging velocity 
-!    eps = (dt*z_i / u_star)/T_avg_dim / (1. +(dt*z_i / u_star)/T_avg_dim)
     
     if (turbine_cumulative_time) then
         if (coord == 0) then
-            fname4 = path // 'turbine/turbine_u_d_T.dat'
-            inquire (file=fname4, exist=exst)
+            string1 = path // 'turbine/turbine_u_d_T.dat'
+            inquire (file=string1, exist=exst)
             if (exst) then
                 write(*,*) 'Reading from file turbine_u_d_T.dat'
                 inquire (unit=1, opened=opn)
                 if (opn) call error (sub_name, 'unit 1 already open, mark1')                
-                open (1, file=fname4)
+                open (1, file=string1)
                 do i=1,nloc
-                    read(1,*) wind_farm_t%turbine_t(i)%u_d_T    
+                    read(1,*) wind_farm%turbine(i)%u_d_T    
                 enddo    
                 read(1,*) T_avg_dim_file
                 if (T_avg_dim_file /= T_avg_dim) then
@@ -147,42 +123,53 @@ turbine_in_proc_array = 0
                 endif
                 close (1)
             else  
-                write (*, *) 'File ', trim(fname4), ' not found'
+                write (*, *) 'File ', trim(string1), ' not found'
                 write (*, *) 'Assuming u_d_T = -7. for all turbines'
                 do k=1,nloc
-                    wind_farm_t%turbine_t(k)%u_d_T = -7.
+                    wind_farm%turbine(k)%u_d_T = -7.
                 enddo
             endif                                         
         endif
     else
         write (*, *) 'Assuming u_d_T = -7 for all turbines'
         do k=1,nloc
-            wind_farm_t%turbine_t(k)%u_d_T = -7.
+            wind_farm%turbine(k)%u_d_T = -7.
         enddo    
     endif
    
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
-    open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='rewind')
+    string1=path // 'output/vel_top_of_domain.dat'
+    open(unit=1,file=string1,status='unknown',form='formatted',action='write',position='rewind')
     write(1,*) 'total_time','u_HI'
     close(1)
 endif
 
+! Generate the files for the turbine forcing output
+do s=1,nloc
+   if(coord==0) then
+   call string_splice( string1, path // 'turbine/turbine_', s, '_forcing.dat' )
+   file_id(s) = open_file( string1, 'append', 'formatted' )
+   endif
+enddo
+
+! Generate the files for the turbine velocity output
 do s=1,nloc
 
-if(coord==0) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_forcing.dat' )
-file_id(s) = open_file( fname, 'append', 'formatted' )
-endif
+$if ($MPI)
+   kcp = nint(wind_farm%turbine(s)%height/dz + 0.5)
+   k_start =  1+coord*(nz-1)
+   k_end = nz-1+coord*(nz-1)
 
-! Richard: Not a very nice solution. But it prevents the code from crashing in the open_file routine of tecryte library.
-! The problem can (not necessarily will show up) when different cores want to open the same file. 
-if(coord<nz_tot/4) then
-call string_splice( fname, path // 'turbine/turbine_', s, '_velcenter.dat' )
-call string_concat (fname, '.c', coord)
+   if (kcp>=k_start .and. kcp<=k_end) then
+       call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
+       call string_concat (string1, '.c', coord)
+       file_id2(s) = open_file( string1, 'append', 'formatted' )
+   endif
 
-file_id2(s) = open_file( fname, 'append', 'formatted' )
-endif
+$else
+   call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
+   file_id2(s) = open_file( string1, 'append', 'formatted' )
+$endif
 
 enddo
 
@@ -192,27 +179,27 @@ end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine turbines_nodes(array)
+!subroutine turbines_nodes(array) ! removed large 3D array to limit memory use
+subroutine turbines_nodes
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 implicit none
+
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
-real(rprec), dimension(nx,ny,nz_tot) :: array
+!real(rprec), dimension(nx,ny,nz_tot) :: array ! removed large 3D array to limit memory use
 
+real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
-real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 
 real(rprec), pointer, dimension(:) :: x, y, z
 
-!logical :: verbose = .false.
-
 nullify(x,y,z)
 
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
+x => grid % x
+y => grid % y
+z => grid % z
 
 do s=1,nloc
     
@@ -220,16 +207,16 @@ do s=1,nloc
     count_i = 1    !index count - used for writing to array "nodes"
 
     !set pointers
-        p_xloc => wind_farm_t%turbine_t(s)%xloc     
-        p_yloc => wind_farm_t%turbine_t(s)%yloc  
-        p_height => wind_farm_t%turbine_t(s)%height 
-        p_dia => wind_farm_t%turbine_t(s)%dia 
-        p_thk => wind_farm_t%turbine_t(s)%thk
-        p_theta1 => wind_farm_t%turbine_t(s)%theta1
-        p_theta2 => wind_farm_t%turbine_t(s)%theta2
-        p_nhat1 => wind_farm_t%turbine_t(s)%nhat(1)
-        p_nhat2 => wind_farm_t%turbine_t(s)%nhat(2)
-        p_nhat3 => wind_farm_t%turbine_t(s)%nhat(3)
+        p_xloc => wind_farm%turbine(s)%xloc     
+        p_yloc => wind_farm%turbine(s)%yloc  
+        p_height => wind_farm%turbine(s)%height 
+        p_dia => wind_farm%turbine(s)%dia 
+        p_thk => wind_farm%turbine(s)%thk
+        p_theta1 => wind_farm%turbine(s)%theta1
+        p_theta2 => wind_farm%turbine(s)%theta2
+        p_nhat1 => wind_farm%turbine(s)%nhat(1)
+        p_nhat2 => wind_farm%turbine(s)%nhat(2)
+        p_nhat3 => wind_farm%turbine(s)%nhat(3)
 
     !identify "search area"
     R_t = p_dia/2.
@@ -283,12 +270,12 @@ do s=1,nloc
             !      write(*,*) '     k limits, range', min_k, max_k, dz*(max_k-min_k)
             !    endif
             !endif
-            wind_farm_t%turbine_t(s)%nodes_max(1) = min_i
-            wind_farm_t%turbine_t(s)%nodes_max(2) = max_i
-            wind_farm_t%turbine_t(s)%nodes_max(3) = min_j
-            wind_farm_t%turbine_t(s)%nodes_max(4) = max_j
-            wind_farm_t%turbine_t(s)%nodes_max(5) = min_k
-            wind_farm_t%turbine_t(s)%nodes_max(6) = max_k            
+            wind_farm%turbine(s)%nodes_max(1) = min_i
+            wind_farm%turbine(s)%nodes_max(2) = max_i
+            wind_farm%turbine(s)%nodes_max(3) = min_j
+            wind_farm%turbine(s)%nodes_max(4) = max_j
+            wind_farm%turbine(s)%nodes_max(5) = min_k
+            wind_farm%turbine(s)%nodes_max(6) = max_k            
 
     !check neighboring grid points	
     do k=min_k,max_k
@@ -328,18 +315,18 @@ do s=1,nloc
                     !      write(*,*) '     FOUND NODE', i,j,k
                     !    endif
                     !endif
-                    array(i2,j2,k) = 1.
-                    wind_farm_t%turbine_t(s)%ind(count_i) = 1. 
-                    wind_farm_t%turbine_t(s)%nodes(count_i,1) = i2
-                    wind_farm_t%turbine_t(s)%nodes(count_i,2) = j2
-                    wind_farm_t%turbine_t(s)%nodes(count_i,3) = k   !global k (might be out of this proc's range)
+!                    array(i2,j2,k) = 1.  ! removed large 3D array to limit memory use
+                    wind_farm%turbine(s)%ind(count_i) = 1. 
+                    wind_farm%turbine(s)%nodes(count_i,1) = i2
+                    wind_farm%turbine(s)%nodes(count_i,2) = j2
+                    wind_farm%turbine(s)%nodes(count_i,3) = k   !global k (might be out of this proc's range)
                     count_n = count_n + 1
                     count_i = count_i + 1
                 endif
            enddo
        enddo
     enddo
-    wind_farm_t%turbine_t(s)%num_nodes = count_n
+    wind_farm%turbine(s)%num_nodes = count_n
 
     if (coord == 0) then
         write(*,*) '     Turbine #',s,'has',count_n,'unfiltered nodes in entire domain'
@@ -359,27 +346,30 @@ subroutine turbines_filter_ind()
 !       1.smooth/filter indicator function                                  CHANGE IND
 !       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
-use string_util, only : string_splice
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
 
-real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
+!real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
+! Richard: Commented out g_shift. This large array is not used  fg can easily be replaced by single double
+real(rprec), dimension(nx,ny,nz_tot) :: out_a, g
 real(rprec), dimension(nx,ny,nz_tot) :: temp_array
-real(rprec), dimension(nx,ny,nz) :: temp_array_2
+!real(rprec), dimension(nx,ny,nz) :: temp_array_2 ! Richard: Commented out to save i/o operations and memory
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
+real(rprec) :: fg ! Removed the 3D matrix as it is only used as a temporary dummy variable
 
 real(rprec), pointer, dimension(:) :: x,y,z
 
 !logical :: verbose = .false.
 nullify(x,y,z)
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
+x => grid % x
+y => grid % y
+z => grid % z
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
-!if(wind_farm_t%ifilter==2) then		!2-> Gaussian
+!if(wind_farm%ifilter==2) then		!2-> Gaussian
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
       do k=1,nz_tot
         do j=1,ny
@@ -394,11 +384,6 @@ delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
 g = g/sumG
-    !if (coord == 0) then
-    !    if (verbose) then
-    !        write(*,*) 'Convolution function created.'
-    !    endif
-    !endif
 
 !display the convolution function
     !if (coord == 0) then
@@ -410,16 +395,16 @@ g = g/sumG
     !endif
 
     !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
-    if (coord == 0) then    
-        i=nx/2
-        j=ny/2
-        do k2=1,nz_tot
-          do j2=1,ny
-            do i2=1,nx
-            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
-            enddo
-          enddo
-        enddo
+!    if (coord == 0) then    
+!        i=nx/2
+!        j=ny/2
+!        do k2=1,nz_tot
+!          do j2=1,ny
+!            do i2=1,nx
+!            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
+!            enddo
+!          enddo
+!        enddo
 
         !if (.false.) then
         !    fname0 = path // 'turbine/convolution_function.dat'
@@ -430,7 +415,7 @@ g = g/sumG
         !        write(*,*) 'Convolution function written to Tecplot file.'
         !    endif
         !endif
-    endif
+!    endif
 
 !filter indicator function for each turbine
 do b=1,nloc
@@ -443,22 +428,22 @@ do b=1,nloc
 
     !create the input array (nx,ny,nz_tot) from a list of included nodes
         temp_array = 0.
-        do l=1,wind_farm_t%turbine_t(b)%num_nodes
-            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
-            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
-            temp_array(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
+        do l=1,wind_farm%turbine(b)%num_nodes
+            i2 = wind_farm%turbine(b)%nodes(l,1)
+            j2 = wind_farm%turbine(b)%nodes(l,2)
+            k2 = wind_farm%turbine(b)%nodes(l,3)
+            temp_array(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
         enddo
 
     !perform convolution on temp_array --> out_a    
         out_a=0.
 
-        min_i = wind_farm_t%turbine_t(b)%nodes_max(1) 
-        max_i = wind_farm_t%turbine_t(b)%nodes_max(2) 
-        min_j = wind_farm_t%turbine_t(b)%nodes_max(3) 
-        max_j = wind_farm_t%turbine_t(b)%nodes_max(4) 
-        min_k = wind_farm_t%turbine_t(b)%nodes_max(5)
-        max_k = wind_farm_t%turbine_t(b)%nodes_max(6) 
+        min_i = wind_farm%turbine(b)%nodes_max(1) 
+        max_i = wind_farm%turbine(b)%nodes_max(2) 
+        min_j = wind_farm%turbine(b)%nodes_max(3) 
+        max_j = wind_farm%turbine(b)%nodes_max(4) 
+        min_k = wind_farm%turbine(b)%nodes_max(5)
+        max_k = wind_farm%turbine(b)%nodes_max(6) 
         cut = trunc   
 
         !if (coord == 0) then
@@ -491,14 +476,18 @@ do b=1,nloc
             ssz = k2-k+(nz_tot-1)/2       !since no spectral BCs in z-direction
                              
             if( ssz < 1) then
-                fg(i2,j2,k2) = 0.
+                !fg(i2,j2,k2) = 0.
+                fg=0.
                 write(*,*) 'See turbines.f90, ssz < 1'                    
             elseif( ssz > nz_tot ) then
-                fg(i2,j2,k2) = 0.
+                !fg(i2,j2,k2) = 0.
+                fg=0.
                 write(*,*) 'See turbines.f90, ssz > nz_tot'                    
             else
-                fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
-                out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
+                !fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
+                !out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
+                fg = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
+                out_a(i4,j4,k) = out_a(i4,j4,k) + fg*dx*dy*dz
             endif    
         
         enddo
@@ -527,19 +516,19 @@ do b=1,nloc
       enddo
      enddo
     enddo
-    turbine_vol = pi/4. * (wind_farm_t%turbine_t(b)%dia)**2 * wind_farm_t%turbine_t(b)%thk
+    turbine_vol = pi/4. * (wind_farm%turbine(b)%dia)**2 * wind_farm%turbine(b)%thk
     out_a = turbine_vol/sumA*out_a
 
-    if (coord == 0) then
-        large_node_array_filtered = large_node_array_filtered + out_a
-    endif
+!    if (coord == 0) then
+!        large_node_array_filtered = large_node_array_filtered + out_a ! removed large 3D array to limit memory use
+!    endif
 
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
     !z(nz) and z(1) of neighboring coords match so each coord gets (local) 1 to nz-1
-    wind_farm_t%turbine_t(b)%ind = 0.
-    wind_farm_t%turbine_t(b)%nodes = 0.
-    wind_farm_t%turbine_t(b)%num_nodes = 0.
+    wind_farm%turbine(b)%ind = 0.
+    wind_farm%turbine(b)%nodes = 0.
+    wind_farm%turbine(b)%num_nodes = 0.
     count_n = 0
     count_i = 1
     $if ($MPI)
@@ -554,10 +543,10 @@ do b=1,nloc
      do j=1,ny
       do i=1,nx
        if (out_a(i,j,k) > filter_cutoff) then
-        wind_farm_t%turbine_t(b)%ind(count_i) = out_a(i,j,k)
-        wind_farm_t%turbine_t(b)%nodes(count_i,1) = i
-        wind_farm_t%turbine_t(b)%nodes(count_i,2) = j
-        wind_farm_t%turbine_t(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
+        wind_farm%turbine(b)%ind(count_i) = out_a(i,j,k)
+        wind_farm%turbine(b)%nodes(count_i,1) = i
+        wind_farm%turbine(b)%nodes(count_i,2) = j
+        wind_farm%turbine(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
         count_n = count_n + 1
         count_i = count_i + 1
         turbine_in_proc = .true.                    
@@ -565,26 +554,15 @@ do b=1,nloc
       enddo
      enddo
     enddo
-    wind_farm_t%turbine_t(b)%num_nodes = count_n
+    wind_farm%turbine(b)%num_nodes = count_n
     
     if (count_n > 0) then
         $if ($MPI)
-            ! write (string1, '(i3)') b
-            ! string1 = trim(adjustl(string1))
-            ! write (string2, '(i4)') count_n
-            ! string2 = trim(adjustl(string2)) 
-            ! write (string3, '(i3)') coord
-            ! string3 = trim(adjustl(string3))             
-            !write(*,*) 'Turbine number ',string1,' has ',string2,' filtered nodes in coord ', string3
 
             call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
             write(*,*) trim(string1)
-
+            
         $else
-            ! write (string1, '(i3)') b
-            ! string1 = trim(adjustl(string1))
-            ! write (string2, '(i4)') count_n
-            ! string2 = trim(adjustl(string2))            
 
             call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
             write(*,*) trim(string1)
@@ -594,30 +572,27 @@ do b=1,nloc
 
 enddo
 
-    !test to make sure domain is divided correctly:
-        temp_array_2 = 0.
-        do b=1,nloc
-        do l=1,wind_farm_t%turbine_t(b)%num_nodes
-            i2 = wind_farm_t%turbine_t(b)%nodes(l,1)
-            j2 = wind_farm_t%turbine_t(b)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(b)%nodes(l,3)
-            temp_array_2(i2,j2,k2) = wind_farm_t%turbine_t(b)%ind(l)
-        enddo   
-        enddo
-        !write to file with .dat.c* extension
-            !fname3 = path // 'turbine/nodes_filtered_c.dat'
-            ! write (temp, '(".c",i0)') coord
-            ! fname3 = trim (fname3) // temp
-        call string_splice( fname3, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
-        
-        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
-        call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
+!    !test to make sure domain is divided correctly:
+!        temp_array_2 = 0.
+!        do b=1,nloc
+!        do l=1,wind_farm%turbine(b)%num_nodes
+!            i2 = wind_farm%turbine(b)%nodes(l,1)
+!            j2 = wind_farm%turbine(b)%nodes(l,2)
+!            k2 = wind_farm%turbine(b)%nodes(l,3)
+!            temp_array_2(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
+!        enddo   
+!        enddo
+!        !write to file with .dat.c* extension
+!        call string_splice( string1, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
+!        
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
 
-    if (coord == 0) then
-        fname3 = path // 'turbine/nodes_filtered.dat'
-        call write_tecplot_header_ND(fname3,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
-        call write_real_data_3D(fname3, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
-    endif
+!    if (coord == 0) then
+!        string1 = path // 'turbine/nodes_filtered.dat'
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
+!    endif
 
 !each processor sends its value of turbine_in_proc
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
@@ -631,9 +606,8 @@ $if ($MPI)
             call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
 
             if (buffer_logical) then
-                write (string3, '(i3)') i
-                string3 = trim(adjustl(string3))       
-                write(*,*),'Coord ',trim(string3),' has turbine nodes'            
+                call string_splice( string1, 'Coord', i,' has turbine nodes')
+                write(*,*) trim(string1)
                 turbine_in_proc_cnt = turbine_in_proc_cnt + 1
                 turbine_in_proc_array(turbine_in_proc_cnt) = i
             endif
@@ -649,34 +623,30 @@ end subroutine turbines_filter_ind
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
-use sim_param, only: u,v,w
-use sim_param, only : fxa, fya, fza
-use grid_defs, only: grid_t !y,z
+use sim_param, only: u,v,w, fxa,fya,fza
 use functions, only: interp_to_uv_grid
-$if ($MPI)
-    use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWNUP
-$endif
+
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
-real(rprec), pointer :: p_u_d => null()
-real(rprec), pointer :: p_u_d_T => null(), p_f_n => null()
+real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
-real(rprec), allocatable, dimension(:,:,:) :: w_uv
+real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
 
 nullify(y,z)
-y => grid_t % y
-z => grid_t % z
+y => grid % y
+z => grid % z
 
 allocate(w_uv(ld,ny,lbz:nz))
 
 $if ($MPI)
     call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
 $endif
+
 w_uv = interp_to_uv_grid(w, lbz)
 
 disk_avg_vels = 0.
@@ -688,26 +658,26 @@ if (turbine_in_proc) then
         do s=1,nloc      
              
         !set pointers
-            p_u_d => wind_farm_t%turbine_t(s)%u_d   
+            p_u_d => wind_farm%turbine(s)%u_d   
 
         !calculate total disk-averaged velocity for each turbine (current,instantaneous)    
         !u_d is the velocity in the normal direction	  
         !weighted average using "ind"            
             p_u_d = 0.
-            do l=1,wind_farm_t%turbine_t(s)%num_nodes   
-                i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
-                j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
-                k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
-                p_u_d = p_u_d + (wind_farm_t%turbine_t(s)%nhat(1)*u(i2,j2,k2) &
-                               + wind_farm_t%turbine_t(s)%nhat(2)*v(i2,j2,k2) &
-                               + wind_farm_t%turbine_t(s)%nhat(3)*w_uv(i2,j2,k2)) &
-                    * wind_farm_t%turbine_t(s)%ind(l)        
+            do l=1,wind_farm%turbine(s)%num_nodes   
+                i2 = wind_farm%turbine(s)%nodes(l,1)
+                j2 = wind_farm%turbine(s)%nodes(l,2)
+                k2 = wind_farm%turbine(s)%nodes(l,3)
+                p_u_d = p_u_d + (wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2) &
+                               + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2) &
+                               + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2)) &
+                    * wind_farm%turbine(s)%ind(l)        
              enddo
                 !write center disk velocity to file                   
                 if (modulo (jt_total, tbase) == 0) then
-                icp = nint(wind_farm_t%turbine_t(s)%xloc/dx)
-                jcp = nint(wind_farm_t%turbine_t(s)%yloc/dy)
-                kcp = nint(wind_farm_t%turbine_t(s)%height/dz + 0.5)
+                icp = nint(wind_farm%turbine(s)%xloc/dx)
+                jcp = nint(wind_farm%turbine(s)%yloc/dy)
+                kcp = nint(wind_farm%turbine(s)%height/dz + 0.5)
                 $if ($MPI)
                 k_start =  1+coord*(nz-1)
                 k_end = nz-1+coord*(nz-1)
@@ -715,11 +685,9 @@ if (turbine_in_proc) then
                 k_start = 1
                 k_end = nz
                 $endif
-                if (kcp>=k_start) then
-                if (kcp<=k_end) then
+                if (kcp>=k_start .and. kcp<=k_end) then
                 kcp=kcp-k_start+1
                 call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
-                endif
                 endif
                 endif
         !write this value to the array (which will be sent to coord 0)
@@ -729,10 +697,11 @@ if (turbine_in_proc) then
         
 endif        
 
-call mpi_barrier (comm,ierr)
-
 !send the disk-avg values to coord==0
 $if ($MPI) 
+
+    call mpi_barrier (comm,ierr)
+
     !############################################## 3
     if (coord == 0) then
         do i=1,turbine_in_proc_cnt
@@ -758,20 +727,20 @@ if (coord == 0) then
         do s=1,nloc            
              
         !set pointers
-            p_u_d => wind_farm_t%turbine_t(s)%u_d   
-            p_u_d_T => wind_farm_t%turbine_t(s)%u_d_T   
-            p_f_n => wind_farm_t%turbine_t(s)%f_n                  
+            p_u_d => wind_farm%turbine(s)%u_d   
+            p_u_d_T => wind_farm%turbine(s)%u_d_T   
+            p_f_n => wind_farm%turbine(s)%f_n                  
             
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
-            p_u_d = disk_avg_vels(s) * wind_farm_t%turbine_t(s)%vol_c
+            p_u_d = disk_avg_vels(s) * wind_farm%turbine(s)%vol_c
     
         !add this current value to the "running average" (first order relaxation)
             p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-            p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm_t%turbine_t(s)%thk       
+            p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
             !write values to file                   
                 if (modulo (jt_total, tbase) == 0) then
                 call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
@@ -804,44 +773,12 @@ if (turbine_in_proc) then
 
     do s=1,nloc     
             
-        do l=1,wind_farm_t%turbine_t(s)%num_nodes
-            i2 = wind_farm_t%turbine_t(s)%nodes(l,1)
-            j2 = wind_farm_t%turbine_t(s)%nodes(l,2)
-            k2 = wind_farm_t%turbine_t(s)%nodes(l,3)
-            ind2 = wind_farm_t%turbine_t(s)%ind(l)                        
-            fxa(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(1)*ind2 
-            !fya(i2,j2,k2) = disk_force(s)*wind_farm_t%turbine_t(s)%nhat(2)*ind2   
-            !fza(i2,j2,k2) = 0.5*disk_force(s)*wind_farm_t%turbine_t(s)%nhat(3)*ind2
-            !fza(i2,j2,k2+1) = fza(i2,j2,k2)
-
-            !! adding fza forcing to determine effect on power extraction    
-            !!(u_d average time, 0.27 for 10min and 0.135 for 5min)
-            !if (z(k2).ge.wind_farm_t%turbine_t(s)%height) then
-            !!run5(1)
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2700.*total_time)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))   
-            !!run6(2)
-            !    !fza(i2,j2,k2) = 0.5 * 0.50*fxa(i2,j2,k2)*cos(2700.*total_time)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))                  
-            !!run3
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !    !sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))             
-            !!run4
-            !    !fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))               
-            !    !fxa(i2,j2,k2) = fxa(i2,j2,k2) - 2.*fza(i2,j2,k2)                
-            !!run7    
-            !    !fza(i2,j2,k2) = 0.5 * 0.50*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.135)* &
-            !    !  sin(2.*pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))  
-            !!run9
-            !    fza(i2,j2,k2) = 0.5 * 0.25*fxa(i2,j2,k2)*cos(2.*pi*total_time/0.27)* &
-            !      sin(pi*((y(j2)-wind_farm_t%turbine_t(s)%yloc)/wind_farm_t%turbine_t(s)%dia + 0.5))              
-
-            !!all runs    
-            !    fza(i2,j2,k2+1) = fza(i2,j2,k2)
-
-            !endif
-           
+        do l=1,wind_farm%turbine(s)%num_nodes
+            i2 = wind_farm%turbine(s)%nodes(l,1)
+            j2 = wind_farm%turbine(s)%nodes(l,2)
+            k2 = wind_farm%turbine(s)%nodes(l,3)
+            ind2 = wind_farm%turbine(s)%ind(l)
+            fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2 
         enddo
 
     enddo
@@ -852,8 +789,8 @@ deallocate(w_uv)
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    fname=path // 'output/vel_top_of_domain.dat'
-    open(unit=1,file=fname,status='unknown',form='formatted',action='write',position='append')
+    string1=path // 'output/vel_top_of_domain.dat'
+    open(unit=1,file=string1,status='unknown',form='formatted',action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 endif
@@ -869,32 +806,24 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
 
-real(rprec), pointer, dimension(:) :: x,y,z
-
-nullify(x,y,z)
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
-
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
-        fname4 = path // 'turbine/turbine_u_d_T.dat'    
+        string1 = path // 'turbine/turbine_u_d_T.dat'    
         inquire (unit=1, opened=opn)
         if (opn) call error (sub_name, 'unit 1 already open, mark6')        
-        open (unit=1,file = fname4, status='unknown',form='formatted', action='write',position='rewind')
+        open (unit=1,file = string1, status='unknown',form='formatted', action='write',position='rewind')
         do i=1,nloc
-            write(1,*) wind_farm_t%turbine_t(i)%u_d_T    
+            write(1,*) wind_farm%turbine(i)%u_d_T
         enddo           
-        write(1,*) T_avg_dim       
-        close (1)  
-    endif   
+        write(1,*) T_avg_dim
+        close (1)
+    endif
     
 !deallocate
-    deallocate(wind_farm_t%turbine_t) 
-    deallocate(buffer_array)
-
-nullify(x,y,z)
+deallocate(wind_farm%turbine) 
+deallocate(buffer_array)
+    
 end subroutine turbines_finalize
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

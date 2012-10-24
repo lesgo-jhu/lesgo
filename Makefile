@@ -113,6 +113,15 @@ ifeq ($(USE_DYN_TN), yes)
   EXE := $(EXE)-dyntn
 endif
 
+ifeq ($(USE_BINARY), yes)
+  EXE := $(EXE)-binary
+endif
+
+ifeq ($(USE_SAFETYMODE), no)
+  EXE := $(EXE)-safety_off
+endif
+
+
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
 COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
 
@@ -138,6 +147,5 @@ convert_endian:	utils/convert_endian.f90
 # FOBJ is defined in .depend
 .PHONY : clean
 clean :
-	echo \0,0.,0.,0.,0.>./total_time.dat
 	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
 	rm -f t.*

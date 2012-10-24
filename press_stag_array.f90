@@ -419,10 +419,6 @@ if (DEBUG) then
 end if
 $endif
 
-!if (DEBUG) then
-!    write (*, *) 'jt, pre tridag p_hat(1,1,0) = ', jt, p_hat(1, 1, 0)
-!end if
-
 !--this skips zero wavenumber solution, nyquist freqs
 !call tridag_array (a, b, c, RHS_col, p_hat)
 $if ($MPI)

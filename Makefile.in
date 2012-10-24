@@ -49,11 +49,11 @@ READ_ENDIAN = DEFAULT
 # Use binary output for output files
 USE_BINARY=no
 
+USE_TURBINES = no 
+
 USE_LVLSET = no
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
-
-USE_TURBINES = no
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream

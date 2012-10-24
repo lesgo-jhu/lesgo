@@ -7,9 +7,13 @@ subroutine initialize()
 !
 use types, only : rprec
 use param, only : path
-use param, only : USE_MPI, nproc, coord, dt, jt_total, chcoord
+use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
+$if($MPI)
+use param, only : MPI_COMM_WORLD, ierr
+$endif
+
 use cfl_util
 use io, only : output_init
 use sgs_param, only : sgs_param_init
@@ -74,6 +78,21 @@ $else
   chcoord = ''
 $endif
 
+! Open output files (total_time.dat and check_ke.out)  
+call openfiles()
+
+if( jt_total >= nsteps ) then
+
+   if(coord == 0 ) write(*,'(a)') 'Full number of time steps reached'
+   ! MPI:
+   $if ($MPI)
+   ! First make sure everyone in has finished
+   call mpi_barrier( MPI_COMM_WORLD, ierr )
+   call mpi_finalize (ierr)
+   $endif 
+   stop
+endif
+
 ! Write simulation data to file 
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
@@ -119,10 +138,7 @@ call test_filter_init( )
 
 ! Initialize velocity field
 call initial()
-    
-! Open output files (total_time.dat and check_ke.out)  
-call openfiles()
-    
+        
 
 ! Initialize concurrent precursor stuff
 $if($MPI and $CPS)

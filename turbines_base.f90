@@ -1,6 +1,6 @@
 module turbines_base
 use types, only:rprec
-use stat_defs, only:wind_farm_t
+use stat_defs, only:wind_farm
 $if ($MPI)
   use mpi_defs
 $endif
@@ -39,12 +39,12 @@ integer(rprec) :: tbase     ! Number of timesteps between the output
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
 real(rprec) :: sy           ! spacing in the y-direction
-real(rprec) :: dummy        ! used to shift the turbine positions
+real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! This subroutine sets the values for wind_farm_t based on values
+! This subroutine sets the values for wind_farm based on values
 !   read from the input file.
 
 subroutine turbines_base_init()
@@ -61,8 +61,8 @@ real(rprec) :: sxx, syy, shift_base, const
 
     ! Allocate wind turbine array derived type
     nloc = num_x*num_y      !number of turbines (locations) 
-    nullify(wind_farm_t%turbine_t)
-    allocate(wind_farm_t%turbine_t(nloc))
+    nullify(wind_farm%turbine)
+    allocate(wind_farm%turbine(nloc))
 
     ! Non-dimensionalize length values by z_i
     dia_all = dia_all / z_i
@@ -73,10 +73,10 @@ real(rprec) :: sxx, syy, shift_base, const
     thk_all = max ( thk_all, dx*1.01 )
 
     ! Set baseline values for size
-    wind_farm_t%turbine_t(:)%height = height_all
-    wind_farm_t%turbine_t(:)%dia = dia_all
-    wind_farm_t%turbine_t(:)%thk = thk_all                      
-    wind_farm_t%turbine_t(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+    wind_farm%turbine(:)%height = height_all
+    wind_farm%turbine(:)%dia = dia_all
+    wind_farm%turbine(:)%thk = thk_all                      
+    wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
 
     ! Spacing between turbines (as multiple of mean diameter)
     sx = L_x / (num_x * dia_all )
@@ -89,8 +89,8 @@ real(rprec) :: sxx, syy, shift_base, const
     syy = sy * dia_all  ! y-spacing
     do i = 1,num_x
       do j = 1,num_y
-        wind_farm_t%turbine_t(k)%xloc = sxx*real(2*i-1)/2
-        wind_farm_t%turbine_t(k)%yloc = syy*real(2*j-1)/2
+        wind_farm%turbine(k)%xloc = sxx*real(2*i-1)/2
+        wind_farm%turbine(k)%yloc = syy*real(2*j-1)/2
         k = k + 1
       enddo
     enddo
@@ -106,7 +106,7 @@ real(rprec) :: sxx, syy, shift_base, const
       do i = 2, num_x
         do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
           shift_base = syy * stag_perc/100.
-          wind_farm_t%turbine_t(k)%yloc = mod( wind_farm_t%turbine_t(k)%yloc + (i-1)*shift_base , L_y )
+          wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc + (i-1)*shift_base , L_y )
         enddo
       enddo
  
@@ -115,13 +115,13 @@ real(rprec) :: sxx, syy, shift_base, const
       ! Make even rows taller
       do i = 2, num_x, 2
         do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-          wind_farm_t%turbine_t(k)%height = height_all*(1.+stag_perc/100.)
+          wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
         enddo
       enddo
       ! Make odd rows shorter
       do i = 1, num_x, 2
         do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-          wind_farm_t%turbine_t(k)%height = height_all*(1.-stag_perc/100.)
+          wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
         enddo
       enddo
  
@@ -131,7 +131,7 @@ real(rprec) :: sxx, syy, shift_base, const
       do i = 1, num_x 
         do j = 1, num_y
           const = 2.*mod(real(i+j),2.)-1.  ! this should alternate between 1, -1
-          wind_farm_t%turbine_t(k)%height = height_all*(1.+const*stag_perc/100.)
+          wind_farm%turbine(k)%height = height_all*(1.+const*stag_perc/100.)
           k = k + 1
         enddo
       enddo
@@ -143,19 +143,39 @@ real(rprec) :: sxx, syy, shift_base, const
 
       ! Shift the turbines forward
       k=1
-      dummy=wind_farm_t%turbine_t(1)%xloc/2
+      dummy=wind_farm%turbine(1)%xloc/2
       do i = 1, num_x
         do j = 1, num_y
-          wind_farm_t%turbine_t(k)%xloc=wind_farm_t%turbine_t(k)%xloc -dummy
+          wind_farm%turbine(k)%xloc=wind_farm%turbine(k)%xloc -dummy
           k=k+1
         enddo
+      enddo
+
+      ! Shift in spanwise direction: Note that stag_perc is now used
+      k=1
+      dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
+      do i = 1, num_x
+      do j = 1, num_y
+         dummy2=dummy*floor(real(k-1)/num_y)
+         wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
+         k=k+1
+      enddo
+      enddo
+
+      ! Print the values to the file in order to check the turbine spacings
+      k=1
+      do i=1, num_x
+      do j=1, num_y
+        write(*,*) k,wind_farm%turbine(k)%xloc,wind_farm%turbine(k)%yloc
+        k=k+1
+      enddo
       enddo
     
     endif
         
     !orientation (angles)
-        wind_farm_t%turbine_t(:)%theta1 = theta1_all
-        wind_farm_t%turbine_t(:)%theta2 = theta2_all
+    wind_farm%turbine(:)%theta1 = theta1_all
+    wind_farm%turbine(:)%theta2 = theta2_all
 
  
 end subroutine turbines_base_init

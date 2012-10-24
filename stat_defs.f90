@@ -7,31 +7,31 @@ use param, only : nx,ny,nz,lh
 save
 public
 
-type point
+type point_t
   integer :: istart, jstart, kstart, coord
   real(rprec) :: xdiff, ydiff, zdiff
   integer :: fid
-end type point
+end type point_t
 
-type plane
+type plane_t
   integer :: istart
   real(rprec) :: ldiff
-end type plane
+end type plane_t
 
-type zplane
+type zplane_t
   integer :: istart, coord
   real(rprec) :: ldiff
-end type zplane  
+end type zplane_t  
 
-type rs
+type rs_t
   real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp 
-end type rs
+end type rs_t
 
-type spectra
+type spectra_t
   real(rprec), dimension(:), allocatable :: power
   integer :: istart, coord
   real(rprec) :: ldiff 
-end type spectra
+end type spectra_t
 
 real(rprec) :: spectra_total_time
 real(rprec) :: tavg_total_time
@@ -40,38 +40,42 @@ real(rprec) :: tavg_total_time_sgs
 $endif
 ! Time stamp of last time averaging computation
 real(rprec) :: tavg_time_stamp  
+! Switch for determining if time averaging has been initialized
+logical :: tavg_initialized = .false.
 
 ! Time step used for time averaging of spectra
 real(rprec) :: dt_spectra
-! Time stampe of last spectra computation
+! Time stamp of last spectra computation
 real(rprec) :: spectra_time_stamp
+! Switch for determining if time averaging has been initialized
+logical :: spectra_initialized = .false.
 
 !  Sums performed over time
-type tavg
+type tavg_t
   real(rprec) :: u, v, w
   real(rprec) :: u2, v2, w2, uv, uw, vw
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
   real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2  
-end type tavg
+end type tavg_t
   
 !  Sums performed over time (for subgrid variables)
 $if($OUTPUT_EXTRA)
-type tavg_sgs
+type tavg_sgs_t
   real(rprec) :: Tn, Nu_t
   real(rprec) :: F_LM, F_MM, F_QN, F_NN
   real(rprec) :: ee_now
   $if ($DYN_TN)
   real(rprec) :: F_ee2, F_deedt2
   $endif
-end type tavg_sgs
+end type tavg_sgs_t
 $endif
 
 ! Types for including wind-turbines as drag disks
 $if ($TURBINES)
 ! Single turbines
-type turbine 
+type turbine_t
   real(rprec) :: xloc, yloc, height, dia, thk
   real(rprec) :: vol_c                        ! term used for volume correction  
   real(rprec) :: theta1                       ! angle CCW(from above) from -x direction [degrees]
@@ -83,53 +87,53 @@ type turbine
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(1500) :: ind         ! indicator function - weighting of each node
-end type turbine
+end type turbine_t
 
 ! A collection of wind-turbines
-type wind_farm
-  type(turbine), pointer, dimension(:) :: turbine_t
-end type wind_farm
+type wind_farm_t
+  type(turbine_t), pointer, dimension(:) :: turbine
+end type wind_farm_t
     
-type(wind_farm) :: wind_farm_t
+type(wind_farm_t) :: wind_farm
 $endif
 
 ! Histogram (single)
-type hist
+type hist_t
     real(rprec) :: bmin, bmax, db             ! bin min, max, and spacing
     integer :: nbins                          ! number of bins
     real(rprec), allocatable, dimension(:) :: bins  ! bin centers
     real(rprec), allocatable, dimension(:) :: vals  ! count for each bin (may be normalized)
-end type hist
+end type hist_t
 
 ! Collection of histograms (one for each zplane) for a single variable
-type hist_zplanes  
+type hist_zplanes_t  
     integer, allocatable, dimension(:) :: coord         ! processor where this plane exists
     integer, allocatable, dimension(:) :: istart        ! nearest node below plane (for interpolation)
     real(rprec), allocatable, dimension(:) :: ldiff     ! distance from istart to plane (for interpolation)
-    type(hist), allocatable, dimension(:) :: hist_t     ! the histograms for each plane
-end type hist_zplanes
+    type(hist_t), allocatable, dimension(:) :: hist     ! the histograms for each plane
+end type hist_zplanes_t
 
 ! Create histogram groups here 
-type(hist_zplanes) :: HISTcs2_t   ! SGS coefficient, squared
-type(hist_zplanes) :: HISTtn_t    ! Lagrangian time scale
-type(hist_zplanes) :: HISTnu_t    ! Eddy viscosity
-type(hist_zplanes) :: HISTee_t    ! Error in SGS model
+type(hist_zplanes_t) :: HISTcs2   ! SGS coefficient, squared
+type(hist_zplanes_t) :: HISTtn    ! Lagrangian time scale
+type(hist_zplanes_t) :: HISTnu    ! Eddy viscosity
+type(hist_zplanes_t) :: HISTee    ! Error in SGS model
 
 ! Create types for outputting data (instantaneous or averaged)
-type(point), allocatable, dimension(:) :: point_t
-type(plane), allocatable, dimension(:) :: xplane_t, yplane_t
-type(zplane), allocatable, dimension(:) :: zplane_t
+type(point_t), allocatable, dimension(:) :: point
+type(plane_t), allocatable, dimension(:) :: xplane, yplane
+type(zplane_t), allocatable, dimension(:) :: zplane
 
-type(tavg), allocatable, dimension(:,:,:) :: tavg_t
-type(tavg), allocatable, dimension(:) :: tavg_zplane_t
+type(tavg_t), allocatable, dimension(:,:,:) :: tavg
+type(tavg_t), allocatable, dimension(:) :: tavg_zplane
 
 $if ($OUTPUT_EXTRA)
-type(tavg_sgs), allocatable, dimension(:,:,:) :: tavg_sgs_t
+type(tavg_sgs_t), allocatable, dimension(:,:,:) :: tavg_sgs
 $endif
 
-type(rs), allocatable, dimension(:,:,:) :: rs_t
-type(rs), allocatable, dimension(:) :: rs_zplane_t, cnpy_zplane_t
-type(spectra), allocatable, dimension(:) :: spectra_t
+type(rs_t), allocatable, dimension(:,:,:) :: rs
+type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
+type(spectra_t), allocatable, dimension(:) :: spectra
 
 ! Overloaded operators for tavg and rs types
 INTERFACE OPERATOR (.ADD.)
@@ -178,8 +182,8 @@ contains
 function tavg_add( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
-type(tavg), intent(in) :: a, b
-type(tavg) :: c
+type(tavg_t), intent(in) :: a, b
+type(tavg_t) :: c
 
 c % u = a % u + b % u
 c % v = a % v + b % v
@@ -210,8 +214,8 @@ end function tavg_add
 function tavg_sub( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
-type(tavg), intent(in) :: a, b
-type(tavg) :: c
+type(tavg_t), intent(in) :: a, b
+type(tavg_t) :: c
 
 c % u = a % u - b % u
 c % v = a % v - b % v
@@ -244,9 +248,9 @@ function tavg_scalar_add( a, b ) result(c)
 use types, only : rprec
 implicit none
 
-type(tavg), intent(in) :: a
+type(tavg_t), intent(in) :: a
 real(rprec), intent(in) :: b
-type(tavg) :: c
+type(tavg_t) :: c
 
 c % u = a % u + b
 c % v = a % v + b
@@ -279,7 +283,7 @@ subroutine tavg_zero_bogus_2D( c )
 use types, only : rprec
 implicit none
 
-type(tavg), dimension(:,:), intent(inout) :: c
+type(tavg_t), dimension(:,:), intent(inout) :: c
 
 c % txx = 0._rprec
 c % tyy = 0._rprec
@@ -300,7 +304,7 @@ subroutine tavg_zero_bogus_3D( c )
 use types, only : rprec
 implicit none
 
-type(tavg), dimension(:,:,:), intent(inout) :: c
+type(tavg_t), dimension(:,:,:), intent(inout) :: c
 
 c % txx = 0._rprec
 c % tyy = 0._rprec
@@ -322,9 +326,9 @@ function tavg_scalar_div( a, b ) result(c)
 use types, only : rprec
 implicit none
 
-type(tavg), intent(in) :: a
+type(tavg_t), intent(in) :: a
 real(rprec), intent(in) :: b
-type(tavg) :: c
+type(tavg_t) :: c
 
 c % u = a % u / b
 c % v = a % v / b
@@ -355,8 +359,8 @@ end function tavg_scalar_div
 function tavg_mul( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
-type(tavg), intent(in) :: a, b
-type(tavg) :: c
+type(tavg_t), intent(in) :: a, b
+type(tavg_t) :: c
 
 c % u = a % u * b % u
 c % v = a % v * b % v
@@ -389,9 +393,9 @@ function tavg_scalar_mul( a, b ) result(c)
 use types, only : rprec
 implicit none
 
-type(tavg), intent(in) :: a
+type(tavg_t), intent(in) :: a
 real(rprec), intent(in) :: b
-type(tavg) :: c
+type(tavg_t) :: c
 
 c % u = a % u * b
 c % v = a % v * b
@@ -425,9 +429,9 @@ function tavg_sgs_scalar_div( a, b ) result(c)
 use types, only : rprec
 implicit none
 
-type(tavg_sgs), intent(in) :: a
+type(tavg_sgs_t), intent(in) :: a
 real(rprec), intent(in) :: b
-type(tavg_sgs) :: c
+type(tavg_sgs_t) :: c
 
 c % Tn = a % Tn / b
 c % Nu_t = a % Nu_t / b
@@ -452,8 +456,8 @@ use param, only: lbz
 use functions, only : interp_to_uv_grid
 implicit none
 
-type(tavg), dimension(:,:,lbz:), intent(in) :: a
-type(tavg), allocatable, dimension(:,:,:) :: c
+type(tavg_t), dimension(:,:,lbz:), intent(in) :: a
+type(tavg_t), allocatable, dimension(:,:,:) :: c
 
 integer :: ubx, uby, ubz
 
@@ -478,8 +482,8 @@ use param, only: lbz
 use functions, only : interp_to_w_grid
 implicit none
 
-type(tavg), dimension(:,:,lbz:), intent(in) :: a
-type(tavg), allocatable, dimension(:,:,:) :: c
+type(tavg_t), dimension(:,:,lbz:), intent(in) :: a
+type(tavg_t), allocatable, dimension(:,:,:) :: c
 
 integer :: ubx, uby, ubz
 
@@ -511,8 +515,8 @@ function rs_add( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-type(rs), intent(in) :: a, b
-type(rs) :: c
+type(rs_t), intent(in) :: a, b
+type(rs_t) :: c
 
 c % up2 = a % up2 + b % up2
 c % vp2 = a % vp2 + b % vp2
@@ -529,8 +533,8 @@ function rs_sub( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-type(rs), intent(in) :: a, b
-type(rs) :: c
+type(rs_t), intent(in) :: a, b
+type(rs_t) :: c
 
 c % up2 = a % up2 - b % up2
 c % vp2 = a % vp2 - b % vp2
@@ -547,9 +551,9 @@ function rs_scalar_div( a, b) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-type(rs), intent(in) :: a
+type(rs_t), intent(in) :: a
 real(rprec), intent(in) :: b
-type(rs) :: c
+type(rs_t) :: c
 
 c % up2 = a % up2 / b
 c % vp2 = a % vp2 / b 
@@ -570,8 +574,8 @@ function rs_compute( a , lbz2) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 integer, intent(in) :: lbz2
-type(tavg), dimension(:,:,lbz2:), intent(in) :: a
-type(rs), allocatable, dimension(:,:,:) :: c
+type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
+type(rs_t), allocatable, dimension(:,:,:) :: c
 
 integer :: ubx, uby, ubz
 
@@ -599,8 +603,8 @@ function cnpy_tavg_mul( a ) result(c)
 !
 implicit none
 
-type(tavg), intent(in) :: a
-type(rs) :: c
+type(tavg_t), intent(in) :: a
+type(rs_t) :: c
 
 c % up2 = a % u * a % u
 c % vp2 = a % v * a % v
@@ -622,7 +626,7 @@ subroutine tavg_set( c, a )
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
-type(tavg), intent(out) :: c
+type(tavg_t), intent(out) :: c
 
 c % u = a
 c % v = a
@@ -656,7 +660,7 @@ subroutine tavg_sgs_set( c, a )
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
-type(tavg_sgs), intent(out) :: c
+type(tavg_sgs_t), intent(out) :: c
 
 c % Tn =  a
 c % Nu_t =  a
@@ -684,7 +688,7 @@ subroutine rs_set( c, a )
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
-type(rs), intent(out) :: c
+type(rs_t), intent(out) :: c
 
 c % up2 = a
 c % vp2 = a
@@ -716,7 +720,7 @@ subroutine hist_binit_1D( a, var, phi_ls )
 use types, only : rprec
 implicit none
 
-type(hist), intent(inout) :: a                
+type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:) :: var
 real(rprec), intent(in), dimension(:), optional :: phi_ls ! phi_ls<0 is inside a body
 
@@ -777,7 +781,7 @@ subroutine hist_binit_2D( a, var, phi_ls )
 use types, only : rprec
 implicit none
 
-type(hist), intent(inout) :: a                
+type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:,:) :: var
 real(rprec), intent(in), dimension(:,:), optional :: phi_ls 
 
@@ -843,7 +847,7 @@ subroutine hist_binit_3D( a, var, phi_ls )
 use types, only : rprec
 implicit none
 
-type(hist), intent(inout) :: a                
+type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:,:,:) :: var
 real(rprec), intent(in), dimension(:,:,:), optional :: phi_ls 
 

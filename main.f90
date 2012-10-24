@@ -1,6 +1,11 @@
 !**********************************************************************
 program main
 !**********************************************************************
+!
+! Main file for lesgo solver 
+! Contains main time-loop
+! 
+
 use types, only : rprec
 use clocks 
 use param
@@ -46,11 +51,11 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
+integer :: nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
-real (rprec) :: force
 
-type(clock_type) :: clock_t, clock_total_t
+type(clock_t) :: clock, clock_total
 
 $if($MPI)
 ! Buffers used for MPI communication
@@ -58,26 +63,33 @@ real(rprec) :: rbuffer
 $endif
 
 ! Start the clocks, both local and total
-call clock_start( clock_t )
+call clock_start( clock )
 
 ! Initialize time variable
 tt = 0
+jt = 0
+jt_total = 0
 
 ! Initialize all data
 call initialize()
 
 if(coord == 0) then
-   call clock_stop( clock_t )
-   write(*,'(1a,E15.7)') 'Initialization time: ', clock_t % time
+   call clock_stop( clock )
+   write(*,'(1a,E15.7)') 'Initialization time: ', clock % time
 endif
 
-call clock_start( clock_total_t )
+call clock_start( clock_total )
+
+! Initialize starting loop index 
+! If new simulation jt_total=0 by definition, if restarting jt_total
+! provided by total_time.dat
+nstart = jt_total+1
 
 ! BEGIN TIME LOOP
-time_loop: do jt=1,nsteps   
-   
+time_loop: do jt_total=nstart,nsteps   
+  
    ! Get the starting time for the iteration
-   call clock_start( clock_t )
+   call clock_start( clock )
 
    if( use_cfl_dt ) then
       
@@ -91,7 +103,7 @@ time_loop: do jt=1,nsteps
    endif
 
    ! Advance time
-   jt_total = jt_total + 1 
+   jt = jt + 1
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
@@ -238,12 +250,8 @@ time_loop: do jt=1,nsteps
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
     if (use_mean_p_force) then
-        force = mean_p_force
-    else
-        force = 0._rprec
+        RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
-  
-    RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + force
 
     $if ($DEBUG)
     if (DEBUG) then
@@ -267,19 +275,34 @@ time_loop: do jt=1,nsteps
     !//////////////////////////////////////////////////////
     !/// APPLIED FORCES                                 ///
     !//////////////////////////////////////////////////////
+    !  In order to save memory the arrays fxa, fya, and fza are now only defined when needed.
+    !  For Levelset RNS all three arrays are assigned. 
+    !  For turbines at the moment only fxa is assigned.
+    !  Look in forcing_applied for calculation of forces.
+    !  Look in sim_param.f90 for the assignment of the arrays.
+        
     !  Applied forcing (forces are added to RHS{x,y,z})
     call forcing_applied()
 
     !  Update RHS with applied forcing
+    $if ($LVLSET)
+    $if ($RNS_LS)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
+    $endif
+    $endif
 
+    $if ($TURBINES)
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    $endif
+
+    
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
     ! Set RHS*_f if necessary (first timestep) 
-    if ((jt == 1) .and. (.not. initu)) then
+    if ((jt_total == 1) .and. (.not. initu)) then
       ! if initu, then this is read from the initialization file
       ! else for the first step put RHS_f=RHS
       !--i.e. at first step, take an Euler step
@@ -398,8 +421,8 @@ time_loop: do jt=1,nsteps
     if (modulo (jt_total, wbase) == 0) then
        
        ! Get the ending time for the iteration
-       call clock_stop( clock_t )
-       call clock_stop( clock_total_t )
+       call clock_stop( clock )
+       call clock_stop( clock_total )
 
        ! Calculate rms divergence of velocity
        ! only written to screen, not used otherwise
@@ -420,8 +443,8 @@ time_loop: do jt=1,nsteps
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
           write(*,'(1a)') 'Simulation wall times (s): '
-          write(*,'(1a,E15.7)') '  Iteration: ', clock_t % time
-          write(*,'(1a,E15.7)') '  Cumulative: ', clock_total_t % time
+          write(*,'(1a,E15.7)') '  Iteration: ', clock % time
+          write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
        end if
 
@@ -429,14 +452,14 @@ time_loop: do jt=1,nsteps
        if( runtime > 0 ) then
 
           ! Determine the processor that has used most time and communicate this.
-          ! Needed to prevent to some processors abort and others not
+          ! Needed to make sure that all processors stop at the same time and not just some of them
           $if($MPI)
-          call mpi_allreduce(clock_total_t % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
-          clock_total_t % time = rbuffer
+          call mpi_allreduce(clock_total % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
+          clock_total % time = rbuffer
           $endif
        
           ! If maximum time is surpassed go to the end of the program
-          if ( clock_total_t % time >= real(runtime,rprec) ) then
+          if ( clock_total % time >= real(runtime,rprec) ) then
              call mesg( prog_name, 'Specified runtime exceeded. Exiting simulation.')
              exit time_loop
           endif
@@ -455,8 +478,8 @@ close(2)
 call output_final()
 
 ! Stop wall clock
-call clock_stop( clock_total_t )
-if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total_t % time
+call clock_stop( clock_total )
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
 
 call finalize()
 

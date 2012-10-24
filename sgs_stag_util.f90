@@ -160,10 +160,10 @@ if (sgs) then
             print *,'CS_opt2 initialiazed'
             Cs_opt2 = 0.03_rprec
 
-        elseif ( ((jt.GE.DYN_init).OR.(initu)) .AND. (mod(jt,cs_count)==0) ) then
+        elseif ( ((jt.GE.DYN_init).OR.(initu)) .AND. (mod(jt_total,cs_count)==0) ) then
         ! Update Sij, Cs every cs_count timesteps (specified in param)
         
-            if (jt ==DYN_init) print *,'running dynamic sgs_model = ',sgs_model
+            if (jt == DYN_init) print *,'running dynamic sgs_model = ',sgs_model
             
             if (sgs_model == 2) then        ! Standard dynamic model
                 call std_dynamic(ziko)
@@ -206,7 +206,7 @@ end do
 
 ! Update the values for the sgs-variable histograms
   if (sgs_hist_calc) then
-  if ( (jt.ge.sgs_hist_nstart) .and. (mod(jt,sgs_hist_nskip).eq.0) ) then
+  if ( (jt_total .ge. sgs_hist_nstart) .and. (mod(jt_total,sgs_hist_nskip).eq.0) ) then
     call sgs_hist_update_vals( )
   endif
   endif

@@ -1,5 +1,5 @@
 module param
-  use types, only : rprec, point3D
+  use types, only : rprec, point3D_t
   $if ($MPI)
   use mpi
   $endif
@@ -137,8 +137,8 @@ module param
   logical :: cumulative_time = .true.
   character (*), parameter :: fcumulative_time = path // 'total_time.dat'
   
-  integer :: jt                 ! global time-step counter
-  integer :: jt_total           ! used for cumulative time (see io module)
+  integer :: jt=0                 ! Local time counter
+  integer :: jt_total=0           ! Global time counter
   real(rprec) :: total_time, total_time_dim
   
 !---------------------------------------------------
@@ -182,7 +182,7 @@ module param
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
 
-  ! how often to display "jt,dt,rmsdivvel,ke,cfl" output
+  ! how often to display stdout
   integer :: wbase = 100
 
   ! how often to write ke to check_ke.out
@@ -204,7 +204,7 @@ module param
   logical :: point_calc = .false.
   integer :: point_nstart=1, point_nend=50000, point_nskip=10
   integer :: point_nloc=1
-  type(point3D), allocatable, dimension(:) :: point_loc
+  type(point3D_t), allocatable, dimension(:) :: point_loc
 
   ! domain instantaneous output
   logical :: domain_calc=.false.

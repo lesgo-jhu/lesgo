@@ -208,9 +208,9 @@ nullify(z)
 ! Intialize result
 cell_indx = -1
 
-if(.not. grid_t % built) call grid_build()
+if(.not. grid % built) call grid_build()
 
-z => grid_t % z
+z => grid % z
 
 select case (indx)
   case ('i')
@@ -329,7 +329,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
-use grid_defs, only : grid_t
+use grid_defs, only : grid
 use types, only : rprec
 use sim_param, only : u,v
 use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
@@ -352,11 +352,11 @@ integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 nullify(x,y,z)
 nullify(autowrap_i, autowrap_j)
 
-x => grid_t % x
-y => grid_t % y
-z => grid_t % z
-autowrap_i => grid_t % autowrap_i
-autowrap_j => grid_t % autowrap_j
+x => grid % x
+y => grid % y
+z => grid % z
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
 !  Initialize stuff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
@@ -501,9 +501,9 @@ real(rprec), pointer, dimension(:) :: z
 nullify(z)
 
 !  Build computational mesh if needed
-if(.not. grid_t % built) call grid_build()
+if(.not. grid % built) call grid_build()
 
-z => grid_t % z
+z => grid % z
 
 nsum = 0
 var_sum=0.
@@ -628,9 +628,9 @@ nullify(z)
 !if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
 
 !  Build computational mesh if needed
-if(.not. grid_t % built) call grid_build()
+if(.not. grid % built) call grid_build()
 
-z => grid_t % z
+z => grid % z
 
 nsum = 0
 var_sum=0.
