@@ -11,6 +11,8 @@ use sgs_param,only:Cs_opt2
 use string_util
 use messages
 
+use hdf5_io ! Module for writing HDF5 data
+
 implicit none
 
 save
@@ -412,8 +414,6 @@ integer, intent(IN) :: itype
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 character (64) :: var_list
 character (64) :: fname
-character (64) :: fname_hdf5_grid ! HDF5 file name for the grid
-character (64) :: fname_hdf5_vel ! HDF5 file name for the velocity
 
 integer :: n, i, j, k,nvars
 
@@ -505,6 +505,13 @@ if(itype==1) then
 !  Instantaneous write for entire domain
 elseif(itype==2) then
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !                     HDF5                          !
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  call write_grid_hdf5() ! Create the grid file
+  call write_domain_hdf5() ! Write the 3D fields 
+
   !////////////////////////////////////////////
   !/// WRITE VELOCITY                       ///
   !////////////////////////////////////////////
@@ -512,20 +519,15 @@ elseif(itype==2) then
   ! Create the file name used for the output
   ! .dat is for tecplot format
   ! .hdf5 is for hdf5 format
+
   $if( $BINARY )
-  call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
-  call string_splice( fname_hdf5_grid, path // 'output/binary_grid.', jt_total,'.hdf5')
-  call string_splice( fname_hdf5_vel, path // 'output/binary_vel.', jt_total,'.hdf5')
+  call string_splice( fname, path // 'output/binary_data.', jt_total,'.dat')
   $else
   call string_splice( fname, path // 'output/vel.', jt_total, '.dat')
-  call string_splice( fname_hdf5_grid, path // 'output/grid.', jt_total,'.hdf5')
-  call string_splice( fname_hdf5_vel, path // 'output/vel.', jt_total,'.hdf5')
   $endif
 
   $if ($MPI)
   call string_concat( fname, '.c', coord )
-  call string_concat( fname_hdf5_grid, '.c', coord,'.hdf5' )
-  call string_concat( fname_hdf5_vel, '.c', coord,'.hdf5' )
   $endif
  
   $if($BINARY)
@@ -562,13 +564,6 @@ elseif(itype==2) then
          4, x, y, z(1:nz))
     $endif
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !                     HDF5                          !
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  call write_grid_hdf5(fname_hdf5_grid)
-  call write_velocity_domain_hdf5(fname_hdf5_vel)
-
-  
   $endif
   
 
@@ -3334,169 +3329,6 @@ $endif
 
 return
 end subroutine spectra_checkpoint
-
-!***********************************************************************
-subroutine write_velocity_domain_hdf5(file_name)
-!***********************************************************************
-!
-! This subroutine writes the the velocity as an HDF5 file
-! Writes velocity vector in domain section provided by the processor
-  $if($MPI)
-   use mpi
-  $endif   
-   use HDF5 ! HDF5 data library  
-   use h5lt ! Easier to use hdf5 implementation
-   use sim_param, only : u,v,w ! velocity field
-   use param, only : nx, ny, nz, ierr,comm    ! Domain size
-   implicit none
-   integer(HSIZE_T), dimension(3) :: data_dims !(/nx,ny,nz/)
-   integer(HID_T) :: file_id   ! Error and file identifier
-   integer(HID_T) :: group_id      ! Group identifier
-   character(LEN=25) :: file_name  ! Name of file to write out
-
-  ! Initialize values
-  data_dims = (/nx,ny,nz/)
-
-  ! Initialize FORTRAN interface.
-  call h5open_f(ierr) 
-
-
-  ! Create a new file using default properties.
-  call h5fcreate_f(trim(file_name), H5F_ACC_TRUNC_F, file_id, ierr) 
-
-  ! Write the dataset.
-  call h5gcreate_f(file_id, 'velocity', group_id, ierr)
-  
-  call h5LTmake_dataset_double_f(group_id, 'u', 3, data_dims, &
-  u(1:nx,1:ny,1:nz) ,ierr)
-  call h5LTmake_dataset_double_f(group_id, 'v', 3, data_dims, &
-  v(1:nx,1:ny,1:nz) ,ierr)
-  call h5LTmake_dataset_double_f(group_id, 'w', 3, data_dims, &
-  w(1:nx,1:ny,1:nz) ,ierr)
-
-  ! Close the group.
-  call h5gclose_f(group_id, ierr)
-
-  ! Close the file.
-  call h5fclose_f(file_id, ierr)
-
-  ! Close FORTRAN interface.
-  call h5close_f(ierr)
-    
-  $if($MPI)
-    ! Ensure that all processes finish before attempting to write 
-    ! additional files. Otherwise it may flood the system with 
-    ! too many I/O requests and crash the process 
-    call mpi_barrier( comm, ierr )
-  $endif
-
- call writexdmf(file_name)
-
-end subroutine write_velocity_domain_hdf5
-
-subroutine write_grid_hdf5(file_name)
-!***********************************************************************
-!
-! This subroutine writes the the velocity as an HDF5 file
-! Writes velocity vector in domain section provided by the processor
-   $if($MPI)
-    use mpi
-  $endif   
-  use HDF5 ! HDF5 data library  
-  use h5lt ! Easier to use hdf5 implementation
-  use grid_defs, only : grid   ! Domain coordinates
-  use param, only : nx, ny, nz, ierr, comm ! Domain size
-
-  implicit none
-
-  integer(HSIZE_T), dimension(3) :: data_dims ! Data size
-  integer(HID_T) :: file_id   ! Error and file identifier
-  integer(HID_T) :: group_id      ! Group identifier
-  character(LEN=28) :: file_name  ! Name of file to write out
-  integer i,j,k
-  real(rprec), dimension(4) :: data_coord(nx,ny,nz,3)
-  real(rprec), pointer, dimension(:) :: x,y,z
-
-  ! Set pointers
-  x => grid % x
-  y => grid % y
-  z => grid % z
-
-  ! Initialize values
-  data_dims = (/nx,ny,nz/)
-
-  do k=1, nz
-    do j=1, ny
-      do i=1, nx
-        data_coord(i,j,k,1) = x(i)
-        data_coord(i,j,k,2) = y(j)
-        data_coord(i,j,k,3) = z(k)
-      enddo
-    enddo
-  enddo
-  
-!  write(*,*) 'Not working',x,y,z
-
-  ! Initialize FORTRAN interface.
-  call h5open_f(ierr) 
-
-  ! Create a new file using default properties.
-  call h5fcreate_f(trim(file_name), H5F_ACC_TRUNC_F, file_id, ierr) 
-
-  ! Create the group
-  call h5gcreate_f(file_id, 'xyz', group_id, ierr)
-
-  ! Write coordinates 
-  call h5LTmake_dataset_double_f(group_id, 'x', 3, data_dims, & 
-  data_coord(1:nx,1:ny,1:nz,1) ,ierr)
-  call h5LTmake_dataset_double_f(group_id, 'y', 3, data_dims, & 
-  data_coord(1:nx,1:ny,1:nz,2) ,ierr)
-  call h5LTmake_dataset_double_f(group_id, 'z', 3, data_dims, & 
-  data_coord(1:nx,1:ny,1:nz,3) ,ierr)
-
-  ! Close the group.
-  call h5gclose_f(group_id, ierr)
-
-  ! Close the file.
-  call h5fclose_f(file_id, ierr)
-
-  ! Close FORTRAN interface.
-  call h5close_f(ierr)
-    
-  $if($MPI)
-    ! Ensure that all processes finish before attempting to write 
-    ! additional files. Otherwise it may flood the system with 
-    ! too many I/O requests and crash the process 
-    call mpi_barrier( comm, ierr )
-  $endif
-
-end subroutine write_grid_hdf5
-
-subroutine writexdmf(file_name)
-!***********************************************************************
-!
-! This subroutine writes the xml file describing the HDF5 data
-! It is used by Paraview to read the data
-  implicit none
-  character :: file_name ! name of file which is to be added to xmf
-  character(24) :: file_xmf ! Name of xmf file
-  integer :: file_id
-  logical :: file_exists
-
-
-  file_xmf='./output/data_output.xmf'
-  inquire(file=file_xmf, exist=file_exists)
-
-  ! This will create the first instance of the file
-  if(.not. file_exists) then
-  open(file_id,file=file_xmf)
-  
-  endif 
-
-  open(file_id,file=file_xmf)
-  close(file_id)
-
-end subroutine writexdmf
 
 
 end module io

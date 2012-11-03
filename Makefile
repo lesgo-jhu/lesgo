@@ -27,6 +27,7 @@ SRCS =  cfl_util.f90 \
 	fringe_util.f90 \
 	functions.f90 \
 	grid.f90 \
+	hdf5_io.f90 \
         ic.f90 \
 	ic_dns.f90 \
 	initial.f90 \
@@ -57,6 +58,7 @@ SRCS =  cfl_util.f90 \
 	tridag_array.f90 \
 	types.f90 \
         unpadd.f90 \
+    vtk_io.f90 \
 	wallstress.f90 \
 	wallstress_dns.f90
 
