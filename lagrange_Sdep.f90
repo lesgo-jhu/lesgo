@@ -255,7 +255,7 @@ do jz = 1,nz
         ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
              -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2     
  
-    ! Initialize (???)        
+    ! Using local time counter to reinitialize SGS quantities when restarting
         if (inilag) then
           if ((.not. F_LM_MM_init) .and. (jt == cs_count .or. jt == DYN_init)) then
              print *,'F_MM and F_LM initialized' 
@@ -313,7 +313,7 @@ do jz = 1,nz
         ! Clip, if necessary
         Cs_opt2_2d(:,:)=max( zero, Cs_opt2_2d(:,:) )
 
-    ! Initialize (???)           
+    ! Using local time counter to reinitialize SGS quantities when restarting
         if (inilag) then
           if ((.not. F_QN_NN_init) .and. (jt == cs_count .or. jt == DYN_init)) then
             print *,'F_NN and F_QN initialized'
@@ -411,14 +411,14 @@ do jz = 1,nz
        
         ! Write 
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-        write(2,*) jt,sum(Tn(1:nx,1:ny))/(nx*ny)
+        write(2,*) jt_total,sum(Tn(1:nx,1:ny))/(nx*ny)
         close(2)
         
         ! Also write clipping stats to file
         fnamek = path
         call string_concat( fnamek, 'output/clip_', jz + coord*(nz-1), '.dat' )
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-        write(2,*) jt,real(count_clip)/real(count_all)
+        write(2,*) jt_total,real(count_clip)/real(count_all)
         close(2)   
     $endif     
 

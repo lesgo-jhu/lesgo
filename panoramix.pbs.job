@@ -10,3 +10,6 @@ echo $PBS_JOBID
 cd $PBS_O_WORKDIR
 
 mpiexec -f $PBS_NODEFILE ./lesgo-mpi > lesgo.out
+
+# Copy this file before it is over-written
+cp lesgo.out lesgo.out.$PBS_JOBID

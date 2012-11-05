@@ -141,7 +141,7 @@ z => grid % z
 
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases
-    if (mod (jt, lag_cfl_count) .eq. 0) then
+    if (mod (jt_total, lag_cfl_count) .eq. 0) then
         lcfl = get_max_cfl()
         lcfl = lcfl*lagran_dt/dt  
         $if($MPI)

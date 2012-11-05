@@ -51,6 +51,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
+integer :: nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
@@ -66,6 +67,8 @@ call clock_start( clock )
 
 ! Initialize time variable
 tt = 0
+jt = 0
+jt_total = 0
 
 ! Initialize all data
 call initialize()
@@ -77,8 +80,13 @@ endif
 
 call clock_start( clock_total )
 
+! Initialize starting loop index 
+! If new simulation jt_total=0 by definition, if restarting jt_total
+! provided by total_time.dat
+nstart = jt_total+1
+
 ! BEGIN TIME LOOP
-time_loop: do jt=1,nsteps   
+time_loop: do jt_total=nstart,nsteps   
   
    ! Get the starting time for the iteration
    call clock_start( clock )
@@ -95,7 +103,7 @@ time_loop: do jt=1,nsteps
    endif
 
    ! Advance time
-   jt_total = jt_total + 1 
+   jt = jt + 1
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
@@ -294,7 +302,7 @@ time_loop: do jt=1,nsteps
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
     ! Set RHS*_f if necessary (first timestep) 
-    if ((jt == 1) .and. (.not. initu)) then
+    if ((jt_total == 1) .and. (.not. initu)) then
       ! if initu, then this is read from the initialization file
       ! else for the first step put RHS_f=RHS
       !--i.e. at first step, take an Euler step
