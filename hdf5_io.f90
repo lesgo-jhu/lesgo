@@ -41,14 +41,14 @@ subroutine get_file_name()
   
   ! Grid name
   write(coord_str, '(i4.4)') coord
-  grid_file='./output/grid.c'//trim(coord_str)//'.hdf5'
+  grid_file='./output/grid.c'//trim(coord_str)//'.h5'
   
   ! Create the file name used for the output
   ! .hdf5 is for hdf5 format
   $if( $BINARY )
-  call string_splice( fname_hdf5_domain, path // 'output/binary.', jt_total,'.hdf5')
+  call string_splice( fname_hdf5_domain, path // 'output/binary.', jt_total,'.h5')
   $else
-  call string_splice( fname_hdf5_domain, path // 'output/data.', jt_total,'.hdf5')
+  call string_splice( fname_hdf5_domain, path // 'output/data.', jt_total,'.h5')
   $endif
 
   $if ($MPI)
