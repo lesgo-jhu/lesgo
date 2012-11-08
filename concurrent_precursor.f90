@@ -180,8 +180,6 @@ integer, pointer :: nx_p
 integer, pointer, dimension(:) :: iwrap_p
 real(rprec), pointer, dimension(:,:,:) :: u_p, v_p, w_p
 
-
-integer :: j, k
 integer :: sendsize, recvsize
 
 nullify( u_p, v_p, w_p )
@@ -249,7 +247,7 @@ implicit none
 
 character (*), parameter :: sub_name = 'inflow_cond_cps'
 
-integer :: j, k
+integer :: j,k 
 integer :: istart_wrap
 
 integer, pointer :: istart_p

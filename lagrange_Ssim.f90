@@ -53,11 +53,7 @@ character (64) :: fnamek
 integer :: count_all, count_clip
 $endif
 
-!integer :: ihi, ilo, jhi, jlo
-integer :: istart, iend
-integer :: jz
-integer :: ii
-integer :: i,j
+integer :: istart, iend, jz, ii, i
 
 logical, save :: F_LM_MM_init = .false.
 

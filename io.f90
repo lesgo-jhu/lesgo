@@ -225,6 +225,7 @@ use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
 ! Flag to know if hdf5 data is used
 use param, only : output_format_hdf5
+use stat_defs, only : tavg_initialized, spectra_initialized
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -239,7 +240,7 @@ endif
 if(tavg_calc) then
 !  Check if we are in the time interval for running summations
   if(jt_total >= tavg_nstart .and. jt_total <= tavg_nend .and. ( mod(jt_total-tavg_nstart,tavg_nskip)==0)) then
-    if(jt_total == tavg_nstart) then
+    if( .not. tavg_initialized ) then
       if (coord == 0) then
         write(*,*) '-------------------------------'   
         write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
@@ -260,7 +261,7 @@ endif
 if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
   if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
-    if(jt_total == spectra_nstart) then
+    if( .not.  spectra_initialized ) then
       if (coord == 0) then
         write(*,*) '-------------------------------'
         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
@@ -412,10 +413,13 @@ include 'tecryte.h'
 integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
-character (64) :: var_list
-character (64) :: fname
 
-integer :: n, i, j, k,nvars
+character (64) :: fname
+integer :: n, i, j, k
+$if(not $OUTPUT_BINARY)
+character (64) :: var_list
+integer :: nvars
+$endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
@@ -1200,11 +1204,12 @@ elseif(itype==5) then
     if(zplane(k) % coord == coord) then
     $endif
 
-    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')
-
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
-
+    $if ($BINARY)
+    call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
+    $else
+    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')    
+    $endif
+    
     do j=1,Ny
       do i=1,Nx
 
@@ -1220,9 +1225,20 @@ elseif(itype==5) then
 
       enddo
     enddo
-
+    
+    $if ($BINARY)
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*1*rprec)
+    write(13,rec=1) ui(1:nx,1:ny,1)
+    write(13,rec=2) vi(1:nx,1:ny,1)
+    write(13,rec=3) wi(1:nx,1:ny,1)
+    close(13)
+    
+    $else
+    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
+      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
     call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
+    $endif
     
     $if($LVLSET)
 
@@ -1492,7 +1508,7 @@ $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_time_stamp, spectra_time_stamp
+use stat_defs, only : tavg_time_stamp, tavg_initialized, spectra_time_stamp, spectra_initialized
 use string_util, only : string_concat
 implicit none
 
@@ -1551,9 +1567,9 @@ $if ($DYN_TN)
 $endif
 
 ! Checkpoint time averaging restart data
-if( tavg_calc ) call tavg_checkpoint()
+if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
 ! Checkpoint spectra restart data
-if( spectra_calc ) call spectra_checkpoint()
+if( spectra_calc .and. spectra_initialized ) call spectra_checkpoint()
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -1584,7 +1600,7 @@ end subroutine checkpoint
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use stat_defs, only : tavg, point
+use stat_defs, only : tavg, point, tavg_initialized, spectra_initialized
 use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
 implicit none
 
@@ -1592,10 +1608,10 @@ implicit none
 call checkpoint()
 
 !  Check if average quantities are to be recorded
-if(tavg_calc) call tavg_finalize()
+if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
 
 !  Check if spectra is to be computed
-if(spectra_calc) call spectra_finalize()
+if(spectra_calc .and. spectra_initialized ) call spectra_finalize()
 
 return
 end subroutine output_final
@@ -1883,7 +1899,8 @@ subroutine tavg_init()
 use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
-use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, operator(.MUL.)
+use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, tavg_initialized
+use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
@@ -1977,6 +1994,9 @@ $if($OUTPUT_EXTRA)
     endif
     
 $endif
+
+! Set global switch that tavg as been initialized
+tavg_initialized = .true. 
 
 return
 end subroutine tavg_init
@@ -3087,7 +3107,7 @@ use types, only : rprec
 use param, only : path, checkpoint_spectra_file
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
-use stat_defs, only : spectra, spectra_total_time
+use stat_defs, only : spectra, spectra_total_time, spectra_initialized
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
@@ -3137,6 +3157,9 @@ do k=1, spectra_nloc
 enddo
 
 close(1)
+
+! Set global switch that spectra as been initialized
+spectra_initialized = .false.
 
 return
 end subroutine spectra_init
