@@ -7,7 +7,7 @@ module param
 
   save
 
-  private rprec  !--this is dumb.
+  private rprec
   public
 
 !*******************************************************************************
