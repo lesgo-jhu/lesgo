@@ -3144,7 +3144,7 @@ enddo
 close(1)
 
 ! Set global switch that spectra as been initialized
-spectra_initialized = .false.
+spectra_initialized = .true.
 
 return
 end subroutine spectra_init
