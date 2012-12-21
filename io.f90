@@ -215,7 +215,7 @@ subroutine output_loop()
 use param, only : nsteps, jt_total
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
-use param, only : spectra_calc, spectra_nstart, spectra_nend
+use param, only : spectra_calc, spectra_nstart, spectra_nend, spectra_nskip
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
@@ -256,7 +256,7 @@ endif
 
 if( spectra_calc ) then
   !  Check if we are in the time interval for running summations
-  if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
+  if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend .and. ( mod(jt_total-spectra_nstart,spectra_nskip)==0)) then
     if( .not.  spectra_initialized ) then
       if (coord == 0) then
         write(*,*) '-------------------------------'
@@ -3114,34 +3114,36 @@ $endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
-  !  Nothing to read in
-  if (coord == 0) then
-    write(*,*) ' '
-    write(*,*)'No previous spectra data - starting from scratch.'
-  endif
+   !  Nothing to read in
+   if (coord == 0) then
+      write(*,*) ' '
+      write(*,*)'No previous spectra data - starting from scratch.'
+   endif
 
-  spectra_total_time = 0._rprec
+   spectra_total_time = 0._rprec
 
-  return
+else
+
+
+   $if ($READ_BIG_ENDIAN)
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted', convert='big_endian')
+   $elseif ($READ_LITTLE_ENDIAN)
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted', convert='little_endian')
+   $else
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted')
+   $endif
+
+   read (1) spectra_total_time
+   do k=1, spectra_nloc
+      read (1) spectra(k) % power
+   enddo
+
+   close(1)
+
 endif
-
-$if ($READ_BIG_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='little_endian')
-$else
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted')
-$endif
-
-read (1) spectra_total_time
-do k=1, spectra_nloc
-  read (1) spectra(k) % power
-enddo
-
-close(1)
 
 ! Set global switch that spectra as been initialized
 spectra_initialized = .true.
