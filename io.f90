@@ -491,9 +491,9 @@ if(itype==1) then
 
     ! Want to replace with write based on fid
     call write_real_data(point(n) % fid, 'formatted', 4, (/ total_time, &
-         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
+         trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+         trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+         trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz) /))
     
 
     $if ($MPI)
@@ -1921,6 +1921,7 @@ if (.not. exst) then
   endif
 
     tavg_total_time = 0.0_rprec
+    tavg_time_stamp = -1.0_rprec ! Must be <0 for initialization
  
 else
 
@@ -3135,6 +3136,7 @@ if (.not. exst) then
    endif
 
    spectra_total_time = 0._rprec
+   spectra_time_stamp = -1.0_rprec ! Must be <0 for initialization
 
 else
 
