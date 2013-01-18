@@ -35,7 +35,6 @@ subroutine openfiles()
 use param, only : use_cfl_dt, dt, cfl_f, path
 use stat_defs, only : tavg_time_stamp, spectra_time_stamp
 implicit none
-
 include 'tecryte.h'
 
 logical :: exst
@@ -2000,7 +1999,7 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
 $if($TURBINES)
 use sim_param, only : fxa
 $elseif($LVLSET)
@@ -2177,6 +2176,17 @@ $endif
 
 deallocate( u_w, v_w )
 
+! Added to compute the average of u on the grid points and prevent the 
+! linear interpolation, which is not exactly valid due to log profile in boundary layer
+do k=0,jzmax  
+  do j=1,ny
+    do i=1,nx
+    u_p = u(i,j,k)
+    u_avg(i,j,k)=u_avg(i,j,k)+u_p*dt_tavg                    
+    enddo
+  enddo
+enddo
+
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + dt_tavg
 $if($OUTPUT_EXTRA)
@@ -2202,6 +2212,7 @@ $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+use sim_param, only : u_avg
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -2529,8 +2540,11 @@ call mpi_barrier( comm, ierr )
 $endif
 
 ! ----- Write all the 3D data -----
-$if($BINARY)
+open(unit=13,file='u_avg_grid',form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) u_avg(:nx,:ny,1:nz)
+close(13)
 
+$if($BINARY)
 ! RICHARD
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
