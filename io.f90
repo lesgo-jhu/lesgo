@@ -1886,7 +1886,7 @@ use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
 $endif
 use param, only : tavg_nstart, tavg_nend
 implicit none
@@ -2234,11 +2234,11 @@ character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
 character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
-     fname_rs, fname_cs
+     fname_rs, fname_cs, fname_u_vel_grid
 character(64) :: fname_velb, &
      fname_vel2b, fname_ddzb, &
      fname_taub, fname_fb, &
-     fname_rsb, fname_csb
+     fname_rsb, fname_csb, fname_u_vel_gridb
      
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
@@ -2302,6 +2302,7 @@ fname_tau = path // 'output/tau_avg.dat'
 fname_f = path // 'output/force_avg.dat'
 fname_rs = path // 'output/rs.dat'
 fname_cs = path // 'output/cs_opt2.dat'
+fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
 fname_velb = path // 'output/binary_vel_avg.dat'
 fname_vel2b = path // 'output/binary_vel2_avg.dat'
@@ -2310,6 +2311,7 @@ fname_taub = path // 'output/binary_tau_avg.dat'
 fname_fb = path // 'output/binary_force_avg.dat'
 fname_rsb = path // 'output/binary_rs.dat'
 fname_csb = path // 'output/binary_cs_opt2.dat'
+fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
 
 fname_vel_zplane = path // 'output/vel_zplane_avg.dat'
 fname_vel2_zplane = path // 'output/vel2_zplane_avg.dat'
@@ -2338,6 +2340,7 @@ $if ($MPI)
   call string_concat( fname_fb, '.c', coord)
   call string_concat( fname_rsb, '.c', coord)
   call string_concat( fname_csb, '.c', coord)
+  call string_concat( fname_u_vel_gridb, '.c',coord)
   $else
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
@@ -2346,6 +2349,7 @@ $if ($MPI)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
   call string_concat( fname_cs, '.c', coord)
+  call string_concat( fname_u_vel_grid, '.c', coord)
   $endif
   
   $if($OUTPUT_EXTRA)  
@@ -2415,6 +2419,7 @@ do k=jzmin,jzmax
   do j=1, Ny
     do i=1, Nx
       tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
+      u_avg(i,j,k) =u_avg(i,j,k) / tavg_total_time
     enddo
   enddo
 enddo
@@ -2540,12 +2545,12 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
+$if($BINARY)
 ! ----- Write all the 3D data -----
-open(unit=13,file='u_avg_grid',form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_u_vel_gridb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) u_avg(:nx,:ny,1:nz)
 close(13)
 
-$if($BINARY)
 ! RICHARD
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
@@ -3107,7 +3112,7 @@ use types, only : rprec
 use param, only : path, checkpoint_spectra_file
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
-use stat_defs, only : spectra, spectra_total_time, spectra_initialized
+use stat_defs, only : spectra, spectra_total_time, spectra_initialized,spectra_time_stamp
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
