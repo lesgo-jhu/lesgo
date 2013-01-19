@@ -82,11 +82,11 @@ type turbine_t
   real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
   real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
   integer :: num_nodes                        ! number of nodes associated with each turbine
-  integer, dimension(1500,3) :: nodes         ! (i,j,k) of each included node
+  integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
   integer, dimension(6) :: nodes_max          ! search area for nearby nodes
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
-  real(rprec), dimension(1500) :: ind         ! indicator function - weighting of each node
+  real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
 end type turbine_t
 
 ! A collection of wind-turbines
