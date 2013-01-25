@@ -38,15 +38,13 @@ real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
-! Time stamp of last time averaging computation
-real(rprec) :: tavg_time_stamp  
+! Time between calls of tavg_compute, built by summing dt
+real(rprec) :: tavg_dt
 ! Switch for determining if time averaging has been initialized
 logical :: tavg_initialized = .false.
 
-! Time step used for time averaging of spectra
-real(rprec) :: dt_spectra
-! Time stamp of last spectra computation
-real(rprec) :: spectra_time_stamp
+! Time between calls of spectra_compute, built by summing dt
+real(rprec) :: spectra_dt
 ! Switch for determining if time averaging has been initialized
 logical :: spectra_initialized = .false.
 
