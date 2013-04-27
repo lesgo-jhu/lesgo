@@ -145,8 +145,6 @@ do i = istart + 1, iend - 1
   alpha = 1.0_rprec - beta
 
   u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * inflow_velocity
 
 end do
 
