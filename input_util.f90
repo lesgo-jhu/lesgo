@@ -106,7 +106,7 @@ do
      call level_set_block()
 
     $if($RNS_LS)
-    case ('RNS')
+    case ('RNS_LS')
        call rns_block()
     $endif
 
