@@ -111,7 +111,7 @@ do
     $endif
 
     $if($CYL_SKEW_LS)
-    case ('CYL_SKEW')
+    case ('CYL_SKEW_LS')
        call cyl_skew_block()
     $endif
 
