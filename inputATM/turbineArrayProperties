@@ -1,0 +1,37 @@
+! Turbine Array Properties
+! This file has the necessary properties for wind turbine layout
+
+! globalProperties
+
+numberOfTurbines  2
+outputInterval       1
+    
+TURBINE_1 {
+turbineType        "NREL5MWRef"
+baseLocation        1.2,1.57,0.0 
+numBladePoints      40
+epsilon             3.5
+rotationDir         "cw"
+Azimuth              232.0105
+RotSpeed             10.9874
+Pitch                0
+NacYaw              221.617
+fluidDensity        1.23
+numAnnulusSections   8
+}
+
+TURBINE_2 {
+turbineType        "NREL5MWRef"
+baseLocation        1.2,1.57,0.0 
+numBladePoints      40
+epsilon             3.5
+rotationDir         "cw"
+Azimuth              232.0105
+RotSpeed             10.9874
+Pitch                0
+NacYaw              221.617
+fluidDensity        1.23
+numAnnulusSections    8
+}
+
+
