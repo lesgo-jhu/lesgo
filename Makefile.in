@@ -9,8 +9,8 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/opt/tecryte-2.3/include
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/opt/tecryte-2.3/lib
 LIBS = $(LIBPATH) -lrfftw -lfftw 
 
 HOSTNAME = $(shell hostname -s)
