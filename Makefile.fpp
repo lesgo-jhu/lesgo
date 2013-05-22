@@ -57,6 +57,12 @@ ifeq ($(USE_TURBINES), yes)
   FPP += -DTURBINES
 endif
 
+#################################################### Tony ATM
+ifeq ($(USE_ATM), yes)
+  FPP += -DATM
+endif
+#################################################### Tony ATM
+
 ifeq ($(USE_DYN_TN), yes)
   FPP += -DDYN_TN
 endif

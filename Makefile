@@ -70,6 +70,10 @@ RNS_CYL_SKEW_LS_SRCS = rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90 turbines_base.f90
 
+#################################################### Tony ATM
+ATM_SRCS = atm_input_util.f90 actuator_turbine_model.f90 atm_lesgo_interface.f90
+#################################################### Tony ATM
+
 CPS_SRCS = concurrent_precursor.f90
 
 ifeq ($(USE_MPI), yes)
@@ -104,6 +108,13 @@ ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
   EXE := $(EXE)-turbines
 endif
+
+#################################################### Tony ATM
+ifeq ($(USE_ATM), yes)
+  SRCS += $(ATM_SRCS)
+  EXE := $(EXE)-ATM
+endif
+#################################################### Tony ATM
 
 ifeq ($(OUTPUT_EXTRA), yes)
   EXE := $(EXE)-exout

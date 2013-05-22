@@ -51,6 +51,12 @@ USE_BINARY=no
 
 USE_TURBINES = no 
 
+#################################################### Tony ATM
+# Use the actuator turbine model
+USE_ATM = yes
+#################################################### Tony ATM
+
+
 USE_LVLSET = no
   USE_RNS_LS = no
   USE_CYL_SKEW_LS = no
