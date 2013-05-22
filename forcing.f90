@@ -45,6 +45,12 @@ use sim_param, only : fxa
 use turbines, only:turbines_forcing
 $endif
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$if ($ATM)
+use atm_lesgo_interface
+$endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
 implicit none
 
 $if ($LVLSET)
@@ -62,6 +68,13 @@ $if ($TURBINES)
 fxa = 0._rprec
 call turbines_forcing ()
 $endif
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$if ($ATM)
+!call atm_forcing ()
+$endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
    
 end subroutine forcing_applied
 

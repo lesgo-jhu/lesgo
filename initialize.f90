@@ -48,6 +48,12 @@ use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 $endif
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$if ($ATM)
+    use atm_lesgo_interface, only: atm_lesgo_initialize
+$endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -115,6 +121,12 @@ $if ($TURBINES)
 call turbines_base_init()
 call turbines_init()    !must occur before initial is called
 $endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$if ($ATM)
+  call atm_lesgo_initialize ()  
+$endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 ! If using level set method
 $if ($LVLSET)
