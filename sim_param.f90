@@ -1,3 +1,19 @@
+!!
+!!  Copyright 2009,2010,2011,2012,2013 Johns Hopkins University
+!!
+!!  Licensed under the Apache License, Version 2.0 (the "License"); you may not 
+!!  use this file except in compliance with the License. You may obtain a copy of
+!!  the License at:
+!!
+!!    http://www.apache.org/licenses/LICENSE-2.0
+!!
+!!  Unless required by applicable law or agreed to in writing, software 
+!!  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+!!  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
+!!  License for the specific language governing permissions and limitations under
+!!  the License.
+!!
+
 module sim_param
 use types, only : rprec
 use param, only : ld, ny, nz, lbz
@@ -34,8 +50,9 @@ real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
 
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
-
-
+    
+real (rprec), dimension (:, :, :), allocatable :: u_avg
+    
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -67,7 +84,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'p,' //                       &
                                              'divtx, divty, divtz,' //     &
                                              'fxa,'           //           &
-                                             'theta, q'
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
 $elseif ($LVLSET)
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
@@ -82,7 +100,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'divtx, divty, divtz,' //     &
                                              'fx, fy, fz,' //              &
                                              'fxa, fya, fza,' //           &
-                                             'theta, q'
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
 $else
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
@@ -95,7 +114,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'txz, tyz, tzz,' //           &
                                              'p,' //                       &
                                              'divtx, divty, divtz,' //     &
-                                             'theta, q'
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
 $endif
 
 $if ($DEBUG)
@@ -291,6 +311,10 @@ do i = 1, size ( array )
     case ( 'q' )
         allocate ( q(ld, ny, nz) )
         q = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'u_avg' )
+        allocate ( u_avg(ld, ny, nz) )
+        u_avg = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case default
         write (*, *) 'sim_param_init: invalid array ' // trim ( array(i) )
