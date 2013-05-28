@@ -224,6 +224,7 @@ uvShaft = vector_divide(uvShaft, vector_mag(uvShaft))
 ! Define vector aligned with the tower pointing from the ground to the nacelle
 uvTower = vector_add(towerShaftIntersect, - baseLocation)
 uvTower = vector_divide( uvTower, vector_mag(uvTower))
+! Define thickness of each blade section
 do k=1, numBladePoints
     db(k) = (TipRad- HubRad)/(numBladePoints)
 enddo
@@ -252,6 +253,7 @@ do k=1, numBl
     endif
     
 enddo
+
 
 end subroutine atm_create_points
 
