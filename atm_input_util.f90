@@ -29,8 +29,14 @@ type turbineArray_t
     real(rprec) :: NacYaw             
     real(rprec) :: fluidDensity      
     integer :: numAnnulusSections ! Number of annulus sections on each blade
-    
+
     ! Not read variables
+
+    real(rprec) :: thrust ! Total turbine thrust
+    real(rprec) :: torqueRotor ! Rotor torque
+    real(rprec) :: torqueGen ! Generator torque
+    real(rprec) :: powerRotor ! Rotor Power
+
     integer :: turbineTypeID ! Identifies the type of turbine   
     
     !!-- Important geometry data 
@@ -38,7 +44,32 @@ type turbineArray_t
     type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladePoints       
     ! Collection of radius of each point (different because of coning)
     type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
-    
+    ! Forces on each actuator point (blade, annular section, point, 3)
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForces
+    ! Vectors at each actuator point defining the local reference frame
+    ! (blade, annular section, point, 3, 3) (three vectors)
+    type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
+    ! The wind U projected onto the bladeAlignedVectors plus rotational speed
+    ! (blade, annular section, point, 3, 3) (three vectors)
+    type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: windVectors
+    ! Angle of attack at each each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: alpha
+    ! Velocity magnitud at each each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: Vmag
+    ! Lift coefficient at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: Cl
+    ! Drag coeficient at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: Cd
+    ! Lift at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: lift
+    ! Drag at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: drag
+    ! Axial force at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: axialForce
+    ! Tangential force at each actuator point
+    type(real(rprec)), allocatable, dimension(:,:,:) :: tangentialForce
+
+
     ! An indicator of shaft direction.  The convention is that when viewed
     ! from upwind, the rotor turns clockwise for positive rotation angles,
     ! regardless of if it is an upwind or downwind turbine.  uvShaft is
@@ -48,13 +79,13 @@ type turbineArray_t
     ! makes the vector consistent no matter what kind of turbine
   	 real(rprec) :: uvShaftDir
 	
-  	 ! Define the vector along the shaft pointing in the direction of the wind
-  	 real(rprec), dimension(3) :: uvShaft
+  	! Define the vector along the shaft pointing in the direction of the wind
+  	real(rprec), dimension(3) :: uvShaft
 	
-  	 ! List of locations of the rotor apex relative to the origin (m)
+  	! List of locations of the rotor apex relative to the origin (m)
     real(rprec), dimension(3) :: rotorApex
 	
-	   ! List of locations of the intersection of the tower axis and the shaft 
+    ! List of locations of the intersection of the tower axis and the shaft 
     ! centerline relative to the origin (m).
     real(rprec), dimension(3) :: towerShaftIntersect
 	
@@ -140,6 +171,8 @@ integer :: n = 0 ! Counter for the wind turbines
 integer :: lun =1 ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
+integer, pointer :: numBladePoints, numAnnulusSections
+
 
 ! Check that the configuration file exists
 inquire (file=input_conf, exist=exst)
@@ -229,6 +262,28 @@ do
         endif        
     endif        
 end do
+
+! Allocate variables inside turbineArray
+do  n=1,numberOfTurbines
+numBladePoints => turbineArray(n) % numBladePoints
+numAnnulusSections => turbineArray(n) % numAnnulusSections
+    allocate(turbineArray(n) % bladeForces(n,numAnnulusSections,             &
+             numBladePoints,3) )
+    allocate(turbineArray(n) % bladeAlignedVectors(n,numAnnulusSections,     &
+             numBladePoints,3,3) )
+    allocate(turbineArray(n) % windVectors(n,numAnnulusSections,             &
+             numBladePoints,3,3) )
+    allocate(turbineArray(n) % alpha(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % Vmag(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % Cl(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % Cd(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % lift(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % drag(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % axialForce(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % tangentialForce(n, numAnnulusSections,     &
+             numBladePoints) )
+
+enddo
 
 if( .not. allocated( turbineArray ) ) then 
     write(*,*) 'Did not allocate memory for turbineArray' 

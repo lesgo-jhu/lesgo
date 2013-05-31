@@ -73,9 +73,9 @@ call atm_initialize () ! Initialize the atm (ATM)
 ! This will find all the locations that are influenced by each turbine
 ! It depends on a sphere centered on the rotor that extends beyond the blades
 c0=0  ! Initialize conuter
-do k=1,nz
-    do j=1,ny
-        do i=1,nx
+do k=1,nz ! Loop through grid points in z
+    do j=1,ny ! Loop through grid points in y
+        do i=1,nx ! Loop through grid points in x
             vector_point(1)=x(i)*z_i ! z_i used to dimensionalize LESGO
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
