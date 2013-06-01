@@ -446,8 +446,6 @@ do
      case ('INILAG')
         read (buff(equal_pos+1:), *) inilag
      case ('UBC')
-        read (buff(equal_pos+1:), *) ubc
-     case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
      case ('ZO')
         read (buff(equal_pos+1:), *) zo

@@ -100,7 +100,6 @@ write(2,c_fmt) 'BOUNDARY/INITIAL CONDITION PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
-write(2,i_fmt) 'ubc : ', ubc
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
