@@ -150,9 +150,8 @@ module param
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
   logical :: inilag = .true.
 
-  ! ubc: upper boundary condition: 0 - stress free lid, 1 - sponge
-  integer :: ubc = 0
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
+  ! NOTE: the upper boundary condition is implicitly stress free
   integer :: lbc_mom = 1
   
   ! lower boundary condition, roughness length
