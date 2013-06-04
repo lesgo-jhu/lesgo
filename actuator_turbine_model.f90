@@ -11,7 +11,8 @@ implicit none
 
 ! Declare everything private except for subroutine which will be used
 private 
-public :: atm_initialize, atm_forcing, numberOfTurbines
+public :: atm_initialize, atm_forcing, numberOfTurbines, computeBladeForce, &
+          vector_add, vector_divide, vector_mag
 
 ! These are used to do unit conversions
 real(rprec), parameter :: pi= 3.141592653589793238462643383279502884197169399375
@@ -77,6 +78,7 @@ end subroutine atm_initialize
 subroutine atm_update(dt)
 ! This subroutine updates the model each time-step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+integer :: i
 real(rprec) :: dt                            ! Time step
 
 do i = 1, numberOfTurbines
@@ -292,6 +294,76 @@ subroutine atm_forcing()
 
 end subroutine atm_forcing
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine computeBladeForce(i,m,n,q,U_local)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will compute the wind vectors by projecting the velocity 
+! onto the transformed coordinates system
+integer, intent(in) :: i,m,n,q
+! i - turbineTypeArray
+! m - numAnnulusSections
+! n - numBladePoints
+! q - numBl
+real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
+integer :: j ! Use to identify turbine type
+real(rprec), pointer :: bladeAlignedVectors(:,:,:,:,:), bladePoints(:,:,:,:)
+real(rprec), pointer :: rotorApex(:), windVectors(:,:,:,:), rotSpeed, PreCone
+real(rprec), pointer :: bladeRadius(:,:,:)
+
+rotorApex => turbineArray(i) % rotorApex
+bladeAlignedVectors => turbineArray(i) % bladeAlignedVectors
+windVectors => turbineArray(i) % windVectors
+bladePoints => turbineArray(i) % bladePoints
+rotSpeed => turbineArray(i) % rotSpeed
+bladeRadius => turbineArray(i) % bladeRadius
+
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+PreCone => turbineModel(i) % PreCone
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This will compute the vectors defining the local coordinate 
+! system of the actuator point
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Define vector in z'
+! If clockwise rotating, this vector points along the blade toward the tip.
+! If counter-clockwise rotating, this vector points along the blade towards 
+! the root.
+if (turbineArray(i) % rotationDir == "cw")  then
+    bladeAlignedVectors(m,n,q,2,:) =      &
+                                     vector_add(bladePoints(m,n,q,:),-rotorApex)
+elseif (turbineArray(i) % rotationDir == "ccw") then
+    bladeAlignedVectors(m,n,q,3,:) =      &
+                                     vector_add(-bladePoints(m,n,q,:),rotorApex)
+endif
+bladeAlignedVectors(m,n,q,3,:) =  &
+                        vector_divide(bladeAlignedVectors(m,n,q,2,:),   &
+                        vector_mag(bladeAlignedVectors(m,n,q,2,:)) )
+
+! Define vector in y'
+bladeAlignedVectors(m,n,q,2,:) = cross_product(bladeAlignedVectors(m,n,q,2,:), &
+                                 turbineArray(i) % uvShaft)
+bladeAlignedVectors(m,n,q,2,:) = vector_divide(bladeAlignedVectors(m,n,q,1,:), &
+                                 vector_mag(bladeAlignedVectors(m,n,q,1,:)))
+
+! Define vector in x'
+bladeAlignedVectors(m,n,q,1,:) = cross_product(bladeAlignedVectors(m,n,q,2,:), &
+                                 bladeAlignedVectors(m,n,q,3,:))
+bladeAlignedVectors(m,n,q,1,:) = vector_divide(bladeAlignedVectors(m,n,q,1,:), &
+                                 vector_mag(bladeAlignedVectors(m,n,q,1,:)))
+! This concludes the definition of the local corrdinate system
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Now put the velocity in that cell into blade-oriented coordinates and add on 
+! the velocity due to blade rotation.
+windVectors(m,n,q,1) = dot_product(bladeAlignedVectors(m,n,q,1,:) , U_local)
+windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
+                      (rotSpeed * bladeRadius(m,n,q) * cos(PreCone));
+windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local);
+
+
+
+end subroutine computeBladeForce
+
 !-------------------------------------------------------------------------------
 function vector_add(a,b)
 ! This function adds 2 vectors (arrays real(rprec), dimension(3))
@@ -309,7 +381,7 @@ function vector_divide(a,b)
 ! This function divides one vector (array real(rprec), dimension(3) by a number)
 !-------------------------------------------------------------------------------
 real(rprec), dimension(3), intent(in) :: a
-real(rprec) :: b
+real(rprec), intent(in) :: b
 real(rprec), dimension(3) :: vector_divide
 vector_divide(1)=a(1)/b
 vector_divide(2)=a(2)/b
@@ -382,8 +454,17 @@ rotatePoint=rotatePoint+rotationPoint
 return 
 end function rotatePoint
 
-
-
+!-------------------------------------------------------------------------------
+function cross_product(a,b)
+! This function calculates the magnitude of a vector
+!-------------------------------------------------------------------------------
+real(rprec), dimension(3), intent(in) :: a,b
+real(rprec), dimension(3) :: cross_product
+cross_product(1)=-a(3)*b(2)+a(3)*b(3)
+cross_product(2)=a(3)*b(1)-a(1)*b(3)
+cross_product(3)=-a(2)*b(1)+a(1)*b(2)
+return
+end function cross_product
 
 end module actuator_turbine_model
 

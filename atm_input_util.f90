@@ -31,7 +31,6 @@ type turbineArray_t
     integer :: numAnnulusSections ! Number of annulus sections on each blade
 
     ! Not read variables
-
     real(rprec) :: thrust ! Total turbine thrust
     real(rprec) :: torqueRotor ! Rotor torque
     real(rprec) :: torqueGen ! Generator torque
@@ -51,7 +50,7 @@ type turbineArray_t
     type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
     ! The wind U projected onto the bladeAlignedVectors plus rotational speed
     ! (blade, annular section, point, 3, 3) (three vectors)
-    type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: windVectors
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: windVectors
     ! Angle of attack at each each actuator point
     type(real(rprec)), allocatable, dimension(:,:,:) :: alpha
     ! Velocity magnitud at each each actuator point
@@ -130,6 +129,15 @@ type turbineModel_t
     real(rprec) :: TorqueControllerRelax
 end type turbineModel_t
 
+! This type stores all the airfoils and their AOA, Cd, Cl values
+type airfoilType_
+    character(128) :: airoilType          ! The type of Airfoil ('Cylinder1')
+    type(real(rprec)), allocatable, dimension(:) :: AOA    ! Angle of Attack
+    type(real(rprec)), allocatable, dimension(:) :: Cd     ! Drag coefficient
+    type(real(rprec)), allocatable, dimension(:) :: Cl     ! Lift coefficient
+
+end type airfoilType_
+
 ! Declare turbine array variable
 type(turbineArray_t), allocatable, dimension(:) , target :: turbineArray
 
@@ -144,6 +152,8 @@ character (*), parameter :: block_entry = '{' ! The start of a block
 character (*), parameter :: block_exit = '}' ! The end of a block 
 character (*), parameter :: equal = '='
 character (*), parameter :: esyntax = 'syntax error at line'
+character (*), parameter :: array_entry = '(' ! The start of an array
+character (*), parameter :: array_exit  = ')' ! The end of an array
 
 ! Delimiters used for reading vectors and points
 character(*), parameter :: delim_minor=','
@@ -155,6 +165,8 @@ character(*), parameter :: delim_major='//'
 ! Variables used to read lines in file
 integer :: block_entry_pos ! Determines if the line is the start of a block 
 integer :: block_exit_pos ! Determines if the line is the end of a block
+integer :: array_entry_pos ! Determines if the line is the start of a block 
+integer :: array_exit_pos ! Determines if the line is the end of a block
 integer :: equal_pos ! Determines if there is an equal sign
 integer :: ios 
 logical :: exst ! Used to determine existence of a file
@@ -191,9 +203,10 @@ line = 0
 do
 ! Read line by line (lun=file number) 
     call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
-                   equal_pos, ios )
+                   array_entry_pos, array_exit_pos, equal_pos, ios )
                    
-    if (ios /= 0) exit
+    if (ios /= 0) exit ! Exit if reached end of file
+
     ! This will read the numberOfTurbines integer
         if( buff(1:16) == 'numberOfTurbines' ) then
             read(buff(17:), *) numberOfTurbines
@@ -272,14 +285,14 @@ numAnnulusSections => turbineArray(n) % numAnnulusSections
     allocate(turbineArray(n) % bladeAlignedVectors(n,numAnnulusSections,     &
              numBladePoints,3,3) )
     allocate(turbineArray(n) % windVectors(n,numAnnulusSections,             &
-             numBladePoints,3,3) )
+             numBladePoints,3) )
     allocate(turbineArray(n) % alpha(n, numAnnulusSections, numBladePoints) )
     allocate(turbineArray(n) % Vmag(n, numAnnulusSections, numBladePoints) )
     allocate(turbineArray(n) % Cl(n, numAnnulusSections, numBladePoints) )
     allocate(turbineArray(n) % Cd(n, numAnnulusSections, numBladePoints) )
     allocate(turbineArray(n) % lift(n, numAnnulusSections, numBladePoints) )
     allocate(turbineArray(n) % drag(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % axialForce(n, numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(n) % axialForce(n,numAnnulusSections, numBladePoints))
     allocate(turbineArray(n) % tangentialForce(n, numAnnulusSections,     &
              numBladePoints) )
 
@@ -306,6 +319,7 @@ character(128) :: input_turbine
 integer :: lun =1 ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
+integer:: numAirfoils ! Number of distinct airfoils
 
 ! Initialize variables for the loop
 ! Will find the number of distincet turbines to allocate memory for turbineModel
@@ -353,10 +367,11 @@ do i = 1, numTurbinesDistinct
                 turbineModel(i) % turbineType
     ! Read the file line by line *Counter starts at 0 and modified inside subroutine
     line = 0
+    numAirfoils=0
     do
     ! Read line by line (lun=file number) 
         call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
-                       equal_pos, ios )
+                       array_entry_pos, array_exit_pos, equal_pos, ios )
         if (ios /= 0) exit
         ! This will all the input variables
         if( buff(1:5) == 'NumBl' ) then
@@ -395,6 +410,34 @@ do i = 1, numTurbinesDistinct
             read(buff(8:), *) turbineModel(i) % PreCone
             write(*,*) 'PreCone is: ', turbineModel(i) % PreCone
         endif
+
+        ! This will read the airfoils
+        if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
+            array_entry_pos=0 ! If 'Airfoils(' then make array_entry_pos zero 
+            do while (array_entry_pos == 0) 
+                call readline( lun, line, buff, block_entry_pos,              &
+                block_exit_pos, array_entry_pos, array_exit_pos, equal_pos, ios)
+
+                if (ios /= 0) exit        ! exit if end of file reached
+
+                if (array_entry_pos /= 0) then
+                    call readline( lun, line, buff, block_entry_pos,          &
+                                   block_exit_pos, array_entry_pos,           &
+                                   array_exit_pos, equal_pos, ios)
+                   if (ios /= 0) exit        ! exit if end of file reached
+
+                endif
+
+                if (array_exit_pos /= 0) exit        ! exit if end of file reached
+
+                numAirfoils = numAirfoils + 1     ! Increment airfoil counter
+
+                ! Read the name of the turbine
+!                read(buff(1:index(buff, array_entry)-1), *) turbin\
+            enddo
+        endif  
+        write(*,*) 'Number of airfoils is: ',numAirfoils
+
     enddo                                  
 close (lun)      
 enddo
@@ -403,7 +446,7 @@ end subroutine read_turbine_model_variables
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine readline(lun, line, buff, block_entry_pos, block_exit_pos, & 
-                    equal_pos, ios )
+                    array_entry_pos, array_exit_pos, equal_pos, ios )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! 
 ! This subroutine reads the specified line and determines the attributes
@@ -415,7 +458,8 @@ integer, intent(in) :: lun
 integer, intent(inout) :: line
 
 character(*), intent(inout) :: buff
-integer, intent(out) :: block_entry_pos, block_exit_pos, equal_pos, ios
+integer, intent(out) :: block_entry_pos, block_exit_pos, equal_pos, ios, &
+                        array_entry_pos, array_exit_pos
 
 block_entry_pos = 0
 block_exit_pos = 0
@@ -436,6 +480,8 @@ do
 
     block_entry_pos = index( buff, block_entry )
     block_exit_pos  = index( buff, block_exit )
+    array_entry_pos = index( buff, array_entry )
+    array_exit_pos  = index( buff, array_exit )
     equal_pos       = index( buff, equal )
     exit
 enddo 

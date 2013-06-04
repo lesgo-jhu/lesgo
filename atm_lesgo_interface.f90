@@ -7,17 +7,23 @@ module atm_lesgo_interface
 ! Remember to always dimensinoalize the variables from LESGO
 ! Length is non-dimensionalized by z_i
 
-! Lesgo data used regarding the grid
-use param, only : dt ,nx,ny,nz,jzmin,jzmax,dx,dy,dz,coord,lbz,nproc, z_i 
+! Lesgo data used regarding the grid (LESGO)
+use param, only : dt ,nx,ny,nz,jzmin,jzmax,dx,dy,dz,coord,lbz,nproc, z_i, u_star
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
 ! dt - time-step 
 
-use grid_defs, only: grid 
+! Grid definition (LESGO)
+use grid_defs, only : grid
+
+! Interpolating function for interpolating the velocity field to each
+! actuator point
+use functions, only : trilinear_interp
 
 ! Actuator Turbine Model module
 use actuator_turbine_model
-use atm_input_util, only : rprec, turbineArray
+use atm_input_util, only : rprec, turbineArray, turbineModel
+use atm_linked_list
 
 implicit none
 
@@ -62,6 +68,17 @@ subroutine atm_lesgo_initialize ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Initialize the actuator turbine model
 
+! This is the list of body forces for all the cells 
+type(DynamicList_), pointer :: bodyForceField
+real(rprec) :: zeroVector(3)     ! A vector of zeros used for initiallizing vec
+integer :: i, j, k
+
+! Define all elements of zero vector to zero
+do i=1,3
+    zeroVector(i)=0.
+enddo
+
+
 ! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
 nullify(x,y,z)
 x => grid % x
@@ -70,6 +87,9 @@ z => grid % z
 
 call atm_initialize () ! Initialize the atm (ATM)
 
+
+
+call initializeDynamicListVector(bodyForceField,zeroVector)
 ! This will find all the locations that are influenced by each turbine
 ! It depends on a sphere centered on the rotor that extends beyond the blades
 c0=0  ! Initialize conuter
@@ -83,6 +103,7 @@ do k=1,nz ! Loop through grid points in z
                 if (distance(vector_point,turbineArray(m) % baseLocation) &
                     .le. turbineArray(m) % sphereRadius ) then
                     c0=c0+1
+                    call appendVector(bodyForceField,zeroVector)
                 end if
             end do 
         end do
@@ -99,9 +120,50 @@ subroutine atm_lesgo_update ()
 ! Initialize the actuator turbine model
 ! Calls function within the actuator_turbine_model module
 
-call atm_forcing ()
+!call atm_forcing ()
 
 end subroutine atm_lesgo_update
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_lesgo_input_velocity (i)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This will feed the velocity at all the actuator points into the atm
+! This is done by using trilinear interpolation from lesgo
+
+! Use the velocity field (LESGO)
+use sim_param,only:u,v,w ! Load the velocity components
+
+integer, intent(in) :: i ! The turbine number
+integer :: m,n,k,q,j
+real(rprec), dimension(3) :: velocity
+real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate the velocity
+real(rprec) :: u_i, v_i, w_i ! Interpolated velocities
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+do m=1, turbineArray(i) %  numBladePoints
+    do n=1, turbineArray(i) % numAnnulusSections
+        do q=1, turbineModel(j) % numBl
+                       
+            ! Actuator point onto which to interpolate the velocity
+            xyz=turbineArray(i) % bladePoints(q,n,m,1:3)
+
+            ! Non-dimensionalizes the point location 
+            xyz=vector_divide(xyz,z_i)
+
+            ! Interpolate velocities
+            u_i=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in x
+            v_i=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in y
+            w_i=trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in z
+            velocity(1)=u_i*u_star
+            velocity(2)=v_i*u_star
+            velocity(3)=w_i*u_star
+
+            call computeBladeForce(i,m,n,q,velocity)
+        enddo
+    enddo
+enddo
+
+end subroutine atm_lesgo_input_velocity
 
 
 !-------------------------------------------------------------------------------
