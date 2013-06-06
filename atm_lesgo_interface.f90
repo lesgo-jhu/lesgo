@@ -1,3 +1,28 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!
+!! Written by: 
+!!
+!!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
+!!
+!!   Copyright (C) 2012-2013, Johns Hopkins University
+!!
+!!   This file is part of The Actuator Turbine Model Library.
+!!
+!!   The Actuator Turbine Model is free software: you can redistribute it 
+!!   and/or modify it under the terms of the GNU General Public License as 
+!!   published by the Free Software Foundation, either version 3 of the 
+!!   License, or (at your option) any later version.
+!!
+!!   The Actuator Turbine Model is distributed in the hope that it will be 
+!!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!   GNU General Public License for more details.
+!!
+!!   You should have received a copy of the GNU General Public License
+!!   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !*******************************************************************************
 module atm_lesgo_interface
 !*******************************************************************************
@@ -21,9 +46,9 @@ use grid_defs, only : grid
 use functions, only : trilinear_interp
 
 ! Actuator Turbine Model module
+use atm_base
 use actuator_turbine_model
 use atm_input_util, only : rprec, turbineArray, turbineModel
-use atm_linked_list
 
 implicit none
 
@@ -32,19 +57,19 @@ public atm_lesgo_initialize
 
 ! This is a dynamic list that stores all the points in the domain with a body 
 ! force due to the turbines. 
-type bodyForce_t
+!type bodyForce_t
     ! c0 counter for all the points in the domain with forces
     ! i,j,k stores the index for the point in the domain
-    integer c0,i,j,k
-    real(rprec), dimension(3) :: force ! Force vector
-    type(bodyForce_t), pointer :: next
-    type(bodyForce_t), pointer :: previous
-end type bodyForce_t
+!    integer c0,i,j,k
+!    real(rprec), dimension(3) :: force ! Force vector
+!    type(bodyForce_t), pointer :: next
+!    type(bodyForce_t), pointer :: previous
+!end type bodyForce_t
 
 
 
 ! This is the body force vector which has the forces by the atm
-type(bodyForce_t), allocatable, dimension(:) :: bodyForce
+!type(bodyForce_t), allocatable, dimension(:) :: bodyForce
 
 ! These are the pointers to the grid arrays
 real(rprec), pointer, dimension(:) :: x,y,z
@@ -69,7 +94,7 @@ subroutine atm_lesgo_initialize ()
 ! Initialize the actuator turbine model
 
 ! This is the list of body forces for all the cells 
-type(DynamicList_), pointer :: bodyForceField
+!type(DynamicList_), pointer :: bodyForceField
 real(rprec) :: zeroVector(3)     ! A vector of zeros used for initiallizing vec
 integer :: i, j, k
 
@@ -89,7 +114,7 @@ call atm_initialize () ! Initialize the atm (ATM)
 
 
 
-call initializeDynamicListVector(bodyForceField,zeroVector)
+!call initializeDynamicListVector(bodyForceField,zeroVector)
 ! This will find all the locations that are influenced by each turbine
 ! It depends on a sphere centered on the rotor that extends beyond the blades
 c0=0  ! Initialize conuter
@@ -103,7 +128,7 @@ do k=1,nz ! Loop through grid points in z
                 if (distance(vector_point,turbineArray(m) % baseLocation) &
                     .le. turbineArray(m) % sphereRadius ) then
                     c0=c0+1
-                    call appendVector(bodyForceField,zeroVector)
+!                    call appendVector(bodyForceField,zeroVector)
                 end if
             end do 
         end do

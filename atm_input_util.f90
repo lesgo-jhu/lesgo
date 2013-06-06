@@ -1,11 +1,37 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!
+!! Written by: 
+!!
+!!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
+!!
+!!   Copyright (C) 2012-2013, Johns Hopkins University
+!!
+!!   This file is part of The Actuator Turbine Model Library.
+!!
+!!   The Actuator Turbine Model is free software: you can redistribute it 
+!!   and/or modify it under the terms of the GNU General Public License as 
+!!   published by the Free Software Foundation, either version 3 of the 
+!!   License, or (at your option) any later version.
+!!
+!!   The Actuator Turbine Model is distributed in the hope that it will be 
+!!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!   GNU General Public License for more details.
+!!
+!!   You should have received a copy of the GNU General Public License
+!!   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !*******************************************************************************
 module atm_input_util
 !*******************************************************************************
 ! This module reads the input files for the actuator turbine model module (ATM)
-implicit none
 
-! Precision of real numbers
-integer, parameter :: rprec = kind (1.d0)
+! Module for dynamic allocation variables
+use atm_base
+
+implicit none
 
 ! The variables for the ATM are defined here
 integer :: numberOfTurbines
@@ -101,6 +127,14 @@ type turbineArray_t
 
 end type turbineArray_t
 
+! This type stores all the airfoils and their AOA, Cd, Cl values
+type airfoilType_t
+    character(128) :: airfoilType          ! The type of Airfoil ('Cylinder1')
+    type(DynamicList_), pointer :: AOA    ! Angle of Attack
+    type(DynamicList_), pointer :: Cd     ! Drag coefficient
+    type(DynamicList_), pointer :: Cl     ! Lift coefficient
+end type airfoilType_t
+
 type turbineModel_t
     character(128) :: turbineType ! The type of turbine ('NREL5MWRef')
     integer :: NumBl ! Number of turbine blades
@@ -127,16 +161,13 @@ type turbineModel_t
     real(rprec) :: RateLimitGenTorque
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
+
+    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
+    type(airfoilType_t), allocatable, dimension(:) :: airfoilType
+    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 2
+    type(DynamicList_), pointer :: allAirfoils
+
 end type turbineModel_t
-
-! This type stores all the airfoils and their AOA, Cd, Cl values
-type airfoilType_
-    character(128) :: airoilType          ! The type of Airfoil ('Cylinder1')
-    type(real(rprec)), allocatable, dimension(:) :: AOA    ! Angle of Attack
-    type(real(rprec)), allocatable, dimension(:) :: Cd     ! Drag coefficient
-    type(real(rprec)), allocatable, dimension(:) :: Cl     ! Lift coefficient
-
-end type airfoilType_
 
 ! Declare turbine array variable
 type(turbineArray_t), allocatable, dimension(:) , target :: turbineArray
@@ -184,7 +215,6 @@ integer :: lun =1 ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
 integer, pointer :: numBladePoints, numAnnulusSections
-
 
 ! Check that the configuration file exists
 inquire (file=input_conf, exist=exst)
@@ -365,9 +395,8 @@ do i = 1, numTurbinesDistinct
 
     write(*,*) 'Reading Turbine Model Properties for: ', &
                 turbineModel(i) % turbineType
-    ! Read the file line by line *Counter starts at 0 and modified inside subroutine
+    ! Read the file line by line - starts at 0 and modified inside subroutine
     line = 0
-    numAirfoils=0
     do
     ! Read line by line (lun=file number) 
         call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -413,13 +442,18 @@ do i = 1, numTurbinesDistinct
 
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
+
+            numAirfoils=0 ! Conuter for the number of distince airfoils
+
             array_entry_pos=0 ! If 'Airfoils(' then make array_entry_pos zero 
+
             do while (array_entry_pos == 0) 
                 call readline( lun, line, buff, block_entry_pos,              &
                 block_exit_pos, array_entry_pos, array_exit_pos, equal_pos, ios)
 
                 if (ios /= 0) exit        ! exit if end of file reached
 
+                
                 if (array_entry_pos /= 0) then
                     call readline( lun, line, buff, block_entry_pos,          &
                                    block_exit_pos, array_entry_pos,           &
@@ -428,15 +462,22 @@ do i = 1, numTurbinesDistinct
 
                 endif
 
-                if (array_exit_pos /= 0) exit        ! exit if end of file reached
+                if (array_exit_pos /= 0) exit     ! exit if end of file reached
 
                 numAirfoils = numAirfoils + 1     ! Increment airfoil counter
 
-                ! Read the name of the turbine
-!                read(buff(1:index(buff, array_entry)-1), *) turbin\
+                ! Store the airfoil data
+                if (numAirfoils==1) then 
+                    call initializeDynamicListCharacter(turbineModel(i) %     &
+                                                        allAirfoils,buff)
+                else
+                    call appendCharacter(turbineModel(i) % allAirfoils,buff)
+                endif 
+
+!                allocate(turbineModel(i) % airfoilType(numAirfoils))
+
             enddo
-        endif  
-        write(*,*) 'Number of airfoils is: ',numAirfoils
+        endif 
 
     enddo                                  
 close (lun)      
