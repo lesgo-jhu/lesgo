@@ -102,19 +102,19 @@ type turbineArray_t
     ! intersection point.  This vector switches direciton depending on 
     ! if the turbine is upwind or downwind, so this uvShaftDir multiplier
     ! makes the vector consistent no matter what kind of turbine
-  	 real(rprec) :: uvShaftDir
-	
-  	! Define the vector along the shaft pointing in the direction of the wind
-  	real(rprec), dimension(3) :: uvShaft
-	
-  	! List of locations of the rotor apex relative to the origin (m)
+     real(rprec) :: uvShaftDir
+
+    ! Define the vector along the shaft pointing in the direction of the wind
+    real(rprec), dimension(3) :: uvShaft
+  
+    ! List of locations of the rotor apex relative to the origin (m)
     real(rprec), dimension(3) :: rotorApex
-	
+  
     ! List of locations of the intersection of the tower axis and the shaft 
     ! centerline relative to the origin (m).
     real(rprec), dimension(3) :: towerShaftIntersect
-	
-   	! Unit vector pointing along the tower (axis of yaw).
+  
+     ! Unit vector pointing along the tower (axis of yaw).
     real(rprec), dimension(3) :: uvTower
 
     ! Width of the actuator section
@@ -129,15 +129,21 @@ end type turbineArray_t
 
 ! This type stores all the airfoils and their AOA, Cd, Cl values
 type airfoilType_t
-    character(128) :: airfoilType          ! The type of Airfoil ('Cylinder1')
-    type(DynamicList_), pointer :: AOA    ! Angle of Attack
-    type(DynamicList_), pointer :: Cd     ! Drag coefficient
-    type(DynamicList_), pointer :: Cl     ! Lift coefficient
+    character(128) :: airfoilName          ! The type of Airfoil ('Cylinder1')
+    integer :: n                           ! Number of data points
+    ! The maximum number of points is chosen to be 150. If airfoil data has 
+    ! more than this then this number should be modified!
+    type(real(rprec)), dimension(150) :: AOA    ! Angle of Attack
+    type(real(rprec)), dimension(150) :: Cd     ! Drag coefficient
+    type(real(rprec)), dimension(150) :: Cl     ! Lift coefficient
+    type(real(rprec)), dimension(150) :: Cm     ! Moment coefficient
+
 end type airfoilType_t
 
 type turbineModel_t
     character(128) :: turbineType ! The type of turbine ('NREL5MWRef')
-    integer :: NumBl ! Number of turbine blades
+    integer :: NumBl          ! Number of turbine blades
+    integer :: NumSec         ! Number of sections
     real(rprec) :: TipRad ! Radius from the root to the tip of the blade
     real(rprec) :: HubRad ! Radius of the hub
     real(rprec) :: UndSling !
@@ -162,10 +168,14 @@ type turbineModel_t
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
 
+    ! Blade section quantities
+    real(rprec), dimension(15) :: chord, twist, radius
+    integer, dimension(15) :: sectionType
+
     ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
     type(airfoilType_t), allocatable, dimension(:) :: airfoilType
-    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 2
-    type(DynamicList_), pointer :: allAirfoils
+!    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 2
+!    type(DynamicList_), pointer :: allAirfoils
 
 end type turbineModel_t
 
@@ -350,6 +360,10 @@ integer :: lun =1 ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
 integer:: numAirfoils ! Number of distinct airfoils
+integer :: k, p ! Used to loop through aifoil types and character counter
+
+! Name of all the airfoils types (max 20) If more than this increase the number
+character(128), dimension(20) :: airfoils 
 
 ! Initialize variables for the loop
 ! Will find the number of distincet turbines to allocate memory for turbineModel
@@ -440,50 +454,107 @@ do i = 1, numTurbinesDistinct
             write(*,*) 'PreCone is: ', turbineModel(i) % PreCone
         endif
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
-
             numAirfoils=0 ! Conuter for the number of distince airfoils
-
             array_entry_pos=0 ! If 'Airfoils(' then make array_entry_pos zero 
 
             do while (array_entry_pos == 0) 
                 call readline( lun, line, buff, block_entry_pos,              &
                 block_exit_pos, array_entry_pos, array_exit_pos, equal_pos, ios)
-
                 if (ios /= 0) exit        ! exit if end of file reached
-
                 
                 if (array_entry_pos /= 0) then
                     call readline( lun, line, buff, block_entry_pos,          &
                                    block_exit_pos, array_entry_pos,           &
                                    array_exit_pos, equal_pos, ios)
                    if (ios /= 0) exit        ! exit if end of file reached
-
                 endif
 
                 if (array_exit_pos /= 0) exit     ! exit if end of file reached
-
                 numAirfoils = numAirfoils + 1     ! Increment airfoil counter
-
-                ! Store the airfoil data
-                if (numAirfoils==1) then 
-                    call initializeDynamicListCharacter(turbineModel(i) %     &
-                                                        allAirfoils,buff)
-                else
-                    call appendCharacter(turbineModel(i) % allAirfoils,buff)
-                endif 
-
-!                allocate(turbineModel(i) % airfoilType(numAirfoils))
-
+                airfoils(numAirfoils)=buff ! Stores the name of the airfoil
             enddo
-        endif 
+            
+            ! Allocate the airfoilTypes
+            allocate(turbineModel(i) % airfoilType(numAirfoils))
+
+            ! Loop through all the airfoil types and look-up lift and drag
+            do k=1,numAirfoils
+                call eat_whitespace (airfoils(k)) ! Eliminate white space
+                p=len(trim(airfoils(k)))-1        ! Length withour last element
+                ! Airfoil type (2:p) is used to eliminate the commas ""
+                turbineModel(i) % airfoilType % airfoilName =  airfoils(k)(2:p)
+                ! Read each airfoil accordingly
+                call read_airfoil( turbineModel(i) % airfoilType(k) ) 
+            enddo
+        endif  ! End of Airfoil loop
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! This will read the blade properties
+        if ( buff(1:9) .eq. 'BladeData' ) then ! Start reading blade data block
+                turbineModel(i) % NumSec = 0
+                do while (array_exit_pos .eq. 0) 
+                    read (lun, '(a)', iostat=ios) buff ! Read the comment line
+                    if (scan(buff,'(' ) .ne. 0) cycle
+                    if (scan(buff,')' ) .ne. 0) then
+                        array_exit_pos=1
+                    else
+                        ! Number of sections will account for all blade sections
+                        turbineModel(i) % NumSec = turbineModel(i) % NumSec + 1
+                        ! Read in radius, chord, twist, type
+                        read(buff,*) turbineModel(i) %                       &
+                        radius(turbineModel(i) % NumSec),                    &
+                        turbineModel(i) % chord(turbineModel(i) % NumSec),   &
+                        turbineModel(i) % twist(turbineModel(i) % NumSec),   &
+                        turbineModel(i) % sectionType(turbineModel(i) % NumSec)
+                    endif
+                enddo
+write(*,*) turbineModel(i) % twist(turbineModel(i) % NumSec)
+        endif
 
     enddo                                  
 close (lun)      
 enddo
 
 end subroutine read_turbine_model_variables
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine read_airfoil( airfoilType )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine reads the angle of attack, lift and drag for a specific 
+! airfoil type
+integer :: lun=11 ! File identifier
+integer :: q ! Counter
+character(128) :: input_airfoil
+type(airfoilType_t) :: airfoilType
+
+! Name of the input file to read
+input_airfoil= './inputATM/AeroData/' //trim (airfoilType % airfoilName)  &
+               // '.dat'
+write (*,*) input_airfoil
+! Open airfoil input file
+open (lun, file=input_airfoil, action='read')
+
+! Skip the first 14 lines of the Fortran input file 
+do q=1,14
+    read(lun,*)
+enddo
+
+q=0 ! Initialize the counter back to 1 for the first element in the list
+
+do while (airfoilType % AOA(q) .lt. 180.00)
+    q=q+1
+    read(lun,*) airfoilType % AOA(q), airfoilType % Cd(q),        &
+                airfoilType % Cl(q), airfoilType % Cm(q)
+enddo
+
+airfoilType % n =q
+
+close(lun)
+
+end subroutine read_airfoil
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine readline(lun, line, buff, block_entry_pos, block_exit_pos, & 

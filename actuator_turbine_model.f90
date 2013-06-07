@@ -392,6 +392,30 @@ windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local);
 end subroutine computeBladeForce
 
 !-------------------------------------------------------------------------------
+function interpolate(xp,x,y)
+! This function interpolates xp from x and y 
+!-------------------------------------------------------------------------------
+real(rprec), dimension(:), intent(in) :: x,y
+real(rprec), intent(in) ::  xp
+real(rprec)  :: interpolate
+integer :: i,p
+p=size(x)
+if (xp .eq. x(1)) then 
+    interpolate=y(1)
+else if ( xp .eq. x(p) ) then
+    interpolate=y(p)
+else 
+    do i=2,p-1
+        if (xp.ge.x(i) .and. xp .le. x(i+1)) then
+            interpolate=y(i)+(y(i+1)-y(i))/(x(i+1)-x(i))*(x(p)-x(i))
+        endif
+    enddo
+endif
+
+return
+end function interpolate
+
+!-------------------------------------------------------------------------------
 function vector_add(a,b)
 ! This function adds 2 vectors (arrays real(rprec), dimension(3))
 !-------------------------------------------------------------------------------

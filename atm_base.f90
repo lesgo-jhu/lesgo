@@ -49,15 +49,29 @@ type :: DynamicList_
     real(rprec) :: vector(3)        ! A vector (a,b,c)
     real(rprec) :: real_number      ! A real number
     integer :: integer_number       ! An integer
-    
-    ! A dynamic list within
-    type(DynamicList_), pointer :: dListWithin 
 
     type(DynamicList_), pointer :: prev => null()
     type(DynamicList_), pointer :: next => null()
 end type DynamicList_
 
 contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine DynamicListGoTo(DynamicList,i)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Goes to element i on the list
+    implicit none
+    integer, intent(in) :: i 
+    type(DynamicList_), pointer, intent(inout) :: DynamicList
+
+    do while (i .lt. DynamicList % id )
+        DynamicList => DynamicList % next
+    enddo
+    do while (i .gt. DynamicList % id )
+        DynamicList => DynamicList % prev
+    enddo
+
+end subroutine DynamicListGoTo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine initializeDynamicListVector(DynamicList,vector)
@@ -75,7 +89,6 @@ subroutine initializeDynamicListVector(DynamicList,vector)
     DynamicList % vector(3) = vector(3)        ! Modify vector element 3
 
 end subroutine initializeDynamicListVector
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine appendVector(DynamicList,vector)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -84,15 +97,17 @@ subroutine appendVector(DynamicList,vector)
     real(rprec), intent(in) :: vector(3)
     type(DynamicList_), pointer, intent(inout) :: DynamicList
 
+    allocate(DynamicList % prev)
+    DynamicList % prev => DynamicList
+
     allocate(DynamicList % next)
-!    nullify(DynamicList % next % next)
+
+    DynamicList  % next% id = DynamicList % id +1     ! Adds counter
+    DynamicList  % next% vector(1) = vector(1)        ! Modify vector element 1
+    DynamicList  % next% vector(2) = vector(2)        ! Modify vector element 2
+    DynamicList  % next% vector(3) = vector(3)        ! Modify vector element 3
+
     DynamicList => DynamicList % next
-
-    DynamicList % next % id = DynamicList % id +1     ! Adds counter
-    DynamicList % vector(1) = vector(1)        ! Modify vector element 1
-    DynamicList % vector(2) = vector(2)        ! Modify vector element 2
-    DynamicList % vector(3) = vector(3)        ! Modify vector element 3
-
 end subroutine appendVector
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -120,11 +135,11 @@ subroutine appendCharacter(DynamicList,name_id)
     type(DynamicList_), pointer, intent(inout) :: DynamicList
 
     allocate(DynamicList % next)
-!    nullify(DynamicList % next % next)
-    DynamicList => DynamicList % next
+    DynamicList % next % prev => DynamicList
 
-    DynamicList % id = DynamicList % id +1     ! Adds counter
-    DynamicList % name_id = name_id        ! Modify character element 1
+    DynamicList % next % id = DynamicList % id +1     ! Adds counter
+    DynamicList % next % name_id = name_id        ! Modify character element 1
+    DynamicList => DynamicList % next
 
 end subroutine appendCharacter
 
