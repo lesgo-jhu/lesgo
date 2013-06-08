@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !///////////////////////////////////////////////////////////////////////////////
 module io
 !///////////////////////////////////////////////////////////////////////////////
@@ -33,9 +52,7 @@ contains
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : use_cfl_dt, dt, cfl_f, path
-use stat_defs, only : tavg_time_stamp, spectra_time_stamp
 implicit none
-
 include 'tecryte.h'
 
 logical :: exst
@@ -53,7 +70,7 @@ if (cumulative_time) then
   if (exst) then
 
     open (1, file=fcumulative_time)   
-    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r, tavg_time_stamp, spectra_time_stamp   
+    read(1, *) jt_total, total_time, total_time_dim, dt_r, cfl_r
     close (1)
     
   else  !--assume this is the first run on cumulative time
@@ -63,8 +80,6 @@ if (cumulative_time) then
     jt_total = 0
     total_time = 0.0_rprec
     total_time_dim = 0.0_rprec
-    tavg_time_stamp = -1.0_rprec ! Set less than zero to avoid equality comparison of real
-    spectra_time_stamp = -1.0_rprec ! Set less than zero to avoid equality comparison of real
   end if
 
 end if
@@ -212,16 +227,17 @@ subroutine output_loop()
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
-use param, only : nsteps, jt_total
+use param, only : nsteps, jt_total, dt
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
-use param, only : spectra_calc, spectra_nstart, spectra_nend
+use param, only : spectra_calc, spectra_nstart, spectra_nend, spectra_nskip
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
 use stat_defs, only : tavg_initialized, spectra_initialized
+use stat_defs, only: tavg_dt, spectra_dt
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -233,45 +249,67 @@ if( checkpoint_data ) then
 endif 
 
 !  Determine if time summations are to be calculated
-if(tavg_calc) then
-!  Check if we are in the time interval for running summations
-  if(jt_total >= tavg_nstart .and. jt_total <= tavg_nend .and. ( mod(jt_total-tavg_nstart,tavg_nskip)==0)) then
-    if( .not. tavg_initialized ) then
-      if (coord == 0) then
-        write(*,*) '-------------------------------'   
-        write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
-        write(*,*) '-------------------------------'   
-      endif
+if (tavg_calc) then
 
-      call tavg_init()
+  ! Are we between the start and stop timesteps?
+  if ((jt_total >= tavg_nstart).and.(jt_total <= tavg_nend)) then
 
-    endif
-    
-    !  Compute running summations
-    call tavg_compute ()
+    ! Every timestep (between nstart and nend), add to tavg_dt
+    tavg_dt = tavg_dt + dt
 
-  endif 
-  
-endif
+    ! Are we at the beginning or a multiple of nstart?
+    if ( mod(jt_total-tavg_nstart,tavg_nskip)==0 ) then
 
-if( spectra_calc ) then
-  !  Check if we are in the time interval for running summations
-  if(jt_total >= spectra_nstart .and. jt_total <= spectra_nend) then
-    if( .not.  spectra_initialized ) then
-      if (coord == 0) then
-        write(*,*) '-------------------------------'
-        write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
-        write(*,*) '-------------------------------'
-      endif
+      ! Check if we have initialized tavg
+      if (.not.tavg_initialized) then
+        if (coord == 0) then
+          write(*,*) '-------------------------------'   
+          write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
+          write(*,*) '-------------------------------'   
+        endif  ! coord==0
+      
+        call tavg_init()
+      else
+        call tavg_compute ()
+      endif  ! init
+     
+    endif  ! mod of nskip
 
-      call spectra_init()
+  endif  ! between nstart and nend
 
-    endif
-!  Compute running summations
-    call spectra_compute ()
-  endif
+endif  ! tavg_calc
+     
 
-endif
+!  Determine if spectra are to be calculated
+if (spectra_calc) then
+
+  ! Are we between the start and stop timesteps?
+  if ((jt_total >= spectra_nstart).and.(jt_total <= spectra_nend)) then
+
+    ! Every timestep (between nstart and nend), add to spectra_dt
+    spectra_dt = spectra_dt + dt
+
+    ! Are we at the beginning or a multiple of nstart?
+    if ( mod(jt_total-spectra_nstart,spectra_nskip)==0 ) then
+
+      ! Check if we have initialized spectra
+      if (.not.spectra_initialized) then
+        if (coord == 0) then
+         write(*,*) '-------------------------------'
+         write(*,"(1a,i9,1a,i9)") 'Starting running spectra calculations from ', spectra_nstart, ' to ', spectra_nend
+         write(*,*) '-------------------------------'
+        endif  ! coord==0
+      
+        call spectra_init()
+      else
+        call spectra_compute ()
+      endif  ! init
+     
+    endif  ! mod of nskip
+
+  endif  ! between nstart and nend
+
+endif  ! spectra_calc
 
 
 !  Determine if instantaneous point velocities are to be recorded
@@ -492,9 +530,9 @@ if(itype==1) then
 
     ! Want to replace with write based on fid
     call write_real_data(point(n) % fid, 'formatted', 4, (/ total_time, &
-         trilinear_interp(u(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(v(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz), &
-         trilinear_interp(w_uv(1:nx,1:ny,1:nz), 1, point_loc(n)%xyz) /))
+         trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+         trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+         trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz) /))
     
 
     $if ($MPI)
@@ -1493,7 +1531,7 @@ $endif
 use param, only : jt_total, total_time, total_time_dim, dt
 use param, only : use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_time_stamp, tavg_initialized, spectra_time_stamp, spectra_initialized
+use stat_defs, only : tavg_initialized, spectra_initialized
 use string_util, only : string_concat
 implicit none
 
@@ -1571,7 +1609,7 @@ if (coord == 0) then
    !--only do this for true final output, not intermediate recording
    open (1, file=fcumulative_time)
 
-   write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w, tavg_time_stamp, spectra_time_stamp
+   write(1, *) jt_total, total_time, total_time_dim, dt, cfl_w
 
    close(1)
 
@@ -1884,10 +1922,10 @@ subroutine tavg_init()
 use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
-use stat_defs, only : tavg, tavg_total_time, tavg_time_stamp, tavg_initialized
+use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
 $endif
 use param, only : tavg_nstart, tavg_nend
 implicit none
@@ -1922,6 +1960,7 @@ if (.not. exst) then
   endif
 
     tavg_total_time = 0.0_rprec
+    ! note: tavg was already initialized to zero in output_init routine
  
 else
 
@@ -1980,6 +2019,9 @@ $if($OUTPUT_EXTRA)
     
 $endif
 
+! Initialize tavg_dt
+tavg_dt = 0.0_rprec
+
 ! Set global switch that tavg as been initialized
 tavg_initialized = .true. 
 
@@ -1993,14 +2035,14 @@ subroutine tavg_compute()
 !  variable quantity
 use types, only : rprec
 use param, only : tavg_nskip
-use stat_defs, only : tavg, tavg_zplane, tavg_total_time, tavg_time_stamp
+use stat_defs, only : tavg, tavg_zplane, tavg_total_time, tavg_dt
 $if($OUTPUT_EXTRA)
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
 $if($TURBINES)
 use sim_param, only : fxa
 $elseif($LVLSET)
@@ -2012,7 +2054,6 @@ use functions, only : interp_to_w_grid
 implicit none
 
 integer :: i,j,k
-real(rprec) :: dt_tavg
 
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: u_w, v_w
@@ -2022,18 +2063,6 @@ allocate(u_w(nx,ny,lbz:nz),v_w(nx,ny,lbz:nz))
 !  Interpolate velocities to w-grid
 u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( u(1:nx,1:ny,lbz:nz), lbz )
 v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( v(1:nx,1:ny,lbz:nz), lbz )
-
-!RICHARD
-! dt_tavg should be the time between two consecutive calls to this function
-! The first tavg_time_stamp is known from previous simulation as it is read from 'total_time.dat'
-! The very first dt_tavg is not known 
-if( tavg_time_stamp < 0.0_rprec ) then
-   ! Approximating the very first dt_tavg
-   dt_tavg = tavg_nskip * dt
-else
-   dt_tavg = total_time - tavg_time_stamp
-endif
-tavg_time_stamp = total_time
 
 $if($MPI)
 k=0
@@ -2045,28 +2074,28 @@ do j=1,ny
       w_p = w(i,j,k)
 
       ! === w-grid variables === 
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * dt_tavg                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * dt_tavg                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * dt_tavg
+      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
+      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
 
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * dt_tavg
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * dt_tavg
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * dt_tavg
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * dt_tavg
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * dt_tavg
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * dt_tavg
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
 
-      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
-      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
+      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * tavg_dt
+      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * tavg_dt
 
       ! === uv-grid variables ===
-      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txx(i,j,k) * dt_tavg
-      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
-      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
-      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txx(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyy(i,j,k) * tavg_dt
+      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzz(i,j,k) * tavg_dt
+      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txy(i,j,k) * tavg_dt
       ! === w-grid variables === 
-      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * dt_tavg
-      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
+      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
    enddo
 enddo
@@ -2081,53 +2110,53 @@ do k=1,jzmax
       w_p = w(i,j,k)
           
       ! === w-grid variables === 
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * dt_tavg                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * dt_tavg                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * dt_tavg
+      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
+      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
 
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * dt_tavg
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * dt_tavg
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * dt_tavg
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * dt_tavg
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * dt_tavg
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * dt_tavg
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
 
-      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * dt_tavg
-      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * dt_tavg
+      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * tavg_dt
+      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * tavg_dt
 
       ! === uv-grid variables ===
-      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txx(i,j,k) * dt_tavg
-      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyy(i,j,k) * dt_tavg
-      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzz(i,j,k) * dt_tavg
-      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txy(i,j,k) * dt_tavg
+      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txx(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyy(i,j,k) * tavg_dt
+      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzz(i,j,k) * tavg_dt
+      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txy(i,j,k) * tavg_dt
       ! === w-grid variables === 
-      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * dt_tavg
-      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * dt_tavg
+      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
 $if ($TURBINES)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
-      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * dt_tavg 
-!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * dt_tavg
+      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
+!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
-!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * dt_tavg
+!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
 $elseif ($LVLSET)
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
-      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * dt_tavg 
-      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * dt_tavg
+      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt
       ! === w-grid variables === 
-      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * dt_tavg
+      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * tavg_dt
 $else
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
-!      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k)             ) * dt_tavg 
-!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * dt_tavg
+!      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k)             ) * tavg_dt 
+!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
-!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * dt_tavg
+!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
 $endif
       
-      tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * dt_tavg
+      tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
       
     enddo
   enddo
@@ -2138,7 +2167,7 @@ do k=1,jzmax
   do j=1,ny
     do i=1,nx
        ! === w-grid variables ===
-       tavg_sgs(i,j,k)%Nu_t = tavg_sgs(i,j,k)%Nu_t + Nu_t(i,j,k) * dt_tavg
+       tavg_sgs(i,j,k)%Nu_t = tavg_sgs(i,j,k)%Nu_t + Nu_t(i,j,k) * tavg_dt
     enddo
  enddo
 enddo
@@ -2148,7 +2177,7 @@ if (sgs_model.gt.1) then
       do j=1,ny
          do i=1,nx
             ! === w-grid variables ===
-            tavg_sgs(i,j,k)%ee_now = tavg_sgs(i,j,k)%ee_now + ee_now(i,j,k) * dt_tavg
+            tavg_sgs(i,j,k)%ee_now = tavg_sgs(i,j,k)%ee_now + ee_now(i,j,k) * tavg_dt
          enddo
       enddo
    enddo
@@ -2159,15 +2188,15 @@ if (sgs_model.gt.3) then
       do j=1,ny
          do i=1,nx
             ! === w-grid variables ===
-            tavg_sgs(i,j,k)%Tn = tavg_sgs(i,j,k)%Tn + Tn_all(i,j,k) * dt_tavg
-            tavg_sgs(i,j,k)%F_LM = tavg_sgs(i,j,k)%F_LM + F_LM(i,j,k) * dt_tavg
-            tavg_sgs(i,j,k)%F_MM = tavg_sgs(i,j,k)%F_MM + F_MM(i,j,k) * dt_tavg
-            tavg_sgs(i,j,k)%F_QN = tavg_sgs(i,j,k)%F_QN + F_QN(i,j,k) * dt_tavg
-            tavg_sgs(i,j,k)%F_NN = tavg_sgs(i,j,k)%F_NN + F_NN(i,j,k) * dt_tavg
+            tavg_sgs(i,j,k)%Tn = tavg_sgs(i,j,k)%Tn + Tn_all(i,j,k) * tavg_dt
+            tavg_sgs(i,j,k)%F_LM = tavg_sgs(i,j,k)%F_LM + F_LM(i,j,k) * tavg_dt
+            tavg_sgs(i,j,k)%F_MM = tavg_sgs(i,j,k)%F_MM + F_MM(i,j,k) * tavg_dt
+            tavg_sgs(i,j,k)%F_QN = tavg_sgs(i,j,k)%F_QN + F_QN(i,j,k) * tavg_dt
+            tavg_sgs(i,j,k)%F_NN = tavg_sgs(i,j,k)%F_NN + F_NN(i,j,k) * tavg_dt
             
             $if ($DYN_TN)
-            tavg_sgs(i,j,k)%F_ee2 = tavg_sgs(i,j,k)%F_ee2 + F_ee2(i,j,k) * dt_tavg
-            tavg_sgs(i,j,k)%F_deedt2 = tavg_sgs(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * dt_tavg
+            tavg_sgs(i,j,k)%F_ee2 = tavg_sgs(i,j,k)%F_ee2 + F_ee2(i,j,k) * tavg_dt
+            tavg_sgs(i,j,k)%F_deedt2 = tavg_sgs(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * tavg_dt
             $endif         
          enddo
       enddo
@@ -2177,11 +2206,25 @@ $endif
 
 deallocate( u_w, v_w )
 
+! Added to compute the average of u on the grid points and prevent the 
+! linear interpolation, which is not exactly valid due to log profile in boundary layer
+do k=0,jzmax  
+  do j=1,ny
+    do i=1,nx
+    u_p = u(i,j,k)
+    u_avg(i,j,k)=u_avg(i,j,k)+u_p*tavg_dt                    
+    enddo
+  enddo
+enddo
+
 ! Update tavg_total_time for variable time stepping
-tavg_total_time = tavg_total_time + dt_tavg
+tavg_total_time = tavg_total_time + tavg_dt
 $if($OUTPUT_EXTRA)
-tavg_total_time_sgs = tavg_total_time_sgs + dt_tavg
+tavg_total_time_sgs = tavg_total_time_sgs + tavg_dt
 $endif
+
+! Set tavg_dt back to zero for next increment
+tavg_dt = 0.0_rprec
 
 return
 
@@ -2202,6 +2245,7 @@ $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+use sim_param, only : u_avg
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -2222,11 +2266,11 @@ character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
 character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
-     fname_rs, fname_cs
+     fname_rs, fname_cs, fname_u_vel_grid
 character(64) :: fname_velb, &
      fname_vel2b, fname_ddzb, &
      fname_taub, fname_fb, &
-     fname_rsb, fname_csb
+     fname_rsb, fname_csb, fname_u_vel_gridb
      
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
@@ -2290,6 +2334,7 @@ fname_tau = path // 'output/tau_avg.dat'
 fname_f = path // 'output/force_avg.dat'
 fname_rs = path // 'output/rs.dat'
 fname_cs = path // 'output/cs_opt2.dat'
+fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
 fname_velb = path // 'output/binary_vel_avg.dat'
 fname_vel2b = path // 'output/binary_vel2_avg.dat'
@@ -2298,6 +2343,7 @@ fname_taub = path // 'output/binary_tau_avg.dat'
 fname_fb = path // 'output/binary_force_avg.dat'
 fname_rsb = path // 'output/binary_rs.dat'
 fname_csb = path // 'output/binary_cs_opt2.dat'
+fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
 
 fname_vel_zplane = path // 'output/vel_zplane_avg.dat'
 fname_vel2_zplane = path // 'output/vel2_zplane_avg.dat'
@@ -2326,6 +2372,7 @@ $if ($MPI)
   call string_concat( fname_fb, '.c', coord)
   call string_concat( fname_rsb, '.c', coord)
   call string_concat( fname_csb, '.c', coord)
+  call string_concat( fname_u_vel_gridb, '.c',coord)
   $else
   call string_concat( fname_vel, '.c', coord)
   call string_concat( fname_vel2, '.c', coord)
@@ -2334,6 +2381,7 @@ $if ($MPI)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
   call string_concat( fname_cs, '.c', coord)
+  call string_concat( fname_u_vel_grid, '.c', coord)
   $endif
   
   $if($OUTPUT_EXTRA)  
@@ -2403,6 +2451,7 @@ do k=jzmin,jzmax
   do j=1, Ny
     do i=1, Nx
       tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
+      u_avg(i,j,k) =u_avg(i,j,k) / tavg_total_time
     enddo
   enddo
 enddo
@@ -2528,8 +2577,11 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
-! ----- Write all the 3D data -----
 $if($BINARY)
+! ----- Write all the 3D data -----
+open(unit=13,file=fname_u_vel_gridb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) u_avg(:nx,:ny,1:nz)
+close(13)
 
 ! RICHARD
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
@@ -3092,7 +3144,7 @@ use types, only : rprec
 use param, only : path, checkpoint_spectra_file
 use messages
 use param, only : coord, dt, spectra_nloc, lh, nx
-use stat_defs, only : spectra, spectra_total_time, spectra_initialized
+use stat_defs, only : spectra, spectra_total_time, spectra_initialized,spectra_dt
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.spectra_init'
@@ -3114,37 +3166,43 @@ $endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
-  !  Nothing to read in
-  if (coord == 0) then
-    write(*,*) ' '
-    write(*,*)'No previous spectra data - starting from scratch.'
-  endif
+   !  Nothing to read in
+   if (coord == 0) then
+      write(*,*) ' '
+      write(*,*)'No previous spectra data - starting from scratch.'
+   endif
 
-  spectra_total_time = 0._rprec
+   spectra_total_time = 0._rprec
+   ! note: spectra already initialized during output_init
 
-  return
+else
+
+
+   $if ($READ_BIG_ENDIAN)
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted', convert='big_endian')
+   $elseif ($READ_LITTLE_ENDIAN)
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted', convert='little_endian')
+   $else
+   open (1, file=fname, action='read', position='rewind',  &
+        form='unformatted')
+   $endif
+
+   read (1) spectra_total_time
+   do k=1, spectra_nloc
+      read (1) spectra(k) % power
+   enddo
+
+   close(1)
+
 endif
 
-$if ($READ_BIG_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted', convert='little_endian')
-$else
-open (1, file=fname, action='read', position='rewind',  &
-  form='unformatted')
-$endif
-
-read (1) spectra_total_time
-do k=1, spectra_nloc
-  read (1) spectra(k) % power
-enddo
-
-close(1)
+! Initialize spectra_dt
+spectra_dt = 0.0_rprec
 
 ! Set global switch that spectra as been initialized
-spectra_initialized = .false.
+spectra_initialized = .true.
 
 return
 end subroutine spectra_init
@@ -3156,7 +3214,7 @@ use types, only : rprec
 use sim_param, only : u
 use param, only : Nx, Ny, dt, dz, lh
 use param, only : spectra_nloc, spectra_nskip
-use stat_defs, only : spectra, spectra_total_time, spectra_time_stamp
+use stat_defs, only : spectra, spectra_total_time, spectra_dt
 use functions, only : linear_interp
 use fft, only : forw_spectra
 implicit none
@@ -3164,18 +3222,11 @@ implicit none
 integer :: i, j, k
 real(rprec), allocatable, dimension(:) :: ui, uhat, power
 
-real(rprec) :: nxny, dt_spectra
+real(rprec) :: nxny
 
 ! Interpolation variable
 allocate(ui(nx), uhat(nx), power(lh))
 
-if( spectra_time_stamp < 0.0_rprec ) then
-   ! Approximating the very first dt_spectra
-   dt_spectra = spectra_nskip * dt
-else
-   dt_spectra = total_time - spectra_time_stamp
-endif
-spectra_time_stamp = total_time
 
 nxny = real(nx*ny,rprec)
 
@@ -3210,20 +3261,24 @@ do k=1, spectra_nloc
     power(lh) = uhat(lh)**2 ! Nyquist
 
     ! Sum jth component, normalize, and include averaging over y 
-    spectra(k) % power = spectra(k) % power + dt_spectra * power / nxny
+    spectra(k) % power = spectra(k) % power + spectra_dt * power / nxny
 
   enddo
-
-  !  Update spectra total time
-  spectra_total_time = spectra_total_time + dt
 
   $if ($MPI)
   endif
   $endif
 
 enddo  
+
+!  Update spectra total time
+spectra_total_time = spectra_total_time + spectra_dt
   
 deallocate(ui, uhat, power)
+
+! Set spectra_dt back to zero for next use
+spectra_dt = 0.0_rprec
+
 return
 end subroutine spectra_compute
 

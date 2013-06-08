@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2012-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 module turbines_base
 use types, only:rprec
 use stat_defs, only:wind_farm
@@ -33,7 +52,7 @@ real(rprec) :: filter_cutoff  ! indicator function only includes values above th
 
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
 
-integer(rprec) :: tbase     ! Number of timesteps between the output
+integer :: tbase     ! Number of timesteps between the output
  
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
@@ -68,7 +87,6 @@ real(rprec) :: sxx, syy, shift_base, const
     dia_all = dia_all / z_i
     height_all = height_all / z_i
     thk_all = thk_all / z_i
-   
     ! Resize thickness capture at least on plane of gridpoints
     thk_all = max ( thk_all, dx*1.01 )
 
@@ -161,7 +179,7 @@ real(rprec) :: sxx, syy, shift_base, const
          k=k+1
       enddo
       enddo
-
+      
       ! Print the values to the file in order to check the turbine spacings
       k=1
       do i=1, num_x
@@ -170,14 +188,12 @@ real(rprec) :: sxx, syy, shift_base, const
         k=k+1
       enddo
       enddo
-    
-    endif
-        
+      endif
+            
     !orientation (angles)
     wind_farm%turbine(:)%theta1 = theta1_all
     wind_farm%turbine(:)%theta2 = theta2_all
 
- 
 end subroutine turbines_base_init
 
 end module turbines_base

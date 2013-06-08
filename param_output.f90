@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2010-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !**********************************************************************
 subroutine param_output()
 !**********************************************************************
@@ -84,7 +103,6 @@ write(2,c_fmt) 'BOUNDARY/INITIAL CONDITION PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
-write(2,i_fmt) 'ubc : ', ubc
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow

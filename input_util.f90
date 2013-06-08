@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2011-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !**********************************************************************
 module input_util
 !**********************************************************************
@@ -106,12 +125,12 @@ do
      call level_set_block()
 
     $if($RNS_LS)
-    case ('RNS')
+    case ('RNS_LS')
        call rns_block()
     $endif
 
     $if($CYL_SKEW_LS)
-    case ('CYL_SKEW')
+    case ('CYL_SKEW_LS')
        call cyl_skew_block()
     $endif
 
@@ -430,8 +449,6 @@ do
      case ('INILAG')
         read (buff(equal_pos+1:), *) inilag
      case ('UBC')
-        read (buff(equal_pos+1:), *) ubc
-     case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
