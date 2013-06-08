@@ -1,3 +1,11 @@
+Copyright (C) 2009,2011,2013  Johns Hopkins University
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without any warranty.
+
+
 1. The averaged values in io.f90 are averaged across the y-direction
    for each x-location in each z-plane. 
 
