@@ -1,19 +1,3 @@
-!!
-!!  Copyright 2009,2010,2011,2012,2013 Johns Hopkins University
-!!
-!!  Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-!!  use this file except in compliance with the License. You may obtain a copy of
-!!  the License at:
-!!
-!!    http://www.apache.org/licenses/LICENSE-2.0
-!!
-!!  Unless required by applicable law or agreed to in writing, software 
-!!  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
-!!  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
-!!  License for the specific language governing permissions and limitations under
-!!  the License.
-!!
-
 module param
   use types, only : rprec, point3D_t
   $if ($MPI)
@@ -166,9 +150,8 @@ module param
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
   logical :: inilag = .true.
 
-  ! ubc: upper boundary condition: 0 - stress free lid, 1 - sponge
-  integer :: ubc = 0
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
+  ! NOTE: the upper boundary condition is implicitly stress free
   integer :: lbc_mom = 1
   
   ! lower boundary condition, roughness length
