@@ -316,28 +316,6 @@ do
     endif        
 end do
 
-! Allocate variables inside turbineArray
-do  n=1,numberOfTurbines
-numBladePoints => turbineArray(n) % numBladePoints
-numAnnulusSections => turbineArray(n) % numAnnulusSections
-    allocate(turbineArray(n) % bladeForces(n,numAnnulusSections,             &
-             numBladePoints,3) )
-    allocate(turbineArray(n) % bladeAlignedVectors(n,numAnnulusSections,     &
-             numBladePoints,3,3) )
-    allocate(turbineArray(n) % windVectors(n,numAnnulusSections,             &
-             numBladePoints,3) )
-    allocate(turbineArray(n) % alpha(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % Vmag(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % Cl(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % Cd(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % lift(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % drag(n, numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(n) % axialForce(n,numAnnulusSections, numBladePoints))
-    allocate(turbineArray(n) % tangentialForce(n, numAnnulusSections,     &
-             numBladePoints) )
-
-enddo
-
 if( .not. allocated( turbineArray ) ) then 
     write(*,*) 'Did not allocate memory for turbineArray' 
 stop 
@@ -361,6 +339,7 @@ integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
 integer:: numAirfoils ! Number of distinct airfoils
 integer :: k, p ! Used to loop through aifoil types and character counter
+integer :: numAnnulusSections, numBladePoints, numBl
 
 ! Name of all the airfoils types (max 20) If more than this increase the number
 character(128), dimension(20) :: airfoils 
@@ -511,11 +490,42 @@ do i = 1, numTurbinesDistinct
                         turbineModel(i) % sectionType(turbineModel(i) % NumSec)
                     endif
                 enddo
-write(*,*) turbineModel(i) % twist(turbineModel(i) % NumSec)
         endif
 
     enddo                                  
 close (lun)      
+enddo
+
+! Allocate variables inside turbineArray
+do  i=1,numberOfTurbines
+numBladePoints = turbineArray(i) % numBladePoints
+numAnnulusSections = turbineArray(i) % numAnnulusSections
+j=turbineArray(i) % turbineTypeID
+numBl=turbineModel(j) % numBl
+
+    allocate(turbineArray(i) % bladeForces(numBl,          &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % bladeAlignedVectors(numBl,  &
+             numAnnulusSections, numBladePoints,3,3) )
+    allocate(turbineArray(i) % windVectors(numBl,          &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % alpha(numBl,                &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Vmag(numBl,                 &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl(numBl,                   &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cd(numBl,                   &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % lift(numBl,                 &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % drag(numBl,                 &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % axialForce(numBl,           &
+             numAnnulusSections, numBladePoints))
+    allocate(turbineArray(i) % tangentialForce(numBl,      &
+             numAnnulusSections, numBladePoints) )
+
 enddo
 
 end subroutine read_turbine_model_variables

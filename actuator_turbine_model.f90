@@ -38,8 +38,9 @@ implicit none
 
 ! Declare everything private except for subroutine which will be used
 private 
-public :: atm_initialize, atm_forcing, numberOfTurbines, computeBladeForce, &
-          vector_add, vector_divide, vector_mag
+public :: atm_initialize, atm_forcing, numberOfTurbines,                    &
+          atm_computeBladeForce, atm_update,                                &
+          vector_add, vector_divide, vector_mag, distance
 
 ! These are used to do unit conversions
 real(rprec), parameter :: pi= 3.141592653589793238462643383279502884197169399375
@@ -56,9 +57,14 @@ logical :: pastFirstTimeStep ! Establishes if we are at the first time step
 type(real(rprec)),  pointer :: db(:)
 type(real(rprec)),  pointer :: bladePoints(:,:,:,:)
 type(real(rprec)),  pointer :: bladeRadius(:,:,:)
+real(rprec), pointer :: bladeAlignedVectors(:,:,:,:,:)
+real(rprec), pointer :: cl(:,:,:), cd(:,:,:), alpha(:,:,:), twistAng(:,:,:)
+real(rprec), pointer :: windVectors(:,:,:,:)
 integer,     pointer :: numBladePoints
 integer,     pointer :: numBl
 integer,     pointer :: numAnnulusSections
+integer,     pointer :: numSec     
+integer,     pointer :: turbineTypeID
 real(rprec), pointer :: NacYaw             
 real(rprec), pointer :: azimuth
 real(rprec), pointer :: rotSpeed
@@ -78,6 +84,7 @@ real(rprec), pointer :: HubRad
 real(rprec), pointer :: PreCone
 real(rprec), pointer :: projectionRadius  ! Radius up to which forces are spread
 real(rprec), pointer :: sphereRadius ! Radius of the sphere of forces 
+real(rprec), pointer :: chord  
 
 ! Subroutines for the actuator turbine model 
 ! All suboroutines names start with (atm_) 
@@ -94,7 +101,7 @@ call read_input_conf()  ! Read input data
 
 do i = 1,numberOfTurbines
     call atm_create_points(i)   ! Creates the ATM points defining the geometry
-    call calculate_variables(i) ! Calculates variables depending on input
+    call atm_calculate_variables(i) ! Calculates variables depending on input
 end do
 pastFirstTimeStep=.true. ! Past the first time step
 
@@ -139,7 +146,7 @@ deltaAzimuth = rotSpeed * dt;
 ! Check the rotation direction first and set the local delta azimuth
 ! variable accordingly.
 if (turbineArray(i) % rotationDir == "cw") then
-	   deltaAzimuthI = deltaAzimuth
+    deltaAzimuthI = deltaAzimuth
 else if (turbineArray(i) % rotationDir == "ccw") then
     deltaAzimuthI =-deltaAzimuth
 end if
@@ -287,7 +294,7 @@ enddo
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine calculate_variables(i)
+subroutine atm_calculate_variables(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Calculates the variables of the model that need information from the input
 ! files. It runs after reading input information.
@@ -313,7 +320,7 @@ projectionRadius= turbineArray(i) % epsilon * sqrt(log(1.0/0.0001))
 sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 + (TipRad*cos(PreCone))**2) + projectionRadius
 
-end subroutine calculate_variables
+end subroutine atm_calculate_variables
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_forcing()
@@ -322,7 +329,7 @@ subroutine atm_forcing()
 end subroutine atm_forcing
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine computeBladeForce(i,m,n,q,U_local)
+subroutine atm_computeBladeForce(i,m,n,q,U_local)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine will compute the wind vectors by projecting the velocity 
 ! onto the transformed coordinates system
@@ -332,19 +339,28 @@ integer, intent(in) :: i,m,n,q
 ! n - numBladePoints
 ! q - numBl
 real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
-integer :: j ! Use to identify turbine type
-real(rprec), pointer :: bladeAlignedVectors(:,:,:,:,:), bladePoints(:,:,:,:)
-real(rprec), pointer :: rotorApex(:), windVectors(:,:,:,:), rotSpeed, PreCone
-real(rprec), pointer :: bladeRadius(:,:,:)
+
+! Local variables
+integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
+integer :: sectionType_i ! The type of airfoil
+real(rprec) :: cl_i, cd_i, twistAng_i, chord_i, Vmag_i, windAng_i, alpha_i, db_i
+real(rprec), dimension(3) :: dragVector, liftVector
+
 
 rotorApex => turbineArray(i) % rotorApex
 bladeAlignedVectors => turbineArray(i) % bladeAlignedVectors
 windVectors => turbineArray(i) % windVectors
 bladePoints => turbineArray(i) % bladePoints
 rotSpeed => turbineArray(i) % rotSpeed
-bladeRadius => turbineArray(i) % bladeRadius
 
-j=turbineArray(i) % turbineTypeID ! The turbine type ID
+! Pointers for blade properties
+turbineTypeID => turbineArray(i) % turbineTypeID
+NumSec => turbineModel(i) % NumSec
+bladeRadius => turbineArray(i) % bladeRadius
+!cd(m,n,q) => turbineArray(i) % cd(m,n,q)    ! Drag coefficient
+!cl(m,n,q) => turbineArray(i) % cl(m,n,q)    ! Lift coefficient
+!alpha(m,n,q) => turbineArray(i) % alpha(m,n,q) ! Anlge of attack
+
 PreCone => turbineModel(i) % PreCone
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -387,9 +403,83 @@ windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
                       (rotSpeed * bladeRadius(m,n,q) * cos(PreCone));
 windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local);
 
+! Interpolate quantities through section
+twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
+                       turbineModel(i) % radius(1:turbineModel(i) % NumSec),   &
+                       turbineModel(i) % twist(1:turbineModel(i) % NumSec) )   
+chord_i = interpolate(bladeRadius(m,n,q),                                      &
+                       turbineModel(i) % radius(1:turbineModel(i) % NumSec),   &
+                       turbineModel(i) % chord(1:turbineModel(i) % NumSec) )!
+sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
+                       turbineModel(i) % radius(1:turbineModel(i) % NumSec),   &
+                       turbineModel(i) % sectionType(1:turbineModel(i)% NumSec))
+! Velocity magnitude
+Vmag_i=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
+
+! Angle between wind vector components
+windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
+
+! Local angle of attack
+alpha_i=windAng_i-twistAng_i - turbineArray(i) % Pitch
+
+! Tital number of entries in lists of AOA, cl and cd
+k=turbineModel(j) % airfoilType(sectionType_i) % n
+
+! Lift coefficient
+cl_i=interpolate(alpha_i,                                                      &
+                 turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),        &
+                 turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
+
+! Drag coefficient
+cd_i=interpolate(alpha_i,                                                      &
+                 turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),        &
+                 turbineModel(j) % airfoilType(sectionType_i) % cd(1:k) )
+
+db_i = turbineArray(i) % db(q) 
+! Lift force
+turbineArray(i) % lift(m,n,q) = 0.5 * cl_i * Vmag_i**2 * chord_i * db_i
+
+! Drag force
+turbineArray(i) % drag(m,n,q) = 0.5 * cd_i * Vmag_i**2 * chord_i * db_i
+
+dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +  &
+             bladeAlignedVectors(m,n,q,2,:)*windVectors(m,n,q,2)
+
+dragVector = vector_divide(dragVector,vector_mag(dragVector) )
+
+! Lift vector
+liftVector = cross_product(dragVector,bladeAlignedVectors(m,n,q,3,:) )
+liftVector = vector_divide(liftVector,vector_mag(liftVector))
+
+liftVector = -turbineArray(i) % lift(m,n,q) * liftVector;
+dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
+
+turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
 
-end subroutine computeBladeForce
+
+end subroutine atm_computeBladeForce
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_convoluteForce(i,m,n,q,dis,Force,bodyForce)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will compute the wind vectors by projecting the velocity 
+! onto the transformed coordinates system
+integer, intent(in) :: i,m,n,q
+! i - turbineTypeArray
+! m - numAnnulusSections
+! n - numBladePoints
+! q - numBl
+real(rprec), intent(in) :: dis
+real(rprec), intent(in) :: Force(3)
+real(rprec), intent(out) :: bodyForce(3)    ! The local velocity at this point
+
+bodyForce = Force * exp(-sqrt(dis/turbineArray(i) % epsilon)) /      &
+((turbineArray(i) % epsilon**3)*(pi**1.5));
+
+
+end subroutine atm_convoluteForce
 
 !-------------------------------------------------------------------------------
 function interpolate(xp,x,y)
@@ -414,6 +504,32 @@ endif
 
 return
 end function interpolate
+
+!-------------------------------------------------------------------------------
+function interpolate_i(xp,x,y)
+! This function interpolates xp from x and y 
+!-------------------------------------------------------------------------------
+real(rprec), dimension(:), intent(in) :: x
+integer, dimension(:), intent(in) :: y
+real(rprec), intent(in) ::  xp
+integer  :: interpolate_i
+integer :: i,p
+p=size(x)
+if (xp .eq. x(1)) then 
+    interpolate_i=y(1)
+else if ( xp .eq. x(p) ) then
+    interpolate_i=y(p)
+else 
+    do i=2,p-1
+        if (xp.ge.x(i) .and. xp .le. x(i+1)) then
+            interpolate_i=int( real(y(i),rprec)+(y(i+1)-real(y(i),rprec)) /    &
+                        (x(i+1)-x(i))*(x(p)-x(i)) + 0.5 )
+        endif
+    enddo
+endif
+
+return
+end function interpolate_i
 
 !-------------------------------------------------------------------------------
 function vector_add(a,b)
@@ -516,6 +632,17 @@ cross_product(2)=a(3)*b(1)-a(1)*b(3)
 cross_product(3)=-a(2)*b(1)+a(1)*b(2)
 return
 end function cross_product
+
+!-------------------------------------------------------------------------------
+function distance(a,b)
+! This function calculates the distance between (a,b,c) and (d,e,f)
+!-------------------------------------------------------------------------------
+real(rprec), dimension(3), intent(in) :: a,b
+real(rprec) :: distance
+distance=sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)
+return
+end function distance
+
 
 end module actuator_turbine_model
 

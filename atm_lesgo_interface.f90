@@ -38,6 +38,9 @@ use param, only : dt ,nx,ny,nz,jzmin,jzmax,dx,dy,dz,coord,lbz,nproc, z_i, u_star
 ! z_i - non-dimensionalizing length
 ! dt - time-step 
 
+! These are the forces on x,y, and z respectively
+use sim_param, only : fxa, fya, fza
+
 ! Grid definition (LESGO)
 use grid_defs, only : grid
 
@@ -53,20 +56,16 @@ use atm_input_util, only : rprec, turbineArray, turbineModel
 implicit none
 
 private
-public atm_lesgo_initialize
+public atm_lesgo_initialize, atm_lesgo_forcing
 
 ! This is a dynamic list that stores all the points in the domain with a body 
 ! force due to the turbines. 
-!type bodyForce_t
-    ! c0 counter for all the points in the domain with forces
-    ! i,j,k stores the index for the point in the domain
-!    integer c0,i,j,k
-!    real(rprec), dimension(3) :: force ! Force vector
-!    type(bodyForce_t), pointer :: next
-!    type(bodyForce_t), pointer :: previous
-!end type bodyForce_t
-
-
+type bodyForce_t
+!     i,j,k stores the index for the point in the domain
+    integer i,j,k
+    real(rprec), dimension(3) :: force ! Force vector
+    real(rprec), dimension(3) :: location ! Position vector
+end type bodyForce_t
 
 ! This is the body force vector which has the forces by the atm
 !type(bodyForce_t), allocatable, dimension(:) :: bodyForce
@@ -85,6 +84,9 @@ integer :: m
 
 ! Counter to establish number of points which are influenced by body forces
 integer :: c0
+
+! Body force field
+type(bodyForce_t), allocatable, dimension(:) :: forceField
 
 contains
 
@@ -112,9 +114,6 @@ z => grid % z
 
 call atm_initialize () ! Initialize the atm (ATM)
 
-
-
-!call initializeDynamicListVector(bodyForceField,zeroVector)
 ! This will find all the locations that are influenced by each turbine
 ! It depends on a sphere centered on the rotor that extends beyond the blades
 c0=0  ! Initialize conuter
@@ -134,73 +133,94 @@ do k=1,nz ! Loop through grid points in z
         end do
     end do
 end do
-write(*,*) c0
+
+allocate(forceField(c0))
+write(*,*) 'Numebr of cells being affected by ATM = ', c0
+
+c0=0
+! Run the same loop and save all variables
+do k=1,nz ! Loop through grid points in z
+    do j=1,ny ! Loop through grid points in y
+        do i=1,nx ! Loop through grid points in x
+            do m=1,numberOfTurbines
+                if (distance(vector_point,turbineArray(m) % baseLocation) &
+                    .le. turbineArray(m) % sphereRadius ) then
+                    c0=c0+1
+                    forceField(c0) % i = i
+                    forceField(c0) % j = j
+                    forceField(c0) % k = k
+                    forceField(c0) % location = vector_point
+                end if
+            end do 
+        end do
+    end do
+end do
+
+
 
 end subroutine atm_lesgo_initialize
 
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_lesgo_update ()
+subroutine atm_lesgo_forcing ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! Initialize the actuator turbine model
-! Calls function within the actuator_turbine_model module
+! This subroutines calls the update function from the ATM Library
+! and calculates the body forces needed in the domain
 
-!call atm_forcing ()
+! Reset applied force arrays to zero
+!fxa = 0._rprec
+!fya = 0._rprec
+!fza = 0._rprec
 
-end subroutine atm_lesgo_update
+call atm_update(dt)
+
+do i=1,numberOfTurbines
+    call atm_lesgo_force(i)
+enddo
+
+end subroutine atm_lesgo_forcing
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_lesgo_input_velocity (i)
+subroutine atm_lesgo_force(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This will feed the velocity at all the actuator points into the atm
 ! This is done by using trilinear interpolation from lesgo
+! Force will be calculated based on the velocities
 
 ! Use the velocity field (LESGO)
 use sim_param,only:u,v,w ! Load the velocity components
 
 integer, intent(in) :: i ! The turbine number
-integer :: m,n,k,q,j
+integer :: m,n,q,j
 real(rprec), dimension(3) :: velocity
-real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate the velocity
-real(rprec) :: u_i, v_i, w_i ! Interpolated velocities
+real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate velocity
+!real(rprec) :: u_i, v_i, w_i ! Interpolated velocities
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-do m=1, turbineArray(i) %  numBladePoints
+do q=1, turbineArray(i) %  numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
-        do q=1, turbineModel(j) % numBl
+        do m=1, turbineModel(j) % numBl
                        
             ! Actuator point onto which to interpolate the velocity
-            xyz=turbineArray(i) % bladePoints(q,n,m,1:3)
+            xyz=turbineArray(i) % bladePoints(m,n,q,1:3)
 
             ! Non-dimensionalizes the point location 
             xyz=vector_divide(xyz,z_i)
-
             ! Interpolate velocities
-            u_i=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in x
-            v_i=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in y
-            w_i=trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in z
-            velocity(1)=u_i*u_star
-            velocity(2)=v_i*u_star
-            velocity(3)=w_i*u_star
+!            u_i=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in x
+!            v_i=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in y
+!            w_i=trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)  ! Vel in z
+            velocity(1)=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)!*u_star
+            velocity(2)=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)!*u_star
+            velocity(3)=trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)!*u_star
+write(*,*) 'Error NOT Here'
 
-            call computeBladeForce(i,m,n,q,velocity)
+            call atm_computeBladeForce(i,m,n,q,velocity)
         enddo
     enddo
 enddo
 
-end subroutine atm_lesgo_input_velocity
+end subroutine atm_lesgo_force
 
-
-!-------------------------------------------------------------------------------
-function distance(a,b)
-! This function calculates the distance between (a,b,c) and (d,e,f)
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a,b
-real(rprec) :: distance
-distance=sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)
-return
-end function distance
 
 end module atm_lesgo_interface
-
-
