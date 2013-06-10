@@ -320,15 +320,15 @@ $endif
 
 if (coord == 0) then
   ! just a test
-  !if (lbc_mom == 0) then
-  !  if (force_top_bot) then
-  !    u(:, :, 1) = inflow_velocity
-  !    v(:, :, 1) = 0._rprec
-  !  else
-  !    u(:, :, 1) = u(:, :, 2)
-  !    v(:, :, 1) = v(:, :, 2)
-  !  end if
-  !end if
+  if (lbc_mom == 0) then
+    if (force_top_bot) then
+      u(:, :, 1) = inflow_velocity
+      v(:, :, 1) = 0._rprec
+    else
+      u(:, :, 1) = u(:, :, 2)
+      v(:, :, 1) = v(:, :, 2)
+    end if
+  end if
 
   w(:, :, 1)=0._rprec
 
