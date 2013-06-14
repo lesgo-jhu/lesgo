@@ -185,8 +185,8 @@ write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'FORCE PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
-write(2,l_fmt) 'global_CD_calc : ', global_CD_calc
-write(2,i_fmt) 'Ldir : ', Ldir
+write(2,l_fmt) 'global_CA_calc : ', global_CA_calc
+write(2,i_fmt) 'global_CA_nskip : ', global_CA_nskip
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'BC PARAMETERS'
