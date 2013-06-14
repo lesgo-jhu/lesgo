@@ -652,10 +652,10 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
-     case ('GLOBAL_CD_CALC') 
-        read (buff(equal_pos+1:), *) global_CD_calc
-     case ('LDIR')
-        read (buff(equal_pos+1:), *) Ldir
+     case ('GLOBAL_CA_CALC') 
+        read (buff(equal_pos+1:), *) global_CA_calc
+     case ('GLOBAL_CA_NSKIP') 
+        read (buff(equal_pos+1:), *) global_CA_nskip
      case ('VEL_BC')
         read (buff(equal_pos+1:), *) vel_bc
      case ('USE_LOG_PROFILE')
