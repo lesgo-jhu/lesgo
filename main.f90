@@ -44,8 +44,8 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_global_CD, level_set_vel_err
-use level_set_base, only : global_CD_calc
+use level_set, only : level_set_global_CA, level_set_vel_err
+use level_set_base, only : global_CA_calc
   
 $if ($RNS_LS)
 use rns_ls, only : rns_elem_force_ls
@@ -429,7 +429,7 @@ time_loop: do jt_total=nstart,nsteps
     if (modulo (jt_total, nenergy) == 0) call energy (ke)
 
     $if ($LVLSET)
-      if( global_CD_calc ) call level_set_global_CD ()
+      if( global_CA_calc ) call level_set_global_CA ()
     $endif
 
     ! Write output files

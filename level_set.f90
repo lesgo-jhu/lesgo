@@ -37,7 +37,7 @@ save
 private
 
 public :: level_set_forcing, level_set_init, level_set_BC, level_set_Cs
-public :: level_set_global_CD
+public :: level_set_global_CA
 public :: level_set_smooth_vel, level_set_lag_dyn
 public :: level_set_Cs_lag_dyn
 public :: level_set_vel_err
@@ -3155,13 +3155,11 @@ $endif
 end subroutine smooth
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--this routine relies on user-supplied data about the projected area
-!  of the level set object, because it is hard to get exact values from the
-!  level set alone
-!--may want to put option to append to previous output, if it exists
-!--also calculates CL (coeff. of lift)
+!--Computes the normalized forces times the frontal area. The
+!  normalization is based on the planar averaged inlet velocity.
+!--Computes for all x, y, z components
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_global_CD ()
+subroutine level_set_global_CA ()
 use param, only : jt_total, dt, L_y, L_z
 use sim_param, only : fx, fy, fz
 use sim_param, only : u
@@ -3169,54 +3167,44 @@ implicit none
 
 include 'tecryte.h'
 
-character (*), parameter :: sub_name = mod_name // '.level_set_global_CD'
-character (*), parameter :: fCD_out = path // 'output/global_CD.dat'
+character (*), parameter :: sub_name = mod_name // '.level_set_global_CA'
+character (*), parameter :: fCA_out = path // 'output/global_CA.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
-integer, parameter :: n_calc_CD = 10  !--# t-steps between updates
-!integer, parameter :: Ldir = 2
-!                      !--lift direction:
-!                      !  2 when cyl-axis is z
-!                      !  3 when cyl axis is y
 
-!logical, parameter :: DEBUG = .false.
-
-real (rp), parameter :: Ap = 1._rp * 1._rp  !--projected area
+logical, parameter :: DEBUG = .false.
 
 logical, save :: file_init = .false.
 logical :: opn, exst
 
-real (rp) :: CD, CL
-real (rp) :: Uinf   !--velocity scale used in calculation of CD
-real (rp) :: fD, fL      !--drag, lift force
-real (rp) :: fD_global, fL_global, Uinf_global
+real (rp) :: Uinf   !--velocity scale used in calculation of CA
+real (rp) :: CxA, CyA, CzA ! Normalized for coefficients times frontal area
+real (rp) :: f_Cx, f_Cy, f_Cz      !--drag and lift forces
+real (rp) :: f_Cx_global, f_Cy_global, f_Cz_global, Uinf_global
 
 !---------------------------------------------------------------------
 
-if (modulo (jt_total, n_calc_CD) /= 0) return  !--do nothing
+if (modulo (jt_total, global_CA_nskip) /= 0) return  !--do nothing
 
-fD = -sum (fx(1:nx, :, 1:nz-1)) * dx * dy * dz
-     !--(-) since want force ON cylinder
+f_Cx = -sum (fx(1:nx, :, 1:nz-1)) * dx * dy * dz
+     !--(-) since want force ON object
      !--dx*dy*dz is since force is per cell (unit volume)
      !--may want to restrict this sum to points with phi < 0.
-
-select case (Ldir)
-  case (2)
-    fL = -sum (fy(1:nx, :, 1:nz-1)) * dx * dy * dz
-  case (3)
-    fL = -sum (fz(1:nx, :, 1:nz-1)) * dx * dy * dz
-  case default
-    call error (sub_name, 'invalid Ldir =', Ldir)
-end select
+f_Cy = -sum (fy(1:nx, :, 1:nz-1)) * dx * dy * dz
+! Note fz is on the w-grid but since this is a volume integral over
+! entire domain storage locations shouldn't matter
+f_Cz = -sum (fz(1:nx, :, 1:nz-1)) * dx * dy * dz
 
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 $if ($MPI)
 
   !--accumulate at coord 0
-  call mpi_reduce (fD, fD_global, 1, MPI_RPREC, MPI_SUM,  &
+  call mpi_reduce (f_Cx, f_Cx_global, 1, MPI_RPREC, MPI_SUM,  &
                    rank_of_coord(0), comm, ierr)
-  call mpi_reduce (fL, fL_global, 1, MPI_RPREC, MPI_SUM,  &
+  call mpi_reduce (f_Cy, f_Cy_global, 1, MPI_RPREC, MPI_SUM,  &
+                   rank_of_coord(0), comm, ierr)
+  call mpi_reduce (f_Cz, f_Cz_global, 1, MPI_RPREC, MPI_SUM,  &
                    rank_of_coord(0), comm, ierr)
   call mpi_reduce (Uinf, Uinf_global, 1, MPI_RPREC, MPI_SUM,  &
                    rank_of_coord(0), comm, ierr)
@@ -3225,8 +3213,9 @@ $if ($MPI)
 
 $else
 
-  fD_global = fD
-  fL_global = fL
+  f_Cx_global = f_Cx
+  f_Cy_global = f_Cy
+  f_Cz_global = f_Cz
   Uinf_global = Uinf
 
 $endif
@@ -3235,28 +3224,25 @@ $if($MPI)
 if( coord == 0 ) then
 $endif 
 
-  CD = fD_global / (0.5_rp * Ap * Uinf_global**2)
-  CL = fL_global / (0.5_rp * Ap * Uinf_global**2)
+  CxA = f_Cx_global / (0.5_rp * Uinf_global**2)
+  CyA = f_Cy_global / (0.5_rp * Uinf_global**2)
+  CzA = f_Cz_global / (0.5_rp * Uinf_global**2)
 
   if( .not. file_init ) then
 
-    inquire (file=fCD_out, exist=exst, opened=opn)
+    inquire (file=fCA_out, exist=exst, opened=opn)
 
     !  Check that output is not already opened
     if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-    if( .not. exst ) then
-
-      call write_tecplot_header_xyline(fCD_out, 'rewind', '"t", "CD", "fD", "CL", "fL", "Uinf"')
-
-    endif
+    if( .not. exst ) call write_tecplot_header_xyline(fCA_out, 'rewind', '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"')
 
     file_init = .true.
 
   endif
 
-  call write_real_data(fCD_out, 'append', 'formatted', 6, &
-    (/ total_time, CD, fD_global, CL, fL_global, Uinf_global /))
+  call write_real_data(fCA_out, 'append', 'formatted', 8, &
+    (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
 
   $if ($DEBUG)
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
@@ -3266,7 +3252,7 @@ $if($MPI)
 end if
 $endif
 
-end subroutine level_set_global_CD
+end subroutine level_set_global_CA
 
 
 

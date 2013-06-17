@@ -448,7 +448,7 @@ do
         read (buff(equal_pos+1:), *) initu
      case ('INILAG')
         read (buff(equal_pos+1:), *) inilag
-     case ('UBC')
+     case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
@@ -460,8 +460,6 @@ do
         read (buff(equal_pos+1:), *) fringe_region_len
      case ('INFLOW_VELOCITY')
         read (buff(equal_pos+1:), *) inflow_velocity
-     case ('FORCE_TOP_BOT')
-        read (buff(equal_pos+1:), *) force_top_bot
      case ('USE_MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) use_mean_p_force
      case ('EVAL_MEAN_P_FORCE')
@@ -652,10 +650,10 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
-     case ('GLOBAL_CD_CALC') 
-        read (buff(equal_pos+1:), *) global_CD_calc
-     case ('LDIR')
-        read (buff(equal_pos+1:), *) Ldir
+     case ('GLOBAL_CA_CALC') 
+        read (buff(equal_pos+1:), *) global_CA_calc
+     case ('GLOBAL_CA_NSKIP') 
+        read (buff(equal_pos+1:), *) global_CA_nskip
      case ('VEL_BC')
         read (buff(equal_pos+1:), *) vel_bc
      case ('USE_LOG_PROFILE')

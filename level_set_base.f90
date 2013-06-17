@@ -32,13 +32,8 @@ private :: rp, ld, ny, nz, dx, lbz
 !public :: phi
 
 !logical, parameter :: global_CD_calc = .true. ! Compute global CD based on inflow velocity
-logical :: global_CD_calc = .false. ! Compute global CD based on inflow velocity
-
-!integer, parameter :: Ldir = 2
-integer :: Ldir = 2   !--lift direction:
-                      !  2 when lift direction is y
-                      !  3 when lift direction is z
-
+logical :: global_CA_calc = .false. ! Compute global CA based on inflow velocity
+integer :: global_CA_nskip = 10     ! Number of time steps to skip between global CA writes
 
 !logical, parameter :: vel_BC = .false. 
 logical :: vel_BC = .false. !--means we are forcing velocity for
