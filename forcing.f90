@@ -289,16 +289,11 @@ $if ($MPI)
 if (coord == nproc-1) then
 $endif
 
-  if (force_top_bot .and. inflow) then
-    u(:, :, nz) = inflow_velocity
-    v(:, :, nz) = 0._rprec
-  else
-    ! no-stress top
-    u(:,:,nz)=u(:,:,nz-1)
-    ! no-stress top
-    v(:,:,nz)=v(:,:,nz-1)
-  end if
-
+  ! no-stress top
+  u(:,:,nz)=u(:,:,nz-1)
+  ! no-stress top
+  v(:,:,nz)=v(:,:,nz-1)
+  ! no permeability
   w(:, :, nz)=0._rprec
 
 $if ($MPI)
@@ -306,17 +301,11 @@ endif
 $endif
 
 if (coord == 0) then
-  ! just a test
-  !if (lbc_mom == 0) then
-  !  if (force_top_bot) then
-  !    u(:, :, 1) = inflow_velocity
-  !    v(:, :, 1) = 0._rprec
-  !  else
-  !    u(:, :, 1) = u(:, :, 2)
-  !    v(:, :, 1) = v(:, :, 2)
-  !  end if
-  !end if
 
+  ! No modulation of u and v since if a stress free condition (lbc_mom=0) is
+  ! applied, it is applied through the momentum equation. 
+
+  ! no permeability
   w(:, :, 1)=0._rprec
 
 end if

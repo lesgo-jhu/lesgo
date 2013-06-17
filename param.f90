@@ -187,8 +187,6 @@ module param
     ! Use uniform inflow instead of concurrent precursor inflow
     logical :: uniform_inflow = .false.
       real(rprec) :: inflow_velocity = 1.0_rprec
-      ! velocities are forced to the inflow velocity
-      logical :: force_top_bot = .false.
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical :: use_mean_p_force = .true.
