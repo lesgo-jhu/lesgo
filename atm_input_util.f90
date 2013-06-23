@@ -55,7 +55,8 @@ type turbineArray_t
     real(rprec) :: NacYaw             
     real(rprec) :: fluidDensity      
     integer :: numAnnulusSections ! Number of annulus sections on each blade
-
+    real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
+    real(rprec) :: deltaNacYaw
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
     real(rprec) :: torqueRotor ! Rotor torque
@@ -66,7 +67,9 @@ type turbineArray_t
     
     !!-- Important geometry data 
     ! Collection of all the actuator points (blade, annular section, point, 3)
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladePoints       
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladePoints
+    ! The solidity at each actuator section  
+    type(real(rprec)), allocatable, dimension(:,:,:) :: solidity     
     ! Collection of radius of each point (different because of coning)
     type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
@@ -169,8 +172,8 @@ type turbineModel_t
     real(rprec) :: TorqueControllerRelax
 
     ! Blade section quantities
-    real(rprec), dimension(15) :: chord, twist, radius
-    integer, dimension(15) :: sectionType
+    real(rprec), dimension(25) :: chord, twist, radius
+    integer, dimension(25) :: sectionType
 
     ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
     type(airfoilType_t), allocatable, dimension(:) :: airfoilType
@@ -312,7 +315,12 @@ do
             read(buff(19:), *) turbineArray(n) % numAnnulusSections
             write(*,*)  'numAnnulusSections is: ', &
                          turbineArray(n) % numAnnulusSections
-        endif        
+        endif      
+        if( buff(1:19) == 'annulusSectionAngle' ) then
+            read(buff(20:), *) turbineArray(n) % annulusSectionAngle
+            write(*,*)  'annulusSectionAngle is: ', &
+                         turbineArray(n) % annulusSectionAngle
+        endif   
     endif        
 end do
 
@@ -334,12 +342,12 @@ integer :: i,j ! counter
 integer :: numTurbinesDistinct ! Number of different turbine types
 character(128) :: currentTurbineType ! Will store turbineType in loop
 character(128) :: input_turbine
-integer :: lun =1 ! Reference number for input file
+integer :: lun =19  ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
 integer:: numAirfoils ! Number of distinct airfoils
 integer :: k, p ! Used to loop through aifoil types and character counter
-integer :: numAnnulusSections, numBladePoints, numBl
+integer :: numAnnulusSections, numBladePoints, numBl, numSec
 
 ! Name of all the airfoils types (max 20) If more than this increase the number
 character(128), dimension(20) :: airfoils 
@@ -360,7 +368,7 @@ enddo
 ! Allocate space for turbine model variables
 allocate(turbineModel(numTurbinesDistinct))
 
-! This will store the turbine types on each turbine model
+! This will store the turbine types on each turbine model ("NREL5MW")
 numTurbinesDistinct=1
 currentTurbineType=turbineArray(1) % turbineType
 turbineModel(numTurbinesDistinct) % turbineType = turbineArray(1) % turbineType
@@ -462,7 +470,7 @@ do i = 1, numTurbinesDistinct
             ! Loop through all the airfoil types and look-up lift and drag
             do k=1,numAirfoils
                 call eat_whitespace (airfoils(k)) ! Eliminate white space
-                p=len(trim(airfoils(k)))-1        ! Length withour last element
+                p=len(trim(airfoils(k)))-1        ! Length without last element
                 ! Airfoil type (2:p) is used to eliminate the commas ""
                 turbineModel(i) % airfoilType % airfoilName =  airfoils(k)(2:p)
                 ! Read each airfoil accordingly
@@ -473,27 +481,31 @@ do i = 1, numTurbinesDistinct
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the blade properties
         if ( buff(1:9) .eq. 'BladeData' ) then ! Start reading blade data block
-                turbineModel(i) % NumSec = 0
+                NumSec = 0
                 do while (array_exit_pos .eq. 0) 
                     read (lun, '(a)', iostat=ios) buff ! Read the comment line
                     if (scan(buff,'(' ) .ne. 0) cycle
-                    if (scan(buff,')' ) .ne. 0) then
-                        array_exit_pos=1
-                    else
-                        ! Number of sections will account for all blade sections
-                        turbineModel(i) % NumSec = turbineModel(i) % NumSec + 1
-                        ! Read in radius, chord, twist, type
-                        read(buff,*) turbineModel(i) %                       &
-                        radius(turbineModel(i) % NumSec),                    &
-                        turbineModel(i) % chord(turbineModel(i) % NumSec),   &
-                        turbineModel(i) % twist(turbineModel(i) % NumSec),   &
-                        turbineModel(i) % sectionType(turbineModel(i) % NumSec)
-                    endif
+                    if (scan(buff,'!' ) .ne. 0) cycle
+                    if (scan(buff,')' ) .ne. 0) exit
+
+                    ! Number of sections will account for all blade sections
+                    NumSec=NumSec+1
+                    turbineModel(i) % NumSec = NumSec
+
+                    ! Read in radius, chord, twist, type
+                    read(buff,*) turbineModel(i) % radius(NumSec),           &
+                    turbineModel(i) % chord(NumSec),   &
+                    turbineModel(i) % twist(NumSec),   &
+                    turbineModel(i) % sectionType(NumSec)
+
+                    ! Add one to airfoil identifier. List starts at 0, now 
+                    ! it will start at 1
+                    turbineModel(i) % sectionType( NumSec )  =               &
+                    turbineModel(i) % sectionType( NumSec ) + 1
                 enddo
         endif
-
-    enddo                                  
-close (lun)      
+    enddo
+    close (lun)      
 enddo
 
 ! Allocate variables inside turbineArray
@@ -535,11 +547,11 @@ subroutine read_airfoil( airfoilType )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine reads the angle of attack, lift and drag for a specific 
 ! airfoil type
-integer :: lun=11 ! File identifier
+integer :: lun=17 ! File identifier
 integer :: q ! Counter
 character(128) :: input_airfoil
-type(airfoilType_t) :: airfoilType
-
+type(airfoilType_t), intent(inout) :: airfoilType
+real(rprec) :: AOA, Cd, Cl, Cm
 ! Name of the input file to read
 input_airfoil= './inputATM/AeroData/' //trim (airfoilType % airfoilName)  &
                // '.dat'
@@ -554,13 +566,16 @@ enddo
 
 q=0 ! Initialize the counter back to 1 for the first element in the list
 
-do while (airfoilType % AOA(q) .lt. 180.00)
+AOA=-181.
+do while (AOA .lt. 180.00)
     q=q+1
-    read(lun,*) airfoilType % AOA(q), airfoilType % Cd(q),        &
-                airfoilType % Cl(q), airfoilType % Cm(q)
+    read(lun,*) AOA, Cd , Cl, Cm 
+    airfoilType % AOA(q) = AOA
+    airfoilType % Cd(q) = Cd
+    airfoilType % Cl(q) = Cl
+    airfoilType % Cm(q) = Cm
 enddo
-
-airfoilType % n =q
+airfoilType % n = q
 
 close(lun)
 
@@ -640,29 +655,6 @@ end if
 buff = transfer (tmp, buff)
 
 end subroutine eat_whitespace
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine error (msg)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!
-character (*), intent (in) :: msg
-
-write (*, '(1x,a)') '*****ERROR*****'
-write (*, '(1x,a)') 'In atm_input_util:'
-write (*, '(1x,a)') trim (msg)
-write (*, '(1x,a)') '***************'
-write (*, '(1x,a)') 'Program aborted'
-
-stop
-end subroutine error
-
-
-
-
-
-
-
-
 
 end module atm_input_util
 

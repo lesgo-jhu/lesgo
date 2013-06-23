@@ -143,4 +143,21 @@ subroutine appendCharacter(DynamicList,name_id)
 
 end subroutine appendCharacter
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine error (msg)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+character (*), intent (in) :: msg
+
+write (*, '(1x,a)') '  '
+write (*, '(1x,a)') '*****ERROR*****'
+write (*, '(1x,a)') 'In atm_input_util:'
+write (*, '(1x,a)') trim (msg)
+write (*, '(1x,a)') '***************'
+write (*, '(1x,a)') 'Program aborted'
+write (*, '(1x,a)') '  '
+
+stop
+end subroutine error
+
 end module atm_base
