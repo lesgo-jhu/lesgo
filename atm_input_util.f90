@@ -74,6 +74,7 @@ type turbineArray_t
     type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
     type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForces
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForcesDummy
     ! Vectors at each actuator point defining the local reference frame
     ! (blade, annular section, point, 3, 3) (three vectors)
     type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
@@ -265,6 +266,7 @@ do
 
     if (block_entry_pos /= 0) then ! This will start reading turbine block
         n = n + 1     ! Increment turbine counter
+        if (n .gt. numberOfTurbines) exit
         ! Read the name of the turbine
         read(buff(1:index(buff, block_entry)-1), *) turbineArray(n) &
         % turbineName
@@ -517,6 +519,8 @@ numBl=turbineModel(j) % numBl
 
     allocate(turbineArray(i) % bladeForces(numBl,          &
              numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % bladeForcesDummy(numBl,          &
+             numAnnulusSections, numBladePoints,3) )
     allocate(turbineArray(i) % bladeAlignedVectors(numBl,  &
              numAnnulusSections, numBladePoints,3,3) )
     allocate(turbineArray(i) % windVectors(numBl,          &
@@ -569,7 +573,7 @@ q=0 ! Initialize the counter back to 1 for the first element in the list
 AOA=-181.
 do while (AOA .lt. 180.00)
     q=q+1
-    read(lun,*) AOA, Cd , Cl, Cm 
+    read(lun,*) AOA, Cl , Cd, Cm 
     airfoilType % AOA(q) = AOA
     airfoilType % Cd(q) = Cd
     airfoilType % Cl(q) = Cl

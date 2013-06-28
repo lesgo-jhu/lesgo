@@ -44,6 +44,13 @@ use sim_param, only : fxa, fya, fza, u, v, w
 ! Grid definition (LESGO)
 use grid_defs, only : grid
 
+! MPI implementation from LESGO
+$if ($MPI)
+  use mpi_defs
+  use mpi
+  use param, only : ierr, mpi_rprec, comm
+$endif
+
 ! Interpolating function for interpolating the velocity field to each
 ! actuator point
 use functions, only : trilinear_interp
@@ -80,19 +87,11 @@ implicit none
 
 ! Counter to establish number of points which are influenced by body forces
 integer :: c0
-real(rprec) :: zeroVector(3)     ! A vector of zeros used for initiallizing vec
 integer :: i, j, k, m
 ! Vector used to store x, y, z locations
 real(rprec), dimension(3) :: vector_point
 ! These are the pointers to the grid arrays
 real(rprec), pointer, dimension(:) :: x,y,z
-
-
-! Define all elements of zero vector to zero
-do i=1,3
-    zeroVector(i)=0.
-enddo
-
 
 ! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
 nullify(x,y,z)
@@ -112,7 +111,7 @@ do k=1,nz ! Loop through grid points in z
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
             do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) % baseLocation) &
+                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
                     .le. turbineArray(m) % sphereRadius ) then
                     c0=c0+1
                 end if
@@ -122,7 +121,7 @@ do k=1,nz ! Loop through grid points in z
 end do
 
 allocate(forceField(c0))
-write(*,*) 'Numebr of cells being affected by ATM = ', c0
+write(*,*) 'Number of cells being affected by ATM = ', c0
 
 c0=0
 ! Run the same loop and save all variables
@@ -133,20 +132,24 @@ do k=1,nz ! Loop through grid points in z
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
             do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) % baseLocation) &
+                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
                     .le. turbineArray(m) % sphereRadius ) then
                     c0=c0+1
                     forceField(c0) % i = i
                     forceField(c0) % j = j
                     forceField(c0) % k = k
                     forceField(c0) % location = vector_point
-                end if
-            end do 
-        end do
-    end do
-end do
+                endif
+            enddo 
+        enddo
+    enddo
+enddo
 
-
+open(unit=1787,file='./output/force')
+do k=1, size(forceField)
+            write(1787,*) forceField(k) % location       
+enddo
+close(1787)
 
 end subroutine atm_lesgo_initialize
 
@@ -157,14 +160,16 @@ subroutine atm_lesgo_forcing ()
 ! This subroutines calls the update function from the ATM Library
 ! and calculates the body forces needed in the domain
 integer :: i, c
-write(*,*) 'dt = ', dt
 
 ! If statement is for running code only if grid points affected are in this 
 ! processor. If not, no code is executed at all.
 if (size(forceField) .gt. 0) then
 
+    write(*,*) 'dt = ', dt
+
     ! Update the blade positions based on the time-step
-    call atm_update(dt)
+    ! Time needs to be dimensionalized
+    call atm_update(dt*z_i/u_star)
 
     ! Initialize force field to zero
     do c=1,size(forceField)
@@ -176,9 +181,34 @@ if (size(forceField) .gt. 0) then
         call atm_lesgo_force(i)
     enddo
 
-write(*,*) 'Passed Time'
+else
+
+    ! Establish all turbine forces as zero
+    do i=1,numberOfTurbines
+        turbineArray(i) % bladeForces = 0._rprec
+    enddo
 
 endif
+
+! This will gather all the body forces from all processors
+$if ($MPI)
+
+    do i=1,numberOfTurbines
+
+        call mpi_allreduce(turbineArray(i) % bladeForcesDummy,             &
+                           turbineArray(i) % bladeForces,             &
+                           size(turbineArray(i) % bladeForces),       &
+                           mpi_rprec, mpi_sum, comm, ierr) 
+
+    enddo
+
+$endif
+
+if (size(forceField) .gt. 0) then
+    call atm_lesgo_apply_force()
+endif
+
+write(*,*) 'Passed Time'
 
 end subroutine atm_lesgo_forcing
 
@@ -194,8 +224,16 @@ integer, intent(in) :: i ! The turbine number
 integer :: m,n,q,j,c
 real(rprec), dimension(3) :: velocity
 real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate velocity
+real(rprec), pointer, dimension(:) :: x,y,z
+
+
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
+! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
+nullify(x,y,z)
+x => grid % x
+y => grid % y
+z => grid % z
 
 ! This loop goes through all the blade points and calculates the respective
 ! body forces then imposes it onto the force field
@@ -209,56 +247,64 @@ do q=1, turbineArray(i) % numBladePoints
             ! Non-dimensionalizes the point location 
             xyz=vector_divide(xyz,z_i)
 
-            ! Interpolate velocities
-            velocity(1)=1. ! trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-            velocity(2)=1. ! trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-            velocity(3)=1. ! trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+            ! Interpolate velocities if inside the domain, else it is 0
+            if (  z(1) .le. xyz(3) .and. xyz(3) .le. z(nz-1) ) then
+                velocity(1)=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                velocity(2)=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                velocity(3)=trilinear_interp(w(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+            else
+                velocity=0._rprec
+            endif
 
+            ! This will compute the blade force for the specific point
             call atm_computeBladeForce(i,m,n,q,velocity)
 
+            ! This will convolute the blade force onto the grid points
+            ! affected by the points
             do c=1,size(forceField)
-                call atm_convoluteForce(i,m,n,q,forceField(c) % location,  &
-                                        forceField(c) % force)       
-!                fxa(forceField(c) % i,forceField(c) % j, forceField(c) % k) = &
-!                fxa(forceField(c) % i,forceField(c) % j, forceField(c) % k) + &
-!                forceField(c) % force(1)/(u_star**2*z_i**2)
-!write(*,*) 'xyz = ', xyz
-!write(*,*) ' Force fxa= ',fxa(forceField(c) % i, forceField(c) % j, forceField(c) % k)
+                forceField(c) % force = forceField(c) % force +            &
+                atm_convoluteForce(i, m, n, q, forceField(c) % location)   &
+                *dx*dy*dz*z_i**3./((u_star**2.))*z_i
+!write(*,*) 'Location is = ', forceField(c) % location
+!                write(*,*) ' forceField(c) % force = ',forceField(c) % force 
             enddo
+
         enddo
     enddo
 enddo
 
-! This loop goes through all the points affected by body forces and imposes 
-! the proper body force
-!do q=1, turbineArray(i) %  numBladePoints
-!    do n=1, turbineArray(i) % numAnnulusSections
-!        do m=1, turbineModel(j) % numBl
-!            do c=1,size(forceField)
+end subroutine atm_lesgo_force
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_lesgo_apply_force()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This will apply the blade force onto the CFD grid by using the convolution
+! function in the ATM library
+implicit none
 
-!write(*,*) 'Force is = ', fxa(forceField(c0) % i,forceField(c0) % j,forceField % k)
-
-!            enddo
-!        enddo
-!    enddo
-!enddo
+integer :: c
+integer :: i,j,k
 
 ! Impose force field onto the flow field variables
+! The forces are non-dimensionalized here as well
 do c=1,size(forceField)
-    fxa(forceField(c) % i,forceField(c) % j,forceField(c) % k) = &
-    fxa(forceField(c) % i,forceField(c) % j,forceField(c) % k) + &
-    forceField(c) % force(1)
-!write(*,*) 'Force is = ', fxa(forceField(c) % i,forceField(c) % j,forceField(c) % k)
-    fya(forceField(c) % i,forceField(c) % j,forceField(c) % k) = &
-    fya(forceField(c) % i,forceField(c) % j,forceField(c) % k) + &
-    forceField(c) % force(2)
-    fza(forceField(c) % i,forceField(c) % j,forceField(c) % k) = &
-    fza(forceField(c) % i,forceField(c) % j,forceField(c) % k) + &
-    forceField(c) % force(3)
+    i=forceField(c) % i
+    j=forceField(c) % j
+    k=forceField(c) % k
+
+    fxa(i,j,k) = fxa(i,j,k) + forceField(c) % force(1) 
+    fya(i,j,k) = fya(i,j,k) + forceField(c) % force(2) 
+    fza(i,j,k) = fza(i,j,k) + forceField(c) % force(3) 
+
+!if (abs(fza(i,j,k)) .gt. 1) then
+!    write(*,*) 'Force is = ', i,j,k,forceField(c) % force
+!endif
+
 enddo
 
-end subroutine atm_lesgo_force
+
+end subroutine atm_lesgo_apply_force
+
 
 
 end module atm_lesgo_interface
