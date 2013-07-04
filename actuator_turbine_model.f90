@@ -40,7 +40,8 @@ implicit none
 private 
 public :: atm_initialize, numberOfTurbines,                    &
           atm_computeBladeForce, atm_update,                                &
-          vector_add, vector_divide, vector_mag, distance, atm_convoluteForce
+          vector_add, vector_divide, vector_mag, distance, atm_convoluteForce, &
+          write_3D_Field_VTK
 
 ! These are used to do unit conversions
 real(rprec), parameter :: pi=acos(-1.) !pi= 3.141592653589793238462643383279502884197169399375
@@ -436,6 +437,7 @@ windVectors => turbineArray(i) % windVectors
 bladePoints => turbineArray(i) % bladePoints
 rotSpeed => turbineArray(i) % rotSpeed
 solidity=> turbineArray(i) % solidity
+
 ! Pointers for turbineModel (j)
 !turbineTypeID => turbineArray(i) % turbineTypeID
 NumSec => turbineModel(j) % NumSec
@@ -511,7 +513,10 @@ windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local)
 !write(*,*) 'rotSpeed ', rotSpeed
 !write(*,*) 'bladeRadius(m,n,q) ',   bladeRadius(m,n,q)
 !write(*,*) 'Precone is ',Precone
-!write(*,*) 'windVectors(m,n,q,:) = ', windVectors(m,n,q,:)
+!write(*,*) 'U_local = ', U_local
+!write(*,*) 'windVectors(m,n,q,1) = ', windVectors(m,n,q,1)
+!write(*,*) 'windVectors(m,n,q,2) = ', windVectors(m,n,q,2)
+!write(*,*) 'windVectors(m,n,q,3) = ', windVectors(m,n,q,3)
 
 ! Interpolate quantities through section
 twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
@@ -530,21 +535,16 @@ sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
 !write(*,*) 'sectionType_i = ', sectionType_i
 ! Velocity magnitude
 Vmag_i=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
-
+!write(*,*) 'Vmag_i = ',Vmag_i
 ! Angle between wind vector components
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
 
 ! Local angle of attack
 alpha_i=windAng_i-twistAng_i - turbineArray(i) % Pitch
-
-!write(*,*) 'Error YES Here'
-!write(*,*) sectionType_i
+!write(*,*) 'alpha_i = ', alpha_i
 
 ! Total number of entries in lists of AOA, cl and cd
 k = turbineModel(j) % airfoilType(sectionType_i) % n
-
-!write(*,*) 'Error NOT Here'
-
 
 ! Lift coefficient
 cl_i= interpolate(alpha_i,                                                     &
@@ -555,6 +555,7 @@ cl_i= interpolate(alpha_i,                                                     &
 !write(*,*) 'turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k) = ',turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k)
 !write(*,*) 'turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) = ',turbineModel(j) % airfoilType(sectionType_i) % cl(1:k)
 !write(*,*) 'Cl = ',cl_i
+
 ! Drag coefficient
 cd_i= interpolate(alpha_i,                                                  &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
@@ -562,10 +563,12 @@ cd_i= interpolate(alpha_i,                                                  &
 !write(*,*) 'Cd = ',cd_i
 
 db_i = turbineArray(i) % db(q) 
+!write(*,*) 'db = ', db_i
 
 ! Lift force
 turbineArray(i) % lift(m,n,q) = 0.5 * cl_i * Vmag_i**2 * chord_i * db_i * solidity(m,n,q)
-!write(*,*) 'turbineArray(i) % lift(m,n,q) = ',turbineArray(i) % lift(m,n,q)
+!write(*,*) 'turbineArray(i) % lift(m,n,q) = ',i,m,n,q,turbineArray(i) % lift(m,n,q)
+!write(*,*) 'Solidity is = ',solidity(m,n,q)
 
 ! Drag force
 turbineArray(i) % drag(m,n,q) = 0.5 * cd_i * Vmag_i**2 * chord_i * db_i * solidity(m,n,q)
@@ -867,6 +870,83 @@ distance=abs(sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2))
 return
 end function distance
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, nodes_x, nodes_y, nodes_z,filename)
+! This subroutines reads and writes a 3D vector field in VTK format
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+integer, intent(in) :: nodes_x,nodes_y,nodes_z
+integer::i,j,k,nt
+real(rprec), intent(in) :: x_n(nodes_x),y_n(nodes_y),z_n(nodes_z)
+real(rprec), intent(in) :: u(nodes_x,nodes_y,nodes_z),v(nodes_x,nodes_y,nodes_z)
+real(rprec), intent(in) :: w(nodes_x,nodes_y,nodes_z)
+character(128), intent(in) :: filename
+
+! Total number of elements in arrays
+nt=nodes_x*nodes_y*nodes_z
+
+! Output to screen
+write(*,*) 'Writing VTK Data in:', filename  
+open(unit=987,file=trim(filename))
+ 
+! Write the VTK file header
+      write(987,99)'# vtk DataFile Version 3.0'
+   99 format(a26)
+      write(987,98)'Velocity Field'
+   98 format(a14)
+      write(987,97)'ASCII'
+   97 format(a5)
+      write(987,96)'DATASET RECTILINEAR_GRID'
+   96 format(a24) 
+      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
+   100 format(a10x,i5x,i5x,i5x)
+
+!
+!.....writting x coordinates
+!
+      write(987,101)'X_COORDINATES',nodes_x,'double'
+      do i=1,nodes_x      !!!!!!!
+        write(987,*) x_n(i)
+      enddo
+!
+!.....writting y coordinates
+!
+      write(987,101)'Y_COORDINATES',nodes_y,'double'
+      do j=1,nodes_y
+        write(987,*) y_n(j)
+      enddo
+
+!
+!.....writting z coordinates
+!
+      write(987,101)'Z_COORDINATES',nodes_z,'double'
+      do k=1,nodes_z
+        write(987,*) z_n(k)
+      enddo
+
+  101 format(a13x,i5x,a7)
+
+!
+!.....writting Velocity field
+!
+      write(987,149)'POINT_DATA',nt
+  149 format(a10,i10)
+
+      write(987,150)'VECTORS velocity_field double'
+  150 format(a29)
+
+      do k=1,nodes_z
+        do j=1,nodes_y
+          do i=1,nodes_x
+            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
+          end do
+        end do
+      end do
+
+      close(987)
+
+write(*,*) 'Done writing VTK'
+end subroutine write_3D_Field_VTK
 
 end module actuator_turbine_model
 
