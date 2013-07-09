@@ -30,6 +30,11 @@ $endif
 $if (TURBINES)
 use sim_param,only:fxa
 $endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$if ($ATM)
+use sim_param,only:fxa, fya, fza
+$endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($LVLSET)
 use sim_param,only:fxa,fya,fza
 use sim_param,only:fx,fy,fz
@@ -55,6 +60,7 @@ integer::jz
 $if ($TURBINES)
 fxa=0._rprec
 $endif
+
 $if ($LVLSET)
 fx=0._rprec;fy=0._rprec;fz=0._rprec
 fxa=0._rprec; fya=0._rprec; fza=0._rprec
