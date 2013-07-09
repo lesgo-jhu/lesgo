@@ -448,7 +448,7 @@ integer, intent(IN) :: itype
 
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 
-character (64) :: fname
+character (64) :: fname, fname_vtk
 integer :: n, i, j, k
 $if(not $OUTPUT_BINARY)
 character (64) :: var_list
@@ -843,13 +843,15 @@ elseif(itype==3) then
   do i=1,xplane_nloc
 
      call string_splice( fname, path // 'output/vel.x-', xplane_loc(i), '.', jt_total, '.dat')
-  
+     call string_splice( fname_vtk, path // 'output/vel.x-', xplane_loc(i), '.', jt_total, '.vtk')
+
      $if ($MPI)
        call string_concat( fname, '.c', coord )
+       call string_concat( fname_vtk, '.c', coord )
      $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4))  
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
+!      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4))  
   
     do k=1,nz
       do j=1,ny
@@ -864,8 +866,11 @@ elseif(itype==3) then
       enddo
     enddo
 
-    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))     
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+!      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))  
+   
+    call write_3D_Field_VTK(xplane_loc(i:i), y(1:ny), z(1:nz), ui(1:1,1:ny,1:nz), &
+                            vi(1:1,1:ny,1:nz), wi(1:1,1:ny,1:nz), fname_vtk)
 
     $if($LVLSET)
 
@@ -875,9 +880,9 @@ elseif(itype==3) then
     call string_concat( fname, '.c', coord )
     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
-      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
-      numtostr(coord,6), 2, real(total_time,4))
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
+!      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
+!      numtostr(coord,6), 2, real(total_time,4))
 
     !  Sum both induced forces, f{x,y,z}, and applied forces, f{x,y,z}a
     do k=1,nz
@@ -896,8 +901,8 @@ elseif(itype==3) then
     enddo
 
 
-    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+!      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))
 
 
 
@@ -1037,13 +1042,15 @@ elseif(itype==4) then
   do j=1,yplane_nloc
 
     call string_splice( fname, path // 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
-  
+    call string_splice( fname_vtk, path // 'output/vel.y-', yplane_loc(j), '.', jt_total, '.vtk')
+
     $if ($MPI)
     call string_concat( fname, '.c', coord )
+    call string_concat( fname_vtk, '.c', coord )
     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
+!      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
 
     do k=1,nz
       do i=1,nx
@@ -1059,9 +1066,12 @@ elseif(itype==4) then
       enddo
     enddo
     
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
+!      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
+    call write_3D_Field_VTK(x(1:nx), yplane_loc(j:j), z(1:nz), ui(1:nx,1:1,1:nz), &
+                            vi(1:nx,1:1,1:nz), wi(1:nx,1:1,1:nz), fname_vtk)
+
     $if($LVLSET)
 
     call string_splice( fname, path // 'output/force.y-', yplane_loc(j), '.', jt_total, '.dat')
@@ -1070,8 +1080,8 @@ elseif(itype==4) then
     call string_concat( fname, '.c', coord )
     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-      '"x", "y", "z", "fx", "fy", "fz"', numtostr(coord,6), 2, real(total_time,4))  
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
+!      '"x", "y", "z", "fx", "fy", "fz"', numtostr(coord,6), 2, real(total_time,4))  
   
     do k=1,nz
       do i=1,nx
@@ -1086,8 +1096,8 @@ elseif(itype==4) then
       enddo
     enddo
     
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
+!      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
     $endif
 
@@ -1230,7 +1240,9 @@ elseif(itype==5) then
     $if ($BINARY)
     call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
     $else
-    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')    
+    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')   
+    call string_splice( fname_vtk, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.vtk')    
+ 
     $endif
     
     do j=1,Ny
@@ -1263,6 +1275,9 @@ elseif(itype==5) then
     (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
     $endif
     
+    call write_3D_Field_VTK(x(1:nx), y(1:ny), zplane_loc(k:k), ui(1:nx,1:ny,1:1), &
+                            vi(1:nx,1:ny,1:1), wi(1:nx,1:ny,1:1), fname_vtk)
+
     $if($LVLSET)
 
     call string_splice( fname, path // 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
@@ -1441,6 +1456,14 @@ $if($TURBINES)
 fx_tot = fxa(1:nx,1:ny,1:nz)
 fy_tot = 0._rprec
 fz_tot = 0._rprec
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$elseif($ATM)
+fx_tot = fxa(1:nx,1:ny,1:nz)
+fy_tot = fya(1:nx,1:ny,1:nz)
+fz_tot = fza(1:nx,1:ny,1:nz)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
 $elseif($LVLSET)
 fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
 fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
@@ -3392,5 +3415,87 @@ $endif
 
 return
 end subroutine spectra_checkpoint
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, filename)
+! This subroutines reads and writes a 3D vector field in VTK format
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+integer :: nodes_x,nodes_y,nodes_z
+integer::i,j,k,nt
+real(rprec), intent(in) :: x_n(:),y_n(:),z_n(:)
+real(rprec), intent(in) :: u(:,:,:),v(:,:,:)
+real(rprec), intent(in) :: w(:,:,:)
+character(64), intent(in) :: filename
+
+nodes_x=size(x_n)
+nodes_y=size(y_n)
+nodes_z=size(z_n)
+
+! Total number of elements in arrays
+nt=nodes_x*nodes_y*nodes_z
+
+! Output to screen
+!write(*,*) 'Writing VTK Data in:', filename  
+open(unit=987,file=trim(filename))
+ 
+! Write the VTK file header
+      write(987,99)'# vtk DataFile Version 3.0'
+   99 format(a26)
+      write(987,98)'Velocity Field'
+   98 format(a14)
+      write(987,97)'ASCII'
+   97 format(a5)
+      write(987,96)'DATASET RECTILINEAR_GRID'
+   96 format(a24) 
+      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
+   100 format(a10x,i5x,i5x,i5x)
+
+!
+!.....writting x coordinates
+!
+      write(987,101)'X_COORDINATES',nodes_x,'double'
+      do i=1,nodes_x      !!!!!!!
+        write(987,*) x_n(i)
+      enddo
+!
+!.....writting y coordinates
+!
+      write(987,101)'Y_COORDINATES',nodes_y,'double'
+      do j=1,nodes_y
+        write(987,*) y_n(j)
+      enddo
+
+!
+!.....writting z coordinates
+!
+      write(987,101)'Z_COORDINATES',nodes_z,'double'
+      do k=1,nodes_z
+        write(987,*) z_n(k)
+      enddo
+
+  101 format(a13x,i5x,a7)
+
+!
+!.....writting Velocity field
+!
+      write(987,149)'POINT_DATA',nt
+  149 format(a10,i10)
+
+      write(987,150)'VECTORS velocity_field double'
+  150 format(a29)
+
+      do k=1,nodes_z
+        do j=1,nodes_y
+          do i=1,nodes_x
+            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
+          end do
+        end do
+      end do
+
+      close(987)
+
+!write(*,*) 'Done writing VTK'
+end subroutine write_3D_Field_VTK
 
 end module io
