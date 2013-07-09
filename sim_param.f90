@@ -88,7 +88,25 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'divtx, divty, divtz,' //     &
                                              'fxa,'           //           &
                                              'theta, q,' //                &
-                                             'u_avg'                                             
+                                             'u_avg'    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$elseif ($ATM)
+character (*), parameter :: array_list_def = 'u, v, w,' //                 &
+                                             'dudx, dudy, dudz,' //        &
+                                             'dvdx, dvdy, dvdz,' //        &
+                                             'dwdx, dwdy, dwdz,' //        &
+                                             'RHSx, RHSy, RHSz,' //        &
+                                             'RHSx_f, RHSy_f, RHSz_f,' //  &
+                                             'dpdx, dpdy, dpdz,' //        &
+                                             'txx, txy, tyy,' //           &
+                                             'txz, tyz, tzz,' //           &
+                                             'p,' //                       &
+                                             'divtx, divty, divtz,' //     &
+                                             'fx, fy, fz,' //              &
+                                             'fxa, fya, fza,' //           &
+                                             'theta, q,' //                &
+                                             'u_avg'                                         
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $elseif ($LVLSET)
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
