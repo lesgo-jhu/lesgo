@@ -66,7 +66,8 @@ $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($ATM)
-use atm_lesgo_interface
+use sim_param, only : fxa, fya, fza ! The body force components
+use atm_lesgo_interface, only : atm_lesgo_forcing
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
@@ -91,7 +92,10 @@ $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($ATM)
-!call atm_forcing ()
+fxa = 0._rprec
+fya = 0._rprec
+fza = 0._rprec
+call atm_lesgo_forcing ()
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
    
