@@ -40,9 +40,7 @@ implicit none
 private 
 public :: atm_initialize, numberOfTurbines,                    &
           atm_computeBladeForce, atm_update,                                &
-          vector_add, vector_divide, vector_mag, distance, atm_convoluteForce, &
-          write_3D_Field_VTK
-
+          vector_add, vector_divide, vector_mag, distance, atm_convoluteForce
 ! These are used to do unit conversions
 real(rprec), parameter :: pi=acos(-1.) !pi= 3.141592653589793238462643383279502884197169399375
 real(rprec) :: degRad = pi/180. ! Degrees to radians conversion
@@ -273,15 +271,6 @@ do k=1, numBl
     enddo
 enddo
 
-open(unit=787,file='./output/points')
-do k=1, turbineArray(i) % numBladePoints
-    do n=1, turbineArray(i) % numAnnulusSections
-        do m=1, turbineModel(j) % numBl
-            write(787,*) bladePoints(m,n,k,:)/400.
-        enddo
-    enddo
-enddo
-close(787)
 
 end subroutine atm_create_points
 
@@ -525,7 +514,7 @@ twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
 chord_i = interpolate(bladeRadius(m,n,q),                                      &
                        turbineModel(j) % radius(1:NumSec),   &
                        turbineModel(j) % chord(1:NumSec) )
-
+!write(*,*) 'Chord is = ',chord_i
 sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &     ! Problem here with turbineModel(i) % sectionType(1:turbineModel(i)% NumSec
                        turbineModel(j) % radius(1:NumSec),   &
                        turbineModel(j) % sectionType(1:NumSec))
@@ -535,7 +524,7 @@ sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
 !write(*,*) 'sectionType_i = ', sectionType_i
 ! Velocity magnitude
 Vmag_i=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
-!write(*,*) 'Vmag_i = ',Vmag_i
+!write(*,*) 'Vmag_i = ',Vmag_i, q
 ! Angle between wind vector components
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
 
@@ -572,6 +561,15 @@ turbineArray(i) % lift(m,n,q) = 0.5 * cl_i * Vmag_i**2 * chord_i * db_i * solidi
 
 ! Drag force
 turbineArray(i) % drag(m,n,q) = 0.5 * cd_i * Vmag_i**2 * chord_i * db_i * solidity(m,n,q)
+
+!write(*,*) 'cd_i = ',cd_i
+!write(*,*) 'Vmag_i = ',Vmag_i
+!write(*,*) 'chord_i = ',chord_i
+!write(*,*) 'db_i = ',db_i
+!write(*,*) 'solidity(m,n,q) = ',solidity(m,n,q)
+
+!write(*,*)'Lift Force = ',turbineArray(i) % lift(m,n,q)
+!write(*,*)'Drag Force = ',turbineArray(i) % drag(m,n,q)
 
 dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +  &
              bladeAlignedVectors(m,n,q,2,:)*windVectors(m,n,q,2)
@@ -645,8 +643,7 @@ end subroutine atm_yawNacelle
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function atm_convoluteForce(i,m,n,q,xyz)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine will compute the wind vectors by projecting the velocity 
-! onto the transformed coordinates system
+! This subroutine will convolute the body forces onto a point xyz
 integer, intent(in) :: i,m,n,q
 ! i - turbineTypeArray
 ! n - numAnnulusSections
@@ -664,10 +661,15 @@ kernel=exp(-(dis/turbineArray(i) % epsilon)**2.) / &
 ((turbineArray(i) % epsilon**3.)*(pi**1.5))
 atm_convoluteForce = Force * kernel
 
+
 !if (dis .le. 10.) then
-!    write(*,*) 'dis= ', dis, 'kernel = ', kernel
+!write(*,*) 'Kernel, distance and Force are = ',kernel, dis
+!write(*,*) 'dis= ', dis, 'kernel = ', kernel
+!write(*,*) 'Forces are = ', Force
+!write(*,*) 'Convoluted force = ',atm_convoluteForce
 !    write(*,*) 'epsilon = ', turbineArray(i) % epsilon
 !endif
+
 return
 end function atm_convoluteForce
 
@@ -700,6 +702,11 @@ integer :: i,p
 real(rprec) :: interpolate
 p=size(x)
 
+if (xp <= x(1)) then 
+    interpolate=y(1)
+else if (xp>=x(p)) then
+    interpolate=y(p)
+else
     do i=2,p
         if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
             xa=x(i-1)
@@ -709,7 +716,7 @@ p=size(x)
             interpolate = ya + (yb-ya) * (xp-xa) / (xb-xa) 
         endif
     enddo
-
+endif
 return
 end function interpolate
 
@@ -870,83 +877,6 @@ distance=abs(sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2))
 return
 end function distance
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, nodes_x, nodes_y, nodes_z,filename)
-! This subroutines reads and writes a 3D vector field in VTK format
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-integer, intent(in) :: nodes_x,nodes_y,nodes_z
-integer::i,j,k,nt
-real(rprec), intent(in) :: x_n(nodes_x),y_n(nodes_y),z_n(nodes_z)
-real(rprec), intent(in) :: u(nodes_x,nodes_y,nodes_z),v(nodes_x,nodes_y,nodes_z)
-real(rprec), intent(in) :: w(nodes_x,nodes_y,nodes_z)
-character(128), intent(in) :: filename
-
-! Total number of elements in arrays
-nt=nodes_x*nodes_y*nodes_z
-
-! Output to screen
-write(*,*) 'Writing VTK Data in:', filename  
-open(unit=987,file=trim(filename))
- 
-! Write the VTK file header
-      write(987,99)'# vtk DataFile Version 3.0'
-   99 format(a26)
-      write(987,98)'Velocity Field'
-   98 format(a14)
-      write(987,97)'ASCII'
-   97 format(a5)
-      write(987,96)'DATASET RECTILINEAR_GRID'
-   96 format(a24) 
-      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
-   100 format(a10x,i5x,i5x,i5x)
-
-!
-!.....writting x coordinates
-!
-      write(987,101)'X_COORDINATES',nodes_x,'double'
-      do i=1,nodes_x      !!!!!!!
-        write(987,*) x_n(i)
-      enddo
-!
-!.....writting y coordinates
-!
-      write(987,101)'Y_COORDINATES',nodes_y,'double'
-      do j=1,nodes_y
-        write(987,*) y_n(j)
-      enddo
-
-!
-!.....writting z coordinates
-!
-      write(987,101)'Z_COORDINATES',nodes_z,'double'
-      do k=1,nodes_z
-        write(987,*) z_n(k)
-      enddo
-
-  101 format(a13x,i5x,a7)
-
-!
-!.....writting Velocity field
-!
-      write(987,149)'POINT_DATA',nt
-  149 format(a10,i10)
-
-      write(987,150)'VECTORS velocity_field double'
-  150 format(a29)
-
-      do k=1,nodes_z
-        do j=1,nodes_y
-          do i=1,nodes_x
-            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
-          end do
-        end do
-      end do
-
-      close(987)
-
-write(*,*) 'Done writing VTK'
-end subroutine write_3D_Field_VTK
 
 end module actuator_turbine_model
 
