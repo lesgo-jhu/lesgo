@@ -3,28 +3,29 @@
 
 ! globalProperties
 
-numberOfTurbines  2
+numberOfTurbines  1
 outputInterval       1
     
 TURBINE_1 {
 turbineType        "NREL5MWRef"
-baseLocation        1.2,1.57,0.0 
+baseLocation        200,200,110 
 numBladePoints      40
-epsilon             3.5
+epsilon             4
 rotationDir         "cw"
 Azimuth              232.0105
 RotSpeed             10.9874
 Pitch                0
-NacYaw              221.617
+NacYaw              270
 fluidDensity        1.23
-numAnnulusSections   8
+numAnnulusSections   1
+annulusSectionAngle    0.
 }
 
 TURBINE_2 {
 turbineType        "NREL5MWRef"
-baseLocation        1.2,1.57,0.0 
+baseLocation        200,10,100 
 numBladePoints      40
-epsilon             3.5
+epsilon             7
 rotationDir         "cw"
 Azimuth              232.0105
 RotSpeed             10.9874
@@ -32,6 +33,7 @@ Pitch                0
 NacYaw              221.617
 fluidDensity        1.23
 numAnnulusSections    8
+annulusSectionAngle    30.
 }
 
 
