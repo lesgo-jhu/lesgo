@@ -125,17 +125,14 @@ do i=1,nx ! Loop through grid points in x
                     .le. turbineArray(m) % sphereRadius ) then
                     cUV=cUV+1
                 end if
-            enddo 
 
-            ! Take into account the W grid
-            vector_point(3)=zw(k)*z_i
-            do m=1,numberOfTurbines
+                ! Take into account the W grid
+                vector_point(3)=zw(k)*z_i
                 if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
                     .le. turbineArray(m) % sphereRadius ) then
                     cW=cW+1
                 end if
             enddo 
-
         enddo
     enddo
 enddo
@@ -181,18 +178,6 @@ do i=1,nx ! Loop through grid points in x
     enddo
 enddo
 
-! Write the points which are affected
-!open(unit=1787,file='./output/forceUV')
-!do k=1, size(forceFieldUV)
-!            write(1787,*) forceFieldUV(k) % location       
-!enddo
-!close(1787)
-!open(unit=1787,file='./output/forceW')
-!do k=1, size(forceFieldW)
-!            write(1787,*) forceFieldW(k) % location       
-!enddo
-!close(1787)
-
 end subroutine atm_lesgo_initialize
 
 
@@ -214,10 +199,6 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 ! If statement is for running code only if grid points affected are in this 
 ! processor. If not, no code is executed at all.
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
-
-!    write(*,*) 'dt = ', dt
-
-
 
     ! Update the blade positions based on the time-step
     ! Time needs to be dimensionalized
@@ -254,23 +235,22 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
         call atm_lesgo_convolute_force(i)
     enddo
 
-! This will apply body forces onto the flow field if there are forces within
-! this domain
+    ! This will apply body forces onto the flow field if there are forces within
+    ! this domain
     call atm_lesgo_apply_force()
 endif
 
-!write(*,*) 'Bounds of fxa = ',nz,ubound(fxa(:,:,lbz:),3)
-!write(*,*) 'Bounds of fya = ',nz,ubound(fya(:,:,lbz:),3)
-!write(*,*) 'Bounds of fza = ',nz,ubound(fza(:,:,lbz:),3)
-! This will take care of sync for the forces on all processors
+! Sync the fxa fya and fza variables
 $if ($MPI)
     call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
     call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
     call mpi_sync_real_array( fza, 1, MPI_SYNC_DOWN )
 $endif
-call atm_lesgo_write_output() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! VTK
 
-!write(*,*) 'Passed Time'
+!call atm_lesgo_write_output()
+
+
+
 
 end subroutine atm_lesgo_forcing
 
@@ -322,7 +302,7 @@ do q=1, turbineArray(i) % numBladePoints
 
                 ! This will compute the blade force for the specific point
                 call atm_computeBladeForce(i,m,n,q,velocity)
-
+!                write(*,*) 'Blade Force is = ',turbineArray(i) % bladeForces(m,n,q,:)
             endif
 
         enddo
@@ -331,8 +311,6 @@ enddo
 !write(*,*) 'Z is = ',z(1),z(nz-1),z(nz)
 
 end subroutine atm_lesgo_force
-
-
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_convolute_force(i)
@@ -346,27 +324,43 @@ integer :: j, m, n, q, c
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-do q=1, turbineArray(i) % numBladePoints
-    do n=1, turbineArray(i) % numAnnulusSections
-        do m=1, turbineModel(j) % numBl
-            ! This will convolute the blade force onto the grid points
-            ! affected by the turbines on both grids
-            ! Only if the distance is less than specified value
-            do c=1,size(forceFieldUV)
+
+! This will convolute the blade force onto the grid points
+! affected by the turbines on both grids
+! Only if the distance is less than specified value
+do c=1,size(forceFieldUV)
+    do q=1, turbineArray(i) % numBladePoints
+        do n=1, turbineArray(i) % numAnnulusSections
+            do m=1, turbineModel(j) % numBl
                 if (distance(forceFieldUV(c) % location,                       &
                    turbineArray(i) % bladePoints(m,n,q,:)) >=                  &
                    3.*turbineArray(i) % epsilon) cycle
-                forceFieldUV(c) % force = forceFieldUV(c) % force +            &
+
+                forceFieldUV(c) % force = vector_add( forceFieldUV(c) % force ,            &
                 atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location)     &
-                *dx*dy*dz*z_i**3./((u_star**2.)) !*z_i
+                *z_i/(u_star**2.))
+!                *(dx*dy*dz*z_i**3.)/(u_star**2.*z_i**2.) )
+
             enddo
-            do c=1,size(forceFieldW)
+        enddo
+    enddo
+enddo
+
+do c=1,size(forceFieldW)
+    do q=1, turbineArray(i) % numBladePoints
+        do n=1, turbineArray(i) % numAnnulusSections
+            do m=1, turbineModel(j) % numBl
                 if (distance(forceFieldW(c) % location,                        &
                    turbineArray(i) % bladePoints(m,n,q,:)) >=                  &
                    3.*turbineArray(i) % epsilon) cycle
-                forceFieldW(c) % force = forceFieldW(c) % force +              &
+
+                forceFieldW(c) % force = vector_add( forceFieldW(c) % force   ,            &
                 atm_convoluteForce(i, m, n, q, forceFieldW(c) % location)      &
-                *dx*dy*dz*z_i**3./((u_star**2.)) !*z_i
+                *z_i/(u_star**2.))
+!                *(dx*dy*dz*z_i**3.)/(u_star**2.*z_i**2.)  )
+!write(*,*) 'Z_i=',z_i
+!write(*,*) 'u_star=',u_star
+!                write(*,*) forceFieldW(c) % force
             enddo
         enddo
     enddo
@@ -396,6 +390,12 @@ do c=1,size(forceFieldUV)
 
     fxa(i,j,k) = fxa(i,j,k) + forceFieldUV(c) % force(1) 
     fya(i,j,k) = fya(i,j,k) + forceFieldUV(c) % force(2) 
+!if (abs(forceFieldUV(c) % force(1))>0.) then
+!write(*,*) 'forceFieldUV = ',forceFieldUV(c) % force(1)
+!write(*,*) 'fxa = ',fxa(i,j,k)
+!write(*,*) 'Size is = ',size(forceFieldUV)
+!endif
+
 enddo
 
 do c=1,size(forceFieldW)
@@ -404,9 +404,8 @@ do c=1,size(forceFieldW)
     k=forceFieldW(c) % k
 
     fza(i,j,k) = fza(i,j,k) + forceFieldW(c) % force(3) 
-!write(*,*) 'forceFieldW = ',i,j,k,fza(i,j,k)
-enddo
 
+enddo
 
 end subroutine atm_lesgo_apply_force
 
@@ -418,6 +417,7 @@ subroutine atm_lesgo_write_output()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!VTK
 implicit none
 
+integer :: i,m,n,q,j
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 character(128) :: coord_char,filename, time_char
 
@@ -437,14 +437,113 @@ write(time_char,'(i5)') jt_total
 ! Write plane
 call eat_whitespace(time_char,' ')
 call eat_whitespace(coord_char,' ')
-filename='output/plane_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
-call write_3D_Field_VTK(x(32:33), y(1:ny), z(1:nz), u(32,1:ny,1:nz), v(32,1:ny,1:nz), w(32,1:ny,1:nz), 1, ny, nz,filename)
+
+! Write points
+open(unit=787,file='./output/points'//time_char)
+do i=1,numberOfTurbines
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+    do q=1, turbineArray(i) % numBladePoints
+        do n=1, turbineArray(i) % numAnnulusSections
+            do m=1, turbineModel(j) % numBl
+                write(787,*) turbineArray(i) % bladePoints(m,n,q,1:3)/z_i
+            enddo
+        enddo
+    enddo
+enddo
+close(787)
+
+
+!filename='output/plane_x_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
+!call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), u(64:64,1:ny,1:nz), v(64:64,1:ny,1:nz), w(64:64,1:ny,1:nz), filename)
 !write(*,*) 'Sizes ares = ',size(x),size(y),size(z)
-filename='output/plane_force'// trim(time_char) //'.vtk.c'//trim(coord_char)
-call write_3D_Field_VTK(x(32:33), y(1:ny), z(1:nz), fxa(32,1:ny,1:nz), fya(32,1:ny,1:nz), fza(32,1:ny,1:nz), 1, ny, nz,filename)
+filename='output/plane_x_force'// trim(time_char) //'.vtk.c'//trim(coord_char)
+call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), fxa(64:64,1:ny,1:nz), fya(64:64,1:ny,1:nz), fza(64:64,1:ny,1:nz), filename)
+!filename='output/plane_y_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
+!call write_3D_Field_VTK(x(1:nx), y(64), z(1:nz), fxa(1:nx,64,1:nz), fya(1:nx,64,1:nz), fza(1:nx,64,1:nz), filename)
 
 end subroutine atm_lesgo_write_output
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, filename)
+! This subroutines reads and writes a 3D vector field in VTK format
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+integer :: nodes_x,nodes_y,nodes_z
+integer::i,j,k,nt
+real(rprec), intent(in) :: x_n(:),y_n(:),z_n(:)
+real(rprec), intent(in) :: u(:,:,:),v(:,:,:)
+real(rprec), intent(in) :: w(:,:,:)
+character(64), intent(in) :: filename
+
+nodes_x=size(x_n)
+nodes_y=size(y_n)
+nodes_z=size(z_n)
+
+! Total number of elements in arrays
+nt=nodes_x*nodes_y*nodes_z
+
+! Output to screen
+write(*,*) 'Writing VTK Data in:', filename  
+open(unit=987,file=trim(filename))
+ 
+! Write the VTK file header
+      write(987,99)'# vtk DataFile Version 3.0'
+   99 format(a26)
+      write(987,98)'Velocity Field'
+   98 format(a14)
+      write(987,97)'ASCII'
+   97 format(a5)
+      write(987,96)'DATASET RECTILINEAR_GRID'
+   96 format(a24) 
+      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
+   100 format(a10x,i5x,i5x,i5x)
+
+!
+!.....writting x coordinates
+!
+      write(987,101)'X_COORDINATES',nodes_x,'double'
+      do i=1,nodes_x      !!!!!!!
+        write(987,*) x_n(i)
+      enddo
+!
+!.....writting y coordinates
+!
+      write(987,101)'Y_COORDINATES',nodes_y,'double'
+      do j=1,nodes_y
+        write(987,*) y_n(j)
+      enddo
+
+!
+!.....writting z coordinates
+!
+      write(987,101)'Z_COORDINATES',nodes_z,'double'
+      do k=1,nodes_z
+        write(987,*) z_n(k)
+      enddo
+
+  101 format(a13x,i5x,a7)
+
+!
+!.....writting Velocity field
+!
+      write(987,149)'POINT_DATA',nt
+  149 format(a10,i10)
+
+      write(987,150)'VECTORS velocity_field double'
+  150 format(a29)
+
+      do k=1,nodes_z
+        do j=1,nodes_y
+          do i=1,nodes_x
+            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
+          end do
+        end do
+      end do
+
+      close(987)
+
+write(*,*) 'Done writing VTK'
+end subroutine write_3D_Field_VTK
 
 end module atm_lesgo_interface
 
