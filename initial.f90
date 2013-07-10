@@ -31,9 +31,9 @@ $if (TURBINES)
 use sim_param,only:fxa
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($ATM)
-use sim_param,only:fxa, fya, fza
-$endif
+!$if ($ATM)
+!use sim_param,only:fxa, fya, fza
+!$endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($LVLSET)
 use sim_param,only:fxa,fya,fza
