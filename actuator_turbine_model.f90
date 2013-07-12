@@ -38,15 +38,17 @@ implicit none
 
 ! Declare everything private except for subroutine which will be used
 private 
-public :: atm_initialize, numberOfTurbines,                    &
+public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
-          vector_add, vector_divide, vector_mag, distance, atm_convoluteForce
+          vector_add, vector_divide, vector_mag, distance,                  &
+          atm_convoluteForce
+
+! The very crucial parameter pi
+real(rprec), parameter :: pi=acos(-1.) 
+
 ! These are used to do unit conversions
-real(rprec), parameter :: pi=acos(-1.) !pi= 3.141592653589793238462643383279502884197169399375
 real(rprec) :: degRad = pi/180. ! Degrees to radians conversion
 real(rprec) :: rpmRadSec =  pi/30. ! Set the revolutions/min to radians/s 
-
-!integer :: i, j, k ! Counters
 
 logical :: pastFirstTimeStep ! Establishes if we are at the first time step
 
@@ -65,16 +67,19 @@ pastFirstTimeStep=.false. ! The first time step not reached yet
 call read_input_conf()  ! Read input data
 
 do i = 1,numberOfTurbines
+
     call atm_create_points(i)   ! Creates the ATM points defining the geometry
 
     ! This will create the first yaw alignment
     turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
     call atm_yawNacelle(i)
-write(*,*) 'turbineArray(i) % deltaNacYaw = ',turbineArray(i) % deltaNacYaw
+
+!write(*,*) 'turbineArray(i) % deltaNacYaw = ',turbineArray(i) % deltaNacYaw
 !write(*,*) 'Points in blade ',i,' = ', turbineArray(i) % bladePoints
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
 end do
+
 pastFirstTimeStep=.true. ! Past the first time step
 
 end subroutine atm_initialize
@@ -169,11 +174,13 @@ PreCone=>turbineModel(j) %PreCone
 
 !!-- Do all proper conversions for the required variables
 ! Convert nacelle yaw from compass directions to the standard convention
-call compassToStandard(nacYaw)
+call atm_compassToStandard(nacYaw)
+
 ! Turbine specific
 azimuth = degRad * azimuth
 rotSpeed = rpmRadSec * rotSpeed
 nacYaw = degRad * nacYaw
+
 ! Turbine model specific
 shftTilt = degRad * shftTilt 
 preCone = degRad * preCone
@@ -183,45 +190,30 @@ preCone = degRad * preCone
 ! of turbine--if all turbines are the same, j- is always 0.)  The rotor apex is
 ! not yet rotated for initial yaw that is done below.
 towerShaftIntersect = turbineArray(i) % baseLocation
-!write(*,*) 'turbineArray(i) % baseLocation = ', turbineArray(i) % baseLocation
 towerShaftIntersect(3) = towerShaftIntersect(3) + TowerHt + Twr2Shft
-!write(*,*) 'towerShaftIntersect(3) = ', towerShaftIntersect(3)
 rotorApex = towerShaftIntersect
-!write(*,*) 'rotorApex = ', rotorApex
-
 rotorApex(1) = rotorApex(1) +  (OverHang + UndSling) * cos(ShftTilt)
 rotorApex(3) = rotorApex(3) +  (OverHang + UndSling) * sin(ShftTilt)
-!write(*,*) 'rotorApex = ', rotorApex
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                  Create the first set of actuator points                     !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Define the vector along the shaft pointing in the direction of the wind
 uvShaftDir = OverHang / abs( OverHang )
-!write(*,*) 'uvShaftDir = ', uvShaftDir
-
-!write(*,*) 'rotorApex = ', rotorApex
-!write(*,*) 'towerShaftIntersect = ', towerShaftIntersect
 
 ! Define the vector along the shaft pointing in the direction of the wind                               
 uvShaft = vector_add(rotorApex , - towerShaftIntersect)
 uvShaft = vector_divide(uvShaft, vector_mag(uvShaft))
 uvShaft = vector_multiply( uvShaft,uvShaftDir)
-!write(*,*) 'uvShaft = ', uvShaft
 
-!write(*,*) 'uvShaft = ',uvShaft
 ! Define vector aligned with the tower pointing from the ground to the nacelle
 uvTower = vector_add(towerShaftIntersect, - baseLocation)
 uvTower = vector_divide( uvTower, vector_mag(uvTower))
-!write(*,*) 'uvTower = ', uvTower
 
 ! Define thickness of each blade section
-!write(*,*) 'TipRad = ',TipRad
-!write(*,*)'HubRad = ',HubRad
-!write(*,*)'numBladePoints = ', numBladePoints
 do k=1, numBladePoints
     db(k) = (TipRad - HubRad)/(numBladePoints)
-!write(*,*) 'db(k) = ', db(k)
 enddo
 
 ! This creates the first set of points
@@ -231,11 +223,10 @@ do k=1, numBl
     root(1)= root(1) + HubRad*sin(beta)
     root(3)= root(3) + HubRad*cos(beta)
     dist = HubRad
-!write(*,*) 'beta, dis = ', beta, dist
-!write(*,*) 'root = ',root
+    
     ! Number of blade points for the first annular section
     do m=1, numBladePoints
-        dist = dist + 0.5*(db(m))                                                  ! Bug in OpenFOAM Code
+        dist = dist + 0.5*(db(m))
         bladePoints(k,1,m,1) = root(1) + dist*sin(beta)
         bladePoints(k,1,m,2) = root(2)
         bladePoints(k,1,m,3) = root(3) + dist*cos(beta)
@@ -244,24 +235,19 @@ do k=1, numBl
             solidity(k,n,m)=1./numAnnulusSections
         enddo
         dist = dist + 0.5*db(m)
-!write(*,*) 'bladePoints(k,1,m,:) = ', bladePoints(k,1,m,:)
-!write(*,*) 'bladeRadius(k,1,m) = ',  bladeRadius(k,1,m)
     enddo
 
+    ! If there are more than one blade create the points of other blades by
+    ! rotating the points of the first blade
     if (k > 1) then
         do m=1, numBladePoints
             bladePoints(k,1,m,:)=rotatePoint(bladePoints(k,1,m,:), rotorApex, &
             uvShaft,(360.0/NumBl)*(k-1)*degRad)
-!write(*,*) 'bladePoints(k,1,m,:) = ', bladePoints(k,1,m,:)
-!write(*,*) '(360.0/NumBl)*k*degRad = ',(360.0/NumBl)*(k-1)*degRad
-!write(*,*) 'bladeRadius(k,1,m) = ',  bladeRadius(k,1,m)
         enddo
     endif
 
     ! Rotate points for all the annular sections
-!    if (numAnnulusSections .lt. 2) cycle ! Cycle if only one annular section
-
-    if (numAnnulusSections .lt. 2) cycle
+    if (numAnnulusSections .lt. 2) cycle ! Cycle if only one section (ALM)
     do n=2, numAnnulusSections
         do m=1, numBladePoints
             bladePoints(k,n,m,:) =                                       &
@@ -271,7 +257,6 @@ do k=1, numBl
     enddo
 enddo
 
-
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -280,10 +265,10 @@ subroutine atm_update(dt)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 integer :: i                                 ! Turbine number
 real(rprec), intent(in) :: dt                ! Time step
-!write(*,*) 'dt = ', dt
 
+! Loop through all turbines and rotate the blades
 do i = 1, numberOfTurbines
-    call atm_rotateBlades(i,dt)              ! Rotate the blades of each turbine
+    call atm_rotateBlades(i,dt)
 end do
 
 end subroutine atm_update
@@ -320,23 +305,14 @@ if (turbineArray(i) % rotationDir == "cw") then
 else if (turbineArray(i) % rotationDir == "ccw") then
     deltaAzimuthI = -deltaAzimuth
 endif
-!write(*,*) 'dt = ', dt
-!write(*,*) 'turbineArray(i) % rotationDir = ' ,turbineArray(i) % rotationDir
-!write(*,*) 'rotSpeed = ', rotSpeed
-!write(*,*) 'deltaAzimuth = ', deltaAzimuth
-!write(*,*) 'deltaAzimuthI = ', deltaAzimuthI
 
+! Loop through all the points and rotate them accordingly
 do q=1, turbineArray(i) % numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
         do m=1, turbineModel(j) % numBl
-!write(*,*) 'turbineArray(i) % bladePoints(m,n,q,:) before= ', turbineArray(i) % bladePoints(m,n,q,:)
-!write(*,*) 'rotorApex = ',rotorApex
-!write(*,*) ' uvShaft = ',uvShaft
-!write(*,*) ' deltaAzimuthI = ',deltaAzimuthI
             turbineArray(i) %   bladePoints(m,n,q,:)=rotatePoint(              &
             turbineArray(i) % bladePoints(m,n,q,:), rotorApex, uvShaft,        &
             deltaAzimuthI)
-!write(*,*) 'turbineArray(i) % bladePoints(m,n,q,:) after= ', turbineArray(i) % bladePoints(m,n,q,:)
         enddo
     enddo
 enddo
@@ -402,7 +378,7 @@ real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
 ! Local variables
 integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
 integer :: sectionType_i ! The type of airfoil
-real(rprec) :: cl_i, cd_i, twistAng_i, chord_i, Vmag_i, windAng_i, alpha_i, db_i
+real(rprec) :: twistAng_i, chord_i, Vmag_i, windAng_i, db_i
 !real(rprec) :: solidity_i
 real(rprec), dimension(3) :: dragVector, liftVector
 
@@ -415,8 +391,9 @@ real(rprec), pointer :: rotSpeed
 integer,     pointer :: numSec     
 type(real(rprec)),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: PreCone
-real(rprec), pointer :: solidity(:,:,:)
+real(rprec), pointer :: solidity(:,:,:),cl(:,:,:),cd(:,:,:),alpha(:,:,:)
 
+! Identifier for the turbine type
 j= turbineArray(i) % turbineTypeID
 
 ! Pointers to trubineArray (i)
@@ -431,9 +408,9 @@ solidity=> turbineArray(i) % solidity
 !turbineTypeID => turbineArray(i) % turbineTypeID
 NumSec => turbineModel(j) % NumSec
 bladeRadius => turbineArray(i) % bladeRadius
-!cd(m,n,q) => turbineArray(i) % cd(m,n,q)    ! Drag coefficient
-!cl(m,n,q) => turbineArray(i) % cl(m,n,q)    ! Lift coefficient
-!alpha(m,n,q) => turbineArray(i) % alpha(m,n,q) ! Anlge of attack
+cd => turbineArray(i) % cd       ! Drag coefficient
+cl => turbineArray(i) % cl       ! Lift coefficient
+alpha => turbineArray(i) % alpha ! Anlge of attack
 
 PreCone => turbineModel(j) % PreCone
 
@@ -456,39 +433,25 @@ elseif (turbineArray(i) % rotationDir == "ccw") then
                                      vector_add(-bladePoints(m,n,q,:),rotorApex)
 endif
 
-!write(*,*) 'bladePoints(m,n,q,:) = ', bladePoints(m,n,q,:)
-!write(*,*)'rotorApex = ',rotorApex
-!write(*,*) 'bladeAlignedVectors(m,n,q,3,:) 2= ' , bladeAlignedVectors(m,n,q,3,:)
-
 bladeAlignedVectors(m,n,q,3,:) =  &
                         vector_divide(bladeAlignedVectors(m,n,q,3,:),   &
                         vector_mag(bladeAlignedVectors(m,n,q,3,:)) )
 
-!write(*,*) 'bladeAlignedVectors(m,n,q,3,:) = ' , bladeAlignedVectors(m,n,q,3,:)
-
 ! Define vector in y'
 bladeAlignedVectors(m,n,q,2,:) = cross_product(bladeAlignedVectors(m,n,q,3,:), &
                                  turbineArray(i) % uvShaft)
-!write(*,*) 'cross_product(bladeAlignedVectors(m,n,q,3,:),  turbineArray(i) % uvShaft)',cross_product(bladeAlignedVectors(m,n,q,3,:), turbineArray(i) % uvShaft)
-!write(*,*) 'size is ', size(bladeAlignedVectors)
-
-!write(*,*) 'bladeAlignedVectors(m,n,q,3,:) = ', bladeAlignedVectors(m,n,q,3,:)
-!write(*,*) 'uvShaft = ', turbineArray(i) % uvShaft
-!write(*,*) 'bladeAlignedVectors(m,n,q,2,:) = ' , bladeAlignedVectors(m,n,q,2,:)
 
 bladeAlignedVectors(m,n,q,2,:) = vector_divide(bladeAlignedVectors(m,n,q,2,:), &
                                  vector_mag(bladeAlignedVectors(m,n,q,2,:)))
 
-!write(*,*) 'bladeAlignedVectors(m,n,q,2,:) = ' , bladeAlignedVectors(m,n,q,2,:)
-
 ! Define vector in x'
 bladeAlignedVectors(m,n,q,1,:) = cross_product(bladeAlignedVectors(m,n,q,2,:), &
                                  bladeAlignedVectors(m,n,q,3,:))
-!write(*,*) 'bladeAlignedVectors(m,n,q,1,:) = ', bladeAlignedVectors(m,n,q,1,:)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 bladeAlignedVectors(m,n,q,1,:) = vector_divide(bladeAlignedVectors(m,n,q,1,:), &
                                  vector_mag(bladeAlignedVectors(m,n,q,1,:)))
-!write(*,*) bladeAlignedVectors(m,n,q,1,:)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
 ! This concludes the definition of the local corrdinate system
 
 
@@ -499,13 +462,6 @@ windVectors(m,n,q,1) = dot_product(bladeAlignedVectors(m,n,q,1,:) , U_local)
 windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
                       (rotSpeed * bladeRadius(m,n,q) * cos(PreCone))
 windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local)
-!write(*,*) 'rotSpeed ', rotSpeed
-!write(*,*) 'bladeRadius(m,n,q) ',   bladeRadius(m,n,q)
-!write(*,*) 'Precone is ',Precone
-!write(*,*) 'U_local = ', U_local
-!write(*,*) 'windVectors(m,n,q,1) = ', windVectors(m,n,q,1)
-!write(*,*) 'windVectors(m,n,q,2) = ', windVectors(m,n,q,2)
-!write(*,*) 'windVectors(m,n,q,3) = ', windVectors(m,n,q,3)
 
 ! Interpolate quantities through section
 twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
@@ -514,63 +470,45 @@ twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
 chord_i = interpolate(bladeRadius(m,n,q),                                      &
                        turbineModel(j) % radius(1:NumSec),   &
                        turbineModel(j) % chord(1:NumSec) )
-!write(*,*) 'Chord is = ',chord_i
-sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &     ! Problem here with turbineModel(i) % sectionType(1:turbineModel(i)% NumSec
+
+sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
                        turbineModel(j) % radius(1:NumSec),   &
                        turbineModel(j) % sectionType(1:NumSec))
-!write(*,*) 'bladeRadius(m,n,q) = ', bladeRadius(m,n,q)
-!write(*,*) 'turbineModel(j) % radius(1:NumSec) = ', turbineModel(j) % radius(1:NumSec)
-!write(*,*) 'turbineModel(j) % sectionType(1:NumSec) = ', turbineModel(j) % sectionType(1:NumSec)
-!write(*,*) 'sectionType_i = ', sectionType_i
+
 ! Velocity magnitude
 Vmag_i=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
-!write(*,*) 'Vmag_i = ',Vmag_i, q
+
 ! Angle between wind vector components
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
 
 ! Local angle of attack
-alpha_i=windAng_i-twistAng_i - turbineArray(i) % Pitch
-!write(*,*) 'alpha_i = ', alpha_i
+alpha(m,n,q)=windAng_i-twistAng_i - turbineArray(i) % Pitch
 
 ! Total number of entries in lists of AOA, cl and cd
 k = turbineModel(j) % airfoilType(sectionType_i) % n
 
 ! Lift coefficient
-cl_i= interpolate(alpha_i,                                                     &
+cl(m,n,q)= interpolate(alpha(m,n,q),                                                &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                  turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
 
-
-!write(*,*) 'turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k) = ',turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k)
-!write(*,*) 'turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) = ',turbineModel(j) % airfoilType(sectionType_i) % cl(1:k)
-!write(*,*) 'Cl = ',cl_i
-
 ! Drag coefficient
-cd_i= interpolate(alpha_i,                                                  &
+cd(m,n,q)= interpolate(alpha(m,n,q),                                                  &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                 turbineModel(j) % airfoilType(sectionType_i) % cd(1:k) )
-!write(*,*) 'Cd = ',cd_i
 
 db_i = turbineArray(i) % db(q) 
-!write(*,*) 'db = ', db_i
 
 ! Lift force
-turbineArray(i) % lift(m,n,q) = 0.5 * cl_i * Vmag_i**2 * chord_i * db_i * solidity(m,n,q)
-!write(*,*) 'turbineArray(i) % lift(m,n,q) = ',i,m,n,q,turbineArray(i) % lift(m,n,q)
-!write(*,*) 'Solidity is = ',solidity(m,n,q)
+turbineArray(i) % lift(m,n,q) = 0.5 * cl(m,n,q) * Vmag_i**2 * &
+                                chord_i * db_i * solidity(m,n,q)
 
 ! Drag force
-turbineArray(i) % drag(m,n,q) = 0.5 * cd_i * Vmag_i**2 * chord_i * db_i * solidity(m,n,q)
+turbineArray(i) % drag(m,n,q) = 0.5 * cd(m,n,q) * Vmag_i**2 * &
+                                chord_i * db_i * solidity(m,n,q)
 
-!write(*,*) 'cd_i = ',cd_i
-!write(*,*) 'Vmag_i = ',Vmag_i
-!write(*,*) 'chord_i = ',chord_i
-!write(*,*) 'db_i = ',db_i
-!write(*,*) 'solidity(m,n,q) = ',solidity(m,n,q)
 
-!write(*,*)'Lift Force = ',turbineArray(i) % lift(m,n,q)
-!write(*,*)'Drag Force = ',turbineArray(i) % drag(m,n,q)
-
+! This vector projects the drag onto the local coordinate system
 dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +  &
              bladeAlignedVectors(m,n,q,2,:)*windVectors(m,n,q,2)
 
@@ -580,13 +518,16 @@ dragVector = vector_divide(dragVector,vector_mag(dragVector) )
 liftVector = cross_product(dragVector,bladeAlignedVectors(m,n,q,3,:) )
 liftVector = vector_divide(liftVector,vector_mag(liftVector))
 
+! Apply the lift and drag as vectors
 liftVector = -turbineArray(i) % lift(m,n,q) * liftVector;
 dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 
+! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
-turbineArray(i) % bladeForcesDummy(m,n,q,:) = turbineArray(i) % bladeForces(m,n,q,:)
-!write(*,*) 'turbineArray(i) % bladeForces(m,n,q,:) = ', turbineArray(i) % bladeForces(m,n,q,:)
 
+! bladeForcesDummy is used for parallelization purposes
+turbineArray(i) % bladeForcesDummy(m,n,q,:) =                                 &
+turbineArray(i) % bladeForces(m,n,q,:)
 
 end subroutine atm_computeBladeForce
 
@@ -641,40 +582,7 @@ endif
 end subroutine atm_yawNacelle
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function atm_convoluteForce(i,m,n,q,xyz)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine will convolute the body forces onto a point xyz
-integer, intent(in) :: i,m,n,q
-! i - turbineTypeArray
-! n - numAnnulusSections
-! q - numBladePoints
-! m - numBl
-real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force 
-real(rprec) :: Force(3)   ! The blade force to be convoluted
-real(rprec) :: dis                ! Distance onto which convolute the force
-real(rprec) :: atm_convoluteForce(3)    ! The local velocity at this point
-real(rprec) :: kernel                ! Gaussian dsitribution value
-
-dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
-Force=turbineArray(i) % bladeForces(m,n,q,:)
-kernel=exp(-(dis/turbineArray(i) % epsilon)**2.) / &
-((turbineArray(i) % epsilon**3.)*(pi**1.5))
-atm_convoluteForce = Force * kernel
-
-
-!if (dis .le. 10.) then
-!write(*,*) 'Kernel, distance and Force are = ',kernel, dis
-!write(*,*) 'dis= ', dis, 'kernel = ', kernel
-!write(*,*) 'Forces are = ', Force
-!write(*,*) 'Convoluted force = ',atm_convoluteForce
-!    write(*,*) 'epsilon = ', turbineArray(i) % epsilon
-!endif
-
-return
-end function atm_convoluteForce
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine compassToStandard(dir)
+subroutine atm_compassToStandard(dir)
 ! This function converts nacelle yaw from compass directions to the standard
 ! convention of 0 degrees on the + x axis with positive degrees
 ! in the counter-clockwise direction.
@@ -689,193 +597,85 @@ if (dir < 0.0) then
     dir = dir + 360.0
 endif
  
-end subroutine compassToStandard
+end subroutine atm_compassToStandard
 
-!-------------------------------------------------------------------------------
-function interpolate(xp,x,y)
-! This function interpolates xp from x and y 
-!-------------------------------------------------------------------------------
-real(rprec), dimension(:), intent(in) :: x,y
-real(rprec), intent(in) ::  xp
-real(rprec) :: xa, xb, ya, yb
-integer :: i,p
-real(rprec) :: interpolate
-p=size(x)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_compute_power(i)
+! This subroutine will calculate the total power of the turbine
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
 
-if (xp <= x(1)) then 
-    interpolate=y(1)
-else if (xp>=x(p)) then
-    interpolate=y(p)
-else
-    do i=2,p
-        if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
-            xa=x(i-1)
-            xb=x(i)
-            ya=y(i-1)
-            yb=y(i)
-            interpolate = ya + (yb-ya) * (xp-xa) / (xb-xa) 
-        endif
-    enddo
-endif
-return
-end function interpolate
+integer, intent(in) :: i
+integer :: m,n,q,j
 
-!-------------------------------------------------------------------------------
-integer function interpolate_i(xp,x,y)
-! This function interpolates xp from x and y 
-!-------------------------------------------------------------------------------
-real(rprec), dimension(:), intent(in) :: x
-integer, dimension(:), intent(in) :: y
-real(rprec), intent(in) ::  xp
-real(rprec) :: xa,xb,ya,yb
-integer :: i,p
-p=size(x)
+j=turbineArray(i) % turbineTypeID
+ 
+turbineArray(i) % thrust = 0. ! Initialize axial force to zero
+turbineArray(i) % powerRotor = 0. ! Initialize power to zero
 
-if (xp .lt. x(1)) then
-    interpolate_i=y(1) 
-    else if (xp .gt. x(p)) then
-        interpolate_i=y(p)
-    else
-        do i=2,p
-            if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
-                xa=x(i-1)
-                xb=x(i)
-                ya=real(y(i-1),rprec)
-                yb=real(y(i),rprec)
-                interpolate_i=nint( ya + (yb-ya) * (xp-xa) / (xb-xa) )
-!write(*,*) 'Interpolation = ', nint( ya + (yb-ya) * (xp-xa) / (yb-ya) )
-                endif
+! Rotate turbine blades, blade by blade, point by point.
+do q=1, turbineArray(i) % numBladePoints
+    do n=1, turbineArray(i) %  numAnnulusSections
+        do m=1, turbineModel(j) % numBl
+            ! Find the component of the blade element force/density in the 
+            ! axial (along the shaft) direction.
+            turbineArray(i) % axialForce(m,n,q) = dot_product(                 &
+            -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
+
+            !Find the component of the blade element force/density in the 
+            !tangential (torque-creating) direction.
+            turbineArray(i) % tangentialForce(m,n,q) = dot_product(            &
+            turbineArray(i) % bladeForces(m,n,q,:) ,                           &
+            turbineArray(i) % bladeAlignedVectors(m,n,q,2,:))
+
+            ! Add this blade element's contribution to thrust to the total 
+            ! turbine thrust.
+            turbineArray(i) % thrust = turbineArray(i) % thrust +              &
+            turbineArray(i) % axialForce(m,n,q)
+
+            ! Add this blade element's contribution to aerodynamic torque to 
+            !the total turbine aerodynamic torque.
+            turbineArray(i) % torqueRotor = turbineArray(i) % torqueRotor +    &
+            turbineArray(i) % tangentialForce(m,n,q) *                         &
+            turbineArray(i) % bladeRadius(m,n,q) *                             &
+            cos(turbineModel(j) % PreCone)
         enddo
-endif
-!write(*,*) 'Value of y = ', ya, yb
-!write(*,*) 'Value of x = ', xa, xb
-!write(*,*) 'Value of xp = ', xp
-!write(*,*) 'Value of p = ', p
-!write(*,*) 'Interpolated Value = ', interpolate_i
+    enddo
+enddo
+
+end subroutine atm_compute_power
+
+!-------------------------------------------------------------------------------
+function atm_convoluteForce(i,m,n,q,xyz)
+!-------------------------------------------------------------------------------
+! This subroutine will convolute the body forces onto a point xyz
+integer, intent(in) :: i,m,n,q
+! i - turbineTypeArray
+! n - numAnnulusSections
+! q - numBladePoints
+! m - numBl
+real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force 
+real(rprec) :: Force(3)   ! The blade force to be convoluted
+real(rprec) :: dis                ! Distance onto which convolute the force
+real(rprec) :: atm_convoluteForce(3)    ! The local velocity at this point
+real(rprec) :: kernel                ! Gaussian dsitribution value
+
+! Distance from the point of the force to the point where it is being convoluted
+dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
+
+! The force which is being convoluted
+Force=turbineArray(i) % bladeForces(m,n,q,:)
+
+! The value of the kernel. This is the actual smoothing function
+kernel=exp(-(dis/turbineArray(i) % epsilon)**2.) / &
+((turbineArray(i) % epsilon**3.)*(pi**1.5))
+
+! The force times the kernel will give the force/unitVolume
+atm_convoluteForce = Force * kernel
+
 return
-end function interpolate_i
+end function atm_convoluteForce
 
-!-------------------------------------------------------------------------------
-function vector_add(a,b)
-! This function adds 2 vectors (arrays real(rprec), dimension(3))
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a,b
-real(rprec), dimension(3) :: vector_add
-vector_add(1)=a(1)+b(1)
-vector_add(2)=a(2)+b(2)
-vector_add(3)=a(3)+b(3)
-return
-end function vector_add
-
-!-------------------------------------------------------------------------------
-function vector_divide(a,b)
-! This function divides one vector (array real(rprec), dimension(3) by a number)
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a
-real(rprec), intent(in) :: b
-real(rprec), dimension(3) :: vector_divide
-vector_divide(1)=a(1)/b
-vector_divide(2)=a(2)/b
-vector_divide(3)=a(3)/b
-return
-end function vector_divide
-
-!-------------------------------------------------------------------------------
-function vector_multiply(a,b)
-! This function multiplies one vector (array real(rprec), dimension(3) by
-! a real(rprec) number)
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a
-real(rprec), intent(in) :: b
-real(rprec), dimension(3) :: vector_multiply
-vector_multiply(1)=a(1)*b
-vector_multiply(2)=a(2)*b
-vector_multiply(3)=a(3)*b
-return
-end function vector_multiply
-
-!-------------------------------------------------------------------------------
-function vector_mag(a)
-! This function calculates the magnitude of a vector
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a
-real(rprec) :: vector_mag
-vector_mag=abs(sqrt(a(1)**2+a(2)**2+a(3)**2))
-return
-end function vector_mag
-
-!-------------------------------------------------------------------------------
-function rotatePoint(point_in, rotationPoint, axis, angle)
-! This function performs rotation of a point with respect to an axis or rotation
-! and a certain angle
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: point_in
-real(rprec), dimension(3), intent(in) :: rotationPoint
-real(rprec), dimension(3), intent(in) :: axis
-real(rprec), intent(in) :: angle
-real(rprec), dimension(3,3) :: RM ! Rotation Matrix tensor
-real(rprec), dimension(3) :: rotatePoint, point
-
-point=point_in
-
-RM(1,1) = axis(1)**2 + (1.0 - axis(1)**2) * cos(angle)
-RM(1,2) = axis(1) * axis(2) * (1.0 - cos(angle)) - axis(3) * sin(angle)
-RM(1,3) = axis(1) * axis(3) * (1.0 - cos(angle)) + axis(2) * sin(angle)
-RM(2,1) = axis(1) * axis(2) * (1.0 - cos(angle)) + axis(3) * sin(angle)
-RM(2,2) = axis(2)**2 + (1.0 - axis(2)**2) * cos(angle)
-RM(2,3) = axis(2) * axis(3) * (1.0 - cos(angle)) - axis(1) * sin(angle)
-RM(3,1) = axis(1) * axis(3) * (1.0 - cos(angle)) - axis(2) * sin(angle)
-RM(3,2) = axis(2) * axis(3) * (1.0 - cos(angle)) + axis(1) * sin(angle)
-RM(3,3) = axis(3)**2 + (1.0 - axis(3)**2) * cos(angle)
-
-! Rotation matrices make a rotation about the origin, so need to subtract 
-! rotation point off the point to be rotated
-point=vector_add(point,-rotationPoint)
-
-! Perform rotation (multiplication matrix and vector)
-point=matrix_vector(RM,point)
-
-! Return the rotated point to its new location relative to the rotation point
-rotatePoint = point + rotationPoint
-
-return 
-end function rotatePoint
-
-!-------------------------------------------------------------------------------
-function matrix_vector(RM,point)
-! This function multiplies a matrix and a vector
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3,3), intent(in) :: RM ! Matrix
-real(rprec), dimension(3), intent(in) :: point ! vector point
-real(rprec), dimension(3) :: matrix_vector
-! Perform rotation
-matrix_vector(1)=RM(1,1)*point(1)+RM(1,2)*point(2)+RM(1,3)*point(3)
-matrix_vector(2)=RM(2,1)*point(1)+RM(2,2)*point(2)+RM(2,3)*point(3)
-matrix_vector(3)=RM(3,1)*point(1)+RM(3,2)*point(2)+RM(3,3)*point(3)
-return
-end function matrix_vector
-
-!-------------------------------------------------------------------------------
-function cross_product(u,v)
-! This function calculates the cross product of 2 vectors
-!-------------------------------------------------------------------------------
-real(rprec), intent(in) :: u(3),v(3)
-real(rprec) :: cross_product(3)
-cross_product(1) = u(2)*v(3)-u(3)*v(2)
-cross_product(2) = u(3)*v(1)-u(1)*v(3)
-cross_product(3) = u(1)*v(2)-u(2)*v(1)
-return
-end function cross_product
-
-!-------------------------------------------------------------------------------
-function distance(a,b)
-! This function calculates the distance between a(1,2,3) and b(1,2,3)
-!-------------------------------------------------------------------------------
-real(rprec), dimension(3), intent(in) :: a,b
-real(rprec) :: distance
-distance=abs(sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2))
-return
-end function distance
 
 
 end module actuator_turbine_model

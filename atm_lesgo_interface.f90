@@ -213,20 +213,20 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
     enddo
 endif
 
-    ! Calculate forces for all turbines
-    do i=1,numberOfTurbines
-        call atm_lesgo_force(i)
-    enddo
+! Calculate forces for all turbines
+do i=1,numberOfTurbines
+    call atm_lesgo_force(i)
+enddo
 
-    ! This will gather all the blade forces from all processors
-    $if ($MPI)
+! This will gather all the blade forces from all processors
+$if ($MPI)
     do i=1,numberOfTurbines
         call mpi_allreduce(turbineArray(i) % bladeForcesDummy,         &
                            turbineArray(i) % bladeForces,             &
                            size(turbineArray(i) % bladeForces),       &
                            mpi_rprec, mpi_sum, comm, ierr) 
     enddo
-    $endif
+$endif
 
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
 
@@ -293,7 +293,7 @@ do q=1, turbineArray(i) % numBladePoints
 
             ! Non-dimensionalizes the point location 
             xyz=vector_divide(xyz,z_i)
-!write(*,*) 'size z = ', size(z)
+
             ! Interpolate velocities if inside the domain
             if (  z(lbz) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
                 velocity(1)=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
@@ -302,7 +302,7 @@ do q=1, turbineArray(i) % numBladePoints
 
                 ! This will compute the blade force for the specific point
                 call atm_computeBladeForce(i,m,n,q,velocity)
-!                write(*,*) 'Blade Force is = ',turbineArray(i) % bladeForces(m,n,q,:)
+
             endif
 
         enddo
@@ -336,10 +336,9 @@ do c=1,size(forceFieldUV)
                    turbineArray(i) % bladePoints(m,n,q,:)) >=                  &
                    3.*turbineArray(i) % epsilon) cycle
 
-                forceFieldUV(c) % force = vector_add( forceFieldUV(c) % force ,            &
+                forceFieldUV(c) % force = forceFieldUV(c) % force +            &
                 atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location)     &
-                *z_i/(u_star**2.))
-!                *(dx*dy*dz*z_i**3.)/(u_star**2.*z_i**2.) )
+                *z_i/(u_star**2.)
 
             enddo
         enddo
@@ -354,13 +353,10 @@ do c=1,size(forceFieldW)
                    turbineArray(i) % bladePoints(m,n,q,:)) >=                  &
                    3.*turbineArray(i) % epsilon) cycle
 
-                forceFieldW(c) % force = vector_add( forceFieldW(c) % force   ,            &
+                forceFieldW(c) % force = forceFieldW(c) % force +              &
                 atm_convoluteForce(i, m, n, q, forceFieldW(c) % location)      &
-                *z_i/(u_star**2.))
-!                *(dx*dy*dz*z_i**3.)/(u_star**2.*z_i**2.)  )
-!write(*,*) 'Z_i=',z_i
-!write(*,*) 'u_star=',u_star
-!                write(*,*) forceFieldW(c) % force
+                *z_i/(u_star**2.)
+
             enddo
         enddo
     enddo

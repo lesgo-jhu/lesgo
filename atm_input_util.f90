@@ -74,6 +74,9 @@ type turbineArray_t
     type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
     type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForces
+    ! This dummy variable is used for MPI purposes of doing MPI_SUM on
+    ! the forces for all processors, since forces are only computed at
+    ! processors which contain the points
     type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForcesDummy
     ! Vectors at each actuator point defining the local reference frame
     ! (blade, annular section, point, 3, 3) (three vectors)
