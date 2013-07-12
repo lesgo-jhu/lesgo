@@ -249,7 +249,8 @@ $endif
 
 !call atm_lesgo_write_output()
 
-
+! This will write all the output from the model
+!call atm_output()
 
 
 end subroutine atm_lesgo_forcing
@@ -295,7 +296,7 @@ do q=1, turbineArray(i) % numBladePoints
             xyz=vector_divide(xyz,z_i)
 
             ! Interpolate velocities if inside the domain
-            if (  z(lbz) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
+            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
                 velocity(1)=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
                 velocity(2)=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
                 velocity(3)=trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
