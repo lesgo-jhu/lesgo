@@ -41,7 +41,7 @@ private
 public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
           vector_add, vector_divide, vector_mag, distance,                  &
-          atm_convoluteForce
+          atm_convoluteForce, atm_output
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1.) 
@@ -600,6 +600,20 @@ endif
 end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_output()
+! This subroutine will calculate the output of the model
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer :: i
+
+do i=1,numberOfTurbines
+    call atm_compute_power(i)
+enddo
+
+end subroutine atm_output
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_compute_power(i)
 ! This subroutine will calculate the total power of the turbine
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -642,6 +656,9 @@ do q=1, turbineArray(i) % numBladePoints
         enddo
     enddo
 enddo
+turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor * turbineArray(i) % rotSpeed
+
+write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
 
 end subroutine atm_compute_power
 
