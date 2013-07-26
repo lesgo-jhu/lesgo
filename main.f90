@@ -74,7 +74,7 @@ integer :: nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
-type(clock_t) :: clock, clock_total
+type(clock_t) :: clock, clock_total, clock_forcing
 
 $if($MPI)
 ! Buffers used for MPI communication
@@ -301,7 +301,15 @@ time_loop: do jt_total=nstart,nsteps
     !  Look in sim_param.f90 for the assignment of the arrays.
         
     !  Applied forcing (forces are added to RHS{x,y,z})
+
+    ! Calculate forcing time
+    call clock_start( clock_forcing )  
+
+    ! Apply forcing. These forces will later go into RHS
     call forcing_applied()
+
+    ! Calculate forcing time
+    call clock_stop( clock_forcing )
 
     !  Update RHS with applied forcing
     $if ($LVLSET)
@@ -471,6 +479,7 @@ time_loop: do jt_total=nstart,nsteps
           write(*,'(1a)') 'Simulation wall times (s): '
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
+          write(*,'(1a,E15.7)') '  Forcing: ', clock_forcing % time
           write(*,'(a)') '========================================'
        end if
 
