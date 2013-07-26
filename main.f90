@@ -70,7 +70,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: nstart
+integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
@@ -105,7 +105,7 @@ call clock_start( clock_total )
 nstart = jt_total+1
 
 ! BEGIN TIME LOOP
-time_loop: do jt_total=nstart,nsteps   
+time_loop: do jt_step = nstart, nsteps   
   
    ! Get the starting time for the iteration
    call clock_start( clock )
@@ -122,6 +122,7 @@ time_loop: do jt_total=nstart,nsteps
    endif
 
    ! Advance time
+   jt_total = jt_step
    jt = jt + 1
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
