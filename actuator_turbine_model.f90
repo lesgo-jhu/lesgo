@@ -41,7 +41,8 @@ private
 public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
           vector_add, vector_divide, vector_mag, distance,                  &
-          atm_convoluteForce, atm_output
+          atm_convoluteForce, atm_output, atm_process_output,               &
+          atm_initialize_output
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1.) 
@@ -83,6 +84,25 @@ end do
 pastFirstTimeStep=.true. ! Past the first time step
 
 end subroutine atm_initialize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_initialize_output()
+! This subroutine initializes the output files for the ATM
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+! Create turbineOutput directory
+call system("mkdir -vp turbineOutput") 
+
+open(unit=1, file="./turbineOutput/power")       ! Data Output
+write(1,*) 'turbineNumber Power'
+close(1)
+
+open(unit=1, file="./turbineOutput/lift")       ! Lift blade file
+write(1,*) 'turbineNumber bladeNumber '
+close(1)
+
+end subroutine atm_initialize_output
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_create_points(i)
@@ -605,11 +625,39 @@ subroutine atm_output()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-integer :: i
+integer :: i, j, m
+integer :: powerFile=11, bladeFile=12, liftFile=13, liftCoeffFile=14
+
+! File for power output
+open(unit=powerFile,position="append", file="./turbineOutput/power")
+
+! File for blade output
+open(unit=bladeFile,position="append", file="./turbineOutput/blade")
+
+! File for blade output
+open(unit=liftFile,position="append", file="./turbineOutput/lift")
+
+! File for blade output
+open(unit=liftCoeffFile,position="append", file="./turbineOutput/liftCoeff")
 
 do i=1,numberOfTurbines
+
+    j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
     call atm_compute_power(i)
+    write(powerFile,*) i, turbineArray(i) % powerRotor
+
+    ! Will write only the first actuator section of the blade
+    do m=1, turbineModel(j) % numBl
+        write(bladeFile,*) i, turbineArray(i) % bladeRadius(m,1,:)
+        write(liftFile,*) i, turbineArray(i) % lift(m,1,:)
+        write(liftCoeffFile,*) i, turbineArray(i) % cl(m,1,:)
+
+    enddo
+
 enddo
+
+close(powerFile)
 
 end subroutine atm_output
 
@@ -620,47 +668,49 @@ subroutine atm_compute_power(i)
 implicit none
 
 integer, intent(in) :: i
-integer :: m,n,q,j
 
-j=turbineArray(i) % turbineTypeID
- 
-turbineArray(i) % thrust = 0. ! Initialize axial force to zero
-turbineArray(i) % powerRotor = 0. ! Initialize power to zero
-
-! Rotate turbine blades, blade by blade, point by point.
-do q=1, turbineArray(i) % numBladePoints
-    do n=1, turbineArray(i) %  numAnnulusSections
-        do m=1, turbineModel(j) % numBl
-            ! Find the component of the blade element force/density in the 
-            ! axial (along the shaft) direction.
-            turbineArray(i) % axialForce(m,n,q) = dot_product(                 &
-            -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
-
-            !Find the component of the blade element force/density in the 
-            !tangential (torque-creating) direction.
-            turbineArray(i) % tangentialForce(m,n,q) = dot_product(            &
-            turbineArray(i) % bladeForces(m,n,q,:) ,                           &
-            turbineArray(i) % bladeAlignedVectors(m,n,q,2,:))
-
-            ! Add this blade element's contribution to thrust to the total 
-            ! turbine thrust.
-            turbineArray(i) % thrust = turbineArray(i) % thrust +              &
-            turbineArray(i) % axialForce(m,n,q)
-
-            ! Add this blade element's contribution to aerodynamic torque to 
-            !the total turbine aerodynamic torque.
-            turbineArray(i) % torqueRotor = turbineArray(i) % torqueRotor +    &
-            turbineArray(i) % tangentialForce(m,n,q) *                         &
-            turbineArray(i) % bladeRadius(m,n,q) *                             &
-            cos(turbineModel(j) % PreCone)
-        enddo
-    enddo
-enddo
-turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor * turbineArray(i) % rotSpeed
+turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor *  &
+                               turbineArray(i) % rotSpeed
 
 write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
 
 end subroutine atm_compute_power
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_process_output(i,m,n,q)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will process the output for an individual actuator point
+! Important quantities such as power, thrust, ect are calculated here
+implicit none
+
+integer, intent(in) :: i,m,n,q
+integer :: j
+! Identify the turbine type
+j=turbineArray(i) % turbineTypeID
+
+turbineArray(i) % axialForce(m,n,q) = dot_product(                 &
+-turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
+
+! Find the component of the blade element force/density in the 
+! tangential (torque-creating) direction.
+turbineArray(i) % tangentialForce(m,n,q) = dot_product(            &
+                  turbineArray(i) % bladeForces(m,n,q,:) ,    &
+                  turbineArray(i) % bladeAlignedVectors(m,n,q,2,:))
+
+! Add this blade element's contribution to thrust to the total 
+! turbine thrust.
+turbineArray(i) % thrust = turbineArray(i) % thrust +                          &
+                           turbineArray(i) % axialForce(m,n,q)
+
+! Add this blade element's contribution to aerodynamic torque to 
+! the total turbine aerodynamic torque.
+turbineArray(i) % torqueRotor = turbineArray(i) % torqueRotor +                &
+                                turbineArray(i) % tangentialForce(m,n,q) *     &
+                                turbineArray(i) % bladeRadius(m,n,q) *         &
+                                cos(turbineModel(j) % PreCone)
+
+
+end subroutine
 
 !-------------------------------------------------------------------------------
 function atm_convoluteForce(i,m,n,q,xyz)
