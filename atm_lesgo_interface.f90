@@ -58,7 +58,8 @@ use functions, only : trilinear_interp, interp_to_uv_grid
 ! Actuator Turbine Model module
 use atm_base
 use actuator_turbine_model
-use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace
+use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
+                           atm_print_initialize
 
 implicit none
 
@@ -178,6 +179,15 @@ do i=1,nx ! Loop through grid points in x
     enddo
 enddo
 
+$if ($MPI)
+    call mpi_barrier( comm, ierr )
+
+    if (coord == 0) then
+        call atm_initialize_output()
+        call atm_print_initialize()
+    endif
+$endif
+
 end subroutine atm_lesgo_initialize
 
 
@@ -191,6 +201,7 @@ integer :: i, c
 ! Establish all turbine forces as zero
 do i=1,numberOfTurbines
     turbineArray(i) % bladeForces = 0._rprec
+    turbineArray(i) % torqueRotor = 0._rprec
 enddo
 
 ! Get the velocity from w onto the uv grid
@@ -220,12 +231,8 @@ enddo
 
 ! This will gather all the blade forces from all processors
 $if ($MPI)
-    do i=1,numberOfTurbines
-        call mpi_allreduce(turbineArray(i) % bladeForcesDummy,         &
-                           turbineArray(i) % bladeForces,             &
-                           size(turbineArray(i) % bladeForces),       &
-                           mpi_rprec, mpi_sum, comm, ierr) 
-    enddo
+    ! This will gather all values used in MPI
+    call atm_lesgo_mpi_gather()
 $endif
 
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
@@ -240,20 +247,46 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
     call atm_lesgo_apply_force()
 endif
 
-! Sync the fxa fya and fza variables
 $if ($MPI)
+! Sync the fxa fya and fza variables
     call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
     call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
     call mpi_sync_real_array( fza, 1, MPI_SYNC_DOWN )
 $endif
 
-!call atm_lesgo_write_output()
-
 ! This will write all the output from the model
-!call atm_output()
-
+if (coord == 0) then
+    call atm_output()
+endif 
 
 end subroutine atm_lesgo_forcing
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_lesgo_mpi_gather()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will gather the necessary outputs from the turbine models
+! so all processors have acces to it
+
+integer :: i
+real(rprec) :: torqueRotor
+
+do i=1,numberOfTurbines
+
+    ! Sync all the blade forces
+    call mpi_allreduce(turbineArray(i) % bladeForcesDummy,              &
+                       turbineArray(i) % bladeForces,                   &
+                       size(turbineArray(i) % bladeForces),             &
+                       mpi_rprec, mpi_sum, comm, ierr) 
+
+    ! Store the power. Needs to be a different variable in order to do MPI Sum
+    torqueRotor=turbineArray(i) % torqueRotor
+    ! Sum all the individual power from different blade points
+    call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
+                       1, mpi_rprec, mpi_sum, comm, ierr) 
+enddo
+
+end subroutine atm_lesgo_mpi_gather
+
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_force(i)
@@ -303,13 +336,13 @@ do q=1, turbineArray(i) % numBladePoints
 
                 ! This will compute the blade force for the specific point
                 call atm_computeBladeForce(i,m,n,q,velocity)
-
+                ! Calculate output quantities based on each point
+                call atm_process_output(i,m,n,q)
             endif
 
         enddo
     enddo
 enddo
-!write(*,*) 'Z is = ',z(1),z(nz-1),z(nz)
 
 end subroutine atm_lesgo_force
 
@@ -387,11 +420,6 @@ do c=1,size(forceFieldUV)
 
     fxa(i,j,k) = fxa(i,j,k) + forceFieldUV(c) % force(1) 
     fya(i,j,k) = fya(i,j,k) + forceFieldUV(c) % force(2) 
-!if (abs(forceFieldUV(c) % force(1))>0.) then
-!write(*,*) 'forceFieldUV = ',forceFieldUV(c) % force(1)
-!write(*,*) 'fxa = ',fxa(i,j,k)
-!write(*,*) 'Size is = ',size(forceFieldUV)
-!endif
 
 enddo
 
