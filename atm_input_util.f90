@@ -257,13 +257,13 @@ do
     ! This will read the numberOfTurbines integer
         if( buff(1:16) == 'numberOfTurbines' ) then
             read(buff(17:), *) numberOfTurbines
-            write(*,*) 'numberOfTurbines is: ', numberOfTurbines
+!            write(*,*) 'numberOfTurbines is: ', numberOfTurbines
             ! Allocate space for the wind turbine variables
             allocate(turbineArray(numberOfTurbines))
             cycle
         else if( buff(1:14) == 'outputInterval' ) then
             read(buff(15:), *) outputInterval
-            write(*,*)  'outputInterval is: ', outputInterval
+!            write(*,*)  'outputInterval is: ', outputInterval
             cycle
         endif
 
@@ -277,54 +277,54 @@ do
     if (block_entry_pos == 0) then ! This will start reading turbine block
         if( buff(1:11) == 'turbineType' ) then
             read(buff(12:), *) turbineArray(n) % turbineType
-            write(*,*)  'turbineType is: ', turbineArray(n) % turbineType
+!            write(*,*)  'turbineType is: ', turbineArray(n) % turbineType
         endif
         if( buff(1:12) == 'baseLocation' ) then
             read(buff(13:), *) turbineArray(n) % baseLocation  
-            write(*,*)  'baseLocation is: ', turbineArray(n) % baseLocation      
+!            write(*,*)  'baseLocation is: ', turbineArray(n) % baseLocation      
         endif        
         if( buff(1:14) == 'numBladePoints' ) then
             read(buff(15:), *) turbineArray(n) % numBladePoints
-            write(*,*)  'numBladePoints is: ', turbineArray(n) % numBladePoints
+!            write(*,*)  'numBladePoints is: ', turbineArray(n) % numBladePoints
             ! Allocation depending on the number of blade points
         endif
         if( buff(1:7) == 'epsilon' ) then
             read(buff(8:), *) turbineArray(n) % epsilon
-            write(*,*)  'epsilon is: ', turbineArray(n) % epsilon
+!            write(*,*)  'epsilon is: ', turbineArray(n) % epsilon
         endif
         if( buff(1:11) == 'rotationDir' ) then
             read(buff(12:), *) turbineArray(n) % rotationDir
-            write(*,*)  'rotationDir is: ', turbineArray(n) % rotationDir
+!            write(*,*)  'rotationDir is: ', turbineArray(n) % rotationDir
         endif
         if( buff(1:7) == 'Azimuth' ) then
             read(buff(8:), *) turbineArray(n) % Azimuth
-            write(*,*)  'Azimuth is: ', turbineArray(n) % Azimuth
+!            write(*,*)  'Azimuth is: ', turbineArray(n) % Azimuth
         endif
         if( buff(1:8) == 'RotSpeed' ) then
             read(buff(9:), *) turbineArray(n) % RotSpeed
-            write(*,*)  'RotSpeed is: ', turbineArray(n) % RotSpeed
+!            write(*,*)  'RotSpeed is: ', turbineArray(n) % RotSpeed
         endif
         if( buff(1:5) == 'Pitch' ) then
             read(buff(6:), *) turbineArray(n) % Pitch
-            write(*,*)  'Pitch is: ', turbineArray(n) % Pitch
+!            write(*,*)  'Pitch is: ', turbineArray(n) % Pitch
         endif
         if( buff(1:6) == 'NacYaw' ) then
             read(buff(7:), *) turbineArray(n) % NacYaw
-            write(*,*)  'NacYaw is: ', turbineArray(n) % NacYaw
+!            write(*,*)  'NacYaw is: ', turbineArray(n) % NacYaw
         endif
         if( buff(1:12) == 'fluidDensity' ) then
             read(buff(13:), *) turbineArray(n) % fluidDensity
-            write(*,*)  'fluidDensity is: ', turbineArray(n) % fluidDensity
+!            write(*,*)  'fluidDensity is: ', turbineArray(n) % fluidDensity
         endif
         if( buff(1:18) == 'numAnnulusSections' ) then
             read(buff(19:), *) turbineArray(n) % numAnnulusSections
-            write(*,*)  'numAnnulusSections is: ', &
-                         turbineArray(n) % numAnnulusSections
+!            write(*,*)  'numAnnulusSections is: ', &
+!                         turbineArray(n) % numAnnulusSections
         endif      
         if( buff(1:19) == 'annulusSectionAngle' ) then
             read(buff(20:), *) turbineArray(n) % annulusSectionAngle
-            write(*,*)  'annulusSectionAngle is: ', &
-                         turbineArray(n) % annulusSectionAngle
+!            write(*,*)  'annulusSectionAngle is: ', &
+!                         turbineArray(n) % annulusSectionAngle
         endif   
     endif        
 end do
@@ -399,8 +399,8 @@ do i = 1, numTurbinesDistinct
         call error ('file ' // input_turbine // ' does not exist')
     endif
 
-    write(*,*) 'Reading Turbine Model Properties for: ', &
-                turbineModel(i) % turbineType
+!    write(*,*) 'Reading Turbine Model Properties for: ', &
+!                turbineModel(i) % turbineType
     ! Read the file line by line - starts at 0 and modified inside subroutine
     line = 0
     do
@@ -411,39 +411,39 @@ do i = 1, numTurbinesDistinct
         ! This will all the input variables
         if( buff(1:5) == 'NumBl' ) then
             read(buff(6:), *) turbineModel(i) % NumBl
-            write(*,*) 'NumBl is: ', turbineModel(i) % NumBl
+!            write(*,*) 'NumBl is: ', turbineModel(i) % NumBl
         endif
         if( buff(1:6) == 'TipRad' ) then
             read(buff(7:), *) turbineModel(i) % TipRad
-            write(*,*) 'TipRad is: ', turbineModel(i) % TipRad
+!            write(*,*) 'TipRad is: ', turbineModel(i) % TipRad
         endif
         if( buff(1:6) == 'HubRad' ) then
             read(buff(7:), *) turbineModel(i) % HubRad
-            write(*,*) 'HubRad is: ', turbineModel(i) % HubRad
+!            write(*,*) 'HubRad is: ', turbineModel(i) % HubRad
         endif
         if( buff(1:8) == 'UndSling' ) then
             read(buff(9:), *) turbineModel(i) % UndSling
-            write(*,*) 'UndSling is: ', turbineModel(i) % UndSling
+!            write(*,*) 'UndSling is: ', turbineModel(i) % UndSling
         endif
         if( buff(1:8) == 'OverHang' ) then
             read(buff(9:), *) turbineModel(i) % OverHang
-            write(*,*) 'OverHang is: ', turbineModel(i) % OverHang
+!            write(*,*) 'OverHang is: ', turbineModel(i) % OverHang
         endif
         if( buff(1:7) == 'TowerHt' ) then
             read(buff(8:), *) turbineModel(i) % TowerHt
-            write(*,*) 'TowerHt is: ', turbineModel(i) % TowerHt
+!            write(*,*) 'TowerHt is: ', turbineModel(i) % TowerHt
         endif
         if( buff(1:8) == 'Twr2Shft' ) then
             read(buff(9:), *) turbineModel(i) % Twr2Shft
-            write(*,*) 'Twr2Shft is: ', turbineModel(i) % Twr2Shft
+!            write(*,*) 'Twr2Shft is: ', turbineModel(i) % Twr2Shft
         endif
         if( buff(1:8) == 'ShftTilt' ) then
             read(buff(9:), *) turbineModel(i) % ShftTilt
-            write(*,*) 'ShftTilt is: ', turbineModel(i) % ShftTilt
+!            write(*,*) 'ShftTilt is: ', turbineModel(i) % ShftTilt
         endif
         if( buff(1:7) == 'PreCone' ) then
             read(buff(8:), *) turbineModel(i) % PreCone
-            write(*,*) 'PreCone is: ', turbineModel(i) % PreCone
+!            write(*,*) 'PreCone is: ', turbineModel(i) % PreCone
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -550,6 +550,21 @@ enddo
 end subroutine read_turbine_model_variables
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_print_initialize( )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Outputs the initialization to the screen
+write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+if (numberOfTurbines==1) then
+write(*,*) 'Actuator Turbine Model has been implemented with 1 turbine'
+else
+write(*,*) 'Actuator Turbine Model has been implemented with',  &
+            numberOfTurbines ,'turbines'
+endif
+write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+
+end subroutine atm_print_initialize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine read_airfoil( airfoilType )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine reads the angle of attack, lift and drag for a specific 
@@ -562,7 +577,7 @@ real(rprec) :: AOA, Cd, Cl, Cm
 ! Name of the input file to read
 input_airfoil= './inputATM/AeroData/' //trim (airfoilType % airfoilName)  &
                // '.dat'
-write (*,*) input_airfoil
+!write (*,*) input_airfoil
 ! Open airfoil input file
 open (lun, file=input_airfoil, action='read')
 
