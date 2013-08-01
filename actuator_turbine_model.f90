@@ -90,17 +90,35 @@ subroutine atm_initialize_output()
 ! This subroutine initializes the output files for the ATM
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
+logical :: file_exists
 
-! Create turbineOutput directory
-call system("mkdir -vp turbineOutput") 
+inquire(file='./turbineOutput/',EXIST=file_exists)
 
-open(unit=1, file="./turbineOutput/power")       ! Data Output
-write(1,*) 'turbineNumber Power'
-close(1)
+    if (file_exists .eqv. .false.) then
 
-open(unit=1, file="./turbineOutput/lift")       ! Lift blade file
-write(1,*) 'turbineNumber bladeNumber '
-close(1)
+    ! Create turbineOutput directory
+    call system("mkdir -v turbineOutput") 
+
+    open(unit=1, file="./turbineOutput/power")       ! Data Output
+    write(1,*) 'turbineNumber Power'
+    close(1)
+
+    open(unit=1, file="./turbineOutput/lift")       ! Lift blade file
+    write(1,*) 'turbineNumber bladeNumber '
+    close(1)
+
+    open(unit=1, file="./turbineOutput/Cl")       ! Lift blade file
+    write(1,*) 'turbineNumber bladeNumber Cl'
+    close(1)
+
+    open(unit=1, file="./turbineOutput/Cd")       ! Lift blade file
+    write(1,*) 'turbineNumber bladeNumber Cd'
+    close(1)
+
+    open(unit=1, file="./turbineOutput/alpha")       ! Lift blade file
+    write(1,*) 'turbineNumber bladeNumber alpha'
+    close(1)
+endif
 
 end subroutine atm_initialize_output
 
@@ -626,7 +644,8 @@ subroutine atm_output()
 implicit none
 
 integer :: i, j, m
-integer :: powerFile=11, bladeFile=12, liftFile=13, liftCoeffFile=14
+integer :: powerFile=11, bladeFile=12, liftFile=13, ClFile=14, CdFile=15
+integer :: alphaFile=16
 
 ! File for power output
 open(unit=powerFile,position="append", file="./turbineOutput/power")
@@ -638,7 +657,11 @@ open(unit=bladeFile,position="append", file="./turbineOutput/blade")
 open(unit=liftFile,position="append", file="./turbineOutput/lift")
 
 ! File for blade output
-open(unit=liftCoeffFile,position="append", file="./turbineOutput/liftCoeff")
+open(unit=ClFile,position="append", file="./turbineOutput/Cl")
+
+open(unit=CdFile,position="append", file="./turbineOutput/Cd")
+
+open(unit=alphaFile,position="append", file="./turbineOutput/alpha")
 
 do i=1,numberOfTurbines
 
@@ -651,14 +674,18 @@ do i=1,numberOfTurbines
     do m=1, turbineModel(j) % numBl
         write(bladeFile,*) i, turbineArray(i) % bladeRadius(m,1,:)
         write(liftFile,*) i, turbineArray(i) % lift(m,1,:)
-        write(liftCoeffFile,*) i, turbineArray(i) % cl(m,1,:)
+        write(ClFile,*) i, turbineArray(i) % cl(m,1,:)
+        write(CdFile,*) i, turbineArray(i) % cd(m,1,:)
+        write(alphaFile,*) i, turbineArray(i) % alpha(m,1,:)
 
     enddo
 
 enddo
 
 close(powerFile)
-
+close(bladeFile)
+close(liftFile)
+close(ClFile)
 end subroutine atm_output
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

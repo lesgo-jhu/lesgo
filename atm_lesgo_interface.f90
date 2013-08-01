@@ -202,6 +202,10 @@ integer :: i, c
 do i=1,numberOfTurbines
     turbineArray(i) % bladeForces = 0._rprec
     turbineArray(i) % torqueRotor = 0._rprec
+    turbineArray(i) % alpha = 0._rprec
+    turbineArray(i) % Cd = 0._rprec
+    turbineArray(i) % Cl = 0._rprec
+    turbineArray(i) % lift = 0._rprec
 enddo
 
 ! Get the velocity from w onto the uv grid
@@ -272,13 +276,42 @@ real(rprec) :: torqueRotor
 
 do i=1,numberOfTurbines
 
+    turbineArray(i) % bladeVectorDummy = turbineArray(i) % bladeForces
     ! Sync all the blade forces
-    call mpi_allreduce(turbineArray(i) % bladeForcesDummy,              &
+    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,              &
                        turbineArray(i) % bladeForces,                   &
-                       size(turbineArray(i) % bladeForces),             &
+                       size(turbineArray(i) % bladeVectorDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
 
-    ! Store the power. Needs to be a different variable in order to do MPI Sum
+    ! Sync alpha
+    turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
+                       turbineArray(i) % alpha,                         &
+                       size(turbineArray(i) % bladeScalarDummy),             &
+                       mpi_rprec, mpi_sum, comm, ierr) 
+    ! Sync lift
+    turbineArray(i) % bladeScalarDummy = turbineArray(i) % lift
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
+                       turbineArray(i) % lift,                         &
+                       size(turbineArray(i) % bladeScalarDummy),             &
+                       mpi_rprec, mpi_sum, comm, ierr) 
+    ! Sync Cl
+    turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cl
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
+                       turbineArray(i) % Cl,                         &
+                       size(turbineArray(i) % bladeScalarDummy),             &
+                       mpi_rprec, mpi_sum, comm, ierr) 
+
+    ! Sync Cd
+    turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
+                       turbineArray(i) % Cd,                         &
+                       size(turbineArray(i) % bladeScalarDummy),             &
+                       mpi_rprec, mpi_sum, comm, ierr) 
+
+
+    ! Store the torqueRotor. 
+    ! Needs to be a different variable in order to do MPI Sum
     torqueRotor=turbineArray(i) % torqueRotor
     ! Sum all the individual power from different blade points
     call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &

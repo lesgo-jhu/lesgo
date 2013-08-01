@@ -101,6 +101,14 @@ type turbineArray_t
     ! Tangential force at each actuator point
     type(real(rprec)), allocatable, dimension(:,:,:) :: tangentialForce
 
+    ! These are dummies meant to be used for parallelization
+    ! bladeVectorDummy store quantities along the blades which are vectors
+    ! such as Force
+    ! bladeScalarDummy will store scalar quantities along the blades such
+    ! as lift coefficitent, angle of attack, etc
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeVectorDummy
+    type(real(rprec)), allocatable, dimension(:,:,:) :: bladeScalarDummy
+
 
     ! An indicator of shaft direction.  The convention is that when viewed
     ! from upwind, the rotor turns clockwise for positive rotation angles,
@@ -543,6 +551,12 @@ numBl=turbineModel(j) % numBl
     allocate(turbineArray(i) % axialForce(numBl,           &
              numAnnulusSections, numBladePoints))
     allocate(turbineArray(i) % tangentialForce(numBl,      &
+             numAnnulusSections, numBladePoints) )
+
+    ! Variables meant for parallelization
+    allocate(turbineArray(i) % bladeVectorDummy(numBl,          &
+             numAnnulusSections, numBladePoints,3) )
+    allocate(turbineArray(i) % bladeScalarDummy(numBl,          &
              numAnnulusSections, numBladePoints) )
 
 enddo
