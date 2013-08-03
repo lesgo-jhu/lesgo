@@ -2042,7 +2042,10 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+$if($BINARY)
+use sim_param, only : u_avg
+$endif
 $if($TURBINES)
 use sim_param, only : fxa
 $elseif($LVLSET)
@@ -2206,9 +2209,10 @@ $endif
 
 deallocate( u_w, v_w )
 
+$if($BINARY)
 ! Added to compute the average of u on the grid points and prevent the 
 ! linear interpolation, which is not exactly valid due to log profile in boundary layer
-do k=0,jzmax  
+do k=lbz,jzmax  
   do j=1,ny
     do i=1,nx
     u_p = u(i,j,k)
@@ -2216,6 +2220,7 @@ do k=0,jzmax
     enddo
   enddo
 enddo
+$endif
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
@@ -2245,7 +2250,9 @@ $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+$if($BINARY)
 use sim_param, only : u_avg
+$endif
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -2445,6 +2452,7 @@ allocate(tavg_zplane_tot(nz_tot))
 
 $endif
 
+$if($BINARY)
 !  Perform time averaging operation
 !  tavg = tavg / tavg_total_time
 do k=jzmin,jzmax
@@ -2455,6 +2463,7 @@ do k=jzmin,jzmax
     enddo
   enddo
 enddo
+$endif
 
 $if ($OUTPUT_EXTRA)
 do k=1,jzmax

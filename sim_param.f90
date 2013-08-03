@@ -53,8 +53,10 @@ real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
 
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
-    
+
+$if($BINARY)    
 real (rprec), dimension (:, :, :), allocatable :: u_avg
+$endif
     
 contains
 
@@ -315,10 +317,12 @@ do i = 1, size ( array )
         allocate ( q(ld, ny, nz) )
         q = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
+$if($BINARY)
     case ( 'u_avg' )
         allocate ( u_avg(ld, ny, nz) )
         u_avg = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
+$endif
     case default
         write (*, *) 'sim_param_init: invalid array ' // trim ( array(i) )
         stop
