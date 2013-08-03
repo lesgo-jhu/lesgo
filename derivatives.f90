@@ -66,8 +66,14 @@ const = 1._rprec / ( nx * ny )
 do jz=lbz,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
+  $if ($FFTW3)
+!  in2(:,:)=const*f(1:nx,1:ny,jz)
+  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdx(1:nx+2,1:ny,jz))
+  $else
+  !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
+  $endif
 
   ! Zero padded region and Nyquist frequency
   !  dfdx_c(lh,:,jz)=0._rprec ! Complex version
@@ -83,7 +89,11 @@ do jz=lbz,nz
   dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
 
   ! Perform inverse transform to get pseudospectral derivative
+  $if ($FFTW3)
+  call dfftw_execute_dft_c2r(plan_backward,dfdx   (1:nx+2,1:ny,jz),   dfdx(1:nx,1:ny,jz))
+  $else
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+  $endif
 
 enddo
 
@@ -118,8 +128,13 @@ const = 1._rprec / ( nx * ny )
 do jz=lbz,nz    
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
-  dfdy(:,:,jz)=const*f(:,:,jz)
+  $if ($FFTW3)
+  !in2(:,:)=const*f(1:nx,1:ny,jz)
+  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdy(1:nx+2,1:ny,jz))
+  $else
+  dfdy(:,:,jz)=const*f(:,:,jz)  
   call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
+  $endif
 
   ! Zero padded region and Nyquist frequency
   !  dfdy_c(lh,:,jz)=0._rprec ! Complex version
@@ -135,8 +150,11 @@ do jz=lbz,nz
   dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
 
   ! Perform inverse transform to get pseudospectral derivative
-  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)   
-
+  $if ($FFTW3)
+  call dfftw_execute_dft_c2r(plan_backward,dfdy   (1:nx+2,1:ny,jz),   dfdy(1:nx,1:ny,jz))
+  $else
+  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)     
+  $endif
 end do
 
 return
@@ -165,11 +183,13 @@ const = 1._rprec / ( nx * ny )
 !...Loop through horizontal slices
 do jz=lbz,nz
 ! temporay storage in dfdx_c, this was don't mess up f_c
-   !dfdx_c(:,:,jz)=const*f_c(:,:,jz)   !normalize
-   dfdx(:,:,jz) = const*f(:,:,jz)
-
-   !call rfftwnd_f77_one_real_to_complex(forw,dfdx_c(:,:,jz),ignore_me)
+   $if ($FFTW3)
+   !in2(1:nx,1:ny)=const*f(1:nx,1:ny,jz)
+   call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdx(1:nx+2,1:ny,jz))
+   $else
+   dfdx(:,:,jz) = const*f(:,:,jz)   
    call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)
+   $endif
 
    !dfdx_c(lh,:,jz)=0._rprec
    !dfdx_c(:,ny/2+1,jz)=0._rprec
@@ -185,9 +205,14 @@ do jz=lbz,nz
 ! the oddballs for derivatives should already be dead, since they are for f
 
 ! inverse transform 
+   $if ($FFTW3)
+   call dfftw_execute_dft_c2r(plan_backward,dfdx   (1:nx+2,1:ny,jz),   dfdx(1:nx,1:ny,jz))   
+   call dfftw_execute_dft_c2r(plan_backward,dfdy   (1:nx+2,1:ny,jz),   dfdy(1:nx,1:ny,jz))  
+   $else
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
-
+   $endif
+ 
 end do
 end subroutine ddxy
 
@@ -343,9 +368,13 @@ const = 1._rprec/(nx*ny)
 ! loop through horizontal slices
 do jz=lbz,nz
   
-  f(:,:,jz)=const*f(:,:,jz)   !normalize
-
+  $if ($FFTW3)
+  !in2(1:nx,1:ny)=const*f(1:nx,1:ny,jz) 
+  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),f(1:nx+2,1:ny,jz))
+  $else
+  f(:,:,jz)=const*f(:,:,jz)
   call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),fftwNull_p)
+  $endif
 
   ! what exactly is the filter doing here? in other words, why is routine
   ! called filt_da? not filtering anything
@@ -364,9 +393,15 @@ do jz=lbz,nz
 
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 
-  call rfftwnd_f77_one_complex_to_real(back,f(:,:,jz),fftwNull_p)
+  $if ($FFTW3)
+  call dfftw_execute_dft_c2r(plan_backward,f   (1:nx+2,1:ny,jz),   f(1:nx,1:ny,jz))
+  call dfftw_execute_dft_c2r(plan_backward,dfdx(1:nx+2,1:ny,jz),dfdx(1:nx,1:ny,jz))
+  call dfftw_execute_dft_c2r(plan_backward,dfdy(1:nx+2,1:ny,jz),dfdy(1:nx,1:ny,jz))
+  $else    
+  call rfftwnd_f77_one_complex_to_real(back,   f(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
+  $endif  
 
 end do
 

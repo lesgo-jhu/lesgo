@@ -91,3 +91,7 @@ endif
 ifeq ($(USE_SAFETYMODE), yes)
   FPP += -DSAFETYMODE
 endif
+
+ifeq ($(USE_FFTW3), yes)
+  FPP += -DFFTW3
+endif

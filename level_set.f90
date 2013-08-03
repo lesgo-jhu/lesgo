@@ -3159,7 +3159,6 @@ end subroutine smooth
 !  normalization is based on the planar averaged inlet velocity.
 !--Computes for all x, y, z components
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine level_set_global_CA ()
 use param, only : jt_total, dt, L_y, L_z
 use sim_param, only : fx, fy, fz
 use sim_param, only : u
