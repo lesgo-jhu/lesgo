@@ -89,6 +89,12 @@ type tavg_sgs_t
 end type tavg_sgs_t
 $endif
 
+$if($BINARY)    
+! Array used to maintain averaging of u on the uv-grid. It is only enabled when
+! BINARY is turned on.
+real (rprec), dimension (:, :, :), allocatable :: u_avg
+$endif
+
 ! Types for including wind-turbines as drag disks
 $if ($TURBINES)
 ! Single turbines

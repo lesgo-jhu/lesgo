@@ -305,17 +305,14 @@ time_loop: do jt_step = nstart, nsteps
     call forcing_applied()
 
     !  Update RHS with applied forcing
-    $if ($LVLSET)
-    $if ($RNS_LS)
+    $if ($TURBINES and not ($LVLSET and $RNS_LS))
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    $elseif ($LVLSET and $RNS_LS)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
     $endif
-    $endif
 
-    $if ($TURBINES)
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    $endif
 
     
     !//////////////////////////////////////////////////////

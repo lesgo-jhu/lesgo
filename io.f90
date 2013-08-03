@@ -1437,7 +1437,7 @@ fz(:,:,nz) = 0._rprec
 allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 
 ! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
-$if($TURBINES)
+$if($TURBINES and not $LVLSET)
 fx_tot = fxa(1:nx,1:ny,1:nz)
 fy_tot = 0._rprec
 fz_tot = 0._rprec
@@ -1923,6 +1923,9 @@ use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
+$if($BINARY)
+use stat_defs, only : u_avg
+$endif
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
@@ -2019,6 +2022,12 @@ $if($OUTPUT_EXTRA)
     
 $endif
 
+$if($BINARY)
+! Allocate the u_avg array
+allocate ( u_avg(ld, ny, nz) ); u_avg = 0.0_rprec
+$endif
+
+
 ! Initialize tavg_dt
 tavg_dt = 0.0_rprec
 
@@ -2042,11 +2051,15 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 $if($TURBINES)
 use sim_param, only : fxa
-$elseif($LVLSET)
+$endif
+$if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
+$endif
+$if($BINARY)
+use stat_defs, only : u_avg
 $endif
 
 use functions, only : interp_to_w_grid
@@ -2133,14 +2146,14 @@ do k=1,jzmax
       tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
       tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
-$if ($TURBINES)      
+$if ($TURBINES and not $LVLSET)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
 !      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
 !      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
-$elseif ($LVLSET)
+$elseif ($LVLSET )
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
@@ -2206,9 +2219,10 @@ $endif
 
 deallocate( u_w, v_w )
 
+$if($BINARY)
 ! Added to compute the average of u on the grid points and prevent the 
 ! linear interpolation, which is not exactly valid due to log profile in boundary layer
-do k=0,jzmax  
+do k=lbz,jzmax  
   do j=1,ny
     do i=1,nx
     u_p = u(i,j,k)
@@ -2216,6 +2230,7 @@ do k=0,jzmax
     enddo
   enddo
 enddo
+$endif
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
@@ -2244,8 +2259,10 @@ use stat_defs, only : rs_compute, cnpy_tavg_mul
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
+$if($BINARY)
+use stat_defs, only : u_avg
+$endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
-use sim_param, only : u_avg
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -2445,6 +2462,7 @@ allocate(tavg_zplane_tot(nz_tot))
 
 $endif
 
+$if($BINARY)
 !  Perform time averaging operation
 !  tavg = tavg / tavg_total_time
 do k=jzmin,jzmax
@@ -2455,6 +2473,7 @@ do k=jzmin,jzmax
     enddo
   enddo
 enddo
+$endif
 
 $if ($OUTPUT_EXTRA)
 do k=1,jzmax
