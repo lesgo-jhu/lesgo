@@ -105,13 +105,8 @@ call clock_start( clock_total )
 nstart = jt_total+1
 
 ! BEGIN TIME LOOP
-<<<<<<< .working
-time_loop: do jt_total=nstart,nsteps   
-  
-=======
 time_loop: do jt_step = nstart, nsteps   
   
->>>>>>> .merge-right.r3800
    ! Get the starting time for the iteration
    call clock_start( clock )
 
@@ -127,12 +122,8 @@ time_loop: do jt_step = nstart, nsteps
    endif
 
    ! Advance time
-<<<<<<< .working
-   jt = jt + 1
-=======
    jt_total = jt_step
    jt = jt + 1
->>>>>>> .merge-right.r3800
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
