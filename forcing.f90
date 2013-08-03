@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !**********************************************************************
 module forcing
 !**********************************************************************
@@ -145,8 +164,8 @@ do i = istart + 1, iend - 1
   alpha = 1.0_rprec - beta
 
   u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * inflow_velocity
+  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz)
+  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz)
 
 end do
 
@@ -270,16 +289,11 @@ $if ($MPI)
 if (coord == nproc-1) then
 $endif
 
-  if (force_top_bot .and. inflow) then
-    u(:, :, nz) = inflow_velocity
-    v(:, :, nz) = 0._rprec
-  else
-    ! no-stress top
-    u(:,:,nz)=u(:,:,nz-1)
-    ! no-stress top
-    v(:,:,nz)=v(:,:,nz-1)
-  end if
-
+  ! no-stress top
+  u(:,:,nz)=u(:,:,nz-1)
+  ! no-stress top
+  v(:,:,nz)=v(:,:,nz-1)
+  ! no permeability
   w(:, :, nz)=0._rprec
 
 $if ($MPI)
@@ -287,17 +301,11 @@ endif
 $endif
 
 if (coord == 0) then
-  ! just a test
-  !if (lbc_mom == 0) then
-  !  if (force_top_bot) then
-  !    u(:, :, 1) = inflow_velocity
-  !    v(:, :, 1) = 0._rprec
-  !  else
-  !    u(:, :, 1) = u(:, :, 2)
-  !    v(:, :, 1) = v(:, :, 2)
-  !  end if
-  !end if
 
+  ! No modulation of u and v since if a stress free condition (lbc_mom=0) is
+  ! applied, it is applied through the momentum equation. 
+
+  ! no permeability
   w(:, :, 1)=0._rprec
 
 end if

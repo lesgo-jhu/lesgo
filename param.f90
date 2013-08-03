@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 module param
   use types, only : rprec, point3D_t
   $if ($MPI)
@@ -7,7 +26,7 @@ module param
 
   save
 
-  private rprec  !--this is dumb.
+  private rprec
   public
 
 !*******************************************************************************
@@ -150,9 +169,8 @@ module param
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
   logical :: inilag = .true.
 
-  ! ubc: upper boundary condition: 0 - stress free lid, 1 - sponge
-  integer :: ubc = 0
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
+  ! NOTE: the upper boundary condition is implicitly stress free
   integer :: lbc_mom = 1
   
   ! lower boundary condition, roughness length
@@ -169,8 +187,6 @@ module param
     ! Use uniform inflow instead of concurrent precursor inflow
     logical :: uniform_inflow = .false.
       real(rprec) :: inflow_velocity = 1.0_rprec
-      ! velocities are forced to the inflow velocity
-      logical :: force_top_bot = .false.
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical :: use_mean_p_force = .true.

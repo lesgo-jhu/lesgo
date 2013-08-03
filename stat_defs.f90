@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !**********************************************************************
 module stat_defs
 !**********************************************************************
@@ -38,15 +57,15 @@ real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
 $endif
-! Time stamp of last time averaging computation
-real(rprec) :: tavg_time_stamp  
+! Time between calls of tavg_compute, built by summing dt
+real(rprec) :: tavg_dt
+! Switch for determining if time averaging has been initialized
+logical :: tavg_initialized = .false.
 ! Switch for determining if time averaging has been initialized
 logical :: tavg_initialized = .false.
 
-! Time step used for time averaging of spectra
-real(rprec) :: dt_spectra
-! Time stamp of last spectra computation
-real(rprec) :: spectra_time_stamp
+! Time between calls of spectra_compute, built by summing dt
+real(rprec) :: spectra_dt
 ! Switch for determining if time averaging has been initialized
 logical :: spectra_initialized = .false.
 
@@ -82,11 +101,11 @@ type turbine_t
   real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
   real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
   integer :: num_nodes                        ! number of nodes associated with each turbine
-  integer, dimension(1500,3) :: nodes         ! (i,j,k) of each included node
+  integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
   integer, dimension(6) :: nodes_max          ! search area for nearby nodes
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
-  real(rprec), dimension(1500) :: ind         ! indicator function - weighting of each node
+  real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
 end type turbine_t
 
 ! A collection of wind-turbines

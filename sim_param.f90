@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 module sim_param
 use types, only : rprec
 use param, only : ld, ny, nz, lbz
@@ -34,8 +53,9 @@ real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
 
 real (rprec), dimension (:, :, :), allocatable :: theta, q
     !--Added for scalars
-
-
+    
+real (rprec), dimension (:, :, :), allocatable :: u_avg
+    
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -67,7 +87,8 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'p,' //                       &
                                              'divtx, divty, divtz,' //     &
                                              'fxa,'           //           &
-                                             'theta, q'
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
 $elseif ($LVLSET)
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
@@ -82,7 +103,23 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'divtx, divty, divtz,' //     &
                                              'fx, fy, fz,' //              &
                                              'fxa, fya, fza,' //           &
-                                             'theta, q'
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
+$else
+character (*), parameter :: array_list_def = 'u, v, w,' //                 &
+                                             'dudx, dudy, dudz,' //        &
+                                             'dvdx, dvdy, dvdz,' //        &
+                                             'dwdx, dwdy, dwdz,' //        &
+                                             'RHSx, RHSy, RHSz,' //        &
+                                             'RHSx_f, RHSy_f, RHSz_f,' //  &
+                                             'dpdx, dpdy, dpdz,' //        &
+                                             'txx, txy, tyy,' //           &
+                                             'txz, tyz, tzz,' //           &
+                                             'p,' //                       &
+                                             'divtx, divty, divtz,' //     &
+                                             'theta, q,' //                &
+                                             'u_avg'                                             
+$endif
 $else
 character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'dudx, dudy, dudz,' //        &
@@ -291,6 +328,10 @@ do i = 1, size ( array )
     case ( 'q' )
         allocate ( q(ld, ny, nz) )
         q = 0.0_rprec
+        write ( alloced_array(i), '(a)' ) trim ( array(i) )
+    case ( 'u_avg' )
+        allocate ( u_avg(ld, ny, nz) )
+        u_avg = 0.0_rprec
         write ( alloced_array(i), '(a)' ) trim ( array(i) )
     case default
         write (*, *) 'sim_param_init: invalid array ' // trim ( array(i) )

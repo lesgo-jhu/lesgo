@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 module level_set_base
 use types, only : rp => rprec
 use types, only : rprec
@@ -13,13 +32,8 @@ private :: rp, ld, ny, nz, dx, lbz
 !public :: phi
 
 !logical, parameter :: global_CD_calc = .true. ! Compute global CD based on inflow velocity
-logical :: global_CD_calc = .false. ! Compute global CD based on inflow velocity
-
-!integer, parameter :: Ldir = 2
-integer :: Ldir = 2   !--lift direction:
-                      !  2 when lift direction is y
-                      !  3 when lift direction is z
-
+logical :: global_CA_calc = .false. ! Compute global CA based on inflow velocity
+integer :: global_CA_nskip = 10     ! Number of time steps to skip between global CA writes
 
 !logical, parameter :: vel_BC = .false. 
 logical :: vel_BC = .false. !--means we are forcing velocity for

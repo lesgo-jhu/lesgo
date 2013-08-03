@@ -1,3 +1,22 @@
+!!
+!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !**********************************************************************
 program main
 !**********************************************************************
@@ -25,8 +44,8 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
 $endif
 
 $if ($LVLSET)
-use level_set, only : level_set_global_CD, level_set_vel_err
-use level_set_base, only : global_CD_calc
+use level_set, only : level_set_global_CA, level_set_vel_err
+use level_set_base, only : global_CA_calc
   
 $if ($RNS_LS)
 use rns_ls, only : rns_elem_force_ls
@@ -51,7 +70,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: nstart
+integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
@@ -86,8 +105,13 @@ call clock_start( clock_total )
 nstart = jt_total+1
 
 ! BEGIN TIME LOOP
+<<<<<<< .working
 time_loop: do jt_total=nstart,nsteps   
   
+=======
+time_loop: do jt_step = nstart, nsteps   
+  
+>>>>>>> .merge-right.r3800
    ! Get the starting time for the iteration
    call clock_start( clock )
 
@@ -103,7 +127,12 @@ time_loop: do jt_total=nstart,nsteps
    endif
 
    ! Advance time
+<<<<<<< .working
    jt = jt + 1
+=======
+   jt_total = jt_step
+   jt = jt + 1
+>>>>>>> .merge-right.r3800
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
@@ -410,7 +439,7 @@ time_loop: do jt_total=nstart,nsteps
     if (modulo (jt_total, nenergy) == 0) call energy (ke)
 
     $if ($LVLSET)
-      if( global_CD_calc ) call level_set_global_CD ()
+      if( global_CA_calc ) call level_set_global_CA ()
     $endif
 
     ! Write output files
