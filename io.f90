@@ -1923,6 +1923,9 @@ use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
+$if($BINARY)
+use stat_defs, only : u_avg
+$endif
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
@@ -2019,6 +2022,12 @@ $if($OUTPUT_EXTRA)
     
 $endif
 
+$if($BINARY)
+! Allocate the u_avg array
+allocate ( u_avg(ld, ny, nz) ); u_avg = 0.0_rprec
+$endif
+
+
 ! Initialize tavg_dt
 tavg_dt = 0.0_rprec
 
@@ -2043,13 +2052,13 @@ use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
-$if($BINARY)
-use sim_param, only : u_avg
-$endif
 $if($TURBINES)
 use sim_param, only : fxa
 $elseif($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
+$endif
+$if($BINARY)
+use stat_defs, only : u_avg
 $endif
 
 use functions, only : interp_to_w_grid
@@ -2249,10 +2258,10 @@ use stat_defs, only : rs_compute, cnpy_tavg_mul
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
-use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($BINARY)
-use sim_param, only : u_avg
+use stat_defs, only : u_avg
 $endif
+use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
