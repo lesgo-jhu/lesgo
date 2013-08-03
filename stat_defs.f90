@@ -61,8 +61,6 @@ $endif
 real(rprec) :: tavg_dt
 ! Switch for determining if time averaging has been initialized
 logical :: tavg_initialized = .false.
-! Switch for determining if time averaging has been initialized
-logical :: tavg_initialized = .false.
 
 ! Time between calls of spectra_compute, built by summing dt
 real(rprec) :: spectra_dt

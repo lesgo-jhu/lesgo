@@ -2046,9 +2046,6 @@ use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
 $if($TURBINES)
 use sim_param, only : fxa
 $elseif($LVLSET)
-$if($TURBINES)
-use sim_param, only : fxa
-$elseif($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
 

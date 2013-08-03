@@ -120,20 +120,6 @@ character (*), parameter :: array_list_def = 'u, v, w,' //                 &
                                              'theta, q,' //                &
                                              'u_avg'                                             
 $endif
-$else
-character (*), parameter :: array_list_def = 'u, v, w,' //                 &
-                                             'dudx, dudy, dudz,' //        &
-                                             'dvdx, dvdy, dvdz,' //        &
-                                             'dwdx, dwdy, dwdz,' //        &
-                                             'RHSx, RHSy, RHSz,' //        &
-                                             'RHSx_f, RHSy_f, RHSz_f,' //  &
-                                             'dpdx, dpdy, dpdz,' //        &
-                                             'txx, txy, tyy,' //           &
-                                             'txz, tyz, tzz,' //           &
-                                             'p,' //                       &
-                                             'divtx, divty, divtz,' //     &
-                                             'theta, q'
-$endif
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .true.
