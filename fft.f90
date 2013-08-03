@@ -116,8 +116,9 @@ call c_f_pointer(cdata2,out, [nx+2,ny])
 $endif
 
 $if ($FFTW3) 
-call dfftw_init_threads(iret)
-call dfftw_plan_with_nthreads(2)
+! Enable and configure thread support
+!call dfftw_init_threads(iret)
+!call dfftw_plan_with_nthreads(1)
 
 call dfftw_plan_dft_r2c_2d(plan_forward     ,nx ,ny ,in2     ,out2   ,FFTW_PATIENT,FFTW_UNALIGNED)
 call dfftw_plan_dft_c2r_2d(plan_backward    ,nx ,ny ,out2    ,in2    ,FFTW_PATIENT,FFTW_UNALIGNED)

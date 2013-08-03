@@ -30,8 +30,7 @@ SHELL = /bin/bash
 FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include -I/opt/fftw-3.3/include
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/opt/fftw-3.3/lib
-LIBS = $(LIBPATH) -lfftw3 
-LIBS = $(LIBPATH) -lfftw3 -lfftw3_threads -lpthread
+#LIBS = $(LIBPATH) -lfftw3 -lfftw3_threads -lpthread
 #LIBS = $(LIBPATH) -lfftw3_mpi -lfftw3 -lfftw3f_mpi -lfftw3f -limf -lm
 HOSTNAME = $(shell hostname -s)
 
@@ -49,14 +48,16 @@ VERBOSE=no
 #--Sets inclusion of development sections
 DEVEL=no
 # Set extra safety measures 
-USE_FFTW3=yes
 USE_SAFETYMODE=yes
 
 # Output additional quantities to file. May be useful
 # for diagnosing issues
 OUTPUT_EXTRA=no
 
-# watch the whitespace here
+# Use FFTW3 libraries (if no FFTW2 will be used)
+USE_FFTW3=yes
+
+# Enable parallization support (openmp currently not supported)
 USE_MPI = yes
 USE_OPENMP = no
 
@@ -92,6 +93,13 @@ OPATH = obj
 # Directory for the .mod files, if your compiler generates them
 # May want to just make this 'obj' as well
 MPATH = mod
+
+# Set the library list
+ifeq ($(USE_FFTW3),yes)
+LIBS = $(LIBPATH) -lfftw3 
+else
+LIBS = $(LIBPATH) -lrfftw -lfftw 
+endif
 
 ifeq ($(FCOMP),ifort)
 
