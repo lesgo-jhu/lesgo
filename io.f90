@@ -1437,7 +1437,7 @@ fz(:,:,nz) = 0._rprec
 allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 
 ! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
-$if($TURBINES)
+$if($TURBINES and not $LVLSET)
 fx_tot = fxa(1:nx,1:ny,1:nz)
 fy_tot = 0._rprec
 fz_tot = 0._rprec
@@ -2054,7 +2054,8 @@ use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 $if($TURBINES)
 use sim_param, only : fxa
-$elseif($LVLSET)
+$endif
+$if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
 $if($BINARY)
@@ -2145,14 +2146,14 @@ do k=1,jzmax
       tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
       tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
-$if ($TURBINES)      
+$if ($TURBINES and not $LVLSET)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
 !      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
 !      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
-$elseif ($LVLSET)
+$elseif ($LVLSET )
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
