@@ -22,7 +22,7 @@
 !**********************************************************************
 module fft
 use types,only:rprec
-use param,only:lh,ny,spectra_calc
+use param,only:ld,lh,ny,ld_big, ny2, spectra_calc
 $if ($FFTW3)
 !use, intrinsic :: iso_c_binding
 use iso_c_binding
@@ -39,41 +39,27 @@ $endif
 save
 
 public :: kx, ky, k2, init_fft, forw_spectra
+public :: forw, back, forw_big, back_big
+
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 integer*8::forw_spectra
+integer*8::forw,back,forw_big,back_big
 
-!RICHARD:FFTW3
+
 $if ($FFTW3)
-public :: plan_forward,plan_backward,plan_forward_big,plan_backward_big
-public :: in,inbig,out,outbig
-public :: in2,inbig2,out2,outbig2
-public :: cdata,cdata2
-
-real (rprec), pointer :: in(:,:)
-real (rprec), pointer :: inbig(:,:)
-real (rprec), pointer :: out(:,:)
-real (rprec), pointer :: outbig(:,:)
-
-real (rprec), dimension (:, :), allocatable :: in2
-real (rprec), dimension (:, :), allocatable :: inbig2
-real (rprec), dimension (:, :), allocatable :: out2
-real (rprec), dimension (:, :), allocatable :: outbig2
-
-integer*8::iret,plan_forward,plan_backward,plan_forward_big,plan_backward_big
-type(C_PTR) :: cdata
-type(C_PTR) :: cdata2
+real (rprec), dimension (:, :), allocatable :: data, data_big
 $else
 
 !public
 private
-public :: forw, back, forw_big, back_big
+
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
 public :: fftwNull_p
 
 ! plans
-integer*8::forw,back,forw_big,back_big
+
 ! fftw 2.1.3 stuff
 integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
 integer, parameter :: FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1
@@ -96,34 +82,24 @@ subroutine init_fft()
 use param,only:nx,ny,nx2,ny2
 implicit none
 
-!RICHARD FFTW3
+
 $if ($FFTW3)
-logical, save :: arrays_allocatedfftw3 = .false. 
-if( .not. arrays_allocatedfftw3 ) then
-   allocate(in2     (nx  , ny ))  
-   allocate(inbig2  (nx2 , ny2))
-   allocate(out2    (nx+2, ny ))
-   allocate(outbig2 (nx2+2, ny2))
-   arrays_allocatedfftw3 = .true. 
-endif
 
-!call fftw_mpi_init()
+! Allocate temporary arrays for creating the FFTW plans
+allocate( data(ld, ny) )
+allocate( data(ld_big, ny2) )
 
-cdata = fftw_alloc_real(int(nx*ny, C_SIZE_T))
-cdata2= fftw_alloc_real(int((nx+2)*ny, C_SIZE_T))
-call c_f_pointer(cdata, in, [nx,ny])
-call c_f_pointer(cdata2,out, [nx+2,ny])
-$endif
+! Create the forward and backward plans for the unpadded and padded
+! domains. Notice we are using FFTW_UNALIGNED since the arrays used will not be
+! guaranteed to be memory aligned. 
+call dfftw_plan_dft_r2c_2d(forw    ,nx ,ny ,data    ,data    ,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_c2r_2d(back    ,nx ,ny ,data    ,data    ,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_r2c_2d(forw_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_c2r_2d(back_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_UNALIGNED)
 
-$if ($FFTW3) 
-! Enable and configure thread support
-!call dfftw_init_threads(iret)
-!call dfftw_plan_with_nthreads(1)
+deallocate(data)
+deallocate(data_big)
 
-call dfftw_plan_dft_r2c_2d(plan_forward     ,nx ,ny ,in2     ,out2   ,FFTW_PATIENT,FFTW_UNALIGNED)
-call dfftw_plan_dft_c2r_2d(plan_backward    ,nx ,ny ,out2    ,in2    ,FFTW_PATIENT,FFTW_UNALIGNED)
-call dfftw_plan_dft_r2c_2d(plan_forward_big ,nx2,ny2,inbig2  ,outbig2,FFTW_PATIENT,FFTW_UNALIGNED)
-call dfftw_plan_dft_c2r_2d(plan_backward_big,nx2,ny2,outbig2 ,inbig2 ,FFTW_PATIENT,FFTW_UNALIGNED)
 $else
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
      FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)

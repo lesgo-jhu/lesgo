@@ -100,18 +100,19 @@ do jz = lbz, nz
   !--MPI: u1_big, u2_big needed at jz = 0, u3_big not needed though
   !--MPI: could get u{1,2}_big
 ! use cx,cy,cz for temp storage here!      
-  $if ($FFTW3)
-  call dfftw_execute_dft_r2c(plan_forward,const*u1(1:nx,1:ny,jz),cx(1:nx+2,1:ny,jz))
-  call dfftw_execute_dft_r2c(plan_forward,const*u2(1:nx,1:ny,jz),cy(1:nx+2,1:ny,jz))
-  call dfftw_execute_dft_r2c(plan_forward,const*u3(1:nx,1:ny,jz),cz(1:nx+2,1:ny,jz))
-  $else
-! do forward fft on normal-size arrays
    cx(:,:,jz)=const*u1(:,:,jz)
    cy(:,:,jz)=const*u2(:,:,jz)
    cz(:,:,jz)=const*u3(:,:,jz)
-   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
+   
+  $if ($FFTW3)
+  call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
+  call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
+  call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
+  $else
+! do forward fft on normal-size arrays
+  call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
+  call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
   $endif 
 ! zero pad: padd takes care of the oddballs
    call padd(u1_big(:,:,jz),cx(:,:,jz))
@@ -120,9 +121,9 @@ do jz = lbz, nz
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward_big,u1_big(1:nx2+2,1:ny2,jz),   u1_big(1:nx2,1:ny2,jz))
-  call dfftw_execute_dft_c2r(plan_backward_big,u2_big(1:nx2+2,1:ny2,jz),   u2_big(1:nx2,1:ny2,jz))
-  call dfftw_execute_dft_c2r(plan_backward_big,u3_big(1:nx2+2,1:ny2,jz),   u3_big(1:nx2,1:ny2,jz))    
+  call dfftw_execute_dft_c2r(back_big,u1_big(:,:,jz),   u1_big(:,:,jz))
+  call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
+  call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))    
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),fftwNull_p)
@@ -169,12 +170,9 @@ do jz = 1, nz
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
   $if ($FFTW3)
-  in2(1:nx,1:ny)=cx(1:nx,1:ny,jz)
-  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),cx(1:nx+2,1:ny,jz))
-  in2(1:nx,1:ny)=cy(1:nx,1:ny,jz)
-  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),cy(1:nx+2,1:ny,jz))
-  in2(1:nx,1:ny)=cz(1:nx,1:ny,jz)
-  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),cz(1:nx+2,1:ny,jz))
+  call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
+  call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
+  call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
   $else
 ! do forward fft on normal-size arrays
    call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
@@ -188,9 +186,9 @@ do jz = 1, nz
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward_big,vort1_big(1:nx2+2,1:ny2,jz),   vort1_big(1:nx2,1:ny2,jz))
-  call dfftw_execute_dft_c2r(plan_backward_big,vort2_big(1:nx2+2,1:ny2,jz),   vort2_big(1:nx2,1:ny2,jz))
-  call dfftw_execute_dft_c2r(plan_backward_big,vort3_big(1:nx2+2,1:ny2,jz),   vort3_big(1:nx2,1:ny2,jz))
+  call dfftw_execute_dft_c2r(back_big,vort1_big(:,:,jz),   vort1_big(:,:,jz))
+  call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
+  call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),fftwNull_p)
@@ -228,8 +226,7 @@ end do
 !$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
   $if ($FFTW3)
-  inbig2(1:nx2,1:ny2)=cc_big(1:nx2,1:ny2,jz)
-  call dfftw_execute_dft_r2c(plan_forward_big,inbig2(1:nx2,1:ny2),cc_big(1:nx2+2,1:ny2,jz))
+  call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
   $endif   
@@ -238,7 +235,7 @@ do jz=1,nz-1
    call unpadd(cx(:,:,jz),cc_big(:,:,jz))
 ! Back to physical space
    $if ($FFTW3)
-   call dfftw_execute_dft_c2r(plan_backward,cx(1:nx+2,1:ny,jz),   cx(1:nx,1:ny,jz))   
+   call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
    $else
    call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),fftwNull_p)
    $endif
@@ -272,8 +269,7 @@ end do
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
   $if ($FFTW3)
-  inbig2(1:nx2,1:ny2)=cc_big(1:nx2,1:ny2,jz)
-  call dfftw_execute_dft_r2c(plan_forward_big,inbig2(1:nx2,1:ny2),cc_big(1:nx2+2,1:ny2,jz))
+  call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
   $endif
@@ -283,7 +279,7 @@ do jz=1,nz-1
 
 ! Back to physical space
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward,cy(1:nx+2,1:ny,jz),   cy(1:nx,1:ny,jz))     
+  call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))     
   $else
   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),fftwNull_p)
   $endif
@@ -328,8 +324,7 @@ end do
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
   $if ($FFTW3)
-  inbig2(1:nx2,1:ny2)=cc_big(1:nx2,1:ny2,jz)
-  call dfftw_execute_dft_r2c(plan_forward_big,inbig2(1:nx2,1:ny2),cc_big(1:nx2+2,1:ny2,jz))
+  call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
   $endif
@@ -340,7 +335,7 @@ do jz=1,nz - 1
 
 ! Back to physical space
    $if ($FFTW3)
-   call dfftw_execute_dft_c2r(plan_backward,cz(1:nx+2,1:ny,jz),   cz(1:nx,1:ny,jz))
+   call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
    $else
    call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),fftwNull_p)
    $endif

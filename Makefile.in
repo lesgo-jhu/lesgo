@@ -29,7 +29,7 @@
 SHELL = /bin/bash
 FCOMP = gfortran
 INCLPATH = -I${HOME}/include -I/usr/local/include -I/opt/fftw-3.3/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/opt/fftw-3.3/lib
+LIBPATH = -L${HOME}/lib -L/usr/local/lib #-L/opt/fftw-3.3/lib
 #LIBS = $(LIBPATH) -lfftw3 -lfftw3_threads -lpthread
 #LIBS = $(LIBPATH) -lfftw3_mpi -lfftw3 -lfftw3f_mpi -lfftw3f -limf -lm
 HOSTNAME = $(shell hostname -s)

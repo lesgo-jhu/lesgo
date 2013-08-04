@@ -66,12 +66,10 @@ const = 1._rprec / ( nx * ny )
 do jz=lbz,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
-  $if ($FFTW3)
-!  in2(:,:)=const*f(1:nx,1:ny,jz)
-  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdx(1:nx+2,1:ny,jz))
-  $else
-  !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
+  $if ($FFTW3)
+  call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz),dfdx(:,:,jz))
+  $else
   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
   $endif
 
@@ -90,7 +88,7 @@ do jz=lbz,nz
 
   ! Perform inverse transform to get pseudospectral derivative
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward,dfdx   (1:nx+2,1:ny,jz),   dfdx(1:nx,1:ny,jz))
+  call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
   $else
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
   $endif
@@ -128,11 +126,10 @@ const = 1._rprec / ( nx * ny )
 do jz=lbz,nz    
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
-  $if ($FFTW3)
-  !in2(:,:)=const*f(1:nx,1:ny,jz)
-  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdy(1:nx+2,1:ny,jz))
-  $else
   dfdy(:,:,jz)=const*f(:,:,jz)  
+  $if ($FFTW3)
+  call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
+  $else
   call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
   $endif
 
@@ -151,7 +148,7 @@ do jz=lbz,nz
 
   ! Perform inverse transform to get pseudospectral derivative
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward,dfdy   (1:nx+2,1:ny,jz),   dfdy(1:nx,1:ny,jz))
+  call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
   $else
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)     
   $endif
@@ -182,12 +179,11 @@ const = 1._rprec / ( nx * ny )
 
 !...Loop through horizontal slices
 do jz=lbz,nz
-! temporay storage in dfdx_c, this was don't mess up f_c
-   $if ($FFTW3)
-   !in2(1:nx,1:ny)=const*f(1:nx,1:ny,jz)
-   call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),dfdx(1:nx+2,1:ny,jz))
-   $else
+   ! temporay storage in dfdx_c, this was don't mess up f_c
    dfdx(:,:,jz) = const*f(:,:,jz)   
+   $if ($FFTW3)
+   call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz), dfdx(:,:,jz))
+   $else
    call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)
    $endif
 
@@ -206,8 +202,8 @@ do jz=lbz,nz
 
 ! inverse transform 
    $if ($FFTW3)
-   call dfftw_execute_dft_c2r(plan_backward,dfdx   (1:nx+2,1:ny,jz),   dfdx(1:nx,1:ny,jz))   
-   call dfftw_execute_dft_c2r(plan_backward,dfdy   (1:nx+2,1:ny,jz),   dfdy(1:nx,1:ny,jz))  
+   call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
+   call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
    $else
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
@@ -367,12 +363,11 @@ const = 1._rprec/(nx*ny)
 
 ! loop through horizontal slices
 do jz=lbz,nz
-  
+
+  f(:,:,jz)=const*f(:,:,jz)  
   $if ($FFTW3)
-  !in2(1:nx,1:ny)=const*f(1:nx,1:ny,jz) 
-  call dfftw_execute_dft_r2c(plan_forward,const*f(1:nx,1:ny,jz),f(1:nx+2,1:ny,jz))
+  call dfftw_execute_dft_r2c(forw, f(:,:,jz), f(:,:,jz))
   $else
-  f(:,:,jz)=const*f(:,:,jz)
   call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),fftwNull_p)
   $endif
 
@@ -394,9 +389,9 @@ do jz=lbz,nz
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 
   $if ($FFTW3)
-  call dfftw_execute_dft_c2r(plan_backward,f   (1:nx+2,1:ny,jz),   f(1:nx,1:ny,jz))
-  call dfftw_execute_dft_c2r(plan_backward,dfdx(1:nx+2,1:ny,jz),dfdx(1:nx,1:ny,jz))
-  call dfftw_execute_dft_c2r(plan_backward,dfdy(1:nx+2,1:ny,jz),dfdy(1:nx,1:ny,jz))
+  call dfftw_execute_dft_c2r(back, f(:,:,jz), f(:,:,jz))
+  call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
+  call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
   $else    
   call rfftwnd_f77_one_complex_to_real(back,   f(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)

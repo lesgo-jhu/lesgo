@@ -124,8 +124,7 @@ implicit none
 
 !  Perform in-place FFT
   $if ($FFTW3)
-  in2(1:nx,1:ny)=f(1:nx,1:ny)
-  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),f(1:nx+2,1:ny))
+  call dfftw_execute_dft_r2c(forw,f,f)
   $else
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
   $endif  
@@ -135,7 +134,7 @@ implicit none
   f = f .MULR. G_test
 
    $if ($FFTW3)
-   call dfftw_execute_dft_c2r(plan_backward,f(1:nx+2,1:ny),   f(1:nx,1:ny))     
+   call dfftw_execute_dft_c2r(back,f,f)     
    $else
    call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
    $endif
@@ -157,8 +156,7 @@ implicit none
 
 !  Perform in-place FFT
   $if ($FFTW3)
-  in2(1:nx,1:ny)=f(1:nx,1:ny)
-  call dfftw_execute_dft_r2c(plan_forward,in2(1:nx,1:ny),f(1:nx+2,1:ny))
+  call dfftw_execute_dft_r2c(forw,f,f)
   $else
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
   $endif
@@ -168,7 +166,7 @@ implicit none
   f = f .MULR. G_test_test
 
    $if ($FFTW3)
-   call dfftw_execute_dft_c2r(plan_backward,f(1:nx+2,1:ny),   f(1:nx,1:ny))               
+   call dfftw_execute_dft_c2r(back,f,f)               
    $else
    call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
    $endif
