@@ -87,7 +87,7 @@ $if ($FFTW3)
 
 ! Allocate temporary arrays for creating the FFTW plans
 allocate( data(ld, ny) )
-allocate( data(ld_big, ny2) )
+allocate( data_big(ld_big, ny2) )
 
 ! Create the forward and backward plans for the unpadded and padded
 ! domains. Notice we are using FFTW_UNALIGNED since the arrays used will not be
