@@ -29,10 +29,10 @@ use iso_c_binding
 $endif
 implicit none
 $if ($FFTW3)
-!include'fftw3.f'
+include'fftw3.f'
 !include'fftw3-mpi.f03'
 !include'fftw3.f'
-include'fftw3.f03'
+!include'fftw3.f03'
 !include'fftw3l.f03'
 !include 'fftw3-mpi.f03'
 $endif
