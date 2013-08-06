@@ -376,8 +376,10 @@ do q=1, turbineArray(i) % numBladePoints
 
                 ! This will compute the blade force for the specific point
                 call atm_computeBladeForce(i,m,n,q,velocity)
+
                 ! Calculate output quantities based on each point
                 call atm_process_output(i,m,n,q)
+
             endif
 
         enddo

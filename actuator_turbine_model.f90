@@ -647,50 +647,61 @@ integer :: i, j, m
 integer :: powerFile=11, bladeFile=12, liftFile=13, ClFile=14, CdFile=15
 integer :: alphaFile=16
 
-! File for power output
-open(unit=powerFile,position="append", file="./turbineOutput/power")
+! Increase the counter to know how many time-steps since last right
+outputInterval_counter=outputInterval_counter+1
 
-! File for blade output
-open(unit=bladeFile,position="append", file="./turbineOutput/blade")
+! Output only if the number of intervals is right
+if (outputInterval == outputInterval_counter) then
+    outputInterval_counter=0
+    
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    write(*,*) '!  Writing Actuator Turbine Model output  !'
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    
+    ! File for power output
+    open(unit=powerFile,position="append", file="./turbineOutput/power")
 
-! File for blade output
-open(unit=liftFile,position="append", file="./turbineOutput/lift")
+    ! File for blade output
+    open(unit=bladeFile,position="append", file="./turbineOutput/blade")
 
-! File for blade output
-open(unit=ClFile,position="append", file="./turbineOutput/Cl")
+    ! File for blade output
+    open(unit=liftFile,position="append", file="./turbineOutput/lift")
 
-open(unit=CdFile,position="append", file="./turbineOutput/Cd")
+    ! File for blade output
+    open(unit=ClFile,position="append", file="./turbineOutput/Cl")
 
-open(unit=alphaFile,position="append", file="./turbineOutput/alpha")
+    open(unit=CdFile,position="append", file="./turbineOutput/Cd")
 
-do i=1,numberOfTurbines
+    open(unit=alphaFile,position="append", file="./turbineOutput/alpha")
 
-    j=turbineArray(i) % turbineTypeID ! The turbine type ID
+    do i=1,numberOfTurbines
 
-    call atm_compute_power(i)
-    write(powerFile,*) i, turbineArray(i) % powerRotor
+        j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-    ! Will write only the first actuator section of the blade
-    do m=1, turbineModel(j) % numBl
-        write(bladeFile,*) i, turbineArray(i) % bladeRadius(m,1,:)
-        write(liftFile,*) i, turbineArray(i) % lift(m,1,:)
-        write(ClFile,*) i, turbineArray(i) % cl(m,1,:)
-        write(CdFile,*) i, turbineArray(i) % cd(m,1,:)
-        write(alphaFile,*) i, turbineArray(i) % alpha(m,1,:)
+        call atm_compute_power(i)
+        write(powerFile,*) i, turbineArray(i) % powerRotor
+
+        ! Will write only the first actuator section of the blade
+        do m=1, turbineModel(j) % numBl
+            write(bladeFile,*) i, turbineArray(i) % bladeRadius(m,1,:)
+            write(liftFile,*) i, turbineArray(i) % lift(m,1,:)
+            write(ClFile,*) i, turbineArray(i) % cl(m,1,:)
+            write(CdFile,*) i, turbineArray(i) % cd(m,1,:)
+            write(alphaFile,*) i, turbineArray(i) % alpha(m,1,:)
+
+        enddo
+    
+        ! Write blade points 
+        call atm_write_blade_points(i)
 
     enddo
-    
-    ! Write blade points 
-    call atm_write_blade_points(i)
 
-enddo
+    close(powerFile)
+    close(bladeFile)
+    close(liftFile)
+    close(ClFile)
 
-close(powerFile)
-close(bladeFile)
-close(liftFile)
-close(ClFile)
-
-
+endif
 
 end subroutine atm_output
 

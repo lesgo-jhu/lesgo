@@ -36,6 +36,7 @@ implicit none
 ! The variables for the ATM are defined here
 integer :: numberOfTurbines
 integer :: outputInterval
+integer :: outputInterval_counter=0
 
 ! This type will store the necessary variables for -each- turbine 
 ! To declare: type(turbineArray_t), allocatable, dimension(:) :: turbineArray
