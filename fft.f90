@@ -82,12 +82,16 @@ subroutine init_fft()
 use param,only:nx,ny,nx2,ny2
 implicit none
 
-
 $if ($FFTW3)
+integer(8) :: iret
 
 ! Allocate temporary arrays for creating the FFTW plans
 allocate( data(ld, ny) )
 allocate( data_big(ld_big, ny2) )
+
+! Initialize and implement with threads
+!call dfftw_init_threads(iret)
+!call dfftw_plan_with_nthreads(2)
 
 ! Create the forward and backward plans for the unpadded and padded
 ! domains. Notice we are using FFTW_UNALIGNED since the arrays used will not be

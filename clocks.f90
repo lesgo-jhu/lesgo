@@ -47,24 +47,39 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine clock_start( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($MPI)
+use mpi, only : mpi_wtime
+$endif
 implicit none
 
 type(clock_t), intent(inout) :: this
+real(8) :: omp_get_wtime
 
+$if($MPI)
+this % start = mpi_wtime()
+$else
 call cpu_time( this % start )
+$endif
 
 return
-
 end subroutine clock_start
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine clock_stop( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($MPI)
+use mpi, only : mpi_wtime
+$endif
 implicit none
 
 type(clock_t), intent(inout) :: this
+real(8) :: omp_get_wtime
 
+$if($MPI)
+this % stop = mpi_wtime()
+$else
 call cpu_time( this % stop )
+$endif
 
 ! Compute the clock time
 this % time = this % stop - this % start

@@ -94,7 +94,11 @@ call initialize()
 
 if(coord == 0) then
    call clock_stop( clock )
-   write(*,'(1a,E15.7)') 'Initialization time: ', clock % time
+   $if($MPI)
+   write(*,'(1a,E15.7)') 'Initialization wall time: ', clock % time
+   $else
+   write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
+   $endif
 endif
 
 call clock_start( clock_total )
@@ -459,7 +463,11 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
+          $if($MPI)
           write(*,'(1a)') 'Simulation wall times (s): '
+          $else
+          write(*,'(1a)') 'Simulation cpu times (s): '
+          $endif
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
@@ -496,7 +504,11 @@ call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total )
+$if($MPI)
 if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
+$else
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation cpu time (s) : ', clock_total % time
+$endif
 
 call finalize()
 
