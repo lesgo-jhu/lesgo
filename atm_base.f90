@@ -239,5 +239,19 @@ distance=abs(sqrt((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2))
 return
 end function distance
 
+!-------------------------------------------------------------------------------
+character(len=20) function int2str(k)
+!-------------------------------------------------------------------------------
+! This function converts an integer to string
+! http://stackoverflow.com/questions/1262695/
+!converting-integers-to-strings-in-fortran
+integer, intent(in) :: k
+write (int2str, *) k
+int2str = adjustl(int2str)
+end function int2str
+
+
+
+
 
 end module atm_base

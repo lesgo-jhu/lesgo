@@ -69,10 +69,10 @@ real(rprec), allocatable, dimension(:,:,:) :: w_uv
 private
 public atm_lesgo_initialize, atm_lesgo_forcing
 
-! This is a dynamic list that stores all the points in the domain with a body 
+! This is a list that stores all the points in the domain with a body 
 ! force due to the turbines. 
 type bodyForce_t
-!     i,j,k stores the index for the point in the domain
+!   i,j,k stores the index for the point in the domain
     integer i,j,k
     real(rprec), dimension(3) :: force ! Force vector on uv grid
     real(rprec), dimension(3) :: location ! Position vector on uv grid
@@ -122,14 +122,16 @@ do i=1,nx ! Loop through grid points in x
             ! Take into account the UV grid
             vector_point(3)=z(k)*z_i
             do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
+                if (distance(vector_point,turbineArray(m) %                    &
+                    towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
                     cUV=cUV+1
                 end if
 
                 ! Take into account the W grid
                 vector_point(3)=zw(k)*z_i
-                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
+                if (distance(vector_point,turbineArray(m) %                    &
+                    towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
                     cW=cW+1
                 end if
@@ -155,7 +157,8 @@ do i=1,nx ! Loop through grid points in x
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
             do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
+                if (distance(vector_point,turbineArray(m) %                    &
+                    towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
                     cUV=cUV+1
                     forceFieldUV(cUV) % i = i
@@ -166,7 +169,8 @@ do i=1,nx ! Loop through grid points in x
             enddo 
             vector_point(3)=zw(k)*z_i
             do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) % towerShaftIntersect) &
+                if (distance(vector_point,turbineArray(m) %                    &
+                    towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
                     cW=cW+1
                     forceFieldW(cW) % i = i
@@ -211,13 +215,13 @@ enddo
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
+! Update the blade positions based on the time-step
+! Time needs to be dimensionalized
+call atm_update(dt*z_i/u_star)
+
 ! If statement is for running code only if grid points affected are in this 
 ! processor. If not, no code is executed at all.
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
-
-    ! Update the blade positions based on the time-step
-    ! Time needs to be dimensionalized
-    call atm_update(dt*z_i/u_star)
 
     ! Initialize force field to zero
     do c=1,size(forceFieldUV)
@@ -269,7 +273,7 @@ end subroutine atm_lesgo_forcing
 subroutine atm_lesgo_mpi_gather()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine will gather the necessary outputs from the turbine models
-! so all processors have acces to it
+! so all processors have acces to it. This is done by means of all reduce SUM
 
 integer :: i
 real(rprec) :: torqueRotor
@@ -278,41 +282,41 @@ do i=1,numberOfTurbines
 
     turbineArray(i) % bladeVectorDummy = turbineArray(i) % bladeForces
     ! Sync all the blade forces
-    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,              &
-                       turbineArray(i) % bladeForces,                   &
+    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
+                       turbineArray(i) % bladeForces,                        &
                        size(turbineArray(i) % bladeVectorDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
 
     ! Sync alpha
     turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
-                       turbineArray(i) % alpha,                         &
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                       turbineArray(i) % alpha,                              &
                        size(turbineArray(i) % bladeScalarDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
     ! Sync lift
     turbineArray(i) % bladeScalarDummy = turbineArray(i) % lift
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
-                       turbineArray(i) % lift,                         &
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                       turbineArray(i) % lift,                               &
                        size(turbineArray(i) % bladeScalarDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
     ! Sync Cl
     turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cl
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
-                       turbineArray(i) % Cl,                         &
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                       turbineArray(i) % Cl,                                 &
                        size(turbineArray(i) % bladeScalarDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
 
     ! Sync Cd
     turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,              &
-                       turbineArray(i) % Cd,                         &
+    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                       turbineArray(i) % Cd,                                 &
                        size(turbineArray(i) % bladeScalarDummy),             &
                        mpi_rprec, mpi_sum, comm, ierr) 
-
 
     ! Store the torqueRotor. 
     ! Needs to be a different variable in order to do MPI Sum
     torqueRotor=turbineArray(i) % torqueRotor
+
     ! Sum all the individual power from different blade points
     call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
                        1, mpi_rprec, mpi_sum, comm, ierr) 
@@ -363,9 +367,12 @@ do q=1, turbineArray(i) % numBladePoints
 
             ! Interpolate velocities if inside the domain
             if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
-                velocity(1)=trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-                velocity(2)=trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-                velocity(3)=trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                velocity(1)=                                                   &
+                trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                velocity(2)=                                                   &
+                trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+                velocity(3)=                                                   &
+                trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
 
                 ! This will compute the blade force for the specific point
                 call atm_computeBladeForce(i,m,n,q,velocity)

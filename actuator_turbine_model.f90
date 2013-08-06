@@ -679,6 +679,9 @@ do i=1,numberOfTurbines
         write(alphaFile,*) i, turbineArray(i) % alpha(m,1,:)
 
     enddo
+    
+    ! Write blade points 
+    call atm_write_blade_points(i)
 
 enddo
 
@@ -686,6 +689,9 @@ close(powerFile)
 close(bladeFile)
 close(liftFile)
 close(ClFile)
+
+
+
 end subroutine atm_output
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -702,6 +708,39 @@ turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor *  &
 write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
 
 end subroutine atm_compute_power
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_write_blade_points(i)
+! This subroutine writes the position of all the blades at each time step
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer, intent(in) :: i
+integer :: m, n, q, j
+
+
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+do m=1, turbineModel(j) % numBl
+
+    open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))           &
+                         //'blade'//trim(int2str(m)))
+
+    do n=1, turbineArray(i) %  numAnnulusSections
+
+        do q=1, turbineArray(i) % numBladePoints
+
+            write(231,*) turbineArray(i) % bladePoints(m,n,q,:)
+
+        enddo
+
+    enddo
+
+close(231)
+
+enddo
+
+end subroutine atm_write_blade_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_process_output(i,m,n,q)
