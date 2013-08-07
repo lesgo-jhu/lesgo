@@ -42,7 +42,7 @@ use sgs_param, only:ee_now
 implicit none
 
 integer :: jz
-real(kind=rprec), dimension(:), intent (inout) :: Cs_1D
+real(kind=rprec), dimension(nz), intent (inout) :: Cs_1D
 
 real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
 real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
