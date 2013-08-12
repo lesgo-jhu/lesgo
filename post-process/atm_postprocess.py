@@ -26,37 +26,67 @@
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-##########################################################
-# The main function of this file
-##########################################################
-def main():
- # Create directories to save plots
- if not os.path.exists('./blades'):
-   os.makedirs('./blades')
-	
- # The files to be plotted
- files={'alpha':(r"$\alpha$",0), 'Cl':(r"$C_{l}$",0), 
-        'Cd' :(r"$C_{d}$",0)}
 
- for file_in, parameters in files.iteritems():
-   plotFile(file_in,'r',parameters[0])
 
+
+################################################################################
+##                      The main function of this file                        ##
+################################################################################
+def main():                                                                    #
+                                                                               #
+ ###############################################                               #
+ # Plot blade output                                                           #
+ ###############################################                               #
+ # Create directories to save plots                                            #
+ if not os.path.exists('./blades'):                                            #
+   os.makedirs('./blades')                                                     #
+                                                                               #	
+ # The files to be plotted                                                     #
+ files={'alpha':(r"$\alpha$",0), 'Cl':(r"$C_{l}$",0),                          #
+        'Cd' :(r"$C_{d}$",0)}                                                  #
+                                                                               # 
+ for file_in, parameters in files.iteritems():                                 #
+   plotFileBlade(file_in,'r',parameters[0])                                    #
+                                                                               # 
+ ###############################################                               #
+ # Plot turbine output                                                         #
+ ###############################################                               #
+ # The files to be plotted (ylabel, divideby)                                  #
+ files={'power':(r'P (W)',1000000.)}                                           #
+                                                                               #
+ for file_in, parameters in files.iteritems():                                 #
+   plotFileTurbine(file_in,parameters,file_in,'t (s)',parameters[0])           #
+################################################################################
 
 ##########################################################
 # Function for plotting (single line)
-def plotFile(file_in,labelX,labelY):
+def plotFileBlade(file_in,labelX,labelY):
 # Read file location
- read_location='../turbineOutput/'
+ read_location='../turbineOutput/turbine1/'
  myFile=open(read_location+file_in)
  x,y=readAndAverage(myFile)
  plt.clf()
  plt.plot(x,y,'-o',label='LES',color='black')
  x, y = np.loadtxt('./BEM/'+file_in, unpack=True)
- plt.plot(x,y,'-d',label='BEM',color='black')
+ plt.plot(x,y,'--',label='BEM',color='black')
  plt.xlabel(labelX)
  plt.ylabel(labelY)
  plt.legend()
- plt.savefig(file_in+'.png')
+ plt.savefig(file_in+'.eps')
+ plt.clf()
+
+##########################################################
+# Function for plotting (single turbine)
+def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
+# Read file location
+ read_location='../turbineOutput/turbine1/'
+ myFile=open(read_location+file_in)
+ x,y=readFile(myFile)
+ plt.clf()
+ plt.plot(x,[float(k)/parameters[1] for k in y],'-o', color='black')
+ plt.xlabel(labelX)
+ plt.ylabel(labelY)
+ plt.savefig(file_in+'.eps')
  plt.clf()
 
 ##########################################################
@@ -68,8 +98,9 @@ def readAndAverage(file_in):
      # Not sure what this does haha
    if i>1:
      y = [sum(pair) for pair in zip (y, [float(s) for s in line.split()])]
+ print i, 'Number of lines for', file_in
  y=[k/i for k in y] # Take the average 
- myfile=open('../turbineOutput/blade')
+ myfile=open('../turbineOutput/turbine1/blade')
  line=myfile.readline()
  line=myfile.readline()
  x=[float(s) for s in line.split()] # Convert the elements in line to numbers
@@ -84,6 +115,16 @@ def load(fname):
    k, v = line.strip().split("=", 1)
    ret[k] = eval(v)
  return ret
+
+##########################################################
+# Read the file and average it (For single number turbine output (power, etc))
+def readFile(file_in):
+ x,y=[],[]
+ for i, line in enumerate(file_in):
+   if i>0:
+     x.append(i)
+     y.append(line.split()[1]) # Initial value of y
+ return x,y  
 
 
 ##########################################################

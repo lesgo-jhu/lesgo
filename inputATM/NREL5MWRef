@@ -23,7 +23,7 @@ OverHang               -5.01910;
 TowerHt                87.6;
 Twr2Shft                1.96256;
 ShftTilt               -5.0;
-PreCone               -2.5;
+PreCone               0;
 GBRatio                97.0;
 GenIner               534.116;
 HubIner               115.926E3;

@@ -38,7 +38,6 @@ def main():
  for file_in, parameters in files.iteritems():
    plotFile(file_in,parameters,file_in,'r',parameters[0])
 
-
 ##########################################################
 # Function for plotting (single line)
 def plotFile(file_in,parameters,run_label,labelX,labelY):
@@ -50,9 +49,8 @@ def plotFile(file_in,parameters,run_label,labelX,labelY):
  plt.plot(x,[float(k)/parameters[1] for k in y],'-o', color='black')
  plt.xlabel(labelX)
  plt.ylabel(labelY)
- plt.savefig(file_in+'.png')
+ plt.savefig(file_in+'.eps')
  plt.clf()
-
 
 ##########################################################
 # Read the file and average it

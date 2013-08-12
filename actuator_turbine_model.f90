@@ -91,34 +91,38 @@ subroutine atm_initialize_output()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 logical :: file_exists
+integer :: i
 
-inquire(file='./turbineOutput/',EXIST=file_exists)
+do i = 1,numberOfTurbines
+
+    inquire(file='./turbineOutput/turbine'//trim(int2str(i)),EXIST=file_exists)
 
     if (file_exists .eqv. .false.) then
 
-    ! Create turbineOutput directory
-    call system("mkdir -v turbineOutput") 
+        ! Create turbineOutput directory
+        call system("mkdir -vp turbineOutput/turbine"//trim(int2str(i))) 
 
-    open(unit=1, file="./turbineOutput/power")       ! Data Output
-    write(1,*) 'turbineNumber Power'
-    close(1)
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power")       ! Data Output
+        write(1,*) 'turbineNumber Power'
+        close(1)
 
-    open(unit=1, file="./turbineOutput/lift")       ! Lift blade file
-    write(1,*) 'turbineNumber bladeNumber '
-    close(1)
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")       ! Lift blade file
+        write(1,*) 'turbineNumber bladeNumber '
+        close(1)
 
-    open(unit=1, file="./turbineOutput/Cl")       ! Lift blade file
-    write(1,*) 'turbineNumber bladeNumber Cl'
-    close(1)
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")       ! Lift blade file
+        write(1,*) 'turbineNumber bladeNumber Cl'
+        close(1)
 
-    open(unit=1, file="./turbineOutput/Cd")       ! Lift blade file
-    write(1,*) 'turbineNumber bladeNumber Cd'
-    close(1)
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")       ! Lift blade file
+        write(1,*) 'turbineNumber bladeNumber Cd'
+        close(1)
 
-    open(unit=1, file="./turbineOutput/alpha")       ! Lift blade file
-    write(1,*) 'turbineNumber bladeNumber alpha'
-    close(1)
-endif
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")       ! Lift blade file
+        write(1,*) 'turbineNumber bladeNumber alpha'
+        close(1)
+    endif
+enddo
 
 end subroutine atm_initialize_output
 
@@ -638,11 +642,12 @@ endif
 end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_output()
+subroutine atm_output(jt_total)
 ! This subroutine will calculate the output of the model
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
+integer, intent(in) :: jt_total ! Number of iteration fed in from solver
 integer :: i, j, m
 integer :: powerFile=11, bladeFile=12, liftFile=13, ClFile=14, CdFile=15
 integer :: alphaFile=16
@@ -653,30 +658,30 @@ outputInterval_counter=outputInterval_counter+1
 ! Output only if the number of intervals is right
 if (outputInterval == outputInterval_counter) then
     outputInterval_counter=0
-    
+        
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Writing Actuator Turbine Model output  !'
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    
-    ! File for power output
-    open(unit=powerFile,position="append", file="./turbineOutput/power")
-
-    ! File for blade output
-    open(unit=bladeFile,position="append", file="./turbineOutput/blade")
-
-    ! File for blade output
-    open(unit=liftFile,position="append", file="./turbineOutput/lift")
-
-    ! File for blade output
-    open(unit=ClFile,position="append", file="./turbineOutput/Cl")
-
-    open(unit=CdFile,position="append", file="./turbineOutput/Cd")
-
-    open(unit=alphaFile,position="append", file="./turbineOutput/alpha")
 
     do i=1,numberOfTurbines
 
         j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+    ! File for power output
+    open(unit=powerFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
+
+    ! File for blade output
+    open(unit=bladeFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
+
+    ! File for blade output
+    open(unit=liftFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
+
+    ! File for blade output
+    open(unit=ClFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
+
+    open(unit=CdFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
+
+    open(unit=alphaFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
 
         call atm_compute_power(i)
         write(powerFile,*) i, turbineArray(i) % powerRotor
@@ -692,14 +697,17 @@ if (outputInterval == outputInterval_counter) then
         enddo
     
         ! Write blade points 
-        call atm_write_blade_points(i)
+        call atm_write_blade_points(i,jt_total)
 
     enddo
 
+    ! Close all the files 
     close(powerFile)
     close(bladeFile)
     close(liftFile)
     close(ClFile)
+    close(CdFile)
+    close(alphaFile)
 
 endif
 
@@ -721,12 +729,12 @@ write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
 end subroutine atm_compute_power
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_write_blade_points(i)
+subroutine atm_write_blade_points(i,time_counter)
 ! This subroutine writes the position of all the blades at each time step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-integer, intent(in) :: i
+integer, intent(in) :: i, time_counter
 integer :: m, n, q, j
 
 
@@ -734,8 +742,8 @@ j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
 do m=1, turbineModel(j) % numBl
 
-    open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))           &
-                         //'blade'//trim(int2str(m)))
+    open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blade'  &
+                         //trim(int2str(m))//'t'//trim(int2str(time_counter)))
 
     do n=1, turbineArray(i) %  numAnnulusSections
 

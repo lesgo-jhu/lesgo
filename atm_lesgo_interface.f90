@@ -264,7 +264,7 @@ $endif
 
 ! This will write all the output from the model
 if (coord == 0) then
-    call atm_output()
+    call atm_output(jt_total)
 endif 
 
 end subroutine atm_lesgo_forcing
@@ -508,7 +508,7 @@ call eat_whitespace(coord_char,' ')
 ! Write points
 open(unit=787,file='./output/points'//time_char)
 do i=1,numberOfTurbines
-j=turbineArray(i) % turbineTypeID ! The turbine type ID
+    j=turbineArray(i) % turbineTypeID ! The turbine type ID
     do q=1, turbineArray(i) % numBladePoints
         do n=1, turbineArray(i) % numAnnulusSections
             do m=1, turbineModel(j) % numBl

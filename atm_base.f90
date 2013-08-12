@@ -66,7 +66,7 @@ p=size(x)
 
 if (xp <= x(1)) then 
     interpolate=y(1)
-else if (xp>=x(p)) then
+else if (xp >= x(p)) then
     interpolate=y(p)
 else
     do i=2,p
@@ -93,27 +93,22 @@ real(rprec) :: xa,xb,ya,yb
 integer :: i,p
 p=size(x)
 
-if (xp .lt. x(1)) then
+if (xp .le. x(1)) then
     interpolate_i=y(1) 
-    else if (xp .gt. x(p)) then
-        interpolate_i=y(p)
-    else
-        do i=2,p
-            if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
-                xa=x(i-1)
-                xb=x(i)
-                ya=real(y(i-1),rprec)
-                yb=real(y(i),rprec)
-                interpolate_i=nint( ya + (yb-ya) * (xp-xa) / (xb-xa) )
-!write(*,*) 'Interpolation = ', nint( ya + (yb-ya) * (xp-xa) / (yb-ya) )
-                endif
-        enddo
+else if (xp .ge. x(p)) then
+    interpolate_i=y(p)
+else
+    do i=2,p
+        if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
+            xa=x(i-1)
+            xb=x(i)
+            ya=real(y(i-1),rprec)
+            yb=real(y(i),rprec)
+            interpolate_i=nint( ya + (yb-ya) * (xp-xa) / (xb-xa) )
+        endif
+    enddo
 endif
-!write(*,*) 'Value of y = ', ya, yb
-!write(*,*) 'Value of x = ', xa, xb
-!write(*,*) 'Value of xp = ', xp
-!write(*,*) 'Value of p = ', p
-!write(*,*) 'Interpolated Value = ', interpolate_i
+
 return
 end function interpolate_i
 

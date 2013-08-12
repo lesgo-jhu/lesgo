@@ -9,8 +9,8 @@ outputInterval       10
 TURBINE_1 {
 turbineType        "NREL5MWRef"
 baseLocation        200,200,110 
-numBladePoints      40
-epsilon             4
+numBladePoints      100
+epsilon             8
 rotationDir         "cw"
 Azimuth              232.0105
 RotSpeed             10.9874
