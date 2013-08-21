@@ -93,6 +93,9 @@ implicit none
 logical :: file_exists
 integer :: i
 
+! Write to the screen output start
+call atm_print_initialize()
+
 do i = 1,numberOfTurbines
 
     inquire(file='./turbineOutput/turbine'//trim(int2str(i)),EXIST=file_exists)
@@ -102,25 +105,42 @@ do i = 1,numberOfTurbines
         ! Create turbineOutput directory
         call system("mkdir -vp turbineOutput/turbine"//trim(int2str(i))) 
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power")       ! Data Output
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power") 
         write(1,*) 'turbineNumber Power'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")       ! Lift blade file
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
         write(1,*) 'turbineNumber bladeNumber '
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")       ! Lift blade file
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
+        write(1,*) 'turbineNumber bladeNumber '
+        close(1)
+        
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
         write(1,*) 'turbineNumber bladeNumber Cl'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")       ! Lift blade file
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
         write(1,*) 'turbineNumber bladeNumber Cd'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")       ! Lift blade file
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
         write(1,*) 'turbineNumber bladeNumber alpha'
         close(1)
+
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
+        write(1,*) 'turbineNumber bladeNumber Vrel'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
+        write(1,*) 'turbineNumber bladeNumber Vaxial'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
+        write(1,*) 'turbineNumber bladeNumber Vtangential'
+        close(1)
+
     endif
 enddo
 
@@ -130,6 +150,8 @@ end subroutine atm_initialize_output
 subroutine atm_create_points(i)
 ! This subroutine generate the set of blade points for each turbine
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
 integer, intent(in) :: i ! Indicates the turbine number
 integer :: j ! Indicates the turbine type
 integer :: m ! Indicates the blade point number
@@ -294,7 +316,7 @@ do k=1, numBl
         do m=1, numBladePoints
             bladePoints(k,n,m,:) =                                       &
             rotatePoint(bladePoints(k,1,m,:), rotorApex,                 &
-            uvShaft,(annulusSectionAngle/(numAnnulusSections))*(n-1)*degRad)
+            uvShaft,(annulusSectionAngle/(numAnnulusSections))*(n-1.)*degRad)
         enddo
     enddo
 enddo
@@ -305,6 +327,8 @@ end subroutine atm_create_points
 subroutine atm_update(dt)
 ! This subroutine updates the model each time-step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
 integer :: i                                 ! Turbine number
 real(rprec), intent(in) :: dt                ! Time step
 
@@ -319,6 +343,8 @@ end subroutine atm_update
 subroutine atm_rotateBlades(i,dt)
 ! This subroutine rotates the turbine blades 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
 integer, intent(in) :: i                                 ! Turbine number
 real(rprec), intent(in) :: dt                            ! time step
 integer :: j                                 ! Turbine type
@@ -373,6 +399,8 @@ subroutine atm_calculate_variables(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Calculates the variables of the model that need information from the input
 ! files. It runs after reading input information.
+implicit none
+
 integer, intent(in) :: i ! Indicates the turbine number
 integer :: j ! Indicates the turbine type
 real(rprec), pointer :: projectionRadius
@@ -410,6 +438,8 @@ subroutine atm_computeBladeForce(i,m,n,q,U_local)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine will compute the wind vectors by projecting the velocity 
 ! onto the transformed coordinates system
+implicit none
+
 integer, intent(in) :: i,m,n,q
 ! i - turbineTypeArray
 ! n - numAnnulusSections
@@ -420,7 +450,7 @@ real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
 ! Local variables
 integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
 integer :: sectionType_i ! The type of airfoil
-real(rprec) :: twistAng_i, chord_i, Vmag_i, windAng_i, db_i
+real(rprec) :: twistAng_i, chord_i, windAng_i, db_i
 !real(rprec) :: solidity_i
 real(rprec), dimension(3) :: dragVector, liftVector
 
@@ -434,6 +464,7 @@ integer,     pointer :: numSec
 type(real(rprec)),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: PreCone
 real(rprec), pointer :: solidity(:,:,:),cl(:,:,:),cd(:,:,:),alpha(:,:,:)
+real(rprec), pointer :: Vmag(:,:,:)
 
 ! Identifier for the turbine type
 j= turbineArray(i) % turbineTypeID
@@ -445,15 +476,16 @@ windVectors => turbineArray(i) % windVectors
 bladePoints => turbineArray(i) % bladePoints
 rotSpeed => turbineArray(i) % rotSpeed
 solidity=> turbineArray(i) % solidity
-
-! Pointers for turbineModel (j)
-!turbineTypeID => turbineArray(i) % turbineTypeID
-NumSec => turbineModel(j) % NumSec
 bladeRadius => turbineArray(i) % bladeRadius
 cd => turbineArray(i) % cd       ! Drag coefficient
 cl => turbineArray(i) % cl       ! Lift coefficient
-alpha => turbineArray(i) % alpha ! Anlge of attack
+alpha => turbineArray(i) % alpha ! Angle of attack
+Vmag => turbineArray(i) % Vmag ! Velocity magnitude
 
+!turbineTypeID => turbineArray(i) % turbineTypeID
+NumSec => turbineModel(j) % NumSec
+
+! Pointers for turbineModel (j)
 PreCone => turbineModel(j) % PreCone
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -465,8 +497,6 @@ PreCone => turbineModel(j) % PreCone
 ! If clockwise rotating, this vector points along the blade toward the tip.
 ! If counter-clockwise rotating, this vector points along the blade towards 
 ! the root.
-
-!write(*,*) ' turbineArray(i) % rotationDir = ', turbineArray(i) % rotationDir
 if (turbineArray(i) % rotationDir == "cw")  then
     bladeAlignedVectors(m,n,q,3,:) =      &
                                      vector_add(bladePoints(m,n,q,:),-rotorApex)
@@ -494,7 +524,7 @@ bladeAlignedVectors(m,n,q,1,:) = vector_divide(bladeAlignedVectors(m,n,q,1,:), &
                                  vector_mag(bladeAlignedVectors(m,n,q,1,:)))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!         
-! This concludes the definition of the local corrdinate system
+! This concludes the definition of the local coordinate system
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -508,7 +538,8 @@ windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local)
 ! Interpolate quantities through section
 twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
                        turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % twist(1:NumSec) )   
+                       turbineModel(j) % twist(1:NumSec) )
+
 chord_i = interpolate(bladeRadius(m,n,q),                                      &
                        turbineModel(j) % radius(1:NumSec),   &
                        turbineModel(j) % chord(1:NumSec) )
@@ -518,13 +549,13 @@ sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
                        turbineModel(j) % sectionType(1:NumSec))
 
 ! Velocity magnitude
-Vmag_i=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
+Vmag(m,n,q)=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
 
 ! Angle between wind vector components
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
 
 ! Local angle of attack
-alpha(m,n,q)=windAng_i-twistAng_i - turbineArray(i) % Pitch
+alpha(m,n,q) = windAng_i - twistAng_i - turbineArray(i) % Pitch
 
 ! Total number of entries in lists of AOA, cl and cd
 k = turbineModel(j) % airfoilType(sectionType_i) % n
@@ -542,13 +573,12 @@ cd(m,n,q)= interpolate(alpha(m,n,q),                                            
 db_i = turbineArray(i) % db(q) 
 
 ! Lift force
-turbineArray(i) % lift(m,n,q) = 0.5 * cl(m,n,q) * Vmag_i**2 * &
+turbineArray(i) % lift(m,n,q) = 0.5 * cl(m,n,q) * (Vmag(m,n,q)**2.) *         &
                                 chord_i * db_i * solidity(m,n,q)
 
 ! Drag force
-turbineArray(i) % drag(m,n,q) = 0.5 * cd(m,n,q) * Vmag_i**2 * &
+turbineArray(i) % drag(m,n,q) = 0.5 * cd(m,n,q) * (Vmag(m,n,q)**2.) *         &
                                 chord_i * db_i * solidity(m,n,q)
-
 
 ! This vector projects the drag onto the local coordinate system
 dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +  &
@@ -558,7 +588,7 @@ dragVector = vector_divide(dragVector,vector_mag(dragVector) )
 
 ! Lift vector
 liftVector = cross_product(dragVector,bladeAlignedVectors(m,n,q,3,:) )
-liftVector = vector_divide(liftVector,vector_mag(liftVector))
+liftVector = liftVector/vector_mag(liftVector)
 
 ! Apply the lift and drag as vectors
 liftVector = -turbineArray(i) % lift(m,n,q) * liftVector;
@@ -567,9 +597,8 @@ dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 ! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
-! bladeForcesDummy is used for parallelization purposes
-turbineArray(i) % bladeForcesDummy(m,n,q,:) =                                 &
-turbineArray(i) % bladeForces(m,n,q,:)
+! Calculate output quantities based on each point
+call atm_process_output(i,m,n,q)
 
 end subroutine atm_computeBladeForce
 
@@ -577,6 +606,8 @@ end subroutine atm_computeBladeForce
 subroutine atm_yawNacelle(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine yaws the nacelle according to the yaw angle
+implicit none
+
 integer, intent(in) :: i
 integer :: j 
 integer :: m,n,q
@@ -629,6 +660,7 @@ subroutine atm_compassToStandard(dir)
 ! convention of 0 degrees on the + x axis with positive degrees
 ! in the counter-clockwise direction.
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
 real(rprec), intent(inout) :: dir
 dir = dir + 180.0
 if (dir .ge. 360.0) then
@@ -649,15 +681,12 @@ implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
 integer :: i, j, m
-integer :: powerFile=11, bladeFile=12, liftFile=13, ClFile=14, CdFile=15
-integer :: alphaFile=16
-
-! Increase the counter to know how many time-steps since last right
-outputInterval_counter=outputInterval_counter+1
+integer :: powerFile=11, bladeFile=12, liftFile=13, dragFile=14
+integer :: ClFile=15, CdFile=16, alphaFile=17, VrelFile=18
+integer :: VaxialFile=19, VtangentialFile=20
 
 ! Output only if the number of intervals is right
-if (outputInterval == outputInterval_counter) then
-    outputInterval_counter=0
+if ( mod(jt_total-1, outputInterval) == 0) then
         
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Writing Actuator Turbine Model output  !'
@@ -667,32 +696,54 @@ if (outputInterval == outputInterval_counter) then
 
         j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-    ! File for power output
-    open(unit=powerFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
+        ! Files for power output
+        open(unit=powerFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
+    
+        ! File for blade output
+        open(unit=bladeFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
 
-    ! File for blade output
-    open(unit=bladeFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
+        open(unit=liftFile,position="append",                                  &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
 
-    ! File for blade output
-    open(unit=liftFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
+        open(unit=dragFile,position="append",                                  &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
+        
+        open(unit=ClFile,position="append",                                    &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
 
-    ! File for blade output
-    open(unit=ClFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
+        open(unit=CdFile,position="append",                                    &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
 
-    open(unit=CdFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
+        open(unit=alphaFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
 
-    open(unit=alphaFile,position="append", file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
+        open(unit=VrelFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
+
+        open(unit=VaxialFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
+
+        open(unit=VtangentialFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
         call atm_compute_power(i)
         write(powerFile,*) i, turbineArray(i) % powerRotor
 
         ! Will write only the first actuator section of the blade
         do m=1, turbineModel(j) % numBl
-            write(bladeFile,*) i, turbineArray(i) % bladeRadius(m,1,:)
-            write(liftFile,*) i, turbineArray(i) % lift(m,1,:)
-            write(ClFile,*) i, turbineArray(i) % cl(m,1,:)
-            write(CdFile,*) i, turbineArray(i) % cd(m,1,:)
-            write(alphaFile,*) i, turbineArray(i) % alpha(m,1,:)
+            write(bladeFile,*) i, m, turbineArray(i) % bladeRadius(m,1,:)
+            write(liftFile,*) i, m, turbineArray(i) % lift(m,1,:)/   &
+                                    turbineArray(i) % db(:)
+            write(dragFile,*) i, m, turbineArray(i) % drag(m,1,:)/   &
+                                    turbineArray(i) % db(:)
+            write(ClFile,*) i, m, turbineArray(i) % cl(m,1,:)
+            write(CdFile,*) i, m, turbineArray(i) % cd(m,1,:)
+            write(alphaFile,*) i, m, turbineArray(i) % alpha(m,1,:)
+            write(VrelFile,*) i, m, turbineArray(i) % Vmag(m,1,:)
+            write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
+            write(VtangentialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,2)
 
         enddo
     
@@ -705,9 +756,17 @@ if (outputInterval == outputInterval_counter) then
     close(powerFile)
     close(bladeFile)
     close(liftFile)
+    close(dragFile)
     close(ClFile)
     close(CdFile)
     close(alphaFile)
+    close(VrelFile)
+    close(VaxialFile)
+    close(VtangentialFile)
+
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    write(*,*) '!  Done Writing Actuator Turbine Model output  !'
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 endif
 
@@ -737,13 +796,13 @@ implicit none
 integer, intent(in) :: i, time_counter
 integer :: m, n, q, j
 
-
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-do m=1, turbineModel(j) % numBl
+open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blades'  &
+                     //trim(int2str(time_counter))//".vtk")
 
-    open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blade'  &
-                         //trim(int2str(m))//'t'//trim(int2str(time_counter)))
+! Write the points to the blade file
+do m=1, turbineModel(j) % numBl
 
     do n=1, turbineArray(i) %  numAnnulusSections
 
@@ -755,9 +814,9 @@ do m=1, turbineModel(j) % numBl
 
     enddo
 
-close(231)
-
 enddo
+
+close(231)
 
 end subroutine atm_write_blade_points
 

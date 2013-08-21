@@ -36,7 +36,6 @@ implicit none
 ! The variables for the ATM are defined here
 integer :: numberOfTurbines
 integer :: outputInterval
-integer :: outputInterval_counter=0
 
 ! This type will store the necessary variables for -each- turbine 
 ! To declare: type(turbineArray_t), allocatable, dimension(:) :: turbineArray
@@ -75,10 +74,8 @@ type turbineArray_t
     type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
     type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForces
-    ! This dummy variable is used for MPI purposes of doing MPI_SUM on
-    ! the forces for all processors, since forces are only computed at
-    ! processors which contain the points
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForcesDummy
+    ! Forces on each actuator point (blade, annular section, point, 3)
+    type(real(rprec)), allocatable, dimension(:,:,:,:) :: integratedBladeForces
     ! Vectors at each actuator point defining the local reference frame
     ! (blade, annular section, point, 3, 3) (three vectors)
     type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
@@ -184,9 +181,9 @@ type turbineModel_t
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
 
-    ! Blade section quantities
-    real(rprec), dimension(25) :: chord, twist, radius
-    integer, dimension(25) :: sectionType
+    ! Blade section quantities (maximum number of sections 100, easy modify)
+    real(rprec), dimension(100) :: chord, twist, radius
+    integer, dimension(100) :: sectionType
 
     ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
     type(airfoilType_t), allocatable, dimension(:) :: airfoilType
@@ -531,7 +528,7 @@ numBl=turbineModel(j) % numBl
 
     allocate(turbineArray(i) % bladeForces(numBl,          &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % bladeForcesDummy(numBl,          &
+    allocate(turbineArray(i) % integratedBladeForces(numBl,          &
              numAnnulusSections, numBladePoints,3) )
     allocate(turbineArray(i) % bladeAlignedVectors(numBl,  &
              numAnnulusSections, numBladePoints,3,3) )

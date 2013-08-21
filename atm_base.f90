@@ -99,7 +99,7 @@ else if (xp .ge. x(p)) then
     interpolate_i=y(p)
 else
     do i=2,p
-        if ( ( xp .ge. x(i-1) ) .and. ( xp .le. x(i) ) ) then
+        if ( ( xp .gt. x(i-1) ) .and. ( xp .le. x(i) ) ) then
             xa=x(i-1)
             xb=x(i)
             ya=real(y(i-1),rprec)

@@ -28,7 +28,7 @@
 # You can also deploy your own backend outside of matplotlib by
 # referring to the module name (which must be in the PYTHONPATH) as
 # 'module://my_backend'
-backend      : GTKAgg
+#backend      : GTKAgg
 
 # if you are runing pyplot inside a GUI and your backend choice
 # conflicts, we will automatically try and find a compatible one for
@@ -50,7 +50,7 @@ lines.linewidth   : 1     # line width in points
 #lines.linestyle   : -       # solid line
 #lines.color       : blue
 #lines.marker      : None    # the default marker
-lines.markeredgewidth  : 1.4     # the line width around the marker symbol
+#lines.markeredgewidth  : 1.4     # the line width around the marker symbol
 lines.markersize  : 6            # markersize, in points
 #lines.dash_joinstyle : miter        # miter|round|bevel
 #lines.dash_capstyle : butt          # butt|round|projecting

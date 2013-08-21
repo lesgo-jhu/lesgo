@@ -19,10 +19,10 @@ NumBl                   3;
 TipRad                 63.0;
 HubRad                  1.5;
 UndSling                0.0;
-OverHang               -5.01910;
-TowerHt                87.6;
-Twr2Shft                1.96256;
-ShftTilt               -5.0;
+OverHang               -1.0;
+TowerHt                90;
+Twr2Shft                0;
+ShftTilt               0;
 PreCone               0;
 GBRatio                97.0;
 GenIner               534.116;
@@ -84,7 +84,7 @@ BladeData
     19.95      4.458    10.162     3
     24.05      4.249    9.011      4
     28.15      4.007    7.795      5
-    32.25      3.748    6.544      5
+   32.25      3.748    6.544      5
     36.35      3.502    5.361      6
     40.45      3.256    4.188      6
     44.55      3.01     3.125      7
