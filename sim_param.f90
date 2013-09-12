@@ -50,10 +50,6 @@ real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 
 real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
                                                   fxa, fya, fza
-
-real (rprec), dimension (:, :, :), allocatable :: theta, q
-    !--Added for scalars
-    
 contains
 
 !
@@ -96,8 +92,6 @@ allocate ( p(ld, ny, 0:nz) ); p = 0.0_rprec
 allocate ( divtx(ld, ny, lbz:nz) ); divtx = 0.0_rprec
 allocate ( divty(ld, ny, lbz:nz) ); divty = 0.0_rprec
 allocate ( divtz(ld, ny, lbz:nz) ); divtz = 0.0_rprec
-allocate ( theta(ld, ny, nz) ); theta = 0.0_rprec
-allocate ( q(ld, ny, nz) ); q = 0.0_rprec
 
 $if($TURBINES)
 allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
