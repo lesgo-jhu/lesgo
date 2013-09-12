@@ -53,7 +53,6 @@ $endif
 implicit none
 
 type(clock_t), intent(inout) :: this
-real(8) :: omp_get_wtime
 
 $if($MPI)
 this % start = mpi_wtime()
@@ -73,7 +72,6 @@ $endif
 implicit none
 
 type(clock_t), intent(inout) :: this
-real(8) :: omp_get_wtime
 
 $if($MPI)
 this % stop = mpi_wtime()
