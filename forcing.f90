@@ -129,7 +129,7 @@ use types, only : rprec
 use param, only : inflow_velocity, nx, ny, nz, &
                   fringe_region_end, fringe_region_len
 use param, only : coord
-use sim_param, only : u, v, w, theta
+use sim_param, only : u, v, w
 use messages, only : error
 use fringe_util
 implicit none
