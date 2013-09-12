@@ -83,8 +83,6 @@ use param,only:nx,ny,nx2,ny2
 implicit none
 
 $if ($FFTW3)
-integer(8) :: iret
-
 ! Allocate temporary arrays for creating the FFTW plans
 allocate( data(ld, ny) )
 allocate( data_big(ld_big, ny2) )
