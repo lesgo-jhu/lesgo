@@ -45,11 +45,11 @@ public :: atm_initialize, numberOfTurbines,                                 &
           atm_initialize_output
 
 ! The very crucial parameter pi
-real(rprec), parameter :: pi=acos(-1.) 
+real(rprec), parameter :: pi=acos(-1._rprec) 
 
 ! These are used to do unit conversions
-real(rprec) :: degRad = pi/180. ! Degrees to radians conversion
-real(rprec) :: rpmRadSec =  pi/30. ! Set the revolutions/min to radians/s 
+real(rprec) :: degRad = pi/180._rprec ! Degrees to radians conversion
+real(rprec) :: rpmRadSec =  pi/30._rprec ! Set the revolutions/min to radians/s 
 
 logical :: pastFirstTimeStep ! Establishes if we are at the first time step
 
@@ -573,11 +573,11 @@ cd(m,n,q)= interpolate(alpha(m,n,q),                                            
 db_i = turbineArray(i) % db(q) 
 
 ! Lift force
-turbineArray(i) % lift(m,n,q) = 0.5 * cl(m,n,q) * (Vmag(m,n,q)**2.) *         &
+turbineArray(i) % lift(m,n,q) = 0.5_rprec * cl(m,n,q) * (Vmag(m,n,q)**2) *     &
                                 chord_i * db_i * solidity(m,n,q)
 
 ! Drag force
-turbineArray(i) % drag(m,n,q) = 0.5 * cd(m,n,q) * (Vmag(m,n,q)**2.) *         &
+turbineArray(i) % drag(m,n,q) = 0.5_rprec * cd(m,n,q) * (Vmag(m,n,q)**2) *     &
                                 chord_i * db_i * solidity(m,n,q)
 
 ! This vector projects the drag onto the local coordinate system
@@ -878,8 +878,8 @@ dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
 Force=turbineArray(i) % bladeForces(m,n,q,:)
 
 ! The value of the kernel. This is the actual smoothing function
-kernel=exp(-(dis/turbineArray(i) % epsilon)**2.) / &
-((turbineArray(i) % epsilon**3.)*(pi**1.5))
+kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) / &
+((turbineArray(i) % epsilon**3._rprec)*(pi**1.5_rprec))
 
 ! The force times the kernel will give the force/unitVolume
 atm_convoluteForce = Force * kernel

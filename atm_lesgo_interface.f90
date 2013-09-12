@@ -190,6 +190,8 @@ $if ($MPI)
     if (coord == 0) then
         call atm_initialize_output()
     endif
+$else
+    call atm_initialize_output()
 $endif
 
 end subroutine atm_lesgo_initialize
@@ -203,8 +205,6 @@ subroutine atm_lesgo_forcing ()
 implicit none
 
 integer :: i, c
-
-integer :: m,n,q, j ! DEBUGGINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 ! Establish all turbine properties as zero
 ! This is essential for paralelization
@@ -311,7 +311,11 @@ endif
 
 end subroutine atm_lesgo_forcing
 
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Complie this subroutines only if MPI will be used
+$if ($MPI)
+
 subroutine atm_lesgo_mpi_gather()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine will gather the necessary outputs from the turbine models
@@ -387,7 +391,7 @@ do i=1,numberOfTurbines
 enddo
 
 end subroutine atm_lesgo_mpi_gather
-
+$endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_force(i)
@@ -455,7 +459,7 @@ implicit none
 integer, intent(in) :: i
 integer :: j, m, n, q, c 
 
-real(rprec) :: dummyForce(3) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Debugging
+!real(rprec) :: dummyForce(3)  ! Debugging
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
@@ -481,7 +485,7 @@ do c=1,size(forceFieldUV)
 
                 turbineArray(i) % integratedBladeForces(m,n,q,1:2) =    &
                 turbineArray(i) % integratedBladeForces(m,n,q,1:2) +    &
-                dummyForce(1:2) * dx * dy * dz * z_i**3 
+                !dummyForce(1:2) * dx * dy * dz * z_i**3 
 
                 endif
             enddo
@@ -505,7 +509,7 @@ do c=1,size(forceFieldW)
 
                 turbineArray(i) % integratedBladeForces(m,n,q,3) =    &
                 turbineArray(i) % integratedBladeForces(m,n,q,3) +    &
-                dummyForce(3) * dx * dy * dz * z_i**3 
+                !dummyForce(3) * dx * dy * dz * z_i**3 
 
                 endif
             enddo

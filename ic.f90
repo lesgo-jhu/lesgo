@@ -84,7 +84,8 @@ subroutine uniform_ic()
 implicit none
 
 u = inflow_velocity 
-v = 0.05_rprec * inflow_velocity
+!v = 0.05_rprec * inflow_velocity
+v = 0._rprec
 w = 0._rprec
 
 return
@@ -191,19 +192,28 @@ do jz=1,nz
          !...Ran3 returns uniform RV between 0 and 1. (sigma_rv=0.289)
          !...Taking std dev of vel as 1 at all heights
          if (z.le.z_i) then
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            u(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star+ubar(jz)
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            v(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star !noise
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            w(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star
+ !           noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
+ !           u(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star+ubar(jz)
+ !           noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
+ !           v(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star !noise
+ !           noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
+ !           w(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star
+! Tony ATM
+u(jx,jy,jz)=1._rprec
+v(jx,jy,jz)=0._rprec
+w(jx,jy,jz)=0._rprec
+
          else
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            u(jx,jy,jz)=noise*w_star/u_star*.01_rprec+ubar(jz)
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            v(jx,jy,jz)=noise*w_star/u_star*.01_rprec
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            w(jx,jy,jz)=noise*w_star/u_star*.01_rprec
+! Tony ATM
+u(jx,jy,jz)=1._rprec
+v(jx,jy,jz)=0._rprec
+w(jx,jy,jz)=0._rprec
+ !           noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
+ !           u(jx,jy,jz)=noise*w_star/u_star*.01_rprec+ubar(jz)
+ !           noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
+ !           v(jx,jy,jz)=noise*w_star/u_star*.01_rprec
+ !           noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
+ !           w(jx,jy,jz)=noise*w_star/u_star*.01_rprec
          end if
       end do
    end do

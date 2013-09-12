@@ -42,13 +42,13 @@ def main():
         os.makedirs('./plots')
 
     # The files to be plotted (ylabel,dummy)
-    files={'alpha':(r"$\alpha$",0), 'Cl':(r"$C_{l}$",0),
-           'Cd' :(r"$C_{d}$",0),'lift':(r"Lift",0),'drag':(r"Drag",0),
-           'Vrel':(r"$V_{rel}$",0), 'Vaxial':(r"$V_{axial}$",0),
-           'Vtangential':(r"$V_{tangential}$",0) }
+    files={'alpha':(r"$\alpha$",1.), 'Cl':(r"$C_{l}$",1.),
+           'Cd' :(r"$C_{d}$",1.),'lift':(r"Lift",1.),'drag':(r"Drag",1.),
+           'Vrel':(r"$V_{rel}$",1.), 'Vaxial':(r"$V_{axial}$",8.),
+           'Vtangential':(r"$V_{tangential}$",1.) }
 
     for file_in, parameters in files.iteritems():
-      plotFileBlade(file_in,'r',parameters[0])
+        plotFileBlade(file_in,'r',parameters)
 
     ###############################################
     # Plot turbine output
@@ -61,41 +61,46 @@ def main():
 
 
 ##########################################################
-# Function for plotting (single line)
-def plotFileBlade(file_in,labelX,labelY):
+# Function for plotting (blade properties)
+def plotFileBlade(file_in,labelX,parameters):
 # Read file location
  read_location='../turbineOutput/turbine1/'
  myFile=open(read_location+file_in)
  x,y=readAndAverage(myFile)
  plt.clf()
- plt.plot(x,y,'-o',label='LES',color='black')
+ plt.plot([r/63.0 for r in x],  [r/parameters[1] for r in y],
+          '-o',label='LES',color='black')
  del x,y
  x, y = np.loadtxt('./BEM/'+file_in, unpack=True)
- plt.plot(x,y,'--',label='BEM',color='black')
+ plt.plot([r/63.0 for r in x],  [r/parameters[1] for r in y] ,
+          '--',label='BEM',color='black')
  plt.xlabel(labelX)
- plt.ylabel(labelY)
- plt.legend()
+ plt.ylabel(parameters[0])
+ plt.legend(loc='best')
  plt.savefig('./plots/'+file_in+'.eps')
  plt.clf()
 
 ##########################################################
-# Function for plotting (single turbine)
+# Function for plotting (power)
 def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
 # Read file location
  read_location='../turbineOutput/turbine1/'
  myFile=open(read_location+file_in)
  x,y=readFile(myFile)
  plt.clf()
- plt.plot(x,[float(k)/parameters[1] for k in y],'-o', color='black')
+ plt.plot(x,[float(k)/parameters[1] for k in y],'-o', color='black',label='LES')
+ x, y = np.loadtxt('./BEM/'+file_in, unpack=True)
+ plt.axhline(y/parameters[1],color='black',label='BEM')
  plt.xlabel(labelX)
  plt.ylabel(labelY)
+ plt.legend(loc='best')
  plt.savefig('./plots/'+file_in+'.eps')
  plt.clf()
 
 ##########################################################
 # Read the file and average it
 def readAndAverage(file_in):
- j=2000
+ j=1
  for i, line in enumerate(file_in):
    if i==j:
      y=[float(s) for s in line.split()] # Initial value of y
@@ -106,7 +111,8 @@ def readAndAverage(file_in):
  myfile=open('../turbineOutput/turbine1/blade')
  line=myfile.readline()
  line=myfile.readline()
- x=[float(s) for s in line.split()] # Convert the elements in line to numbers
+# Convert the elements in line to numbers
+ x=[float(s) for s in line.split()] 
  del y[0:2],x[0:2]
  return x,y
 
