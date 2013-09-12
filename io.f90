@@ -450,7 +450,7 @@ character (*), parameter :: sub_name = mod_name // '.inst_write'
 
 character (64) :: fname
 integer :: n, i, j, k
-$if(not $OUTPUT_BINARY)
+$if(not $BINARY)
 character (64) :: var_list
 integer :: nvars
 $endif
@@ -1523,7 +1523,7 @@ $if($MPI)
 use param, only : coord
 use param, only : comm, ierr
 $endif
-use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
+use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if($DYN_TN)
 use sgs_param, only: F_ee2, F_deedt2, ee_past
@@ -1899,7 +1899,8 @@ if(point_calc) then
        point(i) % fid = open_file( fname, 'rewind', 'formatted' )
        var_list = '"t", "u", "v", "w"'
        ! Compilation error
-       call write_tecplot_header_xyline( point(i) % fid, var_list )
+       ! RS Commented out as it gives error with Intel compiler
+!       call write_tecplot_header_xyline( point(i) % fid, var_list )
 
     endif
     
@@ -1923,9 +1924,6 @@ use param, only : path
 use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
-$if($BINARY)
-use stat_defs, only : u_avg
-$endif
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
@@ -2022,12 +2020,6 @@ $if($OUTPUT_EXTRA)
     
 $endif
 
-$if($BINARY)
-! Allocate the u_avg array
-allocate ( u_avg(ld, ny, nz) ); u_avg = 0.0_rprec
-$endif
-
-
 ! Initialize tavg_dt
 tavg_dt = 0.0_rprec
 
@@ -2058,10 +2050,6 @@ $endif
 $if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
-$if($BINARY)
-use stat_defs, only : u_avg
-$endif
-
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -2226,7 +2214,6 @@ do k=lbz,jzmax
   do j=1,ny
     do i=1,nx
     u_p = u(i,j,k)
-    u_avg(i,j,k)=u_avg(i,j,k)+u_p*tavg_dt                    
     enddo
   enddo
 enddo
@@ -2258,9 +2245,6 @@ use stat_defs, only : tavg_interp_to_uv_grid, tavg_interp_to_w_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
-$endif
-$if($BINARY)
-use stat_defs, only : u_avg
 $endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
 $if($MPI)
@@ -2374,9 +2358,7 @@ fname_cs_zplane = path // 'output/cs_opt2_zplane.dat'
 $if($OUTPUT_EXTRA)  
 fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
 fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
-!$if($DYN_TN)
 fname_sgs_ee = path // 'output/ee_avg.dat'
-!$endif
 $endif  
   
 $if ($MPI)
@@ -2404,9 +2386,7 @@ $if ($MPI)
   $if($OUTPUT_EXTRA)  
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
- !$if($DYN_TN)
   call string_concat( fname_sgs_ee, '.c', coord)
- !$endif
   $endif    
 $endif
 
@@ -2469,7 +2449,6 @@ do k=jzmin,jzmax
   do j=1, Ny
     do i=1, Nx
       tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
-      u_avg(i,j,k) =u_avg(i,j,k) / tavg_total_time
     enddo
   enddo
 enddo
@@ -2510,7 +2489,6 @@ if (jzmin==0) then  !coord==0 only
 endif
 
 ! Interpolate between grids where necessary
-!tavg = tavg_interp_to_uv_grid( tavg )
 tavg = tavg_interp_to_w_grid( tavg )
 
 ! Anything with velocity is on the w-grid so these
@@ -2596,20 +2574,16 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
+! Richard
 $if($BINARY)
 ! ----- Write all the 3D data -----
-open(unit=13,file=fname_u_vel_gridb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=1) u_avg(:nx,:ny,1:nz)
-close(13)
 
-! RICHARD
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u2
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v2
@@ -2619,13 +2593,11 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
 write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%dudz
 write(13,rec=2) tavg(:nx,:ny,1:nz)%dvdz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%txx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%txy
@@ -2635,14 +2607,12 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
 write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
 write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) rs(:nx,:ny,1:nz)%up2 
 write(13,rec=2) rs(:nx,:ny,1:nz)%vp2 
@@ -2652,7 +2622,6 @@ write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2 
 close(13)
