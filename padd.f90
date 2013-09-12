@@ -27,8 +27,8 @@ use param,only:ld,ld_big,nx,ny,ny2
 implicit none
 
 !  u and u_big are interleaved as complex arrays
-real(kind=rprec), dimension(ld,ny), intent(in) :: u
-real(kind=rprec), dimension(ld_big,ny2), intent(out) :: u_big
+real(rprec), dimension(ld,ny), intent(in) :: u
+real(rprec), dimension(ld_big,ny2), intent(out) :: u_big
 
 integer :: ny_h, j_s, j_big_s
 
