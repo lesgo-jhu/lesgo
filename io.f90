@@ -1899,8 +1899,7 @@ if(point_calc) then
        point(i) % fid = open_file( fname, 'rewind', 'formatted' )
        var_list = '"t", "u", "v", "w"'
        ! Compilation error
-       ! RS Commented out as it gives error with Intel compiler
-!       call write_tecplot_header_xyline( point(i) % fid, var_list )
+       call write_tecplot_header_xyline( point(i) % fid, var_list )
 
     endif
     
@@ -2442,7 +2441,6 @@ allocate(tavg_zplane_tot(nz_tot))
 
 $endif
 
-$if($BINARY)
 !  Perform time averaging operation
 !  tavg = tavg / tavg_total_time
 do k=jzmin,jzmax
@@ -2452,7 +2450,6 @@ do k=jzmin,jzmax
     enddo
   enddo
 enddo
-$endif
 
 $if ($OUTPUT_EXTRA)
 do k=1,jzmax
