@@ -70,9 +70,10 @@ integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
-!integer :: i,j,k
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
+$endif
 
 sx=size(var,1)
 sy=size(var,2)
@@ -161,7 +162,9 @@ real(rprec), allocatable, dimension(:,:,:) :: var_w
 integer :: sx,sy,ubz
 !integer :: i,j,k
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
+$endif
 
 sx=size(var,1)
 sy=size(var,2)
@@ -217,7 +220,9 @@ real(rprec), intent(IN) :: dx
 
 real(rprec) :: px ! Global value
 
+$if($VERBOSE)
 character (*), parameter :: func_name = mod_name // '.cell_indx'
+$endif
 real(rprec), parameter :: thresh = 1.e-9_rprec
 
 real(rprec), pointer, dimension(:) :: z
@@ -359,9 +364,7 @@ real(rprec), dimension(:,:,lbz:), intent(IN) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
 real(rprec), intent(IN), dimension(3) :: xyz
 
-!real(rprec), dimension(2,2,2) :: uvar
-integer, parameter :: nvar = 3
-!integer :: i,j,k
+!integer, parameter :: nvar = 3
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
