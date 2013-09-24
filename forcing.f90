@@ -134,7 +134,9 @@ use messages, only : error
 use fringe_util
 implicit none
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = 'inflow_cond'
+$endif
 
 integer :: i, i_w
 integer :: istart, istart_w
@@ -199,7 +201,9 @@ integer :: jz_min
 
 real (rprec) :: RHS, tconst
 
+$if ($VERBOSE)
 character(*), parameter :: sub_name='project'
+$endif
 
 ! Caching
 tconst = tadv1 * dt
