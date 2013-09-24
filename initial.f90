@@ -41,8 +41,6 @@ $endif
 
 implicit none
 
-logical, parameter :: use_add_random = .false.
-
 character (64) :: fname
 
 $if ($DYN_TN)
