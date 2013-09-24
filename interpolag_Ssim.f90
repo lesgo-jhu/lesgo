@@ -47,7 +47,9 @@ $endif
 use cfl_util, only : get_max_cfl
 implicit none
 
+$if ($VERBOSE)
 character (*), parameter :: sub_name = 'interpolag_Ssim'
+$endif
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
