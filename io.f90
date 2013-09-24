@@ -122,18 +122,15 @@ implicit none
 
 include 'tecryte.h'
 
+$if ($DEBUG)
 character (*), parameter :: sub_name = 'energy'
+
 
 integer, parameter :: NAN_MAX = 10
                       !--write this many NAN's before calling error (to aid
                       !  diagnosis of problem)
-
-$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
 $endif
-
-!logical, parameter :: flush = .true.
-
 integer :: jx, jy, jz
 integer :: nan_count
 
@@ -188,7 +185,9 @@ end do z_loop
 ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
 ! Check if NaN's where found
+$if ($DEBUG)
 if ( nan_count > 0 ) call error (sub_name, 'NaN found')
+$endif
 
 $if ($MPI)
 
@@ -446,7 +445,9 @@ include 'tecryte.h'
 
 integer, intent(IN) :: itype
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.inst_write'
+$endif
 
 character (64) :: fname
 integer :: n, i, j, k
@@ -3289,8 +3290,9 @@ implicit none
 
 include 'tecryte.h'
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
-!character(25) :: cl
+$endif
 character (64) :: fname
 
 integer ::  k
