@@ -27,9 +27,10 @@ subroutine ic()
   $endif 
   
   implicit none
-
+  
+  $if ($VERBOSE)
   character(*), parameter :: sub_name = 'ic'
-
+  $endif
   $if ($DEBUG)
   logical, parameter :: DEBUG = .false.
   $endif 
