@@ -27,26 +27,22 @@ use sim_param,only:u,v,dudz,dvdz,txz,tyz
 use test_filtermodule
 implicit none
 integer::jx,jy
-real(kind=rprec),dimension(nx,ny)::ustar,u_avg,denom
-real(kind=rprec),dimension(ld,ny)::u1,v1
-real(kind=rprec)::const
-real(kind=rprec),dimension(nx,ny)::phi_m,psi_m
+real(rprec),dimension(nx,ny)::denom,u_avg,ustar
+real(rprec),dimension(ld,ny)::u1,v1
+! No need to define phi_m or psi_m as a matrix as only a constant value is used
+real(rprec)::const,phi_m,psi_m
 
 select case (lbc_mom)
-
   case (0) ! Stress free
-
     txz(:, :, 1) = 0._rprec
     tyz(:, :, 1) = 0._rprec
     dudz(:, :, 1) = 0._rprec
     dvdz(:, :, 1) = 0._rprec
-
   case (1) ! Wall
     ! See John D. Albertson's dissertation, eqns (2.46)-(2.52)
     ! For dudz and dvdz at wall, we should use derivwall.f90
-    
     ! Also, see:
-    ! E. Bou-Zeid, C. Meneveau & M.B. Parlange, “A scale-dependent Lagrangian dynamic model
+    ! E. Bou-Zeid, C. Meneveau & M.B. Parlange, "A scale-dependent Lagrangian dynamic model
     !   for large eddy simulation of complex turbulent flows" (2005) -- Appendix    
     
     !TS Remove the following line when obukhov.f is used
@@ -64,27 +60,26 @@ select case (lbc_mom)
     do jy=1,ny
     do jx=1,nx
        const=-(ustar(jx,jy)**2) /u_avg(jx,jy)
-
        txz(jx,jy,1)=const *u1(jx,jy)
        tyz(jx,jy,1)=const *v1(jx,jy)
     !TS REMOVE derivwall.f90 and add it here
     !this is as in Moeng 84
        dudz(jx,jy,1)=ustar(jx,jy)/(0.5_rprec*dz*vonK)*u(jx,jy,1)/u_avg(jx,jy)&
     !TS ADD for non-neutral case
-           *phi_m(jx,jy)
+           *phi_m
        dvdz(jx,jy,1)=ustar(jx,jy)/(0.5_rprec*dz*vonK)*v(jx,jy,1)/u_avg(jx,jy)&
     !TS ADD for non-neutral case
-           *phi_m(jx,jy)
+           *phi_m
        dudz(jx,jy,1)=merge(0._rprec,dudz(jx,jy,1),u(jx,jy,1).eq.0._rprec)
        dvdz(jx,jy,1)=merge(0._rprec,dvdz(jx,jy,1),v(jx,jy,1).eq.0._rprec)
     end do
     end do
 
+$if($DEBUG)
   case default
 
     write (*, *) 'invalid lbc_mom'
     stop
-
+$endif
 end select
-
 end subroutine wallstress
