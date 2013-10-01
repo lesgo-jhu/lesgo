@@ -97,7 +97,7 @@ $if($TURBINES)
 allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
 $endif
 
-$if($LVLSET)
+$if($LVLSET or $ATM) 
 allocate ( fx(ld, ny, nz) ); fx = 0.0_rprec
 allocate ( fy(ld, ny, nz) ); fy = 0.0_rprec
 allocate ( fz(ld, ny, nz) ); fz = 0.0_rprec
