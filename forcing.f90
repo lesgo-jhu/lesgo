@@ -146,12 +146,14 @@ use types, only : rprec
 use param, only : inflow_velocity, nx, ny, nz, &
                   fringe_region_end, fringe_region_len
 use param, only : coord
-use sim_param, only : u, v, w, theta
+use sim_param, only : u, v, w
 use messages, only : error
 use fringe_util
 implicit none
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = 'inflow_cond'
+$endif
 
 integer :: i, i_w
 integer :: istart, istart_w
@@ -216,7 +218,9 @@ integer :: jz_min
 
 real (rprec) :: RHS, tconst
 
+$if ($VERBOSE)
 character(*), parameter :: sub_name='project'
+$endif
 
 ! Caching
 tconst = tadv1 * dt

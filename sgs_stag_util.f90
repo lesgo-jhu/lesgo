@@ -67,7 +67,9 @@ use sgs_hist, only: sgs_hist_update_vals
 
 implicit none
 
+$if ($VERBOSE)
 character (*), parameter :: sub_name = 'sgs_stag'
+$endif
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.

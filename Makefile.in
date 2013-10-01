@@ -28,10 +28,10 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib
-LIBS = $(LIBPATH) -lrfftw -lfftw 
-
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include -I/opt/fftw-3.3/include
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 -L/opt/fftw-3.3/lib
+#LIBS = $(LIBPATH) -lfftw3 -lfftw3_threads -lpthread
+#LIBS = $(LIBPATH) -lfftw3_mpi -lfftw3 -lfftw3f_mpi -lfftw3f -limf -lm
 HOSTNAME = $(shell hostname -s)
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -54,7 +54,10 @@ USE_SAFETYMODE=yes
 # for diagnosing issues
 OUTPUT_EXTRA=no
 
-# watch the whitespace here
+# Use FFTW3 libraries (if no FFTW2 will be used)
+USE_FFTW3=yes
+
+# Enable parallization support (openmp currently not supported)
 USE_MPI = yes
 USE_OPENMP = no
 
@@ -68,7 +71,7 @@ READ_ENDIAN = DEFAULT
 # Use binary output for output files
 USE_BINARY=no
 
-USE_TURBINES = no 
+USE_TURBINES = no
 
 #################################################### Tony ATM
 # Use the actuator turbine model
@@ -97,6 +100,13 @@ OPATH = obj
 # May want to just make this 'obj' as well
 MPATH = mod
 
+# Set the library list
+ifeq ($(USE_FFTW3),yes)
+LIBS = $(LIBPATH) -lfftw3
+else
+LIBS = $(LIBPATH) -lrfftw -lfftw 
+endif
+
 ifeq ($(FCOMP),ifort)
 
   FPP += -DIFORT
@@ -113,7 +123,7 @@ ifeq ($(FCOMP),ifort)
   endif
 
   #FFLAGS = -O0 -check bounds -g -debug all -traceback
-  FFLAGS = -O3 -ip -ftz
+  FFLAGS = -O3
   #FFLAGS = -axSSE4.2 -ftz -
   FFLAGS += -warn all -shared-intel
     # Work around for real -> complex dummy array assignment

@@ -70,7 +70,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: nstart
+integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 
@@ -94,7 +94,11 @@ call initialize()
 
 if(coord == 0) then
    call clock_stop( clock )
-   write(*,'(1a,E15.7)') 'Initialization time: ', clock % time
+   $if($MPI)
+   write(*,'(1a,E15.7)') 'Initialization wall time: ', clock % time
+   $else
+   write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
+   $endif
 endif
 
 call clock_start( clock_total )
@@ -105,7 +109,7 @@ call clock_start( clock_total )
 nstart = jt_total+1
 
 ! BEGIN TIME LOOP
-time_loop: do jt_total=nstart,nsteps   
+time_loop: do jt_step = nstart, nsteps   
   
    ! Get the starting time for the iteration
    call clock_start( clock )
@@ -122,6 +126,7 @@ time_loop: do jt_total=nstart,nsteps
    endif
 
    ! Advance time
+   jt_total = jt_step
    jt = jt + 1
    total_time = total_time + dt
    total_time_dim = total_time_dim + dt_dim
@@ -312,17 +317,14 @@ time_loop: do jt_total=nstart,nsteps
     call clock_stop( clock_forcing )
 
     !  Update RHS with applied forcing
-    $if ($LVLSET)
-    $if ($RNS_LS)
+    $if ($TURBINES and not ($LVLSET and $RNS_LS))
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
+    $elseif ($LVLSET and $RNS_LS)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
     $endif
-    $endif
 
-    $if ($TURBINES)
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Tony ATM
     $if ($ATM)
@@ -476,7 +478,11 @@ time_loop: do jt_total=nstart,nsteps
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
+          $if($MPI)
           write(*,'(1a)') 'Simulation wall times (s): '
+          $else
+          write(*,'(1a)') 'Simulation cpu times (s): '
+          $endif
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(1a,E15.7)') '  Forcing: ', clock_forcing % time
@@ -514,7 +520,11 @@ call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total )
+$if($MPI)
 if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
+$else
+if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation cpu time (s) : ', clock_total % time
+$endif
 
 call finalize()
 

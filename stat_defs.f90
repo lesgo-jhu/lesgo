@@ -722,7 +722,11 @@ end subroutine rs_set
 !//////////////////////////////////////////////////////////////////////
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($LVLSET)
 subroutine hist_binit_1D( a, var, phi_ls )
+$else
+subroutine hist_binit_1D( a, var )
+$endif
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine takes the values in var and bins them in the histogram
 !   a only if the location is outside a body (level set function phi>0 )
@@ -739,7 +743,9 @@ implicit none
 
 type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:) :: var
+$if ($LVLSET)
 real(rprec), intent(in), dimension(:), optional :: phi_ls ! phi_ls<0 is inside a body
+$endif
 
 integer :: dim1, i, ib
 real(rprec) :: countme
@@ -783,7 +789,11 @@ return
 end subroutine hist_binit_1D
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($LVLSET)
 subroutine hist_binit_2D( a, var, phi_ls )
+$else
+subroutine hist_binit_2D( a, var )
+$endif
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine takes the values in var and bins them in the histogram
 !   a only if the location is outside a body (level set function phi>0 )
@@ -800,7 +810,9 @@ implicit none
 
 type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:,:) :: var
+$if ($LVLSET)
 real(rprec), intent(in), dimension(:,:), optional :: phi_ls 
+$endif
 
 integer :: dim1, dim2, i, j, ib
 real(rprec) :: countme
@@ -849,7 +861,11 @@ return
 end subroutine hist_binit_2D
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$if($LVLSET)
 subroutine hist_binit_3D( a, var, phi_ls )
+$else
+subroutine hist_binit_3D( a, var )
+$endif
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine takes the values in var and bins them in the histogram
 !   a only if the location is outside a body (level set function phi>0 )
@@ -866,7 +882,9 @@ implicit none
 
 type(hist_t), intent(inout) :: a                
 real(rprec), intent(in), dimension(:,:,:) :: var
+$if ($LVLSET)
 real(rprec), intent(in), dimension(:,:,:), optional :: phi_ls 
+$endif
 
 integer :: dim1, dim2, dim3, i, j, k, ib
 real(rprec) :: countme

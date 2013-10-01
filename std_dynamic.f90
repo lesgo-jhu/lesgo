@@ -33,7 +33,7 @@ use sim_param,only:u,v,w
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
-use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
+use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar,S_S22_bar,S_S23_bar,S_S33_bar
 use test_filtermodule
 use sgs_param, only:ee_now
 implicit none
@@ -91,8 +91,6 @@ do jz=1,nz
     L23 = L23 - v_bar*w_bar
     call test_filter ( L33 )
     L33 = L33 - w_bar*w_bar  
-!        print*, u_bar/u(:,:,jz)
-!        print*, L23(5,5)
 
 ! calculate |S|
    S(:,:) = sqrt(2._rprec*(S11(:,:,jz)**2 + S22(:,:,jz)**2 + &

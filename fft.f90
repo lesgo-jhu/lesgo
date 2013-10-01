@@ -22,25 +22,44 @@
 !**********************************************************************
 module fft
 use types,only:rprec
-use param,only:lh,ny,spectra_calc
+use param,only:ld,lh,ny,ld_big, ny2, spectra_calc
+$if ($FFTW3)
+!use, intrinsic :: iso_c_binding
+use iso_c_binding
+$endif
 implicit none
-
+$if ($FFTW3)
+include'fftw3.f'
+!include'fftw3-mpi.f03'
+!include'fftw3.f'
+!include'fftw3.f03'
+!include'fftw3l.f03'
+!include 'fftw3-mpi.f03'
+$endif
 save
+
+public :: kx, ky, k2, init_fft, forw_spectra
+public :: forw, back, forw_big, back_big
+
+real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
+integer*8::forw_spectra
+integer*8::forw,back,forw_big,back_big
+
+
+$if ($FFTW3)
+real (rprec), dimension (:, :), allocatable :: data, data_big
+$else
 
 !public
 private
-public :: kx, ky, k2, eye, forw, back, forw_big, back_big, init_fft, forw_spectra
+
 public ::  FFTW_FORWARD, FFTW_BACKWARD,&
      FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
      FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
 public :: fftwNull_p
 
 ! plans
-integer*8::forw,back,forw_big,back_big, forw_spectra
-!real(kind=rprec),dimension(lh,ny) :: kx,ky,k2
-real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 
-complex(kind=rprec), parameter :: eye = (0._rprec,1._rprec)
 ! fftw 2.1.3 stuff
 integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
 integer, parameter :: FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1
@@ -54,7 +73,7 @@ integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
 
 ! Null pointer for fftw2 dummy argument
 integer(2), pointer :: fftwNull_p
-
+$endif
 contains
 
 !**********************************************************************
@@ -62,7 +81,28 @@ subroutine init_fft()
 !**********************************************************************
 use param,only:nx,ny,nx2,ny2
 implicit none
-! formulate the fft plans--may want to use FFTW_USE_WISDOM
+
+$if ($FFTW3)
+! Allocate temporary arrays for creating the FFTW plans
+allocate( data(ld, ny) )
+allocate( data_big(ld_big, ny2) )
+
+! Initialize and implement with threads
+!call dfftw_init_threads(iret)
+!call dfftw_plan_with_nthreads(2)
+
+! Create the forward and backward plans for the unpadded and padded
+! domains. Notice we are using FFTW_UNALIGNED since the arrays used will not be
+! guaranteed to be memory aligned. 
+call dfftw_plan_dft_r2c_2d(forw    ,nx ,ny ,data    ,data    ,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_c2r_2d(back    ,nx ,ny ,data    ,data    ,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_r2c_2d(forw_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_c2r_2d(back_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_UNALIGNED)
+
+deallocate(data)
+deallocate(data_big)
+
+$else
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
      FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
 call rfftw2d_f77_create_plan(back,nx,ny,FFTW_COMPLEX_TO_REAL,&
@@ -76,6 +116,8 @@ if(spectra_calc) then
   call rfftw_f77_create_plan(forw_spectra, Nx, FFTW_REAL_TO_COMPLEX, &
                              FFTW_ESTIMATE)
 endif
+
+$endif
 
 call init_wavenumber()
 end subroutine init_fft

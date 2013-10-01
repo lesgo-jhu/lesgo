@@ -122,18 +122,15 @@ implicit none
 
 include 'tecryte.h'
 
+$if ($DEBUG)
 character (*), parameter :: sub_name = 'energy'
+
 
 integer, parameter :: NAN_MAX = 10
                       !--write this many NAN's before calling error (to aid
                       !  diagnosis of problem)
-
-$if ($DEBUG)
 logical, parameter :: DEBUG = .true.
 $endif
-
-!logical, parameter :: flush = .true.
-
 integer :: jx, jy, jz
 integer :: nan_count
 
@@ -188,7 +185,9 @@ end do z_loop
 ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
 ! Check if NaN's where found
+$if ($DEBUG)
 if ( nan_count > 0 ) call error (sub_name, 'NaN found')
+$endif
 
 $if ($MPI)
 
@@ -446,11 +445,13 @@ include 'tecryte.h'
 
 integer, intent(IN) :: itype
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.inst_write'
+$endif
 
 character (64) :: fname, fname_vtk
 integer :: n, i, j, k
-$if(not $OUTPUT_BINARY)
+$if(not $BINARY)
 character (64) :: var_list
 integer :: nvars
 $endif
@@ -1452,7 +1453,7 @@ fz(:,:,nz) = 0._rprec
 allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 
 ! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
-$if($TURBINES)
+$if($TURBINES and not $LVLSET)
 fx_tot = fxa(1:nx,1:ny,1:nz)
 fy_tot = 0._rprec
 fz_tot = 0._rprec
@@ -1546,7 +1547,7 @@ $if($MPI)
 use param, only : coord
 use param, only : comm, ierr
 $endif
-use sim_param, only : u, v, w, RHSx, RHSy, RHSz, theta
+use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if($DYN_TN)
 use sgs_param, only: F_ee2, F_deedt2, ee_past
@@ -2065,13 +2066,13 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
 use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz,u_avg
+use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 $if($TURBINES)
 use sim_param, only : fxa
-$elseif($LVLSET)
+$endif
+$if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
-
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -2156,14 +2157,16 @@ do k=1,jzmax
       tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
       tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
-$if ($TURBINES)      
+$if ($TURBINES and not $LVLSET)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
 !      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
+
 !      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
 $elseif ($LVLSET)
+
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
@@ -2229,17 +2232,6 @@ $endif
 
 deallocate( u_w, v_w )
 
-! Added to compute the average of u on the grid points and prevent the 
-! linear interpolation, which is not exactly valid due to log profile in boundary layer
-do k=0,jzmax  
-  do j=1,ny
-    do i=1,nx
-    u_p = u(i,j,k)
-    u_avg(i,j,k)=u_avg(i,j,k)+u_p*tavg_dt                    
-    enddo
-  enddo
-enddo
-
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
 $if($OUTPUT_EXTRA)
@@ -2268,7 +2260,6 @@ $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
 use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
-use sim_param, only : u_avg
 $if($MPI)
 use mpi
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -2380,9 +2371,7 @@ fname_cs_zplane = path // 'output/cs_opt2_zplane.dat'
 $if($OUTPUT_EXTRA)  
 fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
 fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
-!$if($DYN_TN)
 fname_sgs_ee = path // 'output/ee_avg.dat'
-!$endif
 $endif  
   
 $if ($MPI)
@@ -2410,9 +2399,7 @@ $if ($MPI)
   $if($OUTPUT_EXTRA)  
   call string_concat( fname_sgs_TnNu, '.c', coord)
   call string_concat( fname_sgs_Fsub, '.c', coord)
- !$if($DYN_TN)
   call string_concat( fname_sgs_ee, '.c', coord)
- !$endif
   $endif    
 $endif
 
@@ -2474,7 +2461,6 @@ do k=jzmin,jzmax
   do j=1, Ny
     do i=1, Nx
       tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
-      u_avg(i,j,k) =u_avg(i,j,k) / tavg_total_time
     enddo
   enddo
 enddo
@@ -2514,7 +2500,6 @@ if (jzmin==0) then  !coord==0 only
 endif
 
 ! Interpolate between grids where necessary
-!tavg = tavg_interp_to_uv_grid( tavg )
 tavg = tavg_interp_to_w_grid( tavg )
 
 ! Anything with velocity is on the w-grid so these
@@ -2600,20 +2585,15 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
-$if($BINARY)
-! ----- Write all the 3D data -----
-open(unit=13,file=fname_u_vel_gridb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=1) u_avg(:nx,:ny,1:nz)
-close(13)
 
-! RICHARD
+$if($BINARY)
+
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u2
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v2
@@ -2623,13 +2603,11 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
 write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%dudz
 write(13,rec=2) tavg(:nx,:ny,1:nz)%dvdz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%txx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%txy
@@ -2639,14 +2617,12 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
 write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
 write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) rs(:nx,:ny,1:nz)%up2 
 write(13,rec=2) rs(:nx,:ny,1:nz)%vp2 
@@ -2656,7 +2632,6 @@ write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
 close(13)
 
-! RICHARD
 open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2 
 close(13)
@@ -3227,6 +3202,9 @@ spectra_dt = 0.0_rprec
 ! Set global switch that spectra as been initialized
 spectra_initialized = .true.
 
+! Set global switch that spectra as been initialized
+spectra_initialized = .false.
+
 return
 end subroutine spectra_init
 
@@ -3272,7 +3250,11 @@ do k=1, spectra_nloc
     ! 1) Compute uhat for the given j
     ui = ui - sum(ui) / Nx ! Remove the mean
     ! Compute FFT
+    $if ($FFTW3)
+    write(*,*) 'spectra not calculated yet in FFTW3 mode'
+    $else
     call rfftw_f77_one(forw_spectra, ui, uhat)
+    $endif
     !  Normalize
     uhat = uhat / Nx
 
@@ -3320,8 +3302,9 @@ implicit none
 
 include 'tecryte.h'
 
+$if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
-!character(25) :: cl
+$endif
 character (64) :: fname
 
 integer ::  k

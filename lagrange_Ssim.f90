@@ -57,7 +57,9 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
+$if ($VERBOSE)
 character (*), parameter :: sub_name = 'lagrange_Ssim'
+$endif
 real (rprec), parameter :: eps = 1.e-32_rprec
 
 real(rprec), dimension(ld,ny) :: fourbeta
