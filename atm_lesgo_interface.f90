@@ -497,7 +497,7 @@ do c=1,size(forceFieldW)
     do q=1, turbineArray(i) % numBladePoints
         do n=1, turbineArray(i) % numAnnulusSections
             do m=1, turbineModel(j) % numBl
-                if (distance(forceFieldUV(c) % location,                       &
+                if (distance(forceFieldW(c) % location,                       &
                    turbineArray(i) % bladePoints(m,n,q,:)) .le.                  &
                    turbineArray(i) % projectionRadius) then
 
