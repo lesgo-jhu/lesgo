@@ -481,10 +481,10 @@ do c=1,size(forceFieldUV)
                 *z_i/(u_star**2.)
 
                 ! Calculate the integrated value of the forces
-                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
+!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
 
-                turbineArray(i) % integratedBladeForces(m,n,q,1:2) =    &
-                turbineArray(i) % integratedBladeForces(m,n,q,1:2) +    &
+!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) =    &
+!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) +    &
                 !dummyForce(1:2) * dx * dy * dz * z_i**3 
 
                 endif
@@ -505,10 +505,10 @@ do c=1,size(forceFieldW)
                 atm_convoluteForce(i, m, n, q, forceFieldW(c) % location)      &
                 *z_i/(u_star**2.)
 
-                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
+!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
 
-                turbineArray(i) % integratedBladeForces(m,n,q,3) =    &
-                turbineArray(i) % integratedBladeForces(m,n,q,3) +    &
+!                turbineArray(i) % integratedBladeForces(m,n,q,3) =    &
+!                turbineArray(i) % integratedBladeForces(m,n,q,3) +    &
                 !dummyForce(3) * dx * dy * dz * z_i**3 
 
                 endif
