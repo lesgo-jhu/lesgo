@@ -73,17 +73,15 @@ do i = 1,numberOfTurbines
     inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
                    "/actuatorPoints", exist=file_exists)
 
-    if (file_exists .eqv. .true.) then
-        write(*,*) 'Im reading'
-        call read_actuator_points(i)
-    else
-        write(*,*) 'Im NOT reading'
-        ! Creates the ATM points defining the geometry
-        call atm_create_points(i) 
-        ! This will create the first yaw alignment
-        turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
-        call atm_yawNacelle(i)
+    ! Creates the ATM points defining the geometry
+    call atm_create_points(i) 
+    ! This will create the first yaw alignment
+    turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
+    call atm_yawNacelle(i)
 
+    if (file_exists .eqv. .true.) then
+        write(*,*) 'Reading bladePoints from Previous Simulation'
+        call atm_read_actuator_points(i)
     endif
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
@@ -94,7 +92,7 @@ pastFirstTimeStep=.true. ! Past the first time step
 end subroutine atm_initialize
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine read_actuator_points(i)
+subroutine atm_read_actuator_points(i)
 ! This subroutine reads the location of the actuator points
 ! It is used if the simulation wants to start from a previous simulation
 ! without having to start the turbine from the original location
@@ -105,8 +103,8 @@ integer :: j, m, n, q
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=1,status="replace",                                     &
-     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
+open(unit=1,         &
+     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints", action='read')
 
 do m=1, turbineModel(j) % numBl
     do n=1, turbineArray(i) %  numAnnulusSections
@@ -118,7 +116,7 @@ enddo
 
 close(1)
 
-end subroutine read_actuator_points
+end subroutine atm_read_actuator_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_initialize_output()
