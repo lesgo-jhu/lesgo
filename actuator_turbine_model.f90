@@ -199,9 +199,9 @@ integer,     pointer :: numBladePoints
 integer,     pointer :: numBl
 integer,     pointer :: numAnnulusSections
 real(rprec), pointer :: NacYaw             
-type(real(rprec)),  pointer :: db(:)
-type(real(rprec)),  pointer :: bladePoints(:,:,:,:)
-type(real(rprec)),  pointer :: bladeRadius(:,:,:)
+real(rprec),  pointer :: db(:)
+real(rprec),  pointer :: bladePoints(:,:,:,:)
+real(rprec),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: azimuth
 real(rprec), pointer :: rotSpeed
 real(rprec), pointer :: ShftTilt
@@ -493,10 +493,10 @@ real(rprec), dimension(3) :: dragVector, liftVector
 real(rprec), pointer :: rotorApex(:)
 real(rprec), pointer :: bladeAlignedVectors(:,:,:,:,:)
 real(rprec), pointer :: windVectors(:,:,:,:)
-type(real(rprec)),  pointer :: bladePoints(:,:,:,:)
+real(rprec),  pointer :: bladePoints(:,:,:,:)
 real(rprec), pointer :: rotSpeed
 integer,     pointer :: numSec     
-type(real(rprec)),  pointer :: bladeRadius(:,:,:)
+real(rprec),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: PreCone
 real(rprec), pointer :: solidity(:,:,:),cl(:,:,:),cd(:,:,:),alpha(:,:,:)
 real(rprec), pointer :: Vmag(:,:,:)
