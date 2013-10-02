@@ -67,45 +67,45 @@ type turbineArray_t
     
     !!-- Important geometry data 
     ! Collection of all the actuator points (blade, annular section, point, 3)
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladePoints
+    real(rprec), allocatable, dimension(:,:,:,:) :: bladePoints
     ! The solidity at each actuator section  
-    type(real(rprec)), allocatable, dimension(:,:,:) :: solidity     
+    real(rprec), allocatable, dimension(:,:,:) :: solidity     
     ! Collection of radius of each point (different because of coning)
-    type(real(rprec)), allocatable, dimension(:,:,:) :: bladeRadius
+    real(rprec), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeForces
+    real(rprec), allocatable, dimension(:,:,:,:) :: bladeForces
     ! Forces on each actuator point (blade, annular section, point, 3)
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: integratedBladeForces
+    real(rprec), allocatable, dimension(:,:,:,:) :: integratedBladeForces
     ! Vectors at each actuator point defining the local reference frame
     ! (blade, annular section, point, 3, 3) (three vectors)
-    type(real(rprec)), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
+    real(rprec), allocatable, dimension(:,:,:,:,:) :: bladeAlignedVectors
     ! The wind U projected onto the bladeAlignedVectors plus rotational speed
     ! (blade, annular section, point, 3, 3) (three vectors)
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: windVectors
+    real(rprec), allocatable, dimension(:,:,:,:) :: windVectors
     ! Angle of attack at each each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: alpha
+    real(rprec), allocatable, dimension(:,:,:) :: alpha
     ! Velocity magnitud at each each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: Vmag
+    real(rprec), allocatable, dimension(:,:,:) :: Vmag
     ! Lift coefficient at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: Cl
+    real(rprec), allocatable, dimension(:,:,:) :: Cl
     ! Drag coeficient at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: Cd
+    real(rprec), allocatable, dimension(:,:,:) :: Cd
     ! Lift at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: lift
+    real(rprec), allocatable, dimension(:,:,:) :: lift
     ! Drag at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: drag
+    real(rprec), allocatable, dimension(:,:,:) :: drag
     ! Axial force at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: axialForce
+    real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
-    type(real(rprec)), allocatable, dimension(:,:,:) :: tangentialForce
+    real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
 
     ! These are dummies meant to be used for parallelization
     ! bladeVectorDummy store quantities along the blades which are vectors
     ! such as Force
     ! bladeScalarDummy will store scalar quantities along the blades such
     ! as lift coefficitent, angle of attack, etc
-    type(real(rprec)), allocatable, dimension(:,:,:,:) :: bladeVectorDummy
-    type(real(rprec)), allocatable, dimension(:,:,:) :: bladeScalarDummy
+    real(rprec), allocatable, dimension(:,:,:,:) :: bladeVectorDummy
+    real(rprec), allocatable, dimension(:,:,:) :: bladeScalarDummy
 
 
     ! An indicator of shaft direction.  The convention is that when viewed
@@ -131,7 +131,7 @@ type turbineArray_t
     real(rprec), dimension(3) :: uvTower
 
     ! Width of the actuator section
-    type(real(rprec)), allocatable, dimension(:) :: db
+    real(rprec), allocatable, dimension(:) :: db
 
     ! Sphere radius which defines a sphere from the center of the rotor and
     ! identifies the volume onto which forces are applied
@@ -146,10 +146,10 @@ type airfoilType_t
     integer :: n                           ! Number of data points
     ! The maximum number of points is chosen to be 150. If airfoil data has 
     ! more than this then this number should be modified!
-    type(real(rprec)), dimension(150) :: AOA    ! Angle of Attack
-    type(real(rprec)), dimension(150) :: Cd     ! Drag coefficient
-    type(real(rprec)), dimension(150) :: Cl     ! Lift coefficient
-    type(real(rprec)), dimension(150) :: Cm     ! Moment coefficient
+    real(rprec), dimension(150) :: AOA    ! Angle of Attack
+    real(rprec), dimension(150) :: Cd     ! Drag coefficient
+    real(rprec), dimension(150) :: Cl     ! Lift coefficient
+    real(rprec), dimension(150) :: Cm     ! Moment coefficient
 
 end type airfoilType_t
 
