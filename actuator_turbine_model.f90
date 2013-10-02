@@ -63,20 +63,28 @@ subroutine atm_initialize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 integer :: i
+logical :: file_exists
+
 pastFirstTimeStep=.false. ! The first time step not reached yet
 
 call read_input_conf()  ! Read input data
 
 do i = 1,numberOfTurbines
+    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+                   "/actuatorPoints", exist=file_exists)
 
-    call atm_create_points(i)   ! Creates the ATM points defining the geometry
+    if (file_exists .eqv. .true.) then
+        write(*,*) 'Im reading'
+        call read_actuator_points(i)
+    else
+        write(*,*) 'Im NOT reading'
+        ! Creates the ATM points defining the geometry
+        call atm_create_points(i) 
+        ! This will create the first yaw alignment
+        turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
+        call atm_yawNacelle(i)
 
-    ! This will create the first yaw alignment
-    turbineArray(i) % deltaNacYaw = turbineArray(i) % nacYaw
-    call atm_yawNacelle(i)
-
-!write(*,*) 'turbineArray(i) % deltaNacYaw = ',turbineArray(i) % deltaNacYaw
-!write(*,*) 'Points in blade ',i,' = ', turbineArray(i) % bladePoints
+    endif
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
 end do
@@ -84,6 +92,33 @@ end do
 pastFirstTimeStep=.true. ! Past the first time step
 
 end subroutine atm_initialize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine read_actuator_points(i)
+! This subroutine reads the location of the actuator points
+! It is used if the simulation wants to start from a previous simulation
+! without having to start the turbine from the original location
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+integer, intent(in) :: i ! Indicates the turbine number
+
+integer :: j, m, n, q
+
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+open(unit=1,status="replace",                                     &
+     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
+
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) %  numAnnulusSections
+        do q=1, turbineArray(i) % numBladePoints
+            read(1,*) turbineArray(i) % bladePoints(m,n,q,:)
+        enddo
+    enddo
+enddo
+
+close(1)
+
+end subroutine read_actuator_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_initialize_output()
@@ -680,10 +715,11 @@ subroutine atm_output(jt_total)
 implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
-integer :: i, j, m
+integer :: i, j, m, n, q
 integer :: powerFile=11, bladeFile=12, liftFile=13, dragFile=14
 integer :: ClFile=15, CdFile=16, alphaFile=17, VrelFile=18
 integer :: VaxialFile=19, VtangentialFile=20
+integer :: pointsFile=787 ! File to write the actuator points
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -769,6 +805,28 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 endif
+
+! Write the actuator points at every time-step regardless
+do i=1,numberOfTurbines
+
+    j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+    open(unit=pointsFile,status="replace",                                     &
+         file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
+
+    do m=1, turbineModel(j) % numBl
+        do n=1, turbineArray(i) %  numAnnulusSections
+            do q=1, turbineArray(i) % numBladePoints
+                ! A new file will be created each time-step with the proper
+                ! location of the blades
+                write(pointsFile,*) turbineArray(i) % bladePoints(m,n,q,:)
+            enddo
+        enddo
+    enddo
+
+    close(pointsFile)
+
+enddo
 
 end subroutine atm_output
 
