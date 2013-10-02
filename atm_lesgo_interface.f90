@@ -402,11 +402,10 @@ subroutine atm_lesgo_force(i)
 implicit none
 
 integer, intent(in) :: i ! The turbine number
-integer :: m,n,q,j,c
+integer :: m,n,q,j
 real(rprec), dimension(3) :: velocity
 real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate velocity
 real(rprec), pointer, dimension(:) :: x,y,z,zw
-character(128) :: coord_char,filename, time_char
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
