@@ -58,8 +58,6 @@ use functions, only : trilinear_interp, interp_to_uv_grid
 ! Actuator Turbine Model module
 use atm_base
 use actuator_turbine_model
-use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
-                           atm_print_initialize
 
 implicit none
 
@@ -121,21 +119,20 @@ do i=1,nx ! Loop through grid points in x
 
             ! Take into account the UV grid
             vector_point(3)=z(k)*z_i
-            do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) %                    &
-                    towerShaftIntersect)                                       &
-                    .le. turbineArray(m) % sphereRadius ) then
+            do m=1,numOfPoints
+                if (distance(vector_point,bladePoints(m,:)) .le.     &
+                    projectionRadius ) then
                     cUV=cUV+1
                 end if
 
                 ! Take into account the W grid
                 vector_point(3)=zw(k)*z_i
-                if (distance(vector_point,turbineArray(m) %                    &
-                    towerShaftIntersect)                                       &
-                    .le. turbineArray(m) % sphereRadius ) then
+                if (distance(vector_point,bladePoints(m,:)) .le.     &
+                    projectionRadius ) then
                     cW=cW+1
                 end if
-            enddo 
+            enddo
+
         enddo
     enddo
 enddo
@@ -156,10 +153,9 @@ do i=1,nx ! Loop through grid points in x
             vector_point(1)=x(i)*z_i ! z_i used to dimensionalize LESGO
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
-            do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) %                    &
-                    towerShaftIntersect)                                       &
-                    .le. turbineArray(m) % sphereRadius ) then
+            do m=1,numOfPoints
+                if (distance(vector_point,bladePoints(m,:))   &
+                    .le. projectionRadius ) then
                     cUV=cUV+1
                     forceFieldUV(cUV) % i = i
                     forceFieldUV(cUV) % j = j
@@ -168,10 +164,9 @@ do i=1,nx ! Loop through grid points in x
                 endif
             enddo 
             vector_point(3)=zw(k)*z_i
-            do m=1,numberOfTurbines
-                if (distance(vector_point,turbineArray(m) %                    &
-                    towerShaftIntersect)                                       &
-                    .le. turbineArray(m) % sphereRadius ) then
+            do m=1,numOfPoints
+                if (distance(vector_point,bladePoints(m,:))    &
+                    .le. projectionRadius ) then
                     cW=cW+1
                     forceFieldW(cW) % i = i
                     forceFieldW(cW) % j = j
@@ -204,22 +199,18 @@ subroutine atm_lesgo_forcing ()
 ! and calculates the body forces needed in the domain
 implicit none
 
-integer :: i, c
+integer :: c
 
 ! Establish all turbine properties as zero
 ! This is essential for paralelization
-do i=1,numberOfTurbines
-    turbineArray(i) % bladeForces = 0._rprec
-    turbineArray(i) % integratedBladeForces = 0._rprec
-    turbineArray(i) % torqueRotor = 0._rprec
-    turbineArray(i) % alpha = 0._rprec
-    turbineArray(i) % Cd = 0._rprec
-    turbineArray(i) % Cl = 0._rprec
-    turbineArray(i) % lift = 0._rprec
-    turbineArray(i) % drag = 0._rprec
-    turbineArray(i) % Vmag = 0._rprec
-    turbineArray(i) % windVectors = 0._rprec
-enddo
+    bladeForces = 0._rprec
+    alpha = 0._rprec
+    Cd = 0._rprec
+    Cl = 0._rprec
+    lift = 0._rprec
+    drag = 0._rprec
+    Vmag = 0._rprec
+    windVectors = 0._rprec
 
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
@@ -237,9 +228,7 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
     enddo
 
     ! Calculate forces for all turbines
-    do i=1,numberOfTurbines
-        call atm_lesgo_force(i)
-    enddo
+    call atm_lesgo_force()
 
 endif
 
@@ -250,52 +239,16 @@ $if ($MPI)
     call atm_lesgo_mpi_gather()
 $endif
 
-! Update the blade positions based on the time-step
-! Time needs to be dimensionalized
-! All processors carry the blade points
-call atm_update(dt*z_i/u_star)
+!write(*,*) 'Error NOT Here'
 
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
     ! Convolute force onto the domain
-    do i=1,numberOfTurbines
-        call atm_lesgo_convolute_force(i)
-    enddo
+    call atm_lesgo_convolute_force()
 
     ! This will apply body forces onto the flow field if there are forces within
     ! this domain
     call atm_lesgo_apply_force()
 endif
-
-
-!!! Sync the integrated forces (used for debugging)
-!do i=1,numberOfTurbines
-!    j=turbineArray(i) % turbineTypeID ! The turbine type ID
-!    ! Sync all the integrated blade forces
-!    turbineArray(i) % bladeVectorDummy=turbineArray(i) % integratedBladeForces
-!    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
-!                       turbineArray(i) % integratedBladeForces,              &
-!                       size(turbineArray(i) % bladeVectorDummy),             &
-!                       mpi_rprec, mpi_sum, comm, ierr) 
-
-
-!    if (coord==0) then
-    
-!    do q=1, turbineArray(i) % numBladePoints
-!        do n=1, turbineArray(i) % numAnnulusSections
-!            do m=1, turbineModel(j) % numBl
-!                write(*,*) 'blade ',m,'section ',q, 'force ratio', &
-!                turbineArray(i) % integratedBladeForces(m,n,q,1) /  &
-!                turbineArray(i) % bladeForces(m,n,q,1) , &
-!                turbineArray(i) % integratedBladeForces(m,n,q,2) /  &
-!                turbineArray(i) % bladeForces(m,n,q,2) , &
-!                turbineArray(i) % integratedBladeForces(m,n,q,3) /  &
-!                turbineArray(i) % bladeForces(m,n,q,3) 
-!            enddo
-!        enddo
-!    enddo
-!    endif
-
-!enddo
 
 $if ($MPI)
 ! Sync the fxa fya and fza variables
@@ -306,7 +259,7 @@ $endif
 
 ! This will write all the output from the model
 if (coord == 0) then
-    call atm_output(jt_total)
+    call atm_output(jt_total, outputInterval)
 endif 
 
 end subroutine atm_lesgo_forcing
@@ -321,93 +274,76 @@ subroutine atm_lesgo_mpi_gather()
 ! This subroutine will gather the necessary outputs from the turbine models
 ! so all processors have acces to it. This is done by means of all reduce SUM
 implicit none
-integer :: i
-real(rprec) :: torqueRotor
 
-do i=1,numberOfTurbines
+bladeVectorDummy = bladeForces
+! Sync all the blade forces
+call mpi_allreduce(bladeVectorDummy,                   &
+                   bladeForces,                        &
+                   size(bladeVectorDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
 
-    turbineArray(i) % bladeVectorDummy = turbineArray(i) % bladeForces
-    ! Sync all the blade forces
-    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
-                       turbineArray(i) % bladeForces,                        &
-                       size(turbineArray(i) % bladeVectorDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
+! Sync alpha
+bladeScalarDummy = alpha
+call mpi_allreduce(bladeScalarDummy,                   &
+                   alpha,                              &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
+! Sync lift
+bladeScalarDummy = lift
+call mpi_allreduce(bladeScalarDummy,                   &
+                   lift,                               &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
+! Sync drag
+bladeScalarDummy = drag
+call mpi_allreduce(bladeScalarDummy,                   &
+                   drag,                               &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
+! Sync Cl
+bladeScalarDummy = Cl
+call mpi_allreduce(bladeScalarDummy,                   &
+                   Cl,                                 &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
 
-    ! Sync alpha
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % alpha,                              &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
-    ! Sync lift
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % lift
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % lift,                               &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
-    ! Sync drag
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % drag
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % drag,                               &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
-    ! Sync Cl
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cl
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % Cl,                                 &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
+! Sync Cd
+bladeScalarDummy = Cd
+call mpi_allreduce(bladeScalarDummy,                   &
+                   Cd,                                 &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
 
-    ! Sync Cd
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % Cd,                                 &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
+! Sync Vmag
+bladeScalarDummy = Vmag
+call mpi_allreduce(bladeScalarDummy,                   &
+                   Vmag,                                 &
+                   size(bladeScalarDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
 
-    ! Sync Vmag
-    turbineArray(i) % bladeScalarDummy = turbineArray(i) % Vmag
-    call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                       turbineArray(i) % Vmag,                                 &
-                       size(turbineArray(i) % bladeScalarDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
+! Sync wind Vectors (Vaxial, Vtangential, Vradial)
+bladeVectorDummy =  windVectors
+call mpi_allreduce(bladeVectorDummy,                   &
+                   windVectors,                                 &
+                   size(bladeVectorDummy),             &
+                   mpi_rprec, mpi_sum, comm, ierr) 
 
-    ! Sync wind Vectors (Vaxial, Vtangential, Vradial)
-    turbineArray(i) % bladeVectorDummy = turbineArray(i) %                   &
-                                         windVectors(:,:,:,1:3)
-    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
-                       turbineArray(i) % windVectors(:,:,:,1:3),                                 &
-                       size(turbineArray(i) % bladeVectorDummy),             &
-                       mpi_rprec, mpi_sum, comm, ierr) 
-
-
-    ! Store the torqueRotor. 
-    ! Needs to be a different variable in order to do MPI Sum
-    torqueRotor=turbineArray(i) % torqueRotor
-
-    ! Sum all the individual power from different blade points
-    call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
-                       1, mpi_rprec, mpi_sum, comm, ierr) 
-enddo
 
 end subroutine atm_lesgo_mpi_gather
 $endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_lesgo_force(i)
+subroutine atm_lesgo_force()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This will feed the velocity at all the actuator points into the atm
 ! This is done by using trilinear interpolation from lesgo
 ! Force will be calculated based on the velocities and stored on forceField
 implicit none
 
-integer, intent(in) :: i ! The turbine number
-integer :: m,n,q,j
+integer :: i
 real(rprec), dimension(3) :: velocity
 real(rprec), dimension(3) :: xyz    ! Point onto which to interpolate velocity
 real(rprec), pointer, dimension(:) :: x,y,z,zw
-
-j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
 ! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
 nullify(x,y,z,zw)
@@ -418,101 +354,64 @@ zw => grid % zw
 
 ! This loop goes through all the blade points and calculates the respective
 ! body forces then imposes it onto the force field
-do q=1, turbineArray(i) % numBladePoints
-    do n=1, turbineArray(i) % numAnnulusSections
-        do m=1, turbineModel(j) % numBl
+do i=1, numOfPoints
                        
-            ! Actuator point onto which to interpolate the velocity
-            xyz=turbineArray(i) % bladePoints(m,n,q,1:3)
+    ! Actuator point onto which to interpolate the velocity
+    xyz=bladePoints(i,1:3)
 
-            ! Non-dimensionalizes the point location 
-            xyz=xyz/z_i
+    ! Non-dimensionalizes the point location 
+    xyz=xyz/z_i
 
-            ! Interpolate velocities if inside the domain
-            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
-                velocity(1)=                                                   &
-                trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-                velocity(2)=                                                   &
-                trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-                velocity(3)=                                                   &
-                trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+    ! Interpolate velocities if inside the domain
+    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
+        velocity(1)=                                                   &
+        trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+        velocity(2)=                                                   &
+        trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+        velocity(3)=                                                   &
+        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
 
-                ! This will compute the blade force for the specific point
-                call atm_computeBladeForce(i,m,n,q,velocity)
+        ! This will compute the blade force for the specific point
+        call atm_computeBladeForce(i,velocity)
 
-            endif
-
-        enddo
-    enddo
+    endif
 enddo
 
 end subroutine atm_lesgo_force
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_lesgo_convolute_force(i)
+subroutine atm_lesgo_convolute_force()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This will convolute the forces for each turbine
 
 implicit none
+integer :: q, c 
 
-integer, intent(in) :: i
-integer :: j, m, n, q, c 
-
-!real(rprec) :: dummyForce(3)  ! Debugging
-
-j=turbineArray(i) % turbineTypeID ! The turbine type ID
-
-turbineArray(i) % integratedBladeForces = 0._rprec
 ! This will convolute the blade force onto the grid points
 ! affected by the turbines on both grids
 ! Only if the distance is less than specified value
 do c=1,size(forceFieldUV)
-    do q=1, turbineArray(i) % numBladePoints
-        do n=1, turbineArray(i) % numAnnulusSections
-            do m=1, turbineModel(j) % numBl
-                if (distance(forceFieldUV(c) % location,                       &
-                   turbineArray(i) % bladePoints(m,n,q,:)) .le.                  &
-                   turbineArray(i) % projectionRadius) then
+    do q=1, numOfPoints
+        if (distance(forceFieldUV(c) % location,                       &
+            bladePoints(q,:)) .le. projectionRadius) then
 
-
-                forceFieldUV(c) % force = forceFieldUV(c) % force +            &
-                atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location)     &
-                *z_i/(u_star**2.)
-
-                ! Calculate the integrated value of the forces
-!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
-
-!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) =    &
-!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) +    &
-                !dummyForce(1:2) * dx * dy * dz * z_i**3 
-
-                endif
-            enddo
-        enddo
+            forceFieldUV(c) % force = forceFieldUV(c) % force +            &
+            atm_convoluteForce(q, forceFieldUV(c) % location)     &
+            *z_i/(u_star**2.)
+        endif
     enddo
 enddo
 
 do c=1,size(forceFieldW)
-    do q=1, turbineArray(i) % numBladePoints
-        do n=1, turbineArray(i) % numAnnulusSections
-            do m=1, turbineModel(j) % numBl
-                if (distance(forceFieldW(c) % location,                       &
-                   turbineArray(i) % bladePoints(m,n,q,:)) .le.                  &
-                   turbineArray(i) % projectionRadius) then
+    do q=1, numOfPoints
+        if (distance(forceFieldW(c) % location,                       &
+            bladePoints(q,:)) .le.  projectionRadius) then
 
-                forceFieldW(c) % force = forceFieldW(c) % force +              &
-                atm_convoluteForce(i, m, n, q, forceFieldW(c) % location)      &
-                *z_i/(u_star**2.)
-
-!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
-
-!                turbineArray(i) % integratedBladeForces(m,n,q,3) =    &
-!                turbineArray(i) % integratedBladeForces(m,n,q,3) +    &
-                !dummyForce(3) * dx * dy * dz * z_i**3 
-
-                endif
-            enddo
-        enddo
+            forceFieldW(c) % force = forceFieldW(c) % force +              &
+            atm_convoluteForce(q, forceFieldW(c) % location)      &
+            *z_i/(u_star**2.)
+    
+        endif
     enddo
 enddo
 
@@ -528,7 +427,6 @@ implicit none
 
 integer :: c
 integer :: i,j,k
-
 
 
 ! Impose force field onto the flow field variables
@@ -554,141 +452,6 @@ enddo
 
 end subroutine atm_lesgo_apply_force
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!subroutine atm_lesgo_write_output()
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!! This will write the output of the code from within. No need to access lesgo
-!! Format is VTK
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!VTK
-!implicit none
-
-!integer :: i,m,n,q,j
-!real(rprec), pointer, dimension(:) :: x,y,z,zw
-!character(128) :: coord_char,filename, time_char
-
-!! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
-!nullify(x,y,z,zw)
-!x => grid % x
-!y => grid % y
-!z => grid % z
-!zw => grid % zw
-
-!!comm_char=char(comm)
-!write(coord_char,'(i5)') coord
-!write(time_char,'(i5)') jt_total
-!!filename='output/data'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x, y, z, u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w(1:nx,1:ny,1:nz), nx, ny, nz,filename)
-
-!! Write plane
-!call eat_whitespace(time_char,' ')
-!call eat_whitespace(coord_char,' ')
-
-!! Write points
-!open(unit=787,file='./output/points'//time_char)
-!do i=1,numberOfTurbines
-!    j=turbineArray(i) % turbineTypeID ! The turbine type ID
-!    do q=1, turbineArray(i) % numBladePoints
-!        do n=1, turbineArray(i) % numAnnulusSections
-!            do m=1, turbineModel(j) % numBl
-!                write(787,*) turbineArray(i) % bladePoints(m,n,q,1:3)/z_i
-!            enddo
-!        enddo
-!    enddo
-!enddo
-!close(787)
-
-
-!!filename='output/plane_x_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), u(64:64,1:ny,1:nz), v(64:64,1:ny,1:nz), w(64:64,1:ny,1:nz), filename)
-!!write(*,*) 'Sizes ares = ',size(x),size(y),size(z)
-!filename='output/plane_x_force'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), fxa(64:64,1:ny,1:nz), fya(64:64,1:ny,1:nz), fza(64:64,1:ny,1:nz), filename)
-!!filename='output/plane_y_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x(1:nx), y(64), z(1:nz), fxa(1:nx,64,1:nz), fya(1:nx,64,1:nz), fza(1:nx,64,1:nz), filename)
-
-!end subroutine atm_lesgo_write_output
-
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, filename)
-!! This subroutines reads and writes a 3D vector field in VTK format
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-!integer :: nodes_x,nodes_y,nodes_z
-!integer::i,j,k,nt
-!real(rprec), intent(in) :: x_n(:),y_n(:),z_n(:)
-!real(rprec), intent(in) :: u(:,:,:),v(:,:,:)
-!real(rprec), intent(in) :: w(:,:,:)
-!character(64), intent(in) :: filename
-
-!nodes_x=size(x_n)
-!nodes_y=size(y_n)
-!nodes_z=size(z_n)
-
-!! Total number of elements in arrays
-!nt=nodes_x*nodes_y*nodes_z
-
-!! Output to screen
-!write(*,*) 'Writing VTK Data in:', filename  
-!open(unit=987,file=trim(filename))
- 
-!! Write the VTK file header
-!      write(987,99)'# vtk DataFile Version 3.0'
-!   99 format(a26)
-!      write(987,98)'Velocity Field'
-!   98 format(a14)
-!      write(987,97)'ASCII'
-!   97 format(a5)
-!      write(987,96)'DATASET RECTILINEAR_GRID'
-!   96 format(a24) 
-!      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
-!   100 format(a10x,i5x,i5x,i5x)
-
-!!
-!!.....writting x coordinates
-!!
-!      write(987,101)'X_COORDINATES',nodes_x,'double'
-!      do i=1,nodes_x      !!!!!!!
-!        write(987,*) x_n(i)
-!      enddo
-!!
-!!.....writting y coordinates
-!!
-!      write(987,101)'Y_COORDINATES',nodes_y,'double'
-!      do j=1,nodes_y
-!        write(987,*) y_n(j)
-!      enddo
-
-!!
-!!.....writting z coordinates
-!!
-!      write(987,101)'Z_COORDINATES',nodes_z,'double'
-!      do k=1,nodes_z
-!        write(987,*) z_n(k)
-!      enddo
-
-!  101 format(a13x,i5x,a7)
-
-!!
-!!.....writting Velocity field
-!!
-!      write(987,149)'POINT_DATA',nt
-!  149 format(a10,i10)
-
-!      write(987,150)'VECTORS velocity_field double'
-!  150 format(a29)
-
-!      do k=1,nodes_z
-!        do j=1,nodes_y
-!          do i=1,nodes_x
-!            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
-!          end do
-!        end do
-!      end do
-
-!      close(987)
-
-!write(*,*) 'Done writing VTK'
-!end subroutine write_3D_Field_VTK
 
 end module atm_lesgo_interface
 
