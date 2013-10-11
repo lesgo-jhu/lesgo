@@ -72,7 +72,6 @@ SRCS =  cfl_util.f90 \
 	std_dynamic.f90 \
 	string_util.f90 \
         test_filtermodule.f90 \
-        tridag.f90 \
 	tridag_array.f90 \
 	types.f90 \
         unpadd.f90 \
