@@ -20,10 +20,12 @@
 module messages
 use types, only : rp => rprec
 $if ($MPI)
-  use mpi
+use mpi
 $endif
 implicit none
-
+$if ($MPI)
+!include 'mpif.h'
+$endif
 save
 private
 

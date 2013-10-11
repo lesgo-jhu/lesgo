@@ -22,7 +22,14 @@ module functions
 !**********************************************************************
 use messages
 use types, only : rprec
+use param, only : nz
+$if ($MPI)
+use mpi
+$endif
 implicit none
+$if ($MPI)
+!include 'mpif.h'
+$endif
 save
 private
 public interp_to_uv_grid, &
@@ -55,11 +62,9 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 !
 !  It is assumed that the array var has been synced if using MPI.
 
-use types, only : rprec
-use param,only : nz
 use messages
 $if ($MPI)
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use param, only : nproc,coord
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 $endif
 
@@ -146,10 +151,8 @@ function interp_to_w_grid(var, lbz) result(var_w)
 !  therefore be set manually after this interpolation.
 
 use types, only : rprec
-use param,only : nz
 use messages
 $if ($MPI)
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 $endif
 
@@ -212,7 +215,7 @@ integer function cell_indx(indx,dx,px)
 use types, only : rprec
 use grid_defs
 use messages 
-use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
+use param, only : nx,ny,nz,L_x,L_y,L_z
 implicit none
 
 character (*), intent (in) :: indx
@@ -354,9 +357,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
 use grid_defs, only : grid
-use types, only : rprec
-use sim_param, only : u,v
-use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
+use param, only : dx,dy,dz
 implicit none
 
 integer, intent(IN) :: lbz
@@ -463,8 +464,6 @@ real(rprec) function linear_interp(u1,u2,dx,xdiff)
 !  u2           - upper bound value in the increasing index direction
 !  dx           - length delta for the grid in the correct direction
 !  xdiff        - distance from the point of interest to the u1 node
-!
-use types, only : rprec
 implicit none
 
 real(rprec), intent(IN) :: u1, u2, dx, xdiff
@@ -487,11 +486,8 @@ real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !  of indices between this variable and the x,y,z arrays.
 !
 
-use types, only : rprec
-use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
 $if ($MPI)
-use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : coord,ierr,comm,MPI_RPREC
 $endif
 use grid_defs
 use messages
@@ -611,13 +607,8 @@ real(rprec) function points_avg_3d(var, lbz, npoints, points)
 !
 !  This subroutine computes the arithmetic average of a specified 
 !  quantity defined on a set of arbitrary points
-!
-
-use types, only : rprec
-use param, only : dx, dy, dz, L_x, L_y, nz
 $if ($MPI)
-use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr,MPI_RPREC,comm
 $endif
 use grid_defs
 use messages
@@ -630,18 +621,14 @@ real(rprec), intent(IN), dimension(3,npoints) :: points
 
 character (*), parameter :: func_name = mod_name // '.points_avg_3d'
 
-!integer :: istart, jstart, kstart, nsum
-integer :: nsum
-integer :: n
+integer :: nsum,n
 
 $if ($MPI)
 integer :: nsum_global
 real(rprec) :: var_sum_global
 $endif
 
-real(rprec) :: var_sum
-real(rprec) :: xp, yp, zp
-
+real(rprec) :: var_sum,xp,yp,zp
 real(rprec), pointer, dimension(:) :: z
 
 nullify(z)

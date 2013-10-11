@@ -17,11 +17,8 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*******************************************************************************
+! puts arrays into larger, zero-padded arrays, automatically zeroes the oddballs
 subroutine padd (u_big,u)
-!*******************************************************************************
-! puts arrays into larger, zero-padded arrays 
-! automatically zeroes the oddballs
 use types,only:rprec
 use param,only:ld,ld_big,nx,ny,ny2
 implicit none
@@ -45,6 +42,4 @@ j_s = ny_h + 2
 j_big_s = ny2 - ny_h + 2
 
 u_big(:nx,j_big_s:ny2) = u(:nx,j_s:ny)
-
-return
 end subroutine padd

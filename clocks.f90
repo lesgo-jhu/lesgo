@@ -20,38 +20,32 @@
 !*********************************************************************
 module clocks
 !*********************************************************************
-!
 ! This module provides the clock data type (object) and the
 ! subroutines/functions that act on instances of the clock data type.
-!
 use types, only : rprec
-implicit none
-
-save 
-private
-
-public clock_t, &
-     clock_start, &
-     clock_stop
-
-type clock_t
-   real(rprec) :: start
-   real(rprec) :: stop
-   real(rprec) :: time
-end type clock_t
-
-!---------------------------------------------------------------------
-contains
-!---------------------------------------------------------------------
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine clock_start( this )
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 $if($MPI)
 use mpi, only : mpi_wtime
 $endif
 implicit none
+$if ($MPI)
+!include 'mpif.h'
+$endif
 
+save 
+private
+
+public clock_t,clock_start,clock_stop 
+
+type clock_t
+   real(rprec) :: start,stop,time
+end type clock_t
+
+contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine clock_start( this )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
 type(clock_t), intent(inout) :: this
 
 $if($MPI)
@@ -60,17 +54,12 @@ $else
 call cpu_time( this % start )
 $endif
 
-return
 end subroutine clock_start
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine clock_stop( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($MPI)
-use mpi, only : mpi_wtime
-$endif
 implicit none
-
 type(clock_t), intent(inout) :: this
 
 $if($MPI)
@@ -82,8 +71,5 @@ $endif
 ! Compute the clock time
 this % time = this % stop - this % start
 
-return
-
 end subroutine clock_stop
-
 end module clocks

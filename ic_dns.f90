@@ -22,9 +22,9 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 implicit none
-real(kind=rprec),dimension(nz)::ubar
-real(kind=rprec)::rms,temp,ran3
-integer::jx,jy,jz,seed,z
+real(rprec),dimension(nz)::ubar
+real(rprec)::rms,temp,ran3,z
+integer::jx,jy,jz,seed
 
 if (inflow) then
 

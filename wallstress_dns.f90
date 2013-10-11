@@ -19,8 +19,8 @@
 
 subroutine wallstress_dns ()
 use types,only:rprec
-use param,only:ld,nx,ny,nz,nu_molec,z_i,u_star,dz,lbc_mom
-use sim_param,only:u,v,dudz,dvdz, txz, tyz
+use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom
+use sim_param,only:u,v,dudz,dvdz,txz,tyz
 implicit none
 integer::jx,jy
 

@@ -21,6 +21,7 @@
 module concurrent_precursor
 !*********************************************************************
 use types, only : rprec
+use mpi
 implicit none
 
 save
@@ -64,8 +65,6 @@ subroutine create_mpi_comms_cps( localComm )
 ! communicator into two communicators (localComm). The two new
 ! communicators are then bridged to create an intercommunicator
 ! (interComm).
-! 
-use mpi
 use param, only : ierr
 implicit none
 
@@ -103,11 +102,9 @@ end subroutine create_mpi_comms_cps
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine initialize_cps()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : nx, ny, nz
+use param, only :nx,ny,nz
 use param, only : coord, rank_of_coord, status, ierr
-use param, only : fringe_region_end, fringe_region_len
 use messages
-use mpi
 use fringe_util, only : fringe_init, fringe_weighting
 implicit none
 
@@ -186,9 +183,8 @@ end subroutine initialize_cps
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine synchronize_cps()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec
 use messages
-use param, only : nx, ny, nz
+use param, only : ny,nz
 use param, only : coord, rank_of_coord, status, ierr, MPI_RPREC
 use sim_param, only : u,v,w
 implicit none
@@ -259,7 +255,7 @@ subroutine inflow_cond_cps ()
 !  enforced by direct modulation on the velocity in the fringe region.
 !
 use types, only : rprec
-use param, only : nx, ny, nz
+use param, only : nx,ny,nz
 use sim_param, only : u, v, w
 use messages, only : error
 implicit none

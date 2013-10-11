@@ -25,8 +25,7 @@ subroutine initialize()
 ! subroutines.
 !
 use types, only : rprec
-use param, only : path
-use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
+use param, only : coord,dt,jt_total,nsteps,path
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
 $if($MPI)

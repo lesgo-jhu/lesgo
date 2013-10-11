@@ -262,10 +262,10 @@ end subroutine sgs_hist_init
 
 !---------------------------------------------------------------------
 subroutine sgs_hist_update_vals()
-
 use stat_defs, only: hist_binit
 use functions, only: linear_interp
-use sgs_param, only: Cs_opt2, Tn_all, Nu_t, ee_now
+!use sgs_param, only: Cs_opt2, Tn_all, Nu_t, ee_now
+use sgs_param, only: Cs_opt2, Nu_t, ee_now
 $if ($LVLSET)
 use level_set_base, only: phi
 $endif
@@ -277,6 +277,7 @@ $if ($LVLSET)
 real(rprec), dimension(nx,ny) :: phi_plane
 $endif
 real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
+!real(rprec), dimension(nx,ny) :: cs2_plane, nu_plane, ee_plane
 
 ! For each z-plane location
     do k=1,sgs_hist_nloc
@@ -307,12 +308,12 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
         !if ( HISTtn % coord(k) == coord) then
          if (sgs_model.gt.3) then
             ! Interpolate variables to z-plane location
-            do j=1,ny
-            do i=1,nx
-                tn_plane(i,j) = linear_interp( Tn_all(i,j,HISTtn % istart(k)), &
-                                 Tn_all(i,j,HISTtn % istart(k)+1), dz, HISTtn % ldiff(k) )
-            enddo  
-            enddo            
+!            do j=1,ny
+!            do i=1,nx
+!                tn_plane(i,j) = linear_interp( Tn_all(i,j,HISTtn % istart(k)), &
+!                                 Tn_all(i,j,HISTtn % istart(k)+1), dz, HISTtn % ldiff(k) )
+!            enddo  
+!            enddo            
 
             ! Bin values
             $if ($LVLSET)

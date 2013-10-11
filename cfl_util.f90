@@ -23,8 +23,14 @@ module cfl_util
 !
 ! This module provides the subroutines/functions for getting CFL related
 ! quantities 
-!
-save 
+use types, only : rprec
+$if($MPI)
+use mpi
+$endif
+save
+$if ($MPI)
+!include 'mpif.h'
+$endif
 private
 
 public get_max_cfl, get_cfl_dt
@@ -37,20 +43,13 @@ function get_max_cfl() result(cfl)
 !
 ! This function provides the value of the maximum CFL in the entire 
 ! domain
-!
-use types, only : rprec
 use param, only : dt, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
-
 $if($MPI)
-use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC
 $endif
-
 implicit none
-real(rprec) :: cfl
-
-real(rprec) :: cfl_u, cfl_v, cfl_w
+real(rprec) :: cfl,cfl_u,cfl_v,cfl_w
 
 $if($MPI)
 real(rprec) :: cfl_buf
@@ -76,22 +75,13 @@ function get_cfl_dt() result(dt)
 !
 ! This functions determines the maximum allowable time step based on the CFL
 ! value specified in the param module
-!
-use types, only : rprec
 use param, only : cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
-
 $if($MPI)
-use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC
 $endif
-
 implicit none
-
-real(rprec) :: dt
-
-! dt inverse
-real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
+real(rprec) :: dt,dt_inv_u,dt_inv_v,dt_inv_w
 
 $if($MPI)
 real(rprec) :: dt_buf

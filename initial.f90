@@ -27,7 +27,7 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if ($DYN_TN)
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 $endif
-$if (TURBINES)
+$if ($TURBINES)
 use sim_param,only:fxa
 $endif
 $if ($LVLSET)

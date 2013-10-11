@@ -19,8 +19,9 @@
 
 module test_filtermodule
 use types,only:rprec
-use param,only:lh,ny
-
+use param,only:lh,nx,ny
+use fft
+use emul_complex, only : OPERATOR(.MULR.)
 private lh,ny
 
     integer, parameter::filter_size=1   ! the implicit filter (1=grid size)
@@ -35,13 +36,8 @@ contains
 subroutine test_filter_init()
 !**********************************************************************
 ! Creates the kernels which will be used for filtering the field
-
-use types,only:rprec
-use param,only:lh,nx,ny,dx,dy,pi,ifilter,sgs_model
-use fft
-
+use param,only:lh,ny,dx,dy,pi,ifilter,sgs_model
 implicit none
-
 real(rprec):: delta_test, kc2_test, delta_test_test, kc2_test_test
 
 ! Allocate the arrays
@@ -114,13 +110,8 @@ end subroutine test_filter_init
 subroutine test_filter ( f )
 !**********************************************************************
 ! note: this filters in-place, so input is ruined
-use types,only:rprec
-use fft
-use param,only:nx,ny
-use emul_complex, only : OPERATOR(.MULR.)
 implicit none
-
-  real(rprec), dimension(:,:), intent(inout) :: f
+real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
   $if ($FFTW3)
@@ -146,13 +137,8 @@ end subroutine test_filter
 subroutine test_test_filter ( f )
 !**********************************************************************
 ! note: this filters in-place, so input is ruined
-use types,only:rprec
-use fft
-use param,only:nx,ny
-use emul_complex, only : OPERATOR(.MULR.)
 implicit none
-
-  real(rprec), dimension(:,:), intent(inout) :: f
+real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
   $if ($FFTW3)

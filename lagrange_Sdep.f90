@@ -36,7 +36,8 @@ use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-use sgs_param,only:u_hat,v_hat,w_hat,ee_now,Tn_all
+!use sgs_param,only:u_hat,v_hat,w_hat,ee_now,Tn_all
+use sgs_param,only:u_hat,v_hat,w_hat,ee_now
 use sgs_param,only:Q11,Q12,Q13,Q22,Q23,Q33,N11,N12,N13,N22,N23,N33
 use sgs_param,only:S_hat,S11_hat,S12_hat,S13_hat,S22_hat,S23_hat,S33_hat
 use sgs_param,only:S_S11_hat,S_S12_hat,S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
@@ -442,7 +443,7 @@ do jz = 1,nz
     $endif     
 
     ! Save Tn to 3D array for use with tavg_sgs
-    Tn_all(:,:,jz) = Tn(:,:)
+!    Tn_all(:,:,jz) = Tn(:,:)
     
 end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
@@ -458,7 +459,7 @@ end do
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
-        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )  
+!        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )  
     $endif   
 
 $if ($LVLSET)

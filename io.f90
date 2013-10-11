@@ -21,37 +21,34 @@
 module io
 !///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
-use param, only : ld, nx, ny, nz, nz_tot, path,  &
-                  coord, rank, nproc, jt_total, total_time, &
-                  total_time_dim, lbz, jzmin, jzmax
-use param, only : cumulative_time, fcumulative_time
-use sim_param, only : w, dudz, dvdz
+use param, only : ld,nx,ny,nz,nz_tot,path,coord,rank,nproc,jt_total
+use param, only : total_time,total_time_dim,lbz,jzmin,jzmax,cumulative_time,fcumulative_time
+use sim_param,only:w,dudz,dvdz
 use sgs_param,only:Cs_opt2
 use string_util
 use messages
-
+$if ($MPI)
+use mpi
+$endif
 implicit none
-
+$if ($MPI)
+!include 'mpif.h'
+$endif
 save
 private
 
-!!$public openfiles,output_loop,output_final,                   &
-!!$     inflow_write, avg_stats
-public jt_total, openfiles, closefiles, energy, output_loop, output_final
-
-public output_init
+public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init
 
 character (*), parameter :: mod_name = 'io'
 
 ! Output file id's (see README for assigned values)
 integer :: ke_fid
-
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : use_cfl_dt, dt, cfl_f, path
+use param, only : use_cfl_dt, dt, cfl_f
 implicit none
 include 'tecryte.h'
 
@@ -96,10 +93,8 @@ end subroutine openfiles
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine closefiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!
 ! This subroutine is used to close all open files used by the main
 ! program. These files are opened by calling 'openfiles'.
-!
 implicit none
 
 ! Close kinetic energy file
@@ -131,8 +126,7 @@ integer, parameter :: NAN_MAX = 10
                       !  diagnosis of problem)
 logical, parameter :: DEBUG = .true.
 $endif
-integer :: jx, jy, jz
-integer :: nan_count
+integer :: jx, jy, jz, nan_count
 
 $if($DEBUG)
 logical :: nan
@@ -190,31 +184,14 @@ if ( nan_count > 0 ) call error (sub_name, 'NaN found')
 $endif
 
 $if ($MPI)
-
   call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   if (rank == 0) then  !--note its rank here, not coord
     ke = ke_global/nproc
-    !ke = ke_global
-    !write (13, *) total_time, ke
-
     call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
-
   end if
-  !if (rank == 0) ke = ke_global/nproc  !--its rank here, not coord
-
 $else
-
-!  write (13, *) total_time, ke
   call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
-
 $endif
-
-!if ( flush ) then
-!  if (rank == 0) then
-!    close (13)
-!    open ( 13, file=path//'output/check_ke.out', position='append' )
-!  end if
-!end if
 
 end subroutine energy
 
@@ -226,17 +203,21 @@ subroutine output_loop()
 !  computing statistics and outputing instantaneous data. No actual
 !  calculations are performed here.
 !
-use param, only : nsteps, jt_total, dt
+use param, only : jt_total, dt
 use param, only : checkpoint_data, checkpoint_nskip
 use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
+$if (not $FFTW3)
 use param, only : spectra_calc, spectra_nstart, spectra_nend, spectra_nskip
+$endif
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use stat_defs, only : tavg_initialized, spectra_initialized
-use stat_defs, only: tavg_dt, spectra_dt
+use stat_defs, only : tavg_initialized,tavg_dt
+$if (not $FFTW3)
+use stat_defs, only: spectra_initialized,spectra_dt
+$endif
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -280,6 +261,7 @@ endif  ! tavg_calc
      
 
 !  Determine if spectra are to be calculated
+$if (not $FFTW3)
 if (spectra_calc) then
 
   ! Are we between the start and stop timesteps?
@@ -309,7 +291,7 @@ if (spectra_calc) then
   endif  ! between nstart and nend
 
 endif  ! spectra_calc
-
+$endif
 
 !  Determine if instantaneous point velocities are to be recorded
 if(point_calc) then
@@ -415,30 +397,24 @@ subroutine inst_write(itype)
 ! clean things up a bit
 !
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
-use param, only : path
 use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
+use param, only : dx,dy,dz
 use grid_defs, only : grid
-use sim_param, only : u,v,w,dudx,dvdy,dwdz
+use sim_param, only : u,v,w
 $if($DEBUG)
-use sim_param, only : p, dpdx, dpdy, dpdz
-use sim_param, only : RHSx, RHSy, RHSz
+use sim_param, only : p, dpdx, dpdy, dpdz,RHSx, RHSy, RHSz
 $endif
 use stat_defs, only : xplane, yplane, zplane, point
 $if($MPI)
-use mpi
-use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
+use param, only :ny,nz,comm,ierr
 $endif
-
 $if($LVLSET)
 use level_set_base, only : phi
-use sim_param, only : fx, fy, fz, fxa, fya, fza
+use sim_param, only : fx,fy,fz,fxa,fya,fza
 $endif
-use param, only : dx,dy,dz
-use param, only : sgs_model
-use sgs_param, only : F_LM,F_MM,F_QN,F_NN,beta,Cs_opt2,Nu_t
 implicit none
 
 include 'tecryte.h'      
@@ -456,8 +432,7 @@ character (64) :: var_list
 integer :: nvars
 $endif
 
-real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi
-real(rprec), allocatable, dimension(:,:,:) :: w_uv
+real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 
 $if($LVLSET)
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
@@ -559,14 +534,11 @@ elseif(itype==2) then
   $endif
  
   $if($BINARY)
-
-  ! RICHARD
   open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
   write(13,rec=1) u(:nx,:ny,1:nz)
   write(13,rec=2) v(:nx,:ny,1:nz)
   write(13,rec=3) w_uv(:nx,:ny,1:nz)
   close(13)
-
   $else
 
     $if($LVLSET)
@@ -603,7 +575,7 @@ elseif(itype==2) then
   $endif
 
   !  Output instantaneous force field 
-  $if( not BINARY )
+  $if(not $BINARY)
   $if($LVLSET)
     !////////////////////////////////////////////
     !/// WRITE FORCES                         ///
@@ -663,7 +635,6 @@ elseif(itype==2) then
     $endif
 
     $if($BINARY)
-    ! RICHARD
     open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) divvel(:nx,:ny,1:nz)
     close(13)
@@ -716,8 +687,6 @@ elseif(itype==2) then
     call pressure_sync()
 
     $if($BINARY)
-
-    ! RICHARD
     open(unit=13,file=fname2,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) p(:nx,:ny,1:nz)
     write(13,rec=2) dpdx(:nx,:ny,1:nz)
@@ -783,7 +752,6 @@ elseif(itype==2) then
     call RHS_sync()
 
     $if($BINARY)
-    ! RICHARD
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) RHSx(:nx,:ny,1:nz)
     write(13,rec=2) RHSy(:nx,:ny,1:nz)
@@ -1519,20 +1487,22 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : nz, checkpoint_file, tavg_calc, spectra_calc
+use param, only : nz, checkpoint_file, tavg_calc
+$if(not $FFTW3)
+use param, only : spectra_calc
+use stat_defs, only : spectra_initialized
+$endif
 $if($MPI)
-use param, only : coord
-use param, only : comm, ierr
+use param, only : comm,ierr
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 $if($DYN_TN)
 use sgs_param, only: F_ee2, F_deedt2, ee_past
 $endif
-use param, only : jt_total, total_time, total_time_dim, dt
-use param, only : use_cfl_dt, cfl
+use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_initialized, spectra_initialized
+use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
 implicit none
 
@@ -1592,8 +1562,10 @@ $endif
 
 ! Checkpoint time averaging restart data
 if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
+$if(not $FFTW3)
 ! Checkpoint spectra restart data
 if( spectra_calc .and. spectra_initialized ) call spectra_checkpoint()
+$endif
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -1624,8 +1596,12 @@ end subroutine checkpoint
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use stat_defs, only : tavg, point, tavg_initialized, spectra_initialized
-use param, only : tavg_calc, point_calc, point_nloc, spectra_calc
+use stat_defs, only : tavg_initialized
+use param, only : tavg_calc
+$if(not $FFTW3)
+use stat_defs, only : spectra_initialized
+use param, only : spectra_calc
+$endif
 implicit none
 
 ! Perform final checkpoing
@@ -1634,93 +1610,35 @@ call checkpoint()
 !  Check if average quantities are to be recorded
 if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
 
+$if(not $FFTW3)
 !  Check if spectra is to be computed
 if(spectra_calc .and. spectra_initialized ) call spectra_finalize()
+$endif
 
 return
 end subroutine output_final
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine len_da_file(fname, lenrec, length)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!--finds number of records on existing direct-access unformatted file
-!--taken from Clive Page's comp.lang.fortran posting (12/16/2003), 
-!  under the topic counting number of records in a Fortran direct file
-!--minor changes/renaming
-!
-use messages
-implicit none
-character (*), intent(in) :: fname  ! name of existing direct-access file
-integer, intent(in)       :: lenrec ! record length (O/S dependent units)
-integer, intent(out) :: length      ! number of records.
-!
-character(*), parameter :: sub_name = mod_name // '.len_dat_file'
-character (1) :: cdummy
-integer :: lunit, nlo, nhi, mid, kode
-logical :: exists, open
-!
-! find a free unit on which to open the file
-!
-do lunit = 99, 1, -1
-  !--units to skip (compiler dependent)
-  select case (lunit)
-    case (5:6)
-      !--do nothing
-    case default
-      inquire(unit=lunit, exist=exists, opened=open)
-      if(exists .and. .not. open) exit
-  end select
-end do
-open(unit=lunit, file=fname, access="direct", recl=lenrec, iostat=kode)
-if(kode /= 0) then
-   call mesg( sub_name, 'error in len_da_file: ' // trim(fname) // ' does not exist' )
-   return
-end if
-!
-! expansion phase
-!
-mid = 1
-do
-  read(lunit, rec=mid, iostat=kode) cdummy
-  if(kode /= 0) exit
-  mid = 2 * mid
-end do
-!
-! length is between mid/2 and mid, do binary search to refine
-!
-nlo = mid/2
-nhi = mid
-do while(nhi - nlo > 1)
-  mid = (nlo + nhi) / 2
-  read(lunit, rec=mid, iostat=kode) cdummy
-  if(kode == 0) then
-     nlo = mid
-  else
-     nhi = mid
-  end if
-end do
-length = nlo
-close(unit=lunit)
-return
-end subroutine len_da_file
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
-use param, only : path
-use param, only : L_x,L_y,L_z,dx,dy,dz,nx,ny,nz,nsteps,coord,nproc,lbz,lh
+use param, only : dx,dy,dz,nx,ny,nz,lbz
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
+$if(not $FFTW3)
 use param, only : spectra_calc, spectra_nloc, spectra_loc
+$endif
 use param, only : tavg_calc
 use grid_defs, only : grid
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
-use stat_defs, only : tavg, tavg_zplane, spectra
+use stat_defs, only : tavg, tavg_zplane
+$if(not $FFTW3)
+use stat_defs, only : spectra
+$endif
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs
 $endif
@@ -1729,7 +1647,6 @@ implicit none
 
 include 'tecryte.h'
 
-!character(120) :: cx,cy,cz
 character(120) :: var_list, fname
 integer :: i,j,k
 
@@ -1769,6 +1686,7 @@ if( tavg_calc ) then
 
 endif
 
+$if(not $FFTW3)
 if(spectra_calc) then
 
   allocate(spectra(spectra_nloc))
@@ -1799,6 +1717,7 @@ if(spectra_calc) then
   enddo
 
 endif
+$endif
 
 ! Initialize information for x-planar stats/data
 if(xplane_calc) then
@@ -1920,15 +1839,12 @@ end subroutine output_init
 subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
-use param, only : path
-use param, only : coord, dt, Nx, Ny, Nz
 use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
 $endif
-use param, only : tavg_nstart, tavg_nend
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.tavg_init'
@@ -2034,15 +1950,13 @@ subroutine tavg_compute()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  This subroutine collects the stats for each flow 
 !  variable quantity
-use types, only : rprec
-use param, only : tavg_nskip
-use stat_defs, only : tavg, tavg_zplane, tavg_total_time, tavg_dt
+use stat_defs, only : tavg,tavg_total_time,tavg_dt
 $if($OUTPUT_EXTRA)
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
-use param, only : nx,ny,nz,dt,lbz,jzmin,jzmax
+use param, only : nx,ny,nz,lbz,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 $if($TURBINES)
 use sim_param, only : fxa
@@ -2246,13 +2160,10 @@ use stat_defs, only : rs_compute, cnpy_tavg_mul
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
-use param, only : nx,ny,nz,dx,dy,dz,L_x,L_y,L_z, nz_tot
+use param, only : ny,nz,nz_tot
 $if($MPI)
-use mpi
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-use param, only : MPI_RPREC, coord_of_rank, &
-     rank_of_coord, comm, &
-     ierr, down, up, status
+use mpi_defs, only : mpi_sync_real_array
+use param, only : MPI_RPREC,coord_of_rank,rank_of_coord,comm,ierr,down,up,status
 use stat_defs, only : rs_t, tavg_t
 $endif
 $if($LVLSET)
@@ -2572,10 +2483,8 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
-! Richard
-$if($BINARY)
 ! ----- Write all the 3D data -----
-
+$if($BINARY)
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
@@ -3123,13 +3032,14 @@ $endif
 return
 end subroutine tavg_checkpoint
 
+! RICHARD: SPECTRA NOT YET CONSIDERED WITH FFTW3
+$if (not $FFTW3)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec
-use param, only : path, checkpoint_spectra_file
+use param, only : checkpoint_spectra_file
 use messages
-use param, only : coord, dt, spectra_nloc, lh, nx
+use param, only : spectra_nloc
 use stat_defs, only : spectra, spectra_total_time, spectra_initialized,spectra_dt
 implicit none
 
@@ -3199,13 +3109,10 @@ end subroutine spectra_init
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_compute()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec
 use sim_param, only : u
-use param, only : Nx, Ny, dt, dz, lh
-use param, only : spectra_nloc, spectra_nskip
+use param, only : nx,ny,dz,lh,spectra_nloc
 use stat_defs, only : spectra, spectra_total_time, spectra_dt
 use functions, only : linear_interp
-use fft, only : forw_spectra
 implicit none
 
 integer :: i, j, k
@@ -3278,12 +3185,7 @@ end subroutine spectra_compute
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine spectra_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec
-use param, only : path
 use param, only : lh, spectra_nloc, spectra_loc
-$if($MPI)
-use param, only : comm, ierr
-$endif
 use fft, only : kx
 use stat_defs, only : spectra, spectra_total_time
 implicit none
@@ -3386,5 +3288,6 @@ $endif
 
 return
 end subroutine spectra_checkpoint
+$endif
 
 end module io

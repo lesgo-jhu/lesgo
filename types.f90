@@ -17,12 +17,8 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*********************************************************************
-module types
-!*********************************************************************
-!
 ! This module provides generic types
-!
+module types
 implicit none
 
 public
@@ -33,10 +29,6 @@ $else
 integer, parameter :: rprec = kind (1.0)
 $endif
  
-!integer, parameter :: rprec = kind (1.e0)
-!integer, parameter :: rprec = selected_real_kind (6)
-!integer, parameter :: rprec = selected_real_kind (15)
-
 type vec3d_t
   real(rprec) :: mag
   real(rprec), dimension(3) :: xyz
@@ -50,7 +42,5 @@ end type vec2d_t
 type point3D_t
   real(rprec), dimension(3) :: xyz
 end type point3D_t
-
-
 
 end module types

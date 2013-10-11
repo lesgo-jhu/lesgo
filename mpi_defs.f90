@@ -20,8 +20,10 @@
 !**********************************************************************
 module mpi_defs
 !**********************************************************************
+use types, only: rprec
 use mpi
 implicit none
+!include 'mpif.h'
 
 save
 private
@@ -40,7 +42,6 @@ contains
 !**********************************************************************
 subroutine initialize_mpi()
 !**********************************************************************
-use types, only : rprec
 use param
 $if($CPS)
 use concurrent_precursor
@@ -143,9 +144,7 @@ subroutine mpi_sync_real_array( var, lbz, isync )
 !         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS 
 !         module. 
 !
-use types, only : rprec
-use mpi
-use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord, nz
+use param, only : MPI_RPREC,down,up,comm,status,ierr,nz
 use messages
 
 implicit none
@@ -155,16 +154,7 @@ character (*), parameter :: sub_name = mod_name // '.mpi_sync_real_array'
 real(rprec), dimension(:,:,lbz:), intent(INOUT) :: var
 integer, intent(in) :: lbz
 integer, intent(in) :: isync
-
-!integer :: lbx,ubx
-!integer :: lby,uby
-integer :: sx, sy
-integer :: ubz
-integer :: mpi_datasize
-
-!lbx=lbound(var,1); ubx=ubound(var,1)
-!lby=lbound(var,2); uby=ubound(var,2)
-!lbz=lbound(var,3); ubz=ubound(var,3)
+integer :: sx,sy,ubz,mpi_datasize
 
 ! Get size of var array in x and y directions
 sx=size(var,1)

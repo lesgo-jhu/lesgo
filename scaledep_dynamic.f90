@@ -27,7 +27,7 @@ subroutine scaledep_dynamic(Cs_1D)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary.  mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:path,ld,nx,ny,nz,dx,dy,dz,coord
+use param,only:ld,nx,ny,nz,coord
 use sim_param,only:u,v,w
 use sgs_stag_util,only:rtnewt
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
@@ -42,17 +42,17 @@ use sgs_param, only:ee_now
 implicit none
 
 integer :: jz
-real(kind=rprec), dimension(nz), intent (inout) :: Cs_1D
+real(rprec), dimension(nz), intent (inout) :: Cs_1D
 
-real(kind=rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
-real(kind=rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
+real(rprec), save, allocatable, target, dimension(:,:) :: Q11,Q12,Q13,Q22,Q23,Q33
+real(rprec), pointer, dimension(:,:) :: M11,M12,M13,M22,M23,M33
 
-real(kind=rprec), save, dimension(:), allocatable :: beta
+real(rprec), save, dimension(:), allocatable :: beta
 
 logical, save :: arrays_allocated = .false. 
 
-real(kind=rprec) :: const
-real(kind=rprec), dimension(0:5) :: A
+real(rprec) :: const
+real(rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
 
 !TSreal(kind=rprec) :: rtnewt

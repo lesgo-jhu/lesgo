@@ -46,8 +46,7 @@ subroutine sgs_stag ()
 
 use types,only:rprec
 use param
-use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
-                    txx, txy, txz, tyy, tyz, tzz
+use sim_param,only:txx,txy,txz,tyy,tyz,tzz
 use sgs_param
 use messages
 
@@ -194,7 +193,7 @@ if (sgs) then
                 do jz = 1, nz
                     Cs_opt2(:, :, jz) = ziko(jz)
                 end do
-            else if (sgs_model==4.) then    ! Lagrangian scale similarity model
+            else if (sgs_model==4) then    ! Lagrangian scale similarity model
                 call lagrange_Ssim()
             elseif (sgs_model==5) then      ! Lagrangian scale dependent model
                 call lagrange_Sdep()

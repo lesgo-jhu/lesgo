@@ -40,7 +40,7 @@ use sgs_stag_util, only : sgs_stag
 use forcing
 
 $if ($MPI)
-use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_UP
+use mpi_defs, only : mpi_sync_real_array
 $endif
 
 $if ($LVLSET)

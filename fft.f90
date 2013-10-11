@@ -30,11 +30,7 @@ $endif
 implicit none
 $if ($FFTW3)
 include'fftw3.f'
-!include'fftw3-mpi.f03'
-!include'fftw3.f'
-!include'fftw3.f03'
-!include'fftw3l.f03'
-!include 'fftw3-mpi.f03'
+!include 'fftw3-mpi.f'
 $endif
 save
 
@@ -125,7 +121,7 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,nx,ny,L_x,L_y,pi
+use param,only:lh,ny,L_x,L_y,pi
 implicit none
 integer :: jx,jy
 

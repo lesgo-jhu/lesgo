@@ -62,7 +62,6 @@ logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
-
 character (*), parameter :: mod_name = 'turbines'
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -72,7 +71,6 @@ contains
 subroutine turbines_init()
 
 implicit none
-
 real(rprec), pointer, dimension(:) :: x,y,z
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 
@@ -202,16 +200,11 @@ end subroutine turbines_init
 subroutine turbines_nodes
 !This subroutine locates nodes for each turbine and builds the arrays: ind, n_hat, num_nodes, and nodes
 implicit none
-
-character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
-
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
 !real(rprec), dimension(nx,ny,nz_tot) :: array ! removed large 3D array to limit memory use
-
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
-
 real(rprec), pointer, dimension(:) :: x, y, z
 
 nullify(x,y,z)
@@ -367,9 +360,6 @@ subroutine turbines_filter_ind()
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 
 implicit none
-
-character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
-
 !real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
 ! Richard: Commented out g_shift. This large array is not used  fg can easily be replaced by single double
 real(rprec), dimension(nx,ny,nz_tot) :: out_a, g
@@ -642,15 +632,11 @@ end subroutine turbines_filter_ind
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
-use sim_param, only: u,v,w, fxa,fya,fza
+use sim_param, only: u,v,w, fxa
 use functions, only: interp_to_uv_grid
 
 implicit none
-
-character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
-
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
-
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
@@ -822,9 +808,7 @@ end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize ()
 implicit none
-
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
-
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
     if (coord == 0) then  
@@ -853,8 +837,6 @@ subroutine turbine_vel_init(zo_high)
 
 use param, only: zo
 implicit none
-character (*), parameter :: sub_name = mod_name // '.turbine_vel_init'
-
 real(rprec), intent(inout) :: zo_high
 real(rprec) :: cft,nu_w,exp_KE
 
@@ -878,6 +860,4 @@ real(rprec) :: cft,nu_w,exp_KE
       write(*,*) 'approx expected KE: ', exp_KE
     endif
 end subroutine turbine_vel_init
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 end module turbines

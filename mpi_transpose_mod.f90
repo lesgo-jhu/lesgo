@@ -22,6 +22,7 @@ use types, only : rp => rprec
 use param, only : np => nproc, comm_cart => comm, coord, ierr, MPI_CPREC
 use mpi
 implicit none
+!include 'mpif.h'
 
 save
 private

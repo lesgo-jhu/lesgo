@@ -23,7 +23,7 @@ module string_util
 !
 !  This module contains the generic subroutines and functions for
 !  manipulating strings
-!
+use types, only : rprec
 implicit none
 
 save
@@ -81,7 +81,6 @@ contains
 !**********************************************************************
 subroutine string_concat_a(str, str1)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -95,7 +94,6 @@ end subroutine string_concat_a
 !**********************************************************************
 subroutine string_concat_r(str, r)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -111,7 +109,6 @@ end subroutine string_concat_r
 !**********************************************************************
 subroutine string_concat_i(str, i)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -127,7 +124,6 @@ end subroutine string_concat_i
 !**********************************************************************
 subroutine string_concat_ai(str, str1, i1)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -143,7 +139,6 @@ end subroutine string_concat_ai
 !**********************************************************************
 subroutine string_concat_ar(str, str1, r1)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -159,7 +154,6 @@ end subroutine string_concat_ar
 !**********************************************************************
 subroutine string_concat_aia(str, str1, i1, str2)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -176,7 +170,6 @@ end subroutine string_concat_aia
 !**********************************************************************
 subroutine string_concat_ara(str, str1, r1, str2)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -193,7 +186,6 @@ end subroutine string_concat_ara
 !**********************************************************************
 subroutine string_concat_aiaia(str, str1, i1, str2, i2, str3)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -212,7 +204,6 @@ end subroutine string_concat_aiaia
 !**********************************************************************
 subroutine string_concat_arara(str, str1, r1, str2, r2, str3)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -231,7 +222,6 @@ end subroutine string_concat_arara
 !**********************************************************************
 subroutine string_concat_aiai(str, str1, i1, str2, i2)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -249,7 +239,6 @@ end subroutine string_concat_aiai
 !**********************************************************************
 subroutine string_concat_arar(str, str1, r1, str2, r2 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -267,7 +256,6 @@ end subroutine string_concat_arar
 !**********************************************************************
 subroutine string_concat_araia(str, str1, r1, str2, i1, str3)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -287,7 +275,6 @@ end subroutine string_concat_araia
 !**********************************************************************
 subroutine string_concat_aiaiai(str, str1, i1, str2, i2, str3, i3)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -307,7 +294,6 @@ end subroutine string_concat_aiaiai
 !**********************************************************************
 subroutine string_concat_ararar(str, str1, r1, str2, r2, str3, r3 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -327,7 +313,6 @@ end subroutine string_concat_ararar
 !**********************************************************************
 subroutine string_concat_aiaiaia(str, str1, i1, str2, i2, str3, i3, str4)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -348,7 +333,6 @@ end subroutine string_concat_aiaiaia
 !**********************************************************************
 subroutine string_concat_ararara(str, str1, r1, str2, r2, str3, r3, str4)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: str
@@ -386,7 +370,6 @@ end subroutine string_splice_aa
 !**********************************************************************
 subroutine string_splice_ar(s, s1, r1)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(INOUT) :: s
@@ -438,7 +421,6 @@ end subroutine string_splice_aia
 !**********************************************************************
 subroutine string_splice_ara(s, s1, r1, s2 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -474,7 +456,6 @@ end subroutine string_splice_aiai
 !**********************************************************************
 subroutine string_splice_arar(s, s1, r1, s2, r2 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -511,7 +492,6 @@ end subroutine string_splice_aiaia
 !**********************************************************************
 subroutine string_splice_arara(s, s1, r1, s2, r2, s3 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -530,7 +510,6 @@ end subroutine string_splice_arara
 !**********************************************************************
 subroutine string_splice_araia(s, s1, r1, s2, i2, s3 )
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -570,7 +549,6 @@ end subroutine string_splice_aiaiai
 !**********************************************************************
 subroutine string_splice_ararar(s, s1, r1, s2, r2, s3, r3)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -609,7 +587,6 @@ end subroutine string_splice_aiaiaia
 !**********************************************************************
 subroutine string_splice_ararara(s, s1, r1, s2, r2, s3, r3, s4)
 !**********************************************************************
-use types, only : rprec
 implicit none
 
 character(*), intent(inout) :: s
@@ -636,7 +613,6 @@ function numtostr_r( a, n ) result(c)
 ! a : real, scalar value to convert
 ! n : length of string to return 
 !
-use types, only : rprec
 implicit none
 
 real(rprec), intent(in) :: a

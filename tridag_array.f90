@@ -40,10 +40,9 @@ $endif
 $if ($DEBUG)
 character (64) :: fmt
 $endif
-integer::jx, jy, j, j_min, j_max
-real(kind=rprec)::bet(lh, ny)
-real(kind=rprec),dimension(lh, ny, nz+1)::gam
-integer :: ir, ii
+integer::jx,jy,j,j_min,j_max,ii,ir
+real(rprec)::bet(lh, ny)
+real(rprec),dimension(lh, ny, nz+1)::gam
 
 n = nz+1
 !--want to skip ny/2+1 and 1, 1
@@ -62,11 +61,12 @@ if (coord == 0) then
   do jy = 1, ny
     do jx = 1, lh-1
 
+$if ($DEBUG)
       if (b(jx, jy, 1) == 0._rprec) then
         write (*, *) 'tridag_array: rewrite eqs, jx, jy= ', jx, jy
         stop
       end if
-
+$endif
       ii = 2*jx
       ir = ii - 1
 
@@ -107,13 +107,14 @@ do j = 2, j_max
       gam(jx, jy, j) = c(jx, jy, j-1) / bet(jx, jy)
       bet(jx, jy) = b(jx, jy, j) - a(jx, jy, j)*gam(jx, jy, j)
 
+$if ($DEBUG)
       if (bet(jx, jy) == 0._rprec) then
         write (*, *) 'tridag_array failed at jx,jy,j=', jx, jy, j
         write (*, *) 'a,b,c,gam,bet=', a(jx, jy, j), b(jx, jy, j),  &
                      c(jx, jy, j), gam(jx, jy, j), bet(jx, jy)
         stop
       end if
-      
+$endif      
       ii = 2*jx
       ir = ii - 1
 

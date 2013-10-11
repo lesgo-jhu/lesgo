@@ -22,7 +22,7 @@
 !--provides txz, tyz (w-nodes) and dudz, dvdz (w-nodes) at jz=1
 subroutine wallstress ()
 use types,only:rprec
-use param,only:dz,ld,lh,nx,ny,nz,vonk,lbc_mom,zo
+use param,only:dz,nx,ny,vonk,lbc_mom,zo
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
 use test_filtermodule
 implicit none

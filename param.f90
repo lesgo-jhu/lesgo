@@ -23,7 +23,9 @@ module param
   use mpi
   $endif
   implicit none
-
+  $if ($MPI)
+!  include 'mpif.h'
+  $endif
   save
 
   private rprec

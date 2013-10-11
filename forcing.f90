@@ -27,7 +27,7 @@ module forcing
 ! (forcing_applied), and for the projection step. Also included are
 ! routines for enforcing a uniform inflow and the fringe region
 ! treatment.
-!
+use types, only : rprec
 implicit none
 
 save
@@ -50,7 +50,6 @@ subroutine forcing_applied()
 !  which are explicitly applied forces. These forces are applied to RHS 
 !  in the evaluation of u* so that mass conservation is preserved.
 !
-use types, only : rprec
 
 $if ($LVLSET)
 $if ($RNS_LS)
@@ -95,7 +94,6 @@ subroutine forcing_induced()
 !  non-induced forces such as explicitly applied forces they should be 
 !  placed in forcing_applied.
 !  
-use types, only : rprec
 $if ($LVLSET)
   use level_set, only : level_set_forcing
   use sim_param, only : fx, fy, fz
@@ -125,10 +123,7 @@ subroutine inflow_cond ()
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity.
 !
-use types, only : rprec
-use param, only : inflow_velocity, nx, ny, nz, &
-                  fringe_region_end, fringe_region_len
-use param, only : coord
+use param, only : inflow_velocity, nx, ny, nz
 use sim_param, only : u, v, w
 use messages, only : error
 use fringe_util

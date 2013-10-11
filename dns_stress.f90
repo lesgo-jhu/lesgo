@@ -20,15 +20,13 @@
 subroutine dns_stress(txx,txy,txz,tyy,tyz,tzz)
 ! using the 'sgs' sign convention for stress, so there is a - sign
 use types,only:rprec
-use param,only:ld,ld_big,nx,ny,nz,z_i,u_star,nu_molec,  &
-               coord, nproc, BOGUS
+use param,only:ld,nx,ny,nz,z_i,u_star,nu_molec,coord,nproc,BOGUS
 use sim_param,only:dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 implicit none
-real(kind=rprec),dimension(ld,ny,nz),intent(out)::txx,txy,txz,tyy, tyz,tzz
-real(kind=rprec)::S11,S12,S13,S22,S23,S33
-real(kind=rprec)::nu
-integer::jx,jy,jz
-integer :: jz_min
+real(rprec),dimension(ld,ny,nz),intent(out)::txx,txy,txz,tyy, tyz,tzz
+real(rprec)::S11,S12,S13,S22,S23,S33
+real(rprec)::nu
+integer::jx,jy,jz,jz_min
 
 ! non-dimensional molecular viscosity
 nu=nu_molec/(z_i*u_star)

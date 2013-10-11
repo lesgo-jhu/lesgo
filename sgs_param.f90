@@ -48,7 +48,9 @@ public
 ! For Lagrangian models (4,5)
     real(rprec) :: lagran_dt = 0._rprec
     real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta, Tn_all
+!    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta, Tn_all
+    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta
+
 
 ! For scale dependent models (3,5)
     real(rprec), dimension(:,:), allocatable :: Q11,Q12,Q13,Q22,Q23,Q33     ! these are only for model 5
@@ -134,7 +136,7 @@ if ((sgs_model .eq. 4).or.(sgs_model .eq. 5)) then
     allocate ( F_QN(ld,ny,lbz:nz) ); F_QN = 0.0_rprec
     allocate ( F_NN(ld,ny,lbz:nz) ); F_NN = 0.0_rprec
     allocate ( Beta(ld,ny,lbz:nz) ); Beta = 0.0_rprec
-    allocate ( Tn_all(ld,ny,lbz:nz) ); Tn_all =0.0_rprec 
+!    allocate ( Tn_all(ld,ny,lbz:nz) ); Tn_all =0.0_rprec 
     
     ! Lagrangian zero-crossing time scale variables
     $if ($DYN_TN)
