@@ -115,6 +115,9 @@ without any warranty.
 
      pre_scalar_calculations_remove
 
+3. 2013-10-10: Updated version of the code, which now compiles well with Gfortran
+   compiler 4.8.1. Many compiler warnings have been fixed.
+
 
 
 
