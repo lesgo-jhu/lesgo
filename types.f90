@@ -16,7 +16,7 @@
 !!  You should have received a copy of the GNU General Public License
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
-
+  
 ! This module provides generic types
 module types
 implicit none
