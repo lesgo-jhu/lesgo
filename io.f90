@@ -122,7 +122,7 @@ character (*), parameter :: sub_name = 'energy'
 
 
 integer, parameter :: NAN_MAX = 10
-                      !--write this many NAN's before calling error (to aid
+                      !--write this many NaN's before calling error (to aid
                       !  diagnosis of problem)
 logical, parameter :: DEBUG = .true.
 $endif
