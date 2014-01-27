@@ -55,7 +55,8 @@ logical :: pastFirstTimeStep ! Establishes if we are at the first time step
 
 ! Subroutines for the actuator turbine model 
 ! All suboroutines names start with (atm_) 
-contains 
+contains
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_initialize()
 ! This subroutine initializes the ATM. It calls the subroutines in
@@ -594,12 +595,12 @@ alpha(m,n,q) = windAng_i - twistAng_i - turbineArray(i) % Pitch
 k = turbineModel(j) % airfoilType(sectionType_i) % n
 
 ! Lift coefficient
-cl(m,n,q)= interpolate(alpha(m,n,q),                                                &
+cl(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                  turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
 
 ! Drag coefficient
-cd(m,n,q)= interpolate(alpha(m,n,q),                                                  &
+cd(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                 turbineModel(j) % airfoilType(sectionType_i) % cd(1:k) )
 
@@ -614,7 +615,7 @@ turbineArray(i) % drag(m,n,q) = 0.5_rprec * cd(m,n,q) * (Vmag(m,n,q)**2) *     &
                                 chord_i * db_i * solidity(m,n,q)
 
 ! This vector projects the drag onto the local coordinate system
-dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +  &
+dragVector = bladeAlignedVectors(m,n,q,1,:)*windVectors(m,n,q,1) +             &
              bladeAlignedVectors(m,n,q,2,:)*windVectors(m,n,q,2)
 
 dragVector = vector_divide(dragVector,vector_mag(dragVector) )
@@ -648,19 +649,19 @@ integer :: m,n,q
 j=turbineArray(i) % turbineTypeID 
 
 ! Rotate the rotor apex first.
-turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,       &
-                              turbineArray(i) % towerShaftIntersect,         &
-                              turbineArray(i) % uvTower,                     &
+turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,         &
+                              turbineArray(i) % towerShaftIntersect,           &
+                              turbineArray(i) % uvTower,                       &
                               turbineArray(i) % deltaNacYaw);
 
 ! Recompute the shaft unit vector since the shaft has rotated.
-turbineArray(i) % uvShaft =                                                &
-                             turbineArray(i) % rotorApex -                 &
+turbineArray(i) % uvShaft =                                                    &
+                             turbineArray(i) % rotorApex -                     &
                              turbineArray(i) % towerShaftIntersect
 	
-turbineArray(i) % uvShaft = vector_divide(turbineArray(i) % uvShaft,       &
+turbineArray(i) % uvShaft = vector_divide(turbineArray(i) % uvShaft,           &
                             vector_mag(turbineArray(i) % uvShaft)) 
-turbineArray(i) % uvShaft = vector_multiply( turbineArray(i) % uvShaft,    &
+turbineArray(i) % uvShaft = vector_multiply( turbineArray(i) % uvShaft,        &
                                              turbineArray(i) % uvShaftDir )
 
 ! Rotate turbine blades, blade by blade, point by point.
@@ -753,13 +754,13 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         open(unit=alphaFile,position="append",                                 &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
 
-        open(unit=VrelFile,position="append",                                 &
+        open(unit=VrelFile,position="append",                                  &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
 
-        open(unit=VaxialFile,position="append",                                 &
+        open(unit=VaxialFile,position="append",                                &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
 
-        open(unit=VtangentialFile,position="append",                                 &
+        open(unit=VtangentialFile,position="append",                           &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
         call atm_compute_power(i)
@@ -777,7 +778,8 @@ if ( mod(jt_total-1, outputInterval) == 0) then
             write(alphaFile,*) i, m, turbineArray(i) % alpha(m,1,:)
             write(VrelFile,*) i, m, turbineArray(i) % Vmag(m,1,:)
             write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
-            write(VtangentialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,2)
+            write(VtangentialFile,*) i, m, turbineArray(i) %                   &
+                                           windVectors(m,1,:,2)
 
         enddo
     
@@ -836,7 +838,7 @@ implicit none
 
 integer, intent(in) :: i
 
-turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor *  &
+turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor *                 &
                                turbineArray(i) % rotSpeed
 
 write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
@@ -854,7 +856,7 @@ integer :: m, n, q, j
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blades'  &
+open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blades'     &
                      //trim(int2str(time_counter))//".vtk")
 
 ! Write the points to the blade file
@@ -888,13 +890,13 @@ integer :: j
 ! Identify the turbine type
 j=turbineArray(i) % turbineTypeID
 
-turbineArray(i) % axialForce(m,n,q) = dot_product(                 &
+turbineArray(i) % axialForce(m,n,q) = dot_product(                             &
 -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
 
 ! Find the component of the blade element force/density in the 
 ! tangential (torque-creating) direction.
-turbineArray(i) % tangentialForce(m,n,q) = dot_product(            &
-                  turbineArray(i) % bladeForces(m,n,q,:) ,    &
+turbineArray(i) % tangentialForce(m,n,q) = dot_product(                        &
+                  turbineArray(i) % bladeForces(m,n,q,:) ,                     &
                   turbineArray(i) % bladeAlignedVectors(m,n,q,2,:))
 
 ! Add this blade element's contribution to thrust to the total 
@@ -934,7 +936,7 @@ dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
 Force=turbineArray(i) % bladeForces(m,n,q,:)
 
 ! The value of the kernel. This is the actual smoothing function
-kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) / &
+kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) /                       &
 ((turbineArray(i) % epsilon**3._rprec)*(pi**1.5_rprec))
 
 ! The force times the kernel will give the force/unitVolume
