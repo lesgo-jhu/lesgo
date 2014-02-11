@@ -237,7 +237,6 @@ integer :: n = 0 ! Counter for the wind turbines
 integer :: lun =1 ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
-integer, pointer :: numBladePoints, numAnnulusSections
 
 ! Check that the configuration file exists
 inquire (file=input_conf, exist=exst)
