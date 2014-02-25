@@ -8,7 +8,7 @@ outputInterval       10
     
 TURBINE_1 {
 turbineType        "NREL5MWRef"
-baseLocation        505,630,540 
+baseLocation        190.0, 315.0, 225.0 
 numBladePoints      100
 epsilon             10.0
 rotationDir         "cw"
@@ -19,6 +19,7 @@ NacYaw              270
 fluidDensity        1.23
 numAnnulusSections   1
 annulusSectionAngle    0.
+nacelle                true
 }
 
 
