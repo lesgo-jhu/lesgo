@@ -42,7 +42,7 @@ public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
           vector_add, vector_divide, vector_mag, distance,                  &
           atm_convoluteForce, atm_output, atm_process_output,               &
-          atm_initialize_output
+          atm_initialize_output, atm_computeNacelleForce
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1._rprec) 
@@ -294,13 +294,18 @@ rotorApex(1) = rotorApex(1) +  (OverHang + UndSling) * cos(ShftTilt)
 rotorApex(3) = rotorApex(3) +  (OverHang + UndSling) * sin(ShftTilt)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                   Create Nacelle Point
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+turbineArray(i) % nacelleLocation = rotorApex
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                  Create the first set of actuator points                     !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! Define the vector along the shaft pointing in the direction of the wind
 uvShaftDir = OverHang / abs( OverHang )
 
-! Define the vector along the shaft pointing in the direction of the wind                               
+! Define the vector along the shaft pointing in the direction of the wind
 uvShaft = vector_add(rotorApex , - towerShaftIntersect)
 uvShaft = vector_divide(uvShaft, vector_mag(uvShaft))
 uvShaft = vector_multiply( uvShaft,uvShaftDir)
@@ -437,7 +442,7 @@ implicit none
 
 integer, intent(in) :: i ! Indicates the turbine number
 integer :: j ! Indicates the turbine type
-real(rprec), pointer :: projectionRadius
+real(rprec), pointer :: projectionRadius, projectionRadiusNacelle
 real(rprec), pointer :: sphereRadius
 real(rprec), pointer :: OverHang
 real(rprec), pointer :: UndSling
@@ -449,6 +454,7 @@ j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
 
 ! Pointers dependent on turbineArray (i)
 projectionRadius=>turbineArray(i) % projectionRadius
+projectionRadiusNacelle=>turbineArray(i) % projectionRadiusNacelle
 sphereRadius=>turbineArray(i) % sphereRadius
 
 ! Pointers dependent on turbineType (j)
@@ -461,9 +467,21 @@ PreCone=>turbineModel(j) %PreCone
 ! projection is only 0.0001 its maximum value - this seems to recover 99.99% of 
 ! the total forces when integrated
 projectionRadius= turbineArray(i) % epsilon * sqrt(log(1.0/0.0001))
+projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.0001))
 
 sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 + (TipRad*cos(PreCone))**2) + projectionRadius
+
+! Calculate the smearing value epsilon for the nacelle
+! It will be the hub radius unless the grid is coarser, and thus
+! the epsilon value will be used
+if (turbineArray(i) % nacelle) then
+    if ( turbineArray(i) % epsilon > 2 * turbineModel(j) % hubRad ) then
+        turbineArray(i) % nacelleEpsilon = turbineArray(i) % epsilon
+    else
+        turbineArray(i) % nacelleEpsilon = 2 * turbineModel(j) % hubRad
+    endif
+endif
 
 end subroutine atm_calculate_variables
 
@@ -635,6 +653,41 @@ turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 call atm_process_output(i,m,n,q)
 
 end subroutine atm_computeBladeForce
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_computeNacelleForce(i,U_local)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will compute the force from the nacelle
+implicit none
+
+integer, intent(in) :: i ! i - turbineTypeArray
+real(rprec), intent(in), dimension(3) :: U_local ! Velocity input
+
+integer :: j ! j - turbineModel
+real(rprec) :: V ! Velocity projected 
+real(rprec), dimension(3) :: nacelleAlignedVector ! Nacelle vector
+real(rprec) :: area, drag
+
+! Identifier for the turbine type
+j= turbineArray(i) % turbineTypeID
+
+area = pi * turbineModel(j) % hubRad **2 
+nacelleAlignedVector = turbineArray(i) % uvShaft
+
+! Velocity projected in the direction of the nacelle
+V = dot_product( nacelleAlignedVector , U_local)
+
+if (V > 0.) then
+    ! Drag force
+    drag = 0.5_rprec * turbineArray(i) % nacelleCd * (V**2) * area
+    
+    ! Drag Vector
+    turbineArray(i) % nacelleForce = - drag * nacelleAlignedVector
+
+write(*,*) 'Nacelle V is: ', V
+endif
+
+end subroutine atm_computeNacelleForce
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_yawNacelle(i)

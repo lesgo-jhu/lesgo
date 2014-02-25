@@ -61,6 +61,9 @@ use actuator_turbine_model
 use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
                            atm_print_initialize
 
+! Used for testing time 
+use clocks 
+
 implicit none
 
 ! Variable for interpolating the velocity in w onto the uv grid
@@ -80,6 +83,12 @@ end type bodyForce_t
 
 ! Body force field
 type(bodyForce_t), allocatable, dimension(:) :: forceFieldUV, forceFieldW
+
+! Time
+type(clock_t) :: clock(10)
+
+! The very crucial parameter pi
+real(rprec), parameter :: pi=acos(-1._rprec)
 
 contains
 
@@ -165,6 +174,7 @@ do i=1,nx ! Loop through grid points in x
                     forceFieldUV(cUV) % j = j
                     forceFieldUV(cUV) % k = k
                     forceFieldUV(cUV) % location = vector_point
+                    forceFieldUV(cUV) % force = 0_rprec
                 endif
             enddo 
             vector_point(3)=zw(k)*z_i
@@ -177,6 +187,7 @@ do i=1,nx ! Loop through grid points in x
                     forceFieldW(cW) % j = j
                     forceFieldW(cW) % k = k
                     forceFieldW(cW) % location = vector_point
+                    forceFieldW(cW) % force = 0_rprec
                 endif
             enddo 
         enddo
@@ -219,10 +230,13 @@ do i=1,numberOfTurbines
     turbineArray(i) % drag = 0._rprec
     turbineArray(i) % Vmag = 0._rprec
     turbineArray(i) % windVectors = 0._rprec
+    turbineArray(i) % nacelleForce = 0._rprec
 enddo
 
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
+    call clock_start( clock(1) )  
 
 ! If statement is for running code only if grid points affected are in this 
 ! processor. If not, no code is executed at all.
@@ -243,17 +257,31 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
 
 endif
 
+!    call clock_stop( clock(1) )
+!    write(*,*) 'coord ', coord, '  Zero Force Field and calculate forces: ', clock(1) % time
 
+!    call clock_start( clock(2) )  
 ! This will gather all the blade forces from all processors
 $if ($MPI)
     ! This will gather all values used in MPI
     call atm_lesgo_mpi_gather()
 $endif
+!    call clock_stop( clock(2) )
+!    write(*,*) 'coord ', coord, '  MPI Gather: ', clock(2) % time
+
+
+ !   call clock_start( clock(3) )  
 
 ! Update the blade positions based on the time-step
 ! Time needs to be dimensionalized
 ! All processors carry the blade points
 call atm_update(dt*z_i/u_star)
+
+!    call clock_stop( clock(3) )
+!    write(*,*) 'coord ', coord, '  atm_update: ', clock(3) % time
+
+
+!    call clock_start( clock(4) )  
 
 if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
     ! Convolute force onto the domain
@@ -261,9 +289,18 @@ if (size(forceFieldUV) .gt. 0 .or. size(forceFieldW) .gt. 0) then
         call atm_lesgo_convolute_force(i)
     enddo
 
+!    call clock_stop( clock(4) )
+!    write(*,*) 'coord ', coord, '  convoluteForce: ', clock(4) % time
+
+!    call clock_start( clock(5) )  
+
     ! This will apply body forces onto the flow field if there are forces within
     ! this domain
     call atm_lesgo_apply_force()
+
+!    call clock_stop( clock(5) )
+!    write(*,*) 'coord ', coord, '  applyForce: ', clock(5) % time
+
 endif
 
 
@@ -297,17 +334,28 @@ endif
 
 !enddo
 
-$if ($MPI)
+!    call clock_start( clock(7) )  
+
+!$if ($MPI)
 ! Sync the fxa fya and fza variables
-    call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
-    call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
-    call mpi_sync_real_array( fza, 1, MPI_SYNC_DOWN )
-$endif
+!    call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
+!    call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
+!    call mpi_sync_real_array( fza, 1, MPI_SYNC_DOWN )
+!$endif
+
+!    call clock_stop( clock(7) )
+!    write(*,*) 'coord ', coord, '  mpiSync: ', clock(7) % time
+
+
+!    call clock_start( clock(8) )  
 
 ! This will write all the output from the model
 if (coord == 0) then
     call atm_output(jt_total)
 endif 
+
+!    call clock_stop( clock(8) )
+!    write(*,*) 'coord ', coord, '  output: ', clock(8) % time
 
 end subroutine atm_lesgo_forcing
 
@@ -323,6 +371,7 @@ subroutine atm_lesgo_mpi_gather()
 implicit none
 integer :: i
 real(rprec) :: torqueRotor
+real(rprec), dimension(3) :: nacelleForce
 
 do i=1,numberOfTurbines
 
@@ -384,9 +433,14 @@ do i=1,numberOfTurbines
     ! Store the torqueRotor. 
     ! Needs to be a different variable in order to do MPI Sum
     torqueRotor=turbineArray(i) % torqueRotor
+    nacelleForce=turbineArray(i) % nacelleForce
 
     ! Sum all the individual power from different blade points
     call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
+                       1, mpi_rprec, mpi_sum, comm, ierr)
+
+    ! Sync the nacelle force
+    call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,         &
                        1, mpi_rprec, mpi_sum, comm, ierr) 
 enddo
 
@@ -446,6 +500,23 @@ do q=1, turbineArray(i) % numBladePoints
     enddo
 enddo
 
+! Calculate Nacelle force
+xyz=turbineArray(i) % nacelleLocation/z_i
+if (turbineArray(i) % nacelle) then 
+        if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
+
+        velocity(1)=                                                   &
+        trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+        velocity(2)=                                                   &
+        trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+        velocity(3)=                                                   &
+        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
+
+        call atm_computeNacelleForce(i,velocity)
+
+    endif
+endif
+
 end subroutine atm_lesgo_force
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -456,66 +527,110 @@ subroutine atm_lesgo_convolute_force(i)
 implicit none
 
 integer, intent(in) :: i
-integer :: j, m, n, q, c 
+integer :: j, m, n, q, c,ccendUV,ccendW,mmend,nnend,qqend
+
+! Test for time optimization
+real(rprec) :: dist,a(3),b(3),projectradius,epsilon,const1,const2
+real(rprec) :: nacelleEpsilon
+
+! Variables for convolution force
+real(rprec) :: kernel, force(3)
 
 !real(rprec) :: dummyForce(3)  ! Debugging
 
+!    call clock_start( clock(7) )
+
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-turbineArray(i) % integratedBladeForces = 0._rprec
 ! This will convolute the blade force onto the grid points
 ! affected by the turbines on both grids
 ! Only if the distance is less than specified value
-do c=1,size(forceFieldUV)
-    do q=1, turbineArray(i) % numBladePoints
-        do n=1, turbineArray(i) % numAnnulusSections
-            do m=1, turbineModel(j) % numBl
-                if (distance(forceFieldUV(c) % location,                       &
-                   turbineArray(i) % bladePoints(m,n,q,:)) .le.                  &
-                   turbineArray(i) % projectionRadius) then
 
 
-                forceFieldUV(c) % force = forceFieldUV(c) % force +            &
-                atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location)     &
-                *z_i/(u_star**2.)
+ccendUV=size(forceFieldUV)
+ccendW=size(forceFieldW)
 
-                ! Calculate the integrated value of the forces
-!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
+mmend=turbineModel(j) % numBl
+nnend=turbineArray(i) % numAnnulusSections
+qqend=turbineArray(i) % numBladePoints
+projectradius=turbineArray(i) % projectionRadius
+epsilon=turbineArray(i) % epsilon
+nacelleEpsilon = turbineArray(i) % nacelleEpsilon
+const1=1./ ((epsilon**3.)*(pi**1.5))
+const2=z_i/(u_star**2.)
 
-!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) =    &
-!                turbineArray(i) % integratedBladeForces(m,n,q,1:2) +    &
-                !dummyForce(1:2) * dx * dy * dz * z_i**3 
+!write(*,*)'Values ',size(forceFieldUV), size(forceFieldW),turbineArray(i) % numBladePoints, turbineArray(i) % numAnnulusSections,  turbineModel(j) % numBl
+
+do c=1,ccendUV
+    a=forceFieldUV(c) % location
+    force=0._rprec
+
+    ! Nacelle focre
+    b=turbineArray(i) % nacelleLocation
+    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    if (dist .le. projectradius) then
+
+        ! The value of the kernel. This is the actual smoothing function
+        kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleEpsilon**3.*pi**1.5)
+        force = force+turbineArray(i) % nacelleForce * kernel *const2
+    endif
+
+    do m=1, mmend
+        do n=1, nnend
+           do q=1, qqend
+
+                b=turbineArray(i) % bladePoints(m,n,q,:)
+                dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+
+                if (dist .le. projectradius) then
+
+                ! The value of the kernel. This is the actual smoothing function
+                kernel=exp(-(dist/epsilon)**2.) *const1
+                force = force+turbineArray(i) % bladeForces(m,n,q,:) * kernel *const2
 
                 endif
+
             enddo
         enddo
     enddo
+    forceFieldUV(c) % force = force
 enddo
 
-do c=1,size(forceFieldW)
-    do q=1, turbineArray(i) % numBladePoints
-        do n=1, turbineArray(i) % numAnnulusSections
-            do m=1, turbineModel(j) % numBl
-                if (distance(forceFieldW(c) % location,                       &
-                   turbineArray(i) % bladePoints(m,n,q,:)) .le.                  &
-                   turbineArray(i) % projectionRadius) then
+do c=1,ccendW
+    a=forceFieldW(c) % location
+    force=0._rprec
 
-                forceFieldW(c) % force = forceFieldW(c) % force +              &
-                atm_convoluteForce(i, m, n, q, forceFieldW(c) % location)      &
-                *z_i/(u_star**2.)
+    ! Nacelle focre
+    b=turbineArray(i) % nacelleLocation
+    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    if (dist .le. projectradius) then
 
-!                dummyForce=atm_convoluteForce(i, m, n, q, forceFieldUV(c) % location) 
+        ! The value of the kernel. This is the actual smoothing function
+        kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
+        force = force+turbineArray(i) % nacelleForce * kernel *const2
 
-!                turbineArray(i) % integratedBladeForces(m,n,q,3) =    &
-!                turbineArray(i) % integratedBladeForces(m,n,q,3) +    &
-                !dummyForce(3) * dx * dy * dz * z_i**3 
+    endif
 
+    do m=1,mmend
+        do n=1,nnend
+           do q=1,qqend
+
+                b=turbineArray(i) % bladePoints(m,n,q,:)
+                dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+
+                if (dist .le. projectradius) then
+                ! The value of the kernel. This is the actual smoothing function
+                kernel=exp(-(dist/epsilon)**2.) *const1
+                force = force+turbineArray(i) % bladeForces(m,n,q,:) * kernel *const2
                 endif
+
             enddo
         enddo
     enddo
+    forceFieldW(c) % force = force
 enddo
-
+!    call clock_stop( clock(7) )
+!    write(*,*) 'coord ', coord, '  convF Loop 2: ', clock(7) % time
 end subroutine atm_lesgo_convolute_force
 
 

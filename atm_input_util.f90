@@ -47,7 +47,7 @@ type turbineArray_t
     real(rprec), dimension(3) :: baseLocation ! Location of the base (0 0 0)
     integer :: numBladePoints ! Number of points along each blade
     character(128) :: bladeUpdateType ! 
-    real(rprec) :: epsilon ! Width of the smearing Gaussian function (5.0)
+    real(rprec) :: epsilon ! Width of the smearing Gaussian function
     character(128) :: rotationDir ! Direction of rotation ('cw')
     real(rprec) :: Azimuth           
     real(rprec) :: RotSpeed           ! Speed of the rotor (rpm)
@@ -62,6 +62,9 @@ type turbineArray_t
     real(rprec) :: torqueRotor ! Rotor torque
     real(rprec) :: torqueGen ! Generator torque
     real(rprec) :: powerRotor ! Rotor Power
+    logical :: nacelle  ! Includes a nacelle yes or no
+    real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
+    real(rprec) :: nacelleCd = 1. ! Drag coefficient for the nacelle
 
     integer :: turbineTypeID ! Identifies the type of turbine   
     
@@ -74,6 +77,8 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: bladeRadius
     ! Forces on each actuator point (blade, annular section, point, 3)
     real(rprec), allocatable, dimension(:,:,:,:) :: bladeForces
+    ! Drag force of Nacelle
+    real(rprec), dimension(3) :: nacelleForce
     ! Forces on each actuator point (blade, annular section, point, 3)
     real(rprec), allocatable, dimension(:,:,:,:) :: integratedBladeForces
     ! Vectors at each actuator point defining the local reference frame
@@ -136,7 +141,11 @@ type turbineArray_t
     ! Sphere radius which defines a sphere from the center of the rotor and
     ! identifies the volume onto which forces are applied
     real(rprec) :: projectionRadius
+    real(rprec) :: projectionRadiusNacelle
     real(rprec) :: sphereRadius
+
+    ! Location of Nacelle
+    real(rprec), dimension(3) :: nacelleLocation
 
 end type turbineArray_t
 
@@ -331,6 +340,11 @@ do
 !            write(*,*)  'annulusSectionAngle is: ', &
 !                         turbineArray(n) % annulusSectionAngle
         endif   
+        if( buff(1:7) == 'nacelle' ) then
+            read(buff(8:), *) turbineArray(n) % nacelle
+!            write(*,*)  'annulusSectionAngle is: ', &
+!                         turbineArray(n) % annulusSectionAngle
+        endif 
     endif        
 end do
 
