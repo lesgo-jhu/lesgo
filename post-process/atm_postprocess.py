@@ -41,6 +41,10 @@ def main():
     if not os.path.exists('./plots'):
         os.makedirs('./plots')
 
+    # Create directories to write mean data
+    if not os.path.exists('./meanData'):
+        os.makedirs('./meanData')
+
     # The files to be plotted (ylabel,dummy)
     files={'alpha':(r"$\alpha$",1.), 'Cl':(r"$C_{l}$",1.),
            'Cd' :(r"$C_{d}$",1.),'lift':(r"Lift",1.),'drag':(r"Drag",1.),
@@ -59,6 +63,13 @@ def main():
     for file_in, parameters in files.iteritems():
       plotFileTurbine(file_in,parameters,file_in,'t (s)',parameters[0])
 
+##########################################################
+# Function for writing mean data output to file
+def writeMeanData(file_in,x,y):
+    f = open( './meanData/'+file_in + '.dat', "w")
+    for i,j in zip(x,y):
+        f.write(str(i)+" "+str(j) + "\n")
+    f.close()
 
 ##########################################################
 # Function for plotting (blade properties)
@@ -67,6 +78,10 @@ def plotFileBlade(file_in,labelX,parameters):
  read_location='../turbineOutput/turbine1/'
  myFile=open(read_location+file_in)
  x,y=readAndAverage(myFile)
+
+ # Write the plotted data to file
+ writeMeanData(file_in,x,y)
+
  plt.clf()
  plt.plot([r/63.0 for r in x],  [r/parameters[1] for r in y],
           '-o',label='LES',color='black')
@@ -87,6 +102,7 @@ def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
  read_location='../turbineOutput/turbine1/'
  myFile=open(read_location+file_in)
  x,y=readFile(myFile)
+
  plt.clf()
  plt.plot(x,[float(k)/parameters[1] for k in y],'-o', color='black',label='LES')
  x, y = np.loadtxt('./BEM/'+file_in, unpack=True)
@@ -98,9 +114,9 @@ def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
  plt.clf()
 
 ##########################################################
-# Read the file and average it
+# Read the file and average it (for blade quantities)
 def readAndAverage(file_in):
- j=1
+ j=10
  for i, line in enumerate(file_in):
    if i==j:
      y=[float(s) for s in line.split()] # Initial value of y
@@ -114,6 +130,7 @@ def readAndAverage(file_in):
 # Convert the elements in line to numbers
  x=[float(s) for s in line.split()] 
  del y[0:2],x[0:2]
+
  return x,y
 
 ##########################################################
