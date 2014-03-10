@@ -64,7 +64,7 @@ type turbineArray_t
     real(rprec) :: powerRotor ! Rotor Power
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
-    real(rprec) :: nacelleCd = 1. ! Drag coefficient for the nacelle
+    real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
 
     integer :: turbineTypeID ! Identifies the type of turbine   
     
@@ -340,10 +340,15 @@ do
 !            write(*,*)  'annulusSectionAngle is: ', &
 !                         turbineArray(n) % annulusSectionAngle
         endif   
-        if( buff(1:7) == 'nacelle' ) then
-            read(buff(8:), *) turbineArray(n) % nacelle
+        if( buff(1:11) == 'nacelleFlag' ) then
+            read(buff(12:), *) turbineArray(n) % nacelle
 !            write(*,*)  'annulusSectionAngle is: ', &
 !                         turbineArray(n) % annulusSectionAngle
+        endif 
+        if( buff(1:9) == 'nacelleCd' ) then
+            read(buff(10:), *) turbineArray(n) % nacelleCd
+            write(*,*)  'cd is: ', &
+                         turbineArray(n) % nacelleCd
         endif 
     endif        
 end do

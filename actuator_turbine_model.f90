@@ -684,7 +684,6 @@ if (V > 0.) then
     ! Drag Vector
     turbineArray(i) % nacelleForce = - drag * nacelleAlignedVector
 
-write(*,*) 'Nacelle V is: ', V
 endif
 
 end subroutine atm_computeNacelleForce
