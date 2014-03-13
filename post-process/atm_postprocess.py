@@ -116,7 +116,7 @@ def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
 ##########################################################
 # Read the file and average it (for blade quantities)
 def readAndAverage(file_in):
- j=10
+ j=500
  for i, line in enumerate(file_in):
    if i==j:
      y=[float(s) for s in line.split()] # Initial value of y
