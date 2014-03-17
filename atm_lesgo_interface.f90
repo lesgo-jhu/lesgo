@@ -236,7 +236,7 @@ enddo
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
-    call clock_start( clock(1) )  
+!    call clock_start( clock(1) )  
 
 ! If statement is for running code only if grid points affected are in this 
 ! processor. If not, no code is executed at all.

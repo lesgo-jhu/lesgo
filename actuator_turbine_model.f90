@@ -373,10 +373,140 @@ real(rprec), intent(in) :: dt                ! Time step
 
 ! Loop through all turbines and rotate the blades
 do i = 1, numberOfTurbines
+    call atm_computeRotorSpeed(i,dt) !!!!!!!!!!!Tony
     call atm_rotateBlades(i,dt)
 end do
 
 end subroutine atm_update
+
+!!!!!!!!!!!!!!! Tony
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_computeRotorSpeed(i,dt)
+! This subroutine rotates the turbine blades 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer, intent(in) :: i                     ! Turbine number
+real(rprec), intent(in) :: dt                ! time step
+integer :: j                                 ! Turbine type
+real(rprec) :: deltaAzimuth                  ! Angle of rotation
+
+! Pointers to turbineArray(i)
+real(rprec), pointer :: rotSpeed, torqueGen, torqueRotor, fluidDensity
+
+! Poitners to turbineModel(j)
+real(rprec), pointer :: GBRatio, CutInGenSpeed, RatedGenSpeed
+real(rprec), pointer :: Region2StartGenSpeed, Region2EndGenSpeed
+real(rprec), pointer :: CutInGenTorque,RateLimitGenTorque,RatedGenTorque
+real(rprec), pointer :: KGen,TorqueControllerRelax, DriveTrainIner
+
+! Other variables to be used
+real(rprec) :: torqueGenOld, genSpeed, dGenSpeed, Region2StartGenTorque
+real(rprec) :: torqueSlope, Region2EndGenTorque
+
+
+j=turbineArray(i) % turbineTypeID
+
+rotSpeed=>turbineArray(i) % rotSpeed
+torqueGen=>turbineArray(i) % torqueGen
+torqueRotor => turbineArray(i) % torqueRotor
+fluidDensity => turbineArray(i) % fluidDensity
+
+GBRatio => turbineModel(j) % GBRatio
+CutInGenSpeed => turbineModel(j) % CutInGenSpeed
+CutInGenTorque => turbineModel(j) % CutInGenTorque
+Region2StartGenSpeed => turbineModel(j) % Region2StartGenSpeed
+KGen => turbineModel(j) % KGen
+RatedGenSpeed => turbineModel(j) % RatedGenSpeed
+Region2EndGenSpeed => turbineModel(j) % Region2EndGenSpeed
+RatedGenTorque => turbineModel(j) % RatedGenTorque
+RateLimitGenTorque => turbineModel(j) % RateLimitGenTorque
+TorqueControllerRelax => turbineModel(j) % TorqueControllerRelax
+DriveTrainIner => turbineModel(j) % DriveTrainIner
+
+
+! No torque controller option
+    if (turbineModel(j) % TorqueControllerType == "none") then
+
+        ! Compute the change in blade position at new rotor speed.
+        turbineArray(i) % deltaAzimuth = rotSpeed * dt
+
+    elseif (turbineModel(j) % TorqueControllerType == "fiveRegion") then
+
+        ! Get the generator speed.
+        genSpeed = (rotSpeed/rpmRadSec)*GBRatio
+
+        ! Save the generator torque from the last time step.
+        torqueGenOld = torqueGen
+            
+        ! Region 1.
+        if (genSpeed < CutInGenSpeed) then
+
+            torqueGen = CutInGenTorque
+
+        ! Region 1-1/2.
+        elseif ((genSpeed >= CutInGenSpeed) .and.                              &
+               (genSpeed < Region2StartGenSpeed)) then
+
+        dGenSpeed = genSpeed - CutInGenSpeed
+        Region2StartGenTorque = KGen * Region2StartGenSpeed * Region2StartGenSpeed
+        torqueSlope = (Region2StartGenTorque - CutInGenTorque) /            &
+                      ( Region2StartGenSpeed - CutInGenSpeed )
+        torqueGen = CutInGenTorque + torqueSlope*dGenSpeed
+
+        ! Region 2.
+        elseif ((genSpeed >= Region2StartGenSpeed) .and.    &
+                 (genSpeed < Region2EndGenSpeed)) then
+
+                torqueGen = KGen * genSpeed * genSpeed
+
+        ! Region 2-1/2.
+        elseif ((genSpeed >= Region2EndGenSpeed) .and.    &
+                 (genSpeed < RatedGenSpeed)) then
+
+                dGenSpeed = genSpeed - Region2EndGenSpeed
+                Region2EndGenTorque = KGen * Region2EndGenSpeed * Region2EndGenSpeed
+                torqueSlope = (RatedGenTorque - Region2EndGenTorque) /   &
+                              ( RatedGenSpeed - Region2EndGenSpeed )
+                torqueGen = Region2EndGenTorque + torqueSlope*dGenSpeed
+
+        ! Region 3.
+        elseif (genSpeed >= RatedGenSpeed) then
+
+                torqueGen = RatedGenTorque
+        endif
+
+        ! Limit the change in generator torque if after first time step
+        ! (otherwise it slowly ramps up from its zero initialized value--we
+        ! want it to instantly be at its desired value on the first time
+        ! step, but smoothly vary from there).
+        if ((abs((torqueGen - torqueGenOld)/dt) > RateLimitGenTorque) &
+              .and. (pastFirstTimeStep)) then
+
+            if (torqueGen > torqueGenOld) then
+
+                torqueGen = torqueGenOld + (RateLimitGenTorque * dt);
+
+            elseif (torqueGen <= torqueGenOld) then
+
+                torqueGen = torqueGenOld - (RateLimitGenTorque * dt);
+            endif
+        endif
+!write(*,*) TorqueControllerRelax, dt, DriveTrainIner, torqueRotor, fluidDensity, GBRatio, torqueGen
+        ! Update the rotor speed.
+        rotSpeed = rotSpeed + TorqueControllerRelax*(dt/DriveTrainIner)*(torqueRotor*fluidDensity - GBRatio*torqueGen)
+
+        ! Limit the rotor speed to be positive and such that the generator does not turn
+        ! faster than rated.
+        rotSpeed = max(0.0,rotSpeed)
+        rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
+
+        ! Compute the change in blade position at new rotor speed.
+        turbineArray(i) % deltaAzimuth = rotSpeed * dt;
+
+    endif
+
+end subroutine atm_computeRotorSpeed
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_rotateBlades(i,dt)
@@ -403,7 +533,7 @@ uvShaft=>turbineArray(i) % uvShaft
 azimuth=>turbineArray(i) % azimuth
 
 ! Angle of rotation
-deltaAzimuth = rotSpeed * dt
+deltaAzimuth = turbineArray(i) % deltaAzimuth
 
 ! Check the rotation direction first and set the local delta azimuth
 ! variable accordingly.

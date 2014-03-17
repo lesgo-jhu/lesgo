@@ -147,6 +147,9 @@ type turbineArray_t
     ! Location of Nacelle
     real(rprec), dimension(3) :: nacelleLocation
 
+    ! Change of azimuth angle every time-step
+    real(rprec) :: deltaAzimuth=0.
+
 end type turbineArray_t
 
 ! This type stores all the airfoils and their AOA, Cd, Cl values
@@ -179,7 +182,16 @@ type turbineModel_t
     real(rprec) :: HubIner
     real(rprec) :: BladeIner
     real(rprec) :: DriveTrainIner
-    real(rprec) :: TorqueControllerType
+
+    ! Blade section quantities (maximum number of sections 100, easy modify)
+    real(rprec), dimension(100) :: chord, twist, radius
+    integer, dimension(100) :: sectionType
+
+    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
+    type(airfoilType_t), allocatable, dimension(:) :: airfoilType
+
+    ! Controller variables
+    character(64) :: TorqueControllerType
     real(rprec) :: CutInGenSpeed
     real(rprec) :: RatedGenSpeed
     real(rprec) :: Region2StartGenSpeed
@@ -189,16 +201,7 @@ type turbineModel_t
     real(rprec) :: RateLimitGenTorque
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
-
-    ! Blade section quantities (maximum number of sections 100, easy modify)
-    real(rprec), dimension(100) :: chord, twist, radius
-    integer, dimension(100) :: sectionType
-
-    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
-    type(airfoilType_t), allocatable, dimension(:) :: airfoilType
-!    ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 2
-!    type(DynamicList_), pointer :: allAirfoils
-
+    
 end type turbineModel_t
 
 ! Declare turbine array variable
@@ -470,6 +473,65 @@ do i = 1, numTurbinesDistinct
 !            write(*,*) 'PreCone is: ', turbineModel(i) % PreCone
         endif
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! This will read the controller type and its properties
+        if( buff(1:20) == 'TorqueControllerType' ) then
+            read(buff(21:), *) turbineModel(i) % TorqueControllerType
+            write(*,*) 'TorqueControllerType is: ', turbineModel(i) % TorqueControllerType
+        endif
+        if( buff(1:13) == 'CutInGenSpeed' ) then
+            read(buff(14:), *) turbineModel(i) % CutInGenSpeed
+            write(*,*) 'CutInGenSpeed is: ', turbineModel(i) % CutInGenSpeed
+        endif
+        if( buff(1:13) == 'RatedGenSpeed' ) then
+            read(buff(14:), *) turbineModel(i) % RatedGenSpeed
+            write(*,*) 'RatedGenSpeed is: ', turbineModel(i) % RatedGenSpeed
+        endif
+        if( buff(1:20) == 'Region2StartGenSpeed' ) then
+            read(buff(21:), *) turbineModel(i) % Region2StartGenSpeed
+            write(*,*) 'Region2StartGenSpeed is: ', turbineModel(i) % Region2StartGenSpeed
+        endif
+        if( buff(1:18) == 'Region2EndGenSpeed' ) then
+            read(buff(19:), *) turbineModel(i) % Region2EndGenSpeed
+            write(*,*) 'Region2EndGenSpeed is: ', turbineModel(i) % Region2EndGenSpeed
+        endif
+        if( buff(1:14) == 'CutInGenTorque' ) then
+            read(buff(15:), *) turbineModel(i) % CutInGenTorque
+            write(*,*) 'CutInGenTorque is: ', turbineModel(i) % CutInGenTorque
+        endif
+        if( buff(1:14) == 'RatedGenTorque' ) then
+            read(buff(15:), *) turbineModel(i) % RatedGenTorque
+            write(*,*) 'RatedGenTorque is: ', turbineModel(i) % RatedGenTorque
+        endif
+        if( buff(1:18) == 'RateLimitGenTorque' ) then
+            read(buff(19:), *) turbineModel(i) % RateLimitGenTorque
+            write(*,*) 'RateLimitGenTorque is: ', turbineModel(i) % RateLimitGenTorque
+        endif
+        if( buff(1:4) == 'KGen' ) then
+            read(buff(5:), *) turbineModel(i) % KGen
+            write(*,*) 'KGen is: ', turbineModel(i) % KGen
+        endif
+        if( buff(1:21) == 'TorqueControllerRelax' ) then
+            read(buff(22:), *) turbineModel(i) % TorqueControllerRelax
+            write(*,*) 'TorqueControllerRelax is: ', turbineModel(i) % TorqueControllerRelax
+        endif
+        if( buff(1:7) == 'GBRatio' ) then
+            read(buff(8:), *) turbineModel(i) % GBRatio
+            write(*,*) 'GBRatio is: ', turbineModel(i) % GBRatio
+        endif
+        if( buff(1:9) == 'BladeIner' ) then
+            read(buff(10:), *) turbineModel(i) % BladeIner
+            write(*,*) 'BladeIner is: ', turbineModel(i) % BladeIner
+        endif
+        if( buff(1:7) == 'HubIner' ) then
+            read(buff(8:), *) turbineModel(i) % HubIner
+            write(*,*) 'HubIner is: ', turbineModel(i) % HubIner
+        endif
+        if( buff(1:7) == 'GenIner' ) then
+            read(buff(8:), *) turbineModel(i) % GenIner
+            write(*,*) 'GenIner is: ', turbineModel(i) % GenIner
+        endif
+        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
@@ -534,7 +596,12 @@ do i = 1, numTurbinesDistinct
                 enddo
         endif
     enddo
-    close (lun)      
+    close (lun)  
+
+    ! Calculate drive train inertia
+    turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
+    ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) * ( turbineModel(i) % GenIner )
+    
 enddo
 
 ! Allocate variables inside turbineArray
