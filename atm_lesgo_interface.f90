@@ -503,7 +503,7 @@ enddo
 ! Calculate Nacelle force
 xyz=turbineArray(i) % nacelleLocation/z_i
 if (turbineArray(i) % nacelle) then 
-        if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
+    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
 
         velocity(1)=                                                   &
         trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
@@ -566,15 +566,16 @@ do c=1,ccendUV
     force=0._rprec
 
     ! Nacelle focre
-    b=turbineArray(i) % nacelleLocation
-    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    if (dist .le. projectradius) then
-
-        ! The value of the kernel. This is the actual smoothing function
-        kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleEpsilon**3.*pi**1.5)
-        force = force+turbineArray(i) % nacelleForce * kernel *const2
+    if (turbineArray(i) % nacelle) then
+        b=turbineArray(i) % nacelleLocation
+        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+        if (dist .le. projectradius) then
+    
+            ! The value of the kernel. This is the actual smoothing function
+            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleEpsilon**3.*pi**1.5)
+            force = force+turbineArray(i) % nacelleForce * kernel *const2
+        endif
     endif
-
     do m=1, mmend
         do n=1, nnend
            do q=1, qqend
@@ -601,16 +602,18 @@ do c=1,ccendW
     force=0._rprec
 
     ! Nacelle focre
-    b=turbineArray(i) % nacelleLocation
-    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    if (dist .le. projectradius) then
-
-        ! The value of the kernel. This is the actual smoothing function
-        kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
-        force = force+turbineArray(i) % nacelleForce * kernel *const2
-
+    if (turbineArray(i) % nacelle) then
+        b=turbineArray(i) % nacelleLocation
+        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+        if (dist .le. projectradius) then
+    
+            ! The value of the kernel. This is the actual smoothing function
+            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
+            force = force+turbineArray(i) % nacelleForce * kernel *const2
+    
+        endif
     endif
-
+    
     do m=1,mmend
         do n=1,nnend
            do q=1,qqend

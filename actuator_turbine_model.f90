@@ -374,7 +374,7 @@ real(rprec), intent(in) :: dt                ! Time step
 ! Loop through all turbines and rotate the blades
 do i = 1, numberOfTurbines
     call atm_computeRotorSpeed(i,dt) !!!!!!!!!!!Tony
-    call atm_rotateBlades(i,dt)
+    call atm_rotateBlades(i)
 end do
 
 end subroutine atm_update
@@ -389,7 +389,7 @@ implicit none
 integer, intent(in) :: i                     ! Turbine number
 real(rprec), intent(in) :: dt                ! time step
 integer :: j                                 ! Turbine type
-real(rprec) :: deltaAzimuth                  ! Angle of rotation
+!real(rprec) :: deltaAzimuth                  ! Angle of rotation
 
 ! Pointers to turbineArray(i)
 real(rprec), pointer :: rotSpeed, torqueGen, torqueRotor, fluidDensity
@@ -509,13 +509,13 @@ DriveTrainIner => turbineModel(j) % DriveTrainIner
 end subroutine atm_computeRotorSpeed
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_rotateBlades(i,dt)
+subroutine atm_rotateBlades(i)
 ! This subroutine rotates the turbine blades 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 integer, intent(in) :: i                                 ! Turbine number
-real(rprec), intent(in) :: dt                            ! time step
+!real(rprec), intent(in) :: dt                            ! time step
 integer :: j                                 ! Turbine type
 integer :: m, n, q                           ! Counters tu be used in do loops
 real(rprec) :: deltaAzimuth, deltaAzimuthI   ! Angle of rotation
