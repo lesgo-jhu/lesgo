@@ -143,6 +143,10 @@ do i = 1,numberOfTurbines
         write(1,*) 'turbineNumber Power'
         close(1)
 
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
+        write(1,*) 'turbineNumber RotSpeed'
+        close(1)
+        
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
         write(1,*) 'turbineNumber bladeNumber '
         close(1)
@@ -897,9 +901,9 @@ implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
 integer :: i, j, m, n, q
-integer :: powerFile=11, bladeFile=12, liftFile=13, dragFile=14
-integer :: ClFile=15, CdFile=16, alphaFile=17, VrelFile=18
-integer :: VaxialFile=19, VtangentialFile=20
+integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
+integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
+integer :: VaxialFile=20, VtangentialFile=21
 integer :: pointsFile=787 ! File to write the actuator points
 
 ! Output only if the number of intervals is right
@@ -916,7 +920,11 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         ! Files for power output
         open(unit=powerFile,position="append",                                 &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
-    
+
+        ! Files for power output
+        open(unit=RotSpeedFile,position="append",                              &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
+
         ! File for blade output
         open(unit=bladeFile,position="append",                                 &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
@@ -947,6 +955,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
         call atm_compute_power(i)
         write(powerFile,*) i, turbineArray(i) % powerRotor
+        write(RotSpeedFile,*) i, turbineArray(i) % RotSpeed
 
         ! Will write only the first actuator section of the blade
         do m=1, turbineModel(j) % numBl
@@ -972,6 +981,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
     ! Close all the files 
     close(powerFile)
+    close(rotSpeedFile)
     close(bladeFile)
     close(liftFile)
     close(dragFile)

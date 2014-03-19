@@ -435,7 +435,7 @@ do i=1,numberOfTurbines
     torqueRotor=turbineArray(i) % torqueRotor
     nacelleForce=turbineArray(i) % nacelleForce
 
-    ! Sum all the individual power from different blade points
+    ! Sum all the individual torqueRotor from different blade points
     call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
                        1, mpi_rprec, mpi_sum, comm, ierr)
 

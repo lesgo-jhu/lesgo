@@ -58,7 +58,7 @@ def main():
     # Plot turbine output
     ###############################################
     # The files to be plotted (ylabel, divideby)
-    files={'power':(r'P (W)',1000000.)}
+    files={'power':(r'P (MW)',1000000.),'RotSpeed':(r'$\omega$',1.)}
 
     for file_in, parameters in files.iteritems():
       plotFileTurbine(file_in,parameters,file_in,'t (s)',parameters[0])
@@ -116,7 +116,7 @@ def plotFileTurbine(file_in,parameters,run_label,labelX,labelY):
 ##########################################################
 # Read the file and average it (for blade quantities)
 def readAndAverage(file_in):
- j=500
+ j=50
  for i, line in enumerate(file_in):
    if i==j:
      y=[float(s) for s in line.split()] # Initial value of y
