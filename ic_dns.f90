@@ -17,13 +17,14 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
+
 subroutine ic_dns()
 use types,only:rprec
 use param
 use sim_param,only:u,v,w
 implicit none
 real(rprec),dimension(nz)::ubar
-real(rprec)::rms,temp,ran3,z
+real(rprec)::rms,temp,ran3,z,vpert,wpert
 integer::jx,jy,jz,seed
 
 if (inflow) then
@@ -35,30 +36,54 @@ else
 
   seed=-112
 
-  ! calculate height of first uvp point in wall units
-  ! lets do a laminar case (?)
-  do jz=1,nz
-  
-     z=(real(jz)-.5_rprec)*dz ! non-dimensional
-     ubar(jz)=(u_star*z_i/nu_molec)*z*(1._rprec-.5_rprec*z) ! non-dimensional
-  !         ubar(jz)=0.
-  end do  
+  !! calculate height of first uvp point in wall units
+  !! lets do a laminar case (?)
+  if (ic_couette) then          !! linear laminar profile (couette)
+     do jz=1,nz
+        $if ($MPI)    !--jb
+        z=(coord*(nz-1) + real(jz) - 0.5_rprec) * dz ! non-dimensional
+        $else
+        z = (real(jz) - 0.5_rprec) * dz ! non-dimensional
+        $endif
+        ubar(jz)= (utop-ubot)/L_z * z + ubot ! non-dimensional
+     end do
+  else
+     do jz=1,nz             !! parabolic laminar profile (channel)
+        $if ($MPI)    !--jb
+        z=(coord*(nz-1) + real(jz) - 0.5_rprec) * dz ! non-dimensional
+        $else
+        z = (real(jz) - 0.5_rprec) * dz ! non-dimensional
+        $endif
+        ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+        !         ubar(jz)=0.
+     end do
+  endif
+ 
 end if
 
-do jz=1,nz
-  print *,'jz, ubar:',jz,ubar(jz)
-end do
+if (channel_bc .and. .not. ic_couette) then
+   vpert = 5.0_rprec    !! works for channel flow
+   wpert = 2.0_rprec
+else
+   vpert = 0.0_rprec    !! works for couette flow
+   wpert = 0.0_rprec
+endif
+
 ! rms=0.0001 seems to work in some cases
 ! the "default" rms of a unif variable is 0.289
 rms=0.2_rprec
 do jz=1,nz
   do jy=1,ny
      do jx=1,nx
-       u(jx,jy,jz)=ubar(jz)+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       v(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       w(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-    end do
-  end do
+       u(jx,jy,jz)=ubar(jz)     +(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
+       v(jx,jy,jz)=vpert*u_star +(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
+       w(jx,jy,jz)=wpert*u_star +(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
+    end do 
+  end do 
+end do
+
+do jz=1,nz
+  print *,'coord, jz, u, v, w:', coord, jz, u(1,1,jz), v(1,1,jz), w(1,1,jz)
 end do
 
 ! make sure w-mean is 0
@@ -79,9 +104,9 @@ do jz=1,nz
       end do
    end do
 end do
-      
+
 w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
-u(:,:,nz)=u(:,:,nz-1)
-v(:,:,nz)=v(:,:,nz-1)
+u(:,:,nz)=u(:,:,nz-1)  ! shouldn't make a difference, but probably good to remove this line and next  
+v(:,:,nz)=v(:,:,nz-1)    
 end subroutine ic_dns

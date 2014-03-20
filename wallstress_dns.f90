@@ -19,7 +19,8 @@
 
 subroutine wallstress_dns ()
 use types,only:rprec
-use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom
+use param,only:nx,ny,nz,nu_molec,z_i,u_star,dz,lbc_mom
+use param, only:coord,nproc,utop,ubot
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
 implicit none
 integer::jx,jy
@@ -34,14 +35,30 @@ select case (lbc_mom)
     dvdz(:, :, 1) = 0._rprec
 
   case (1) ! Wall
-    do jy=1,ny
-    do jx=1,nx
-       txz(jx,jy,1)=-nu_molec/(z_i*u_star)*u(jx,jy,1)/(0.5_rprec*dz)
-       tyz(jx,jy,1)=-nu_molec/(z_i*u_star)*v(jx,jy,1)/(0.5_rprec*dz)
-       dudz(jx,jy,1)=u(jx,jy,1)/(0.5_rprec*dz)
-       dvdz(jx,jy,1)=v(jx,jy,1)/(0.5_rprec*dz)
-    end do
-    end do
+    if (coord == 0) then     !--bottom wall
+       do jy=1,ny
+       do jx=1,nx
+          !! one-sided difference (1st order approximation)
+          dudz(jx,jy,1)=( u(jx,jy,1) - ubot )/(0.5_rprec*dz)
+          dvdz(jx,jy,1)=v(jx,jy,1)/(0.5_rprec*dz)
+          txz(jx,jy,1)=-nu_molec/(z_i*u_star)*dudz(jx,jy,1)
+          tyz(jx,jy,1)=-nu_molec/(z_i*u_star)*dvdz(jx,jy,1)
+       end do
+       end do
+    endif
+    !! if no MPI, then only one processor, so it must apply both top
+    !! and bottom BCs
+    if (coord == nproc - 1) then   !--top wall
+       do jy=1,ny
+       do jx=1,nx
+          !! one-sided difference (1st order approximation)
+          dudz(jx,jy,nz)=( utop - u(jx,jy,nz-1) )/(0.5_rprec*dz)
+          dvdz(jx,jy,nz)=-v(jx,jy,nz-1)/(0.5_rprec*dz)
+          txz(jx,jy,nz)=-nu_molec/(z_i*u_star)*dudz(jx,jy,nz)
+          tyz(jx,jy,nz)=-nu_molec/(z_i*u_star)*dvdz(jx,jy,nz)
+       end do
+       end do
+    endif
 
   case default
 

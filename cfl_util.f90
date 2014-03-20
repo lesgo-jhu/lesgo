@@ -33,7 +33,7 @@ $if ($MPI)
 $endif
 private
 
-public get_max_cfl, get_cfl_dt
+public get_max_cfl, get_cfl_dt, get_visc_stab, get_tau_wall
 
 contains
 
@@ -101,5 +101,47 @@ $endif
 
 return
 end function get_cfl_dt
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_visc_stab() result(visc_stab)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides viscous stability parameter:  r = nu*dt/dx**2
+! Probably doesn't belong in this file... oh well
+use param, only : nu_molec,dt_dim, dx, dy, dz, z_i
+
+implicit none
+real(rprec) :: visc_stab
+
+visc_stab = nu_molec * dt_dim / ( min(dx,dy,dz) * z_i )**2
+
+return
+end function get_visc_stab
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_tau_wall() result(twall)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides plane-averaged value of wall stress magnitude
+! Probably doesn't belong in this file either... oh well
+use param, only : nx,ny
+use sim_param, only : txz,tyz
+
+implicit none
+real(rprec) :: twall,txsum,tysum
+integer :: jx,jy
+
+do jx=1,nx
+do jy=1,ny
+   txsum = txsum + txz(jx,jy,1)
+   tysum = tysum + tyz(jx,jy,1)
+enddo
+enddo
+
+twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
+
+return
+end function get_tau_wall
+
 
 end module cfl_util

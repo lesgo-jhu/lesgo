@@ -19,7 +19,7 @@
 
 subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 use types,only:rprec
-use param,only:ld,ny,nz,BOGUS,lbz 
+use param,only:ld,ny,nz,BOGUS,lbz, channel_bc 
 use derivatives, only : ddx, ddy, ddz_w,ddxy
 
 implicit none
@@ -75,12 +75,14 @@ divtx(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divtx(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-$if ($SAFETYMODE)
-$if ($MPI)
-  divtx(:, :, 0) = BOGUS
-$endif
-divtx(:, :, nz) = BOGUS
-$endif
+!if (.not. channel_bc) then     !--jb
+   $if ($SAFETYMODE)
+   $if ($MPI)
+     divtx(:, :, 0) = BOGUS
+   $endif
+   divtx(:, :, nz) = BOGUS
+   $endif
+!endif
 
 !--only 1:nz-1 are valid
 divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
@@ -89,13 +91,14 @@ divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divty(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-$if ($SAFETYMODE)
-$if ($MPI)
-  divty(:, :, 0) = BOGUS
-$endif
-divty(:, :, nz) = BOGUS
-$endif
-
+!if (.not. channel_bc) then      !--jb
+   $if ($SAFETYMODE)
+   $if ($MPI)
+     divty(:, :, 0) = BOGUS
+   $endif
+   divty(:, :, nz) = BOGUS
+   $endif
+!endif
 
 $if ($VERBOSE)
 write (*, *) 'finished divstress_uv'

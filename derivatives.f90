@@ -220,14 +220,14 @@ subroutine ddz_uv(f, dfdz, lbz)
 !  bottom process it only supplies 2:nz
 !
 use types,only:rprec
-use param,only:nx,ny,nz,dz,coord,nproc,BOGUS
+use param,only:nx,ny,nz,dz,coord,nproc,BOGUS,channel_bc
 implicit none
 
 integer, intent(in) :: lbz
 real (rprec), dimension (:, :, lbz:), intent (in) :: f
 real (rprec), dimension(:, :, lbz:), intent (inout) :: dfdz
 
-integer::jx,jy,jz
+integer::jx,jy,jz,ubc
 real (rprec) :: const
 
 const=1._rprec/dz
@@ -251,8 +251,14 @@ $endif
 
 $endif
 
-do jz=2,nz-1
-do jy=1,ny
+if (channel_bc .and. coord == nproc-1) then    !--jb
+   ubc = nz-1      !! value at nz is set in wallstress_dns
+else
+   ubc = nz
+endif
+
+do jz=2,ubc   !! the loop below (now commented out), has been absorbed by this one
+do jy=1,ny    !! by introducing ubc         !--jb
 do jx=1,nx    
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz)-f(jx,jy,jz-1))
 end do
@@ -262,23 +268,23 @@ end do
 !--should integrate this into the above loop, explicit zeroing is not
 !  needed, since dudz, dvdz are forced to zero by copying the u, v fields
 !--also, what happens when called with tzz? 
-$if ($MPI) 
-
-  if (coord == nproc-1) then
-    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-  else
-    do jy=1,ny
-    do jx=1,nx
-       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
-    end do
-    end do
-  endif
-
-$else
-
-  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-
-$endif
+!!$$if ($MPI) 
+!!$
+!!$  if (coord == nproc-1) then
+!!$    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$  else
+!!$    do jy=1,ny
+!!$    do jx=1,nx
+!!$       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+!!$    end do
+!!$    end do
+!!$  endif
+!!$
+!!$$else
+!!$
+!!$  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$
+!!$$endif
 
 return
 end subroutine ddz_uv
@@ -314,19 +320,20 @@ end do
 end do
 
 $if ($MPI)
-    if (coord == 0) then
+   if (coord == 0) then
       !--bottom process cannot calculate dfdz(jz=0)
-$if ($SAFETYMODE)
-      dfdz(:, :, lbz) = BOGUS
-$endif      
-    endif
-    if (coord == nproc-1) then
+      $if ($SAFETYMODE)
+        dfdz(:, :, lbz) = BOGUS
+      $endif      
+   endif
+    
+   if (coord == nproc-1) then
       dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
-    else
-$if ($SAFETYMODE)
-      dfdz(:, :, nz) = BOGUS
-$endif      
-    end if
+   else
+      $if ($SAFETYMODE)
+        dfdz(:, :, nz) = BOGUS
+      $endif      
+   end if
 $else
   dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
 $endif

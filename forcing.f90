@@ -287,11 +287,14 @@ $endif
 $if ($MPI)
 if (coord == nproc-1) then
 $endif
-
-  ! no-stress top
-  u(:,:,nz)=u(:,:,nz-1)
-  ! no-stress top
-  v(:,:,nz)=v(:,:,nz-1)
+  
+  !! come back later to change for Couette flow BCs... maybe
+  if (.not. channel_bc) then    !--jb
+    ! no-stress top
+    u(:,:,nz)=u(:,:,nz-1)       !! u,v at nz should never be touched, since 
+    ! no-stress top             !! dudz, dvdz are now specified at top by
+    v(:,:,nz)=v(:,:,nz-1)       !! wallstress_dns
+  endif
   ! no permeability
   w(:, :, nz)=0._rprec
 

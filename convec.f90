@@ -1,4 +1,4 @@
-!!
+!
 !!  Copyright (C) 2009-2013  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
@@ -52,6 +52,7 @@ $endif
 
 integer::jz
 integer :: jz_min
+integer :: jz_max    !--jb
 
 ! !--save forces heap storage
 ! real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
@@ -94,6 +95,9 @@ endif
 ! sc: it would be nice to NOT have to loop through slices here
 ! Loop through horizontal slices
 
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>> forming u1_big, u2_big, u3_big >>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 const=1._rprec/(nx*ny)
 !$omp parallel do default(shared) private(jz)		
 do jz = lbz, nz
@@ -130,14 +134,21 @@ do jz = lbz, nz
   call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),fftwNull_p)
   $endif
 end do
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<< forming u1_big, u2_big, u3_big <<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>> forming vort1_big, vort2_big, vort3_big >>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 do jz = 1, nz
 ! now do the same, but with the vorticity!
 !--if du1d3, du2d3 are on u-nodes for jz=1, then we need a special
 !  definition of the vorticity in that case which also interpolates
 !  du3d1, du3d2 to the u-node at jz=1
    if ( (coord == 0) .and. (jz == 1) ) then
-        
+    
      select case (lbc_mom)
 
      ! Stress free
@@ -159,15 +170,40 @@ do jz = 1, nz
                                               du3d1(:, :, 2)) )
 
      end select
+  endif
+  
+  if ( channel_bc .and. (coord == nproc-1) .and. (jz == nz-1) ) then  !--jb    or nz?
 
-   else
-   
+     select case (lbc_mom)
+
+     ! Stress free
+     case (0)
+
+         cx(:, :, nz-1) = 0._rprec
+         cy(:, :, nz-1) = 0._rprec
+
+      ! Wall
+      case (1)
+
+         !--du3d2(jz=1) should be 0, so we could use this
+         cx(:, :, nz-1) = const * ( 0.5_rprec * (du3d2(:, :, nz-1) +  &
+                                              du3d2(:, :, nz))   &
+                                 - du2d3(:, :, nz-1) )
+         !--du3d1(jz=1) should be 0, so we could use this
+         cy(:, :, nz-1) = const * ( du1d3(:, :, nz-1) -               &
+                                 0.5_rprec * (du3d1(:, :, nz-1) +  &
+                                              du3d1(:, :, nz)) )
+
+     end select
+  endif
+  !else
+  if (.not.(coord==0 .and. jz==1) .and. .not. (coord==nproc-1 .and. jz==nz-1)  ) then
      cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
      cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
-
-   end if
-
-   cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
+  endif
+  
+  cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
+  
 
   $if ($FFTW3)
   call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
@@ -196,15 +232,20 @@ do jz = 1, nz
   $endif
 end do
 !$omp end parallel do
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<< forming vort1_big, vort2_big, vort3_big <<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-! CX
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>  CX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! redefinition of const
 const=1._rprec/(nx2*ny2)
 
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,1)))     !--jb (last index was 2)
   !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -214,8 +255,21 @@ else
   jz_min = 1
 end if
 
+if ( channel_bc .and. coord == nproc-1 ) then  
+  ! the cc's contain the normalization factor for the upcoming fft's
+  cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
+       +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,nz-1)))        !--jb
+  !--vort2(jz=1) is located on uvp-node           ^  try with nz-1 (experimental)
+  !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
+  !  below the wall (could arguably be 0.25 * u3(:,:,2))
+
+  jz_max = nz-2
+else
+  jz_max = nz-1
+end if
+
 !$omp parallel do default(shared) private(jz)
-do jz=jz_min,nz-1
+do jz=jz_min,jz_max
    cc_big(:,:,jz)=const*(u2_big(:,:,jz)*(-vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(vort2_big(:,:,jz))))
@@ -241,14 +295,19 @@ do jz=1,nz-1
    $endif
 end do
 !$omp end parallel do
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<< CX <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-! CY
+
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>  CY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! const should be 1./(nx2*ny2) here
-
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,1)))    !--jb
   !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -258,8 +317,21 @@ else
   jz_min = 1
 end if
 
+if ( channel_bc .and. coord == nproc-1 ) then
+  ! the cc's contain the normalization factor for the upcoming fft's
+  cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
+       +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,nz-1)))    !! COME BACK
+  !--vort1(jz=1) is uvp-node                        ^ try with nz-1 (experimental)
+  !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
+  !  below the wall
+
+  jz_max = nz-2
+else
+  jz_max = nz-1
+end if
+
 !$omp parallel do default(shared) private(jz)
-do jz = jz_min, nz - 1
+do jz = jz_min, jz_max
    cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(-vort1_big(:,:,jz))))
@@ -285,20 +357,34 @@ do jz=1,nz-1
   $endif
 end do
 !$omp end parallel do
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<< CY <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-! CZ
-
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>  CZ  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 if (coord == 0) then
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
   cc_big(:,:,1)=0._rprec
-
+  !! ^must change for Couette flow
   jz_min = 2
 else
   jz_min = 1
 end if
 
+if ( channel_bc .and. coord == nproc-1 ) then     !--jb
+  ! There is no convective acceleration of w at wall or at top.
+  !--not really true at wall, so this is an approximation?
+  !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+  cc_big(:,:,nz)=0._rprec
+  !! ^must change for Couette flow
+  jz_max = nz-1
+else
+  jz_max = nz   !! or nz ?       !--jb
+end if
 !$if ($MPI)
 !  if (coord == nproc-1) then
 !    cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
@@ -312,7 +398,7 @@ end if
 !$endif
 
 !$omp parallel do default(shared) private(jz)
-do jz=jz_min, nz - 1
+do jz=jz_min, jz_max   !! nz - 1
    cc_big(:,:,jz)=const*0.5_rprec*(&
         (u1_big(:,:,jz)+u1_big(:,:,jz-1))*(-vort2_big(:,:,jz))&
         +(u2_big(:,:,jz)+u2_big(:,:,jz-1))*(vort1_big(:,:,jz))&
@@ -341,21 +427,26 @@ do jz=1,nz - 1
    $endif
 end do
 !$omp end parallel do
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<< CZ <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-$if ($MPI)
-$if ($SAFETYMODE)
-  cx(:, :, 0) = BOGUS
-  cy(:, :, 0) = BOGUS
-  cz(: ,:, 0) = BOGUS
-$endif  
-$endif
+!if ( .not. channel_bc ) then
+   $if ($MPI)
+   $if ($SAFETYMODE)
+   cx(:, :, 0) = BOGUS
+   cy(:, :, 0) = BOGUS
+   cz(: ,:, 0) = BOGUS
+   $endif  
+   $endif
 
-!--top level is not valid
-$if ($SAFETYMODE)
-cx(:, :, nz) = BOGUS
-cy(:, :, nz) = BOGUS
-cz(:, :, nz) = BOGUS
-$endif
+   !--top level is not valid
+   $if ($SAFETYMODE)
+   cx(:, :, nz) = BOGUS
+   cy(:, :, nz) = BOGUS
+   cz(:, :, nz) = BOGUS
+   $endif
+!endif
 
 $if ($DEBUG)
 if (DEBUG) then

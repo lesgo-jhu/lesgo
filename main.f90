@@ -65,6 +65,8 @@ use messages
 implicit none
 
 character (*), parameter :: prog_name = 'main'
+logical :: turb_switch = .false.
+real(rprec) :: triggerFactor
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
@@ -149,7 +151,20 @@ time_loop: do jt_step = nstart, nsteps
         call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
     end if
     $endif
-  
+    
+    if (channel_bc .and. .not. ic_couette) then
+       !! turbulence trigger for channel flow, not Couette
+       triggerFactor = 5.0_rprec
+       if ( jt_total == trig_start ) then
+          nu_molec = nu_molec/triggerFactor
+          turb_switch = .true.
+       endif
+       if ( jt_total == trig_end   ) then
+          nu_molec = nu_molec*triggerFactor
+          turb_switch = .false.
+       endif
+    endif
+ 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
     call filt_da (u, dudx, dudy, lbz)
@@ -182,12 +197,17 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
+
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
     !   MPI: bottom process only
-    if (dns_bc) then
-        if (coord == 0) then
+    if (dns_bc .and. channel_bc) then
+       if (coord == 0 .or. coord == nproc - 1) then   !--bottom and top process will both call
             call wallstress_dns ()
+        end if
+    elseif (dns_bc) then
+        if (coord == 0) then
+            call wallstress_dns ()   !--only bottom process calls
         end if
     else    ! "impose" wall stress 
         if (coord == 0) then
@@ -199,7 +219,7 @@ time_loop: do jt_step = nstart, nsteps
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
     if (dns_bc .and. molec) then
-        call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+        call dns_stress()      !txx,txy,txz,tyy,tyz,tzz)
     else        
         call sgs_stag()
     end if
@@ -241,6 +261,7 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
+    
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
@@ -276,6 +297,16 @@ time_loop: do jt_step = nstart, nsteps
     if (use_mean_p_force) then
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
+
+    if (ic_couette) then
+       !! turbulence trigger for Couette flow, not channel
+       if (jt_total >= trig_start .and. jt_total <= trig_end) then
+          turb_switch = .true.
+          call trigger_turb()
+       else
+          turb_switch = .false.
+       endif
+    endif
 
     $if ($DEBUG)
     if (DEBUG) then
@@ -316,9 +347,7 @@ time_loop: do jt_step = nstart, nsteps
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
     $endif
-
-
-    
+        
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
@@ -462,6 +491,14 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
+          if (channel_bc) write(*,'(a)') '  Channel BCs in use'
+          if (turb_switch) write(*,'(a)') '  Triggering turbulence'
+          if (dns_bc) then  !--jb
+             write(*,'(a,E15.7)') '  Viscous stability: ', get_visc_stab()
+          endif
+          write(*,'(a,E15.7)') '  u(32,32,nz): ', u(32,32,nz)
+          write(*,*) '  Wall stress: ', txz(32,32,1),tyz(32,32,1)    !get_tau_wall()
+          write(*,*) '       txz,tyz ', txz(32,32,2),tyz(32,32,2) 
           write(*,*)
           $if($MPI)
           write(*,'(1a)') 'Simulation wall times (s): '
@@ -472,6 +509,15 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
        end if
+       if (coord == 0) then
+          write(*,*) 'maxval, maxloc, u: ', maxval(u), maxloc(u)
+          write(*,*) 'maxval, maxloc, v: ', maxval(v), maxloc(v)
+          write(*,*) 'maxval, maxloc, w: ', maxval(w), maxloc(w)
+       endif
+       if (coord == nproc-1) then
+          write(*,*) 'top txz,tyz ', txz(32,32,nz),tyz(32,32,nz)
+          write(*,*) 'top txz,tyz ', txz(32,32,nz-1), tyz(32,32,nz-1)
+       endif
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then
@@ -515,3 +561,73 @@ call finalize()
 if(coord == 0 ) write(*,'(a)') 'Simulation complete'
 
 end program main
+
+!! ================================================================
+!! ================================================================
+
+subroutine trigger_turb()
+use types, only:rprec
+use param
+use sim_param, only: u, v, w, RHSy, RHSz
+use derivatives, only : ddy, ddz_uv
+implicit none
+
+real(rprec), dimension(ld, ny, lbz:nz) :: vt, wt !!, dwtdy, dvtdz
+real(rprec), dimension(nz) :: Tu
+real(rprec)::r,zloc,yloc,A
+real(rprec)::kz1,kz2,kz3,kz4,ky1,ky2,ky3,ky4
+integer::jx,jy,jz,seed
+
+!! construct Tukey window filter
+r = 0.5_rprec
+do jz=1,nz
+   zloc = (coord*(nz-1)+jz-0.5_rprec)*dz / L_z
+   if ( 0 <= zloc .and. zloc < r/2 ) then
+      Tu(jz) = 0.5*(1+cos(2*pi/r*(zloc-r/2)))
+   elseif ( r/2 <= zloc .and. zloc < 1-r/2 ) then
+      Tu(jz) = 1
+   elseif (1-r/2 <= zloc .and. zloc <= 1 ) then
+      Tu(jz) = 0.5*(1+cos(2*pi/r*(zloc - 1 + r/2)))
+   endif
+enddo
+
+!! initialize
+do jz=lbz,nz
+do jy=1,ny
+do jx=1,ld
+  vt(jx,jy,jz) = 0.0_rprec
+  wt(jx,jy,jz) = 0.0_rprec
+enddo
+enddo
+enddo
+
+!! wavenumbers to force
+kz1 = 1 * 2*pi/L_z
+kz2 = 2 * 2*pi/L_z
+kz3 = 0 * 2*pi/L_z
+kz4 = 0 * 2*pi/L_z
+ky1 = 1 * 2*pi/L_y
+ky2 = 2 * 2*pi/L_y
+ky3 = 0 * 2*pi/L_y
+ky4 = 0 * 2*pi/L_y
+
+!! create forcing field
+seed = -112
+A = 0.02 * u_star !* maxval(u)    !* (ran3(seed)-0.5_rprec)
+do jz=lbz,nz
+   zloc = (coord*(nz-1)+jz-0.5_rprec) * dz
+   if (zloc / L_z > 0.1 .or. zloc / L_z < 0.9) then
+      do jy=1,ny
+         yloc = (jy-1) * dy
+         do jx=1,nx
+            vt(jx,jy,jz) = A*( sin(kz1*zloc)+sin(kz2*zloc)+sin(kz3*zloc)+sin(kz4*zloc) )
+            wt(jx,jy,jz) = A*( sin(ky1*yloc)+sin(ky2*yloc)+sin(ky3*yloc)+sin(ky4*yloc) )
+         enddo
+      enddo
+   endif
+enddo
+
+RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + vt(:,:,1:nz-1)
+RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + wt(:,:,1:nz-1)
+
+end subroutine trigger_turb

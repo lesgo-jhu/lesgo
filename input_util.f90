@@ -323,14 +323,27 @@ do
         read (buff(equal_pos+1:), *) ug
      case ('VG')
         read (buff(equal_pos+1:), *) vg
-     case ('NU_MOLEC')
-        read (buff(equal_pos+1:), *) nu_molec
-     case ('MOLEC')
-        read (buff(equal_pos+1:), *) molec
      case ('SGS')
         read (buff(equal_pos+1:), *) sgs
+     case ('MOLEC')
+        read (buff(equal_pos+1:), *) molec
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
+     case ('CHANNEL_BC')
+        read (buff(equal_pos+1:), *) channel_bc   !--jb
+     case ('IC_COUETTE')
+        read (buff(equal_pos+1:), *) ic_couette   !--jb
+     case ('UTOP')
+        read (buff(equal_pos+1:), *) utop         !--jb
+     case ('UBOT')
+        read (buff(equal_pos+1:), *) ubot         !--jb
+     case ('NU_MOLEC')
+        read (buff(equal_pos+1:), *) nu_molec
+     case('TRIG_START')
+        read (buff(equal_pos+1:), *) trig_start
+     case('TRIG_END')
+        read (buff(equal_pos+1:), *) trig_end
+     
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )

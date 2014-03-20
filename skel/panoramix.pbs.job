@@ -2,6 +2,7 @@
 #PBS -q batch
 
 #PBS -l nodes=4
+# PBS -l nodes=bn002:ppn=4
 
 #PBS -l walltime=6:00:00
 
@@ -9,7 +10,14 @@ echo $PBS_JOBID
 
 cd $PBS_O_WORKDIR
 
-mpiexec -f $PBS_NODEFILE ./lesgo-mpi > lesgo.out
+mpiexec -f $PBS_NODEFILE ./lesgo-mpi-binary > lesgo.out
 
 # Copy this file before it is over-written
 cp lesgo.out lesgo.out.$PBS_JOBID
+
+# Notes on nodes (50 procs over 4 machines):
+# bn000: 12 procs
+# bn001: 08 procs
+# bn002: 24 procs
+# bn003: 06 procs
+

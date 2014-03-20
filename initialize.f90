@@ -28,6 +28,7 @@ use types, only : rprec
 use param, only : coord,dt,jt_total,nsteps,path
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
+use param, only : chcoord, nproc, USE_MPI   !--jb
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
 $endif

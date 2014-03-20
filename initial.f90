@@ -140,7 +140,7 @@ else
     if (coord == 0) write(*,*) '--> Creating initial fields'
        if (coord == 0) write(*,*) '----> Creating initial velocity field'
        call ic()
-  end if
+    end if
 end if
 
 $if ($MPI)

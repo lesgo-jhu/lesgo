@@ -134,9 +134,16 @@ module param
 
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
+  
+  integer :: trig_start = 100, trig_end = 1000
     
   logical :: molec=.false., sgs=.true., dns_bc=.false.
+  logical :: channel_bc=.false.
+  logical :: ic_couette=.false.
   
+  ! top and bottom wall velocities for channel (u=0) or Couette (u/=0) flows
+  real(rprec) :: utop = 1.0_rprec, ubot = -1.0_rprec
+
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   
