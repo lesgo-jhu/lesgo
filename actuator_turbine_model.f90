@@ -86,6 +86,15 @@ do i = 1,numberOfTurbines
     endif
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
+
+    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+                   "/RotSpeed", exist=file_exists)
+
+    if (file_exists .eqv. .true.) then
+        write(*,*) 'Reading Rotational Speed from Previous Simulation'
+        call atm_read_omega(i)
+    endif
+
 end do
 
 pastFirstTimeStep=.true. ! Past the first time step
@@ -118,6 +127,30 @@ enddo
 close(1)
 
 end subroutine atm_read_actuator_points
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_read_omega(i)
+! This subroutine reads the rotor speed
+! It is used if the simulation wants to start from a previous simulation
+! without having to start the turbine from the original omega
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+integer, intent(in) :: i  ! Indicates the turbine number
+
+real(rprec) :: a ! Dummy read variable
+
+! Open the file at the last line (append)
+open( unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed",   &
+      action='read', position='append')
+
+! Bring the pointer to the last line
+backspace 1
+
+! Store the rotSpeed value (a is just a dummy value
+read(1,*) a, turbineArray(i) % rotSpeed 
+write(*,*) ' RotSpeed Value is ', turbineArray(i) % rotSpeed 
+close(1)
+
+end subroutine atm_read_omega
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_initialize_output()
