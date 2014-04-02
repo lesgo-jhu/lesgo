@@ -76,6 +76,9 @@ real (rprec):: tt
 
 type(clock_t) :: clock, clock_total, clock_forcing
 
+! Measure total time in forcing function
+real(rprec) :: clock_total_f = 0.0
+
 $if($MPI)
 ! Buffers used for MPI communication
 real(rprec) :: rbuffer
@@ -316,6 +319,10 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate forcing time
     call clock_stop( clock_forcing )
 
+
+    ! Calculate the total time of the forcing
+    clock_total_f = clock_total_f + clock_forcing % time
+
     !  Update RHS with applied forcing
     $if ($TURBINES and not ($LVLSET and $RNS_LS))
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
@@ -486,6 +493,8 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(1a,E15.7)') '  Forcing: ', clock_forcing % time
+          write(*,'(1a,E15.7)') '  Cummulative Forcing: ', clock_total_f
+          write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
        end if
 
