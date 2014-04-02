@@ -28,8 +28,14 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include -I/home/diag/opt/fftw/3.3.3/gnu/include -I/home/diag/opt/openmpi/1.4.3/gnu/include
-LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 -L/home/diag/opt/fftw/3.3.3/gnu/lib -L/home/diag/opt/openmpi/1.4.3/gnu/lib
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include  \
+ -I/home/diag/opt/fftw/3.3.3/gnu/include    \
+ -I/home/diag/opt/openmpi/1.4.3/gnu/include -I/usr/local/hdf5/include \
+ -I/usr/local/cgns/include  
+LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
+ -L/home/diag/opt/fftw/3.3.3/gnu/lib -L/home/diag/opt/openmpi/1.4.3/gnu/lib \
+  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib 
+ 
 HOSTNAME = $(shell hostname -s)
 
 #--64-bit mode: may want to do export OBJECT_MODE=64
@@ -70,6 +76,8 @@ READ_ENDIAN = DEFAULT
 USE_TURBINES=no
 USE_BINARY=no
 
+# Use CGNS data output
+USE_CGNS=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no
@@ -144,13 +152,13 @@ ifeq ($(FCOMP),gfortran)
     endif
   endif
 
-  LIBS += -ltecryte
+  LIBS += -lcgns -lhdf5
   ifeq ($(USE_CYL_SKEW_LS),yes)
     LIBS += -lcgaml
   endif
 
   #FFLAGS = -O0 -fbounds-check
-  FFLAGS = -O3 -ffast-math -march=native -funroll-loops 
+  FFLAGS = -O3 -ffast-math -march=native -funroll-loops
   #FFLAGS = -O3
   #FFLAGS = -O2 -ffree-form -ffixed-line-length-none
   FFLAGS += -Wall -Wextra
