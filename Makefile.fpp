@@ -101,3 +101,7 @@ endif
 ifeq ($(USE_FFTW3), yes)
   FPP += -DFFTW3
 endif
+
+ifeq ($(USE_CGNS), yes)
+  FPP += -DCGNS
+endif
