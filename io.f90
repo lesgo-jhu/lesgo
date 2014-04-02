@@ -30,6 +30,7 @@ use messages
 $if ($MPI)
 use mpi
 $endif
+
 implicit none
 $if ($MPI)
 !include 'mpif.h'
@@ -42,7 +43,13 @@ public jt_total, openfiles, closefiles, energy, output_loop, output_final,output
 character (*), parameter :: mod_name = 'io'
 
 ! Output file id's (see README for assigned values)
-integer :: ke_fid
+!~ integer :: ke_fid
+
+! Where to start start and end with nz index.
+! For coord==nproc-1 nz_end=0 else  nz_end=1
+! For coord==0       nz_st=0 else   nz_st=1
+integer :: nz_st, nz_end
+
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -50,7 +57,7 @@ subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : use_cfl_dt, dt, cfl_f
 implicit none
-include 'tecryte.h'
+!~ include 'tecryte.h'
 
 logical :: exst
 
@@ -59,7 +66,7 @@ real(rprec) :: dt_r, cfl_r
 
 ! Open output files using tecryte library
 ! Kinetic energy (check_ke.dat)
-ke_fid = open_file( path // 'output/check_ke.dat', 'append', 'formatted' )
+!ke_fid = open_file( path // 'output/check_ke.dat', 'append', 'formatted' )
 
 if (cumulative_time) then
 
@@ -98,7 +105,7 @@ subroutine closefiles()
 implicit none
 
 ! Close kinetic energy file
-close( ke_fid )
+!close( ke_fid )
 
 return
 end subroutine closefiles
@@ -115,7 +122,7 @@ $if ($XLF)
 $endif
 implicit none
 
-include 'tecryte.h'
+!~ include 'tecryte.h'
 
 $if ($DEBUG)
 character (*), parameter :: sub_name = 'energy'
@@ -183,17 +190,277 @@ $if ($DEBUG)
 if ( nan_count > 0 ) call error (sub_name, 'NaN found')
 $endif
 
+!~ $if ($MPI)
+!~   call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+!~   if (rank == 0) then  !--note its rank here, not coord
+!~     ke = ke_global/nproc
+!~     call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
+!~   end if
+!~ $else
+!~   call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
+!~ $endif
+
+! Open KE file 
+open(2,file='output/check_ke.dat',status='unknown',form='formatted',           &
+     position='append')
+
 $if ($MPI)
-  call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
-  if (rank == 0) then  !--note its rank here, not coord
-    ke = ke_global/nproc
-    call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
-  end if
+
+    call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+    if (rank == 0) then  !--note its rank here, not coord
+        ke = ke_global/nproc
+         write(2,*) total_time,ke
+    end if
+
 $else
-  call write_real_data( ke_fid, 'formatted', 2, (/ total_time, ke /))
+
+write(2,*) total_time,ke
+
 $endif
 
+close(2)
+
 end subroutine energy
+
+$if ($MPI)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n,       &
+                                     end_n, xin, yin, zin, num_fields,         &
+                                     fieldNames, input )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+! Grid information
+use grid_defs, only : grid
+
+! Load variables to write
+use param, only : total_time !,output_velocity,output_pressure
+
+implicit none
+
+! This subroutine writes parallel CGNS file output
+include 'cgnslib_f.h'
+
+integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
+character(*), intent(in) :: file_name  ! Name of file to be written
+character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+real(rprec), intent(in), dimension(:) :: input ! Data to be written
+real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+integer, intent(in) :: start_n(:)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n(:)  ! Where the total node counter ends nodes
+
+integer :: fn          ! CGNS file index number
+integer :: ier         ! CGNS error status
+integer :: base        ! base number
+integer :: zone        ! zone number
+integer :: nnodes      ! Number of nodes in this processor
+integer :: sol =1        ! solution number
+integer :: field     ! section number
+integer :: sizes(3,3)    ! Sizes
+
+! Building the lcoal mesh
+integer :: i,j,k
+real(rprec), dimension(nx,ny,nz) :: x,y,z
+
+! The total number of nodes in this processor
+nnodes=nx*ny*nz
+
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            x(i,j,k) = xin(i)
+            y(i,j,k) = yin(j)
+            z(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
+
+! Sizes, used to create zone
+sizes(:,1) = (/nx,ny,nz_tot/)
+sizes(:,2) = (/nx-1,ny-1,nz_tot-1/)
+sizes(:,3) = (/0 , 0, 0/)
+
+! Open CGNS file
+call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write base
+call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write zone
+call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write print info to screen
+if (coord .eq. 0) then
+    write(*,*) 'Writing, ', file_name
+endif
+
+! Create data nodes for coordinates
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',              &
+                      (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',              &
+                      (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',              &
+                      (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write the coordinate data in parallel to the queue
+call cgp_queue_set_f(1, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+! This is done for the 3 dimensions x,y and z
+! It writes the coordinates
+call cgp_coord_write_data_f(fn, base, zone, 1,   &
+                            start_n, end_n, x(1:nx,1:ny,1:nz), ier)    
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+call cgp_coord_write_data_f(fn, base, zone, 2,   &
+                            start_n, end_n, y(1:nx,1:ny,1:nz), ier)   
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+call cgp_coord_write_data_f(fn, base, zone, 3,   &
+                            start_n, end_n, z(1:nx,1:ny,1:nz), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+    
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_queue_set_f(0, ier)
+
+! Create a centered solution
+call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write the solution
+do i=1,num_fields
+    call cgp_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+                           field, ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
+
+    call cgp_field_write_data_f(fn, base, zone, sol, field, start_n, end_n,    &
+                                input((i-1)*nnodes+1:(i)*nnodes), ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
+
+enddo
+
+! Close the file
+call cgp_close_f(fn, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+end subroutine write_parallel_cgns
+$endif
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin, num_fields,  &
+                                     fieldNames, input )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+! Grid information
+use grid_defs, only : grid
+
+! Load variables to write
+use param, only : total_time !,output_velocity,output_pressure
+
+implicit none
+
+! This subroutine writes parallel CGNS file output
+include 'cgnslib_f.h'
+
+integer, intent(in) :: nx, ny, nz, num_fields
+character(*), intent(in) :: file_name  ! Name of file to be written
+character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+real(rprec), intent(in), dimension(:) :: input ! Data to be written
+real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+
+integer :: fn          ! CGNS file index number
+integer :: ier         ! CGNS error status
+integer :: base        ! base number
+integer :: zone        ! zone number
+integer :: nnodes      ! Number of nodes in this processor
+integer :: sol =1        ! solution number
+integer :: field     ! section number
+integer :: sizes(3,3)    ! Sizes
+
+! Building the lcoal mesh
+integer :: i,j,k
+real(rprec), dimension(nx,ny,nz) :: x,y,z
+
+! The total number of nodes in this processor
+nnodes=nx*ny*nz
+
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            x(i,j,k) = xin(i)
+            y(i,j,k) = yin(j)
+            z(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
+
+! Sizes, used to create zone
+sizes(:,1) = (/nx,ny,nz/)
+sizes(:,2) = (/nx-1,ny-1,nz-1/)
+sizes(:,3) = (/0 , 0, 0/)
+
+! Open CGNS file
+call cg_open_f(file_name, CG_MODE_WRITE, fn, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write base
+call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write zone
+call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write print info to screen
+if (coord .eq. 0) then
+    write(*,*) 'Writing, ', file_name
+endif
+
+! Create data nodes for coordinates
+call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+                      x(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cg_error_exit_f
+
+call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+                      y(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cg_error_exit_f
+
+call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+                      z(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+if (ier .ne. CG_OK) call cg_error_exit_f
+
+! Create a centered solution
+call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write the solution
+do i=1,num_fields
+    call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+                           input((i-1)*nnodes+1:(i)*nnodes), field, ier)
+    if (ier .ne. CG_OK) call cg_error_exit_f
+
+!~     call cg_field_write_data_f(fn, base, zone, sol, field,  &
+!~                                 input((i-1)*nnodes+1:(i)*nnodes), ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+
+enddo
+
+! Close the file
+call cg_close_f(fn, ier)
+if (ier .ne. CG_OK) call cg_error_exit_f
+
+end subroutine write_serial_cgns
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_loop()
@@ -215,9 +482,11 @@ use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
 use stat_defs, only : tavg_initialized,tavg_dt
+
 $if (not $FFTW3)
 use stat_defs, only: spectra_initialized,spectra_dt
 $endif
+
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -417,7 +686,7 @@ use sim_param, only : fx,fy,fz,fxa,fya,fza
 $endif
 implicit none
 
-include 'tecryte.h'      
+!include 'tecryte.h'      
 
 integer, intent(IN) :: itype
 
@@ -431,6 +700,8 @@ $if(not $BINARY)
 character (64) :: var_list
 integer :: nvars
 $endif
+
+character (64) :: fname_cgns ! Name for CGNS output file
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 
@@ -505,10 +776,10 @@ if(itype==1) then
     $endif
 
     ! Want to replace with write based on fid
-    call write_real_data(point(n) % fid, 'formatted', 4, (/ total_time, &
-         trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
-         trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
-         trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz) /))
+!    call write_real_data(point(n) % fid, 'formatted', 4, (/ total_time, &
+!         trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+!         trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz), &
+!         trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz) /))
     
 
     $if ($MPI)
@@ -526,13 +797,26 @@ elseif(itype==2) then
   $if( $BINARY )
   call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
   $else
-  call string_splice( fname, path // 'output/vel.', jt_total, '.dat')
+!~   call string_splice( fname, path // 'output/vel.', jt_total, '.dat')
   $endif
 
   $if ($MPI)
-  call string_concat( fname, '.c', coord )
+      call string_concat( fname, '.c', coord )
   $endif
- 
+
+  ! Write CGNS Output
+  $if ($CGNS and $MPI)
+      call string_splice( fname_cgns, path //'output/output_', jt_total,'.cgns')
+
+      call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,           &
+      (/ 1, 1,   (nz-1)*coord + 1 /),                                          &
+      (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
+      x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
+      4, (/ 'VelocityX', 'VelocityY', 'VelocityZ', 'Pressure ' /),             &
+      (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),                 &
+         w_uv(1:nx,1:ny,1:(nz-nz_end)), u(1:nx,1:ny,1:(nz-nz_end)) /) )
+  $endif
+  
   $if($BINARY)
   open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
   write(13,rec=1) u(:nx,:ny,1:nz)
@@ -544,24 +828,25 @@ elseif(itype==2) then
     $if($LVLSET)
     var_list = '"x", "y", "z", "u", "v", "w", "phi"'
     nvars = 7
-    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-    call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-         (/ u(1:nx,1:ny,1:nz), &
-         v(1:nx,1:ny,1:nz), &
-         w_uv(1:nx,1:ny,1:nz), &
-         phi(1:nx,1:ny,1:nz)/), & 
-         4, x, y, z(1:nz))
+!    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+!    call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
+!         (/ u(1:nx,1:ny,1:nz), &
+!         v(1:nx,1:ny,1:nz), &
+!         w_uv(1:nx,1:ny,1:nz), &
+!         phi(1:nx,1:ny,1:nz)/), & 
+!         4, x, y, z(1:nz))
+
     $else   
     var_list = '"x", "y", "z", "u", "v", "w"'
     nvars = 6
-    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
-         (/ u(1:nx,1:ny,1:nz), &
-         v(1:nx,1:ny,1:nz), &
-         w_uv(1:nx,1:ny,1:nz) /), &
-         4, x, y, z(1:nz))
+!    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,nz, &
+!         (/ u(1:nx,1:ny,1:nz), &
+!         v(1:nx,1:ny,1:nz), &
+!         w_uv(1:nx,1:ny,1:nz) /), &
+!         4, x, y, z(1:nz))
     $endif
   
   $endif
@@ -585,20 +870,20 @@ elseif(itype==2) then
     call force_tot()
 
     !  Open file which to write global data
-    call string_splice( fname, path // 'output/force.', jt_total, '.dat')
+!~     call string_splice( fname, path // 'output/force.', jt_total, '.dat')
 
     $if ($MPI)
     call string_concat( fname, '.c', coord )
     $endif
 
-    var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
-    nvars = 7
+!~     var_list = '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>", "phi"'
+!~     nvars = 7
 
-    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-    call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-                            (/ fx_tot, fy_tot, fz_tot, &
-                            phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+!    call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!         trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+!    call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
+!                            (/ fx_tot, fy_tot, fz_tot, &
+!                            phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
 
     deallocate(fx_tot, fy_tot, fz_tot)
 
@@ -627,7 +912,7 @@ elseif(itype==2) then
     $if( $BINARY )
     call string_splice( fname, path // 'output/binary_divvel.', jt_total,'.dat')
     $else
-    call string_splice( fname, path // 'output/divvel.', jt_total, '.dat')
+!~     call string_splice( fname, path // 'output/divvel.', jt_total, '.dat')
     $endif
 
     $if ($MPI)
@@ -642,19 +927,19 @@ elseif(itype==2) then
     $else
   
       $if($LVLSET)
-      var_list = '"x", "y", "z", "divvel", "phi"'
-      nvars = 5
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
-           (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
+!~       var_list = '"x", "y", "z", "divvel", "phi"'
+!~       nvars = 5
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 2, nx, ny,nz, &
+!           (/ divvel, phi(1:nx,1:ny,1:nz) /), 4, x, y, z(1:nz))
       $else   
-      var_list = '"x", "y", "z", "divvel"'
-      nvars = 4
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
-           (/ divvel /), 4, x, y, z(1:nz))
+!~       var_list = '"x", "y", "z", "divvel"'
+!~       nvars = 4
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord, 6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 1, nx, ny,nz, &
+!           (/ divvel /), 4, x, y, z(1:nz))
       $endif
 
     $endif
@@ -700,28 +985,28 @@ elseif(itype==2) then
 
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz", "phi"'
       nvars = 8
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 5, nx, ny,nz, &
-           (/ p(1:nx,1:ny,1:nz), &
-           dpdx(1:nx,1:ny,1:nz), &
-           dpdy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1), &
-           phi(1:nx,1:ny,1:nz) /), &
-           4, x, y, z(1:nz))
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 5, nx, ny,nz, &
+!           (/ p(1:nx,1:ny,1:nz), &
+!           dpdx(1:nx,1:ny,1:nz), &
+!           dpdy(1:nx,1:ny,1:nz), &
+!           interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1), &
+!           phi(1:nx,1:ny,1:nz) /), &
+!           4, x, y, z(1:nz))
 
       $else
 
       var_list = '"x", "y", "z", "p", "dpdx", "dpdy", "dpdz"'
       nvars = 7
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
-        (/ p(1:nx,1:ny,1:nz), &
-        dpdx(1:nx,1:ny,1:nz), &
-        dpdy(1:nx,1:ny,1:nz), &
-        interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), &
-        4, x, y, z(1:nz))
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny,nz, &
+!        (/ p(1:nx,1:ny,1:nz), &
+!        dpdx(1:nx,1:ny,1:nz), &
+!        dpdy(1:nx,1:ny,1:nz), &
+!        interp_to_uv_grid(dpdz(1:nx,1:ny,1:nz),1) /), &
+!        4, x, y, z(1:nz))
 
       $endif
 
@@ -765,26 +1050,26 @@ elseif(itype==2) then
       
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz", "phi"'
       nvars = 7
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
-           (/ RHSx(1:nx,1:ny,1:nz), &
-           RHSy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1), &
-           phi(1:nx,1:ny,1:nz) /), & 
-           4, x, y, z(1:nz))
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 4, nx, ny, nz, &
+!           (/ RHSx(1:nx,1:ny,1:nz), &
+!           RHSy(1:nx,1:ny,1:nz), &
+!           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1), &
+!           phi(1:nx,1:ny,1:nz) /), & 
+!           4, x, y, z(1:nz))
 
       $else
 
       var_list = '"x", "y", "z", "RHSx", "RHSy", "RHSz"'
       nvars = 6
-      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
-      call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
-           (/ RHSx(1:nx,1:ny,1:nz), &
-           RHSy(1:nx,1:ny,1:nz), &
-           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), &
-           4, x, y, z(1:nz))
+!      call write_tecplot_header_ND(fname, 'rewind', nvars, (/ Nx+1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_real_data_3D(fname, 'append', 'formatted', 3, nx, ny,nz, &
+!           (/ RHSx(1:nx,1:ny,1:nz), &
+!           RHSy(1:nx,1:ny,1:nz), &
+!           interp_to_uv_grid(RHSz(1:nx,1:ny,1:nz),1) /), &
+!           4, x, y, z(1:nz))
 
       $endif
 
@@ -812,13 +1097,10 @@ elseif(itype==3) then
   do i=1,xplane_nloc
 
      call string_splice( fname, path // 'output/vel.x-', xplane_loc(i), '.', jt_total, '.dat')
-  
-     $if ($MPI)
-       call string_concat( fname, '.c', coord )
-     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4))  
+
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz /), &
+!      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4))  
   
     do k=1,nz
       do j=1,ny
@@ -832,9 +1114,26 @@ elseif(itype==3) then
              xplane(i) % ldiff)
       enddo
     enddo
+  
+     $if ($MPI)
+         call string_concat( fname, '.c', coord )
+     $endif
 
-    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))     
+    $if ($CGNS and $MPI)    
+        call string_splice( fname_cgns, path // 'output/plane_x_plane',        &
+                            xplane_loc(i),'_', jt_total, '.cgns')
+
+        call write_parallel_cgns (fname_cgns,1,ny, nz - nz_end, nz_tot,   &
+                                    (/ 1, 1,   (nz-1)*coord + 1 /),            &
+                                    (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /), &
+                                xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),  &
+                          3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),      &
+                          (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)), &
+                             wi(1,1:ny,1:(nz-nz_end)) /) )
+    $endif
+     
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+!      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))     
 
     $if($LVLSET)
 
@@ -844,9 +1143,9 @@ elseif(itype==3) then
     call string_concat( fname, '.c', coord )
     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
-      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
-      numtostr(coord,6), 2, real(total_time,4))
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ 1, Ny+1, Nz/), &
+!      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
+!      numtostr(coord,6), 2, real(total_time,4))
 
     !  Sum both induced forces, f{x,y,z}, and applied forces, f{x,y,z}a
     do k=1,nz
@@ -865,8 +1164,8 @@ elseif(itype==3) then
     enddo
 
 
-    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
-      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, 1, ny, nz, &
+!      (/ ui, vi, wi /), 2, (/ xplane_loc(i) /), y, z(1:nz))
 
 
 
@@ -917,12 +1216,12 @@ elseif(itype==3) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 8, (/ 1, Ny+1, Nz/), &
-           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+!      call write_tecplot_header_ND(fname, 'rewind', 8, (/ 1, Ny+1, Nz/), &
+!           trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
-      call write_real_data_3D(fname, 'append', 'formatted', 5, 1,ny,nz, &
-                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                              2, (/ xplane_loc(i) /), y, z(1:nz)) 
+!      call write_real_data_3D(fname, 'append', 'formatted', 5, 1,ny,nz, &
+!                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                              2, (/ xplane_loc(i) /), y, z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -972,12 +1271,12 @@ elseif(itype==3) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 10, (/ 1, Ny+1, Nz/), &
-        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+!      call write_tecplot_header_ND(fname, 'rewind', 10, (/ 1, Ny+1, Nz/), &
+!        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
-      call write_real_data_3D(fname, 'append', 'formatted', 7, 1,ny,nz, &
-                             (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                             2, (/ xplane_loc(i) /), y, z(1:nz)) 
+!      call write_real_data_3D(fname, 'append', 'formatted', 7, 1,ny,nz, &
+!                             (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                             2, (/ xplane_loc(i) /), y, z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1005,14 +1304,11 @@ elseif(itype==4) then
 !  Loop over all yplane locations
   do j=1,yplane_nloc
 
-    call string_splice( fname, path // 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
-  
-    $if ($MPI)
-    call string_concat( fname, '.c', coord )
-    $endif
+!    call string_splice( fname, path // 'output/vel.y-', yplane_loc(j), '.', jt_total, '.dat')
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
+
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
+!      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
 
     do k=1,nz
       do i=1,nx
@@ -1027,9 +1323,26 @@ elseif(itype==4) then
         
       enddo
     enddo
-    
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
+  
+    $if ($MPI)
+        call string_concat( fname, '.c', coord )
+    $endif    
+
+    $if ($CGNS and $MPI)    
+        call string_splice( fname_cgns, path // 'output/plane_y_plane',        &
+                            yplane_loc(j),'_', jt_total, '.cgns')
+
+        call write_parallel_cgns (fname_cgns,nx,1, nz - nz_end, nz_tot,   &
+                                    (/ 1, 1,   (nz-1)*coord + 1 /),            &
+                                    (/ nx, 1, (nz-1)*(coord+1) + 1 - nz_end /), &
+                                x(1:nx) , yplane_loc(j:j) , z(1:(nz-nz_end) ),  &
+                          3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),      &
+                          (/ ui(1:nx,1,1:(nz-nz_end)), vi(1:nx,1,1:(nz-nz_end)), &
+                             wi(1:nx,1,1:(nz-nz_end)) /) )
+    $endif
+
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
+!      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))    
   
     $if($LVLSET)
 
@@ -1039,8 +1352,8 @@ elseif(itype==4) then
     call string_concat( fname, '.c', coord )
     $endif
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
-      '"x", "y", "z", "fx", "fy", "fz"', numtostr(coord,6), 2, real(total_time,4))  
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, 1, Nz/), &
+!      '"x", "y", "z", "fx", "fy", "fz"', numtostr(coord,6), 2, real(total_time,4))  
   
     do k=1,nz
       do i=1,nx
@@ -1055,8 +1368,8 @@ elseif(itype==4) then
       enddo
     enddo
     
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
-      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,1,nz, &
+!      (/ ui, vi, wi /), 1, x, (/ yplane_loc(j) /), z(1:nz))       
     
     $endif
 
@@ -1104,12 +1417,12 @@ elseif(itype==4) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, 1, Nz/), &
-        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+!      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, 1, Nz/), &
+!        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
-      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,1,nz, &
-                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
+!      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,1,nz, &
+!                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1159,12 +1472,12 @@ elseif(itype==4) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, 1, Nz/), &
-        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
+!      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, 1, Nz/), &
+!        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4)) 
 
-      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,1,nz, &
-                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
+!      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,1,nz, &
+!                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                              1, x, (/ yplane_loc(j) /), z(1:nz)) 
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1191,8 +1504,8 @@ elseif(itype==5) then
 
 !  Loop over all zplane locations
   do k=1,zplane_nloc
-  
-    $if ($MPI)
+
+    $if ($MPI)    
     if(zplane(k) % coord == coord) then
     $endif
 
@@ -1217,6 +1530,18 @@ elseif(itype==5) then
 
       enddo
     enddo
+
+    $if ($CGNS)
+        call string_splice( fname_cgns, path // 'output/plane_z_plane',        &
+                            zplane_loc(k),'_', jt_total, '.cgns')
+!~         call write_serial_cgns(fname_cgns,nx,ny,1,x,y,zplane_loc(k:k), 3,      &
+!~         (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                           &
+!~         (/ ui(1,1:ny,1:nz),vi(1,1:ny,1:nz),wi(1,1:ny,1:nz) /) )
+
+        call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), 3,   &
+                               (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
+                    (/ ui(1:nx,1:ny,1),vi(1:nx,1:ny,1),wi(1:nx,1:ny,1) /) )
+    $endif
     
     $if ($BINARY)
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*1*rprec)
@@ -1226,19 +1551,20 @@ elseif(itype==5) then
     close(13)
     
     $else
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
-    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
+!      '"x", "y", "z", "u", "v", "w"', numtostr(coord,6), 2, real(total_time,4)) 
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
+!    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
+
     $endif
     
     $if($LVLSET)
 
     call string_splice( fname, path // 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
 
-    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
-      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
-      numtostr(coord,6), 2, real(total_time,4))
+!    call write_tecplot_header_ND(fname, 'rewind', 6, (/ Nx+1, Ny+1, 1/), &
+!      '"x", "y", "z", "f<sub>x</sub>", "f<sub>y</sub>", "f<sub>z</sub>"', &
+!      numtostr(coord,6), 2, real(total_time,4))
 
     do j=1,Ny
       do i=1,Nx
@@ -1256,8 +1582,8 @@ elseif(itype==5) then
       enddo
     enddo
  
-    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
-         (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /) )      
+!    call write_real_data_3D(fname, 'append', 'formatted', 3, nx,ny,1, &
+!         (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /) )      
     
     $endif
 
@@ -1301,12 +1627,12 @@ elseif(itype==5) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, Ny+1, 1/), &
-        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_tecplot_header_ND(fname, 'rewind', 8, (/ Nx+1, Ny+1, 1/), &
+!        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
-      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,ny,1, &
-                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                              4, x, y, (/ zplane_loc(k) /) )
+!      call write_real_data_3D(fname, 'append', 'formatted', 5, nx,ny,1, &
+!                              (/ F_LM_s, F_MM_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                              4, x, y, (/ zplane_loc(k) /) )
 
       deallocate(F_LM_s,F_MM_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1352,12 +1678,12 @@ elseif(itype==5) then
       var_list = trim(adjustl(var_list)) // ', "<greek>b</greek>", "Cs<sup>2</sup>"'
       var_list = trim(adjustl(var_list)) // ', "<greek>n</greek><sub>T</sub>"'
 
-      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, Ny+1, 1/), &
-        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
+!      call write_tecplot_header_ND(fname, 'rewind', 10, (/ Nx+1, Ny+1, 1/), &
+!        trim(adjustl(var_list)), numtostr(coord,6), 2, real(total_time,4))
 
-      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,ny,1, &
-                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
-                              4, x, y, (/ zplane_loc(k) /) )         
+!      call write_real_data_3D(fname, 'append', 'formatted', 7, nx,ny,1, &
+!                              (/ F_LM_s, F_MM_s, F_QN_s, F_NN_s, beta_s, Cs_opt2_s, Nu_t_s /), &
+!                              4, x, y, (/ zplane_loc(k) /) )         
 
       deallocate(F_LM_s,F_MM_s,F_QN_s,F_NN_s,beta_s,Cs_opt2_s,Nu_t_s)
 
@@ -1645,7 +1971,7 @@ $endif
 use stat_defs, only : type_set
 implicit none
 
-include 'tecryte.h'
+!include 'tecryte.h'
 
 character(120) :: var_list, fname
 integer :: i,j,k
@@ -1653,6 +1979,19 @@ integer :: i,j,k
 logical :: exst
 
 real(rprec), pointer, dimension(:) :: x,y,z
+
+! This adds one more element to the last processor (which contains an extra one)
+! Processor nproc-1 has data from 1:nz
+! Rest of processors have data from 1:nz-1
+$if $MPI
+    if ( coord == nproc-1 ) then
+        nz_end=0
+    else
+        nz_end=1
+    endif
+$else
+    nz_end=0    
+$endif
 
 nullify(x,y,z)
 
@@ -1811,17 +2150,17 @@ if(point_calc) then
          '.z-', point_loc(i)%xyz(3),'.dat')
     
     !  Add tecplot header if file does not exist
-    inquire (file=fname, exist=exst)
-    if (exst) then
-       point(i) % fid = open_file( fname, 'append', 'formatted' )
-    else
-
-       point(i) % fid = open_file( fname, 'rewind', 'formatted' )
-       var_list = '"t", "u", "v", "w"'
-       ! Compilation error
-       call write_tecplot_header_xyline( point(i) % fid, var_list )
-
-    endif
+!~     inquire (file=fname, exist=exst)
+!~     if (exst) then
+!~        point(i) % fid = open_file( fname, 'append', 'formatted' )
+!~     else
+!~ 
+!~        point(i) % fid = open_file( fname, 'rewind', 'formatted' )
+!~        var_list = '"t", "u", "v", "w"'
+!~        ! Compilation error
+!~ !       call write_tecplot_header_xyline( point(i) % fid, var_list )
+!~ 
+!~     endif
     
     $if($MPI)
     endif
@@ -2172,17 +2511,27 @@ $endif
 
 implicit none
 
-include 'tecryte.h'
+!~ include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
+
+! For .dat output
 character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
      fname_rs, fname_cs, fname_u_vel_grid
+     
+! For bindary output
 character(64) :: fname_velb, &
      fname_vel2b, fname_ddzb, &
      fname_taub, fname_fb, &
      fname_rsb, fname_csb, fname_u_vel_gridb
+
+! For CGNS
+character(64) :: fname_vel_cgns, &
+     fname_vel2_cgns, fname_ddz_cgns, &
+     fname_tau_cgns, fname_f_cgns, &
+     fname_rs_cgns, fname_cs_cgns, fname_u_vel_grid_cgns
      
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
@@ -2239,6 +2588,8 @@ zw => grid % zw
 
 ! All processors need not do this, but that is ok
 !  Set file names
+
+! .dat
 fname_vel = path // 'output/vel_avg.dat'
 fname_vel2 = path // 'output/vel2_avg.dat'
 fname_ddz = path // 'output/ddz_avg.dat'
@@ -2248,6 +2599,17 @@ fname_rs = path // 'output/rs.dat'
 fname_cs = path // 'output/cs_opt2.dat'
 fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
+! CGNS
+fname_vel_cgns = path // 'output/vel_avg.cgns'
+fname_vel2_cgns = path // 'output/vel2_avg.cgns'
+fname_ddz_cgns = path // 'output/ddz_avg.cgns'
+fname_tau_cgns = path // 'output/tau_avg.cgns'
+fname_f_cgns = path // 'output/force_avg.cgns'
+fname_rs_cgns = path // 'output/rs.cgns'
+fname_cs_cgns = path // 'output/cs_opt2.cgns'
+fname_u_vel_grid_cgns = path // 'output/u_grid_vel.cgns'
+
+! Binary
 fname_velb = path // 'output/binary_vel_avg.dat'
 fname_vel2b = path // 'output/binary_vel2_avg.dat'
 fname_ddzb = path // 'output/binary_ddz_avg.dat'
@@ -2482,6 +2844,75 @@ enddo
 $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
+$if($CGNS and $MPI)
+    ! Write CGNS Data
+    call write_parallel_cgns (fname_vel_cgns,nx,ny, nz - nz_end, nz_tot,        &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                      &
+    3, (/ 'VelocityX', 'VelocityY', 'VelocityZ'/),                             &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % v,                                           &
+    tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
+    
+    call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,           &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                       &
+    tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
+    tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                          &
+    tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                          &
+    tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                          &
+    tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
+    
+    call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,            &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),      &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                     &
+    tavg(1:nx,1:ny,1:nz- nz_end) % dvdz /) )
+    
+    call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,            &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                      &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
+      
+    call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,              &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 3,                                   &
+    (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                       &
+    tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                          &
+    tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
+    
+    call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,             &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
+    (/ rs(1:nx,1:ny,1:nz) % up2,                                               &
+    rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                           &
+    rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                           &
+    rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                          &
+    rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                          &
+    rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
+    
+    call write_parallel_cgns(fname_cs_cgns,nx,ny,nz- nz_end,nz_tot,             &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 1,                                   &
+    (/ 'Cs Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
+$endif
 
 ! ----- Write all the 3D data -----
 $if($BINARY)
@@ -2537,63 +2968,63 @@ $else
 
   $if ($LVLSET)
 
-  call write_tecplot_header_ND(fname_vel, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % u, &
-       tavg(:,:,1:nz) % v, &
-       tavg(:,:,1:nz) % w /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_vel2, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-       numtostr(coord,6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_vel2, 'append', 'formatted', 7, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % u2, &
-       tavg(:,:,1:nz) % v2, &
-       tavg(:,:,1:nz) % w2, &
-       tavg(:,:,1:nz) % uw, &
-       tavg(:,:,1:nz) % vw, &
-       tavg(:,:,1:nz) % uv /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_ddz, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_ddz, 'append', 'formatted', 3, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % dudz, &
-       tavg(:,:,1:nz) % dvdz /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_tau, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-       numtostr(coord,6), 2)  
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_tau, 'append', 'formatted', 7, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % txx, &
-       tavg(:,:,1:nz) % txy, &
-       tavg(:,:,1:nz) % tyy, &
-       tavg(:,:,1:nz) % txz, &
-       tavg(:,:,1:nz) % tyz, &
-       tavg(:,:,1:nz) % tzz /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
-       numtostr(coord,6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % fx, &
-       tavg(:,:,1:nz) % fy, &
-       tavg(:,:,1:nz) % fz /), &
-       4, x, y, zw(1:nz))
+!~   call write_tecplot_header_ND(fname_vel, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % u, &
+!~        tavg(:,:,1:nz) % v, &
+!~        tavg(:,:,1:nz) % w /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_vel2, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~        numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_vel2, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % u2, &
+!~        tavg(:,:,1:nz) % v2, &
+!~        tavg(:,:,1:nz) % w2, &
+!~        tavg(:,:,1:nz) % uw, &
+!~        tavg(:,:,1:nz) % vw, &
+!~        tavg(:,:,1:nz) % uv /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_ddz, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_ddz, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % dudz, &
+!~        tavg(:,:,1:nz) % dvdz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_tau, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~        numtostr(coord,6), 2)  
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_tau, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % txx, &
+!~        tavg(:,:,1:nz) % txy, &
+!~        tavg(:,:,1:nz) % tyy, &
+!~        tavg(:,:,1:nz) % txz, &
+!~        tavg(:,:,1:nz) % tyz, &
+!~        tavg(:,:,1:nz) % tzz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % fx, &
+!~        tavg(:,:,1:nz) % fy, &
+!~        tavg(:,:,1:nz) % fz /), &
+!~        4, x, y, zw(1:nz))
 
     $if($MPI)
 
@@ -2609,95 +3040,95 @@ $else
     
     $endif
 
-  call write_tecplot_header_ND(fname_rs, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
-       numtostr(coord,6), 2)  
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_rs, 'append', 'formatted', 7, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       rs(:,:,1:nz)%up2, &
-       rs(:,:,1:nz)%vp2, &
-       rs(:,:,1:nz)%wp2, &
-       rs(:,:,1:nz)%upwp, &
-       rs(:,:,1:nz)%vpwp, &
-       rs(:,:,1:nz)%upvp /), &
-       4, x, y, zw(1:nz))
-  
-  call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<cs2>"', numtostr(coord,6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_cs, 'append', 'formatted', 2, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz), &
-       tavg(:,:,1:nz) % cs_opt2 /), &
-       4, x, y, zw(1:nz))
+!~   call write_tecplot_header_ND(fname_rs, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+!~        numtostr(coord,6), 2)  
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_rs, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        rs(:,:,1:nz)%up2, &
+!~        rs(:,:,1:nz)%vp2, &
+!~        rs(:,:,1:nz)%wp2, &
+!~        rs(:,:,1:nz)%upwp, &
+!~        rs(:,:,1:nz)%vpwp, &
+!~        rs(:,:,1:nz)%upvp /), &
+!~        4, x, y, zw(1:nz))
+!~   
+!~   call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<cs2>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_cs, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % cs_opt2 /), &
+!~        4, x, y, zw(1:nz))
 
   $else
 
-  call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
-  call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
-       (/ tavg(:,:,1:nz) % u, &
-       tavg(:,:,1:nz) % v, &
-       tavg(:,:,1:nz) % w /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-       numtostr(coord,6), 2)
-  call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
-       (/ tavg(:,:,1:nz) % u2, &
-       tavg(:,:,1:nz) % v2, &
-       tavg(:,:,1:nz) % w2, &
-       tavg(:,:,1:nz) % uw, &
-       tavg(:,:,1:nz) % vw, &
-       tavg(:,:,1:nz) % uv /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-  call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
-       (/ tavg(:,:,1:nz) % dudz, &
-       tavg(:,:,1:nz) % dvdz /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-       numtostr(coord,6), 2)
-  call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
-       (/ tavg(:,:,1:nz) % txx, &
-       tavg(:,:,1:nz) % txy, &
-       tavg(:,:,1:nz) % tyy, &
-       tavg(:,:,1:nz) % txz, &
-       tavg(:,:,1:nz) % tyz, &
-       tavg(:,:,1:nz) % tzz /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
-       numtostr(coord,6), 2)
-  call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
-       (/ tavg(:,:,1:nz) % fx, &
-       tavg(:,:,1:nz) % fy, &
-       tavg(:,:,1:nz) % fz /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
-       numtostr(coord,6), 2)
-  call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
-       (/ rs(:,:,1:nz)%up2, &
-       rs(:,:,1:nz)%vp2, &
-       rs(:,:,1:nz)%wp2, &
-       rs(:,:,1:nz)%upwp, &
-       rs(:,:,1:nz)%vpwp, &
-       rs(:,:,1:nz)%upvp /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<cs2>"', numtostr(coord,6), 2)
-  call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
-       (/ tavg(:,:,1:nz)% cs_opt2 /), &
-       4, x, y, zw(1:nz))
+!~   call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+!~   call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % u, &
+!~        tavg(:,:,1:nz) % v, &
+!~        tavg(:,:,1:nz) % w /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % u2, &
+!~        tavg(:,:,1:nz) % v2, &
+!~        tavg(:,:,1:nz) % w2, &
+!~        tavg(:,:,1:nz) % uw, &
+!~        tavg(:,:,1:nz) % vw, &
+!~        tavg(:,:,1:nz) % uv /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % dudz, &
+!~        tavg(:,:,1:nz) % dvdz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % txx, &
+!~        tavg(:,:,1:nz) % txy, &
+!~        tavg(:,:,1:nz) % tyy, &
+!~        tavg(:,:,1:nz) % txz, &
+!~        tavg(:,:,1:nz) % tyz, &
+!~        tavg(:,:,1:nz) % tzz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % fx, &
+!~        tavg(:,:,1:nz) % fy, &
+!~        tavg(:,:,1:nz) % fz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ rs(:,:,1:nz)%up2, &
+!~        rs(:,:,1:nz)%vp2, &
+!~        rs(:,:,1:nz)%wp2, &
+!~        rs(:,:,1:nz)%upwp, &
+!~        rs(:,:,1:nz)%vpwp, &
+!~        rs(:,:,1:nz)%upvp /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<cs2>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz)% cs_opt2 /), &
+!~        4, x, y, zw(1:nz))
 
   $endif
 
@@ -2708,35 +3139,35 @@ $if($OUTPUT_EXTRA)
 
   $if($LVLSET)
 
-  call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
-  !  write phi and x,y,z
-  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
-       (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), 4)  
-  
-  call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "phi", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
-    !  write phi and x,y,z
-  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
-       (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
-       (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), 4)  
-
+!~   call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), 4)  
+!~   
+!~   call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+!~     !  write phi and x,y,z
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), 4)  
+!~ 
   $else
-  
-  call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
-  call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
-       (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), &
-       4, x, y, zw(1:nz))
-
-  call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-       '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
-  call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
-       (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), &
-       4, x, y, zw(1:nz))
+!~   
+!~   call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), &
+!~        4, x, y, zw(1:nz))
 
   $endif
   
@@ -2745,21 +3176,21 @@ $if($OUTPUT_EXTRA)
     
     $if($LVLSET)
 
-    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-         '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-    !  write phi and x,y,z
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-         (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-         (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), 4)  
-
+!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~          '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!~     !  write phi and x,y,z
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), 4)  
+!~ 
     $else
-    
-    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-         '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-         (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), &
-         4, x, y, zw(1:nz))
+!~     
+!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~          '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), &
+!~          4, x, y, zw(1:nz))
     
     $endif        
     
@@ -2767,21 +3198,21 @@ $if($OUTPUT_EXTRA)
   
     $if($LVLSET)
 
-    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-         '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
-    !  write phi and x,y,z
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-         (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-         (/ tavg_sgs % ee_now /), 4)  
+!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~          '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
+!~     !  write phi and x,y,z
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!~          (/ tavg_sgs % ee_now /), 4)  
     
     $else
 
-    call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-         '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
-    call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-         (/ tavg_sgs % ee_now /), &
-         4, x, y, zw(1:nz))
+!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+!~          '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
+!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!~          (/ tavg_sgs % ee_now /), &
+!~          4, x, y, zw(1:nz))
     
     $endif        
 
@@ -2840,52 +3271,52 @@ $if($MPI)
   ! Write reconstructed data only if bottom processor
   if( coord == 0 ) then
   
-    call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
-      '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)
-    call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
-      (/ tavg_zplane_tot % u, tavg_zplane_tot % v, tavg_zplane_tot % w /), 0, zw_tot)
-
-    call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz_tot/), &
-      '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-      numtostr(coord,6), 2)
-    call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, Nz_tot, &
-      (/ tavg_zplane_tot % u2, tavg_zplane_tot % v2, tavg_zplane_tot % w2, &
-      tavg_zplane_tot % uw, tavg_zplane_tot % vw, tavg_zplane_tot % uv /), &
-      0, zw_tot) 
-  
-    call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz_tot/), &
-      '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-    call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, Nz_tot, &
-      (/ tavg_zplane_tot % dudz, tavg_zplane_tot % dvdz /), 0, zw_tot)
-  
-    call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
-      '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-      numtostr(coord,6), 2)  
-    call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
-      (/ tavg_zplane_tot % txx, tavg_zplane_tot % txy, tavg_zplane_tot % tyy, &
-      tavg_zplane_tot % txz, tavg_zplane_tot % tyz, tavg_zplane_tot % tzz /), 0, zw_tot) 
-  
-    call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
-      '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
-    call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
-      (/ tavg_zplane_tot % fx, tavg_zplane_tot % fy, tavg_zplane_tot % fz /), 0, zw_tot)  
-  
-    call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz_tot/), &
-      '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
-    call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, Nz_tot, &
-      (/ rs_zplane_tot % up2, rs_zplane_tot%vp2, rs_zplane_tot%wp2, &
-      rs_zplane_tot%upwp, rs_zplane_tot%vpwp, rs_zplane_tot%upvp /), 0, zw_tot)    
- 
-    call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz_tot/), &
-      '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
-    call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, Nz_tot, &
-      (/ cnpy_zplane_tot % up2, cnpy_zplane_tot%vp2, cnpy_zplane_tot%wp2, &
-      cnpy_zplane_tot%upwp, cnpy_zplane_tot%vpwp, cnpy_zplane_tot%upvp /), 0, zw_tot)         
-      
-    call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz_tot/), &
-      '"z", "<cs2>"', numtostr(coord,6), 2)
-    call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
-      (/ tavg_zplane_tot % cs_opt2 /), 0, zw_tot)        
+!~     call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
+!~       '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
+!~       (/ tavg_zplane_tot % u, tavg_zplane_tot % v, tavg_zplane_tot % w /), 0, zw_tot)
+!~ 
+!~     call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz_tot/), &
+!~       '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~       numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ tavg_zplane_tot % u2, tavg_zplane_tot % v2, tavg_zplane_tot % w2, &
+!~       tavg_zplane_tot % uw, tavg_zplane_tot % vw, tavg_zplane_tot % uv /), &
+!~       0, zw_tot) 
+!~   
+!~     call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz_tot/), &
+!~       '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, Nz_tot, &
+!~       (/ tavg_zplane_tot % dudz, tavg_zplane_tot % dvdz /), 0, zw_tot)
+!~   
+!~     call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~       numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ tavg_zplane_tot % txx, tavg_zplane_tot % txy, tavg_zplane_tot % tyy, &
+!~       tavg_zplane_tot % txz, tavg_zplane_tot % tyz, tavg_zplane_tot % tzz /), 0, zw_tot) 
+!~   
+!~     call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
+!~       '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
+!~       (/ tavg_zplane_tot % fx, tavg_zplane_tot % fy, tavg_zplane_tot % fz /), 0, zw_tot)  
+!~   
+!~     call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ rs_zplane_tot % up2, rs_zplane_tot%vp2, rs_zplane_tot%wp2, &
+!~       rs_zplane_tot%upwp, rs_zplane_tot%vpwp, rs_zplane_tot%upvp /), 0, zw_tot)    
+!~  
+!~     call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ cnpy_zplane_tot % up2, cnpy_zplane_tot%vp2, cnpy_zplane_tot%wp2, &
+!~       cnpy_zplane_tot%upwp, cnpy_zplane_tot%vpwp, cnpy_zplane_tot%upvp /), 0, zw_tot)         
+!~       
+!~     call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz_tot/), &
+!~       '"z", "<cs2>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
+!~       (/ tavg_zplane_tot % cs_opt2 /), 0, zw_tot)        
 
     deallocate(z_tot, zw_tot)      
     deallocate(tavg_zplane_tot)
@@ -2896,51 +3327,51 @@ $if($MPI)
 
 $else
 
-call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
-   '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)  
-call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
-  (/ tavg_zplane % u, tavg_zplane % v, tavg_zplane % w /), 0, zw(1:nz))
-
-call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz/), &
-   '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
-   numtostr(coord,6), 2)
-call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
-  (/ tavg_zplane % u2, tavg_zplane % v2, tavg_zplane % w2, &
-  tavg_zplane % uw, tavg_zplane % vw, tavg_zplane % uv /), 0, zw(1:nz)) 
-  
-call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz/), &
-   '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
-call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
-  (/ tavg_zplane % dudz, tavg_zplane % dvdz /), 0, zw(1:nz))
-  
-call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
-   '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
-   numtostr(coord,6), 2)  
-call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
-  (/ tavg_zplane % txx, tavg_zplane % txy, tavg_zplane % tyy, &
-  tavg_zplane % txz, tavg_zplane % tyz, tavg_zplane % tzz /), 0, zw(1:nz)) 
-  
-call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
-   '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
-call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
-  (/ tavg_zplane % fx, tavg_zplane % fy, tavg_zplane % fz /), 0, zw(1:nz))  
-  
-call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz/), &
-   '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
-call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
-  (/ rs_zplane % up2, rs_zplane%vp2, rs_zplane%wp2, &
-  rs_zplane%upwp, rs_zplane%vpwp, rs_zplane%upvp /), 0, zw(1:nz))
-
-call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz/), &
-   '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
-call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, nz, &
-  (/ cnpy_zplane % up2, cnpy_zplane%vp2, cnpy_zplane%wp2, &
-  cnpy_zplane%upwp, cnpy_zplane%vpwp, cnpy_zplane%upvp /), 0, zw(1:nz))  
-  
-call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz/), &
-   '"z", "<cs2>"', numtostr(coord,6), 2)
-call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
-  (/ tavg_zplane % cs_opt2 /), 0, zw(1:nz))    
+!~ call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
+!~    '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
+!~   (/ tavg_zplane % u, tavg_zplane % v, tavg_zplane % w /), 0, zw(1:nz))
+!~ 
+!~ call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz/), &
+!~    '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~    numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ tavg_zplane % u2, tavg_zplane % v2, tavg_zplane % w2, &
+!~   tavg_zplane % uw, tavg_zplane % vw, tavg_zplane % uv /), 0, zw(1:nz)) 
+!~   
+!~ call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz/), &
+!~    '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
+!~   (/ tavg_zplane % dudz, tavg_zplane % dvdz /), 0, zw(1:nz))
+!~   
+!~ call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~    numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ tavg_zplane % txx, tavg_zplane % txy, tavg_zplane % tyy, &
+!~   tavg_zplane % txz, tavg_zplane % tyz, tavg_zplane % tzz /), 0, zw(1:nz)) 
+!~   
+!~ call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
+!~    '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
+!~   (/ tavg_zplane % fx, tavg_zplane % fy, tavg_zplane % fz /), 0, zw(1:nz))  
+!~   
+!~ call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ rs_zplane % up2, rs_zplane%vp2, rs_zplane%wp2, &
+!~   rs_zplane%upwp, rs_zplane%vpwp, rs_zplane%upvp /), 0, zw(1:nz))
+!~ 
+!~ call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ cnpy_zplane % up2, cnpy_zplane%vp2, cnpy_zplane%wp2, &
+!~   cnpy_zplane%upwp, cnpy_zplane%vpwp, cnpy_zplane%upvp /), 0, zw(1:nz))  
+!~   
+!~ call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz/), &
+!~    '"z", "<cs2>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
+!~   (/ tavg_zplane % cs_opt2 /), 0, zw(1:nz))    
   
 $endif
 
@@ -3190,7 +3621,7 @@ use fft, only : kx
 use stat_defs, only : spectra, spectra_total_time
 implicit none
 
-include 'tecryte.h'
+!~ include 'tecryte.h'
 
 $if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.spectra_finalize'
@@ -3216,11 +3647,11 @@ do k=1,spectra_nloc
   call string_splice( fname, path // 'output/spectra.z-', spectra_loc(k),'.dat' )
 
   !  Omitting Nyquist from output
-  call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
-    '"k", "E(k)"', numtostr(k, 6), 2 ) 
-  call write_real_data_1D(fname, 'append', 'formatted', 1, lh-1, &
-    (/ spectra(k) % power(1:lh-1) /), 0, (/ kx(1:lh-1,1) /))
-    
+!~   call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
+!~     '"k", "E(k)"', numtostr(k, 6), 2 ) 
+!~   call write_real_data_1D(fname, 'append', 'formatted', 1, lh-1, &
+!~     (/ spectra(k) % power(1:lh-1) /), 0, (/ kx(1:lh-1,1) /))
+!~     
   $if ($MPI)
   endif
   $endif
