@@ -694,7 +694,7 @@ $if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.inst_write'
 $endif
 
-character (64) :: fname, fname_vtk
+character (64) :: fname
 integer :: n, i, j, k
 $if(not $BINARY)
 character (64) :: var_list
@@ -1513,7 +1513,6 @@ elseif(itype==5) then
     call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
     $else
     call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')   
-    call string_splice( fname_vtk, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.vtk')    
  
     $endif
     
@@ -1559,9 +1558,6 @@ elseif(itype==5) then
 !    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
 
     $endif
-    
-    call write_3D_Field_VTK(x(1:nx), y(1:ny), zplane_loc(k:k), ui(1:nx,1:ny,1:1), &
-                            vi(1:nx,1:ny,1:1), wi(1:nx,1:ny,1:1), fname_vtk)
 
     $if($LVLSET)
 
@@ -3723,87 +3719,5 @@ $endif
 return
 end subroutine spectra_checkpoint
 $endif
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, filename)
-! This subroutines reads and writes a 3D vector field in VTK format
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-integer :: nodes_x,nodes_y,nodes_z
-integer::i,j,k,nt
-real(rprec), intent(in) :: x_n(:),y_n(:),z_n(:)
-real(rprec), intent(in) :: u(:,:,:),v(:,:,:)
-real(rprec), intent(in) :: w(:,:,:)
-character(64), intent(in) :: filename
-
-nodes_x=size(x_n)
-nodes_y=size(y_n)
-nodes_z=size(z_n)
-
-! Total number of elements in arrays
-nt=nodes_x*nodes_y*nodes_z
-
-! Output to screen
-!write(*,*) 'Writing VTK Data in:', filename  
-open(unit=987,file=trim(filename))
- 
-! Write the VTK file header
-      write(987,99)'# vtk DataFile Version 3.0'
-   99 format(a26)
-      write(987,98)'Velocity Field'
-   98 format(a14)
-      write(987,97)'ASCII'
-   97 format(a5)
-      write(987,96)'DATASET RECTILINEAR_GRID'
-   96 format(a24) 
-      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
-   100 format(a10x,i5x,i5x,i5x)
-
-!
-!.....writting x coordinates
-!
-      write(987,101)'X_COORDINATES',nodes_x,'double'
-      do i=1,nodes_x      !!!!!!!
-        write(987,*) x_n(i)
-      enddo
-!
-!.....writting y coordinates
-!
-      write(987,101)'Y_COORDINATES',nodes_y,'double'
-      do j=1,nodes_y
-        write(987,*) y_n(j)
-      enddo
-
-!
-!.....writting z coordinates
-!
-      write(987,101)'Z_COORDINATES',nodes_z,'double'
-      do k=1,nodes_z
-        write(987,*) z_n(k)
-      enddo
-
-  101 format(a13x,i5x,a7)
-
-!
-!.....writting Velocity field
-!
-      write(987,149)'POINT_DATA',nt
-  149 format(a10,i10)
-
-      write(987,150)'VECTORS velocity_field double'
-  150 format(a29)
-
-      do k=1,nodes_z
-        do j=1,nodes_y
-          do i=1,nodes_x
-            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
-          end do
-        end do
-      end do
-
-      close(987)
-
-!write(*,*) 'Done writing VTK'
-end subroutine write_3D_Field_VTK
 
 end module io
