@@ -2317,6 +2317,9 @@ $endif
 $if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
+$if($ATM)
+use sim_param, only : fxa, fya, fza
+$endif
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -2401,6 +2404,8 @@ do k=1,jzmax
       tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
       tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
+
+
 $if ($TURBINES and not $LVLSET)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
@@ -2417,6 +2422,11 @@ $elseif ($LVLSET)
       tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt
       ! === w-grid variables === 
       tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * tavg_dt
+$elseif ($ATM)
+      tavg(i,j,k)%fx = tavg(i,j,k)%fx + ( fxa(i,j,k)) * tavg_dt 
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + ( fya(i,j,k)) * tavg_dt
+      ! === w-grid variables === 
+      tavg(i,j,k)%fz = tavg(i,j,k)%fz + ( fza(i,j,k)) * tavg_dt
 $else
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
