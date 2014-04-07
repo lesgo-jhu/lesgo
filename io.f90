@@ -222,6 +222,7 @@ close(2)
 
 end subroutine energy
 
+$if($CGNS)
 $if ($MPI)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n,       &
@@ -461,6 +462,8 @@ call cg_close_f(fn, ier)
 if (ier .ne. CG_OK) call cg_error_exit_f
 
 end subroutine write_serial_cgns
+! END OF  CGNS  PART
+$endif 
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_loop()
@@ -701,7 +704,9 @@ character (64) :: var_list
 integer :: nvars
 $endif
 
+$if($CGNS)
 character (64) :: fname_cgns ! Name for CGNS output file
+$endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 
@@ -1972,11 +1977,11 @@ use stat_defs, only : type_set
 implicit none
 
 !include 'tecryte.h'
+!logical :: exst
+!character(120) :: var_list
+character(120) :: fname
 
-character(120) :: var_list, fname
 integer :: i,j,k
-
-logical :: exst
 
 real(rprec), pointer, dimension(:) :: x,y,z
 
@@ -2527,26 +2532,25 @@ character(64) :: fname_velb, &
      fname_taub, fname_fb, &
      fname_rsb, fname_csb, fname_u_vel_gridb
 
+$if($CGNS)
 ! For CGNS
 character(64) :: fname_vel_cgns, &
      fname_vel2_cgns, fname_ddz_cgns, &
      fname_tau_cgns, fname_f_cgns, &
      fname_rs_cgns, fname_cs_cgns, fname_u_vel_grid_cgns
+$endif
      
 character(64) :: fname_vel_zplane, fname_vel2_zplane, &
   fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
   fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
 $if($OUTPUT_EXTRA)  
 character(64) :: fname_sgs_TnNu, fname_sgs_Fsub
-  !$if($DYN_TN)
-  character(64) :: fname_sgs_ee
-  !$endif
+character(64) :: fname_sgs_ee
 $endif  
 
 integer :: i,j,k
 
 $if($MPI)
-!character(64) :: temp
 
 integer :: MPI_RS, MPI_CNPY, MPI_TAVG
 integer :: rs_type(1), rs_block(1), rs_disp(1)
@@ -2599,6 +2603,7 @@ fname_rs = path // 'output/rs.dat'
 fname_cs = path // 'output/cs_opt2.dat'
 fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
+$if($CGNS)
 ! CGNS
 fname_vel_cgns = path // 'output/vel_avg.cgns'
 fname_vel2_cgns = path // 'output/vel2_avg.cgns'
@@ -2608,6 +2613,7 @@ fname_f_cgns = path // 'output/force_avg.cgns'
 fname_rs_cgns = path // 'output/rs.cgns'
 fname_cs_cgns = path // 'output/cs_opt2.cgns'
 fname_u_vel_grid_cgns = path // 'output/u_grid_vel.cgns'
+$endif
 
 ! Binary
 fname_velb = path // 'output/binary_vel_avg.dat'

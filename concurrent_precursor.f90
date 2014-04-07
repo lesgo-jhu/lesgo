@@ -260,8 +260,6 @@ use sim_param, only : u, v, w
 use messages, only : error
 implicit none
 
-character (*), parameter :: sub_name = 'inflow_cond_cps'
-
 integer :: j,k 
 integer :: istart_wrap
 

@@ -340,7 +340,6 @@ end function cell_indx
 !**********************************************************************
 real(rprec) function trilinear_interp(var,lbz,xyz)
 !**********************************************************************
-!
 !  This subroutine perform trilinear interpolation for a point that
 !  exists in the cell with lower dimension (cell index) : istart,jstart,kstart
 !  for the point xyz
@@ -355,39 +354,34 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  (lbz) set as an input so the k-index will match the k-index of z.  
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
-!
 use grid_defs, only : grid
-use param, only : dx,dy,dz
+use param, only : dx,dy,dz,L_x,L_y,L_z
 implicit none
-
-integer, intent(IN) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(IN) :: var
-integer :: istart, jstart, kstart, istart1, jstart1, kstart1
+integer    , intent(IN) :: lbz
 real(rprec), intent(IN), dimension(3) :: xyz
-
-!integer, parameter :: nvar = 3
-real(rprec) :: u1,u2,u3,u4,u5,u6
-real(rprec) :: xdiff, ydiff, zdiff
-
-real(rprec), pointer, dimension(:) :: x,y,z
+real(rprec), pointer   , dimension(:) :: x,y,z
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+real(rprec) :: u1,u2,u3,u4,u5,u6,xdiff,ydiff,zdiff,px,py
+integer :: istart,jstart,kstart,istart1,jstart1,kstart1
 
-nullify(x,y,z)
-nullify(autowrap_i, autowrap_j)
-
+nullify(x,y,z,autowrap_i, autowrap_j)
 x => grid % x
 y => grid % y
 z => grid % z
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
 
-!  Initialize stuff
-u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
-
 ! Determine istart, jstart, kstart by calling cell_indx
-istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
-jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
+px = modulo(xyz(1),L_x)
+istart = floor (px / dx) + 1
+py = modulo(xyz(2),L_y)
+jstart = floor (py / dy) + 1
+if( abs( xyz(3) - z(nz) ) / L_z < 1.e-9 ) then
+kstart = nz-1
+else
+kstart = floor ((xyz(3) - z(1)) / dz) + 1
+endif
 
 ! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 ! Set +1 values
@@ -395,61 +389,27 @@ istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index
 kstart1 = kstart + 1
 
-
-! Can probably bypass storing in uvar and put directly in linear_interp
-!  Contains the 6 points that make of the cube
-!uvar = 0.
-!uvar(1,1,1) = var(istart,  jstart,  kstart)
-!uvar(2,1,1) = var(istart1, jstart,  kstart)
-!uvar(1,2,1) = var(istart,  jstart1, kstart)
-!uvar(2,2,1) = var(istart1, jstart1, kstart)
-!uvar(1,1,2) = var(istart,  jstart,  kstart1)
-!uvar(2,1,2) = var(istart1, jstart,  kstart1)
-!uvar(1,2,2) = var(istart,  jstart1, kstart1)
-!uvar(2,2,2) = var(istart1, jstart1, kstart1)
-
 !  Compute xdiff
-xdiff = xyz(1) - x(istart)
+xdiff = px - x(istart)
 !  Compute ydiff
-ydiff = xyz(2) - y(jstart)
+ydiff = py - y(jstart)
 !  Compute zdiff
 zdiff = xyz(3) - z(kstart)
 
 !  Perform the 7 linear interpolations
 !  Perform interpolations in x-direction 
-!u1 = linear_interp(uvar(1,1,1),uvar(2,1,1),dx,xdiff)
-!u2 = linear_interp(uvar(1,2,1),uvar(2,2,1),dx,xdiff)
-!u3 = linear_interp(uvar(1,1,2),uvar(2,1,2),dx,xdiff)
-!u4 = linear_interp(uvar(1,2,2),uvar(2,2,2),dx,xdiff)
-!u1 = linear_interp(var(istart,  jstart,  kstart), &
-!                   var(istart1, jstart,  kstart), &
-!                   dx, xdiff)
-!u2 = linear_interp(var(istart,  jstart1, kstart), &
-!                   var(istart1, jstart1, kstart), &
-!                   dx, xdiff)
-!u3 = linear_interp(var(istart,  jstart,  kstart1), &
-!                   var(istart1, jstart,  kstart1), &
-!                   dx, xdiff)
-!u4 = linear_interp(var(istart,  jstart1, kstart1), &
-!                   var(istart1, jstart1, kstart1), &
-!                   dx, xdiff)
 u1=var(istart,  jstart,  kstart)  + (xdiff) * (var(istart1, jstart,  kstart)  - var(istart,  jstart,  kstart)) / dx
 u2=var(istart,  jstart1, kstart)  + (xdiff) * (var(istart1, jstart1, kstart)  - var(istart,  jstart1, kstart)) / dx
 u3=var(istart,  jstart,  kstart1) + (xdiff) * (var(istart1, jstart,  kstart1) - var(istart,  jstart,  kstart1)) / dx
 u4=var(istart,  jstart1, kstart1) + (xdiff) * (var(istart1, jstart1, kstart1) - var(istart,  jstart1, kstart1)) / dx
 
 !  Perform interpolations in y-direction
-!u5 = linear_interp(u1,u2,dy,ydiff)
-!u6 = linear_interp(u3,u4,dy,ydiff)
 u5=u1 + (ydiff) * (u2 - u1) / dy
 u6=u3 + (ydiff) * (u4 - u3) / dy
 !  Perform interpolation in z-direction
-!trilinear_interp = linear_interp(u5,u6,dz,zdiff)
 trilinear_interp = u5 + (zdiff) * (u6 - u5) / dz
 
-nullify(x,y,z)
-nullify(autowrap_i, autowrap_j)
-
+nullify(x,y,z,autowrap_i, autowrap_j)
 return
 end function trilinear_interp
 
