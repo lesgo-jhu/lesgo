@@ -631,10 +631,10 @@ TipRad=>turbineModel(j) % TipRad
 PreCone=>turbineModel(j) %PreCone
 
 ! First compute the radius of the force projection (to the radius where the 
-! projection is only 0.0001 its maximum value - this seems to recover 99.99% of 
+! projection is only 0.001 its maximum value - this seems to recover 99.9% of 
 ! the total forces when integrated
-projectionRadius= turbineArray(i) % epsilon * sqrt(log(1.0/0.0001))
-projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.0001))
+projectionRadius= turbineArray(i) % epsilon * sqrt(log(1.0/0.001))
+projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.001))
 
 sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 + (TipRad*cos(PreCone))**2) + projectionRadius
