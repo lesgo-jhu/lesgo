@@ -2855,7 +2855,7 @@ $if($CGNS and $MPI)
     call write_parallel_cgns (fname_vel_cgns,nx,ny, nz - nz_end, nz_tot,        &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                      &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                      &
     3, (/ 'VelocityX', 'VelocityY', 'VelocityZ'/),                             &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                        &
     tavg(1:nx,1:ny,1:nz- nz_end) % v,                                           &
@@ -2864,7 +2864,7 @@ $if($CGNS and $MPI)
     call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,           &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
     (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                       &
     tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
@@ -2876,14 +2876,14 @@ $if($CGNS and $MPI)
     call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,            &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),      &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),      &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                     &
     tavg(1:nx,1:ny,1:nz- nz_end) % dvdz /) )
     
     call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,            &
         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
     (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                      &
     tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
@@ -2895,7 +2895,7 @@ $if($CGNS and $MPI)
     call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,              &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 3,                                   &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                   &
     (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                       &
     tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                          &
@@ -2904,7 +2904,7 @@ $if($CGNS and $MPI)
     call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,             &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
     (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
     (/ rs(1:nx,1:ny,1:nz) % up2,                                               &
     rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                           &
@@ -2916,7 +2916,7 @@ $if($CGNS and $MPI)
     call write_parallel_cgns(fname_cs_cgns,nx,ny,nz- nz_end,nz_tot,             &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 1,                                   &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                   &
     (/ 'Cs Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
 $endif
 
