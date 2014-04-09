@@ -83,7 +83,7 @@ type bodyForce_t
 end type bodyForce_t
 
 ! Body force field
-type(bodyForce_t), allocatable, dimension(:) :: FFUV, FFW
+type(bodyForce_t), allocatable, target, dimension(:) :: forceFieldUV, forceFieldW
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1._rprec)
@@ -105,8 +105,8 @@ allocate(w_uv(nx,ny,lbz:nz))
 call atm_initialize () ! Initialize the atm (ATM)
 
 ! Allocate the body force variables. It is an array with one per turbine.
-allocate(FFUV(numberOfTurbines))
-allocate(FFW(numberOfTurbines))
+allocate(forceFieldUV(numberOfTurbines))
+allocate(forceFieldW(numberOfTurbines))
 
 do m=1, numberOfTurbines
     call atm_findCells(m)
@@ -128,7 +128,10 @@ end subroutine atm_lesgo_initialize
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_findCells (m)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine finds all the cells that surround the 
+! This subroutine finds all the cells that surround the turbines
+
+! The awkward if statements are to only consider points in front and behind
+! the turbine without having to 
 
 implicit none
 
@@ -165,30 +168,34 @@ do i=1,nx ! Loop through grid points in x
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
                     cUV=cUV+1
-                end if
+!~ endif
 
+                end if
                 ! Take into account the W grid
                 vector_point(3)=zw(k)*z_i
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
                     cW=cW+1
+!~ endif                    
                 end if
         enddo
     enddo
 enddo
 
 ! Allocate space for the force fields in UV and W grids
-FFUV(m) % c = cUV  ! Counter
-allocate(FFUV(m) % force(cUV,3))
-allocate(FFUV(m) % location(cUV,3))
-allocate(FFUV(m) % ijk(cUV,3))
+forceFieldUV(m) % c = cUV  ! Counter
+allocate(forceFieldUV(m) % force(3,cUV))
+allocate(forceFieldUV(m) % location(3,cUV))
+allocate(forceFieldUV(m) % ijk(3,cUV))
 
-FFW(m) % c = cW  ! Counter
-allocate(FFW(m) % force(cW,3))
-allocate(FFW(m) % location(cW,3))
-allocate(FFW(m) % ijk(cW,3))
+forceFieldW(m) % c = cW  ! Counter
+allocate(forceFieldW(m) % force(3,cW))
+allocate(forceFieldW(m) % location(3,cW))
+allocate(forceFieldW(m) % ijk(3,cW))
 
 write(*,*) 'Number of cells being affected by ATM in turbine', m,              &
            ' cUV, cW = ', cUV, cW
@@ -206,24 +213,28 @@ do i=1,nx ! Loop through grid points in x
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
                     cUV=cUV+1
-                    FFUV(m) % ijk(cUV,1) = i
-                    FFUV(m) % ijk(cUV,2) = j
-                    FFUV(m) % ijk(cUV,3) = k
-                    FFUV(m) % location(cUV,:) = vector_point
-                    FFUV(m) % force(cUV,:) = 0_rprec
+                    forceFieldUV(m) % ijk(1,cUV) = i
+                    forceFieldUV(m) % ijk(2,cUV) = j
+                    forceFieldUV(m) % ijk(3,cUV) = k
+                    forceFieldUV(m) % location(:,cUV) = vector_point
+                    forceFieldUV(m) % force(:,cUV) = 0_rprec
                 endif
+!~ endif                
             vector_point(3)=zw(k)*z_i
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
                     cW=cW+1
-                    FFW(m) % ijk(cW,1) = i
-                    FFW(m) % ijk(cW,2) = j
-                    FFW(m) % ijk(cW,3) = k
-                    FFW(m) % location(cW,:) = vector_point
-                    FFW(m) % force(cW,:) = 0_rprec
+                    forceFieldW(m) % ijk(1,cW) = i
+                    forceFieldW(m) % ijk(2,cW) = j
+                    forceFieldW(m) % ijk(3,cW) = k
+                    forceFieldW(m) % location(:,cW) = vector_point
+                    forceFieldW(m) % force(:,cW) = 0_rprec
                 endif
+!~ endif
         enddo
     enddo
 enddo
@@ -242,6 +253,9 @@ integer :: i
 !~ type(clock_t) :: myClock
 
 !~ call clock_start( myClock )
+! Get the velocity from w onto the uv grid
+w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
 ! Establish all turbine properties as zero
 ! This is essential for paralelization
 do i=1,numberOfTurbines
@@ -257,45 +271,56 @@ do i=1,numberOfTurbines
     turbineArray(i) % windVectors = 0._rprec
     turbineArray(i) % nacelleForce = 0._rprec
 
-    ! Get the velocity from w onto the uv grid
-    w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
-
     ! If statement is for running code only if grid points affected are in this 
     ! processor. If not, no code is executed at all.
-    if (size(FFUV(i) % force) .gt. 0 .or. size(FFW(i) % force) .gt. 0) then
+    if (size(forceFieldUV(i) % force) .gt. 0 .or. size(forceFieldW(i) % force) .gt. 0) then
 
         ! Set body forces to zero
-        FFUV(i) % force = 0._rprec
-        FFW(i) % force = 0._rprec
+        forceFieldUV(i) % force = 0._rprec
+        forceFieldW(i) % force = 0._rprec
         ! Calculate forces for all turbines
         call atm_lesgo_force(i)
     
     endif
     
 enddo
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Forces ', myClock % time
 
+
+!~  call clock_start( myClock )
 ! This will gather all the blade forces from all processors
 $if ($MPI)
     ! This will gather all values used in MPI
     call atm_lesgo_mpi_gather()
 $endif
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
 ! Update the blade positions based on the time-step
 ! Time needs to be dimensionalized
 ! All processors carry the blade points
+!~  call clock_start( myClock )
 call atm_update(dt*z_i/u_star)
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Update ', myClock % time
 
-    if (size(FFUV(i) % force) .gt. 0 .or. size(FFW(i) % force) .gt. 0) then
 
+    if (size(forceFieldUV(i) % force) .gt. 0 .or. size(forceFieldW(i) % force) .gt. 0) then
+!~  call clock_start( myClock )
     ! Convolute force onto the domain
     do i=1,numberOfTurbines
         call atm_lesgo_convolute_force(i)
     enddo
-
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Convolute force ', myClock % time
     ! This will apply body forces onto the flow field if there are forces within
     ! this domain
-    call atm_lesgo_apply_force()
+!~  call clock_start( myClock )
 
+    call atm_lesgo_apply_force()
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Apply force ', myClock % time
 endif
 
 
@@ -330,7 +355,10 @@ endif
 !enddo
 
 if (coord == 0) then
+!~  call clock_start( myClock )
     call atm_output(jt_total)
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Output ', myClock % time
 endif 
 
 end subroutine atm_lesgo_forcing
@@ -459,7 +487,7 @@ do q=1, turbineArray(i) % numBladePoints
             xyz=xyz/z_i
 
             ! Interpolate velocities if inside the domain
-            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
+            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
                 velocity(1)=                                                   &
                 trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
                 velocity(2)=                                                   &
@@ -479,7 +507,7 @@ enddo
 ! Calculate Nacelle force
 xyz=turbineArray(i) % nacelleLocation/z_i
 if (turbineArray(i) % nacelle) then 
-    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
+    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
 
         velocity(1)=                                                   &
         trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
@@ -502,17 +530,33 @@ subroutine atm_lesgo_convolute_force(i)
 
 implicit none
 
-type(clock_t) :: myClock
+!~ type(clock_t) :: myClock
 
 integer, intent(in) :: i
 integer :: j, m, n, q, c,mmend,nnend,qqend
 
 ! Test for time optimization
-real(rprec) :: dist,a(3),b(3),projectradius,epsilon,const1,const2
+real(rprec) :: dist,a(3),b(3),projectradius,epsilon,const1,const2,const3
 real(rprec) :: nacelleEpsilon
 
 ! Variables for convolution force
 real(rprec) :: kernel, force(3)
+
+! Pointers for the turbineArray quantities
+real(rprec), pointer, dimension(:,:,:,:) :: bladeForces, bladePoints
+
+real(rprec), pointer, dimension(:,:) :: bodyForceUV, bodyForceW
+
+nullify(bladeForces)
+nullify(bladePoints)
+nullify(bodyForceUV)
+nullify(bodyForceW)
+
+bladeForces => turbineArray(i) % bladeForces
+bladePoints => turbineArray(i) % bladePoints
+
+bodyForceUV => forceFieldUV(i) % force
+bodyForceW =>  forceFieldW(i) % force
 
 !real(rprec) :: dummyForce(3)  ! Debugging
 
@@ -528,11 +572,14 @@ projectradius=turbineArray(i) % projectionRadius
 epsilon=turbineArray(i) % epsilon
 nacelleEpsilon = turbineArray(i) % nacelleEpsilon
 const1=1./ ((epsilon**3.)*(pi**1.5))
-const2=z_i/(u_star**2.)
+const2= z_i/(u_star**2.)
+const3=const1*const2
+!~ allocate(bladeForces(mmend,nnend,qqend,3))
+!~ bladeForces=turbineArray(i) % bladeForces
 
 !~  call clock_start( myClock )
-do c=1,FFUV(i) % c
-    a= FFUV(i) %  location(c,1:3)
+do c=1,forceFieldUV(i) % c
+    a= forceFieldUV(i) %  location(1:3,c)
     force=0._rprec
 
     ! Nacelle focre
@@ -544,34 +591,35 @@ do c=1,FFUV(i) % c
             ! The value of the kernel. This is the actual smoothing function
             kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleEpsilon**3.*pi**1.5)
             force = force+turbineArray(i) % nacelleForce * kernel *const2
+!~             force=force+atm_convoluteForce(i,m,n,q,a)
         endif
     endif
+
+!~            do q=1, qqend
+!~         do n=1, nnend
+!~     do m=1, mmend
+!~ 
     do m=1, mmend
         do n=1, nnend
            do q=1, qqend
 
-                b=turbineArray(i) % bladePoints(m,n,q,:)
+                b= bladePoints(m,n,q,:)
                 dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
 
-!~                 if (dist .le. projectradius) then
-
+                if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
-                kernel=exp(-(dist/epsilon)**2.) *const1
-                force = force+turbineArray(i) % bladeForces(m,n,q,:) * kernel *const2
-
-!~                 endif
+                 force(1:2) = force(1:2) +  bladeForces(m,n,q,1:2) *exp(-(dist/epsilon)**2)
+                endif
 
             enddo
         enddo
     enddo
-    FFUV(i) % force(c,:) = force
+      bodyForceUV(1:2,c) = force(1:2)* const3
 enddo
 
-!~     call clock_stop( myClock )
-!~     write(*,*) 'coord ', coord, '  Loop UV: ', myClock % time
 
-do c=1,FFW(i) % c
-    a= FFW(i) %  location(c,1:3)
+do c=1,forceFieldW(i) % c
+    a= forceFieldW(i) %  location(1:3,c)
     force=0._rprec
 
     ! Nacelle focre
@@ -590,20 +638,22 @@ do c=1,FFW(i) % c
     do m=1,mmend
         do n=1,nnend
            do q=1,qqend
+!~            do q=1, qqend
+!~         do n=1, nnend
+!~     do m=1, mmend
 
-                b=turbineArray(i) % bladePoints(m,n,q,:)
+                b= bladePoints(m,n,q,:)
                 dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
 
-!~                 if (dist .le. projectradius) then
+                if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
-                kernel=exp(-(dist/epsilon)**2.) *const1
-                force = force+turbineArray(i) % bladeForces(m,n,q,:) * kernel *const2
-!~                 endif
+                force(3) = force(3) +  bladeForces(m,n,q,3) *exp(-(dist/epsilon)**2)
+                endif
 
             enddo
         enddo
     enddo
-    FFW(i) % force(c,:) = force
+    bodyForceW(3,c) = force(3)* const3
 enddo
 
 end subroutine atm_lesgo_convolute_force
@@ -623,22 +673,22 @@ do m=1, numberOfTurbines
     
     ! Impose force field onto the flow field variables
     ! The forces are non-dimensionalized here as well
-    do c=1,FFUV(m) % c
-        i=FFUV(m) % ijk(c,1)
-        j=FFUV(m) % ijk(c,2)
-        k=FFUV(m) % ijk(c,3)
+    do c=1,forceFieldUV(m) % c
+        i=forceFieldUV(m) % ijk(1,c)
+        j=forceFieldUV(m) % ijk(2,c)
+        k=forceFieldUV(m) % ijk(3,c)
     
-        fxa(i,j,k) = fxa(i,j,k) + FFUV(m) % force(c,1) 
-        fya(i,j,k) = fya(i,j,k) + FFUV(m) % force(c,2)  
+        fxa(i,j,k) = fxa(i,j,k) + forceFieldUV(m) % force(1,c) 
+        fya(i,j,k) = fya(i,j,k) + forceFieldUV(m) % force(2,c)  
     
     enddo
     
-    do c=1,FFW(m) % c
-        i=FFW(m) % ijk(c,1)
-        j=FFW(m) % ijk(c,2)
-        k=FFW(m) % ijk(c,3)
+    do c=1,forceFieldW(m) % c
+        i=forceFieldW(m) % ijk(1,c)
+        j=forceFieldW(m) % ijk(2,c)
+        k=forceFieldW(m) % ijk(3,c)
     
-        fza(i,j,k) = fza(i,j,k) + FFW(m) % force(c,3) 
+        fza(i,j,k) = fza(i,j,k) + forceFieldW(m) % force(3,c) 
     
     enddo
     
