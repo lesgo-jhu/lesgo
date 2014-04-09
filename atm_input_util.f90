@@ -171,17 +171,18 @@ type turbineModel_t
     integer :: NumSec         ! Number of sections
     real(rprec) :: TipRad ! Radius from the root to the tip of the blade
     real(rprec) :: HubRad ! Radius of the hub
-    real(rprec) :: UndSling !
-    real(rprec) :: OverHang
-    real(rprec) :: TowerHt
-    real(rprec) :: Twr2Shft
-    real(rprec) :: ShftTilt
-    real(rprec) :: PreCone      
-    real(rprec) :: GBRatio  
-    real(rprec) :: GenIner
-    real(rprec) :: HubIner
-    real(rprec) :: BladeIner
-    real(rprec) :: DriveTrainIner
+    real(rprec) :: UndSling ! Undersling length [distance from teeter pin
+                            ! to the rotor apex]
+    real(rprec) :: OverHang ! Distance from yaw axis to rotor apex
+    real(rprec) :: TowerHt  ! Tower height
+    real(rprec) :: Twr2Shft ! Vertical distance from tower-top to rotor shaft
+    real(rprec) :: ShftTilt ! Rotor shaft tilt angle
+    real(rprec) :: PreCone  ! Angle which the blades are coned
+    real(rprec) :: GBRatio  ! Gearbox Ratio
+    real(rprec) :: GenIner  ! Generator inertia
+    real(rprec) :: HubIner  ! Inertia of the hub
+    real(rprec) :: BladeIner ! Inertia of the blades
+    real(rprec) :: DriveTrainIner ! Inertia of the Drive train
 
     ! Blade section quantities (maximum number of sections 100, easy modify)
     real(rprec), dimension(100) :: chord, twist, radius
