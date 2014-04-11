@@ -41,7 +41,7 @@ private
 public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
           vector_add, vector_divide, vector_mag, distance,                  &
-          atm_convoluteForce, atm_output, atm_process_output,               &
+          atm_output, atm_process_output,               &
           atm_initialize_output, atm_computeNacelleForce
 
 ! The very crucial parameter pi
@@ -410,7 +410,7 @@ real(rprec), intent(in) :: dt                ! Time step
 
 ! Loop through all turbines and rotate the blades
 do i = 1, numberOfTurbines
-    call atm_computeRotorSpeed(i,dt) !!!!!!!!!!!Tony
+    call atm_computeRotorSpeed(i,dt) 
     call atm_rotateBlades(i)
 end do
 
@@ -1139,36 +1139,36 @@ turbineArray(i) % torqueRotor = turbineArray(i) % torqueRotor +                &
 
 end subroutine
 
-!-------------------------------------------------------------------------------
-function atm_convoluteForce(i,m,n,q,xyz)
-!-------------------------------------------------------------------------------
-! This subroutine will convolute the body forces onto a point xyz
-integer, intent(in) :: i,m,n,q
-! i - turbineTypeArray
-! n - numAnnulusSections
-! q - numBladePoints
-! m - numBl
-real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force 
-real(rprec) :: Force(3)   ! The blade force to be convoluted
-real(rprec) :: dis                ! Distance onto which convolute the force
-real(rprec) :: atm_convoluteForce(3)    ! The local velocity at this point
-real(rprec) :: kernel                ! Gaussian dsitribution value
-
-! Distance from the point of the force to the point where it is being convoluted
-dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
-
-! The force which is being convoluted
-Force=turbineArray(i) % bladeForces(m,n,q,:)
-
-! The value of the kernel. This is the actual smoothing function
-kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) /                       &
-((turbineArray(i) % epsilon**3._rprec)*(pi**1.5_rprec))
-
-! The force times the kernel will give the force/unitVolume
-atm_convoluteForce = Force * kernel
-
-return
-end function atm_convoluteForce
+!~ !-------------------------------------------------------------------------------
+!~ function atm_convoluteForce(i,m,n,q,xyz)
+!~ !-------------------------------------------------------------------------------
+!~ ! This subroutine will convolute the body forces onto a point xyz
+!~ integer, intent(in) :: i,m,n,q
+!~ ! i - turbineTypeArray
+!~ ! n - numAnnulusSections
+!~ ! q - numBladePoints
+!~ ! m - numBl
+!~ real(rprec), intent(in) :: xyz(3)    ! Point onto which to convloute the force 
+!~ real(rprec) :: Force(3)   ! The blade force to be convoluted
+!~ real(rprec) :: dis                ! Distance onto which convolute the force
+!~ real(rprec) :: atm_convoluteForce(3)    ! The local velocity at this point
+!~ real(rprec) :: kernel                ! Gaussian dsitribution value
+!~ 
+!~ ! Distance from the point of the force to the point where it is being convoluted
+!~ dis=distance(xyz,turbineArray(i) % bladepoints(m,n,q,:))
+!~ 
+!~ ! The force which is being convoluted
+!~ Force=turbineArray(i) % bladeForces(m,n,q,:)
+!~ 
+!~ ! The value of the kernel. This is the actual smoothing function
+!~ kernel=exp(-(dis/turbineArray(i) % epsilon)**2._rprec) /                       &
+!~ ((turbineArray(i) % epsilon**3._rprec)*(pi**1.5_rprec))
+!~ 
+!~ ! The force times the kernel will give the force/unitVolume
+!~ atm_convoluteForce = Force * kernel
+!~ 
+!~ return
+!~ end function atm_convoluteForce
 
 
 

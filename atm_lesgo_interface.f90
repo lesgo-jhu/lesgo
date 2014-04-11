@@ -59,7 +59,7 @@ use functions, only : trilinear_interp, interp_to_uv_grid
 use atm_base
 use actuator_turbine_model
 use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
-                           atm_print_initialize
+                           atm_print_initialize, updateInterval
 
 ! Used for testing time 
 use clocks 
@@ -109,7 +109,7 @@ allocate(forceFieldUV(numberOfTurbines))
 allocate(forceFieldW(numberOfTurbines))
 
 do m=1, numberOfTurbines
-    call atm_findCells(m)
+    call atm_lesgo_findCells(m)
 enddo
 
 $if ($MPI)
@@ -126,7 +126,7 @@ $endif
 end subroutine atm_lesgo_initialize
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_findCells (m)
+subroutine atm_lesgo_findCells (m)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! This subroutine finds all the cells that surround the turbines
 
@@ -152,6 +152,9 @@ x => grid % x
 y => grid % y
 z => grid % z
 zw => grid % zw
+
+! Initialize internal counter to zero
+forceFieldUV(m) % c = 0
 
 ! This will find all the locations that are influenced by each turbine
 ! It depends on a sphere centered on the rotor that extends beyond the blades
@@ -218,8 +221,8 @@ do i=1,nx ! Loop through grid points in x
                     forceFieldUV(m) % ijk(1,cUV) = i
                     forceFieldUV(m) % ijk(2,cUV) = j
                     forceFieldUV(m) % ijk(3,cUV) = k
-                    forceFieldUV(m) % location(:,cUV) = vector_point
-                    forceFieldUV(m) % force(:,cUV) = 0_rprec
+                    forceFieldUV(m) % location(1:3,cUV) = vector_point(1:3)
+                    forceFieldUV(m) % force(1:3,cUV) = 0_rprec
                 endif
 !~ endif                
             vector_point(3)=zw(k)*z_i
@@ -231,7 +234,7 @@ do i=1,nx ! Loop through grid points in x
                     forceFieldW(m) % ijk(1,cW) = i
                     forceFieldW(m) % ijk(2,cW) = j
                     forceFieldW(m) % ijk(3,cW) = k
-                    forceFieldW(m) % location(:,cW) = vector_point
+                    forceFieldW(m) % location(1:3,cW) = vector_point(1:3)
                     forceFieldW(m) % force(:,cW) = 0_rprec
                 endif
 !~ endif
@@ -239,7 +242,7 @@ do i=1,nx ! Loop through grid points in x
     enddo
 enddo
 
-end subroutine atm_findCells
+end subroutine atm_lesgo_findCells
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_forcing ()
@@ -255,6 +258,19 @@ integer :: i
 !~ call clock_start( myClock )
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
+
+
+! Update the blade positions based on the time-step
+! Time needs to be dimensionalized
+! All processors carry the blade points
+!~  call clock_start( myClock )
+call atm_update(dt*z_i/u_star)
+!~     call clock_stop( myClock )
+!~     write(*,*) 'coord ', coord, '  Update ', myClock % time
+
+
+! Only calculate new forces if interval is correct
+if ( mod(jt_total-1, updateInterval) == 0) then
 
 ! Establish all turbine properties as zero
 ! This is essential for paralelization
@@ -273,7 +289,7 @@ do i=1,numberOfTurbines
 
     ! If statement is for running code only if grid points affected are in this 
     ! processor. If not, no code is executed at all.
-    if (size(forceFieldUV(i) % force) .gt. 0 .or. size(forceFieldW(i) % force) .gt. 0) then
+    if (forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
 
         ! Set body forces to zero
         forceFieldUV(i) % force = 0._rprec
@@ -297,31 +313,26 @@ $endif
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
-! Update the blade positions based on the time-step
-! Time needs to be dimensionalized
-! All processors carry the blade points
-!~  call clock_start( myClock )
-call atm_update(dt*z_i/u_star)
-!~     call clock_stop( myClock )
-!~     write(*,*) 'coord ', coord, '  Update ', myClock % time
 
 
-    if (size(forceFieldUV(i) % force) .gt. 0 .or. size(forceFieldW(i) % force) .gt. 0) then
+
 !~  call clock_start( myClock )
-    ! Convolute force onto the domain
     do i=1,numberOfTurbines
-        call atm_lesgo_convolute_force(i)
+        if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
+            ! Convolute force onto the domain
+            call atm_lesgo_convolute_force(i)
+        endif
     enddo
+endif
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Convolute force ', myClock % time
+
     ! This will apply body forces onto the flow field if there are forces within
     ! this domain
 !~  call clock_start( myClock )
-
     call atm_lesgo_apply_force()
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Apply force ', myClock % time
-endif
 
 
 !!! Sync the integrated forces (used for debugging)

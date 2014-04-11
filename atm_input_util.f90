@@ -36,6 +36,7 @@ implicit none
 ! The variables for the ATM are defined here
 integer :: numberOfTurbines
 integer :: outputInterval
+integer :: updateInterval
 
 ! This type will store the necessary variables for -each- turbine 
 ! To declare: type(turbineArray_t), allocatable, dimension(:) :: turbineArray
@@ -282,6 +283,10 @@ do
         else if( buff(1:14) == 'outputInterval' ) then
             read(buff(15:), *) outputInterval
 !            write(*,*)  'outputInterval is: ', outputInterval
+            cycle
+        else if( buff(1:14) == 'updateInterval' ) then
+            read(buff(15:), *) updateInterval
+!            write(*,*)  'updateInterval is: ', updateInterval
             cycle
         endif
 
