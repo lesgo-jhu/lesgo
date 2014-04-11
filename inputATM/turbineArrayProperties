@@ -5,6 +5,7 @@
 
 numberOfTurbines  1
 outputInterval       10
+updateInterval       10
     
 TURBINE_1 {
 turbineType              "NREL5MWRef"
