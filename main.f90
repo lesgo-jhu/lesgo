@@ -82,6 +82,7 @@ real(rprec) :: clock_total_f = 0.0
 $if($MPI)
 ! Buffers used for MPI communication
 real(rprec) :: rbuffer
+real(rprec) :: maxdummy ! Used to calculate maximum with mpi_allreduce
 $endif
 
 ! Start the clocks, both local and total
@@ -471,6 +472,21 @@ time_loop: do jt_step = nstart, nsteps
        ! only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
+
+        $if($MPI)
+            call mpi_allreduce(clock % time, maxdummy,1, mpi_rprec,  &
+                               MPI_MAX, comm, ierr) 
+            clock % time = maxdummy
+            call mpi_allreduce(clock_total % time, maxdummy,1, mpi_rprec,  &
+                               MPI_MAX, comm, ierr) 
+            clock_total % time = maxdummy
+            call mpi_allreduce(clock_forcing % time, maxdummy,1, mpi_rprec,  &
+                               MPI_MAX, comm, ierr) 
+            clock_forcing % time = maxdummy
+            call mpi_allreduce(clock_total_f , maxdummy,1, mpi_rprec,  &
+                               MPI_MAX, comm, ierr) 
+            clock_total_f = maxdummy
+        $endif
 
        if (coord == 0) then
           write(*,*)
