@@ -27,9 +27,6 @@ $if ($MPI)
 use mpi
 $endif
 implicit none
-$if ($MPI)
-!include 'mpif.h'
-$endif
 save
 private
 public interp_to_uv_grid, &
@@ -88,13 +85,6 @@ if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z di
 
 allocate(var_uv(sx,sy,lbz:ubz))
 
-!do k=1,ubz-1
-!  do j=1,uby
-!    do i=1,ubx
-!      var_uv(i,j,k) = 0.5_rprec * (var(i,j,k+1) + var(i,j,k))
-!    enddo
-!  enddo
-!enddo
 ! Perform the interpolation
 var_uv(:,:,1:ubz-1) = 0.5_rprec * (var(:,:,2:ubz) + var(:,:,1:ubz-1))
 
@@ -107,9 +97,6 @@ if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 if( lbz == 0 ) then
   call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWNUP )
 elseif( lbz == 1 ) then
-  ! call mpi_sendrecv(var_uv(:,:,1), ubx*uby, MPI_RPREC, down, 1,  &
-  !                   var_uv(:,:,nz), ubx*uby, mpi_rprec, up, 1,   &
-  !                   comm, status, ierr)
   call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWN )
 endif                    
 
@@ -123,10 +110,6 @@ $endif
 return 
 
 !deallocate(var_uv)
-
-!$if($MPI)
-!deallocate(buf)
-!$endif
 
 end function interp_to_uv_grid
 
@@ -163,7 +146,6 @@ integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_w
 
 integer :: sx,sy,ubz
-!integer :: i,j,k
 
 $if($VERBOSE)
 character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
@@ -362,7 +344,7 @@ integer    , intent(IN) :: lbz
 real(rprec), intent(IN), dimension(3) :: xyz
 real(rprec), pointer   , dimension(:) :: x,y,z
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
-real(rprec) :: u1,u2,u3,u4,u5,u6,xdiff,ydiff,zdiff,px,py
+real(rprec) :: u1,u2,u3,u4,u5,u6,xdiff,ydiff,zdiff,px,py,thresh
 integer :: istart,jstart,kstart,istart1,jstart1,kstart1
 
 nullify(x,y,z,autowrap_i, autowrap_j)
@@ -373,11 +355,33 @@ autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
 
 ! Determine istart, jstart, kstart by calling cell_indx
+thresh=1.0e-10 !! In some configuration of the code necessary to prevent floating point issues (when px is too close to L_x)
+!!!!!!!!!! istart !!!!!!!!!!!!!!!
 px = modulo(xyz(1),L_x)
+! Check lower boundary
+if( abs(px) / L_x < thresh ) then
+istart = 1
+! Check upper boundary 
+elseif( abs( px - L_x ) / L_x < thresh ) then
+istart = Nx
+else
+! Returned values 1 < cell_indx < Nx
 istart = floor (px / dx) + 1
+endif
+!!!!!!!!!! jstart !!!!!!!!!!!!!!!
 py = modulo(xyz(2),L_y)
+! Check lower boundary
+if( abs(py) / L_y < thresh ) then
+jstart = 1
+! Check upper boundary 
+elseif( abs( py - L_y ) / L_y < thresh ) then
+jstart = Ny
+else
+! Returned values 1 < cell_indx < Ny
 jstart = floor (py / dy) + 1
-if( abs( xyz(3) - z(nz) ) / L_z < 1.e-9 ) then
+endif
+!!!!!!!!!! kstart !!!!!!!!!!!!!!
+if( abs( xyz(3) - z(nz) ) / L_z < thresh ) then
 kstart = nz-1
 else
 kstart = floor ((xyz(3) - z(1)) / dz) + 1
