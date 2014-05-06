@@ -337,7 +337,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 use grid_defs, only : grid
-use param, only : dx,dy,dz,L_x,L_y,L_z
+use param, only : dx,dy,dz,L_x,L_y,L_z,Nx,Ny,Nz
 implicit none
 real(rprec), dimension(:,:,lbz:), intent(IN) :: var
 integer    , intent(IN) :: lbz
