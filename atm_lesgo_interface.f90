@@ -162,7 +162,7 @@ cUV=0  ! Initialize conuter
 cW=0  ! Initialize conuter
 do i=1,nx ! Loop through grid points in x
     do j=1,ny ! Loop through grid points in y
-        do k=1,nz-1 ! Loop through grid points in z
+        do k=1,nz ! Loop through grid points in z
             vector_point(1)=x(i)*z_i ! z_i used to dimensionalize LESGO
             vector_point(2)=y(j)*z_i
 
@@ -209,7 +209,7 @@ cW=0
 ! The forceField arrays include all the forces which affect the domain
 do i=1,nx ! Loop through grid points in x
     do j=1,ny ! Loop through grid points in y
-        do k=1,nz-1 ! Loop through grid points in z
+        do k=1,nz ! Loop through grid points in z
             vector_point(1)=x(i)*z_i ! z_i used to dimensionalize LESGO
             vector_point(2)=y(j)*z_i
             vector_point(3)=z(k)*z_i
@@ -498,7 +498,7 @@ do q=1, turbineArray(i) % numBladePoints
             xyz=xyz/z_i
 
             ! Interpolate velocities if inside the domain
-            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
+            if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
                 velocity(1)=                                                   &
                 trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
                 velocity(2)=                                                   &
@@ -518,7 +518,7 @@ enddo
 ! Calculate Nacelle force
 xyz=turbineArray(i) % nacelleLocation/z_i
 if (turbineArray(i) % nacelle) then 
-    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz-1) ) then
+    if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
 
         velocity(1)=                                                   &
         trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
@@ -606,10 +606,6 @@ do c=1,forceFieldUV(i) % c
         endif
     endif
 
-!~            do q=1, qqend
-!~         do n=1, nnend
-!~     do m=1, mmend
-!~ 
     do m=1, mmend
         do n=1, nnend
            do q=1, qqend
@@ -649,9 +645,6 @@ do c=1,forceFieldW(i) % c
     do m=1,mmend
         do n=1,nnend
            do q=1,qqend
-!~            do q=1, qqend
-!~         do n=1, nnend
-!~     do m=1, mmend
 
                 b= bladePoints(m,n,q,:)
                 dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
