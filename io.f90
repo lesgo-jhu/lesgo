@@ -244,15 +244,17 @@ include 'cgnslib_f.h'
 integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
 character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
-real(rprec), intent(in), dimension(:) :: input ! Data to be written
-real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
-integer, intent(in) :: start_n(:)  ! Where the total node counter starts nodes
-integer, intent(in) :: end_n(:)  ! Where the total node counter ends nodes
+real(rprec), intent(in), dimension(nx*ny*nz*num_fields) :: input ! Data to be written
+real(rprec), intent(in), dimension(nx) :: xin ! Coordinates to write
+real(rprec), intent(in), dimension(ny) :: yin ! Coordinates to write
+real(rprec), intent(in), dimension(nz) :: zin ! Coordinates to write
+integer, intent(in) :: start_n(3)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n(3)  ! Where the total node counter ends nodes
 
 integer :: fn          ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base        ! base number
-integer :: zone        ! zone number
+integer :: base=1        ! base number
+integer :: zone=1        ! zone number
 integer :: nnodes      ! Number of nodes in this processor
 integer :: sol =1        ! solution number
 integer :: field     ! section number
