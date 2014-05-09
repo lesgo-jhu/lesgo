@@ -262,21 +262,10 @@ integer :: sizes(3,3)    ! Sizes
 
 ! Building the lcoal mesh
 integer :: i,j,k
-real(rprec), dimension(nx,ny,nz) :: x,y,z
+real(rprec), dimension(nx,ny,nz) :: xyz
 
 ! The total number of nodes in this processor
 nnodes=nx*ny*nz
-
-! Create grid points
-do k=1,nz
-    do j=1,ny
-        do i=1,nx
-            x(i,j,k) = xin(i)
-            y(i,j,k) = yin(j)
-            z(i,j,k) = zin(k)
-        enddo
-    enddo
-enddo
 
 ! Sizes, used to create zone
 sizes(:,1) = (/nx,ny,nz_tot/)
@@ -319,16 +308,56 @@ if (ier .ne. CG_OK) call cgp_error_exit_f
  
 ! This is done for the 3 dimensions x,y and z
 ! It writes the coordinates
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = xin(i)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 1,   &
-                            start_n, end_n, x(1:nx,1:ny,1:nz), ier)    
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)    
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+call cgp_queue_set_f(1, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = yin(j)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 2,   &
-                            start_n, end_n, y(1:nx,1:ny,1:nz), ier)   
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)   
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+call cgp_queue_set_f(1, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 3,   &
-                            start_n, end_n, z(1:nx,1:ny,1:nz), ier)
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
     
 ! Write out the queued coordinate data
@@ -350,6 +379,9 @@ do i=1,num_fields
                                 input((i-1)*nnodes+1:(i)*nnodes), ier)
     if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 enddo
 
 ! Close the file
