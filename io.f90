@@ -230,12 +230,6 @@ subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n,       &
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-! Grid information
-use grid_defs, only : grid
-
-! Load variables to write
-use param, only : total_time !,output_velocity,output_pressure
-
 implicit none
 
 ! This subroutine writes parallel CGNS file output
@@ -244,21 +238,21 @@ include 'cgnslib_f.h'
 integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
 character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
-real(rprec), intent(in), dimension(nx*ny*nz*num_fields) :: input ! Data to be written
-real(rprec), intent(in), dimension(nx) :: xin ! Coordinates to write
-real(rprec), intent(in), dimension(ny) :: yin ! Coordinates to write
-real(rprec), intent(in), dimension(nz) :: zin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: input ! Data to be written
+real(rprec), intent(in), dimension(:) :: xin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: yin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: zin ! Coordinates to write
 integer, intent(in) :: start_n(3)  ! Where the total node counter starts nodes
 integer, intent(in) :: end_n(3)  ! Where the total node counter ends nodes
 
-integer :: fn          ! CGNS file index number
+integer :: fn=1        ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base=1        ! base number
-integer :: zone=1        ! zone number
+integer :: base=1      ! base number
+integer :: zone=1      ! zone number
 integer :: nnodes      ! Number of nodes in this processor
-integer :: sol =1        ! solution number
-integer :: field     ! section number
-integer :: sizes(3,3)    ! Sizes
+integer :: sol =1      ! solution number
+integer :: field       ! section number
+integer :: sizes(3,3)  ! Sizes
 
 ! Building the lcoal mesh
 integer :: i,j,k
@@ -379,9 +373,6 @@ do i=1,num_fields
                                 input((i-1)*nnodes+1:(i)*nnodes), ier)
     if (ier .ne. CG_OK) call cgp_error_exit_f
 
-! Write out the queued coordinate data
-call cgp_queue_flush_f(ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
 enddo
 
 ! Close the file
@@ -396,12 +387,6 @@ subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin, num_fields,
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-! Grid information
-use grid_defs, only : grid
-
-! Load variables to write
-use param, only : total_time !,output_velocity,output_pressure
-
 implicit none
 
 ! This subroutine writes parallel CGNS file output
@@ -413,10 +398,10 @@ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are wri
 real(rprec), intent(in), dimension(:) :: input ! Data to be written
 real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
 
-integer :: fn          ! CGNS file index number
+integer :: fn=1          ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base        ! base number
-integer :: zone        ! zone number
+integer :: base=1        ! base number
+integer :: zone=1        ! zone number
 integer :: nnodes      ! Number of nodes in this processor
 integer :: sol =1        ! solution number
 integer :: field     ! section number
@@ -484,10 +469,6 @@ do i=1,num_fields
     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
                            input((i-1)*nnodes+1:(i)*nnodes), field, ier)
     if (ier .ne. CG_OK) call cg_error_exit_f
-
-!~     call cg_field_write_data_f(fn, base, zone, sol, field,  &
-!~                                 input((i-1)*nnodes+1:(i)*nnodes), ier)
-!~     if (ier .ne. CG_OK) call cg_error_exit_f
 
 enddo
 
@@ -1574,9 +1555,6 @@ elseif(itype==5) then
     $if ($CGNS)
         call string_splice( fname_cgns, path // 'output/plane_z_plane',        &
                             zplane_loc(k),'_', jt_total, '.cgns')
-!~         call write_serial_cgns(fname_cgns,nx,ny,1,x,y,zplane_loc(k:k), 3,      &
-!~         (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                           &
-!~         (/ ui(1,1:ny,1:nz),vi(1,1:ny,1:nz),wi(1,1:ny,1:nz) /) )
 
         call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), 3,   &
                                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
@@ -2893,7 +2871,8 @@ enddo
 $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
-$if($CGNS and $MPI)
+
+$if($CGNS)
     ! Write CGNS Data
     call write_parallel_cgns (fname_vel_cgns,nx,ny, nz - nz_end, nz_tot,        &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
