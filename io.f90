@@ -2928,7 +2928,7 @@ $if($CGNS)
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
     (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
-    (/ rs(1:nx,1:ny,1:nz) % up2,                                               &
+    (/ rs(1:nx,1:ny,1:nz- nz_end) % up2,                                               &
     rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                           &
     rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                           &
     rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                          &
