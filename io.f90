@@ -702,6 +702,7 @@ $if($LVLSET)
 use level_set_base, only : phi
 use sim_param, only : fx,fy,fz,fxa,fya,fza
 $endif
+
 implicit none
 
 !include 'tecryte.h'      
@@ -832,9 +833,10 @@ elseif(itype==2) then
       (/ 1, 1,   (nz-1)*coord + 1 /),                                          &
       (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
       x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
-      4, (/ 'VelocityX', 'VelocityY', 'VelocityZ', 'Pressure ' /),             &
+      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),             &
       (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),                 &
-         w_uv(1:nx,1:ny,1:(nz-nz_end)), u(1:nx,1:ny,1:(nz-nz_end)) /) )
+         w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
+
   $endif
   
   $if($BINARY)
@@ -2939,7 +2941,7 @@ $if($CGNS)
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                   &
-    (/ 'Cs Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
+    (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
 $endif
 
 ! ----- Write all the 3D data -----
