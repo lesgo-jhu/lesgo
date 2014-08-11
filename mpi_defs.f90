@@ -69,6 +69,11 @@ $else
   localComm = MPI_COMM_WORLD
 $endif
 
+$if($CGNS)
+    ! Set the CGNS MPI Communicator
+    call cgp_mpi_comm_f(localComm, ierr)
+$endif
+
 call mpi_comm_size (localComm, np, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)
 
