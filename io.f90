@@ -230,12 +230,6 @@ subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n,       &
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-! Grid information
-use grid_defs, only : grid
-
-! Load variables to write
-use param, only : total_time !,output_velocity,output_pressure
-
 implicit none
 
 ! This subroutine writes parallel CGNS file output
@@ -245,36 +239,27 @@ integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
 character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
 real(rprec), intent(in), dimension(:) :: input ! Data to be written
-real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
-integer, intent(in) :: start_n(:)  ! Where the total node counter starts nodes
-integer, intent(in) :: end_n(:)  ! Where the total node counter ends nodes
+real(rprec), intent(in), dimension(:) :: xin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: yin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: zin ! Coordinates to write
+integer, intent(in) :: start_n(3)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n(3)  ! Where the total node counter ends nodes
 
-integer :: fn          ! CGNS file index number
+integer :: fn=1        ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base        ! base number
-integer :: zone        ! zone number
+integer :: base=1      ! base number
+integer :: zone=1      ! zone number
 integer :: nnodes      ! Number of nodes in this processor
-integer :: sol =1        ! solution number
-integer :: field     ! section number
-integer :: sizes(3,3)    ! Sizes
+integer :: sol =1      ! solution number
+integer :: field       ! section number
+integer :: sizes(3,3)  ! Sizes
 
 ! Building the lcoal mesh
 integer :: i,j,k
-real(rprec), dimension(nx,ny,nz) :: x,y,z
+real(rprec), dimension(nx,ny,nz) :: xyz
 
 ! The total number of nodes in this processor
 nnodes=nx*ny*nz
-
-! Create grid points
-do k=1,nz
-    do j=1,ny
-        do i=1,nx
-            x(i,j,k) = xin(i)
-            y(i,j,k) = yin(j)
-            z(i,j,k) = zin(k)
-        enddo
-    enddo
-enddo
 
 ! Sizes, used to create zone
 sizes(:,1) = (/nx,ny,nz_tot/)
@@ -317,16 +302,56 @@ if (ier .ne. CG_OK) call cgp_error_exit_f
  
 ! This is done for the 3 dimensions x,y and z
 ! It writes the coordinates
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = xin(i)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 1,   &
-                            start_n, end_n, x(1:nx,1:ny,1:nz), ier)    
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)    
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+call cgp_queue_set_f(1, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = yin(j)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 2,   &
-                            start_n, end_n, y(1:nx,1:ny,1:nz), ier)   
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)   
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! Write out the queued coordinate data
+call cgp_queue_flush_f(ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+call cgp_queue_set_f(1, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
 call cgp_coord_write_data_f(fn, base, zone, 3,   &
-                            start_n, end_n, z(1:nx,1:ny,1:nz), ier)
+                            start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
     
 ! Write out the queued coordinate data
@@ -362,12 +387,6 @@ subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin, num_fields,
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-! Grid information
-use grid_defs, only : grid
-
-! Load variables to write
-use param, only : total_time !,output_velocity,output_pressure
-
 implicit none
 
 ! This subroutine writes parallel CGNS file output
@@ -379,10 +398,10 @@ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are wri
 real(rprec), intent(in), dimension(:) :: input ! Data to be written
 real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
 
-integer :: fn          ! CGNS file index number
+integer :: fn=1          ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base        ! base number
-integer :: zone        ! zone number
+integer :: base=1        ! base number
+integer :: zone=1        ! zone number
 integer :: nnodes      ! Number of nodes in this processor
 integer :: sol =1        ! solution number
 integer :: field     ! section number
@@ -450,10 +469,6 @@ do i=1,num_fields
     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
                            input((i-1)*nnodes+1:(i)*nnodes), field, ier)
     if (ier .ne. CG_OK) call cg_error_exit_f
-
-!~     call cg_field_write_data_f(fn, base, zone, sol, field,  &
-!~                                 input((i-1)*nnodes+1:(i)*nnodes), ier)
-!~     if (ier .ne. CG_OK) call cg_error_exit_f
 
 enddo
 
@@ -687,6 +702,7 @@ $if($LVLSET)
 use level_set_base, only : phi
 use sim_param, only : fx,fy,fz,fxa,fya,fza
 $endif
+
 implicit none
 
 !include 'tecryte.h'      
@@ -817,9 +833,10 @@ elseif(itype==2) then
       (/ 1, 1,   (nz-1)*coord + 1 /),                                          &
       (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
       x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
-      4, (/ 'VelocityX', 'VelocityY', 'VelocityZ', 'Pressure ' /),             &
+      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),             &
       (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),                 &
-         w_uv(1:nx,1:ny,1:(nz-nz_end)), u(1:nx,1:ny,1:(nz-nz_end)) /) )
+         w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
+
   $endif
   
   $if($BINARY)
@@ -1517,7 +1534,8 @@ elseif(itype==5) then
     $if ($BINARY)
     call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
     $else
-    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')    
+    call string_splice( fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total, '.dat')   
+ 
     $endif
     
     do j=1,Ny
@@ -1539,9 +1557,6 @@ elseif(itype==5) then
     $if ($CGNS)
         call string_splice( fname_cgns, path // 'output/plane_z_plane',        &
                             zplane_loc(k),'_', jt_total, '.cgns')
-!~         call write_serial_cgns(fname_cgns,nx,ny,1,x,y,zplane_loc(k:k), 3,      &
-!~         (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                           &
-!~         (/ ui(1,1:ny,1:nz),vi(1,1:ny,1:nz),wi(1,1:ny,1:nz) /) )
 
         call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), 3,   &
                                (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
@@ -1562,7 +1577,7 @@ elseif(itype==5) then
 !    (/ ui, vi, wi /), 4, x, y, (/ zplane_loc(k) /))   
 
     $endif
-    
+
     $if($LVLSET)
 
     call string_splice( fname, path // 'output/force.z-', zplane_loc(k), '.', jt_total, '.dat')
@@ -1741,6 +1756,14 @@ $if($TURBINES and not $LVLSET)
 fx_tot = fxa(1:nx,1:ny,1:nz)
 fy_tot = 0._rprec
 fz_tot = 0._rprec
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+$elseif($ATM)
+fx_tot = fxa(1:nx,1:ny,1:nz)
+fy_tot = fya(1:nx,1:ny,1:nz)
+fz_tot = fza(1:nx,1:ny,1:nz)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
 $elseif($LVLSET)
 fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
 fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
@@ -2308,6 +2331,9 @@ $endif
 $if($LVLSET)
 use sim_param, only : fx, fy, fz, fxa, fya, fza
 $endif
+$if($ATM)
+use sim_param, only : fxa, fya, fza
+$endif
 use functions, only : interp_to_w_grid
 
 implicit none
@@ -2328,8 +2354,11 @@ k=0
 do j=1,ny
    do i=1,nx
 
-      u_p = u_w(i,j,k)
-      v_p = v_w(i,j,k) 
+      ! U and V in the uv grid NOT u_w and u_v
+      u_p = u(i,j,k)
+      v_p = v(i,j,k)
+!~       u_p = u_w(i,j,k)
+!~       v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
 
       ! === w-grid variables === 
@@ -2364,8 +2393,11 @@ do k=1,jzmax
   do j=1,ny
     do i=1,nx
    
-      u_p = u_w(i,j,k)
-      v_p = v_w(i,j,k) 
+      ! U and V in the uv grid NOT u_w and u_v
+      u_p = u(i,j,k)
+      v_p = v(i,j,k)
+!~       u_p = u_w(i,j,k)
+!~       v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
           
       ! === w-grid variables === 
@@ -2392,20 +2424,29 @@ do k=1,jzmax
       tavg(i,j,k)%txz = tavg(i,j,k)%txz + txz(i,j,k) * tavg_dt
       tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyz(i,j,k) * tavg_dt
 
+
+
 $if ($TURBINES and not $LVLSET)      
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
 !      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
       ! === w-grid variables === 
+
 !      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
-$elseif ($LVLSET )
+$elseif ($LVLSET)
+
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
       tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt
       ! === w-grid variables === 
       tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * tavg_dt
+$elseif ($ATM)
+      tavg(i,j,k)%fx = tavg(i,j,k)%fx + ( fxa(i,j,k)) * tavg_dt 
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + ( fya(i,j,k)) * tavg_dt
+      ! === w-grid variables === 
+      tavg(i,j,k)%fz = tavg(i,j,k)%fz + ( fza(i,j,k)) * tavg_dt
 $else
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
@@ -2465,18 +2506,6 @@ $endif
 
 deallocate( u_w, v_w )
 
-$if($BINARY)
-! Added to compute the average of u on the grid points and prevent the 
-! linear interpolation, which is not exactly valid due to log profile in boundary layer
-do k=lbz,jzmax  
-  do j=1,ny
-    do i=1,nx
-    u_p = u(i,j,k)
-    enddo
-  enddo
-enddo
-$endif
-
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
 $if($OUTPUT_EXTRA)
@@ -2534,7 +2563,7 @@ character(64) :: fname_velb, &
 
 $if($CGNS)
 ! For CGNS
-character(64) :: fname_vel_cgns, &
+character(64) :: fname_vel_cgns_uv, fname_vel_cgns_w, &
      fname_vel2_cgns, fname_ddz_cgns, &
      fname_tau_cgns, fname_f_cgns, &
      fname_rs_cgns, fname_cs_cgns, fname_u_vel_grid_cgns
@@ -2605,7 +2634,8 @@ fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
 $if($CGNS)
 ! CGNS
-fname_vel_cgns = path // 'output/vel_avg.cgns'
+fname_vel_cgns_uv = path // 'output/veluv_avg.cgns'
+fname_vel_cgns_w = path // 'output/velw_avg.cgns'
 fname_vel2_cgns = path // 'output/vel2_avg.cgns'
 fname_ddz_cgns = path // 'output/ddz_avg.cgns'
 fname_tau_cgns = path // 'output/tau_avg.cgns'
@@ -2754,8 +2784,9 @@ $endif
 ! Anything with velocity is on the w-grid so these
 !   values for coord==0 at k=1 should be zeroed (otherwise bogus)
 if (jzmin==0) then  !coord==0 only
-  tavg(:,:,0:1)%u = 0.0_rprec
-  tavg(:,:,0:1)%v = 0.0_rprec
+!~ Commented for uv grid write
+!~   tavg(:,:,0:1)%u = 0.0_rprec
+!~   tavg(:,:,0:1)%v = 0.0_rprec
   tavg(:,:,0:1)%w = 0.0_rprec
   tavg(:,:,0:1)%u2 = 0.0_rprec
   tavg(:,:,0:1)%v2 = 0.0_rprec
@@ -2850,74 +2881,81 @@ enddo
 $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
-$if($CGNS and $MPI)
+
+$if($CGNS)
     ! Write CGNS Data
-    call write_parallel_cgns (fname_vel_cgns,nx,ny, nz - nz_end, nz_tot,        &
+    call write_parallel_cgns (fname_vel_cgns_uv ,nx,ny, nz - nz_end, nz_tot,   &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                      &
-    3, (/ 'VelocityX', 'VelocityY', 'VelocityZ'/),                             &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                        &
-    tavg(1:nx,1:ny,1:nz- nz_end) % v,                                           &
-    tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
+    2, (/ 'VelocityX', 'VelocityY'/),                             &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                       &
+    tavg(1:nx,1:ny,1:nz- nz_end) % v /) )
+
+    call write_parallel_cgns (fname_vel_cgns_w,nx,ny, nz - nz_end, nz_tot,     &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                    &
+    1, (/ 'VelocityZ'/),                             &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
     
-    call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,           &
+    call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,          &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
     (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                       &
-    tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
-    tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                          &
-    tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                          &
-    tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                          &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                      &
+    tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                         &
     tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
     
-    call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,            &
+    call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,           &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),      &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                     &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),    &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                    &
     tavg(1:nx,1:ny,1:nz- nz_end) % dvdz /) )
     
-    call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,            &
+    call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,           &
         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
     (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                      &
-    tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                         &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                     &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                        &
     tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
       
-    call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,              &
+    call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,             &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                   &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
     (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                       &
-    tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                          &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
+    tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                         &
     tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
     
-    call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,             &
+    call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,            &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                   &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
     (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
-    (/ rs(1:nx,1:ny,1:nz-nz_end) % up2,                                               &
-    rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                           &
-    rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                           &
-    rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                          &
-    rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                          &
+    (/ rs(1:nx,1:ny,1:nz- nz_end) % up2,                                       &
+    rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                          &
+    rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                          &
+    rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                         &
+    rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                         &
     rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
     
-    call write_parallel_cgns(fname_cs_cgns,nx,ny,nz- nz_end,nz_tot,             &
+    call write_parallel_cgns(fname_cs_cgns,nx,ny,nz- nz_end,nz_tot,            &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                   &
-    (/ 'Cs Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
+    (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
 $endif
 
 ! ----- Write all the 3D data -----
