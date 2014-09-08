@@ -69,7 +69,7 @@ logical :: spectra_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
-  real(rprec) :: u, v, w
+  real(rprec) :: u, v, w, u_uv
   real(rprec) :: u2, v2, w2, uv, uw, vw
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
@@ -203,6 +203,7 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u + b % u
+c % u_uv = a % u_uv + b % u_uv
 c % v = a % v + b % v
 c % w = a % w + b % w
 c % u2 = a % u2 + b % u2
@@ -235,6 +236,7 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u - b % u
+c % u_uv = a % u_uv - b % u_uv
 c % v = a % v - b % v
 c % w = a % w - b % w
 c % u2 = a % u2 - b % u2
@@ -270,6 +272,7 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u + b
+c % u_uv = a % u_uv + b
 c % v = a % v + b
 c % w = a % w + b
 c % u2 = a % u2 + b
@@ -348,6 +351,7 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u / b
+c % u_uv = a % u_uv / b
 c % v = a % v / b
 c % w = a % w / b
 c % u2 = a % u2 / b
@@ -380,6 +384,7 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u * b % u
+c % u_uv = a % u_uv * b % u_uv
 c % v = a % v * b % v
 c % w = a % w * b % w
 c % u2 = a % u2 * b % u2
@@ -415,6 +420,7 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u * b
+c % u_uv = a % u_uv * b
 c % v = a % v * b
 c % w = a % w * b
 c % u2 = a % u2 * b
@@ -646,6 +652,7 @@ real(rprec), intent(in) :: a
 type(tavg_t), intent(out) :: c
 
 c % u = a
+c % u_uv = a
 c % v = a
 c % w = a
 c % u2 = a
