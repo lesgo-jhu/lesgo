@@ -2354,12 +2354,12 @@ k=0
 do j=1,ny
    do i=1,nx
 
-      ! U and V in the uv grid NOT u_w and u_v
-      u_p = u(i,j,k)
-      v_p = v(i,j,k)
-!~       u_p = u_w(i,j,k)
-!~       v_p = v_w(i,j,k) 
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
+
+      ! === uv-grid variables === 
+      tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + u(i,j,k) * tavg_dt                    
 
       ! === w-grid variables === 
       tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
@@ -2393,13 +2393,13 @@ do k=1,jzmax
   do j=1,ny
     do i=1,nx
    
-      ! U and V in the uv grid NOT u_w and u_v
-      u_p = u(i,j,k)
-      v_p = v(i,j,k)
-!~       u_p = u_w(i,j,k)
-!~       v_p = v_w(i,j,k) 
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
       w_p = w(i,j,k)
-          
+
+      ! === uv-grid variables === 
+      tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + u(i,j,k) * tavg_dt
+
       ! === w-grid variables === 
       tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
@@ -2563,7 +2563,7 @@ character(64) :: fname_velb, &
 
 $if($CGNS)
 ! For CGNS
-character(64) :: fname_vel_cgns_uv, fname_vel_cgns_w, &
+character(64) :: fname_vel_cgns_uv, fname_vel_cgns, &
      fname_vel2_cgns, fname_ddz_cgns, &
      fname_tau_cgns, fname_f_cgns, &
      fname_rs_cgns, fname_cs_cgns, fname_u_vel_grid_cgns
@@ -2635,7 +2635,7 @@ fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 $if($CGNS)
 ! CGNS
 fname_vel_cgns_uv = path // 'output/veluv_avg.cgns'
-fname_vel_cgns_w = path // 'output/velw_avg.cgns'
+fname_vel_cgns = path // 'output/vel_avg.cgns'
 fname_vel2_cgns = path // 'output/vel2_avg.cgns'
 fname_ddz_cgns = path // 'output/ddz_avg.cgns'
 fname_tau_cgns = path // 'output/tau_avg.cgns'
@@ -2784,9 +2784,8 @@ $endif
 ! Anything with velocity is on the w-grid so these
 !   values for coord==0 at k=1 should be zeroed (otherwise bogus)
 if (jzmin==0) then  !coord==0 only
-!~ Commented for uv grid write
-!~   tavg(:,:,0:1)%u = 0.0_rprec
-!~   tavg(:,:,0:1)%v = 0.0_rprec
+  tavg(:,:,0:1)%u = 0.0_rprec
+  tavg(:,:,0:1)%v = 0.0_rprec
   tavg(:,:,0:1)%w = 0.0_rprec
   tavg(:,:,0:1)%u2 = 0.0_rprec
   tavg(:,:,0:1)%v2 = 0.0_rprec
@@ -2884,20 +2883,21 @@ $endif
 
 $if($CGNS)
     ! Write CGNS Data
-    call write_parallel_cgns (fname_vel_cgns_uv ,nx,ny, nz - nz_end, nz_tot,   &
+    call write_parallel_cgns (fname_vel_cgns_uv ,nx, ny, nz - nz_end, nz_tot,  &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
-    2, (/ 'VelocityX', 'VelocityY'/),                             &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                       &
-    tavg(1:nx,1:ny,1:nz- nz_end) % v /) )
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                     &
+    1, (/ 'VelocityX' /),                                                      &
+    (/ tavg(1:nx,1:ny,1:nz - nz_end) % u_uv /) )
 
-    call write_parallel_cgns (fname_vel_cgns_w,nx,ny, nz - nz_end, nz_tot,     &
+    call write_parallel_cgns (fname_vel_cgns, nx, ny, nz - nz_end, nz_tot,     &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                    &
-    1, (/ 'VelocityZ'/),                             &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
+    3, (/ 'VelocityX', 'VelocityY', 'VelocityZ'/),                             &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u,                                       &
+       tavg(1:nx,1:ny,1:nz- nz_end) % v,                                       &
+       tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
     
     call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,          &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
