@@ -36,6 +36,9 @@ $endif
 $if ($TURBINES)
 use turbines, only : turbines_finalize
 $endif
+$if ($ATM)
+use atm_lesgo_interface, only : atm_lesgo_finalize
+$endif
 
 implicit none
 
@@ -54,6 +57,12 @@ $endif
 $if ($TURBINES)
 call turbines_finalize ()   ! must come before MPI finalize
 $endif   
+
+! Actuator Turbine Model:
+$if ($ATM)
+call atm_lesgo_finalize ()   ! write the restart files
+$endif   
+
 
 ! SGS variable histograms
 if (sgs_hist_calc) then

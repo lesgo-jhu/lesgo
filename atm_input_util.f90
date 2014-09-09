@@ -483,59 +483,59 @@ do i = 1, numTurbinesDistinct
         ! This will read the controller type and its properties
         if( buff(1:20) == 'TorqueControllerType' ) then
             read(buff(21:), *) turbineModel(i) % TorqueControllerType
-            write(*,*) 'TorqueControllerType is: ', turbineModel(i) % TorqueControllerType
+!            write(*,*) 'TorqueControllerType is: ', turbineModel(i) % TorqueControllerType
         endif
         if( buff(1:13) == 'CutInGenSpeed' ) then
             read(buff(14:), *) turbineModel(i) % CutInGenSpeed
-            write(*,*) 'CutInGenSpeed is: ', turbineModel(i) % CutInGenSpeed
+!            write(*,*) 'CutInGenSpeed is: ', turbineModel(i) % CutInGenSpeed
         endif
         if( buff(1:13) == 'RatedGenSpeed' ) then
             read(buff(14:), *) turbineModel(i) % RatedGenSpeed
-            write(*,*) 'RatedGenSpeed is: ', turbineModel(i) % RatedGenSpeed
+!            write(*,*) 'RatedGenSpeed is: ', turbineModel(i) % RatedGenSpeed
         endif
         if( buff(1:20) == 'Region2StartGenSpeed' ) then
             read(buff(21:), *) turbineModel(i) % Region2StartGenSpeed
-            write(*,*) 'Region2StartGenSpeed is: ', turbineModel(i) % Region2StartGenSpeed
+!            write(*,*) 'Region2StartGenSpeed is: ', turbineModel(i) % Region2StartGenSpeed
         endif
         if( buff(1:18) == 'Region2EndGenSpeed' ) then
             read(buff(19:), *) turbineModel(i) % Region2EndGenSpeed
-            write(*,*) 'Region2EndGenSpeed is: ', turbineModel(i) % Region2EndGenSpeed
+!            write(*,*) 'Region2EndGenSpeed is: ', turbineModel(i) % Region2EndGenSpeed
         endif
         if( buff(1:14) == 'CutInGenTorque' ) then
             read(buff(15:), *) turbineModel(i) % CutInGenTorque
-            write(*,*) 'CutInGenTorque is: ', turbineModel(i) % CutInGenTorque
+!            write(*,*) 'CutInGenTorque is: ', turbineModel(i) % CutInGenTorque
         endif
         if( buff(1:14) == 'RatedGenTorque' ) then
             read(buff(15:), *) turbineModel(i) % RatedGenTorque
-            write(*,*) 'RatedGenTorque is: ', turbineModel(i) % RatedGenTorque
+!            write(*,*) 'RatedGenTorque is: ', turbineModel(i) % RatedGenTorque
         endif
         if( buff(1:18) == 'RateLimitGenTorque' ) then
             read(buff(19:), *) turbineModel(i) % RateLimitGenTorque
-            write(*,*) 'RateLimitGenTorque is: ', turbineModel(i) % RateLimitGenTorque
+!            write(*,*) 'RateLimitGenTorque is: ', turbineModel(i) % RateLimitGenTorque
         endif
         if( buff(1:4) == 'KGen' ) then
             read(buff(5:), *) turbineModel(i) % KGen
-            write(*,*) 'KGen is: ', turbineModel(i) % KGen
+!            write(*,*) 'KGen is: ', turbineModel(i) % KGen
         endif
         if( buff(1:21) == 'TorqueControllerRelax' ) then
             read(buff(22:), *) turbineModel(i) % TorqueControllerRelax
-            write(*,*) 'TorqueControllerRelax is: ', turbineModel(i) % TorqueControllerRelax
+!            write(*,*) 'TorqueControllerRelax is: ', turbineModel(i) % TorqueControllerRelax
         endif
         if( buff(1:7) == 'GBRatio' ) then
             read(buff(8:), *) turbineModel(i) % GBRatio
-            write(*,*) 'GBRatio is: ', turbineModel(i) % GBRatio
+!            write(*,*) 'GBRatio is: ', turbineModel(i) % GBRatio
         endif
         if( buff(1:9) == 'BladeIner' ) then
             read(buff(10:), *) turbineModel(i) % BladeIner
-            write(*,*) 'BladeIner is: ', turbineModel(i) % BladeIner
+!            write(*,*) 'BladeIner is: ', turbineModel(i) % BladeIner
         endif
         if( buff(1:7) == 'HubIner' ) then
             read(buff(8:), *) turbineModel(i) % HubIner
-            write(*,*) 'HubIner is: ', turbineModel(i) % HubIner
+!            write(*,*) 'HubIner is: ', turbineModel(i) % HubIner
         endif
         if( buff(1:7) == 'GenIner' ) then
             read(buff(8:), *) turbineModel(i) % GenIner
-            write(*,*) 'GenIner is: ', turbineModel(i) % GenIner
+!            write(*,*) 'GenIner is: ', turbineModel(i) % GenIner
         endif
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

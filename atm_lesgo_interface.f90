@@ -70,7 +70,7 @@ implicit none
 real(rprec), allocatable, dimension(:,:,:) :: w_uv 
 
 private
-public atm_lesgo_initialize, atm_lesgo_forcing
+public atm_lesgo_initialize, atm_lesgo_forcing, atm_lesgo_finalize
 
 ! This is a list that stores all the points in the domain with a body 
 ! force due to the turbines. 
@@ -124,6 +124,28 @@ $else
 $endif
 
 end subroutine atm_lesgo_initialize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_lesgo_finalize ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! Initialize the actuator turbine model
+implicit none
+
+! Counter for turbines
+integer ::  i
+
+! Write if on main node
+if (coord == 0) then
+
+    write(*,*) 'Finalizing ATM...'
+    ! Loop through all turbines and finalize
+    do i = 1, numberOfTurbines
+        call atm_write_restart(i) ! Write the restart file
+    end do
+    write(*,*) 'Done finalizing ATM'
+endif
+
+end subroutine atm_lesgo_finalize
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_findCells (m)
@@ -253,6 +275,9 @@ implicit none
 
 integer :: i
 
+real(rprec) :: integrateNacelleForce, totForce
+integer :: c
+
 !~ type(clock_t) :: myClock
 
 !~ call clock_start( myClock )
@@ -272,34 +297,35 @@ call atm_update(dt*z_i/u_star)
 ! Only calculate new forces if interval is correct
 if ( mod(jt_total-1, updateInterval) == 0) then
 
-! Establish all turbine properties as zero
-! This is essential for paralelization
-do i=1,numberOfTurbines
-    turbineArray(i) % bladeForces = 0._rprec
-    turbineArray(i) % integratedBladeForces = 0._rprec
-    turbineArray(i) % torqueRotor = 0._rprec
-    turbineArray(i) % alpha = 0._rprec
-    turbineArray(i) % Cd = 0._rprec
-    turbineArray(i) % Cl = 0._rprec
-    turbineArray(i) % lift = 0._rprec
-    turbineArray(i) % drag = 0._rprec
-    turbineArray(i) % Vmag = 0._rprec
-    turbineArray(i) % windVectors = 0._rprec
-    turbineArray(i) % nacelleForce = 0._rprec
-
-    ! If statement is for running code only if grid points affected are in this 
-    ! processor. If not, no code is executed at all.
-    if (forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
-
-        ! Set body forces to zero
-        forceFieldUV(i) % force = 0._rprec
-        forceFieldW(i) % force = 0._rprec
-        ! Calculate forces for all turbines
-        call atm_lesgo_force(i)
+    ! Establish all turbine properties as zero
+    ! This is essential for paralelization
+    do i=1,numberOfTurbines
+        turbineArray(i) % bladeForces = 0._rprec
+        turbineArray(i) % integratedBladeForces = 0._rprec
+        turbineArray(i) % torqueRotor = 0._rprec
+        turbineArray(i) % alpha = 0._rprec
+        turbineArray(i) % Cd = 0._rprec
+        turbineArray(i) % Cl = 0._rprec
+        turbineArray(i) % lift = 0._rprec
+        turbineArray(i) % drag = 0._rprec
+        turbineArray(i) % Vmag = 0._rprec
+        turbineArray(i) % windVectors = 0._rprec
+        turbineArray(i) % nacelleForce = 0._rprec
+                                
+        ! If statement is for running code only if grid points affected are in 
+        ! this processor. If not, no code is executed at all.
+        if (forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
     
-    endif
-    
-enddo
+            ! Set body forces to zero
+            forceFieldUV(i) % force = 0._rprec
+            forceFieldW(i) % force = 0._rprec
+            ! Calculate forces for all turbines
+            call atm_lesgo_force(i)
+
+                
+        endif
+        
+    enddo
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Forces ', myClock % time
 
@@ -322,7 +348,27 @@ $endif
             ! Convolute force onto the domain
             call atm_lesgo_convolute_force(i)
         endif
+            
+        ! Sync the nacelle force
+        integrateNacelleForce=0.
+
+        do c=1,forceFieldUV(i) % c
+            if (turbineArray(i) % nacelle) then
+                integrateNacelleForce = integrateNacelleForce +  &
+                    forceFieldUV(i) % force(1,c) * dx *dy * dz * z_i**2*u_star**2
+            endif
+        enddo
+        
     enddo
+    
+        totForce=0.
+        call mpi_allreduce( integrateNacelleForce,  totForce, 1,   &
+                             mpi_rprec, mpi_sum, comm, ierr) 
+
+       !write(*,*) 'Integrated Nacelle Force is: ', integrateNacelleForce
+        if (coord == 0) then
+            write(*,*) 'Integrated Total Force is: ', totForce
+        endif
 endif
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Convolute force ', myClock % time
@@ -333,7 +379,6 @@ endif
     call atm_lesgo_apply_force()
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Apply force ', myClock % time
-
 
 !!! Sync the integrated forces (used for debugging)
 !do i=1,numberOfTurbines
@@ -456,7 +501,7 @@ do i=1,numberOfTurbines
 
     ! Sync the nacelle force
     call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,         &
-                       1, mpi_rprec, mpi_sum, comm, ierr) 
+                       size(turbineArray(i) % nacelleForce), mpi_rprec, mpi_sum, comm, ierr) 
 enddo
 
 end subroutine atm_lesgo_mpi_gather
@@ -516,7 +561,8 @@ do q=1, turbineArray(i) % numBladePoints
 enddo
 
 ! Calculate Nacelle force
-xyz=turbineArray(i) % nacelleLocation/z_i
+xyz=turbineArray(i) % nacelleLocation
+xyz=xyz/z_i
 if (turbineArray(i) % nacelle) then 
     if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
 
@@ -593,19 +639,7 @@ do c=1,forceFieldUV(i) % c
     a= forceFieldUV(i) %  location(1:3,c)
     force=0._rprec
 
-    ! Nacelle focre
-    if (turbineArray(i) % nacelle) then
-        b=turbineArray(i) % nacelleLocation
-        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-        if (dist .le. projectradius) then
-    
-            ! The value of the kernel. This is the actual smoothing function
-            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleEpsilon**3.*pi**1.5)
-            force = force+turbineArray(i) % nacelleForce * kernel *const2
-!~             force=force+atm_convoluteForce(i,m,n,q,a)
-        endif
-    endif
-
+    ! Blade forces
     do m=1, mmend
         do n=1, nnend
            do q=1, qqend
@@ -621,7 +655,28 @@ do c=1,forceFieldUV(i) % c
             enddo
         enddo
     enddo
-      bodyForceUV(1:2,c) = force(1:2)* const3
+    force(1:2)=force(1:2)* const3
+
+    ! Nacelle force
+    if (turbineArray(i) % nacelle) then
+        b=turbineArray(i) % nacelleLocation
+        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+!~         if (dist .le. projectradius) then
+            ! The value of the kernel. This is the actual smoothing function
+            kernel=exp(-(dist/nacelleEpsilon)**2.) / ( (nacelleEpsilon**3.)*(pi**1.5) )
+            !write(*,*) 'kernel Value= ', kernel
+            force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
+                         kernel *const2
+!~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
+
+!~         endif
+    endif
+
+    
+    bodyForceUV(1:2,c) = force(1:2) 
+!~     if (abs(bodyForceUV(1,c)) .gt. 0) then
+!~                 write(*,*) 'bodyForceUV is: ', bodyForceUV(1,c)
+!~     endif
 enddo
 
 
@@ -629,19 +684,7 @@ do c=1,forceFieldW(i) % c
     a= forceFieldW(i) %  location(1:3,c)
     force=0._rprec
 
-    ! Nacelle focre
-    if (turbineArray(i) % nacelle) then
-        b=turbineArray(i) % nacelleLocation
-        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-        if (dist .le. projectradius) then
-    
-            ! The value of the kernel. This is the actual smoothing function
-            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
-            force = force+turbineArray(i) % nacelleForce * kernel *const2
-    
-        endif
-    endif
-    
+    ! Blade forces
     do m=1,mmend
         do n=1,nnend
            do q=1,qqend
@@ -651,13 +694,28 @@ do c=1,forceFieldW(i) % c
 
                 if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
-                force(3) = force(3) +  bladeForces(m,n,q,3) *exp(-(dist/epsilon)**2)
+                force(3) = force(3) +  bladeForces(m,n,q,3) &
+                           *exp(-(dist/epsilon)**2)
                 endif
 
             enddo
         enddo
     enddo
-    bodyForceW(3,c) = force(3)* const3
+    force(3)=force(3)* const3
+    
+    ! Nacelle force
+    if (turbineArray(i) % nacelle) then
+        b=turbineArray(i) % nacelleLocation
+        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+        if (dist .le. projectradius) then    
+            ! The value of the kernel. This is the actual smoothing function
+            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
+            force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
+                       kernel *const2
+        endif
+    endif    
+    
+    bodyForceW(3,c) = force(3)
 enddo
 
 end subroutine atm_lesgo_convolute_force

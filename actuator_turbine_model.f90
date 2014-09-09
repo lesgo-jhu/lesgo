@@ -41,8 +41,8 @@ private
 public :: atm_initialize, numberOfTurbines,                                 &
           atm_computeBladeForce, atm_update,                                &
           vector_add, vector_divide, vector_mag, distance,                  &
-          atm_output, atm_process_output,               &
-          atm_initialize_output, atm_computeNacelleForce
+          atm_output, atm_process_output,                                   &
+          atm_initialize_output, atm_computeNacelleForce, atm_write_restart
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1._rprec) 
@@ -68,8 +68,9 @@ logical :: file_exists
 
 pastFirstTimeStep=.false. ! The first time step not reached yet
 
+write(*,*) 'Reading Actuator Turbine Model Input...'
 call read_input_conf()  ! Read input data
-
+write(*,*) 'Done Reading Actuator Turbine Model Input'
 do i = 1,numberOfTurbines
     inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
                    "/actuatorPoints", exist=file_exists)
@@ -88,11 +89,11 @@ do i = 1,numberOfTurbines
     call atm_calculate_variables(i) ! Calculates variables depending on input
 
     inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
-                   "/RotSpeed", exist=file_exists)
+                   "/restart", exist=file_exists)
 
     if (file_exists .eqv. .true.) then
         write(*,*) 'Reading Rotational Speed from Previous Simulation'
-        call atm_read_omega(i)
+        call atm_read_restart(i)
     endif
 
 end do
@@ -113,8 +114,8 @@ integer :: j, m, n, q
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=1,         &
-     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints", action='read')
+open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//   &
+                  "/actuatorPoints", action='read')
 
 do m=1, turbineModel(j) % numBl
     do n=1, turbineArray(i) %  numAnnulusSections
@@ -129,28 +130,75 @@ close(1)
 end subroutine atm_read_actuator_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_read_omega(i)
+subroutine atm_read_restart(i)
 ! This subroutine reads the rotor speed
 ! It is used if the simulation wants to start from a previous simulation
 ! without having to start the turbine from the original omega
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 integer, intent(in) :: i  ! Indicates the turbine number
 
-real(rprec) :: a ! Dummy read variable
-
 ! Open the file at the last line (append)
-open( unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed",   &
+open( unit=1, file="./turbineOutput/turbine"//trim(int2str(i))// "/restart", &
       action='read', position='append')
 
 ! Bring the pointer to the last line
 backspace 1
 
 ! Store the rotSpeed value (a is just a dummy value
-read(1,*) a, turbineArray(i) % rotSpeed 
-write(*,*) ' RotSpeed Value is ', turbineArray(i) % rotSpeed 
+read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
+          turbineArray(i) % torqueRotor      
+write(*,*) ' RotSpeed Value from previous simulation is ',                    &
+                turbineArray(i) % rotSpeed
+write(*,*) ' torqueGen Value from previous simulation is ',                    &
+                turbineArray(i) % torqueGen
+write(*,*) ' torqueRotor Value from previous simulation is ',                    &
+                turbineArray(i) % torqueRotor
 close(1)
 
-end subroutine atm_read_omega
+end subroutine atm_read_restart
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_write_restart(i)
+! This subroutine reads the rotor speed
+! It is used if the simulation wants to start from a previous simulation
+! without having to start the turbine from the original omega
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer, intent(in) :: i ! Indicates the turbine number
+integer :: pointsFile=787 ! File to write the actuator points
+integer :: restartFile=21 ! File to write restart data
+integer j, m,n,q ! counters
+! Open the file at the last line (append)
+open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//  &
+      "/restart", status="replace")
+
+write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor'
+! Store the rotSpeed value 
+write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
+                     turbineArray(i) %  torqueRotor
+close(restartFile)
+
+! Write the actuator points at every time-step regardless
+j=turbineArray(i) % turbineTypeID ! The turbine type ID
+
+open(unit=pointsFile,status="replace",                                     &
+     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
+
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) %  numAnnulusSections
+        do q=1, turbineArray(i) % numBladePoints
+            ! A new file will be created each time-step with the proper
+            ! location of the blades
+            write(pointsFile,*) turbineArray(i) % bladePoints(m,n,q,:)
+        enddo
+    enddo
+enddo
+
+close(pointsFile)
+
+
+end subroutine atm_write_restart
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_initialize_output()
@@ -412,11 +460,10 @@ real(rprec), intent(in) :: dt                ! Time step
 do i = 1, numberOfTurbines
     call atm_computeRotorSpeed(i,dt) 
     call atm_rotateBlades(i)
-end do
+enddo
 
 end subroutine atm_update
 
-!!!!!!!!!!!!!!! Tony
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_computeRotorSpeed(i,dt)
 ! This subroutine rotates the turbine blades 
@@ -643,11 +690,13 @@ sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 ! It will be the hub radius unless the grid is coarser, and thus
 ! the epsilon value will be used
 if (turbineArray(i) % nacelle) then
-    if ( turbineArray(i) % epsilon > 2 * turbineModel(j) % hubRad ) then
-        turbineArray(i) % nacelleEpsilon = turbineArray(i) % epsilon
-    else
-        turbineArray(i) % nacelleEpsilon = 2 * turbineModel(j) % hubRad
-    endif
+!~     if ( turbineArray(i) % epsilon > 2 * turbineModel(j) % hubRad ) then
+!~         turbineArray(i) % nacelleEpsilon = turbineArray(i) % epsilon
+!~     else
+!~         turbineArray(i) % nacelleEpsilon = 2 * turbineModel(j) % hubRad
+!~     endif
+turbineArray(i) % nacelleEpsilon = 4.25
+write(*,*) turbineArray(i) % nacelleEpsilon
 endif
 
 end subroutine atm_calculate_variables
@@ -839,18 +888,22 @@ real(rprec) :: area, drag
 j= turbineArray(i) % turbineTypeID
 
 area = pi * turbineModel(j) % hubRad **2 
+
 nacelleAlignedVector = turbineArray(i) % uvShaft
 
 ! Velocity projected in the direction of the nacelle
 V = dot_product( nacelleAlignedVector , U_local)
+    write(*,*) 'Nacelle Velocity is: ', V
+    write(*,*) 'nacelleAlignedVector is: ', nacelleAlignedVector
 
-if (V > 0.) then
+if (V .ge. 0.) then
     ! Drag force
-    drag = 0.5_rprec * turbineArray(i) % nacelleCd * (V**2) * area
+    drag = 0.5_rprec * turbineArray(i) % nacelleCd * (V**2.) * area
     
     ! Drag Vector
     turbineArray(i) % nacelleForce = - drag * nacelleAlignedVector
-
+    write(*,*) 'Nacelle Cd= ', turbineArray(i) % nacelleCd
+    write(*,*) 'Nacelle Force is: ', turbineArray(i) % nacelleForce
 endif
 
 end subroutine atm_computeNacelleForce
@@ -933,11 +986,10 @@ subroutine atm_output(jt_total)
 implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
-integer :: i, j, m, n, q
+integer :: i, j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21
-integer :: pointsFile=787 ! File to write the actuator points
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1030,28 +1082,6 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 endif
-
-! Write the actuator points at every time-step regardless
-do i=1,numberOfTurbines
-
-    j=turbineArray(i) % turbineTypeID ! The turbine type ID
-
-    open(unit=pointsFile,status="replace",                                     &
-         file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
-
-    do m=1, turbineModel(j) % numBl
-        do n=1, turbineArray(i) %  numAnnulusSections
-            do q=1, turbineArray(i) % numBladePoints
-                ! A new file will be created each time-step with the proper
-                ! location of the blades
-                write(pointsFile,*) turbineArray(i) % bladePoints(m,n,q,:)
-            enddo
-        enddo
-    enddo
-
-    close(pointsFile)
-
-enddo
 
 end subroutine atm_output
 
