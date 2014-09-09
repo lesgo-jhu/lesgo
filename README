@@ -94,9 +94,9 @@ The following dependencies are required in order to compile lesgo:
     You can choose --prefix= the location you want.
     In this example it is placed in /usr/local/hdf5
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+
-    wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.12.tar.gz
-    tar -zxvf hdf5-1.8.12.tar.gz
-    cd hdf5-1.8.12
+    wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.13.tar.gz
+    tar -zxvf hdf5-1.8.13.tar.gz
+    cd hdf5-1.8.13
     ./configure --prefix=/usr/local/hdf5 --enable-fortran --enable-parallel --enable-shared
     make
     sudo make install
@@ -135,7 +135,9 @@ The following dependencies are required in order to compile lesgo:
     You will need to edit the file /usr/local/cgns/include/cgnslib_f.h
     Add a comment symbol "!" in front of lines 1-28
     ( A bug has been submitted and will soon be fixed in the library )
-    
+    This command does it automatically:
+    sudo sed '1,28d' /usr/local/cgns/include/cgnslib_f.h    
+
     In order to link the hdf5 cgns and cfdio libraries at runtime:
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+
     export LD_LIBRARY_PATH=/usr/local/hdf5/lib:/usr/local/cgns/lib:$LD_LIBRARY_PATH
