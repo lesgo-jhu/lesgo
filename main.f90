@@ -473,6 +473,8 @@ time_loop: do jt_step = nstart, nsteps
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
+        ! This takes care of the clock times, to obtain the qunatites based
+        ! on all the processors, not just processor 0
         $if($MPI)
             call mpi_allreduce(clock % time, maxdummy,1, mpi_rprec,  &
                                MPI_MAX, comm, ierr) 
