@@ -275,8 +275,8 @@ implicit none
 
 integer :: i
 
-real(rprec) :: integrateNacelleForce, totForce
-integer :: c
+!~ real(rprec) :: integrateNacelleForce, totForce
+!~ integer :: c
 
 !~ type(clock_t) :: myClock
 
@@ -349,26 +349,26 @@ $endif
             call atm_lesgo_convolute_force(i)
         endif
             
-        ! Sync the nacelle force
-        integrateNacelleForce=0.
-
-        do c=1,forceFieldUV(i) % c
-            if (turbineArray(i) % nacelle) then
-                integrateNacelleForce = integrateNacelleForce +  &
-                    forceFieldUV(i) % force(1,c) * dx *dy * dz * z_i**2*u_star**2
-            endif
-        enddo
+!~         ! Sync the nacelle force
+!~         integrateNacelleForce=0.
+!~ 
+!~         do c=1,forceFieldUV(i) % c
+!~             if (turbineArray(i) % nacelle) then
+!~                 integrateNacelleForce = integrateNacelleForce +  &
+!~                     forceFieldUV(i) % force(1,c) * dx *dy * dz * z_i**2*u_star**2
+!~             endif
+!~         enddo
         
     enddo
     
-        totForce=0.
-        call mpi_allreduce( integrateNacelleForce,  totForce, 1,   &
-                             mpi_rprec, mpi_sum, comm, ierr) 
+!~         totForce=0.
+!~         call mpi_allreduce( integrateNacelleForce,  totForce, 1,   &
+!~                              mpi_rprec, mpi_sum, comm, ierr) 
 
        !write(*,*) 'Integrated Nacelle Force is: ', integrateNacelleForce
-        if (coord == 0) then
-            write(*,*) 'Integrated Total Force is: ', totForce
-        endif
+!~         if (coord == 0) then
+!~             write(*,*) 'Integrated Total Force is: ', totForce
+!~         endif
 endif
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Convolute force ', myClock % time

@@ -902,8 +902,8 @@ if (V .ge. 0.) then
     
     ! Drag Vector
     turbineArray(i) % nacelleForce = - drag * nacelleAlignedVector
-    write(*,*) 'Nacelle Cd= ', turbineArray(i) % nacelleCd
-    write(*,*) 'Nacelle Force is: ', turbineArray(i) % nacelleForce
+!~     write(*,*) 'Nacelle Cd= ', turbineArray(i) % nacelleCd
+!~     write(*,*) 'Nacelle Force is: ', turbineArray(i) % nacelleForce
 endif
 
 end subroutine atm_computeNacelleForce
