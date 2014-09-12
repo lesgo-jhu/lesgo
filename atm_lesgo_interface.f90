@@ -33,7 +33,8 @@ module atm_lesgo_interface
 ! Length is non-dimensionalized by z_i
 
 ! Lesgo data used regarding the grid (LESGO)
-use param, only : dt ,nx,ny,nz,dx,dy,dz,coord,nproc, z_i, u_star, lbz, jt_total
+use param, only : dt ,nx,ny,nz,dx,dy,dz,coord,nproc, z_i, u_star, lbz,         &
+                  total_time, jt_total
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
 ! dt - time-step 
@@ -412,7 +413,7 @@ endif
 
 if (coord == 0) then
 !~  call clock_start( myClock )
-    call atm_output(jt_total)
+    call atm_output(jt_total, total_time)
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Output ', myClock % time
 endif 

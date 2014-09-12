@@ -980,12 +980,13 @@ endif
 end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_output(jt_total)
+subroutine atm_output(jt_total, time)
 ! This subroutine will calculate the output of the model
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
+real(rprec), intent(in) :: time  ! time from simulation
 integer :: i, j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
@@ -1039,7 +1040,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
         call atm_compute_power(i)
-        write(powerFile,*) i, turbineArray(i) % powerRotor
+        write(powerFile,*) time, turbineArray(i) % powerRotor
         write(RotSpeedFile,*) i, turbineArray(i) % RotSpeed
 
         ! Will write only the first actuator section of the blade
