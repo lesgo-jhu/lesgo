@@ -221,7 +221,7 @@ do i = 1,numberOfTurbines
         call system("mkdir -vp turbineOutput/turbine"//trim(int2str(i))) 
 
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power") 
-        write(1,*) 'turbineNumber Power'
+        write(1,*) 'time Power'
         close(1)
 
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
@@ -1061,7 +1061,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         enddo
     
         ! Write blade points 
-        call atm_write_blade_points(i,jt_total)
+!~         call atm_write_blade_points(i,jt_total)
 
     enddo
 
