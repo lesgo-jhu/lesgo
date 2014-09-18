@@ -222,6 +222,7 @@ close(2)
 
 end subroutine energy
 
+
 $if($CGNS)
 $if ($MPI)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -691,6 +692,11 @@ use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
 use grid_defs, only : grid
 use sim_param, only : u,v,w
+
+! For computing and writing vorticity
+use sim_param, only: dwdy, dwdx, dvdx, dudy
+use functions, only : interp_to_w_grid
+
 $if($DEBUG)
 use sim_param, only : p, dpdx, dpdy, dpdz,RHSx, RHSy, RHSz
 $endif
@@ -722,6 +728,8 @@ $endif
 
 $if($CGNS)
 character (64) :: fname_cgns ! Name for CGNS output file
+! Vorticity
+real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
 $endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
@@ -836,6 +844,35 @@ elseif(itype==2) then
       3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),             &
       (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),                 &
          w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
+
+      ! Compute vorticity    
+      allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
+      vortx(1:nx,1:ny,lbz:nz) = 0.0_rprec
+      vorty(1:nx,1:ny,lbz:nz) = 0.0_rprec
+      vortz(1:nx,1:ny,lbz:nz) = 0.0_rprec
+
+      ! Use vorticityx as an intermediate step for performing uv-w interpolation
+      ! Vorticity is written in w grid
+      vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
+      vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
+      vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
+      vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
+
+      if (coord == 0) then
+          vortz(1:nx,1:ny, 1) = 0.0_rprec
+      endif
+
+      call string_splice(fname_cgns, path //'output/vorticity_', jt_total,'.cgns')
+  
+      call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,          &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+        (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
+        x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                &
+        3, (/ 'VorticitX', 'VorticitY', 'VorticitZ' /),                        &
+        (/ vortx(1:nx,1:ny,1:(nz-nz_end)), vorty(1:nx,1:ny,1:(nz-nz_end)),     &
+         vortz(1:nx,1:ny,1:(nz-nz_end)) /) )
+
+        deallocate(vortx, vorty, vortz)
 
   $endif
   
