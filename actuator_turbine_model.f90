@@ -1041,7 +1041,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
         call atm_compute_power(i)
         write(powerFile,*) time, turbineArray(i) % powerRotor
-        write(RotSpeedFile,*) i, turbineArray(i) % RotSpeed
+        write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
 
         ! Will write only the first actuator section of the blade
         do m=1, turbineModel(j) % numBl
