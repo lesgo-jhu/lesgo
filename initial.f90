@@ -24,9 +24,9 @@ use types,only:rprec
 use param
 use sim_param, only : u,v,w,RHSx,RHSy,RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-$if ($DYN_TN)
-use sgs_param, only:F_ee2,F_deedt2,ee_past
-$endif
+!$if ($DYN_TN)
+!use sgs_param, only:F_ee2,F_deedt2,ee_past
+!$endif
 $if ($TURBINES)
 use sim_param,only:fxa
 $endif
@@ -43,10 +43,10 @@ implicit none
 
 character (64) :: fname
 
-$if ($DYN_TN)
-logical :: exst
-character (64) :: fname_dyn_tn
-$endif
+!$if ($DYN_TN)
+!logical :: exst
+!character (64) :: fname_dyn_tn
+!$endif
 
 integer::jz
 
@@ -58,14 +58,14 @@ fx=0._rprec;fy=0._rprec;fz=0._rprec
 fxa=0._rprec; fya=0._rprec; fza=0._rprec
 $endif
 
-$if ($DYN_TN)
-!Will be over-written if read from dyn_tn.out files
-ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
-fname_dyn_tn = path // 'dyn_tn.out'
-  $if ($MPI)
-  call string_concat( fname_dyn_tn, '.c', coord )
-  $endif
-$endif
+!$if ($DYN_TN)
+!!Will be over-written if read from dyn_tn.out files
+!ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
+!fname_dyn_tn = path // 'dyn_tn.out'
+!  $if ($MPI)
+!  call string_concat( fname_dyn_tn, '.c', coord )
+!  $endif
+!$endif
 
 fname = checkpoint_file
 
@@ -92,33 +92,33 @@ if(initu)then
              Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
              F_QN(:,:,1:nz), F_NN(:,:,1:nz)        
 
-    $if ($DYN_TN)
-    ! Read dynamic timescale running averages from file
-
-      if (cumulative_time) then
-
-        inquire (file=fname_dyn_tn, exist=exst)
-        if (exst) then
-
-            $if ($READ_BIG_ENDIAN)
-            open(13,file=fname_dyn_tn,form='unformatted', convert='big_endian')
-            $elseif ($READ_LITTLE_ENDIAN)
-            open(13,file=fname_dyn_tn,form='unformatted', convert='little_endian')
-            $else
-            open(13,file=fname_dyn_tn,form='unformatted')
-            $endif
-
-            read(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
-
-        else
-
-            write(*,*) trim(fname_dyn_tn), ' not found - using default values'
-
-        endif
-
-      endif
-
-    $endif
+!    $if ($DYN_TN)
+!    ! Read dynamic timescale running averages from file
+!
+!      if (cumulative_time) then
+!
+!        inquire (file=fname_dyn_tn, exist=exst)
+!        if (exst) then
+!
+!            $if ($READ_BIG_ENDIAN)
+!            open(13,file=fname_dyn_tn,form='unformatted', convert='big_endian')
+!            $elseif ($READ_LITTLE_ENDIAN)
+!            open(13,file=fname_dyn_tn,form='unformatted', convert='little_endian')
+!            $else
+!            open(13,file=fname_dyn_tn,form='unformatted')
+!            $endif
+!
+!            read(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
+!
+!        else
+!
+!            write(*,*) trim(fname_dyn_tn), ' not found - using default values'
+!
+!        endif
+!
+!      endif
+!
+!    $endif
 
     !call energy (ke)
 

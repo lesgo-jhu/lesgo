@@ -1851,9 +1851,9 @@ use param, only : comm,ierr
 $endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-$if($DYN_TN)
-use sgs_param, only: F_ee2, F_deedt2, ee_past
-$endif
+!$if($DYN_TN)
+!use sgs_param, only: F_ee2, F_deedt2, ee_past
+!$endif
 use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt, cfl
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
@@ -1889,30 +1889,30 @@ $if($MPI)
 call mpi_barrier( comm, ierr )
 $endif
 
-$if ($DYN_TN) 
-! Write running average variables to file
-  fname = path // 'dyn_tn.out'
-  $if ($MPI)
-  call string_concat( fname, '.c', coord)
-  $endif
-  
-  $if ($WRITE_BIG_ENDIAN)
-  open(unit=13,file=fname,form='unformatted',position='rewind',convert='big_endian')
-  $elseif ($WRITE_LITTLE_ENDIAN)
-  open(unit=13,file=fname,form='unformatted',position='rewind',convert='little_endian')
-  $else
-  open(unit=13,file=fname,form='unformatted',position='rewind')
-  $endif
-
-  write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
-
-  close(13)
-
-  $if($MPI)
-  call mpi_barrier( comm, ierr )
-  $endif
-  
-$endif
+!$if ($DYN_TN) 
+!! Write running average variables to file
+!  fname = path // 'dyn_tn.out'
+!  $if ($MPI)
+!  call string_concat( fname, '.c', coord)
+!  $endif
+!  
+!  $if ($WRITE_BIG_ENDIAN)
+!  open(unit=13,file=fname,form='unformatted',position='rewind',convert='big_endian')
+!  $elseif ($WRITE_LITTLE_ENDIAN)
+!  open(unit=13,file=fname,form='unformatted',position='rewind',convert='little_endian')
+!  $else
+!  open(unit=13,file=fname,form='unformatted',position='rewind')
+!  $endif
+!
+!  write(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
+!
+!  close(13)
+!
+!  $if($MPI)
+!  call mpi_barrier( comm, ierr )
+!  $endif
+!  
+!$endif
 
 ! Checkpoint time averaging restart data
 if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
@@ -2494,10 +2494,10 @@ if (sgs_model.gt.3) then
             tavg_sgs(i,j,k)%F_QN = tavg_sgs(i,j,k)%F_QN + F_QN(i,j,k) * tavg_dt
             tavg_sgs(i,j,k)%F_NN = tavg_sgs(i,j,k)%F_NN + F_NN(i,j,k) * tavg_dt
             
-            $if ($DYN_TN)
-            tavg_sgs(i,j,k)%F_ee2 = tavg_sgs(i,j,k)%F_ee2 + F_ee2(i,j,k) * tavg_dt
-            tavg_sgs(i,j,k)%F_deedt2 = tavg_sgs(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * tavg_dt
-            $endif         
+!            $if ($DYN_TN)
+!            tavg_sgs(i,j,k)%F_ee2 = tavg_sgs(i,j,k)%F_ee2 + F_ee2(i,j,k) * tavg_dt
+!            tavg_sgs(i,j,k)%F_deedt2 = tavg_sgs(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * tavg_dt
+!            $endif         
          enddo
       enddo
    enddo
@@ -3205,7 +3205,7 @@ $if($OUTPUT_EXTRA)
 !~        '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
 !~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
 !~        (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), &
-!~        4, x, y, zw(1:nz))
+!:~        4, x, y, zw(1:nz))
 !~ 
 !~   call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
 !~        '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
@@ -3216,51 +3216,51 @@ $if($OUTPUT_EXTRA)
   $endif
   
     
-  $if($DYN_TN)
-    
-    $if($LVLSET)
-
-!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
-!~          '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-!~     !  write phi and x,y,z
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), 4)  
-!~ 
-    $else
-!~     
-!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
-!~          '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
-!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), &
-!~          4, x, y, zw(1:nz))
-    
-    $endif        
-    
-  $else
-  
-    $if($LVLSET)
-
-!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
-!~          '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
-!~     !  write phi and x,y,z
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-!~          (/ tavg_sgs % ee_now /), 4)  
-    
-    $else
-
-!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
-!~          '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
-!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
-!~          (/ tavg_sgs % ee_now /), &
-!~          4, x, y, zw(1:nz))
-    
-    $endif        
-
-  $endif
+!  $if($DYN_TN)
+!    
+!    $if($LVLSET)
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!!~     !  write phi and x,y,z
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), 4)  
+!!~ 
+!    $else
+!!~     
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), &
+!!~          4, x, y, zw(1:nz))
+!    
+!    $endif        
+!    
+!  $else
+!  
+!    $if($LVLSET)
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
+!!~     !  write phi and x,y,z
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now /), 4)  
+!    
+!    $else
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now /), &
+!!~          4, x, y, zw(1:nz))
+!    
+!    $endif        
+!
+!  $endif
     
 $endif
 !----

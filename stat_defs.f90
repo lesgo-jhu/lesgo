@@ -82,10 +82,10 @@ $if($OUTPUT_EXTRA)
 type tavg_sgs_t
   real(rprec) :: Tn, Nu_t
   real(rprec) :: F_LM, F_MM, F_QN, F_NN
-  real(rprec) :: ee_now
-  $if ($DYN_TN)
-  real(rprec) :: F_ee2, F_deedt2
-  $endif
+!  real(rprec) :: ee_now
+!  $if ($DYN_TN)
+!  real(rprec) :: F_ee2, F_deedt2
+!  $endif
 end type tavg_sgs_t
 $endif
 
@@ -134,7 +134,7 @@ end type hist_zplanes_t
 type(hist_zplanes_t) :: HISTcs2   ! SGS coefficient, squared
 type(hist_zplanes_t) :: HISTtn    ! Lagrangian time scale
 type(hist_zplanes_t) :: HISTnu    ! Eddy viscosity
-type(hist_zplanes_t) :: HISTee    ! Error in SGS model
+!type(hist_zplanes_t) :: HISTee    ! Error in SGS model
 
 ! Create types for outputting data (instantaneous or averaged)
 type(point_t), allocatable, dimension(:) :: point
@@ -462,11 +462,11 @@ c % F_LM = a % F_LM / b
 c % F_MM = a % F_MM / b
 c % F_QN = a % F_QN / b
 c % F_NN = a % F_NN / b
-c % ee_now = a % ee_now / b
-$if($DYN_TN)
-c % F_ee2 = a % F_ee2 / b
-c % F_deedt2 = a % F_deedt2 / b
-$endif
+!c % ee_now = a % ee_now / b
+!$if($DYN_TN)
+!c % F_ee2 = a % F_ee2 / b
+!c % F_deedt2 = a % F_deedt2 / b
+!$endif
 
 return
 end function tavg_sgs_scalar_div
@@ -692,11 +692,11 @@ c % F_LM =  a
 c % F_MM =  a
 c % F_QN =  a
 c % F_NN =  a
-c % ee_now = a
-$if($DYN_TN)
-c % F_ee2 = a
-c % F_deedt2 = a
-$endif
+!c % ee_now = a
+!$if($DYN_TN)
+!c % F_ee2 = a
+!c % F_deedt2 = a
+!$endif
 
 return
 end subroutine tavg_sgs_set

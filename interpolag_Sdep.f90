@@ -34,9 +34,9 @@ subroutine interpolag_Sdep()
 use types,only:rprec
 use param
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
-$if ($DYN_TN)
-use sgs_param, only: F_ee2, F_deedt2, ee_past
-$endif
+!$if ($DYN_TN)
+!use sgs_param, only: F_ee2, F_deedt2, ee_past
+!$endif
 use sim_param,only:u,v,w
 use grid_defs,only:grid 
 use functions, only:trilinear_interp
@@ -48,9 +48,9 @@ implicit none
 
 real(rprec), dimension(3) :: xyz_past
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM, tempF_QN, tempF_NN
-$if ($DYN_TN)
-real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
-$endif
+!$if ($DYN_TN)
+!real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
+!$endif
 integer :: i,j,k,kmin
 
 real (rprec) :: lcfl
@@ -77,11 +77,11 @@ z => grid % z
         tempF_MM = F_MM
         tempF_QN = F_QN
         tempF_NN = F_NN      
-        $if ($DYN_TN)
-        tempF_ee2 = F_ee2
-        tempF_deedt2 = F_deedt2
-        tempee_past = ee_past  
-        $endif 
+!        $if ($DYN_TN)
+!        tempF_ee2 = F_ee2
+!        tempF_deedt2 = F_deedt2
+!        tempee_past = ee_past  
+!        $endif 
 
         ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
         ! Variables x,y,z, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
@@ -109,11 +109,11 @@ z => grid % z
                 F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
-                $if ($DYN_TN)
-                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                $endif 
+!                $if ($DYN_TN)
+!                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+!                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+!                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+!                $endif 
             enddo
             enddo
             enddo               
@@ -134,11 +134,11 @@ z => grid % z
                     F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
-                    $if ($DYN_TN)
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
-                    $endif
+!                    $if ($DYN_TN)
+!                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+!                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+!                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
+!                    $endif
                 enddo
                 enddo    
             $if ($MPI)
@@ -151,11 +151,11 @@ z => grid % z
             call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )   
             call mpi_sync_real_array( F_QN, 0, MPI_SYNC_DOWNUP )  
             call mpi_sync_real_array( F_NN, 0, MPI_SYNC_DOWNUP )              
-            $if ($DYN_TN)
-            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
-            $endif 
+!            $if ($DYN_TN)
+!            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
+!            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
+!            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
+!            $endif 
         $endif   
 
 ! Compute the Lagrangian CFL number and print to screen

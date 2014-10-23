@@ -38,7 +38,7 @@ use sgs_param,only:u_hat,v_hat,w_hat
 use sgs_param,only:S_hat,S11_hat,S12_hat,S13_hat,S22_hat,S23_hat,S33_hat
 use sgs_param,only:S_S11_hat,S_S12_hat,S_S13_hat, S_S22_hat, S_S23_hat, S_S33_hat
 use test_filtermodule
-use sgs_param, only:ee_now
+!use sgs_param, only:ee_now
 implicit none
 
 integer :: jz
@@ -56,7 +56,7 @@ real(rprec), dimension(0:5) :: A
 real(kind=rprec) :: a1, b1, c1, d1, e1, a2, b2, c2, d2, e2
 
 !TSreal(kind=rprec) :: rtnewt
-real(rprec), dimension(ld,ny) :: LM,MM
+!real(rprec), dimension(ld,ny) :: LM,MM
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
@@ -283,10 +283,10 @@ do jz=1,nz
    Cs_1D(jz) = max(0._rprec, real(Cs_1D(jz),kind=rprec))
 
     ! Calculate ee_now (the current value of eij*eij) 
-    LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
-    MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
-    ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
-                    -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2  
+!    LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
+!    MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
+!    ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+!                    -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2  
 end do   
 
 ! Nullify pointers

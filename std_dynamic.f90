@@ -35,13 +35,13 @@ use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar,S_S22_bar,S_S23_bar,S_S33_bar
 use test_filtermodule
-use sgs_param, only:ee_now
+!use sgs_param, only:ee_now
 implicit none
 
 real(rprec), dimension(nz),intent(out):: Cs_1D
 real(rprec) :: const
 integer :: jz
-real(rprec), dimension(ld,ny) :: LM, MM
+!real(rprec), dimension(ld,ny) :: LM, MM
 
 do jz=1,nz
 ! using L_ij as temp storage here
@@ -146,10 +146,10 @@ do jz=1,nz
    Cs_1D(jz) = max(0._rprec, Cs_1D(jz))
 
     ! Calculate ee_now (the current value of eij*eij) 
-    LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
-    MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
-    ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
-                    -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2     
+!    LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
+!    MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
+!    ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+!                    -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2     
 end do
 
 end subroutine std_dynamic

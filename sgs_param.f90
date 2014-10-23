@@ -35,7 +35,7 @@ public
     real(rprec), dimension(:,:),  allocatable :: S
 
 ! For all dynamic models (2-5)
-    real(rprec), dimension(:,:,:),allocatable :: ee_now
+!    real(rprec), dimension(:,:,:),allocatable :: ee_now
     real(rprec), dimension(:,:),  allocatable :: L11,L12,L13,L22,L23,L33
     real(rprec), dimension(:,:),  allocatable :: M11,M12,M13,M22,M23,M33
 
@@ -48,7 +48,6 @@ public
 ! For Lagrangian models (4,5)
     real(rprec) :: lagran_dt = 0._rprec
     real(rprec), parameter :: opftime = 1.5_rprec   ! (Meneveau, Lund, Cabot; JFM 1996)
-!    real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta, Tn_all
     real(rprec), dimension(:,:,:), allocatable :: F_LM, F_MM, F_QN, F_NN, Beta
 
 
@@ -66,9 +65,9 @@ public
 !   F_ee2 is the running average of (eij*eij)^2
 !   F_deedt2 is the running average of [d(eij*eij)/dt]^2
 !   ee_past is the array (eij*eij) for the past timestep
-    $if ($DYN_TN)
-    real(rprec), dimension(:,:,:), allocatable :: F_ee2, F_deedt2,ee_past
-    $endif
+!    $if ($DYN_TN)
+!    real(rprec), dimension(:,:,:), allocatable :: F_ee2, F_deedt2,ee_past
+!    $endif
 
 contains
 
@@ -95,7 +94,7 @@ allocate ( S(ld,ny) ); S=0.0_rprec
 
 ! For dynamic models:
 if (sgs_model .ne. 1) then
-    allocate ( ee_now(ld,ny,lbz:nz) ); ee_now = 0.0_rprec
+!    allocate ( ee_now(ld,ny,lbz:nz) ); ee_now = 0.0_rprec
     allocate ( L11(ld,ny) ); L11=0.0_rprec
     allocate ( L12(ld,ny) ); L12=0.0_rprec
     allocate ( L13(ld,ny) ); L13=0.0_rprec

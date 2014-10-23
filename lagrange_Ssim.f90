@@ -34,8 +34,7 @@ use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
 use sgs_param,only:S_bar,S11_bar,S12_bar,S13_bar,S22_bar,S23_bar,S33_bar
 use sgs_param,only:S_S11_bar,S_S12_bar,S_S13_bar, S_S22_bar, S_S23_bar, S_S33_bar
-!use sgs_param,only:ee_now,Tn_all
-use sgs_param,only:ee_now
+!use sgs_param,only:ee_now
 use test_filtermodule
 use messages
 use string_util, only : string_concat
@@ -45,9 +44,9 @@ $endif
 $if ($LVLSET)
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 $endif
-$if ($DYN_TN)
-use sgs_param, only:F_ee2,F_deedt2,ee_past
-$endif
+!$if ($DYN_TN)
+!use sgs_param, only:F_ee2,F_deedt2,ee_past
+!$endif
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
@@ -200,9 +199,9 @@ do jz = 1,nz
         LM=L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
         MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
         
-    ! Calculate ee_now (the current value of eij*eij)    
-            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
-                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2
+!    ! Calculate ee_now (the current value of eij*eij)    
+!            ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2) &
+!                    -2._rprec*LM*Cs_opt2(:,:,jz) + MM*Cs_opt2(:,:,jz)**2
             
     ! Using local time counter to reinitialize SGS quantities when restarting
         if (inilag) then
@@ -251,12 +250,12 @@ do jz = 1,nz
     
     ! Update running averages (F_LM, F_MM, F_ee2, F_deedt2)
         ! Determine averaging timescale 
-            $if ($DYN_TN)   ! based on Taylor timescale
-                Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
-            $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
+!            $if ($DYN_TN)   ! based on Taylor timescale
+!                Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
+!            $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
                 Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), eps)
                 Tn = opftdelta*(Tn**powcoeff)    
-            $endif   
+!            $endif   
             
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi            
             dumfac = lagran_dt/Tn
@@ -266,13 +265,13 @@ do jz = 1,nz
             F_MM(:,:,jz)=(epsi*MM + (1.0_rprec-epsi)*F_MM(:,:,jz))
             F_LM(:,:,jz)= max (eps, F_LM(:,:,jz))    ! clipping to avoid instability       
 
-            $if ($DYN_TN)
-            ! note: the instantaneous value of the derivative is a Lagrangian average
-            F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
-            F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
-                                  + (1._rprec-epsi)*F_deedt2(:,:,jz)
-            ee_past(:,:,jz) = ee_now(:,:,jz)
-            $endif   
+!            $if ($DYN_TN)
+!            ! note: the instantaneous value of the derivative is a Lagrangian average
+!            F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
+!            F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
+!                                  + (1._rprec-epsi)*F_deedt2(:,:,jz)
+!            ee_past(:,:,jz) = ee_now(:,:,jz)
+!            $endif   
             
     ! Calculate Cs_opt2 (use only one of the methods below)
         ! Standard method - LASS
@@ -312,11 +311,11 @@ do jz = 1,nz
     $if($OUTPUT_EXTRA)
     ! Write average Tn for this level to file
         fnamek = path
-        $if ($DYN_TN)
-        call string_concat( fnamek, 'output/Tn_dyn_', jz + coord*(nz-1), '.dat' )
-        $else
+!        $if ($DYN_TN)
+!        call string_concat( fnamek, 'output/Tn_dyn_', jz + coord*(nz-1), '.dat' )
+!        $else
         call string_concat( fnamek, 'output/Tn_mlc_', jz + coord*(nz-1), '.dat' )
-        $endif
+!        $endif
        
         ! Write
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
@@ -341,11 +340,11 @@ end do
     $if ($MPI)
         call mpi_sync_real_array( F_LM, 0, MPI_SYNC_DOWNUP )  
         call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )            
-        $if ($DYN_TN)
-            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
-            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
-        $endif 
+!        $if ($DYN_TN)
+!            call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
+!            call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
+!            call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
+!        $endif 
 !        call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
     $endif   
 
