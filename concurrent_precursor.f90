@@ -28,12 +28,14 @@ save
 private
 
 public :: interComm, color, RED, BLUE
-public :: vel_sample_t
+public :: vel_sample_t,vel_sample_t_sdep
 public :: create_mpi_comms_cps, &
           initialize_cps, &
           synchronize_cps, &
-          inflow_cond_cps 
-
+          synchronize_cps_sdep, &          
+          inflow_cond_cps, & 
+          inflow_cond_cps_sdep
+          
 character (*), parameter :: mod_name = 'concurrent_precursor'
 
 integer, parameter :: RED=0 ! Upstream domain (producer)
@@ -50,7 +52,13 @@ type vel_sample_type
    real(rprec), allocatable, dimension(:,:,:) :: u, v, w
 end type vel_sample_type
 
+type vel_sample_type_sdep
+   real(rprec), allocatable, dimension(:,:) :: F_LM, F_MM, F_QN, F_NN
+end type vel_sample_type_sdep
+
+
 type(vel_sample_type), target :: vel_sample_t 
+type(vel_sample_type_sdep), target :: vel_sample_t_sdep
 
 ! Weights used in fringe region
 real(rprec), allocatable, dimension(:) :: alpha, beta
@@ -167,13 +175,19 @@ allocate( vel_sample_t % iwrap( nx_p ) )
 index=0
 do i = istart_p + 1, iend_p
    index=index+1
-   vel_sample_t % iwrap(index) = modulo( i - 1, nx ) + 1
+   vel_sample_t % iwrap(index)      = modulo( i - 1, nx ) + 1
 enddo
 
 ! Allocate the sample block
 allocate( vel_sample_t % u( nx_p, ny, nz ) )
 allocate( vel_sample_t % v( nx_p, ny, nz ) )
 allocate( vel_sample_t % w( nx_p, ny, nz ) )
+
+! Allocate the sample block
+allocate( vel_sample_t_sdep % F_LM( nx_p, ny) )
+allocate( vel_sample_t_sdep % F_MM( nx_p, ny) )
+allocate( vel_sample_t_sdep % F_QN( nx_p, ny) )
+allocate( vel_sample_t_sdep % F_NN( nx_p, ny) )
 
 nullify( nx_p, istart_p, iplateau_p, iend_p )
 
@@ -246,6 +260,79 @@ nullify( nx_p, iwrap_p )
 return
 end subroutine synchronize_cps
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine synchronize_cps_sdep(jz)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use messages
+use param, only : ny,nz
+use param, only : coord, rank_of_coord, status, ierr, MPI_RPREC
+use sgs_param, only : F_LM,F_MM,F_QN,F_NN 
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.synchronize_cps_sdep'
+
+integer, intent (in) :: jz 
+integer, pointer :: nx_p
+integer, pointer, dimension(:) :: iwrap_p
+real(rprec), pointer, dimension(:,:) :: F_LM_p, F_MM_p, F_QN_p, F_NN_p
+
+integer :: sendsize, recvsize
+
+nullify( F_LM_p, F_MM_p, F_QN_p, F_NN_p )
+nullify( nx_p, iwrap_p )
+
+iwrap_p  => vel_sample_t % iwrap
+nx_p     => vel_sample_t % nx
+F_LM_p   => vel_sample_t_sdep % F_LM
+F_MM_p   => vel_sample_t_sdep % F_MM
+F_QN_p   => vel_sample_t_sdep % F_QN
+F_NN_p   => vel_sample_t_sdep % F_NN
+
+sendsize = nx_p * ny * 1
+recvsize = sendsize
+
+if( color == BLUE ) then
+
+   ! Recieve sampled velocities from upstream (RED)
+   call mpi_recv( F_LM_p(1,1) , recvsize, MPI_RPREC, &
+        rank_of_coord(coord), 1, interComm, status, ierr)
+   call mpi_recv( F_MM_p(1,1) , recvsize, MPI_RPREC, &
+        rank_of_coord(coord), 2, interComm, status, ierr)
+   call mpi_recv( F_QN_p(1,1) , recvsize, MPI_RPREC, &
+        rank_of_coord(coord), 3, interComm, status, ierr)
+   call mpi_recv( F_NN_p(1,1) , recvsize, MPI_RPREC, &
+        rank_of_coord(coord), 4, interComm, status, ierr)
+   
+elseif( color == RED ) then
+
+   ! Sample velocity and copy to buffers         
+   F_LM_p(:,:) = F_LM(iwrap_p(:),1:ny,jz)
+   F_MM_p(:,:) = F_MM(iwrap_p(:),1:ny,jz)
+   F_QN_p(:,:) = F_QN(iwrap_p(:),1:ny,jz)
+   F_NN_p(:,:) = F_NN(iwrap_p(:),1:ny,jz)   
+
+   ! Send sampled velocities to downstream domain (BLUE)
+   call mpi_send( F_LM_p(1,1), sendsize, MPI_RPREC, &
+        rank_of_coord(coord), 1, interComm, ierr )
+   call mpi_send( F_MM_p(1,1), sendsize, MPI_RPREC, &
+        rank_of_coord(coord), 2, interComm, ierr )
+   call mpi_send( F_QN_p(1,1), sendsize, MPI_RPREC, &
+        rank_of_coord(coord), 3, interComm, ierr )
+   call mpi_send( F_NN_p(1,1), sendsize, MPI_RPREC, &
+        rank_of_coord(coord), 4, interComm, ierr )
+   
+else
+
+   call error( sub_name, 'Erroneous color specification')
+   
+endif
+
+nullify( F_LM_p, F_MM_p, F_QN_p, F_NN_p )
+nullify( nx_p, iwrap_p )
+
+return
+end subroutine synchronize_cps_sdep
+
 !**********************************************************************
 subroutine inflow_cond_cps ()
 !**********************************************************************
@@ -294,5 +381,53 @@ nullify( istart_p, iwrap_p )
 
 return
 end subroutine inflow_cond_cps
+
+!**********************************************************************
+subroutine inflow_cond_cps_sdep (jz)
+!**********************************************************************
+!
+!  Enforces prescribed inflow condition from an inlet velocity field
+!  generated from a precursor simulation. The inflow condition is
+!  enforced by direct modulation on the velocity in the fringe region.
+!
+use types, only : rprec
+use param, only : nx,ny,nz
+use sgs_param,only:F_LM,F_MM,F_QN,F_NN
+use messages, only : error
+implicit none
+
+integer, intent (in) :: jz 
+integer :: j
+integer :: istart_wrap
+
+integer, pointer :: istart_p
+integer, pointer, dimension(:) :: iwrap_p
+
+real(rprec), pointer, dimension(:,:) :: F_LM_p,F_MM_p,F_QN_p,F_NN_p
+
+nullify( F_LM_p , F_MM_p , F_QN_p , F_NN_p  )
+nullify( istart_p, iwrap_p )
+
+F_LM_p        => vel_sample_t_sdep % F_LM
+F_MM_p        => vel_sample_t_sdep % F_MM
+F_QN_p        => vel_sample_t_sdep % F_QN
+F_NN_p        => vel_sample_t_sdep % F_NN
+istart_p      => vel_sample_t % istart
+iwrap_p       => vel_sample_t % iwrap
+
+istart_wrap = modulo( istart_p - 1, nx ) + 1
+
+do j=1,ny     
+   F_LM(iwrap_p(:),j,jz) = alpha(:) * F_LM(istart_wrap,j,jz) + beta(:) * F_LM_p(:,j)
+   F_MM(iwrap_p(:),j,jz) = alpha(:) * F_MM(istart_wrap,j,jz) + beta(:) * F_MM_p(:,j)
+   F_QN(iwrap_p(:),j,jz) = alpha(:) * F_QN(istart_wrap,j,jz) + beta(:) * F_QN_p(:,j)
+   F_NN(iwrap_p(:),j,jz) = alpha(:) * F_NN(istart_wrap,j,jz) + beta(:) * F_NN_p(:,j)      
+enddo
+
+nullify( F_LM_p,F_MM_p,F_QN_p,F_NN_p )
+nullify( istart_p, iwrap_p )
+
+return
+end subroutine inflow_cond_cps_sdep
 
 end module concurrent_precursor

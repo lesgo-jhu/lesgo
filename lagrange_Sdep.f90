@@ -34,9 +34,16 @@ $endif
 $if ($MPI)
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
+$if($CPS)
+use concurrent_precursor, only : synchronize_cps_sdep, inflow_cond_cps_sdep
+$endif
 
 implicit none
+$if($CPS)
+integer :: jx,jy,jz
+$else
 integer :: jx,jy,jz,istart,iend
+$endif
 real(rprec), dimension(ld,ny) :: Cs_opt2_2d,Cs_opt2_4d
 real(rprec), dimension(ld,ny) :: LM,MM,QN,NN,Tn,epsi,dumfac
 real(rprec):: const,opftdelta,powcoeff,tf1,tf2,tf1_2,tf2_2,fractus,Betaclip
@@ -236,8 +243,15 @@ do jz = 1,nz
     end if
    end if
 
+! Turbulent inflow: to be added
+$if ($CPS)
+
+   call synchronize_cps_sdep(jz)
+   if (inflow) call inflow_cond_cps_sdep(jz)
+   
+! Laminar inflow
+$else
    if (inflow) then
-     ! Laminar inflow
      iend   = floor (fringe_region_end * nx + 1._rprec)
      iend   = min(nx,iend)
      istart = floor ((fringe_region_end - fringe_region_len) * nx + 1._rprec)
@@ -252,8 +266,8 @@ do jz = 1,nz
      NN  (istart:iend, 1:ny)    = 0._rprec  
      F_QN(istart:iend, 1:ny,jz) = 0._rprec
      F_NN(istart:iend, 1:ny,jz) = 0._rprec
-     ! Turbulent inflow: to be added
    endif
+$endif
 
    ! Update running averages (F_LM, F_MM)
    ! Determine averaging timescale (for 2-delta filter)
@@ -269,10 +283,13 @@ do jz = 1,nz
    F_MM(:,:,jz)=(epsi*MM + (1._rprec-epsi)*F_MM(:,:,jz))
    F_LM(:,:,jz)= max( 0._rprec, F_LM(:,:,jz) )
 
-   ! Set denominator to local value at first grid point   
-   if (inflow) then
+   ! Set denominator to local value at first grid point 
+   $if ($CPS)
+   $else  
+   if (inflow) then  
    F_MM(1,:,jz)=MM(1,:)
    endif
+   $endif
 
    ! Calculate Cs_opt2 (for 2-delta filter)
    ! Add +zero in denominator to avoid division by identically zero
@@ -296,10 +313,13 @@ do jz = 1,nz
   F_QN(:,:,jz)= max(0._rprec,F_QN(:,:,jz))
 
   ! Set denominator to local value at first grid point   
+  $if ($CPS)
+  $else  
   if (inflow) then
   F_NN(1,:,jz)=NN(1,:) 
   endif
-
+  $endif
+  
   ! Calculate Cs_opt2 (for 4-delta filter)
   ! Add +zero in denominator to avoid division by identically zero
   Cs_opt2_4d(:,:)    = F_QN(:,:,jz)/(F_NN(:,:,jz) + zero)
@@ -332,10 +352,13 @@ do jz = 1,nz
 end do
 ! this ends the main jz=1,nz loop
 
+$if ($CPS)
+$else  
 ! This line makes sure that the value at the first grid level is set to a reasonable value.
 if (coord==0 .and. inflow) then
 Cs_opt2(:,:,1)=0.5_rprec*Cs_opt2(:,:,2)
 endif
+$endif
 
 ! Share new data between overlapping nodes
 $if ($MPI)
