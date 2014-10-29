@@ -95,9 +95,6 @@ allocate(buffer_array(nloc))
 !new variables for optimization:
     Ct_prime_05 = -0.5*Ct_prime
 
-!Create turbine directory
-    call system("mkdir -vp turbine") 
-
 !z_tot for total domain (since z is local to the processor)
     do k=1,nz_tot
         z_tot(k) = (k - 0.5_rprec) * dz

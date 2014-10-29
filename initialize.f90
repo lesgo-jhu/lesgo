@@ -73,9 +73,15 @@ $endif
 implicit none
 
 character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
+$if ($TURBINES)
+character(*), parameter :: make_turbine_dir = 'mkdir -p ' // path // 'turbine'
+$endif
 
 ! Create output directory
 if( coord == 0 ) call system( make_output_dir )
+$if ($TURBINES)
+if( coord == 0 ) call system( make_turbine_dir )
+$endif
 
 ! Read input file
 ! This obtains all major data defined in param
