@@ -20,7 +20,7 @@ NacYaw                  270
 fluidDensity            1.23
 numAnnulusSections      1
 annulusSectionAngle     0.
-nacelleFlag             true
+nacelleFlag             false
 nacelleCd               1.
 }
 
@@ -37,7 +37,7 @@ NacYaw                  270
 fluidDensity            1.23
 numAnnulusSections      1
 annulusSectionAngle     0.
-nacelleFlag             true
+nacelleFlag             false
 nacelleCd               0.
 }
 
