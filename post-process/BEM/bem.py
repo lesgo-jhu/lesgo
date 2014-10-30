@@ -129,17 +129,14 @@ while (tolerance > .0000001):
     cn[i]=cl[i]*np.cos(np.deg2rad(phi[i]))+cd[i]*np.sin(np.deg2rad(phi[i]))
     ct[i]=cl[i]*np.sin(np.deg2rad(phi[i]))-cd[i]*np.cos(np.deg2rad(phi[i]))
 
-    # Step 6 Calculate a and a'
-#    a[i]=1./(4.*np.sin(np.deg2rad(phi[i]))**2./(sigma[i]*cn[i])+1)
-#    ap[i]=1./(4.*np.sin(np.deg2rad(phi[i]))*np.cos(np.deg2rad(phi[i]))/
-#          (sigma[i]*ct[i])-1.)
     # Step 6 with tip-loss correction
     ftip = B/2 * ( 63.-r[i] ) / ( r[i] * np.sin( np.deg2rad ( phi[i] ) )) 
     Ftip = 2./np.pi * np.arccos( np.exp( -ftip ) )
     fhub = B/2 *  (63.-r[i] ) / ( 63. * np.sin( np.deg2rad ( phi[i] ) )) 
     Fhub = 2./np.pi * np.arccos( np.exp( -fhub ) )
-#    F = Ftip * Fhub
-    F=1.
+
+    F = Ftip * Fhub
+#    F=1.
     a[i]=1./(4.*F*np.sin(np.deg2rad(phi[i]))**2./(sigma[i]*cn[i])+1)
     ap[i]=1./(4.*F*np.sin(np.deg2rad(phi[i]))*np.cos(np.deg2rad(phi[i]))/
           (sigma[i]*ct[i])-1.)
@@ -160,17 +157,20 @@ while (tolerance > .0000001):
 Vaxial=V0*(1.-a)
 Vtangential=((w*r).T*(1.+ap).T).T
 
-M=0  # Moment
+#M=0  # Moment
 #for i, ai in enumerate(Ai):
 #    Ai[i]= ( Ft[i+1] - Ft[i] ) / ( r[i+1] - r[i] ) 
 #    Bi[i]= ( Ft[i] * r[i+1] - Ft[i+1] * r[i] ) / ( r[i+1] - r[i] ) 
 #    M += ( 1./3 * Ai[i] * (r[i+1]**3 - r[i]**3) + 
 #           1./2 * Bi[i] * (r[i+1]**2 - r[i]**2) )
 # Calculate power output
+
 power=np.sum(Ft.T*r.T)*w*B*db
 #power=M*w*B
+
 print 'Number of iterations was ', iter
 print 'Power is ', power
+
 ####################################################
 # Save data
 np.savetxt('power', np.array([power, power]).T)
@@ -191,17 +191,17 @@ np.savetxt('Vtangential', np.array([r ,Vtangential]).T)
 # now, plot the data:
 
 ##### Cl
-plt.plot(r, cl,'-',color='black')
-plt.xlabel(r'$r$')
-plt.ylabel(r'$C_L$')
-plt.savefig('Cl.eps')
+#~ plt.plot(r, cl,'-',color='black')
+#~ plt.xlabel(r'$r$')
+#~ plt.ylabel(r'$C_L$')
+#~ plt.savefig('Cl.eps')
 
 ##### Ft
-plt.clf()
-plt.plot(r, Ft,'-',color='black')
-plt.xlabel(r'$r$')
-plt.ylabel(r'$F_T$')
-plt.savefig('Ft.eps')
+#~ plt.clf()
+#~ plt.plot(r, Ft,'-',color='black')
+#~ plt.xlabel(r'$r$')
+#~ plt.ylabel(r'$F_T$')
+#~ plt.savefig('Ft.eps')
 
 
 
