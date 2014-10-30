@@ -410,7 +410,8 @@ do k=1, numBl
     beta = PreCone - ShftTilt
     root(1)= root(1) + HubRad*sin(beta)
     root(3)= root(3) + HubRad*cos(beta)
-    dist = HubRad
+!~     dist = HubRad
+    dist = 0.
     
     ! Number of blade points for the first annular section
     do m=1, numBladePoints
@@ -419,7 +420,8 @@ do k=1, numBl
         bladePoints(k,1,m,2) = root(2)
         bladePoints(k,1,m,3) = root(3) + dist*cos(beta)
         do n=1,numAnnulusSections
-            bladeRadius(k,n,m) = dist
+!~             bladeRadius(k,n,m) = dist
+            bladeRadius(k,n,m) = dist + HubRad
             solidity(k,n,m)=1./numAnnulusSections
         enddo
         dist = dist + 0.5*db(m)
