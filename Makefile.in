@@ -28,13 +28,15 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include  \
+INCLPATH = -I/opt/cgns-3.2.1-hdf5-mpi/include -I/opt/hdf5-1.8.12-mpi/include \
+ -I${HOME}/include -I/usr/local/include -I/usr/include  \
  -I/home/diag/opt/fftw/3.3.3/gnu/include    \
  -I/home/diag/opt/openmpi/1.4.3/gnu/include -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include  
-LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
+LIBPATH = -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
+ -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/home/diag/opt/fftw/3.3.3/gnu/lib -L/home/diag/opt/openmpi/1.4.3/gnu/lib \
-  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib 
+ -L/usr/local/hdf5/lib -L/usr/local/cgns/lib 
  
 HOSTNAME = $(shell hostname -s)
 
@@ -77,7 +79,7 @@ USE_TURBINES=no
 USE_BINARY=yes
 
 # Use CGNS data output
-USE_CGNS=no
+USE_CGNS=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no
