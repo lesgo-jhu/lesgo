@@ -21,7 +21,7 @@ module sgs_hist
 
 use types, only: rprec
 use param
-use stat_defs, only: HISTcs2, HISTtn, HISTnu, HISTee
+use stat_defs, only: HISTcs2, HISTtn, HISTnu!, HISTee
 
 implicit none
 
@@ -33,7 +33,7 @@ public sgs_hist_init, sgs_hist_update_vals, sgs_hist_finalize
     character(*), parameter :: fname_cs2_base = path // 'output/hist_cs2.z-'
     character(*), parameter :: fname_tn_base = path // 'output/hist_tn.z-'
     character(*), parameter :: fname_nu_base = path // 'output/hist_nu.z-'
-    character(*), parameter :: fname_ee_base = path // 'output/hist_ee.z-'
+!    character(*), parameter :: fname_ee_base = path // 'output/hist_ee.z-'
     character(*), parameter :: fname_histp_base = path // 'hist_param.out'
     character(*), parameter :: fname_histv_base = path // 'hist_vals.out'
     character(64) :: cl, fname_cs2, fname_tn, fname_nu, fname_ee
@@ -264,8 +264,8 @@ end subroutine sgs_hist_init
 subroutine sgs_hist_update_vals()
 use stat_defs, only: hist_binit
 use functions, only: linear_interp
-!use sgs_param, only: Cs_opt2, Tn_all, Nu_t, ee_now
-use sgs_param, only: Cs_opt2, Nu_t, ee_now
+!use sgs_param, only: Cs_opt2, Nu_t, ee_now
+use sgs_param, only: Cs_opt2, Nu_t
 $if ($LVLSET)
 use level_set_base, only: phi
 $endif
@@ -276,8 +276,8 @@ integer :: i, j, k
 $if ($LVLSET)
 real(rprec), dimension(nx,ny) :: phi_plane
 $endif
-real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
-!real(rprec), dimension(nx,ny) :: cs2_plane, nu_plane, ee_plane
+!real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
+real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
 
 ! For each z-plane location
     do k=1,sgs_hist_nloc
@@ -346,25 +346,25 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
 
         !endif 
 
-        !if ( HISTee % coord(k) == coord) then
-         if (sgs_model.gt.1) then
-            ! Interpolate variables to z-plane location
-            do j=1,ny
-            do i=1,nx
-                ee_plane(i,j) = linear_interp( ee_now(i,j,HISTee % istart(k)), &
-                                 ee_now(i,j,HISTee % istart(k)+1), dz, HISTee % ldiff(k) )
-            enddo  
-            enddo
-
-            ! Bin values
-            $if ($LVLSET)
-                ! For now, use same z-planes for all variables so phi's are the same
-                call hist_binit( HISTee % hist(k), ee_plane, phi_plane )
-            $else
-                call hist_binit( HISTee % hist(k), ee_plane )
-            $endif
-          endif
-
+!        !if ( HISTee % coord(k) == coord) then
+!         if (sgs_model.gt.1) then
+!            ! Interpolate variables to z-plane location
+!            do j=1,ny
+!            do i=1,nx
+!                ee_plane(i,j) = linear_interp( ee_now(i,j,HISTee % istart(k)), &
+!                                 ee_now(i,j,HISTee % istart(k)+1), dz, HISTee % ldiff(k) )
+!            enddo  
+!            enddo
+!
+!            ! Bin values
+!            $if ($LVLSET)
+!                ! For now, use same z-planes for all variables so phi's are the same
+!                call hist_binit( HISTee % hist(k), ee_plane, phi_plane )
+!            $else
+!                call hist_binit( HISTee % hist(k), ee_plane )
+!            $endif
+!          endif
+!
         endif
 
     enddo

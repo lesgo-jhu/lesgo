@@ -1,6 +1,4 @@
 ##
-##  Copyright (C) 2010-2013  Johns Hopkins University
-##
 ##  This file is part of lesgo.
 ##
 ##  lesgo is free software: you can redistribute it and/or modify
@@ -28,18 +26,18 @@
 
 SHELL = /bin/bash
 FCOMP = gfortran
-INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include  \
- -I/home/diag/opt/fftw/3.3.3/gnu/include    \
- -I/home/diag/opt/openmpi/1.4.3/gnu/include -I/usr/local/hdf5/include \
+## Top line general. Lines 2,3,4 for Panoramorix.
+## Note that the order of the libraries here can make a difference (compilation problems); depends on the compiler
+INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
+ -I/opt/cgns-3.2.1-hdf5-mpi/include -I/opt/hdf5-1.8.12-mpi/include \
+ -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include  
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
- -L/home/diag/opt/fftw/3.3.3/gnu/lib -L/home/diag/opt/openmpi/1.4.3/gnu/lib \
-  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib 
+ -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
+ -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
+ -L/usr/local/hdf5/lib -L/usr/local/cgns/lib 
  
 HOSTNAME = $(shell hostname -s)
-
-#--64-bit mode: may want to do export OBJECT_MODE=64
-q64 = no
 
 # Set either double or single precision
 USE_DBLPREC = yes
@@ -94,7 +92,7 @@ USE_LVLSET = no
 USE_CPS=no
 
 # Calc Lag-avg timescale w. error autocorrelation
-USE_DYN_TN = no
+#USE_DYN_TN = no
 
 FPP = fpx3
 
@@ -128,15 +126,8 @@ ifeq ($(FCOMP),ifort)
     LIBS += -lcgaml-intel
   endif
 
-  FFLAGS = -O0 -check bounds -g -debug all -traceback
-  #FFLAGS = -O3
-  #FFLAGS = -axSSE4.2 -ftz -
-  FFLAGS += -warn all -shared-intel
-    # Work around for real -> complex dummy array assignment
-  # FFLAGS += -warn nointerfaces
-  # Fix segmentation faults (stack overflows)
-  FFLAGS += -heap-arrays
-  #FDEBUG = -g -debug all
+  FFLAGS = -O0 -check bounds -g -debug all -traceback -warn all -shared intel -heap-arrays
+  #FFLAGS = -O3 -shared intel -heap-arrays
   FPROF = -p
   LDFLAGS = -threads
   MODDIR = -I$(MPATH) -module $(MPATH)
@@ -145,158 +136,33 @@ ifeq ($(FCOMP),ifort)
 endif
 
 ifeq ($(FCOMP),gfortran)
-
   FPP += -DGFORTRAN
-
   ifeq ($(USE_MPI), yes)
     FC = mpif90
   else
-    ifeq ($(HOSTNAME), panoramix)
-      FC = gfortran44
-    else
-      FC = gfortran
-    endif
+     ifeq ($(HOSTNAME), panoramix)
+       FC = gfortran44
+     else
+       FC = gfortran
+     endif
   endif
 
+  ifeq ($(USE_CGNS), yes)
   LIBS += -lcgns -lhdf5
+  endif
+  ifeq ($(USE_TURBINES), yes)
+  LIBS += -ltecryte
+  endif
   ifeq ($(USE_CYL_SKEW_LS),yes)
     LIBS += -lcgaml
   endif
 
-  #FFLAGS = -O0 -fbounds-check
+  #FFLAGS = -O0 -fbounds-check -Wall -Wextra -Wunused-parameter
   FFLAGS = -O3 -ffast-math -march=native -funroll-loops
-  #FFLAGS = -O3
-  #FFLAGS = -O2 -ffree-form -ffixed-line-length-none
-  FFLAGS += -Wall -Wextra
   FDEBUG = -g
   FPROF = -p
   LDFLAGS =
   MODDIR = -I$(MPATH) -J$(MPATH)
   FFLAGS += $(MODDIR) $(INCLPATH)
 endif
-
-ifeq ($(FCOMP),xlf)
-
-  FPP += -DXLF
-
-  ifeq ($(USE_MPI), yes)
-    FC = mpxlf95_r
-  else
-    FC = xlf95_r
-  endif
-
-  LIBS += -ltecryte-xlf
-  ifeq ($(USE_CYL_SKEW_LS),yes)
-    LIBS += -lcgaml-xlf
-  endif
-
-  #FFLAGS = -qstrict -qsuffix=f=f90 -qsmp -O3 -qreport=smplist
-  FFLAGS = -qstrict -qsuffix=f=f90 -O3
-  #FFLAGS = -qstrict -qsuffix=f=f90 -O3 -qsmp=omp
-  #FFLAGS = -qstrict -qsuffix=f=f90 -O0
-  #find out details of how things are stored
-  #FFLAGS += -qsource -qattr=full -qxref=full
-  #ifeq ($(USE_OPENMP), yes)
-    #FFLAGS += -qsmp=omp
-  #endif
-  #FDEBUG = -g
-  #FPROF = -p
-  ifeq ($(q64),yes)
-    FFLAGS += -q64 -qarch
-    LDFLAGS =
-    LIBPATH =
-    LIBS =
-  else
-    #LDFLAGS = -bmaxdata:0x80000000 -bmaxstack:0x10000000
-    ## NOTE: you'll need to modify this!
-    ## or specify on command line
-    #LIBPATH = -L${HOME}/fftw/fftw2/lib
-    #LIBS = $(LIBPATH) -lsrfftw -lsfftw -lm
-    #LIBS = $(LIBPATH) -lrfftw -lfftw -lm
-  endif
-  MODDIR = -I$(MPATH) -qmoddir=$(MPATH)  # where look for/put .mod files
-  FFLAGS += $(MODDIR) $(INCLPATH)
-  #-qautodbl=dbl4 -qrealsize=8
-endif
-
-ifeq ($(FCOMP),pgfortran)
-  
-  FPP += -DPGI
-  
-  ifeq ($(USE_MPI), yes)
-    FC = mpif90
-  else
-    FC = pgfortran
-  endif
-
-  LIBS += -ltecryte-pgi
-  ifeq ($(USE_CYL_SKEW_LS),yes)
-    LIBS += -lcgaml-pgi
-  endif
-
-  #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -fPIC -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
-  #FFLAGS = -O2 -fPIC
-  #FFLAGS = -O3 -ipo
-  #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  FFLAGS += 
-  #FDEBUG = -g -debug all
-  FPROF = -p
-  LDFLAGS = 
-  MODDIR = -I$(MPATH) -module $(MPATH)
-  FFLAGS += $(MODDIR)
-#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
-endif
-
-ifeq ($(FCOMP),pgf90)
-  
-  FPP += -DPGI
-  
-  ifeq ($(USE_MPI), yes)
-    FC = mpif90
-  else
-    FC = pgfortran
-  endif
-  LIBS += -lcgaml-pgi
-  #FFLAGS = -O3 -fastsse -Mcache_align
-  FFLAGS = -O0 -Mbounds -Mchkfpstk -Mchkptr -g -C -Minform=warn
-  #FFLAGS = -O2 -fPIC
-  #FFLAGS = -O3 -ipo
-  #FFLAGS = -O3 -ip -ipo -ftz
-  #FFLAGS = -axSSE4.2 -xS -ftz -ip -ipo -O3 
-  #FFLAGS += -warn all -mcmodel=medium -shared-intel
-  FFLAGS += 
-  #FDEBUG = -g -debug all
-  FPROF = -p
-  LDFLAGS = 
-  MODDIR = -I$(MPATH) -module $(MPATH)
-  FFLAGS += $(MODDIR)
-#  CYLINDER_SKEW_PRE_LS_FFLAGS = $(FFLAGS) -r8
-endif
-
-ifeq ($(FCOMP),g95)
-
-  ifeq ($(USE_MPI), yes)
-    FC = mpif90
-  else
-    FC = g95
-  endif
-
-  LIBS += -ltecryte-g95
-  ifeq ($(USE_CYL_SKEW_LS),yes)
-    LIBS += -lcgaml-g95
-  endif
-
-
-  FPP += -DG95
-  FFLAGS = -O0
-  FDEBUG = -g
-  FPROF = -p
-  LDFLAGS =
-  MODDIR = -I $(MPATH)
-  FFLAGS += $(MODDIR) $(INCLPATH)
-endif
-
 

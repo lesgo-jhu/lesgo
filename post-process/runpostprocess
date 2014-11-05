@@ -1,5 +1,0 @@
-cd BEM/
-python bem.py
-cp alpha Cl Cd lift drag ../
-cd ..
-python atm_postprocess.py
