@@ -1138,7 +1138,8 @@ else
 endif
 
 ! Read the string vector into the vector
-read( svector(1:nelem), * ) vector(1:nelem)
+read( svector(1:nelem), * , end=151) vector(1:nelem)
+151 write(*,*) 'Reached End of File'
 
 deallocate(svector)
 
