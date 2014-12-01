@@ -49,6 +49,7 @@ type turbineArray_t
     integer :: numBladePoints ! Number of points along each blade
     character(128) :: bladeUpdateType ! 
     real(rprec) :: epsilon ! Width of the smearing Gaussian function
+    character(128) :: sampling ! Sampling method for velocity atPoint or Spalart
     character(128) :: rotationDir ! Direction of rotation ('cw')
     real(rprec) :: Azimuth           
     real(rprec) :: RotSpeed           ! Speed of the rotor (rpm)
@@ -66,6 +67,15 @@ type turbineArray_t
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
+
+    ! The MPI communicator for this turbine
+    integer :: TURBINE_COMM_WORLD
+
+    ! Master processor for turbine (will write output)
+    integer :: master
+
+    ! Flag to know if this turbine operates or not in this processor
+    logical :: operate
 
     integer :: turbineTypeID ! Identifies the type of turbine   
     
@@ -314,6 +324,10 @@ do
         if( buff(1:7) == 'epsilon' ) then
             read(buff(8:), *) turbineArray(n) % epsilon
 !            write(*,*)  'epsilon is: ', turbineArray(n) % epsilon
+        endif
+        if( buff(1:8) == 'sampling' ) then
+            read(buff(9:), *) turbineArray(n) % sampling
+            write(*,*)  'sampling is: ', turbineArray(n) % sampling
         endif
         if( buff(1:11) == 'rotationDir' ) then
             read(buff(12:), *) turbineArray(n) % rotationDir

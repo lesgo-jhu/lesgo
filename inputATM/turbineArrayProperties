@@ -3,7 +3,7 @@
 
 ! globalProperties
 
-numberOfTurbines  1
+numberOfTurbines  2
 outputInterval       1
 updateInterval  1
     
@@ -12,6 +12,8 @@ turbineType              "NREL5MWRef"
 baseLocation            190.0, 315.0, 225.0 
 numBladePoints          60
 epsilon                 12.5
+sampling                "atPoint"
+!sampling                "Spalart"
 rotationDir             "cw"
 Azimuth                 232.0105
 RotSpeed                9.155
@@ -29,6 +31,7 @@ turbineType              "NREL5MWRef"
 baseLocation            350.0, 315.0, 225.0 
 numBladePoints          100
 epsilon                 10.0
+sampling                "atPoint"
 rotationDir             "cw"
 Azimuth                 232.0105
 RotSpeed                9.155

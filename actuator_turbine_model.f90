@@ -982,14 +982,15 @@ endif
 end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_output(jt_total, time)
+subroutine atm_output(i, jt_total, time)
 ! This subroutine will calculate the output of the model
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 integer, intent(in) :: jt_total ! Number of iteration fed in from solver
 real(rprec), intent(in) :: time  ! time from simulation
-integer :: i, j, m
+integer, intent(in) :: i  ! The turbine number
+integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21
@@ -997,11 +998,7 @@ integer :: VaxialFile=20, VtangentialFile=21
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
         
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-
-    do i=1,numberOfTurbines
+!~     do i=1,numberOfTurbines
 
         j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
@@ -1065,7 +1062,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         ! Write blade points 
 !~         call atm_write_blade_points(i,jt_total)
 
-    enddo
+!~     enddo
 
     ! Close all the files 
     close(powerFile)
@@ -1079,10 +1076,6 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(VrelFile)
     close(VaxialFile)
     close(VtangentialFile)
-
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Done Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 endif
 
