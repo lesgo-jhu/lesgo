@@ -141,12 +141,17 @@ integer ::  i
 
 ! Write if on main node
 if (coord == 0) then
-
     write(*,*) 'Finalizing ATM...'
+endif
+
     ! Loop through all turbines and finalize
     do i = 1, numberOfTurbines
-        call atm_write_restart(i) ! Write the restart file
+        if (coord == turbineArray(i) % master) then
+            call atm_write_restart(i) ! Write the restart file
+        endif
     end do
+
+if (coord == 0) then
     write(*,*) 'Done finalizing ATM'
 endif
 
@@ -315,7 +320,6 @@ else
                        MPI_MIN, comm, ierr) 
 endif
 
-! Allocate the list of cores
 allocate(ls_of_cores(num_of_members))
 ls_of_cores(1) = turbineArray(m) % master
 
