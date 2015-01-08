@@ -327,7 +327,7 @@ do
         endif
         if( buff(1:8) == 'sampling' ) then
             read(buff(9:), *) turbineArray(n) % sampling
-            write(*,*)  'sampling is: ', turbineArray(n) % sampling
+!~             write(*,*)  'sampling is: ', turbineArray(n) % sampling
         endif
         if( buff(1:11) == 'rotationDir' ) then
             read(buff(12:), *) turbineArray(n) % rotationDir
@@ -370,8 +370,8 @@ do
         endif 
         if( buff(1:9) == 'nacelleCd' ) then
             read(buff(10:), *) turbineArray(n) % nacelleCd
-            write(*,*)  'cd is: ', &
-                         turbineArray(n) % nacelleCd
+!~             write(*,*)  'cd is: ', &
+!~                          turbineArray(n) % nacelleCd
         endif 
     endif        
 end do
