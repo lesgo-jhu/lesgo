@@ -55,6 +55,9 @@ $endif
 
 integer::jz
 
+! Flag to identify if file exists
+logical :: file_flag
+
 $if ($TURBINES)
 fxa=0._rprec
 $endif
@@ -80,6 +83,20 @@ call string_concat( fname, '.c', coord )
 $endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
+
+! Check if file exists and read from it
+! if not then create new IC
+inquire( file=fname, exist=file_flag )
+
+if (file_flag) then
+    initu = .true.
+    inilag = .false.
+    if (coord == 0)    write(*,*) 'Initial Condition is Read from File'
+else
+    initu = .false.
+    inilag = .true.
+    if (coord == 0)    write(*,*) 'Initial Condition is Created'
+end if
 
 if(initu)then
 
