@@ -146,8 +146,9 @@ backspace 1
 
 ! Store the rotSpeed value (a is just a dummy value
 read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
-          turbineArray(i) % torqueRotor      
-write(*,*) ' RotSpeed Value from previous simulation is ',                    &
+          turbineArray(i) % torqueRotor, turbineArray(i) % u_infinity,         &
+          turbineArray(i) % induction_a
+write(*,*) ' RotSpeed Value from previous simulation is ',                     &
                 turbineArray(i) % rotSpeed
 write(*,*) ' torqueGen Value from previous simulation is ',                    &
                 turbineArray(i) % torqueGen
@@ -169,14 +170,16 @@ integer, intent(in) :: i ! Indicates the turbine number
 integer :: pointsFile=787 ! File to write the actuator points
 integer :: restartFile=21 ! File to write restart data
 integer j, m,n,q ! counters
-! Open the file at the last line (append)
+! Open the file 
 open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//  &
       "/restart", status="replace")
 
 write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor'
 ! Store the rotSpeed value 
 write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
-                     turbineArray(i) %  torqueRotor
+                     turbineArray(i) %  torqueRotor,                           &
+                     turbineArray(i) % u_infinity,                             &
+                     turbineArray(i) % induction_a
 close(restartFile)
 
 ! Write the actuator points at every time-step regardless
@@ -450,19 +453,19 @@ enddo
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_update(dt)
+subroutine atm_update(i, dt)
 ! This subroutine updates the model each time-step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-integer :: i                                 ! Turbine number
+integer, intent(in) :: i                                 ! Turbine number
 real(rprec), intent(in) :: dt                ! Time step
 
 ! Loop through all turbines and rotate the blades
-do i = 1, numberOfTurbines
+!~ do i = 1, numberOfTurbines
     call atm_computeRotorSpeed(i,dt) 
     call atm_rotateBlades(i)
-enddo
+!~ enddo
 
 end subroutine atm_update
 
@@ -511,11 +514,11 @@ TorqueControllerRelax => turbineModel(j) % TorqueControllerRelax
 DriveTrainIner => turbineModel(j) % DriveTrainIner
 
 
-! No torque controller option
+    ! No torque controller option
     if (turbineModel(j) % TorqueControllerType == "none") then
 
-        ! Compute the change in blade position at new rotor speed.
-        turbineArray(i) % deltaAzimuth = rotSpeed * dt
+!~         ! Compute the change in blade position at new rotor speed.
+!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt
 
     elseif (turbineModel(j) % TorqueControllerType == "fiveRegion") then
 
@@ -587,10 +590,29 @@ DriveTrainIner => turbineModel(j) % DriveTrainIner
         rotSpeed = max(0.0,rotSpeed)
         rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
 
-        ! Compute the change in blade position at new rotor speed.
-        turbineArray(i) % deltaAzimuth = rotSpeed * dt;
+!~         ! Compute the change in blade position at new rotor speed.
+!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt;
 
+
+    ! Torque control for fixed tip speed ratio
+    ! Note that this current method does NOT support Coning in the rotor
+    elseif (turbineModel(j) % TorqueControllerType == "fixedTSR") then
+
+        if (pastFirstTimeStep) then
+            ! Integrate the velocity along all actuator points
+            call atm_integrate_u(i)   
+    
+            ! Match the rotor speed to a given TSR
+            rotSpeed = turbineArray(i) % u_infinity_mean *     &
+                       turbineArray(i) % TSR / turbineModel(j) % tipRad
+
+            ! Important to get rid of negative values
+            rotSpeed = max(0.0,rotSpeed)
+        endif
     endif
+
+    ! Compute the change in blade position at new rotor speed.
+    turbineArray(i) % deltaAzimuth = rotSpeed * dt
 
 end subroutine atm_computeRotorSpeed
 
@@ -720,7 +742,7 @@ real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
 ! Local variables
 integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
 integer :: sectionType_i ! The type of airfoil
-real(rprec) :: twistAng_i, chord_i, windAng_i, db_i
+real(rprec) :: twistAng_i, chord_i, windAng_i, db_i, sigma
 !real(rprec) :: solidity_i
 real(rprec), dimension(3) :: dragVector, liftVector
 
@@ -867,6 +889,29 @@ dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 ! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
+
+! Change this back to radians
+windAng_i = windAng_i * degRad
+! The solidity
+sigma = chord_i * turbineModel(j) % NumBl/ (2.*pi * bladeRadius(m,n,q) )
+
+! Calculate the induction factor
+turbineArray(i) % induction_a(m,n,q) = 1. / ( 4. * sin(windAng_i)**2 /  &
+                (sigma * ( Cl(m,n,q) * cos(windAng_i) +   &
+                Cd(m,n,q) * sin(windAng_i))) + 1.)
+
+!~ write(*,*) 'Induction ', turbineArray(i) % induction_a(m,n,q)
+! Calculate u infinity
+turbineArray(i) % u_infinity(m,n,q) = windVectors(m,n,q,1) !/    &
+!~                              (1. - turbineArray(i) % induction_a(m,n,q))
+!~ turbineArray(i) % u_infinity(m,n,q) = Vmag(m,n,q) * sin(windAng_i) / &
+!~ (1-turbineArray(i) % induction_a(m,n,q))
+
+
+!~             turbineArray(i) % u_infinity = turbineArray(i) % u_infinity  +     &
+!~                              windVectors(m,n,q,1) /    &
+!~                              (1. - turbineArray(i) % induction_a(m,n,q))
+        
 ! Calculate output quantities based on each point
 call atm_process_output(i,m,n,q)
 
@@ -909,6 +954,29 @@ if (V .ge. 0.) then
 endif
 
 end subroutine atm_computeNacelleForce
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_integrate_u(i)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! This subroutine will compute the induction factor a
+! for each actuator point
+implicit none
+
+integer, intent(in) :: i ! i - turbineTypeArray
+real(rprec), pointer, dimension(:,:,:) :: u_infinity, induction_a
+real(rprec), pointer :: u_infinity_mean
+
+induction_a => turbineArray(i) % induction_a
+u_infinity_mean => turbineArray(i) % u_infinity_mean
+u_infinity => turbineArray(i) % u_infinity
+
+u_infinity_mean = sum(u_infinity) / size(u_infinity) / &
+(1. - sum(induction_a) / size(induction_a))
+
+write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
+
+end subroutine atm_integrate_u
+
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_yawNacelle(i)

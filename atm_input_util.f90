@@ -52,13 +52,15 @@ type turbineArray_t
     character(128) :: sampling ! Sampling method for velocity atPoint or Spalart
     character(128) :: rotationDir ! Direction of rotation ('cw')
     real(rprec) :: Azimuth           
-    real(rprec) :: RotSpeed           ! Speed of the rotor (rpm)
+    real(rprec) :: RotSpeed  ! Speed of the rotor (rpm)
     real(rprec) :: Pitch              
-    real(rprec) :: NacYaw             
-    real(rprec) :: fluidDensity      
+    real(rprec) :: NacYaw    ! The yaw angle of the nacelle         
+    real(rprec) :: fluidDensity   ! The density of the fluid (used for power)
     integer :: numAnnulusSections ! Number of annulus sections on each blade
     real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
     real(rprec) :: deltaNacYaw
+    real(rprec) :: TSR = 0._rprec ! Tip speed ratio
+
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
     real(rprec) :: torqueRotor ! Rotor torque
@@ -67,6 +69,7 @@ type turbineArray_t
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
+    real(rprec) :: u_infinity_mean = 0._rprec ! Mean velocity
 
     ! The MPI communicator for this turbine
     integer :: TURBINE_COMM_WORLD
@@ -114,6 +117,10 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+
+    ! Induction factor and u infinity
+    real(rprec), allocatable, dimension(:,:,:) :: induction_a
+    real(rprec), allocatable, dimension(:,:,:) :: u_infinity
 
     ! These are dummies meant to be used for parallelization
     ! bladeVectorDummy store quantities along the blades which are vectors
@@ -372,6 +379,11 @@ do
             read(buff(10:), *) turbineArray(n) % nacelleCd
 !~             write(*,*)  'cd is: ', &
 !~                          turbineArray(n) % nacelleCd
+        endif 
+        if( buff(1:3) == 'TSR' ) then
+            read(buff(4:), *) turbineArray(n) % TSR
+            write(*,*)  'TSR is: ', &
+                         turbineArray(n) % TSR
         endif 
     endif        
 end do
@@ -654,6 +666,10 @@ numBl=turbineModel(j) % numBl
     allocate(turbineArray(i) % axialForce(numBl,           &
              numAnnulusSections, numBladePoints))
     allocate(turbineArray(i) % tangentialForce(numBl,      &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % induction_a(numBl,          &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % u_infinity(numBl,          &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization

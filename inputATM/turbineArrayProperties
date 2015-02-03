@@ -24,6 +24,7 @@ numAnnulusSections      1
 annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               1.
+TSR               6.
 }
 
 TURBINE_2 {
@@ -32,6 +33,7 @@ baseLocation            350.0, 315.0, 225.0
 numBladePoints          100
 epsilon                 10.0
 sampling                "atPoint"
+!sampling                "Spalart"
 rotationDir             "cw"
 Azimuth                 232.0105
 RotSpeed                9.155
@@ -42,5 +44,6 @@ numAnnulusSections      1
 annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               0.
+TSR               6.
 }
 

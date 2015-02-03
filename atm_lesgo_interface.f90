@@ -371,7 +371,16 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 ! Time needs to be dimensionalized
 ! All processors carry the blade points
 !~  call clock_start( myClock )
-call atm_update(dt*z_i/u_star)
+!~ call atm_update(dt*z_i/u_star)
+
+! Loop through all turbines and rotate the blades
+do i = 1, numberOfTurbines
+    ! If statement is for running code only with the processors on that turbine
+    if (turbineArray(i) % operate) then
+        call atm_update(i, dt*z_i/u_star)
+    endif
+enddo
+
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  Update ', myClock % time
 
@@ -393,6 +402,8 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % Vmag = 0._rprec
         turbineArray(i) % windVectors = 0._rprec
         turbineArray(i) % nacelleForce = 0._rprec
+        turbineArray(i) % induction_a = 0._rprec
+        turbineArray(i) % u_infinity = 0._rprec
                                 
         ! If statement is for running code only if grid points affected are in 
         ! this processor. If not, no code is executed at all.
@@ -602,7 +613,22 @@ do i=1,numberOfTurbines
                            size(turbineArray(i) % bladeVectorDummy),             &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
+        ! Sync induction factor
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                   &
+                                             induction_a(:,:,:)
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % induction_a(:,:,:),                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
+        ! Sync u infinity
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                   &
+                                             u_infinity(:,:,:)
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % u_infinity(:,:,:),                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+        
         ! Store the torqueRotor. 
         ! Needs to be a different variable in order to do MPI Sum
         torqueRotor=turbineArray(i) % torqueRotor
@@ -619,7 +645,6 @@ do i=1,numberOfTurbines
 
     endif
 enddo
-
 end subroutine atm_lesgo_mpi_gather
 $endif
 
