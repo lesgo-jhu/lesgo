@@ -37,7 +37,7 @@ module atm_lesgo_interface
 ! Length is non-dimensionalized by z_i
 
 ! Lesgo data used regarding the grid (LESGO)
-use param, only : dt ,nx,ny,nz,dx,dy,dz,coord,nproc, z_i, u_star, lbz,         &
+use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,         &
                   total_time, jt_total
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
@@ -316,7 +316,7 @@ else
     ! This is bogus since nz will always be less than number of processors
     ! This is done to ensure that the master is part of the processors
     ! that hold the turbine model
-    call mpi_allreduce(nz, turbineArray(m) % master, 1, MPI_INTEGER ,       &
+    call mpi_allreduce(nz_tot, turbineArray(m) % master, 1, MPI_INTEGER ,       &
                        MPI_MIN, comm, ierr) 
 endif
 
@@ -328,6 +328,7 @@ do i = 2, num_of_members
     ls_of_cores(i) = ls_of_cores(i-1) + 1
 enddo
 
+! Write if this processor is the master
 if (coord == turbineArray(m) % master) then
     write(*,*) 'Master for turbine',m, 'is processor', turbineArray(m) % master
 endif
@@ -428,6 +429,7 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 ! This will gather all the blade forces from all processors
 $if ($MPI)
     ! This will gather all values used in MPI
+!~     call mpi_barrier( MPI_COMM_WORLD, ierr )
     call atm_lesgo_mpi_gather()
 !~     call mpi_barrier( MPI_COMM_WORLD, ierr )
 
@@ -558,7 +560,7 @@ do i=1,numberOfTurbines
     if (turbineArray(i) % operate) then
 
         TURBINE_COMMUNICATOR => turbineArray(i) % TURBINE_COMM_WORLD
-    
+
         turbineArray(i) % bladeVectorDummy = turbineArray(i) % bladeForces
         ! Sync all the blade forces
         call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
@@ -1025,141 +1027,6 @@ enddo
 
 end subroutine atm_lesgo_apply_force
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!subroutine atm_lesgo_write_output()
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!! This will write the output of the code from within. No need to access lesgo
-!! Format is VTK
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!VTK
-!implicit none
-
-!integer :: i,m,n,q,j
-!real(rprec), pointer, dimension(:) :: x,y,z,zw
-!character(128) :: coord_char,filename, time_char
-
-!! Declare x, y, and z as pointers to the grid variables x, y, and z (LESGO)
-!nullify(x,y,z,zw)
-!x => grid % x
-!y => grid % y
-!z => grid % z
-!zw => grid % zw
-
-!!comm_char=char(comm)
-!write(coord_char,'(i5)') coord
-!write(time_char,'(i5)') jt_total
-!!filename='output/data'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x, y, z, u(1:nx,1:ny,1:nz), v(1:nx,1:ny,1:nz), w(1:nx,1:ny,1:nz), nx, ny, nz,filename)
-
-!! Write plane
-!call eat_whitespace(time_char,' ')
-!call eat_whitespace(coord_char,' ')
-
-!! Write points
-!open(unit=787,file='./output/points'//time_char)
-!do i=1,numberOfTurbines
-!    j=turbineArray(i) % turbineTypeID ! The turbine type ID
-!    do q=1, turbineArray(i) % numBladePoints
-!        do n=1, turbineArray(i) % numAnnulusSections
-!            do m=1, turbineModel(j) % numBl
-!                write(787,*) turbineArray(i) % bladePoints(m,n,q,1:3)/z_i
-!            enddo
-!        enddo
-!    enddo
-!enddo
-!close(787)
-
-
-!!filename='output/plane_x_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), u(64:64,1:ny,1:nz), v(64:64,1:ny,1:nz), w(64:64,1:ny,1:nz), filename)
-!!write(*,*) 'Sizes ares = ',size(x),size(y),size(z)
-!filename='output/plane_x_force'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!call write_3D_Field_VTK(x(64:64), y(1:ny), z(1:nz), fxa(64:64,1:ny,1:nz), fya(64:64,1:ny,1:nz), fza(64:64,1:ny,1:nz), filename)
-!!filename='output/plane_y_velocity'// trim(time_char) //'.vtk.c'//trim(coord_char)
-!!call write_3D_Field_VTK(x(1:nx), y(64), z(1:nz), fxa(1:nx,64,1:nz), fya(1:nx,64,1:nz), fza(1:nx,64,1:nz), filename)
-
-!end subroutine atm_lesgo_write_output
-
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!subroutine write_3D_Field_VTK(x_n, y_n, z_n, u, v, w, filename)
-!! This subroutines reads and writes a 3D vector field in VTK format
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-!integer :: nodes_x,nodes_y,nodes_z
-!integer::i,j,k,nt
-!real(rprec), intent(in) :: x_n(:),y_n(:),z_n(:)
-!real(rprec), intent(in) :: u(:,:,:),v(:,:,:)
-!real(rprec), intent(in) :: w(:,:,:)
-!character(64), intent(in) :: filename
-
-!nodes_x=size(x_n)
-!nodes_y=size(y_n)
-!nodes_z=size(z_n)
-
-!! Total number of elements in arrays
-!nt=nodes_x*nodes_y*nodes_z
-
-!! Output to screen
-!write(*,*) 'Writing VTK Data in:', filename  
-!open(unit=987,file=trim(filename))
- 
-!! Write the VTK file header
-!      write(987,99)'# vtk DataFile Version 3.0'
-!   99 format(a26)
-!      write(987,98)'Velocity Field'
-!   98 format(a14)
-!      write(987,97)'ASCII'
-!   97 format(a5)
-!      write(987,96)'DATASET RECTILINEAR_GRID'
-!   96 format(a24) 
-!      write(987,100)'DIMENSIONS',nodes_x,nodes_y,nodes_z
-!   100 format(a10x,i5x,i5x,i5x)
-
-!!
-!!.....writting x coordinates
-!!
-!      write(987,101)'X_COORDINATES',nodes_x,'double'
-!      do i=1,nodes_x      !!!!!!!
-!        write(987,*) x_n(i)
-!      enddo
-!!
-!!.....writting y coordinates
-!!
-!      write(987,101)'Y_COORDINATES',nodes_y,'double'
-!      do j=1,nodes_y
-!        write(987,*) y_n(j)
-!      enddo
-
-!!
-!!.....writting z coordinates
-!!
-!      write(987,101)'Z_COORDINATES',nodes_z,'double'
-!      do k=1,nodes_z
-!        write(987,*) z_n(k)
-!      enddo
-
-!  101 format(a13x,i5x,a7)
-
-!!
-!!.....writting Velocity field
-!!
-!      write(987,149)'POINT_DATA',nt
-!  149 format(a10,i10)
-
-!      write(987,150)'VECTORS velocity_field double'
-!  150 format(a29)
-
-!      do k=1,nodes_z
-!        do j=1,nodes_y
-!          do i=1,nodes_x
-!            write(987,*) u(i,j,k),v(i,j,k),w(i,j,k)
-!          end do
-!        end do
-!      end do
-
-!      close(987)
-
-!write(*,*) 'Done writing VTK'
-!end subroutine write_3D_Field_VTK
 
 end module atm_lesgo_interface
 
