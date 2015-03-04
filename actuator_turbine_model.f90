@@ -224,7 +224,7 @@ do i = 1,numberOfTurbines
         call system("mkdir -vp turbineOutput/turbine"//trim(int2str(i))) 
 
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power") 
-        write(1,*) 'time Power'
+        write(1,*) 'time PowerRotor powerGen '
         close(1)
 
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
@@ -1000,7 +1000,7 @@ turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,         &
 turbineArray(i) % uvShaft =                                                    &
                              turbineArray(i) % rotorApex -                     &
                              turbineArray(i) % towerShaftIntersect
-	
+
 turbineArray(i) % uvShaft = vector_divide(turbineArray(i) % uvShaft,           &
                             vector_mag(turbineArray(i) % uvShaft)) 
 turbineArray(i) % uvShaft = vector_multiply( turbineArray(i) % uvShaft,        &
@@ -1107,7 +1107,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
         call atm_compute_power(i)
-        write(powerFile,*) time, turbineArray(i) % powerRotor
+        write(powerFile,*) time, turbineArray(i) % powerRotor, turbineArray(i) % powerGen
         write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
 
         ! Will write only the first actuator section of the blade
@@ -1156,11 +1156,21 @@ subroutine atm_compute_power(i)
 implicit none
 
 integer, intent(in) :: i
+integer :: j
+
+j = turbineArray(i) % turbineTypeID
 
 turbineArray(i) % powerRotor = turbineArray(i) % torqueRotor *                 &
-                               turbineArray(i) % rotSpeed
+    turbineArray(i) % rotSpeed * turbineArray(i) % fluidDensity
+if (turbineModel(j) % TorqueControllerType == "fiveRegion") then
+    turbineArray(i) % powerGen = turbineArray(i) % torqueGen *                 &
+        turbineArray(i) % rotSpeed * turbineModel(j) % GBRatio
+else
+    turbineArray(i) % powerGen = turbineArray(i) % powerRotor
+endif
 
-write(*,*) 'Turbine ',i,' Power is: ', turbineArray(i) % powerRotor
+write(*,*) 'Turbine ',i,' (Aerodynamic, Generator) Power is: ',                &
+    turbineArray(i) % powerRotor, turbineArray(i) % powerGen
 
 end subroutine atm_compute_power
 

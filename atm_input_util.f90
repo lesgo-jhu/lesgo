@@ -66,6 +66,7 @@ type turbineArray_t
     real(rprec) :: torqueRotor ! Rotor torque
     real(rprec) :: torqueGen ! Generator torque
     real(rprec) :: powerRotor ! Rotor Power
+    real(rprec) :: powerGen ! Generator Power
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
