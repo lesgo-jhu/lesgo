@@ -37,7 +37,7 @@ module atm_lesgo_interface
 ! Length is non-dimensionalized by z_i
 
 ! Lesgo data used regarding the grid (LESGO)
-use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,         &
+use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,  &
                   total_time, jt_total
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
@@ -405,6 +405,7 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % nacelleForce = 0._rprec
         turbineArray(i) % induction_a = 0._rprec
         turbineArray(i) % u_infinity = 0._rprec
+        turbineArray(i) % bladeAlignedVectors = 0._rprec
                                 
         ! If statement is for running code only if grid points affected are in 
         ! this processor. If not, no code is executed at all.
@@ -567,7 +568,28 @@ do i=1,numberOfTurbines
                            turbineArray(i) % bladeForces,                        &
                            size(turbineArray(i) % bladeVectorDummy),             &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+
+        ! Sync bladeAlignedVectors
+        turbineArray(i) % bladeVectorDummy =                                   &
+                              turbineArray(i) % bladeAlignedVectors(:,:,:,1,:)
+        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
+                           turbineArray(i) % bladeAlignedVectors(:,:,:,1,:),   &
+                           size(turbineArray(i) % bladeVectorDummy),           &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+        turbineArray(i) % bladeVectorDummy =                                   &
+                              turbineArray(i) % bladeAlignedVectors(:,:,:,2,:)
+        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
+                           turbineArray(i) % bladeAlignedVectors(:,:,:,2,:),   &
+                           size(turbineArray(i) % bladeVectorDummy),           &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+        turbineArray(i) % bladeVectorDummy =                                   &
+                              turbineArray(i) % bladeAlignedVectors(:,:,:,3,:)
+        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
+                           turbineArray(i) % bladeAlignedVectors(:,:,:,3,:),   &
+                           size(turbineArray(i) % bladeVectorDummy),           &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
+        
         ! Sync alpha
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
@@ -606,7 +628,7 @@ do i=1,numberOfTurbines
                            turbineArray(i) % Vmag,                                 &
                            size(turbineArray(i) % bladeScalarDummy),             &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+
         ! Sync wind Vectors (Vaxial, Vtangential, Vradial)
         turbineArray(i) % bladeVectorDummy = turbineArray(i) %                   &
                                              windVectors(:,:,:,1:3)
@@ -860,6 +882,8 @@ implicit none
 integer, intent(in) :: i
 integer :: j, m, n, q, c,mmend,nnend,qqend
 
+integer :: ii, jj, kk  ! Indices for lesgo fields
+
 ! Test for time optimization
 real(rprec) :: dist,a(3),b(3),projectradius,epsilon,const1,const2,const3
 real(rprec) :: nacelleEpsilon
@@ -899,92 +923,217 @@ nacelleEpsilon = turbineArray(i) % nacelleEpsilon
 const1=1./ ((epsilon**3.)*(pi**1.5))
 const2= z_i/(u_star**2.)
 const3=const1*const2
-!~ allocate(bladeForces(mmend,nnend,qqend,3))
-!~ bladeForces=turbineArray(i) % bladeForces
 
-!~  call clock_start( myClock )
-do c=1,forceFieldUV(i) % c
-    a= forceFieldUV(i) %  location(1:3,c)
-    force=0._rprec
+! Body Force implementation using velocity sampling at the actuator point
+if (turbineArray(i) % sampling == 'atPoint') then
 
-    ! Blade forces
-    do m=1, mmend
-        do n=1, nnend
-           do q=1, qqend
-
-                b= bladePoints(m,n,q,:)
-                dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-
-                if (dist .le. projectradius) then
-                ! The value of the kernel. This is the actual smoothing function
-                 force(1:2) = force(1:2) +  bladeForces(m,n,q,1:2) *exp(-(dist/epsilon)**2)
-                endif
-
+    !~  call clock_start( myClock )
+    do c=1,forceFieldUV(i) % c
+        a= forceFieldUV(i) %  location(1:3,c)
+        force=0._rprec
+    
+        ! Blade forces
+        do m=1, mmend
+            do n=1, nnend
+               do q=1, qqend
+    
+                    b= bladePoints(m,n,q,:)
+                    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    
+                    if (dist .le. projectradius) then
+                    ! The value of the kernel. This is the actual smoothing function
+                     force(1:2) = force(1:2) +  bladeForces(m,n,q,1:2) *exp(-(dist/epsilon)**2)  
+                    endif
+    
+                enddo
             enddo
         enddo
-    enddo
-    force(1:2)=force(1:2)* const3
-
-    ! Nacelle force
-    if (turbineArray(i) % nacelle) then
-        b=turbineArray(i) % nacelleLocation
-        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-!~         if (dist .le. projectradius) then
-            ! The value of the kernel. This is the actual smoothing function
-            kernel=exp(-(dist/nacelleEpsilon)**2.) / ( (nacelleEpsilon**3.)*(pi**1.5) )
-            !write(*,*) 'kernel Value= ', kernel
-            force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
-                         kernel *const2
-!~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
-
-!~         endif
-    endif
-
+        force(1:2)=force(1:2)* const3
     
-    bodyForceUV(1:2,c) = force(1:2) 
-!~     if (abs(bodyForceUV(1,c)) .gt. 0) then
-!~                 write(*,*) 'bodyForceUV is: ', bodyForceUV(1,c)
-!~     endif
-enddo
-
-
-do c=1,forceFieldW(i) % c
-    a= forceFieldW(i) %  location(1:3,c)
-    force=0._rprec
-
-    ! Blade forces
-    do m=1,mmend
-        do n=1,nnend
-           do q=1,qqend
-
-                b= bladePoints(m,n,q,:)
-                dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-
-                if (dist .le. projectradius) then
+        ! Nacelle force
+        if (turbineArray(i) % nacelle) then
+            b=turbineArray(i) % nacelleLocation
+            dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    !~         if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
-                force(3) = force(3) +  bladeForces(m,n,q,3) &
-                           *exp(-(dist/epsilon)**2)
-                endif
-
-            enddo
-        enddo
-    enddo
-    force(3)=force(3)* const3
+                kernel=exp(-(dist/nacelleEpsilon)**2.) / ( (nacelleEpsilon**3.)*(pi**1.5) )
+                !write(*,*) 'kernel Value= ', kernel
+                force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
+                             kernel *const2
+    !~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
     
-    ! Nacelle force
-    if (turbineArray(i) % nacelle) then
-        b=turbineArray(i) % nacelleLocation
-        dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-        if (dist .le. projectradius) then    
-            ! The value of the kernel. This is the actual smoothing function
-            kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
-            force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
-                       kernel *const2
+    !~         endif
         endif
-    endif    
     
-    bodyForceW(3,c) = force(3)
-enddo
+        
+        bodyForceUV(1:2,c) = force(1:2) 
+    !~     if (abs(bodyForceUV(1,c)) .gt. 0) then
+    !~                 write(*,*) 'bodyForceUV is: ', bodyForceUV(1,c)
+    !~     endif
+    enddo
+    
+    
+    do c=1,forceFieldW(i) % c
+        a= forceFieldW(i) %  location(1:3,c)
+        force=0._rprec
+    
+        ! Blade forces
+        do m=1,mmend
+            do n=1,nnend
+               do q=1,qqend
+    
+                    b= bladePoints(m,n,q,:)
+                    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    
+                    if (dist .le. projectradius) then
+                    ! The value of the kernel. This is the actual smoothing function
+                    force(3) = force(3) +  bladeForces(m,n,q,3) &
+                               *exp(-(dist/epsilon)**2)
+                    endif
+    
+                enddo
+            enddo
+        enddo
+        force(3)=force(3)* const3
+        
+        ! Nacelle force
+        if (turbineArray(i) % nacelle) then
+            b=turbineArray(i) % nacelleLocation
+            dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+            if (dist .le. projectradius) then    
+                ! The value of the kernel. This is the actual smoothing function
+                kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
+                force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
+                           kernel *const2
+            endif
+        endif    
+        
+        bodyForceW(3,c) = force(3)
+    enddo
+
+! The Spalart method uses the local velocity field.
+! For this reason it needs to be done explicitly in this module
+! and cannot be generally coded from the actuator_turbine_model module
+elseif (turbineArray(i) % sampling == 'Spalart') then
+
+    !~  call clock_start( myClock )
+    do c=1,forceFieldUV(i) % c
+        a= forceFieldUV(i) %  location(1:3,c)
+        force=0._rprec
+        ! Indices for velocity field
+        ii = forceFieldUV(i) % ijk(1,c)
+        jj = forceFieldUV(i) % ijk(2,c)
+        kk = forceFieldUV(i) % ijk(3,c)
+    
+        ! Blade forces
+        do m=1, mmend
+            do n=1, nnend
+               do q=1, qqend
+    
+                    b= bladePoints(m,n,q,:)
+                    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    
+                    if (dist .le. projectradius) then
+                        ! The value of the kernel.
+                        ! This is the actual smoothing function
+                        ! Divide by velocity magnitude
+                         force(1) = force(1) +  bladeForces(m,n,q,1) *         &
+                                      exp(-(dist/epsilon)**2)                  &
+                         / (turbineArray(i) % Vmag(m,n,q)) *                     &
+                         ( u(ii,jj,kk)  * u_star +                             &
+!~  This one is the problem! turbineArray(i) % bladeAlignedVectors(m,n,q,2,1)
+                         turbineArray(i) % bladeAlignedVectors(m,n,q,2,1) *    &
+!~                          turbineArray(i) % rotSpeed *                          &
+!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
+                         cos(turbineModel(j) % PreCone))
+
+                         force(2) = force(2) +  bladeForces(m,n,q,2) *         &
+                                      exp(-(dist/epsilon)**2)                  !&
+!~                          / turbineArray(i) % Vmag(m,n,q) *                     &
+!~                          ( v(ii,jj,kk) * u_star +                              &
+!~                          turbineArray(i) % bladeAlignedVectors(m,n,q,2,2) *    &
+!~                          turbineArray(i) % rotSpeed *                          &
+!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
+!~                          cos(turbineModel(j) % PreCone))
+
+                    endif
+
+                enddo
+            enddo
+        enddo
+        force(1:2)=force(1:2)* const3
+
+        ! Nacelle force
+        if (turbineArray(i) % nacelle) then
+            b=turbineArray(i) % nacelleLocation
+            dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    !~         if (dist .le. projectradius) then
+                ! The value of the kernel. This is the actual smoothing function
+                kernel = exp(-(dist/nacelleEpsilon)**2.) /                       &
+                         ( (nacelleEpsilon**3.)*(pi**1.5) )
+                !write(*,*) 'kernel Value= ', kernel
+                force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
+                             kernel *const2
+    !~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
+    
+    !~         endif
+        endif
+    
+        
+        bodyForceUV(1:2,c) = force(1:2) 
+    enddo
+    
+    
+    do c=1,forceFieldW(i) % c
+        a= forceFieldW(i) %  location(1:3,c)
+        force=0._rprec
+        ! Indices for velocity field
+        ii = forceFieldW(i) % ijk(1,c)
+        jj = forceFieldW(i) % ijk(2,c)
+        kk = forceFieldW(i) % ijk(3,c)
+    
+        ! Blade forces
+        do m=1,mmend
+            do n=1,nnend
+               do q=1,qqend
+    
+                    b= bladePoints(m,n,q,:)
+                    dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+    
+                    if (dist .le. projectradius) then
+                        ! The value of the kernel.
+                        ! This is the actual smoothing function
+                        force(3) = force(3) +  bladeForces(m,n,q,3) *          &
+                                   exp(-(dist/epsilon)**2)                     !&
+!~                          / turbineArray(i) % Vmag(m,n,q) *                     &
+!~                          ( w(ii,jj,kk) * u_star +                              &
+!~                          turbineArray(i) % bladeAlignedVectors(m,n,q,2,3) *    &
+!~                          turbineArray(i) % rotSpeed *                          &
+!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
+!~                          cos(turbineModel(j) % PreCone)) 
+                    endif
+    
+                enddo
+            enddo
+        enddo
+        force(3)=force(3)* const3
+        
+        ! Nacelle force
+        if (turbineArray(i) % nacelle) then
+            b=turbineArray(i) % nacelleLocation
+            dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
+            if (dist .le. projectradius) then    
+                ! The value of the kernel. This is the actual smoothing function
+                kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
+                force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
+                           kernel *const2
+            endif
+        endif    
+        
+        bodyForceW(3,c) = force(3)
+    enddo
+
+endif
 
 end subroutine atm_lesgo_convolute_force
 
