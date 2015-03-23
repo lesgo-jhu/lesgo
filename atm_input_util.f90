@@ -383,8 +383,8 @@ do
         endif 
         if( buff(1:3) == 'TSR' ) then
             read(buff(4:), *) turbineArray(n) % TSR
-            write(*,*)  'TSR is: ', &
-                         turbineArray(n) % TSR
+!~             write(*,*)  'TSR is: ', &
+!~                          turbineArray(n) % TSR
         endif 
     endif        
 end do
@@ -403,7 +403,8 @@ end subroutine read_input_conf
 subroutine read_turbine_model_variables ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
-integer :: i,j ! counter
+implicit none
+integer :: i, j, c ! counter
 integer :: numTurbinesDistinct ! Number of different turbine types
 character(128) :: currentTurbineType ! Will store turbineType in loop
 character(128) :: input_turbine
@@ -419,41 +420,73 @@ character(128), dimension(20) :: airfoils
 
 ! Initialize variables for the loop
 ! Will find the number of distincet turbines to allocate memory for turbineModel
-numTurbinesDistinct=1
+numTurbinesDistinct=0
 currentTurbineType=turbineArray(1) % turbineType
+
+! Counter for number of distinct turbines
+c = 0
 ! Find how many turbine types there are
 do i=1,numberOfTurbines
-    if (turbineArray(i) % turbineType .ne. currentTurbineType) then
-        numTurbinesDistinct = numTurbinesDistinct+1
-        currentTurbineType=turbineArray(i) % turbineType
+
+    ! Find if the name is repeated
+    do j=1,i-1
+        if (turbineArray(i) % turbineType .eq. turbineArray(j) % turbineType) then
+            c = 1
+            turbineArray(i) % turbineTypeID = turbineArray(j) % turbineTypeID
+        endif
+    enddo
+
+    ! Assign a new turbine if c = 0
+    if (c .eq. 0) then
+        numTurbinesDistinct = numTurbinesDistinct + 1
+        turbineArray(i) % turbineTypeID = numTurbinesDistinct
     endif
-    turbineArray(i) % turbineTypeID=numTurbinesDistinct
+
+    ! Restart the counter at 0
+    c = 0
+!~     write(*,*) 'turbine ',i,' is type ',turbineArray(i) % turbineType, ' ', turbineArray(i) % turbineTypeID
 enddo
 
 ! Allocate space for turbine model variables
 allocate(turbineModel(numTurbinesDistinct))
+write(*,*) 'Distinct Turbines=', numTurbinesDistinct
 
 ! This will store the turbine types on each turbine model ("NREL5MW")
-numTurbinesDistinct=1
-currentTurbineType=turbineArray(1) % turbineType
-turbineModel(numTurbinesDistinct) % turbineType = turbineArray(1) % turbineType
+!~ numTurbinesDistinct=1
+!~ currentTurbineType=turbineArray(1) % turbineType
+!~ turbineModel(numTurbinesDistinct) % turbineType = turbineArray(1) % turbineType
+!~ do i=1,numberOfTurbines
+!~ currentTurbineType=turbineArray(i) % turbineType ! added
+!~     if (turbineArray(i) % turbineType .ne. currentTurbineType) then
+!~     numTurbinesDistinct = numTurbinesDistinct+1
+!~     turbineModel(numTurbinesDistinct) % turbineType = &
+!~     turbineArray(i) % turbineType
+!~     endif
+!~ enddo
+!~ numTurbinesDistinct=1
+!~ currentTurbineType=turbineArray(1) % turbineType
+!~ turbineModel(numTurbinesDistinct) % turbineType = turbineArray(1) % turbineType
+
 do i=1,numberOfTurbines
-    if (turbineArray(i) % turbineType .ne. currentTurbineType) then
-    numTurbinesDistinct = numTurbinesDistinct+1
-    turbineModel(numTurbinesDistinct) % turbineType = &
+    turbineModel(turbineArray(i) % turbineTypeID) % turbineType = &
     turbineArray(i) % turbineType
-    endif
 enddo
 
 ! Read the input properties for each turbine type
 do i = 1, numTurbinesDistinct
+
     input_turbine = './inputATM/' // turbineModel(i) % turbineType 
+
     ! Check that the configuration file exists
     inquire (file=input_turbine, exist=exst)
+
+!~  write(*,*) 'Error NOT Here', i, lun, input_turbine, exst
     ! Open file
     if (exst) then
         ! Open the input file
         open (lun, file=input_turbine, action='read')
+!~  write(*,*) 'Error Here'
+
     else
         ! Error for non existing file
         call error ('file ' // input_turbine // ' does not exist')
