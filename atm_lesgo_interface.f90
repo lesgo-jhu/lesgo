@@ -1041,20 +1041,18 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
                                       exp(-(dist/epsilon)**2)                  &
                          / (turbineArray(i) % Vmag(m,n,q)) *                     &
                          ( u(ii,jj,kk)  * u_star +                             &
-!~  This one is the problem! turbineArray(i) % bladeAlignedVectors(m,n,q,2,1)
-                         turbineArray(i) % bladeAlignedVectors(m,n,q,2,1) *    &
-!~                          turbineArray(i) % rotSpeed *                          &
-!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
+                         turbineArray(i) % rotSpeed *                          &
+                         turbineArray(i) % bladeRadius(m,n,q) *                &
                          cos(turbineModel(j) % PreCone))
 
                          force(2) = force(2) +  bladeForces(m,n,q,2) *         &
-                                      exp(-(dist/epsilon)**2)                  !&
-!~                          / turbineArray(i) % Vmag(m,n,q) *                     &
-!~                          ( v(ii,jj,kk) * u_star +                              &
-!~                          turbineArray(i) % bladeAlignedVectors(m,n,q,2,2) *    &
-!~                          turbineArray(i) % rotSpeed *                          &
-!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
-!~                          cos(turbineModel(j) % PreCone))
+                                      exp(-(dist/epsilon)**2)                  &
+                         / turbineArray(i) % Vmag(m,n,q) *                     &
+                         ( v(ii,jj,kk) * u_star +                              &
+                         turbineArray(i) % bladeAlignedVectors(m,n,q,2,2) *    &
+                         turbineArray(i) % rotSpeed *                          &
+                         turbineArray(i) % bladeRadius(m,n,q) *                &
+                         cos(turbineModel(j) % PreCone))
 
                     endif
 
@@ -1104,13 +1102,13 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
                         ! The value of the kernel.
                         ! This is the actual smoothing function
                         force(3) = force(3) +  bladeForces(m,n,q,3) *          &
-                                   exp(-(dist/epsilon)**2)                     !&
-!~                          / turbineArray(i) % Vmag(m,n,q) *                     &
-!~                          ( w(ii,jj,kk) * u_star +                              &
-!~                          turbineArray(i) % bladeAlignedVectors(m,n,q,2,3) *    &
-!~                          turbineArray(i) % rotSpeed *                          &
-!~                          turbineArray(i) % bladeRadius(m,n,q) *                &
-!~                          cos(turbineModel(j) % PreCone)) 
+                                   exp(-(dist/epsilon)**2)                     &
+                         / turbineArray(i) % Vmag(m,n,q) *                     &
+                         ( w(ii,jj,kk) * u_star +                              &
+                         turbineArray(i) % bladeAlignedVectors(m,n,q,2,3) *    &
+                         turbineArray(i) % rotSpeed *                          &
+                         turbineArray(i) % bladeRadius(m,n,q) *                &
+                         cos(turbineModel(j) % PreCone)) 
                     endif
     
                 enddo
