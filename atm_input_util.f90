@@ -60,6 +60,9 @@ type turbineArray_t
     real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
     real(rprec) :: deltaNacYaw
     real(rprec) :: TSR = 0._rprec ! Tip speed ratio
+    real(rprec) :: PitchControlAngle = 0._rprec
+    real(rprec) :: IntSpeedError = 0._rprec
+    real(rprec) :: IntPowerError = 0._rprec
 
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
@@ -210,7 +213,7 @@ type turbineModel_t
     ! The airfoil type properties ( includes AOA, Cl, and Cd) Attempt 1
     type(airfoilType_t), allocatable, dimension(:) :: airfoilType
 
-    ! Controller variables
+    ! Torque controller variables
     character(64) :: TorqueControllerType
     real(rprec) :: CutInGenSpeed
     real(rprec) :: RatedGenSpeed
@@ -221,6 +224,14 @@ type turbineModel_t
     real(rprec) :: RateLimitGenTorque
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
+    
+    ! Pitch controller variables
+    character(64) :: PitchControllerType
+    real(rprec) :: PitchControlAngleMax   ! Maximum pitch angle
+    real(rprec) :: PitchControlAngleMin   ! Minimum pitch angle
+    real(rprec) :: PitchControlAngleK     ! Angle at which sensitivity doubles
+    real(rprec) :: PitchControlKP0        ! Proportional term at angle = 0
+    real(rprec) :: PitchControlKI0        ! Integral term at angle = 0
     
 end type turbineModel_t
 
@@ -540,7 +551,7 @@ do i = 1, numTurbinesDistinct
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! This will read the controller type and its properties
+        ! This will read the torque controller type and its properties
         if( buff(1:20) == 'TorqueControllerType' ) then
             read(buff(21:), *) turbineModel(i) % TorqueControllerType
 !            write(*,*) 'TorqueControllerType is: ', turbineModel(i) % TorqueControllerType
@@ -596,6 +607,33 @@ do i = 1, numTurbinesDistinct
         if( buff(1:7) == 'GenIner' ) then
             read(buff(8:), *) turbineModel(i) % GenIner
 !            write(*,*) 'GenIner is: ', turbineModel(i) % GenIner
+        endif
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! This will read the pitch control values
+        if( buff(1:19) == 'PitchControllerType' ) then
+            read(buff(20:), *) turbineModel(i) % PitchControllerType
+            write(*,*) 'PitchControllerType is: ', turbineModel(i) % PitchControllerType
+        endif
+        if( buff(1:20) == 'PitchControlAngleMax' ) then
+            read(buff(21:), *) turbineModel(i) % PitchControlAngleMax
+            write(*,*) 'PitchControlAngleMax is: ', turbineModel(i) % PitchControlAngleMax
+        endif
+        if( buff(1:20) == 'PitchControlAngleMin' ) then
+            read(buff(21:), *) turbineModel(i) % PitchControlAngleMin
+            write(*,*) 'PitchControlAngleMin is: ', turbineModel(i) % PitchControlAngleMin
+        endif
+        if( buff(1:18) == 'PitchControlAngleK' ) then
+            read(buff(19:), *) turbineModel(i) % PitchControlAngleK
+            write(*,*) 'PitchControlAngleK is: ', turbineModel(i) % PitchControlAngleK
+        endif
+        if( buff(1:15) == 'PitchControlKP0' ) then
+            read(buff(16:), *) turbineModel(i) % PitchControlKP0
+            write(*,*) 'PitchControlKP0 is: ', turbineModel(i) % PitchControlKP0
+        endif
+        if( buff(1:15) == 'PitchControlKI0' ) then
+            read(buff(16:), *) turbineModel(i) % PitchControlKI0
+            write(*,*) 'PitchControlKI0 is: ', turbineModel(i) % PitchControlKI0
         endif
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

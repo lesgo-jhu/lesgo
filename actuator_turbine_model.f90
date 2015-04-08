@@ -147,13 +147,20 @@ backspace 1
 ! Store the rotSpeed value (a is just a dummy value
 read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
           turbineArray(i) % torqueRotor, turbineArray(i) % u_infinity,         &
-          turbineArray(i) % induction_a
+          turbineArray(i) % induction_a,                                       &
+          turbineArray(i) % PitchControlAngle, turbineArray(i) % IntSpeedError
+
 write(*,*) ' RotSpeed Value from previous simulation is ',                     &
                 turbineArray(i) % rotSpeed
 write(*,*) ' torqueGen Value from previous simulation is ',                    &
                 turbineArray(i) % torqueGen
-write(*,*) ' torqueRotor Value from previous simulation is ',                    &
+write(*,*) ' torqueRotor Value from previous simulation is ',                  &
                 turbineArray(i) % torqueRotor
+write(*,*) ' PitchControlAngle Value from previous simulation is ',            &
+                turbineArray(i) % PitchControlAngle
+write(*,*) ' IntSpeedError Value from previous simulation is ',                &
+                turbineArray(i) % IntSpeedError
+
 close(1)
 
 end subroutine atm_read_restart
@@ -171,21 +178,23 @@ integer :: pointsFile=787 ! File to write the actuator points
 integer :: restartFile=21 ! File to write restart data
 integer j, m,n,q ! counters
 ! Open the file 
-open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//  &
+open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//     &
       "/restart", status="replace")
 
 write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor'
 ! Store the rotSpeed value 
 write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
-                     turbineArray(i) %  torqueRotor,                           &
+                     turbineArray(i) % torqueRotor,                            &
                      turbineArray(i) % u_infinity,                             &
-                     turbineArray(i) % induction_a
+                     turbineArray(i) % induction_a,                            &
+                     turbineArray(i) % PitchControlAngle,                      &
+                     turbineArray(i) % IntSpeedError
 close(restartFile)
 
 ! Write the actuator points at every time-step regardless
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=pointsFile,status="replace",                                     &
+open(unit=pointsFile,status="replace",                                         &
      file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
 
 do m=1, turbineModel(j) % numBl
@@ -483,7 +492,7 @@ integer :: j                                 ! Turbine type
 ! Pointers to turbineArray(i)
 real(rprec), pointer :: rotSpeed, torqueGen, torqueRotor, fluidDensity
 
-! Poitners to turbineModel(j)
+! Pointers to turbineModel(j)
 real(rprec), pointer :: GBRatio, CutInGenSpeed, RatedGenSpeed
 real(rprec), pointer :: Region2StartGenSpeed, Region2EndGenSpeed
 real(rprec), pointer :: CutInGenTorque,RateLimitGenTorque,RatedGenTorque
@@ -493,6 +502,9 @@ real(rprec), pointer :: KGen,TorqueControllerRelax, DriveTrainIner
 real(rprec) :: torqueGenOld, genSpeed, dGenSpeed, Region2StartGenTorque
 real(rprec) :: torqueSlope, Region2EndGenTorque
 
+! Pitch Controller values
+real(rprec) :: GK, KP, KI, SpeedError
+real(rprec), pointer :: IntSpeedError, PitchControlAngle
 
 j=turbineArray(i) % turbineTypeID
 
@@ -513,6 +525,8 @@ RateLimitGenTorque => turbineModel(j) % RateLimitGenTorque
 TorqueControllerRelax => turbineModel(j) % TorqueControllerRelax
 DriveTrainIner => turbineModel(j) % DriveTrainIner
 
+IntSpeedError => turbineArray(i) % IntSpeedError
+PitchControlAngle => turbineArray(i) % PitchControlAngle
 
     ! No torque controller option
     if (turbineModel(j) % TorqueControllerType == "none") then
@@ -585,10 +599,12 @@ DriveTrainIner => turbineModel(j) % DriveTrainIner
         ! Update the rotor speed.
         rotSpeed = rotSpeed + TorqueControllerRelax*(dt/DriveTrainIner)*(torqueRotor*fluidDensity - GBRatio*torqueGen)
 
-        ! Limit the rotor speed to be positive and such that the generator does not turn
-        ! faster than rated.
-        rotSpeed = max(0.0,rotSpeed)
-        rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
+        if (turbineModel(j) % PitchControllerType == "none") then
+            ! Limit the rotor speed to be positive and such that the generator does not turn
+            ! faster than rated.
+            rotSpeed = max(0.0,rotSpeed)
+            rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
+        endif
 
 !~         ! Compute the change in blade position at new rotor speed.
 !~         turbineArray(i) % deltaAzimuth = rotSpeed * dt;
@@ -609,6 +625,35 @@ DriveTrainIner => turbineModel(j) % DriveTrainIner
             ! Important to get rid of negative values
             rotSpeed = max(0.0,rotSpeed)
         endif
+    endif
+
+    ! Pitch controllers (If there's no pitch controller, then don't do anything)
+    if (turbineModel(j) % PitchControllerType == "gainScheduledPI") then
+
+       ! Get the generator speed.
+       genSpeed = (rotSpeed/rpmRadSec)*GBRatio
+
+       ! Calculate the gain
+       GK =  1.0/(1.0 + PitchControlAngle/turbineModel(j) % PitchControlAngleK)
+
+       ! Calculate the Proportional and Integral terms
+       KP = GK*turbineModel(j) % PitchControlKP0
+       KI = GK*turbineModel(j) % PitchControlKI0
+
+       ! Get speed error (generator in rpm) and update integral
+       ! Integral is saturated to not push the angle beyond its limits
+       SpeedError = genSpeed - RatedGenSpeed
+       !write(*,*) 'Speed Error is: ', speedError
+
+       IntSpeedError = IntSpeedError + SpeedError*dt
+       IntSpeedError = min( max(IntSpeedError, turbineModel(j) % PitchControlAngleMin/KI), &
+                       turbineModel(j) % PitchControlAngleMax/KI)
+
+       ! Apply PI controller and saturate
+       PitchControlAngle = KP*SpeedError + KI*IntSpeedError
+       PitchControlAngle = min( max( PitchControlAngle, turbinemodel(j) % PitchControlAngleMin), &
+                           turbineModel(j) % PitchControlAngleMax)
+
     endif
 
     ! Compute the change in blade position at new rotor speed.
@@ -847,7 +892,8 @@ Vmag(m,n,q)=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
 windAng_i = atan2( windVectors(m,n,q,1), windVectors(m,n,q,2) ) /degRad
 
 ! Local angle of attack
-alpha(m,n,q) = windAng_i - twistAng_i - turbineArray(i) % Pitch
+alpha(m,n,q) = windAng_i - twistAng_i - turbineArray(i) % Pitch - &
+               turbineArray(i) % PitchControlAngle
 
 ! Total number of entries in lists of AOA, cl and cd
 k = turbineModel(j) % airfoilType(sectionType_i) % n
@@ -1061,7 +1107,7 @@ integer, intent(in) :: i  ! The turbine number
 integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
-integer :: VaxialFile=20, VtangentialFile=21
+integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1106,9 +1152,14 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         open(unit=VtangentialFile,position="append",                           &
         file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
+        open(unit=pitchFile,position="append",                                 &
+        file="./turbineOutput/turbine"//trim(int2str(i))//"/pitch")
+
         call atm_compute_power(i)
         write(powerFile,*) time, turbineArray(i) % powerRotor, turbineArray(i) % powerGen
         write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
+        write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,          &
+                           turbineArray(i) % IntSpeedError
 
         ! Will write only the first actuator section of the blade
         do m=1, turbineModel(j) % numBl
@@ -1144,6 +1195,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(VrelFile)
     close(VaxialFile)
     close(VtangentialFile)
+    close(pitchFile)
 
 endif
 

@@ -20,7 +20,7 @@ TipRad                 63.0;
 HubRad                  1.5;
 UndSling                0.0;
 OverHang               -1.0;
-TowerHt                90;
+TowerHt                512;
 Twr2Shft                0;
 ShftTilt               0;
 PreCone               0;
@@ -28,13 +28,13 @@ GBRatio                97.0;
 GenIner               534.116;
 HubIner               115.926E3;
 BladeIner             11.776047E6;
-//~ TorqueControllerType   "fiveRegion";
-//~ TorqueControllerType   "none";
-TorqueControllerType   "fixedTSR";
+//TorqueControllerType   "none";
+TorqueControllerType   "fiveRegion";
+//TorqueControllerType   "fixedTSR";
 YawControllerType      "none";
-//PitchControllerType    "simpleLinear";
 PitchControllerType    "none";
-
+//PitchControllerType    "simpleLinear";
+//PitchControllerType    "gainScheduledPI";
 
 TorqueControllerParams
 {
@@ -49,17 +49,19 @@ TorqueControllerParams
     TorqueControllerRelax     1.0;
 }
 
-
 PitchControllerParams
 {
-    PitchControlStartPitch    0.0;
-    PitchControlEndPitch      7.6;
-    PitchControlStartSpeed    15.77;
-    PitchControlEndSpeed      16.0;
-    RateLimitPitch             4.5;
+    PitchControlAngleMax    90.0;
+    PitchControlAngleMin    0.0;
+    PitchControlAngleK      6.302336;
+    PitchControlKP0         0.01882681;
+    PitchControlKI0         0.0080608634;
+!    PitchControlStartPitch    0.0;
+!    PitchControlEndPitch      7.6;
+!    PitchControlStartSpeed    15.77;
+!    PitchControlEndSpeed      16.0;
+!    RateLimitPitch             4.5;
 }
-
-
 
 Airfoils
 (
@@ -72,7 +74,6 @@ Airfoils
     "DU21_A17"  
     "NACA64_A17"
 );
-
 
 BladeData
 (
