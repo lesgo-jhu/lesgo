@@ -28,9 +28,6 @@ ITEMS:
      variables written to file but any instance that a w-grid variable
      is operated against a uv-grid variable.
 
-(CC) Add checkpointing. This should also include periodic writes of the
-     time averaged data.
-
 (CC) Create documentation. Good place to start is the README. Would be
      nice to have a formal pdf covering the basic background info, usage
      of lesgo, and any idiosyncrasies that are important to know
