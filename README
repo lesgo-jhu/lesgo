@@ -89,7 +89,7 @@ The following dependencies are required in order to compile lesgo:
 
     This library is used for IO. It is required to build with Fortran and
     parallel IO support        
-    Install the hdf5 library with paralel and fortran support
+    Install the hdf5 library with parallel and fortran support
     Version 1.8.12 works fine
     You can choose --prefix= the location you want.
     In this example it is placed in /usr/local/hdf5
@@ -183,7 +183,7 @@ or
 for building using N threads.
 
 The resulting executable name will reflect the functionality that you have
-configured into the executable. For instance, for serial lesgo with no addtional
+configured into the executable. For instance, for serial lesgo with no additional
 bells and whistles the executable will be called "lesgo"; if you turned on MPI
 support it will be called "lesgo-mpi". Once you have an executable there is no
 need to recompile for running different cases - this is done using "lesgo.conf".
@@ -221,15 +221,15 @@ is applied in the longitudinal and spanwise directions (x and y, respectively)
 and in the vertical (z) direction 2nd order finite differences are applied. The
 solver solves the filtered N-S equations in the high-Re limit in which molecular
 viscosity effects are generally neglected. An eddy viscosity closure model is
-applied for the subgrid scale stresses. Boundary conditions along the x-y
+applied for the sub-grid scale stresses. Boundary conditions along the x-y
 perimeter are periodic where a log-law stress is applied at the bottom surface;
 a stress free condition is applied at the top (channel center) boundary. Solid
 objects are represented using a level set immersed boundary method. In addition
 to the bottom wall, solid surfaces represented by the immersed boundary method
 also apply a log-law stress boundary condition. For temporal integration the
-explict 2nd order Adams-Bashforth method is used. Time stepping occurs using
+explicit 2nd order Adams-Bashforth method is used. Time stepping occurs using
 either a static time step or dynamic CFL based dynamic time step. Continuity is
-preserved by solving the pressure poisson equation using a direct TDMA solver.
+preserved by solving the pressure Poisson equation using a direct TDMA solver.
 
 --------------------------------------------------------------------------------
 			    MPI DOMAIN DECOMPOSITION
@@ -286,7 +286,7 @@ are the same as found in lesgo.
  divtx, divty                               X
  divtz							    X
 
-When writting data to file the variables are interpolated to the same grid.
+When writing data to file the variables are interpolated to the same grid.
 
 ================================================================================
 				  DATA OUTPUT
@@ -332,7 +332,7 @@ various modules will be discussed in their respective sections.
       * vel2_avg.dat 	    : Mean of square products of the velocity field
       * ddz_avg.dat 	    : Mean of vertical gradients
       * force_avg.dat 	    : Mean field of modeled forces (IBM, turbines, RNS, etc)
-      * tau_avg.dat 	    : Mean of the subgrid-scale stress tensor
+      * tau_avg.dat 	    : Mean of the sub-grid scale stress tensor
       * rs.dat 		    : Reynolds stresses
 
   2) Averaged over z-planes
@@ -341,7 +341,7 @@ various modules will be discussed in their respective sections.
     * vel2_zplane_avg.dat   : Mean of square products of the velocity field
     * ddz_zplane_avg.dat    : Mean of vertical gradients
     * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc)
-    * tau_zplane_avg.dat    : Mean of the subgrid-scale stress tensor
+    * tau_zplane_avg.dat    : Mean of the sub-grid scale stress tensor
     * rs_zplane.dat	    : Reynolds stresses
     * cnpy_zplane.dat	    : Canopy (dispersive) stresses
     * cs_opt2_zplane.dat    : Square of Smagorinsky coefficient from SGS modeling
@@ -358,17 +358,17 @@ C) Sampled Point Data
 D) Data along x-planes (these files use the 'MPI appendix')
 
   * vel.x-<xloc>-<timestep>.dat :
-    Instantanous velocity sampled at x location <xloc> for the time step <timestep>
+    Instantaneous velocity sampled at x location <xloc> for the time step <timestep>
 
 E) Data along y-planes (these files use the 'MPI appendix')
 
   * vel.y-<yloc>-<timestep>.dat :
-    Instantanous velocity sampled at y location <yloc> for the time step <timestep>
+    Instantaneous velocity sampled at y location <yloc> for the time step <timestep>
 
 F) Data along z-planes
 
   * vel.z-<zloc>-<timestep>.dat : 
-    Instantanous velocity sampled at z location <zloc> for the time step <timestep>
+    Instantaneous velocity sampled at z location <zloc> for the time step <timestep>
   
 
 ................................................................................
@@ -396,7 +396,7 @@ The immersed boundary technique used in lesgo is described in this section.
 --------------------------------------------------------------------------------
 
 For representing solid objects in the flow domain, the level set immersed
-boundary method is used. All objects are represeted using a level set or signed
+boundary method is used. All objects are represented using a level set or signed
 distance function (phi) where phi = 0 on the surface, phi < 0 inside objects and
 phi > 0 otherwise. For each grid point in the computational domain the minimum
 distance to any one of the objects in the domain must be computed and assigned
@@ -463,7 +463,7 @@ information for RNS simulations. This feature in the trees module however has
 been deprecated and is now replaced by the RNS module. So all of the trees
 modules are retained solely for generated the "phi" using "trees_pre_ls".
 
-In addtion to trees, it may also be used to easily generate an array of wall
+In addition to trees, it may also be used to easily generate an array of wall
 mounted cubes which is commonly used as one of the test cases for lesgo (see
 directory "utils/cubes-process-data").
 
@@ -539,7 +539,7 @@ to begin an LES computation.
 --------------------------------------------------------------------------------
 
 The program "cyl_skew_pre_ls" generates fractal trees with skewed cylinder
-branches. It stricly generates a single type of fractal tree which is composed
+branches. It strictly generates a single type of fractal tree which is composed
 of branch clusters. The branches in on of these clusters start from a collective
 base and are arranged in the z-direction. They spread outward relative to one
 another with increasing z-direction. Because of the specific type of tree, the
@@ -577,11 +577,11 @@ the sections below.
 --------------------------------------------------------------------------------
 
 Renormalized numerical simulation (RNS) is a downscaling strategy for modeling
-subgrid-scale geometric features. It provides a method to represent small scale
+sub-grid scale geometric features. It provides a method to represent small scale
 features of self-similar objects (such as fractal trees) which are too small to
 be represented by the immersed boundary technique. What makes this method
 attractive is that 1) all unknown modeling parameters are dynamically evaluated
-and 2) information regarding the subgrid-scale (SGS) branches is retained. The
+and 2) information regarding the sub-grid scale (SGS) branches is retained. The
 dynamic procedure is performed in an analogous manner to the Germano identity in
 which the large scale hydrodynamic drag forces are measured from the level set
 module and are downscaled in order to infer the hydrodynamic drag forces due to
@@ -607,8 +607,8 @@ can be found at:
 The RNS module was designed to be very general. In essence it works with any
 scale-invariant geometry. The RNS module itself operates on a set of RNS
 elements constructed at the start of the simulation. These elements are
-generated by decomposing the actual geomtry of the object of interest
-(e.g. fractal tree) and reconstructing the object in terms of the RNS
+generated by decomposing the actual geometry of the object of interest
+(e.g., fractal tree) and reconstructing the object in terms of the RNS
 elements. Information regarding the specifics of the geometry are embedded into
 the RNS elements and is not explicitly used by the RNS module.
 
@@ -626,7 +626,7 @@ is investigated.
 In addition to filling the three RNS element data structures it is required to
 generate the filtered indicator function for the SGS geometry. In similar manner
 to the level set module which requires the level set function "phi" to express
-the resolved geometry, the subgrid scale geometry is represented by the filtered
+the resolved geometry, the sub-grid scale geometry is represented by the filtered
 indicator function "chi". Effectively "chi" represents projection of the SGS
 branches onto the computational mesh. 
 
@@ -747,18 +747,18 @@ sampled and periodically written to file. Subsequently, this inflow data would
 then be read in by the target simulation. While this approach is conceptually
 simple, it does have several drawbacks such as the following:
 
-  1) Only one simulation is peformed at a given time, i.e. must have the data
+  1) Only one simulation is performed at a given time, i.e., must have the data
      from the precursor simulation before the target simulation can be executed.
 
   2) May require significant disk space for large simulations.
 
-  3) Requires significant I/O which may be a hinderance for good computational
+  3) Requires significant I/O which may be a hindrance for good computational
      efficiency.
 
   4) Must coordinate the precursor simulation with the target simulation to
      ensure enough inflow data for the target simulation.
 
-To allieviate these issues, the CPS module performs the precursor simulation
+To alleviate these issues, the CPS module performs the precursor simulation
 concurrently with the target simulation. Conceptually the approach is the same,
 except of writing the sampled inflow data from the precursor simulation to file
 it is copied in memory directly to the target simulation using MPI. Since both
@@ -779,7 +779,7 @@ communicators.
 At the start of the simulation the "MPI_COMM_WORLD" communicator is split into
 two local communicators "localComm" where the 'red' and 'blue' each have their
 own. lesgo then takes the local communicator and create a communicator called
-"comm" using the MPI cartesian topology functions. The communicator "comm" is
+"comm" using the MPI Cartesian topology functions. The communicator "comm" is
 used for all MPI communication within the 'red' or 'blue' domains and is the
 intracommuncator for these domains. The "comm" communicator is also used for
 standard MPI with CPS turned off, which results in no special treatment for
@@ -787,7 +787,7 @@ point-to-point communication when using CPS.
 
 For communication between the 'red' and 'blue' domain an intercommunicator
 "interComm" is created. It essentially builds a communication bridge for each
-process in the 'red' domain to commnicate with the corresponding process in the
+process in the 'red' domain to communicate with the corresponding process in the
 'blue' domain.
 
 When using the CPS module, the simulation is executed as multiple program,
@@ -862,7 +862,7 @@ One constraint of the CPS module is that the grid spacing of the 'red' and
 'blue' domains must match. The domain lengths can be different, but the grid
 spacing must be the same to ensure accurate results. Another constraint is that
 because these simulation are synchronized, the same value for "dt" must be
-specified unless dynamic time steppping is used, then the same CFL value should
+specified unless dynamic time stepping is used, then the same CFL value should
 be used for both domains.
 
 The specifics on launching the simulation depends on which MPI implementation is
@@ -874,7 +874,7 @@ and "blue" domains, respectively, with a total of "N" processes.
 
      mpiexec -f <nodefile> -wdir red -n <N/2> ./lesgo-red : -wdir blue -n <N/2> ./lesgo-blue
 
-When running all diagonistic information is written to standard out with no
+When running, all diagnostic information is written to standard out with no
 specific order.
 
 ================================================================================
@@ -894,7 +894,7 @@ with the MPI domain discretization.
 
 Each turbine is represented as a drag disk with a force that depends on the 
 velocity at the disk (averaged in time and space).  This force is distributed 
-across several gridpoints that together represent the turbine.  For large arrays 
+across several grid points that together represent the turbine.  For large arrays 
 the coarse grid resolution does not allow for the modeling of individual 
 blades. No tangential forces are applied to the flow, though it may prove
 beneficial to include these in the future (see Meyers 2010).
@@ -920,14 +920,14 @@ discretization for the time derivative we find
         T is the time scale of the filter
 which is used to update the time-averaged quantity as the simulation progresses.
 
-The force is distributed across gridpoints using an indicator function which
-is determined during code initialization.  The gridpoints that fall within 
+The force is distributed across grid points using an indicator function which
+is determined during code initialization.  The grid points that fall within 
 each turbine radius are located.  To avoid Gibbs phenomenon with sharp gradients,
 this indicator function (currently 1 inside and 0 outside a turbine) is smoothed
 with a Gaussian filter.  To avoid calculating too many convolutions, the spatial
-extent of this filtering process is limited to a set number of gridpoints past 
+extent of this filtering process is limited to a set number of grid points past 
 the turbine radius.  Also, to limit the spatial extent of each turbine, a
-minimum allowable value of the indicator function is specified.  Each gridpoint 
+minimum allowable value of the indicator function is specified.  Each grid point 
 with a non-zero indicator function applies a force on the flow.
 
 
