@@ -30,7 +30,7 @@ they really do." - SC
 ================================================================================
 
 The code lesgo solves the filtered N-S equations in the high-Re limit on a
-cartisian mesh. Originally lesgo was designed to simulate flow in the
+Cartesian mesh. Originally lesgo was designed to simulate flow in the
 atmospheric boundary layer but has been extended and used to simulate flow over
 tree canopies, wall mounted cubes, cylinders in free stream turbulence, wind
 turbine arrays, and others. At its core is the LES flow solver. Built on top of
