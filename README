@@ -216,8 +216,8 @@ to change the file total_time.dat.
 				LES FLOW SOLVER
 ================================================================================
 
-The LES flow solver is a psuedo-spectral solver in which spectral discretization
-is applied in the longitudinal and spanwise directions (x and y, repsectively)
+The LES flow solver is a pseudo-spectral solver in which spectral discretization
+is applied in the longitudinal and spanwise directions (x and y, respectively)
 and in the vertical (z) direction 2nd order finite differences are applied. The
 solver solves the filtered N-S equations in the high-Re limit in which molecular
 viscosity effects are generally neglected. An eddy viscosity closure model is
