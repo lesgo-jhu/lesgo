@@ -18,7 +18,7 @@
 !!
 
 !***********************************************************************
-subroutine convec ()
+subroutine convec(u1,u2,u3,du1d2,du1d3,du2d1,du2d3,du3d1,du3d2,cx,cy,cz)
 !***********************************************************************
 !
 ! c = - (u X vort)
@@ -35,9 +35,9 @@ subroutine convec ()
 !
 use types,only:rprec
 use param
-use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
-                      du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
-use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
+!use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
+!                      du2d1=>dvdx, du2d3=>dvdz, du3d1=>dwdx, du3d2=>dwdy
+!use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
 $if ($DEBUG)
@@ -45,6 +45,10 @@ use debug_mod
 $endif
 
 implicit none
+
+real(rprec),dimension(ld,ny,lbz:nz),intent(in)::u1,u2,u3
+real(rprec),dimension(ld,ny,lbz:nz),intent(in)::du1d2,du1d3,du2d1,du2d3,du3d1,du3d2
+real(rprec),dimension(ld,ny,lbz:nz),intent(out)::cx,cy,cz
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .false.

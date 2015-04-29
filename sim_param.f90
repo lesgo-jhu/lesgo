@@ -50,6 +50,15 @@ real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 
 real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
                                                   fxa, fya, fza
+
+$if ($USE_RNL)
+real (rprec), dimension (:, :, :), allocatable :: u_rnl, v_rnl, w_rnl
+real (rprec), dimension (:, :, :), allocatable :: dudx_rnl, dudy_rnl, dudz_rnl,  &
+                                                  dvdx_rnl, dvdy_rnl, dvdz_rnl,  &
+                                                  dwdx_rnl, dwdy_rnl, dwdz_rnl,  &
+                                                  RHSx_rnl, RHSy_rnl, RHSz_rnl
+$endif
+
 contains
 
 !
@@ -92,6 +101,23 @@ allocate ( p(ld, ny, 0:nz) ); p = 0.0_rprec
 allocate ( divtx(ld, ny, lbz:nz) ); divtx = 0.0_rprec
 allocate ( divty(ld, ny, lbz:nz) ); divty = 0.0_rprec
 allocate ( divtz(ld, ny, lbz:nz) ); divtz = 0.0_rprec
+
+$if ($USE_RNL)
+allocate ( u_rnl(ld, ny, lbz:nz) ); u_rnl = 0.0_rprec
+allocate ( v_rnl(ld, ny, lbz:nz) ); v_rnl = 0.0_rprec
+allocate ( w_rnl(ld, ny, lbz:nz) ); w_rnl = 0.0_rprec
+!! note dudx_rnl, dvdy_rnl, and dwdz_rnl are not here
+!! since they are not needed for convec subroutine
+allocate( dudy_rnl(ld, ny, lbz:nz) ); dudy_rnl = 0.0_rprec
+allocate( dudz_rnl(ld, ny, lbz:nz) ); dudz_rnl = 0.0_rprec
+allocate( dvdx_rnl(ld, ny, lbz:nz) ); dvdx_rnl = 0.0_rprec
+allocate( dvdz_rnl(ld, ny, lbz:nz) ); dvdz_rnl = 0.0_rprec
+allocate( dwdx_rnl(ld, ny, lbz:nz) ); dwdx_rnl = 0.0_rprec
+allocate( dwdy_rnl(ld, ny, lbz:nz) ); dwdy_rnl = 0.0_rprec
+allocate( RHSx_rnl(ld, ny, lbz:nz) ); RHSx_rnl = 0.0_rprec
+allocate( RHSy_rnl(ld, ny, lbz:nz) ); RHSy_rnl = 0.0_rprec
+allocate( RHSz_rnl(ld, ny, lbz:nz) ); RHSz_rnl = 0.0_rprec
+$endif
 
 $if($TURBINES)
 allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec

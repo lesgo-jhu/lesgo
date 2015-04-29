@@ -36,7 +36,8 @@ public interp_to_uv_grid, &
      buff_indx, &
      points_avg_3d, & 
      plane_avg_3d, &     
-     interp_to_w_grid
+     interp_to_w_grid, &
+     x_avg
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -681,5 +682,35 @@ endif
   
 return
 end function buff_indx
+
+!**********************************************************************
+function x_avg(vel) result(vel_avg)
+!**********************************************************************
+! This function returns the streamwise-average of the 3D field vel.
+
+use types, only : rprec
+use param, only : ld, nx, ny, nz, lbz 
+
+implicit none
+
+real(rprec), intent(in), dimension(:,:,:) :: vel
+real(rprec), dimension(ny,lbz:nz) :: tmp
+real(rprec), dimension(ld,ny,lbz:nz) :: vel_avg
+integer :: i
+
+tmp     = 0.0_rprec
+vel_avg = 0.0_rprec
+
+do i=1, nx
+   tmp = tmp + vel(i,:,:)
+enddo
+tmp = tmp / real(nx,rprec)
+
+do i=1, nx
+   vel_avg(i,:,:) = tmp
+enddo
+
+return
+end function x_avg
 
 end module functions

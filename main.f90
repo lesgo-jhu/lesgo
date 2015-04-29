@@ -38,6 +38,7 @@ use cfl_util
 use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
+use functions, only: x_avg
 
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array
@@ -110,7 +111,6 @@ nstart = jt_total+1
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps   
-  
    ! Get the starting time for the iteration
    call clock_start( clock )
 
@@ -149,13 +149,13 @@ time_loop: do jt_step = nstart, nsteps
         call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
     end if
     $endif
-  
+
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
     call filt_da (u, dudx, dudy, lbz)
     call filt_da (v, dvdx, dvdy, lbz)
     call filt_da (w, dwdx, dwdy, lbz)
-         
+
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
     call ddz_uv(u, dudz, lbz)
@@ -225,7 +225,7 @@ time_loop: do jt_step = nstart, nsteps
         call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
     end if
     $endif    
-    
+
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
@@ -243,7 +243,32 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
-    call convec()
+    $if ($USE_RNL)  
+    call convec(u,v,w,dudy,dudz,dvdx,dvdz,dwdx,dwdy,RHSx,RHSy,RHSz)
+
+    u_rnl = u - x_avg(u)
+    v_rnl = v - x_avg(v)
+    w_rnl = w - x_avg(w)
+    dudy_rnl = dudy - x_avg(dudy)
+    dudz_rnl = dudz - x_avg(dudz)
+    dvdx_rnl = dvdx - x_avg(dvdx)
+    dvdz_rnl = dvdz - x_avg(dvdz)
+    dwdx_rnl = dwdx - x_avg(dwdx)
+    dwdy_rnl = dwdy - x_avg(dwdy)
+
+    call convec(u_rnl,v_rnl,w_rnl,dudy_rnl,dudz_rnl,dvdx_rnl,dvdz_rnl,dwdx_rnl,dwdy_rnl,RHSx_rnl,RHSy_rnl,RHSz_rnl)
+    
+    RHSx_rnl = RHSx_rnl - x_avg(RHSx_rnl)
+    RHSy_rnl = RHSy_rnl - x_avg(RHSy_rnl)
+    RHSz_rnl = RHSz_rnl - x_avg(RHSz_rnl)
+    
+    RHSx = RHSx - RHSx_rnl
+    RHSy = RHSy - RHSy_rnl
+    RHSz = RHSz - RHSz_rnl
+
+    $else
+    call convec(u,v,w,dudy,dudz,dvdx,dvdz,dwdx,dwdy,RHSx,RHSy,RHSz)
+    $endif
 
     $if ($DEBUG)
     if (DEBUG) then
