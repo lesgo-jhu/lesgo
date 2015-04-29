@@ -123,6 +123,10 @@ ifeq ($(USE_TURBINES), yes)
   EXE := $(EXE)-turbines
 endif
 
+ifeq ($(USE_RNL), yes)
+  EXE := $(EXE)-rnl
+endif
+
 ifeq ($(OUTPUT_EXTRA), yes)
   EXE := $(EXE)-exout
 endif
