@@ -70,6 +70,7 @@ contains
 
 subroutine turbines_init()
 
+use open_file_fid_mod
 implicit none
 real(rprec), pointer, dimension(:) :: x,y,z
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
@@ -162,7 +163,7 @@ endif
 do s=1,nloc
    if(coord==0) then
    call string_splice( string1, path // 'turbine/turbine_', s, '_forcing.dat' )
-   file_id(s) = open_file( string1, 'append', 'formatted' )
+   file_id(s) = open_file_fid( string1, 'append', 'formatted' )
    endif
 enddo
 
@@ -177,12 +178,12 @@ $if ($MPI)
    if (kcp>=k_start .and. kcp<=k_end) then
        call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
        call string_concat (string1, '.c', coord)
-       file_id2(s) = open_file( string1, 'append', 'formatted' )
+       file_id2(s) = open_file_fid( string1, 'append', 'formatted' )
    endif
 
 $else
    call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
-   file_id2(s) = open_file( string1, 'append', 'formatted' )
+   file_id2(s) = open_file_fid( string1, 'append', 'formatted' )
 $endif
 
 enddo
