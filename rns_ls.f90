@@ -1056,6 +1056,7 @@ subroutine r_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
 use string_util
+use open_file_fid_mod
 
 implicit none
 
@@ -1074,7 +1075,7 @@ integer :: n
 if( .not. r_elem_data_init ) then
 
   inquire (file=fname_CD, exist=exst)
-  r_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
+  r_elem_cd_fid = open_file_fid( fname_cd, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1086,7 +1087,7 @@ if( .not. r_elem_data_init ) then
   endif
 
   inquire (file=fname_force, exist=exst)
-  r_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+  r_elem_force_fid = open_file_fid( fname_force, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1108,7 +1109,7 @@ if( .not. r_elem_data_init ) then
   endif
 
   inquire (file=fname_vel, exist=exst)
-  r_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+  r_elem_vel_fid = open_file_fid( fname_vel, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1150,6 +1151,7 @@ subroutine beta_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
 use string_util
+use open_file_fid_mod
 
 implicit none
 
@@ -1171,7 +1173,7 @@ if( .not. beta_elem_data_init ) then
 
    ! Initialize files and headers
    inquire (file=fname_CD, exist=exst)
-   beta_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
+   beta_elem_cd_fid = open_file_fid( fname_cd, 'append', 'formatted' )
 
    if (.not. exst) then
       var_list = '"t"'
@@ -1185,7 +1187,7 @@ if( .not. beta_elem_data_init ) then
    endif
 
    inquire (file=fname_force, exist=exst)
-   beta_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+   beta_elem_force_fid = open_file_fid( fname_force, 'append', 'formatted' )
 
    if (.not. exst) then
       var_list = '"t"'
@@ -1208,7 +1210,7 @@ if( .not. beta_elem_data_init ) then
    endif
 
    inquire (file=fname_kappa, exist=exst)
-   beta_elem_kappa_fid = open_file( fname_kappa, 'append', 'formatted' )
+   beta_elem_kappa_fid = open_file_fid( fname_kappa, 'append', 'formatted' )
 
    if (.not. exst) then
       var_list = '"t"'
@@ -1221,7 +1223,7 @@ if( .not. beta_elem_data_init ) then
    endif
 
    inquire (file=fname_vel, exist=exst)
-   beta_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+   beta_elem_vel_fid = open_file_fid( fname_vel, 'append', 'formatted' )
 
    if (.not. exst) then
       var_list = '"t"'
@@ -1266,6 +1268,7 @@ subroutine b_elem_data_write()
 !**********************************************************************
 use param, only : total_time, path
 use string_util
+use open_file_fid_mod
 implicit none
 
 include 'tecryte.h'
@@ -1284,7 +1287,7 @@ integer :: n
 if( .not. b_elem_data_init ) then
 
   inquire (file=fname_CD, exist=exst)
-  b_elem_cd_fid = open_file( fname_cd, 'append', 'formatted' )
+  b_elem_cd_fid = open_file_fid( fname_cd, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1297,7 +1300,7 @@ if( .not. b_elem_data_init ) then
   endif
 
   inquire (file=fname_force, exist=exst)
-  b_elem_force_fid = open_file( fname_force, 'append', 'formatted' )
+  b_elem_force_fid = open_file_fid( fname_force, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1316,7 +1319,7 @@ if( .not. b_elem_data_init ) then
   endif
 
   inquire (file=fname_error, exist=exst)
-  b_elem_error_fid = open_file( fname_error, 'append', 'formatted' )
+  b_elem_error_fid = open_file_fid( fname_error, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1329,7 +1332,7 @@ if( .not. b_elem_data_init ) then
   endif 
 
   inquire (file=fname_error_norm, exist=exst)
-  b_elem_error_norm_fid = open_file( fname_error_norm, 'append', 'formatted' )
+  b_elem_error_norm_fid = open_file_fid( fname_error_norm, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'
@@ -1342,7 +1345,7 @@ if( .not. b_elem_data_init ) then
   endif  
 
   inquire (file=fname_vel, exist=exst)
-  b_elem_vel_fid = open_file( fname_vel, 'append', 'formatted' )
+  b_elem_vel_fid = open_file_fid( fname_vel, 'append', 'formatted' )
 
   if (.not. exst) then
     var_list = '"t"'

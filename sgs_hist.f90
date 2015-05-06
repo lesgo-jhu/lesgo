@@ -51,6 +51,7 @@ subroutine sgs_hist_init()
 use grid_defs, only : grid
 use functions, only : cell_indx
 use string_util, only : string_concat
+use open_file_fid_mod
 implicit none
 !~ include 'tecryte.h'
 !~ 
@@ -76,7 +77,7 @@ implicit none
 !~       ! Read data from file (overwrites values from lesgo.conf or param.f90)
 !~         write(*,*) 'Reading from files:', fname_histp, fname_histv
 !~ 
-!~         fid1 = open_file ( fname_histp, 'rewind', 'formatted' )
+!~         fid1 = open_file_fid ( fname_histp, 'rewind', 'formatted' )
 !~           read(fid1,*) nproc_test, nz_tot_test, L_z_test
 !~           if ( (nproc_test.ne.nproc) .or. (nz_tot_test.ne.nz_tot) .or. (L_z_test.ne.L_z) ) then
 !~             write(*,*) 'Sgs-hist cumulative time error: nproc, nz_tot, and L_z must match'
@@ -246,7 +247,7 @@ implicit none
 !~ ! If reading from file, do so now for bins and vals
 !~   if ( exstp .and. exstv ) then
 !~ 
-!~     fid2 = open_file ( fname_histv, 'rewind', 'unformatted' )
+!~     fid2 = open_file_fid ( fname_histv, 'rewind', 'unformatted' )
 !~       do k=1,sgs_hist_nloc
 !~         read(fid2) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
 !~         read(fid2) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals
@@ -377,6 +378,7 @@ subroutine sgs_hist_finalize()
 ! Output data and deallocate arrays
 
 use string_util
+use open_file_fid_mod
 implicit none
 !~ include 'tecryte.h'
 !~ 
@@ -387,7 +389,7 @@ implicit none
 !~     fname_histp=''; call string_concat( fname_histp, fname_histp_base // '.c', coord )
 !~     fname_histv=''; call string_concat( fname_histv, fname_histv_base // '.c', coord )
 !~ 
-!~     fid1 = open_file ( fname_histp, 'rewind', 'formatted' )
+!~     fid1 = open_file_fid ( fname_histp, 'rewind', 'formatted' )
 !~         write(fid1,*) nproc, nz_tot, L_z
 !~         write(fid1,*) sgs_hist_nloc
 !~         write(fid1,*) sgs_hist_loc
@@ -397,7 +399,7 @@ implicit none
 !~         write(fid1,*) ee_bmin, ee_bmax, ee_nbins
 !~     close(fid1)
 !~ 
-!~     fid2 = open_file ( fname_histv, 'rewind', 'unformatted' )
+!~     fid2 = open_file_fid ( fname_histv, 'rewind', 'unformatted' )
 !~         do k=1,sgs_hist_nloc
 !~             if (allocated(HISTcs2%hist(k)%bins)) write(fid2) HISTcs2%hist(k)%bins, HISTcs2%hist(k)%vals
 !~             if (allocated(HISTtn%hist(k)%bins)) write(fid2) HISTtn%hist(k)%bins, HISTtn%hist(k)%vals

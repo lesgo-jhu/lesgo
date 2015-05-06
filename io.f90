@@ -56,6 +56,7 @@ contains
 subroutine openfiles()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : use_cfl_dt, dt, cfl_f
+use open_file_fid_mod
 implicit none
 !~ include 'tecryte.h'
 
@@ -66,7 +67,7 @@ real(rprec) :: dt_r, cfl_r
 
 ! Open output files using tecryte library
 ! Kinetic energy (check_ke.dat)
-!ke_fid = open_file( path // 'output/check_ke.dat', 'append', 'formatted' )
+!ke_fid = open_file_fid( path // 'output/check_ke.dat', 'append', 'formatted' )
 
 if (cumulative_time) then
 
@@ -2032,6 +2033,7 @@ $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs
 $endif
 use stat_defs, only : type_set
+use open_file_fid_mod
 implicit none
 
 !include 'tecryte.h'
@@ -2215,10 +2217,10 @@ if(point_calc) then
     !  Add tecplot header if file does not exist
 !~     inquire (file=fname, exist=exst)
 !~     if (exst) then
-!~        point(i) % fid = open_file( fname, 'append', 'formatted' )
+!~        point(i) % fid = open_file_fid( fname, 'append', 'formatted' )
 !~     else
 !~ 
-!~        point(i) % fid = open_file( fname, 'rewind', 'formatted' )
+!~        point(i) % fid = open_file_fid( fname, 'rewind', 'formatted' )
 !~        var_list = '"t", "u", "v", "w"'
 !~        ! Compilation error
 !~ !       call write_tecplot_header_xyline( point(i) % fid, var_list )

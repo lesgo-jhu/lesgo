@@ -159,22 +159,12 @@ real(rprec) :: sxx, syy, shift_base, const
 
       ! Usual placement is baseline as set above
 
-      ! Shift the turbines forward
-      k=1
-      dummy=wind_farm%turbine(1)%xloc/2
-      do i = 1, num_x
-        do j = 1, num_y
-          wind_farm%turbine(k)%xloc=wind_farm%turbine(k)%xloc -dummy
-          k=k+1
-        enddo
-      enddo
-
       ! Shift in spanwise direction: Note that stag_perc is now used
       k=1
       dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
       do i = 1, num_x
       do j = 1, num_y
-         dummy2=dummy*floor(real(k-1)/num_y)
+         dummy2=dummy*(i-1)         
          wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
          k=k+1
       enddo
