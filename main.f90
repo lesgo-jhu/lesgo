@@ -40,7 +40,7 @@ use sgs_stag_util, only : sgs_stag
 use forcing
 
 $if ($MPI)
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
 
 $if ($LVLSET)
@@ -199,7 +199,21 @@ time_loop: do jt_step = nstart, nsteps
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
     if (dns_bc .and. molec) then
+    
+    $if ($MPI)    !--jb, copied from sgs_stag_util.f90
+    ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
+    ! (only 1:nz-1) exchange information between processors to set
+    ! values at nz from jz=1 above to jz=nz below
+    call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
+    $endif
+
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+
+    $if ($MPI)    !--jb
+    call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
+    call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
+    $endif
+
     else        
         call sgs_stag()
     end if
