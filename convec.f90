@@ -74,6 +74,14 @@ logical, save :: arrays_allocated = .false.
 
 real(kind=rprec) :: const
 
+integer :: exper     !!jb, for experimenting with node at wall
+
+if (sgs) then      !!jb
+   exper = 2
+else
+   exper = 1
+endif
+
 $if ($VERBOSE)
 write (*, *) 'started convec'
 $endif
@@ -208,7 +216,7 @@ const=1._rprec/(nx2*ny2)
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,exper)))
   !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -252,7 +260,7 @@ end do
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,exper)))
   !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
