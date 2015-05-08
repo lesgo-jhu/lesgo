@@ -24,6 +24,7 @@ use sim_param,only:u,v,w
 implicit none
 real(rprec),dimension(nz)::ubar
 real(rprec)::rms,temp,ran3,z
+real(rprec)::upert,vpert,wpert
 integer::jx,jy,jz,seed
 
 if (inflow) then
@@ -38,11 +39,14 @@ else
   ! calculate height of first uvp point in wall units
   ! lets do a laminar case (?)
   do jz=1,nz
-  
-     z=(real(jz)-.5_rprec)*dz ! non-dimensional
-     ubar(jz)=(u_star*z_i/nu_molec)*z*(1._rprec-.5_rprec*z) ! non-dimensional
-  !         ubar(jz)=0.
-  end do  
+     $if ($MPI)    !--jb
+     z=(coord*(nz-1) + real(jz) - 0.5_rprec) * dz ! non-dimensional
+     $else
+     z = (real(jz) - 0.5_rprec) * dz ! non-dimensional
+     $endif
+     ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+     !         ubar(jz)=0.
+  end do
 end if
 
 do jz=1,nz
@@ -55,8 +59,8 @@ do jz=1,nz
   do jy=1,ny
      do jx=1,nx
        u(jx,jy,jz)=ubar(jz)+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       v(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       w(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
+       v(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star*10
+       w(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star*10
     end do
   end do
 end do
@@ -84,4 +88,15 @@ w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
 u(:,:,nz)=u(:,:,nz-1)
 v(:,:,nz)=v(:,:,nz-1)
+
+do jz=1,nz
+if (coord == 0) print*,'coord, jz, u, v, w: ',coord,jz,u(1,1,jz),v(1,1,jz),w(1,1,jz)
+enddo
+
+do jz=1,nz
+if (coord == nproc-1) print*,'coord, jz, u, v, w: ',coord,jz,u(1,1,jz),v(1,1,jz),w(1,1,jz)
+enddo
+
+
+
 end subroutine ic_dns
