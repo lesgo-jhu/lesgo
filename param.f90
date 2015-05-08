@@ -135,6 +135,10 @@ module param
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
   
+  ! attempt to trigger transition to turbulence by changing viscosity
+  logical :: trigger = .false.
+  integer :: trig_on = 1000, trig_off = 2000
+
   ! mode limiting options for RNL    !!jb
   logical :: molec=.false., sgs=.true., dns_bc=.false.
   logical :: kx_limit=.false.

@@ -74,6 +74,7 @@ $endif
 integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
+real (rprec) :: triggerFactor    !!jb
 
 type(clock_t) :: clock, clock_total
 
@@ -149,6 +150,12 @@ time_loop: do jt_step = nstart, nsteps
         call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
     end if
     $endif
+
+    triggerFactor = 5.0_rprec    !!jb
+    if (trigger) then
+       if (jt_total == trig_on ) nu_molec = nu_molec / triggerFactor
+       if (jt_total == trig_off) nu_molec = nu_molec * triggerFactor
+    endif
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)

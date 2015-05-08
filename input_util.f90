@@ -331,6 +331,12 @@ do
         read (buff(equal_pos+1:), *) sgs
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
+     case ('TRIGGER')
+        read (buff(equal_pos+1:), *) trigger  !!jb
+     case ('TRIG_ON')
+        read (buff(equal_pos+1:), *) trig_on  !!jb
+     case ('TRIG_OFF')
+        read (buff(equal_pos+1:), *) trig_off  !!jb
      case ('KX_LIMIT')
         read (buff(equal_pos+1:), *) kx_limit  !!jb
      case ('KX_ALLOW')
