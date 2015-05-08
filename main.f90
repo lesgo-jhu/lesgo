@@ -30,7 +30,8 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : energy, output_loop, output_final, jt_total,write_tau_wall
+use io, only : energy, output_loop, output_final, jt_total
+use io, only : write_tau_wall, energy_kx_spectral_complex
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -527,15 +528,26 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
-          call write_tau_wall()        !!jb
        end if
 
        if (coord == 0) then            !!jb
+          write(*,'(a)') '============= BOTTOM ==================='
           write(*,*) 'u: ', u(1,1,1)
           write(*,*) 'v: ', v(1,1,1)
           write(*,*) 'w: ', w(1,1,1), w(1,1,2)
+          write(*,'(a)') '========================================'
        endif
 
+       if (coord == nproc-1) then            !!jb
+          write(*,'(a)') '=============== TOP ===================='
+          write(*,*) 'u: ', u(1,1,nz-1)
+          write(*,*) 'v: ', v(1,1,nz-1)
+          write(*,*) 'w: ', w(1,1,nz-1), w(1,1,nz)
+          write(*,'(a)') '========================================'
+       endif
+
+       call write_tau_wall()                   !!jb
+       call energy_kx_spectral_complex(u,v,w)  !!jb
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then
