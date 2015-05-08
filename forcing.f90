@@ -37,7 +37,8 @@ private
 public :: forcing_applied, &
           forcing_induced, &
           inflow_cond, &
-          project
+          project, &
+          mode_limit    !!jb , RNL mode limiting
 
 contains
 
@@ -310,5 +311,48 @@ if (coord == 0) then
 end if
 
 end subroutine project
+
+subroutine mode_limit()
+use types, only: rprec
+use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc !,kx_allow
+use sim_param, only: u,v,w
+use grid_defs, only: grid
+use fft
+
+implicit none
+
+integer :: jx,jy,jz,cutHere
+real(rprec) :: const
+real(rprec), pointer, dimension(:) :: zw
+
+nullify(zw)
+zw => grid % zw
+
+cutHere = 2 * 14  !kx_allow
+
+const = 1._rprec / nx
+do jy=1,ny
+do jz=1,nz-1
+
+     u(:,jy,jz) = const * u(:,jy,jz)
+     v(:,jy,jz) = const * v(:,jy,jz)
+     w(:,jy,jz) = const * w(:,jy,jz)
+
+     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), u(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), v(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), w(:,jy,jz))
+
+     u(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
+     v(3:cutHere,jy,jz) = 0._rprec    
+     w(3:cutHere,jy,jz) = 0._rprec    
+
+     call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
+     call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))
+     call dfftw_execute_dft_c2r(back_1d, w(:,jy,jz), w(:,jy,jz))
+
+enddo
+enddo
+
+end subroutine mode_limit
 
 end module forcing
