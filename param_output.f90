@@ -84,6 +84,11 @@ write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
 write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
 write(2,f_fmt) 'nu_molec : ', nu_molec
 write(2,x3l_fmt) 'molec, sgs, dns_bc : ', molec, sgs, dns_bc
+write(2,x3l_fmt) 'kx_limit : ', kx_limit
+write(2,i_fmt) 'kx_allow : ', kx_allow
+write(2,x3l_fmt) 'use_ml : ', use_ml
+write(2,i_fmt) 'ml_start : ', ml_start
+write(2,i_fmt) 'ml_end : ', ml_end
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'

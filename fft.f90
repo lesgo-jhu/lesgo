@@ -131,7 +131,7 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,ny,L_x,L_y,pi
+use param,only:lh,ny,L_x,L_y,pi,kx_limit,kx_allow
 implicit none
 integer :: jx,jy
 
@@ -141,6 +141,10 @@ allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
 do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
 end do
+
+if (kx_limit) then
+   kx(2,:) = real(kx_allow,kind=rprec)
+endif
 
 do jy=1,ny
    ky(:,jy) = real(modulo(jy - 1 + ny/2,ny) - ny/2,kind=rprec)

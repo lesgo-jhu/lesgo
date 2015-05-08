@@ -134,9 +134,14 @@ module param
 
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
-    
-  logical :: molec=.false., sgs=.true., dns_bc=.false.
   
+  ! mode limiting options for RNL    !!jb
+  logical :: molec=.false., sgs=.true., dns_bc=.false.
+  logical :: kx_limit=.false.
+  integer :: kx_allow = 1
+  logical :: use_ml=.false.
+  integer :: ml_start = 1000, ml_end = 1000000
+
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
 !---------------------------------------------------   

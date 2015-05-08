@@ -409,8 +409,10 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
-    if ( jt_total >= 10000 ) then    !!jb
-       call mode_limit()
+    if (use_ml) then    !!jb
+       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
+          call mode_limit()
+       endif
     endif
 
     !//////////////////////////////////////////////////////
@@ -504,8 +506,10 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
-          $if($USE_RNL)
+          $if($USE_RNL)   !!jb
           write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
+          if (kx_limit) write(*,*) '  Using kx_limit'
+          if (use_ml) write(*,*) '  Using mode limiting'
           $endif
           write(*,*)
           $if($MPI)

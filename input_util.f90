@@ -331,7 +331,18 @@ do
         read (buff(equal_pos+1:), *) sgs
      case ('DNS_BC')
         read (buff(equal_pos+1:), *) dns_bc
+     case ('KX_LIMIT')
+        read (buff(equal_pos+1:), *) kx_limit  !!jb
+     case ('KX_ALLOW')
+        read (buff(equal_pos+1:), *) kx_allow  !!jb
+     case ('USE_ML')
+        read (buff(equal_pos+1:), *) use_ml    !!jb
+     case ('ML_START')
+        read (buff(equal_pos+1:), *) ml_start  !!jb
+     case ('ML_END')
+        read (buff(equal_pos+1:), *) ml_end    !!jb
      case default
+      
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
