@@ -546,8 +546,8 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') '========================================'
        endif
 
-       call write_tau_wall()                   !!jb
-       call energy_kx_spectral_complex(u,v,w)  !!jb
+       if (coord == 0) call write_tau_wall()     !!jb
+       call energy_kx_spectral_complex(u,v,w)    !!jb
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then
