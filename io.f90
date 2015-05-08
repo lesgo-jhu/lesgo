@@ -342,13 +342,13 @@ $if ($MPI)
   if (rank == 0) then  !--note its rank here, not coord
     ke = ke_total   !!/nproc
     open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
-    write(2,*) jt_total, total_time, ke
+    write(2,*) jt_total, ke
     close(2)
   end if
   call mpi_barrier(comm,ierr)
 $else
 open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
-write(2,*) jt_total, total_time, ke
+write(2,*) jt_total, ke
 close(2)
 $endif
 
