@@ -38,7 +38,7 @@ $endif
 save
 private
 
-public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init
+public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init,write_tau_wall
 
 character (*), parameter :: mod_name = 'io'
 
@@ -219,6 +219,27 @@ close(2)
 $endif
 
 end subroutine energy
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_tau_wall()   !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types,only:rprec
+use param,only:total_time,jt_total
+use functions,only:get_tau_wall
+implicit none
+
+!!$! Open wall stress file
+!!$open(3,file='output/tau_wall.dat',status='unknown',form='formatted',           &
+!!$     position='append')
+
+open(2,file=path // 'output/tau_wall.dat',status='unknown',form='formatted',position='append')
+
+write(2,*) jt_total, total_time, 1.0, get_tau_wall()
+close(2)
+
+end subroutine write_tau_wall
+
+
 
 $if($CGNS)
 $if ($MPI)
