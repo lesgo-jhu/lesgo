@@ -38,7 +38,7 @@ $endif
 save
 private
 
-public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init,write_tau_wall
+public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init,write_tau_wall,energy_kx_spectral_complex
 
 character (*), parameter :: mod_name = 'io'
 
@@ -228,10 +228,6 @@ use param,only:total_time,jt_total
 use functions,only:get_tau_wall
 implicit none
 
-!!$! Open wall stress file
-!!$open(3,file='output/tau_wall.dat',status='unknown',form='formatted',           &
-!!$     position='append')
-
 open(2,file=path // 'output/tau_wall.dat',status='unknown',form='formatted',position='append')
 
 write(2,*) jt_total, total_time, 1.0, get_tau_wall()
@@ -239,7 +235,125 @@ close(2)
 
 end subroutine write_tau_wall
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine y_pert (u, u_pert)    !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!! subtract out spanwise average of u
+!! similar to x_avg subroutine in rnl_util.f90, but returns the 
+!! perturbation field rather than the average field
+use types,only:rprec
+use param,only:ld,nx,ny,nz,lbz
+implicit none
 
+real(rprec), dimension(ld,ny,lbz:nz), intent(in)  :: u
+real(rprec), dimension(ld,ny,lbz:nz), intent(out) :: u_pert
+real(rprec), dimension(ld,lbz:nz) :: u_avg_temp
+
+integer :: j
+
+u_avg_temp = 0.0_rprec
+do j=1,ny
+   u_avg_temp(:,:) = u_avg_temp(:,:) + u(:,j,:)
+enddo
+
+u_avg_temp = u_avg_temp / ny
+
+do j=1,ny
+   u_pert(:,j,:) = u(:,j,:) - u_avg_temp(:,:)
+enddo
+
+return
+end subroutine y_pert
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine energy_kx_spectral_complex (u1,u2,u3)    !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only: rprec
+use param
+use messages
+use fft
+
+implicit none
+
+integer :: jx, jy, jz        !! remember lh = nx/2 + 1
+real(rprec), dimension(ld,ny,lbz:nz), intent(in) :: u1,u2,u3
+real(rprec), dimension(ld,ny,lbz:nz) :: u1p,u2p,u3p
+complex(rprec), dimension(nx/2+1) :: u1hat, u2hat, u3hat
+real(rprec), dimension(nx/2+1) :: u1pow, u2pow, u3pow, ke
+$if ($MPI)
+  real(rprec), dimension(nx/2+1) :: ke_total
+$endif
+
+! Initialize variables
+ke = 0.0_rprec
+$if ($MPI)
+   ke_total = 0.0_rprec
+$endif
+
+u1pow = 0._rprec
+u2pow = 0._rprec
+u3pow = 0._rprec
+
+!! pull out spanwise mean
+call y_pert(u1, u1p)
+call y_pert(u2, u2p)
+call y_pert(u3, u3p)
+
+do jy=1,ny
+do jz=1,nz-1
+
+   !! remove mean if total velocity...
+   
+   $if ($FFTW3)
+   call dfftw_execute_dft_r2c( forw_complex, u1p(:,jy,jz), u1hat )
+   call dfftw_execute_dft_r2c( forw_complex, u2p(:,jy,jz), u2hat )
+   call dfftw_execute_dft_r2c( forw_complex, u3p(:,jy,jz), u3hat )
+   $else
+   call rfftw_f77_one( forw_spectra, u1p(:,jy,jz), u1hat )
+   call rfftw_f77_one( forw_spectra, u2p(:,jy,jz), u2hat )
+   call rfftw_f77_one( forw_spectra, u3p(:,jy,jz), u3hat )
+   $endif
+
+   ! normalize
+   u1hat = u1hat / nx**0.5d0
+   u2hat = u2hat / nx**0.5d0
+   u3hat = u3hat / nx**0.5d0
+
+   u1pow(1)  = u1pow(1)  + 0.5d0 * u1hat(1) * conjg(u1hat(1))
+   u2pow(1)  = u2pow(1)  + 0.5d0 * u2hat(1) * conjg(u2hat(1))
+   u3pow(1)  = u3pow(1)  + 0.5d0 * u3hat(1) * conjg(u3hat(1))
+   u1pow(lh) = u1pow(lh) + 0.5d0 * u1hat(lh) * conjg(u1hat(lh))
+   u2pow(lh) = u2pow(lh) + 0.5d0 * u2hat(lh) * conjg(u2hat(lh))
+   u3pow(lh) = u3pow(lh) + 0.5d0 * u3hat(lh) * conjg(u3hat(lh))
+
+   do jx=2,lh-1
+      u1pow(jx) = u1pow(jx) + u1hat(jx) * conjg( u1hat(jx) )
+      u2pow(jx) = u2pow(jx) + u2hat(jx) * conjg( u2hat(jx) )
+      u3pow(jx) = u3pow(jx) + u3hat(jx) * conjg( u3hat(jx) )
+   enddo
+
+enddo
+enddo
+
+ke = u1pow + u2pow + u3pow
+
+$if ($MPI)
+  call mpi_reduce (ke, ke_total, lh, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  if (rank == 0) then  !--note its rank here, not coord
+    ke = ke_total   !!/nproc
+    open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+    write(2,*) jt_total, total_time, ke
+    close(2)
+  end if
+  call mpi_barrier(comm,ierr)
+$else
+open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+write(2,*) jt_total, total_time, ke
+close(2)
+$endif
+
+return
+end subroutine energy_kx_spectral_complex
 
 $if($CGNS)
 $if ($MPI)

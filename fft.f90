@@ -36,17 +36,18 @@ save
 
 public :: kx, ky, k2, init_fft, forw_spectra
 public :: forw, back, forw_big, back_big
-public :: forw_1d, back_1d  !!jb
+public :: forw_1d, back_1d, forw_complex  !!jb
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
-integer*8::forw_1d, back_1d  !!jb
+integer*8::forw_1d, back_1d, forw_complex  !!jb
 
 
 $if ($FFTW3)
 real (rprec), dimension (:, :), allocatable :: data, data_big
-real (rprec), dimension (:), allocatable :: data_x   !!jb
+real (rprec), dimension (:), allocatable :: data_x, data_in  !!jb
+complex (rprec), dimension (:), allocatable :: data_out      !!jb
 $else
 
 !public
@@ -86,6 +87,8 @@ $if ($FFTW3)
 allocate( data(ld, ny) )
 allocate( data_big(ld_big, ny2) )
 allocate( data_x(ld) )  !!jb
+allocate( data_in(nx) )  !!jb
+allocate( data_out(nx/2+1) )  !!jb
 
 ! Initialize and implement with threads
 !call dfftw_init_threads(iret)
@@ -102,11 +105,14 @@ call dfftw_plan_dft_c2r_2d(back_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_
 !!jb >>>
 call dfftw_plan_dft_r2c_1d(forw_1d ,nx   ,data_x  ,data_x  ,FFTW_PATIENT,FFTW_UNALIGNED)
 call dfftw_plan_dft_c2r_1d(back_1d ,nx   ,data_x  ,data_x  ,FFTW_PATIENT,FFTW_UNALIGNED)
+call dfftw_plan_dft_r2c_1d(forw_complex ,nx   ,data_in  ,data_out ,FFTW_PATIENT,FFTW_UNALIGNED)
 !! <<<<
 
 deallocate(data)
 deallocate(data_big)
 deallocate(data_x)
+deallocate(data_in)
+deallocate(data_out)
 
 $else
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
