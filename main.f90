@@ -30,7 +30,7 @@ use clocks
 use param
 use sim_param
 use grid_defs, only : grid_build
-use io, only : energy, output_loop, output_final, jt_total
+use io, only : energy, output_loop, output_final, jt_total,write_tau_wall
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -38,10 +38,10 @@ use cfl_util
 use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
-use functions, only: x_avg
+use functions, only: x_avg, get_tau_wall
 
 $if ($MPI)
-use mpi_defs, only : mpi_sync_real_array
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
 
 $if ($LVLSET)
@@ -199,7 +199,20 @@ time_loop: do jt_step = nstart, nsteps
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
     if (dns_bc .and. molec) then
-        call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+!!$       $if ($MPI)    !--jb, copied from sgs_stag_util.f90
+!!$       ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
+!!$       ! (only 1:nz-1) exchange information between processors to set
+!!$       ! values at nz from jz=1 above to jz=nz below
+!!$       call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
+!!$       $endif
+!!$
+!!$       call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+!!$
+!!$       $if ($MPI)    !--jb
+!!$       call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
+!!$       call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
+!!$       $endif
+       call sgs_stag()
     else        
         call sgs_stag()
     end if
@@ -396,6 +409,10 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
+    if ( jt_total >= 10000 ) then    !!jb
+       call mode_limit()
+    endif
+
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
     !//////////////////////////////////////////////////////
@@ -487,6 +504,9 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
+          $if($USE_RNL)
+          write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
+          $endif
           write(*,*)
           $if($MPI)
           write(*,'(1a)') 'Simulation wall times (s): '
@@ -496,7 +516,15 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
+          call write_tau_wall()        !!jb
        end if
+
+       if (coord == 0) then            !!jb
+          write(*,*) 'u: ', u(1,1,1)
+          write(*,*) 'v: ', v(1,1,1)
+          write(*,*) 'w: ', w(1,1,1), w(1,1,2)
+       endif
+
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then
