@@ -314,7 +314,7 @@ end subroutine project
 
 subroutine mode_limit()
 use types, only: rprec
-use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc !,kx_allow
+use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc,kx_allow
 use sim_param, only: u,v,w
 use grid_defs, only: grid
 use fft
@@ -328,7 +328,7 @@ real(rprec), pointer, dimension(:) :: zw
 nullify(zw)
 zw => grid % zw
 
-cutHere = 2 * 14  !kx_allow
+cutHere = 2 * kx_allow
 
 const = 1._rprec / nx
 do jy=1,ny
@@ -344,7 +344,11 @@ do jz=1,nz-1
 
      u(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
      v(3:cutHere,jy,jz) = 0._rprec    
-     w(3:cutHere,jy,jz) = 0._rprec    
+     w(3:cutHere,jy,jz) = 0._rprec
+
+     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+     v(cutHere+3: ,jy,jz) = 0._rprec    
+     w(cutHere+3: ,jy,jz) = 0._rprec
 
      call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
      call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))
