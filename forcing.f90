@@ -387,7 +387,7 @@ implicit none
 
 real(rprec),dimension(ld,ny,lbz:nz),intent(in) :: u1,u2,u3
 
-integer :: jx,jy,jz,cutHere
+integer :: jx,jy,jz,cutHere_p1
 real(rprec) :: const
 
 !!$real(rprec), pointer, dimension(:) :: zw
@@ -395,7 +395,7 @@ real(rprec) :: const
 !!$nullify(zw)
 !!$zw => grid % zw
 
-cutHere = 2 * kx_allow
+cutHere_p1 = 2 * kx_allow + 1
 
 const = 1._rprec / nx
 do jy=1,ny
@@ -409,13 +409,11 @@ do jz=1,nz-1
      call dfftw_execute_dft_r2c(forw_1d, fyml_rnl(:,jy,jz), fyml_rnl(:,jy,jz))
      call dfftw_execute_dft_r2c(forw_1d, fzml_rnl(:,jy,jz), fzml_rnl(:,jy,jz))
 
-     fxml_rnl(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
-     fyml_rnl(3:cutHere,jy,jz) = 0._rprec    
-     fzml_rnl(3:cutHere,jy,jz) = 0._rprec
-
-     fxml_rnl(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-     fyml_rnl(cutHere+3: ,jy,jz) = 0._rprec    
-     fzml_rnl(cutHere+3: ,jy,jz) = 0._rprec
+     !! now only zero-out the mode you want to keep
+     !! since the forcing will damp/cancel out the others
+     fxml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
+     fyml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec    
+     fzml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
 
      call dfftw_execute_dft_c2r(back_1d,fxml_rnl(:,jy,jz),fxml_rnl(:,jy,jz))
      call dfftw_execute_dft_c2r(back_1d,fyml_rnl(:,jy,jz),fyml_rnl(:,jy,jz))
@@ -423,6 +421,11 @@ do jz=1,nz-1
 
 enddo
 enddo
+
+!! make negative (we want to damp/cancel out these modes)
+fxml_rnl = -1._rprec * fxml_rnl
+fyml_rnl = -1._rprec * fyml_rnl
+fzml_rnl = -1._rprec * fzml_rnl
 
 if (modulo (jt_total,wbase) == 0 .and. coord==0) print*, "Called mode_limit"
 
