@@ -58,6 +58,7 @@ SRCS =  cfl_util.f90 \
 	lagrange_Ssim.f90 \
 	main.f90 \
 	messages.f90 \
+	open_file.f90 \
         padd.f90 \
 	param.f90 \
 	param_output.f90\
