@@ -38,7 +38,8 @@ public interp_to_uv_grid, &
      plane_avg_3d, &     
      interp_to_w_grid, &
      x_avg, &
-     get_tau_wall
+     get_tau_wall, &
+     i2str
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -715,7 +716,7 @@ return
 end function x_avg
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function get_tau_wall() result(twall)
+function get_tau_wall() result(twall)       !!jb
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! This function provides plane-averaged value of wall stress magnitude
@@ -740,5 +741,21 @@ twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
 
 return
 end function get_tau_wall
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+character(len=20) function i2str(i)      !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! Convert an integer to string. Use with the intrinsic function trim, e.g.:
+! open(2, file='vel'//trim(i2str(i))//'.dat')
+
+integer, intent(in) :: i
+write(i2str, *) i
+i2str = adjustl(i2str)
+
+return
+end function i2str
+
+
 
 end module functions
