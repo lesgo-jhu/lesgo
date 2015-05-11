@@ -417,11 +417,11 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
-    if (use_ml) then    !!jb
-       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
-          call mode_limit()
-       endif
-    endif
+!!$    if (use_ml) then    !!jb
+!!$       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
+!!$          call mode_limit()
+!!$       endif
+!!$    endif
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///

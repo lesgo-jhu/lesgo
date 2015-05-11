@@ -57,6 +57,7 @@ real (rprec), dimension (:, :, :), allocatable :: dudx_rnl, dudy_rnl, dudz_rnl, 
                                                   dvdx_rnl, dvdy_rnl, dvdz_rnl,  &
                                                   dwdx_rnl, dwdy_rnl, dwdz_rnl,  &
                                                   RHSx_rnl, RHSy_rnl, RHSz_rnl
+real (rprec), dimension (:, :, :), allocatable :: fxml_rnl, fyml_rnl, fzml_rnl
 $endif
 
 contains
@@ -117,6 +118,9 @@ allocate( dwdy_rnl(ld, ny, lbz:nz) ); dwdy_rnl = 0.0_rprec
 allocate( RHSx_rnl(ld, ny, lbz:nz) ); RHSx_rnl = 0.0_rprec
 allocate( RHSy_rnl(ld, ny, lbz:nz) ); RHSy_rnl = 0.0_rprec
 allocate( RHSz_rnl(ld, ny, lbz:nz) ); RHSz_rnl = 0.0_rprec
+allocate( fxml_rnl(ld, ny, nz) ); fxml_rnl = 0.0_rprec
+allocate( fyml_rnl(ld, ny, nz) ); fyml_rnl = 0.0_rprec
+allocate( fzml_rnl(ld, ny, nz) ); fzml_rnl = 0.0_rprec
 $endif
 
 $if($TURBINES)

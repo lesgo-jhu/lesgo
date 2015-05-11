@@ -64,6 +64,11 @@ use sim_param, only : fxa
 use turbines, only:turbines_forcing
 $endif
 
+$if ($USE_RNL)
+use sim_param, only: u, v, w, fxml_rnl, fyml_rnl, fzml_rnl
+use param, only: use_ml,jt_total,ml_start
+$endif
+
 implicit none
 
 $if ($LVLSET)
@@ -81,7 +86,18 @@ $if ($TURBINES)
 fxa = 0._rprec
 call turbines_forcing ()
 $endif
-   
+
+$if ($USE_RNL)
+if (use_ml .and. jt_total >= ml_start) then
+   ! Reset applied force arrays
+   fxml_rnl = 0._rprec
+   fyml_rnl = 0._rprec
+   fzml_rnl = 0._rprec
+   call mode_limit(u,v,w)
+endif
+$endif
+
+
 end subroutine forcing_applied
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -312,21 +328,72 @@ end if
 
 end subroutine project
 
-subroutine mode_limit()
+!!$subroutine mode_limit()
+!!$use types, only: rprec
+!!$use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc,kx_allow
+!!$use sim_param, only: u,v,w
+!!$use grid_defs, only: grid
+!!$use fft
+!!$
+!!$implicit none
+!!$
+!!$integer :: jx,jy,jz,cutHere
+!!$real(rprec) :: const
+!!$real(rprec), pointer, dimension(:) :: zw
+!!$
+!!$nullify(zw)
+!!$zw => grid % zw
+!!$
+!!$cutHere = 2 * kx_allow
+!!$
+!!$const = 1._rprec / nx
+!!$do jy=1,ny
+!!$do jz=1,nz-1
+!!$
+!!$     u(:,jy,jz) = const * u(:,jy,jz)
+!!$     v(:,jy,jz) = const * v(:,jy,jz)
+!!$     w(:,jy,jz) = const * w(:,jy,jz)
+!!$
+!!$     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), u(:,jy,jz))
+!!$     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), v(:,jy,jz))
+!!$     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), w(:,jy,jz))
+!!$
+!!$     u(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
+!!$     v(3:cutHere,jy,jz) = 0._rprec    
+!!$     w(3:cutHere,jy,jz) = 0._rprec
+!!$
+!!$     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+!!$     v(cutHere+3: ,jy,jz) = 0._rprec    
+!!$     w(cutHere+3: ,jy,jz) = 0._rprec
+!!$
+!!$     call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
+!!$     call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))
+!!$     call dfftw_execute_dft_c2r(back_1d, w(:,jy,jz), w(:,jy,jz))
+!!$
+!!$enddo
+!!$enddo
+!!$
+!!$end subroutine mode_limit
+
+subroutine mode_limit(u1,u2,u3)
 use types, only: rprec
-use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc,kx_allow
-use sim_param, only: u,v,w
+use param, only: ld, nx, ny, nz, lbz, kx_allow
+use param, only: wbase, jt_total, coord
+use sim_param, only: fxml_rnl, fyml_rnl, fzml_rnl
 use grid_defs, only: grid
 use fft
 
 implicit none
 
+real(rprec),dimension(ld,ny,lbz:nz),intent(in) :: u1,u2,u3
+
 integer :: jx,jy,jz,cutHere
 real(rprec) :: const
-real(rprec), pointer, dimension(:) :: zw
 
-nullify(zw)
-zw => grid % zw
+!!$real(rprec), pointer, dimension(:) :: zw
+!!$
+!!$nullify(zw)
+!!$zw => grid % zw
 
 cutHere = 2 * kx_allow
 
@@ -334,28 +401,30 @@ const = 1._rprec / nx
 do jy=1,ny
 do jz=1,nz-1
 
-     u(:,jy,jz) = const * u(:,jy,jz)
-     v(:,jy,jz) = const * v(:,jy,jz)
-     w(:,jy,jz) = const * w(:,jy,jz)
+     fxml_rnl(:,jy,jz) = const * u1(:,jy,jz)
+     fyml_rnl(:,jy,jz) = const * u2(:,jy,jz)
+     fzml_rnl(:,jy,jz) = const * u3(:,jy,jz)
 
-     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), u(:,jy,jz))
-     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), v(:,jy,jz))
-     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), w(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, fxml_rnl(:,jy,jz), fxml_rnl(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, fyml_rnl(:,jy,jz), fyml_rnl(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, fzml_rnl(:,jy,jz), fzml_rnl(:,jy,jz))
 
-     u(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
-     v(3:cutHere,jy,jz) = 0._rprec    
-     w(3:cutHere,jy,jz) = 0._rprec
+     fxml_rnl(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
+     fyml_rnl(3:cutHere,jy,jz) = 0._rprec    
+     fzml_rnl(3:cutHere,jy,jz) = 0._rprec
 
-     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-     v(cutHere+3: ,jy,jz) = 0._rprec    
-     w(cutHere+3: ,jy,jz) = 0._rprec
+     fxml_rnl(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+     fyml_rnl(cutHere+3: ,jy,jz) = 0._rprec    
+     fzml_rnl(cutHere+3: ,jy,jz) = 0._rprec
 
-     call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
-     call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))
-     call dfftw_execute_dft_c2r(back_1d, w(:,jy,jz), w(:,jy,jz))
+     call dfftw_execute_dft_c2r(back_1d,fxml_rnl(:,jy,jz),fxml_rnl(:,jy,jz))
+     call dfftw_execute_dft_c2r(back_1d,fyml_rnl(:,jy,jz),fyml_rnl(:,jy,jz))
+     call dfftw_execute_dft_c2r(back_1d,fzml_rnl(:,jy,jz),fzml_rnl(:,jy,jz))
 
 enddo
 enddo
+
+if (modulo (jt_total,wbase) == 0 .and. coord==0) print*, "Called mode_limit"
 
 end subroutine mode_limit
 
