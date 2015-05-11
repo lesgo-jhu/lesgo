@@ -272,6 +272,7 @@ use types, only: rprec
 use param
 use messages
 use fft
+use functions, only: i2str
 
 implicit none
 
@@ -283,12 +284,19 @@ real(rprec), dimension(nx/2+1) :: u1pow, u2pow, u3pow, ke
 $if ($MPI)
   real(rprec), dimension(nx/2+1) :: ke_total
 $endif
+character(len = 10), dimension(nx/2+1) :: ke_str    !! for file header
 
 ! Initialize variables
 ke = 0.0_rprec
 $if ($MPI)
    ke_total = 0.0_rprec
 $endif
+
+if (jt_total == wbase) then
+   do jx = 1 , nx/2+1
+      ke_str(jx) = 'kx='//trim(i2str(jx-1))//' '
+   enddo
+endif
 
 u1pow = 0._rprec
 u2pow = 0._rprec
@@ -342,12 +350,14 @@ $if ($MPI)
   if (rank == 0) then  !--note its rank here, not coord
     ke = ke_total   !!/nproc
     open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+    if (jt_total==wbase) write(2,*) 'timestep ', ke_str     !! header output
     write(2,*) jt_total, ke
     close(2)
   end if
   call mpi_barrier(comm,ierr)
 $else
 open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+if (jt_total==wbase) write(2,*) 'timestep ',ke_str    !! header output
 write(2,*) jt_total, ke
 close(2)
 $endif
