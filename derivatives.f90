@@ -34,7 +34,8 @@ public ddx, &
      ddxy, &
      ddz_uv, &
      ddz_w, &
-     filt_da
+     filt_da, &
+     ddx_direct
 
 contains
 
@@ -400,4 +401,85 @@ end do
 
 return
 end subroutine filt_da
+
+$if ($USE_RNL)
+!**********************************************************************
+subroutine ddx_direct(f, dfdx, lbz)
+!**********************************************************************
+!
+! Computes x derivative spectrally using direct summation instead of
+! FFTs. For use with RNL.
+!
+use types,only:rprec
+use param,only:ld,nx,ny,nz,kx_num,kx_vec,pi,coord,L_x,nproc
+implicit none
+
+integer :: jx, jy, jz, k
+integer, intent(in) :: lbz
+real(rprec), dimension(:, :, lbz:), intent(in) :: f
+real(rprec), dimension(:, :, lbz:), intent(out) :: dfdx
+real(rprec) :: const
+
+real(rprec), dimension(kx_num) :: pre
+complex(rprec), dimension(kx_num) :: fhat
+complex(rprec) :: imag = (0.0, 1.0)
+complex(rprec) :: const1, const2
+
+pre(:) = 2._rprec
+pre(1) = 1._rprec
+const1 = -L_x/nx * imag
+const2 = -1 * const1
+
+!!$if (coord == 0) then
+!!$   print*, 'pre: ', pre
+!!$   print*, 'const1: ', const1
+!!$   print*, 'const2: ', const2
+!!$endif
+
+dfdx(:,:,:) = 0._rprec
+
+do jy=1,ny
+do jz=1,nz
+
+   fhat(:)  = ( 0._rprec, 0.0_rprec  )
+
+   do  k=1,kx_num
+      do jx=1,nx
+         fhat(k) = fhat(k) + f(jx,jy,jz) * exp(const1 * kx_vec(k) * real(jx-1,rprec) )
+      enddo
+   enddo
+
+!!$   if (coord == nproc-1 .and. jz==1 .and. jy == 1) then
+!!$   print*, 'Before deriv: '
+!!$   do k=1,kx_num
+!!$      write(*,*) 'k, fhat(k): ', k, fhat(k)
+!!$   enddo
+!!$   endif
+
+   do k=1,kx_num
+      fhat(k) = imag * kx_vec(k) * fhat(k)
+   enddo
+
+!!$   if (coord == nproc-1 .and. jz==1 .and. jy == 1) then
+!!$   print*, 'After deriv: '
+!!$   do k=1,kx_num
+!!$      write(*,*) 'k, fhat(k): ', k, fhat(k)
+!!$   enddo
+!!$   endif
+
+   do jx=1,nx
+      do   k=1,kx_num
+         dfdx(jx,jy,jz) = dfdx(jx,jy,jz) + pre(k)*fhat(k)*exp(const2 * kx_vec(k) * real(jx-1,rprec))
+      enddo
+   enddo
+   
+enddo
+enddo
+
+dfdx = dfdx / real(nx,rprec)
+
+return
+end subroutine ddx_direct
+$endif
+
 end module derivatives

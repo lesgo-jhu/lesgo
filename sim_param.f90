@@ -58,6 +58,7 @@ real (rprec), dimension (:, :, :), allocatable :: dudx_rnl, dudy_rnl, dudz_rnl, 
                                                   dwdx_rnl, dwdy_rnl, dwdz_rnl,  &
                                                   RHSx_rnl, RHSy_rnl, RHSz_rnl
 real (rprec), dimension (:, :, :), allocatable :: fxml_rnl, fyml_rnl, fzml_rnl
+!!jb - clean up and remove these ^ when no longer needed for testing
 $endif
 
 contains
@@ -74,7 +75,7 @@ implicit none
 allocate ( u(ld, ny, lbz:nz) ); u = 0.0_rprec
 allocate ( v(ld, ny, lbz:nz) ); v = 0.0_rprec
 allocate ( w(ld, ny, lbz:nz) ); w = 0.0_rprec
-allocate( dudx(ld, ny, lbz:nz) ); dudx = 0.0_rprec
+allocate( dudx(ld, ny, lbz:nz) ); dudx = 0.0_rprec    !!jb - clean up and remove these when no longer needed for testing
 allocate( dudy(ld, ny, lbz:nz) ); dudy = 0.0_rprec
 allocate( dudz(ld, ny, lbz:nz) ); dudz = 0.0_rprec
 allocate( dvdx(ld, ny, lbz:nz) ); dvdx = 0.0_rprec
@@ -109,6 +110,7 @@ allocate ( v_rnl(ld, ny, lbz:nz) ); v_rnl = 0.0_rprec
 allocate ( w_rnl(ld, ny, lbz:nz) ); w_rnl = 0.0_rprec
 !! note dudx_rnl, dvdy_rnl, and dwdz_rnl are not here
 !! since they are not needed for convec subroutine
+allocate( dudx_rnl(ld, ny, lbz:nz) ); dudx_rnl = 0.0_rprec
 allocate( dudy_rnl(ld, ny, lbz:nz) ); dudy_rnl = 0.0_rprec
 allocate( dudz_rnl(ld, ny, lbz:nz) ); dudz_rnl = 0.0_rprec
 allocate( dvdx_rnl(ld, ny, lbz:nz) ); dvdx_rnl = 0.0_rprec

@@ -31,6 +31,9 @@ use param, only : sgs_hist_calc
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
 $endif
+$if($USE_RNL)
+use param, only: L_x, L_y, kx_num, kx_vec, pi
+$endif
 
 use cfl_util
 use io, only : output_init

@@ -33,7 +33,7 @@ use grid_defs, only : grid_build
 use io, only : energy, output_loop, output_final, jt_total
 use io, only : write_tau_wall, energy_kx_spectral_complex
 use fft
-use derivatives, only : filt_da, ddz_uv, ddz_w
+use derivatives, only : filt_da, ddz_uv, ddz_w, ddx_direct
 use test_filtermodule
 use cfl_util
 use sgs_hist
@@ -102,15 +102,19 @@ if(coord == 0) then
    $else
    write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
    $endif
-
+   
    $if ($USE_RNL)
-   write(*,*) '=================================='
-   write(*,*) 'RNL modes >>> '
-   write(*,*) 'kx_num: ', kx_num
-   write(*,*) 'kx_vec: ', kx_vec
-   write(*,*) '=================================='
+   kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
+   if ( coord == 0 ) then   
+      write(*,*) '=================================='
+      write(*,*) 'RNL modes >>>> '
+      write(*,*) 'kx_num: ', kx_num
+      write(*,*) 'kx_vec: ', kx_vec
+      write(*,*) 'L_x, L_y: ', L_x, L_y
+      write(*,*) '=================================='
+   endif
    $endif
-
+   
 endif
 
 call clock_start( clock_total )
@@ -172,6 +176,13 @@ time_loop: do jt_step = nstart, nsteps
     call filt_da (u, dudx, dudy, lbz)
     call filt_da (v, dvdx, dvdy, lbz)
     call filt_da (w, dwdx, dwdy, lbz)
+
+    call ddx_direct(u, dudx_rnl, lbz)
+
+    if (coord == 0) then
+       write(*,*) 'dudx: ', dudx(1:2,1:2,1:2)
+       write(*,*) 'dudx_rnl: ', dudx_rnl(1:2,1:2,1:2)
+    endif
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz

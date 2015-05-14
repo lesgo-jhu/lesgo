@@ -352,7 +352,6 @@ do
      case ('KX_VEC')
            call parse_vector( buff(equal_pos+1:), kx_num, kx_vec )  !!jb
      case default
-      
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
