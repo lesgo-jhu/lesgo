@@ -347,6 +347,10 @@ do
         read (buff(equal_pos+1:), *) ml_start  !!jb
      case ('ML_END')
         read (buff(equal_pos+1:), *) ml_end    !!jb
+     case ('KX_NUM')
+        read (buff(equal_pos+1:), *) kx_num    !!jb
+     case ('KX_VEC')
+           call parse_vector( buff(equal_pos+1:), kx_num, kx_vec )  !!jb
      case default
       
 

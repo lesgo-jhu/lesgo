@@ -92,6 +92,10 @@ write(2,i_fmt) 'kx_allow : ', kx_allow
 write(2,x3l_fmt) 'use_ml : ', use_ml
 write(2,i_fmt) 'ml_start : ', ml_start
 write(2,i_fmt) 'ml_end : ', ml_end
+write(2,i_fmt) 'kx_num : ', kx_num
+do n=1,kx_num
+  write(2,if_fmt) 'n, kx_vec(n) : ', n, kx_vec(n)
+enddo
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'

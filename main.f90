@@ -102,6 +102,15 @@ if(coord == 0) then
    $else
    write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
    $endif
+
+   $if ($USE_RNL)
+   write(*,*) '=================================='
+   write(*,*) 'RNL modes >>> '
+   write(*,*) 'kx_num: ', kx_num
+   write(*,*) 'kx_vec: ', kx_vec
+   write(*,*) '=================================='
+   $endif
+
 endif
 
 call clock_start( clock_total )
