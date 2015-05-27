@@ -29,6 +29,7 @@ use types, only : rprec
 use clocks 
 use param
 use sim_param
+use sgs_param
 use grid_defs, only : grid_build
 use io, only : energy, output_loop, output_final, jt_total
 use fft
@@ -63,6 +64,10 @@ $endif
 use messages
 
 implicit none
+
+! Tower and Nacelle
+real (rprec), dimension (:,:,:), allocatable :: dummyu, dummyv, dummyw
+real (rprec), dimension (:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
 
 character (*), parameter :: prog_name = 'main'
 
@@ -111,6 +116,14 @@ call clock_start( clock_total )
 ! If new simulation jt_total=0 by definition, if restarting jt_total
 ! provided by total_time.dat
 nstart = jt_total+1
+
+! Tower and Nacelle
+allocate( dummyu     (ld    ,ny, lbz:nz) )
+allocate( dummyv     (ld    ,ny, lbz:nz) )
+allocate( dummyw     (ld    ,ny, lbz:nz) )
+allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
+allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
+allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps   
@@ -515,6 +528,55 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
        end if
+
+!! RS: This needs to be added
+    $if( not $ATM )
+    if (modulo (jt_total, 1000) == 0) then
+    if (coord == 0) then
+    write(*,*) '--------------------red shift-------------------'
+    endif
+    dummyu(:,:,:)=u(:,:,:)
+    dummyv(:,:,:)=v(:,:,:)
+    dummyw(:,:,:)=w(:,:,:)
+    
+    dummyRHSx(:,:,:)=RHSx(:,:,:)
+    dummyRHSy(:,:,:)=RHSy(:,:,:)
+    dummyRHSz(:,:,:)=RHSz(:,:,:)
+
+    u(:,2:ny,:)=dummyu(:,1:ny-1,:)
+    v(:,2:ny,:)=dummyv(:,1:ny-1,:)
+    w(:,2:ny,:)=dummyw(:,1:ny-1,:)
+
+    RHSx(:,2:ny,:)=dummyRHSx(:,1:ny-1,:)
+    RHSy(:,2:ny,:)=dummyRHSy(:,1:ny-1,:)
+    RHSz(:,2:ny,:)=dummyRHSz(:,1:ny-1,:)
+
+    u(:,1,:)=dummyu(:,ny,:)
+    v(:,1,:)=dummyv(:,ny,:)
+    w(:,1,:)=dummyw(:,ny,:)
+    
+    RHSx(:,1,:)=dummyRHSx(:,ny,:)
+    RHSy(:,1,:)=dummyRHSy(:,ny,:)
+    RHSz(:,1,:)=dummyRHSz(:,ny,:)
+
+    dummyu(:,:,:) = F_LM(:,:,:)
+    F_LM(:,2:ny,:)= dummyu(:,1:ny-1,:)
+    F_LM(:,1,:)   = dummyu(:, ny   ,:)
+
+    dummyu(:,:,:) = F_MM(:,:,:)
+    F_MM(:,2:ny,:)= dummyu(:,1:ny-1,:)
+    F_MM(:,1,:)   = dummyu(:, ny   ,:)
+
+    dummyu(:,:,:) = F_QN(:,:,:)
+    F_QN(:,2:ny,:)= dummyu(:,1:ny-1,:)
+    F_QN(:,1,:)   = dummyu(:, ny   ,:)
+
+    dummyu(:,:,:) = F_NN(:,:,:)
+    F_NN(:,2:ny,:)= dummyu(:,1:ny-1,:)
+    F_NN(:,1,:)   = dummyu(:, ny   ,:)
+    endif
+    $endif
+!! RS: This needs to be added    
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then

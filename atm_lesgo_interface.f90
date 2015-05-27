@@ -69,6 +69,7 @@ use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
 ! Used for testing time 
 use clocks 
 
+
 implicit none
 
 ! Variable for interpolating the velocity in w onto the uv grid
@@ -510,12 +511,8 @@ endif
 
 !enddo
 
+! Towers
 
-if (coord == 0) then
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-endif
 
 do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
@@ -529,12 +526,6 @@ enddo
 
     ! Make sure all processors stop wait for the output to be completed
     call mpi_barrier( comm, ierr )
-
-if (coord == 0) then
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Done Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-endif
 
 end subroutine atm_lesgo_forcing
 
@@ -1167,7 +1158,9 @@ do m=1, numberOfTurbines
             k=forceFieldW(m) % ijk(3,c)
         
             fza(i,j,k) = fza(i,j,k) + forceFieldW(m) % force(3,c) 
-        
+        if (coord == 0) then
+            fza(i,j,1) = 0.
+        endif
         enddo
     endif
 enddo

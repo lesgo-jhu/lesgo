@@ -1,0 +1,18 @@
+#!/bin/bash
+if [ -e "./total_time.dat" ]
+then 
+rm total_time.dat 
+fi 
+if [ -e "./turbineOutput" ]
+then
+rm -r ./turbineOutput
+fi
+if [ -e "./output" ]
+then
+rm -r ./output
+fi
+
+export LD_LIBRARY_PATH=/usr/local/hdf5/lib:/usr/local/cgns/lib:/usr/local/cfdio/lib:$LD_LIBRARY_PATH
+
+mpirun -wdir red -n 4 ./lesgo-mpi-cps-binary : -wdir blue -n 4 ./lesgo-mpi-cps-ATM-binary
+

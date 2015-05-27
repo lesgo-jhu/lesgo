@@ -70,6 +70,9 @@ $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($ATM)
     use atm_lesgo_interface, only: atm_lesgo_initialize
+    use nacelle, only : nacelle_init
+    use tower, only : tower_init
+    
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
@@ -143,7 +146,9 @@ $endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 $if ($ATM)
-  call atm_lesgo_initialize ()  
+  call atm_lesgo_initialize ()
+  call nacelle_init
+  call tower_init
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 

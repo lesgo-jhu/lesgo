@@ -92,7 +92,7 @@ TURBINES_SRCS = turbines.f90 turbines_base.f90
 
 #################################################### Tony ATM
 ATM_SRCS = atm_base.f90 atm_input_util.f90                           \
-           actuator_turbine_model.f90 atm_lesgo_interface.f90
+           actuator_turbine_model.f90 atm_lesgo_interface.f90 nacelle.f90 tower.f90
 #################################################### Tony ATM
 
 CPS_SRCS = concurrent_precursor.f90

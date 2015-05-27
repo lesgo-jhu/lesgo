@@ -68,6 +68,10 @@ $endif
 $if ($ATM)
 use sim_param, only : fxa, fya, fza ! The body force components
 use atm_lesgo_interface, only : atm_lesgo_forcing
+
+! Use Richard's code to do the tower
+use nacelle, only : nacelle_forcing
+use tower, only : tower_forcing
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
@@ -96,6 +100,8 @@ fxa = 0._rprec
 fya = 0._rprec
 fza = 0._rprec
 call atm_lesgo_forcing ()
+call nacelle_forcing
+call tower_forcing
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
    
