@@ -1019,7 +1019,7 @@ u_infinity => turbineArray(i) % u_infinity
 u_infinity_mean = sum(u_infinity) / size(u_infinity) / &
 (1. - sum(induction_a) / size(induction_a))
 
-write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
+!write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
 
 end subroutine atm_integrate_u
 
