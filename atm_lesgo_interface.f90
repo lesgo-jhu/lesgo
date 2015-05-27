@@ -510,13 +510,6 @@ endif
 
 !enddo
 
-
-if (coord == 0) then
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-endif
-
 do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
     !~  call clock_start( myClock )
@@ -529,12 +522,6 @@ enddo
 
     ! Make sure all processors stop wait for the output to be completed
     call mpi_barrier( comm, ierr )
-
-if (coord == 0) then
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-    write(*,*) '!  Done Writing Actuator Turbine Model output  !'
-    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-endif
 
 end subroutine atm_lesgo_forcing
 

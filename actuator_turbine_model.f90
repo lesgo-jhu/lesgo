@@ -1097,7 +1097,7 @@ end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_output(i, jt_total, time)
-! This subroutine will calculate the output of the model
+! This subroutine will calculate and write the output
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
@@ -1111,72 +1111,77 @@ integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
-        
+
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    write(*,*) '!  Writing Actuator Turbine Model output  !'
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    
 !~     do i=1,numberOfTurbines
 
-        j=turbineArray(i) % turbineTypeID ! The turbine type ID
+    j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-        ! Files for power output
-        open(unit=powerFile,position="append",                                 &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
+    ! Files for power output
+    open(unit=powerFile,position="append",                                     &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
 
-        ! Files for power output
-        open(unit=RotSpeedFile,position="append",                              &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
+    ! Files for power output
+    open(unit=RotSpeedFile,position="append",                                  &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
 
-        ! File for blade output
-        open(unit=bladeFile,position="append",                                 &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
+    ! File for blade output
+    open(unit=bladeFile,position="append",                                     &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
 
-        open(unit=liftFile,position="append",                                  &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
+    open(unit=liftFile,position="append",                                      &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
 
-        open(unit=dragFile,position="append",                                  &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
-        
-        open(unit=ClFile,position="append",                                    &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
+    open(unit=dragFile,position="append",                                      &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
+    
+    open(unit=ClFile,position="append",                                        &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
 
-        open(unit=CdFile,position="append",                                    &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
+    open(unit=CdFile,position="append",                                        &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
 
-        open(unit=alphaFile,position="append",                                 &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
+    open(unit=alphaFile,position="append",                                     &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
 
-        open(unit=VrelFile,position="append",                                  &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
+    open(unit=VrelFile,position="append",                                      &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
 
-        open(unit=VaxialFile,position="append",                                &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
+    open(unit=VaxialFile,position="append",                                    &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
 
-        open(unit=VtangentialFile,position="append",                           &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
+    open(unit=VtangentialFile,position="append",                               &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
-        open(unit=pitchFile,position="append",                                 &
-        file="./turbineOutput/turbine"//trim(int2str(i))//"/pitch")
+    open(unit=pitchFile,position="append",                                     &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/pitch")
 
-        call atm_compute_power(i)
-        write(powerFile,*) time, turbineArray(i) % powerRotor, turbineArray(i) % powerGen
-        write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
-        write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,          &
-                           turbineArray(i) % IntSpeedError
+    call atm_compute_power(i)
+    write(powerFile,*) time, turbineArray(i) % powerRotor,                     &
+                       turbineArray(i) % powerGen
+    write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
+    write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,              &
+                       turbineArray(i) % IntSpeedError
 
-        ! Will write only the first actuator section of the blade
-        do m=1, turbineModel(j) % numBl
-            write(bladeFile,*) i, m, turbineArray(i) % bladeRadius(m,1,:)
-            write(liftFile,*) i, m, turbineArray(i) % lift(m,1,:)/   &
-                                    turbineArray(i) % db(:)
-            write(dragFile,*) i, m, turbineArray(i) % drag(m,1,:)/   &
-                                    turbineArray(i) % db(:)
-            write(ClFile,*) i, m, turbineArray(i) % cl(m,1,:)
-            write(CdFile,*) i, m, turbineArray(i) % cd(m,1,:)
-            write(alphaFile,*) i, m, turbineArray(i) % alpha(m,1,:)
-            write(VrelFile,*) i, m, turbineArray(i) % Vmag(m,1,:)
-            write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
-            write(VtangentialFile,*) i, m, turbineArray(i) %                   &
-                                           windVectors(m,1,:,2)
+    ! Will write only the first actuator section of the blade
+    do m=1, turbineModel(j) % numBl
+        write(bladeFile,*) i, m, turbineArray(i) % bladeRadius(m,1,:)
+        write(liftFile,*) i, m, turbineArray(i) % lift(m,1,:)/                 &
+                                turbineArray(i) % db(:)
+        write(dragFile,*) i, m, turbineArray(i) % drag(m,1,:)/                 &
+                                turbineArray(i) % db(:)
+        write(ClFile,*) i, m, turbineArray(i) % cl(m,1,:)
+        write(CdFile,*) i, m, turbineArray(i) % cd(m,1,:)
+        write(alphaFile,*) i, m, turbineArray(i) % alpha(m,1,:)
+        write(VrelFile,*) i, m, turbineArray(i) % Vmag(m,1,:)
+        write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
+        write(VtangentialFile,*) i, m, turbineArray(i) %                       &
+                                       windVectors(m,1,:,2)
 
-        enddo
+    enddo
     
         ! Write blade points 
 !~         call atm_write_blade_points(i,jt_total)
@@ -1196,6 +1201,10 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(VaxialFile)
     close(VtangentialFile)
     close(pitchFile)
+
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    write(*,*) '!  Done Writing Actuator Turbine Model output  !'
+    write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
 
 endif
 
