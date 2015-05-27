@@ -29,7 +29,7 @@ GenIner               534.116;
 HubIner               115.926E3;
 BladeIner             11.776047E6;
 //TorqueControllerType   "fiveRegion";
-TorqueControllerType   "none";
+TorqueControllerType   "fixedTSR";
 YawControllerType      "none";
 //PitchControllerType    "simpleLinear";
 PitchControllerType    "none";
