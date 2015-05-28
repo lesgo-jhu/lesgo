@@ -24,9 +24,7 @@ subroutine finalize()
 ! This subroutine is called by the main program. It is a driver subroutine for
 ! calling all the finalize routines of the various lesgo modules.
 !
-use param, only : coord, sgs_hist_calc
-use io, only : closefiles
-use sgs_hist
+use param, only : coord
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
 $endif
@@ -41,9 +39,6 @@ use atm_lesgo_interface, only : atm_lesgo_finalize
 $endif
 
 implicit none
-
-! Close all files opened by calling 'openfiles'
-call closefiles()
 
 ! Level set:
 $if ($LVLSET)
@@ -65,9 +60,9 @@ $endif
 
 
 ! SGS variable histograms
-if (sgs_hist_calc) then
-  call sgs_hist_finalize()
-endif
+!if (sgs_hist_calc) then
+!  call sgs_hist_finalize()
+!endif
 
 ! MPI:
 $if ($MPI)
