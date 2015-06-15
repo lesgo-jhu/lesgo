@@ -15,8 +15,6 @@
 !!
 !!  You should have received a copy of the GNU General Public License
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
-!!
-
 module sim_param
 use types, only : rprec
 use param, only : ld, ny, nz, lbz
@@ -27,11 +25,6 @@ public
 
 logical :: sim_param_initialized = .false.
 
-!--still testing allocatable array implementation:
-!  ifc 7.1 segfaults
-!  ifort 8.1 ok
-!  xlf segfaults when in MPI mode 256^3/32 cpu (need to test other combos)
-    
 real (rprec), dimension (:, :, :), allocatable :: u, v, w
 real (rprec), dimension (:, :, :), allocatable :: dudx, dudy, dudz,  &
                                                   dvdx, dvdy, dvdz,  &
@@ -111,5 +104,4 @@ sim_param_initialized = .true.
 
 return
 end subroutine sim_param_init
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end module sim_param
