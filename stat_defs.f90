@@ -62,30 +62,20 @@ real(rprec) :: tavg_dt
 ! Switch for determining if time averaging has been initialized
 logical :: tavg_initialized = .false.
 
-! Time between calls of spectra_compute, built by summing dt
-real(rprec) :: spectra_dt
-! Switch for determining if time averaging has been initialized
-logical :: spectra_initialized = .false.
-
 !  Sums performed over time
 type tavg_t
-  real(rprec) :: u, v, w, u_uv
+  real(rprec) :: u, v, w
   real(rprec) :: u2, v2, w2, uv, uw, vw
-  real(rprec) :: dudz, dvdz
-  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
-  real(rprec) :: fx, fy, fz
+!  real(rprec) :: dudz, dvdz
+!  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
+  real(rprec) :: fx!, fy, fz
   real(rprec) :: cs_opt2  
 end type tavg_t
   
 !  Sums performed over time (for subgrid variables)
 $if($OUTPUT_EXTRA)
 type tavg_sgs_t
-  real(rprec) :: Tn, Nu_t
-  real(rprec) :: F_LM, F_MM, F_QN, F_NN
-  real(rprec) :: ee_now
-  $if ($DYN_TN)
-  real(rprec) :: F_ee2, F_deedt2
-  $endif
+  real(rprec) :: Nu_t
 end type tavg_sgs_t
 $endif
 
@@ -114,28 +104,6 @@ end type wind_farm_t
 type(wind_farm_t) :: wind_farm
 $endif
 
-! Histogram (single)
-type hist_t
-    real(rprec) :: bmin, bmax, db             ! bin min, max, and spacing
-    integer :: nbins                          ! number of bins
-    real(rprec), allocatable, dimension(:) :: bins  ! bin centers
-    real(rprec), allocatable, dimension(:) :: vals  ! count for each bin (may be normalized)
-end type hist_t
-
-! Collection of histograms (one for each zplane) for a single variable
-type hist_zplanes_t  
-    integer, allocatable, dimension(:) :: coord         ! processor where this plane exists
-    integer, allocatable, dimension(:) :: istart        ! nearest node below plane (for interpolation)
-    real(rprec), allocatable, dimension(:) :: ldiff     ! distance from istart to plane (for interpolation)
-    type(hist_t), allocatable, dimension(:) :: hist     ! the histograms for each plane
-end type hist_zplanes_t
-
-! Create histogram groups here 
-type(hist_zplanes_t) :: HISTcs2   ! SGS coefficient, squared
-type(hist_zplanes_t) :: HISTtn    ! Lagrangian time scale
-type(hist_zplanes_t) :: HISTnu    ! Eddy viscosity
-type(hist_zplanes_t) :: HISTee    ! Error in SGS model
-
 ! Create types for outputting data (instantaneous or averaged)
 type(point_t), allocatable, dimension(:) :: point
 type(plane_t), allocatable, dimension(:) :: xplane, yplane
@@ -150,7 +118,6 @@ $endif
 
 type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
-type(spectra_t), allocatable, dimension(:) :: spectra
 
 ! Overloaded operators for tavg and rs types
 INTERFACE OPERATOR (.ADD.)
@@ -185,10 +152,6 @@ INTERFACE type_zero_bogus
   MODULE PROCEDURE tavg_zero_bogus_2D, tavg_zero_bogus_3D
 END INTERFACE
 
-INTERFACE hist_binit
-  MODULE PROCEDURE hist_binit_1D, hist_binit_2D, hist_binit_3D
-END INTERFACE
-
 contains
 
 !//////////////////////////////////////////////////////////////////////
@@ -203,7 +166,6 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u + b % u
-c % u_uv = a % u_uv + b % u_uv
 c % v = a % v + b % v
 c % w = a % w + b % w
 c % u2 = a % u2 + b % u2
@@ -212,17 +174,17 @@ c % w2 = a % w2 + b % w2
 c % uv = a % uv + b % uv
 c % uw = a % uw + b % uw
 c % vw = a % vw + b % vw
-c % dudz = a % dudz + b % dudz
-c % dvdz = a % dvdz + b % dvdz
-c % txx = a % txx + b % txx
-c % tyy = a % tyy + b % tyy
-c % tzz = a % tzz + b % tzz
-c % txy = a % txy + b % txy
-c % txz = a % txz + b % txz
-c % tyz = a % tyz + b % tyz
+!c % dudz = a % dudz + b % dudz
+!c % dvdz = a % dvdz + b % dvdz
+!c % txx = a % txx + b % txx
+!c % tyy = a % tyy + b % tyy
+!c % tzz = a % tzz + b % tzz
+!c % txy = a % txy + b % txy
+!c % txz = a % txz + b % txz
+!c % tyz = a % tyz + b % tyz
 c % fx = a % fx + b % fx
-c % fy = a % fy + b % fy
-c % fz = a % fz + b % fz
+!c % fy = a % fy + b % fy
+!c % fz = a % fz + b % fz
 c % cs_opt2 = a % cs_opt2 + b % cs_opt2
 
 return
@@ -236,7 +198,6 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u - b % u
-c % u_uv = a % u_uv - b % u_uv
 c % v = a % v - b % v
 c % w = a % w - b % w
 c % u2 = a % u2 - b % u2
@@ -245,17 +206,17 @@ c % w2 = a % w2 - b % w2
 c % uv = a % uv - b % uv
 c % uw = a % uw - b % uw
 c % vw = a % vw - b % vw 
-c % dudz = a % dudz - b % dudz
-c % dvdz = a % dvdz - b % dvdz
-c % txx = a % txx - b % txx
-c % tyy = a % tyy - b % tyy
-c % tzz = a % tzz - b % tzz
-c % txy = a % txy - b % txy
-c % txz = a % txz - b % txz
-c % tyz = a % tyz - b % tyz
+!c % dudz = a % dudz - b % dudz
+!c % dvdz = a % dvdz - b % dvdz
+!c % txx = a % txx - b % txx
+!c % tyy = a % tyy - b % tyy
+!c % tzz = a % tzz - b % tzz
+!c % txy = a % txy - b % txy
+!c % txz = a % txz - b % txz
+!c % tyz = a % tyz - b % tyz
 c % fx = a % fx - b % fx
-c % fy = a % fy - b % fy
-c % fz = a % fz - b % fz
+!c % fy = a % fy - b % fy
+!c % fz = a % fz - b % fz
 c % cs_opt2 = a % cs_opt2 - b % cs_opt2
 
 return
@@ -272,7 +233,6 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u + b
-c % u_uv = a % u_uv + b
 c % v = a % v + b
 c % w = a % w + b
 c % u2 = a % u2 + b
@@ -281,17 +241,17 @@ c % w2 = a % w2 + b
 c % uv = a % uv + b
 c % uw = a % uw + b
 c % vw = a % vw + b
-c % dudz = a % dudz + b
-c % dvdz = a % dvdz + b
-c % txx = a % txx + b
-c % tzz = a % tzz + b
-c % tyy = a % tyy + b
-c % txy = a % txy + b
-c % txz = a % txz + b
-c % tyz = a % tyz + b
+!c % dudz = a % dudz + b
+!c % dvdz = a % dvdz + b
+!c % txx = a % txx + b
+!c % tzz = a % tzz + b
+!c % tyy = a % tyy + b
+!c % txy = a % txy + b
+!c % txz = a % txz + b
+!c % tyz = a % tyz + b
 c % fx = a % fx + b
-c % fy = a % fy + b
-c % fz = a % fz + b
+!c % fy = a % fy + b
+!c % fz = a % fz + b
 c % cs_opt2 = a % cs_opt2 + b
 
 return
@@ -305,15 +265,15 @@ implicit none
 
 type(tavg_t), dimension(:,:), intent(inout) :: c
 
-c % txx = 0._rprec
-c % tyy = 0._rprec
-c % tzz = 0._rprec
-c % txy = 0._rprec
-c % txz = 0._rprec
-c % tyz = 0._rprec
-c % fx = 0._rprec
-c % fy = 0._rprec
-c % fz = 0._rprec
+!c % txx = 0._rprec
+!c % tyy = 0._rprec
+!c % tzz = 0._rprec
+!c % txy = 0._rprec
+!c % txz = 0._rprec
+!c % tyz = 0._rprec
+!c % fx = 0._rprec
+!c % fy = 0._rprec
+!c % fz = 0._rprec
 
 return
 end subroutine tavg_zero_bogus_2D
@@ -326,15 +286,15 @@ implicit none
 
 type(tavg_t), dimension(:,:,:), intent(inout) :: c
 
-c % txx = 0._rprec
-c % tyy = 0._rprec
-c % tzz = 0._rprec
-c % txy = 0._rprec
-c % txz = 0._rprec
-c % tyz = 0._rprec
-c % fx = 0._rprec
-c % fy = 0._rprec
-c % fz = 0._rprec
+!c % txx = 0._rprec
+!c % tyy = 0._rprec
+!c % tzz = 0._rprec
+!c % txy = 0._rprec
+!c % txz = 0._rprec
+!c % tyz = 0._rprec
+!c % fx = 0._rprec
+!c % fy = 0._rprec
+!c % fz = 0._rprec
 
 return
 end subroutine tavg_zero_bogus_3D
@@ -351,7 +311,6 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u / b
-c % u_uv = a % u_uv / b
 c % v = a % v / b
 c % w = a % w / b
 c % u2 = a % u2 / b
@@ -360,17 +319,17 @@ c % w2 = a % w2 / b
 c % uv = a % uv / b
 c % uw = a % uw / b
 c % vw = a % vw / b
-c % dudz = a % dudz / b
-c % dvdz = a % dvdz / b
-c % txx = a % txx / b
-c % tyy = a % tyy / b
-c % tzz = a % tzz / b
-c % txy = a % txy / b
-c % txz = a % txz / b
-c % tyz = a % tyz / b
+!c % dudz = a % dudz / b
+!c % dvdz = a % dvdz / b
+!c % txx = a % txx / b
+!c % tyy = a % tyy / b
+!c % tzz = a % tzz / b
+!c % txy = a % txy / b
+!c % txz = a % txz / b
+!c % tyz = a % tyz / b
 c % fx = a % fx / b
-c % fy = a % fy / b
-c % fz = a % fz / b
+!c % fy = a % fy / b
+!c % fz = a % fz / b
 c % cs_opt2 = a % cs_opt2 / b
 
 return
@@ -384,7 +343,6 @@ type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
 
 c % u = a % u * b % u
-c % u_uv = a % u_uv * b % u_uv
 c % v = a % v * b % v
 c % w = a % w * b % w
 c % u2 = a % u2 * b % u2
@@ -393,17 +351,17 @@ c % w2 = a % w2 * b % w2
 c % uv = a % uv * b % uv
 c % uw = a % uw * b % uw
 c % vw = a % vw * b % vw
-c % dudz = a % dudz * b % dudz
-c % dvdz = a % dvdz * b % dvdz
-c % txx = a % txx * b % txx
-c % tyy = a % tyy * b % tyy
-c % tzz = a % tzz * b % tzz
-c % txy = a % txy * b % txy
-c % txz = a % txz * b % txz
-c % tyz = a % tyz * b % tyz
+!c % dudz = a % dudz * b % dudz
+!c % dvdz = a % dvdz * b % dvdz
+!c % txx = a % txx * b % txx
+!c % tyy = a % tyy * b % tyy
+!c % tzz = a % tzz * b % tzz
+!c % txy = a % txy * b % txy
+!c % txz = a % txz * b % txz
+!c % tyz = a % tyz * b % tyz
 c % fx = a % fx * b % fx
-c % fy = a % fy * b % fy
-c % fz = a % fz * b % fz
+!c % fy = a % fy * b % fy
+!c % fz = a % fz * b % fz
 c % cs_opt2 = a % cs_opt2 * b % cs_opt2
 
 return
@@ -420,7 +378,6 @@ real(rprec), intent(in) :: b
 type(tavg_t) :: c
 
 c % u = a % u * b
-c % u_uv = a % u_uv * b
 c % v = a % v * b
 c % w = a % w * b
 c % u2 = a % u2 * b
@@ -429,17 +386,17 @@ c % w2 = a % w2 * b
 c % uv = a % uv * b
 c % uw = a % uw * b
 c % vw = a % vw * b
-c % dudz = a % dudz * b
-c % dvdz = a % dvdz * b
-c % txx = a % txx * b
-c % tyy = a % tyy * b
-c % tzz = a % tzz * b
-c % txy = a % txy * b
-c % txz = a % txz * b
-c % tyz = a % tyz * b
+!c % dudz = a % dudz * b
+!c % dvdz = a % dvdz * b
+!c % txx = a % txx * b
+!c % tyy = a % tyy * b
+!c % tzz = a % tzz * b
+!c % txy = a % txy * b
+!c % txz = a % txz * b
+!c % tyz = a % tyz * b
 c % fx = a % fx * b
-c % fy = a % fy * b
-c % fz = a % fz * b
+!c % fy = a % fy * b
+!c % fz = a % fz * b
 c % cs_opt2 = a % cs_opt2 * b
 
 return
@@ -456,17 +413,17 @@ type(tavg_sgs_t), intent(in) :: a
 real(rprec), intent(in) :: b
 type(tavg_sgs_t) :: c
 
-c % Tn = a % Tn / b
+!c % Tn = a % Tn / b
 c % Nu_t = a % Nu_t / b
-c % F_LM = a % F_LM / b
-c % F_MM = a % F_MM / b
-c % F_QN = a % F_QN / b
-c % F_NN = a % F_NN / b
-c % ee_now = a % ee_now / b
-$if($DYN_TN)
-c % F_ee2 = a % F_ee2 / b
-c % F_deedt2 = a % F_deedt2 / b
-$endif
+!c % F_LM = a % F_LM / b
+!c % F_MM = a % F_MM / b
+!c % F_QN = a % F_QN / b
+!c % F_NN = a % F_NN / b
+!c % ee_now = a % ee_now / b
+!$if($DYN_TN)
+!c % F_ee2 = a % F_ee2 / b
+!c % F_deedt2 = a % F_deedt2 / b
+!$endif
 
 return
 end function tavg_sgs_scalar_div
@@ -493,6 +450,8 @@ allocate(c(ubx,uby,lbz:ubz))
 c = a
 
 !c % fz = interp_to_uv_grid( a % fz, lbz )
+c % w  =interp_to_uv_grid(a %w,lbz)
+c % w2 =interp_to_uv_grid(a %w2,lbz)
 
 return
 
@@ -518,13 +477,13 @@ allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-c % txx =  interp_to_w_grid( a % txx, lbz )
-c % tyy =  interp_to_w_grid( a % tyy, lbz )
-c % tzz =  interp_to_w_grid( a % tzz, lbz )
-c % txy =  interp_to_w_grid( a % txy, lbz )
+!c % txx =  interp_to_w_grid( a % txx, lbz )
+!c % tyy =  interp_to_w_grid( a % tyy, lbz )
+!c % tzz =  interp_to_w_grid( a % tzz, lbz )
+!c % txy =  interp_to_w_grid( a % txy, lbz )
 
-c % fx = interp_to_w_grid( a % fx, lbz )
-c % fy = interp_to_w_grid( a % fy, lbz )
+!c % fx = interp_to_w_grid( a % fx, lbz )
+!c % fy = interp_to_w_grid( a % fy, lbz )
 
 return
 
@@ -652,7 +611,6 @@ real(rprec), intent(in) :: a
 type(tavg_t), intent(out) :: c
 
 c % u = a
-c % u_uv = a
 c % v = a
 c % w = a
 c % u2 = a
@@ -661,17 +619,17 @@ c % w2 = a
 c % uv = a
 c % uw = a
 c % vw = a
-c % dudz = a
-c % dvdz = a
-c % txx = a
-c % tyy = a
-c % tzz = a
-c % txy = a
-c % txz = a
-c % tyz = a
+!c % dudz = a
+!c % dvdz = a
+!c % txx = a
+!c % tyy = a
+!c % tzz = a
+!c % txy = a
+!c % txz = a
+!c % tyz = a
 c % fx = a
-c % fy = a
-c % fz = a
+!c % fy = a
+!c % fz = a
 c % cs_opt2 = a
 
 return
@@ -686,17 +644,17 @@ implicit none
 real(rprec), intent(in) :: a
 type(tavg_sgs_t), intent(out) :: c
 
-c % Tn =  a
+!c % Tn =  a
 c % Nu_t =  a
-c % F_LM =  a
-c % F_MM =  a
-c % F_QN =  a
-c % F_NN =  a
-c % ee_now = a
-$if($DYN_TN)
-c % F_ee2 = a
-c % F_deedt2 = a
-$endif
+!c % F_LM =  a
+!c % F_MM =  a
+!c % F_QN =  a
+!c % F_NN =  a
+!c % ee_now = a
+!$if($DYN_TN)
+!c % F_ee2 = a
+!c % F_deedt2 = a
+!$endif
 
 return
 end subroutine tavg_sgs_set
@@ -723,234 +681,6 @@ c % vpwp = a
 
 return
 end subroutine rs_set
-
-!//////////////////////////////////////////////////////////////////////
-!/////////////////// SPECIAL HIST SUBROUTINES /////////////////////////
-!//////////////////////////////////////////////////////////////////////
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($LVLSET)
-subroutine hist_binit_1D( a, var, phi_ls )
-$else
-subroutine hist_binit_1D( a, var )
-$endif
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine takes the values in var and bins them in the histogram
-!   a only if the location is outside a body (level set function phi>0 )
-!
-! If phi_ls is not included as an input then all values are binned
-!
-! Inputs:
-!   a   :: the histogram to be updated
-!   var :: the values that will be used to update the histogram
-!   phi_ls :: the level set function (phi from level_set_base module)
-
-use types, only : rprec
-implicit none
-
-type(hist_t), intent(inout) :: a                
-real(rprec), intent(in), dimension(:) :: var
-$if ($LVLSET)
-real(rprec), intent(in), dimension(:), optional :: phi_ls ! phi_ls<0 is inside a body
-$endif
-
-integer :: dim1, i, ib
-real(rprec) :: countme
-
-! Determine length of input arrays
-    dim1 = size(var,1)
-
-    !! Check that phi_ls is the same length as var (if present)
-    !if (present (phi_ls)) then
-    !    if ( size(phi_ls,1) .ne. dim1 ) then
-    !        write(*,*) 'In hist_binit_1D: size of phi_ls should match size of var'
-    !        stop
-    !    endif
-    !endif
-
-! Prepare temp array and counting variable
-    countme = 1.0_rprec
-    
-$if ($LVLSET) 
-    if (present (phi_ls)) then
-        do i=1,dim1
-            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
-            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i)) )  
-
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-    else
-$endif
-        do i=1,dim1
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-$if ($LVLSET) 
-    endif
-$endif
-
-return
-end subroutine hist_binit_1D
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($LVLSET)
-subroutine hist_binit_2D( a, var, phi_ls )
-$else
-subroutine hist_binit_2D( a, var )
-$endif
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine takes the values in var and bins them in the histogram
-!   a only if the location is outside a body (level set function phi>0 )
-!
-! If phi_ls is not included as an input then all values are binned
-!
-! Inputs:
-!   a   :: the histogram to be updated
-!   var :: the values that will be used to update the histogram
-!   phi_ls :: the level set function (phi from level_set_base module)
-
-use types, only : rprec
-implicit none
-
-type(hist_t), intent(inout) :: a                
-real(rprec), intent(in), dimension(:,:) :: var
-$if ($LVLSET)
-real(rprec), intent(in), dimension(:,:), optional :: phi_ls 
-$endif
-
-integer :: dim1, dim2, i, j, ib
-real(rprec) :: countme
-
-! Determine length of input arrays
-    dim1 = size(var,1)
-    dim2 = size(var,2)
-
-    !! Check that phi_ls is the same length as var (if present)
-    !if (present (phi_ls)) then
-    !    if (( size(phi_ls,1) .ne. dim1 ).or.( size(phi_ls,2) .ne. dim2 )) then
-    !        write(*,*) 'In hist_binit_2D: size of phi_ls should match size of var'
-    !        stop
-    !    endif
-    !endif
-
-! Prepare temp array and counting variable
-    countme = 1.0_rprec
-    
-$if ($LVLSET) 
-    if (present (phi_ls)) then
-        do j=1,dim2
-        do i=1,dim1
-            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
-            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i,j)) )  
-
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i,j)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-        enddo
-    else
-$endif
-        do j=1,dim2
-        do i=1,dim1
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i,j)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-        enddo
-$if ($LVLSET) 
-    endif
-$endif
-
-return
-end subroutine hist_binit_2D
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($LVLSET)
-subroutine hist_binit_3D( a, var, phi_ls )
-$else
-subroutine hist_binit_3D( a, var )
-$endif
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine takes the values in var and bins them in the histogram
-!   a only if the location is outside a body (level set function phi>0 )
-!
-! If phi_ls is not included as an input then all values are binned
-!
-! Inputs:
-!   a   :: the histogram to be updated
-!   var :: the values that will be used to update the histogram
-!   phi_ls :: the level set function (phi from level_set_base module)
-
-use types, only : rprec
-implicit none
-
-type(hist_t), intent(inout) :: a                
-real(rprec), intent(in), dimension(:,:,:) :: var
-$if ($LVLSET)
-real(rprec), intent(in), dimension(:,:,:), optional :: phi_ls 
-$endif
-
-integer :: dim1, dim2, dim3, i, j, k, ib
-real(rprec) :: countme
-
-! Determine length of input arrays
-    dim1 = size(var,1)
-    dim2 = size(var,2)
-    dim3 = size(var,3)
-
-    !! Check that phi_ls is the same length as var (if present)
-    !if (present (phi_ls)) then
-    !    if ( size(phi_ls,1) .ne. dim1 ) then
-    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (1)'
-    !        stop
-    !    endif
-    !    if ( size(phi_ls,2) .ne. dim2 ) then
-    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (2)'
-    !        stop
-    !    endif
-    !    if ( size(phi_ls,3) .ne. dim3 ) then
-    !        write(*,*) 'In hist_binit_3D: size of phi_ls should match size of var (3)'
-    !        stop
-    !   endif
-    !endif
-
-! Prepare temp array and counting variable
-    countme = 1.0_rprec
-    
-$if ($LVLSET) 
-    if (present (phi_ls)) then
-        do k=1,dim3
-        do j=1,dim2
-        do i=1,dim1
-            ! if phi<0 (inside body) don't count it!  (1=outside body, 0=inside)
-            countme = 0.5_rprec * ( 1.0_rprec + sign(1.0_rprec,phi_ls(i,j,k)) )  
-
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i,j,k)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-        enddo
-        enddo
-    else
-$endif
-        do k=1,dim3
-        do j=1,dim2
-        do i=1,dim1
-            ! Determine which bin and add 1.0 to that val
-            ib = min( ceiling( max(var(i,j,k)-a%bmin,-0.5_rprec) /a%db ), a%nbins+1 )
-            a%vals(ib) = a%vals(ib) + countme
-        enddo
-        enddo
-        enddo
-$if ($LVLSET) 
-    endif
-$endif
-
-return
-end subroutine hist_binit_3D
 
 end module stat_defs
 

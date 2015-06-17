@@ -28,7 +28,7 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use param, only : sgs_hist_calc
+!use param, only : sgs_hist_calc
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
 $endif
@@ -42,7 +42,7 @@ use sim_param, only : sim_param_init
 use grid_defs, only : grid_build
 use fft, only : init_fft
 use io, only : openfiles
-use sgs_hist
+!use sgs_hist
 
 $if ($MPI)
 use mpi_defs, only : initialize_mpi
@@ -182,9 +182,9 @@ call initialize_cps()
 $endif
 
 ! Initialize sgs variable histogram calc
-if (sgs_hist_calc) then
-  call sgs_hist_init()
-endif
+!if (sgs_hist_calc) then
+!  call sgs_hist_init()
+!endif
 
 $if ($DEBUG)
 if (DEBUG) then

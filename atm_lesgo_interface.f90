@@ -511,9 +511,6 @@ endif
 
 !enddo
 
-! Towers
-
-
 do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
     !~  call clock_start( myClock )
