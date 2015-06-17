@@ -82,7 +82,7 @@ USE_TURBINES=no
 USE_BINARY=yes
 
 # Use CGNS data output
-USE_CGNS=no
+USE_CGNS=yes
 
 #################################################### Tony ATM
 # Use the actuator turbine model
