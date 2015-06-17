@@ -33,7 +33,7 @@ INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include \
  -I/act/fftw3/mpich/gcc-4.7.2/include \
- -I/act/hdf5-1.8.14/mpich/gcc-4.7.2/include \
+ -I/act/hdf5-1.8.15/mpich/gcc-4.7.2/include \
  -I/act/cgns-3.2.1/mpich/gcc-4.7.2/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
@@ -41,7 +41,7 @@ LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
  -L/act/fftw3/mpich/gcc-4.7.2/lib \
- -L/act/hdf5-1.8.14/mpich/gcc-4.7.2/lib \
+ -L/act/hdf5-1.8.15/mpich/gcc-4.7.2/lib \
  -L/act/cgns-3.2.1/mpich/gcc-4.7.2/lib
  
 HOSTNAME = $(shell hostname -s)
