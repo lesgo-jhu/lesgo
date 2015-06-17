@@ -32,17 +32,17 @@ INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/opt/cgns-3.2.1-hdf5-mpi/include -I/opt/hdf5-1.8.12-mpi/include \
  -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include \
- -I/act/fftw3/openmpi-1.6/gcc-4.7.2/include \
- -I/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include \
- -I/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include
+ -I/act/fftw3/mpich/gcc-4.7.2/include \
+ -I/act/hdf5-1.8.14/mpich/gcc-4.7.2/include \
+ -I/act/cgns-3.2.1/mpich/gcc-4.7.2/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
  -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
- -L/act/fftw3/openmpi-1.6/gcc-4.7.2/lib \
- -L/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib \
- -L/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib
+ -L/act/fftw3/mpich/gcc-4.7.2/lib \
+ -L/act/hdf5-1.8.14/mpich/gcc-4.7.2/lib \
+ -L/act/cgns-3.2.1/mpich/gcc-4.7.2/lib
  
 HOSTNAME = $(shell hostname -s)
 
