@@ -33,7 +33,11 @@ use grid_defs, only : grid_build
 use io, only : energy, output_loop, output_final, jt_total
 use io, only : write_tau_wall, energy_kx_spectral_complex
 use fft
-use derivatives, only : filt_da, ddz_uv, ddz_w, ddx_direct
+use derivatives, only : filt_da, ddz_uv, ddz_w
+use derivatives, only : ddx_direct, ddy, ddy_only, ddx, ddy, ddx_n, ddy_n           !!jb
+use derivatives, only : dft_direct_forw_2d, dft_direct_back_2d, filt_da_direct  !!jb
+use derivatives, only : dft_direct_forw_2d_new, dft_direct_back_2d_new
+use derivatives, only : dft_direct_forw_2d_n, dft_direct_back_2d_n, filt_da_direct_n
 use test_filtermodule
 use cfl_util
 use sgs_hist
@@ -72,7 +76,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: jt_step, nstart
+integer :: jt_step, nstart,jx,jy  !!jb jx,jy
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: triggerFactor    !!jb
@@ -173,16 +177,51 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+
+    u_rnl(:,:,:) = u(:,:,:)
+
+    !call ddx(u,dudx,lbz)
+    !call ddx_n(u_rnl, dudx_rnl,lbz)
+
     call filt_da (u, dudx, dudy, lbz)
-    call filt_da (v, dvdx, dvdy, lbz)
-    call filt_da (w, dwdx, dwdy, lbz)
+    call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
+    
+    !call ddy(u,dudy,lbz)
+    !call ddy_n(u_rnl, dudy_rnl,lbz)
 
-    call ddx_direct(u, dudx_rnl, lbz)
+    !!call filt_da (u, dudx, dudy, lbz)
+    !!call filt_da (v, dvdx, dvdy, lbz)
+    !!call filt_da (w, dwdx, dwdy, lbz)
+   
+    !call filt_da_direct_n (u, dudx, dudy, lbz)    
+    !call filt_da_direct_n (v, dvdx, dvdy, lbz)    
+    !call filt_da_direct_n (w, dwdx, dwdy, lbz)    
 
-    if (coord == 0) then
-       write(*,*) 'dudx: ', dudx(1:2,1:2,1:2)
-       write(*,*) 'dudx_rnl: ', dudx_rnl(1:2,1:2,1:2)
-    endif
+if (coord == 0) then
+write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+do jx=1,nx+2
+do jy=1,ny
+write(*,*) u(jx,jy,2), u_rnl(jx,jy,2)
+enddo
+enddo
+endif
+
+if (coord == 0) then
+write(*,*) 'COMPARE DUDX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+do jx=1,nx+2
+do jy=1,ny
+write(*,*) jx,jy,dudx(jx,jy,1),dudx_rnl(jx,jy,1)
+enddo
+enddo
+endif
+if (coord == 0) then
+write(*,*) 'COMPARE DUDY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+do jx=1,nx+2
+do jy=1,ny
+write(*,*) jx,jy,dudy(jx,jy,1),dudy_rnl(jx,jy,1)
+enddo
+enddo
+endif
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz

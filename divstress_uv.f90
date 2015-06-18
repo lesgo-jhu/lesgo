@@ -20,7 +20,7 @@
 subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 use types,only:rprec
 use param,only:ld,ny,nz,BOGUS,lbz 
-use derivatives, only : ddx, ddy, ddz_w,ddxy
+use derivatives, only : ddx, ddy, ddz_w, ddxy, ddx_n, ddy_n
 
 implicit none
 
@@ -42,25 +42,28 @@ $endif
  
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
+!!$call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
+call ddx_n(txx, dtxdx, lbz)    !!jb
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-!call ddy(txy, dtydy, lbz)
+call ddy_n(txy, dtydy, lbz)        !!jb
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(txz, dtzdz, lbz)
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
+!!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
+call ddx_n(txy, dtxdx2, lbz)     !!jb
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddy(tyy, dtydy2, lbz)
+!!call ddy(tyy, dtydy2, lbz)
+call ddy_n(tyy, dtydy2, lbz)     !!jb
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(tyz, dtzdz2, lbz)
 
-call ddxy(txy , dtxdx2, dtydy, lbz)              
+!!call ddxy(txy , dtxdx2, dtydy, lbz)     !!jb         
 
 !--MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the

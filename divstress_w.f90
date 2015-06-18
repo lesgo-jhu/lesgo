@@ -23,7 +23,7 @@
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
 use param,only:ld,nx,ny,nz, nproc, coord, BOGUS, lbz
-use derivatives, only : ddx, ddy, ddz_uv
+use derivatives, only : ddx, ddy, ddz_uv, ddx_n
 
 implicit none
 
@@ -38,7 +38,8 @@ $endif
 
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
-call ddx(tx, dtxdx, lbz)
+!!call ddx(tx, dtxdx, lbz)        !!jb
+call ddx_n(tx, dtxdx, lbz)
 $if ($SAFETYMODE)
 $if ($MPI)
   dtxdx(:, :, 0) = BOGUS
