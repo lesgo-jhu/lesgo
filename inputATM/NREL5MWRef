@@ -20,7 +20,7 @@ TipRad                 63.0;
 HubRad                  1.5;
 UndSling                0.0;
 OverHang               -1.0;
-TowerHt                512;
+TowerHt                90;
 Twr2Shft                0;
 ShftTilt               0;
 PreCone               0;
