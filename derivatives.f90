@@ -535,10 +535,10 @@ do jz=lbz,nz
   f(:,ny/2+1,jz) = 0._rprec   
 
 
-if(coord==0 .and. jz==1) then
-   write(*,*) 'filt_da 3'
-   write(*,*) f(:,:,jz)
-endif
+!if(coord==0 .and. jz==1) then      !!jb
+!   write(*,*) 'filt_da 3'
+!   write(*,*) f(:,:,jz)
+!endif
 
 
   !  Compute in-plane derivatives
@@ -1084,17 +1084,13 @@ use param,only:ld,nx,ny,nz,kx_num,kx_vec,pi,coord,L_x,nproc,L_y
 use fft !,only:ky_vec
 implicit none
 
-integer :: jx, jy, i, j, ii, ir, jy_r
+integer :: jx, jy, i, j, ii, ir, jy_r, jx_s
 real(rprec), dimension(:, :), intent(inout) :: f
 real(rprec) :: const
 
 complex(rprec), dimension(nx, ny) :: fhat
 complex(rprec), dimension(nx, ny) :: fhat2
 complex(rprec), dimension(nx, ny/2+1) :: fhaty
-complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)
-complex(rprec) :: c1
-
-c1 = -L_x/real(nx,rprec) * imag
 
 fhat(:,:)  = ( 0._rprec, 0._rprec  )
 fhat2(:,:)  = ( 0._rprec, 0._rprec  )
@@ -1112,19 +1108,28 @@ do jy=2,ny/2
 enddo
 
 do jx=1,kx_num
+jx_s = kx_veci ( jx )  !! index/storage location
 do i=1,nx
-  fhat(jx,:)=fhat(jx,:)+fhat2(i,:)*exp(c1*kx_vec(jx)*real(i-1,rprec) );
+  fhat(jx_s,:)=fhat(jx_s,:)+fhat2(i,:)*expn(jx,i)   !exp(c1*kx_vec(jx)*real(i-1,rprec) );
 end do
 end do
+
+!if (coord == 0) then
+! write(*,*) 'FHAT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+! do jx=1,nx
+!   write(*,*) 'jx,fhat(jx,1): ', jx, fhat(jx,1)
+! enddo
+!endif
 
 f(:,:) = 0._rprec
 
 do jx=1, kx_num
-   ii = 2*jx     ! imag index
+   jx_s = kx_veci( jx )   !!---jb
+   ii = 2*jx_s     ! imag index
    ir = ii-1     ! real index
 do jy=1, ny
-   f(ir,jy) = real ( fhat(jx,jy) ,rprec )
-   f(ii,jy) = aimag( fhat(jx,jy) )
+   f(ir,jy) = real ( fhat(jx_s,jy) ,rprec )
+   f(ii,jy) = aimag( fhat(jx_s,jy) )
 enddo
 enddo
 
@@ -1142,40 +1147,28 @@ use param,only:ld,nx,ny,nz,kx_num,pi,coord,L_x,nproc,L_y,kx_vec
 use fft !,only:ky_vec
 implicit none
 
-integer :: jx, jy, i, j, ii, ir, jx_r, jy_r
+integer :: jx, jy, i, j, ii, ir, jx_r, jy_r, jx_s, jx2
 real(rprec), dimension(:, :), intent(inout) :: f
 
 complex(rprec), dimension(nx,ny) :: fhat, fhat2
 complex(rprec), dimension(nx, ny/2+1) :: fhaty
-complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)
-complex(rprec) :: c1
-
-real(rprec), dimension(kx_num*2 - 2) :: kx_vec_long
-
-kx_vec_long(1:kx_num) = kx_vec(1:kx_num)
-
-do jx=2,nx/2
-   ii = nx - jx + 2;   !! reflected x index
-   kx_vec_long(ii) = kx_vec(jx) * (-1._rprec)
-enddo
 
 fhat(:,:)  = ( 0._rprec, 0._rprec  )
 fhat2(:,:)  = ( 0._rprec, 0._rprec  )
 fhaty(:,:)  = ( 0._rprec, 0._rprec  )
 
 do jx=1,kx_num
-   ii = 2*jx     ! imag index
+   jx_s = kx_veci( jx )
+   ii = 2*jx_s     ! imag index
    ir = ii-1     ! real index
 do jy=1,ny
-   fhat(jx,jy) = cmplx( f(ir,jy), f(ii,jy), rprec )
+   fhat(jx_s,jy) = cmplx( f(ir,jy), f(ii,jy), rprec )
 enddo
 enddo
-
-c1 = L_x/real(nx,rprec) * imag
 
 f(:,:) = 0._rprec
 
-do i= 2, nx/2+1
+do i= 2, nx/2     !!jb - I believe the +1 not needed here... test
   jx_r = nx - i + 2
   fhat(jx_r,1) = conjg( fhat(i,1) )
 enddo
@@ -1188,11 +1181,29 @@ do i = nx/2+2, nx
 enddo
 enddo
 
+!! Nyquist mode ( kx=nx/2 ) is not taken into account
 do i=1,nx
-do jx=1,nx
-fhat2(i,:)=fhat2(i,:)+fhat(jx,:)*exp(c1*kx_vec_long(jx)*real(i-1,rprec) );
+do jx=2,kx_num
+jx_s = kx_veci( jx )
+jx2 = nx - jx_s + 2
+fhat2(i,:)=fhat2(i,:)+fhat(jx_s,:) * expp(jx,i)  !exp( c1*kx_vec(jx)*real(i-1,rprec) )
+fhat2(i,:)=fhat2(i,:)+fhat(jx2,:) * expn(jx,i)    !exp(-c1*kx_vec(jx)*real(i-1,rprec) )
 end do
 end do
+
+!! add in kx=0
+do i=1,nx
+  fhat2(i,:) = fhat2(i,:) + fhat(1,:)
+enddo
+
+!do i=1,nx
+!do jx=1,nx
+!jx_s = kx_vec( jx )
+!jx2 = nx - jx_s + 2
+!fhat2(i,:)=fhat2(i,:)+fhat(jx,:)*exp(c1*kx_vec(jx)*real(i-1,rprec) );
+!fhat2(i,:)=fhat2(i,:)+fhat(jx2,:) *exp(-c1*kx_vec(jx)*real(i-1,rprec) );
+!end do
+!end do
 
 do jx=1,nx
   call dfftw_execute_dft_c2r(back_y, fhat2(jx,1:ny/2+1), f(jx,:) )

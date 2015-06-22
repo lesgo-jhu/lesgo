@@ -80,6 +80,7 @@ integer :: jt_step, nstart,jx,jy  !!jb jx,jy
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: triggerFactor    !!jb
+real (rprec) :: jtime1, jtime2   !!jb
 
 type(clock_t) :: clock, clock_total
 
@@ -108,12 +109,13 @@ if(coord == 0) then
    $endif
    
    $if ($USE_RNL)
-   kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
+   !!kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
    if ( coord == 0 ) then   
       write(*,*) '=================================='
       write(*,*) 'RNL modes >>>> '
       write(*,*) 'kx_num: ', kx_num
       write(*,*) 'kx_vec: ', kx_vec
+      write(*,*) 'kx_veci: ', kx_veci
       write(*,*) 'L_x, L_y: ', L_x, L_y
       write(*,*) '=================================='
    endif
@@ -132,6 +134,7 @@ nstart = jt_total+1
 time_loop: do jt_step = nstart, nsteps   
    ! Get the starting time for the iteration
    call clock_start( clock )
+   call cpu_time(jtime1)   !!jb
 
    if( use_cfl_dt ) then
       
@@ -178,50 +181,61 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
 
-    u_rnl(:,:,:) = u(:,:,:)
+  !do jx=1,nx
+  !do jy=1,ny
+  !  u(jx,jy,:) = sin( L_x/nx*(jx-1) * 3.0_rprec ) + sin( L_x/nx*(jx-1) * 1.0_rprec ) + .56
+  !enddo
+  !enddo
+
+    !u_rnl(:,:,:) = u(:,:,:)
 
     !call ddx(u,dudx,lbz)
     !call ddx_n(u_rnl, dudx_rnl,lbz)
 
-    call filt_da (u, dudx, dudy, lbz)
-    call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
+    !call filt_da (u, dudx, dudy, lbz)
+    !call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
     
+    !u_rnl(:,:,:) = u(:,:,:)
     !call ddy(u,dudy,lbz)
     !call ddy_n(u_rnl, dudy_rnl,lbz)
 
-    !!call filt_da (u, dudx, dudy, lbz)
-    !!call filt_da (v, dvdx, dvdy, lbz)
-    !!call filt_da (w, dwdx, dwdy, lbz)
-   
-    !call filt_da_direct_n (u, dudx, dudy, lbz)    
-    !call filt_da_direct_n (v, dvdx, dvdy, lbz)    
-    !call filt_da_direct_n (w, dwdx, dwdy, lbz)    
+    !call filt_da (u, dudx, dudy, lbz)
+    !call filt_da (v, dvdx, dvdy, lbz)
+    !call filt_da (w, dwdx, dwdy, lbz)
+  
+    !print*, 'm1' 
+    call filt_da_direct_n (u, dudx, dudy, lbz)    
+    call filt_da_direct_n (v, dvdx, dvdy, lbz)    
+    call filt_da_direct_n (w, dwdx, dwdy, lbz)    
 
-if (coord == 0) then
-write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-do jx=1,nx+2
-do jy=1,ny
-write(*,*) u(jx,jy,2), u_rnl(jx,jy,2)
-enddo
-enddo
-endif
+!if (coord == 0) then
+!write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!do jx=1,nx+2
+!do jy=1,ny
+!write(*,*) jx,jy,u(jx,jy,1), u_rnl(jx,jy,1)
+!enddo
+!enddo
+!endif
+!if (coord == 0) then
+!write(*,*) 'COMPARE DUDX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!do jx=1,nx+2
+!do jy=1,ny
+!write(*,*) jx,jy,dudx(jx,jy,1),dudx_rnl(jx,jy,1)
+!enddo
+!enddo
+!endif
+!if (coord == 0) then
+!write(*,*) 'COMPARE DUDY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!do jx=1,nx+2
+!do jy=1,ny
+!write(*,*) jx,jy,dudy(jx,jy,1),dudy_rnl(jx,jy,1)
+!enddo
+!enddo
+!endif
 
-if (coord == 0) then
-write(*,*) 'COMPARE DUDX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-do jx=1,nx+2
-do jy=1,ny
-write(*,*) jx,jy,dudx(jx,jy,1),dudx_rnl(jx,jy,1)
-enddo
-enddo
-endif
-if (coord == 0) then
-write(*,*) 'COMPARE DUDY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-do jx=1,nx+2
-do jy=1,ny
-write(*,*) jx,jy,dudy(jx,jy,1),dudy_rnl(jx,jy,1)
-enddo
-enddo
-endif
+!if(coord == 0) write(*,*) 'coord, u, dudx, dudy  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!write(*,*) coord, maxval(abs(u-u_rnl)), maxval(abs(dudx-dudx_rnl)), maxval(abs(dudy-dudy_rnl))
+!if (coord == 0) write(*,*) coord, maxloc(abs(u-u_rnl)), maxloc(abs(dudx-dudx_rnl))
 
     ! Calculate dudz, dvdz using finite differences (for 1:nz on uv-nodes)
     !  except bottom coord, only 2:nz
@@ -636,6 +650,7 @@ endif
 
 end do time_loop
 ! END TIME LOOP
+call cpu_time(jtime2)    !!jb
 
 ! Finalize
 close(2)
@@ -653,6 +668,7 @@ $endif
 
 call finalize()
 
+write(*,*) 'coord, jTIME: ', coord, jtime2-jtime1
 if(coord == 0 ) write(*,'(a)') 'Simulation complete'
 
 end program main

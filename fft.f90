@@ -35,12 +35,15 @@ $endif
 save
 
 public :: kx, ky, k2, init_fft, forw_spectra
+public :: expp, expn    !! jb
 public :: ky_vec                                           !!jb
 public :: forw, back, forw_big, back_big
 public :: forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
+complex(rprec), allocatable, dimension(:,:) :: expp, expn      !!jb
 real(rprec), allocatable, dimension(:) :: ky_vec            !!jb
+integer, allocatable, dimension(:) :: kx_veci            !!jb
 integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
 integer*8::forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
@@ -147,14 +150,31 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,ny,L_x,L_y,pi,kx_limit,kx_allow,coord
+use param,only:lh,nx,ny,L_x,L_y,pi,kx_limit,kx_allow,coord
 implicit none
-integer :: jx,jy
+integer :: jx,jy,ii
+complex(rprec) :: c1   !!jb
+complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
 
 ! Allocate wavenumbers
 allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
 
+allocate( expp(kx_num, nx), expn(kx_num, nx) )
+
 allocate( ky_vec( ny ) )
+
+allocate( kx_veci ( kx_num ) )    !!jb
+
+kx_veci = int( kx_vec ) + 1    !!jb
+kx_vec = kx_vec * 2._rprec * pi / L_x     !!jb , aspect ratio change
+
+c1 = L_x / real(nx,rprec) * imag   !!jb
+do jx=1,kx_num
+do ii=1,nx
+expp(jx,ii) = exp( c1 * kx_vec(jx) * real(ii-1,rprec) )
+expn(jx,ii) = exp(-c1 * kx_vec(jx) * real(ii-1,rprec) )
+enddo
+enddo
 
 do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
