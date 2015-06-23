@@ -87,11 +87,12 @@ write(2,x3l_fmt) 'molec, sgs, dns_bc : ', molec, sgs, dns_bc
 write(2,x3l_fmt) 'trigger : ', trigger
 write(2,i_fmt) 'trig_on : ', trig_on
 write(2,i_fmt) 'trig_off : ', trig_off
-write(2,x3l_fmt) 'kx_limit : ', kx_limit
+write(2,x3l_fmt)'kx_limit : ', kx_limit
 write(2,i_fmt) 'kx_allow : ', kx_allow
 write(2,x3l_fmt) 'use_ml : ', use_ml
 write(2,i_fmt) 'ml_start : ', ml_start
 write(2,i_fmt) 'ml_end : ', ml_end
+write(2,i_fmt) 'kx_dft : ', kx_dft
 write(2,i_fmt) 'kx_num : ', kx_num
 do n=1,kx_num
   write(2,if_fmt) 'n, kx_vec(n) : ', n, kx_vec(n)

@@ -145,6 +145,7 @@ module param
   integer :: kx_allow = 1
   logical :: use_ml=.false.
   integer :: ml_start = 1000, ml_end = 1000000
+  logical :: kx_dft=.false.
   integer :: kx_num=4
   real(rprec), allocatable, dimension(:) :: kx_vec
 

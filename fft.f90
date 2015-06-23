@@ -150,7 +150,7 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,nx,ny,L_x,L_y,pi,kx_limit,kx_allow,coord
+use param,only:lh,nx,ny,L_x,L_y,pi,kx_limit,kx_allow,kx_dft,coord
 implicit none
 integer :: jx,jy,ii
 complex(rprec) :: c1   !!jb
@@ -159,22 +159,22 @@ complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
 ! Allocate wavenumbers
 allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
 
-allocate( expp(kx_num, nx), expn(kx_num, nx) )
+if (kx_dft) then
+  allocate( expp(kx_num, nx), expn(kx_num, nx) )
+  !allocate( ky_vec( ny ) )
+  allocate( kx_veci ( kx_num ) )    !!jb
 
-allocate( ky_vec( ny ) )
+  kx_veci = int( kx_vec ) + 1    !!jb
+  kx_vec = kx_vec * 2._rprec * pi / L_x     !!jb , aspect ratio change
 
-allocate( kx_veci ( kx_num ) )    !!jb
-
-kx_veci = int( kx_vec ) + 1    !!jb
-kx_vec = kx_vec * 2._rprec * pi / L_x     !!jb , aspect ratio change
-
-c1 = L_x / real(nx,rprec) * imag   !!jb
-do jx=1,kx_num
-do ii=1,nx
-expp(jx,ii) = exp( c1 * kx_vec(jx) * real(ii-1,rprec) )
-expn(jx,ii) = exp(-c1 * kx_vec(jx) * real(ii-1,rprec) )
-enddo
-enddo
+  c1 = L_x / real(nx,rprec) * imag   !!jb
+  do jx=1,kx_num
+  do ii=1,nx
+  expp(jx,ii) = exp( c1 * kx_vec(jx) * real(ii-1,rprec) )
+  expn(jx,ii) = exp(-c1 * kx_vec(jx) * real(ii-1,rprec) )
+  enddo
+  enddo
+endif
 
 do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
@@ -192,11 +192,11 @@ do jy=1,ny
    ky(:,jy) = real(modulo(jy - 1 + ny/2,ny) - ny/2,kind=rprec)
 end do
 
-do jy=1,ny/2      !!jb
-   ky_vec(jy) = real( jy-1 , kind=rprec )
-   ky_vec(ny - jy + 2) =  -ky_vec(jy)
-end do
-ky_vec(ny/2+1) = real(ny/2, rprec)
+!do jy=1,ny/2      !!jb
+!   ky_vec(jy) = real( jy-1 , kind=rprec )
+!   ky_vec(ny - jy + 2) =  -ky_vec(jy)
+!end do
+!ky_vec(ny/2+1) = real(ny/2, rprec)
 
 ! Nyquist: makes doing derivatives easier
       kx(lh,:)=0._rprec
@@ -213,8 +213,7 @@ ky_vec(ny/2+1) = real(ny/2, rprec)
       k2 = kx*kx + ky*ky
 
 if (coord == 0) then
-   write(*,*) 'ky_vec: ', ky_vec
-   write (*,*) 'jx, jy, kx, ky, k2 ================ '
+   write (*,*) 'jx, jy, kx, ky, k2 =========================== '
    do jx=1,lh
       do jy=1,ny
          write(*,*) jx,jy,kx(jx,jy),ky(jx,jy),k2(jx,jy)

@@ -34,10 +34,8 @@ use io, only : energy, output_loop, output_final, jt_total
 use io, only : write_tau_wall, energy_kx_spectral_complex
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
-use derivatives, only : ddx_direct, ddy, ddy_only, ddx, ddy, ddx_n, ddy_n           !!jb
-use derivatives, only : dft_direct_forw_2d, dft_direct_back_2d, filt_da_direct  !!jb
-use derivatives, only : dft_direct_forw_2d_new, dft_direct_back_2d_new
-use derivatives, only : dft_direct_forw_2d_n, dft_direct_back_2d_n, filt_da_direct_n
+use derivatives, only : ddx, ddy, ddx_n, ddy_n           !!jb
+use derivatives, only : dft_direct_forw_2d_n, dft_direct_back_2d_n, filt_da_direct_n  !!jb
 use test_filtermodule
 use cfl_util
 use sgs_hist
@@ -199,14 +197,15 @@ time_loop: do jt_step = nstart, nsteps
     !call ddy(u,dudy,lbz)
     !call ddy_n(u_rnl, dudy_rnl,lbz)
 
-    !call filt_da (u, dudx, dudy, lbz)
-    !call filt_da (v, dvdx, dvdy, lbz)
-    !call filt_da (w, dwdx, dwdy, lbz)
-  
-    !print*, 'm1' 
-    call filt_da_direct_n (u, dudx, dudy, lbz)    
-    call filt_da_direct_n (v, dvdx, dvdy, lbz)    
-    call filt_da_direct_n (w, dwdx, dwdy, lbz)    
+    if (kx_dft) then
+      call filt_da_direct_n (u, dudx, dudy, lbz)    
+      call filt_da_direct_n (v, dvdx, dvdy, lbz)    
+      call filt_da_direct_n (w, dwdx, dwdy, lbz)    
+    else
+      call filt_da (u, dudx, dudy, lbz)
+      call filt_da (v, dvdx, dvdy, lbz)
+      call filt_da (w, dwdx, dwdy, lbz)
+    endif
 
 !if (coord == 0) then
 !write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'

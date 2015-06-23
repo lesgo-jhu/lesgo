@@ -127,12 +127,15 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
   $if ($FFTW3)
-  !call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
-  !call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
-  !call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz))
-  call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
-  call dft_direct_forw_2d_n(rH_y(:,:,jz))
-  call dft_direct_forw_2d_n(rH_z(:,:,jz))
+  if (.not. kx_dft) then
+   call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
+   call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
+   call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz))
+  else
+   call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
+   call dft_direct_forw_2d_n(rH_y(:,:,jz))
+   call dft_direct_forw_2d_n(rH_z(:,:,jz))
+  endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
@@ -180,8 +183,11 @@ $endif
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   $if ($FFTW3)
-  !call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
-  call dft_direct_forw_2d_n( rbottomw )   !!jb
+    if (.not. kx_dft) then
+      call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
+    else
+      call dft_direct_forw_2d_n( rbottomw )   !!jb
+    endif
   $else
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
   $endif
@@ -193,8 +199,11 @@ $if ($MPI)
 $endif
   rtopw(:, :) = const * divtz(:, :, nz)
   $if ($FFTW3)
-  !call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
-  call dft_direct_forw_2d_n( rtopw )   !!jb
+  if (.not. kx_dft) then
+    call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
+  else
+    call dft_direct_forw_2d_n( rtopw )   !!jb
+  endif
   $else
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
   $endif
@@ -532,8 +541,11 @@ if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
 $if ($FFTW3)
-!call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
-call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
+  if (.not. kx_dft) then
+    call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
+  else 
+    call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
+  endif
 $else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 $endif
@@ -559,12 +571,15 @@ do jx=1,lh
 end do
 end do
 $if ($FFTW3)
-!call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
-!call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
-!call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))    
-call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
-call dft_direct_back_2d_n(dfdy(:,:,jz))
-call dft_direct_back_2d_n(p_hat(:,:,jz))
+  if (.not. kx_dft) then
+    call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
+    call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
+    call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))
+  else    
+    call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
+    call dft_direct_back_2d_n(dfdy(:,:,jz))
+    call dft_direct_back_2d_n(p_hat(:,:,jz))
+  endif
 $else
 call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)

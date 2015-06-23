@@ -347,6 +347,8 @@ do
         read (buff(equal_pos+1:), *) ml_start  !!jb
      case ('ML_END')
         read (buff(equal_pos+1:), *) ml_end    !!jb
+     case ('KX_DFT')
+        read (buff(equal_pos+1:), *) kx_dft  !!jb
      case ('KX_NUM')
         read (buff(equal_pos+1:), *) kx_num    !!jb
      case ('KX_VEC')
