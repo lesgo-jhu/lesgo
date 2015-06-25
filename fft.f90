@@ -36,13 +36,13 @@ save
 
 public :: kx, ky, k2, init_fft, forw_spectra
 public :: expp, expn    !! jb
-public :: ky_vec                                           !!jb
+!!public :: ky_vec                                           !!jb
 public :: forw, back, forw_big, back_big
 public :: forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 complex(rprec), allocatable, dimension(:,:) :: expp, expn      !!jb
-real(rprec), allocatable, dimension(:) :: ky_vec            !!jb
+!!real(rprec), allocatable, dimension(:) :: ky_vec            !!jb
 integer, allocatable, dimension(:) :: kx_veci            !!jb
 integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
@@ -207,7 +207,7 @@ end do
 ! for the aspect ratio change
       kx=2._rprec*pi/L_x*kx
       ky=2._rprec*pi/L_y*ky 
-      ky_vec=2._rprec*pi/L_y*ky_vec     !!jb 
+      !ky_vec=2._rprec*pi/L_y*ky_vec     !!jb 
 
 ! magnitude squared: will have 0's around the edge
       k2 = kx*kx + ky*ky

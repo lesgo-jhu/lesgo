@@ -108,7 +108,7 @@ if(coord == 0) then
    
    $if ($USE_RNL)
    !!kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
-   if ( coord == 0 ) then   
+   if ( coord == 0 .and. kx_dft) then   
       write(*,*) '=================================='
       write(*,*) 'RNL modes >>>> '
       write(*,*) 'kx_num: ', kx_num
@@ -495,11 +495,18 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
-!!$    if (use_ml) then    !!jb
-!!$       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
-!!$          call mode_limit()
-!!$       endif
-!!$    endif
+    if (use_md) then    !!jb
+       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
+          call mode_damp(u,v,w)
+       endif
+    endif
+    
+    if (use_kxz) then    !!jb
+       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
+          call kx_zero_out()
+       endif
+    endif
+
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
@@ -595,7 +602,8 @@ time_loop: do jt_step = nstart, nsteps
           $if($USE_RNL)   !!jb
           write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
           if (kx_limit) write(*,*) '  Using kx_limit'
-          if (use_ml) write(*,*) '  Using mode limiting'
+          if (use_md) write(*,*) '  Using mode damping'
+          if (use_kxz) write(*,*) '  Using kx zeroing'
           $endif
           write(*,*)
           $if($MPI)

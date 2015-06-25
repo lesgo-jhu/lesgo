@@ -38,7 +38,8 @@ public :: forcing_applied, &
           forcing_induced, &
           inflow_cond, &
           project, &
-          mode_limit    !!jb , RNL mode limiting
+          mode_damp, &    !!jb , RNL mode damping
+          kx_zero_out     !!jb , RNL mode zeroing
 
 contains
 
@@ -67,7 +68,7 @@ $endif
 $if ($USE_RNL)
 use sim_param, only: u, v, w, fxml_rnl, fyml_rnl, fzml_rnl
 use sim_param, only: RHSx, RHSy, RHSz
-use param, only: use_ml,jt_total,ml_start
+use param, only: use_md,jt_total,ml_start,ml_end
 $endif
 
 implicit none
@@ -89,14 +90,14 @@ call turbines_forcing ()
 $endif
 
 $if ($USE_RNL)
-!!$if (use_ml .and. jt_total >= ml_start) then
-!!$   ! Reset applied force arrays
-!!$   fxml_rnl = 0._rprec
-!!$   fyml_rnl = 0._rprec
-!!$   fzml_rnl = 0._rprec
-!!$   call mode_limit(u,v,w)
-!!$   !!call mode_limit(RHSx,RHSy,RHSz)
-!!$endif
+if (use_md .and. jt_total >= ml_start .and. jt_total < ml_end) then
+   ! Reset applied force arrays
+   fxml_rnl = 0._rprec
+   fyml_rnl = 0._rprec
+   fzml_rnl = 0._rprec
+   call mode_damp(u,v,w)
+   !!call mode_damp(RHSx,RHSy,RHSz)
+endif
 $endif
 
 
@@ -330,8 +331,8 @@ end if
 
 end subroutine project
 
-subroutine mode_limit()
-use types, only: rprec
+subroutine kx_zero_out()
+
 use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc,kx_allow
 use sim_param, only: u,v,w
 use grid_defs, only: grid
@@ -375,64 +376,65 @@ do jz=1,nz-1
 enddo
 enddo
 
-end subroutine mode_limit
+end subroutine kx_zero_out
 
-!!$subroutine mode_limit(u1,u2,u3)
-!!$use types, only: rprec
-!!$use param, only: ld, nx, ny, nz, lbz, kx_allow
-!!$use param, only: wbase, jt_total, coord
-!!$use sim_param, only: fxml_rnl, fyml_rnl, fzml_rnl
-!!$use grid_defs, only: grid
-!!$use fft
-!!$
-!!$implicit none
-!!$
-!!$real(rprec),dimension(ld,ny,lbz:nz),intent(in) :: u1,u2,u3
-!!$
-!!$integer :: jx,jy,jz,cutHere_p1
-!!$real(rprec) :: const
-!!$
-!!$!!!real(rprec), pointer, dimension(:) :: zw
-!!$!!!
-!!$!!!nullify(zw)
-!!$!!!zw => grid % zw
-!!$
-!!$cutHere_p1 = 2 * kx_allow + 1
-!!$
-!!$const = 1._rprec / nx
-!!$do jy=1,ny
-!!$do jz=1,nz-1
-!!$
-!!$     fxml_rnl(:,jy,jz) = const * u1(:,jy,jz)
-!!$     fyml_rnl(:,jy,jz) = const * u2(:,jy,jz)
-!!$     fzml_rnl(:,jy,jz) = const * u3(:,jy,jz)
-!!$
-!!$     call dfftw_execute_dft_r2c(forw_1d, fxml_rnl(:,jy,jz), fxml_rnl(:,jy,jz))
-!!$     call dfftw_execute_dft_r2c(forw_1d, fyml_rnl(:,jy,jz), fyml_rnl(:,jy,jz))
-!!$     call dfftw_execute_dft_r2c(forw_1d, fzml_rnl(:,jy,jz), fzml_rnl(:,jy,jz))
-!!$
-!!$     !! now only zero-out the mode you want to keep
-!!$     !! since the forcing will damp/cancel out the others
-!!$     fxml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
-!!$     fyml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec    
-!!$     fzml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
-!!$
-!!$     fxml_rnl( 1 : 2 ,jy,jz) = 0._rprec      !! also keep the mean ( kx = 0 )
-!!$     fyml_rnl( 1 : 2 ,jy,jz) = 0._rprec    
-!!$     fzml_rnl( 1 : 2 ,jy,jz) = 0._rprec
-!!$
-!!$     call dfftw_execute_dft_c2r(back_1d,fxml_rnl(:,jy,jz),fxml_rnl(:,jy,jz))
-!!$     call dfftw_execute_dft_c2r(back_1d,fyml_rnl(:,jy,jz),fyml_rnl(:,jy,jz))
-!!$     call dfftw_execute_dft_c2r(back_1d,fzml_rnl(:,jy,jz),fzml_rnl(:,jy,jz))
-!!$
-!!$enddo
-!!$enddo
-!!$
-!!$!! make negative (we want to damp/cancel out these modes)
-!!$fxml_rnl = -1._rprec * fxml_rnl
-!!$fyml_rnl = -1._rprec * fyml_rnl
-!!$fzml_rnl = -1._rprec * fzml_rnl
-!!$
-!!$end subroutine mode_limit
+subroutine mode_damp(u1,u2,u3)
+
+use types, only: rprec
+use param, only: ld, nx, ny, nz, lbz, kx_allow
+use param, only: wbase, jt_total, coord
+use sim_param, only: fxml_rnl, fyml_rnl, fzml_rnl
+use grid_defs, only: grid
+use fft
+
+implicit none
+
+real(rprec),dimension(ld,ny,lbz:nz),intent(in) :: u1,u2,u3
+
+integer :: jx,jy,jz,cutHere_p1
+real(rprec) :: const
+
+real(rprec), pointer, dimension(:) :: zw
+
+nullify(zw)
+zw => grid % zw
+
+cutHere_p1 = 2 * kx_allow + 1
+
+const = 1._rprec / nx
+do jy=1,ny
+do jz=1,nz-1
+
+fxml_rnl(:,jy,jz) = const * u1(:,jy,jz)
+fyml_rnl(:,jy,jz) = const * u2(:,jy,jz)
+fzml_rnl(:,jy,jz) = const * u3(:,jy,jz)
+
+call dfftw_execute_dft_r2c(forw_1d, fxml_rnl(:,jy,jz), fxml_rnl(:,jy,jz))
+call dfftw_execute_dft_r2c(forw_1d, fyml_rnl(:,jy,jz), fyml_rnl(:,jy,jz))
+call dfftw_execute_dft_r2c(forw_1d, fzml_rnl(:,jy,jz), fzml_rnl(:,jy,jz))
+
+!! now only zero-out the mode you want to keep
+!! since the forcing will damp/cancel out the others
+fxml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
+fyml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec    
+fzml_rnl( cutHere_p1 : cutHere_p1 + 1 ,jy,jz) = 0._rprec
+
+fxml_rnl( 1 : 2 ,jy,jz) = 0._rprec      !! also keep the mean ( kx = 0 )
+fyml_rnl( 1 : 2 ,jy,jz) = 0._rprec    
+fzml_rnl( 1 : 2 ,jy,jz) = 0._rprec
+
+call dfftw_execute_dft_c2r(back_1d,fxml_rnl(:,jy,jz),fxml_rnl(:,jy,jz))
+call dfftw_execute_dft_c2r(back_1d,fyml_rnl(:,jy,jz),fyml_rnl(:,jy,jz))
+call dfftw_execute_dft_c2r(back_1d,fzml_rnl(:,jy,jz),fzml_rnl(:,jy,jz))
+
+enddo
+enddo
+
+!! make negative (we want to damp/cancel out these modes)
+fxml_rnl = -1._rprec * fxml_rnl
+fyml_rnl = -1._rprec * fyml_rnl
+fzml_rnl = -1._rprec * fzml_rnl
+
+end subroutine mode_damp
 
 end module forcing
