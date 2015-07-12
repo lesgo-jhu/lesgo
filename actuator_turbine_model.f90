@@ -236,6 +236,10 @@ do i = 1,numberOfTurbines
         write(1,*) 'time PowerRotor powerGen '
         close(1)
 
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/thrust") 
+        write(1,*) 'time thrust '
+        close(1)
+
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
         write(1,*) 'turbineNumber RotSpeed'
         close(1)
@@ -1107,7 +1111,7 @@ integer, intent(in) :: i  ! The turbine number
 integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
-integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22
+integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1120,11 +1124,15 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
     j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-    ! Files for power output
+    ! File for power output
     open(unit=powerFile,position="append",                                     &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
 
-    ! Files for power output
+    ! File for thrust
+    open(unit=thrustFile,position="append",                                     &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/thrust")
+
+    ! File for rotor speed
     open(unit=RotSpeedFile,position="append",                                  &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
 
@@ -1162,6 +1170,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     call atm_compute_power(i)
     write(powerFile,*) time, turbineArray(i) % powerRotor,                     &
                        turbineArray(i) % powerGen
+    write(thrustFile,*) time, turbineArray(i) % thrust
     write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
     write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,              &
                        turbineArray(i) % IntSpeedError
@@ -1190,6 +1199,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
 
     ! Close all the files 
     close(powerFile)
+    close(thrustFile)
     close(rotSpeedFile)
     close(bladeFile)
     close(liftFile)

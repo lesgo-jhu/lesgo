@@ -1585,7 +1585,7 @@ $if($CGNS)
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
     x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                     &
-    1, (/ 'VelocityX', 'VelocityY' /),                                         &
+    2, (/ 'VelocityX', 'VelocityY' /),                                         &
     (/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                      &
        tavg(1:nx,1:ny,1:nz - nz_end) % v /) )
 

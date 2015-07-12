@@ -396,6 +396,7 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % bladeForces = 0._rprec
         turbineArray(i) % integratedBladeForces = 0._rprec
         turbineArray(i) % torqueRotor = 0._rprec
+        turbineArray(i) % thrust = 0._rprec
         turbineArray(i) % alpha = 0._rprec
         turbineArray(i) % Cd = 0._rprec
         turbineArray(i) % Cl = 0._rprec
@@ -537,7 +538,7 @@ subroutine atm_lesgo_mpi_gather()
 ! so all processors have acces to it. This is done by means of all reduce SUM
 implicit none
 integer :: i
-real(rprec) :: torqueRotor
+real(rprec) :: torqueRotor, thrust
 real(rprec), dimension(3) :: nacelleForce
 
 ! Pointer for MPI communicator
@@ -644,12 +645,17 @@ do i=1,numberOfTurbines
         ! Store the torqueRotor. 
         ! Needs to be a different variable in order to do MPI Sum
         torqueRotor=turbineArray(i) % torqueRotor
+        thrust=turbineArray(i) % thrust
         nacelleForce=turbineArray(i) % nacelleForce
     
         ! Sum all the individual torqueRotor from different blade points
         call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
                            1, mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
-    
+
+        ! Sum all the individual thrust from different blade points
+        call mpi_allreduce( thrust, turbineArray(i) % thrust,           &
+                           1, mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
         ! Sync the nacelle force
         call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,         &
                            size(turbineArray(i) % nacelleForce), mpi_rprec,       &
