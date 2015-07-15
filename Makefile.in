@@ -79,10 +79,10 @@ READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
 USE_TURBINES=no
-USE_BINARY=yes
+USE_BINARY=no
 
 # Use CGNS data output
-USE_CGNS=no
+USE_CGNS=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no
