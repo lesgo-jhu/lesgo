@@ -100,7 +100,7 @@ USE_CPS=no
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
-USE_STREAKS = yes
+USE_STREAKS = no
 
 # Calc Lag-avg timescale w. error autocorrelation
 #USE_DYN_TN = no
