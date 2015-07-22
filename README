@@ -801,6 +801,8 @@ assigned to each of the processes. The intercommunicator then takes these local
 ranks and maps rank "n" from 'red' to rank "n" in 'blue' creating the bridge for
 copying the inflow data.
 
+There is a capability to shift the domain in order to eliminate the streaks. 
+This option will shift the domain to the side of the precursor domain. 
 --------------------------------------------------------------------------------
 				     USAGE
 --------------------------------------------------------------------------------
@@ -809,6 +811,9 @@ The first step is to build in the CPS support into lesgo by setting
 
   USE_MPI = yes
   USE_CPS = yes
+
+If you want the streaks option set (only on the precursor or red domain)
+  USE_STREAKS=yes
 
 in "Makefile.in". You will need to build in CPS support for both the 'red' and
 'blue' domain executables. Other support may be built for required functionality

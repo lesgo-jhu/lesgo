@@ -98,6 +98,10 @@ USE_LVLSET = no
 # Requires configuration of two builds: upstream and downstream
 USE_CPS=no
 
+# Shift the domain in the y (spanwise) direction to eliminate
+# streaks effects on averaging
+USE_STREAKS = yes
+
 # Calc Lag-avg timescale w. error autocorrelation
 #USE_DYN_TN = no
 

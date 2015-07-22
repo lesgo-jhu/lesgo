@@ -90,6 +90,10 @@ ifeq ($(USE_CPS), yes)
   FPP += -DCPS
 endif
 
+ifeq ($(USE_STREAKS), yes)
+  FPP += -DSTREAKS
+endif
+
 ifeq ($(USE_BINARY), yes)
   FPP += -DBINARY
 endif

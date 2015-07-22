@@ -106,6 +106,10 @@ ifeq ($(USE_CPS), yes)
   EXE := $(EXE)-cps
 endif
 
+ifeq ($(USE_STREAKS), yes)
+  EXE := $(EXE)-streaks
+endif
+
 ifeq ($(USE_LVLSET), yes)
   SRCS += $(LVLSET_SRCS)
   EXE := $(EXE)-ls
