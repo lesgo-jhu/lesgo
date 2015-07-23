@@ -276,6 +276,14 @@ do i = 1,numberOfTurbines
         write(1,*) 'turbineNumber bladeNumber Vtangential'
         close(1)
 
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/tangentialForce")
+        write(1,*) 'turbineNumber bladeNumber tangentialForce'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/axialForce")
+        write(1,*) 'turbineNumber bladeNumber axialForce'
+        close(1)
+
     endif
 enddo
 
@@ -939,6 +947,15 @@ dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 ! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
+! Find the component of the blade element force/density in the axial 
+! (along the shaft) direction.
+turbineArray(i) % axialForce(m,n,q) = dot_product(                           &
+        -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
+
+! Find the component of the blade element force/density in the tangential 
+! (torque-creating) direction.
+turbineArray(i) % tangentialForce(m,n,q) = dot_product(                      &
+       turbineArray(i) % bladeForces(m,n,q,:), bladeAlignedVectors(m,n,q,2,:))
 
 ! Change this back to radians
 windAng_i = windAng_i * degRad
@@ -1112,6 +1129,7 @@ integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
+integer :: tangentialForceFile=24, axialForceFile=25
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1164,6 +1182,12 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     open(unit=VtangentialFile,position="append",                               &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
+    open(unit=tangentialForceFile,position="append",                               &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/tangentialForce")
+
+    open(unit=axialForceFile,position="append",                               &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/axialForce")
+
     open(unit=pitchFile,position="append",                                     &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/pitch")
 
@@ -1189,6 +1213,9 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
         write(VtangentialFile,*) i, m, turbineArray(i) %                       &
                                        windVectors(m,1,:,2)
+        write(tangentialForceFile,*) i, m, turbineArray(i) %                   &
+                                            tangentialForce(m,1,:)
+        write(axialForceFile,*) i, m, turbineArray(i) % axialForce(m,1,:)
 
     enddo
     
@@ -1211,6 +1238,8 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(VaxialFile)
     close(VtangentialFile)
     close(pitchFile)
+    close(tangentialForceFile)
+    close(axialForceFile)
 
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Done Writing Actuator Turbine Model output  !'

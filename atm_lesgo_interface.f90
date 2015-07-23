@@ -617,6 +617,20 @@ do i=1,numberOfTurbines
                            size(turbineArray(i) % bladeScalarDummy),             &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
+        ! Sync axialForce
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) % axialForce
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % axialForce,                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+
+        ! Sync tangentialForce
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) % tangentialForce
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % tangentialForce,                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+
         ! Sync wind Vectors (Vaxial, Vtangential, Vradial)
         turbineArray(i) % bladeVectorDummy = turbineArray(i) %                   &
                                              windVectors(:,:,:,1:3)
