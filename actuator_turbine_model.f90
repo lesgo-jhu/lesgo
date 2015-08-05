@@ -38,10 +38,10 @@ implicit none
 
 ! Declare everything private except for subroutine which will be used
 private 
-public :: atm_initialize, numberOfTurbines,                                 &
-          atm_computeBladeForce, atm_update,                                &
-          vector_add, vector_divide, vector_mag, distance,                  &
-          atm_output, atm_process_output,                                   &
+public :: atm_initialize, numberOfTurbines,                                    &
+          atm_computeBladeForce, atm_update,                                   &
+          vector_add, vector_divide, vector_mag, distance,                     &
+          atm_output, atm_process_output,                                      &
           atm_initialize_output, atm_computeNacelleForce, atm_write_restart
 
 ! The very crucial parameter pi
@@ -72,7 +72,7 @@ write(*,*) 'Reading Actuator Turbine Model Input...'
 call read_input_conf()  ! Read input data
 write(*,*) 'Done Reading Actuator Turbine Model Input'
 do i = 1,numberOfTurbines
-    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//               &
                    "/actuatorPoints", exist=file_exists)
 
     ! Creates the ATM points defining the geometry
@@ -88,7 +88,7 @@ do i = 1,numberOfTurbines
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
 
-    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//               &
                    "/restart", exist=file_exists)
 
     if (file_exists .eqv. .true.) then
@@ -1147,7 +1147,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
 
     ! File for thrust
-    open(unit=thrustFile,position="append",                                     &
+    open(unit=thrustFile,position="append",                                    &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/thrust")
 
     ! File for rotor speed
@@ -1182,10 +1182,10 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     open(unit=VtangentialFile,position="append",                               &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
 
-    open(unit=tangentialForceFile,position="append",                               &
+    open(unit=tangentialForceFile,position="append",                           &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/tangentialForce")
 
-    open(unit=axialForceFile,position="append",                               &
+    open(unit=axialForceFile,position="append",                                &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/axialForce")
 
     open(unit=pitchFile,position="append",                                     &
