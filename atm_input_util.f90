@@ -232,7 +232,13 @@ type turbineModel_t
     real(rprec) :: PitchControlAngleK     ! Angle at which sensitivity doubles
     real(rprec) :: PitchControlKP0        ! Proportional term at angle = 0
     real(rprec) :: PitchControlKI0        ! Integral term at angle = 0
-    
+
+    ! Yaw controller variables
+    character(64) :: YawControllerType    ! Name of yaw controller type
+    character(64) :: YawControllerFile    ! File that contains the yaw time info
+    real(rprec), allocatable, dimension(:)  :: yaw_time  ! time for yaw (seconds)
+    real(rprec), allocatable, dimension(:)  :: yaw_angle ! yaw angle (degrees)
+
 end type turbineModel_t
 
 ! Declare turbine array variable
@@ -425,6 +431,10 @@ character (128) :: buff ! Stored the read line
 integer:: numAirfoils ! Number of distinct airfoils
 integer :: k, p ! Used to loop through aifoil types and character counter
 integer :: numAnnulusSections, numBladePoints, numBl, numSec
+
+! Variables for reading yaw control file
+integer :: ios, N
+integer :: yawfile = 29
 
 ! Name of all the airfoils types (max 20) If more than this increase the number
 character(128), dimension(20) :: airfoils 
@@ -637,6 +647,17 @@ do i = 1, numTurbinesDistinct
         endif
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! This will read the yaw control values
+        if( buff(1:17) == 'YawControllerType' ) then
+            read(buff(18:), *) turbineModel(i) % YawControllerType
+            write(*,*) 'YawControllerType is: ', turbineModel(i) % YawControllerType
+        endif
+        if( buff(1:17) == 'YawControllerFile' ) then
+            read(buff(18:), *) turbineModel(i) % YawControllerFile
+            write(*,*) 'YawControllerFile is: ', turbineModel(i) % YawControllerFile
+        endif
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
             numAirfoils=0 ! Conuter for the number of distince airfoils
@@ -701,6 +722,35 @@ do i = 1, numTurbinesDistinct
         endif
     enddo
     close (lun)  
+
+    ! Read the yaw control file, if applicable
+    if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
+        open (unit = yawfile, file="inputATM/"//                   &
+                trim(turbineModel(i) % YawControllerFile),         &
+                form = "formatted", status = "old", action = "read")
+        
+        ! Determine number of lines
+        ios = 0
+        N = -1
+        do while (ios == 0)
+            N = N + 1
+            read(unit = yawfile, fmt = *, iostat = ios)
+        enddo
+        rewind(unit = yawfile)
+
+        ! Allocate variables
+        allocate(turbineModel(i) % yaw_time(N))
+        allocate(turbineModel(i) % yaw_angle(N))
+
+        ! now read the variables and close file
+        do j = 1, N
+            read(unit = yawfile, fmt = *) turbineModel(i) % yaw_time(j), &
+                    turbineModel(i) % yaw_angle(j)
+            print *, turbineModel(i) % yaw_time(j), &
+                    turbineModel(i) % yaw_angle(j)
+        enddo
+        close(unit = yawfile)
+    endif
 
     ! Calculate drive train inertia
     turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &

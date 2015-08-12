@@ -378,7 +378,8 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 do i = 1, numberOfTurbines
     ! If statement is for running code only with the processors on that turbine
     if (turbineArray(i) % operate) then
-        call atm_update(i, dt*z_i/u_star)
+        ! Time is dimensionalize using velocity and length scale
+        call atm_update(i, dt*z_i/u_star, total_time*z_i/u_star)
     endif
 enddo
 

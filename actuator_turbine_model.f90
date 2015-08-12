@@ -474,19 +474,27 @@ enddo
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_update(i, dt)
+subroutine atm_update(i, dt, time)
 ! This subroutine updates the model each time-step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 integer, intent(in) :: i                                 ! Turbine number
-real(rprec), intent(in) :: dt                ! Time step
+real(rprec), intent(in) :: dt                            ! Time step
+real(rprec), intent(in) :: time                          ! Simulation time
 
-! Loop through all turbines and rotate the blades
-!~ do i = 1, numberOfTurbines
-    call atm_computeRotorSpeed(i,dt) 
-    call atm_rotateBlades(i)
-!~ enddo
+! Rotate the blades
+call atm_computeRotorSpeed(i,dt) 
+call atm_rotateBlades(i)
+
+! Will calculate the yaw angle  and yaw the nacelle (from degrees to radians)
+if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
+    turbineArray(i) % deltaNacYaw = interpolate(time,                          &
+    turbineModel(i) % yaw_time(:), turbineModel(i) % yaw_angle(:)) * degRad -  &
+    turbineArray(i) % NacYaw
+    call atm_yawNacelle(i)
+write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
+endif
 
 end subroutine atm_update
 
@@ -1061,7 +1069,7 @@ j=turbineArray(i) % turbineTypeID
 turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,         &
                               turbineArray(i) % towerShaftIntersect,           &
                               turbineArray(i) % uvTower,                       &
-                              turbineArray(i) % deltaNacYaw);
+                              turbineArray(i) % deltaNacYaw)
 
 ! Recompute the shaft unit vector since the shaft has rotated.
 turbineArray(i) % uvShaft =                                                    &

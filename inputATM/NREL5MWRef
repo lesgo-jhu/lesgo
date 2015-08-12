@@ -31,7 +31,8 @@ BladeIner             11.776047E6;
 //TorqueControllerType   "none";
 TorqueControllerType   "fiveRegion";
 //TorqueControllerType   "fixedTSR";
-YawControllerType      "none";
+//~ YawControllerType      "none";
+YawControllerType      "timeYawTable";
 PitchControllerType    "none";
 //PitchControllerType    "simpleLinear";
 //PitchControllerType    "gainScheduledPI";
@@ -47,6 +48,11 @@ TorqueControllerParams
     RateLimitGenTorque       15.0E3;
     KGen                      2.55764E-2;
     TorqueControllerRelax     1.0;
+}
+
+YawControllerParams
+{
+YawControllerFile           'YawFile'
 }
 
 PitchControllerParams
