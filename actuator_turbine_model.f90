@@ -513,7 +513,7 @@ if ( turbineModel(j) % YawControllerType == "timeYawTable" ) then
     turbineModel(j) % yaw_time(:), turbineModel(j) % yaw_angle(:)) * degRad -  &
     turbineArray(i) % NacYaw
     call atm_yawNacelle(i)
-    write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
+!~     write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
 endif
 
 end subroutine atm_control_yaw
