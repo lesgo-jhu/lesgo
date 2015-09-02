@@ -709,14 +709,14 @@ do i = 1, numTurbinesDistinct
                     turbineModel(i) % NumSec = NumSec
 
                     ! Read in radius, chord, twist, type
-                    read(buff,*) turbineModel(i) % radius(NumSec),           &
+                    read(buff,*) turbineModel(i) % radius(NumSec),             &
                     turbineModel(i) % chord(NumSec),   &
                     turbineModel(i) % twist(NumSec),   &
                     turbineModel(i) % sectionType(NumSec)
 
                     ! Add one to airfoil identifier. List starts at 0, now 
                     ! it will start at 1
-                    turbineModel(i) % sectionType( NumSec )  =               &
+                    turbineModel(i) % sectionType( NumSec )  =                 &
                     turbineModel(i) % sectionType( NumSec ) + 1
                 enddo
         endif
@@ -725,8 +725,8 @@ do i = 1, numTurbinesDistinct
 
     ! Read the yaw control file, if applicable
     if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
-        open (unit = yawfile, file="inputATM/"//                   &
-                trim(turbineModel(i) % YawControllerFile),         &
+        open (unit = yawfile, file="inputATM/"//                               &
+                trim(turbineModel(i) % YawControllerFile),                     &
                 form = "formatted", status = "old", action = "read")
         
         ! Determine number of lines
@@ -744,7 +744,7 @@ do i = 1, numTurbinesDistinct
 
         ! now read the variables and close file
         do j = 1, N
-            read(unit = yawfile, fmt = *) turbineModel(i) % yaw_time(j), &
+            read(unit = yawfile, fmt = *) turbineModel(i) % yaw_time(j),       &
                     turbineModel(i) % yaw_angle(j)
             print *, turbineModel(i) % yaw_time(j), &
                     turbineModel(i) % yaw_angle(j)
@@ -753,8 +753,10 @@ do i = 1, numTurbinesDistinct
     endif
 
     ! Calculate drive train inertia
-    turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
-    ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) * ( turbineModel(i) % GenIner )
+    turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * &
+              (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
+              ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) *   &
+              ( turbineModel(i) % GenIner )
     
 enddo
 
@@ -765,39 +767,39 @@ numAnnulusSections = turbineArray(i) % numAnnulusSections
 j=turbineArray(i) % turbineTypeID
 numBl=turbineModel(j) % numBl
 
-    allocate(turbineArray(i) % bladeForces(numBl,          &
+    allocate(turbineArray(i) % bladeForces(numBl,                              &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % integratedBladeForces(numBl,          &
+    allocate(turbineArray(i) % integratedBladeForces(numBl,                    &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % bladeAlignedVectors(numBl,  &
+    allocate(turbineArray(i) % bladeAlignedVectors(numBl,                      &
              numAnnulusSections, numBladePoints,3,3) )
-    allocate(turbineArray(i) % windVectors(numBl,          &
+    allocate(turbineArray(i) % windVectors(numBl,                              &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % alpha(numBl,                &
+    allocate(turbineArray(i) % alpha(numBl,                                    &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Vmag(numBl,                 &
+    allocate(turbineArray(i) % Vmag(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cl(numBl,                   &
+    allocate(turbineArray(i) % Cl(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cd(numBl,                   &
+    allocate(turbineArray(i) % Cd(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % lift(numBl,                 &
+    allocate(turbineArray(i) % lift(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % drag(numBl,                 &
+    allocate(turbineArray(i) % drag(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % axialForce(numBl,           &
+    allocate(turbineArray(i) % axialForce(numBl,                               &
              numAnnulusSections, numBladePoints))
-    allocate(turbineArray(i) % tangentialForce(numBl,      &
+    allocate(turbineArray(i) % tangentialForce(numBl,                          &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % induction_a(numBl,          &
-             numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % u_infinity(numBl,          &
+    allocate(turbineArray(i) % induction_a(numBl,                              &
+             numAnnulusSections, numBladePoints) ) 
+    allocate(turbineArray(i) % u_infinity(numBl,                               &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
-    allocate(turbineArray(i) % bladeVectorDummy(numBl,          &
+    allocate(turbineArray(i) % bladeVectorDummy(numBl,                         &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % bladeScalarDummy(numBl,          &
+    allocate(turbineArray(i) % bladeScalarDummy(numBl,                         &
              numAnnulusSections, numBladePoints) )
 
 enddo

@@ -516,7 +516,7 @@ do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
     !~  call clock_start( myClock )
 
-        call atm_output(i, jt_total, total_time)
+        call atm_output(i, jt_total, total_time*z_i/u_star)
     !~     call clock_stop( myClock )
     !~     write(*,*) 'coord ', coord, '  Output ', myClock % time
     endif 

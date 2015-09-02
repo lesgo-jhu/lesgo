@@ -381,8 +381,10 @@ PreCone=>turbineModel(j) %PreCone
 
 !!-- Do all proper conversions for the required variables
 ! Convert nacelle yaw from compass directions to the standard convention
-call atm_compassToStandard(nacYaw)
+!~ call atm_compassToStandard(nacYaw)
 
+! The nacelle Yaw is set to 0 deg in the streamwise direction
+write(*,*) 'NacYaw is ', nacYaw
 ! Turbine specific
 azimuth = degRad * azimuth
 rotSpeed = rpmRadSec * rotSpeed
@@ -487,16 +489,34 @@ real(rprec), intent(in) :: time                          ! Simulation time
 call atm_computeRotorSpeed(i,dt) 
 call atm_rotateBlades(i)
 
-! Will calculate the yaw angle  and yaw the nacelle (from degrees to radians)
-if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
-    turbineArray(i) % deltaNacYaw = interpolate(time,                          &
-    turbineModel(i) % yaw_time(:), turbineModel(i) % yaw_angle(:)) * degRad -  &
-    turbineArray(i) % NacYaw
-    call atm_yawNacelle(i)
-write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
-endif
+call atm_control_yaw(i, time)
 
 end subroutine atm_update
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_control_yaw(i, time)
+! This subroutine updates the model each time-step
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer, intent(in) :: i                                 ! Turbine number
+real(rprec), intent(in) :: time                          ! Simulation time
+
+integer :: j                                             ! Turbine Type ID
+
+! Identifies the turbineModel being used
+j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
+
+! Will calculate the yaw angle  and yaw the nacelle (from degrees to radians)
+if ( turbineModel(j) % YawControllerType == "timeYawTable" ) then
+    turbineArray(i) % deltaNacYaw = interpolate(time,                          &
+    turbineModel(j) % yaw_time(:), turbineModel(j) % yaw_angle(:)) * degRad -  &
+    turbineArray(i) % NacYaw
+    call atm_yawNacelle(i)
+    write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
+endif
+
+end subroutine atm_control_yaw
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_computeRotorSpeed(i,dt)
@@ -1105,24 +1125,24 @@ endif
 
 end subroutine atm_yawNacelle
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_compassToStandard(dir)
-! This function converts nacelle yaw from compass directions to the standard
-! convention of 0 degrees on the + x axis with positive degrees
-! in the counter-clockwise direction.
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-implicit none
-real(rprec), intent(inout) :: dir
-dir = dir + 180.0
-if (dir .ge. 360.0) then
-    dir = dir - 360.0
-endif
-dir = 90.0 - dir
-if (dir < 0.0) then
-    dir = dir + 360.0
-endif
- 
-end subroutine atm_compassToStandard
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine atm_compassToStandard(dir)
+!~ ! This function converts nacelle yaw from compass directions to the standard
+!~ ! convention of 0 degrees on the + x axis with positive degrees
+!~ ! in the counter-clockwise direction.
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ implicit none
+!~ real(rprec), intent(inout) :: dir
+!~ dir = dir + 180.0
+!~ if (dir .ge. 360.0) then
+!~     dir = dir - 360.0
+!~ endif
+!~ dir = 90.0 - dir
+!~ if (dir < 0.0) then
+!~     dir = dir + 360.0
+!~ endif
+!~  
+!~ end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_output(i, jt_total, time)
