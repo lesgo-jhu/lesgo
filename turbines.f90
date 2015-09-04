@@ -32,7 +32,7 @@ use messages
 use string_util
 
 implicit none
-include 'tecryte.h'
+!include 'tecryte.h'
 
 save
 private
@@ -689,8 +689,9 @@ if (turbine_in_proc) then
                 k_end = nz
                 $endif
                 if (kcp>=k_start .and. kcp<=k_end) then
-                kcp=kcp-k_start+1
-                call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
+                    kcp=kcp-k_start+1
+                    write( file_id2(s), *) total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp)
+!                   call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
                 endif
                 endif
         !write this value to the array (which will be sent to coord 0)
@@ -746,7 +747,9 @@ if (coord == 0) then
             p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
             !write values to file                   
                 if (modulo (jt_total, tbase) == 0) then
-                call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
+                   write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
+                       Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
+!                  call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
                 endif 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
