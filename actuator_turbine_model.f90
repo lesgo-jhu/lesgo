@@ -523,7 +523,12 @@ if ( turbineModel(j) % YawControllerType == "timeYawTable" ) then
     turbineArray(i) % deltaNacYaw = interpolate(time,                          &
     turbineModel(j) % yaw_time(:), turbineModel(j) % yaw_angle(:)) * degRad -  &
     turbineArray(i) % NacYaw
-    call atm_yawNacelle(i)
+
+    ! Yaw only if angle is greater than given tolerance
+    if (abs(turbineArray(i) % deltaNacYaw) > 0.00000001) then
+        call atm_yawNacelle(i)
+    endif
+
 !~     write(*,*) 'Delta Yaw is', turbineArray(i) % deltaNacYaw/degRad
 !~     write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
 endif
