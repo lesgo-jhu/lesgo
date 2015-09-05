@@ -92,7 +92,7 @@ do i = 1,numberOfTurbines
                    "/restart", exist=file_exists)
 
     if (file_exists .eqv. .true.) then
-        write(*,*) 'Reading Rotational Speed from Previous Simulation'
+        write(*,*) 'Reading Turbine Properties from Previous Simulation'
         call atm_read_restart(i)
     endif
 
@@ -144,11 +144,13 @@ open( unit=1, file="./turbineOutput/turbine"//trim(int2str(i))// "/restart", &
 ! Bring the pointer to the last line
 backspace 1
 
-! Store the rotSpeed value (a is just a dummy value
+! Read the restart variables
 read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
           turbineArray(i) % torqueRotor, turbineArray(i) % u_infinity,         &
           turbineArray(i) % induction_a,                                       &
-          turbineArray(i) % PitchControlAngle, turbineArray(i) % IntSpeedError
+          turbineArray(i) % PitchControlAngle,                                 &
+          turbineArray(i) % IntSpeedError,                                     &
+          turbineArray(i) % nacYaw
 
 write(*,*) ' RotSpeed Value from previous simulation is ',                     &
                 turbineArray(i) % rotSpeed
@@ -160,6 +162,8 @@ write(*,*) ' PitchControlAngle Value from previous simulation is ',            &
                 turbineArray(i) % PitchControlAngle
 write(*,*) ' IntSpeedError Value from previous simulation is ',                &
                 turbineArray(i) % IntSpeedError
+write(*,*) ' Yaw Value from previous simulation is ',                          &
+                turbineArray(i) % nacYaw
 
 close(1)
 
@@ -181,14 +185,17 @@ integer j, m,n,q ! counters
 open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//     &
       "/restart", status="replace")
 
-write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor'
+write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor', 'u_infinity',     &
+                     'induction_a', 'PitchControlAngle', 'IntSpeedError',      &
+                     'nacYaw'
 ! Store the rotSpeed value 
 write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
                      turbineArray(i) % torqueRotor,                            &
                      turbineArray(i) % u_infinity,                             &
                      turbineArray(i) % induction_a,                            &
                      turbineArray(i) % PitchControlAngle,                      &
-                     turbineArray(i) % IntSpeedError
+                     turbineArray(i) % IntSpeedError,                          &
+                     turbineArray(i) % nacYaw
 close(restartFile)
 
 ! Write the actuator points at every time-step regardless
@@ -241,7 +248,11 @@ do i = 1,numberOfTurbines
         close(1)
 
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
-        write(1,*) 'turbineNumber RotSpeed'
+        write(1,*) 'time RotSpeed'
+        close(1)
+        
+        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Yaw") 
+        write(1,*) 'time deltaNacYaw NacYaw'
         close(1)
         
         open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
@@ -513,6 +524,7 @@ if ( turbineModel(j) % YawControllerType == "timeYawTable" ) then
     turbineModel(j) % yaw_time(:), turbineModel(j) % yaw_angle(:)) * degRad -  &
     turbineArray(i) % NacYaw
     call atm_yawNacelle(i)
+!~     write(*,*) 'Delta Yaw is', turbineArray(i) % deltaNacYaw/degRad
 !~     write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
 endif
 
@@ -1157,7 +1169,7 @@ integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
-integer :: tangentialForceFile=24, axialForceFile=25
+integer :: tangentialForceFile=24, axialForceFile=25, yawfile=26
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1181,6 +1193,10 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     ! File for rotor speed
     open(unit=RotSpeedFile,position="append",                                  &
     file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
+
+    ! File for yaw
+    open(unit=YawFile,position="append",                                  &
+    file="./turbineOutput/turbine"//trim(int2str(i))//"/Yaw")
 
     ! File for blade output
     open(unit=bladeFile,position="append",                                     &
@@ -1226,6 +1242,8 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
     write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,              &
                        turbineArray(i) % IntSpeedError
+    write(YawFile,*) time, turbineArray(i) % deltaNacYaw,                      &
+                           turbineArray(i) % NacYaw
 
     ! Will write only the first actuator section of the blade
     do m=1, turbineModel(j) % numBl
@@ -1248,7 +1266,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     enddo
     
         ! Write blade points 
-!~         call atm_write_blade_points(i,jt_total)
+        call atm_write_blade_points(i,jt_total)
 
 !~     enddo
 
@@ -1268,6 +1286,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(pitchFile)
     close(tangentialForceFile)
     close(axialForceFile)
+    close(yawFile)
 
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Done Writing Actuator Turbine Model output  !'
