@@ -58,7 +58,7 @@ type turbineArray_t
     real(rprec) :: fluidDensity   ! The density of the fluid (used for power)
     integer :: numAnnulusSections ! Number of annulus sections on each blade
     real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
-    real(rprec) :: deltaNacYaw
+    real(rprec) :: deltaNacYaw = 0._rprec ! Change in nacelle angle
     real(rprec) :: TSR = 0._rprec ! Tip speed ratio
     real(rprec) :: PitchControlAngle = 0._rprec
     real(rprec) :: IntSpeedError = 0._rprec
@@ -747,7 +747,7 @@ do i = 1, numTurbinesDistinct
             read(unit = yawfile, fmt = *) turbineModel(i) % yaw_time(j),       &
                     turbineModel(i) % yaw_angle(j)
             print *, turbineModel(i) % yaw_time(j), &
-                    turbineModel(i) % yaw_angle(j)
+                     turbineModel(i) % yaw_angle(j)
         enddo
         close(unit = yawfile)
     endif

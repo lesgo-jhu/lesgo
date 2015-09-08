@@ -150,7 +150,9 @@ read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
           turbineArray(i) % induction_a,                                       &
           turbineArray(i) % PitchControlAngle,                                 &
           turbineArray(i) % IntSpeedError,                                     &
-          turbineArray(i) % nacYaw
+          turbineArray(i) % nacYaw,                                            &
+          turbineArray(i) % rotorApex,                                         &
+          turbineArray(i) % uvShaft 
 
 write(*,*) ' RotSpeed Value from previous simulation is ',                     &
                 turbineArray(i) % rotSpeed
@@ -164,6 +166,10 @@ write(*,*) ' IntSpeedError Value from previous simulation is ',                &
                 turbineArray(i) % IntSpeedError
 write(*,*) ' Yaw Value from previous simulation is ',                          &
                 turbineArray(i) % nacYaw
+write(*,*) ' Rotor Apex Value from previous simulation is ',                          &
+                turbineArray(i) % rotorApex
+write(*,*) ' uvShaft Value from previous simulation is ',                          &
+                turbineArray(i) % uvShaft
 
 close(1)
 
@@ -185,9 +191,9 @@ integer j, m,n,q ! counters
 open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//     &
       "/restart", status="replace")
 
-write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor', 'u_infinity',     &
-                     'induction_a', 'PitchControlAngle', 'IntSpeedError',      &
-                     'nacYaw'
+write(restartFile,*) 'RotSpeed ', 'torqueGen ', 'torqueRotor ', 'u_infinity ', &
+                     'induction_a ', 'PitchControlAngle ', 'IntSpeedError ',   &
+                     'nacYaw ', 'rotorApex ', 'uvShaft'
 ! Store the rotSpeed value 
 write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
                      turbineArray(i) % torqueRotor,                            &
@@ -195,7 +201,9 @@ write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
                      turbineArray(i) % induction_a,                            &
                      turbineArray(i) % PitchControlAngle,                      &
                      turbineArray(i) % IntSpeedError,                          &
-                     turbineArray(i) % nacYaw
+                     turbineArray(i) % nacYaw,                                 &
+                     turbineArray(i) % rotorApex,                              &
+                     turbineArray(i) % uvShaft
 close(restartFile)
 
 ! Write the actuator points at every time-step regardless
