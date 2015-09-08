@@ -151,16 +151,17 @@ ifeq ($(FCOMP),gfortran)
   ifeq ($(USE_CGNS), yes)
   LIBS += -lcgns -lhdf5
   endif
-  ifeq ($(USE_TURBINES), yes)
-  LIBS += -ltecryte
-  endif
+  #ifeq ($(USE_TURBINES), yes)
+  #LIBS += -ltecryte
+  #endif
   ifeq ($(USE_CYL_SKEW_LS),yes)
     LIBS += -lcgaml
   endif
 
   #FFLAGS = -O0 -fbounds-check -Wall -Wextra -Wunused-parameter
   # -02 for new panoramix, ideally should be 03
-  FFLAGS = -O2 -ffast-math -march=native -funroll-loops
+  # -march=native removed for new panoramix
+  FFLAGS = -O2 -ffast-math -funroll-loops
   FDEBUG = -g
   FPROF = -p
   LDFLAGS =
