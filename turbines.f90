@@ -724,8 +724,12 @@ $endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then           
-    !update epsilon for the new timestep (for cfl_dt) 
-        eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
+    !update epsilon for the new timestep (for cfl_dt)
+        if (T_avg_dim > 0.) then
+            eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
+        else
+            eps = 1.
+        endif
 
     !for each turbine:        
         do s=1,nloc            
