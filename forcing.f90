@@ -333,14 +333,15 @@ end subroutine project
 
 subroutine kx_zero_out()
 
-use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc,kx_allow
+use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc
+use param, only: kx_allow, kx_allow2
 use sim_param, only: u,v,w
 use grid_defs, only: grid
 use fft
 
 implicit none
 
-integer :: jx,jy,jz,cutHere
+integer :: jx,jy,jz,cutHere,cutHere2
 real(rprec) :: const
 real(rprec), pointer, dimension(:) :: zw
 
@@ -348,6 +349,7 @@ nullify(zw)
 zw => grid % zw
 
 cutHere = 2 * kx_allow
+cutHere2 = 2 * kx_allow2
 
 const = 1._rprec / nx
 do jy=1,ny
@@ -365,9 +367,13 @@ do jz=1,nz-1
      v(3:cutHere,jy,jz) = 0._rprec    
      w(3:cutHere,jy,jz) = 0._rprec
 
-     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-     v(cutHere+3: ,jy,jz) = 0._rprec    
-     w(cutHere+3: ,jy,jz) = 0._rprec
+     u(cutHere+3:cutHere2 ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+     v(cutHere+3:cutHere2 ,jy,jz) = 0._rprec    
+     w(cutHere+3:cutHere2 ,jy,jz) = 0._rprec
+
+     u(cutHere2+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+     v(cutHere2+3: ,jy,jz) = 0._rprec    
+     w(cutHere2+3: ,jy,jz) = 0._rprec
 
      call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
      call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))

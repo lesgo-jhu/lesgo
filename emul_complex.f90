@@ -31,6 +31,7 @@ module emul_complex
 
 use types, only : rprec
 use messages, only : error
+use param, only : kx_num, kx_dft   !!jb
 implicit none
 
 save
@@ -228,12 +229,15 @@ real(rprec) ::  a_c_i, cache
 
 integer :: i,j,ii,ir
 integer :: nx_r, nx_c, ny
+integer :: end_kx    !!jb
 
 ! Get the size of the incoming arrays
 nx_r = size(a,1)
 ny   = size(a,2)
 
 nx_c = size(a_c,1)
+
+write(*,*) 'nx_r, nx_c, ny: ', nx_r, nx_c, ny
 
 $if ($DEBUG)
 if ( nx_r .NE. 2*nx_c .OR. &
@@ -243,9 +247,15 @@ $endif
 ! Allocate the returned array
 allocate( b(nx_r, ny ) )
 
+if (kx_dft) then        !!jb
+   end_kx = kx_num
+else
+   end_kx = nx_c
+endif
+
 !  Emulate complex multiplication
 do j=1, ny !  Using outer loop to get contiguous memory access
-  do i=1,nx_c
+  do i=1,nx_c   !end_kx?       !!jb
 
     !  Real and imaginary indicies of a
     ii = 2*i

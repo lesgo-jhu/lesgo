@@ -23,7 +23,7 @@
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
 use param,only:ld,nx,ny,nz, nproc, coord, BOGUS, lbz,kx_dft
-use derivatives, only : ddx, ddy, ddz_uv, ddx_n
+use derivatives, only : ddx, ddy, ddz_uv, ddx_n, ddy_n
 
 implicit none
 
@@ -51,7 +51,11 @@ $endif
 
 
 !--ty 1:nz => dtydy 1:nz
-call ddy(ty, dtydy, lbz)
+if (.not. kx_dft) then
+   call ddy(ty, dtydy, lbz)
+else
+   call ddy_n(ty, dtydy, lbz)
+endif
 $if ($SAFETYMODE)
 $if ($MPI)
   dtydy(:, :, 0) = BOGUS

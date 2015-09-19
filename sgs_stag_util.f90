@@ -49,6 +49,7 @@ use param
 use sim_param,only:txx,txy,txz,tyy,tyz,tzz
 use sgs_param
 use messages
+!!use functions, only: x_avg    !!jb
 
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -223,6 +224,8 @@ do jx=1,nx
 end do
 end do
 end do
+
+!!Nu_t = x_avg(Nu_t)    !!jb
 
 ! Update the values for the sgs-variable histograms
   if (sgs_hist_calc) then

@@ -41,6 +41,7 @@ use param
 use fft
 !!use derivatives, only: dft_direct_forw_2d, dft_direct_back_2d   !!jb
 use derivatives, only: dft_direct_forw_2d_n, dft_direct_back_2d_n   !!jb
+use derivatives, only: dft_direct_forw_2d_n_big, dft_direct_back_2d_n_big   !!jb
 
 $if ($DEBUG)
 use debug_mod
@@ -56,7 +57,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer::jz
+integer::jz ,jx,jy !!jb
 integer :: jz_min
 
 ! !--save forces heap storage
@@ -146,9 +147,9 @@ do jz = lbz, nz
       call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))  
     else
-      call dft_direct_back_2d_n(u1_big(:,:,jz))  !!jb
-      call dft_direct_back_2d_n(u2_big(:,:,jz))
-      call dft_direct_back_2d_n(u3_big(:,:,jz))
+      call dft_direct_back_2d_n_big(u1_big(:,:,jz))  !!jb
+      call dft_direct_back_2d_n_big(u2_big(:,:,jz))
+      call dft_direct_back_2d_n_big(u3_big(:,:,jz))
     endif
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
@@ -156,6 +157,16 @@ do jz = lbz, nz
   call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),fftwNull_p)
   $endif
 end do
+
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE u1_big back  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,ld_big
+!!$do jy=1,ny2
+!!$write(*,*) jx,jy, u1_big(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
 
 do jz = 1, nz
 ! now do the same, but with the vorticity!
@@ -223,9 +234,9 @@ do jz = 1, nz
       call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
     else
-      call dft_direct_back_2d_n(vort1_big(:,:,jz))
-      call dft_direct_back_2d_n(vort2_big(:,:,jz))
-      call dft_direct_back_2d_n(vort3_big(:,:,jz))
+      call dft_direct_back_2d_n_big(vort1_big(:,:,jz))
+      call dft_direct_back_2d_n_big(vort2_big(:,:,jz))
+      call dft_direct_back_2d_n_big(vort3_big(:,:,jz))
     endif
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
@@ -267,14 +278,36 @@ do jz=1,nz-1
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
     else
-      call dft_direct_forw_2d_n(cc_big(:,:,jz))   !!jb
+      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
   $endif   
+
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1 .and. jz == 1) then
+!!$write(*,*) 'COMPARE cc_big forw >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,ld_big
+!!$do jy=1,ny2
+!!$write(*,*) jx,jy, cc_big(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+
 ! un-zero pad
 ! note: cc_big is going into cx!!!!
    call unpadd(cx(:,:,jz),cc_big(:,:,jz))
+
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1 .and. jz == 1) then
+!!$write(*,*) 'COMPARE cx forw >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx
+!!$do jy=1,ny
+!!$write(*,*) jx,jy, cx(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+
 ! Back to physical space
    $if ($FFTW3)
      if (.not. kx_dft) then
@@ -318,7 +351,7 @@ do jz=1,nz-1
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
     else  
-      call dft_direct_forw_2d_n(cc_big(:,:,jz))   !!jb
+      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
@@ -381,7 +414,7 @@ do jz=1,nz - 1
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
     else
-      call dft_direct_forw_2d_n(cc_big(:,:,jz))   !!jb
+      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)

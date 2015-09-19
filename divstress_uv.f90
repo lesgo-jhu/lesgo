@@ -49,9 +49,9 @@ else
 endif
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-!if (kx_dft) then
-!  call ddy_n(txy, dtydy, lbz)        !!jb
-!endif
+if (kx_dft) then
+  call ddy_n(txy, dtydy, lbz)        !!jb
+endif
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(txz, dtzdz, lbz)

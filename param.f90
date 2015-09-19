@@ -143,6 +143,7 @@ module param
   logical :: molec=.false., sgs=.true., dns_bc=.false.
   logical :: kx_limit=.false.
   integer :: kx_allow = 1
+  integer :: kx_allow2 = 2
   logical :: use_md=.false.
   logical :: use_kxz=.false.
   integer :: ml_start = 1000, ml_end = 1000000

@@ -341,6 +341,8 @@ do
         read (buff(equal_pos+1:), *) kx_limit  !!jb
      case ('KX_ALLOW')
         read (buff(equal_pos+1:), *) kx_allow  !!jb
+     case ('KX_ALLOW2')
+        read (buff(equal_pos+1:), *) kx_allow2  !!jb
      case ('USE_MD')
         read (buff(equal_pos+1:), *) use_md    !!jb
      case ('USE_KXZ')

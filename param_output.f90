@@ -89,6 +89,7 @@ write(2,i_fmt) 'trig_on : ', trig_on
 write(2,i_fmt) 'trig_off : ', trig_off
 write(2,x3l_fmt)'kx_limit : ', kx_limit
 write(2,i_fmt) 'kx_allow : ', kx_allow
+write(2,i_fmt) 'kx_allow2 : ', kx_allow2
 write(2,x3l_fmt) 'use_md : ', use_md
 write(2,x3l_fmt) 'use_kxz : ', use_kxz
 write(2,i_fmt) 'ml_start : ', ml_start

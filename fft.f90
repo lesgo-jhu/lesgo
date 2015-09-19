@@ -35,18 +35,21 @@ $endif
 save
 
 public :: kx, ky, k2, init_fft, forw_spectra
-public :: expp, expn    !! jb
+public :: expp, expn, expp_big, expn_big    !! jb
 !!public :: ky_vec                                           !!jb
 public :: forw, back, forw_big, back_big
 public :: forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
+public :: forw_y_big, back_y_big   !!jb
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 complex(rprec), allocatable, dimension(:,:) :: expp, expn      !!jb
+complex(rprec), allocatable, dimension(:,:) :: expp_big, expn_big      !!jb
 !!real(rprec), allocatable, dimension(:) :: ky_vec            !!jb
 integer, allocatable, dimension(:) :: kx_veci            !!jb
 integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
 integer*8::forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
+integer*8::forw_y_big, back_y_big   !!jb
 
 $if ($FFTW3)
 real (rprec), dimension (:, :), allocatable :: data, data_big
@@ -54,6 +57,8 @@ real (rprec), dimension (:), allocatable :: data_x, data_in   !!jb
 complex (rprec), dimension (:), allocatable :: data_out       !!jb
 real (rprec), dimension (:), allocatable :: data_in_y         !!jb
 complex (rprec), dimension (:), allocatable :: data_out_y     !!jb
+real (rprec), dimension (:), allocatable :: data_in_y_big         !!jb
+complex (rprec), dimension (:), allocatable :: data_out_y_big     !!jb
 $else
 
 !public
@@ -97,6 +102,8 @@ allocate( data_in(nx) )            !!jb
 allocate( data_out(nx/2+1) )       !!jb
 allocate( data_in_y(ny) )          !!jb
 allocate( data_out_y(ny/2+1) )     !!jb
+allocate( data_in_y_big(ny2) )          !!jb
+allocate( data_out_y_big(ny2/2+1) )     !!jb
 
 ! Initialize and implement with threads
 !call dfftw_init_threads(iret)
@@ -117,6 +124,10 @@ call dfftw_plan_dft_r2c_1d(forw_complex ,nx   ,data_in  ,data_out ,FFTW_PATIENT,
 
 call dfftw_plan_dft_r2c_1d(forw_y, ny, data_in_y, data_out_y, FFTW_PATIENT, FFTW_UNALIGNED)
 call dfftw_plan_dft_c2r_1d(back_y, ny, data_out_y, data_in_y, FFTW_PATIENT, FFTW_UNALIGNED)
+
+call dfftw_plan_dft_r2c_1d(forw_y_big, ny2, data_in_y_big, data_out_y_big, FFTW_PATIENT, FFTW_UNALIGNED)
+call dfftw_plan_dft_c2r_1d(back_y_big, ny2, data_out_y_big, data_in_y_big, FFTW_PATIENT, FFTW_UNALIGNED)
+
 !! <<<<
 
 deallocate(data)
@@ -126,6 +137,9 @@ deallocate(data_in)
 deallocate(data_out)
 deallocate(data_in_y)
 deallocate(data_out_y)
+deallocate(data_in_y_big)
+deallocate(data_out_y_big)
+
 
 $else
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
@@ -150,28 +164,42 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,nx,ny,L_x,L_y,pi,kx_limit,kx_allow,kx_dft,coord
+use param,only:lh,nx,ny,L_x,L_y,pi,kx_limit,kx_allow,kx_dft,coord,nx2
 implicit none
 integer :: jx,jy,ii
-complex(rprec) :: c1   !!jb
+complex(rprec) :: c1, c1_big   !!jb
 complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
 
 ! Allocate wavenumbers
-allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
+!if (kx_dft) then             !!jb
+!  allocate( kx(kx_num,ny), ky(kx_num,ny), k2(kx_num,ny) )
+!else
+  allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
+!endif
 
 if (kx_dft) then
   allocate( expp(kx_num, nx), expn(kx_num, nx) )
+  allocate( expp_big(kx_num, nx2), expn_big(kx_num, nx2) )
   !allocate( ky_vec( ny ) )
   allocate( kx_veci ( kx_num ) )    !!jb
 
   kx_veci = int( kx_vec ) + 1    !!jb
   kx_vec = kx_vec * 2._rprec * pi / L_x     !!jb , aspect ratio change
 
-  c1 = L_x / real(nx,rprec) * imag   !!jb
+  c1     = L_x / real(nx,rprec) * imag   !!jb
+  c1_big = L_x / real(nx2,rprec) * imag   !!jb
   do jx=1,kx_num
   do ii=1,nx
   expp(jx,ii) = exp( c1 * kx_vec(jx) * real(ii-1,rprec) )
   expn(jx,ii) = exp(-c1 * kx_vec(jx) * real(ii-1,rprec) )
+  expp_big(jx,ii) = exp( c1_big * kx_vec(jx) * real(ii-1,rprec) )
+  expn_big(jx,ii) = exp(-c1_big * kx_vec(jx) * real(ii-1,rprec) )
+  enddo
+  enddo
+  do jx=1,kx_num
+  do ii=1,nx2
+  expp_big(jx,ii) = exp( c1_big * kx_vec(jx) * real(ii-1,rprec) )
+  expn_big(jx,ii) = exp(-c1_big * kx_vec(jx) * real(ii-1,rprec) )
   enddo
   enddo
 endif
@@ -180,9 +208,11 @@ do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
 end do
 
-!do jx=1,kx_num
-!   kx(jx,:) = kx_vec(jx)
-!end do
+!!$if (kx_dft) then   !!jb
+!!$ do jx=1,kx_num
+!!$    kx(jx,:) = kx_vec(jx)
+!!$ end do
+!!$endif
 
 if (kx_limit) then     !!jb
    kx(2,:) = real(kx_allow,kind=rprec)

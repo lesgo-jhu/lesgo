@@ -49,7 +49,7 @@ use messages
 use sim_param, only: u,v,w,divtz
 use sim_param, only: p_hat => p, dfdx => dpdx, dfdy => dpdy, dfdz => dpdz
 use fft
-use emul_complex, only : OPERATOR(.MULI.)
+!use emul_complex, only : OPERATOR(.MULI.)  !!jb
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -58,12 +58,10 @@ use derivatives, only: dft_direct_forw_2d_n, dft_direct_back_2d_n   !!jb
 
 implicit none      
 
-
-
 real(rprec) :: const,const2,const3,const4
 
-integer::jx,jy,jz
-
+integer :: jx,jy,jz
+integer :: end_kx, jx_s  !!jb
 integer :: ir, ii ! Used for complex emulation of real array
 
 $if ($DEBUG)
@@ -119,9 +117,6 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 ! sc: recall that the old timestep guys already contain the pressure
 !   term
 
-!   rH_x(:, :, jz) = const / tadv1 * (u(:, :, jz) / dt)
-!   rH_y(:, :, jz) = const / tadv1 * (v(:, :, jz) / dt)
-!   rH_z(:, :, jz) = const / tadv1 * (w(:, :, jz) / dt)
    rH_x(:, :, jz) = const2 * u(:, :, jz) 
    rH_y(:, :, jz) = const2 * v(:, :, jz) 
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
@@ -143,8 +138,6 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
   $endif
 
 end do
-
-
 
 $if ($MPI)
 !  H_x(:, :, 0) = BOGUS
@@ -191,7 +184,6 @@ if (coord == 0) then
   $else
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
   $endif
-
 end if
 
 $if ($MPI) 
@@ -211,27 +203,16 @@ $if($MPI)
   endif
 $endif
 
-
 ! set oddballs to 0
 ! probably can get rid of this if we're more careful below
-!H_x(lh, :, 1:nz-1)=0._rprec
-!H_y(lh, :, 1:nz-1)=0._rprec
-!H_z(lh, :, 1:nz-1)=0._rprec
-!H_x(:, ny/2+1, 1:nz-1)=0._rprec
-!H_y(:, ny/2+1, 1:nz-1)=0._rprec
-!H_z(:, ny/2+1, 1:nz-1)=0._rprec
-rH_x(ld-1:ld, :, 1:nz-1)=0._rprec
-rH_y(ld-1:ld, :, 1:nz-1)=0._rprec
-rH_z(ld-1:ld, :, 1:nz-1)=0._rprec
-rH_x(:, ny/2+1, 1:nz-1)=0._rprec
-rH_y(:, ny/2+1, 1:nz-1)=0._rprec
-rH_z(:, ny/2+1, 1:nz-1)=0._rprec
+rH_x(ld-1:ld, :, 1:nz-1) = 0._rprec
+rH_y(ld-1:ld, :, 1:nz-1) = 0._rprec
+rH_z(ld-1:ld, :, 1:nz-1) = 0._rprec
+rH_x(:, ny/2+1, 1:nz-1) = 0._rprec
+rH_y(:, ny/2+1, 1:nz-1) = 0._rprec
+rH_z(:, ny/2+1, 1:nz-1) = 0._rprec
 
 !--with MPI; topw and bottomw are only on top & bottom processes
-!topw(lh, :)=0._rprec
-!topw(:, ny/2+1)=0._rprec
-!bottomw(lh, :)=0._rprec
-!bottomw(:, ny/2+1)=0._rprec
 rtopw(ld-1:ld, :)=0._rprec
 rtopw(:, ny/2+1)=0._rprec
 rbottomw(ld-1:ld, :)=0._rprec
@@ -263,7 +244,7 @@ $if ($SAFETYMODE)
 $endif  
   b(:, :, 1) = -1._rprec
   c(:, :, 1) = 1._rprec
-  !RHS_col(:, :, 1) = -dz * bottomw(:, :)
+
   RHS_col(:,:,1) = -dz * rbottomw(:,:)
 
   $if ($DEBUG)
@@ -296,8 +277,7 @@ $endif
   $if ($SAFETYMODE)
   c(:, :, nz+1) = BOGUS  !--was 0._rprec
   $endif
-  
-  !RHS_col(:, :, nz+1) = -topw(:, :) * dz
+
   RHS_col(:,:,nz+1) = -dz * rtopw(:,:)
 
   $if ($DEBUG)
@@ -308,17 +288,14 @@ $endif
     c(:, :, nz+1) = BOGUS  !--was 0._rprec
     $endif
     $if ($MPI)
-      !RHS_col(:, :, nz+1) = real (nz+1 + coord * (nz-1), rprec)
       !Careful - only update real values (odd indicies)
       RHS_col(1:ld:2,:,nz+1) = real (nz+1 + coord * (nz-1), rprec)
     $else
-      !RHS_col(:, :, nz+1) = real (nz+1, rprec)
       !Careful - only update real values (odd indicies)
       RHS_col(1:ld:2,:,nz+1) =  real (nz+1, rprec)
     $endif
   end if
   $endif
-  !
 $if ($MPI)
 endif
 $endif
@@ -331,15 +308,6 @@ $if ($MPI)
   !--could maybe combine some of these to less communication is needed
   !--fill H_x, H_y, H_z at jz=0 (from nz-1)
   !--cant just change lbz above, since u,v,w (jz=0) are not in sync yet
-  !call mpi_sendrecv (H_x(1, 1, nz-1), lh*ny, MPI_CPREC, up, 1,  &
-  !                   H_x(1, 1, 0), lh*ny, MPI_CPREC, down, 1,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (H_y(1, 1, nz-1), lh*ny, MPI_CPREC, up, 2,  &
-  !                   H_y(1, 1, 0), lh*ny, MPI_CPREC, down, 2,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (H_z(1, 1, nz-1), lh*ny, MPI_CPREC, up, 3,  &
-  !                   H_z(1, 1, 0), lh*ny, MPI_CPREC, down, 3,   &
-  !                   comm, status, ierr)
   call mpi_sendrecv (rH_x(1, 1, nz-1), ld*ny, MPI_RPREC, up, 1,  &
                      rH_x(1, 1, 0), ld*ny, MPI_RPREC, down, 1,   &
                      comm, status, ierr)
@@ -351,15 +319,6 @@ $if ($MPI)
                      comm, status, ierr)
 
   !--fill H_x, H_y, H_z at jz=nz (from 1)
-  !call mpi_sendrecv (H_x(1, 1, 1), lh*ny, MPI_CPREC, down, 4,  &
-  !                   H_x(1, 1, nz), lh*ny, MPI_CPREC, up, 4,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (H_y(1, 1, 1), lh*ny, MPI_CPREC, down, 5,  &
-  !                   H_y(1, 1, nz), lh*ny, MPI_CPREC, up, 5,   &
-  !                   comm, status, ierr)
-  !call mpi_sendrecv (H_z(1, 1, 1), lh*ny, MPI_CPREC, down, 6,  &
-  !                   H_z(1, 1, nz), lh*ny, MPI_CPREC, up, 6,   &
-  !                   comm, status, ierr)
   call mpi_sendrecv (rH_z(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
                      rH_z(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
                      comm, status, ierr)                     
@@ -368,64 +327,59 @@ $endif
 $if ($DEBUG)
 if (DEBUG) then
   write (*, *) coord, ' after H send/recv'
-  !call DEBUG_write (H_x(:, :, 1:nz), 'w.H_x')
-  !call DEBUG_write (H_y(:, :, 1:nz), 'w.H_y')
-  !call DEBUG_write (H_z(:, :, 1:nz), 'w.H_z')
-  !call DEBUG_write (topw, 'w.topw')
-  !call DEBUG_write (bottomw, 'w.bottomw')
   call DEBUG_write (rH_x(:, :, 1:nz), 'w.H_x')
   call DEBUG_write (rH_y(:, :, 1:nz), 'w.H_y')
   call DEBUG_write (rH_z(:, :, 1:nz), 'w.H_z')
   call DEBUG_write (rtopw, 'w.topw')
   call DEBUG_write (rbottomw, 'w.bottomw')  
-
 end if
 $endif
+
+if (kx_dft) then
+   end_kx = kx_num
+else
+   end_kx = lh-1
+endif
 
 do jz = jz_min, nz
   do jy = 1, ny
 
     if (jy == ny/2 + 1) cycle
 
-    do jx = 1, lh-1
+    do jx = 1, end_kx    !!jb
 
       if (jx*jy == 1) cycle
 
-      ii = 2*jx   ! imaginary index 
+!!$      ii = 2*jx   ! imaginary index 
+!!$      ir = ii - 1 ! real index
+!!$
+!!$      a(jx, jy, jz) = const3
+!!$      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
+!!$      c(jx, jy, jz) = const3   
+!!$
+!!$      aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx,jy) 
+!!$      aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx,jy) 
+!!$      aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx,jy) 
+!!$      aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
+!!$
+!!$      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
+
+      jx_s = kx_veci(jx)
+
+      ii = 2*jx_s   ! imaginary index 
       ir = ii - 1 ! real index
 
-      ! JDA dissertation, eqn(2.85) a,b,c=coefficients and RHS_col=r_m
-      !a(jx, jy, jz) = 1._rprec/(dz**2)
-      !b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
-      !c(jx, jy, jz) = 1._rprec/(dz**2)
-      !RHS_col(jx, jy, jz) = eye * (kx(jx, jy) * H_x(jx, jy, jz-1) +   &
-      !                             ky(jx, jy) * H_y(jx, jy, jz-1)) +  &
-      !                      (H_z(jx, jy, jz) - H_z(jx, jy, jz-1)) / dz
+      a(jx_s, jy, jz) = const3
+      b(jx_s, jy, jz) = -(kx(jx_s, jy)**2 + ky(jx_s, jy)**2 + 2._rprec*const3)
+      c(jx_s, jy, jz) = const3   
 
-!      a(jx, jy, jz) = 1._rprec/(dz**2)
-!      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec/(dz**2))
-!      c(jx, jy, jz) = 1._rprec/(dz**2)   
-      a(jx, jy, jz) = const3
-      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
-      c(jx, jy, jz) = const3   
+      aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx_s,jy) 
+      aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx_s,jy) 
+      aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx_s,jy) 
+      aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx_s,jy) 
 
-
-
-      !  Compute eye * kx * H_x 
-!      call mult_real_complex_imag( rH_x(ir:ii, jy, jz-1), kx(jx, jy), aH_x )
-!      aH_x = rH_x(ir:ii, jy, jz-1) .MULI. kx(jx,jy)
-
-      !  Compute eye * ky * H_y
-!      call mult_real_complex_imag( rH_y(ir:ii, jy, jz-1), ky(jx, jy), aH_y )           
-!      aH_y = rH_y(ir:ii, jy, jz-1) .MULI. ky(jx,jy) 
-
-       aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx,jy) 
-       aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx,jy) 
-       aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx,jy) 
-       aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
-
-!      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
+
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
@@ -433,11 +387,9 @@ do jz = jz_min, nz
         b(jx, jy, jz) = 2._rprec
         c(jx, jy, jz) = 1._rprec
         $if ($MPI)
-          !RHS_col(jx, jy, jz) = jz + coord * (nz-1)
           !Careful - only update real value
           RHS_col(ir,jy,jz) = jz + coord * (nz-1)
         $else
-          !RHS_col(jx, jy, jz) = jz
           !Careful - only update real value
           RHS_col(ir,jy,jz) = jz
         $endif
@@ -448,36 +400,21 @@ do jz = jz_min, nz
   end do
 end do
 
-!a = 1._rprec
-!c = 1._rprec
-!b = 2._rprec
-!do jz=1,nz+1
-!  $if ($MPI)
-!    RHS_col(:, :, jz) = jz + coord * (nz-1)
-!  $else
-!    RHS_col(:, :, jz) = jz
-!  $endif
-!end do
-
 $if ($DEBUG)
 if (DEBUG) then
   write (*, *) coord, ' before tridag_array'
   call DEBUG_write (a, 'v.a')
   call DEBUG_write (b, 'v.b')
   call DEBUG_write (c, 'v.c')
-  !call DEBUG_write (RHS_col, 'v.RHS_col')
   call DEBUG_write( RHS_col, 'v.RHS_col')
 end if
 $endif
 
 !--this skips zero wavenumber solution, nyquist freqs
-!call tridag_array (a, b, c, RHS_col, p_hat)
 $if ($MPI)
-  !call tridag_array_pipelined (0, a, b, c, RHS_col, p_hat)
-  call tridag_array_pipelined( 0, a, b, c, RHS_col, p_hat )
+  call tridag_array_pipelined ( 0, a, b, c, RHS_col, p_hat )
 $else
-  !call tridag_array (a, b, c, RHS_col, p_hat)
-  call tridag_array (a, b, c, RHS_col, p_hat)
+  call tridag_array ( a, b, c, RHS_col, p_hat )
 $endif
 
 $if ($DEBUG)
@@ -494,17 +431,12 @@ $if ($MPI)
 $endif
 
 if (coord == 0) then
-
-  !p_hat(1, 1, 0) = 0._rprec
-  !p_hat(1, 1, 1) = p_hat(1, 1, 0) - dz * bottomw(1, 1)
   p_hat(1:2, 1, 0) = 0._rprec
   p_hat(1:2, 1, 1) = p_hat(1:2,1,0) - dz * rbottomw(1:2,1)
-
 end if
 
 do jz = 2, nz
   ! JDA dissertation, eqn(2.88)
-  !p_hat(1, 1, jz) = p_hat(1, 1, jz-1) + H_z(1, 1, jz)*dz
   p_hat(1:2, 1, jz) = p_hat(1:2, 1, jz-1) + rH_z(1:2, 1, jz) * dz
 end do
 
@@ -523,8 +455,6 @@ $if ($MPI)
 $endif
 
 !--zero the nyquist freqs
-!p_hat(lh, :, :) = 0._rprec
-!p_hat(:, ny/2+1, :) = 0._rprec
 p_hat(ld-1:ld, :, :) = 0._rprec
 p_hat(:, ny/2+1, :) = 0._rprec
 
@@ -551,31 +481,36 @@ call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 $endif
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
-do jx=1,lh
-  ii = 2*jx
-  ir = ii - 1
-! complex
-   !dfdx(jx,jy,jz)=eye*kx(jx,jy)*p_hat(jx,jy,jz)
-   !dfdy(jx,jy,jz)=eye*ky(jx,jy)*p_hat(jx,jy,jz)
-   !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), kx(jx,jy), dfdx(ir:ii,jy,jz) )
-   !call mult_real_complex_imag( p_hat(ir:ii,jy,jz), ky(jx,jy), dfdy(ir:ii,jy,jz) )
-   !dfdx(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. kx(jx,jy) 
-   !dfdy(ir:ii,jy,jz) = p_hat(ir:ii,jy,jz) .MULI. ky(jx,jy) 
+do jx=1,end_kx  !lh     !!jb
 
-   dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx,jy) 
-   dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx,jy) 
-   dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx,jy) 
-   dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx,jy) 
+!!$  ii = 2*jx
+!!$  ir = ii - 1
+!!$
+!!$  dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx,jy) 
+!!$  dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx,jy) 
+!!$  dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx,jy) 
+!!$  dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx,jy) 
+
+  jx_s = kx_veci(jx)
+
+  ii = 2*jx_s
+  ir = ii - 1
+
+  dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx_s,jy) 
+  dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx_s,jy) 
+  dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx_s,jy) 
+  dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx_s,jy) 
 
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
+
 $if ($FFTW3)
   if (.not. kx_dft) then
     call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
     call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
     call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))
-  else    
+  else
     call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
     call dft_direct_back_2d_n(dfdy(:,:,jz))
     call dft_direct_back_2d_n(p_hat(:,:,jz))
@@ -608,7 +543,6 @@ $endif
 ! deallocate ( rtopw, rbottomw )
 ! deallocate ( RHS_col )
 ! deallocate ( a, b, c )
-
 
 $if ($VERBOSE)
 write (*, *) 'finished press_stag_array'

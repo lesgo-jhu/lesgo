@@ -74,7 +74,7 @@ $if ($DEBUG)
 logical, parameter :: DEBUG = .false.
 $endif
 
-integer :: jt_step, nstart,jx,jy  !!jb jx,jy
+integer :: jt_step, nstart,jx,jy,jz  !!jb jx,jy
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: triggerFactor    !!jb
@@ -106,7 +106,7 @@ if(coord == 0) then
    write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
    $endif
    
-   $if ($USE_RNL)
+   !$if ($USE_RNL)
    !!kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
    if ( coord == 0 .and. kx_dft) then   
       write(*,*) '=================================='
@@ -117,7 +117,7 @@ if(coord == 0) then
       write(*,*) 'L_x, L_y: ', L_x, L_y
       write(*,*) '=================================='
    endif
-   $endif
+   !$endif
    
 endif
 
@@ -179,23 +179,23 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
 
-  !do jx=1,nx
-  !do jy=1,ny
-  !  u(jx,jy,:) = sin( L_x/nx*(jx-1) * 3.0_rprec ) + sin( L_x/nx*(jx-1) * 1.0_rprec ) + .56
-  !enddo
-  !enddo
+!!$  do jx=1,nx
+!!$  do jy=1,ny
+!!$    u(jx,jy,:) = sin( L_x/nx*(jx-1) * 3.0_rprec ) + sin( L_x/nx*(jx-1) * 1.0_rprec ) + .56
+!!$  enddo
+!!$  enddo
 
-    !u_rnl(:,:,:) = u(:,:,:)
+!!$    u_rnl(:,:,:) = u(:,:,:)
+!!$    call ddx(u,dudx,lbz)
+!!$    call ddx_n(u_rnl, dudx_rnl,lbz)
 
-    !call ddx(u,dudx,lbz)
-    !call ddx_n(u_rnl, dudx_rnl,lbz)
-
-    !call filt_da (u, dudx, dudy, lbz)
-    !call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
+!!$    u_rnl(:,:,:) = u(:,:,:)
+!!$    call filt_da (u, dudx, dudy, lbz)
+!!$    call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
     
-    !u_rnl(:,:,:) = u(:,:,:)
-    !call ddy(u,dudy,lbz)
-    !call ddy_n(u_rnl, dudy_rnl,lbz)
+!!$    u_rnl(:,:,:) = u(:,:,:)
+!!$    call ddy(u,dudy,lbz)
+!!$    call ddy_n(u_rnl, dudy_rnl,lbz)
 
     if (kx_dft) then
       call filt_da_direct_n (u, dudx, dudy, lbz)    
@@ -207,30 +207,33 @@ time_loop: do jt_step = nstart, nsteps
       call filt_da (w, dwdx, dwdy, lbz)
     endif
 
-!if (coord == 0) then
-!write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-!do jx=1,nx+2
-!do jy=1,ny
-!write(*,*) jx,jy,u(jx,jy,1), u_rnl(jx,jy,1)
-!enddo
-!enddo
-!endif
-!if (coord == 0) then
-!write(*,*) 'COMPARE DUDX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-!do jx=1,nx+2
-!do jy=1,ny
-!write(*,*) jx,jy,dudx(jx,jy,1),dudx_rnl(jx,jy,1)
-!enddo
-!enddo
-!endif
-!if (coord == 0) then
-!write(*,*) 'COMPARE DUDY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-!do jx=1,nx+2
-!do jy=1,ny
-!write(*,*) jx,jy,dudy(jx,jy,1),dudy_rnl(jx,jy,1)
-!enddo
-!enddo
-!endif
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE U  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,u(jx,jy,1), u_rnl(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE DUDX  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,dudx(jx,jy,1),dudx_rnl(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE DUDY  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,dudy(jx,jy,1),dudy_rnl(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
 
 !if(coord == 0) write(*,*) 'coord, u, dudx, dudy  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
 !write(*,*) coord, maxval(abs(u-u_rnl)), maxval(abs(dudx-dudx_rnl)), maxval(abs(dudy-dudy_rnl))
@@ -245,6 +248,7 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
+!if (coord==0) write(*,*) u(1,1,1),v(1,1,1),w(1,1,1), 'q1d'
     $if ($DEBUG)
     if (DEBUG) then
         call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
@@ -275,6 +279,7 @@ time_loop: do jt_step = nstart, nsteps
         end if
     end if    
 
+!if (coord==0) write(*,*) u(1,1,1),v(1,1,1),w(1,1,1), 'q1e'
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
@@ -297,6 +302,7 @@ time_loop: do jt_step = nstart, nsteps
         call sgs_stag()
     end if
 
+!if (coord==0) write(*,*) u(1,1,1),v(1,1,1),w(1,1,1), 'q1f'
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
     $if ($MPI)
@@ -324,6 +330,35 @@ time_loop: do jt_step = nstart, nsteps
     !   provides divtz 1:nz-1, except 1:nz at top process
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
+
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE DIV  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,divtx(jx,jy,1),divty(jx,jy,1),divtz(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE txi  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,txx(jx,jy,1),txy(jx,jy,1),txz(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE tyz  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,tyy(jx,jy,1),tyz(jx,jy,1),tzz(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+
 
     $if ($DEBUG)
     if (DEBUG) then
@@ -362,6 +397,18 @@ time_loop: do jt_step = nstart, nsteps
     $else
     call convec(u,v,w,dudy,dudz,dvdx,dvdz,dwdx,dwdy,RHSx,RHSy,RHSz)
     $endif
+
+
+!!$!if (coord == 0) then
+!!$if (coord == nproc-1) then
+!!$write(*,*) 'COMPARE rhs  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$do jx=1,nx+2
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,RHSx(jx,jy,1),RHSy(jx,jy,1),RHSz(jx,jy,1)
+!!$enddo
+!!$enddo
+!!$endif
+
 
     $if ($DEBUG)
     if (DEBUG) then
@@ -441,8 +488,6 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fzml_rnl(:,:,1:nz-1)
     $endif
 
-
-    
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
@@ -506,7 +551,6 @@ time_loop: do jt_step = nstart, nsteps
           call kx_zero_out()
        endif
     endif
-
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
@@ -629,7 +673,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,*) 'u: ', u(1,1,nz-1)
           write(*,*) 'v: ', v(1,1,nz-1)
           write(*,*) 'w: ', w(1,1,nz-1), w(1,1,nz)
-          write(*,'(a)') '========================================'
+          write(*,'(a)') '======================================='
        endif
 
        if (coord == 0) call write_tau_wall()     !!jb
@@ -654,6 +698,19 @@ time_loop: do jt_step = nstart, nsteps
        endif
 
     end if
+
+if (coord == 0) then
+write(*,*) '>>>>>>>>>>>>>>>>>>>>>>>>> jt =', jt
+do jx=1,nx
+do jy=1,ny
+do jz=1,nz
+   write(*,*) 'jx, jy, jz      : ', jx, jy, jz
+   write(*,*) 'u,  v,  w       : ', u(jx,jy,jz), v(jx,jy,jz), w(jx,jy,jz)
+   write(*,*) 'dpdx, dpdy, dpdz: ', dpdx(jx,jy,jz), dpdy(jx,jy,jz), dpdz(jx,jy,jz)
+enddo
+enddo
+enddo
+endif
 
 end do time_loop
 ! END TIME LOOP

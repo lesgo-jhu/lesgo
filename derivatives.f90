@@ -44,6 +44,8 @@ public ddx, &
      !dft_direct_back_2d_new, &
      dft_direct_forw_2d_n, &
      dft_direct_back_2d_n, &
+     dft_direct_forw_2d_n_big, &
+     dft_direct_back_2d_n_big, &
      filt_da_direct_n, &
      ddx_n, &
      ddy_n
@@ -573,7 +575,6 @@ end do
 return
 end subroutine filt_da
 
-$if ($USE_RNL)
 !!**********************************************************************
 !subroutine ddx_direct(f, dfdx, lbz)
 !!**********************************************************************
@@ -1096,17 +1097,21 @@ fhat(:,:)  = ( 0._rprec, 0._rprec  )
 fhat2(:,:)  = ( 0._rprec, 0._rprec  )
 fhaty(:,:)  = ( 0._rprec, 0._rprec  )
 
+!! 1d FFTs in the spanwise direction
 do jx=1,nx
   call dfftw_execute_dft_r2c(forw_y, f(jx,:), fhaty(jx,:) )
 enddo
 
+!! copy to larger array
 fhat2( :, 1:ny/2+1 ) = fhaty( :, 1:ny/2+1 )
 
+!! due to symmetry
 do jy=2,ny/2
    jy_r = ny - jy + 2;   !! reflected y index
    fhat2(:,jy_r) = conjg(fhaty(:,jy))
 enddo
 
+!! now DFT in streamwise direction
 do jx=1,kx_num
 jx_s = kx_veci ( jx )  !! index/storage location
 do i=1,nx
@@ -1330,6 +1335,150 @@ end do
 
 return
 end subroutine filt_da_direct_n
-$endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!**********************************************************************
+subroutine dft_direct_forw_2d_n_big(f)
+!**********************************************************************
+!
+! Computes 2d DFT directly, no FFT.
+!
+use types,only:rprec
+use param,only:ld,nx,ny,nz,kx_num,kx_vec,pi,coord,L_x,nproc,L_y,nx2,ny2
+use fft !,only:ky_vec
+implicit none
+
+integer :: jx, jy, i, j, ii, ir, jy_r, jx_s
+real(rprec), dimension(:, :), intent(inout) :: f
+real(rprec) :: const
+
+complex(rprec), dimension(nx2, ny2) :: fhat
+complex(rprec), dimension(nx2, ny2) :: fhat2
+complex(rprec), dimension(nx2, ny2/2+1) :: fhaty
+
+fhat(:,:)  = ( 0._rprec, 0._rprec  )
+fhat2(:,:)  = ( 0._rprec, 0._rprec  )
+fhaty(:,:)  = ( 0._rprec, 0._rprec  )
+
+!! 1d FFTs in the spanwise direction
+do jx=1,nx2
+  call dfftw_execute_dft_r2c(forw_y_big, f(jx,:), fhaty(jx,:) )
+enddo
+
+!! copy to larger array
+fhat2( :, 1:ny2/2+1 ) = fhaty( :, 1:ny2/2+1 )
+
+!! due to symmetry
+do jy=2,ny2/2
+   jy_r = ny2 - jy + 2;   !! reflected y index
+   fhat2(:,jy_r) = conjg(fhaty(:,jy))
+enddo
+
+!! now DFT in streamwise direction
+do jx=1,kx_num
+jx_s = kx_veci ( jx )  !! index/storage location
+do i=1,nx2
+  fhat(jx_s,:)=fhat(jx_s,:)+fhat2(i,:)*expn_big(jx,i)!exp(c1*kx_vec(jx)*real(i-1,rprec));
+end do
+end do
+
+!if (coord == 0) then
+! write(*,*) 'FHAT >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+! do jx=1,nx
+!   write(*,*) 'jx,fhat(jx,1): ', jx, fhat(jx,1)
+! enddo
+!endif
+
+f(:,:) = 0._rprec
+
+do jx=1, kx_num
+   jx_s = kx_veci( jx )   !!---jb
+   ii = 2*jx_s     ! imag index
+   ir = ii-1     ! real index
+do jy=1, ny2
+   f(ir,jy) = real ( fhat(jx_s,jy) ,rprec )
+   f(ii,jy) = aimag( fhat(jx_s,jy) )
+enddo
+enddo
+
+return
+end subroutine dft_direct_forw_2d_n_big
+
+!**********************************************************************
+subroutine dft_direct_back_2d_n_big(f)
+!**********************************************************************
+!
+! Computes 2d inverse DFT directly, no FFT.
+!
+use types,only:rprec
+use param,only:ld,nx,ny,nz,kx_num,pi,coord,L_x,nproc,L_y,kx_vec,nx2,ny2
+use fft !,only:ky_vec
+implicit none
+
+integer :: jx, jy, i, j, ii, ir, jx_r, jy_r, jx_s, jx2
+real(rprec), dimension(:, :), intent(inout) :: f
+
+complex(rprec), dimension(nx2,ny2) :: fhat, fhat2
+complex(rprec), dimension(nx2, ny2/2+1) :: fhaty
+
+fhat(:,:)  = ( 0._rprec, 0._rprec  )
+fhat2(:,:)  = ( 0._rprec, 0._rprec  )
+fhaty(:,:)  = ( 0._rprec, 0._rprec  )
+
+do jx=1,kx_num
+   jx_s = kx_veci( jx )
+   ii = 2*jx_s     ! imag index
+   ir = ii-1     ! real index
+do jy=1,ny2
+   fhat(jx_s,jy) = cmplx( f(ir,jy), f(ii,jy), rprec )
+enddo
+enddo
+
+f(:,:) = 0._rprec
+
+do i= 2, nx2/2     !!jb - I believe the +1 not needed here... test
+  jx_r = nx2 - i + 2
+  fhat(jx_r,1) = conjg( fhat(i,1) )
+enddo
+
+do j = 2     , ny2/2+1
+  jy_r = ny2 - j + 2    !!!!
+do i = nx2/2+2, nx2
+  jx_r = nx2 - i + 2
+  fhat(i,j) = conjg(fhat(jx_r ,jy_r))
+enddo
+enddo
+
+!! Nyquist mode ( kx=nx/2 ) is not taken into account
+do i=1,nx2
+do jx=2,kx_num
+jx_s = kx_veci( jx )
+jx2 = nx2 - jx_s + 2
+fhat2(i,:)=fhat2(i,:)+fhat(jx_s,:) * expp_big(jx,i) !exp( c1*kx_vec(jx)*real(i-1,rprec) )
+fhat2(i,:)=fhat2(i,:)+fhat(jx2,:) * expn_big(jx,i)  !exp(-c1*kx_vec(jx)*real(i-1,rprec) )
+end do
+end do
+
+!! add in kx=0
+do i=1,nx2
+  fhat2(i,:) = fhat2(i,:) + fhat(1,:)
+enddo
+
+!do i=1,nx
+!do jx=1,nx
+!jx_s = kx_vec( jx )
+!jx2 = nx - jx_s + 2
+!fhat2(i,:)=fhat2(i,:)+fhat(jx,:)*exp(c1*kx_vec(jx)*real(i-1,rprec) );
+!fhat2(i,:)=fhat2(i,:)+fhat(jx2,:) *exp(-c1*kx_vec(jx)*real(i-1,rprec) );
+!end do
+!end do
+
+do jx=1,nx2    !!!!
+  call dfftw_execute_dft_c2r(back_y_big, fhat2(jx,1:ny2/2+1), f(jx,:) )  !!!!
+enddo
+
+return
+end subroutine dft_direct_back_2d_n_big
 
 end module derivatives

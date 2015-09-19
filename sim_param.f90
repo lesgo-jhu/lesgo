@@ -57,9 +57,10 @@ real (rprec), dimension (:, :, :), allocatable :: dudx_rnl, dudy_rnl, dudz_rnl, 
                                                   dvdx_rnl, dvdy_rnl, dvdz_rnl,  &
                                                   dwdx_rnl, dwdy_rnl, dwdz_rnl,  &
                                                   RHSx_rnl, RHSy_rnl, RHSz_rnl
+$endif
+
 real (rprec), dimension (:, :, :), allocatable :: fxml_rnl, fyml_rnl, fzml_rnl
 !!jb - clean up and remove these ^ when no longer needed for testing
-$endif
 
 contains
 
