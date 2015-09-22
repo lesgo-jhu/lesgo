@@ -62,7 +62,6 @@ logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
-character (*), parameter :: mod_name = 'turbines'
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
