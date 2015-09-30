@@ -107,6 +107,8 @@ allocate( data_in_y(ny) )          !!jb
 allocate( data_out_y(ny/2+1) )     !!jb
 allocate( data_in_y_big(ny2) )          !!jb
 allocate( data_out_y_big(ny2/2+1) )     !!jb
+allocate( span_in(ny) )
+allocate( span_out(ny/2+1) )
 
 ! Initialize and implement with threads
 !call dfftw_init_threads(iret)
@@ -145,6 +147,8 @@ deallocate(data_in_y)
 deallocate(data_out_y)
 deallocate(data_in_y_big)
 deallocate(data_out_y_big)
+deallocate(span_in)
+deallocate(span_out)
 
 
 $else
