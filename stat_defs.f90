@@ -48,11 +48,13 @@ end type rs_t
 
 type spectra_t
   real(rprec), dimension(:), allocatable :: power
+  real(rprec), dimension(:), allocatable :: upower,vpower,wpower
   integer :: istart, coord
   real(rprec) :: ldiff 
 end type spectra_t
 
 real(rprec) :: spectra_total_time
+real(rprec) :: span_spectra_total_time
 real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
@@ -64,8 +66,10 @@ logical :: tavg_initialized = .false.
 
 ! Time between calls of spectra_compute, built by summing dt
 real(rprec) :: spectra_dt
+real(rprec) :: span_spectra_dt
 ! Switch for determining if time averaging has been initialized
 logical :: spectra_initialized = .false.
+logical :: span_spectra_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
@@ -151,6 +155,7 @@ $endif
 type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
 type(spectra_t), allocatable, dimension(:) :: spectra
+type(spectra_t), allocatable, dimension(:) :: span_spectra
 
 ! Overloaded operators for tavg and rs types
 INTERFACE OPERATOR (.ADD.)

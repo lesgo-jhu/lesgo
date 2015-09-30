@@ -637,6 +637,10 @@ use param, only : tavg_calc, tavg_nstart, tavg_nend, tavg_nskip
 $if (not $FFTW3)
 use param, only : spectra_calc, spectra_nstart, spectra_nend, spectra_nskip
 $endif
+$if ($FFTW3)
+use param, only : span_spectra_calc, span_spectra_nstart
+use param, only : span_spectra_nend, span_spectra_nskip
+$endif
 use param, only : point_calc, point_nstart, point_nend, point_nskip
 use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
@@ -646,6 +650,9 @@ use stat_defs, only : tavg_initialized,tavg_dt
 
 $if (not $FFTW3)
 use stat_defs, only: spectra_initialized,spectra_dt
+$endif
+$if ($FFTW3)
+use stat_defs, only: span_spectra_initialized, span_spectra_dt
 $endif
 
 implicit none
@@ -721,6 +728,39 @@ if (spectra_calc) then
   endif  ! between nstart and nend
 
 endif  ! spectra_calc
+$endif
+
+!  Determine if spanwise spectra are to be calculated
+$if ($FFTW3)
+if (span_spectra_calc) then
+
+  ! Are we between the start and stop timesteps?
+  if ((jt_total >= span_spectra_nstart).and.(jt_total <= span_spectra_nend)) then
+
+    ! Every timestep (between nstart and nend), add to spectra_dt
+    span_spectra_dt = span_spectra_dt + dt
+
+    ! Are we at the beginning or a multiple of nstart?
+    if ( mod(jt_total-span_spectra_nstart,span_spectra_nskip)==0 ) then
+
+      ! Check if we have initialized spectra
+      if (.not. span_spectra_initialized) then
+        if (coord == 0) then
+         write(*,*) '-------------------------------'
+         write(*,"(1a,i9,1a,i9)") 'Starting running spanwise spectra calculations from ', span_spectra_nstart, ' to ', span_spectra_nend
+         write(*,*) '-------------------------------'
+        endif  ! coord==0
+      
+        call span_spectra_init()
+      else
+        call span_spectra_compute()
+     endif  ! init
+     
+  endif  ! mod of nskip
+
+endif  ! between nstart and nend
+
+endif  ! span_spectra_calc
 $endif
 
 !  Determine if instantaneous point velocities are to be recorded
@@ -1989,6 +2029,10 @@ $if(not $FFTW3)
 use param, only : spectra_calc
 use stat_defs, only : spectra_initialized
 $endif
+$if($FFTW3)
+use param, only : span_spectra_calc
+use stat_defs, only : span_spectra_initialized
+$endif
 $if($MPI)
 use param, only : comm,ierr
 $endif
@@ -2063,6 +2107,10 @@ $if(not $FFTW3)
 ! Checkpoint spectra restart data
 if( spectra_calc .and. spectra_initialized ) call spectra_checkpoint()
 $endif
+$if($FFTW3)
+! Checkpoint spanwise spectra restart data
+if( span_spectra_calc .and. span_spectra_initialized ) call span_spectra_checkpoint()
+$endif
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -2099,6 +2147,11 @@ $if(not $FFTW3)
 use stat_defs, only : spectra_initialized
 use param, only : spectra_calc
 $endif
+$if($FFTW3)
+use stat_defs, only : span_spectra_initialized
+use param, only : span_spectra_calc
+$endif
+
 implicit none
 
 ! Perform final checkpoing
@@ -2110,6 +2163,11 @@ if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
 $if(not $FFTW3)
 !  Check if spectra is to be computed
 if(spectra_calc .and. spectra_initialized ) call spectra_finalize()
+$endif
+
+$if($FFTW3)
+!  Check if spanwise spectra are to be computed
+if(span_spectra_calc .and. span_spectra_initialized ) call span_spectra_finalize()
 $endif
 
 return
@@ -2128,6 +2186,9 @@ use param, only : zplane_calc, zplane_nloc, zplane_loc
 $if(not $FFTW3)
 use param, only : spectra_calc, spectra_nloc, spectra_loc
 $endif
+$if($FFTW3)
+use param, only : span_spectra_calc, span_spectra_nloc, span_spectra_loc
+$endif
 use param, only : tavg_calc
 use grid_defs, only : grid
 use functions, only : cell_indx
@@ -2135,6 +2196,9 @@ use stat_defs, only : point, xplane, yplane, zplane
 use stat_defs, only : tavg, tavg_zplane
 $if(not $FFTW3)
 use stat_defs, only : spectra
+$endif
+$if($FFTW3)
+use stat_defs, only : span_spectra
 $endif
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs
@@ -2225,6 +2289,43 @@ if(spectra_calc) then
     $endif
 
   enddo
+
+endif
+$endif
+
+$if($FFTW3)
+if(span_spectra_calc) then
+
+  allocate(span_spectra(span_spectra_nloc))
+!  Initialize 
+  span_spectra(:) % istart = -1
+  span_spectra(:) % ldiff = 0._rprec
+  span_spectra(:) % coord = -1
+
+!  Compute istart and ldiff
+  do k=1,span_spectra_nloc
+
+    !  Initialize sub-arrays
+    allocate( span_spectra(k) % upower(ny/2+1) )
+    allocate( span_spectra(k) % vpower(ny/2+1) )
+    allocate( span_spectra(k) % wpower(ny/2+1) )
+    span_spectra(k) % upower = 0._rprec
+    span_spectra(k) % vpower = 0._rprec
+    span_spectra(k) % wpower = 0._rprec
+
+    $if ($MPI)
+    if(span_spectra_loc(k) >= z(1) .and. span_spectra_loc(k) < z(nz)) then
+      span_spectra(k) % coord = coord
+      span_spectra(k) % istart = cell_indx('k',dz,span_spectra_loc(k))
+      span_spectra(k) % ldiff = span_spectra_loc(k) - z(span_spectra(k) % istart)
+    endif
+    $else
+    span_spectra(k) % coord = 0
+    span_spectra(k) % istart = cell_indx('k',dz,span_spectra_loc(k))
+    span_spectra(k) % ldiff = span_spectra_loc(k) - z(span_spectra(k) % istart)
+    $endif
+
+ enddo
 
 endif
 $endif
@@ -3907,5 +4008,331 @@ $endif
 return
 end subroutine spectra_checkpoint
 $endif
+
+! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! SPANWISE spectra     (begin)
+! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+$if ($FFTW3)
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine span_spectra_init()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : checkpoint_span_spectra_file
+use messages
+use param, only : span_spectra_nloc
+use stat_defs, only : span_spectra, span_spectra_total_time, span_spectra_initialized,span_spectra_dt
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.span_spectra_init'
+$if ($MPI)
+character (*), parameter :: MPI_suffix = '.c'
+$endif
+character (128) :: fname
+
+logical :: opn, exst
+integer :: k
+
+inquire (unit=13, opened=opn)
+if (opn) call error (sub_name, 'unit 13 already open')
+
+fname = checkpoint_span_spectra_file
+$if ($MPI)
+call string_concat( fname, MPI_suffix, coord )
+$endif
+
+inquire (file=fname, exist=exst)
+if (.not. exst) then
+   !  Nothing to read in
+   if (coord == 0) then
+      write(*,*) ' '
+      write(*,*)'No previous spanwise spectra data - starting from scratch.'
+   endif
+
+   span_spectra_total_time = 0._rprec
+   ! note: spectra already initialized during output_init
+
+else
+
+   $if ($READ_BIG_ENDIAN)
+   open (13, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='big_endian')
+   $elseif ($READ_LITTLE_ENDIAN)
+   open (13, file=fname, action='read', position='rewind',  &
+      form='unformatted', convert='little_endian')  
+   $else
+   open (13, file=fname, action='read', position='rewind',  &
+      form='unformatted')
+   $endif
+
+   read (13) span_spectra_total_time
+   do k=1, span_spectra_nloc
+    read(13) span_spectra(k)%upower, span_spectra(k)%vpower, span_spectra(k)%wpower
+   enddo
+   close(13)
+
+endif
+
+! Initialize span_spectra_dt
+span_spectra_dt = 0.0_rprec
+
+! Set global switch that spectra as been initialized
+span_spectra_initialized = .true.
+
+! Set global switch that spectra as been initialized
+!span_spectra_initialized = .false.
+
+return
+end subroutine span_spectra_init
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine span_spectra_compute()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use sim_param, only : u,v,w
+use param, only : nx,ny,dz,lh,span_spectra_nloc
+use stat_defs, only : span_spectra, span_spectra_total_time, span_spectra_dt
+use functions, only : linear_interp
+use fft
+implicit none
+
+integer :: k, jx, jy
+real(rprec), allocatable, dimension(:) :: ui, vi, wi
+real(rprec), allocatable, dimension(:) :: upower, vpower, wpower
+complex(rprec), allocatable, dimension(:) :: uhat, vhat, what
+
+real(rprec) :: nxny
+
+! Interpolation variable
+allocate( ui(ny), vi(ny), wi(ny) )
+allocate( upower(ny/2+1), vpower(ny/2+1), wpower(ny/2+1) )
+allocate( uhat(ny/2+1), vhat(ny/2+1), what(ny/2+1) )
+
+nxny = real(nx*ny,rprec)
+
+!  Loop over all spectra locations
+do k=1, span_spectra_nloc
+  
+  $if ($MPI)
+  if(span_spectra(k) % coord == coord) then
+  $endif
+
+  do jx=1,Nx
+
+    do jy=1,Ny
+        ! Interpolate to the specified plane
+        ui(jy) = linear_interp(u(jx,jy,span_spectra(k) % istart),u(jx,jy,span_spectra(k) % istart+1), &
+                              dz, span_spectra(k) % ldiff)
+    enddo
+    do jy=1,Ny
+        ! Interpolate to the specified plane
+        vi(jy) = linear_interp(v(jx,jy,span_spectra(k) % istart),v(jx,jy,span_spectra(k) % istart+1), &
+                              dz, span_spectra(k) % ldiff)
+    enddo
+    do jy=1,Ny
+        ! Interpolate to the specified plane
+        wi(jy) = linear_interp(w(jx,jy,span_spectra(k) % istart),w(jx,jy,span_spectra(k) % istart+1), &
+                              dz, span_spectra(k) % ldiff)
+    enddo
+
+    ! 1) Compute uhat for the given j
+    !ui = ui - sum(ui) / Ny ! Remove the spanwise mean
+    !vi = vi - sum(vi) / Ny ! (but there shouldn't be any spanwise mean)
+    !wi = wi - sum(wi) / Ny 
+   
+    ! Compute FFT
+    call dfftw_execute_dft_r2c(forw_span_spectra, ui, uhat)
+    call dfftw_execute_dft_r2c(forw_span_spectra, vi, vhat)
+    call dfftw_execute_dft_r2c(forw_span_spectra, wi, what)
+    
+    !  Normalize
+    uhat = uhat / ny
+    vhat = vhat / ny
+    what = what / ny
+
+    ! 2) Compute power spectra for given j
+    upower(1) = 0.5_rprec * uhat(1) * conjg(uhat(1))
+    do jy=2,ny/2
+      upower(jy) = uhat(jy) * conjg(uhat(jy))
+    enddo
+    upower(ny/2+1) = 0.5_rprec * uhat(ny/2+1) * conjg(uhat(ny/2+1))
+
+    vpower(1) = 0.5_rprec * vhat(1) * conjg(vhat(1))
+    do jy=2,ny/2
+      vpower(jy) = vhat(jy) * conjg(vhat(jy))
+    enddo
+    vpower(ny/2+1) = 0.5_rprec * vhat(ny/2+1) * conjg(vhat(ny/2+1))
+
+    wpower(1) = 0.5_rprec * what(1) * conjg(what(1))
+    do jy=2,ny/2
+      wpower(jy) = what(jy) * conjg(what(jy))
+    enddo
+    wpower(ny/2+1) = 0.5_rprec * what(ny/2+1) * conjg(what(ny/2+1))
+
+    ! Sum ith component, normalize, and include averaging over x 
+    span_spectra(k) % upower = span_spectra(k) % upower + span_spectra_dt * upower / nx !ny  <-- other spectra_compute() routine used nxny for some reason..
+    span_spectra(k) % vpower = span_spectra(k) % vpower + span_spectra_dt * vpower / nx !ny
+    span_spectra(k) % wpower = span_spectra(k) % wpower + span_spectra_dt * wpower / nx !ny
+ enddo
+
+$if ($MPI)
+endif
+$endif
+
+enddo
+
+!  Update spectra total time
+span_spectra_total_time = span_spectra_total_time + span_spectra_dt
+  
+deallocate(ui, vi, wi)
+deallocate(upower,vpower,wpower)
+deallocate(uhat,vhat,what)
+
+! Set spectra_dt back to zero for next use
+span_spectra_dt = 0.0_rprec
+
+return
+end subroutine span_spectra_compute
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine span_spectra_finalize()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use param, only : lh, span_spectra_nloc, span_spectra_loc
+use fft, only : kx
+use stat_defs, only : span_spectra, span_spectra_total_time
+implicit none
+
+!include 'tecryte.h'
+
+$if($VERBOSE)
+character (*), parameter :: sub_name = mod_name // '.span_spectra_finalize'
+$endif
+character (64) :: fname
+
+integer ::  k, jy, rlen
+rlen = 3*(ny/2+1)*rprec
+
+! Perform final checkpoint 
+call span_spectra_checkpoint()
+
+!  Loop over all zplane locations
+do k=1,span_spectra_nloc
+  
+  $if ($MPI)
+  if(span_spectra(k) % coord == coord) then
+  $endif
+
+  ! Finalize averaging for power spectra (averaging over time)
+  span_spectra(k) % upower = span_spectra(k) % upower / span_spectra_total_time
+  span_spectra(k) % vpower = span_spectra(k) % vpower / span_spectra_total_time
+  span_spectra(k) % wpower = span_spectra(k) % wpower / span_spectra_total_time
+
+  !  Create unique file name
+  call string_splice( fname, path // 'output/span_spectra.z-', span_spectra_loc(k),'.dat' )
+
+  ! binary output
+  open(unit=13,file=fname,form='unformatted',convert='big_endian',access='direct',recl=rlen)
+    write(13,rec=1) span_spectra(k) % upower(1:ny/2+1),span_spectra(k)%vpower(1:ny/2+1), &
+                    span_spectra(k) % wpower(1:ny/2+1)
+    !write(13,rec=2) span_spectra(k) % vpower(1:ny/2+1)
+    !write(13,rec=3) span_spectra(k) % wpower(1:ny/2+1)
+  close(13)
+
+call string_splice( fname, path // 'output/span_spec.z-', span_spectra_loc(k),'.dat' )
+open(9,file=fname)
+do jy = 1,ny/2+1
+  write(9,'(4g20.10)') (jy-1), span_spectra(k) % upower(jy),&
+       span_spectra(k) % vpower(jy),span_spectra(k) % wpower(jy)
+enddo
+close(9)
+
+!!$  !  Omitting Nyquist from output
+!!$  call write_tecplot_header_ND(fname, 'rewind', 2, (/ lh-1/), &
+!!$    '"k", "E(k)"', numtostr(k, 6), 2 ) 
+!!$  call write_real_data_1D(fname, 'append', 'formatted', 1, lh-1, &
+!!$    (/ spectra(k) % power(1:lh-1) /), 0, (/ kx(1:lh-1,1) /))
+    
+  $if ($MPI)
+  endif
+  $endif
+
+enddo  
+  
+deallocate(span_spectra)
+
+return
+end subroutine span_spectra_finalize
+
+!*******************************************************************************
+subroutine span_spectra_checkpoint()
+!*******************************************************************************
+!
+! This subroutine writes the restart data and is to be called by 'checkpoint'
+! for intermediate checkpoints and by 'spectra_finalize' at the end of the 
+! simulation.    
+! 
+use param, only : checkpoint_span_spectra_file, span_spectra_nloc
+$if($MPI)
+use param, only : comm, ierr
+$endif
+use stat_defs, only : span_spectra, span_spectra_total_time
+
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.span_spectra_checkpoint'
+character (64) :: fname
+
+logical :: opn
+integer :: k
+
+fname = checkpoint_span_spectra_file
+$if($MPI)
+call string_concat( fname, '.c', coord)
+$endif
+
+!  Write data to spectra.out
+inquire (unit=13, opened=opn)
+if (opn) call error (sub_name, 'unit 13 already open')
+
+$if ($WRITE_BIG_ENDIAN)
+open (13, file=fname, action='write', position='rewind', &
+  form='unformatted', convert='big_endian')
+$elseif ($WRITE_LITTLE_ENDIAN)
+open (13, file=fname, action='write', position='rewind', &
+  form='unformatted', convert='little_endian')
+$else
+open (13, file=fname, action='write', position='rewind', form='unformatted')
+$endif
+
+! write the accumulated time and power
+write(13) span_spectra_total_time
+do k=1,span_spectra_nloc
+ write(13) span_spectra(k)%upower(1:ny/2+1), span_spectra(k)%vpower(1:ny/2+1), &
+           span_spectra(k)%wpower(1:ny/2+1)
+enddo
+close(13)
+
+! write the accumulated time and power
+!write (1) span_spectra_total_time
+!do k=1, span_spectra_nloc
+!  write (1) spectra(k) % power
+!enddo
+!close(1)
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
+return
+end subroutine span_spectra_checkpoint
+$endif
+
+! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! SPANWISE spectra    (end)
+! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 end module io

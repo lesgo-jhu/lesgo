@@ -46,6 +46,7 @@ module param
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
   $endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
+  character(*), parameter :: checkpoint_span_spectra_file = path // 'span_spectra.out'
 
 !---------------------------------------------------
 ! MPI PARAMETERS
@@ -264,6 +265,11 @@ module param
   integer :: spectra_nstart=10000, spectra_nend=50000, spectra_nskip=100
   integer :: spectra_nloc=1
   real(rprec), allocatable, dimension(:) :: spectra_loc
+
+  logical :: span_spectra_calc=.false.
+  integer :: span_spectra_nstart=10000, span_spectra_nend=50000, span_spectra_nskip=100
+  integer :: span_spectra_nloc=1
+  real(rprec), allocatable, dimension(:) :: span_spectra_loc
 
   ! Outputs histograms of {Cs^2, Tn, Nu_t, ee} for z-plane locations given below
   logical :: sgs_hist_calc = .false.

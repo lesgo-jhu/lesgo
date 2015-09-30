@@ -635,6 +635,17 @@ do
      case ('SPECTRA_LOC')
         call parse_vector( buff(equal_pos+1:), spectra_nloc, spectra_loc )
 
+     case ('SPAN_SPECTRA_CALC')
+        read (buff(equal_pos+1:), *) span_spectra_calc
+     case ('SPAN_SPECTRA_NSTART')
+        read (buff(equal_pos+1:), *) span_spectra_nstart
+     case ('SPAN_SPECTRA_NEND')
+        read (buff(equal_pos+1:), *) span_spectra_nend
+     case ('SPAN_SPECTRA_NSKIP')
+        read (buff(equal_pos+1:), *) span_spectra_nskip
+     case ('SPAN_SPECTRA_LOC')
+        call parse_vector( buff(equal_pos+1:), span_spectra_nloc, span_spectra_loc )
+ 
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )

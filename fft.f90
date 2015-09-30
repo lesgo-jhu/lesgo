@@ -40,13 +40,14 @@ public :: expp, expn, expp_big, expn_big    !! jb
 public :: forw, back, forw_big, back_big
 public :: forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
 public :: forw_y_big, back_y_big   !!jb
+public :: forw_span_spectra
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 complex(rprec), allocatable, dimension(:,:) :: expp, expn      !!jb
 complex(rprec), allocatable, dimension(:,:) :: expp_big, expn_big      !!jb
 !!real(rprec), allocatable, dimension(:) :: ky_vec            !!jb
 integer, allocatable, dimension(:) :: kx_veci            !!jb
-integer*8::forw_spectra
+integer*8::forw_spectra, forw_span_spectra
 integer*8::forw,back,forw_big,back_big
 integer*8::forw_1d, back_1d, forw_complex, forw_y, back_y   !!jb
 integer*8::forw_y_big, back_y_big   !!jb
@@ -59,6 +60,8 @@ real (rprec), dimension (:), allocatable :: data_in_y         !!jb
 complex (rprec), dimension (:), allocatable :: data_out_y     !!jb
 real (rprec), dimension (:), allocatable :: data_in_y_big         !!jb
 complex (rprec), dimension (:), allocatable :: data_out_y_big     !!jb
+real (rprec), dimension(:), allocatable :: span_in
+complex (rprec), dimension(:), allocatable :: span_out
 $else
 
 !public
@@ -90,7 +93,7 @@ contains
 !**********************************************************************
 subroutine init_fft()
 !**********************************************************************
-use param,only:nx,ny,nx2,ny2
+use param,only:nx,ny,nx2,ny2,span_spectra_calc
 implicit none
 
 $if ($FFTW3)
@@ -127,6 +130,9 @@ call dfftw_plan_dft_c2r_1d(back_y, ny, data_out_y, data_in_y, FFTW_PATIENT, FFTW
 
 call dfftw_plan_dft_r2c_1d(forw_y_big, ny2, data_in_y_big, data_out_y_big, FFTW_PATIENT, FFTW_UNALIGNED)
 call dfftw_plan_dft_c2r_1d(back_y_big, ny2, data_out_y_big, data_in_y_big, FFTW_PATIENT, FFTW_UNALIGNED)
+if (span_spectra_calc) then
+call dfftw_plan_dft_r2c_1d(forw_span_spectra,ny,span_in,span_out,FFTW_PATIENT,FFTW_UNALIGNED)
+endif
 
 !! <<<<
 

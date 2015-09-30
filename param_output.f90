@@ -174,6 +174,13 @@ do n=1,spectra_nloc
   write(2,if_fmt) 'n, spectra_loc(n) : ', n, spectra_loc(n)
 enddo
 
+write(2,l_fmt) 'span_spectra_calc : ', span_spectra_calc
+write(2,x2i_fmt) 'span_spectra_nstart, span_spectra_nend : ', span_spectra_nstart, span_spectra_nend
+write(2,i_fmt) 'span_spectra_nloc : ', span_spectra_nloc
+do n=1,span_spectra_nloc
+  write(2,if_fmt) 'n, span_spectra_loc(n) : ', n, span_spectra_loc(n)
+enddo
+
 write(2,l_fmt) 'sgs_hist_calc : ', sgs_hist_calc
 write(2,l_fmt) 'sgs_hist_cumulative : ', sgs_hist_cumulative
 write(2,x2i_fmt) 'sgs_hist_nstart, sgs_hist_nskip : ', sgs_hist_nstart, sgs_hist_nskip
