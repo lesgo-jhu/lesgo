@@ -367,13 +367,18 @@ do jz=1,nz-1
      v(3:cutHere,jy,jz) = 0._rprec    
      w(3:cutHere,jy,jz) = 0._rprec
 
-     u(cutHere+3:cutHere2 ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-     v(cutHere+3:cutHere2 ,jy,jz) = 0._rprec    
-     w(cutHere+3:cutHere2 ,jy,jz) = 0._rprec
+!!$     u(cutHere+3:cutHere2 ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+!!$     v(cutHere+3:cutHere2 ,jy,jz) = 0._rprec    
+!!$     w(cutHere+3:cutHere2 ,jy,jz) = 0._rprec
 
-     u(cutHere2+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-     v(cutHere2+3: ,jy,jz) = 0._rprec    
-     w(cutHere2+3: ,jy,jz) = 0._rprec
+!!$     u(cutHere2+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+!!$     v(cutHere2+3: ,jy,jz) = 0._rprec    
+!!$     w(cutHere2+3: ,jy,jz) = 0._rprec
+
+     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
+     v(cutHere+3: ,jy,jz) = 0._rprec    
+     w(cutHere+3: ,jy,jz) = 0._rprec
+
 
      call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
      call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))
