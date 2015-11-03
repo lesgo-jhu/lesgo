@@ -1006,14 +1006,30 @@ do
         read (buff(equal_pos+1:), *) orientation
      case ('STAG_PERC')
         read (buff(equal_pos+1:), *) stag_perc
+     case ('SX')
+        read (buff(equal_pos+1:), *) sx
+     case ('SY')
+        read (buff(equal_pos+1:), *) sy
+     case ('X1')
+        read (buff(equal_pos+1:), *) x1
+     case ('Y1')
+        read (buff(equal_pos+1:), *) y1
 
      case ('THETA1_ALL')
         read (buff(equal_pos+1:), *) theta1_all
      case ('THETA2_ALL')
         read (buff(equal_pos+1:), *) theta2_all
 
+     case('CONTROL')
+        read (buff(equal_pos+1:), *) control
+        
+     case('UP_VEL_CALC')
+        read (buff(equal_pos+1:), *) up_vel_calc
+     case('UP_VEL_ND')
+        read (buff(equal_pos+1:), *) up_vel_nd    
+        
      case ('CT_PRIME')
-        read (buff(equal_pos+1:), *) Ct_prime
+        read (buff(equal_pos+1:), *) Ct_prime_all
      case ('CT_NOPRIME')
         read (buff(equal_pos+1:), *) Ct_noprime
 

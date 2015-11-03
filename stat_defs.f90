@@ -104,6 +104,7 @@ type turbine_t
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
+  real(rprec) :: Ct_prime                     ! local thrust coefficient
 end type turbine_t
 
 ! A collection of wind-turbines
@@ -112,6 +113,7 @@ type wind_farm_t
 end type wind_farm_t
     
 type(wind_farm_t) :: wind_farm
+type(wind_farm_t) :: upstream_sensors
 $endif
 
 ! Histogram (single)

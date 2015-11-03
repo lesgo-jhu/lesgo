@@ -19,7 +19,7 @@
 
 module turbines_base
 use types, only : rprec
-use stat_defs, only : wind_farm
+use stat_defs, only : wind_farm, upstream_sensors
 use param, only : path
 $if ($MPI)
   use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
@@ -43,7 +43,16 @@ real(rprec) :: stag_perc    ! stagger percentage from baseline
 real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zero)
 real(rprec) :: theta2_all   ! angle above horizontal
 
-real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
+integer :: control          ! Control method (1 = Ct_prime for all turbines)
+real(rprec), dimension(:,:), allocatable :: Pref_list
+real(rprec), dimension(:,:), allocatable :: Pref_t_list
+real(rprec), dimension(:,:), allocatable :: Ct_prime_list
+real(rprec), dimension(:,:), allocatable :: Ct_prime_t_list
+
+logical :: up_vel_calc      ! Calculate upstream velocity
+real(rprec) :: up_vel_nd    ! number of diameters upstream to calculate
+
+real(rprec) :: Ct_prime_all ! thrust coefficient (default 1.33)
 real(rprec) :: Ct_noprime   ! thrust coefficient (default 0.75)
 
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
@@ -55,11 +64,17 @@ real(rprec) :: filter_cutoff  ! indicator function only includes values above th
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
 
 integer :: tbase     ! Number of timesteps between the output
+
+! Turbine spacings, multiple of (mean) diameter
+! This is read in for orientation = 7, and calculated for orientation < 7
+real(rprec) :: sx                   ! spacing in the x-direction
+real(rprec) :: sy                   ! spacing in the y-direction
+
+! Only used for orientaiton = 5
+real(rprec) :: x1, y1               ! Location of first turbine
  
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
-real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
-real(rprec) :: sy           ! spacing in the y-direction
 real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -83,6 +98,11 @@ logical :: exst
 integer :: fid, ios
 real(rprec) :: xl, yl, zl
 
+character(100) :: Pref_dat
+character(100) :: Ct_prime_dat
+character(5) :: chari
+integer :: num_list
+
 ! set turbine parameters
 ! turbines are numbered as follows:
 !   #1 = turbine nearest (x,y)=(0,0)
@@ -99,7 +119,7 @@ if (orientation == 6) then
         call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
     end if
 
-    ! count number of linex and close
+    ! count number of lines and close
     ios = 0
     nloc = 0
     do 
@@ -112,11 +132,15 @@ else
     nloc = num_x*num_y      !number of turbines (locations)
 endif 
 
-!$if ($VERBOSE)
+$if ($VERBOSE)
 write(*,*) "Number of turbines: ", nloc
-!$endif
+$endif
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
+if (up_vel_calc) then
+    nullify(upstream_sensors%turbine)
+    allocate(upstream_sensors%turbine(nloc))
+endif
 
 ! Non-dimensionalize length values by z_i
 dia_all = dia_all / z_i
@@ -129,11 +153,27 @@ thk_all = max ( thk_all, dx*1.01 )
 wind_farm%turbine(:)%height = height_all
 wind_farm%turbine(:)%dia = dia_all
 wind_farm%turbine(:)%thk = thk_all                      
-wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all) 
+if (up_vel_calc) then
+    upstream_sensors%turbine(:)%dia = dia_all
+    upstream_sensors%turbine(:)%thk = thk_all                      
+    upstream_sensors%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)   
+endif
 
 ! Spacing between turbines (as multiple of mean diameter)
-sx = L_x / (num_x * dia_all )
-sy = L_y / (num_y * dia_all )
+if (orientation < 7) then
+    sx = L_x / (num_x * dia_all )
+    sy = L_y / (num_y * dia_all )
+else
+    sx = sx / ( dia_all * z_i )
+    sy = sy / ( dia_all * z_i )
+endif
+
+! Location of first turbine
+if (orientation == 7) then
+    x1 = x1 / z_i
+    y1 = y1 / z_i
+endif
 
 if (orientation /= 6) then
     ! Baseline locations (evenly spaced, not staggered aka aligned)
@@ -223,18 +263,243 @@ elseif (orientation == 6) then
         wind_farm%turbine(k)%height = zl / z_i
     enddo
     close(fid)
+elseif (orientation == 7) then
+! Aligned, but not evenly spaced
+    k = 1
+    do i = 1, num_x
+        do j = 1, num_y
+            wind_farm%turbine(k)%xloc = x1 + (i-1)*sxx
+            wind_farm%turbine(k)%yloc = y1 + (j-1)*syy
+            k = k + 1
+        enddo
+    enddo
 endif
 
-!$if ($VERBOSE)
+if (up_vel_calc) then
+    do k = 1,nloc
+        upstream_sensors%turbine(k)%xloc = wind_farm%turbine(k)%xloc - up_vel_nd*dia_all
+        upstream_sensors%turbine(k)%yloc = wind_farm%turbine(k)%yloc
+        upstream_sensors%turbine(:)%height = wind_farm%turbine(k)%height
+    enddo
+endif
+
+$if ($VERBOSE)
 do k = 1, nloc
-    write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height 
+    write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height
+    if (up_vel_calc) then
+        write(*,*) "Upstream sensor ", k, " located at: ", upstream_sensors%turbine(k)%xloc, upstream_sensors%turbine(k)%yloc, upstream_sensors%turbine(k)%height
+    endif
 enddo
-!$endif
+$endif
+
+if (control == 2) then
+    ! Count number of lines
+    Pref_dat = path // 'input/row_1_Pref.dat'
+    num_list = get_number_of_lines(Pref_dat)
+
+    ! Allocate
+    allocate(Pref_list(num_x,num_list))
+    allocate(Pref_t_list(num_x,num_list))
+
+    do k = 1, num_x
+        ! Open file
+        write(chari, '(I5)') k
+        Pref_dat = path // 'input/row_' // trim(adjustl(chari)) // '_Pref.dat'
+
+        ! Count number of lines
+        write(chari, '(I5)') num_list
+        if (num_list /= get_number_of_lines(Pref_dat)) then
+            call error(sub_name, 'file ' // Pref_dat // 'must have ' // trim(adjustl(chari)) // ' entries')
+        endif
+
+        ! Read from file
+        call read_values_from_file(Pref_dat, Pref_t_list(k,:), Pref_list(k,:))
+
+        $if ($VERBOSE)
+        write(*,*) "Pref_t_list for row ", k, " is: ", Pref_t_list(k,:)
+        write(*,*) "Pref_list for row ", k, " is: ", Pref_list(k,:)
+        $endif
+    enddo
+elseif (control == 3) then
+    ! Count number of lines
+    Pref_dat = path // 'input/Pref.dat'
+    num_list = get_number_of_lines(Pref_dat)
+
+    ! Allocate
+    allocate(Pref_list(1,num_list))
+    allocate(Pref_t_list(1,num_list))
+
+    ! Read from file
+    call read_values_from_file(Pref_dat, Pref_t_list(1,:), Pref_list(1,:))
+
+    $if ($VERBOSE)
+    write(*,*) "Pref_t_list  is: ", Pref_t_list(1,:)
+    write(*,*) "Pref_list is: ", Pref_list(1,:)
+    $endif
+elseif (control == 4) then
+    ! Count number of lines
+    Ct_prime_dat = path // 'input/row_1_Ct_prime.dat'
+    num_list = get_number_of_lines(Ct_prime_dat)
+
+    ! Allocate
+    allocate(Ct_prime_list(num_x,num_list))
+    allocate(Ct_prime_t_list(num_x,num_list))
+
+    do k = 1, num_x
+        ! Open file
+        write(chari, '(I5)') k
+        Ct_prime_dat = path // 'input/row_' // trim(adjustl(chari)) // '_Ct_prime.dat'
+
+        ! Count number of lines
+        write(chari, '(I5)') num_list
+        if (num_list /= get_number_of_lines(Ct_prime_dat)) then
+            call error(sub_name, 'file ' // Ct_prime_dat // 'must have ' // trim(adjustl(chari)) // ' entries')
+        endif
+
+        ! Read from file
+        call read_values_from_file(Ct_prime_dat, Ct_prime_t_list(k,:), Ct_prime_list(k,:))
+
+        $if ($VERBOSE)
+        write(*,*) "Ct_prime_t_list for row ", k, " is: ", Ct_prime_t_list(k,:)
+        write(*,*) "Ct_prime_list for row ", k, " is: ", Ct_prime_list(k,:)
+        $endif
+    enddo
+elseif (control == 5) then
+    ! Count number of lines
+    Ct_prime_dat = path // 'input/Ct_prime.dat'
+    num_list = get_number_of_lines(Ct_prime_dat)
+
+    ! Allocate
+    allocate(Ct_prime_list(1,num_list))
+    allocate(Ct_prime_t_list(1,num_list))
+
+    ! Read from file
+    call read_values_from_file(Ct_prime_dat, Ct_prime_t_list(1,:), Ct_prime_list(1,:))
+
+    $if ($VERBOSE)
+    write(*,*) "Ct_prime_t_list  is: ", Ct_prime_t_list(1,:)
+    write(*,*) "Ct_prime_list is: ", Ct_prime_list(1,:)
+    $endif
+endif
+
+
             
 ! orientation (angles)
 wind_farm%turbine(:)%theta1 = theta1_all
 wind_farm%turbine(:)%theta2 = theta2_all
 
+if (up_vel_calc) then
+    wind_farm%turbine(:)%theta1 = theta1_all
+    wind_farm%turbine(:)%theta2 = theta2_all
+endif
+
+! local thrust coefficient
+wind_farm%turbine(:)%Ct_prime = Ct_prime_all
+
 end subroutine turbines_base_init
+
+!**********************************************************************
+function interpolate(x, y, xi) result(yi)
+!**********************************************************************
+!  This function interpolates from given x and y values (length n) to yi 
+!  values corresponding to provided xi (length ni)
+use messages
+implicit none
+
+real(rprec), intent(in), dimension(:) :: x, y
+real(rprec), intent(in) :: xi
+real(rprec) :: yi, dx, t
+integer :: i, n
+
+n = size(x);
+if (size(y) /= n) then
+	call error('interpolate','x and y are not the same size')
+end if
+
+if ( xi <= x(1) ) then
+	yi = y(1)
+else if ( xi >= x(n) ) then
+	yi = y(n)
+else
+	i = 1
+	do while ( xi > x(i + 1) )
+		i = i + 1
+	end do
+	dx = x(i + 1) - x(i)
+	t = ( xi - x(i) ) / dx
+	yi = (1 - t) * y(i) + t * y(i + 1)
+end if
+
+end function interpolate
+
+!**********************************************************************
+function get_number_of_lines(filename) result(n)
+!**********************************************************************
+! This function counts the number of lines in a file
+use open_file_fid_mod
+use messages
+implicit none
+
+character(*), intent(in) :: filename
+integer :: n, fid, ios
+logical :: exst
+
+! Open file
+inquire (file = filename, exist = exst)
+if (exst) then
+	fid = open_file_fid(filename, 'rewind', 'formatted')
+else
+	call error ('get_number_of_lines', 'file ' // filename // 'does not exist')
+end if
+
+! count number of lines
+ios = 0
+n = 0
+do
+	read(fid, *, IOstat = ios)
+	if (ios /= 0) exit
+	n = n + 1
+enddo
+
+! Close
+close(fid)
+
+end function get_number_of_lines
+
+!**********************************************************************
+subroutine read_values_from_file(filename, v1, v2)
+!**********************************************************************
+! This function counts the number of lines in a file
+use open_file_fid_mod
+use messages
+implicit none
+
+character(*), intent(in) :: filename
+real(rprec), dimension(:), intent(inout) :: v1, v2
+integer :: fid, ios, i
+logical :: exst
+
+! Open file
+inquire (file = filename, exist = exst)
+if (exst) then
+	fid = open_file_fid(filename, 'rewind', 'formatted')
+else
+	call error ('read_values_from_file', 'file ' // filename // 'does not exist')
+end if
+
+! Check that sizes are the same
+if ( size(v1) /= size(v2) ) then
+	call error ('read_values_from_file', 'v1 and v2 are not the same size')
+end if
+
+! read values
+do i  = 1, size(v1)
+	read(fid, *) v1(i), v2(i)
+enddo
+
+! Close
+close(fid)
+
+end subroutine read_values_from_file
 
 end module turbines_base
