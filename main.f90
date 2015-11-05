@@ -83,11 +83,12 @@ $endif
 
 $if($TCM)
 interface
-    subroutine hello() bind(c, name='hello')
+    subroutine hello() bind(c, name='run_model')
     end subroutine
 end interface
-
+if(coord == 0) then
 call hello
+endif
 $endif
 
 ! Start the clocks, both local and total

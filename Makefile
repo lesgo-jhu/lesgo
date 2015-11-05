@@ -141,14 +141,32 @@ ifeq ($(USE_SAFETYMODE), no)
 endif
 
 ifeq ($(USE_TCM), yes)
-  CSPATH = hello/src
-  CSFN = hello.cpp
-  CHFN = hello.h
+  CSPATH = tcm/src
+  CSFN = ConjugateGradient.cpp \
+         Solver.cpp \
+         io.cpp \
+         optimization.cpp \
+         SolverInvariants.cpp \
+         LineSearch.cpp \
+         SimParam.cpp \
+         fortran_interface.cpp
+  CHFN = ConjugateGradient.h \
+         Solver.h \
+         io.h \
+         optimization.h \
+         SolverInvariants.h \
+         LineSearch.h \
+         SimParam.h \
+         fortran_interface.h \
+         defs.h \
+         fdderiv.h \
+         util.h
   CHDR = $(patsubst %.h, $(CSPATH)/%.h, $(CHFN))
   CSRC = $(patsubst %.cpp, $(CSPATH)/%.cpp, $(CSFN))
   COBJ = $(patsubst %.cpp, $(OPATH)/%_cpp.o, $(CSFN))
   CC = g++
-  CLFLAGS = -lstdc++
+  CFLAGS = -O3 -std=c++11
+  CLFLAGS = -lm -lstdc++
 endif
 
 PATHS = $(MPATH) $(OPATH) $(TPATH)
@@ -167,7 +185,7 @@ include .depend
 	makedepf90 -r $(COMPSTR) -b $(OPATH) $(SRCS) > .depend
 
 $(OPATH)/%_cpp.o: $(CSPATH)/%.cpp
-	$(CC) -c $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@
 
 debug:
 	$(MAKE) $(EXE) "FFLAGS = $(FDEBUG) $(FFLAGS)"
