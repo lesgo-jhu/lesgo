@@ -142,7 +142,6 @@ endif
 
 PATHS = $(MPATH) $(OPATH) $(TPATH)
 FOBJ = $(patsubst %.f90, $(OPATH)/%.o, $(SRCS))
-TSRCS = $(patsubst %.f90, $(TPATH)/%.f90, $(SRCS))
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
 COMPSTR = '$(FPP) $$< > t/$$<; $$(FC) -c -o $$@ $$(FFLAGS) t/$$<'
