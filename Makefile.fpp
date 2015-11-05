@@ -76,6 +76,10 @@ ifeq ($(USE_TURBINES), yes)
   FPP += -DTURBINES
 endif
 
+ifeq ($(USE_TCM), yes)
+  FPP += -DTCM
+endif
+
 ifeq ($(USE_DYN_TN), yes)
   FPP += -DDYN_TN
 endif

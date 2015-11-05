@@ -140,20 +140,34 @@ ifeq ($(USE_SAFETYMODE), no)
   EXE := $(EXE)-safety_off
 endif
 
+ifeq ($(USE_TCM), yes)
+  CSPATH = hello/src
+  CSFN = hello.cpp
+  CHFN = hello.h
+  CHDR = $(patsubst %.h, $(CSPATH)/%.h, $(CHFN))
+  CSRC = $(patsubst %.cpp, $(CSPATH)/%.cpp, $(CSFN))
+  COBJ = $(patsubst %.cpp, $(OPATH)/%_cpp.o, $(CSFN))
+  CC = g++
+  CLFLAGS = -lstdc++
+endif
+
 PATHS = $(MPATH) $(OPATH) $(TPATH)
 FOBJ = $(patsubst %.f90, $(OPATH)/%.o, $(SRCS))
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
 COMPSTR = '$(FPP) $$< > t/$$<; $$(FC) -c -o $$@ $$(FFLAGS) t/$$<'
 
-$(EXE): $(FOBJ) | $(PATHS)
-	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $(FOBJ) $(LIBS)
+$(EXE): $(FOBJ) $(COBJ) $(CHDR) | $(PATHS)
+	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $(FOBJ) $(COBJ) $(LIBS) $(CLFLAGS)
 
 include .depend
 
 .depend: $(SRCS)
 	mkdir -p $(PATHS);
 	makedepf90 -r $(COMPSTR) -b $(OPATH) $(SRCS) > .depend
+
+$(OPATH)/%_cpp.o: $(CSPATH)/%.cpp
+	$(CC) -c $< -o $@
 
 debug:
 	$(MAKE) $(EXE) "FFLAGS = $(FDEBUG) $(FFLAGS)"

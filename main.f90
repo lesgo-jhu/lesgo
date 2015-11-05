@@ -37,6 +37,7 @@ use cfl_util
 use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
+use iso_c_binding
 
 $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -78,6 +79,15 @@ type(clock_t) :: clock, clock_total
 $if($MPI)
 ! Buffers used for MPI communication
 real(rprec) :: rbuffer
+$endif
+
+$if($TCM)
+interface
+    subroutine hello() bind(c, name='hello')
+    end subroutine
+end interface
+
+call hello
 $endif
 
 ! Start the clocks, both local and total

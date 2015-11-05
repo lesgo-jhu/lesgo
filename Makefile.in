@@ -79,8 +79,10 @@ WRITE_ENDIAN = DEFAULT
 # Options: DEFAULT, LITTLE, or BIG
 READ_ENDIAN = DEFAULT
 
-# Use binary output for output files
 USE_TURBINES=yes
+USE_TCM=no
+
+# Use binary output for output files
 USE_BINARY=yes
 
 # Use CGNS data output
