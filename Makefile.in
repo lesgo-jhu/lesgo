@@ -25,7 +25,7 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = gfortran
+FCOMP = ifort
 ## Top line general. Lines 2,3,4 for Panoramorix.
 ## Note that the order of the libraries here can make a difference (compilation problems); depends on the compiler
 INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
@@ -34,7 +34,8 @@ INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/usr/local/cgns/include \
  -I/act/fftw3/openmpi-1.6/gcc-4.7.2/include \
  -I/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include \
- -I/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include
+ -I/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include \
+ -I/cm/shared/apps/Intel/fftw/3.3.4/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
@@ -42,7 +43,8 @@ LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
  -L/act/fftw3/openmpi-1.6/gcc-4.7.2/lib \
  -L/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib \
- -L/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib
+ -L/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib \
+ -L/cm/shared/apps/Intel/fftw/3.3.4/lib
  
 HOSTNAME = $(shell hostname -s)
 
@@ -78,11 +80,11 @@ WRITE_ENDIAN = DEFAULT
 READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
-USE_TURBINES=no
-USE_BINARY=no
+USE_TURBINES=yes
+USE_BINARY=yes
 
 # Use CGNS data output
-USE_CGNS=yes
+USE_CGNS=no
 
 USE_LVLSET = no
   USE_RNS_LS = no
@@ -101,9 +103,10 @@ include Makefile.fpp
 
 # Directory for the .o files
 OPATH = obj
-# Directory for the .mod files, if your compiler generates them
-# May want to just make this 'obj' as well
+# Directory for the .mod files
 MPATH = mod
+# Directory for the preprocessed files 
+TPATH = t
 
 # Set the library list
 ifeq ($(USE_FFTW3),yes)
@@ -122,13 +125,13 @@ ifeq ($(FCOMP),ifort)
     FC = ifort
   endif
 
-  LIBS += -ltecryte-intel
+  #LIBS += -ltecryte-intel
   ifeq ($(USE_CYL_SKEW_LS),yes)
     LIBS += -lcgaml-intel
   endif
 
-  FFLAGS = -O0 -check bounds -g -debug all -traceback -warn all -shared intel -heap-arrays
-  #FFLAGS = -O3 -shared intel -heap-arrays
+  #FFLAGS = -O0 -check bounds -g -debug all -traceback -warn all -shared intel -heap-arrays
+  FFLAGS = -O3 -heap-arrays -funroll-loops
   FPROF = -p
   LDFLAGS = -threads
   MODDIR = -I$(MPATH) -module $(MPATH)

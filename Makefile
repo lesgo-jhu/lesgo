@@ -140,15 +140,16 @@ ifeq ($(USE_SAFETYMODE), no)
   EXE := $(EXE)-safety_off
 endif
 
+PATHS = $(MPATH) $(OPATH) $(TPATH)
 
 #COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<; rm -f t.$$<'
-COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
+COMPSTR = '$(FPP) $$< > t/$$<; $$(FC) -c -o $$@ $$(FFLAGS) t/$$<'
 
 
 include .depend
 
 .depend: $(SRCS)
-	mkdir -p $(OPATH) $(MPATH);
+	mkdir -p $(PATHS);
 	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend
 
 debug:
@@ -161,10 +162,7 @@ prof:
 convert_endian:	utils/convert_endian.f90
 	$(FC) -o $@ $(FFLAGS) $(LDFLAGS) $<
 
-# This doesn't remove .mod files--should be OK as long a dependency list 
-# for the .o files is correct.
-# FOBJ is defined in .depend
+# Cleans build by removing MPATH, OPATH, TPATH, and .depend
 .PHONY : clean
 clean :
-	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
-	rm -f t.*
+	rm -rf $(PATHS) .depend*
