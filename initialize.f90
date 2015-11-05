@@ -64,6 +64,9 @@ $endif
 $if ($TURBINES)
 use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
+$if ($TCM)
+use tcm, only : tcm_init
+$endif
 $endif
 
 $if ($DEBUG)
@@ -191,6 +194,10 @@ if( use_cfl_dt ) then
       dt_dim = dt * z_i / u_star
    endif
 endif
+
+$if ($TURBINES .AND. $TCM)
+call tcm_init()
+$endif
 
 return
 end subroutine initialize

@@ -89,6 +89,8 @@ RNS_CYL_SKEW_LS_SRCS = rns_cyl_skew_ls.f90
 
 TURBINES_SRCS = turbines.f90 turbines_base.f90
 
+TCM_SRCS = tcm.f90
+
 CPS_SRCS = concurrent_precursor.f90
 
 ifeq ($(USE_MPI), yes)
@@ -122,6 +124,9 @@ endif
 ifeq ($(USE_TURBINES), yes)
   SRCS += $(TURBINES_SRCS)
   EXE := $(EXE)-turbines
+  ifeq ($(USE_TCM), yes)
+    SRCS += $(TCM_SRCS)
+  endif
 endif
 
 ifeq ($(OUTPUT_EXTRA), yes)

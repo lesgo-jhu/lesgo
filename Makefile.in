@@ -25,27 +25,24 @@
 #   http://wwwuser.gwdg.de/~jbehren/fpx3.html
 
 SHELL = /bin/bash
-FCOMP = ifort
+FCOMP = gfortran
 ## Top line general. Lines 2,3,4 for Panoramorix.
 ## Note that the order of the libraries here can make a difference (compilation problems); depends on the compiler
 INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/opt/cgns-3.2.1-hdf5-mpi/include -I/opt/hdf5-1.8.12-mpi/include \
  -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include \
- -I/act/fftw3/openmpi-1.6/gcc-4.7.2/include \
- -I/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include \
- -I/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include \
- -I/cm/shared/apps/Intel/fftw/3.3.4/include
+ -I/act/fftw3/mpich/gcc-4.7.2/include \
+ -I/act/hdf5-1.8.15/mpich/gcc-4.7.2/include \
+ -I/act/cgns-3.2.1/mpich/gcc-4.7.2/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
  -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
- -L/act/fftw3/openmpi-1.6/gcc-4.7.2/lib \
- -L/act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib \
- -L/act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib \
- -L/cm/shared/apps/Intel/fftw/3.3.4/lib
- 
+ -L/act/fftw3/mpich/gcc-4.7.2/lib \
+ -L/act/hdf5-1.8.15/mpich/gcc-4.7.2/lib \
+ -L/act/cgns-3.2.1/mpich/gcc-4.7.2/lib
 HOSTNAME = $(shell hostname -s)
 
 # Set either double or single precision
@@ -80,7 +77,7 @@ WRITE_ENDIAN = DEFAULT
 READ_ENDIAN = DEFAULT
 
 USE_TURBINES=yes
-USE_TCM=no
+USE_TCM=yes
 
 # Use binary output for output files
 USE_BINARY=yes

@@ -320,9 +320,13 @@ if (control == 2) then
         write(*,*) "Pref_list for row ", k, " is: ", Pref_list(k,:)
         $endif
     enddo
-elseif (control == 3) then
+elseif (control == 3 .OR. control == 6) then
     ! Count number of lines
-    Pref_dat = path // 'input/Pref.dat'
+    if (control == 3) then
+        Pref_dat = path // 'input/Pref.dat'
+    else
+        Pref_dat = path // 'input/Pref_tcm.dat'
+    endif 
     num_list = get_number_of_lines(Pref_dat)
 
     ! Allocate

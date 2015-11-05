@@ -141,8 +141,11 @@ do
      call sgs_hist_block()
 
   $if ($TURBINES)
+  $if ($TCM)  
+  case ('TCM')
+     call tcm_block()
+  $endif
   case ('TURBINES')
-  
      call turbines_block()
   $endif
 
@@ -1065,6 +1068,57 @@ enddo
 
 return
 end subroutine  turbines_block
+
+$if ($TCM)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tcm_block()
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use tcm
+implicit none
+
+character(*), parameter :: block_name = 'TURBINE_CONTROL_MODEL'
+
+do
+  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
+                 equal_pos, ios )
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
+  if( block_exit_pos == 0 ) then
+     ! Check that the data entry conforms to correct format
+     call checkentry()
+
+     select case (uppercase(buff(1:equal_pos-1)))
+     case ('TCM_U')
+        read (buff(equal_pos+1:), *) tcm_u
+     case ('TCM_K')
+        read (buff(equal_pos+1:), *) tcm_k
+     case ('TCM_DELTA')
+        read (buff(equal_pos+1:), *) tcm_delta
+     case ('TCM_NX')
+        read (buff(equal_pos+1:), *) tcm_Nx
+     case ('TCM_T')
+        read (buff(equal_pos+1:), *) tcm_T
+     case ('TCM_CFL')
+        read (buff(equal_pos+1:), *) tcm_cfl
+     case ('TCM_ALPHA')
+        read (buff(equal_pos+1:), *) tcm_alpha
+     case ('TCM_GAMMA')
+        read (buff(equal_pos+1:), *) tcm_gamma
+     case ('TCM_ETA')
+        read (buff(equal_pos+1:), *) tcm_eta
+     case default
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+     end select
+  elseif( block_exit_pos == 1 ) then
+     return
+  else
+     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
+  endif
+enddo
+
+return
+
+end subroutine tcm_block
+$endif !($TCM)
 $endif !($TURBINES)
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -937,7 +937,7 @@ if (coord == 0) then
         do s = 1,nloc
             wind_farm%turbine(s)%Ct_prime = dummy
         enddo
-    elseif (control == 4) then
+    elseif (control == 4 .OR. control == 6) then
         do i=1,num_x
             dummy = interpolate(Ct_prime_t_list(i,:),Ct_prime_list(i,:), total_time_dim)
             do j = 1,num_y
