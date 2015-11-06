@@ -195,8 +195,10 @@ if( use_cfl_dt ) then
    endif
 endif
 
-$if ($TURBINES .AND. $TCM)
+$if ($TURBINES)
+$if ($TCM)
 call tcm_init()
+$endif
 $endif
 
 return

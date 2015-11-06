@@ -38,14 +38,16 @@ integer :: tcm_maxIter
 ! Other derived values
 real(rprec), dimension(:), allocatable :: s                 ! streamwise turbine locations
 
+! Optimization values
+real(rprec), dimension(:), allocatable :: vs                ! Optimization states
+real(rprec), dimension(:), allocatable :: u_hat             ! estimated local velocities
+
 interface
-    subroutine run_tcm (t, Ctp, Pref, s, N, Nt, foo, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter) bind(c, name='run_model')
+    subroutine run_tcm (t, Ctp, Pref, vs, u_hat, s, N, Nt, Nx, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter) bind(c, name='run_model')
         import :: c_double, c_int
-        real(c_double), intent(in)          :: t(*)
-        real(c_double), intent(out)         :: Ctp(*)
-        real(c_double), intent(out)         :: Pref(*)
-        real(c_double), intent(in)          :: s(*)
-        integer(c_int), intent(in), value   :: N, Nt, foo, maxIter
+        real(c_double), intent(in)          :: t(*), s(*)
+        real(c_double), intent(out)         :: Ctp(*), Pref(*), vs(*), u_hat(*)
+        integer(c_int), intent(in), value   :: N, Nt, Nx, maxIter
         real(c_double), intent(in), value   :: u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta
     end subroutine run_tcm
 end interface
@@ -55,8 +57,7 @@ contains
 subroutine tcm_init()
 !**********************************************************************
 use types, only : rprec
-use param, only : z_i, u_star, total_time_dim
-use cfl_util, only : get_cfl_dt
+use param, only : z_i, u_star, total_time_dim, dx, cfl
 !use open_file_fid_mod
 !use turbines
 use turbines_base, only : Pref_list, Pref_t_list, Ct_prime_list, Ct_prime_t_list, read_values_from_file, get_number_of_lines, interpolate, num_x, num_y, control, dia_all, Ct_prime_all
@@ -73,8 +74,8 @@ integer :: num_t
 if (control /= 6) return
 
 ! Get a rough estimate of the times needed for the controller.
-! These values will be interpolated, so one value per time step is ok.
-dt_dummy = get_cfl_dt() * z_i / u_star
+! These values will be interpolated, so one value per several time steps is ok.
+dt_dummy = cfl * dx / 18. / u_star
 num_t = ceiling((tcm_T - total_time_dim)/dt_dummy) + 1
 allocate(t_carray(num_t));
 allocate(Pref_carray(num_t));
@@ -91,9 +92,13 @@ do k = 1, num_x
     s(k) = wind_farm%turbine(1 + (k-1)*(num_y))%xloc * z_i
 enddo
 
+! Allocate some variables
+allocate(vs(num_x*tcm_Nx))
+allocate(u_hat(num_x))
+
 ! Get Ct_prime list from control model
 allocate(Ct_prime_carray(num_t * num_x))
-call run_tcm(t_carray, Ct_prime_carray, Pref_carray, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
+call run_tcm(t_carray, Ct_prime_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
 
 ! Apply to Ct_prime_list
 allocate(Ct_prime_t_list(num_x,num_t))
