@@ -33,18 +33,19 @@ real(rprec) :: tcm_cfl          ! CFL condition
 real(rprec) :: tcm_alpha
 real(rprec) :: tcm_gamma
 real(rprec) :: tcm_eta
+integer :: tcm_maxIter
 
 ! Other derived values
 real(rprec), dimension(:), allocatable :: s                 ! streamwise turbine locations
 
 interface
-    subroutine run_tcm (t, Ctp, Pref, s, N, Nt, foo, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta) bind(c, name='run_model')
+    subroutine run_tcm (t, Ctp, Pref, s, N, Nt, foo, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter) bind(c, name='run_model')
         import :: c_double, c_int
         real(c_double), intent(in)          :: t(*)
         real(c_double), intent(out)         :: Ctp(*)
         real(c_double), intent(out)         :: Pref(*)
         real(c_double), intent(in)          :: s(*)
-        integer(c_int), intent(in), value   :: N, Nt, foo
+        integer(c_int), intent(in), value   :: N, Nt, foo, maxIter
         real(c_double), intent(in), value   :: u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta
     end subroutine run_tcm
 end interface
@@ -92,7 +93,7 @@ enddo
 
 ! Get Ct_prime list from control model
 allocate(Ct_prime_carray(num_t * num_x))
-call run_tcm(t_carray, Ct_prime_carray, Pref_carray, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta)
+call run_tcm(t_carray, Ct_prime_carray, Pref_carray, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
 
 ! Apply to Ct_prime_list
 allocate(Ct_prime_t_list(num_x,num_t))
