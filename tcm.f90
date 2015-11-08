@@ -19,7 +19,7 @@
 
 module tcm
 use types, only : rprec
-use param
+!use param
 use iso_c_binding
 implicit none
 
@@ -34,19 +34,29 @@ real(rprec) :: tcm_alpha
 real(rprec) :: tcm_gamma
 real(rprec) :: tcm_eta
 integer :: tcm_maxIter
+real(rprec) :: steady_state_power
 
 ! Other derived values
 real(rprec), dimension(:), allocatable :: s                 ! streamwise turbine locations
 
-! Optimization values
+! Intermediate arrays stored in lesgo
 real(rprec), dimension(:), allocatable :: vs                ! Optimization states
 real(rprec), dimension(:), allocatable :: u_hat             ! estimated local velocities
+real(rprec), dimension(:), allocatable :: t_carray          ! time array for tcm
+real(rprec), dimension(:), allocatable :: Pref_carray       ! power reference for tcm
 
 interface
+    subroutine initialize_tcm (t, Ctp, Pref, vs, u_hat, s, N, Nt, Nx, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter) bind(c, name='initialize_tcm')
+        import :: c_double, c_int
+        real(c_double), intent(in)          :: t(*), s(*), Ctp(*)
+        real(c_double), intent(out)         :: Pref(*), vs(*), u_hat(*)
+        integer(c_int), intent(in), value   :: N, Nt, Nx, maxIter
+        real(c_double), intent(in), value   :: u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta
+    end subroutine initialize_tcm
     subroutine run_tcm (t, Ctp, Pref, vs, u_hat, s, N, Nt, Nx, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter) bind(c, name='run_model')
         import :: c_double, c_int
-        real(c_double), intent(in)          :: t(*), s(*)
-        real(c_double), intent(out)         :: Ctp(*), Pref(*), vs(*), u_hat(*)
+        real(c_double), intent(in)          :: t(*), s(*), Pref(*)
+        real(c_double), intent(out)         :: Ctp(*), vs(*), u_hat(*)
         integer(c_int), intent(in), value   :: N, Nt, Nx, maxIter
         real(c_double), intent(in), value   :: u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta
     end subroutine run_tcm
@@ -60,13 +70,14 @@ use types, only : rprec
 use param, only : z_i, u_star, total_time_dim, dx, cfl
 !use open_file_fid_mod
 !use turbines
-use turbines_base, only : Pref_list, Pref_t_list, Ct_prime_list, Ct_prime_t_list, read_values_from_file, get_number_of_lines, interpolate, num_x, num_y, control, dia_all, Ct_prime_all
+use turbines_base, only : Pref_list, Pref_t_list, Ct_prime_list, Ct_prime_t_list, read_values_from_file, &
+    get_number_of_lines, interpolate, num_x, num_y, control, dia_all, Ct_prime_all
 use stat_defs, only : wind_farm
 use messages
 implicit none
 
 integer :: i, j, k
-real(rprec), dimension(:), allocatable :: t_carray, Pref_carray, Ct_prime_carray
+real(rprec), dimension(:), allocatable :: Ct_prime_carray   ! Intermediate Ct_prime array
 real(rprec) :: dt_dummy
 integer :: num_t
 
@@ -93,12 +104,17 @@ do k = 1, num_x
 enddo
 
 ! Allocate some variables
-allocate(vs(num_x*tcm_Nx))
+allocate(vs(num_x*(tcm_Nx+1)))
 allocate(u_hat(num_x))
 
 ! Get Ct_prime list from control model
 allocate(Ct_prime_carray(num_t * num_x))
-call run_tcm(t_carray, Ct_prime_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
+call initialize_tcm(t_carray, Ct_prime_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, &
+    tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
+write(*,*) "Steady-state power is: ", steady_state_power
+write(*,*) "uhat is: ", u_hat
+call run_tcm(t_carray, Ct_prime_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, tcm_k, &
+    tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter)
 
 ! Apply to Ct_prime_list
 allocate(Ct_prime_t_list(num_x,num_t))
