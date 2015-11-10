@@ -417,24 +417,61 @@ integer :: i, n
 
 n = size(x);
 if (size(y) /= n) then
-	call error('interpolate','x and y are not the same size')
+    call error('interpolate','x and y are not the same size')
 end if
 
 if ( xi <= x(1) ) then
-	yi = y(1)
+    yi = y(1)
 else if ( xi >= x(n) ) then
-	yi = y(n)
+    yi = y(n)
 else
-	i = 1
-	do while ( xi > x(i + 1) )
-		i = i + 1
-	end do
-	dx = x(i + 1) - x(i)
-	t = ( xi - x(i) ) / dx
-	yi = (1 - t) * y(i) + t * y(i + 1)
+    i = 1
+    do while ( xi > x(i + 1) )
+        i = i + 1
+    end do
+    dx = x(i + 1) - x(i)
+    t = ( xi - x(i) ) / dx
+    yi = (1 - t) * y(i) + t * y(i + 1)
 end if
 
 end function interpolate
+
+!**********************************************************************
+function interpolate_vec(x, y, xi) result(yi)
+!**********************************************************************
+!  This function interpolates from given x and y values (length n) to yi 
+!  values corresponding to provided xi (length ni)
+use messages
+implicit none
+
+real(rprec), intent(in), dimension(:) :: x, y, xi
+real(rprec), dimension(size(xi)) :: yi
+real(rprec) :: dx, t
+integer :: i, j, n, k
+
+n = size(x);
+k = size(xi);
+if (size(y) /= n) then
+    call error('interpolate','x and y are not the same size')
+end if
+
+j = 1
+do i = 1, k
+    if ( xi(i) <= x(1) ) then
+        yi(i) = y(1)
+    else if ( xi(i) >= x(n) ) then
+        yi(i) = y(n)
+    else
+        do while ( xi(i) > x(j + 1) )
+            j = j + 1
+        end do
+        dx = x(j + 1) - x(j)
+        t = ( xi(i) - x(j) ) / dx
+        yi(i) = (1 - t) * y(j) + t * y(j + 1)
+    end if
+enddo
+
+end function interpolate_vec
 
 !**********************************************************************
 function get_number_of_lines(filename) result(n)

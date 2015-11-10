@@ -1087,6 +1087,10 @@ do
      call checkentry()
 
      select case (uppercase(buff(1:equal_pos-1)))
+     case ('RECEDING_HORIZON')
+        read (buff(equal_pos+1:), *) receding_horizon
+     case ('T_ADVANCE')
+        read (buff(equal_pos+1:), *) t_advance
      case ('TCM_U')
         read (buff(equal_pos+1:), *) tcm_u
      case ('TCM_K')

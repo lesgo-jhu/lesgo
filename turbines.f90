@@ -118,7 +118,7 @@ call turbines_nodes                  ! removed large 3D array to limit memory us
 call turbines_filter_ind()
     
 if (turbine_cumulative_time) then
-    if (coord == 0) then
+    if (turbine_in_proc .or. coord == 0) then
         string1 = path // 'turbine/turbine_u_d_T.dat'
         inquire (file=string1, exist=exst)
         if (exst) then
@@ -760,6 +760,9 @@ end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
 use sim_param, only: u,v,w, fxa
+$if ($TCM)
+use tcm, only: run_tcm, tcm_t_eval, receding_horizon, u_meas
+$endif
 use functions, only: interp_to_uv_grid
 
 implicit none
@@ -854,18 +857,43 @@ $if ($MPI)
     call mpi_barrier (comm,ierr)
 
     !############################################## 3
-    if (coord == 0) then
-        do i=1,turbine_in_proc_cnt
-            j = turbine_in_proc_array(i)
-            buffer_array = 0.
-            call MPI_recv( buffer_array, nloc, MPI_rprec, j, 3, comm, status, ierr )
-            disk_avg_vels = disk_avg_vels + buffer_array
-            
-        enddo              
-                
-    elseif (turbine_in_proc) then
-        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
-    endif            
+        if (coord == 0) then
+            do i=1,turbine_in_proc_cnt
+                j = turbine_in_proc_array(i)
+                buffer_array = 0.
+                call MPI_recv( buffer_array, nloc, MPI_rprec, j, 3, comm, status, ierr )
+                disk_avg_vels = disk_avg_vels + buffer_array 
+            enddo              
+        elseif (turbine_in_proc) then
+            call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
+        endif           
+
+        call mpi_barrier(comm, ierr)
+
+        if (coord == 0) then
+ !           write(*,*) "Coord 0: ", disk_avg_vels 
+            do i=1,turbine_in_proc_cnt
+                j = turbine_in_proc_array(i)
+                call MPI_send( disk_avg_vels, nloc, MPI_rprec, j, 4, comm,  ierr )
+            enddo
+        elseif (turbine_in_proc) then
+            call MPI_recv( disk_avg_vels, nloc, MPI_rprec, 0, 4, comm, status, ierr )
+!            write(*,*) "Coord ?: ", disk_avg_vels 
+        endif
+
+ 
+!    if (coord == 0) then
+!        do i=1,turbine_in_proc_cnt
+!            j = turbine_in_proc_array(i)
+!            buffer_array = 0.
+!            call MPI_reduce( disk_avg_vels, buffer_array, nloc, MPI_rprec, MPI_SUM, 0, comm, ierr )
+!!            disk_avg_vels = buffer_array
+!            
+!        enddo              
+!                
+!    elseif (turbine_in_proc) then
+!        call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
+!    endif            
     !##############################################
     
     if (up_vel_calc) then
@@ -889,8 +917,8 @@ $if ($MPI)
                   
 $endif
 
-!Coord==0 takes that info and calculates total disk force, then sends it back
-if (coord == 0) then           
+if (turbine_in_proc .or. coord == 0) then
+
     !update epsilon for the new timestep (for cfl_dt)
     if (T_avg_dim > 0.) then
         eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
@@ -938,6 +966,20 @@ if (coord == 0) then
             wind_farm%turbine(s)%Ct_prime = dummy
         enddo
     elseif (control == 4 .OR. control == 6) then
+        $if ($TCM)
+        if (control == 6) then
+            !write(*,*) "u_meas = ", u_meas
+            if (receding_horizon .and. total_time_dim > tcm_t_eval) then
+                do i=1,num_x
+                    u_meas(i) = 0.
+                    do j = 1,num_y
+                        u_meas(i) = u_meas(i) - (wind_farm%turbine(j + num_y*(i-1))%u_d_T) * u_star / num_y
+                    enddo
+                enddo
+                call run_tcm()
+            endif
+        endif
+        $endif
         do i=1,num_x
             dummy = interpolate(Ct_prime_t_list(i,:),Ct_prime_list(i,:), total_time_dim)
             do j = 1,num_y
@@ -953,6 +995,10 @@ if (coord == 0) then
     else
         call error ('turbines_forcing', 'invalid control')
     endif
+endif
+
+!Coord==0 takes that info and calculates total disk force, then sends it back
+if (coord == 0) then           
     
     do s=1,nloc
         !set pointers
