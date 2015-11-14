@@ -1074,9 +1074,13 @@ $if ($TCM)
 subroutine tcm_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use tcm
+use turbines_base, only : num_x
+use string_util, only : split_string
 implicit none
 
 character(*), parameter :: block_name = 'TURBINE_CONTROL_MODEL'
+integer :: i, n_k
+character(CHAR_BUFF_LENGTH), allocatable, dimension(:) :: k_str_vector
 
 do
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
@@ -1094,7 +1098,14 @@ do
      case ('TCM_U')
         read (buff(equal_pos+1:), *) tcm_u
      case ('TCM_K')
-        read (buff(equal_pos+1:), *) tcm_k
+        call split_string( buff(equal_pos+1:), ",", n_k, k_str_vector )
+        if (n_k /= num_x) then
+            call error( sub_name, 'k must have num_x number of entries')
+        endif
+        allocate(tcm_k(n_k))
+        do i = 1, n_k
+            read(k_str_vector(i), *) tcm_k(i)
+        enddo
      case ('TCM_DELTA')
         read (buff(equal_pos+1:), *) tcm_delta
      case ('TCM_NX')
@@ -1111,6 +1122,8 @@ do
         read (buff(equal_pos+1:), *) tcm_eta
      case ('TCM_MAXITER')
         read (buff(equal_pos+1:), *) tcm_maxIter
+     case ('SCALE_PREF')
+        read (buff(equal_pos+1:), *) scale_pref
      case default
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
