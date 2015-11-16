@@ -973,8 +973,9 @@ if (turbine_in_proc .or. coord == 0) then
                 do i=1,num_x
                     u_meas(i) = 0.
                     do j = 1,num_y
-                        u_meas(i) = u_meas(i) - (wind_farm%turbine(j + num_y*(i-1))%u_d_T) * u_star / num_y
+                        u_meas(i) = u_meas(i) - (wind_farm%turbine(j + num_y*(i-1))%u_d_T**3) * u_star**3 / num_y
                     enddo
+                    u_meas(i) = u_meas(i)**(1.0/3.0)
                 enddo
                 call run_tcm()
             endif
