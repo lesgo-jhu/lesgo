@@ -32,6 +32,7 @@ BladeIner             11.776047E6;
 TorqueControllerType   "fiveRegion";
 //TorqueControllerType   "fixedTSR";
 //~ YawControllerType      "none";
+//~ YawControllerType      "none";
 YawControllerType      "timeYawTable";
 PitchControllerType    "none";
 //PitchControllerType    "simpleLinear";
