@@ -31,7 +31,8 @@ module emul_complex
 
 use types, only : rprec
 use messages, only : error
-use param, only : kx_num, kx_dft   !!jb
+use param, only : kx_num, kx_dft,coord   !!jb
+use fft, only: kx_veci
 implicit none
 
 save
@@ -229,7 +230,7 @@ real(rprec) ::  a_c_i, cache
 
 integer :: i,j,ii,ir
 integer :: nx_r, nx_c, ny
-integer :: end_kx    !!jb
+integer :: end_kx, i_s    !!jb
 
 ! Get the size of the incoming arrays
 nx_r = size(a,1)
@@ -237,7 +238,7 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
-write(*,*) 'nx_r, nx_c, ny: ', nx_r, nx_c, ny
+!!write(*,*) 'nx_r, nx_c, ny: ', nx_r, nx_c, ny
 
 $if ($DEBUG)
 if ( nx_r .NE. 2*nx_c .OR. &
@@ -253,10 +254,30 @@ else
    end_kx = nx_c
 endif
 
+!!if (coord == 0) write(*,*) 'in MULI'
+
 !  Emulate complex multiplication
 do j=1, ny !  Using outer loop to get contiguous memory access
-  do i=1,nx_c   !end_kx?       !!jb
+  do i=1,end_kx   !nx_c       !!jb
 
+    if (kx_dft) then
+
+    i_s = kx_veci(i)
+
+    !  Real and imaginary indicies of a
+    ii = 2*i_s
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_c_i = a_c(i_s,j)
+
+    !  Perform multiplication (cache data to ensure sequential access)
+    cache = a(ir,j) * a_c_i
+    b(ir,j) = - a(ii,j) * a_c_i
+    b(ii,j) =  cache
+
+    else
+    
     !  Real and imaginary indicies of a
     ii = 2*i
     ir = ii-1
@@ -268,6 +289,8 @@ do j=1, ny !  Using outer loop to get contiguous memory access
     cache = a(ir,j) * a_c_i
     b(ir,j) = - a(ii,j) * a_c_i
     b(ii,j) =  cache
+
+    endif
 
   enddo
 enddo

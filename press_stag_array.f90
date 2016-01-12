@@ -350,19 +350,23 @@ do jz = jz_min, nz
 
       if (jx*jy == 1) cycle
 
-!!$      ii = 2*jx   ! imaginary index 
-!!$      ir = ii - 1 ! real index
-!!$
-!!$      a(jx, jy, jz) = const3
-!!$      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
-!!$      c(jx, jy, jz) = const3   
-!!$
-!!$      aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx,jy) 
-!!$      aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx,jy) 
-!!$      aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx,jy) 
-!!$      aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
-!!$
-!!$      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
+      if (.not. kx_dft) then
+
+      ii = 2*jx   ! imaginary index 
+      ir = ii - 1 ! real index
+
+      a(jx, jy, jz) = const3
+      b(jx, jy, jz) = -(kx(jx, jy)**2 + ky(jx, jy)**2 + 2._rprec*const3)
+      c(jx, jy, jz) = const3   
+
+      aH_x(1) = -rH_x(ii,jy,jz-1) * kx(jx,jy) 
+      aH_x(2) =  rH_x(ir,jy,jz-1) * kx(jx,jy) 
+      aH_y(1) = -rH_y(ii,jy,jz-1) * ky(jx,jy) 
+      aH_y(2) =  rH_y(ir,jy,jz-1) * ky(jx,jy) 
+
+      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
+
+      else
 
       jx_s = kx_veci(jx)
 
@@ -380,6 +384,7 @@ do jz = jz_min, nz
 
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
+      endif
 
       $if ($DEBUG)
       if (TRI_DEBUG) then
@@ -483,14 +488,15 @@ do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,end_kx  !lh     !!jb
 
-!!$  ii = 2*jx
-!!$  ir = ii - 1
-!!$
-!!$  dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx,jy) 
-!!$  dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx,jy) 
-!!$  dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx,jy) 
-!!$  dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx,jy) 
+if (.not. kx_dft) then
+  ii = 2*jx
+  ir = ii - 1
 
+  dfdx(ir,jy,jz) = -p_hat(ii,jy,jz) * kx(jx,jy) 
+  dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx,jy) 
+  dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx,jy) 
+  dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx,jy) 
+else
   jx_s = kx_veci(jx)
 
   ii = 2*jx_s
@@ -500,6 +506,7 @@ do jx=1,end_kx  !lh     !!jb
   dfdx(ii,jy,jz) =  p_hat(ir,jy,jz) * kx(jx_s,jy) 
   dfdy(ir,jy,jz) = -p_hat(ii,jy,jz) * ky(jx_s,jy) 
   dfdy(ii,jy,jz) =  p_hat(ir,jy,jz) * ky(jx_s,jy) 
+endif
 
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do

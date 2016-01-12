@@ -85,7 +85,7 @@ USE_BINARY=yes
 USE_CGNS=no
 
 # Restricted nonlinear (RNL) model
-USE_RNL=no
+USE_RNL=yes
 
 USE_LVLSET = no
   USE_RNS_LS = no

@@ -182,7 +182,8 @@ if (sgs_model .eq. 5) then
 endif
 
 ! Set constants
-    delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
+    !!delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
+    delta=filter_size*(dy*dz)**(1._rprec/2._rprec) ! nondimensional
 
     if (molec) then
         nu = (nu_molec/(u_star*z_i))    ! dimensionless

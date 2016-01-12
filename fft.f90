@@ -181,19 +181,20 @@ complex(rprec) :: c1, c1_big   !!jb
 complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
 
 ! Allocate wavenumbers
-!if (kx_dft) then             !!jb
-!  allocate( kx(kx_num,ny), ky(kx_num,ny), k2(kx_num,ny) )
-!else
+!!if (kx_dft) then             !!jb
+!!  allocate( kx(kx_num,ny), ky(kx_num,ny), k2(kx_num,ny) )
+!!else
   allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
-!endif
+!!endif
+
+  allocate( kx_veci ( kx_num ) )    !!jb
+  kx_veci = int( kx_vec ) + 1    !!jb
 
 if (kx_dft) then
   allocate( expp(kx_num, nx), expn(kx_num, nx) )
   allocate( expp_big(kx_num, nx2), expn_big(kx_num, nx2) )
   !allocate( ky_vec( ny ) )
-  allocate( kx_veci ( kx_num ) )    !!jb
 
-  kx_veci = int( kx_vec ) + 1    !!jb
   kx_vec = kx_vec * 2._rprec * pi / L_x     !!jb , aspect ratio change
 
   c1     = L_x / real(nx,rprec) * imag   !!jb
@@ -225,8 +226,12 @@ end do
 !!$endif
 
 if (kx_limit) then     !!jb
-   kx(2,:) = real(kx_allow,kind=rprec)
+   kx(:,:) = real(kx_allow,kind=rprec) * kx(:,:)
 endif
+
+!!$if (kx_limit) then     !!jb
+!!$   kx(2,:) = real(kx_allow,kind=rprec)
+!!$endif
 
 do jy=1,ny
    ky(:,jy) = real(modulo(jy - 1 + ny/2,ny) - ny/2,kind=rprec)

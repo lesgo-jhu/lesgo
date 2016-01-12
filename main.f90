@@ -699,18 +699,18 @@ time_loop: do jt_step = nstart, nsteps
 
     end if
 
-if (coord == 0) then
-write(*,*) '>>>>>>>>>>>>>>>>>>>>>>>>> jt =', jt
-do jx=1,nx
-do jy=1,ny
-do jz=1,nz
-   write(*,*) 'jx, jy, jz      : ', jx, jy, jz
-   write(*,*) 'u,  v,  w       : ', u(jx,jy,jz), v(jx,jy,jz), w(jx,jy,jz)
-   write(*,*) 'dpdx, dpdy, dpdz: ', dpdx(jx,jy,jz), dpdy(jx,jy,jz), dpdz(jx,jy,jz)
-enddo
-enddo
-enddo
-endif
+!if (coord == 0) then
+!write(*,*) '>>>>>>>>>>>>>>>>>>>>>>>>> jt =', jt
+!do jx=1,nx
+!do jy=1,ny
+!do jz=1,nz
+!   write(*,*) 'jx, jy, jz      : ', jx, jy, jz
+!   write(*,*) 'u,  v,  w       : ', u(jx,jy,jz), v(jx,jy,jz), w(jx,jy,jz)
+!   write(*,*) 'dpdx, dpdy, dpdz: ', dpdx(jx,jy,jz), dpdy(jx,jy,jz), dpdz(jx,jy,jz)
+!enddo
+!enddo
+!enddo
+!endif
 
 end do time_loop
 ! END TIME LOOP

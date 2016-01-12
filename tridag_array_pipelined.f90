@@ -21,6 +21,7 @@
 subroutine tridag_array_pipelined (tag, a, b, c, r, u)
 use types,only:rprec
 use param
+use fft, only: kx_num, kx_veci      !!jb
 implicit none
 
 integer, intent (in) :: tag  !--base tag
@@ -46,6 +47,7 @@ integer :: chunksize,cstart,cend,jx,jy,j,j_min,j_max,tag0,q,ii,ir
 
 real(rprec)::bet(lh, ny)
 real(rprec),dimension(lh, ny, nz+1)::gam
+integer :: end_kx, jx_s     !!jb
 
 !--want to skip ny/2+1 and 1, 1
 
@@ -55,10 +57,17 @@ nchunks = ny
 
 chunksize = ny / nchunks  !--make sure nchunks divides ny evenly
 
+if (kx_dft) then    !!jb
+   end_kx = kx_num
+else
+   end_kx = lh-1
+endif
+
+
 if (coord == 0) then
 
   do jy = 1, ny
-    do jx = 1, lh-1
+    do jx = 1, end_kx    !lh-1    !!jb
 
 $if ($DEBUG)
       if (b(jx, jy, 1) == 0._rprec) then
@@ -67,10 +76,21 @@ $if ($DEBUG)
       end if
 $endif
 
+if (kx_dft) then
+
+      jx_s = kx_veci(jx)
+
+      ii = 2*jx_s
+      ir = ii - 1
+
+      u(ir:ii,jy,1) = r(ir:ii,jy,1) / b(jx_s,jy,1)
+
+else
       ii = 2*jx
       ir = ii - 1
 
       u(ir:ii,jy,1) = r(ir:ii,jy,1) / b(jx,jy,1)
+endif
 
     end do
   end do
@@ -118,12 +138,24 @@ do q = 1, nchunks
 
       if (jy == ny/2+1) cycle
 
-      do jx = 1, lh-1
+      do jx = 1, end_kx   !lh-1    !!jb
 
         if (jx*jy == 1) cycle
 
+        if (kx_dft) then
+
+        jx_s = kx_veci(jx)
+
+        gam(jx_s, jy, j) = c(jx_s, jy, j-1) / bet(jx_s, jy)
+        bet(jx_s, jy) = b(jx_s, jy, j) - a(jx_s, jy, j)*gam(jx_s, jy, j)
+
+        else
+
         gam(jx, jy, j) = c(jx, jy, j-1) / bet(jx, jy)
         bet(jx, jy) = b(jx, jy, j) - a(jx, jy, j)*gam(jx, jy, j)
+
+        endif
+
 
 $if ($DEBUG)
         if (bet(jx, jy) == 0._rprec) then
@@ -133,12 +165,25 @@ $if ($DEBUG)
           stop
         end if
 $endif
+
+if (.not. kx_dft) then
+
         ii = 2*jx
         ir = ii - 1
         !u(jx, jy, j) = (r(jx, jy, j) - a(jx, jy, j) * u(jx, jy, j-1)) /  &
         !               bet(jx, jy)
         u(ir:ii, jy, j) = (r(ir:ii, jy, j) - a(jx, jy, j) * u(ir:ii, jy, j-1)) /  &
                        bet(jx, jy)
+
+else
+
+        ii = 2*jx_s
+        ir = ii - 1
+        !u(jx, jy, j) = (r(jx, jy, j) - a(jx, jy, j) * u(jx, jy, j-1)) /  &
+        !               bet(jx, jy)
+        u(ir:ii, jy, j) = (r(ir:ii, jy, j) - a(jx_s, jy, j) * u(ir:ii, jy, j-1)) /  &
+                       bet(jx_s, jy)
+endif
 
       end do
 
@@ -232,14 +277,27 @@ do q = 1, nchunks
 
       if (jy == ny/2+1) cycle
 
-      do jx = 1, lh-1
+      do jx = 1, end_kx    !lh-1   !!jb
 
         if (jx*jy == 1) cycle
+
+        if (kx_dft) then
+
+        jx_s = kx_veci(jx)
+        
+        ii = 2*jx_s
+        ir = ii - 1
+        !u(jx, jy, j) = u(jx, jy, j) - gam(jx, jy, j+1) * u(jx, jy, j+1)
+        u(ir:ii, jy, j) = u(ir:ii, jy, j) - gam(jx_s, jy, j+1) * u(ir:ii, jy, j+1)
+
+        else
 
         ii = 2*jx
         ir = ii - 1
         !u(jx, jy, j) = u(jx, jy, j) - gam(jx, jy, j+1) * u(jx, jy, j+1)
         u(ir:ii, jy, j) = u(ir:ii, jy, j) - gam(jx, jy, j+1) * u(ir:ii, jy, j+1)
+
+        endif
 
       end do
 

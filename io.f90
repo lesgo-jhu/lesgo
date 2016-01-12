@@ -209,7 +209,9 @@ $if ($MPI)
    if (rank == 0) then  !--note its rank here, not coord
    open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
    ke = ke_global/nproc
-   write(2,*) total_time,ke
+
+   if(jt_total==wbase) write(2,*) 'total_time, KE'    !! one time header output
+   write(2,*) total_time, ke
    close(2)
    end if
 $else
@@ -223,14 +225,23 @@ end subroutine energy
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine write_tau_wall()   !!jb
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types,only:rprec
-use param,only:total_time,jt_total
+use types,only: rprec
+use param,only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
+use param,only: L_x, z_i, u_star
 use functions,only:get_tau_wall
 implicit none
 
+real(rprec) :: turnovers
+
+turnovers = total_time_dim / (L_x * z_i / u_star) 
+
 open(2,file=path // 'output/tau_wall.dat',status='unknown',form='formatted',position='append')
 
-write(2,*) jt_total, total_time, 1.0, get_tau_wall()
+!! one time header output
+if (jt_total==wbase) write(2,*) 'jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, tau_wall'
+
+!! continual time-related output
+write(2,*) jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, get_tau_wall()
 close(2)
 
 end subroutine write_tau_wall
