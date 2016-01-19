@@ -1112,6 +1112,8 @@ do
         read (buff(equal_pos+1:), *) tcm_Nx
      case ('TCM_T')
         read (buff(equal_pos+1:), *) tcm_T
+     case ('TCM_TAU')
+        read (buff(equal_pos+1:), *) tcm_tau
      case ('TCM_CFL')
         read (buff(equal_pos+1:), *) tcm_cfl
      case ('TCM_ALPHA')
