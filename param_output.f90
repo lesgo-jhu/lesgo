@@ -94,6 +94,7 @@ write(2,x3l_fmt) 'use_md : ', use_md
 write(2,x3l_fmt) 'use_kxz : ', use_kxz
 write(2,i_fmt) 'ml_start : ', ml_start
 write(2,i_fmt) 'ml_end : ', ml_end
+write(2,x3l_fmt) 'kx_space : ', kx_space
 write(2,x3l_fmt) 'kx_dft : ', kx_dft
 write(2,i_fmt) 'kx_num : ', kx_num
 do n=1,kx_num

@@ -148,6 +148,7 @@ module param
   logical :: use_md=.false.
   logical :: use_kxz=.false.
   integer :: ml_start = 1000, ml_end = 1000000
+  logical :: kx_space=.false.  
   logical :: kx_dft=.false.
   integer :: kx_num=4
   real(rprec), allocatable, dimension(:) :: kx_vec
