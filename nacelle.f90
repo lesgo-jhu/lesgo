@@ -495,10 +495,8 @@ subroutine nacelle_forcing()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 use sim_param, only: u,fxa
 implicit none
-real(rprec)::nacelle_avg_vels,nacelle_avg_vels2,nacelle_force,u_nacelle,eps,T_avg_dim
+real(rprec)::nacelle_avg_vels,nacelle_avg_vels2,nacelle_force,u_nacelle
 integer :: i2,j2,k2,l,ss
-
-T_avg_dim=0.02
 
 do ss=1,numberOfTurbines
 nacelle_avg_vels = 0.0d0 !! average velocity in the nacelle area
@@ -518,14 +516,10 @@ $if ($MPI)
 call mpi_allreduce(nacelle_avg_vels,nacelle_avg_vels2, 1, MPI_RPREC, MPI_SUM, comm, ierr)
 $endif
 
-!update epsilon for the new timestep (for cfl_dt) 
-eps = (dt_dim / T_avg_dim) / (1._rprec + dt_dim / T_avg_dim)
 !volume correction
 u_nacelle = nacelle_avg_vels2 * dx*dy*dz/nacelle_vol(ss) 
-!add this current value to the "running average" (first order relaxation)
-nacelle_u_avg(ss) = (1.-eps)*nacelle_u_avg(ss) + eps*u_nacelle
 !calculate total thrust force for each nacelle  (per unit mass)
-nacelle_force = 0.5_rprec*nacelle_Cd(ss)*abs(nacelle_u_avg(ss))*nacelle_u_avg(ss)/nacelle_thick(ss)
+nacelle_force = 0.5_rprec*nacelle_Cd(ss)*abs(u_nacelle)*u_nacelle/nacelle_thick(ss)
 
 !if (coord==0) then
 !if (modulo (jt_total, tbase) == 0) then

@@ -517,10 +517,8 @@ subroutine tower_forcing()
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 use sim_param, only: u,fxa
 implicit none
-real(rprec)::tower_avg_vels,tower_avg_vels2,tower_force,u_tower,eps,T_avg_dim
+real(rprec)::tower_avg_vels,tower_avg_vels2,tower_force,u_tower
 integer :: i2,j2,k2,l,ss
-
-T_avg_dim=0.02
 
 do ss=1,numberOfTurbines
 tower_avg_vels = 0.0d0 !! average velocity in the tower area
@@ -540,15 +538,10 @@ $if ($MPI)
 call mpi_allreduce(tower_avg_vels,tower_avg_vels2, 1, MPI_RPREC, MPI_SUM, comm, ierr)
 $endif
 
-!update epsilon for the new timestep (for cfl_dt) 
-eps = (dt_dim / T_avg_dim) / (1._rprec + dt_dim / T_avg_dim)
 !volume correction
 u_tower = tower_avg_vels2 * dx*dy*dz/tower_vol(ss)
-!add this current value to the "running average" (first order relaxation)
-tower_u_avg(ss) = (1.-eps)*tower_u_avg(ss) + eps*u_tower
-
 !calculate total thrust force for each tower  (per unit mass)
-tower_force = 0.5_rprec*tower_Cd(ss)*abs(tower_u_avg(ss))*tower_u_avg(ss)/(pi*tower_dia(ss)/4._rprec) !RS tower update
+tower_force = 0.5_rprec*tower_Cd(ss)*abs(u_tower)*u_tower/(pi*tower_dia(ss)/4._rprec) !RS tower update
 
 !if (coord==0) then
 !if (modulo (jt_total, tbase) == 0) then
