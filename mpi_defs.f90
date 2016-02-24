@@ -45,6 +45,9 @@ use param
 $if($CPS)
 use concurrent_precursor
 $endif
+$if($CGNS)
+use cgns
+$endif
 implicit none
 
 integer :: np

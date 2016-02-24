@@ -134,15 +134,15 @@ end subroutine energy
 $if($CGNS)
 $if ($MPI)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n,       &
-                                     end_n, xin, yin, zin, num_fields,         &
+subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n_in,    &
+                                     end_n_in, xin, yin, zin, num_fields,      &
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-implicit none
-
 ! This subroutine writes parallel CGNS file output
-include 'cgnslib_f.h'
+use cgns
+
+implicit none
 
 integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
@@ -151,8 +151,8 @@ real(rprec), intent(in), dimension(:) :: input ! Data to be written
 real(rprec), intent(in), dimension(:) :: xin ! Coordinates to write
 real(rprec), intent(in), dimension(:) :: yin ! Coordinates to write
 real(rprec), intent(in), dimension(:) :: zin ! Coordinates to write
-integer, intent(in) :: start_n(3)  ! Where the total node counter starts nodes
-integer, intent(in) :: end_n(3)  ! Where the total node counter ends nodes
+integer, intent(in) :: start_n_in(3)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n_in(3)  ! Where the total node counter ends nodes
 
 integer :: fn=1        ! CGNS file index number
 integer :: ier         ! CGNS error status
@@ -161,11 +161,23 @@ integer :: zone=1      ! zone number
 integer :: nnodes      ! Number of nodes in this processor
 integer :: sol =1      ! solution number
 integer :: field       ! section number
-integer :: sizes(3,3)  ! Sizes
+integer(cgsize_t) :: sizes(3,3)  ! Sizes
+
+! Convert input to right data type
+integer(cgsize_t) :: start_n(3)  ! Where the total node counter starts nodes
+integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 
 ! Building the lcoal mesh
 integer :: i,j,k
 real(rprec), dimension(nx,ny,nz) :: xyz
+
+! Convert types such that CGNS libraries can handle the input
+start_n(1) = int(start_n_in(1), cgsize_t)
+start_n(2) = int(start_n_in(2), cgsize_t)
+start_n(3) = int(start_n_in(3), cgsize_t)
+end_n(1) = int(end_n_in(1), cgsize_t)
+end_n(2) = int(end_n_in(2), cgsize_t)
+end_n(3) = int(end_n_in(3), cgsize_t)
 
 ! The total number of nodes in this processor
 nnodes=nx*ny*nz
@@ -194,20 +206,20 @@ endif
 
 ! Create data nodes for coordinates
 call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',              &
-                      (/nx,ny,nz/), ier)
+                      nnodes, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',              &
-                      (/nx,ny,nz/), ier)
+                      nnodes, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',              &
-                      (/nx,ny,nz/), ier)
+                      nnodes, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write the coordinate data in parallel to the queue
-call cgp_queue_set_f(1, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
  
 ! This is done for the 3 dimensions x,y and z
 ! It writes the coordinates
@@ -219,18 +231,19 @@ do k=1,nz
         enddo
     enddo
 enddo
+
 call cgp_coord_write_data_f(fn, base, zone, 1,   &
                             start_n, end_n, xyz(1:nx,1:ny,1:nz), ier)    
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write out the queued coordinate data
-call cgp_queue_flush_f(ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
-call cgp_queue_set_f(0, ier)
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
 
 ! Write the coordinate data in parallel to the queue
-call cgp_queue_set_f(1, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
  
 do k=1,nz
     do j=1,ny
@@ -244,13 +257,13 @@ call cgp_coord_write_data_f(fn, base, zone, 2,   &
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write out the queued coordinate data
-call cgp_queue_flush_f(ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
-call cgp_queue_set_f(0, ier)
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
 
 ! Write the coordinate data in parallel to the queue
-call cgp_queue_set_f(1, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
  
 do k=1,nz
     do j=1,ny
@@ -264,9 +277,9 @@ call cgp_coord_write_data_f(fn, base, zone, 3,   &
 if (ier .ne. CG_OK) call cgp_error_exit_f
     
 ! Write out the queued coordinate data
-call cgp_queue_flush_f(ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
-call cgp_queue_set_f(0, ier)
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
 
 ! Create a centered solution
 call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
@@ -296,10 +309,10 @@ subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin, num_fields,
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-implicit none
-
 ! This subroutine writes parallel CGNS file output
-include 'cgnslib_f.h'
+use cgns
+
+implicit none
 
 integer, intent(in) :: nx, ny, nz, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
@@ -314,7 +327,7 @@ integer :: zone=1        ! zone number
 integer :: nnodes      ! Number of nodes in this processor
 integer :: sol =1        ! solution number
 integer :: field     ! section number
-integer :: sizes(3,3)    ! Sizes
+integer(cgsize_t) :: sizes(3,3)    ! Sizes
 
 ! Building the lcoal mesh
 integer :: i,j,k
