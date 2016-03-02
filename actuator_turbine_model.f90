@@ -790,6 +790,9 @@ implicit none
 
 integer, intent(in) :: i ! Indicates the turbine number
 integer :: j ! Indicates the turbine type
+integer :: m, n, q ! Looping indices
+integer,     pointer :: NumSec  ! Number of sections in lookup table
+real(rprec),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: projectionRadius, projectionRadiusNacelle
 real(rprec), pointer :: sphereRadius
 real(rprec), pointer :: OverHang
@@ -800,7 +803,11 @@ real(rprec), pointer :: PreCone
 ! Identifies the turbineModel being used
 j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
 
+! Number of sections in lookup table
+NumSec => turbineModel(j) % NumSec
+
 ! Pointers dependent on turbineArray (i)
+bladeRadius=>turbineArray(i) % bladeRadius
 projectionRadius=>turbineArray(i) % projectionRadius
 projectionRadiusNacelle=>turbineArray(i) % projectionRadiusNacelle
 sphereRadius=>turbineArray(i) % sphereRadius
@@ -819,6 +826,36 @@ projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.001))
 
 sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 + (TipRad*cos(PreCone))**2) + projectionRadius
+
+
+! Compute the optimum value of epsilon for each blade section
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) %  numAnnulusSections
+        do q=1, turbineArray(i) % numBladePoints
+
+            ! Interpolate quantities through section
+            turbineArray(i) % twistAng(m,n,q) =                                &
+                                   interpolate(bladeRadius(m,n,q),             &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % twist(1:NumSec) )
+          
+            turbineArray(i) % chord(m,n,q) =                                   &
+                                   interpolate(bladeRadius(m,n,q),             &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % chord(1:NumSec) )
+            
+            turbineArray(i) % sectionType(m,n,q) =                             &
+                                   interpolate_i(bladeRadius(m,n,q),           &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % sectionType(1:NumSec))
+
+            ! Hard coded optimum value of epsilon star (0.2 = epsilon/chord)
+            ! Martinez-Meneveau 2015 Optimal Smoothing Length Scale
+            turbineArray(i) % epsilon_opt(m,n,q) =                             &
+                        0.2 * turbineArray(i) % chord(m,n,q)
+        enddo
+    enddo
+enddo
 
 ! Calculate the smearing value epsilon for the nacelle
 ! It will be the hub radius unless the grid is coarser, and thus
@@ -937,18 +974,10 @@ windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
                       (rotSpeed * bladeRadius(m,n,q) * cos(PreCone))
 windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local)
 
-! Interpolate quantities through section
-twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % twist(1:NumSec) )
-
-chord_i = interpolate(bladeRadius(m,n,q),                                      &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % chord(1:NumSec) )
-
-sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % sectionType(1:NumSec))
+! Interpolated quantities through section
+twistAng_i = turbineArray(i) % twistAng(m,n,q)
+chord_i = turbineArray(i) % chord(m,n,q)
+sectionType_i = turbineArray(i) % sectionType(m,n,q)
 
 ! Velocity magnitude
 Vmag(m,n,q)=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
@@ -1093,7 +1122,7 @@ u_infinity => turbineArray(i) % u_infinity
 u_infinity_mean = sum(u_infinity) / size(u_infinity) / &
 (1. - sum(induction_a) / size(induction_a))
 
-write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
+!~ write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
 
 end subroutine atm_integrate_u
 
