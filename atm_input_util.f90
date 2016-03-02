@@ -93,6 +93,12 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: solidity     
     ! Collection of radius of each point (different because of coning)
     real(rprec), allocatable, dimension(:,:,:) :: bladeRadius
+    ! Twist angle along the blade
+    real(rprec), allocatable, dimension(:,:,:) :: twistAng
+    ! Chord along the blade
+    real(rprec), allocatable, dimension(:,:,:) :: chord
+    ! Section type along the blade
+    integer,     allocatable, dimension(:,:,:) :: sectionType
     ! Forces on each actuator point (blade, annular section, point, 3)
     real(rprec), allocatable, dimension(:,:,:,:) :: bladeForces
     ! Drag force of Nacelle
@@ -121,6 +127,15 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+
+    ! These variables are to make corrections based on filtering
+    ! Optimum value of epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt(:,:,:)
+    ! Axial velocity filtered at 2 epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: windVectors_2f(:,:,:,:)
+    ! Axial velocity filtered at 2 epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: bladeForces_2f(:,:,:,:)
+
 
     ! Induction factor and u infinity
     real(rprec), allocatable, dimension(:,:,:) :: induction_a
@@ -794,6 +809,14 @@ numBl=turbineModel(j) % numBl
     allocate(turbineArray(i) % induction_a(numBl,                              &
              numAnnulusSections, numBladePoints) ) 
     allocate(turbineArray(i) % u_infinity(numBl,                               &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % chord(numBl,                                    &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % twistAng(numBl,                                 &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % sectionType(numBl,                              &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
