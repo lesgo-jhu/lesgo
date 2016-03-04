@@ -1308,7 +1308,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     enddo
     
         ! Write blade points 
-        call atm_write_blade_points(i,jt_total)
+!~         call atm_write_blade_points(i,jt_total)
 
 !~     enddo
 
