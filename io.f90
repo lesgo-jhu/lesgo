@@ -20,13 +20,24 @@ module io
 !///////////////////////////////////////////////////////////////////////////////
 use types,only:rprec
 use param, only : ld,nx,ny,nz,nz_tot,path,coord,rank,nproc,jt_total
-use param, only : total_time,total_time_dim,lbz,jzmin,jzmax,cumulative_time,fcumulative_time
+use param, only : total_time,total_time_dim,lbz,jzmin,jzmax
+use param, only : cumulative_time,fcumulative_time
 use sim_param,only:w,dudz,dvdz
 use sgs_param,only:Cs_opt2
 use string_util
 use messages
 $if ($MPI)
 use mpi
+$endif
+
+$if ($CGNS)
+    use cgns
+
+    $if ($MPI)
+    use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
+    use param, only: ierr
+    $endif
+
 $endif
 
 implicit none
@@ -139,9 +150,6 @@ subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n_in,    &
                                      fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-! This subroutine writes parallel CGNS file output
-use cgns
-
 implicit none
 
 integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
@@ -171,6 +179,9 @@ integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 integer :: i,j,k
 real(rprec), dimension(nx,ny,nz) :: xyz
 
+! Set the parallel communicator
+call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+
 ! Convert types such that CGNS libraries can handle the input
 start_n(1) = int(start_n_in(1), cgsize_t)
 start_n(2) = int(start_n_in(2), cgsize_t)
@@ -183,9 +194,9 @@ end_n(3) = int(end_n_in(3), cgsize_t)
 nnodes=nx*ny*nz
 
 ! Sizes, used to create zone
-sizes(:,1) = (/nx,ny,nz_tot/)
-sizes(:,2) = (/nx-1,ny-1,nz_tot-1/)
-sizes(:,3) = (/0 , 0, 0/)
+sizes(:,1) = (/int(nx, cgsize_t),int(ny, cgsize_t),int(nz_tot, cgsize_t)/)
+sizes(:,2) = (/int(nx-1, cgsize_t),int(ny-1, cgsize_t),int(nz_tot-1, cgsize_t)/)
+sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
 
 ! Open CGNS file
 call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
@@ -305,12 +316,9 @@ end subroutine write_parallel_cgns
 $endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin, num_fields,  &
-                                     fieldNames, input )
+subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
+                               num_fields, fieldNames, input )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-! This subroutine writes parallel CGNS file output
-use cgns
 
 implicit none
 
@@ -352,17 +360,21 @@ sizes(:,1) = (/nx,ny,nz/)
 sizes(:,2) = (/nx-1,ny-1,nz-1/)
 sizes(:,3) = (/0 , 0, 0/)
 
+write(*,*) 'Error 1 NOT Here'
+write(*,*) file_name
+
 ! Open CGNS file
-call cg_open_f(file_name, CG_MODE_WRITE, fn, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cg_error_exit_f
 
 ! Write base
 call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+if (ier .ne. CG_OK) call cg_error_exit_f
 
 ! Write zone
 call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
-if (ier .ne. CG_OK) call cgp_error_exit_f
+if (ier .ne. CG_OK) call cg_error_exit_f
 
 ! Write print info to screen
 if (coord .eq. 0) then
@@ -621,46 +633,47 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
 if(itype==1) then
 
-  do n=1,point_nloc
+    do n=1,point_nloc
 
-    !  For parallel runs check if data is on correct proc
-    $if ($MPI)
-    if(point(n) % coord == coord) then
-    $endif
+        !  For parallel runs check if data is on correct proc
+        $if ($MPI)
+        if(point(n) % coord == coord) then
+        $endif
+    
+        $if ($MPI)
+        endif
+        $endif
 
-    $if ($MPI)
-    endif
-    $endif
-
-  enddo
+    enddo
 
 !  Instantaneous write for entire domain
 elseif(itype==2) then
+    
+    !////////////////////////////////////////////
+    !/// WRITE VELOCITY                       ///
+    !////////////////////////////////////////////
+    
+    $if( $BINARY )
+    call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
+    $endif
+    
+    $if ($MPI)
+    call string_concat( fname, '.c', coord )
+    $endif
 
-  !////////////////////////////////////////////
-  !/// WRITE VELOCITY                       ///
-  !////////////////////////////////////////////
-
-  $if( $BINARY )
-  call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
-  $endif
-
-  $if ($MPI)
-  call string_concat( fname, '.c', coord )
-  $endif
-
-  ! Write CGNS Output
-  $if ($CGNS and $MPI)
-      call string_splice( fname_cgns, path //'output/output_', jt_total,'.cgns')
-
-      call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,           &
-      (/ 1, 1,   (nz-1)*coord + 1 /),                                          &
-      (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                              &
-      x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                    &
-      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),             &
-      (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),                 &
+    ! Write CGNS Output
+    $if ($CGNS and $MPI)
+        call string_splice( fname_cgns, path //'output/output_',               &  
+                            jt_total,'.cgns')
+        
+        call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,        &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+        (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
+        x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
+        3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                        &
+        (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),             &
          w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
-
+    
 !~       ! Compute vorticity    
 !~       allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
 !~       vortx(1:nx,1:ny,lbz:nz) = 0.0_rprec
@@ -690,15 +703,15 @@ elseif(itype==2) then
 !~ 
 !~         deallocate(vortx, vorty, vortz)
 
-  $endif
-  
-  $if($BINARY)
-  open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
-  write(13,rec=1) u(:nx,:ny,1:nz)
-  write(13,rec=2) v(:nx,:ny,1:nz)
-  write(13,rec=3) w_uv(:nx,:ny,1:nz)
-  close(13)
-  $endif
+    $endif
+        
+    $if($BINARY)
+    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+    write(13,rec=1) u(:nx,:ny,1:nz)
+    write(13,rec=2) v(:nx,:ny,1:nz)
+    write(13,rec=3) w_uv(:nx,:ny,1:nz)
+    close(13)
+    $endif
   
 !  $if($MPI)
 !  call mpi_barrier( comm, ierr )
@@ -719,139 +732,142 @@ elseif(itype==2) then
 !  Write instantaneous x-plane values
 elseif(itype==3) then
 
-  allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
-
-  $if($LVLSET)
-  call force_tot()
-  $endif
-
-!  Loop over all xplane locations
-  do i=1,xplane_nloc
-    do k=1,nz
-      do j=1,ny
-
-        ui(1,j,k) = linear_interp(u(xplane(i) % istart,j,k), &
-             u(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
-        vi(1,j,k) = linear_interp(v(xplane(i) % istart,j,k), &
-             v(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
-        wi(1,j,k) = linear_interp(w_uv(xplane(i) % istart,j,k), &
-             w_uv(xplane(i) % istart+1,j,k), dx, &
-             xplane(i) % ldiff)
-      enddo
-    enddo
-
-    $if ($CGNS and $MPI)    
-        call string_splice( fname_cgns, path // 'output/plane_x_plane',        &
-                            xplane_loc(i),'_', jt_total, '.cgns')
-
-        call write_parallel_cgns (fname_cgns,1,ny, nz - nz_end, nz_tot,   &
-                                    (/ 1, 1,   (nz-1)*coord + 1 /),            &
-                                    (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /), &
-                                xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),  &
-                          3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),      &
-                          (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)), &
-                             wi(1,1:ny,1:(nz-nz_end)) /) )
-    $endif
+    allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
     
-  enddo
+    $if($LVLSET)
+    call force_tot()
+    $endif
+
+    !  Loop over all xplane locations
+    do i=1,xplane_nloc
+        do k=1,nz
+            do j=1,ny
+
+                ui(1,j,k) = linear_interp(u(xplane(i) % istart,j,k), &
+                     u(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
+                vi(1,j,k) = linear_interp(v(xplane(i) % istart,j,k), &
+                     v(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
+                wi(1,j,k) = linear_interp(w_uv(xplane(i) % istart,j,k), &
+                     w_uv(xplane(i) % istart+1,j,k), dx, &
+                     xplane(i) % ldiff)
+            enddo
+        enddo
+
+        $if ($CGNS and $MPI)    
+            call string_splice( fname_cgns, path // 'output/plane_x_plane',    &
+                                xplane_loc(i),'_', jt_total, '.cgns')
+            
+            call write_parallel_cgns (fname_cgns,1,ny, nz - nz_end, nz_tot,    &
+                                (/ 1, 1,   (nz-1)*coord + 1 /),                &
+                                (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /),    &
+                            xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),     &
+                      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
+                      (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)),   &
+                         wi(1,1:ny,1:(nz-nz_end)) /) )
+        $endif
+        
+    enddo
   
-  deallocate(ui,vi,wi)
+    deallocate(ui,vi,wi)
 
 !  Write instantaneous y-plane values
-  elseif(itype==4) then
+elseif(itype==4) then
   
-  allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
+    allocate(ui(nx,1,nz), vi(nx,1,nz), wi(nx,1,nz))
   
-!  Loop over all yplane locations
-  do j=1,yplane_nloc
-    do k=1,nz
-      do i=1,nx
+    !  Loop over all yplane locations
+    do j=1,yplane_nloc
+        do k=1,nz
+            do i=1,nx
 
-        ui(i,1,k) = linear_interp(u(i,yplane(j) % istart,k), &
-             u(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
-        vi(i,1,k) = linear_interp(v(i,yplane(j) % istart,k), &
-             v(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
-        wi(i,1,k) = linear_interp(w_uv(i,yplane(j) % istart,k), &
-             w_uv(i,yplane(j) % istart+1,k), dy, &
-             yplane(j) % ldiff)
-        
-      enddo
-    enddo
+                ui(i,1,k) = linear_interp(u(i,yplane(j) % istart,k),           &
+                     u(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
+                vi(i,1,k) = linear_interp(v(i,yplane(j) % istart,k),           &
+                     v(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
+                wi(i,1,k) = linear_interp(w_uv(i,yplane(j) % istart,k),        &
+                     w_uv(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
+            enddo
+        enddo
 
-    $if ($CGNS and $MPI)    
-        call string_splice( fname_cgns, path // 'output/plane_y_plane',        &
+        $if ($CGNS and $MPI)    
+            call string_splice( fname_cgns, path // 'output/plane_y_plane',    &
                             yplane_loc(j),'_', jt_total, '.cgns')
 
-        call write_parallel_cgns (fname_cgns,nx,1, nz - nz_end, nz_tot,   &
-                                    (/ 1, 1,   (nz-1)*coord + 1 /),            &
-                                    (/ nx, 1, (nz-1)*(coord+1) + 1 - nz_end /), &
-                                x(1:nx) , yplane_loc(j:j) , z(1:(nz-nz_end) ),  &
-                          3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),      &
-                          (/ ui(1:nx,1,1:(nz-nz_end)), vi(1:nx,1,1:(nz-nz_end)), &
-                             wi(1:nx,1,1:(nz-nz_end)) /) )
-    $endif
+            call write_parallel_cgns (fname_cgns,nx,1, nz - nz_end, nz_tot,    &
+                                (/ 1, 1,   (nz-1)*coord + 1 /),                &
+                                (/ nx, 1, (nz-1)*(coord+1) + 1 - nz_end /),    &
+                            x(1:nx) , yplane_loc(j:j) , z(1:(nz-nz_end) ),     &
+                      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
+                      (/ ui(1:nx,1,1:(nz-nz_end)), vi(1:nx,1,1:(nz-nz_end)),   &
+                         wi(1:nx,1,1:(nz-nz_end)) /) )
+        $endif
 
-  enddo  
+    enddo  
 
-  deallocate(ui,vi,wi)
+    deallocate(ui,vi,wi)
   
 !  Write instantaneous z-plane values
 elseif(itype==5) then
 
-  allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
-
-!  Loop over all zplane locations
-  do k=1,zplane_nloc
-
-    $if ($MPI)    
-    if(zplane(k) % coord == coord) then
+    $if ($CGNS and $MPI)    
+        ! Set the serial communicator
+        call cgp_mpi_comm_f(cgnsSerialComm, ierr)
     $endif
 
-    $if ($BINARY)
-    call string_splice( fname, path // 'output/binary_vel.z-', zplane_loc(k), '.', jt_total, '.dat')
-    $endif
+    allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
+
+    !  Loop over all zplane locations
+    do k=1,zplane_nloc
+
+        $if ($MPI)    
+            if(zplane(k) % coord == coord) then
+        $endif
+
+        $if ($BINARY)
+            call string_splice( fname, path // 'output/binary_vel.z-',         &
+                                zplane_loc(k), '.', jt_total, '.dat')
+        $endif
     
-    do j=1,Ny
-      do i=1,Nx
-        ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart), &
-             u(i,j,zplane(k) % istart+1), &
-             dz, zplane(k) % ldiff)
-        vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart), &
-             v(i,j,zplane(k) % istart+1), &
-             dz, zplane(k) % ldiff)
-        wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart), &
-             w_uv(i,j,zplane(k) % istart+1), &
-             dz, zplane(k) % ldiff)
-      enddo
+        do j=1,Ny
+            do i=1,Nx
+                ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),           &
+                     u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),           &
+                     v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),        &
+                     w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+            enddo
+        enddo
+    
+        $if ($CGNS)
+    
+            call string_splice( fname_cgns, path // 'output/plane_z_plane',    &
+                                zplane_loc(k),'_', jt_total, '.cgns')
+    
+            call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), &
+                            3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
+                        (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
+        $endif
+        
+        $if ($BINARY)
+            open(unit=13,file=fname,form='unformatted',convert='big_endian',   &
+                            access='direct',recl=nx*ny*1*rprec)
+            write(13,rec=1) ui(1:nx,1:ny,1)
+            write(13,rec=2) vi(1:nx,1:ny,1)
+            write(13,rec=3) wi(1:nx,1:ny,1)
+            close(13)
+        $endif
+     
+        $if ($MPI) 
+        endif
+        $endif
     enddo
-
-    $if ($CGNS)
-        call string_splice( fname_cgns, path // 'output/plane_z_plane',        &
-                            zplane_loc(k),'_', jt_total, '.cgns')
-
-        call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), 3,   &
-                               (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
-                    (/ ui(1:nx,1:ny,1),vi(1:nx,1:ny,1),wi(1:nx,1:ny,1) /) )
-    $endif
-    
-    $if ($BINARY)
-    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*1*rprec)
-    write(13,rec=1) ui(1:nx,1:ny,1)
-    write(13,rec=2) vi(1:nx,1:ny,1)
-    write(13,rec=3) wi(1:nx,1:ny,1)
-    close(13)
-    $endif
- 
-  $if ($MPI) 
-  endif
-  $endif
-  enddo
   
-  deallocate(ui,vi,wi)
+    deallocate(ui,vi,wi)
 
 else
-  write(*,*) 'Error: itype not specified properly to inst_write!'
-  stop
+    write(*,*) 'Error: itype not specified properly to inst_write!'
+    stop
 endif
 
 deallocate(w_uv)
@@ -1594,6 +1610,7 @@ call mpi_barrier( comm, ierr )
 $endif
 
 $if($CGNS)
+
     ! Write CGNS Data
     call write_parallel_cgns (fname_vel_cgns_uv ,nx, ny, nz - nz_end, nz_tot,  &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
