@@ -57,8 +57,9 @@ ITEMS:
 ================================================================================
                    NOTES
 ================================================================================
-1. Developers must be committed to continuing support for CGNS and binary 
-   output.
+1. Developers MUST support both output types (binary and CGNS). This means that 
+   any changes or additions you make to one output type MUST be reflected in the
+   other output type.
 
 ================================================================================
                    BROKEN FEATURES
