@@ -74,75 +74,61 @@ The following dependencies are required in order to compile lesgo:
     definitions from the compiler, e.g., some array dimensions. The Makefile
     runs the preprocessor as a step in compilation.
 
-  * tecryte >= 2.1.1 (http://panoramix.me.jhu.edu/~jgraham/codes/tecryte)
+  *  hdf5 and CGNS
+    #######################################################
+    NEW INSTRUCTIONS FOR HDF5 AND CGNS BASED ON CGNS 3.3.0
+    HDF5 library (http://www.hdfgroup.org/HDF5/release/obtain5.html)
+    CGNS library (http://cgns.sourceforge.net/)
+    These libraries are used for IO. 
+    It is required to build with Fortran and parallel IO support.
 
-  **This library is no longer in use. The lines of code were it is used are
-    commented out, if one is interested with it, can just uncomment
-    and include the library in the Make file **
+    The following lines should install HDF5 from the SVN repository and
+    CGNS from the git repository.
+    The are commands for bash.
+    The install locations need to be specified.
+    Make sure to specify the install locations on the Makefile.
+    To build these libraries you will need gfortran, gcc, zlib, an mpi version
+    (tested with openmpi and mvapich2)
+    #######################################################
 
-    tecryte is a library that we have developed to write data and to manage
-    writing Tecplot formatted files. It has been optimized to work well over
-    both local and distributed file systems.
+    #!/bin/bash
 
-
-  * HDF5 library (http://www.hdfgroup.org/HDF5/release/obtain5.html)
-
-    This library is used for IO. It is required to build with Fortran and
-    parallel IO support        
-    Install the hdf5 library with parallel and fortran support
-    Version 1.8.12 works fine
-    You can choose --prefix= the location you want.
-    In this example it is placed in /usr/local/hdf5
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+
-    wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.13.tar.gz
-    tar -zxvf hdf5-1.8.13.tar.gz
-    cd hdf5-1.8.13
-    ./configure --prefix=/usr/local/hdf5 --enable-fortran --enable-parallel --enable-shared
+    # Location to install hdf5
+    export HDF5INSTALL=$HOME/hdf5
+    # Location to install CGNS
+    export CGNSINSTALL=$HOME/cgns
+    # MPI compiler mpicc
+    export MPICC=mpicc
+    
+    # HDF5
+    svn co -q https://svn.hdfgroup.uiuc.edu/hdf5/branches/hdf5_1_8
+    cd hdf5_1_8 
+    CC=$MPICC ./configure --enable-fortran --enable-parallel --enable-shared --prefix=$HDF5INSTALL
     make
-    sudo make install
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-
-    
-  * CGNS library (http://cgns.sourceforge.net/)
-    Download from:
-    http://cgns.sourceforge.net/download.html
-    You must use the newest version ( CGNS Version 3.2.1 )
+    make install
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+    
-    wget http://downloads.sourceforge.net/project/cgns/cgnslib_3.2/cgnslib_3.2.1.tar.gz
-    tar -zxvf cgnslib_3.2.1.tar.gz
-    mkdir buildCGNS
-    cd buildCGNS
-    cmake ../cgnslib_3.2.1
-    ccmake .
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-
-    
-    Now here we will have to set various flags!
-    You can change the install location you want
-    It is important to point to the right hdf5 location
-        CGNS_ENABLE_FORTRAN              ON    
-        CGNS_ENABLE_HDF5                 ON 
-        CMAKE_INSTALL_PREFIX             /usr/local/cgns 
-        HDF5_INCLUDE_PATH               */usr/local/hdf5/include 
-        HDF5_LIBRARY                    */usr/local/hdf5/lib/libhdf5.so       
-        HDF5_NEED_MPI                   *ON 
-        CGNS_ENABLE_PARALLEL             ON 
-                                     
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+
+    # CGNS
+    git clone -b master https://github.com/CGNS/CGNS.git CGNS
+    cd CGNS/src    
+    export FC=gfortran
+    export F77=gfortran
+    export CC=mpicc
+    export FLIBS="-Wl,--no-as-needed -ldl -lz"
+    export LIBS="-Wl,--no-as-needed -ldl -lz"
+    ./configure --verbose \
+    --enable-parallel \
+    --with-fortran \
+    --with-hdf5=$HDF5INSTALL \
+    --with-mpi \
+    --enable-64bit \
+    --enable-lfs \
+    --disable-cgnstools \
+    --disable-x \
+    --prefix=$CGNSINSTALL \
+    --libdir=$CGNSINSTALL/lib \
+    --includedir=$CGNSINSTALL/include    
     make
-    sudo make install
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-
-    
-    You will need to edit the file /usr/local/cgns/include/cgnslib_f.h
-    Add a comment symbol "!" in front of lines 1-28
-    ( A bug has been submitted and will soon be fixed in the library )
-    This command does it automatically:
-    sudo sed '1,28d' /usr/local/cgns/include/cgnslib_f.h    
-
-    In order to link the hdf5 cgns and cfdio libraries at runtime:
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!+
-    export LD_LIBRARY_PATH=/usr/local/hdf5/lib:/usr/local/cgns/lib:$LD_LIBRARY_PATH
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-
-
+    make install
 
 --------------------------------------------------------------------------------
 				    OPTIONAL
