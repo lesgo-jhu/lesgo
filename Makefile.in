@@ -84,14 +84,14 @@ READ_ENDIAN = DEFAULT
 
 # Use binary output for output files
 USE_TURBINES=no
-USE_BINARY=no
+USE_BINARY=yes
 
 # Use CGNS data output
-USE_CGNS=yes
+USE_CGNS=no
 
 #################################################### Tony ATM
 # Use the actuator turbine model
-USE_ATM = yes
+USE_ATM = no 
 #################################################### Tony ATM
 
 
