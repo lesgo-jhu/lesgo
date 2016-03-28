@@ -61,11 +61,11 @@ The following dependencies are required in order to compile lesgo:
     Most modern compilers will work fine. Ones that have been used successfully
     are G95, GFortran (>= 4.4), Intel, and PGI
 
-  * makedepf90 (http://www.helsinki.fi/~eedelman/makedepf90.html) 
+  * makedepf90 (http://personal.inet.fi/private/erikedelmann/makedepf90) 
 
     The Makefile makes use of this to determine file dependencies.
 
-  * fpx3 (http://wwwuser.gwdg.de/~jbehren/fpx3)
+  * fpx3 (https://github.com/lesgo-jhu/dependencies-lesgo)
 
     This is a fortran preprocessor. The main reason this is used is to isolate
     calls to MPI libraries, so that if someone wants to run the code in non-MPI
