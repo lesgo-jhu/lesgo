@@ -65,6 +65,7 @@ ITEMS:
                    BROKEN FEATURES
 ================================================================================
 1. Subgrid models 2, 3, and 4 appear to be broken at the moment
+2. The spectra calculations are broken (jb)
 
 ================================================================================
                    REMOVED FEATURES
