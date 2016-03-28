@@ -1,0 +1,80 @@
+Copyright (C) 2010-2013  Johns Hopkins University
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.  This file is offered as-is,
+without any warranty.
+
+================================================================================
+                   TO DO LIST
+================================================================================
+
+KEY:
+(NN) items that have not been implemented
+(II) items that are in progress
+(CC) items that are complete
+
+ITEMS:
+
+(NN) Move to CMake in order to eliminate the need for out-of-date 
+     dependencies fmakedepf90 and fpx3. This requires changing the 
+     precompiler flags to be compatible for cpp (C preprocessor) and 
+     writing a new CMakeLists.txt file and build process.
+     Assigned to CS with testing by JB and TM
+
+(NN) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
+     Assigned to no one
+
+(NN) Make Binary default output with CGNS enabled through compiler flag
+     Assigned to no one
+
+(NN) Remove commented out references to Tecryte
+     Assigned to no one
+
+(NN) Remove FFTW2 support
+     Assigned to JB
+
+(NN) Fix some IO problems caused by removing Tecryte support
+     Assigned to TM
+
+(NN) Interpolation from restart files to allow changes in domain size,
+     grid size, and domain decomposition for parallelization. 
+     Assigned to JB
+
+(NN) Include matlab functions for reading binary output files. 
+     Assigned to JB
+
+(NN) Cleanup unused lesgo.conf input. This is mostly restart file flags.
+     Assigned to no one
+
+(NN) Include developer style guide. This may be contentious and will need to
+     be discussed and included incrementally.
+     Assigned to no one.
+
+(NN) Include detailed installation notes.
+     Assigned to no one.
+
+================================================================================
+                   NOTES
+================================================================================
+1. Developers must be committed to continuing support for CGNS and binary 
+   output.
+
+================================================================================
+                   BROKEN FEATURES
+================================================================================
+1. Subgrid models 2, 3, and 4 appear to be broken at the moment
+
+================================================================================
+                   REMOVED FEATURES
+================================================================================
+
+1. 2011-09-13: All of the original "buildings" immersed boundary modeling has
+   been deemed deprecated and thus removed. To obtain the latest code before the
+   remove refer to CVS tag: pre_immersedbc_buildings_remove
+
+2. 2011-09-15: All of the original scalar calculations have been removed. The
+   scalar calculations were removed since they 1) are not currently being used
+   and 2) should, if reimplemented, be done in a consistent way with the current
+   coding constructs of lesgo. To obtain the latest code before the remove refer
+   to CVS tag: pre_scalar_calculations_remove 
