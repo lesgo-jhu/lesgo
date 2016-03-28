@@ -44,6 +44,11 @@ ITEMS:
 (NN) Include matlab functions for reading binary output files. 
      Assigned to JB
 
+(NN) Related to task above (matlab functions for reading binary output files),
+      add a 'post_processing' folder which includes basic utilities for reading
+      data into MATLAB, paraview, vapor, etc.
+      Assigned to no one.
+
 (NN) Cleanup unused lesgo.conf input. This is mostly restart file flags.
      Assigned to no one
 
