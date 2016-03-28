@@ -38,10 +38,10 @@ implicit none
 
 ! Declare everything private except for subroutine which will be used
 private 
-public :: atm_initialize, numberOfTurbines,                                 &
-          atm_computeBladeForce, atm_update,                                &
-          vector_add, vector_divide, vector_mag, distance,                  &
-          atm_output, atm_process_output,                                   &
+public :: atm_initialize, numberOfTurbines,                                    &
+          atm_computeBladeForce, atm_update,                                   &
+          vector_add, vector_divide, vector_mag, distance,                     &
+          atm_output, atm_process_output,                                      &
           atm_initialize_output, atm_computeNacelleForce, atm_write_restart
 
 ! The very crucial parameter pi
@@ -72,7 +72,7 @@ write(*,*) 'Reading Actuator Turbine Model Input...'
 call read_input_conf()  ! Read input data
 write(*,*) 'Done Reading Actuator Turbine Model Input'
 do i = 1,numberOfTurbines
-    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+    inquire(file = "./turbineOutput/"//trim(turbineArray(i) % turbineName)//   &
                    "/actuatorPoints", exist=file_exists)
 
     ! Creates the ATM points defining the geometry
@@ -88,11 +88,11 @@ do i = 1,numberOfTurbines
 
     call atm_calculate_variables(i) ! Calculates variables depending on input
 
-    inquire(file = "./turbineOutput/turbine"//trim(int2str(i))//              &
+    inquire(file = "./turbineOutput/"//trim(turbineArray(i) % turbineName)//   &
                    "/restart", exist=file_exists)
 
     if (file_exists .eqv. .true.) then
-        write(*,*) 'Reading Rotational Speed from Previous Simulation'
+        write(*,*) 'Reading Turbine Properties from Previous Simulation'
         call atm_read_restart(i)
     endif
 
@@ -114,7 +114,7 @@ integer :: j, m, n, q
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//   &
+open(unit=1, file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//   &
                   "/actuatorPoints", action='read')
 
 do m=1, turbineModel(j) % numBl
@@ -138,17 +138,27 @@ subroutine atm_read_restart(i)
 integer, intent(in) :: i  ! Indicates the turbine number
 
 ! Open the file at the last line (append)
-open( unit=1, file="./turbineOutput/turbine"//trim(int2str(i))// "/restart", &
-      action='read', position='append')
+open( unit=1, file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//   &
+                   "/restart", action='read') !, position='append')
 
 ! Bring the pointer to the last line
-backspace 1
+!~ backspace 1
 
-! Store the rotSpeed value (a is just a dummy value
-read(1,*) turbineArray(i) % rotSpeed, turbineArray(i) % torqueGen,             &
-          turbineArray(i) % torqueRotor, turbineArray(i) % u_infinity,         &
-          turbineArray(i) % induction_a,                                       &
-          turbineArray(i) % PitchControlAngle, turbineArray(i) % IntSpeedError
+! Read past the first line
+read(1,*)
+
+! Read the restart variables
+read(1,*) turbineArray(i) % rotSpeed
+read(1,*) turbineArray(i) % torqueGen
+read(1,*) turbineArray(i) % torqueRotor
+read(1,*) turbineArray(i) % u_infinity
+read(1,*) turbineArray(i) % induction_a
+read(1,*) turbineArray(i) % PitchControlAngle
+read(1,*) turbineArray(i) % IntSpeedError
+read(1,*) turbineArray(i) % nacYaw
+read(1,*) turbineArray(i) % rotorApex
+read(1,*) turbineArray(i) % uvShaft 
+close(1)
 
 write(*,*) ' RotSpeed Value from previous simulation is ',                     &
                 turbineArray(i) % rotSpeed
@@ -160,8 +170,13 @@ write(*,*) ' PitchControlAngle Value from previous simulation is ',            &
                 turbineArray(i) % PitchControlAngle
 write(*,*) ' IntSpeedError Value from previous simulation is ',                &
                 turbineArray(i) % IntSpeedError
+write(*,*) ' Yaw Value from previous simulation is ',                          &
+                turbineArray(i) % nacYaw
+write(*,*) ' Rotor Apex Value from previous simulation is ',                   &
+                turbineArray(i) % rotorApex
+write(*,*) ' uvShaft Value from previous simulation is ',                      &
+                turbineArray(i) % uvShaft
 
-close(1)
 
 end subroutine atm_read_restart
 
@@ -177,25 +192,32 @@ integer, intent(in) :: i ! Indicates the turbine number
 integer :: pointsFile=787 ! File to write the actuator points
 integer :: restartFile=21 ! File to write restart data
 integer j, m,n,q ! counters
-! Open the file 
-open( unit=restartFile, file="./turbineOutput/turbine"//trim(int2str(i))//     &
-      "/restart", status="replace")
 
-write(restartFile,*) 'RotSpeed', 'torqueGen', 'torqueRotor'
+! Open the file 
+open( unit=restartFile, file="./turbineOutput/"//                              &
+            trim(turbineArray(i) % turbineName)//"/restart", status="replace")
+
+write(restartFile,*) 'RotSpeed ', 'torqueGen ', 'torqueRotor ', 'u_infinity ', &
+                     'induction_a ', 'PitchControlAngle ', 'IntSpeedError ',   &
+                     'nacYaw ', 'rotorApex ', 'uvShaft'
 ! Store the rotSpeed value 
-write(restartFile,*) turbineArray(i) % rotSpeed,  turbineArray(i) % torqueGen, &
-                     turbineArray(i) % torqueRotor,                            &
-                     turbineArray(i) % u_infinity,                             &
-                     turbineArray(i) % induction_a,                            &
-                     turbineArray(i) % PitchControlAngle,                      &
-                     turbineArray(i) % IntSpeedError
+write(restartFile,*) turbineArray(i) % rotSpeed
+write(restartFile,*) turbineArray(i) % torqueGen
+write(restartFile,*) turbineArray(i) % torqueRotor
+write(restartFile,*) turbineArray(i) % u_infinity
+write(restartFile,*) turbineArray(i) % induction_a
+write(restartFile,*) turbineArray(i) % PitchControlAngle
+write(restartFile,*) turbineArray(i) % IntSpeedError
+write(restartFile,*) turbineArray(i) % nacYaw
+write(restartFile,*) turbineArray(i) % rotorApex
+write(restartFile,*) turbineArray(i) % uvShaft
 close(restartFile)
 
 ! Write the actuator points at every time-step regardless
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=pointsFile,status="replace",                                         &
-     file="./turbineOutput/turbine"//trim(int2str(i))//"/actuatorPoints")
+open(unit=pointsFile, status="replace", file="./turbineOutput/"//              &
+                      trim(turbineArray(i) % turbineName)//"/actuatorPoints")
 
 do m=1, turbineModel(j) % numBl
     do n=1, turbineArray(i) %  numAnnulusSections
@@ -225,55 +247,83 @@ call atm_print_initialize()
 
 do i = 1,numberOfTurbines
 
-    inquire(file='./turbineOutput/turbine'//trim(int2str(i)),EXIST=file_exists)
+    inquire(file="./turbineOutput/"//                                   &
+                     trim(turbineArray(i) % turbineName),EXIST=file_exists)
 
     if (file_exists .eqv. .false.) then
 
         ! Create turbineOutput directory
-        call system("mkdir -vp turbineOutput/turbine"//trim(int2str(i))) 
+        call system("mkdir -vp turbineOutput/"//                               &
+                     trim(turbineArray(i) % turbineName)) 
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/power") 
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/power") 
         write(1,*) 'time PowerRotor powerGen '
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/thrust") 
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/thrust") 
         write(1,*) 'time thrust '
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed") 
-        write(1,*) 'turbineNumber RotSpeed'
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/RotSpeed") 
+        write(1,*) 'time RotSpeed'
         close(1)
         
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Yaw") 
+        write(1,*) 'time deltaNacYaw NacYaw'
+        close(1)
+        
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/lift")
         write(1,*) 'turbineNumber bladeNumber '
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/drag")
         write(1,*) 'turbineNumber bladeNumber '
         close(1)
         
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Cl")
         write(1,*) 'turbineNumber bladeNumber Cl'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Cd")
         write(1,*) 'turbineNumber bladeNumber Cd'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/alpha")
         write(1,*) 'turbineNumber bladeNumber alpha'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Vrel")
         write(1,*) 'turbineNumber bladeNumber Vrel'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Vaxial")
         write(1,*) 'turbineNumber bladeNumber Vaxial'
         close(1)
 
-        open(unit=1, file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/Vtangential")
         write(1,*) 'turbineNumber bladeNumber Vtangential'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/tangentialForce")
+        write(1,*) 'turbineNumber bladeNumber tangentialForce'
+        close(1)
+
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/axialForce")
+        write(1,*) 'turbineNumber bladeNumber axialForce'
         close(1)
 
     endif
@@ -373,8 +423,10 @@ PreCone=>turbineModel(j) %PreCone
 
 !!-- Do all proper conversions for the required variables
 ! Convert nacelle yaw from compass directions to the standard convention
-call atm_compassToStandard(nacYaw)
+!~ call atm_compassToStandard(nacYaw)
 
+! The nacelle Yaw is set to 0 deg in the streamwise direction
+write(*,*) 'NacYaw is ', nacYaw
 ! Turbine specific
 azimuth = degRad * azimuth
 rotSpeed = rpmRadSec * rotSpeed
@@ -447,7 +499,7 @@ do k=1, numBl
     ! rotating the points of the first blade
     if (k > 1) then
         do m=1, numBladePoints
-            bladePoints(k,1,m,:)=rotatePoint(bladePoints(k,1,m,:), rotorApex, &
+            bladePoints(k,1,m,:)=rotatePoint(bladePoints(k,1,m,:), rotorApex,  &
             uvShaft,(360.0/NumBl)*(k-1)*degRad)
         enddo
     endif
@@ -456,8 +508,8 @@ do k=1, numBl
     if (numAnnulusSections .lt. 2) cycle ! Cycle if only one section (ALM)
     do n=2, numAnnulusSections
         do m=1, numBladePoints
-            bladePoints(k,n,m,:) =                                       &
-            rotatePoint(bladePoints(k,1,m,:), rotorApex,                 &
+            bladePoints(k,n,m,:) =                                             &
+            rotatePoint(bladePoints(k,1,m,:), rotorApex,                       &
             uvShaft,(annulusSectionAngle/(numAnnulusSections))*(n-1.)*degRad)
         enddo
     enddo
@@ -466,21 +518,53 @@ enddo
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_update(i, dt)
+subroutine atm_update(i, dt, time)
 ! This subroutine updates the model each time-step
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 integer, intent(in) :: i                                 ! Turbine number
-real(rprec), intent(in) :: dt                ! Time step
+real(rprec), intent(in) :: dt                            ! Time step
+real(rprec), intent(in) :: time                          ! Simulation time
 
-! Loop through all turbines and rotate the blades
-!~ do i = 1, numberOfTurbines
-    call atm_computeRotorSpeed(i,dt) 
-    call atm_rotateBlades(i)
-!~ enddo
+! Rotate the blades
+call atm_computeRotorSpeed(i,dt) 
+call atm_rotateBlades(i)
+
+call atm_control_yaw(i, time)
 
 end subroutine atm_update
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_control_yaw(i, time)
+! This subroutine updates the model each time-step
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer, intent(in) :: i                                 ! Turbine number
+real(rprec), intent(in) :: time                          ! Simulation time
+
+integer :: j                                             ! Turbine Type ID
+
+! Identifies the turbineModel being used
+j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
+
+! Will calculate the yaw angle  and yaw the nacelle (from degrees to radians)
+if ( turbineModel(j) % YawControllerType == "timeYawTable" ) then
+    turbineArray(i) % deltaNacYaw = interpolate(time,                          &
+    turbineModel(j) % yaw_time(:), turbineModel(j) % yaw_angle(:)) * degRad -  &
+    turbineArray(i) % NacYaw
+
+    ! Yaw only if angle is greater than given tolerance
+    if (abs(turbineArray(i) % deltaNacYaw) > 0.00000001) then
+        call atm_yawNacelle(i)
+    endif
+
+!~     write(*,*) 'Delta Yaw is', turbineArray(i) % deltaNacYaw/degRad
+!~     write(*,*) 'Nacelle Yaw is', turbineArray(i) % NacYaw/degRad
+endif
+
+end subroutine atm_control_yaw
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_computeRotorSpeed(i,dt)
@@ -556,24 +640,26 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
                (genSpeed < Region2StartGenSpeed)) then
 
         dGenSpeed = genSpeed - CutInGenSpeed
-        Region2StartGenTorque = KGen * Region2StartGenSpeed * Region2StartGenSpeed
-        torqueSlope = (Region2StartGenTorque - CutInGenTorque) /            &
+        Region2StartGenTorque = KGen * Region2StartGenSpeed *                  &
+                                       Region2StartGenSpeed
+        torqueSlope = (Region2StartGenTorque - CutInGenTorque) /               &
                       ( Region2StartGenSpeed - CutInGenSpeed )
         torqueGen = CutInGenTorque + torqueSlope*dGenSpeed
 
         ! Region 2.
-        elseif ((genSpeed >= Region2StartGenSpeed) .and.    &
+        elseif ((genSpeed >= Region2StartGenSpeed) .and.                       &
                  (genSpeed < Region2EndGenSpeed)) then
 
                 torqueGen = KGen * genSpeed * genSpeed
 
         ! Region 2-1/2.
-        elseif ((genSpeed >= Region2EndGenSpeed) .and.    &
+        elseif ((genSpeed >= Region2EndGenSpeed) .and.                         &
                  (genSpeed < RatedGenSpeed)) then
 
                 dGenSpeed = genSpeed - Region2EndGenSpeed
-                Region2EndGenTorque = KGen * Region2EndGenSpeed * Region2EndGenSpeed
-                torqueSlope = (RatedGenTorque - Region2EndGenTorque) /   &
+                Region2EndGenTorque = KGen * Region2EndGenSpeed *              &
+                                             Region2EndGenSpeed
+                torqueSlope = (RatedGenTorque - Region2EndGenTorque) /         &
                               ( RatedGenSpeed - Region2EndGenSpeed )
                 torqueGen = Region2EndGenTorque + torqueSlope*dGenSpeed
 
@@ -599,13 +685,14 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
                 torqueGen = torqueGenOld - (RateLimitGenTorque * dt);
             endif
         endif
-!write(*,*) TorqueControllerRelax, dt, DriveTrainIner, torqueRotor, fluidDensity, GBRatio, torqueGen
+
         ! Update the rotor speed.
-        rotSpeed = rotSpeed + TorqueControllerRelax*(dt/DriveTrainIner)*(torqueRotor*fluidDensity - GBRatio*torqueGen)
+        rotSpeed = rotSpeed + TorqueControllerRelax * (dt/DriveTrainIner) *       &
+                              (torqueRotor*fluidDensity - GBRatio*torqueGen)
 
         if (turbineModel(j) % PitchControllerType == "none") then
-            ! Limit the rotor speed to be positive and such that the generator does not turn
-            ! faster than rated.
+            ! Limit the rotor speed to be positive and such that the generator 
+            !does not turn faster than rated.
             rotSpeed = max(0.0,rotSpeed)
             rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
         endif
@@ -650,12 +737,14 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
        !write(*,*) 'Speed Error is: ', speedError
 
        IntSpeedError = IntSpeedError + SpeedError*dt
-       IntSpeedError = min( max(IntSpeedError, turbineModel(j) % PitchControlAngleMin/KI), &
+       IntSpeedError = min( max(IntSpeedError,                                 &
+                       turbineModel(j) % PitchControlAngleMin/KI),             &
                        turbineModel(j) % PitchControlAngleMax/KI)
 
        ! Apply PI controller and saturate
        PitchControlAngle = KP*SpeedError + KI*IntSpeedError
-       PitchControlAngle = min( max( PitchControlAngle, turbinemodel(j) % PitchControlAngleMin), &
+       PitchControlAngle = min( max( PitchControlAngle,                        &
+                           turbinemodel(j) % PitchControlAngleMin),            &
                            turbineModel(j) % PitchControlAngleMax)
 
     endif
@@ -729,6 +818,9 @@ implicit none
 
 integer, intent(in) :: i ! Indicates the turbine number
 integer :: j ! Indicates the turbine type
+integer :: m, n, q ! Looping indices
+integer,     pointer :: NumSec  ! Number of sections in lookup table
+real(rprec),  pointer :: bladeRadius(:,:,:)
 real(rprec), pointer :: projectionRadius, projectionRadiusNacelle
 real(rprec), pointer :: sphereRadius
 real(rprec), pointer :: OverHang
@@ -739,7 +831,11 @@ real(rprec), pointer :: PreCone
 ! Identifies the turbineModel being used
 j=turbineArray(i) % turbineTypeID ! The type of turbine (eg. NREL5MW)
 
+! Number of sections in lookup table
+NumSec => turbineModel(j) % NumSec
+
 ! Pointers dependent on turbineArray (i)
+bladeRadius=>turbineArray(i) % bladeRadius
 projectionRadius=>turbineArray(i) % projectionRadius
 projectionRadiusNacelle=>turbineArray(i) % projectionRadiusNacelle
 sphereRadius=>turbineArray(i) % sphereRadius
@@ -758,6 +854,36 @@ projectionRadiusNacelle= turbineArray(i) % nacelleEpsilon*sqrt(log(1.0/0.001))
 
 sphereRadius=sqrt(((OverHang + UndSling) + TipRad*sin(PreCone))**2 &
 + (TipRad*cos(PreCone))**2) + projectionRadius
+
+
+! Compute the optimum value of epsilon for each blade section
+do m=1, turbineModel(j) % numBl
+    do n=1, turbineArray(i) %  numAnnulusSections
+        do q=1, turbineArray(i) % numBladePoints
+
+            ! Interpolate quantities through section
+            turbineArray(i) % twistAng(m,n,q) =                                &
+                                   interpolate(bladeRadius(m,n,q),             &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % twist(1:NumSec) )
+          
+            turbineArray(i) % chord(m,n,q) =                                   &
+                                   interpolate(bladeRadius(m,n,q),             &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % chord(1:NumSec) )
+            
+            turbineArray(i) % sectionType(m,n,q) =                             &
+                                   interpolate_i(bladeRadius(m,n,q),           &
+                                   turbineModel(j) % radius(1:NumSec),         &
+                                   turbineModel(j) % sectionType(1:NumSec))
+
+            ! Hard coded optimum value of epsilon star (0.2 = epsilon/chord)
+            ! Martinez-Meneveau 2015 Optimal Smoothing Length Scale
+            turbineArray(i) % epsilon_opt(m,n,q) =                             &
+                        0.2 * turbineArray(i) % chord(m,n,q)
+        enddo
+    enddo
+enddo
 
 ! Calculate the smearing value epsilon for the nacelle
 ! It will be the hub radius unless the grid is coarser, and thus
@@ -876,18 +1002,10 @@ windVectors(m,n,q,2) = dot_product(bladeAlignedVectors(m,n,q,2,:), U_local) + &
                       (rotSpeed * bladeRadius(m,n,q) * cos(PreCone))
 windVectors(m,n,q,3) = dot_product(bladeAlignedVectors(m,n,q,3,:), U_local)
 
-! Interpolate quantities through section
-twistAng_i = interpolate(bladeRadius(m,n,q),                                   &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % twist(1:NumSec) )
-
-chord_i = interpolate(bladeRadius(m,n,q),                                      &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % chord(1:NumSec) )
-
-sectionType_i = interpolate_i(bladeRadius(m,n,q),                              &
-                       turbineModel(j) % radius(1:NumSec),   &
-                       turbineModel(j) % sectionType(1:NumSec))
+! Interpolated quantities through section
+twistAng_i = turbineArray(i) % twistAng(m,n,q)
+chord_i = turbineArray(i) % chord(m,n,q)
+sectionType_i = turbineArray(i) % sectionType(m,n,q)
 
 ! Velocity magnitude
 Vmag(m,n,q)=sqrt( windVectors(m,n,q,1)**2+windVectors(m,n,q,2)**2 )
@@ -939,6 +1057,15 @@ dragVector = -turbineArray(i) % drag(m,n,q) * dragVector;
 ! The blade force is the total lift and drag vectors 
 turbineArray(i) % bladeForces(m,n,q,:) = vector_add(liftVector, dragVector)
 
+! Find the component of the blade element force/density in the axial 
+! (along the shaft) direction.
+turbineArray(i) % axialForce(m,n,q) = dot_product(                           &
+        -turbineArray(i) % bladeForces(m,n,q,:), turbineArray(i) % uvShaft)
+
+! Find the component of the blade element force/density in the tangential 
+! (torque-creating) direction.
+turbineArray(i) % tangentialForce(m,n,q) = dot_product(                      &
+       turbineArray(i) % bladeForces(m,n,q,:), bladeAlignedVectors(m,n,q,2,:))
 
 ! Change this back to radians
 windAng_i = windAng_i * degRad
@@ -1023,7 +1150,7 @@ u_infinity => turbineArray(i) % u_infinity
 u_infinity_mean = sum(u_infinity) / size(u_infinity) / &
 (1. - sum(induction_a) / size(induction_a))
 
-write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
+!~ write(*,*) "U infinity is", u_infinity_mean, size(u_infinity)
 
 end subroutine atm_integrate_u
 
@@ -1044,7 +1171,7 @@ j=turbineArray(i) % turbineTypeID
 turbineArray(i) % rotorApex = rotatePoint(turbineArray(i) % rotorApex,         &
                               turbineArray(i) % towerShaftIntersect,           &
                               turbineArray(i) % uvTower,                       &
-                              turbineArray(i) % deltaNacYaw);
+                              turbineArray(i) % deltaNacYaw)
 
 ! Recompute the shaft unit vector since the shaft has rotated.
 turbineArray(i) % uvShaft =                                                    &
@@ -1080,24 +1207,24 @@ endif
 
 end subroutine atm_yawNacelle
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine atm_compassToStandard(dir)
-! This function converts nacelle yaw from compass directions to the standard
-! convention of 0 degrees on the + x axis with positive degrees
-! in the counter-clockwise direction.
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-implicit none
-real(rprec), intent(inout) :: dir
-dir = dir + 180.0
-if (dir .ge. 360.0) then
-    dir = dir - 360.0
-endif
-dir = 90.0 - dir
-if (dir < 0.0) then
-    dir = dir + 360.0
-endif
- 
-end subroutine atm_compassToStandard
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine atm_compassToStandard(dir)
+!~ ! This function converts nacelle yaw from compass directions to the standard
+!~ ! convention of 0 degrees on the + x axis with positive degrees
+!~ ! in the counter-clockwise direction.
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ implicit none
+!~ real(rprec), intent(inout) :: dir
+!~ dir = dir + 180.0
+!~ if (dir .ge. 360.0) then
+!~     dir = dir - 360.0
+!~ endif
+!~ dir = 90.0 - dir
+!~ if (dir < 0.0) then
+!~     dir = dir + 360.0
+!~ endif
+!~  
+!~ end subroutine atm_compassToStandard
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_output(i, jt_total, time)
@@ -1112,6 +1239,7 @@ integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
+integer :: tangentialForceFile=24, axialForceFile=25, yawfile=26
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1120,52 +1248,60 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(*,*) '!  Writing Actuator Turbine Model output  !'
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     
-!~     do i=1,numberOfTurbines
-
     j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
     ! File for power output
     open(unit=powerFile,position="append",                                     &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/power")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/power")
 
     ! File for thrust
-    open(unit=thrustFile,position="append",                                     &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/thrust")
+    open(unit=thrustFile,position="append",                                    &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/thrust")
 
     ! File for rotor speed
     open(unit=RotSpeedFile,position="append",                                  &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/RotSpeed")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/RotSpeed")
+
+    ! File for yaw
+    open(unit=YawFile,position="append",                                  &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Yaw")
 
     ! File for blade output
     open(unit=bladeFile,position="append",                                     &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/blade")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/blade")
 
     open(unit=liftFile,position="append",                                      &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/lift")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/lift")
 
     open(unit=dragFile,position="append",                                      &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/drag")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/drag")
     
     open(unit=ClFile,position="append",                                        &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/Cl")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Cl")
 
     open(unit=CdFile,position="append",                                        &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/Cd")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Cd")
 
     open(unit=alphaFile,position="append",                                     &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/alpha")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/alpha")
 
     open(unit=VrelFile,position="append",                                      &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vrel")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Vrel")
 
     open(unit=VaxialFile,position="append",                                    &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vaxial")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Vaxial")
 
     open(unit=VtangentialFile,position="append",                               &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/Vtangential")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/Vtangential")
+
+    open(unit=tangentialForceFile,position="append",                           &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/tangentialForce")
+
+    open(unit=axialForceFile,position="append",                                &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/axialForce")
 
     open(unit=pitchFile,position="append",                                     &
-    file="./turbineOutput/turbine"//trim(int2str(i))//"/pitch")
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/pitch")
 
     call atm_compute_power(i)
     write(powerFile,*) time, turbineArray(i) % powerRotor,                     &
@@ -1174,6 +1310,8 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     write(RotSpeedFile,*) time, turbineArray(i) % RotSpeed
     write(pitchFile,*) time, turbineArray(i) % PitchControlAngle,              &
                        turbineArray(i) % IntSpeedError
+    write(YawFile,*) time, turbineArray(i) % deltaNacYaw,                      &
+                           turbineArray(i) % NacYaw
 
     ! Will write only the first actuator section of the blade
     do m=1, turbineModel(j) % numBl
@@ -1189,13 +1327,14 @@ if ( mod(jt_total-1, outputInterval) == 0) then
         write(VaxialFile,*) i, m, turbineArray(i) % windVectors(m,1,:,1)
         write(VtangentialFile,*) i, m, turbineArray(i) %                       &
                                        windVectors(m,1,:,2)
+        write(tangentialForceFile,*) i, m, turbineArray(i) %                   &
+                                            tangentialForce(m,1,:)
+        write(axialForceFile,*) i, m, turbineArray(i) % axialForce(m,1,:)
 
     enddo
     
         ! Write blade points 
 !~         call atm_write_blade_points(i,jt_total)
-
-!~     enddo
 
     ! Close all the files 
     close(powerFile)
@@ -1211,6 +1350,9 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(VaxialFile)
     close(VtangentialFile)
     close(pitchFile)
+    close(tangentialForceFile)
+    close(axialForceFile)
+    close(yawFile)
 
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Done Writing Actuator Turbine Model output  !'
@@ -1256,8 +1398,8 @@ integer :: m, n, q, j
 
 j=turbineArray(i) % turbineTypeID ! The turbine type ID
 
-open(unit=231, file="./turbineOutput/turbine"//trim(int2str(i))//'/blades'     &
-                     //trim(int2str(time_counter))//".vtk")
+open(unit=231, file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//  &
+               '/blades'//trim(int2str(time_counter))//".vtk")
 
 ! Write the points to the blade file
 do m=1, turbineModel(j) % numBl

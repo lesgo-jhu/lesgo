@@ -3,7 +3,7 @@
 
 ! globalProperties
 
-numberOfTurbines  2
+numberOfTurbines 1 
 outputInterval       1
 updateInterval  1
     
@@ -18,7 +18,7 @@ rotationDir             "cw"
 Azimuth                 232.0105
 RotSpeed                9.155
 Pitch                   0
-NacYaw                  270
+NacYaw                  0
 fluidDensity            1.23
 numAnnulusSections      1
 annulusSectionAngle     0.
@@ -30,15 +30,15 @@ TSR               6.
 TURBINE_2 {
 turbineType              "NREL5MWRef"
 baseLocation            350.0, 315.0, 225.0 
-numBladePoints          100
-epsilon                 10.0
+numBladePoints          60
+epsilon                 12.5
 sampling                "atPoint"
 !sampling                "Spalart"
 rotationDir             "cw"
 Azimuth                 232.0105
 RotSpeed                9.155
 Pitch                   0
-NacYaw                  270
+NacYaw                  0
 fluidDensity            1.23
 numAnnulusSections      1
 annulusSectionAngle     0.

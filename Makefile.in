@@ -29,6 +29,8 @@ FCOMP = gfortran
 ## Top line general. Lines 2,3,4 for Panoramorix.
 ## Note that the order of the libraries here can make a difference (compilation problems); depends on the compiler
 INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
+ -I${HOME}/hdf5/include \
+ -I${HOME}/cgns/include \
  -I/opt/cgns-3.2.1-hdf5-mpi/include -I/opt/hdf5-1.8.12-mpi/include \
  -I/usr/local/hdf5/include \
  -I/usr/local/cgns/include \
@@ -37,12 +39,15 @@ INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/act/cgns-3.2.1/mpich/gcc-4.7.2/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
+ -L${HOME}/hdf5/lib \
+ -L${HOME}/cgns/lib \
  -L/opt/hdf5-1.8.12-mpi/lib -L/opt/cgns-3.2.1-hdf5-mpi/lib \
  -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
  -L/act/fftw3/mpich/gcc-4.7.2/lib \
  -L/act/hdf5-1.8.15/mpich/gcc-4.7.2/lib \
  -L/act/cgns-3.2.1/mpich/gcc-4.7.2/lib
+
  
 HOSTNAME = $(shell hostname -s)
 
@@ -97,6 +102,10 @@ USE_LVLSET = no
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
 USE_CPS=no
+
+# Shift the domain in the y (spanwise) direction to eliminate
+# streaks effects on averaging
+USE_STREAKS = no
 
 # Calc Lag-avg timescale w. error autocorrelation
 #USE_DYN_TN = no

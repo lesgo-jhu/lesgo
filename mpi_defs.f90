@@ -35,6 +35,10 @@ integer, parameter :: MPI_SYNC_DOWN=1
 integer, parameter :: MPI_SYNC_UP=2
 integer, parameter :: MPI_SYNC_DOWNUP=3
 
+$if($CGNS)
+integer, public :: cgnsParallelComm, cgnsSerialComm
+$endif
+
 contains
 
 !**********************************************************************
@@ -44,6 +48,9 @@ use types, only : rprec
 use param
 $if($CPS)
 use concurrent_precursor
+$endif
+$if($CGNS)
+use cgns
 $endif
 implicit none
 
@@ -62,16 +69,11 @@ call mpi_init (ierr)
 
 ! Set the local communicator
 $if($CPS)
-  ! Create the local communicator (split from MPI_COMM_WORLD)
-  ! This also sets the globally defined intercommunicator (bridge)
-  call create_mpi_comms_cps( localComm ) 
+    ! Create the local communicator (split from MPI_COMM_WORLD)
+    ! This also sets the globally defined intercommunicator (bridge)
+    call create_mpi_comms_cps( localComm ) 
 $else
-  localComm = MPI_COMM_WORLD
-$endif
-
-$if($CGNS)
-    ! Set the CGNS MPI Communicator
-    call cgp_mpi_comm_f(localComm, ierr)
+    localComm = MPI_COMM_WORLD
 $endif
 
 call mpi_comm_size (localComm, np, ierr)
@@ -119,6 +121,16 @@ else
   write (*, *) 'error defining MPI_RPREC/MPI_CPREC'
   stop
 end if
+
+$if($CGNS)
+    ! Set the CGNS parallel Communicator
+    cgnsParallelComm = localComm
+
+    ! Set the serial communicator
+    ! It is one communicator per processor
+    ! creates : CGNSserialComm
+    call MPI_COMM_SPLIT(localComm, coord, 0, CGNSserialComm, ierr)
+$endif
 
 return
 end subroutine initialize_mpi

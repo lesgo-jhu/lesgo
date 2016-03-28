@@ -378,7 +378,8 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 do i = 1, numberOfTurbines
     ! If statement is for running code only with the processors on that turbine
     if (turbineArray(i) % operate) then
-        call atm_update(i, dt*z_i/u_star)
+        ! Time is dimensionalize using velocity and length scale
+        call atm_update(i, dt*z_i/u_star, total_time*z_i/u_star)
     endif
 enddo
 
@@ -515,7 +516,7 @@ do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
     !~  call clock_start( myClock )
 
-        call atm_output(i, jt_total, total_time)
+        call atm_output(i, jt_total, total_time*z_i/u_star)
     !~     call clock_stop( myClock )
     !~     write(*,*) 'coord ', coord, '  Output ', myClock % time
     endif 
@@ -614,6 +615,20 @@ do i=1,numberOfTurbines
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Vmag
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
                            turbineArray(i) % Vmag,                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+
+        ! Sync axialForce
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) % axialForce
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % axialForce,                                 &
+                           size(turbineArray(i) % bladeScalarDummy),             &
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+
+        ! Sync tangentialForce
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) % tangentialForce
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+                           turbineArray(i) % tangentialForce,                                 &
                            size(turbineArray(i) % bladeScalarDummy),             &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 

@@ -58,7 +58,7 @@ type turbineArray_t
     real(rprec) :: fluidDensity   ! The density of the fluid (used for power)
     integer :: numAnnulusSections ! Number of annulus sections on each blade
     real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
-    real(rprec) :: deltaNacYaw
+    real(rprec) :: deltaNacYaw = 0._rprec ! Change in nacelle angle
     real(rprec) :: TSR = 0._rprec ! Tip speed ratio
     real(rprec) :: PitchControlAngle = 0._rprec
     real(rprec) :: IntSpeedError = 0._rprec
@@ -93,6 +93,12 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: solidity     
     ! Collection of radius of each point (different because of coning)
     real(rprec), allocatable, dimension(:,:,:) :: bladeRadius
+    ! Twist angle along the blade
+    real(rprec), allocatable, dimension(:,:,:) :: twistAng
+    ! Chord along the blade
+    real(rprec), allocatable, dimension(:,:,:) :: chord
+    ! Section type along the blade
+    integer,     allocatable, dimension(:,:,:) :: sectionType
     ! Forces on each actuator point (blade, annular section, point, 3)
     real(rprec), allocatable, dimension(:,:,:,:) :: bladeForces
     ! Drag force of Nacelle
@@ -121,6 +127,15 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+
+    ! These variables are to make corrections based on filtering
+    ! Optimum value of epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt(:,:,:)
+    ! Axial velocity filtered at 2 epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: windVectors_2f(:,:,:,:)
+    ! Axial velocity filtered at 2 epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: bladeForces_2f(:,:,:,:)
+
 
     ! Induction factor and u infinity
     real(rprec), allocatable, dimension(:,:,:) :: induction_a
@@ -232,7 +247,13 @@ type turbineModel_t
     real(rprec) :: PitchControlAngleK     ! Angle at which sensitivity doubles
     real(rprec) :: PitchControlKP0        ! Proportional term at angle = 0
     real(rprec) :: PitchControlKI0        ! Integral term at angle = 0
-    
+
+    ! Yaw controller variables
+    character(64) :: YawControllerType    ! Name of yaw controller type
+    character(64) :: YawControllerFile    ! File that contains the yaw time info
+    real(rprec), allocatable, dimension(:)  :: yaw_time  ! time for yaw (seconds)
+    real(rprec), allocatable, dimension(:)  :: yaw_angle ! yaw angle (degrees)
+
 end type turbineModel_t
 
 ! Declare turbine array variable
@@ -425,6 +446,10 @@ character (128) :: buff ! Stored the read line
 integer:: numAirfoils ! Number of distinct airfoils
 integer :: k, p ! Used to loop through aifoil types and character counter
 integer :: numAnnulusSections, numBladePoints, numBl, numSec
+
+! Variables for reading yaw control file
+integer :: ios, N
+integer :: yawfile = 29
 
 ! Name of all the airfoils types (max 20) If more than this increase the number
 character(128), dimension(20) :: airfoils 
@@ -637,6 +662,17 @@ do i = 1, numTurbinesDistinct
         endif
         
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! This will read the yaw control values
+        if( buff(1:17) == 'YawControllerType' ) then
+            read(buff(18:), *) turbineModel(i) % YawControllerType
+            write(*,*) 'YawControllerType is: ', turbineModel(i) % YawControllerType
+        endif
+        if( buff(1:17) == 'YawControllerFile' ) then
+            read(buff(18:), *) turbineModel(i) % YawControllerFile
+            write(*,*) 'YawControllerFile is: ', turbineModel(i) % YawControllerFile
+        endif
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
             numAirfoils=0 ! Conuter for the number of distince airfoils
@@ -688,23 +724,54 @@ do i = 1, numTurbinesDistinct
                     turbineModel(i) % NumSec = NumSec
 
                     ! Read in radius, chord, twist, type
-                    read(buff,*) turbineModel(i) % radius(NumSec),           &
+                    read(buff,*) turbineModel(i) % radius(NumSec),             &
                     turbineModel(i) % chord(NumSec),   &
                     turbineModel(i) % twist(NumSec),   &
                     turbineModel(i) % sectionType(NumSec)
 
                     ! Add one to airfoil identifier. List starts at 0, now 
                     ! it will start at 1
-                    turbineModel(i) % sectionType( NumSec )  =               &
+                    turbineModel(i) % sectionType( NumSec )  =                 &
                     turbineModel(i) % sectionType( NumSec ) + 1
                 enddo
         endif
     enddo
     close (lun)  
 
+    ! Read the yaw control file, if applicable
+    if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
+        open (unit = yawfile, file="inputATM/"//                               &
+                trim(turbineModel(i) % YawControllerFile),                     &
+                form = "formatted", status = "old", action = "read")
+        
+        ! Determine number of lines
+        ios = 0
+        N = -1
+        do while (ios == 0)
+            N = N + 1
+            read(unit = yawfile, fmt = *, iostat = ios)
+        enddo
+        rewind(unit = yawfile)
+
+        ! Allocate variables
+        allocate(turbineModel(i) % yaw_time(N))
+        allocate(turbineModel(i) % yaw_angle(N))
+
+        ! now read the variables and close file
+        do j = 1, N
+            read(unit = yawfile, fmt = *) turbineModel(i) % yaw_time(j),       &
+                    turbineModel(i) % yaw_angle(j)
+            print *, turbineModel(i) % yaw_time(j), &
+                     turbineModel(i) % yaw_angle(j)
+        enddo
+        close(unit = yawfile)
+    endif
+
     ! Calculate drive train inertia
-    turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
-    ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) * ( turbineModel(i) % GenIner )
+    turbineModel(i) % DriveTrainIner = (real(turbineModel(i) % NumBl,rprec)) * &
+              (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
+              ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) *   &
+              ( turbineModel(i) % GenIner )
     
 enddo
 
@@ -715,39 +782,47 @@ numAnnulusSections = turbineArray(i) % numAnnulusSections
 j=turbineArray(i) % turbineTypeID
 numBl=turbineModel(j) % numBl
 
-    allocate(turbineArray(i) % bladeForces(numBl,          &
+    allocate(turbineArray(i) % bladeForces(numBl,                              &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % integratedBladeForces(numBl,          &
+    allocate(turbineArray(i) % integratedBladeForces(numBl,                    &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % bladeAlignedVectors(numBl,  &
+    allocate(turbineArray(i) % bladeAlignedVectors(numBl,                      &
              numAnnulusSections, numBladePoints,3,3) )
-    allocate(turbineArray(i) % windVectors(numBl,          &
+    allocate(turbineArray(i) % windVectors(numBl,                              &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % alpha(numBl,                &
+    allocate(turbineArray(i) % alpha(numBl,                                    &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Vmag(numBl,                 &
+    allocate(turbineArray(i) % Vmag(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cl(numBl,                   &
+    allocate(turbineArray(i) % Cl(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % Cd(numBl,                   &
+    allocate(turbineArray(i) % Cd(numBl,                                       &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % lift(numBl,                 &
+    allocate(turbineArray(i) % lift(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % drag(numBl,                 &
+    allocate(turbineArray(i) % drag(numBl,                                     &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % axialForce(numBl,           &
+    allocate(turbineArray(i) % axialForce(numBl,                               &
              numAnnulusSections, numBladePoints))
-    allocate(turbineArray(i) % tangentialForce(numBl,      &
+    allocate(turbineArray(i) % tangentialForce(numBl,                          &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % induction_a(numBl,          &
+    allocate(turbineArray(i) % induction_a(numBl,                              &
+             numAnnulusSections, numBladePoints) ) 
+    allocate(turbineArray(i) % u_infinity(numBl,                               &
              numAnnulusSections, numBladePoints) )
-    allocate(turbineArray(i) % u_infinity(numBl,          &
+    allocate(turbineArray(i) % chord(numBl,                                    &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % twistAng(numBl,                                 &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % sectionType(numBl,                              &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
-    allocate(turbineArray(i) % bladeVectorDummy(numBl,          &
+    allocate(turbineArray(i) % bladeVectorDummy(numBl,                         &
              numAnnulusSections, numBladePoints,3) )
-    allocate(turbineArray(i) % bladeScalarDummy(numBl,          &
+    allocate(turbineArray(i) % bladeScalarDummy(numBl,                         &
              numAnnulusSections, numBladePoints) )
 
 enddo
