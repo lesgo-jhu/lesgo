@@ -128,15 +128,15 @@ ke = ke*0.5_rprec/(nx*ny*(nz-1))
 $if ($MPI)
    call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
    if (rank == 0) then  !--note its rank here, not coord
-   open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
-   ke = ke_global/nproc
-   write(2,*) total_time,ke
-   close(2)
+       open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
+       ke = ke_global/nproc
+       write(2,*) total_time,ke
+       close(2)
    end if
 $else
-open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
-write(2,*) total_time,ke
-close(2)
+    open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
+    write(2,*) total_time,ke
+    close(2)
 $endif
 
 end subroutine energy

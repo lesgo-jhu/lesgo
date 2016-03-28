@@ -18,13 +18,15 @@
 !!
 
 module turbines_base
-use types, only:rprec
-use stat_defs, only:wind_farm
+use types, only : rprec
+use stat_defs, only : wind_farm
+use param, only : path
 $if ($MPI)
-  use mpi_defs
+  use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
 $endif
 
 implicit none
+character (*), parameter :: mod_name = 'turbines'
 
 ! The following values are read from the input file
 integer :: num_x            ! number of turbines in the x-direction
@@ -68,121 +70,170 @@ contains
 
 subroutine turbines_base_init()
 use param, only: L_x, L_y, dx, dy, dz, pi, z_i
+use open_file_fid_mod
+use messages
 implicit none
+
+character(*), parameter :: sub_name = mod_name // '.turbines_base_init'
+character(*), parameter :: turbine_locations_dat = path // 'turbine_locations.dat'
 
 integer :: i, j, k
 real(rprec) :: sxx, syy, shift_base, const
+logical :: exst
+integer :: fid, ios
+real(rprec) :: xl, yl, zl
 
 ! set turbine parameters
 ! turbines are numbered as follows:
 !   #1 = turbine nearest (x,y)=(0,0)
 !   #2 = next turbine in the y-direction, etc. (go along rows)
 
-    ! Allocate wind turbine array derived type
-    nloc = num_x*num_y      !number of turbines (locations) 
-    nullify(wind_farm%turbine)
-    allocate(wind_farm%turbine(nloc))
+! Allocate wind turbine array derived type
+if (orientation == 6) then
+! Count number of turbines listed in turbine_locations.dat
+    ! Check if file exists and open
+    inquire (file = turbine_locations_dat, exist = exst)
+    if (exst) then
+        fid = open_file_fid(turbine_locations_dat, 'rewind', 'formatted')
+    else
+        call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
+    end if
 
-    ! Non-dimensionalize length values by z_i
-    dia_all = dia_all / z_i
-    height_all = height_all / z_i
-    thk_all = thk_all / z_i
-    ! Resize thickness capture at least on plane of gridpoints
-    thk_all = max ( thk_all, dx*1.01 )
+    ! count number of linex and close
+    ios = 0
+    nloc = 0
+    do 
+        read(fid, *, IOstat = ios)
+        if (ios /= 0) exit
+        nloc = nloc + 1
+    enddo
+    close(fid)
+else
+    nloc = num_x*num_y      !number of turbines (locations)
+endif 
 
-    ! Set baseline values for size
-    wind_farm%turbine(:)%height = height_all
-    wind_farm%turbine(:)%dia = dia_all
-    wind_farm%turbine(:)%thk = thk_all                      
-    wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+!$if ($VERBOSE)
+write(*,*) "Number of turbines: ", nloc
+!$endif
+nullify(wind_farm%turbine)
+allocate(wind_farm%turbine(nloc))
 
-    ! Spacing between turbines (as multiple of mean diameter)
-    sx = L_x / (num_x * dia_all )
-    sy = L_y / (num_y * dia_all )
+! Non-dimensionalize length values by z_i
+dia_all = dia_all / z_i
+height_all = height_all / z_i
+thk_all = thk_all / z_i
+! Resize thickness capture at least on plane of gridpoints
+thk_all = max ( thk_all, dx*1.01 )
 
+! Set baseline values for size
+wind_farm%turbine(:)%height = height_all
+wind_farm%turbine(:)%dia = dia_all
+wind_farm%turbine(:)%thk = thk_all                      
+wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+
+! Spacing between turbines (as multiple of mean diameter)
+sx = L_x / (num_x * dia_all )
+sy = L_y / (num_y * dia_all )
+
+if (orientation /= 6) then
     ! Baseline locations (evenly spaced, not staggered aka aligned)
     !  x,y-locations
     k = 1
     sxx = sx * dia_all  ! x-spacing with units to match those of L_x
     syy = sy * dia_all  ! y-spacing
     do i = 1,num_x
-      do j = 1,num_y
-        wind_farm%turbine(k)%xloc = sxx*real(2*i-1)/2
-        wind_farm%turbine(k)%yloc = syy*real(2*j-1)/2
-        k = k + 1
-      enddo
+        do j = 1,num_y
+            wind_farm%turbine(k)%xloc = sxx*real(2*i-1)/2
+            wind_farm%turbine(k)%yloc = syy*real(2*j-1)/2
+            k = k + 1
+        enddo
+    enddo
+endif
+
+! HERE PLACE TURBINES (x,y-positions) BASED ON 'ORIENTATION' FLAG
+if (orientation == 1) then
+! Evenly-spaced, not staggered
+!  Use baseline as set above       
+ 
+elseif (orientation == 2) then
+! Evenly-spaced, horizontally staggered only
+! Shift each row according to stag_perc
+    do i = 2, num_x
+        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+            shift_base = syy * stag_perc/100.
+            wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc + (i-1)*shift_base , L_y )
+        enddo
+    enddo
+ 
+elseif (orientation == 3) then 
+! Evenly-spaced, only vertically staggered (by rows)
+! Make even rows taller
+    do i = 2, num_x, 2
+        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+            wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
+        enddo
+    enddo
+    ! Make odd rows shorter
+    do i = 1, num_x, 2
+        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+            wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
+        enddo
+    enddo
+ 
+elseif (orientation == 4) then        
+! Evenly-spaced, only vertically staggered, checkerboard pattern
+    k = 1
+    do i = 1, num_x 
+        do j = 1, num_y
+            const = 2.*mod(real(i+j),2.)-1.  ! this should alternate between 1, -1
+            wind_farm%turbine(k)%height = height_all*(1.+const*stag_perc/100.)
+            k = k + 1
+        enddo
     enddo
 
-    ! HERE PLACE TURBINES (x,y-positions) BASED ON 'ORIENTATION' FLAG
-    if (orientation.eq.1) then
-    ! Evenly-spaced, not staggered
-    !  Use baseline as set above       
- 
-    elseif (orientation.eq.2) then
-    ! Evenly-spaced, horizontally staggered only
-      ! Shift each row according to stag_perc
-      do i = 2, num_x
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-          shift_base = syy * stag_perc/100.
-          wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc + (i-1)*shift_base , L_y )
-        enddo
-      enddo
- 
-    elseif (orientation.eq.3) then 
-    ! Evenly-spaced, only vertically staggered (by rows)
-      ! Make even rows taller
-      do i = 2, num_x, 2
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-          wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
-        enddo
-      enddo
-      ! Make odd rows shorter
-      do i = 1, num_x, 2
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-          wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
-        enddo
-      enddo
- 
-    elseif (orientation.eq.4) then        
-    !Evenly-spaced, only vertically staggered, checkerboard pattern
-      k = 1
-      do i = 1, num_x 
+elseif (orientation == 5) then        
+! Aligned, but shifted forward for efficient use of simulation space during CPS runs
+! Usual placement is baseline as set above
+
+    ! Shift in spanwise direction: Note that stag_perc is now used
+    k=1
+    dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
+    do i = 1, num_x
         do j = 1, num_y
-          const = 2.*mod(real(i+j),2.)-1.  ! this should alternate between 1, -1
-          wind_farm%turbine(k)%height = height_all*(1.+const*stag_perc/100.)
-          k = k + 1
+            dummy2=dummy*(i-1)         
+            wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
+            k=k+1
         enddo
-      enddo
+    enddo      
+elseif (orientation == 6) then
+! Read x, y, and z locations in meters directly from turbine_locations.dat
 
-    elseif (orientation.eq.5) then        
-    !Aligned, but shifted forward for efficient use of simulation space during CPS runs
+    write(*,*) "Reading turbine locations from file."
+    inquire (file = turbine_locations_dat, exist = exst)
+    if (exst) then
+        fid = open_file_fid(turbine_locations_dat, 'rewind', 'formatted')
+    else
+        call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
+    end if
 
-      ! Usual placement is baseline as set above
+    do k = 1, nloc
+        read(fid,*) xl, yl, zl
+        wind_farm%turbine(k)%xloc = xl / z_i
+        wind_farm%turbine(k)%yloc = yl / z_i
+        wind_farm%turbine(k)%height = zl / z_i
+    enddo
+    close(fid)
+endif
 
-      ! Shift in spanwise direction: Note that stag_perc is now used
-      k=1
-      dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
-      do i = 1, num_x
-      do j = 1, num_y
-         dummy2=dummy*(i-1)         
-         wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
-         k=k+1
-      enddo
-      enddo
-      
-      ! Print the values to the file in order to check the turbine spacings
-      k=1
-      do i=1, num_x
-      do j=1, num_y
-        write(*,*) k,wind_farm%turbine(k)%xloc,wind_farm%turbine(k)%yloc
-        k=k+1
-      enddo
-      enddo
-      endif
+!$if ($VERBOSE)
+do k = 1, nloc
+    write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height 
+enddo
+!$endif
             
-    !orientation (angles)
-    wind_farm%turbine(:)%theta1 = theta1_all
-    wind_farm%turbine(:)%theta2 = theta2_all
+! orientation (angles)
+wind_farm%turbine(:)%theta1 = theta1_all
+wind_farm%turbine(:)%theta2 = theta2_all
 
 end subroutine turbines_base_init
 
