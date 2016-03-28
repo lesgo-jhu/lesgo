@@ -91,7 +91,7 @@ USE_CGNS=yes
 
 #################################################### Tony ATM
 # Use the actuator turbine model
-USE_ATM = yes
+USE_ATM = no
 #################################################### Tony ATM
 
 
