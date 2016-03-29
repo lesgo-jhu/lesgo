@@ -40,15 +40,15 @@ use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
 use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
+#endif
 
 implicit none
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 integer::jz
 integer :: jz_min
@@ -70,9 +70,9 @@ logical, save :: arrays_allocated = .false.
 
 real(kind=rprec) :: const
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'started convec'
-$endif
+#endif
 
 if( .not. arrays_allocated ) then
 
@@ -104,31 +104,31 @@ do jz = lbz, nz
    cy(:,:,jz)=const*u2(:,:,jz)
    cz(:,:,jz)=const*u3(:,:,jz)
    
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-  $else
+#else
 ! do forward fft on normal-size arrays
   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
-  $endif 
+#endif 
 ! zero pad: padd takes care of the oddballs
    call padd(u1_big(:,:,jz),cx(:,:,jz))
    call padd(u2_big(:,:,jz),cy(:,:,jz))
    call padd(u3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back_big,u1_big(:,:,jz),   u1_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))    
-  $else
+#else
   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),fftwNull_p)
-  $endif
+#endif
 end do
 
 do jz = 1, nz
@@ -169,31 +169,31 @@ do jz = 1, nz
 
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-  $else
+#else
 ! do forward fft on normal-size arrays
    call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
-  $endif 
+#endif 
    call padd(vort1_big(:,:,jz),cx(:,:,jz))
    call padd(vort2_big(:,:,jz),cy(:,:,jz))
    call padd(vort3_big(:,:,jz),cz(:,:,jz))
 
 ! Back to physical space
 ! the normalization should be ok...
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back_big,vort1_big(:,:,jz),   vort1_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),fftwNull_p)
-  $endif
+#endif
 end do
 !$omp end parallel do
 
@@ -225,20 +225,20 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-  $endif   
+#endif   
 ! un-zero pad
 ! note: cc_big is going into cx!!!!
    call unpadd(cx(:,:,jz),cc_big(:,:,jz))
 ! Back to physical space
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
-   $else
+#else
    call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),fftwNull_p)
-   $endif
+#endif
 end do
 !$omp end parallel do
 
@@ -268,21 +268,21 @@ end do
 
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-  $endif
+#endif
  ! un-zero pad
 ! note: cc_big is going into cy!!!!
    call unpadd(cy(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))     
-  $else
+#else
   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),fftwNull_p)
-  $endif
+#endif
 end do
 !$omp end parallel do
 
@@ -299,17 +299,17 @@ else
   jz_min = 1
 end if
 
-!$if ($MPI)
+!#ifdef PPMPI
 !  if (coord == nproc-1) then
 !    cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
 !    jz_max = nz - 1
 !  else
 !    jz_max = nz
 !  endif
-!$else
+!#else
 !  cc_big(:,:,nz)=0._rprec ! according to JDA paper p.242
 !  jz_max = nz - 1
-!$endif
+!#endif
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
@@ -323,51 +323,51 @@ end do
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-  $endif
+#endif
 
 ! un-zero pad
 ! note: cc_big is going into cz!!!!
    call unpadd(cz(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
-   $else
+#else
    call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),fftwNull_p)
-   $endif
+#endif
 end do
 !$omp end parallel do
 
-$if ($MPI)
-$if ($SAFETYMODE)
+#ifdef PPMPI
+#ifdef PPSAFETYMODE
   cx(:, :, 0) = BOGUS
   cy(:, :, 0) = BOGUS
   cz(: ,:, 0) = BOGUS
-$endif  
-$endif
+#endif  
+#endif
 
 !--top level is not valid
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
 cz(:, :, nz) = BOGUS
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   call DEBUG_write (cx(:, :, 1:nz), 'convec.z.cx')
   call DEBUG_write (cy(:, :, 1:nz), 'convec.z.cy')
   call DEBUG_write (cz(:, :, 1:nz), 'convec.z.cz')
 endif
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'finished convec'
-$endif
+#endif
 
 end subroutine convec
 

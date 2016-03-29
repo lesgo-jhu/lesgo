@@ -44,9 +44,9 @@ public :: operator( .MUL. ), &
      operator( .MULI. ), &
      operator( .MULR. )
 
-$if($DEBUG)
+#ifdef PPDEBUG
 character (*), parameter :: mod_name = 'emul_complex'
-$endif
+#endif
 !///////////////////////////////////////
 !/// OPERATORS                       ///
 !///////////////////////////////////////
@@ -92,9 +92,9 @@ function mul_real_complex_imag_scalar( a, a_c ) result(b)
 !
 implicit none
 
-$if($DEBUG)
+#ifdef PPDEBUG
 character (*), parameter :: sub_name = mod_name // '.mul_real_complex_imag'
-$endif
+#endif
 
 real(rprec), dimension(2), intent(in) :: a
 real(rprec), intent(in) :: a_c
@@ -134,9 +134,9 @@ function mul_real_complex_2D( a, a_c ) result(b)
 !  
 implicit none
 
-$if($DEBUG)
+#ifdef PPDEBUG
 character (*), parameter :: sub_name = mod_name // '.mul_real_complex_2D'
-$endif
+#endif
 
 real(rprec), dimension( :, :), intent(in) :: a
 complex(rprec), dimension( :, : ), intent(in) :: a_c
@@ -155,10 +155,10 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in input array sizes')
-$endif
+#endif
 
 ! Allocate returned array
 allocate( b(nx_r, ny) )
@@ -176,11 +176,11 @@ do j=1, ny
     a_r = a(ir,j)
     a_i = a(ii,j)
     a_c_r = real(a_c(i,j),kind=rprec)
-    $if($DBLPREC)
+#ifdef PPDBLPREC
     a_c_i = dimag(a_c(i,j))
-    $else
+#else
     a_c_i = aimag(a_c(i,j))
-    $endif
+#endif
     
     !  Perform multiplication
     b(ir,j) = a_r * a_c_r - a_i * a_c_i
@@ -214,9 +214,9 @@ function mul_real_complex_imag_2D( a, a_c ) result(b)
 !
 implicit none
 
-$if($DEBUG)
+#ifdef PPDEBUG
 character (*), parameter :: sub_name = mod_name // '.mul_real_complex_imag_2D'
-$endif
+#endif
 
 real(rprec), dimension( :, : ), intent(in) :: a
 real(rprec), dimension( :, : ), intent(in) :: a_c
@@ -235,10 +235,10 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in array sizes')
-$endif
+#endif
 
 ! Allocate the returned array
 allocate( b(nx_r, ny ) )
@@ -289,9 +289,9 @@ function mul_real_complex_real_2D( a, a_c ) result(b)
 use types, only : rprec
 implicit none
 
-$if($DEBUG)
+#ifdef PPDEBUG
 character (*), parameter :: sub_name = mod_name // '.mul_real_complex_real_2D'
-$endif
+#endif
 real(rprec), dimension( :, : ), intent(in) :: a
 real(rprec), dimension( :, : ), intent(in) :: a_c
 
@@ -306,11 +306,11 @@ ny   = size(a,2)
 
 nx_c = size(a_c,1)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if ( nx_r .NE. 2*nx_c .OR. &
      ny .NE. size(a_c,2) ) call error( sub_name, 'Mismatch in array sizes')
 ! Allocate the returned array
-$endif
+#endif
 
 allocate(b(nx_r,ny))
 

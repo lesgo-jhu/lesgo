@@ -154,11 +154,11 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.clindx_init'
 character (*), parameter :: fname_in = path // 'clindx.out'
-$if ($MPI)
+#ifdef PPMPI
   character (*), parameter :: MPI_suffix = '.c'
 
   character (128) :: fname_in_MPI
-$endif
+#endif
 
 logical :: opn, exst
 
@@ -174,7 +174,7 @@ endif
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-$if ($MPI)
+#ifdef PPMPI
 
   write (fname_in_MPI, '(a,a,i0)') fname_in, MPI_suffix, coord
     
@@ -182,40 +182,40 @@ $if ($MPI)
   if (.not. exst) call error (sub_name,                             &
                               'cannot find file ' // fname_in_MPI)
 
-  $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
   open (1, file=fname_in_MPI, action='read', position='rewind', &
     form='unformatted', convert='big_endian')
-  $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
   open (1, file=fname_in_MPI, action='read', position='rewind', &
     form='unformatted', convert='little_endian')
-  $else
+#else
   open (1, file=fname_in_MPI, action='read', position='rewind', form='unformatted')
-  $endif                              
+#endif                              
 
   read (1) clindx
   close (1)
 
   clindx(:, :, nz) = iBOGUS
 
-$else
+#else
 
   inquire (file=fname_in, exist=exst)
   if (.not. exst) call error (sub_name, 'cannot find file ' // fname_in)
 
-  $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
   open (1, file=fname_in, action='read', position='rewind', &
     form='unformatted', convert='big_endian')
-  $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
   open (1, file=fname_in, action='read', position='rewind', &
     form='unformatted', convert='little_endian')
-  $else
+#else
   open (1, file=fname_in, action='read', position='rewind', form='unformatted')
-  $endif   
+#endif   
 
   read (1) clindx
   close (1)
 
-$endif
+#endif
 
 clindx_initialized = .true.
 
@@ -232,11 +232,11 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.chi_init'
 character (*), parameter :: fchi_in = path // 'chi.out'
-$if ($MPI)
+#ifdef PPMPI
   character (*), parameter :: MPI_suffix = '.c'
 
   character (128) :: fchi_in_MPI
-$endif
+#endif
 
 real(rprec) :: chi_max
 
@@ -247,7 +247,7 @@ logical :: opn, exst
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-$if ($MPI)
+#ifdef PPMPI
 
   write (fchi_in_MPI, '(a,a,i0)') fchi_in, MPI_suffix, coord
     
@@ -255,39 +255,39 @@ $if ($MPI)
   if (.not. exst) call error (sub_name,                             &
                               'cannot find file ' // fchi_in_MPI)
 
-  $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
   open (1, file=fchi_in_MPI, action='read', position='rewind', &
     form='unformatted', convert='big_endian')
-  $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
   open (1, file=fchi_in_MPI, action='read', position='rewind', &
     form='unformatted', convert='little_endian')
-  $else
+#else
   open (1, file=fchi_in_MPI, action='read', position='rewind', form='unformatted')
-  $endif                               
+#endif                               
 
   read (1) chi
   close (1)
 
   chi(:, :, nz) = iBOGUS
 
-$else
+#else
 
   inquire (file=fchi_in, exist=exst)
   if (.not. exst) call error (sub_name, 'cannot find file ' // fchi_in)
   
-  $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
   open (1, file=fchi_in, action='read', position='rewind', &
     form='unformatted', convert='big_endian')
-  $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
   open (1, file=fchi_in, action='read', position='rewind', &
     form='unformatted', convert='little_endian')
-  $else
+#else
   open (1, file=fchi_in, action='read', position='rewind', form='unformatted')
-  $endif   
+#endif   
   read (1) chi
   close (1)
 
-$endif
+#endif
 
 chi_max = maxval(chi)
 write(*,*) 'coord, chi_max : ', coord, chi_max
@@ -1178,10 +1178,10 @@ use types, only : rprec
 use param, only : nx,ny,nz, coord
 use level_set_base, only : phi
 use messages
-$if($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : comm, ierr
-$endif
+#endif
 
 implicit none
 
@@ -1290,11 +1290,11 @@ enddo
 deallocate(pre_indx_array_t)
 
 allocate(npoint_global( nr_elem ))
-$if($MPI)
+#ifdef PPMPI
 call mpi_allreduce(r_elem_t(:) % indx_array_t % npoint, npoint_global(:), nr_elem, MPI_INTEGER, MPI_SUM, comm, ierr)
-$else
+#else
 npoint_global(:) = r_elem_t(:) % indx_array_t % npoint
-$endif
+#endif
 
 if (coord == 0) then
   write(*,*) '----> Index Array Information : '
@@ -1450,10 +1450,10 @@ use types, only : rprec
 use param, only : nx,ny,nz, coord
 use level_set_base, only : phi
 use messages
-$if($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : comm, ierr
-$endif
+#endif
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.fill_beta_elem_indx_array'
@@ -1562,11 +1562,11 @@ enddo
 deallocate(pre_indx_array_t)
 
 allocate(npoint_global( nbeta_elem ))
-$if($MPI)
+#ifdef PPMPI
 call mpi_allreduce(beta_elem_t(:) % indx_array_t % npoint, npoint_global(:), nbeta_elem, MPI_INTEGER, MPI_SUM, comm, ierr)
-$else
+#else
 npoint_global(:) = beta_elem_t(:) % indx_array_t % npoint
-$endif
+#endif
 
 if (coord == 0) then
   write(*,*) '----> Index Array Information : '
@@ -1846,10 +1846,10 @@ subroutine set_points_in_plane(bp1, bp2, bp3, nzeta, neta, points)
 
 use types, only : rprec
 use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
-$if ($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 use grid_defs
 use messages
 implicit none
@@ -1914,10 +1914,10 @@ subroutine set_points_in_box(bp1, bp2, bp3, bp4, nxi, neta, nzeta, points)
 
 use types, only : rprec
 use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
-$if ($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 use grid_defs
 use messages
 implicit none

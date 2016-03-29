@@ -19,9 +19,9 @@
 
 module param
   use types, only : rprec, point3D_t
-  $if ($MPI)
+#ifdef PPMPI
   use mpi
-  $endif
+#endif
   implicit none
 
   save
@@ -40,23 +40,23 @@ module param
   character(*), parameter :: PATH = './'
   character(*), parameter :: checkpoint_file = path // 'vel.out'
   character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
-  $if($OUTPUT_EXTRA) 
+#ifdef PPOUTPUT_EXTRA 
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
-  $endif
+#endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
 
 !---------------------------------------------------
 ! MPI PARAMETERS
 !---------------------------------------------------
 
-  $if ($MPI)
+#ifdef PPMPI
   integer :: status(MPI_STATUS_SIZE)
   logical, parameter :: USE_MPI = .true.
   integer, parameter :: lbz = 0  ! overlap level for MPI transfer
-  $else
+#else
   logical, parameter :: USE_MPI = .false.
   integer, parameter :: lbz = 1  ! no overlap level necessary
-  $endif
+#endif
 
   !--this stuff must be defined, even if not using MPI
   ! Setting defaults for ones that can be used even with no MPI
@@ -212,7 +212,7 @@ module param
   logical :: checkpoint_data = .false.
   integer :: checkpoint_nskip = 10000
 
-  ! records time-averaged data to files ./output/*_avg.dat
+  ! records time-averaged data to files ./output/ *_avg.dat
   logical :: tavg_calc = .false.
   integer :: tavg_nstart = 1, tavg_nend = 50000, tavg_nskip = 100
 

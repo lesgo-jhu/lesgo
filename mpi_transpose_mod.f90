@@ -50,9 +50,9 @@ complex (rp), intent (out) :: b(:, :, :)
 !complex (rp), intent (in) :: a(mx, my, mz)
 !complex (rp), intent (out) :: b(mz*np, my, mx/np)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 integer :: bs
 integer :: ip
@@ -80,7 +80,7 @@ if( .not. arrays_allocated ) then
 
 endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   write (*, *) $str($context_doc)
   write (*, *) 'lbound (a) = ', lbound (a)
@@ -88,7 +88,7 @@ if (DEBUG) then
   write (*, *) 'lbound (b) = ', lbound (b)
   write (*, *) 'ubound (b) = ', ubound (b)
 end if
-$endif
+#endif
 
 if (.not. init) then
   do ip = 1, np-1

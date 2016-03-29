@@ -83,11 +83,11 @@ autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
 
 do k=lbz,nz
-  $if ($MPI)
+#ifdef PPMPI
   z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
-  $else
+#else
   z(k) = (k - 0.5_rprec) * dz
-  $endif
+#endif
 enddo
 do j=1,ny+1
   y(j) = (j-1)*dy
@@ -111,7 +111,7 @@ nullify(x,y,z,zw)
 nullify(autowrap_i,autowrap_j)
 
 ! Set jzmin and jzmax - the levels that this processor "owns"
-$if($MPI)
+#ifdef PPMPI
   if (coord == 0) then
     jzmin = 0
     jzmax = nz-1
@@ -122,10 +122,10 @@ $if($MPI)
     jzmin = 1
     jzmax = nz-1
   endif
-$else
+#else
   jzmin = 1
   jzmax = nz
-$endif
+#endif
 
 return
 end subroutine grid_build 

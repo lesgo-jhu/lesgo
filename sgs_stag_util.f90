@@ -51,29 +51,29 @@ use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
 use sgs_param
 use messages
 
-$if ($MPI)
+#ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
   use level_set, only : level_set_BC, level_set_Cs
-$endif
+#endif
 
 !use sgs_hist, only: sgs_hist_update_vals
 
 implicit none
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: sub_name = 'sgs_stag'
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
 !real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
@@ -85,13 +85,13 @@ real(kind=rprec) :: const4 !RICHARD: USED FOR OPTIMIZATION
 integer::jx,jy,jz
 integer :: jz_min
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (dudx(:, :, 1:nz), 'sgs_stag.dudx.a')
     call DEBUG_write (dudy(:, :, 1:nz), 'sgs_stag.dudy.a')
@@ -103,12 +103,12 @@ if (DEBUG) then
     call DEBUG_write (dwdy(:, :, 1:nz), 'sgs_stag.dwdy.a')
     call DEBUG_write (dwdz(:, :, 1:nz), 'sgs_stag.dwdz.a')
 end if
-$endif
+#endif
 
 ! Calculate S12, S13, S23, etc.
 call calc_Sij ()
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (S11(:, :, 1:nz), 'sgs_stag.S11.b')
     call DEBUG_write (S12(:, :, 1:nz), 'sgs_stag.S12.b')
@@ -117,28 +117,28 @@ if (DEBUG) then
     call DEBUG_write (S23(:, :, 1:nz), 'sgs_stag.S23.b')
     call DEBUG_write (S33(:, :, 1:nz), 'sgs_stag.S33.b')
 end if
-$endif
+#endif
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
-$if ($CFL_DT)
+#ifdef PPCFL_DT
     if (sgs_model == 4 .OR. sgs_model==5) then
       if ( ( jt .GE. DYN_init-cs_count + 1 ) .OR.  initu ) then
         lagran_dt = lagran_dt + dt
       endif
     endif
-$else
+#else
     lagran_dt = cs_count*dt
-$endif
+#endif
 
 
 if (sgs) then 
     if((sgs_model == 1))then  ! Traditional Smagorinsky model
 
-        $if ($LVLSET)
+#ifdef PPLVLSET
             l = delta
             call level_set_Cs (delta)
-        $else
+#else
             ! Parameters (Co and nn) for wallfunction defined in param.f90
             Cs_opt2 = Co**2  ! constant coefficient
             
@@ -170,7 +170,7 @@ if (sgs) then
                 end if
 
             end if
-        $endif
+#endif
 
     else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to sgs_model)
    
@@ -206,11 +206,11 @@ if (sgs) then
 end if 
 
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (Cs_opt2, 'sgs_stag.Cs_opt2')
 end if
-$endif
+#endif
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
@@ -368,68 +368,68 @@ else
 
 end if    
       
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.a')
     call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.a')
     call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.a')
 end if
-$endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
   !--at this point tij are only set for 1:nz-1
   !--at this point u, v, w are set for 0:nz, except bottom process is 1:nz
   !--some MPI synchronizing may be done in here, but this will be kept
   !  separate from the rest of the code (at the risk of some redundancy)
   call level_set_BC ()
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.b')
     call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.b')
     call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.b')
 end if
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
     ! txz,tyz calculated for 1:nz-1 (on w-nodes) except bottom process
     ! (only 2:nz-1) exchange information between processors to set
     ! values at nz from jz=1 above to jz=nz below
     call mpi_sync_real_array( txz, 0, MPI_SYNC_DOWN )
     call mpi_sync_real_array( tyz, 0, MPI_SYNC_DOWN )
     ! Set bogus values (easier to catch if there's an error)
-$if (SAFETYMODE)
+#ifdef PPSAFETYMODE
     txx(:, :, 0) = BOGUS
     txy(:, :, 0) = BOGUS
     txz(:, :, 0) = BOGUS
     tyy(:, :, 0) = BOGUS
     tyz(:, :, 0) = BOGUS
     tzz(:, :, 0) = BOGUS 
-$endif
-$endif
+#endif
+#endif
 
 ! Set bogus values (easier to catch if there's an error)
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
 txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
 tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
-$endif 
+#endif 
 
-$if ($MPI) 
+#ifdef PPMPI 
   if (coord == nproc-1) then  !assuming stress-free lid?
     txz(:,:,nz)=0._rprec
     tyz(:,:,nz)=0._rprec
   end if
-$else
+#else
   txz(:,:,nz)=0._rprec
   tyz(:,:,nz)=0._rprec
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine sgs_stag
 
@@ -443,9 +443,9 @@ use types,only:rprec
 use param
 use sim_param,only: dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 use sgs_param
-$if ($MPI)
+#ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-$endif
+#endif
 
 implicit none
 
@@ -531,12 +531,12 @@ else
 
 end if
 
-$if ($MPI)
+#ifdef PPMPI
     ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
     ! (only 1:nz-1) exchange information between processors to set
     ! values at nz from jz=1 above to jz=nz below
     call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
-$endif
+#endif
 
 ! Calculate Sij for the rest of the domain
 !   values are stored on w-nodes

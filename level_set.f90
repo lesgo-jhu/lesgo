@@ -26,9 +26,9 @@ use param
 use test_filtermodule, only : filter_size
 use messages
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
+#endif
 
 use level_set_base
 implicit none
@@ -46,7 +46,7 @@ character (*), parameter :: mod_name = 'level_set'
 
 integer, parameter :: nd = 3
 
-! $if ($MPI)
+! #ifdef PPMPI
 !   ! Make sure all values (top and bottom) are less than Nz
 !   integer, parameter :: nphitop = 3
 !   integer, parameter :: nphibot = 2
@@ -56,7 +56,7 @@ integer, parameter :: nd = 3
 !   integer, parameter :: ntaubot = 2
 !   integer, parameter :: nFMMtop = 1
 !   integer, parameter :: nFMMbot = 1
-! $else
+! #else
 !   integer, parameter :: nphitop = 0
 !   integer, parameter :: nphibot = 0
 !   integer, parameter :: nveltop = 0
@@ -65,7 +65,7 @@ integer, parameter :: nd = 3
 !   integer, parameter :: ntaubot = 0
 !   integer, parameter :: nFMMtop = 0
 !   integer, parameter :: nFMMbot = 0
-! $endif
+! #endif
 
 ! !--these are the extra overlap arrays required for BC with MPI
 ! real (rp), dimension (ld, ny, nphitop) :: phitop
@@ -86,9 +86,9 @@ integer, parameter :: nd = 3
 ! !--experimental: desired velocities for IB method
 ! real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
@@ -143,15 +143,15 @@ logical :: exst, opn
 real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 ! First check that the grid spacing is equal in all directions
 if( ( dx .ne. dy ) .or. ( dx .ne. dz ) .or. ( dy .ne. dz ) ) &
    call error( sub_name, 'level set requires that dx=dy=dz -> adjust domain parameters')
 
-$if($MPI)
+#ifdef PPMPI
 !  Check that the buffer arrays DO NOT extent beyond neighboring processors
 if( nphitop >= Nz .or. nphibot >= Nz .or. &
     nveltop >= Nz .or. nvelbot >= Nz .or. &
@@ -159,7 +159,7 @@ if( nphitop >= Nz .or. nphibot >= Nz .or. &
     nFMMtop >= Nz .or. nFMMbot >= Nz )  &
 
   call error( sub_name, 'Buffer array extents beyond neighboring processor')
-$endif
+#endif
 
 ! Allocate all arrays defined in level_set 
 ! !--these are the extra overlap arrays required for BC with MPI
@@ -196,24 +196,24 @@ inquire (unit=lun, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'lun =', lun, 'does not exist')
 if (opn) call error (sub_name, 'lun =', lun, 'is already open')
 
-$if ($MPI)
+#ifdef PPMPI
   write (fphi_in, '(a,a,i0)') trim (fphi_in_base), MPI_suffix, coord
-$else
+#else
   fphi_in = trim (fphi_in_base)
-$endif
+#endif
 
 inquire (file=fphi_in, exist=exst, opened=opn)
 
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
-$if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
-$else
+#else
 open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-$endif
+#endif
 
 read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
@@ -228,11 +228,11 @@ call fill_norm ()
 
 if (do_write_norm) then
 
-  $if ($MPI)
+#ifdef PPMPI
     write (fnorm_out, '(a,a,i0)') trim (fnorm_out_base), MPI_suffix, coord
-  $else
+#else
     fnorm_out = trim (fnorm_out_base)
-  $endif
+#endif
 
   !--output normal in ascii, for checking purposes
   !--recall nz-level is BOGUS
@@ -265,9 +265,9 @@ if (do_write_norm) then
 
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_init
 
@@ -282,10 +282,10 @@ subroutine level_set_vel_err()
 use types, only : rprec
 use param, only : nx, ny, nz, total_time
 use sim_param, only : u, v, w
-$if ($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 implicit none
 
 include 'tecryte.h'
@@ -296,9 +296,9 @@ character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
 integer :: i,j,k
 integer :: uv_err_navg, w_err_navg
 real(rprec) :: u_err, v_err, w_err
-$if($MPI)
+#ifdef PPMPI
 real(rprec) :: u_err_global, v_err_global, w_err_global
-$endif
+#endif
 
 !  Initialize values
 uv_err_navg = 0
@@ -356,7 +356,7 @@ else
   w_err = w_err / w_err_navg
 endif
 
-$if( $MPI )
+#ifdef PPMPI 
 
   call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
@@ -373,12 +373,12 @@ $if( $MPI )
 
   endif
 
-$else
+#else
 
 call write_real_data(fname_write, 'append', 'formatted', 2, &
                      (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
 
-$endif
+#endif
 
 
 
@@ -404,9 +404,9 @@ integer :: s
 real (rp) :: phix
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 do k = 1, nz
 
@@ -428,9 +428,9 @@ do k = 1, nz
 
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_Cs_lag_dyn
 
@@ -457,9 +457,9 @@ logical, parameter :: lag_dyn_modify_beta = .true.
 real (rp) :: phi_c
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !--part 1: smooth variables
 phi_c = 0._rp
@@ -484,9 +484,9 @@ call neumann_F_MM ()
 !--part 4 (optional): modify beta
 if (lag_dyn_modify_beta) call modify_beta ()
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_lag_dyn
 
@@ -509,9 +509,9 @@ real (rp) :: dmin
 real (rp) :: z
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
@@ -547,9 +547,9 @@ do k = 1, nz
 
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine modify_beta
 
@@ -577,9 +577,9 @@ real (rp) :: x(nd), xp(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 phi1 = -sqrt (dx**2 + dy**2 + dz**2)
 phi2 = 0._rp
@@ -587,9 +587,9 @@ phi2 = 0._rp
 !--for now dphi does not depend on normal
 dphi = sqrt (dx**2 + dy**2 + dz**2)
 
-$if ($MPI)
+#ifdef PPMPI
   call mpi_sync_F_MM ()
-$endif
+#endif
 
 do k = 1, nz - 1
 
@@ -625,19 +625,19 @@ do k = 1, nz - 1
   end do
 end do
 
-$if ($MPI)
+#ifdef PPMPI
   !--make F_MM valid at 1:nz (as in core code) by syncing nz to 1'
   !--not sure this is crucial
   call mpi_sendrecv (F_MM(1, 1, 1), ld*ny, MPI_RPREC, down, tag+1,  &
                      F_MM(1, 1, nz), ld*ny, MPI_RPREC, up, tag+1,   &
                      comm, status, ierr)
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -664,7 +664,7 @@ $if ($MPI)
                      comm, status, ierr)
 
   end subroutine mpi_sync_F_MM
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 end subroutine neumann_F_MM
 
@@ -687,9 +687,9 @@ real (rp) :: phix
 real (rp) :: phi_F_LM
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !phi_F_LM = 0._rp
 phi_F_LM = filter_size * dx  !--experimental
@@ -715,18 +715,18 @@ do k = 1, nz - 1
 
 end do
 
-$if ($MPI)
+#ifdef PPMPI
   !--make F_LM valid at 1:nz (as in core code) by syncing nz to 1'
   !--not sure this is crucial
   !--probably can change above loop to 1:nz, since phi is valid there
   call mpi_sendrecv (F_LM(1, 1, 1), ld*ny, MPI_RPREC, down, tag+1,  &
                      F_LM(1, 1, nz), ld*ny, MPI_RPREC, up, tag+1,   &
                      comm, status, ierr)
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine zero_F_LM
 
@@ -755,9 +755,9 @@ real (rp) :: grad
 real (rp) :: phi_min
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 A(1, :) = x_hat
 A(2, :) = y_hat
@@ -828,9 +828,9 @@ else
   dwdy(i, j, k) = G(3, 2)
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine modify_dutdn
 
@@ -879,9 +879,9 @@ real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 ! Set default values
 imn = 1
@@ -961,12 +961,12 @@ do k = 1, nz - 1
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
 
-        $if ($DEBUG)
+#ifdef PPDEBUG
         if (DEBUG) then
           call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
           call mesg (sub_name, 'x =', x)
         end if
-        $endif
+#endif
         
         n_hat = norm(:, i, j, k)
 
@@ -1096,9 +1096,9 @@ do k = 1, nz - 1
   end do
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, '# u bad points =', nbad)
-$endif
+#endif
 nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
@@ -1237,9 +1237,9 @@ do k = kmn, nz - 1
   end do
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, '# w bad points =', nbad)
-$endif
+#endif
 
 imn = imn_used
 imx = imx_used
@@ -1251,9 +1251,9 @@ if (output) then
   close (lun)
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine extrap_tau_simple
 
@@ -1288,9 +1288,9 @@ real (rp) :: v1(nd), v1t(nd)
 real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !--assumes phi_cutoff is set. CAREFUL
 !--set phi_a
@@ -1391,7 +1391,7 @@ do k = 1, nz - 1
 
         end if
 
-        $if ($IFORT || $IFC)
+#if defined(PPIFORT) || defined(PPIFC)
 
           if (isnan (txx(i, j, k))) then
             call mesg (sub_name, 'phi_x =', phi_x)
@@ -1427,7 +1427,7 @@ do k = 1, nz - 1
             call error (sub_name, 'NaN in tzz at (i, j, k) =', (/ i, j, k /))
           end if
 
-        $endif
+#endif
 
       end if
 
@@ -1518,9 +1518,9 @@ do k = 2, nz
   end do
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine extrap_tau_log
 
@@ -1544,9 +1544,9 @@ real (rp) :: vel1(nd), vel2(nd)
 real (rp) :: vel1_n, vel2_n
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !--need to experiment with these values
 if (phi_0_is_set) then
@@ -1605,7 +1605,7 @@ do k = 1, nz - 1
           udes(i, j, k) = vel1(1)
           vdes(i, j, k) = vel1(2)
 
-          $if ($IFORT || $IFC)
+#if defined(PPIFORT) || defined(PPIFC)
 
             if (isnan (udes(i, j, k))) then
               call error (sub_name, 'Nan at (i, j, k) =', (/ i, j, k /))
@@ -1615,7 +1615,7 @@ do k = 1, nz - 1
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))
             end if
 
-          $endif
+#endif
 
         !else
           !--do not know what to put here
@@ -1669,13 +1669,13 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           !--only take w-component
           wdes(i, j, k) = vel1(3)
 
-          $if ($IFORT || $IFC)
+#if defined(PPIFORT) || defined(PPIFC)
 
             if (isnan (wdes(i, j, k))) then
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))
             end if
 
-          $endif
+#endif
 
         !else
           !--do not know what to put here
@@ -1687,9 +1687,9 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
   end do
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine enforce_un
 
@@ -1773,7 +1773,7 @@ do k = 1, nz - 1
           udes(i, j, k) = vel1(1)
           vdes(i, j, k) = vel1(2)
 
-          $if ($IFORT || $IFC)
+#if defined(PPIFORT) || defined(PPIFC)
 
             if (isnan (udes(i, j, k))) then
               call error (sub_name, 'Nan at (i, j, k) =', (/ i, j, k /))
@@ -1783,7 +1783,7 @@ do k = 1, nz - 1
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))
             end if
 
-          $endif
+#endif
 
         !else
           !--do not know what to put here
@@ -1838,13 +1838,13 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           !--only take w-component
           wdes(i, j, k) = vel1(3)
 
-          $if ($IFORT || $IFC)
+#if defined(PPIFORT) || defined(PPIFC)
 
             if (isnan (wdes(i, j, k))) then
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))
             end if
 
-          $endif
+#endif
 
         !else
           !--do not know what to put here
@@ -1894,9 +1894,9 @@ real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub( sub_name )
-$endif
+#endif
 
 nullify(autowrap_i, autowrap_j)
 
@@ -1954,7 +1954,7 @@ else
                                      (/ ks, -nbot + albz /))
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
   else
@@ -1962,9 +1962,9 @@ $if ($MPI)
                                       'out of range (ks, ksmax) =',  &
                                       (/ ks, nz + ntop - 1 /))
   endif
-$else
+#else
   if (ks > nz - 1) call error (sub_name, 'ks out of range, ks =', ks)
-$endif
+#endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -1988,7 +1988,7 @@ w6 = (    x1    ) * (1._rp - x2) * (    x3    )
 w7 = (1._rp - x1) * (    x2    ) * (    x3    )
 w8 = (    x1    ) * (    x2    ) * (    x3    )
 
-$if ($MPI)
+#ifdef PPMPI
 
   if (ks < albz) then
     k = nbot + ks + 1 - albz
@@ -2030,7 +2030,7 @@ $if ($MPI)
     f8 = a(i1, j1, k1)
   end if
 
-$else
+#else
 
   f1 = a(i , j , ks)
   f2 = a(i1, j , ks)
@@ -2041,16 +2041,16 @@ $else
   f7 = a(i , j1, ks1)
   f8 = a(i1, j1, ks1)
 
-$endif
+#endif
 
 a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
       w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub( sub_name )
-$endif
+#endif
 
 end subroutine interp_scal
 
@@ -2084,9 +2084,9 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub( sub_name )
-$endif
+#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2122,7 +2122,7 @@ else
                                  (/ ku, -ntaubot /))
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
   else
@@ -2130,9 +2130,9 @@ $if ($MPI)
                                          'out of range (ku, kumax) =', &
                                          (/ ku, nz + ntautop - 1 /))
   endif
-$else
+#else
   if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-$endif
+#endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2192,9 +2192,9 @@ tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
 
 nullify(autowrap_i, autowrap_j)        
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub( sub_name )
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -2209,7 +2209,7 @@ real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
-$if ($MPI)
+#ifdef PPMPI
 
   if (ku < 0) then
     k = ntaubot + ku + 1
@@ -2251,7 +2251,7 @@ $if ($MPI)
     f(8) = a(i1, j1, k1)
   end if
 
-$else
+#else
 
   f(1) = a(i , j , ku )
   f(2) = a(i1, j , ku )
@@ -2262,7 +2262,7 @@ $else
   f(7) = a(i , j1, ku1)
   f(8) = a(i1, j1, ku1)
 
-$endif
+#endif
 
 end subroutine fill_f
 
@@ -2299,9 +2299,9 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub( sub_name )
-$endif
+#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2337,7 +2337,7 @@ else
                                  (/ kw, -ntaubot /))
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
   else
@@ -2345,9 +2345,9 @@ $if ($MPI)
                                          'out of range (kw, kwmax) =', &
                                          (/ kw, nz + ntautop - 1 /)) 
   endif
-$else
+#else
   if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-$endif
+#endif
 
 !--try to handle boundaries nicely for the +1 indices
 
@@ -2384,9 +2384,9 @@ tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub( sub_name )
-$endif
+#endif
 
 !**********************************************************************
 contains
@@ -2404,7 +2404,7 @@ real (rp), intent (in) :: a(ld, ny, lbz:nz)  !--since tij are lbz:nz
 
 !---------------------------------------------------------------------
 
-$if ($MPI)
+#ifdef PPMPI
 
   if (kw < 0) then
     k = ntaubot + kw + 1
@@ -2446,7 +2446,7 @@ $if ($MPI)
     f(8) = a(i1, j1, k1)
   end if
 
-$else
+#else
 
   f(1) = a(i , j , kw )
   f(2) = a(i1, j , kw )
@@ -2457,7 +2457,7 @@ $else
   f(7) = a(i , j1, kw1)
   f(8) = a(i1, j1, kw1)
 
-$endif
+#endif
 
 end subroutine fill_f
 
@@ -2493,9 +2493,9 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub( sub_name )
-$endif
+#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2538,7 +2538,7 @@ else
                                  (/ ku, -nphibot /))
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
   else
@@ -2547,9 +2547,9 @@ $if ($MPI)
                                          'out of range (ku, kumax) =',  &
                                          (/ ku, nz + nphitop - 1 /))
   endif
-$else
+#else
   if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
-$endif
+#endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2576,7 +2576,7 @@ w(7) = (1._rp - x1) * (    x2    ) * (    x3    )
 w(8) = (    x1    ) * (    x2    ) * (    x3    )
 
 !--u-nodes
-$if ($MPI)
+#ifdef PPMPI
 
   if (ku < 0) then
     k = nphibot + ku + 1
@@ -2618,7 +2618,7 @@ $if ($MPI)
     f(8) = phi(i1, j1, k1)
   end if
 
-$else
+#else
 
   f(1) = phi(i , j , ku)
   f(2) = phi(i1, j , ku)
@@ -2629,16 +2629,16 @@ $else
   f(7) = phi(i , j1, ku1)
   f(8) = phi(i1, j1, ku1)
 
-$endif
+#endif
 
 phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub( sub_name )
-$endif
+#endif
 
 end subroutine interp_phi
 
@@ -2674,9 +2674,9 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub( sub_name )
-$endif
+#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2715,7 +2715,7 @@ else
                                  (/ kw, -nvelbot /))
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
     if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
@@ -2727,10 +2727,10 @@ $if ($MPI)
                                          'out of range (kw, kwmax) =',  &
                                          (/ kw, nz + nveltop - 1 /))
   endif
-$else
+#else
   if (ku > nz - 1) call error (sub_name, 'ku out of range, ku =', ku)
   if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
-$endif
+#endif
 
 !--try to handle boundaries nicely for the +1 indices
 !i1 = modulo (i, nx) + 1
@@ -2757,7 +2757,7 @@ w7 = (1._rp - x1) * (    x2    ) * (   x3u     )
 w8 = (    x1    ) * (    x2    ) * (   x3u     )
 
 !--u-nodes
-$if ($MPI)
+#ifdef PPMPI
 
   if (ku < 0) then
     k = nvelbot + ku + 1
@@ -2799,7 +2799,7 @@ $if ($MPI)
     f8 = u(i1, j1, k1)
   end if
 
-$else
+#else
 
   f1 = u(i , j , ku)
   f2 = u(i1, j , ku)
@@ -2810,13 +2810,13 @@ $else
   f7 = u(i , j1, ku1)
   f8 = u(i1, j1, ku1)
 
-$endif
+#endif
 
 vel(1) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
 !--u-nodes
-$if ($MPI)
+#ifdef PPMPI
 
   if (ku < 0) then
     k = nvelbot + ku + 1
@@ -2858,7 +2858,7 @@ $if ($MPI)
     f8 = v(i1, j1, k1)
   end if
 
-$else
+#else
 
   f1 = v(i , j , ku )
   f2 = v(i1, j , ku )
@@ -2869,7 +2869,7 @@ $else
   f7 = v(i , j1, ku1)
   f8 = v(i1, j1, ku1)
 
-$endif
+#endif
 
 vel(2) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
@@ -2885,7 +2885,7 @@ w7 = (1._rp - x1) * (    x2    ) * (   x3w     )
 w8 = (    x1    ) * (    x2    ) * (   x3w     )
 
 !--w-nodes
-$if ($MPI)
+#ifdef PPMPI
   if (kw < 0) then
     k = nvelbot + kw + 1
     f1 = wbot(i , j , k)
@@ -2926,7 +2926,7 @@ $if ($MPI)
     f8 = w(i1, j1, k1)
   end if
 
-$else
+#else
 
   f1 = w(i , j , kw )
   f2 = w(i1, j , kw )
@@ -2937,16 +2937,16 @@ $else
   f7 = w(i , j1, kw1)
   f8 = w(i1, j1, kw1)
 
-$endif
+#endif
 
 vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
          w5 * f5 + w6 * f6 + w7 * f7 + w8 * f8
 
 nullify(autowrap_i, autowrap_j)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub( sub_name )
-$endif
+#endif
 
 end subroutine interp_vel
 
@@ -2965,9 +2965,9 @@ real (rp), intent (in out), dimension (ld, ny, lbz:nz) ::  &
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !if (phi_cutoff_is_set) then
 !  phi_c = -phi_cutoff - 10._rp * epsilon (0._rp)
@@ -2987,9 +2987,9 @@ call smooth (phi_c, lbz, tyy)
 call smooth (phi_c, lbz, tyz, node='w')
 call smooth (phi_c, lbz, tzz)
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine smooth_tau
 
@@ -3010,17 +3010,17 @@ character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 real (rp), parameter :: phi_c = 0._rp !--any pt with phi < 0 is smoothed
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
 call smooth (phi_c, lbound (w, 3), w, node='w')
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_smooth_vel
  
@@ -3066,9 +3066,9 @@ integer :: im1, ip1, jm1, jp1
 !---------------------------------------------------------------------
 nullify(autowrap_i, autowrap_j)
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -3094,9 +3094,9 @@ select case (smooth_mode)
   case ('3d')
     kmin = 2  !--this is not MPI-enabled
     kmax = nz - 1
-    $if($MPI)
+#ifdef PPMPI
     call error (sub_name, 'smooth_mode 3d not MPI compliant')
-    $endif
+#endif
   case default
     call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
 end select
@@ -3148,9 +3148,9 @@ end do
 
 nullify(autowrap_i, autowrap_j)
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine smooth
 
@@ -3196,7 +3196,7 @@ f_Cz = -sum (fz(1:nx, :, 1:nz-1)) * dx * dy * dz
 
 Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
-$if ($MPI)
+#ifdef PPMPI
 
   !--accumulate at coord 0
   call mpi_reduce (f_Cx, f_Cx_global, 1, MPI_RPREC, MPI_SUM,  &
@@ -3210,18 +3210,18 @@ $if ($MPI)
 
   if (coord == 0) Uinf_global = Uinf_global / nproc
 
-$else
+#else
 
   f_Cx_global = f_Cx
   f_Cy_global = f_Cy
   f_Cz_global = f_Cz
   Uinf_global = Uinf
 
-$endif
+#endif
 
-$if($MPI)
+#ifdef PPMPI
 if( coord == 0 ) then
-$endif 
+#endif 
 
   CxA = f_Cx_global / (0.5_rp * Uinf_global**2)
   CyA = f_Cy_global / (0.5_rp * Uinf_global**2)
@@ -3243,13 +3243,13 @@ $endif
   call write_real_data(fCA_out, 'append', 'formatted', 8, &
     (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
-  $endif
+#endif
 
-$if($MPI)
+#ifdef PPMPI
 end if
-$endif
+#endif
 
 end subroutine level_set_global_CA
 
@@ -3275,9 +3275,9 @@ real (rp) :: dmin, z
 real (rp) :: phi_tmp
 
 !----------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 if (.not. initialized) then
 
@@ -3327,11 +3327,11 @@ if (.not. initialized) then
 
         else  !--also take wall into account
 
-          $if ($MPI)
+#ifdef PPMPI
             z = (coord * (nz - 1) + jz - 1) * dz
-          $else
+#else
             z = (jz - 1) * dz
-          $endif
+#endif
           
           phi_tmp = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
                               !--MPI: requires phi(k=0)
@@ -3352,9 +3352,9 @@ if (.not. initialized) then
 
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_Cs
 
@@ -3366,7 +3366,7 @@ end subroutine level_set_Cs
 !--this routine only needed when using MPI
 !--this routine is now ridiculously expensive due to all the MPI calls
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-$if ($MPI)
+#ifdef PPMPI
 subroutine mpi_sync ()
 use sim_param, only : u, v, w, txx, txy, txz, tyy, tyz, tzz
 implicit none
@@ -3381,9 +3381,9 @@ integer :: kstart
 logical, save :: phi_synced = .false.
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !--this logic MUST match that in level_set_BC
 if (.not. use_log_profile) then
@@ -3464,15 +3464,15 @@ if (.not. use_log_profile) then
   
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine mpi_sync
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-$if ($MPI)
+#ifdef PPMPI
 subroutine mpi_sync_tau ()
 use sim_param, only : txx, txy, txz, tyy, tyz, tzz
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
@@ -3594,7 +3594,7 @@ call mpi_sendrecv (tzz(1, 1, kstart), datasize, MPI_RPREC, up,  &
                    tag+20, comm, status, ierr)
 
 end subroutine mpi_sync_tau
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--when this is called from sgs_stag:
@@ -3608,18 +3608,18 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
   call mpi_sync ()
-$endif
+#endif
 
 !--set the phi_cutoff:  all the BC routines should rely on this
 if (.not. phi_cutoff_is_set) then
@@ -3646,7 +3646,7 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
 
   else
   
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.a.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.a.txy')
@@ -3655,11 +3655,11 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.a.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.a.tzz')
     end if
-    $endif
+#endif
 
     call interp_tau ()
 
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.b.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.b.txy')
@@ -3668,14 +3668,14 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.b.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.b.tzz')
     end if
-    $endif
+#endif
     if (use_extrap_tau_simple) then
       call extrap_tau_simple ()
     else
       call extrap_tau ()
     end if
 
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.c.txx')
       call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.c.txy')
@@ -3684,7 +3684,7 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
       call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.c.tyz')
       call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.c.tzz')
     end if 
-    $endif
+#endif
 
   end if
 
@@ -3694,7 +3694,7 @@ if (use_smooth_tau) then
   !--phi_cutoff is set at start of this routine, so no need to check is_set
   call smooth_tau (-phi_cutoff, txx, txy, txz, tyy, tyz, tzz)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) then
     call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.d.txx')
     call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.d.txy')
@@ -3703,13 +3703,13 @@ if (use_smooth_tau) then
     call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.d.tyz')
     call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.d.tzz')
   end if
-  $endif
+#endif
 
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine level_set_BC
 
@@ -3726,9 +3726,9 @@ character (*), parameter :: sub_name = mod_name // '.extrap_tau'
 character (*), parameter :: fmt1 = '(4(i0,1x))'
 integer, parameter :: lun1 = 1
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 !real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--should be consistent with interp
 
 integer :: i, j, k, m, id
@@ -3738,18 +3738,18 @@ integer :: pt(nd), s(nd)
 integer :: indx(nd, 7), list(nd, 7)
 integer :: nxi(nd)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, save :: first_call = .true.
-$endif
+#endif
 
 real (rp) :: phi_c, phiw, phiw_m
 real (rp) :: sphi
 real (rp) :: normw(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 if (phi_cutoff_is_set) then
   phi_c = phi_cutoff
@@ -3763,7 +3763,7 @@ end if
 
 nxi = (/ nx, ny, nz /)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   if (first_call) then
     open (lun1, file=path // 'level_set_extrap-u.dat')
@@ -3771,15 +3771,15 @@ if (DEBUG) then
     write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
   end if
 end if
-$endif
+#endif
 !--u-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG .and. first_call) nlist = 0
-      $endif
+#endif
 
       if ((phi(i, j, k) < phi_0) .and. (phi(i, j, k) >= -phi_c)) then
 
@@ -3860,37 +3860,37 @@ do k = 2, nz-1
 
       end if
  
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
-      $endif
+#endif
 
     end do
   end do
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG .and. first_call) then
   close (lun1)
   open (lun1, file=path // 'level_set_extrap-w.dat')
   write (lun1, *) 'variables = "i" "j" "k" "nlist"'
   write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
 end if
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, 'done extrapolation (u)')
-$endif
+#endif
 
 !--w-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG .and. first_call) nlist = 0
-      $endif
+#endif
       phiw = (phi(i, j, k) + phi(i, j, k-1)) / 2._rp
       
       if ((phiw < phi_0) .and. (phiw >= -phi_c)) then
@@ -3962,29 +3962,29 @@ do k = 2, nz-1
        
       end if
       
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG .and. first_call) then
         write (lun1, fmt1) i, j, k, nlist
       end if
-      $endif
+#endif
     end do
   end do
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, 'done extrapolation (w)')
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG .and. first_call) then
   close (lun1)
   first_call = .false.
 end if
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine extrap_tau
 
@@ -4031,9 +4031,9 @@ real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 real (rp) :: x(nd), xv(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 ! Set default values
 imn = 1
@@ -4162,11 +4162,11 @@ do k = 1, nz-1
           tzz(i, j, k) = (x_hat(3) * z_hat(3) + z_hat(3) * x_hat(3)) * tau
 
           if (use_modify_dutdn) then
-            $if ($MPI)
+#ifdef PPMPI
               call error (sub_name, 'modify_dutdn not MPI-enabled')
-            $else
+#else
               call modify_dutdn (i, j, k, tau, phix, x_hat, y_hat, z_hat)
-            $endif
+#endif
           end if
 
         end if
@@ -4221,9 +4221,9 @@ do k = 1, nz-1
   end do
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, 'done interpolation (u)')
-$endif
+#endif
 
 if (output) write (lun, *) 'w-node pass'
 
@@ -4305,11 +4305,11 @@ do k = kmin, kmax
           tyz(i, j, k) = (x_hat(2) * z_hat(3) + z_hat(2) * x_hat(3)) * tau
           
           if (use_modify_dutdn) then
-            $if ($MPI)
+#ifdef PPMPI
               call error (sub_name, 'modify_dutdn not MPI enabled')
-            $else
+#else
               call modify_dutdn (i, j, k, tau, phix, x_hat, y_hat, z_hat, 'w')
-            $endif
+#endif
           end if
 
         end if
@@ -4372,14 +4372,14 @@ if (output) then
   close (lun)
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   !--resync tij, since we have altered it (this is annoying)
   call mpi_sync_tau ()
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine interp_tau
 
@@ -4397,9 +4397,9 @@ real (rp), intent (in out) :: t(ld, ny, nz)
 
 character (*), parameter :: sub_name = mod_name // '.fit3'
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 integer :: counter
 integer :: m, q
@@ -4414,9 +4414,9 @@ real (rp) :: A(3, 3), coeff(3), t_known(3)
 real (rp) :: dxi(nd-1)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 if (nl < 3) call error (sub_name, 'nl should be >= 3')
 
 counter = 0
@@ -4481,7 +4481,7 @@ if (.not. failed) then
 
   call solve_linear (A, t_known, coeff)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) then
     if (coeff(1) > 1.e7_rp) then
       call mesg (sub_name, 'A(1, :) =', A(1, :))
@@ -4492,7 +4492,7 @@ if (.not. failed) then
       call error (sub_name, 'coeff(1) too big')
     end if
   end if
-  $endif
+#endif
 
   !--we only need coeff(1)
   t(p(1), p(2), p(3)) = coeff(1)
@@ -4511,13 +4511,13 @@ else  !--just average all the points, for now
 
 end if
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine fit3
 
@@ -4535,9 +4535,9 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 integer :: i, j, k
 integer :: k_min
@@ -4545,9 +4545,9 @@ integer :: k_min
 real (rp) :: Rx, Ry, Rz
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 !--this is experimental
 if (vel_BC) then
@@ -4591,17 +4591,17 @@ fx(:, :, nz) = BOGUS
 fy(:, :, nz) = BOGUS
 
 !Setting 0 at physical top boundary
-$if($MPI)
+#ifdef PPMPI
   if( coord == nproc - 1 ) then
     fz(:, :, nz) = 0._rprec
   else
     fz(:, :, nz) = BOGUS
   endif
-$else
+#else
   fz(:,:,nz) = 0._rprec
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
   call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
@@ -4610,11 +4610,11 @@ if (DEBUG) then
   call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
   call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
 end if
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 return
 
@@ -4764,15 +4764,15 @@ select case (d)
     else if (k == n) then  !--this should not happen anymore
                            !--this routine only called with 1:nz-1
       call error (sub_name, 'called with k == nz')
-      !$if ($MPI)
+      !#ifdef PPMPI
       !  if (coord == nproc-1) then
       !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
       !  else
       !    safe_cd = BOGUS
       !  endif
-      !$else
+      !#else
       !    safe_cd = ( f(i, j, k) - f(i, j, k - 1) ) / delta
-      !$endif
+      !#endif
 
     else
 
@@ -4869,10 +4869,10 @@ integer, parameter :: bad_size = 100  !--space for storage bad norm locations
 real (rp), parameter :: eps = 1000._rp * epsilon (0._rp)
 
 integer :: i, j, k
-$if ($MPI)
+#ifdef PPMPI
   integer, parameter :: tag = 50
   integer :: datasize
-$endif
+#endif
 integer :: nbad
 integer :: bad(3, bad_size)
 integer :: ierr
@@ -4880,9 +4880,9 @@ integer :: ierr
 real (rp) :: ntmp(nd)
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 nbad = 0
 bad = iBOGUS
@@ -4942,7 +4942,7 @@ end if
 !--fill top level with BOGUS
 norm(:, :, :, nz) = BOGUS
 
-$if ($MPI)
+#ifdef PPMPI
 
   norm(:, :, :, 0) = BOGUS
 
@@ -4953,11 +4953,11 @@ $if ($MPI)
                      norm(1, 1, 1, 0), datasize, MPI_RPREC, down, tag,   &
                      comm, status, ierr)
 
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine fill_norm
 

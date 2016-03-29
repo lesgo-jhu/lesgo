@@ -50,9 +50,9 @@ use sim_param, only: u,v,w,divtz
 use sim_param, only: p_hat => p, dfdx => dpdx, dfdy => dpdy, dfdz => dpdz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
+#endif
 
 implicit none      
 
@@ -64,10 +64,10 @@ integer::jx,jy,jz
 
 integer :: ir, ii ! Used for complex emulation of real array
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
 logical, parameter :: TRI_DEBUG = .false.
-$endif
+#endif
 
 integer :: jz_min
 
@@ -97,16 +97,16 @@ if( .not. arrays_allocated ) then
    arrays_allocated = .true.
 endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'started press_stag_array'
-$endif
+#endif
 
 if (coord == 0) then
   p_hat(:, :, 0) = 0._rprec
 else
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   p_hat(:, :, 0) = BOGUS
-$endif  
+#endif  
 end if
 
 !==========================================================================
@@ -124,76 +124,76 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_y(:, :, jz) = const2 * v(:, :, jz) 
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
   call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
   call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz)) 
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)
-  $endif
+#endif
 
 end do
 
 
 
-$if ($MPI)
+#ifdef PPMPI
 !  H_x(:, :, 0) = BOGUS
 !  H_y(:, :, 0) = BOGUS
 !  H_z(:, :, 0) = BOGUS
   !Careful - only update real values (odd indicies)
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   rH_x(1:ld:2,:,0) = BOGUS
   rH_y(1:ld:2,:,0) = BOGUS
   rH_z(1:ld:2,:,0) = BOGUS
-$endif
-$endif
+#endif
+#endif
 
 !--experiment
 !--this causes blow-up
 !H_x(:, :, nz) = BOGUS
 !H_y(:, :, nz) = BOGUS
 !Careful - only update real values (odd indicies)
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
 rH_x(1:ld:2,:,nz) = BOGUS
 rH_y(1:ld:2,:,nz) = BOGUS
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     rH_z(:,:,nz) = 0._rprec
   else
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
     rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
-$endif    
+#endif    
   endif
-$else
+#else
   rH_z(:,:,nz) = 0._rprec
-$endif
+#endif
 
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
-  $endif
+#endif
 
 end if
 
-$if ($MPI) 
+#ifdef PPMPI 
   if (coord == nproc-1) then
-$endif
+#endif
   rtopw(:, :) = const * divtz(:, :, nz)
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
-  $endif
-$if($MPI)
+#endif
+#ifdef PPMPI
   endif
-$endif
+#endif
 
 
 ! set oddballs to 0
@@ -224,44 +224,44 @@ rbottomw(:, ny/2+1)=0._rprec
 !==========================================================================
 ! Loop over (Kx,Ky) to solve for Pressure amplitudes
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (TRI_DEBUG) then
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   a = BOGUS
   b = BOGUS
   c = BOGUS
   !RHS_col = BOGUS
   !Careful - only update real values (odd indicies)
   RHS_col(1:ld:2,:,:) = BOGUS
-$endif
+#endif
 end if
-$endif
+#endif
 
 !--switch order of inner/outer loops here
 if (coord == 0) then
 
   !  a,b,c are treated as the real part of a complex array
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   a(:, :, 1) = BOGUS  !--was 0._rprec
-$endif  
+#endif  
   b(:, :, 1) = -1._rprec
   c(:, :, 1) = 1._rprec
   !RHS_col(:, :, 1) = -dz * bottomw(:, :)
   RHS_col(:,:,1) = -dz * rbottomw(:,:)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (TRI_DEBUG) then
-  $if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
     a(:, :, 1) = BOGUS  !--was 0._rprec
-  $endif
+#endif
     b(:, :, 1) = 2._rprec
     c(:, :, 1) = 1._rprec
     !RHS_col(:, :, 1) = 1._rprec
     !Careful - only update real values (odd indicies)
     RHS_col(1:ld:2,:,1) = 1._rprec
   end if
-  $endif
+#endif
 
   jz_min = 2
 
@@ -271,47 +271,47 @@ else
 
 end if
 
-$if ($MPI) 
+#ifdef PPMPI 
 if (coord == nproc-1) then
-$endif
+#endif
   !--top nodes
   a(:, :, nz+1) = -1._rprec
   b(:, :, nz+1) = 1._rprec
-  $if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   c(:, :, nz+1) = BOGUS  !--was 0._rprec
-  $endif
+#endif
   
   !RHS_col(:, :, nz+1) = -topw(:, :) * dz
   RHS_col(:,:,nz+1) = -dz * rtopw(:,:)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (TRI_DEBUG) then
     a(:, :, nz+1) = 1._rprec
     b(:, :, nz+1) = 2._rprec
-    $if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
     c(:, :, nz+1) = BOGUS  !--was 0._rprec
-    $endif
-    $if ($MPI)
+#endif
+#ifdef PPMPI
       !RHS_col(:, :, nz+1) = real (nz+1 + coord * (nz-1), rprec)
       !Careful - only update real values (odd indicies)
       RHS_col(1:ld:2,:,nz+1) = real (nz+1 + coord * (nz-1), rprec)
-    $else
+#else
       !RHS_col(:, :, nz+1) = real (nz+1, rprec)
       !Careful - only update real values (odd indicies)
       RHS_col(1:ld:2,:,nz+1) =  real (nz+1, rprec)
-    $endif
+#endif
   end if
-  $endif
+#endif
   !
-$if ($MPI)
+#ifdef PPMPI
 endif
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) write (*, *) coord, ' before H send/recv'
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
   !--could maybe combine some of these to less communication is needed
   !--fill H_x, H_y, H_z at jz=0 (from nz-1)
   !--cant just change lbz above, since u,v,w (jz=0) are not in sync yet
@@ -347,9 +347,9 @@ $if ($MPI)
   call mpi_sendrecv (rH_z(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
                      rH_z(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
                      comm, status, ierr)                     
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   write (*, *) coord, ' after H send/recv'
   !call DEBUG_write (H_x(:, :, 1:nz), 'w.H_x')
@@ -364,7 +364,7 @@ if (DEBUG) then
   call DEBUG_write (rbottomw, 'w.bottomw')  
 
 end if
-$endif
+#endif
 
 do jz = jz_min, nz
   do jy = 1, ny
@@ -411,22 +411,22 @@ do jz = jz_min, nz
 !      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (TRI_DEBUG) then
         a(jx, jy, jz) = 1._rprec
         b(jx, jy, jz) = 2._rprec
         c(jx, jy, jz) = 1._rprec
-        $if ($MPI)
+#ifdef PPMPI
           !RHS_col(jx, jy, jz) = jz + coord * (nz-1)
           !Careful - only update real value
           RHS_col(ir,jy,jz) = jz + coord * (nz-1)
-        $else
+#else
           !RHS_col(jx, jy, jz) = jz
           !Careful - only update real value
           RHS_col(ir,jy,jz) = jz
-        $endif
+#endif
       end if
-      $endif
+#endif
      
     end do
   end do
@@ -436,14 +436,14 @@ end do
 !c = 1._rprec
 !b = 2._rprec
 !do jz=1,nz+1
-!  $if ($MPI)
+!  #ifdef PPMPI
 !    RHS_col(:, :, jz) = jz + coord * (nz-1)
-!  $else
+!  #else
 !    RHS_col(:, :, jz) = jz
-!  $endif
+!  #endif
 !end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   write (*, *) coord, ' before tridag_array'
   call DEBUG_write (a, 'v.a')
@@ -452,30 +452,30 @@ if (DEBUG) then
   !call DEBUG_write (RHS_col, 'v.RHS_col')
   call DEBUG_write( RHS_col, 'v.RHS_col')
 end if
-$endif
+#endif
 
 !--this skips zero wavenumber solution, nyquist freqs
 !call tridag_array (a, b, c, RHS_col, p_hat)
-$if ($MPI)
+#ifdef PPMPI
   !call tridag_array_pipelined (0, a, b, c, RHS_col, p_hat)
   call tridag_array_pipelined( 0, a, b, c, RHS_col, p_hat )
-$else
+#else
   !call tridag_array (a, b, c, RHS_col, p_hat)
   call tridag_array (a, b, c, RHS_col, p_hat)
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   write (*, *) coord, ' after tridag_array'
   call DEBUG_write (p_hat, 'press_stag_array.c.p_hat')
 endif
-$endif
+#endif
 
 !--zero-wavenumber solution
-$if ($MPI)
+#ifdef PPMPI
   !--wait for p_hat(1, 1, 1) from "down"
   call mpi_recv (p_hat(1:2, 1, 1), 2, MPI_RPREC, down, 8, comm, status, ierr)
-$endif
+#endif
 
 if (coord == 0) then
 
@@ -492,19 +492,19 @@ do jz = 2, nz
   p_hat(1:2, 1, jz) = p_hat(1:2, 1, jz-1) + rH_z(1:2, 1, jz) * dz
 end do
 
-$if ($MPI)
+#ifdef PPMPI
   !--send p_hat(1, 1, nz) to "up"
   !call mpi_send (p_hat(1, 1, nz), 1, MPI_CPREC, up, 8, comm, ierr)
   call mpi_send (p_hat(1:2, 1, nz), 2, MPI_RPREC, up, 8, comm, ierr)
-$endif
+#endif
 
-$if ($MPI)
+#ifdef PPMPI
   !--make sure 0 <-> nz-1 are syncronized
   !-- 1 <-> nz should be in sync already
   call mpi_sendrecv (p_hat(1, 1, nz-1), ld*ny, MPI_RPREC, up, 2,  &
                      p_hat(1, 1, 0), ld*ny, MPI_RPREC, down, 2,   &
                      comm, status, ierr)  
-$endif
+#endif
 
 !--zero the nyquist freqs
 !p_hat(lh, :, :) = 0._rprec
@@ -512,23 +512,23 @@ $endif
 p_hat(ld-1:ld, :, :) = 0._rprec
 p_hat(:, ny/2+1, :) = 0._rprec
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call DEBUG_write (p_hat, 'press_stag_array.d.p_hat')
-$endif
+#endif
 
 !=========================================================================== 
 !...Now need to get p_hat(wave,level) to physical p(jx,jy,jz)   
 !.....Loop over height levels     
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
-$endif
+#endif
 
-$if ($FFTW3)
+#ifdef PPFFTW3
 call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
-$else
+#else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
-$endif
+#endif
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,lh
@@ -550,32 +550,32 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
-$if ($FFTW3)
+#ifdef PPFFTW3
 call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
 call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
 call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))    
-$else
+#else
 call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
-$endif
+#endif
 end do
 
 !--nz level is not needed elsewhere (although its valid)
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
 dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
 p_hat(:, :, nz) = BOGUS
-$endif
+#endif
 
 ! Final step compute the z-derivative of p_hat
 ! Calculate dpdz
 !   note: p has additional level at z=-dz/2 for this derivative
 dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
      p_hat(1:nx, 1:ny, 0:nz-2)) / dz
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
 dfdz(:, :, nz) = BOGUS
-$endif
+#endif
 
 ! ! Deallocate arrays
 ! deallocate ( rH_x, rH_y, rH_z )
@@ -584,8 +584,8 @@ $endif
 ! deallocate ( a, b, c )
 
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'finished press_stag_array'
-$endif
+#endif
 
 end subroutine press_stag_array

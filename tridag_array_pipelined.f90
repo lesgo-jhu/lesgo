@@ -36,13 +36,13 @@ real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 ! integer, parameter :: nchunks = ny  !--need to experiment to get right value
 integer :: n, nchunks
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 character (64) :: fmt
-$endif
+#endif
 
 !integer :: nchunks
 integer :: chunksize
@@ -68,12 +68,12 @@ if (coord == 0) then
   do jy = 1, ny
     do jx = 1, lh-1
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
       if (b(jx, jy, 1) == 0._rprec) then
         write (*, *) 'tridag_array: rewrite eqs, jx, jy= ', jx, jy
         stop
       end if
-$endif
+#endif
 
       ii = 2*jx
       ir = ii - 1
@@ -133,14 +133,14 @@ do q = 1, nchunks
         gam(jx, jy, j) = c(jx, jy, j-1) / bet(jx, jy)
         bet(jx, jy) = b(jx, jy, j) - a(jx, jy, j)*gam(jx, jy, j)
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
         if (bet(jx, jy) == 0._rprec) then
           write (*, *) 'tridag_array failed at jx,jy,j=', jx, jy, j
           write (*, *) 'a,b,c,gam,bet=', a(jx, jy, j), b(jx, jy, j),  &
                        c(jx, jy, j), gam(jx, jy, j), bet(jx, jy)
           stop
         end if
-$endif
+#endif
         ii = 2*jx
         ir = ii - 1
         !u(jx, jy, j) = (r(jx, jy, j) - a(jx, jy, j) * u(jx, jy, j-1)) /  &
@@ -152,7 +152,7 @@ $endif
 
     end do
 
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P1: j, u(2,2,j) = ', j, u(2, 2, j)
@@ -165,7 +165,7 @@ $endif
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P1: j, r(2,2,j) = ', j, r(2, 2, j)
     end if
-    $endif
+#endif
 
   end do
 
@@ -213,19 +213,19 @@ do q = 1, nchunks
 !  write (*, fmt) coord, ': P2: gam(2,2,n) = ', gam(2, 2, n)
 !end if
 
-!$if ($MPI)
+!#ifdef PPMPI
 !  if (coord == nproc-1) then
 !    j_max = n
 !  else
 !    j_max = n-1
 !  endif
-!$else
+!#else
 !  j_max = n
-!$endif
+!#endif
 
   do j = n-1, j_min, -1
 
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P2: j, u_i(2,2,j) = ', j, u(2, 2, j)
@@ -233,7 +233,7 @@ do q = 1, nchunks
       fmt = '(i0,a,i0,1x,es12.5)'
       write (*, fmt) coord, ': P2: j, gam(2,2,j+1) = ', j, gam(2, 2, j+1)
     end if
-    $endif
+#endif
 
     !--intend on removing cycle statements/repl with something faster
     do jy = cstart, cend
@@ -253,12 +253,12 @@ do q = 1, nchunks
 
     end do
   
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       fmt = '(i0,a,i0,"(",es12.5,", ",es12.5,")")'
       write (*, fmt) coord, ': P2: j, u_f(2,2,j) = ', j, u(2, 2, j)
     end if
-    $endif
+#endif
 
   end do
 

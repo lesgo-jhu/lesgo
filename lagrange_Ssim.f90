@@ -38,28 +38,28 @@ use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
 use string_util, only : string_concat
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
-$if ($LVLSET)
+#endif
+#ifdef PPLVLSET
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
-$endif
-$if ($DYN_TN)
+#endif
+#ifdef PPDYN_TN
 use sgs_param, only:F_ee2,F_deedt2,ee_past
-$endif
-$if ($MPI)
+#endif
+#ifdef PPMPI
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
-$endif
+#endif
 
 implicit none
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: sub_name = 'lagrange_Ssim'
-$endif
+#endif
 real (rprec), parameter :: eps = 1.e-32_rprec
 
 real(rprec), dimension(ld,ny) :: fourbeta
@@ -69,30 +69,30 @@ real(rprec), dimension(ld,ny) :: LM,MM,Tn,epsi,dumfac
 real(rprec) :: const
 real(rprec) :: opftdelta,powcoeff
 
-$if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 character (64) :: fnamek
 integer :: count_all, count_clip
-$endif
+#endif
 
 integer :: istart, iend, jz, ii, i
 
 logical, save :: F_LM_MM_init = .false.
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 ! Set coefficients
     opftdelta = opftime*delta
     powcoeff = -1._rprec/8._rprec
     const = 2._rprec*delta**2
 
-$if ($LVLSET)
+#ifdef PPLVLSET
   call level_set_lag_dyn (S11, S12, S13, S22, S23, S33)
-$else
+#else
   Beta = 1._rprec  
-$endif
+#endif
 
 ! "Rearrange" F_LM, F_MM, F_ee2, F_deedt2 (running averages) so that 
 !   their new positions (i,j,k) correspond to the current (i,j,k) particle
@@ -102,11 +102,11 @@ call interpolag_Ssim()
 !   the running averages, F_LM(:,:,jz) and F_MM(:,:,jz), which are used to 
 !   calculate Cs_opt2(:,:,jz).
 do jz = 1,nz
-    $if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
     ! Reset counting variables for Cs clipping stats
     count_all = 0
     count_clip = 0
-    $endif
+#endif
 
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
@@ -250,12 +250,14 @@ do jz = 1,nz
     
     ! Update running averages (F_LM, F_MM, F_ee2, F_deedt2)
         ! Determine averaging timescale 
-            $if ($DYN_TN)   ! based on Taylor timescale
+#ifdef PPDYN_TN 
+    ! based on Taylor timescale
                 Tn = 4._rprec*pi*sqrt(F_ee2(:,:,jz)/F_deedt2(:,:,jz))   
-            $else           ! based on Meneveau, Cabot, Lund paper (JFM 1996)
+#else           
+    ! based on Meneveau, Cabot, Lund paper (JFM 1996)
                 Tn = max (F_LM(:,:,jz) * F_MM(:,:,jz), eps)
                 Tn = opftdelta*(Tn**powcoeff)    
-            $endif   
+#endif   
             
         ! Calculate new running average = old*(1-epsi) + instantaneous*epsi            
             dumfac = lagran_dt/Tn
@@ -265,13 +267,13 @@ do jz = 1,nz
             F_MM(:,:,jz)=(epsi*MM + (1.0_rprec-epsi)*F_MM(:,:,jz))
             F_LM(:,:,jz)= max (eps, F_LM(:,:,jz))    ! clipping to avoid instability       
 
-            $if ($DYN_TN)
+#ifdef PPDYN_TN
             ! note: the instantaneous value of the derivative is a Lagrangian average
             F_ee2(:,:,jz) = epsi*ee_now(:,:,jz)**2 + (1._rprec-epsi)*F_ee2(:,:,jz)             
             F_deedt2(:,:,jz) = epsi*( ((ee_now(:,:,jz)-ee_past(:,:,jz))/lagran_dt)**2 ) &
                                   + (1._rprec-epsi)*F_deedt2(:,:,jz)
             ee_past(:,:,jz) = ee_now(:,:,jz)
-            $endif   
+#endif   
             
     ! Calculate Cs_opt2 (use only one of the methods below)
         ! Standard method - LASS
@@ -295,7 +297,7 @@ do jz = 1,nz
         ! Directly
             !Cs_opt2(:,:,jz) = LM(:,:)/MM(:,:)
 
-    $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
     ! Count how often Cs is clipped
         do i=1,nx
         do j=1,ny
@@ -303,19 +305,19 @@ do jz = 1,nz
             count_all = count_all + 1
         enddo
         enddo
-    $endif
+#endif
 
     ! Clip Cs if necessary
         Cs_opt2(:,:,jz)= max (eps, Cs_opt2(:,:,jz)) 
    
-    $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
     ! Write average Tn for this level to file
         fnamek = path
-        $if ($DYN_TN)
+#ifdef PPDYN_TN
         call string_concat( fnamek, 'output/Tn_dyn_', jz + coord*(nz-1), '.dat' )
-        $else
+#else
         call string_concat( fnamek, 'output/Tn_mlc_', jz + coord*(nz-1), '.dat' )
-        $endif
+#endif
        
         ! Write
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
@@ -328,7 +330,7 @@ do jz = 1,nz
         open(unit=2,file=fnamek,action='write',position='append',form='formatted')
         write(2,*) jt_total,real(count_clip)/real(count_all)
         close(2)   
-    $endif    
+#endif    
 
     ! Save Tn to 3D array for use with tavg_sgs
     Tn_all(:,:,jz) = Tn(:,:)    
@@ -337,34 +339,34 @@ end do
 ! this ends the main jz=1,nz loop     -----------------------now repeat for other horiz slices
 
 ! Share new data between overlapping nodes
-    $if ($MPI)
+#ifdef PPMPI
         call mpi_sync_real_array( F_LM, 0, MPI_SYNC_DOWNUP )  
         call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )            
-        $if ($DYN_TN)
+#ifdef PPDYN_TN
             call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
-        $endif 
+#endif 
         call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
-    $endif   
+#endif   
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     call DEBUG_write (F_LM(:, :, 1:nz), 'lagrange_Ssim.F_LM')
     call DEBUG_write (F_MM(:, :, 1:nz), 'lagrange_Ssim.F_MM')
     call DEBUG_write (Cs_opt2(:, :, 1:nz), 'lagrange_Ssim.Cs_opt2')
 end if
-$endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
     call level_set_Cs_lag_dyn ()
-$endif
+#endif
 
 ! Reset variable for use during next set of cs_count timesteps
 if( use_cfl_dt ) lagran_dt = 0.0_rprec
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub(sub_name)
-$endif
+#endif
 
 end subroutine lagrange_Ssim

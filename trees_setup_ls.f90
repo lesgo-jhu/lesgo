@@ -950,9 +950,9 @@ character (*), parameter :: esyntax = 'syntax error at line'
 integer, parameter :: lun = 1
 integer, parameter :: BUFF_LEN = 256
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .true.
-$endif
+#endif
 
 character (BUFF_LEN) :: buff
 
@@ -968,9 +968,9 @@ logical :: exst
 logical :: have_n_tree, have_n_sub_branch, have_rel_dir, have_root_height
 
 !---------------------------------------------------------------------
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call enter_sub (sub)
-$endif
+#endif
 inquire (file=ftrees_conf, exist=exst)
 
 if (exst) then
@@ -1038,41 +1038,41 @@ do
 
     case ('d')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'd case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % d
       call mesg (sub, 'read d =', tree_array(i_tree) % d)
 
     case ('l')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'l case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % l
       call mesg (sub, 'read l =', tree_array(i_tree) % l)
       
     case ('max_res_gen')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'max_res_gen case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % max_res_gen
       call mesg (sub, 'read max_res_gen =', tree_array(i_tree) % max_res_gen)
       
     case ('n_gen')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'n_gen case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % n_gen
       call mesg (sub, 'read n_gen =', tree_array(i_tree) % n_gen)
       
     case ('n_sub_branch')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'n_sub_branch case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) n_sub_branch
       call mesg (sub, 'read n_sub_branch =', n_sub_branch)
 
@@ -1089,24 +1089,24 @@ do
 
     case ('n_tree')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'n_tree case selected')
-      $endif
+#endif
       call case_n_tree ()
 
     case ('ratio')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'ratio case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % ratio
       call mesg (sub, 'read ratio =', tree_array(i_tree) % ratio)
       
     case ('rel_dir')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'rel_dir case selected')
-      $endif
+#endif
       if (.not. have_n_sub_branch) then
         call error (sub, 'n_sub_branch must be specified before rel_dir')
       end if
@@ -1128,9 +1128,9 @@ do
    
     case ('root_height')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'root_height case selected')
-      $endif
+#endif
       !--make n_sub_branch is known
       if (.not. have_n_sub_branch) then
         call error (sub, 'n_sub_branch must specified before root_height')
@@ -1142,32 +1142,32 @@ do
 
     case ('taper')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'taper case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % taper
       call mesg (sub, 'read taper =', tree_array(i_tree) % taper)
 
     case ('tree')
       
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'tree case selected')
-      $endif
+#endif
       call case_tree ()
 
     case ('trunk_dir')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'trunk_dir case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % trunk_dir
       call mesg (sub, 'read trunk_dir =', tree_array(i_tree) % trunk_dir)
 
     case ('trunk_twist')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'trunk_twist case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % trunk_twist
       call mesg (sub, 'read trunk_twist =', tree_array(i_tree) % trunk_twist)
       call mesg (sub, 'converting trunk_twist to radians')
@@ -1177,9 +1177,9 @@ do
 
     case ('twist')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'twist case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % twist
       call mesg (sub, 'read twist =', tree_array(i_tree) % twist)
       call mesg (sub, 'converting twist to radians')
@@ -1189,9 +1189,9 @@ do
  
     case ('x0')
 
-      $if ($DEBUG)
+#ifdef PPDEBUG
       if (DEBUG) call mesg (sub, 'x0 case selected')
-      $endif
+#endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % x0
       call mesg (sub, 'read x0 =', tree_array(i_tree) % x0)
     case default
@@ -1209,9 +1209,9 @@ if (.not. (have_n_tree .and. have_n_sub_branch .and.  &
   call error (sub, 'missing required trees data')
 end if
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call exit_sub (sub)
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -1278,9 +1278,9 @@ real (rp), parameter :: thresh = 100._rp * epsilon (1._rp)
 real (rp) :: x_hat(nd), y_hat(nd)
 
 !---------------------------------------------------------------------
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call enter_sub (sub_name)
-$endif
+#endif
 
 !--allocate the trunk
 allocate (tree % trunk)
@@ -1319,12 +1319,12 @@ tree % trunk % abs_dir = real (tree % trunk_dir, rp)
 tree % trunk % abs_dir = (tree % trunk % abs_dir) /  &
                          mag (tree % trunk % abs_dir)
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   call mesg (sub_name, 'tree % trunk_dir =', tree % trunk_dir)
   call mesg (sub_name, 'tree % trunk % abs_dir =', tree % trunk % abs_dir)
 end if
-$endif
+#endif
 
 ! relative to absolute coords (not really needed for trunk)
 ! 8/11/04 note: not sure if this is valid 
@@ -1408,9 +1408,9 @@ else if (tree % n_gen < tree % max_res_gen) then
 
 end if
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine init_tree
 
@@ -1428,9 +1428,9 @@ character (*), parameter :: sub_name = mod_name // '.cartesian_correction'
 integer :: i
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 do i = 1, nd
   if ( abs (x_hat(i)) < epsilon (x_hat(i)) ) x_hat(i) = 0.0_rp
@@ -1438,9 +1438,9 @@ do i = 1, nd
   if ( abs (z_hat(i)) < epsilon (z_hat(i)) ) z_hat(i) = 0.0_rp
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine cartesian_correction
 
@@ -1469,15 +1469,15 @@ real (rp) :: x_hat(nd), y_hat(nd)
 type (branch_type), pointer :: t  ! this
 
 !---------------------------------------------------------------------
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call enter_sub (sub_name)
-$endif
+#endif
 
 if ((p % n_sub_branch) < 1) then
   
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) call exit_sub (sub_name)
-  $endif
+#endif
   return  ! do nothing
 end if
 
@@ -1497,7 +1497,7 @@ do i = 1, p % n_sub_branch
 
   t % gen = (p % gen) + 1
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) then
     if (t % gen > tree_array (t % itree) % n_gen) then
       call error (sub_name, 'invalid gen')
@@ -1505,7 +1505,7 @@ do i = 1, p % n_sub_branch
     call mesg (sub_name, 'adding branch ', i ,         &
                          ' on level ', t % gen)
   end if
-  $endif
+#endif
 
   t % n_sub_branch = tree_array (t % itree) % n_sub_branch
 
@@ -1587,9 +1587,9 @@ do i = 1, p % n_sub_branch
 
   end if
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) call mesg (sub_name, 't % x0(3) = ', t % x0(3))
-  $endif
+#endif
 
   ! now we have the absolute direction of this sub-branch,
   ! we can calculate the x_hat, y_hat, z_hat of this sub-branch
@@ -1613,11 +1613,11 @@ do i = 1, p % n_sub_branch
   ! then t inherits p local coordinate system
   if (maxval (abs (t % y_hat - zero_vector)) < thresh) then
 
-    $if ($DEBUG)
+#ifdef PPDEBUG
     if (DEBUG) then
       call mesg (sub_name, "t's coords degenerate, using p's")
     end if
-    $endif
+#endif
 
     t % x_hat = p % x_hat
     t % y_hat = p % y_hat
@@ -1644,24 +1644,24 @@ do i = 1, p % n_sub_branch
   t % y_hat = t % y_hat / mag (t % y_hat)
   t % z_hat = t % z_hat / mag (t % z_hat)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) then
     call mesg (sub_name, 't % x_hat = ', t % x_hat)
     call mesg (sub_name, 't % y_hat = ', t % y_hat)
     call mesg (sub_name, 't % z_hat = ', t % z_hat)
   end if
-  $endif
+#endif
 
   !--evaluate bounding box height, width
   call heightwidth_bbox_br (t)
 
-  $if ($DEBUG)
+#ifdef PPDEBUG
   if (DEBUG) then
     call mesg (sub_name, 't % ident = ', t % ident)
     call mesg (sub_name, 't % height_bbox = ', t % height_bbox)
     call mesg (sub_name, 't % width_bbox = ', t % width_bbox)
   end if
-  $endif
+#endif
 
   !--evaluate bounding box projected area
   !call Ap_bbox_br (t)
@@ -1677,9 +1677,9 @@ do i = 1, p % n_sub_branch
 
 end do
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine add_sub_branches
 
@@ -1792,9 +1792,9 @@ integer :: int_b_dot_f
 integer :: int_b_dot_p
 
 !----------------------------------------------------------------------
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call enter_sub (sub_name)
-$endif
+#endif
 
 if (nzone <= 0) then
   write (msg, *) 'invalid nzone = ', nzone
@@ -1989,9 +1989,9 @@ select case (zone_selection)  ! plan on making internal subroutines
 
 end select
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine set_zone_branch
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -32,42 +32,42 @@ real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 integer::jx,jy,jz
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'started divstress_w'
-$endif
+#endif
 
 ! compute stress gradients      
 !--tx 1:nz => dtxdx 1:nz
 call ddx(tx, dtxdx, lbz)
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   dtxdx(:, :, 0) = BOGUS
-$endif
-$endif
+#endif
+#endif
 
 
 !--ty 1:nz => dtydy 1:nz
 call ddy(ty, dtydy, lbz)
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   dtydy(:, :, 0) = BOGUS
-$endif
-$endif
+#endif
+#endif
 
 !--tz 0:nz-1 (special case) => dtzdz 1:nz-1 (default), 2:nz-1 (bottom),
 !                                    1:nz (top)
 call ddz_uv(tz, dtzdz, lbz)
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   dtzdz(:, :, 0) = BOGUS
-$endif
-$endif
+#endif
+#endif
 
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   divt(:, :, 0) = BOGUS
-$endif
-$endif
+#endif
+#endif
 
 if (coord == 0) then
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
@@ -97,7 +97,7 @@ end do
 !--set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-$if ($MPI) 
+#ifdef PPMPI 
   if (coord == nproc-1) then
     do jy=1,ny
     do jx=1,nx              
@@ -106,21 +106,21 @@ $if ($MPI)
     end do
     divt(ld-1:ld, :, nz) = 0._rprec
   else
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
     divt(:, :, nz) = BOGUS
-$endif    
+#endif    
   endif
-$else
+#else
   do jy=1,ny
   do jx=1,nx              
      divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
   end do
   end do
   divt(ld-1:ld, :, nz) = 0._rprec
-$endif
+#endif
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'finished divstress_w'
-$endif
+#endif
 
 end subroutine divstress_w

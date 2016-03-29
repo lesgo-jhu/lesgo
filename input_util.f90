@@ -119,32 +119,32 @@ do
 
      call output_block()
 
-  $if($LVLSET)
+#ifdef PPLVLSET
   case ('LEVEL_SET')
      
      call level_set_block()
 
-    $if($RNS_LS)
+#ifdef PPRNS_LS
     case ('RNS_LS')
        call rns_block()
-    $endif
+#endif
 
-    $if($CYL_SKEW_LS)
+#ifdef PPCYL_SKEW_LS
     case ('CYL_SKEW_LS')
        call cyl_skew_block()
-    $endif
+#endif
 
-  $endif
+#endif
 
   case ('SGS_HIST')
 
      call sgs_hist_block()
 
-  $if ($TURBINES)
+#ifdef PPTURBINES
   case ('TURBINES')
   
      call turbines_block()
-  $endif
+#endif
 
   case default
 
@@ -214,7 +214,7 @@ do
   elseif ( block_exit_pos == 1 ) then
 
      ! === Set dependant variables ===
-     $if( not $MPI )
+#ifndef PPMPI
      if( nproc /= 1 ) then
         ival_read = nproc
         ! Reset to 1
@@ -222,7 +222,7 @@ do
         if( coord == 0 ) &
              call mesg( sub_name, 'Reseting nproc to: ', nproc )          
      endif
-     $endif
+#endif
      
      ! Set the processor owned vertical grid spacing
      nz = floor ( real( nz_tot, rprec ) / nproc ) + 1
@@ -629,7 +629,7 @@ enddo
 return
 end subroutine  output_block
 
-$if($LVLSET)
+#ifdef PPLVLSET
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine level_set_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -677,7 +677,7 @@ do
      case ('ZO_LEVEL_SET')
         read (buff(equal_pos+1:), *) zo_level_set
      
-     $if($MPI)
+#ifdef PPMPI
      case ('NPHITOP')
         read (buff(equal_pos+1:), *) nphitop
      case ('NPHIBOT')
@@ -694,7 +694,7 @@ do
         read (buff(equal_pos+1:), *) nFMMtop
      case ('NFMMBOT')
         read (buff(equal_pos+1:), *) nFMMbot
-     $endif
+#endif
 
      case default
 
@@ -717,7 +717,7 @@ enddo
 return
 end subroutine  level_set_block
 
-$if($RNS_LS)
+#ifdef PPRNS_LS
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine rns_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -784,9 +784,9 @@ enddo
 
 return
 end subroutine  rns_block
-$endif
+#endif
 
-$if($CYL_SKEW_LS)
+#ifdef PPCYL_SKEW_LS
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine cyl_skew_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -883,9 +883,9 @@ enddo
 
 return
 end subroutine  cyl_skew_block
-$endif
+#endif
 
-$endif
+#endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine sgs_hist_block()
@@ -968,7 +968,7 @@ enddo
 return
 end subroutine  sgs_hist_block
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1049,7 +1049,7 @@ enddo
 
 return
 end subroutine  turbines_block
-$endif !($TURBINES)
+#endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkentry()

@@ -58,10 +58,10 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 use types, only : rprec
 use param,only : nz
 use messages
-$if ($MPI)
+#ifdef PPMPI
 use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
-$endif
+#endif
 
 implicit none
 
@@ -71,9 +71,9 @@ real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
-$endif
+#endif
 
 sx=size(var,1)
 sy=size(var,2)
@@ -93,7 +93,7 @@ allocate(var_uv(sx,sy,lbz:ubz))
 ! Perform the interpolation
 var_uv(:,:,1:ubz-1) = 0.5_rprec * (var(:,:,2:ubz) + var(:,:,1:ubz-1))
 
-$if ($MPI)
+#ifdef PPMPI
 
 !  Take care of top "physical" boundary
 if(coord == nproc - 1) var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
@@ -108,20 +108,20 @@ elseif( lbz == 1 ) then
   call mpi_sync_real_array( var_uv, lbz, MPI_SYNC_DOWN )
 endif                    
 
-$else
+#else
 
 !  Take care of top "physical" boundary
 var_uv(:,:,ubz) = var_uv(:,:,ubz-1)
 
-$endif
+#endif
   
 return 
 
 !deallocate(var_uv)
 
-!$if($MPI)
+!#ifdef PPMPI
 !deallocate(buf)
-!$endif
+!#endif
 
 end function interp_to_uv_grid
 
@@ -148,10 +148,10 @@ function interp_to_w_grid(var, lbz) result(var_w)
 use types, only : rprec
 use param,only : nz
 use messages
-$if ($MPI)
+#ifdef PPMPI
 use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
-$endif
+#endif
 
 implicit none
 
@@ -162,9 +162,9 @@ real(rprec), allocatable, dimension(:,:,:) :: var_w
 integer :: sx,sy,ubz
 !integer :: i,j,k
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
-$endif
+#endif
 
 sx=size(var,1)
 sy=size(var,2)
@@ -178,7 +178,7 @@ allocate(var_w(sx,sy,lbz:ubz))
 var_w(:,:,lbz+1:ubz) = 0.5_rprec * (var(:,:,lbz:ubz-1) + var(:,:,lbz+1:ubz))
 
 
-$if ($MPI)
+#ifdef PPMPI
 
 !  Sync all overlapping data
 if( lbz == 0 ) then
@@ -187,7 +187,7 @@ elseif( lbz == 1 ) then
   call mpi_sync_real_array( var_w, lbz, MPI_SYNC_DOWN )
 endif                    
 
-$endif
+#endif
   
 return 
 
@@ -220,9 +220,9 @@ real(rprec), intent(IN) :: dx
 
 real(rprec) :: px ! Global value
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: func_name = mod_name // '.cell_indx'
-$endif
+#endif
 real(rprec), parameter :: thresh = 1.e-9_rprec
 
 real(rprec), pointer, dimension(:) :: z
@@ -259,14 +259,14 @@ select case (indx)
 
    endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
    if( cell_indx > Nx .or. cell_indx < 1)  then
      write(*,*) 'px, dx, L_x, cell_indx : ', px, dx, L_x, cell_indx
      call error(func_name, 'Specified point is not in spatial domain (x-direction)')
    endif
 endif   
-$endif
+#endif
 
   case ('j')
 
@@ -290,14 +290,14 @@ $endif
 
    endif
    
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
    if( cell_indx > Ny .or. cell_indx < 1)  then
       write(*,*) 'px, dx, L_y, cell_indx : ', px, dx, L_y, cell_indx
       call error(func_name, 'Specified point is not in spatial domain (y-direction)')
    endif
 endif   
-$endif
+#endif
 
   !  Need to compute local distance to get local k index
   case ('k')
@@ -313,19 +313,19 @@ $endif
 
     endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
     if( cell_indx >= Nz .or. cell_indx < lbz) call error(func_name, 'Specified point is not in spatial domain (z-direction)')    
 endif
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) then
   case default
 
     call error (func_name, 'invalid indx =' // indx)
 endif    
-$endif
+#endif
 
 end select
 
@@ -567,10 +567,10 @@ real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)
 
 use types, only : rprec
 use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
-$if ($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 use grid_defs
 use messages
 implicit none
@@ -585,10 +585,10 @@ character (*), parameter :: func_name = mod_name // '.plane_avg_3d'
 
 integer :: i, j, nsum
 
-$if ($MPI)
+#ifdef PPMPI
 integer :: nsum_global
 REAL(RPREC) :: var_sum_global
-$endif
+#endif
 
 REAL(RPREC) :: dzeta, deta, vec_mag, zmin, zmax
 REAL(RPREC) :: var_sum
@@ -651,7 +651,7 @@ do j=1,neta
   enddo
 enddo
 
-$if ($MPI)
+#ifdef PPMPI
 !  Perform averaging; all procs have this info
  call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
  call mpi_allreduce(nsum, nsum_global, 1, MPI_INTEGER, MPI_SUM, comm, ierr)
@@ -671,11 +671,11 @@ $if ($MPI)
   
   !write(*,*) 'var_sum_global : ', var_sum_global
   
- $else
+#else
   
   plane_avg_3d = var_sum / nsum
   
- $endif
+#endif
    
 nullify(z)
 
@@ -693,10 +693,10 @@ real(rprec) function points_avg_3d(var, lbz, npoints, points)
 
 use types, only : rprec
 use param, only : dx, dy, dz, L_x, L_y, nz
-$if ($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 use grid_defs
 use messages
 implicit none
@@ -712,10 +712,10 @@ character (*), parameter :: func_name = mod_name // '.points_avg_3d'
 integer :: nsum
 integer :: n
 
-$if ($MPI)
+#ifdef PPMPI
 integer :: nsum_global
 real(rprec) :: var_sum_global
-$endif
+#endif
 
 real(rprec) :: var_sum
 real(rprec) :: xp, yp, zp
@@ -763,7 +763,7 @@ do n=1, npoints
   
 enddo
 
-$if ($MPI)
+#ifdef PPMPI
 
 !  Perform averaging; all procs have this info
 call mpi_allreduce(var_sum, var_sum_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
@@ -778,11 +778,11 @@ endif
 !  Average over all procs; assuming distribution is even
 points_avg_3d = var_sum_global / nsum_global
   
-$else
+#else
   
 points_avg_3d = var_sum / nsum
   
-$endif
+#endif
    
 nullify(z)
 

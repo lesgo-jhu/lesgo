@@ -75,11 +75,11 @@ select case (lbc_mom)
     end do
     end do
 
-$if($DEBUG)
+#ifdef PPDEBUG
   case default
 
     write (*, *) 'invalid lbc_mom'
     stop
-$endif
+#endif
 end select
 end subroutine wallstress

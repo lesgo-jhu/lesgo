@@ -22,22 +22,22 @@ subroutine ic()
   use param
   use sim_param,only:u,v,w
   use messages, only : error
-  $if ($TURBINES)
+#ifdef PPTURBINES
   use turbines, only: turbine_vel_init
-  $endif 
+#endif 
   
   implicit none
   
-  $if ($VERBOSE)
+#ifdef PPVERBOSE
   character(*), parameter :: sub_name = 'ic'
-  $endif
-  $if ($DEBUG)
+#endif
+#ifdef PPDEBUG
   logical, parameter :: DEBUG = .false.
-  $endif 
+#endif 
 
-  $if ($TURBINES)
+#ifdef PPTURBINES
     real(rprec) :: zo_turbines
-  $endif    
+#endif    
   
   integer::jx,jy,jz,seed
   integer :: jz_abs
@@ -46,15 +46,15 @@ subroutine ic()
   real(kind=rprec)::rms, noise, arg, arg2
   real(kind=rprec)::z,w_star
 
-  $if ($TURBINES)
+#ifdef PPTURBINES
   zo_turbines = 0._rprec
-  $endif
+#endif
 
-  $if( $CPS ) 
+#ifdef PPCPS  
 
   call boundary_layer_ic()
 
-  $else
+#else
   
   if ( inflow ) then  !--no turbulence
      call uniform_ic()
@@ -62,16 +62,16 @@ subroutine ic()
      call boundary_layer_ic()
   end if
 
-  $endif
+#endif
 
   !VK Display the mean vertical profiles of the initialized variables on the
   !screen
   do jz=1,nz
-     $if ($MPI)
+#ifdef PPMPI
      z = (coord*(nz-1) + jz - 0.5_rprec) * dz
-     $else
+#else
      z = (jz - 0.5_rprec) * dz
-     $endif
+#endif
      write(6,7780) jz,z,sum(u(1:nx,:,jz))/float(nx*ny),sum(v(1:nx,:,jz))/&
           float(nx*ny),sum(w(1:nx,:,jz))/float(nx*ny)
   end do
@@ -97,9 +97,9 @@ subroutine boundary_layer_ic()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Log profile that is modified to flatten at z=z_i
 ! This is a hot mess (JSG 20111221)
-$if($CYL_SKEW_LS)
+#ifdef PPCYL_SKEW_LS
 use cyl_skew_base_ls
-$endif
+#endif
 implicit none
 
 interface
@@ -116,43 +116,43 @@ w_star = u_star
 !      T_star=wt_s/w_star
 !      q_star=T_star
 
-!$if ($MPI)
+!#ifdef PPMPI
 !  seed = -80 - coord
-!$else
+!#else
 !  seed=-80
-!$endif
+!#endif
 
 if( coord == 0 ) write(*,*) '------> Creating modified log profile for IC'
 do jz=1,nz
 
-   $if ($MPI)
+#ifdef PPMPI
    z = (coord*(nz-1) + jz - 0.5_rprec) * dz
-   $else
+#else
    z=(jz-.5_rprec)*dz
-   $endif
+#endif
 
    ! Another kludge for creating a channel profile. For now ignoring location of actual surface.
-   $if($CYL_SKEW_LS)
+#ifdef PPCYL_SKEW_LS
    if( use_top_surf ) then
       if( z > L_z / 2 ) z = L_z - z
    endif
-   $endif
+#endif
 
    ! IC in equilibrium with rough surface (rough dominates in effective zo)
    arg2=z/zo
    arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
-   $if($LVLSET)
+#ifdef PPLVLSET
    ! Kludge to adjust magnitude of velocity profile
    ! Not critical - may delete
    arg = 0.357*arg
-   $endif
+#endif
 
-   $if ($TURBINES)
+#ifdef PPTURBINES
    call turbine_vel_init (zo_turbines)
    arg2=z/zo_turbines
    arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z          
-   $endif        
+#endif        
 
    !ubar(jz)=arg
 
@@ -180,13 +180,13 @@ end do
 
 rms = 3._rprec
 do jz=1,nz
-   $if ($MPI)
+#ifdef PPMPI
    jz_abs = coord * (nz-1) + jz
    z = (coord * (nz-1) + jz - 0.5_rprec) * dz * z_i    !dimensions in meters
-   $else
+#else
    jz_abs = jz
    z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
-   $endif
+#endif
    seed = -80 - jz_abs  !--trying to make consistent init for MPI
    do jy=1,ny
       do jx=1,nx
@@ -225,15 +225,15 @@ if (coord == 0) then
    w(1:nx, 1:ny, 1) = 0._rprec
 end if
 
-$if ($MPI)
+#ifdef PPMPI
 if (coord == nproc-1) then
-   $endif    
+#endif    
    w(1:nx, 1:ny, nz) = 0._rprec
    u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
    v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
-   $if ($MPI)
+#ifdef PPMPI
 end if
-$endif
+#endif
 
 return
 end subroutine boundary_layer_ic

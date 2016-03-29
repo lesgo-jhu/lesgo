@@ -24,17 +24,17 @@ use types,only:rprec
 use param
 use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz 
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 use debug_mod
-$endif
+#endif
 
 implicit none
 integer :: jx, jy, jz, jz_max
 real(kind=rprec) :: rms
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 logical, parameter :: norm_magdu = .false.
 
@@ -49,9 +49,9 @@ character (64) :: file_out
 integer :: n
 
 real (rprec) :: magdu, div
-$if ($MPI)
+#ifdef PPMPI
   real (rprec) :: rms_global
-$endif
+#endif
 
 !! Calculate velocity derivatives
 !! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
@@ -129,18 +129,18 @@ else
 
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   call mpi_reduce (rms, rms_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   if (rank == 0) then
     rms = rms_global/nproc
     !write (*, *) 'rms_global = ', rms_global/nproc
   end if
   !if (rank == 0) rms = rms_global/nproc  !--its rank here, not coord
-$endif
+#endif
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call DEBUG_write (du(1:nx, 1:ny, 1:nz) + dv(1:nx, 1:ny, 1:nz) +  &
                              dw(1:nx, 1:ny, 1:nz), 'rmsdiv')
-$endif
+#endif
 
 end subroutine rmsdiv

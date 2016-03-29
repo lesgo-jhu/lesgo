@@ -21,9 +21,9 @@ module turbines_base
 use types, only : rprec
 use stat_defs, only : wind_farm
 use param, only : path
-$if ($MPI)
+#ifdef PPMPI
   use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
-$endif
+#endif
 
 implicit none
 character (*), parameter :: mod_name = 'turbines'
@@ -112,9 +112,9 @@ else
     nloc = num_x*num_y      !number of turbines (locations)
 endif 
 
-!$if ($VERBOSE)
+!#ifdef PPVERBOSE
 write(*,*) "Number of turbines: ", nloc
-!$endif
+!#endif
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
 
@@ -225,11 +225,11 @@ elseif (orientation == 6) then
     close(fid)
 endif
 
-!$if ($VERBOSE)
+!#ifdef PPVERBOSE
 do k = 1, nloc
     write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height 
 enddo
-!$endif
+!#endif
             
 ! orientation (angles)
 wind_farm%turbine(:)%theta1 = theta1_all

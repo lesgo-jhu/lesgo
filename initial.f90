@@ -24,63 +24,63 @@ use types,only:rprec
 use param
 use sim_param, only : u,v,w,RHSx,RHSy,RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-$if ($DYN_TN)
+#ifdef PPDYN_TN
 use sgs_param, only:F_ee2,F_deedt2,ee_past
-$endif
-$if (TURBINES)
+#endif
+#ifdef PPTURBINES
 use sim_param,only:fxa
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-!$if ($ATM)
+!#ifdef PPATM
 !use sim_param,only:fxa, fya, fza
-!$endif
+!#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($LVLSET)
+#ifdef PPLVLSET
 use sim_param,only:fxa,fya,fza
 use sim_param,only:fx,fy,fz
-$endif
+#endif
 use string_util, only : string_concat
-$if ($MPI)
+#ifdef PPMPI
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-$endif
+#endif
 
 implicit none
 
 character (64) :: fname
 
-$if ($DYN_TN)
+#ifdef PPDYN_TN
 logical :: exst
 character (64) :: fname_dyn_tn
-$endif
+#endif
 
 integer::jz
 
 ! Flag to identify if file exists
 logical :: file_flag
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 fxa=0._rprec
-$endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
 fx=0._rprec;fy=0._rprec;fz=0._rprec
 fxa=0._rprec; fya=0._rprec; fza=0._rprec
-$endif
+#endif
 
-$if ($DYN_TN)
+#ifdef PPDYN_TN
 !Will be over-written if read from dyn_tn.out files
 ee_past = 0.1_rprec; F_ee2 = 10.0_rprec; F_deedt2 = 10000.0_rprec
 fname_dyn_tn = path // 'dyn_tn.out'
-  $if ($MPI)
+#ifdef PPMPI
   call string_concat( fname_dyn_tn, '.c', coord )
-  $endif
-$endif
+#endif
+#endif
 
 fname = checkpoint_file
 
-$if ($MPI)
+#ifdef PPMPI
 call string_concat( fname, '.c', coord )
-$endif
+#endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
 
@@ -100,13 +100,13 @@ end if
 
 if(initu)then
 
-    $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
     open(12,file=fname,form='unformatted', convert='big_endian')
-    $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
     open(12,file=fname,form='unformatted', convert='little_endian')
-    $else
+#else
     open(12,file=fname,form='unformatted')
-    $endif
+#endif
   
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
@@ -115,7 +115,7 @@ if(initu)then
              Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
              F_QN(:,:,1:nz), F_NN(:,:,1:nz)        
 
-    $if ($DYN_TN)
+#ifdef PPDYN_TN
     ! Read dynamic timescale running averages from file
 
       if (cumulative_time) then
@@ -123,13 +123,13 @@ if(initu)then
         inquire (file=fname_dyn_tn, exist=exst)
         if (exst) then
 
-            $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
             open(13,file=fname_dyn_tn,form='unformatted', convert='big_endian')
-            $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
             open(13,file=fname_dyn_tn,form='unformatted', convert='little_endian')
-            $else
+#else
             open(13,file=fname_dyn_tn,form='unformatted')
-            $endif
+#endif
 
             read(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
 
@@ -141,7 +141,7 @@ if(initu)then
 
       endif
 
-    $endif
+#endif
 
     !call energy (ke)
 
@@ -166,7 +166,7 @@ else
   end if
 end if
 
-$if ($MPI)
+#ifdef PPMPI
 
   call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
   call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
@@ -178,7 +178,7 @@ $if ($MPI)
     v(:, :, lbz) = BOGUS
     w(:, :, lbz) = BOGUS
   end if
-$endif
+#endif
 
 contains
 

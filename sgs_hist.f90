@@ -267,16 +267,16 @@ use stat_defs, only: hist_binit
 use functions, only: linear_interp
 !use sgs_param, only: Cs_opt2, Nu_t, ee_now
 use sgs_param, only: Cs_opt2, Nu_t
-$if ($LVLSET)
+#ifdef PPLVLSET
 use level_set_base, only: phi
-$endif
+#endif
 
 implicit none
 
 integer :: i, j, k
-$if ($LVLSET)
+#ifdef PPLVLSET
 real(rprec), dimension(nx,ny) :: phi_plane
-$endif
+#endif
 !real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane, ee_plane
 real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
 
@@ -288,21 +288,21 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
             ! Interpolate variables to z-plane location
             do j=1,ny
             do i=1,nx
-                $if ($LVLSET)
+#ifdef PPLVLSET
                 phi_plane(i,j) = linear_interp( phi(i,j,HISTcs2 % istart(k)), &
                                  phi(i,j,HISTcs2 % istart(k)+1), dz, HISTcs2 % ldiff(k) )
-                $endif
+#endif
                 cs2_plane(i,j) = linear_interp( Cs_opt2(i,j,HISTcs2 % istart(k)), &
                                  Cs_opt2(i,j,HISTcs2 % istart(k)+1), dz, HISTcs2 % ldiff(k) )
             enddo  
             enddo
 
             ! Bin values
-            $if ($LVLSET)
+#ifdef PPLVLSET
                 call hist_binit( HISTcs2 % hist(k), cs2_plane, phi_plane )
-            $else
+#else
                 call hist_binit( HISTcs2 % hist(k), cs2_plane )
-            $endif
+#endif
 
         !endif
 
@@ -317,12 +317,12 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
 !            enddo            
 
             ! Bin values
-            $if ($LVLSET)
+#ifdef PPLVLSET
                 ! For now, use same z-planes for all variables so phi's are the same
                 call hist_binit( HISTtn % hist(k), tn_plane, phi_plane )
-            $else
+#else
                 call hist_binit( HISTtn % hist(k), tn_plane )
-            $endif
+#endif
 
          endif
         !endif 
@@ -338,12 +338,12 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
             enddo
 
             ! Bin values
-            $if ($LVLSET)
+#ifdef PPLVLSET
                 ! For now, use same z-planes for all variables so phi's are the same
                 call hist_binit( HISTnu % hist(k), nu_plane, phi_plane )
-            $else
+#else
                 call hist_binit( HISTnu % hist(k), nu_plane )
-            $endif
+#endif
 
         !endif 
 
@@ -358,12 +358,12 @@ real(rprec), dimension(nx,ny) :: cs2_plane, tn_plane, nu_plane
 !            enddo
 !
 !            ! Bin values
-!            $if ($LVLSET)
+!            #ifdef PPLVLSET
 !                ! For now, use same z-planes for all variables so phi's are the same
 !                call hist_binit( HISTee % hist(k), ee_plane, phi_plane )
-!            $else
+!            #else
 !                call hist_binit( HISTee % hist(k), ee_plane )
-!            $endif
+!            #endif
 !          endif
 !
         endif

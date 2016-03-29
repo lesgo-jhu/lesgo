@@ -21,15 +21,15 @@
 subroutine param_output()
 !**********************************************************************
 use param
-$if($RNS_LS)
+#ifdef PPRNS_LS
 use rns_base_ls
-$endif
-$if($CYL_SKEW_LS)
+#endif
+#ifdef PPCYL_SKEW_LS
 use cyl_skew_base_ls
-$endif
-$if($LVLSET)
+#endif
+#ifdef PPLVLSET
 use level_set_base
-$endif
+#endif
 
 implicit none
 
@@ -90,11 +90,11 @@ write(2,c_fmt) 'TIMESTEP PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,i_fmt) 'nsteps : ', nsteps
 write(2,i_fmt) 'runtime : ', runtime
-$if($CFL_DT)
+#ifdef PPCFL_DT
 write(2,f_fmt) 'cfl : ', cfl
-$else
+#else
 write(2,f_fmt) 'dt : ', dt
-$endif
+#endif
 write(2,l_fmt) 'cumulative_time : ', cumulative_time
 write(2, x2c_fmt) 'fcumulative_time : ', fcumulative_time
 write(2,c_fmt) ''
@@ -175,7 +175,7 @@ write(2,i_fmt) 'nu_nbins : ', nu_nbins
 write(2,x2f_fmt) 'ee_bmin, ee_bmax : ', ee_bmin, ee_bmax
 write(2,i_fmt) 'ee_nbins : ', ee_nbins
 
-$if($LVLSET)
+#ifdef PPLVLSET
 write(2,c_fmt) ''
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) 'LEVEL_SET_BASE'
@@ -209,9 +209,9 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'SGS PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'lag_dyn_modify_beta : ', lag_dyn_modify_beta
-$endif
+#endif
 
-$if($RNS_LS)
+#ifdef PPRNS_LS
 write(2,c_fmt) ''
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) 'RNS_BASE_LS'
@@ -233,9 +233,9 @@ write(2,f_fmt) 'alpha_width : ', alpha_width
 write(2,f_fmt) 'alpha_dist : ', alpha_dist
 write(2,f_fmt) 'chi_cutoff : ', chi_cutoff
 write(2,i_fmt) 'ndim : ', ndim
-$endif
+#endif
 
-$if($CYL_SKEW_LS)
+#ifdef PPCYL_SKEW_LS
 write(2,c_fmt) ''
 write(2,c_fmt) '**********************************************************************'
 write(2,c_fmt) 'CYL_SKEW_BASE_LS'
@@ -264,7 +264,7 @@ write(2,l_fmt) 'use_left_surf : ', use_left_surf
 write(2,f_fmt) 'y_left_surf : ', y_left_surf
 write(2,l_fmt) 'filter_chi : ', filter_chi
 write(2,f_fmt) 'filt_width : ', filt_width
-$endif
+#endif
 
 close(2)
 

@@ -33,17 +33,17 @@ module cyl_skew_pre_base_ls
 
   private rprec, vec3D, pi, BOGUS, lbz, fill_tree_array_ls
 
-  $if($MPI)
+#ifdef PPMPI
   logical :: output_local=.false.
-  $endif
+#endif
   logical :: output_lesgo=.true.
 
   !  Defined local processor definitions
-  $if($MPI)
+#ifdef PPMPI
   integer :: nx_proc
   integer :: nproc_csp, global_rank_csp
   integer :: stride
-  $endif
+#endif
 
   !  vectors do not have starting point a origin of corresponding
   !  coordinate system
@@ -103,13 +103,13 @@ subroutine initialize()
   use param, only : nx, ny, lbz, nz_tot, BOGUS
   use input_util, only : read_input_conf
   use cyl_skew_pre_base_ls, only : gcs_t, ntree
-  $if($MPI)
+#ifdef PPMPI
   use mpi
   use param, only : ierr, nz, nz_tot, dz, nproc, L_z
   use cyl_skew_pre_base_ls, only : global_rank_csp, nproc_csp, stride, nx_proc
-  $else
+#else
   use param, only : nx_proc => nx
-  $endif
+#endif
   use cyl_skew_base_ls, only : use_bottom_surf, z_bottom_surf, &
        use_top_surf, z_top_surf, &
        use_left_surf, y_left_surf, &
@@ -121,17 +121,17 @@ subroutine initialize()
 
   integer :: ng, i, j, k
 
-  $if($MPI)
+#ifdef PPMPI
   integer :: nx_proc_sum
   integer :: nx_remain, nx_extra
-  $endif
+#endif
 
   real(rprec) :: dist
 
   ! Read lesgo.conf to get simulation setup
   call read_input_conf()
 
-  $if($MPI)
+#ifdef PPMPI
 
   call initialize_mpi_csp ()
 
@@ -159,7 +159,7 @@ subroutine initialize()
      stop
   endif
 
-  $endif
+#endif
 
   call allocate_arrays()
   if( ntree > 0 ) call fill_tree_array_ls()
@@ -244,15 +244,15 @@ subroutine initialize()
   !  Top and bottom z-plane in gcs (same for all cylinders in generation)
   do ng=1,ngen
 
-     $if($MPI)
+#ifdef PPMPI
      if(global_rank_csp == 0) then
         write(*,*) 'generation # : ', ng
         write(*,*) 'bplane and tplane = ', tr_t(1)%gen_t(ng)%bplane, tr_t(1)%gen_t(ng)%tplane
      endif
-     $else
+#else
      write(*,*) 'generation # : ', ng
      write(*,*) 'bplane and tplane = ', tr_t(1)%gen_t(ng)%bplane, tr_t(1)%gen_t(ng)%tplane
-     $endif
+#endif
 
   enddo
 
@@ -260,7 +260,7 @@ subroutine initialize()
 
 contains
 
-  $if($MPI)
+#ifdef PPMPI
   !**********************************************************************
   subroutine initialize_mpi_csp()
     !**********************************************************************
@@ -292,17 +292,17 @@ contains
 
     return
   end subroutine initialize_mpi_csp
-  $endif
+#endif
 
   !**********************************************************************
   subroutine allocate_arrays()
   !**********************************************************************
     use param, only : ny, lbz, nz_tot
-    $if($MPI)
+#ifdef PPMPI
     use cyl_skew_pre_base_ls, only : nx_proc
-    $else
+#else
     use param, only : nx_proc => nx
-    $endif
+#endif
     implicit none
 
     !  Allocate x,y,z for all coordinate systems
@@ -320,11 +320,11 @@ contains
     !
     use types, only : rprec
     use param, only : ny,lbz,nz_tot,dx,dy,dz
-    $if($MPI)
+#ifdef PPMPI
     use cyl_skew_pre_base_ls, only : nx_proc, stride
-    $else
+#else
     use param, only : nx_proc => nx
-    $endif
+#endif
 
     implicit none
 
@@ -333,11 +333,11 @@ contains
     do k=lbz,nz_tot
        do j=1,ny
           do i=1,nx_proc
-             $if($MPI)
+#ifdef PPMPI
              gcs_t(i,j,k)%xyz(1) = (i - 1 +  stride )*dx
-             $else
+#else
              gcs_t(i,j,k)%xyz(1) = (i - 1)*dx
-             $endif
+#endif
              gcs_t(i,j,k)%xyz(2) = (j - 1)*dy
              gcs_t(i,j,k)%xyz(3) = (k - 0.5_rprec) * dz
           enddo
@@ -353,13 +353,13 @@ end subroutine initialize
 subroutine compute_phi()
   !**********************************************************************
   use types, only : rprec
-  $if($MPI)
+#ifdef PPMPI
   use mpi
   use param, only : ierr
   use cyl_skew_pre_base_ls, only : nx_proc, global_rank_csp
-  $else
+#else
   use param, only : nx_proc => nx
-  $endif
+#endif
   use param, only : ny, lbz, nz_tot
   use cyl_skew_base_ls, only : tr_t, ntree
   use cyl_skew_pre_base_ls, only : gcs_t
@@ -371,18 +371,18 @@ subroutine compute_phi()
   integer :: nt, ng, nc, nb,i,j,k
   !  Loop over all global coordinates
 
-  $if ($MPI)
+#ifdef PPMPI
   integer :: dumb_indx
-  $endif
+#endif
 
   ndomain_loop = 1
 
   !  Loop over all trees
   do nt = 1, ntree
 
-     $if ($DEBUG)
+#ifdef PPDEBUG
      if(coord == 0) write(*,*) 'Tree id : ', nt
-     $endif
+#endif
 
      do ng = 1, tr_t(nt) % ngen_reslv
 
@@ -390,16 +390,16 @@ subroutine compute_phi()
 
            do nb=1, tr_t(nt)%gen_t(ng)%cl_t(nc)%nbranch
 
-              $if($MPI)
+#ifdef PPMPI
               if( global_rank_csp == 0 ) write(*,*) 'Domain loop : ', ndomain_loop
-              $else
+#else
               write(*,*) 'Domain loop : ', ndomain_loop
-              $endif
+#endif
 
-              $if ($MPI)
+#ifdef PPMPI
               !  To keep mpi stuff flowing during bad load balancing runs
               call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-              $endif
+#endif
 
               do k=lbz,nz_tot
                  do j=1,ny
@@ -687,13 +687,13 @@ subroutine compute_chi()
   !**********************************************************************
   !  This subroutine filters the indicator function chi
   use types, only : rprec
-  $if($MPI)
+#ifdef PPMPI
   use mpi
   use param, only : ierr
   use cyl_skew_pre_base_ls, only : nx_proc, global_rank_csp
-  $else
+#else
   use param, only : nx_proc => nx
-  $endif
+#endif
   use param, only : ny, lbz, nz_tot, dz
   use messages
   use cyl_skew_pre_base_ls, only : gcs_t
@@ -713,9 +713,9 @@ subroutine compute_chi()
   real(rprec), pointer :: bplane_p => null(), tplane_p => null()
   integer, pointer, dimension(:) :: brindx_loc_id_p
 
-  $if ($MPI)
+#ifdef PPMPI
   integer :: dumb_indx
-  $endif
+#endif
 
 
   nullify(brindx_loc_id_p)
@@ -734,10 +734,10 @@ subroutine compute_chi()
   do k=lbz,nz_tot
      do j=1,ny
 
-        $if ($MPI)
+#ifdef PPMPI
         !  To keep mpi stuff flowing during bad load balancing runs
         call mpi_allreduce(global_rank_csp, dumb_indx, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-        $endif
+#endif
 
         do i=1,nx_proc
 
@@ -1214,10 +1214,10 @@ end subroutine weighted_cluster_integration
 !**********************************************************************
 subroutine finalize()
   !**********************************************************************
-  $if ($MPI)
+#ifdef PPMPI
   use mpi_defs
   use param, only : ierr
-  $endif
+#endif
   use cyl_skew_pre_base_ls
   use param, only : nproc, coord
 
@@ -1225,10 +1225,10 @@ subroutine finalize()
 
   if(calc_phi) call write_output()
 
-  $if ($MPI)
+#ifdef PPMPI
   !  Finalize mpi communication
   call MPI_FINALIZE(ierr)
-  $endif
+#endif
 
   return
 contains
@@ -1238,9 +1238,9 @@ contains
     !**********************************************************************
     implicit none
 
-    $if($MPI)
+#ifdef PPMPI
     if( output_local ) call write_output_local()
-    $endif
+#endif
     if( output_lesgo ) call write_output_lesgo()
 
     return
@@ -1248,7 +1248,7 @@ contains
   end subroutine write_output
 
 
-  $if($MPI)
+#ifdef PPMPI
   !*********************************************************************
   subroutine write_output_local()
     !*********************************************************************
@@ -1399,22 +1399,22 @@ contains
 
     return
   end subroutine write_output_local
-  $endif
+#endif
 
 
   !**********************************************************************
   subroutine write_output_lesgo()
     !**********************************************************************
-    $if($MPI)
+#ifdef PPMPI
     use mpi
-    $endif
+#endif
     use types, only : rprec
     use param, only : path
     use param, only : ld, nx, ny, nz, lbz, nz_tot,dx,dy, BOGUS
-    $if($MPI)
+#ifdef PPMPI
     use param, only :  MPI_RPREC, ierr, nproc, status
     use cyl_skew_pre_base_ls, only : nx_proc, stride
-    $endif
+#endif
     !use cyl_skew_base_ls, only : filter_chi, brindx_to_loc_id, tr_t
     use string_util, only : numtostr, string_splice
     implicit none
@@ -1429,22 +1429,22 @@ contains
     integer, pointer, dimension(:,:,:) :: brindx, clindx
     real(rprec), pointer, dimension(:,:,:) :: phi, chi
 
-    $if ($MPI)
+#ifdef PPMPI
     integer, allocatable, dimension(:,:,:) :: brindx_proc, clindx_proc
     real(rprec), allocatable, dimension(:,:,:) :: rbrindx_proc, rclindx_proc
     real(rprec), allocatable, dimension(:,:,:) :: phi_proc, chi_proc
     integer :: sendcnt, recvcnt
-    $endif
+#endif
 
     real(rprec), allocatable, dimension(:) :: x, y, z
     integer, pointer, dimension(:) :: br_loc_id_p
 
-    $if($MPI)
+#ifdef PPMPI
     sendcnt = nx_proc * ny * (nz_tot - lbz + 1)
     !gcs_t(:,:,lbz)%phi = BOGUS
-    $endif
+#endif
 
-    $if($MPI)
+#ifdef PPMPI
     !  Gather data one by one in rank order
     if( global_rank_csp > 0 ) then
 
@@ -1537,7 +1537,7 @@ contains
     endif
     write(*,*) 'Finalized local to global send/receive'
 
-    $else
+#else
 
 
     allocate(phi(ld,ny,nz))
@@ -1558,11 +1558,11 @@ contains
     x(nx+1) = x(nx)+dx
     y(ny+1) = y(ny)+dy
 
-    $endif
+#endif
 
     deallocate( gcs_t )
 
-    $if($MPI)
+#ifdef PPMPI
     if( global_rank_csp == 0 ) then
 
        !  Write processor files for lesgo
@@ -1619,46 +1619,46 @@ contains
           call string_splice( fname_chi, path // 'chi.out.c', n )
 
           !  Write binary data for lesgo
-          $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
           open (1, file=fname_phi, form='unformatted', convert='big_endian')
-          $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
           open (1, file=fname_phi, form='unformatted', convert='little_endian')
-          $else
+#else
           open (1, file=fname_phi, form='unformatted')
-          $endif
+#endif
           write(1) phi_proc
           close (1)
 
           !  Write binary data for lesgo
-          $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
           open (1, file=fname_brindx, form='unformatted', convert='big_endian')
-          $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
           open (1, file=fname_brindx, form='unformatted', convert='little_endian')
-          $else
+#else
           open (1, file=fname_brindx, form='unformatted')
-          $endif
+#endif
           write(1) brindx_proc
           close (1)
 
           !  Write binary data for lesgo
-          $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
           open (1, file=fname_clindx, form='unformatted', convert='big_endian')
-          $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
           open (1, file=fname_clindx, form='unformatted', convert='little_endian')
-          $else
+#else
           open (1, file=fname_clindx, form='unformatted')
-          $endif
+#endif
           write(1) clindx_proc
           close (1)
 
           !  Write binary data for lesgo
-          $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
           open (1, file=fname_chi, form='unformatted', convert='big_endian')
-          $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
           open (1, file=fname_chi, form='unformatted', convert='little_endian')
-          $else
+#else
           open (1, file=fname_chi, form='unformatted')
-          $endif
+#endif
           write(1) chi_proc
           close (1)
 
@@ -1673,7 +1673,7 @@ contains
 
     endif
 
-    $else
+#else
 
     !write(*,*) 'No output yet for single processor'
 
@@ -1697,46 +1697,46 @@ contains
     write (fname_chi,*) path // 'chi.out'
 
     !  Write binary data for lesgo
-    $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
     open (1, file=fname_phi, form='unformatted', convert='big_endian')
-    $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
     open (1, file=fname_phi, form='unformatted', convert='little_endian')
-    $else
+#else
     open (1, file=fname_phi, form='unformatted')
-    $endif
+#endif
     write(1) phi
     close (1)
 
     !  Write binary data for lesgo
-    $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
     open (1, file=fname_brindx, form='unformatted', convert='big_endian')
-    $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
     open (1, file=fname_brindx, form='unformatted', convert='little_endian')
-    $else
+#else
     open (1, file=fname_brindx, form='unformatted')
-    $endif
+#endif
     write(1) brindx
     close (1)
 
     !  Write binary data for lesgo
-    $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
     open (1, file=fname_clindx, form='unformatted', convert='big_endian')
-    $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
     open (1, file=fname_clindx, form='unformatted', convert='little_endian')
-    $else
+#else
     open (1, file=fname_clindx, form='unformatted')
-    $endif
+#endif
     write(1) clindx
     close (1)
 
     !  Write binary data for lesgo
-    $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
     open (1, file=fname_chi, form='unformatted', convert='big_endian')
-    $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
     open (1, file=fname_chi, form='unformatted', convert='little_endian')
-    $else
+#else
     open (1, file=fname_chi, form='unformatted')
-    $endif
+#endif
     write(1) chi
     close (1)
 
@@ -1745,7 +1745,7 @@ contains
     deallocate(clindx)
     deallocate(chi)
 
-    $endif
+#endif
 
     !  Generate generation associations to be used in drag force calculations
     !  for each generation
@@ -1874,9 +1874,9 @@ contains
     !**********************************************************************
     use param, only : path
     use param, only : nx, ny, nz
-    $if ($MPI)
+#ifdef PPMPI
     use param, only : nproc, coord
-    $endif
+#endif
     use string_util, only : string_concat
     implicit none
 

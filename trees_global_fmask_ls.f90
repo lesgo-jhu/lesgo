@@ -85,9 +85,9 @@ real (rp) :: r
 type (branch_type) :: br  !--to simplify argument passing
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub ( sub_name )
-$endif
+#endif
 
 !--set module copies
 np = nnp
@@ -126,9 +126,9 @@ if ( do_filter_global_fmask ) call filter_global_fmask ()
 call write_global_fmask ()
 call write_fmt_global_fmask ()
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub ( sub_name )
-$endif
+#endif
 
 end subroutine calc_global_fmask_ta
 
@@ -146,15 +146,15 @@ character (128) :: fname
 
 !---------------------------------------------------------------------
 
-$if ($MPI)
+#ifdef PPMPI
 
     write ( fname, '(a,a,a,i0)' ) gfmask_base, raw_suffix, MPI_suffix, coord
     
-$else
+#else
 
     write ( fname, '(a,a)' ) gfmask_base, raw_suffix
 
-$endif
+#endif
 
 open ( lun, file=fname, action='read', position='rewind', &
        form='unformatted' )
@@ -274,9 +274,9 @@ type ( branch_type ) :: sbr
 logical :: DEBUG=.false.
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub ( sub_name )
-$endif
+#endif
 
 if ( br % gen <= gen_max ) call calc_global_fmask ( br )
 
@@ -346,9 +346,9 @@ if ( br % gen < gen_max ) then  !--recursion
 
 end if
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub ( sub_name )
-$endif
+#endif
     
 end subroutine calc_global_fmask_br
 
@@ -426,9 +426,9 @@ real (rp) :: filtval
 real (rp), allocatable :: wksp( :, :, : )
     
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub ( sub_name )
-$endif
+#endif
 
 allocate ( wksp(ld, ny, nz) )
 
@@ -438,9 +438,9 @@ total_in = sum ( wksp )  !--to calculate normalization factor
 
 do k = 1, nz - 1
 
-  $if ($VERBOSE)
+#ifdef PPVERBOSE
   call mesg ( sub_name, 'starting k =', k )
-  $endif
+#endif
   !x(3) = pt_of_grid ( k, 3, 1 )
 
   do j = 1, ny
@@ -499,9 +499,9 @@ global_fmask = global_fmask * total_in / total
 
 deallocate ( wksp )
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub ( sub_name )
-$endif
+#endif
     
 end subroutine filter_global_fmask
 

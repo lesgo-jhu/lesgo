@@ -42,27 +42,25 @@ integer, parameter :: nzone = 1  ! # of averaging zones for dyn. Cd
 integer, parameter :: tree_node = 1  ! trees based on u, v, or w nodes
 
 !--specify force model to be used
-!--
-$define $fmodel nba
-                !--d, d_germano, dls, nba
-$if ($fmodel eq "d")
-  $define $nfcoeff 1
-$elsif ($fmodel eq "d_germano")
-  $define $nfcoeff 1
-$elsif ($fmodel eq "dls")
-  $define $nfcoeff 3
-$elsif ($fmodel eq "nba")
-  $define $nfcoeff 3
-$else
-  $error (Invalid force model specification)
-$endif
+#if strcmp(PPfmodel,"d")
+character (*), parameter :: fmodel = 'd'
+integer, parameter :: nfcoeff = 1
+#elif strcmp(PPfmodel,"d_germano")
+character (*), parameter :: fmodel = 'd_germano'
+integer, parameter :: nfcoeff = 1
+#elif strcmp(PPfmodel,"dls")
+character (*), parameter :: fmodel = 'dls'
+integer, parameter :: nfcoeff = 3
+#elif strcmp(PPfmodel,"nba")
+character (*), parameter :: fmodel = 'nba'
+integer, parameter :: nfcoeff = 3
+#else
+!#error "Invalid force model specification" CS-I don't know how to do this with cpp
+#endif
 
-character (*), parameter :: fmodel = $str($fmodel)
-integer, parameter :: nfcoeff = $nfcoeff
-
-$if ($DEBUG)
+#ifdef PPDEBUG
 logical, parameter :: DEBUG = .false.
-$endif
+#endif
 
 !--beware, some of these are no longer in use
 logical, parameter :: use_tecplot = .true.
@@ -179,15 +177,15 @@ end type tree_type
 
 ! tree array for simulations
 !type (tree_type), target :: tree_array(n_tree)
-$if ($XLF)
+#ifdef PPXLF
   type (tree_type), allocatable :: tree_array(:)  !--experimental
 
   !type (tree_type), save :: tree_array(n_tree)
                     !--xlf want save here, even though its at top of module
-$else
+#else
   type (tree_type), allocatable :: tree_array(:)  !--experimental
   !type (tree_type) :: tree_array(n_tree)
-$endif
+#endif
 
 !--branch array (more convenient to access than linked list)
 
@@ -211,11 +209,11 @@ type grid_type
 end type grid_type
 
 ! global copy of grid info
-$if ($XLF)
+#ifdef PPXLF
   type (grid_type), save :: grid  !--xlf want save here
-$else
+#else
   type (grid_type) :: grid
-$endif
+#endif
 
 
 contains
@@ -284,9 +282,9 @@ real (rp), parameter :: thresh = 1e-6
 !----------------------------------------------------------------------
 write(*,*) 'From trees_base_ls.grid_initialize, dx, dy, dz =', dx,dy,dz
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call enter_sub (sub_name)
-$endif
+#endif
 !  Set grid dimensions to those of global values
 grid % nx = (/ nx, ny, nz /)
 
@@ -335,9 +333,9 @@ end do
 
 grid % initialized = .true.
 
-$if ($DEBUG)
+#ifdef PPDEBUG
 if (DEBUG) call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine grid_initialize
 
@@ -468,7 +466,7 @@ end if
 !  stop
 !end if
 
-!$if ($MPI)
+!#ifdef PPMPI
 
 !   if (d == nd) then
 !     pt_of_grid = (grid % x_min(d, node)) +                           &
@@ -477,11 +475,11 @@ end if
 !     pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
 !   end if
 
-!$else
+!#else
 
 pt_of_grid = grid % x_min(d, node) + (i - 1) * grid % dx(d)
 
-!$endif
+!#endif
 
 
 

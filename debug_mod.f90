@@ -61,12 +61,12 @@ character (*), intent (in) :: tag
 
 !---------------------------------------------------------------------
 
-$if ($MPI)
+#ifdef PPMPI
   write (fname, '(3a,i0,a,i0)') 'debug.', trim (tag), '.', jt_total,  &
                                 '.MPI.c', coord
-$else
+#else
   write (fname, '(3a,i0)') 'debug.', trim (tag), '.', jt_total
-$endif
+#endif
 
 if (len (trim (fname)) == fname_len) then
   write (*, *) mod_name // ': warning fname_len is too small'

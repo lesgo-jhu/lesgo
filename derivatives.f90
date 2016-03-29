@@ -67,11 +67,11 @@ do jz=lbz,nz
 
   !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
   dfdx(:,:,jz)=const*f(:,:,jz)
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz),dfdx(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
-  $endif
+#endif
 
   ! Zero padded region and Nyquist frequency
   !  dfdx_c(lh,:,jz)=0._rprec ! Complex version
@@ -87,11 +87,11 @@ do jz=lbz,nz
   dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
 
   ! Perform inverse transform to get pseudospectral derivative
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
-  $endif
+#endif
 
 enddo
 
@@ -127,11 +127,11 @@ do jz=lbz,nz
 
   !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
   dfdy(:,:,jz)=const*f(:,:,jz)  
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
-  $endif
+#endif
 
   ! Zero padded region and Nyquist frequency
   !  dfdy_c(lh,:,jz)=0._rprec ! Complex version
@@ -147,11 +147,11 @@ do jz=lbz,nz
   dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
 
   ! Perform inverse transform to get pseudospectral derivative
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)     
-  $endif
+#endif
 end do
 
 return
@@ -181,11 +181,11 @@ const = 1._rprec / ( nx * ny )
 do jz=lbz,nz
    ! temporay storage in dfdx_c, this was don't mess up f_c
    dfdx(:,:,jz) = const*f(:,:,jz)   
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz), dfdx(:,:,jz))
-   $else
+#else
    call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)
-   $endif
+#endif
 
    !dfdx_c(lh,:,jz)=0._rprec
    !dfdx_c(:,ny/2+1,jz)=0._rprec
@@ -201,13 +201,13 @@ do jz=lbz,nz
 ! the oddballs for derivatives should already be dead, since they are for f
 
 ! inverse transform 
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
    call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
-   $else
+#else
    call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
-   $endif
+#endif
  
 end do
 end subroutine ddxy
@@ -234,11 +234,11 @@ real (rprec) :: const
 
 const=1._rprec/dz
 
-$if ($MPI)
+#ifdef PPMPI
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
   dfdz(:, :, 0) = BOGUS
-$endif
+#endif
 
   if (coord > 0) then
     !--ghost node information is available here
@@ -251,7 +251,7 @@ $endif
     end do
   end if
 
-$endif
+#endif
 
 do jz=2,nz-1
 do jy=1,ny
@@ -264,7 +264,7 @@ end do
 !--should integrate this into the above loop, explicit zeroing is not
 !  needed, since dudz, dvdz are forced to zero by copying the u, v fields
 !--also, what happens when called with tzz? 
-$if ($MPI) 
+#ifdef PPMPI 
 
   if (coord == nproc-1) then
     dfdz(:,:,nz)=0._rprec  !--do not need to do this...
@@ -276,11 +276,11 @@ $if ($MPI)
     end do
   endif
 
-$else
+#else
 
   dfdz(:,:,nz)=0._rprec  !--do not need to do this...
 
-$endif
+#endif
 
 return
 end subroutine ddz_uv
@@ -315,23 +315,23 @@ end do
 end do
 end do
 
-$if ($MPI)
+#ifdef PPMPI
     if (coord == 0) then
       !--bottom process cannot calculate dfdz(jz=0)
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
       dfdz(:, :, lbz) = BOGUS
-$endif      
+#endif      
     endif
     if (coord == nproc-1) then
       dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
     else
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
       dfdz(:, :, nz) = BOGUS
-$endif      
+#endif      
     end if
-$else
+#else
   dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
-$endif
+#endif
 
 
 end subroutine ddz_w
@@ -365,11 +365,11 @@ const = 1._rprec/(nx*ny)
 do jz=lbz,nz
 
   f(:,:,jz)=const*f(:,:,jz)  
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, f(:,:,jz), f(:,:,jz))
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,f(:,:,jz),fftwNull_p)
-  $endif
+#endif
 
   ! what exactly is the filter doing here? in other words, why is routine
   ! called filt_da? not filtering anything
@@ -388,15 +388,15 @@ do jz=lbz,nz
 
   ! the oddballs for derivatives should already be dead, since they are for f
   ! inverse transform 
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back, f(:,:,jz), f(:,:,jz))
   call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
   call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
-  $else    
+#else    
   call rfftwnd_f77_one_complex_to_real(back,   f(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
   call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
-  $endif  
+#endif  
 
 end do
 
