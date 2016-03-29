@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.9)
-enable_language (Fortran)
+enable_language (C Fortran)
 project (lesgo)
 
 set(exec_name "lesgo")
@@ -13,15 +13,15 @@ link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 /opt/hdf5-1.8.12-mpi/l
 find_program(HOSTNAME NAMES hostname)
 exec_program(${HOSTNAME} ARGS OUTPUT_VARIABLE hostname)
 
-if (${hostname} STREQUAL "njord.me.jhu.edu")
+if (${hostname} STREQUAL "panoramix.me.jhu.edu")
     message(pnmx)
-    include_directories(/act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.2.1/mpich/gcc-4.7.2/include)
-    link_directories(/act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.2.1/mpich/gcc-4.7.2/lib)
+    include_directories(/act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
+    link_directories(/act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
 else (${hostname} STREQUAL "panoramix.me.jhu.edu")
     message(non_pnmx)
     include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
     link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib) 
-endif (${hostname} STREQUAL "njord.me.jhu.edu")
+endif (${hostname} STREQUAL "panoramix.me.jhu.edu")
 
 message(${hostname})
 
@@ -59,8 +59,8 @@ set(USE_TURBINES false)
 set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS false)
-set(USE_BINARY true)
+set(USE_CGNS true)
+set(USE_BINARY false)
 
 # Select level set
 set(USE_LVLSET false)
@@ -157,14 +157,14 @@ endif (USE_SAFETYMODE)
 
 if (USE_CGNS)
     add_definitions(-DPPCGNS)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lcgns -ldhf5")
+    link_libraries(cgns hdf5)    
 endif (USE_CGNS)
 
 if (USE_FFTW3)
     add_definitions(-DPPFFTW3)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lfftw3")
+    link_libraries(fftw3)    
 else (USE_FFTW3)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lrfftw -lfftw")
+    link_libraries(rfftw fftw)    
 endif (USE_FFTW3)
 
 if (USE_DBLPREC)

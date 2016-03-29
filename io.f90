@@ -1469,7 +1469,8 @@ character(64) :: fname_sgs_TnNu
 #endif
 
 #ifdef PPCGNS
-character(64) :: fname_vel_cgns_uv, fname_vel_cgns,fname_vel2_cgns,fname_ddz_cgns,fname_tau_cgns,fname_f_cgns,fname_rs_cgns,fname_cs_cgns,fname_u_vel_grid_cgns
+character(64) :: fname_vel_cgns_uv, fname_vel_cgns,fname_vel2_cgns,fname_ddz_cgns,fname_tau_cgns,fname_f_cgns
+character(64) :: fname_rs_cgns,fname_cs_cgns,fname_u_vel_grid_cgns
 #endif
 
 integer :: i,j,k
