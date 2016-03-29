@@ -61,19 +61,6 @@ The following dependencies are required in order to compile lesgo:
     Most modern compilers will work fine. Ones that have been used successfully
     are G95, GFortran (>= 4.4), Intel, and PGI
 
-  * makedepf90 (http://personal.inet.fi/private/erikedelmann/makedepf90) 
-
-    The Makefile makes use of this to determine file dependencies.
-
-  * fpx3 (https://github.com/lesgo-jhu/dependencies-lesgo)
-
-    This is a fortran preprocessor. The main reason this is used is to isolate
-    calls to MPI libraries, so that if someone wants to run the code in non-MPI
-    mode, then it will compile cleanly and the compiler/linker will not complain
-    about missing MPI libraries. fpx3 macros are also used to hide some other
-    definitions from the compiler, e.g., some array dimensions. The Makefile
-    runs the preprocessor as a step in compilation.
-
   *  hdf5 and CGNS
     #######################################################
     NEW INSTRUCTIONS FOR HDF5 AND CGNS BASED ON CGNS 3.3.0
@@ -151,22 +138,22 @@ The following dependencies are required in order to compile lesgo:
 				GETTING STARTED
 ================================================================================
 
-To get started, you'll need to configure two files: "Makefile.in" and
-"lesgo.conf". The file "Makefile.in", in addition to compiler settings, has
+To get started, you'll need to configure two files: "CMakeLists.txt" and
+"lesgo.conf". The file "CMakeLists.txt", in addition to compiler settings, has
 preprocessor flags for compiling in different functionality (MPI support,
 immersed boundary support, etc.). The file "lesgo.conf" is the input file for
 the code which you'll set your case up. It is commented fairly well and is
 hopefully self-descriptive enough to get started.
 
-Once you configure "Makefile.in" for your system compile lesgo using:
+Once you configure "CMakeLists.txt" for your system compile lesgo using:
 
-  make
+  ./build-lesgo
 
-or
+The compilation will occur in the subdirectory ./bld/ If major changes to 
+"CMakeLists.txt" are made, the above command may faile. In this case, remove
+the build directory using:
 
-  make -jN
-
-for building using N threads.
+  rm -r bld
 
 The resulting executable name will reflect the functionality that you have
 configured into the executable. For instance, for serial lesgo with no additional
