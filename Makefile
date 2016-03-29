@@ -35,7 +35,6 @@ SRCS =  cfl_util.f90 \
 	clocks.f90 \
 	convec.f90 \
         derivatives.f90 \
-	debug_mod.f90 \
         divstress_uv.f90 \
 	divstress_w.f90 \
 	dns_stress.f90 \

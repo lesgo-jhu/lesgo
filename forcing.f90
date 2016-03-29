@@ -209,10 +209,6 @@ $if($MPI)
 $endif
 implicit none
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
-
 integer :: jx, jy, jz
 integer :: jz_min
 
@@ -241,19 +237,6 @@ $else
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS                 )) 
 $endif
 
-      !if (DEBUG) then
-      !  if ( isnan (u(jx, jy, jz)) ) then
-      !    write (*, *) $str($context_doc)
-      !    write (*, *) 'nan in u at (jx, jy, jz) = ', jx, jy, jz
-      !    stop
-      !  end if
-      !  if ( isnan (v(jx, jy, jz)) ) then
-      !    write (*, *) $str($context_doc)
-      !    write (*, *) 'nan in v at (jx, jy, jz) = ', jx, jy, jz
-      !    stop
-      !  end if
-      !end if
-
     end do
   end do
 end do
@@ -275,12 +258,6 @@ $else
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS                 ))
 $endif
-      !if (DEBUG) then
-      !  if ( isnan (w(jx, jy, jz)) ) then
-      !    write (*, *) 'nan in w at (jx, jy, jz) = ', jx, jy, jz
-      !    stop
-      !  end if
-      !end if
 
     end do
   end do

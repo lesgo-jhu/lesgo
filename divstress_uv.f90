@@ -31,11 +31,6 @@ real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
 
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .true.
-$endif
-
 $if ($VERBOSE)
 write (*, *) 'started divstress_uv'
 $endif

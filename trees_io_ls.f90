@@ -58,9 +58,6 @@ real (rp) :: x_local, y_local, z_local
 real (rp) :: x_abs, y_abs, z_abs
 
 !----------------------------------------------------------------------
-$if ($DEBUG)
-if (DEBUG) call enter_sub (sub_name)
-$endif
 pi = acos (-1._rp)
 
 if (add_cap) then
@@ -166,10 +163,6 @@ end if
 
 001 continue
 
-$if ($DEBUG)
-if (DEBUG) call exit_sub (sub_name)
-$endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -266,10 +259,6 @@ contains
 
   end if
 
-  $if ($DEBUG)
-  if (DEBUG) call mesg (sub_name, 'set h =', h)
-  $endif
-
   end subroutine set_h
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -343,21 +332,11 @@ contains
 
   end if
 
-  $if ($DEBUG)
-  if (DEBUG) call mesg (sub_name, 'set r =', r)
-  $endif
   end subroutine set_radius
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine write_tecplot_zone_hdr ()
   implicit none
-
-  $if ($DEBUG)
-  if (DEBUG) then
-    nzone = nzone + 1
-    write (lun, '(a,i0)') '#zone number ', nzone
-  end if
-  $endif
 
   write (lun, '(a,i0,a,i0,a)') 'zone, f=point, i = ', n_face + 1,  &
                                ', j = ', n_tot, ', k = 1'
@@ -382,9 +361,6 @@ integer :: i
 logical :: opn
 
 !----------------------------------------------------------------------
-$if ($DEBUG)
-if (DEBUG) call enter_sub (sub_name)
-$endif
 inquire (unit = lun, opened = opn)
 if (opn) then
   write (msg, '(a,i0,a)') 'unit ', lun, ' is already open'
@@ -403,9 +379,6 @@ end do
 
 close (lun)
 
-$if ($DEBUG)
-if (DEBUG) call exit_sub (sub_name)
-$endif
 end subroutine draw_tree_array
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -427,8 +400,6 @@ integer, intent (in) :: lun
 character (*), parameter :: sub = mod_name // '.read_br_data'
                             !--shortened name since used alot here
 
-!logical, parameter :: DEBUG = .true.
-
 character (256) :: line
 
 integer :: i
@@ -448,10 +419,6 @@ do
 
   read (lun, '(a)') line
 
-  $if ($DEBUG)
-  if (DEBUG) call mesg (sub, 'read line:' // n_l // line)
-  $endif
-  
   !--is this the end of this branch?
   if (index (line, 'end branch') > 0) exit
 

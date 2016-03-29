@@ -54,9 +54,6 @@ HOSTNAME = $(shell hostname -s)
 # Set either double or single precision
 USE_DBLPREC = yes
 
-#--Set global DEBUG flag;
-#--Still have to set DEBUG in individual routines
-DEBUG=no
 #--Set global VERBOSE flag;
 VERBOSE=no
 #--Sets inclusion of development sections

@@ -26,10 +26,6 @@ use param
 use test_filtermodule, only : filter_size
 use messages
 
-$if ($DEBUG)
-use debug_mod
-$endif
-
 use level_set_base
 implicit none
 
@@ -85,10 +81,6 @@ integer, parameter :: nd = 3
 !                                   !  near 0-set are stored
 ! !--experimental: desired velocities for IB method
 ! real (rp) :: udes(ld, ny, lbz:nz), vdes(ld, ny, lbz:nz), wdes(ld, ny, lbz:nz)
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
 
 real (rp) :: phi_cutoff
 real (rp) :: phi_0
@@ -851,7 +843,6 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -960,13 +951,6 @@ do k = 1, nz - 1
         jmx_used = max (jmx_used, j)
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
-
-        $if ($DEBUG)
-        if (DEBUG) then
-          call mesg (sub_name, '(i, j, k) =', (/ i, j, k /))
-          call mesg (sub_name, 'x =', x)
-        end if
-        $endif
         
         n_hat = norm(:, i, j, k)
 
@@ -1096,9 +1080,6 @@ do k = 1, nz - 1
   end do
 end do
 
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, '# u bad points =', nbad)
-$endif
 nbad = 0
 
 if (output) write (lun, *) 'w-node pass'
@@ -1236,10 +1217,6 @@ do k = kmn, nz - 1
     end do
   end do
 end do
-
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, '# w bad points =', nbad)
-$endif
 
 imn = imn_used
 imx = imx_used
@@ -1531,8 +1508,6 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_un'
 
-!logical, parameter :: DEBUG = .false.
-
 integer :: i, j, k
 
 real (rp) :: dphi
@@ -1699,8 +1674,6 @@ use sim_param, only : u, v, w
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.enforce_log_profile'
-
-!logical, parameter :: DEBUG = .false.
 
 integer :: i, j, k
 
@@ -3171,8 +3144,6 @@ character (*), parameter :: fCA_out = path // 'output/global_CA.dat'
 
 integer, parameter :: lun = 99  !--keep open between calls
 
-logical, parameter :: DEBUG = .false.
-
 logical, save :: file_init = .false.
 logical :: opn, exst
 
@@ -3242,10 +3213,6 @@ $endif
 
   call write_real_data(fCA_out, 'append', 'formatted', 8, &
     (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
-
-  $if ($DEBUG)
-  if (DEBUG) call mesg (sub_name, 'jt_total =', jt_total)
-  $endif
 
 $if($MPI)
 end if
@@ -3608,10 +3575,6 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
-
 !---------------------------------------------------------------------
 $if ($VERBOSE)
 call enter_sub (sub_name)
@@ -3646,45 +3609,13 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
 
   else
   
-    $if ($DEBUG)
-    if (DEBUG) then
-      call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.a.txx')
-      call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.a.txy')
-      call DEBUG_write (txz(:, :, 1:nz), 'level_set_BC.a.txz')
-      call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.a.tyy')
-      call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.a.tyz')
-      call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.a.tzz')
-    end if
-    $endif
-
     call interp_tau ()
 
-    $if ($DEBUG)
-    if (DEBUG) then
-      call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.b.txx')
-      call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.b.txy')
-      call DEBUG_write (txz(:, :, 1:nz), 'level_set_BC.b.txz')
-      call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.b.tyy')
-      call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.b.tyz')
-      call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.b.tzz')
-    end if
-    $endif
     if (use_extrap_tau_simple) then
       call extrap_tau_simple ()
     else
       call extrap_tau ()
     end if
-
-    $if ($DEBUG)
-    if (DEBUG) then
-      call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.c.txx')
-      call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.c.txy')
-      call DEBUG_write (txz(:, :, 1:nz), 'level_set_BC.c.txz')
-      call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.c.tyy')
-      call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.c.tyz')
-      call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.c.tzz')
-    end if 
-    $endif
 
   end if
 
@@ -3693,17 +3624,6 @@ end if
 if (use_smooth_tau) then
   !--phi_cutoff is set at start of this routine, so no need to check is_set
   call smooth_tau (-phi_cutoff, txx, txy, txz, tyy, tyz, tzz)
-
-  $if ($DEBUG)
-  if (DEBUG) then
-    call DEBUG_write (txx(:, :, 1:nz), 'level_set_BC.d.txx')
-    call DEBUG_write (txy(:, :, 1:nz), 'level_set_BC.d.txy')
-    call DEBUG_write (txz(:, :, 1:nz), 'level_set_BC.d.txz')
-    call DEBUG_write (tyy(:, :, 1:nz), 'level_set_BC.d.tyy')
-    call DEBUG_write (tyz(:, :, 1:nz), 'level_set_BC.d.tyz')
-    call DEBUG_write (tzz(:, :, 1:nz), 'level_set_BC.d.tzz')
-  end if
-  $endif
 
 end if
 
@@ -3726,9 +3646,6 @@ character (*), parameter :: sub_name = mod_name // '.extrap_tau'
 character (*), parameter :: fmt1 = '(4(i0,1x))'
 integer, parameter :: lun1 = 1
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
 !real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--should be consistent with interp
 
 integer :: i, j, k, m, id
@@ -3737,10 +3654,6 @@ integer :: d_2(3)
 integer :: pt(nd), s(nd)
 integer :: indx(nd, 7), list(nd, 7)
 integer :: nxi(nd)
-
-$if ($DEBUG)
-logical, save :: first_call = .true.
-$endif
 
 real (rp) :: phi_c, phiw, phiw_m
 real (rp) :: sphi
@@ -3763,23 +3676,10 @@ end if
 
 nxi = (/ nx, ny, nz /)
 
-$if ($DEBUG)
-if (DEBUG) then
-  if (first_call) then
-    open (lun1, file=path // 'level_set_extrap-u.dat')
-    write (lun1, *) 'variables = "i" "j" "k" "nlist"'
-    write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
-  end if
-end if
-$endif
 !--u-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
-
-      $if ($DEBUG)
-      if (DEBUG .and. first_call) nlist = 0
-      $endif
 
       if ((phi(i, j, k) < phi_0) .and. (phi(i, j, k) >= -phi_c)) then
 
@@ -3858,39 +3758,16 @@ do k = 2, nz-1
             call error (sub_name, 'invalid counter value')
         end select
 
-      end if
- 
-      $if ($DEBUG)
-      if (DEBUG .and. first_call) then
-        write (lun1, fmt1) i, j, k, nlist
-      end if
-      $endif
-
+      end if 
     end do
   end do
 end do
-
-$if ($DEBUG)
-if (DEBUG .and. first_call) then
-  close (lun1)
-  open (lun1, file=path // 'level_set_extrap-w.dat')
-  write (lun1, *) 'variables = "i" "j" "k" "nlist"'
-  write (lun1, *) 'zone, f=point, i=', nx-2, ', j=', ny-2, ', k=', nz-2
-end if
-$endif
-
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, 'done extrapolation (u)')
-$endif
 
 !--w-nodes
 do k = 2, nz-1
   do j = 2, ny-1
     do i = 2, nx-1
 
-      $if ($DEBUG)
-      if (DEBUG .and. first_call) nlist = 0
-      $endif
       phiw = (phi(i, j, k) + phi(i, j, k-1)) / 2._rp
       
       if ((phiw < phi_0) .and. (phiw >= -phi_c)) then
@@ -3960,27 +3837,10 @@ do k = 2, nz-1
             call error (sub_name, 'invalid counter value')
         end select
        
-      end if
-      
-      $if ($DEBUG)
-      if (DEBUG .and. first_call) then
-        write (lun1, fmt1) i, j, k, nlist
-      end if
-      $endif
+      end if      
     end do
   end do
 end do
-
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, 'done extrapolation (w)')
-$endif
-
-$if ($DEBUG)
-if (DEBUG .and. first_call) then
-  close (lun1)
-  first_call = .false.
-end if
-$endif
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -4004,7 +3864,6 @@ character (*), parameter :: fmta3i = '(a,3(i0,1x))'
 integer, parameter :: noutput = 200
 integer, parameter :: lun = 1
 
-!logical, parameter :: DEBUG = .false.
 logical, parameter :: use_output = .false.
 
 real (rp), parameter :: eps = 100._rp * epsilon (0._rp)
@@ -4221,10 +4080,6 @@ do k = 1, nz-1
   end do
 end do
 
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, 'done interpolation (u)')
-$endif
-
 if (output) write (lun, *) 'w-node pass'
 
 !--w-node pass
@@ -4397,10 +4252,6 @@ real (rp), intent (in out) :: t(ld, ny, nz)
 
 character (*), parameter :: sub_name = mod_name // '.fit3'
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
-
 integer :: counter
 integer :: m, q
 integer :: l_plane (nd, 3)  !--list that contains our 3 points for plane
@@ -4481,19 +4332,6 @@ if (.not. failed) then
 
   call solve_linear (A, t_known, coeff)
 
-  $if ($DEBUG)
-  if (DEBUG) then
-    if (coeff(1) > 1.e7_rp) then
-      call mesg (sub_name, 'A(1, :) =', A(1, :))
-      call mesg (sub_name, 'A(2, :) =', A(2, :))
-      call mesg (sub_name, 'A(3, :) =', A(3, :))
-      call mesg (sub_name, 't_known =', t_known)
-      call mesg (sub_name, 'coeff =', coeff)
-      call error (sub_name, 'coeff(1) too big')
-    end if
-  end if
-  $endif
-
   !--we only need coeff(1)
   t(p(1), p(2), p(3)) = coeff(1)
   
@@ -4510,10 +4348,6 @@ else  !--just average all the points, for now
   t(p(1), p(2), p(3)) = tmp
 
 end if
-
-$if ($DEBUG)
-if (DEBUG) call mesg (sub_name, 't(p) =', t(p(1), p(2), p(3)))
-$endif
 
 $if ($VERBOSE)
 call exit_sub (sub_name)
@@ -4534,10 +4368,6 @@ use sim_param, only : fx, fy, fz
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_forcing'
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
 
 integer :: i, j, k
 integer :: k_min
@@ -4599,17 +4429,6 @@ $if($MPI)
   endif
 $else
   fz(:,:,nz) = 0._rprec
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (u(:, :, 1:nz), 'level_set_forcing.u')
-  call DEBUG_write (v(:, :, 1:nz), 'level_set_forcing.v')
-  call DEBUG_write (w(:, :, 1:nz), 'level_set_forcing.w')
-  call DEBUG_write (fx(:, :, 1:nz), 'level_set_forcing.fx')
-  call DEBUG_write (fy(:, :, 1:nz), 'level_set_forcing.fy')
-  call DEBUG_write (fz(:, :, 1:nz), 'level_set_forcing.fz')
-end if
 $endif
 
 $if ($VERBOSE)

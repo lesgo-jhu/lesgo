@@ -564,8 +564,8 @@ subroutine inst_write(itype)
 !   z-planes : itype=5
 !
 ! For the points and planar data, this subroutine writes using the
-! locations specfied from the param module. All of the data is written
-! using the tecryte library. If additional instantenous values are
+! locations specfied from the param module.  
+! If additional instantenous values are
 ! desired to be written, they should be done so using this subroutine.
 !
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid

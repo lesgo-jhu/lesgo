@@ -55,10 +55,6 @@ $if ($MPI)
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 $endif
 
-$if ($DEBUG)
-use debug_mod
-$endif
-
 $if ($LVLSET)
   use level_set, only : level_set_BC, level_set_Cs
 $endif
@@ -69,10 +65,6 @@ implicit none
 
 $if ($VERBOSE)
 character (*), parameter :: sub_name = 'sgs_stag'
-$endif
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
 $endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
@@ -91,33 +83,8 @@ $endif
 
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)  
 
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (dudx(:, :, 1:nz), 'sgs_stag.dudx.a')
-    call DEBUG_write (dudy(:, :, 1:nz), 'sgs_stag.dudy.a')
-    call DEBUG_write (dudz(:, :, 1:nz), 'sgs_stag.dudz.a')
-    call DEBUG_write (dvdx(:, :, 1:nz), 'sgs_stag.dvdx.a')
-    call DEBUG_write (dvdy(:, :, 1:nz), 'sgs_stag.dvdy.a')
-    call DEBUG_write (dvdz(:, :, 1:nz), 'sgs_stag.dvdz.a')
-    call DEBUG_write (dwdx(:, :, 1:nz), 'sgs_stag.dwdx.a')
-    call DEBUG_write (dwdy(:, :, 1:nz), 'sgs_stag.dwdy.a')
-    call DEBUG_write (dwdz(:, :, 1:nz), 'sgs_stag.dwdz.a')
-end if
-$endif
-
 ! Calculate S12, S13, S23, etc.
 call calc_Sij ()
-
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (S11(:, :, 1:nz), 'sgs_stag.S11.b')
-    call DEBUG_write (S12(:, :, 1:nz), 'sgs_stag.S12.b')
-    call DEBUG_write (S13(:, :, 1:nz), 'sgs_stag.S13.b')
-    call DEBUG_write (S22(:, :, 1:nz), 'sgs_stag.S22.b')
-    call DEBUG_write (S23(:, :, 1:nz), 'sgs_stag.S23.b')
-    call DEBUG_write (S33(:, :, 1:nz), 'sgs_stag.S33.b')
-end if
-$endif
 
 ! This approximates the sum displacement during cs_count timesteps
 ! This is used with the lagrangian model only
@@ -205,12 +172,6 @@ if (sgs) then
  
 end if 
 
-
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (Cs_opt2, 'sgs_stag.Cs_opt2')
-end if
-$endif
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
@@ -368,28 +329,12 @@ else
 
 end if    
       
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.a')
-    call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.a')
-    call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.a')
-end if
-$endif
-
 $if ($LVLSET)
   !--at this point tij are only set for 1:nz-1
   !--at this point u, v, w are set for 0:nz, except bottom process is 1:nz
   !--some MPI synchronizing may be done in here, but this will be kept
   !  separate from the rest of the code (at the risk of some redundancy)
   call level_set_BC ()
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (txx(:, :, 1:nz), 'sgs_stag.txx.b')
-    call DEBUG_write (txy(:, :, 1:nz), 'sgs_stag.txy.b')
-    call DEBUG_write (txz(:, :, 1:nz), 'sgs_stag.txz.b')
-end if
 $endif
 
 $if ($MPI)

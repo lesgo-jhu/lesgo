@@ -40,15 +40,7 @@ use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
 use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
-$if ($DEBUG)
-use debug_mod
-$endif
-
 implicit none
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
 
 integer::jz
 integer :: jz_min
@@ -355,14 +347,6 @@ $if ($SAFETYMODE)
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
 cz(:, :, nz) = BOGUS
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (cx(:, :, 1:nz), 'convec.z.cx')
-  call DEBUG_write (cy(:, :, 1:nz), 'convec.z.cy')
-  call DEBUG_write (cz(:, :, 1:nz), 'convec.z.cz')
-endif
 $endif
 
 $if ($VERBOSE)

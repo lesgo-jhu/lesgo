@@ -24,10 +24,6 @@ ifeq ($(USE_DBLPREC), yes)
   FPP += -DDBLPREC
 endif
 
-ifeq ($(DEBUG), yes)
-  FPP += -DDEBUG
-endif
-
 ifeq ($(VERBOSE), yes)
   FPP += -DVERBOSE
 endif

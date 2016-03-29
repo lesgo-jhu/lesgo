@@ -50,10 +50,6 @@ complex (rp), intent (out) :: b(:, :, :)
 !complex (rp), intent (in) :: a(mx, my, mz)
 !complex (rp), intent (out) :: b(mz*np, my, mx/np)
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
-
 integer :: bs
 integer :: ip
 integer :: up, down
@@ -79,16 +75,6 @@ if( .not. arrays_allocated ) then
    arrays_allocated = .true.
 
 endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  write (*, *) $str($context_doc)
-  write (*, *) 'lbound (a) = ', lbound (a)
-  write (*, *) 'ubound (a) = ', ubound (a)
-  write (*, *) 'lbound (b) = ', lbound (b)
-  write (*, *) 'ubound (b) = ', ubound (b)
-end if
-$endif
 
 if (.not. init) then
   do ip = 1, np-1

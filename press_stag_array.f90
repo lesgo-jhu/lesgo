@@ -50,9 +50,6 @@ use sim_param, only: u,v,w,divtz
 use sim_param, only: p_hat => p, dfdx => dpdx, dfdy => dpdy, dfdz => dpdz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
-$if ($DEBUG)
-use debug_mod
-$endif
 
 implicit none      
 
@@ -63,11 +60,6 @@ real(rprec) :: const,const2,const3,const4
 integer::jx,jy,jz
 
 integer :: ir, ii ! Used for complex emulation of real array
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-logical, parameter :: TRI_DEBUG = .false.
-$endif
 
 integer :: jz_min
 
@@ -224,20 +216,6 @@ rbottomw(:, ny/2+1)=0._rprec
 !==========================================================================
 ! Loop over (Kx,Ky) to solve for Pressure amplitudes
 
-$if ($DEBUG)
-if (TRI_DEBUG) then
-
-$if ($SAFETYMODE)
-  a = BOGUS
-  b = BOGUS
-  c = BOGUS
-  !RHS_col = BOGUS
-  !Careful - only update real values (odd indicies)
-  RHS_col(1:ld:2,:,:) = BOGUS
-$endif
-end if
-$endif
-
 !--switch order of inner/outer loops here
 if (coord == 0) then
 
@@ -249,19 +227,6 @@ $endif
   c(:, :, 1) = 1._rprec
   !RHS_col(:, :, 1) = -dz * bottomw(:, :)
   RHS_col(:,:,1) = -dz * rbottomw(:,:)
-
-  $if ($DEBUG)
-  if (TRI_DEBUG) then
-  $if ($SAFETYMODE)
-    a(:, :, 1) = BOGUS  !--was 0._rprec
-  $endif
-    b(:, :, 1) = 2._rprec
-    c(:, :, 1) = 1._rprec
-    !RHS_col(:, :, 1) = 1._rprec
-    !Careful - only update real values (odd indicies)
-    RHS_col(1:ld:2,:,1) = 1._rprec
-  end if
-  $endif
 
   jz_min = 2
 
@@ -284,31 +249,8 @@ $endif
   !RHS_col(:, :, nz+1) = -topw(:, :) * dz
   RHS_col(:,:,nz+1) = -dz * rtopw(:,:)
 
-  $if ($DEBUG)
-  if (TRI_DEBUG) then
-    a(:, :, nz+1) = 1._rprec
-    b(:, :, nz+1) = 2._rprec
-    $if ($SAFETYMODE)
-    c(:, :, nz+1) = BOGUS  !--was 0._rprec
-    $endif
-    $if ($MPI)
-      !RHS_col(:, :, nz+1) = real (nz+1 + coord * (nz-1), rprec)
-      !Careful - only update real values (odd indicies)
-      RHS_col(1:ld:2,:,nz+1) = real (nz+1 + coord * (nz-1), rprec)
-    $else
-      !RHS_col(:, :, nz+1) = real (nz+1, rprec)
-      !Careful - only update real values (odd indicies)
-      RHS_col(1:ld:2,:,nz+1) =  real (nz+1, rprec)
-    $endif
-  end if
-  $endif
-  !
 $if ($MPI)
 endif
-$endif
-
-$if ($DEBUG)
-if (DEBUG) write (*, *) coord, ' before H send/recv'
 $endif
 
 $if ($MPI)
@@ -347,23 +289,6 @@ $if ($MPI)
   call mpi_sendrecv (rH_z(1, 1, 1), ld*ny, MPI_RPREC, down, 6,  &
                      rH_z(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
                      comm, status, ierr)                     
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  write (*, *) coord, ' after H send/recv'
-  !call DEBUG_write (H_x(:, :, 1:nz), 'w.H_x')
-  !call DEBUG_write (H_y(:, :, 1:nz), 'w.H_y')
-  !call DEBUG_write (H_z(:, :, 1:nz), 'w.H_z')
-  !call DEBUG_write (topw, 'w.topw')
-  !call DEBUG_write (bottomw, 'w.bottomw')
-  call DEBUG_write (rH_x(:, :, 1:nz), 'w.H_x')
-  call DEBUG_write (rH_y(:, :, 1:nz), 'w.H_y')
-  call DEBUG_write (rH_z(:, :, 1:nz), 'w.H_z')
-  call DEBUG_write (rtopw, 'w.topw')
-  call DEBUG_write (rbottomw, 'w.bottomw')  
-
-end if
 $endif
 
 do jz = jz_min, nz
@@ -411,23 +336,6 @@ do jz = jz_min, nz
 !      RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) / dz
       RHS_col(ir:ii,jy,jz) =  aH_x + aH_y + (rH_z(ir:ii, jy, jz) - rH_z(ir:ii, jy, jz-1)) *const4
 
-      $if ($DEBUG)
-      if (TRI_DEBUG) then
-        a(jx, jy, jz) = 1._rprec
-        b(jx, jy, jz) = 2._rprec
-        c(jx, jy, jz) = 1._rprec
-        $if ($MPI)
-          !RHS_col(jx, jy, jz) = jz + coord * (nz-1)
-          !Careful - only update real value
-          RHS_col(ir,jy,jz) = jz + coord * (nz-1)
-        $else
-          !RHS_col(jx, jy, jz) = jz
-          !Careful - only update real value
-          RHS_col(ir,jy,jz) = jz
-        $endif
-      end if
-      $endif
-     
     end do
   end do
 end do
@@ -443,17 +351,6 @@ end do
 !  $endif
 !end do
 
-$if ($DEBUG)
-if (DEBUG) then
-  write (*, *) coord, ' before tridag_array'
-  call DEBUG_write (a, 'v.a')
-  call DEBUG_write (b, 'v.b')
-  call DEBUG_write (c, 'v.c')
-  !call DEBUG_write (RHS_col, 'v.RHS_col')
-  call DEBUG_write( RHS_col, 'v.RHS_col')
-end if
-$endif
-
 !--this skips zero wavenumber solution, nyquist freqs
 !call tridag_array (a, b, c, RHS_col, p_hat)
 $if ($MPI)
@@ -462,13 +359,6 @@ $if ($MPI)
 $else
   !call tridag_array (a, b, c, RHS_col, p_hat)
   call tridag_array (a, b, c, RHS_col, p_hat)
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  write (*, *) coord, ' after tridag_array'
-  call DEBUG_write (p_hat, 'press_stag_array.c.p_hat')
-endif
 $endif
 
 !--zero-wavenumber solution
@@ -512,17 +402,9 @@ $endif
 p_hat(ld-1:ld, :, :) = 0._rprec
 p_hat(:, ny/2+1, :) = 0._rprec
 
-$if ($DEBUG)
-if (DEBUG) call DEBUG_write (p_hat, 'press_stag_array.d.p_hat')
-$endif
-
 !=========================================================================== 
 !...Now need to get p_hat(wave,level) to physical p(jx,jy,jz)   
 !.....Loop over height levels     
-
-$if ($DEBUG)
-if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
-$endif
 
 $if ($FFTW3)
 call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    

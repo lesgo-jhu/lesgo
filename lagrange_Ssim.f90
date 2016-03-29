@@ -38,9 +38,6 @@ use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
 use string_util, only : string_concat
-$if ($DEBUG)
-use debug_mod
-$endif
 $if ($LVLSET)
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 $endif
@@ -52,10 +49,6 @@ use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 $endif
 
 implicit none
-
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
 
 $if ($VERBOSE)
 character (*), parameter :: sub_name = 'lagrange_Ssim'
@@ -346,15 +339,7 @@ end do
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
         $endif 
         call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
-    $endif   
-
-$if ($DEBUG)
-if (DEBUG) then
-    call DEBUG_write (F_LM(:, :, 1:nz), 'lagrange_Ssim.F_LM')
-    call DEBUG_write (F_MM(:, :, 1:nz), 'lagrange_Ssim.F_MM')
-    call DEBUG_write (Cs_opt2(:, :, 1:nz), 'lagrange_Ssim.Cs_opt2')
-end if
-$endif
+    $endif
 
 $if ($LVLSET)
     call level_set_Cs_lag_dyn ()

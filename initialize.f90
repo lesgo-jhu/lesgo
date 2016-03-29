@@ -73,10 +73,6 @@ $if ($ATM)
 $endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
-$if ($DEBUG)
-use debug_mod
-$endif
-
 implicit none
 
 character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
@@ -180,14 +176,6 @@ $endif
 !if (sgs_hist_calc) then
 !  call sgs_hist_init()
 !endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  call DEBUG_write (u(:, :, 1:nz), 'main.start.u')
-  call DEBUG_write (v(:, :, 1:nz), 'main.start.v')
-  call DEBUG_write (w(:, :, 1:nz), 'main.start.w')
-end if
-$endif
 
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then

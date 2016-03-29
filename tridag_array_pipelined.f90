@@ -36,14 +36,6 @@ real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 ! integer, parameter :: nchunks = ny  !--need to experiment to get right value
 integer :: n, nchunks
 
-$if ($DEBUG)
-logical, parameter :: DEBUG = .false.
-$endif
-
-$if ($DEBUG)
-character (64) :: fmt
-$endif
-
 !integer :: nchunks
 integer :: chunksize
 integer :: cstart, cend
@@ -152,21 +144,6 @@ $endif
 
     end do
 
-    $if ($DEBUG)
-    if (DEBUG) then
-      fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-      write (*, fmt) coord, ': P1: j, u(2,2,j) = ', j, u(2, 2, j)
-      fmt = '(i0,a,i0,1x,es12.5)'
-      write (*, fmt) coord, ': P1: j, gam(2,2,j) = ', j, gam(2, 2, j)
-      write (*, fmt) coord, ': P1: j, bet(2,2) = ', j, bet(2, 2)
-      write (*, fmt) coord, ': P1: j, a(2,2,j) = ', j, a(2, 2, j)
-      write (*, fmt) coord, ': P1: j, b(2,2,j) = ', j, b(2, 2, j)
-      write (*, fmt) coord, ': P1: j, c(2,2,j) = ', j, c(2, 2, j)
-      fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-      write (*, fmt) coord, ': P1: j, r(2,2,j) = ', j, r(2, 2, j)
-    end if
-    $endif
-
   end do
 
   if (coord /= nproc - 1) then
@@ -205,14 +182,6 @@ do q = 1, nchunks
 
   end if
 
-!if (DEBUG) then
-!  fmt = '(i0,a,1x,"(",es12.5,", ",es12.5,")")'
-!  write (*, fmt) coord, ': P2: u(2,2,n) = ', u(2, 2, n)
-!  write (*, fmt) coord, ': P2: u(2,2,n-1) = ', u(2, 2, n-1)
-!  fmt = '(i0,a,1x,es12.5)'
-!  write (*, fmt) coord, ': P2: gam(2,2,n) = ', gam(2, 2, n)
-!end if
-
 !$if ($MPI)
 !  if (coord == nproc-1) then
 !    j_max = n
@@ -224,16 +193,6 @@ do q = 1, nchunks
 !$endif
 
   do j = n-1, j_min, -1
-
-    $if ($DEBUG)
-    if (DEBUG) then
-      fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-      write (*, fmt) coord, ': P2: j, u_i(2,2,j) = ', j, u(2, 2, j)
-      write (*, fmt) coord, ': P2: j, u(2,2,j+1) = ', j, u(2, 2, j+1)
-      fmt = '(i0,a,i0,1x,es12.5)'
-      write (*, fmt) coord, ': P2: j, gam(2,2,j+1) = ', j, gam(2, 2, j+1)
-    end if
-    $endif
 
     !--intend on removing cycle statements/repl with something faster
     do jy = cstart, cend
@@ -253,13 +212,6 @@ do q = 1, nchunks
 
     end do
   
-    $if ($DEBUG)
-    if (DEBUG) then
-      fmt = '(i0,a,i0,"(",es12.5,", ",es12.5,")")'
-      write (*, fmt) coord, ': P2: j, u_f(2,2,j) = ', j, u(2, 2, j)
-    end if
-    $endif
-
   end do
 
   !--send u(2), gam(2) to "down"

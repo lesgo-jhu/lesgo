@@ -259,15 +259,6 @@ select case (indx)
 
    endif
 
-$if ($DEBUG)
-if (DEBUG) then
-   if( cell_indx > Nx .or. cell_indx < 1)  then
-     write(*,*) 'px, dx, L_x, cell_indx : ', px, dx, L_x, cell_indx
-     call error(func_name, 'Specified point is not in spatial domain (x-direction)')
-   endif
-endif   
-$endif
-
   case ('j')
 
     ! Autowrap spatial point
@@ -289,15 +280,6 @@ $endif
       cell_indx = floor (px / dx) + 1
 
    endif
-   
-$if ($DEBUG)
-if (DEBUG) then
-   if( cell_indx > Ny .or. cell_indx < 1)  then
-      write(*,*) 'px, dx, L_y, cell_indx : ', px, dx, L_y, cell_indx
-      call error(func_name, 'Specified point is not in spatial domain (y-direction)')
-   endif
-endif   
-$endif
 
   !  Need to compute local distance to get local k index
   case ('k')
@@ -312,20 +294,6 @@ $endif
       cell_indx = floor ((px - z(1)) / dx) + 1
 
     endif
-
-$if ($DEBUG)
-if (DEBUG) then
-    if( cell_indx >= Nz .or. cell_indx < lbz) call error(func_name, 'Specified point is not in spatial domain (z-direction)')    
-endif
-$endif
-
-$if ($DEBUG)
-if (DEBUG) then
-  case default
-
-    call error (func_name, 'invalid indx =' // indx)
-endif    
-$endif
 
 end select
 
