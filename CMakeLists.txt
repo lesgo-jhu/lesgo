@@ -5,9 +5,21 @@ project (lesgo)
 set(exec_name "lesgo")
 
 ##################################################################
-include_directories($ENV{HOME}/include /usr/local/include /usr/include /opt/cgns-3.2.1-hdf5-mpi/include /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include /act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
+include_directories($ENV{HOME}/include /usr/local/include /usr/include /opt/cgns-3.2.1-hdf5-mpi/include /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include)
 
-link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 /opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib $ENV{HOME}/lib  /usr/local/lib  /usr/lib64 /usr/local/hdf5/lib  /usr/local/cgns/lib /act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib)
+link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 /opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib $ENV{HOME}/lib /usr/local/lib  /usr/lib64 /usr/local/hdf5/lib  /usr/local/cgns/lib)
+
+if ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+    message(pnmx)
+    include_directories(/act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.2.1/mpich/gcc-4.7.2/include)
+    link_directories(/act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.2.1/mpich/gcc-4.7.2/lib)
+else ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+    message(non_pnmx)
+    include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
+    link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib) 
+endif ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+
+message($ENV{HOSTNAME})
 
 # Set either double or single precision
 set(USE_DBLPREC true)
@@ -40,7 +52,7 @@ set(READ_ENDIAN "DEFAULT")
 
 # Select a turbine model
 set(USE_TURBINES false)
-set(USE_ATM true)
+set(USE_ATM false)
 
 # Select the data output
 set(USE_CGNS false)
@@ -53,7 +65,7 @@ set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-set(USE_CPS true)
+set(USE_CPS false)
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
@@ -167,21 +179,21 @@ if (DEVEL)
     add_definitions(-DPPDEVEL)
 endif (DEVEL)
 
-if (WRITE_ENDIAN EQUAL "LITTLE")
+if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)
-endif (WRITE_ENDIAN EQUAL "LITTLE")
+endif (WRITE_ENDIAN STREQUAL "LITTLE")
 
-if (WRITE_ENDIAN EQUAL "BIG")
+if (WRITE_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPWRITE_BIG_ENDIAN)
-endif (WRITE_ENDIAN EQUAL "BIG")
+endif (WRITE_ENDIAN STREQUAL "BIG")
 
-if (READ_ENDIAN EQUAL "LITTLE")
+if (READ_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPREAD_LITTLE_ENDIAN)
-endif (READ_ENDIAN EQUAL "LITTLE")
+endif (READ_ENDIAN STREQUAL "LITTLE")
 
-if (READ_ENDIAN EQUAL "BIG")
+if (READ_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPREAD_BIG_ENDIAN)
-endif (READ_ENDIAN EQUAL "BIG")
+endif (READ_ENDIAN STREQUAL "BIG")
 
 set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops")
 add_executable(${exec_name} ${Sources})
