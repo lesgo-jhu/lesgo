@@ -40,7 +40,7 @@ set(READ_ENDIAN "DEFAULT")
 
 # Select a turbine model
 set(USE_TURBINES false)
-set(USE_ATM false)
+set(USE_ATM true)
 
 # Select the data output
 set(USE_CGNS false)
@@ -53,7 +53,7 @@ set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-set(USE_CPS false)
+set(USE_CPS true)
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
@@ -75,7 +75,7 @@ endif (USE_MPI)
 
 if (USE_CPS)
     add_definitions(-DPPCPS)
-    set(Sources "${Sources} concurrent_precursor.f90")
+    set(Sources ${Sources} concurrent_precursor.f90)
     set(exec_name "${exec_name}-cps")
 endif (USE_CPS)
 
@@ -86,35 +86,35 @@ endif (USE_STREAKS)
 
 if (USE_LVLSET)
     add_definitions(-DPPLVLSET)
-    set(Sources "${Sources} level_set_base.f90 level_set.f90 linear_simple.f90")
+    set(Sources ${Sources} level_set_base.f90 level_set.f90 linear_simple.f90)
     set(exec_name "${exec_name}-ls")
 endif (USE_LVLSET)
 
 if (USE_RNS_LS)
     add_definitions(-DPPRNS_LS)
-    set(Sources "${Sources} rns_base_ls.f90 rns_ls.f90")
+    set(Sources ${Sources} rns_base_ls.f90 rns_ls.f90)
     set(exec_name "${exec_name}-rns")
     if (USE_CYL_SKEW_LS)
-        set(Sources "${Sources} rns_cyl_skew_ls.f90")
+        set(Sources ${Sources} rns_cyl_skew_ls.f90)
     endif (USE_CYL_SKEW_LS)
 endif (USE_RNS_LS)
 
 if (USE_CYL_SKEW_LS)
     add_definitions(-DPPCYL_SKEW_LS)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lcgaml")
-    set(Sources "${Sources} cyl_skew_base_ls.f90 cyl_skew_ls.f90")
+    set(Sources ${Sources} cyl_skew_base_ls.f90 cyl_skew_ls.f90)
     set(exec_name "${exec_name}-cs")
 endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    list(append ${Sources} turbines.f90 turbines_base.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
 if (USE_ATM)
     add_definitions(-DPPATM)
-    list(append ${Sources} atm_base.f90 atm_input_util.f90 actuator_turbine_model.f90 atm_lesgo_interface.f90)
+    set(Sources ${Sources} atm_base.f90 atm_input_util.f90 actuator_turbine_model.f90 atm_lesgo_interface.f90)
     set(exec_name "${exec_name}-ATM")
 endif (USE_ATM)
 
