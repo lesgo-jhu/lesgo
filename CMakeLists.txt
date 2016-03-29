@@ -80,7 +80,7 @@ set(USE_STREAKS false)
 # List common sources
 set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 debug_mod.f90 divstress_uv.f90 divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 forcing.f90 fringe_util.f90 functions.f90 grid.f90 ic.f90 ic_dns.f90 initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 messages.f90 open_file.f90 padd.f90 param.f90 param_output.f90 press_stag_array.f90 ran3.f90 rmsdiv.f90 scaledep_dynamic.f90 sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90)
 
-add_definitions(-DPPGFOTRAN)
+add_definitions(-DPPGFOFTRAN)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
