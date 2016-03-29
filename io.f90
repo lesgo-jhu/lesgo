@@ -635,13 +635,13 @@ if(itype==1) then
 
         !  For parallel runs check if data is on correct proc
         $if ($MPI)
-        if(point(n) % coord == coord) then
+            if(point(n) % coord == coord) then
         $endif
 
         ! Create the name as 'point{number}.dat'
         call string_splice( point_name, path //'output/point', n,'.dat')
 
-        ! Want to replace with write based on fid (17 is arbitrary)
+        ! Open the file to write (17 is arbitrary)
         open(unit=17, position="append", file=point_name)
 
         ! Write the instantaneous velocity at that point
@@ -653,7 +653,7 @@ if(itype==1) then
         close(17)        
 
         $if ($MPI)
-        endif
+            endif
         $endif
 
 
