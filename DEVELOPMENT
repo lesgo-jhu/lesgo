@@ -24,7 +24,7 @@ ITEMS:
 
 (II) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
      Assigned to everyone
-     TM - removed DEBUG from main.f90
+     TM - removed DEBUG
 
 (NN) Make Binary default output with CGNS enabled through compiler flag
      Assigned to no one
