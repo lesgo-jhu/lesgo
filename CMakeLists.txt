@@ -9,17 +9,21 @@ include_directories($ENV{HOME}/include /usr/local/include /usr/include /opt/cgns
 
 link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 /opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib $ENV{HOME}/lib /usr/local/lib  /usr/lib64 /usr/local/hdf5/lib  /usr/local/cgns/lib)
 
-if ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+# Set the host name
+find_program(HOSTNAME NAMES hostname)
+exec_program(${HOSTNAME} ARGS OUTPUT_VARIABLE hostname)
+
+if (${hostname} STREQUAL "njord.me.jhu.edu")
     message(pnmx)
     include_directories(/act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.2.1/mpich/gcc-4.7.2/include)
     link_directories(/act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.2.1/mpich/gcc-4.7.2/lib)
-else ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+else (${hostname} STREQUAL "panoramix.me.jhu.edu")
     message(non_pnmx)
     include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
     link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib) 
-endif ($ENV{HOSTNAME} STREQUAL "panoramix.me.jhu.edu")
+endif (${hostname} STREQUAL "njord.me.jhu.edu")
 
-message($ENV{HOSTNAME})
+message(${hostname})
 
 # Set either double or single precision
 set(USE_DBLPREC true)
