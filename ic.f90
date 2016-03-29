@@ -31,9 +31,6 @@ subroutine ic()
 #ifdef PPVERBOSE
   character(*), parameter :: sub_name = 'ic'
 #endif
-#ifdef PPDEBUG
-  logical, parameter :: DEBUG = .false.
-#endif 
 
 #ifdef PPTURBINES
     real(rprec) :: zo_turbines
@@ -168,15 +165,6 @@ do jz=1,nz
    if ((coriolis_forcing).and.(z.gt.(.5_rprec))) ubar(jz)=ug
 
 end do
-
-!if (DEBUG) then
-!  do jz = 1, nz
-!    u(1:nx, 1:ny, jz) = ubar(jz)
-!  end do
-!  v = 0._rprec
-!  w = 0._rprec
-!  return
-!end if
 
 rms = 3._rprec
 do jz=1,nz

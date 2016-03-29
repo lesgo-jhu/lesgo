@@ -40,15 +40,7 @@ use sim_param, only : u1=>u, u2=>v, u3=>w, du1d2=>dudy, du1d3=>dudz,   &
 use sim_param, only : cx => RHSx, cy => RHSy, cz => RHSz
 use fft
 
-#ifdef PPDEBUG
-use debug_mod
-#endif
-
 implicit none
-
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
 
 integer::jz
 integer :: jz_min
@@ -355,14 +347,6 @@ end do
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
 cz(:, :, nz) = BOGUS
-#endif
-
-#ifdef PPDEBUG
-if (DEBUG) then
-  call DEBUG_write (cx(:, :, 1:nz), 'convec.z.cx')
-  call DEBUG_write (cy(:, :, 1:nz), 'convec.z.cy')
-  call DEBUG_write (cz(:, :, 1:nz), 'convec.z.cz')
-endif
 #endif
 
 #ifdef PPVERBOSE

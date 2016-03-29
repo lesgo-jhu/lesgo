@@ -31,11 +31,6 @@ real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
 
-
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .true.
-#endif
-
 #ifdef PPVERBOSE
 write (*, *) 'started divstress_uv'
 #endif

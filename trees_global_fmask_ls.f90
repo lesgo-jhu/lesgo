@@ -271,7 +271,6 @@ real (rp) :: x_tmp(nd), y_tmp(nd)
 
 type ( branch_type ) :: sbr
 
-logical :: DEBUG=.false.
 
 !---------------------------------------------------------------------
 #ifdef PPVERBOSE
@@ -302,9 +301,6 @@ if ( br % gen < gen_max ) then  !--recursion
         !--if this coordinate system is degenerate (sbr % [xy]_hat = 0)
         !  then just use parents local coordinate system
         if ( maxval (abs ( sbr % y_hat ) ) < epsilon ( 1.0_rp ) ) then
-
-            if (DEBUG) call mesg (sub_name,  &
-                                  "sub's coords degenerate, using parent's")
 
             sbr % x_hat = br % x_hat
             sbr % y_hat = br % y_hat

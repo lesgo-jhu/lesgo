@@ -33,13 +33,6 @@ real(rprec), dimension(ld,ny,nz+1), intent(out) :: u
 
 integer :: n
 
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
-
-#ifdef PPDEBUG
-character (64) :: fmt
-#endif
 integer::jx, jy, j, j_min, j_max
 real(kind=rprec)::bet(lh, ny)
 real(kind=rprec),dimension(lh, ny, nz+1)::gam
@@ -125,21 +118,6 @@ do j = 2, j_max
 
   end do
 
-#ifdef PPDEBUG
-  if (DEBUG) then
-     fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-     write (*, fmt) coord, ': P1: j, u(2,2,j) = ', j, u(2, 2, j)
-     fmt = '(i0,a,i0,1x,es12.5)'
-     write (*, fmt) coord, ': P1: j, gam(2,2,j) = ', j, gam(2, 2, j)
-     write (*, fmt) coord, ': P1: j, bet(2,2) = ', j, bet(2, 2)
-     write (*, fmt) coord, ': P1: j, a(2,2,j) = ', j, a(2, 2, j)
-     write (*, fmt) coord, ': P1: j, b(2,2,j) = ', j, b(2, 2, j)
-     write (*, fmt) coord, ': P1: j, c(2,2,j) = ', j, c(2, 2, j)
-     fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-     write (*, fmt) coord, ': P1: j, r(2,2,j) = ', j, r(2, 2, j)
-  end if
-#endif
-
 end do
 
 #ifdef PPMPI
@@ -156,16 +134,6 @@ end do
   call mpi_recv (gam(1, 1, n), lh*ny, MPI_RPREC, up, 5, comm, status, ierr)
 #endif
 
-#ifdef PPDEBUG
-if (DEBUG) then
-  fmt = '(i0,a,1x,"(",es12.5,", ",es12.5,")")'
-  write (*, fmt) coord, ': P2: u(2,2,n) = ', u(2, 2, n)
-  write (*, fmt) coord, ': P2: u(2,2,n-1) = ', u(2, 2, n-1)
-  fmt = '(i0,a,1x,es12.5)'
-  write (*, fmt) coord, ': P2: gam(2,2,n) = ', gam(2, 2, n)
-end if
-#endif
-
 !#ifdef PPMPI
 !  if (coord == nproc-1) then
 !    j_max = n
@@ -177,16 +145,6 @@ end if
 !#endif
 
 do j = n-1, j_min, -1
-
-#ifdef PPDEBUG
-  if (DEBUG) then
-    fmt = '(i0,a,i0,1x,"(",es12.5,", ",es12.5,")")'
-    write (*, fmt) coord, ': P2: j, u_i(2,2,j) = ', j, u(2, 2, j)
-    write (*, fmt) coord, ': P2: j, u(2,2,j+1) = ', j, u(2, 2, j+1)
-    fmt = '(i0,a,i0,1x,es12.5)'
-    write (*, fmt) coord, ': P2: j, gam(2,2,j+1) = ', j, gam(2, 2, j+1)
-  end if
-#endif
 
   !--intend on removing cycle statements/repl with something faster
   do jy = 1, ny
@@ -205,13 +163,6 @@ do j = n-1, j_min, -1
     end do
 
   end do
-
-#ifdef PPDEBUG
-  if (DEBUG) then
-    fmt = '(i0,a,i0,"(",es12.5,", ",es12.5,")")'
-    write (*, fmt) coord, ': P2: j, u_f(2,2,j) = ', j, u(2, 2, j)
-  end if 
-#endif
 
 end do
 

@@ -360,9 +360,6 @@ sizes(:,1) = (/nx,ny,nz/)
 sizes(:,2) = (/nx-1,ny-1,nz-1/)
 sizes(:,3) = (/0 , 0, 0/)
 
-write(*,*) 'Error 1 NOT Here'
-write(*,*) file_name
-
 ! Open CGNS file
 call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
 !~ if (ier .ne. CG_OK) call cg_error_exit_f
@@ -567,8 +564,8 @@ subroutine inst_write(itype)
 !   z-planes : itype=5
 !
 ! For the points and planar data, this subroutine writes using the
-! locations specfied from the param module. All of the data is written
-! using the tecryte library. If additional instantenous values are
+! locations specfied from the param module.  
+! If additional instantenous values are
 ! desired to be written, they should be done so using this subroutine.
 !
 use functions, only : linear_interp, trilinear_interp, interp_to_uv_grid
@@ -596,6 +593,7 @@ implicit none
 
 integer, intent(IN) :: itype
 character (64) :: fname
+character (64) :: point_name  ! Name of file for point
 integer :: n, i, j, k
 #ifndef PPBINARY
 character (64) :: var_list
@@ -639,6 +637,20 @@ if(itype==1) then
 #ifdef PPMPI
         if(point(n) % coord == coord) then
 #endif
+        
+        ! Create the name as 'point{number}.dat'
+        call string_splice( point_name, path //'output/point', n,'.dat')
+
+        ! Open the file to write (17 is arbitrary)
+        open(unit=17, position="append", file=point_name)
+
+        ! Write the instantaneous velocity at that point
+        write(17,*) total_time,                                                &
+        trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
+
+        close(17)        
     
 #ifdef PPMPI
         endif

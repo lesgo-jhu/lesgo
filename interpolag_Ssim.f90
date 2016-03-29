@@ -50,9 +50,6 @@ implicit none
 #ifdef PPVERBOSE
 character (*), parameter :: sub_name = 'interpolag_Ssim'
 #endif
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
 
 real(rprec), dimension(3) :: xyz_past
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM
@@ -155,10 +152,6 @@ z => grid % z
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
 #endif 
 #endif   
-
-#ifdef PPDEBUG
-    if (DEBUG) write (*, *) 'interpolag_Ssim: after interpolation'
-#endif
 
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases

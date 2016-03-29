@@ -38,9 +38,6 @@ use sgs_param,only:ee_now,Tn_all
 use test_filtermodule
 use messages
 use string_util, only : string_concat
-#ifdef PPDEBUG
-use debug_mod
-#endif
 #ifdef PPLVLSET
   use level_set, only : level_set_lag_dyn, level_set_Cs_lag_dyn
 #endif
@@ -53,9 +50,6 @@ use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 
 implicit none
 
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
 
 #ifdef PPVERBOSE
 character (*), parameter :: sub_name = 'lagrange_Ssim'
@@ -348,14 +342,6 @@ end do
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
 #endif 
         call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )     
-#endif   
-
-#ifdef PPDEBUG
-if (DEBUG) then
-    call DEBUG_write (F_LM(:, :, 1:nz), 'lagrange_Ssim.F_LM')
-    call DEBUG_write (F_MM(:, :, 1:nz), 'lagrange_Ssim.F_MM')
-    call DEBUG_write (Cs_opt2(:, :, 1:nz), 'lagrange_Ssim.Cs_opt2')
-end if
 #endif
 
 #ifdef PPLVLSET

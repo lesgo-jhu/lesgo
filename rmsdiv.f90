@@ -24,17 +24,9 @@ use types,only:rprec
 use param
 use sim_param, only : du=>dudx, dv=>dvdy, dw=>dwdz 
 
-#ifdef PPDEBUG
-use debug_mod
-#endif
-
 implicit none
 integer :: jx, jy, jz, jz_max
 real(kind=rprec) :: rms
-
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
 
 logical, parameter :: norm_magdu = .false.
 
@@ -136,11 +128,6 @@ end if
     !write (*, *) 'rms_global = ', rms_global/nproc
   end if
   !if (rank == 0) rms = rms_global/nproc  !--its rank here, not coord
-#endif
-
-#ifdef PPDEBUG
-if (DEBUG) call DEBUG_write (du(1:nx, 1:ny, 1:nz) + dv(1:nx, 1:ny, 1:nz) +  &
-                             dw(1:nx, 1:ny, 1:nz), 'rmsdiv')
 #endif
 
 end subroutine rmsdiv

@@ -36,7 +36,7 @@ INCLPATH = -I${HOME}/include -I/usr/local/include -I/usr/include \
  -I/usr/local/cgns/include \
  -I/act/fftw3/mpich/gcc-4.7.2/include \
  -I/act/hdf5-1.8.15/mpich/gcc-4.7.2/include \
- -I/act/cgns-3.2.1/mpich/gcc-4.7.2/include
+ -I/act/cgns-3.3.0/mpich/gcc-4.7.2/include
 
 LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L${HOME}/hdf5/lib \
@@ -46,7 +46,7 @@ LIBPATH = -L${HOME}/lib -L/usr/local/lib -L/usr/lib64 \
  -L/usr/local/hdf5/lib -L/usr/local/cgns/lib \
  -L/act/fftw3/mpich/gcc-4.7.2/lib \
  -L/act/hdf5-1.8.15/mpich/gcc-4.7.2/lib \
- -L/act/cgns-3.2.1/mpich/gcc-4.7.2/lib
+ -L/act/cgns-3.3.0/mpich/gcc-4.7.2/lib
 
  
 HOSTNAME = $(shell hostname -s)
@@ -54,9 +54,6 @@ HOSTNAME = $(shell hostname -s)
 # Set either double or single precision
 USE_DBLPREC = yes
 
-#--Set global DEBUG flag;
-#--Still have to set DEBUG in individual routines
-DEBUG=no
 #--Set global VERBOSE flag;
 VERBOSE=no
 #--Sets inclusion of development sections
@@ -91,7 +88,7 @@ USE_CGNS=no
 
 #################################################### Tony ATM
 # Use the actuator turbine model
-USE_ATM = no 
+USE_ATM = no
 #################################################### Tony ATM
 
 

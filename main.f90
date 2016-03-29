@@ -56,10 +56,6 @@ use rns_ls, only : rns_elem_force_ls
 use turbines, only : turbines_forcing, turbine_vel_init
 #endif
 
-#ifdef PPDEBUG
-use debug_mod
-#endif
-
 #ifdef PPSTREAKS
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN
 #endif
@@ -74,10 +70,6 @@ real (rprec), dimension (:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
 #endif
 
 character (*), parameter :: prog_name = 'main'
-
-#ifdef PPDEBUG
-logical, parameter :: DEBUG = .false.
-#endif
 
 integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
@@ -156,25 +148,12 @@ time_loop: do jt_step = nstart, nsteps
    total_time_dim = total_time_dim + dt_dim
    tt=tt+dt
   
-#ifdef PPDEBUG
-!        if (DEBUG) write (*, *) $str($context_doc), ' reached line ', $line_num
-! CS- This won't work anymore, but debuggins is going to be removed anyway.
-#endif
-
     ! Save previous time's right-hand-sides for Adams-Bashforth Integration
     ! NOTE: RHS does not contain the pressure gradient
     RHSx_f = RHSx
     RHSy_f = RHSy
     RHSz_f = RHSz
 
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (u(:, :, 1:nz), 'main.p.u')
-        call DEBUG_write (v(:, :, 1:nz), 'main.p.v')
-        call DEBUG_write (w(:, :, 1:nz), 'main.p.w')
-    end if
-#endif
-  
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
     call filt_da (u, dudx, dudy, lbz)
@@ -189,23 +168,6 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
-
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (u(:, :, 1:nz), 'main.q.u')
-        call DEBUG_write (v(:, :, 1:nz), 'main.q.v')
-        call DEBUG_write (w(:, :, 1:nz), 'main.q.w')
-        call DEBUG_write (dudx(:, :, 1:nz), 'main.q.dudx')
-        call DEBUG_write (dudy(:, :, 1:nz), 'main.q.dudy')
-        call DEBUG_write (dudz(:, :, 1:nz), 'main.q.dudz')
-        call DEBUG_write (dvdx(:, :, 1:nz), 'main.q.dvdx')
-        call DEBUG_write (dvdy(:, :, 1:nz), 'main.q.dvdy')
-        call DEBUG_write (dvdz(:, :, 1:nz), 'main.q.dvdz')
-        call DEBUG_write (dwdx(:, :, 1:nz), 'main.q.dwdx')
-        call DEBUG_write (dwdy(:, :, 1:nz), 'main.q.dwdy')
-        call DEBUG_write (dwdz(:, :, 1:nz), 'main.q.dwdz')
-    end if
-#endif
 
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
@@ -237,19 +199,6 @@ time_loop: do jt_step = nstart, nsteps
                            comm, status, ierr)
 #endif
 
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (divtx(:, :, 1:nz), 'main.r.divtx')
-        call DEBUG_write (divty(:, :, 1:nz), 'main.r.divty')
-        call DEBUG_write (divtz(:, :, 1:nz), 'main.r.divtz')
-        call DEBUG_write (txx(:, :, 1:nz), 'main.r.txx')
-        call DEBUG_write (txy(:, :, 1:nz), 'main.r.txy')
-        call DEBUG_write (txz(:, :, 1:nz), 'main.r.txz')
-        call DEBUG_write (tyy(:, :, 1:nz), 'main.r.tyy')
-        call DEBUG_write (tyz(:, :, 1:nz), 'main.r.tyz')
-        call DEBUG_write (tzz(:, :, 1:nz), 'main.r.tzz')
-    end if
-#endif    
     
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
@@ -257,24 +206,9 @@ time_loop: do jt_step = nstart, nsteps
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
 
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (divtx(:, :, 1:nz), 'main.s.divtx')
-        call DEBUG_write (divty(:, :, 1:nz), 'main.s.divty')
-        call DEBUG_write (divtz(:, :, 1:nz), 'main.s.divtz')
-        call DEBUG_write (RHSx(:, :, 1:nz), 'main.preconvec.RHSx')
-    end if
-#endif
-
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
-
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (RHSx(:, :, 1:nz), 'main.postconvec.RHSx')
-    end if
-#endif
 
     ! Add div-tau term to RHS variable 
     !   this will be used for pressure calculation
@@ -301,25 +235,6 @@ time_loop: do jt_step = nstart, nsteps
     if (use_mean_p_force) then
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
-
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (u(:, :, 1:nz), 'main.a.u')
-        call DEBUG_write (v(:, :, 1:nz), 'main.a.v')
-        call DEBUG_write (w(:, :, 1:nz), 'main.a.w')
-        call DEBUG_write (RHSx(:, :, 1:nz), 'main.a.RHSx')
-        call DEBUG_write (RHSy(:, :, 1:nz), 'main.a.RHSy')
-        call DEBUG_write (RHSz(:, :, 1:nz), 'main.a.RHSz')
-        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSx_f')
-        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSy_f')
-        call DEBUG_write (RHSz_f(:, :, 1:nz), 'main.a.RHSz_f')
-        call DEBUG_write (dpdx(:, :, 1:nz), 'main.a.dpdx')
-        call DEBUG_write (dpdy(:, :, 1:nz), 'main.a.dpdy')
-        call DEBUG_write (dpdz(:, :, 1:nz), 'main.a.dpdz')
-        call DEBUG_write (fxa(:, :, 1:nz), 'main.a.fxa')
-        call DEBUG_write (force, 'main.a.force')
-    end if
-#endif
 
     !//////////////////////////////////////////////////////
     !/// APPLIED FORCES                                 ///
@@ -406,14 +321,6 @@ time_loop: do jt_step = nstart, nsteps
     v(:, :, nz) = BOGUS
     w(:, :, nz) = BOGUS
 #endif
-    
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (u(:, :, 1:nz), 'main.b.u')
-        call DEBUG_write (v(:, :, 1:nz), 'main.b.v')
-        call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
-    end if
-#endif
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
@@ -429,22 +336,6 @@ time_loop: do jt_step = nstart, nsteps
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
-
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (dpdx(:, :, 1:nz), 'main.dpdx')
-        call DEBUG_write (dpdy(:, :, 1:nz), 'main.dpdy')
-        call DEBUG_write (dpdz(:, :, 1:nz), 'main.dpdz')
-    end if
-#endif
-
-#ifdef PPDEBUG
-    if (DEBUG) then
-        call DEBUG_write (u(:, :, 1:nz), 'main.d.u')
-        call DEBUG_write (v(:, :, 1:nz), 'main.d.v')
-        call DEBUG_write (w(:, :, 1:nz), 'main.d.w')
-    end if
-#endif
 
     !//////////////////////////////////////////////////////
     !/// INDUCED FORCES                                 ///

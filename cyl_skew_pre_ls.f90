@@ -380,10 +380,6 @@ subroutine compute_phi()
   !  Loop over all trees
   do nt = 1, ntree
 
-#ifdef PPDEBUG
-     if(coord == 0) write(*,*) 'Tree id : ', nt
-#endif
-
      do ng = 1, tr_t(nt) % ngen_reslv
 
         do nc = 1, tr_t(nt)%gen_t(ng)%ncluster
