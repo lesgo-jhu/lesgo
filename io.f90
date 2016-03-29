@@ -360,9 +360,6 @@ sizes(:,1) = (/nx,ny,nz/)
 sizes(:,2) = (/nx-1,ny-1,nz-1/)
 sizes(:,3) = (/0 , 0, 0/)
 
-write(*,*) 'Error 1 NOT Here'
-write(*,*) file_name
-
 ! Open CGNS file
 call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
 !~ if (ier .ne. CG_OK) call cg_error_exit_f
@@ -596,6 +593,7 @@ implicit none
 
 integer, intent(IN) :: itype
 character (64) :: fname
+character (64) :: point_name  ! Name of file for point
 integer :: n, i, j, k
 $if(not $BINARY)
 character (64) :: var_list
@@ -639,10 +637,25 @@ if(itype==1) then
         $if ($MPI)
         if(point(n) % coord == coord) then
         $endif
-    
+
+        ! Create the name as 'point{number}.dat'
+        call string_splice( point_name, path //'output/point', n,'.dat')
+
+        ! Want to replace with write based on fid (17 is arbitrary)
+        open(unit=17, position="append", file=point_name)
+
+        ! Write the instantaneous velocity at that point
+        write(17,*) total_time,                                                &
+        trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
+
+        close(17)        
+
         $if ($MPI)
         endif
         $endif
+
 
     enddo
 
