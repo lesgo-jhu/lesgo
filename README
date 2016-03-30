@@ -788,7 +788,7 @@ The first step is to build in the CPS support into lesgo by setting
 If you want the streaks option set (only on the precursor or red domain)
   USE_STREAKS=yes
 
-in "Makefile.in". You will need to build in CPS support for both the 'red' and
+in "CMakeLists.txt". You will need to build in CPS support for both the 'red' and
 'blue' domain executables. Other support may be built for required functionality
 but at a minimum CPS is needed. An example for this is the setup for developing
 flow over a wind farm. In the 'red' domain we'd have standard boundary layer
@@ -860,7 +860,7 @@ specific order.
 ================================================================================
 
 lesgo also has the ability to simulate an array of wind-turbines.  To use this
-feature set USE_TURBINES = yes in "Makefile.in".  The turbine-specific settings 
+feature set USE_TURBINES to true in "CMakeLists.txt".  The turbine-specific settings 
 are found in "lesgo.conf".  These will be discussed in detail below.  The 
 subroutines associated with the turbine calculations are found in the files 
 "turbines_base.f90" and "turbines.f90".  Note: this feature is fully compatible 
