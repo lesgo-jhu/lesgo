@@ -69,6 +69,10 @@ ITEMS:
 (NN) Add folder which includes basic submit scripts for different systems like
       MARCC, panoramix, etc.
       Assigned to no one.
+      
+(NN) Investigate the near-wall boundary issue in convec.f90 (using first vs 
+      second grid point). 
+      Assigned to no one.
 
 ================================================================================
                    NOTES
