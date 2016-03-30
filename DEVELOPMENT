@@ -82,6 +82,10 @@ ITEMS:
 ================================================================================
 1. Subgrid models 2, 3, and 4 appear to be broken at the moment
 2. The spectra calculations are broken (jb)
+3. By removing tecryte support and moving to cmake the level set code will not 
+   compile. The legacy makefiles are now stored in mk-old. Work is needed to 
+   move the preprocessor building to cmake and restoring support for these
+   features. (cs)
 
 ================================================================================
                    REMOVED FEATURES
