@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 2.8.9)
 
+################################################################################
+#                               User Inputs
+################################################################################
+
 # Specify Compiler
 # Options: Intel and GNU
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc
-set(hostname "njord")
+set(hostname "panoramix")
 
 # Set either double or single precision
 set(USE_DBLPREC true)
@@ -36,11 +40,11 @@ set(READ_ENDIAN "DEFAULT")
 
 # Select a turbine model
 set(USE_TURBINES false)
-set(USE_ATM false)
+set(USE_ATM true)
 
 # Select the data output
-set(USE_CGNS false)
-set(USE_BINARY true)
+set(USE_CGNS true)
+set(USE_BINARY false)
 
 # Select level set
 set(USE_LVLSET false)
@@ -55,19 +59,23 @@ set(USE_CPS false)
 # streaks effects on averaging
 set(USE_STREAKS false)
 
-#################################################################
+################################################################################
+#                         Set up build (do not change)
+################################################################################
 # Set compilter versions for Cmake
+#  Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set(compiler_name "ifort")
-elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-    set(compiler_name "gfortran")
+#  GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    add_definitions(-DPPGFOFTRAN)
     set(compiler_name "gfortran")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 find_program(WHICH NAMES which)
 exec_program(${WHICH} ARGS ${compiler_name} OUTPUT_VARIABLE compiler_path)
 set(CMAKE_Fortran_COMPILER ${compiler_path})
 
+# Project details
 enable_language (Fortran)
 project (lesgo)
 set(exec_name "lesgo")
@@ -76,38 +84,34 @@ set(exec_name "lesgo")
 include_directories($ENV{HOME}/include /usr/local/include /usr/include)
 link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 $ENV{HOME}/lib /usr/local/lib  /usr/lib64)
 
-#include_directories($ENV{HOME}/include /usr/local/include /usr/include /opt/cgns-3.2.1-hdf5-mpi/include /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include)
-#link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 /opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib $ENV{HOME}/lib /usr/local/lib  /usr/lib64 /usr/local/hdf5/lib  /usr/local/cgns/lib)
-
 # Include host-specific paths
+#  panoramix
 if (${hostname} STREQUAL "panoramix")
-    include_directories(/act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
-    link_directories(/act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
+    include_directories(/opt/cgns-3.2.1-hdf5-mpi/include /opt/hdf5-1.8.12-mpi/include /usr/local/hdf5/include /usr/local/cgns/include /act/fftw3/mpich/gcc-4.7.2/include /act/hdf5-1.8.15/mpich/gcc-4.7.2/include /act/cgns-3.3.0/mpich/gcc-4.7.2/include)
+    link_directories(/opt/hdf5-1.8.12-mpi/lib  /opt/cgns-3.2.1-hdf5-mpi/lib /usr/local/hdf5/lib  /usr/local/cgns/lib /act/fftw3/mpich/gcc-4.7.2/lib /act/hdf5-1.8.15/mpich/gcc-4.7.2/lib /act/cgns-3.3.0/mpich/gcc-4.7.2/lib)
+#  marcc
 elseif (${hostname} STREQUAL "marcc")
+    # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
         include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include /cm/shared/apps/Intel/fftw/3.3.4/include)
         link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib /cm/shared/apps/Intel/fftw/3.3.4/lib)
-    else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel") # GNU
+    # GNU -- These have to be installed locally for now.
+    else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
         if (USE_CGNS)
             include_directories($ENV{HOME}/cgns/include/)
             link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
         endif (USE_CGNS)
-#        include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include /cm/shared/apps/Intel/fftw/3.3.4/include)
-#        link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib /cm/shared/apps/Intel/fftw/3.3.4/lib)
     endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+#  njord
 elseif (${hostname} STREQUAL "njord")
-    include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
-    link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib)
+    # nothing yet, but can add if needed
+#  all other systems
 else (${hostname} STREQUAL "panoramix")
-    include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
-    link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib) 
+    # nothing yet, but can add if needed
 endif (${hostname} STREQUAL "panoramix")
-message(${hostname})
 
 # List common sources
 set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90 divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 forcing.f90 fringe_util.f90 functions.f90 grid.f90 ic.f90 ic_dns.f90 initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 messages.f90 open_file.f90 padd.f90 param.f90 param_output.f90 press_stag_array.f90 ran3.f90 rmsdiv.f90 scaledep_dynamic.f90 sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90)
-
-add_definitions(-DPPGFOFTRAN)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
@@ -222,9 +226,12 @@ if (READ_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPREAD_BIG_ENDIAN)
 endif (READ_ENDIAN STREQUAL "BIG")
 
+# Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
+# GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+
 add_executable(${exec_name} ${Sources})
