@@ -23,19 +23,19 @@
 module fft
 use types,only:rprec
 use param,only:ld,lh,ny,ld_big, ny2, spectra_calc
-$if ($FFTW3)
+#ifdef PPFFTW3
 !use, intrinsic :: iso_c_binding
 use iso_c_binding
-$endif
+#endif
 implicit none
-$if ($FFTW3)
+#ifdef PPFFTW3
 include'fftw3.f'
 !include'fftw3-mpi.f03'
 !include'fftw3.f'
 !include'fftw3.f03'
 !include'fftw3l.f03'
 !include 'fftw3-mpi.f03'
-$endif
+#endif
 save
 
 public :: kx, ky, k2, init_fft, forw_spectra
@@ -46,9 +46,9 @@ integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
 
 
-$if ($FFTW3)
+#ifdef PPFFTW3
 real (rprec), dimension (:, :), allocatable :: data, data_big
-$else
+#else
 
 !public
 private
@@ -73,7 +73,7 @@ integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
 
 ! Null pointer for fftw2 dummy argument
 integer(2), pointer :: fftwNull_p
-$endif
+#endif
 contains
 
 !**********************************************************************
@@ -82,7 +82,7 @@ subroutine init_fft()
 use param,only:nx,ny,nx2,ny2
 implicit none
 
-$if ($FFTW3)
+#ifdef PPFFTW3
 ! Allocate temporary arrays for creating the FFTW plans
 allocate( data(ld, ny) )
 allocate( data_big(ld_big, ny2) )
@@ -102,7 +102,7 @@ call dfftw_plan_dft_c2r_2d(back_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_
 deallocate(data)
 deallocate(data_big)
 
-$else
+#else
 call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
      FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
 call rfftw2d_f77_create_plan(back,nx,ny,FFTW_COMPLEX_TO_REAL,&
@@ -117,7 +117,7 @@ if(spectra_calc) then
                              FFTW_ESTIMATE)
 endif
 
-$endif
+#endif
 
 call init_wavenumber()
 end subroutine init_fft

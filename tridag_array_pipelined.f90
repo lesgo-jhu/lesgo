@@ -60,12 +60,12 @@ if (coord == 0) then
   do jy = 1, ny
     do jx = 1, lh-1
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
       if (b(jx, jy, 1) == 0._rprec) then
         write (*, *) 'tridag_array: rewrite eqs, jx, jy= ', jx, jy
         stop
       end if
-$endif
+#endif
 
       ii = 2*jx
       ir = ii - 1
@@ -125,14 +125,14 @@ do q = 1, nchunks
         gam(jx, jy, j) = c(jx, jy, j-1) / bet(jx, jy)
         bet(jx, jy) = b(jx, jy, j) - a(jx, jy, j)*gam(jx, jy, j)
 
-$if ($SAFETYMODE)
+#ifdef PPSAFETYMODE
         if (bet(jx, jy) == 0._rprec) then
           write (*, *) 'tridag_array failed at jx,jy,j=', jx, jy, j
           write (*, *) 'a,b,c,gam,bet=', a(jx, jy, j), b(jx, jy, j),  &
                        c(jx, jy, j), gam(jx, jy, j), bet(jx, jy)
           stop
         end if
-$endif
+#endif
         ii = 2*jx
         ir = ii - 1
         !u(jx, jy, j) = (r(jx, jy, j) - a(jx, jy, j) * u(jx, jy, j-1)) /  &
@@ -182,15 +182,15 @@ do q = 1, nchunks
 
   end if
 
-!$if ($MPI)
+!#ifdef PPMPI
 !  if (coord == nproc-1) then
 !    j_max = n
 !  else
 !    j_max = n-1
 !  endif
-!$else
+!#else
 !  j_max = n
-!$endif
+!#endif
 
   do j = n-1, j_min, -1
 

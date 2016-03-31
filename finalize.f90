@@ -25,38 +25,38 @@ subroutine finalize()
 ! calling all the finalize routines of the various lesgo modules.
 !
 use param, only : coord
-$if($MPI)
+#ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
-$endif
-$if ($LVLSET and $RNS_LS )
+#endif
+#if defined(PPLVLSET) && defined(PPRNS_LS)
 use rns_ls, only : rns_finalize_ls
-$endif
-$if ($TURBINES)
+#endif
+#ifdef PPTURBINES
 use turbines, only : turbines_finalize
-$endif
-$if ($ATM)
+#endif
+#ifdef PPATM
 use atm_lesgo_interface, only : atm_lesgo_finalize
-$endif
+#endif
 
 implicit none
 
 ! Level set:
-$if ($LVLSET)
+#ifdef PPLVLSET
 
-  $if ($RNS_LS)
+#ifdef PPRNS_LS
   call rns_finalize_ls ()
-  $endif
-$endif
+#endif
+#endif
 
 ! Turbines:
-$if ($TURBINES)
+#ifdef PPTURBINES
 call turbines_finalize ()   ! must come before MPI finalize
-$endif   
+#endif   
 
 ! Actuator Turbine Model:
-$if ($ATM)
+#ifdef PPATM
 call atm_lesgo_finalize ()   ! write the restart files
-$endif   
+#endif   
 
 
 ! SGS variable histograms
@@ -65,11 +65,11 @@ $endif
 !endif
 
 ! MPI:
-$if ($MPI)
+#ifdef PPMPI
 ! First make sure everyone in has finished
 call mpi_barrier( MPI_COMM_WORLD, ierr )
 call mpi_finalize (ierr)
-$endif
+#endif
 
 return
 end subroutine finalize

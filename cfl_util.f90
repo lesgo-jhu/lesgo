@@ -42,19 +42,19 @@ use types, only : rprec
 use param, only : dt, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
 
-$if($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 
 implicit none
 real(rprec) :: cfl
 
 real(rprec) :: cfl_u, cfl_v, cfl_w
 
-$if($MPI)
+#ifdef PPMPI
 real(rprec) :: cfl_buf
-$endif
+#endif
 
 cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
 cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
@@ -62,10 +62,10 @@ cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
 cfl = dt * maxval( (/ cfl_u, cfl_v, cfl_w /) )
 
-$if($MPI)
+#ifdef PPMPI
   call mpi_allreduce(cfl, cfl_buf, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
   cfl = cfl_buf
-$endif
+#endif
 
 return
 end function get_max_cfl
@@ -81,10 +81,10 @@ use types, only : rprec
 use param, only : cfl, dx, dy, dz, nx, ny, nz
 use sim_param, only : u,v,w
 
-$if($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
-$endif
+#endif
 
 implicit none
 
@@ -93,9 +93,9 @@ real(rprec) :: dt
 ! dt inverse
 real(rprec) :: dt_inv_u, dt_inv_v, dt_inv_w
 
-$if($MPI)
+#ifdef PPMPI
 real(rprec) :: dt_buf
-$endif
+#endif
 
 ! Avoid division by computing max dt^-1
 dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
@@ -104,10 +104,10 @@ dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
 
 dt = cfl / maxval( (/ dt_inv_u, dt_inv_v, dt_inv_w /) )
 
-$if($MPI)
+#ifdef PPMPI
   call mpi_allreduce(dt, dt_buf, 1, MPI_RPREC, MPI_MIN, MPI_COMM_WORLD, ierr)
   dt = dt_buf
-$endif
+#endif
 
 return
 end function get_cfl_dt

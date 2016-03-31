@@ -35,9 +35,9 @@ integer, parameter :: MPI_SYNC_DOWN=1
 integer, parameter :: MPI_SYNC_UP=2
 integer, parameter :: MPI_SYNC_DOWNUP=3
 
-$if($CGNS)
+#ifdef PPCGNS
 integer, public :: cgnsParallelComm, cgnsSerialComm
-$endif
+#endif
 
 contains
 
@@ -46,12 +46,12 @@ subroutine initialize_mpi()
 !**********************************************************************
 use types, only : rprec
 use param
-$if($CPS)
+#ifdef PPCPS
 use concurrent_precursor
-$endif
-$if($CGNS)
+#endif
+#ifdef PPCGNS
 use cgns
-$endif
+#endif
 implicit none
 
 integer :: np
@@ -68,13 +68,13 @@ end if
 call mpi_init (ierr)
 
 ! Set the local communicator
-$if($CPS)
+#ifdef PPCPS
     ! Create the local communicator (split from MPI_COMM_WORLD)
     ! This also sets the globally defined intercommunicator (bridge)
     call create_mpi_comms_cps( localComm ) 
-$else
+#else
     localComm = MPI_COMM_WORLD
-$endif
+#endif
 
 call mpi_comm_size (localComm, np, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)
@@ -122,7 +122,7 @@ else
   stop
 end if
 
-$if($CGNS)
+#ifdef PPCGNS
     ! Set the CGNS parallel Communicator
     cgnsParallelComm = localComm
 
@@ -130,7 +130,7 @@ $if($CGNS)
     ! It is one communicator per processor
     ! creates : CGNSserialComm
     call MPI_COMM_SPLIT(localComm, coord, 0, CGNSserialComm, ierr)
-$endif
+#endif
 
 return
 end subroutine initialize_mpi

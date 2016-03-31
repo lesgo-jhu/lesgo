@@ -47,18 +47,18 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine clock_start( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($MPI)
+#ifdef PPMPI
 use mpi, only : mpi_wtime
-$endif
+#endif
 implicit none
 
 type(clock_t), intent(inout) :: this
 
-$if($MPI)
+#ifdef PPMPI
 this % start = mpi_wtime()
-$else
+#else
 call cpu_time( this % start )
-$endif
+#endif
 
 return
 end subroutine clock_start
@@ -66,18 +66,18 @@ end subroutine clock_start
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine clock_stop( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-$if($MPI)
+#ifdef PPMPI
 use mpi, only : mpi_wtime
-$endif
+#endif
 implicit none
 
 type(clock_t), intent(inout) :: this
 
-$if($MPI)
+#ifdef PPMPI
 this % stop = mpi_wtime()
-$else
+#else
 call cpu_time( this % stop )
-$endif
+#endif
 
 ! Compute the clock time
 this % time = this % stop - this % start

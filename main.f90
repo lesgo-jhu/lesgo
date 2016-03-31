@@ -39,35 +39,35 @@ use cfl_util
 use sgs_stag_util, only : sgs_stag
 use forcing
 
-$if ($MPI)
+#ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-$endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
 use level_set, only : level_set_global_CA, level_set_vel_err
 use level_set_base, only : global_CA_calc
   
-$if ($RNS_LS)
+#ifdef PPRNS_LS
 use rns_ls, only : rns_elem_force_ls
-$endif
-$endif
+#endif
+#endif
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 use turbines, only : turbines_forcing, turbine_vel_init
-$endif
+#endif
 
-$if ($STREAKS)
+#ifdef PPSTREAKS
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN
-$endif
+#endif
 
 use messages
 
 implicit none
 
-$if ($STREAKS)
+#ifdef PPSTREAKS
 real (rprec), dimension (:,:,:), allocatable :: dummyu, dummyv, dummyw
 real (rprec), dimension (:,:,:), allocatable :: dummyRHSx, dummyRHSy, dummyRHSz
-$endif
+#endif
 
 character (*), parameter :: prog_name = 'main'
 
@@ -80,11 +80,11 @@ type(clock_t) :: clock, clock_total, clock_forcing
 ! Measure total time in forcing function
 real(rprec) :: clock_total_f = 0.0
 
-$if($MPI)
+#ifdef PPMPI
 ! Buffers used for MPI communication
 real(rprec) :: rbuffer
 real(rprec) :: maxdummy ! Used to calculate maximum with mpi_allreduce
-$endif
+#endif
 
 ! Start the clocks, both local and total
 call clock_start( clock )
@@ -99,11 +99,11 @@ call initialize()
 
 if(coord == 0) then
    call clock_stop( clock )
-   $if($MPI)
+#ifdef PPMPI
    write(*,'(1a,E15.7)') 'Initialization wall time: ', clock % time
-   $else
+#else
    write(*,'(1a,E15.7)') 'Initialization cpu time: ', clock % time
-   $endif
+#endif
 endif
 
 call clock_start( clock_total )
@@ -115,14 +115,14 @@ nstart = jt_total+1
 
 ! Declare variables for shifting the domain
 ! This gets rid of streaks in the domain
-$if ($STREAKS)
+#ifdef PPSTREAKS
 allocate( dummyu     (ld    ,ny, lbz:nz) )
 allocate( dummyv     (ld    ,ny, lbz:nz) )
 allocate( dummyw     (ld    ,ny, lbz:nz) )
 allocate( dummyRHSx  (ld    ,ny, lbz:nz) )
 allocate( dummyRHSy  (ld    ,ny, lbz:nz) )
 allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
-$endif
+#endif
 
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps   
@@ -193,11 +193,11 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
-    $if ($MPI)
+#ifdef PPMPI
         call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
                            tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
                            comm, status, ierr)
-    $endif
+#endif
 
     
     ! Compute divergence of SGS shear stresses     
@@ -261,21 +261,21 @@ time_loop: do jt_step = nstart, nsteps
     clock_total_f = clock_total_f + clock_forcing % time
 
     !  Update RHS with applied forcing
-    $if ($TURBINES and not ($LVLSET and $RNS_LS))
+#if defined(PPTURBINES) && !( defined(PPLVLSET) && defined(PPRNS_LES) )
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    $elseif ($LVLSET and $RNS_LS)
+#elif defined(PPLVLSET) && defined(PPRNS_LS)
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
-    $endif
+#endif
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Tony ATM
-    $if ($ATM)
+#ifdef PPATM
     RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
     RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
-    $endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Tony ATM
 
     !//////////////////////////////////////////////////////
@@ -307,12 +307,12 @@ time_loop: do jt_step = nstart, nsteps
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
 
     ! Set unused values to BOGUS so unintended uses will be noticable
-    $if ($SAFETYMODE)
-    $if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
         u(:, :, 0) = BOGUS
         v(:, :, 0) = BOGUS
         w(:, :, 0) = BOGUS
-    $endif
+#endif
     !--this is an experiment
     !--u, v, w at jz = nz are not useful either, except possibly w(nz), but that
     !  is supposed to zero anyway?
@@ -320,7 +320,7 @@ time_loop: do jt_step = nstart, nsteps
     u(:, :, nz) = BOGUS
     v(:, :, nz) = BOGUS
     w(:, :, nz) = BOGUS
-    $endif
+#endif
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
@@ -355,19 +355,19 @@ time_loop: do jt_step = nstart, nsteps
     !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
     call project ()
 
-    $if($LVLSET and $RNS_LS)
+#if defined(PPLVLSET) && defined(PPRNS_LS)
     !  Compute the relavent force information ( include reference quantities, CD, etc.)
     !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
     !  made here.
     call rns_elem_force_ls()
-    $endif
+#endif
    
     ! Write ke to file
     if (modulo (jt_total, nenergy) == 0) call energy (ke)
 
-    $if ($LVLSET)
+#ifdef PPLVLSET
       if( global_CA_calc ) call level_set_global_CA ()
-    $endif
+#endif
 
     ! Write output files
     call output_loop()  
@@ -387,7 +387,7 @@ time_loop: do jt_step = nstart, nsteps
 
         ! This takes care of the clock times, to obtain the qunatites based
         ! on all the processors, not just processor 0
-        $if($MPI)
+#ifdef PPMPI
             call mpi_allreduce(clock % time, maxdummy,1, mpi_rprec,  &
                                MPI_MAX, comm, ierr) 
             clock % time = maxdummy
@@ -400,7 +400,7 @@ time_loop: do jt_step = nstart, nsteps
             call mpi_allreduce(clock_total_f , maxdummy,1, mpi_rprec,  &
                                MPI_MAX, comm, ierr) 
             clock_total_f = maxdummy
-        $endif
+#endif
 
        if (coord == 0) then
           write(*,*)
@@ -415,11 +415,11 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,*)
-          $if($MPI)
+#ifdef PPMPI
           write(*,'(1a)') 'Simulation wall times (s): '
-          $else
+#else
           write(*,'(1a)') 'Simulation cpu times (s): '
-          $endif
+#endif
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(1a,E15.7)') '  Forcing: ', clock_forcing % time
@@ -433,10 +433,10 @@ time_loop: do jt_step = nstart, nsteps
 
           ! Determine the processor that has used most time and communicate this.
           ! Needed to make sure that all processors stop at the same time and not just some of them
-          $if($MPI)
+#ifdef PPMPI
           call mpi_allreduce(clock_total % time, rbuffer, 1, MPI_RPREC, MPI_MAX, MPI_COMM_WORLD, ierr)
           clock_total % time = rbuffer
-          $endif
+#endif
        
           ! If maximum time is surpassed go to the end of the program
           if ( clock_total % time >= real(runtime,rprec) ) then
@@ -447,7 +447,7 @@ time_loop: do jt_step = nstart, nsteps
        endif
 
     ! Shift the domain in the y (spanwise) direction
-    $if($STREAKS)
+#ifdef PPSTREAKS
         if (modulo (jt_total, 1000) == 0) then
         if (coord == 0) then
         write(*,*) '--------------------red shift-------------------'
@@ -492,7 +492,7 @@ time_loop: do jt_step = nstart, nsteps
         F_NN(:,2:ny,:)= dummyu(:,1:ny-1,:)
         F_NN(:,1,:)   = dummyu(:, ny   ,:)
         endif
-    $endif
+#endif
 
     end if
 
@@ -507,11 +507,11 @@ call output_final()
 
 ! Stop wall clock
 call clock_stop( clock_total )
-$if($MPI)
+#ifdef PPMPI
 if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
-$else
+#else
 if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation cpu time (s) : ', clock_total % time
-$endif
+#endif
 
 call finalize()
 

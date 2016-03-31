@@ -32,7 +32,6 @@ use messages
 use string_util
 
 implicit none
-!include 'tecryte.h'
 
 save
 private
@@ -173,7 +172,7 @@ enddo
 ! Generate the files for the turbine velocity output
 do s=1,nloc
 
-$if ($MPI)
+#ifdef PPMPI
    kcp = nint(wind_farm%turbine(s)%height/dz + 0.5)
    k_start =  1+coord*(nz-1)
    k_end = nz-1+coord*(nz-1)
@@ -184,10 +183,10 @@ $if ($MPI)
        file_id2(s) = open_file_fid( string1, 'append', 'formatted' )
    endif
 
-$else
+#else
    call string_splice( string1, path // 'turbine/turbine_', s, '_velcenter.dat' )
    file_id2(s) = open_file_fid( string1, 'append', 'formatted' )
-$endif
+#endif
 
 enddo
 
@@ -549,13 +548,13 @@ do b=1,nloc
     wind_farm%turbine(b)%num_nodes = 0.
     count_n = 0
     count_i = 1
-    $if ($MPI)
+#ifdef PPMPI
         k_start = 1+coord*(nz-1)
         k_end = nz-1+coord*(nz-1)
-    $else
+#else
         k_start = 1
         k_end = nz
-    $endif
+#endif
 
     do k=k_start,k_end  !global k     
      do j=1,ny
@@ -575,17 +574,17 @@ do b=1,nloc
     wind_farm%turbine(b)%num_nodes = count_n
     
     if (count_n > 0) then
-        $if ($MPI)
+#ifdef PPMPI
 
             call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
             write(*,*) trim(string1)
             
-        $else
+#else
 
             call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
             write(*,*) trim(string1)
 
-        $endif
+#endif
     endif
 
 enddo
@@ -615,7 +614,7 @@ enddo
 !each processor sends its value of turbine_in_proc
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
 !############################################## 2
-$if ($MPI)
+#ifdef PPMPI
     if (coord == 0) then
         if (turbine_in_proc) then
             write(*,*),'Coord 0 has turbine nodes' 
@@ -633,7 +632,7 @@ $if ($MPI)
     else
         call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
     endif
-$endif
+#endif
 nullify(x,y,z)
 !##############################################
 end subroutine turbines_filter_ind
@@ -661,9 +660,9 @@ z => grid % z
 
 allocate(w_uv(ld,ny,lbz:nz))
 
-$if ($MPI)
+#ifdef PPMPI
     call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velocities!
-$endif
+#endif
 
 w_uv = interp_to_uv_grid(w, lbz)
 
@@ -696,17 +695,16 @@ if (turbine_in_proc) then
                 icp = nint(wind_farm%turbine(s)%xloc/dx)
                 jcp = nint(wind_farm%turbine(s)%yloc/dy)
                 kcp = nint(wind_farm%turbine(s)%height/dz + 0.5)
-                $if ($MPI)
+#ifdef PPMPI
                 k_start =  1+coord*(nz-1)
                 k_end = nz-1+coord*(nz-1)
-                $else
+#else
                 k_start = 1
                 k_end = nz
-                $endif
+#endif
                 if (kcp>=k_start .and. kcp<=k_end) then
                     kcp=kcp-k_start+1
                     write( file_id2(s), *) total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp)
-!                   call write_real_data( file_id2(s), 'formatted', 3, (/ total_time_dim, u(icp,jcp,kcp), w_uv(icp,jcp,kcp) /))
                 endif
                 endif
         !write this value to the array (which will be sent to coord 0)
@@ -717,7 +715,7 @@ if (turbine_in_proc) then
 endif        
 
 !send the disk-avg values to coord==0
-$if ($MPI) 
+#ifdef PPMPI 
 
     call mpi_barrier (comm,ierr)
 
@@ -735,7 +733,7 @@ $if ($MPI)
         call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
     endif            
     !##############################################              
-$endif
+#endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then           
@@ -768,7 +766,6 @@ if (coord == 0) then
                 if (modulo (jt_total, tbase) == 0) then
                    write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
                        Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
-!                  call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
                 endif 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
@@ -778,7 +775,7 @@ if (coord == 0) then
 endif
 
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
-$if ($MPI)
+#ifdef PPMPI
     !############################################## 5  
         if (coord == 0) then
           
@@ -791,7 +788,7 @@ $if ($MPI)
             call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
         endif     
     !##############################################     
-$endif 
+#endif 
     
 !apply forcing to each node
 if (turbine_in_proc) then

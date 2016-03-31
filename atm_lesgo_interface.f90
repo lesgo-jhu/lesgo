@@ -50,11 +50,11 @@ use sim_param, only : fxa, fya, fza, u, v, w
 use grid_defs, only : grid
 
 ! MPI implementation from LESGO
-$if ($MPI)
+#ifdef PPMPI
   use mpi_defs
   use mpi
   use param, only : ierr, mpi_rprec, comm, coord
-$endif
+#endif
 
 ! Interpolating function for interpolating the velocity field to each
 ! actuator point
@@ -117,16 +117,16 @@ do m=1, numberOfTurbines
     call atm_lesgo_findCells(m)
 enddo
 
-$if ($MPI)
+#ifdef PPMPI
     call mpi_barrier( comm, ierr )
 
     ! This will create the output files and write initialization to the screen
     if (coord == 0) then
         call atm_initialize_output()
     endif
-$else
+#else
     call atm_initialize_output()
-$endif
+#endif
 
 end subroutine atm_lesgo_initialize
 
@@ -289,7 +289,7 @@ enddo
 
 ! MPI distribution
 ! This will create new communicator for each turbine
-$if ($MPI)
+#ifdef PPMPI
 
 ! Store the base group from the global communicator mpi_comm_world
 call MPI_COMM_GROUP(comm, base_group, ierr)
@@ -345,7 +345,7 @@ endif
 
     call mpi_barrier( comm, ierr )
 
-$endif
+#endif
 
 end subroutine atm_lesgo_findCells
 
@@ -430,13 +430,13 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 
 !~  call clock_start( myClock )
 ! This will gather all the blade forces from all processors
-$if ($MPI)
+#ifdef PPMPI
     ! This will gather all values used in MPI
 !~     call mpi_barrier( MPI_COMM_WORLD, ierr )
     call atm_lesgo_mpi_gather()
 !~     call mpi_barrier( MPI_COMM_WORLD, ierr )
 
-$endif
+#endif
 !~     call clock_stop( myClock )
 !~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
@@ -530,7 +530,7 @@ end subroutine atm_lesgo_forcing
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Complie this subroutines only if MPI will be used
-$if ($MPI)
+#ifdef PPMPI
 
 subroutine atm_lesgo_mpi_gather()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -678,7 +678,7 @@ do i=1,numberOfTurbines
     endif
 enddo
 end subroutine atm_lesgo_mpi_gather
-$endif
+#endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_lesgo_force(i)
@@ -727,12 +727,12 @@ if (turbineArray(i) % sampling == 'Spalart') then
                 mpi_velocity = velocity
     
                 ! Complie this subroutines only if MPI will be used
-                $if ($MPI)
+#ifdef PPMPI
 !~                     call mpi_barrier( TURBINE_COMM, ierr )
                     ! Sync all the blade forces
                     call mpi_allreduce(mpi_velocity, velocity, size(velocity), &
                            mpi_rprec, mpi_sum, TURBINE_COMM , ierr) 
-                $endif
+#endif
     
                 ! This will compute the blade force for the specific point
                 if (  z(1) <= xyz(3)/z_i .and. xyz(3)/z_i < z(nz) ) then

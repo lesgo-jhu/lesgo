@@ -26,19 +26,19 @@ use sim_param,only:w,dudz,dvdz
 use sgs_param,only:Cs_opt2
 use string_util
 use messages
-$if ($MPI)
+#ifdef PPMPI
 use mpi
-$endif
+#endif
 
-$if ($CGNS)
+#ifdef PPCGNS
     use cgns
 
-    $if ($MPI)
+#ifdef PPMPI
     use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
     use param, only: ierr
-    $endif
+#endif
 
-$endif
+#endif
 
 implicit none
 save
@@ -103,9 +103,9 @@ use messages
 implicit none
 integer :: jx, jy, jz, nan_count
 real(rprec)::KE,temp_w
-$if ($MPI)
+#ifdef PPMPI
 real (rprec) :: ke_global
-$endif
+#endif
 
 ! Initialize variables
 nan_count = 0
@@ -125,7 +125,7 @@ end do z_loop
 ! Perform spatial averaging
 ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
-$if ($MPI)
+#ifdef PPMPI
    call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
    if (rank == 0) then  !--note its rank here, not coord
        open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
@@ -133,17 +133,17 @@ $if ($MPI)
        write(2,*) total_time,ke
        close(2)
    end if
-$else
+#else
     open(2,file=path // 'output/check_ke.dat',status='unknown',form='formatted',position='append')
     write(2,*) total_time,ke
     close(2)
-$endif
+#endif
 
 end subroutine energy
 
 
-$if($CGNS)
-$if ($MPI)
+#ifdef PPCGNS
+#ifdef PPMPI
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine write_parallel_cgns ( file_name, nx, ny, nz, nz_tot, start_n_in,    &
                                      end_n_in, xin, yin, zin, num_fields,      &
@@ -313,7 +313,7 @@ call cgp_close_f(fn, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 end subroutine write_parallel_cgns
-$endif
+#endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
@@ -409,7 +409,7 @@ if (ier .ne. CG_OK) call cg_error_exit_f
 
 end subroutine write_serial_cgns
 ! END OF  CGNS  PART
-$endif 
+#endif 
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine output_loop()
@@ -581,13 +581,13 @@ use sim_param, only : u,v,w
 !~ use functions, only : interp_to_w_grid
 
 use stat_defs, only : xplane, yplane, zplane, point
-$if($MPI)
+#ifdef PPMPI
 use param, only :ny,nz,comm,ierr
-$endif
-$if($LVLSET)
+#endif
+#ifdef PPLVLSET
 use level_set_base, only : phi
 use sim_param, only : fx,fy,fz,fxa,fya,fza
-$endif
+#endif
 
 implicit none
 
@@ -595,22 +595,22 @@ integer, intent(IN) :: itype
 character (64) :: fname
 character (64) :: point_name  ! Name of file for point
 integer :: n, i, j, k
-$if(not $BINARY)
+#ifndef PPBINARY
 character (64) :: var_list
 integer :: nvars
-$endif
+#endif
 
-$if($CGNS)
+#ifdef PPCGNS
 character (64) :: fname_cgns ! Name for CGNS output file
 ! Vorticity
 real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
-$endif
+#endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 
-$if($LVLSET)
+#ifdef PPLVLSET
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
-$endif
+#endif
 
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
@@ -634,10 +634,10 @@ if(itype==1) then
     do n=1,point_nloc
 
         !  For parallel runs check if data is on correct proc
-        $if ($MPI)
-            if(point(n) % coord == coord) then
-        $endif
-
+#ifdef PPMPI
+        if(point(n) % coord == coord) then
+#endif
+        
         ! Create the name as 'point{number}.dat'
         call string_splice( point_name, path //'output/point', n,'.dat')
 
@@ -651,11 +651,10 @@ if(itype==1) then
         trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
 
         close(17)        
-
-        $if ($MPI)
-            endif
-        $endif
-
+    
+#ifdef PPMPI
+        endif
+#endif
 
     enddo
 
@@ -666,16 +665,16 @@ elseif(itype==2) then
     !/// WRITE VELOCITY                       ///
     !////////////////////////////////////////////
     
-    $if( $BINARY )
+#ifdef PPBINARY 
     call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
-    $endif
+#endif
     
-    $if ($MPI)
+#ifdef PPMPI
     call string_concat( fname, '.c', coord )
-    $endif
+#endif
 
     ! Write CGNS Output
-    $if ($CGNS and $MPI)
+#if defined(PPCGNS) && defined(PPMPI)
         call string_splice( fname_cgns, path //'output/output_',               &  
                             jt_total,'.cgns')
         
@@ -716,40 +715,40 @@ elseif(itype==2) then
 !~ 
 !~         deallocate(vortx, vorty, vortz)
 
-    $endif
+#endif
         
-    $if($BINARY)
+#ifdef PPBINARY
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) u(:nx,:ny,1:nz)
     write(13,rec=2) v(:nx,:ny,1:nz)
     write(13,rec=3) w_uv(:nx,:ny,1:nz)
     close(13)
-    $endif
+#endif
   
-!  $if($MPI)
+!  #ifdef PPMPI
 !  call mpi_barrier( comm, ierr )
-!  $endif
+!  #endif
 !
 !  call pressure_sync()
 !
-!  $if($MPI)
+!  #ifdef PPMPI
 !  call mpi_barrier( comm, ierr )
-!  $endif
+!  #endif
 !  
 !  call RHS_sync()
 !
-!  $if($MPI)
+!  #ifdef PPMPI
 !  call mpi_barrier( comm, ierr )
-!  $endif
+!  #endif
 
 !  Write instantaneous x-plane values
 elseif(itype==3) then
 
     allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
     
-    $if($LVLSET)
+#ifdef PPLVLSET
     call force_tot()
-    $endif
+#endif
 
     !  Loop over all xplane locations
     do i=1,xplane_nloc
@@ -766,7 +765,7 @@ elseif(itype==3) then
             enddo
         enddo
 
-        $if ($CGNS and $MPI)    
+#if defined(PPCGNS) && defined(PPMPI)    
             call string_splice( fname_cgns, path // 'output/plane_x_plane',    &
                                 xplane_loc(i),'_', jt_total, '.cgns')
             
@@ -777,7 +776,7 @@ elseif(itype==3) then
                       3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
                       (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)),   &
                          wi(1,1:ny,1:(nz-nz_end)) /) )
-        $endif
+#endif
         
     enddo
   
@@ -802,7 +801,7 @@ elseif(itype==4) then
             enddo
         enddo
 
-        $if ($CGNS and $MPI)    
+#if defined(PPCGNS) && defined(PPMPI)    
             call string_splice( fname_cgns, path // 'output/plane_y_plane',    &
                             yplane_loc(j),'_', jt_total, '.cgns')
 
@@ -813,7 +812,7 @@ elseif(itype==4) then
                       3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
                       (/ ui(1:nx,1,1:(nz-nz_end)), vi(1:nx,1,1:(nz-nz_end)),   &
                          wi(1:nx,1,1:(nz-nz_end)) /) )
-        $endif
+#endif
 
     enddo  
 
@@ -822,24 +821,24 @@ elseif(itype==4) then
 !  Write instantaneous z-plane values
 elseif(itype==5) then
 
-    $if ($CGNS and $MPI)    
+#if defined(PPCGNS) && defined(PPMPI)
         ! Set the serial communicator
         call cgp_mpi_comm_f(cgnsSerialComm, ierr)
-    $endif
+#endif
 
     allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
 
     !  Loop over all zplane locations
     do k=1,zplane_nloc
 
-        $if ($MPI)    
+#ifdef PPMPI    
             if(zplane(k) % coord == coord) then
-        $endif
+#endif
 
-        $if ($BINARY)
+#ifdef PPBINARY
             call string_splice( fname, path // 'output/binary_vel.z-',         &
                                 zplane_loc(k), '.', jt_total, '.dat')
-        $endif
+#endif
     
         do j=1,Ny
             do i=1,Nx
@@ -852,7 +851,7 @@ elseif(itype==5) then
             enddo
         enddo
     
-        $if ($CGNS)
+#ifdef PPCGNS
     
             call string_splice( fname_cgns, path // 'output/plane_z_plane',    &
                                 zplane_loc(k),'_', jt_total, '.cgns')
@@ -860,20 +859,20 @@ elseif(itype==5) then
             call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), &
                             3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
                         (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
-        $endif
+#endif
         
-        $if ($BINARY)
+#ifdef PPBINARY
             open(unit=13,file=fname,form='unformatted',convert='big_endian',   &
                             access='direct',recl=nx*ny*1*rprec)
             write(13,rec=1) ui(1:nx,1:ny,1)
             write(13,rec=2) vi(1:nx,1:ny,1)
             write(13,rec=3) wi(1:nx,1:ny,1)
             close(13)
-        $endif
+#endif
      
-        $if ($MPI) 
+#ifdef PPMPI 
         endif
-        $endif
+#endif
     enddo
   
     deallocate(ui,vi,wi)
@@ -890,9 +889,9 @@ nullify(x,y,z,zw)
 !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !subroutine force_tot()
 !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!$if($MPI)
+!#ifdef PPMPI
 !use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-!$endif
+!#endif
 !implicit none
 !
 !! Zero bogus values
@@ -904,34 +903,34 @@ nullify(x,y,z,zw)
 !allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 !
 !! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
-!$if($TURBINES and not $LVLSET)
+!#ifdef PPTURBINES and not $LVLSET
 !fx_tot = fxa(1:nx,1:ny,1:nz)
 !fy_tot = 0._rprec
 !fz_tot = 0._rprec
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-!$elseif($ATM)
+!#elif PPATM
 !fx_tot = fxa(1:nx,1:ny,1:nz)
 !fy_tot = fya(1:nx,1:ny,1:nz)
 !fz_tot = fza(1:nx,1:ny,1:nz)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 !
-!$elseif($LVLSET)
+!#elif PPLVLSET
 !fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
 !fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
 !fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
-!$else
+!#else
 !fx_tot = 0._rprec
 !fy_tot = 0._rprec
 !fz_tot = 0._rprec
-!$endif
+!#endif
 !
-!$if($MPI)
+!#ifdef PPMPI
 !!  Sync forces
 !call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
 !call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
 !call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
-!$endif
+!#endif
 !
 !! Put fz_tot on uv-grid
 !fz_tot(1:nx,1:ny,1:nz) = interp_to_uv_grid( fz_tot(1:nx,1:ny,1:nz), 1 )
@@ -952,13 +951,13 @@ nullify(x,y,z,zw)
 !dpdy(:,:,nz) = dpdy(:,:,nz-1)
 !dpdz(:,:,nz) = dpdz(:,:,nz-1)
 !
-!$if($MPI)
+!#ifdef PPMPI
 !!  Sync pressure
 !call mpi_sync_real_array( p, 0 , MPI_SYNC_DOWN )
 !call mpi_sync_real_array( dpdx, 1 , MPI_SYNC_DOWN )
 !call mpi_sync_real_array( dpdy, 1 , MPI_SYNC_DOWN )
 !call mpi_sync_real_array( dpdz, 1 , MPI_SYNC_DOWN )
-!$endif
+!#endif
 !
 !return
 !end subroutine pressure_sync
@@ -975,12 +974,12 @@ nullify(x,y,z,zw)
 !RHSy(:,:,nz) = RHSy(:,:,nz-1)
 !RHSz(:,:,nz) = RHSz(:,:,nz-1)
 !
-!$if($MPI)
+!#ifdef PPMPI
 !!  Sync RHS
 !call mpi_sync_real_array( RHSx, 0 , MPI_SYNC_DOWN )
 !call mpi_sync_real_array( RHSy, 0 , MPI_SYNC_DOWN )
 !call mpi_sync_real_array( RHSz, 0 , MPI_SYNC_DOWN )
-!$endif
+!#endif
 !
 !return
 !end subroutine RHS_sync
@@ -991,9 +990,9 @@ end subroutine inst_write
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : nz, checkpoint_file, tavg_calc
-$if($MPI)
+#ifdef PPMPI
 use param, only : comm,ierr
-$endif
+#endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model
@@ -1005,18 +1004,18 @@ character(64) :: fname
 real(rprec) :: cfl_w
 
 fname = checkpoint_file
-$if ($MPI)
+#ifdef PPMPI
 call string_concat( fname, '.c', coord )
-$endif
+#endif
 
 !  Open vel.out (lun_default in io) for final output
-$if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
 open(11,file=fname,form='unformatted', convert='big_endian', status='unknown', position='rewind')
-$elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
 open(11,file=fname,form='unformatted', convert='little_endian', status='unknown', position='rewind')
-$else
+#else
 open(11,file=fname,form='unformatted', status='unknown', position='rewind')
-$endif
+#endif
 
 if (sgs_model==1) then
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
@@ -1030,9 +1029,9 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 endif
 close(11)
 
-$if($MPI)
+#ifdef PPMPI
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
 ! Checkpoint time averaging restart data
 if( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
@@ -1089,9 +1088,9 @@ use grid_defs, only : grid
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
 use stat_defs, only : tavg, tavg_zplane
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs
-$endif
+#endif
 use stat_defs, only : type_set
 use open_file_fid_mod
 implicit none
@@ -1103,15 +1102,15 @@ real(rprec), pointer, dimension(:) :: x,y,z
 ! This adds one more element to the last processor (which contains an extra one)
 ! Processor nproc-1 has data from 1:nz
 ! Rest of processors have data from 1:nz-1
-$if $MPI
+#ifdef PPMPI
     if ( coord == nproc-1 ) then
         nz_end=0
     else
         nz_end=1
     endif
-$else
+#else
     nz_end=0    
-$endif
+#endif
 
 nullify(x,y,z)
 
@@ -1124,18 +1123,18 @@ if( tavg_calc ) then
   allocate(tavg(nx,ny,lbz:nz))
   allocate(tavg_zplane(nz))
 
-  $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
   allocate(tavg_sgs(nx,ny,nz))
-  $endif
+#endif
 
   ! Initialize the derived types tavg and tavg_zplane  
   do k=1,Nz
     do j=1, Ny
       do i=1, Nx
         call type_set( tavg(i,j,k), 0._rprec )
-        $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
         call type_set( tavg_sgs(i,j,k), 0._rprec )
-        $endif        
+#endif        
       enddo
     enddo
 
@@ -1190,17 +1189,17 @@ if(zplane_calc) then
 !  Compute istart and ldiff
   do k=1,zplane_nloc
 
-    $if ($MPI)
+#ifdef PPMPI
     if(zplane_loc(k) >= z(1) .and. zplane_loc(k) < z(nz)) then
       zplane(k) % coord = coord
       zplane(k) % istart = cell_indx('k',dz,zplane_loc(k))
       zplane(k) % ldiff = zplane_loc(k) - z(zplane(k) % istart)
     endif
-    $else
+#else
     zplane(k) % coord = 0
     zplane(k) % istart = cell_indx('k',dz,zplane_loc(k))
     zplane(k) % ldiff = zplane_loc(k) - z(zplane(k) % istart)
-    $endif
+#endif
 
   enddo  
   
@@ -1217,9 +1216,9 @@ if(point_calc) then
 
   do i=1,point_nloc
     !  Find the processor in which this point lives
-    $if ($MPI)
+#ifdef PPMPI
     if(point_loc(i)%xyz(3) >= z(1) .and. point_loc(i)%xyz(3) < z(nz)) then
-    $endif
+#endif
 
     point(i) % coord = coord
   
@@ -1231,9 +1230,9 @@ if(point_calc) then
     point(i) % ydiff = point_loc(i)%xyz(2) - y(point(i) % jstart)
     point(i) % zdiff = point_loc(i)%xyz(3) - z(point(i) % kstart)
     
-    $if($MPI)
+#ifdef PPMPI
     endif
-    $endif
+#endif
 
   enddo
 endif
@@ -1250,26 +1249,26 @@ subroutine tavg_init()
 use messages
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
-$endif
+#endif
 implicit none
 
 character (*), parameter :: ftavg_in = path // 'tavg.out'
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 character (*), parameter :: ftavg_sgs_in = path // 'tavg_sgs.out'
-$endif
-$if ($MPI)
+#endif
+#ifdef PPMPI
 character (*), parameter :: MPI_suffix = '.c'
-$endif
+#endif
 character (128) :: fname
 
 logical :: opn, exst
 
 fname = ftavg_in
-$if ($MPI)
+#ifdef PPMPI
 call string_concat( fname, MPI_suffix, coord )
-$endif
+#endif
 
 inquire (file=fname, exist=exst)
 if (.not. exst) then
@@ -1284,13 +1283,13 @@ if (.not. exst) then
  
 else
 
-    $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
     open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-    $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
     open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-    $else
+#else
     open (1, file=fname, action='read', position='rewind',form='unformatted')
-    $endif
+#endif
 
     read (1) tavg_total_time
     read (1) tavg
@@ -1300,12 +1299,12 @@ else
 endif
 
 !------
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 
     fname = ftavg_sgs_in
-    $if ($MPI)
+#ifdef PPMPI
     call string_concat( fname, MPI_suffix, coord )
-    $endif
+#endif
 
     inquire (file=fname, exist=exst)
     if (.not. exst) then
@@ -1317,13 +1316,13 @@ $if($OUTPUT_EXTRA)
 
         tavg_total_time_sgs = 0._rprec  
     else
-        $if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
         open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-        $elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
         open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-        $else
+#else
         open (1, file=fname, action='read', position='rewind',form='unformatted')
-        $endif
+#endif
 
         read (1) tavg_total_time_sgs
         read (1) tavg_sgs
@@ -1331,7 +1330,7 @@ $if($OUTPUT_EXTRA)
         close(1)    
     endif
     
-$endif
+#endif
 
 ! Initialize tavg_dt
 tavg_dt = 0.0_rprec
@@ -1348,19 +1347,19 @@ subroutine tavg_compute()
 !  This subroutine collects the stats for each flow 
 !  variable quantity
 use stat_defs, only : tavg,tavg_total_time,tavg_dt
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
-$endif
+#endif
 use param, only : nx,ny,nz,lbz,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
-$if($TURBINES)
+#ifdef PPTURBINES
 use sim_param, only : fxa
-$endif
-$if($LVLSET)
+#endif
+#ifdef PPLVLSET
 use sim_param, only : fx, fy, fz, fxa, fya, fza
-$endif
+#endif
 use functions, only : interp_to_uv_grid
 
 implicit none
@@ -1372,7 +1371,7 @@ real(rprec), allocatable, dimension(:,:,:) :: w_uv
 allocate(w_uv(nx,ny,lbz:nz))
 w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
 
-$if($MPI)
+#ifdef PPMPI
 k=0
 do j=1,ny
    do i=1,nx
@@ -1392,13 +1391,13 @@ do j=1,ny
       tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
       tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-!$if ($TURBINES )
+!#ifdef PPTURBINES 
 !      tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
-!$endif
+!#endif
 !      tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
    enddo
 enddo
-$endif
+#endif
 
 do k=1,jzmax  
   do j=1,ny
@@ -1419,16 +1418,16 @@ do k=1,jzmax
       tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
       tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-$if ($TURBINES )      
+#ifdef PPTURBINES       
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
-$endif
+#endif
       tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
       
     enddo
   enddo
 enddo
 
-$if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 do k=1,jzmax       
   do j=1,ny
     do i=1,nx
@@ -1438,15 +1437,15 @@ do k=1,jzmax
  enddo
 enddo
 
-$endif
+#endif
 
 deallocate(w_uv)
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 tavg_total_time_sgs = tavg_total_time_sgs + tavg_dt
-$endif
+#endif
 
 ! Set tavg_dt back to zero for next increment
 tavg_dt = 0.0_rprec
@@ -1466,24 +1465,25 @@ use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only : operator(.ADD.), operator(.SUB.)
 use stat_defs, only : tavg_interp_to_uv_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
-$endif
+#endif
 use param, only : ny,nz,nz_tot
-$if($MPI)
+#ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
 use param, only : ierr,comm
-$endif
+#endif
 
 implicit none
 character(64) :: fname_velb,fname_vel2b,fname_ddzb,fname_taub,fname_fb,fname_rsb,fname_csb,fname_u_vel_gridb
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 character(64) :: fname_sgs_TnNu
-$endif
+#endif
 
-$if($CGNS)
-character(64) :: fname_vel_cgns_uv, fname_vel_cgns,fname_vel2_cgns,fname_ddz_cgns,fname_tau_cgns,fname_f_cgns,fname_rs_cgns,fname_cs_cgns,fname_u_vel_grid_cgns
-$endif
+#ifdef PPCGNS
+character(64) :: fname_vel_cgns_uv, fname_vel_cgns,fname_vel2_cgns,fname_ddz_cgns,fname_tau_cgns,fname_f_cgns
+character(64) :: fname_rs_cgns,fname_cs_cgns,fname_u_vel_grid_cgns
+#endif
 
 integer :: i,j,k
 
@@ -1498,7 +1498,7 @@ zw => grid % zw
 
 allocate(rs(nx,ny,lbz:nz))
 
-$if($CGNS)
+#ifdef PPCGNS
 fname_vel_cgns_uv = path // 'output/veluv_avg.cgns'
 fname_vel_cgns = path // 'output/vel_avg.cgns'
 fname_vel2_cgns = path // 'output/vel2_avg.cgns'
@@ -1508,7 +1508,7 @@ fname_f_cgns = path // 'output/force_avg.cgns'
 fname_rs_cgns = path // 'output/rs.cgns'
 fname_cs_cgns = path // 'output/cs_opt2.cgns'
 fname_u_vel_grid_cgns = path // 'output/u_grid_vel.cgns'
-$endif
+#endif
 
 ! Binary
 fname_velb = path // 'output/binary_vel_avg.dat'
@@ -1520,11 +1520,11 @@ fname_rsb = path // 'output/binary_rs.dat'
 fname_csb = path // 'output/binary_cs_opt2.dat'
 fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
 
-$if($OUTPUT_EXTRA)  
+#ifdef PPOUTPUT_EXTRA  
 fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
-$endif  
+#endif  
   
-$if ($MPI)
+#ifdef PPMPI
   call string_concat( fname_velb, '.c', coord)
   call string_concat( fname_vel2b, '.c', coord)
   call string_concat( fname_ddzb, '.c', coord)
@@ -1533,17 +1533,17 @@ $if ($MPI)
   call string_concat( fname_rsb, '.c', coord)
   call string_concat( fname_csb, '.c', coord)
   call string_concat( fname_u_vel_gridb, '.c',coord)
-  $if($OUTPUT_EXTRA)  
+#ifdef PPOUTPUT_EXTRA  
   call string_concat( fname_sgs_TnNu, '.c', coord)
-  $endif    
-$endif
+#endif    
+#endif
 
 ! Final checkpoint all restart data
 call tavg_checkpoint()
 
-$if($MPI)
+#ifdef PPMPI
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
 !  Perform time averaging operation
 !  tavg = tavg / tavg_total_time
@@ -1555,7 +1555,7 @@ do k=jzmin,jzmax
   enddo
 enddo
 
-$if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 do k=1,jzmax
   do j=1, Ny
     do i=1, Nx
@@ -1563,14 +1563,14 @@ do k=1,jzmax
     enddo
   enddo
 enddo
-$endif
+#endif
 
-$if($MPI)
+#ifdef PPMPI
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
 !  Sync entire tavg structure
-$if($MPI)
+#ifdef PPMPI
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%u, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%v, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%w, 0, MPI_SYNC_DOWNUP )
@@ -1582,10 +1582,10 @@ call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%vw, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uv, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%fx, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
-$if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
-$endif
-$endif
+#endif
+#endif
 
 ! ----- Write all the 3D data -----
 open(unit=13,file=fname_velb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
@@ -1611,18 +1611,18 @@ open(unit=13,file=fname_csb,form='unformatted',convert='big_endian',access='dire
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2 
 close(13)
 
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 open(unit=13,file=fname_sgs_TnNu,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg_sgs(:nx,:ny,1:nz)%Nu_t
 close(13)
-$endif
+#endif
 
-$if($MPI)
+#ifdef PPMPI
 ! Ensure all writes complete before preceeding
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
-$if($CGNS)
+#ifdef PPCGNS
 
     ! Write CGNS Data
     call write_parallel_cgns (fname_vel_cgns_uv ,nx, ny, nz - nz_end, nz_tot,  &
@@ -1679,7 +1679,7 @@ $if($CGNS)
 !    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
 !    tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                         &
 !    tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
-$endif
+#endif
 
 ! Do the Reynolds stress calculations afterwards. Now we can interpolate w and
 ! ww to the uv grid and do the calculations. We have already written the data to
@@ -1697,7 +1697,7 @@ write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
 close(13)
 
-$if($CGNS)
+#ifdef PPCGNS
     call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,            &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
@@ -1715,14 +1715,14 @@ $if($CGNS)
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
     (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
-$endif
+#endif
 
 deallocate(rs) 
     
-$if($MPI)
+#ifdef PPMPI
 ! Ensure all writes complete before preceeding
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
 return
 end subroutine tavg_finalize
@@ -1735,30 +1735,30 @@ subroutine tavg_checkpoint()
 ! simulation.
 use param, only : checkpoint_tavg_file
 use stat_defs, only : tavg_total_time, tavg
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 use param, only : checkpoint_tavg_sgs_file
 use stat_defs, only : tavg_total_time_sgs, tavg_sgs
-$endif
+#endif
 implicit none
 
 character(64) :: fname
 logical :: opn
 
 fname = checkpoint_tavg_file
-$if($MPI)
+#ifdef PPMPI
 call string_concat( fname, '.c', coord)
-$endif
+#endif
 
 !  Write data to tavg.out
 inquire (unit=1, opened=opn)
 
-$if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
 open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
 open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-$else
+#else
 open (1, file=fname, action='write', position='rewind',form='unformatted')
-$endif
+#endif
 
 ! write the entire structures
 write (1) tavg_total_time
@@ -1766,26 +1766,26 @@ write (1) tavg
 close(1)
 
 !----
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 fname = checkpoint_tavg_sgs_file
-  $if($MPI)
+#ifdef PPMPI
   call string_concat( fname, '.c', coord)
-  $endif
+#endif
 
   !  Write data to tavg_sgs.out
-  $if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
   open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-  $elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
   open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-  $else
+#else
   open (1, file=fname, action='write', position='rewind',form='unformatted')
-  $endif
+#endif
 
   ! write the entire structures
   write (1) tavg_total_time_sgs
   write (1) tavg_sgs
   close(1)
-$endif
+#endif
 
 return
 end subroutine tavg_checkpoint

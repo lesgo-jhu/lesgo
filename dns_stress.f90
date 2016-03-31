@@ -50,18 +50,18 @@ end do
 end do
 
 !--if values not needed, set to bogus value (easier to catch errors)
-$if ($MPI)
+#ifdef PPMPI
 if (coord == nproc-1) then
-$endif
+#endif
   ! top values of txx, txy, tyy, tzz not needed for stress free bc's
   !--if values not needed, set to bogus value (easier to catch errors)
   txx(:,:,nz) = BOGUS
   txy(:,:,nz) = BOGUS
   tyy(:,:,nz) = BOGUS
   tzz(:,:,nz) = BOGUS
-$if ($MPI)
+#ifdef PPMPI
 endif
-$endif
+#endif
 
 ! w-nodes
 if (coord == 0) then
@@ -83,7 +83,7 @@ do jz = jz_min, nz-1
   end do
 end do
 
-$if ($MPI) 
+#ifdef PPMPI 
   if (coord == nproc-1) then
     ! stress-free lid: this should check which bc options we use
     txz(:,:,nz)=0._rprec
@@ -100,10 +100,10 @@ $if ($MPI)
       enddo
     enddo
   endif
-$else
+#else
   ! stress-free lid: this should check which bc options we use
   txz(:,:,nz)=0._rprec
   tyz(:,:,nz)=0._rprec
-$endif
+#endif
 
 end subroutine dns_stress

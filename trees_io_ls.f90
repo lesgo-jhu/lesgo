@@ -47,7 +47,6 @@ integer, parameter :: n_height = 2  !--must be > 1
 
 integer :: i, j
 integer :: n_tot, n_cap, n_base
-integer, save :: nzone = 0  !--only used for DEBUGGING
 
 logical :: add_base_this  !--local, changeable version of add_base
 
@@ -828,14 +827,10 @@ end subroutine write_ta_data
 !
 !!----------------------------------------------------------------------
 !
-!if (DEBUG) call enter_sub (sub_name)
-!
 !write (lun, *) 'begin tree'
 !
 !call warn (sub_name, 'output_branch_grid_vel has been disabled')
 !!call output_branch_grid_vel (tree % trunk, lun)
-!
-!if (DEBUG) call exit_sub (sub_name)
 !
 !end subroutine output_tree_grid_vel
 
@@ -860,8 +855,6 @@ end subroutine write_ta_data
 !
 !!----------------------------------------------------------------------
 !
-!if (DEBUG) call enter_sub (sub_name)
-!
 !if (branch % n_pt < 1) call error (sub_name, 'n_pt < 1')
 !
 !write (lun, *) 'begin branch'
@@ -884,8 +877,6 @@ end subroutine write_ta_data
 !  end do
 !
 !end if
-!
-!if (DEBUG) call exit_sub (sub_name)
 !
 !end subroutine output_branch_grid_vel
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

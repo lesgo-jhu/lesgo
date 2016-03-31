@@ -86,7 +86,7 @@ logical :: phi_0_is_set = .false.
 !real (rp) :: phi(ld, ny, lbz:nz)
 real(rp), allocatable, dimension(:,:,:) :: phi
 
-$if ($MPI)
+#ifdef PPMPI
   ! Make sure all values (top and bottom) are less than Nz
   integer :: nphitop = 3
   integer :: nphibot = 2
@@ -96,7 +96,7 @@ $if ($MPI)
   integer :: ntaubot = 2
   integer :: nFMMtop = 1
   integer :: nFMMbot = 1
-$else
+#else
   integer, parameter :: nphitop = 0
   integer, parameter :: nphibot = 0
   integer, parameter :: nveltop = 0
@@ -105,7 +105,7 @@ $else
   integer, parameter :: ntaubot = 0
   integer, parameter :: nFMMtop = 0
   integer, parameter :: nFMMbot = 0
-$endif
+#endif
 
 
 contains

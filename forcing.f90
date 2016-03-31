@@ -52,51 +52,51 @@ subroutine forcing_applied()
 !
 use types, only : rprec
 
-$if ($LVLSET)
-$if ($RNS_LS)
+#ifdef PPLVLSET
+#ifdef PPRNS_LS
 use sim_param, only : fxa, fya, fza
 use rns_ls, only : rns_forcing_ls
-$endif
-$endif
+#endif
+#endif
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 use sim_param, only : fxa
 use turbines, only:turbines_forcing
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($ATM)
+#ifdef PPATM
 use sim_param, only : fxa, fya, fza ! The body force components
 use atm_lesgo_interface, only : atm_lesgo_forcing
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 implicit none
 
-$if ($LVLSET)
-$if ($RNS_LS)
+#ifdef PPLVLSET
+#ifdef PPRNS_LS
 ! Reset applied force arrays
 fxa = 0._rprec
 fya = 0._rprec
 fza = 0._rprec
 call rns_forcing_ls()
-$endif
-$endif
+#endif
+#endif
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 ! Reset applied force arrays
 fxa = 0._rprec
 call turbines_forcing ()
-$endif
+#endif
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($ATM)
+#ifdef PPATM
 fxa = 0._rprec
 fya = 0._rprec
 fza = 0._rprec
 call atm_lesgo_forcing ()
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
    
 end subroutine forcing_applied
@@ -113,16 +113,16 @@ subroutine forcing_induced()
 !  placed in forcing_applied.
 !  
 use types, only : rprec
-$if ($LVLSET)
+#ifdef PPLVLSET
   use level_set, only : level_set_forcing
   use sim_param, only : fx, fy, fz
-  $if($RNS_LS)
+#ifdef PPRNS_LS
   use rns_ls, only : rns_elem_force_ls
-  $endif
-$endif
+#endif
+#endif
 implicit none
 
-$if($LVLSET)
+#ifdef PPLVLSET
 ! Initialize
 fx = 0._rprec
 fy = 0._rprec
@@ -130,7 +130,7 @@ fz = 0._rprec
 !  Compute the level set IBM forces
 call level_set_forcing ()
 
-$endif
+#endif
 
 return
 end subroutine forcing_induced
@@ -151,9 +151,9 @@ use messages, only : error
 use fringe_util
 implicit none
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 character (*), parameter :: sub_name = 'inflow_cond'
-$endif
+#endif
 
 integer :: i, i_w
 integer :: istart, istart_w
@@ -201,12 +201,12 @@ subroutine project ()
 use param
 use sim_param
 use messages
-$if($MPI)
+#ifdef PPMPI
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-  $if($CPS)
+#ifdef PPCPS
   use concurrent_precursor, only : synchronize_cps, inflow_cond_cps
-  $endif
-$endif
+#endif
+#endif
 implicit none
 
 integer :: jx, jy, jz
@@ -214,9 +214,9 @@ integer :: jz_min
 
 real (rprec) :: RHS, tconst
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 character(*), parameter :: sub_name='project'
-$endif
+#endif
 
 ! Caching
 tconst = tadv1 * dt
@@ -225,17 +225,17 @@ do jz = 1, nz - 1
   do jy = 1, ny
     do jx = 1, nx
  
-$if( $LVLSET) 
+#ifdef PPLVLSET 
       RHS = -tadv1 * dpdx(jx, jy, jz)
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS + fx(jx, jy, jz)))
       RHS = -tadv1 * dpdy(jx, jy, jz)
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS + fy(jx, jy, jz))) 
-$else
+#else
       RHS = -tadv1 * dpdx(jx, jy, jz)
       u(jx, jy, jz) = (u(jx, jy, jz) + dt * (RHS                 ))
       RHS = -tadv1 * dpdy(jx, jy, jz)
       v(jx, jy, jz) = (v(jx, jy, jz) + dt * (RHS                 )) 
-$endif
+#endif
 
     end do
   end do
@@ -251,41 +251,41 @@ do jz = jz_min, nz - 1
   do jy = 1, ny
     do jx = 1, nx
 
-$if( $LVLSET) 
+#ifdef PPLVLSET 
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS + fz(jx, jy, jz)))
-$else
+#else
       RHS = -tadv1 * dpdz(jx, jy, jz)
       w(jx, jy, jz) = (w(jx, jy, jz) + dt * (RHS                 ))
-$endif
+#endif
 
     end do
   end do
 end do
 
-$if($CPS)
+#ifdef PPCPS
 call synchronize_cps()
 if( inflow ) call inflow_cond_cps()
-$else
+#else
 if ( inflow ) call inflow_cond ()
-$endif
+#endif
 
 !--left this stuff last, so BCs are still enforced, no matter what
 !  inflow_cond does
 
-$if ($MPI)
+#ifdef PPMPI
 
 ! Exchange ghost node information (since coords overlap)                     
 call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )  
   
-$endif
+#endif
 
 !--enfore bc at top
-$if ($MPI)
+#ifdef PPMPI
 if (coord == nproc-1) then
-$endif
+#endif
 
   ! no-stress top
   u(:,:,nz)=u(:,:,nz-1)
@@ -294,9 +294,9 @@ $endif
   ! no permeability
   w(:, :, nz)=0._rprec
 
-$if ($MPI)
+#ifdef PPMPI
 endif
-$endif
+#endif
 
 if (coord == 0) then
 

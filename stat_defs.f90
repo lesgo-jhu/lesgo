@@ -54,9 +54,9 @@ end type spectra_t
 
 real(rprec) :: spectra_total_time
 real(rprec) :: tavg_total_time
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 real(rprec) :: tavg_total_time_sgs
-$endif
+#endif
 ! Time between calls of tavg_compute, built by summing dt
 real(rprec) :: tavg_dt
 ! Switch for determining if time averaging has been initialized
@@ -73,14 +73,14 @@ type tavg_t
 end type tavg_t
   
 !  Sums performed over time (for subgrid variables)
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 type tavg_sgs_t
   real(rprec) :: Nu_t
 end type tavg_sgs_t
-$endif
+#endif
 
 ! Types for including wind-turbines as drag disks
-$if ($TURBINES)
+#ifdef PPTURBINES
 ! Single turbines
 type turbine_t
   real(rprec) :: xloc, yloc, height, dia, thk
@@ -102,7 +102,7 @@ type wind_farm_t
 end type wind_farm_t
     
 type(wind_farm_t) :: wind_farm
-$endif
+#endif
 
 ! Create types for outputting data (instantaneous or averaged)
 type(point_t), allocatable, dimension(:) :: point
@@ -112,9 +112,9 @@ type(zplane_t), allocatable, dimension(:) :: zplane
 type(tavg_t), allocatable, dimension(:,:,:) :: tavg
 type(tavg_t), allocatable, dimension(:) :: tavg_zplane
 
-$if ($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 type(tavg_sgs_t), allocatable, dimension(:,:,:) :: tavg_sgs
-$endif
+#endif
 
 type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
@@ -129,11 +129,11 @@ INTERFACE OPERATOR (.SUB.)
 END INTERFACE
 
 INTERFACE OPERATOR (.DIV.)
-  $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
     MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, tavg_sgs_scalar_div
-  $else
+#else
     MODULE PROCEDURE tavg_scalar_div, rs_scalar_div
-  $endif  
+#endif  
 END INTERFACE
 
 INTERFACE OPERATOR (.MUL.)
@@ -141,11 +141,11 @@ INTERFACE OPERATOR (.MUL.)
 END INTERFACE
 
 INTERFACE type_set
-  $if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
     MODULE PROCEDURE tavg_set, rs_set, tavg_sgs_set
-  $else
+#else
     MODULE PROCEDURE tavg_set, rs_set
-  $endif  
+#endif  
 END INTERFACE
 
 INTERFACE type_zero_bogus
@@ -402,7 +402,7 @@ c % cs_opt2 = a % cs_opt2 * b
 return
 end function tavg_scalar_mul
 
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_sgs_scalar_div( a, b ) result(c)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -420,14 +420,14 @@ c % Nu_t = a % Nu_t / b
 !c % F_QN = a % F_QN / b
 !c % F_NN = a % F_NN / b
 !c % ee_now = a % ee_now / b
-!$if($DYN_TN)
+!#ifdef PPDYN_TN
 !c % F_ee2 = a % F_ee2 / b
 !c % F_deedt2 = a % F_deedt2 / b
-!$endif
+!#endif
 
 return
 end function tavg_sgs_scalar_div
-$endif
+#endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_interp_to_uv_grid( a ) result(c)
@@ -635,7 +635,7 @@ c % cs_opt2 = a
 return
 end subroutine tavg_set
 
-$if($OUTPUT_EXTRA)
+#ifdef PPOUTPUT_EXTRA
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_sgs_set( c, a )
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -651,14 +651,14 @@ c % Nu_t =  a
 !c % F_QN =  a
 !c % F_NN =  a
 !c % ee_now = a
-!$if($DYN_TN)
+!#ifdef PPDYN_TN
 !c % F_ee2 = a
 !c % F_deedt2 = a
-!$endif
+!#endif
 
 return
 end subroutine tavg_sgs_set
-$endif
+#endif
 
 !//////////////////////////////////////////////////////////////////////
 !/////////////////// SPECIAL RS SUBROUTINES ///////////////////////////

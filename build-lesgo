@@ -1,0 +1,6 @@
+#!/bin/sh
+cmake . -Bbld
+cd bld
+make
+cp lesgo-* ../
+cd ..

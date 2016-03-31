@@ -71,11 +71,11 @@ use sim_param, only : u, v
 use sim_param, only : fxa, fya
 use messages
 
-$if($MPI)
+#ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP, MPI_SYNC_DOWN
 use mpi
 use param, only : ld, ny, nz, MPI_RPREC, down, up, comm, status, ierr
-$endif
+#endif
 
 use param, only : dx, dy, dz, coord
 
@@ -95,9 +95,9 @@ nullify(i,j,k)
 nullify(npoint_p)
 nullify(kappa_p)
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub(sub_name)
-$endif
+#endif
 
 !  Apply the RNS forcing to appropriate nodes
 do n = 1, nbeta_elem
@@ -130,15 +130,15 @@ do n = 1, nbeta_elem
     
 enddo
 
-$if($MPI)
+#ifdef PPMPI
 ! Sync applied forces
 call mpi_sync_real_array( fxa, 1, MPI_SYNC_DOWN )
 call mpi_sync_real_array( fya, 1, MPI_SYNC_DOWN )
-$endif
+#endif
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub(sub_name)
-$endif
+#endif
 
 return
 
@@ -154,9 +154,9 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.rns_elem_output'
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub(sub_name)
-$endif
+#endif
   
 if (coord == 0) then
 
@@ -166,9 +166,9 @@ if (coord == 0) then
       
 endif
     
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub(sub_name)
-$endif
+#endif
 
 return
 end subroutine rns_elem_output
@@ -185,10 +185,10 @@ use sim_param, only : u, v
 use sim_param, only : fx, fy
 use functions, only : points_avg_3d
 use param, only : nx, nz, dx, dy, dz, coord, jt_total
-$if($MPI)
+#ifdef PPMPI
 use mpi
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-$endif
+#endif
 
 implicit none
 
@@ -214,9 +214,9 @@ type(force_type_2), pointer :: force_t_p
 integer, pointer :: i,j,k
 integer, pointer :: npoint_p
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub(sub_name)
-$endif
+#endif
 
 nullify(nelem_p, indx_p)
 nullify(area_p, u_p, v_p)
@@ -480,9 +480,9 @@ deallocate(b_gamma)
 
 if(modulo (jt_total, output_nskip) == 0) call rns_elem_output()
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub(sub_name)
-$endif
+#endif
 
 return
 
@@ -846,9 +846,9 @@ implicit none
 real(rprec) :: uc, vc
 real(rprec), dimension(ndim) :: beta_int
 
-$if($MPI)
+#ifdef PPMPI
 real(rprec), dimension(ndim) :: beta_int_global
-$endif
+#endif
 
 real(rprec), pointer :: kappa_p, CD_p
 
@@ -861,9 +861,9 @@ do n = 1, nbeta_elem
   !  Compute beta_int over each region beta
   beta_int(:) = 0._rprec
     
-  $if($MPI)
+#ifdef PPMPI
   beta_int_global(:) = 0._rprec
-  $endif
+#endif
   
   !  Loop over number of points used in beta region
   npoint_p => beta_elem_t(n) % indx_array_t % npoint
@@ -886,11 +886,11 @@ do n = 1, nbeta_elem
     
   nullify( npoint_p )
     
-  $if($MPI)
+#ifdef PPMPI
   call mpi_allreduce (beta_int(1), beta_int_global(1), 1, MPI_RPREC, MPI_SUM, comm, ierr)
   call mpi_allreduce (beta_int(2), beta_int_global(2), 1, MPI_RPREC, MPI_SUM, comm, ierr)
   beta_int(:) = beta_int_global(:)
-  $endif
+#endif
     
   kappa_p => beta_elem_t(n) % force_t % kappa
   CD_p    => beta_elem_t(n) % force_t % CD
@@ -943,9 +943,9 @@ subroutine r_elem_force()
 use types, only : rprec
 use messages
 use param, only : nx, ny, nz, dx, dy, dz, coord, jt_total, wbase
-$if($MPI)
+#ifdef PPMPI
 use param, only : MPI_RPREC, MPI_SUM, comm, ierr
-$endif
+#endif
 use sim_param, only : u, v
 use functions, only : points_avg_3d
 use sim_param, only : fx, fy
@@ -962,16 +962,16 @@ integer, pointer, dimension(:,:) :: iarray_p
 real(rprec) :: cache
 real(rprec), pointer :: fx_p, fy_p
 
-$if ($MPI)
+#ifdef PPMPI
 real(rprec) :: fx_l, fy_l
-$endif
+#endif
 
 type(ref_region), pointer :: ref_region_t_p
 type(indx_array), pointer :: indx_array_t_p
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub(sub_name)
-$endif
+#endif
 
 !  Comment starts here 
 nullify(ref_region_t_p)
@@ -992,10 +992,10 @@ do n = 1, nr_elem
   npoint_p => indx_array_t_p % npoint
   iarray_p => indx_array_t_p % iarray
   
-  $if($MPI)
+#ifdef PPMPI
   fx_l = 0._rprec
   fy_l = 0._rprec
-  $endif
+#endif
 
   fx_p => r_elem_t( n ) % force_t % fx
   fy_p => r_elem_t( n ) % force_t % fy
@@ -1010,22 +1010,22 @@ do n = 1, nr_elem
     
     if( k == nz ) call error( sub_name, 'Summing over bogus fx')
   
-    $if($MPI)
+#ifdef PPMPI
     fx_l = fx_l + fx(i,j,k)
     fy_l = fy_l + fy(i,j,k)
-    $else
+#else
     fx_p = fx_p + fx(i,j,k)
     fy_p = fy_p + fy(i,j,k)
-    $endif
+#endif
     
     nullify(i,j,k)
     
   enddo
   
-  $if($MPI)
+#ifdef PPMPI
   call mpi_allreduce (fx_l, fx_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
   call mpi_allreduce (fy_l, fy_p, 1, MPI_RPREC, MPI_SUM, comm, ierr)
-  $endif
+#endif
 
   cache = dx * dy * dz
   fx_p = fx_p * cache
@@ -1044,9 +1044,9 @@ do n = 1, nr_elem
  
 enddo
 
-$if($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub(sub_name)
-$endif
+#endif
 
 return
 end subroutine r_elem_force
@@ -1403,10 +1403,10 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.rns_force_init'
 character (*), parameter :: fname_in = path // 'rns.out'
 character (128) :: fname
-$if ($MPI)
+#ifdef PPMPI
   character (*), parameter :: MPI_suffix = '.c'
 
-$endif
+#endif
 
 logical :: opn, exst
 
@@ -1415,11 +1415,11 @@ logical :: opn, exst
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-$if ($MPI)
+#ifdef PPMPI
 call string_splice( fname, fname_in // MPI_suffix, coord )
-$else
+#else
 fname = fname_in
-$endif
+#endif
 
 inquire (file=fname, exist=exst)
 
@@ -1431,16 +1431,16 @@ if (.not. exst) then
   return ! Do nothing if not present
 endif 
 
-$if ($READ_BIG_ENDIAN)
+#ifdef PPREAD_BIG_ENDIAN
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted', convert='big_endian')
-$elseif ($READ_LITTLE_ENDIAN)
+#elif PPREAD_LITTLE_ENDIAN
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted', convert='little_endian')  
-$else
+#else
 open (1, file=fname, action='read', position='rewind',  &
   form='unformatted')
-$endif
+#endif
 
 read(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
 
@@ -1455,9 +1455,9 @@ subroutine rns_finalize_ls()
 !  This subroutine writes all restart data to file
 !
 use param, only : coord, path
-$if($MPI)
+#ifdef PPMPI
 use param, only : comm, ierr
-$endif
+#endif
 use messages
 use string_util, only : string_splice
 implicit none
@@ -1466,10 +1466,10 @@ character (*), parameter :: sub_name = mod_name // '.rns_finalize_ls'
 character (*), parameter :: fname_out = path // 'rns.out'
 
 character (128) :: fname
-$if ($MPI)
+#ifdef PPMPI
   character (*), parameter :: MPI_suffix = '.c'
 
-$endif
+#endif
 
 logical :: opn
 
@@ -1478,22 +1478,22 @@ logical :: opn
 inquire (unit=1, opened=opn)
 if (opn) call error (sub_name, 'unit 1 already open')
 
-$if ($MPI)
+#ifdef PPMPI
 call string_splice( fname, fname_out // MPI_suffix, coord )
-$else
+#else
 fname = fname_out
-$endif
+#endif
 
-$if ($WRITE_BIG_ENDIAN)
+#ifdef PPWRITE_BIG_ENDIAN
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted', convert='big_endian')
-$elseif ($WRITE_LITTLE_ENDIAN)
+#elif PPWRITE_LITTLE_ENDIAN
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted', convert='little_endian')  
-$else
+#else
 open (1, file=fname, action='write', position='rewind',  &
   form='unformatted')
-$endif
+#endif
 
 write(1) r_elem_t(:) % force_t, beta_elem_t(:) % force_t, b_elem_t(:) % force_t
 close (1)
@@ -1518,10 +1518,10 @@ close( b_elem_error_norm_fid )
 close( b_elem_force_fid )
 close( b_elem_vel_fid )
 
-$if($MPI)
+#ifdef PPMPI
 ! Ensure all writes complete before preceeding
 call mpi_barrier( comm, ierr )
-$endif
+#endif
 
 return
 end subroutine rns_finalize_ls

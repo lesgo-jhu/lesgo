@@ -123,21 +123,21 @@ implicit none
   real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw,f,f)
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
-  $endif  
+#endif  
 
 ! Perform f = G_test*f, emulating f as complex
 ! Nyquist frequency and normalization is taken care of with G_test
   f = f .MULR. G_test
 
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back,f,f)     
-   $else
+#else
    call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
-   $endif
+#endif
 
 return
 end subroutine test_filter
@@ -155,21 +155,21 @@ implicit none
   real(rprec), dimension(:,:), intent(inout) :: f
 
 !  Perform in-place FFT
-  $if ($FFTW3)
+#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw,f,f)
-  $else
+#else
   call rfftwnd_f77_one_real_to_complex(forw,f,fftwNull_p)
-  $endif
+#endif
 
 ! Perform f = G_test*f, emulating f as complex
 ! Nyquist frequency and normalization is taken care of with G_test_test
   f = f .MULR. G_test_test
 
-   $if ($FFTW3)
+#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back,f,f)               
-   $else
+#else
    call rfftwnd_f77_one_complex_to_real(back,f,fftwNull_p)
-   $endif
+#endif
 
 return
 end subroutine test_test_filter

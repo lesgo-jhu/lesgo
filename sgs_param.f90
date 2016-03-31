@@ -64,9 +64,9 @@ public
 !   F_ee2 is the running average of (eij*eij)^2
 !   F_deedt2 is the running average of [d(eij*eij)/dt]^2
 !   ee_past is the array (eij*eij) for the past timestep
-    $if ($DYN_TN)
+#ifdef PPDYN_TN
     real(rprec), dimension(:,:,:), allocatable :: F_ee2, F_deedt2,ee_past
-    $endif
+#endif
 
 contains
 
@@ -137,11 +137,11 @@ if ((sgs_model .eq. 4).or.(sgs_model .eq. 5)) then
     allocate ( Tn_all(ld,ny,lbz:nz) ); Tn_all =0.0_rprec 
     
     ! Lagrangian zero-crossing time scale variables
-    $if ($DYN_TN)
+#ifdef PPDYN_TN
     allocate ( F_ee2(ld,ny,lbz:nz) ) ; F_ee2=0.0_rprec
     allocate ( F_deedt2(ld,ny,lbz:nz) ); F_deedt2=0.0_rprec
     allocate ( ee_past(ld,ny,lbz:nz) );  ee_past = 0.0_rprec
-    $endif
+#endif
 
 endif
 

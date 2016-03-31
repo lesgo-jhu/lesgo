@@ -41,14 +41,14 @@ integer :: ir, ii
 n = nz+1
 !--want to skip ny/2+1 and 1, 1
 
-$if ($MPI)
+#ifdef PPMPI
   !--wait for c(:,:,1), bet(:,:), u(:,:,1) from "down"
   !--may want irecv here with a wait at the end
   call mpi_recv (c(1, 1, 1), lh*ny, MPI_RPREC, down, 1, comm, status, ierr)
   call mpi_recv (bet(1, 1), lh*ny, MPI_RPREC, down, 2, comm, status, ierr)
   !call mpi_recv (u(1, 1, 1), lh*ny, MPI_CPREC, down, 3, comm, status, ierr)
   call mpi_recv(u(1,1,1), ld*ny, MPI_RPREC, down, 3, comm, status, ierr)
-$endif
+#endif
 
 if (coord == 0) then
 
@@ -77,15 +77,15 @@ else
   j_min = 2  !--this is only for backward pass
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   if (coord == nproc-1) then
     j_max = n
   else
     j_max = n-1
   endif
-$else
+#else
   j_max = n
-$endif
+#endif
 
 do j = 2, j_max
 
@@ -120,7 +120,7 @@ do j = 2, j_max
 
 end do
 
-$if ($MPI)
+#ifdef PPMPI
   !--send c(n-1), bet, u(n-1) to "up"
   !--may not want blocking sends here
   call mpi_send (c(1, 1, n-1), lh*ny, MPI_RPREC, up, 1, comm, ierr)
@@ -132,17 +132,17 @@ $if ($MPI)
   !call mpi_recv (u(1, 1, n), lh*ny, MPI_CPREC, up, 4, comm, status, ierr)
   call mpi_recv(u(1,1,n), ld*ny, MPI_RPREC, up, 4, comm, status, ierr)
   call mpi_recv (gam(1, 1, n), lh*ny, MPI_RPREC, up, 5, comm, status, ierr)
-$endif
+#endif
 
-!$if ($MPI)
+!#ifdef PPMPI
 !  if (coord == nproc-1) then
 !    j_max = n
 !  else
 !    j_max = n-1
 !  endif
-!$else
+!#else
 !  j_max = n
-!$endif
+!#endif
 
 do j = n-1, j_min, -1
 
@@ -166,11 +166,11 @@ do j = n-1, j_min, -1
 
 end do
 
-$if ($MPI)
+#ifdef PPMPI
   !--send u(2), gam(2) to "down"
   !call mpi_send (u(1, 1, 2), lh*ny, MPI_CPREC, down, 4, comm, ierr)
   call mpi_send(u(1, 1, 2), ld*ny, MPI_RPREC, down, 4, comm, ierr)
   call mpi_send (gam(1, 1, 2), lh*ny, MPI_RPREC, down, 5, comm, ierr)
-$endif
+#endif
 
 end subroutine tridag_array

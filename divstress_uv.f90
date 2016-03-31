@@ -31,9 +31,9 @@ real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'started divstress_uv'
-$endif
+#endif
  
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
@@ -70,12 +70,12 @@ divtx(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divtx(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   divtx(:, :, 0) = BOGUS
-$endif
+#endif
 divtx(:, :, nz) = BOGUS
-$endif
+#endif
 
 !--only 1:nz-1 are valid
 divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
@@ -84,17 +84,17 @@ divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
 !--Set ld-1, ld to 0 (or could do BOGUS)
 divty(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-$if ($SAFETYMODE)
-$if ($MPI)
+#ifdef PPSAFETYMODE
+#ifdef PPMPI
   divty(:, :, 0) = BOGUS
-$endif
+#endif
 divty(:, :, nz) = BOGUS
-$endif
+#endif
 
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'finished divstress_uv'
-$endif
+#endif
 
 end subroutine divstress_uv
 

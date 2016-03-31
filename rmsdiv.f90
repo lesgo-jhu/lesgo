@@ -41,9 +41,9 @@ character (64) :: file_out
 integer :: n
 
 real (rprec) :: magdu, div
-$if ($MPI)
+#ifdef PPMPI
   real (rprec) :: rms_global
-$endif
+#endif
 
 !! Calculate velocity derivatives
 !! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
@@ -121,13 +121,13 @@ else
 
 end if
 
-$if ($MPI)
+#ifdef PPMPI
   call mpi_reduce (rms, rms_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   if (rank == 0) then
     rms = rms_global/nproc
     !write (*, *) 'rms_global = ', rms_global/nproc
   end if
   !if (rank == 0) rms = rms_global/nproc  !--its rank here, not coord
-$endif
+#endif
 
 end subroutine rmsdiv

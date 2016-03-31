@@ -160,11 +160,11 @@ do j=1, ny
     a_r = a(ir,j)
     a_i = a(ii,j)
     a_c_r = real(a_c(i,j),kind=rprec)
-    $if($DBLPREC)
+#ifdef PPDBLPREC
     a_c_i = dimag(a_c(i,j))
-    $else
+#else
     a_c_i = aimag(a_c(i,j))
-    $endif
+#endif
     
     !  Perform multiplication
     b(ir,j) = a_r * a_c_r - a_i * a_c_i

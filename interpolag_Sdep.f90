@@ -34,23 +34,23 @@ subroutine interpolag_Sdep()
 use types,only:rprec
 use param
 use sgs_param, only: F_LM, F_MM, F_QN, F_NN, lagran_dt
-$if ($DYN_TN)
+#ifdef PPDYN_TN
 use sgs_param, only: F_ee2, F_deedt2, ee_past
-$endif
+#endif
 use sim_param,only:u,v,w
 use grid_defs,only:grid 
 use functions, only:trilinear_interp
-$if ($MPI)
+#ifdef PPMPI
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
-$endif
+#endif
 use cfl_util, only : get_max_cfl
 implicit none
 
 real(rprec), dimension(3) :: xyz_past
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM, tempF_QN, tempF_NN
-$if ($DYN_TN)
+#ifdef PPDYN_TN
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_ee2, tempF_deedt2, tempee_past
-$endif
+#endif
 integer :: i,j,k,kmin
 
 real (rprec) :: lcfl
@@ -60,9 +60,9 @@ real(rprec), pointer, dimension(:) :: x,y,z
 !real(kind=rprec), save, dimension(nx+2,ny+2,nz+2) :: Beta_t
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'started interpolag_Sdep'
-$endif
+#endif
 
 nullify(x,y,z)
 x => grid % x
@@ -77,11 +77,11 @@ z => grid % z
         tempF_MM = F_MM
         tempF_QN = F_QN
         tempF_NN = F_NN      
-        $if ($DYN_TN)
+#ifdef PPDYN_TN
         tempF_ee2 = F_ee2
         tempF_deedt2 = F_deedt2
         tempee_past = ee_past  
-        $endif 
+#endif 
 
         ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
         ! Variables x,y,z, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
@@ -109,18 +109,18 @@ z => grid % z
                 F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
-                $if ($DYN_TN)
+#ifdef PPDYN_TN
                 F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                 ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                $endif 
+#endif 
             enddo
             enddo
             enddo               
         ! Top-most level should not allow negative w
-            $if ($MPI)
+#ifdef PPMPI
             if (coord.eq.nproc-1) then
-            $endif
+#endif
                 k = nz
                 do j=1,ny
                 do i=1,nx
@@ -134,45 +134,45 @@ z => grid % z
                     F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
-                    $if ($DYN_TN)
+#ifdef PPDYN_TN
                     F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
                     ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
-                    $endif
+#endif
                 enddo
                 enddo    
-            $if ($MPI)
+#ifdef PPMPI
             endif     
-            $endif     
+#endif     
         
          ! Share new data between overlapping nodes
-         $if ($MPI)
+#ifdef PPMPI
             call mpi_sync_real_array( F_LM, 0, MPI_SYNC_DOWNUP )  
             call mpi_sync_real_array( F_MM, 0, MPI_SYNC_DOWNUP )   
             call mpi_sync_real_array( F_QN, 0, MPI_SYNC_DOWNUP )  
             call mpi_sync_real_array( F_NN, 0, MPI_SYNC_DOWNUP )              
-            $if ($DYN_TN)
+#ifdef PPDYN_TN
             call mpi_sync_real_array( F_ee2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( F_deedt2, 0, MPI_SYNC_DOWNUP )
             call mpi_sync_real_array( ee_past, 0, MPI_SYNC_DOWNUP )
-            $endif 
-        $endif   
+#endif 
+#endif   
 
 ! Compute the Lagrangian CFL number and print to screen
 !   Note: this is only in the x-direction... not good for complex geometry cases
     if (mod (jt_total, lag_cfl_count) .eq. 0) then
         lcfl = get_max_cfl()
         lcfl = lcfl*lagran_dt/dt  
-        $if($MPI)
+#ifdef PPMPI
             if(coord.eq.0) print*, 'Lagrangian CFL condition= ', lcfl
-        $else
+#else
             print*, 'Lagrangian CFL condition= ', lcfl
-        $endif
+#endif
     endif
         
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 write (*, *) 'finished interpolag_Sdep'
-$endif
+#endif
 
 nullify(x,y,z)
 

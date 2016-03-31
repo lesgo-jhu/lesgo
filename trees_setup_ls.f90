@@ -1356,9 +1356,9 @@ character (*), parameter :: sub_name = mod_name // '.cartesian_correction'
 integer :: i
 
 !---------------------------------------------------------------------
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call enter_sub (sub_name)
-$endif
+#endif
 
 do i = 1, nd
   if ( abs (x_hat(i)) < epsilon (x_hat(i)) ) x_hat(i) = 0.0_rp
@@ -1366,9 +1366,9 @@ do i = 1, nd
   if ( abs (z_hat(i)) < epsilon (z_hat(i)) ) z_hat(i) = 0.0_rp
 end do
 
-$if ($VERBOSE)
+#ifdef PPVERBOSE
 call exit_sub (sub_name)
-$endif
+#endif
 
 end subroutine cartesian_correction
 

@@ -29,9 +29,9 @@ use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 !use param, only : sgs_hist_calc
-$if($MPI)
+#ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
-$endif
+#endif
 
 use cfl_util
 use io, only : output_init
@@ -44,33 +44,33 @@ use fft, only : init_fft
 use io, only : openfiles
 !use sgs_hist
 
-$if ($MPI)
+#ifdef PPMPI
 use mpi_defs, only : initialize_mpi
-  $if($CPS)
+#ifdef PPCPS
   use concurrent_precursor, only : initialize_cps
-  $endif
-$endif
+#endif
+#endif
 
-$if ($LVLSET)
+#ifdef PPLVLSET
 use level_set_base, only : level_set_base_init 
 use level_set, only : level_set_init
-  $if ($RNS_LS) 
+#ifdef PPRNS_LS 
   use rns_base_ls, only : rns_base_init_ls
-  $endif
-  $if ($RNS_LS and $CYL_SKEW_LS)
+#endif
+#if defined(PPRNS_LS) && defined(PPCYL_SKEW_LS)
   use rns_cyl_skew_ls, only : rns_init_ls
-  $endif
-$endif
+#endif
+#endif
 
-$if ($TURBINES)
+#ifdef PPTURBINES
 use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($ATM)
+#ifdef PPATM
     use atm_lesgo_interface, only: atm_lesgo_initialize
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 implicit none
@@ -85,9 +85,9 @@ if( coord == 0 ) call system( make_output_dir )
 call read_input_conf()
 
 ! Initialize MPI
-$if ($MPI)
+#ifdef PPMPI
   call initialize_mpi()
-$else
+#else
   if (nproc /= 1) then
     write (*, *) 'nproc /=1 for non-MPI run is an error'
     stop
@@ -97,7 +97,7 @@ $else
     stop
   end if
   chcoord = ''
-$endif
+#endif
 
 ! Open output files (total_time.dat and check_ke.out)  
 call openfiles()
@@ -106,11 +106,11 @@ if( jt_total >= nsteps ) then
 
    if(coord == 0 ) write(*,'(a)') 'Full number of time steps reached'
    ! MPI:
-   $if ($MPI)
+#ifdef PPMPI
    ! First make sure everyone in has finished
    call mpi_barrier( MPI_COMM_WORLD, ierr )
    call mpi_finalize (ierr)
-   $endif 
+#endif 
    stop
 endif
 
@@ -132,28 +132,28 @@ call grid_build()
 call output_init()
 
 ! Initialize turbines
-$if ($TURBINES)
+#ifdef PPTURBINES
 call turbines_base_init()
 call turbines_init()    !must occur before initial is called
-$endif
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-$if ($ATM)
+#ifdef PPATM
   call atm_lesgo_initialize ()  
-$endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 ! If using level set method
-$if ($LVLSET)
+#ifdef PPLVLSET
 call level_set_base_init()
 call level_set_init ()
 
-  $if ($RNS_LS)
+#ifdef PPRNS_LS
   call rns_base_init_ls()
   call rns_init_ls ()
-  $endif
+#endif
  
-$endif
+#endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
 ! Initialize the kx,ky arrays
@@ -168,9 +168,9 @@ call initial()
         
 
 ! Initialize concurrent precursor stuff
-$if($MPI and $CPS)
+#if defined(PPMPI) && defined(PPCPS)
 call initialize_cps()
-$endif
+#endif
 
 ! Initialize sgs variable histogram calc
 !if (sgs_hist_calc) then
