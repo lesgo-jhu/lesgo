@@ -16,11 +16,12 @@ KEY:
 
 ITEMS:
 
-(NN) Move to CMake in order to eliminate the need for out-of-date 
+(II) Move to CMake in order to eliminate the need for out-of-date 
      dependencies fmakedepf90 and fpx3. This requires changing the 
      precompiler flags to be compatible for cpp (C preprocessor) and 
      writing a new CMakeLists.txt file and build process.
      Assigned to CS with testing by JB and TM
+     CS - should work on njord, panoramix, and marcc. Ready for testing.
 
 (II) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
      Assigned to everyone
