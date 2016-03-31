@@ -10,7 +10,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc
-set(hostname "panoramix")
+set(hostname "njord")
 
 # Set either double or single precision
 set(USE_DBLPREC true)
@@ -40,11 +40,11 @@ set(READ_ENDIAN "DEFAULT")
 
 # Select a turbine model
 set(USE_TURBINES false)
-set(USE_ATM true)
+set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS true)
-set(USE_BINARY false)
+set(USE_CGNS false)
+set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
