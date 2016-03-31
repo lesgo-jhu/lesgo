@@ -6,9 +6,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc
-set(hostname "marcc")
-
-# Specify compiler
+set(hostname "njord")
 
 # Set either double or single precision
 set(USE_DBLPREC true)
@@ -41,8 +39,8 @@ set(USE_TURBINES false)
 set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS true)
-set(USE_BINARY false)
+set(USE_CGNS false)
+set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
@@ -97,6 +95,9 @@ elseif (${hostname} STREQUAL "marcc")
 #        include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include /cm/shared/apps/Intel/fftw/3.3.4/include)
 #        link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib /cm/shared/apps/Intel/fftw/3.3.4/lib)
     endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+elseif (${hostname} STREQUAL "njord")
+    include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
+    link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib)
 else (${hostname} STREQUAL "panoramix")
     include_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/include /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/include /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/include)
     link_directories(/act/fftw3/openmpi-1.6/gcc-4.7.2/lib /act/hdf5-1.8.14/openmpi-1.6/gcc-4.7.2/lib /act/cgns-3.2.1/openmpi-1.6/gcc-4.7.2/lib) 
