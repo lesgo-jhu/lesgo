@@ -12,9 +12,6 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Supported computers: panoramix, njord, marcc
 set(hostname "njord")
 
-# Set either double or single precision
-set(USE_DBLPREC true)
-
 #--Set global VERBOSE flag;
 set(VERBOSE false)
 #--Sets inclusion of development sections
@@ -197,10 +194,6 @@ if (USE_FFTW3)
 else (USE_FFTW3)
     link_libraries(rfftw fftw)    
 endif (USE_FFTW3)
-
-if (USE_DBLPREC)
-    add_definitions(-DPPDBLPREC)
-endif (USE_DBLPREC)
 
 if (VERBOSE)
     add_definitions(-DPPVERBOSE)
