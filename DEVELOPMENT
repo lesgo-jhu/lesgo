@@ -75,7 +75,8 @@ ITEMS:
       Assigned to no one.
       
 (NN) Investigate the near-wall boundary issue in convec.f90 (using first vs 
-      second grid point). 
+      second grid point). Should be using first grid point but this has caused
+      simulation to blow up.
       Assigned to no one.
 
 ================================================================================
