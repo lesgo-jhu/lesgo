@@ -989,7 +989,8 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : nz, checkpoint_file, tavg_calc
+use iwmles, only : iwm_on !xiang: for iwm check point
+use param, only : nz, checkpoint_file, tavg_calc, lbc_mom !xiang: lbc_mom is used for iwm
 #ifdef PPMPI
 use param, only : comm,ierr
 #endif
@@ -1044,6 +1045,14 @@ if( use_cfl_dt ) then
 else
    cfl_w = get_max_cfl()
 endif
+
+!xiang check point for iwm
+if(lbc_mom==1)then
+if(iwm_on==1)then
+	if(coord == 0) call iwm_checkPoint()
+endif
+endif
+
 
 !  Update total_time.dat after simulation
 if (coord == 0) then

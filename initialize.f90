@@ -28,6 +28,8 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
+use iwmles, only : iwm_on !xiang for integral wall model initialization
+use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
 !use param, only : sgs_hist_calc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
@@ -165,7 +167,17 @@ call test_filter_init( )
 
 ! Initialize velocity field
 call initial()
-        
+
+!memory allocation for integral wall model xiang
+if(lbc_mom == 1)then
+if(iwm_on == 1)then
+  if(coord==0) write(*,*) 'iwm: start memory allocation...'
+  if(coord==0) call iwm_malloc()
+  if(coord==0) write(*,*) 'iwm: finish memory allocation...'
+endif
+endif
+       
+
 
 ! Initialize concurrent precursor stuff
 #if defined(PPMPI) && defined(PPCPS)

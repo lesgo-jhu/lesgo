@@ -425,6 +425,7 @@ end subroutine  time_block
 subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
+use iwmles, only : iwm_on  !xiang
 implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
@@ -450,6 +451,8 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
+	 case ('IWM_ACTIVE')                     ! Xiang flag for integral wall model
+	    Read (buff(equal_pos+1:), *) iwm_on  
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')

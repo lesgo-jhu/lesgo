@@ -20,6 +20,7 @@
 !*******************************************************************************
 subroutine initial()
 !*******************************************************************************
+use iwmles, only : iwm_on !xiang for iwm
 use types,only:rprec
 use param
 use sim_param, only : u,v,w,RHSx,RHSy,RHSz
@@ -57,6 +58,7 @@ integer::jz
 
 ! Flag to identify if file exists
 logical :: file_flag
+logical :: iwm_file_flag !xiang: for iwm restart
 
 #ifdef PPTURBINES
 fxa=0._rprec
@@ -83,6 +85,17 @@ call string_concat( fname, '.c', coord )
 #endif
 
 !TSopen(12,file=path//'vel_sc.out',form='unformatted')
+
+!check iwm restart file
+inquire (file='iwm_checkPoint.dat', exist=iwm_file_flag)
+if(iwm_file_flag)then
+	if(lbc_mom == 1)then
+	if(iwm_on ==1)then
+		if(coord==0) call iwm_read_checkPoint()
+	endif
+	endif
+endif
+
 
 ! Check if file exists and read from it
 ! if not then create new IC
