@@ -1394,6 +1394,13 @@ do j=1,ny
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
       tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
 
+      tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt
+      tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt
+      tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt
+      tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt
+      tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt
+      tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt
+
       tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
       tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
       tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
@@ -1649,17 +1656,17 @@ call mpi_barrier( comm, ierr )
     1, (/ 'VelocityZ' /),                             &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
     
-!~     call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,          &
-!~     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-!~     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-!~     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-!~     (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
-!~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                      &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                         &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                         &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                         &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                         &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
+    call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,          &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
+    (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                      &
+    tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                         &
+    tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
     
 !~     call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,           &
 !~     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
@@ -1668,26 +1675,26 @@ call mpi_barrier( comm, ierr )
 !~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                    &
 !~     tavg(1:nx,1:ny,1:nz- nz_end) % dvdz /) )
     
-!~     call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,           &
-!~         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
-!~     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-!~     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-!~     (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
-!~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                     &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                        &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                        &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                        &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                        &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
+    call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,           &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
+    (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
+    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                     &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                        &
+    tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
 
-!    call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,             &
-!    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-!    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-!    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
-!    (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
-!    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
-!    tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                         &
-!    tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
+!~     call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,             &
+!~     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+!~     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+!~     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
+!~     (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
+!~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
+!~     tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                         &
+!~     tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
 #endif
 
 ! Do the Reynolds stress calculations afterwards. Now we can interpolate w and

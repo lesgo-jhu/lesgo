@@ -67,7 +67,7 @@ type tavg_t
   real(rprec) :: u, v, w
   real(rprec) :: u2, v2, w2, uv, uw, vw
 !  real(rprec) :: dudz, dvdz
-!  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
+  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
   real(rprec) :: fx!, fy, fz
   real(rprec) :: cs_opt2  
 end type tavg_t
@@ -621,12 +621,12 @@ c % uw = a
 c % vw = a
 !c % dudz = a
 !c % dvdz = a
-!c % txx = a
-!c % tyy = a
-!c % tzz = a
-!c % txy = a
-!c % txz = a
-!c % tyz = a
+c % txx = a
+c % tyy = a
+c % tzz = a
+c % txy = a
+c % txz = a
+c % tyz = a
 c % fx = a
 !c % fy = a
 !c % fz = a
