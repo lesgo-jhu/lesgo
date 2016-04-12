@@ -10,7 +10,8 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc
-set(hostname "njord")
+# Otherwise, default settings are used
+set(hostname "generic")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -77,7 +78,7 @@ enable_language (Fortran)
 project (lesgo)
 set(exec_name "lesgo")
 
-# Common inlclude and link directories
+# Common include and link directories
 include_directories($ENV{HOME}/include /usr/local/include /usr/include)
 link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 $ENV{HOME}/lib /usr/local/lib  /usr/lib64)
 
@@ -105,6 +106,10 @@ elseif (${hostname} STREQUAL "njord")
 #  all other systems
 else (${hostname} STREQUAL "panoramix")
     # nothing yet, but can add if needed
+    if (USE_CGNS)
+        include_directories($ENV{HOME}/cgns/include/)
+        link_directories($ENV{HOME}/hdf5/lib/ $ENV{HOME}/cgns/lib/)
+    endif (USE_CGNS)
 endif (${hostname} STREQUAL "panoramix")
 
 # List common sources
