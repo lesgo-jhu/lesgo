@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Add the hdf5 and cgns libraries to $LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$HOME/hdf5/lib:$HOME/cgns/lib:$LD_LIBRARY_PATH
+
+# Run CPS simulation
+mpirun -wdir red/ -n 4 ./lesgo-mpi-cps-binary : -wdir blue/ -n 4 ./lesgo-mpi-cps-ATM-binary
+

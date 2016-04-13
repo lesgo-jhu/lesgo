@@ -1,0 +1,28 @@
+! Turbine Array Properties
+! This file has the necessary properties for wind turbine layout
+
+! globalProperties
+
+numberOfTurbines  1
+outputInterval       100
+updateInterval  1
+    
+TURBINE_1 {
+turbineType              "gwsep"
+baseLocation            0.675, 0.45, 0.0 
+numBladePoints          60
+epsilon                 0.0365
+sampling                "atPoint"
+!sampling                "Spalart"
+rotationDir             "cw"
+Azimuth                 232.0105
+RotSpeed                1120.0
+Pitch                   0
+NacYaw                  0
+fluidDensity            1.23
+numAnnulusSections      1
+annulusSectionAngle     0.
+nacelleFlag             false
+nacelleCd               1.
+TSR               3.3
+}
