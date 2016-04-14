@@ -169,6 +169,58 @@ end do
 return
 end subroutine inflow_cond
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine inflow_HIT ()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!  Enforces prescribed inflow condition based on an uniform inflow
+!  velocity.
+!
+use param, only : inflow_velocity, nx, ny, nz
+use sim_param, only : u, v, w
+use messages, only : error
+use fringe_util
+implicit none
+
+$if($VERBOSE)
+character (*), parameter :: sub_name = 'inflow_cond'
+$endif
+
+integer :: i, i_w
+integer :: istart, istart_w
+integer :: iplateau
+integer :: iend, iend_w
+
+real (rprec) :: alpha, beta
+
+!--these may be out of 1, ..., nx
+call fringe_init( istart, iplateau, iend )
+
+!--wrapped versions
+iend_w = modulo (iend - 1, nx) + 1
+istart_w = modulo (istart - 1, nx) + 1
+
+! Set end of domain
+u(iend_w, :, :) = hit_u(:,:)
+v(iend_w, :, :) = hit_u(:,:)
+w(iend_w, :, :) = hit_u(:,:)
+
+!--skip istart since we know vel at istart, iend already
+do i = istart + 1, iend - 1
+
+  i_w = modulo (i - 1, nx) + 1
+
+  beta = fringe_weighting( i, istart, iplateau )
+  alpha = 1.0_rprec - beta
+
+  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
+  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz)
+  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz)
+
+end do
+
+return
+end subroutine inflow_HIT
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine project ()

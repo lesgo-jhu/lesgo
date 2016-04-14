@@ -99,3 +99,7 @@ endif
 ifeq ($(USE_CGNS), yes)
   FPP += -DCGNS
 endif
+
+ifeq ($(USE_HIT), yes)
+  FPP += -DHIT
+endif

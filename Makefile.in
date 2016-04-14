@@ -92,6 +92,10 @@ USE_LVLSET = no
 # Requires configuration of two builds: upstream and downstream
 USE_CPS=no
 
+# Precursor simulations with data from JHU Database 
+# (http://turbulence.pha.jhu.edu/)
+USE_HIT=yes
+
 # Calc Lag-avg timescale w. error autocorrelation
 #USE_DYN_TN = no
 
