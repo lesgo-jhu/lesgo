@@ -13,5 +13,5 @@ Successfully testing on the following MATLAB versions:
 - R2011b, R2013b
 
 CONTRIBUTING:
-These MATLAB scripts are hosted both here and at: https://github.com/jbret/binary-read-lesgo.git
+These MATLAB scripts are hosted within the lesgo project and at: https://github.com/jbret/binary-read-lesgo.git
 Feel free to contribute changes at either location.
