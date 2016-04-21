@@ -174,14 +174,6 @@ do s=1,nloc
    endif
 enddo
 
-! Generate the files for the wake model estimator
-string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
-fid_U_infty = open_file_fid( string1, 'append', 'formatted' )
-string1 = trim( path // 'turbine/wake_model_k.dat' )
-fid_k = open_file_fid( string1, 'append', 'formatted' )
-string1 = trim( path // 'turbine/wake_model_Phat.dat' )
-fid_Phat = open_file_fid( string1, 'append', 'formatted' )
-
 ! Generate the files for the turbine velocity output
 do s=1,nloc
 
@@ -206,12 +198,12 @@ enddo
 nullify(x,y,z)
 
 #ifdef PPMPI
-if (coord == 0) then
+if (use_wake_model .and. coord == 0) then
+#else
+if (use_wake_model) then
 #endif
-call wake_model_est_init
-#ifdef PPMPI
+    call wake_model_est_init
 end if
-#endif
 
 end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -219,18 +211,12 @@ end subroutine turbines_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine wake_model_est_init
 use param, only : u_star 
+use open_file_fid_mod
 implicit none
 
-real(rprec) :: U_infty, sigma_du, sigma_k, sigma_Phat, wm_Delta, wm_Dia
+real(rprec) :: U_infty, wm_Delta, wm_Dia
 real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
-integer :: i, wm_Nx, Ne
-
-wm_Nx = 256
-Ne = 250
-
-sigma_du = 0.25
-sigma_k = 0.0005
-sigma_Phat = 25.0
+integer :: i
 
 wm_Dia = dia_all*z_i
 wm_Delta = 0.5 * wm_Dia
@@ -252,8 +238,16 @@ do i = 1, num_y
 end do
 U_infty = U_infty**(1.d0/3.d0)
 
-wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, wm_Nx, Ne, sigma_du, sigma_k, sigma_Phat)
+wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, sigma_du, sigma_k, sigma_Phat)
 call wm_est%generateInitialEnsemble(wm_Ctp)
+
+! Generate the files for the wake model estimator
+string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
+fid_U_infty = open_file_fid( string1, 'append', 'formatted' )
+string1 = trim( path // 'turbine/wake_model_k.dat' )
+fid_k = open_file_fid( string1, 'append', 'formatted' )
+string1 = trim( path // 'turbine/wake_model_Phat.dat' )
+fid_Phat = open_file_fid( string1, 'append', 'formatted' )
 
 end subroutine wake_model_est_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -856,11 +850,16 @@ endif
 
 ! Advance the wake model estimator
 #ifdef PPMPI
-if (coord == 0) then
+if (use_wake_model .and. coord == 0) then
+#else
+if (use_wake_model) then
 #endif
-    allocate ( wm_Pm(num_x) )
+    ! Input thrust coefficient
     allocate ( wm_Ctp(num_x) )
     wm_Ctp = Ct_prime
+
+    ! Measure average power along row
+    allocate ( wm_Pm(num_x) )
     wm_Pm = 0.d0
     do i = 1, num_x
         do j = 1,num_y
@@ -868,21 +867,16 @@ if (coord == 0) then
         end do
     end do
 
+    ! Advance the estimator with the measurements
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
-!     write(*,*) 'wm_Ctp', wm_Ctp
-!     write(*,*) 'Measured Power:', wm_Pm
-!     write(*,*) 'Estimated Power:', wm_est%wm%Phat
-!     write(*,*) 'k:', wm_est%wm%k
-    
+
     ! Write to file if needed
     if (modulo (jt_total, tbase) == 0) then
         write( fid_k, *) total_time_dim, wm_est%wm%k
         write( fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
         write( fid_Phat, *) total_time_dim, wm_est%wm%Phat
     end if
-#ifdef PPMPI
 end if
-#endif
 
 !apply forcing to each node
 if (turbine_in_proc) then

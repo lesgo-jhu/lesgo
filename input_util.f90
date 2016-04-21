@@ -1033,6 +1033,18 @@ do
         read (buff(equal_pos+1:), *) turbine_cumulative_time
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
+
+     case ('USE_WAKE_MODEL')
+        read (buff(equal_pos+1:), *) use_wake_model
+     case ('SIGMA_DU')
+        read (buff(equal_pos+1:), *) sigma_du
+     case ('SIGMA_K')
+        read (buff(equal_pos+1:), *) sigma_k
+     case ('SIGMA_PHAT')
+        read (buff(equal_pos+1:), *) sigma_Phat
+     case ('NUM_ENSEMBLE')
+        read (buff(equal_pos+1:), *) num_ensemble
+
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )

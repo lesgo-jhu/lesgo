@@ -55,6 +55,10 @@ real(rprec) :: filter_cutoff  ! indicator function only includes values above th
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
 
 integer :: tbase     ! Number of timesteps between the output
+
+logical :: use_wake_model                    ! Enable wake model estimator
+real(rprec) :: sigma_du, sigma_k, sigma_Phat ! Variances of noise
+integer  :: num_ensemble
  
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
