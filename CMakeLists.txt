@@ -84,8 +84,7 @@ set(exec_name "lesgo")
 
 # Common include and link directories
 include_directories($ENV{HOME}/include /usr/local/include /usr/include)
-link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 $ENV{HOME}/lib 
-                 /usr/local/lib  /usr/lib64)
+link_directories(/usr/local/lib)
 
 # Include host-specific paths
 #  panoramix
@@ -253,7 +252,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
          -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -framework Accelerate")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 add_executable(${exec_name} ${Sources})

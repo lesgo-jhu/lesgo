@@ -63,6 +63,7 @@ logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
+integer :: fid_k, fid_U_infty, fid_Phat
 
 type(wakeModelEstimator) :: wm_est
 
@@ -173,6 +174,14 @@ do s=1,nloc
    endif
 enddo
 
+! Generate the files for the wake model estimator
+string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
+fid_U_infty = open_file_fid( string1, 'append', 'formatted' )
+string1 = trim( path // 'turbine/wake_model_k.dat' )
+fid_k = open_file_fid( string1, 'append', 'formatted' )
+string1 = trim( path // 'turbine/wake_model_Phat.dat' )
+fid_Phat = open_file_fid( string1, 'append', 'formatted' )
+
 ! Generate the files for the turbine velocity output
 do s=1,nloc
 
@@ -224,7 +233,7 @@ sigma_k = 0.0005
 sigma_Phat = 25.0
 
 wm_Dia = dia_all*z_i
-wm_Delta = 0.d5*wm_Dia
+wm_Delta = 0.5 * wm_Dia
 
 allocate( wm_Ctp(num_x) )
 allocate( wm_k(num_x) )
@@ -243,12 +252,7 @@ do i = 1, num_y
 end do
 U_infty = U_infty**(1.d0/3.d0)
 
-write(*,*) 'wk_k:', wm_k
-write(*,*) 'wk_s:', wm_s
-write(*,*) 'wk_Ctp:', wm_Ctp
-write(*,*) 'U_infty:', U_infty
-
-wm_est = WakeModelEstimator(wm_s, U_infty, 0.5*wm_Delta, wm_k, wm_Dia, wm_Nx, Ne, sigma_du, sigma_k, sigma_Phat)
+wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, wm_Nx, Ne, sigma_du, sigma_k, sigma_Phat)
 call wm_est%generateInitialEnsemble(wm_Ctp)
 
 end subroutine wake_model_est_init
@@ -856,7 +860,6 @@ if (coord == 0) then
 #endif
     allocate ( wm_Pm(num_x) )
     allocate ( wm_Ctp(num_x) )
-    write(*,*) 'wm_p_est', wm_est%wm%Phat
     wm_Ctp = Ct_prime
     wm_Pm = 0.d0
     do i = 1, num_x
@@ -864,17 +867,23 @@ if (coord == 0) then
             wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) * (wind_farm%turbine((i-1)*num_y+j)%u_d_T * u_star)**3 / num_y
         end do
     end do
-    write(*,*) 'wm_Pm', wm_Pm
-    write(*,*) 'wm_Ctp', wm_Ctp
+
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
-    write(*,*) 'wm_p_est', wm_est%wm%Phat
+!     write(*,*) 'wm_Ctp', wm_Ctp
+!     write(*,*) 'Measured Power:', wm_Pm
+!     write(*,*) 'Estimated Power:', wm_est%wm%Phat
+!     write(*,*) 'k:', wm_est%wm%k
+    
+    ! Write to file if needed
+    if (modulo (jt_total, tbase) == 0) then
+        write( fid_k, *) total_time_dim, wm_est%wm%k
+        write( fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
+        write( fid_Phat, *) total_time_dim, wm_est%wm%Phat
+    end if
 #ifdef PPMPI
 end if
 #endif
 
-
- 
-    
 !apply forcing to each node
 if (turbine_in_proc) then
 
