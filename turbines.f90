@@ -30,6 +30,8 @@ use turbines_base
 use grid_defs, only: grid 
 use messages
 use string_util
+use wake_model_estimator_class
+use wake_model_class
 
 implicit none
 
@@ -61,6 +63,8 @@ logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
+
+type(wakeModelEstimator) :: wm_est
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -141,16 +145,16 @@ allocate(buffer_array(nloc))
                 close (1)
             else  
                 write (*, *) 'File ', trim(string1), ' not found'
-                write (*, *) 'Assuming u_d_T = -1. for all turbines'
+                write (*, *) 'Assuming u_d_T = -20. for all turbines'
                 do k=1,nloc
-                    wind_farm%turbine(k)%u_d_T = -1.
+                    wind_farm%turbine(k)%u_d_T = -20.
                 enddo
             endif                                         
         endif
     else
-        write (*, *) 'Assuming u_d_T = -1 for all turbines'
+        write (*, *) 'Assuming u_d_T = -20 for all turbines'
         do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -1.
+            wind_farm%turbine(k)%u_d_T = -20.
         enddo    
     endif
    
@@ -192,7 +196,62 @@ enddo
 
 nullify(x,y,z)
 
+#ifdef PPMPI
+if (coord == 0) then
+#endif
+call wake_model_est_init
+#ifdef PPMPI
+end if
+#endif
+
 end subroutine turbines_init
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine wake_model_est_init
+use param, only : u_star 
+implicit none
+
+real(rprec) :: U_infty, sigma_du, sigma_k, sigma_Phat, wm_Delta, wm_Dia
+real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
+integer :: i, wm_Nx, Ne
+
+wm_Nx = 256
+Ne = 250
+
+sigma_du = 0.25
+sigma_k = 0.0005
+sigma_Phat = 25.0
+
+wm_Dia = dia_all*z_i
+wm_Delta = 0.d5*wm_Dia
+
+allocate( wm_Ctp(num_x) )
+allocate( wm_k(num_x) )
+allocate( wm_s(num_x) )
+
+wm_k = 0.05
+
+do i = 1, num_x
+    wm_s(i)   = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
+    wm_Ctp(i) = Ct_prime
+end do 
+
+U_infty = 0
+do i = 1, num_y
+    U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star)**3 / num_y
+end do
+U_infty = U_infty**(1.d0/3.d0)
+
+write(*,*) 'wk_k:', wm_k
+write(*,*) 'wk_s:', wm_s
+write(*,*) 'wk_Ctp:', wm_Ctp
+write(*,*) 'U_infty:', U_infty
+
+wm_est = WakeModelEstimator(wm_s, U_infty, 0.5*wm_Delta, wm_k, wm_Dia, wm_Nx, Ne, sigma_du, sigma_k, sigma_Phat)
+call wm_est%generateInitialEnsemble(wm_Ctp)
+
+end subroutine wake_model_est_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -653,6 +712,7 @@ real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
+real(rprec), dimension(:), allocatable :: wm_Pm, wm_Ctp
 
 nullify(y,z)
 y => grid % y
@@ -788,7 +848,32 @@ endif
             call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
         endif     
     !##############################################     
-#endif 
+#endif
+
+! Advance the wake model estimator
+#ifdef PPMPI
+if (coord == 0) then
+#endif
+    allocate ( wm_Pm(num_x) )
+    allocate ( wm_Ctp(num_x) )
+    write(*,*) 'wm_p_est', wm_est%wm%Phat
+    wm_Ctp = Ct_prime
+    wm_Pm = 0.d0
+    do i = 1, num_x
+        do j = 1,num_y
+            wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) * (wind_farm%turbine((i-1)*num_y+j)%u_d_T * u_star)**3 / num_y
+        end do
+    end do
+    write(*,*) 'wm_Pm', wm_Pm
+    write(*,*) 'wm_Ctp', wm_Ctp
+    call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
+    write(*,*) 'wm_p_est', wm_est%wm%Phat
+#ifdef PPMPI
+end if
+#endif
+
+
+ 
     
 !apply forcing to each node
 if (turbine_in_proc) then

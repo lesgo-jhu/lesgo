@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc
 # Otherwise, default settings are used
-set(hostname "generic")
+set(hostname "njord")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -41,11 +41,11 @@ set(READ_ENDIAN "DEFAULT")
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
-set(USE_TURBINES false)
+set(USE_TURBINES true)
 set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS true)
+set(USE_CGNS false)
 set(USE_BINARY true)
 
 # Select level set
@@ -132,7 +132,9 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
      press_stag_array.f90 ran3.f90 rmsdiv.f90 scaledep_dynamic.f90 
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 
-     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90)
+     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90 wake_model.f90 util.f90)
+
+link_libraries(lapack blas)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
@@ -251,7 +253,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
          -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 add_executable(${exec_name} ${Sources})
