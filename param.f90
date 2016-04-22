@@ -79,7 +79,7 @@ module param
 
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
-  real(rprec),parameter::pi=3.1415926535897932384626433_rprec
+  real(rprec), parameter :: pi=3.1415926535897932384626433_rprec
 
   integer :: Nx=64, Ny=64, Nz=64
   integer :: nz_tot = 64

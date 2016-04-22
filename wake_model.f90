@@ -53,8 +53,10 @@ type :: WakeModel
 !     logical     :: useRungeKutta = .false.
     real(rprec) :: LENGTH=0, VELOCITY=0, TIME=0, FORCE=0
 contains
-    procedure, public  :: initialize
+    procedure, private :: initialize_val
+    procedure, private :: initialize_file
     procedure, public  :: print
+    procedure, public  :: write_to_file
     procedure, public  :: makeDimensionless
     procedure, public  :: makeDimensional
     procedure, public  :: advance
@@ -64,23 +66,37 @@ contains
 end type WakeModel
 
 interface WakeModel
-    module procedure :: constructor
+    module procedure :: constructor_val
+    module procedure :: constructor_file
 end interface WakeModel
 
 contains
 
-! Constructor for wake model
-function constructor(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx) result(this)
+! Constructor for wake model with values given
+function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx) result(this)
     implicit none
     type(WakeModel)                       :: this
     real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
     real(rprec), dimension(:), intent(in) :: i_s, i_k
     integer, intent(in)                   :: i_Nx
     
-    call this%initialize(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
-end function constructor
+    call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+end function constructor_val
 
-subroutine initialize(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+! Constructor for wake model that reads from file
+function constructor_file(fstring) result(this)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    implicit none
+    
+    type(WakeModel)          :: this
+    character(*), intent(in) :: fstring
+    
+    call this%initialize_file(fstring)
+
+end function constructor_file
+
+subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
     implicit none
     class(WakeModel), intent(inout)       :: this
     real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
@@ -98,7 +114,6 @@ subroutine initialize(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
     allocate( this%uhat(this%N) )
     allocate( this%Phat(this%N) )
     allocate( this%Ctp(this%N)  )
-    
 
     ! Allocate based on number of gridpoints
     this%Nx = i_Nx
@@ -142,7 +157,53 @@ subroutine initialize(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
     this%Phat(:) = 0.d0
     this%Ctp(:)  = 0.d0
     
-end subroutine initialize
+end subroutine initialize_val
+
+subroutine initialize_file(this, fstring)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    implicit none
+
+    class(WakeModel), intent(inout) :: this
+    character(*), intent(in)        :: fstring
+    integer :: i, fid
+    
+    !  Open vel.out (lun_default in io) for final output
+    fid = open_file_fid(fstring, 'rewind', 'unformatted')
+    read(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                           &
+              this%U_infty, this%isDimensionless
+    read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
+    
+    allocate( this%s(this%N)    )
+    allocate( this%k(this%N)    )
+    allocate( this%uhat(this%N) )
+    allocate( this%Phat(this%N) )
+    allocate( this%Ctp(this%N)  )
+    allocate( this%x(this%Nx) )
+    allocate( this%u(this%Nx) )
+    allocate( this%G(this%N,  this%Nx) )
+    allocate( this%d(this%N,  this%Nx) )
+    allocate( this%dp(this%N, this%Nx) )
+    allocate( this%w(this%N,  this%Nx) )
+    allocate( this%fp(this%N, this%Nx) )
+    allocate( this%du(this%N, this%Nx) )    
+    
+    read(fid) this%s
+    read(fid) this%k
+    read(fid) this%x
+    read(fid) this%du
+    read(fid) this%u
+    read(fid) this%uhat
+    read(fid) this%Phat
+    read(fid) this%Ctp
+    close(fid)
+    
+    do i = 1, this%N
+        this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
+    end do
+    call this%computeWakeExpansionFunctions
+    
+end subroutine initialize_file
 
 subroutine computeWakeExpansionFunctions(this)
     implicit none
@@ -205,7 +266,33 @@ subroutine makeDimensional(this)
         this%fp      = this%fp * this%FORCE
     end if
 end subroutine makeDimensional
-! 
+
+! Writes object to file
+subroutine write_to_file(this, fstring)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    implicit none
+    class(WakeModel), intent(in) :: this
+    character(CHAR_BUFF_LENGTH), intent(in)  :: fstring
+    integer :: i, fid
+    
+    !  Open vel.out (lun_default in io) for final output
+    fid = open_file_fid(fstring, 'rewind', 'unformatted')
+    write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                           &
+               this%U_infty, this%isDimensionless
+    write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
+    write(fid) this%s
+    write(fid) this%k
+    write(fid) this%x
+    write(fid) this%du
+    write(fid) this%u
+    write(fid) this%uhat
+    write(fid) this%Phat
+    write(fid) this%Ctp
+    close(fid)
+
+end subroutine write_to_file
+
 ! Prints all variables of the class to standard output
 subroutine print(this)
     implicit none
@@ -307,23 +394,26 @@ type :: WakeModelEstimator
     integer                                    :: Ne, Nm, Ns
     real(rprec), dimension(:,:), allocatable   :: A, Aprime, Ahat, Ahatprime, E, D, Dprime
     real(rprec), dimension(:), allocatable     :: Abar, Ahatbar
-    real(rprec) :: tau_U_infty = 200
+    real(rprec) :: tau_U_infty = 300
 contains
-    procedure, public  :: initialize
+    procedure, private :: initialize_val
+    procedure, private :: initialize_file
+    procedure, public  :: write_to_file
     procedure, public  :: generateInitialEnsemble
     procedure, public  :: advance
     procedure, private :: advanceEnsemble
 end type WakeModelEstimator
 
 interface WakeModelEstimator
-    module procedure :: constructor
+    module procedure :: constructor_val
+    module procedure :: constructor_file
 end interface WakeModelEstimator
 
 contains 
 
 ! Constructor for wake model
-function constructor(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,                    &
-                     i_sigma_du, i_sigma_k, i_sigma_Phat) result(this)
+function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,                &
+                         i_sigma_du, i_sigma_k, i_sigma_Phat) result(this)
     implicit none
     type(WakeModelEstimator)              :: this
     real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
@@ -332,12 +422,25 @@ function constructor(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,           
     integer, intent(in)                   :: i_Ne
     real(rprec), intent(in)               :: i_sigma_du, i_sigma_k, i_sigma_Phat
         
-    call this%initialize(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,                &
-                         i_sigma_du, i_sigma_k, i_sigma_Phat)
-end function constructor
+    call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,            &
+                             i_sigma_du, i_sigma_k, i_sigma_Phat)
+end function constructor_val
 
-subroutine initialize(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,             &
-                     i_sigma_du, i_sigma_k, i_sigma_Phat)
+! Constructor for wake model that reads from file
+function constructor_file(fpath) result(this)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    implicit none
+    
+    type(WakeModelEstimator) :: this
+    character(*), intent(in) :: fpath
+    
+    call this%initialize_file(fpath)
+
+end function constructor_file
+
+subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,         &
+                          i_sigma_du, i_sigma_k, i_sigma_Phat)
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
     real(rprec), intent(in)                     :: i_sigma_du, i_U_infty, i_Delta, i_Dia
@@ -375,7 +478,93 @@ subroutine initialize(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,    
     allocate( this%D(this%Nm, this%Ne) )
     allocate( this%Dprime(this%Nm, this%Ne) )
     
-end subroutine initialize
+end subroutine initialize_val
+
+subroutine initialize_file(this, fpath)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    use string_util, only : string_splice
+    implicit none
+
+    class(WakeModelEstimator)   :: this
+    character(*), intent(in)    :: fpath
+    character(CHAR_BUFF_LENGTH) :: fstring, str
+    integer                     :: i, fid    
+
+    fstring = fpath // '/wm_est.dat'
+    fid = open_file_fid(fstring, 'rewind', 'unformatted')
+    read(fid) this%Ne, this%Nm, this%Ns
+    read(fid) this%sigma_du, this%sigma_k, this%sigma_Phat
+    
+    allocate( this%Abar(this%Ns) )
+    allocate( this%Ahatbar(this%Nm) )
+    allocate( this%A(this%Ns, this%Ne) )
+    allocate( this%Aprime(this%Ns, this%Ne) )
+    allocate( this%Ahat(this%Nm, this%Ne) )
+    allocate( this%Ahatprime(this%Nm, this%Ne) )
+    allocate( this%E(this%Nm, this%Ne) )
+    allocate( this%D(this%Nm, this%Ne) )
+    allocate( this%Dprime(this%Nm, this%Ne) )
+    
+    read(fid) this%A
+    read(fid) this%Aprime
+    read(fid) this%Ahat
+    read(fid) this%Ahatprime
+    read(fid) this%E
+    read(fid) this%D
+    read(fid) this%Dprime
+    read(fid) this%Abar
+    read(fid) this%Ahatbar
+    close(fid)
+    
+    fstring = fpath // '/wm.dat'
+    this%wm = WakeModel(fstring)
+    
+    allocate( this%ensemble(this%Ne) )
+    do i = 1, this%Ne
+        call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+        this%ensemble(i) = WakeModel(fstring)
+    end do
+    
+    
+end subroutine initialize_file
+
+subroutine write_to_file(this, fpath)
+    use open_file_fid_mod
+    use param, only : CHAR_BUFF_LENGTH
+    use string_util, only : string_splice
+    implicit none
+    
+    class(WakeModelEstimator)   :: this
+    character(*), intent(in)    :: fpath
+    character(CHAR_BUFF_LENGTH) :: fstring, str
+    integer                     :: i, fid    
+
+    call system('mkdir -vp ' // fpath)
+    fstring = fpath // '/wm_est.dat'
+    fid = open_file_fid(fstring, 'rewind', 'unformatted')
+    write(fid) this%Ne, this%Nm, this%Ns
+    write(fid) this%sigma_du, this%sigma_k, this%sigma_Phat
+    write(fid) this%A
+    write(fid) this%Aprime
+    write(fid) this%Ahat
+    write(fid) this%Ahatprime
+    write(fid) this%E
+    write(fid) this%D
+    write(fid) this%Dprime
+    write(fid) this%Abar
+    write(fid) this%Ahatbar
+    close(fid)
+    
+    fstring = fpath // '/wm.dat'
+    call this%wm%write_to_file(fstring)
+    
+    do i = 1, this%Ne
+        call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+        call this%ensemble(i)%write_to_file(fstring)
+    end do
+
+end subroutine write_to_file
 
 subroutine generateInitialEnsemble(this, Ctp)
     use util, only : random_normal, init_random_seed

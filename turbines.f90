@@ -101,7 +101,7 @@ allocate(buffer_array(nloc))
     Ct_prime_05 = -0.5*Ct_prime
 
 !Create turbine directory
-    call system("mkdir -vp turbine") 
+    call system('mkdir -vp turbine') 
 
 !z_tot for total domain (since z is local to the processor)
     do k=1,nz_tot
@@ -210,36 +210,47 @@ end subroutine turbines_init
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine wake_model_est_init
-use param, only : u_star 
+use param, only : u_star, CHAR_BUFF_LENGTH
 use open_file_fid_mod
 implicit none
 
 real(rprec) :: U_infty, wm_Delta, wm_Dia
 real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
 integer :: i
+type(WakeModel) :: wm_dummy
+character(CHAR_BUFF_LENGTH) :: fpath = 'wake_model'
+logical :: exst
 
-wm_Dia = dia_all*z_i
-wm_Delta = 0.5 * wm_Dia
+string1 = path // 'wake_model/wm_est.dat'
+inquire (file=string1, exist=exst)
 
-allocate( wm_Ctp(num_x) )
-allocate( wm_k(num_x) )
-allocate( wm_s(num_x) )
+if (exst) then
+    write(*,*) 'Reading wake model estimator data from wake_model/'
+    wm_est = WakeModelEstimator(path // 'wake_model')
+else
+    wm_Dia = dia_all*z_i
+    wm_Delta = 0.5 * wm_Dia
 
-wm_k = 0.05
+    allocate( wm_Ctp(num_x) )
+    allocate( wm_k(num_x) )
+    allocate( wm_s(num_x) )
 
-do i = 1, num_x
-    wm_s(i)   = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
-    wm_Ctp(i) = Ct_prime
-end do 
+    wm_k = 0.05
 
-U_infty = 0
-do i = 1, num_y
-    U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star)**3 / num_y
-end do
-U_infty = U_infty**(1.d0/3.d0)
+    do i = 1, num_x
+        wm_s(i)   = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
+        wm_Ctp(i) = Ct_prime
+    end do 
 
-wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, sigma_du, sigma_k, sigma_Phat)
-call wm_est%generateInitialEnsemble(wm_Ctp)
+    U_infty = 0
+    do i = 1, num_y
+        U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star)**3 / num_y
+    end do
+    U_infty = U_infty**(1.d0/3.d0)
+
+    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, sigma_du, sigma_k, sigma_Phat)
+    call wm_est%generateInitialEnsemble(wm_Ctp)
+end if
 
 ! Generate the files for the wake model estimator
 string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
@@ -870,11 +881,11 @@ if (use_wake_model) then
     ! Advance the estimator with the measurements
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
 
-    ! Write to file if needed
+    ! Write to file
     if (modulo (jt_total, tbase) == 0) then
-        write( fid_k, *) total_time_dim, wm_est%wm%k
-        write( fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
-        write( fid_Phat, *) total_time_dim, wm_est%wm%Phat
+        write(fid_k, *) total_time_dim, wm_est%wm%k
+        write(fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
+        write(fid_Phat, *) total_time_dim, wm_est%wm%Phat
     end if
 end if
 
@@ -929,6 +940,14 @@ character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
         write(1,*) T_avg_dim
         close (1)
     endif
+    
+#ifdef PPMPI
+if (use_wake_model .and. coord == 0) then
+#else
+if (use_wake_model) then
+#endif
+    call wm_est%write_to_file(path // 'wake_model')
+end if
     
 !deallocate
 deallocate(wind_farm%turbine) 
