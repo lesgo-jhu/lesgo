@@ -44,7 +44,6 @@ real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zer
 real(rprec) :: theta2_all   ! angle above horizontal
 
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
-real(rprec) :: Ct_noprime   ! thrust coefficient (default 0.75)
 
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
 

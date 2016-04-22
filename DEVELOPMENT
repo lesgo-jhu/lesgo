@@ -61,6 +61,7 @@ ITEMS:
 (II) Cleanup unused lesgo.conf input. This is mostly restart file flags.
      Assigned to no one
      TM -  Removed the initialization flags.
+     CS -  Removed Ct_noprime, since you can calculate that from Ct_prime
      There is still more stuff to be cleaned up
 
 (NN) Include developer style guide. This may be contentious and will need to

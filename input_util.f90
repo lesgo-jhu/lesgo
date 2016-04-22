@@ -1017,8 +1017,6 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
-     case ('CT_NOPRIME')
-        read (buff(equal_pos+1:), *) Ct_noprime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
