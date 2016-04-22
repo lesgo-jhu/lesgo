@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 2.8.9)
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc
+# Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
 set(hostname "generic")
 
@@ -45,7 +45,7 @@ set(USE_TURBINES false)
 set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS true)
+set(USE_CGNS false)
 set(USE_BINARY true)
 
 # Select level set
@@ -83,9 +83,12 @@ project (lesgo)
 set(exec_name "lesgo")
 
 # Common include and link directories
-include_directories($ENV{HOME}/include /usr/local/include /usr/include)
-link_directories($ENV{HOME}/lib /usr/local/lib /usr/lib64 $ENV{HOME}/lib 
-                 /usr/local/lib  /usr/lib64)
+include_directories(/usr/local/include)
+link_directories(/usr/local/lib)
+if ( NOT(${hostname} STREQUAL "darwin-brew") )
+    include_directories($ENV{HOME}/include /usr/include)
+    link_directories($ENV{HOME}/lib /usr/lib64)
+endif ()
 
 # Include host-specific paths
 #  panoramix
