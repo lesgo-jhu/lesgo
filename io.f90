@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -885,59 +885,59 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
-!contains
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!subroutine force_tot()
-!!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!#ifdef PPMPI
-!use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
-!#endif
-!implicit none
-!
-!! Zero bogus values
-!fx(:,:,nz) = 0._rprec
-!fy(:,:,nz) = 0._rprec
-!fz(:,:,nz) = 0._rprec
-!
-!!  Sum both the induced and applied forces
-!allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
-!
-!! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
-!#ifdef PPTURBINES and not $LVLSET
-!fx_tot = fxa(1:nx,1:ny,1:nz)
-!fy_tot = 0._rprec
-!fz_tot = 0._rprec
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-!#elif PPATM
-!fx_tot = fxa(1:nx,1:ny,1:nz)
-!fy_tot = fya(1:nx,1:ny,1:nz)
-!fz_tot = fza(1:nx,1:ny,1:nz)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-!
-!#elif PPLVLSET
-!fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
-!fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
-!fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
-!#else
-!fx_tot = 0._rprec
-!fy_tot = 0._rprec
-!fz_tot = 0._rprec
-!#endif
-!
-!#ifdef PPMPI
-!!  Sync forces
-!call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
-!call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
-!call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
-!#endif
-!
-!! Put fz_tot on uv-grid
-!fz_tot(1:nx,1:ny,1:nz) = interp_to_uv_grid( fz_tot(1:nx,1:ny,1:nz), 1 )
-!
-!return
-!end subroutine force_tot
-!
+contains
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine force_tot()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#ifdef PPMPI
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
+#endif
+implicit none
+
+! Zero bogus values
+fx(:,:,nz) = 0._rprec
+fy(:,:,nz) = 0._rprec
+fz(:,:,nz) = 0._rprec
+
+!  Sum both the induced and applied forces
+allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
+
+! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
+#if ( defined(PPTURBINES) && !defined(PPLVLSET) )
+fx_tot = fxa(1:nx,1:ny,1:nz)
+fy_tot = 0._rprec
+fz_tot = 0._rprec
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+#elif PPATM
+fx_tot = fxa(1:nx,1:ny,1:nz)
+fy_tot = fya(1:nx,1:ny,1:nz)
+fz_tot = fza(1:nx,1:ny,1:nz)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
+#elif PPLVLSET
+fx_tot = fx(1:nx,1:ny,1:nz)+fxa(1:nx,1:ny,1:nz)
+fy_tot = fy(1:nx,1:ny,1:nz)+fya(1:nx,1:ny,1:nz)
+fz_tot = fz(1:nx,1:ny,1:nz)+fza(1:nx,1:ny,1:nz)
+#else
+fx_tot = 0._rprec
+fy_tot = 0._rprec
+fz_tot = 0._rprec
+#endif
+
+#ifdef PPMPI
+!  Sync forces
+call mpi_sync_real_array( fx_tot, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fy_tot, 1, MPI_SYNC_DOWN )
+call mpi_sync_real_array( fz_tot, 1, MPI_SYNC_DOWN )
+#endif
+
+! Put fz_tot on uv-grid
+fz_tot(1:nx,1:ny,1:nz) = interp_to_uv_grid( fz_tot(1:nx,1:ny,1:nz), 1 )
+
+return
+end subroutine force_tot
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !subroutine pressure_sync()
 !!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -79,6 +79,9 @@ ITEMS:
       second grid point). Should be using first grid point but this has caused
       simulation to blow up.
       Assigned to no one.
+      
+(II) Fix compilation issues with level set. Tecryte will have to be disabled and no
+     output will be available. Assigned to CS.
 
 ================================================================================
                    NOTES

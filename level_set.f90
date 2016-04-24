@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -280,7 +280,7 @@ use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 #endif
 implicit none
 
-include 'tecryte.h'
+! include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
 character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
@@ -360,15 +360,17 @@ endif
     v_err = v_err_global / nproc
     w_err = w_err_global / nproc
 
-    call write_real_data(fname_write, 'append', 'formatted', 2, &
-                         (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+    ! CS - REMOVED since tecryte is no longer supported. 
+    ! call write_real_data(fname_write, 'append', 'formatted', 2, &
+    !                      (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
 
   endif
 
 #else
 
-call write_real_data(fname_write, 'append', 'formatted', 2, &
-                     (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+! CS - REMOVED since tecryte is no longer supported. 
+! call write_real_data(fname_write, 'append', 'formatted', 2, &
+!                     (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
 
 #endif
 
@@ -3127,6 +3129,7 @@ call exit_sub (sub_name)
 
 end subroutine smooth
 
+subroutine level_set_global_CA
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--Computes the normalized forces times the frontal area. The
 !  normalization is based on the planar averaged inlet velocity.
@@ -3137,7 +3140,7 @@ use sim_param, only : fx, fy, fz
 use sim_param, only : u
 implicit none
 
-include 'tecryte.h'
+! include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_global_CA'
 character (*), parameter :: fCA_out = path // 'output/global_CA.dat'
@@ -3205,22 +3208,22 @@ if( coord == 0 ) then
     !  Check that output is not already opened
     if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-    if( .not. exst ) call write_tecplot_header_xyline(fCA_out, 'rewind', '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"')
+    ! CS - REMOVED since tecryte is no longer supported. 
+    ! if( .not. exst ) call write_tecplot_header_xyline(fCA_out, 'rewind', '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"')
 
     file_init = .true.
 
   endif
 
-  call write_real_data(fCA_out, 'append', 'formatted', 8, &
-    (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
+    ! CS - REMOVED since tecryte is no longer supported. 
+    ! call write_real_data(fCA_out, 'append', 'formatted', 8, &
+    ! (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
 
 #ifdef PPMPI
 end if
 #endif
 
 end subroutine level_set_global_CA
-
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
