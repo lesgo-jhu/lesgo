@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "generic")
+set(hostname "darwin-brew")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -41,7 +41,7 @@ set(READ_ENDIAN "DEFAULT")
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
-set(USE_TURBINES false)
+set(USE_TURBINES true)
 set(USE_ATM false)
 
 # Select the data output
@@ -180,7 +180,7 @@ endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 

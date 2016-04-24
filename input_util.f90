@@ -1032,6 +1032,9 @@ do
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
      case default
+     
+     case ('TURBINE_CONTROL')
+        read (buff(equal_pos+1:), *) turbine_control
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select

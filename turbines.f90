@@ -140,10 +140,7 @@ if (turbine_cumulative_time) then
             do k=1,nloc
                 wind_farm%turbine(k)%u_d_T = -1.
             enddo
-        endif
-        do k=1,nloc
-            wind_farm%turbine(k)%Ct_prime = Ct_prime
-        enddo                                     
+        endif                                    
     endif
 else
     write (*, *) 'Assuming u_d_T = -1 for all turbines'
@@ -151,6 +148,11 @@ else
         wind_farm%turbine(k)%u_d_T = -1.
     enddo    
 endif
+
+! Set all Ct_prime to reference in input file
+do k=1,nloc
+    wind_farm%turbine(k)%Ct_prime = Ct_prime
+enddo 
    
 if (coord .eq. nproc-1) then
     string1=path // 'output/vel_top_of_domain.dat'
@@ -635,9 +637,9 @@ end subroutine turbines_filter_ind
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
-use sim_param, only: u,v,w, fxa,fya,fza
-use functions, only: interp_to_uv_grid
-
+use sim_param, only : u,v,w, fxa,fya,fza
+use functions, only : interp_to_uv_grid
+use util, only : interpolate
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -727,6 +729,13 @@ elseif (turbine_in_proc) then
     call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
 endif                          
 #endif
+
+!Calculate the current Ct_prime
+if (turbine_control == 1) then
+    do s = 1, nloc
+        call interpolate(t_Ctp_list, Ctp_list(:,s), total_time_dim, wind_farm%turbine(s)%Ct_prime)
+    end do
+endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then           
