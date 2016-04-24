@@ -41,7 +41,7 @@ set(READ_ENDIAN "DEFAULT")
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
-set(USE_TURBINES true)
+set(USE_TURBINES false)
 set(USE_ATM false)
 
 # Select the data output
@@ -50,7 +50,7 @@ set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
-set(USE_RNSE_LS false)
+set(USE_RNS_LS false)
 set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
@@ -257,4 +257,13 @@ else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
+# Level set subprograms to generate phi
+if (USE_LVLSET)
+    add_executable(trees_pre_ls trees_pre_ls.f90 trees_base_ls.f90 trees_setup_ls.f90 
+                   trees_io_ls.f90 trees_global_fmask_ls.f90 types.f90 param.f90 
+                   messages.f90 string_util.f90 input_util.f90 level_set_base.f90)
+endif ()
+
+# main lesgo executable
 add_executable(${exec_name} ${Sources})
+
