@@ -1000,6 +1000,9 @@ use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_mo
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
+#if PPUSE_TURBINES
+use turbines, only : turbines_checkpoint
+#endif
 implicit none
 character(64) :: fname
 real(rprec) :: cfl_w
@@ -1019,11 +1022,11 @@ open(11,file=fname,form='unformatted', status='unknown', position='rewind')
 #endif
 
 if (sgs_model==1) then
-write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),     &
      RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
      Cs_opt2(:,:,1:nz)
 else
-write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
+write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),     &
      RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
      Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
      F_QN(:,:,1:nz), F_NN(:,:,1:nz)
@@ -1053,6 +1056,9 @@ if(iwm_on==1)then
 endif
 endif
 
+#if PPUSE_TURBINES
+call turbines_checkpoint
+#endif
 
 !  Update total_time.dat after simulation
 if (coord == 0) then

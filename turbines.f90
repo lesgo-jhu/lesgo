@@ -38,7 +38,6 @@ private
 
 public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 
-real(rprec) :: Ct_prime_05
 real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
 
@@ -73,6 +72,7 @@ implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
+integer :: fid
 
 nullify(x,y,z)
 
@@ -91,9 +91,6 @@ turbine_in_proc_array = 0
 
 nullify(buffer_array)
 allocate(buffer_array(nloc))
-
-!new variables for optimization:
-Ct_prime_05 = -0.5*Ct_prime
 
 !Create turbine directory
 call system("mkdir -vp turbine") 
@@ -128,24 +125,25 @@ if (turbine_cumulative_time) then
         inquire (file=string1, exist=exst)
         if (exst) then
             write(*,*) 'Reading from file turbine_u_d_T.dat'
-            inquire (unit=1, opened=opn)
-            if (opn) call error (sub_name, 'unit 1 already open, mark1')                
-            open (1, file=string1)
+            fid = open_file_fid( string1, 'rewind', 'formatted' )
             do i=1,nloc
-                read(1,*) wind_farm%turbine(i)%u_d_T    
+                read(fid,*) wind_farm%turbine(i)%u_d_T    
             enddo    
-            read(1,*) T_avg_dim_file
+            read(fid,*) T_avg_dim_file
             if (T_avg_dim_file /= T_avg_dim) then
                 write(*,*) 'Time-averaging window does not match value in turbine_u_d_T.dat'
             endif
-            close (1)
+            close (fid)
         else  
             write (*, *) 'File ', trim(string1), ' not found'
             write (*, *) 'Assuming u_d_T = -1. for all turbines'
             do k=1,nloc
                 wind_farm%turbine(k)%u_d_T = -1.
             enddo
-        endif                                         
+        endif
+        do k=1,nloc
+            wind_farm%turbine(k)%Ct_prime = Ct_prime
+        enddo                                     
     endif
 else
     write (*, *) 'Assuming u_d_T = -1 for all turbines'
@@ -156,9 +154,9 @@ endif
    
 if (coord .eq. nproc-1) then
     string1=path // 'output/vel_top_of_domain.dat'
-    open(unit=1,file=string1,status='unknown',form='formatted',action='write',position='rewind')
-    write(1,*) 'total_time','u_HI'
-    close(1)
+    fid = open_file_fid( string1, 'rewind', 'formatted' )
+    write(fid,*) 'total_time','u_HI'
+    close(fid)
 endif
 
 ! Generate the files for the turbine forcing output
@@ -645,6 +643,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
+real(rprec), pointer :: p_Ct_prime => null()
 
 real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
@@ -744,7 +743,8 @@ if (coord == 0) then
         !set pointers
         p_u_d => wind_farm%turbine(s)%u_d   
         p_u_d_T => wind_farm%turbine(s)%u_d_T   
-        p_f_n => wind_farm%turbine(s)%f_n                  
+        p_f_n => wind_farm%turbine(s)%f_n                
+        p_Ct_prime => wind_farm%turbine(s)%Ct_prime  
         
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -755,11 +755,11 @@ if (coord == 0) then
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
+        p_f_n = 0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         !write values to file                   
             if (modulo (jt_total, tbase) == 0) then
                write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
-                   Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
+                   0.5*p_Ct_prime*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
             endif 
         !write force to array that will be transferred via MPI    
         disk_force(s) = p_f_n
@@ -815,23 +815,36 @@ character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
 
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
-    if (coord == 0) then  
-        string1 = path // 'turbine/turbine_u_d_T.dat'    
-        inquire (unit=1, opened=opn)
-        if (opn) call error (sub_name, 'unit 1 already open, mark6')        
-        open (unit=1,file = string1, status='unknown',form='formatted', action='write',position='rewind')
-        do i=1,nloc
-            write(1,*) wind_farm%turbine(i)%u_d_T
-        enddo           
-        write(1,*) T_avg_dim
-        close (1)
-    endif
+call turbines_checkpoint
     
 !deallocate
 deallocate(wind_farm%turbine) 
 deallocate(buffer_array)
     
 end subroutine turbines_finalize
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_checkpoint ()
+use open_file_fid_mod
+implicit none
+
+character (*), parameter :: sub_name = mod_name // '.turbines_checkpoint'
+integer :: fid
+
+!write disk-averaged velocity to file along with T_avg_dim
+!useful if simulation has multiple runs   >> may not make a large difference
+if (coord == 0) then  
+    string1 = path // 'turbine/turbine_u_d_T.dat'
+    fid = open_file_fid( string1, 'rewind', 'formatted' )
+    do i=1,nloc
+        write(fid,*) wind_farm%turbine(i)%u_d_T
+    enddo           
+    write(fid,*) T_avg_dim
+    close (fid)
+endif
+    
+end subroutine turbines_checkpoint
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
