@@ -16,9 +16,6 @@ set(hostname "generic")
 #--Set global VERBOSE flag;
 set(VERBOSE false)
 
-#--Sets inclusion of development sections
-set(DEVEL false)
-
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
 
@@ -227,10 +224,6 @@ endif (USE_FFTW3)
 if (VERBOSE)
     add_definitions(-DPPVERBOSE)
 endif (VERBOSE)
-
-if (DEVEL)
-    add_definitions(-DPPDEVEL)
-endif (DEVEL)
 
 if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)
