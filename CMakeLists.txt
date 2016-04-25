@@ -49,9 +49,9 @@ set(USE_CGNS false)
 set(USE_BINARY true)
 
 # Select level set
-set(USE_LVLSET true)
+set(USE_LVLSET false)
 set(USE_RNS_LS false)
-set(USE_CYC_SKEW_LS true)
+set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
