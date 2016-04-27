@@ -140,16 +140,16 @@ if (turbine_cumulative_time) then
             close (fid)
         else  
             write (*, *) 'File ', trim(string1), ' not found'
-            write (*, *) 'Assuming u_d_T = -1. for all turbines'
+            write (*, *) 'Assuming u_d_T = -20. for all turbines'
             do k=1,nloc
-                wind_farm%turbine(k)%u_d_T = -1.
+                wind_farm%turbine(k)%u_d_T = -20.
             enddo
         endif                                    
     endif
 else
-    write (*, *) 'Assuming u_d_T = -1 for all turbines'
+    write (*, *) 'Assuming u_d_T = -20 for all turbines'
     do k=1,nloc
-        wind_farm%turbine(k)%u_d_T = -1.
+        wind_farm%turbine(k)%u_d_T = -20.
     enddo    
 endif
 
