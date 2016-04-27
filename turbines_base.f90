@@ -44,7 +44,6 @@ real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zer
 real(rprec) :: theta2_all   ! angle above horizontal
 
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
-real(rprec) :: Ct_noprime   ! thrust coefficient (default 0.75)
 
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
 
@@ -54,7 +53,13 @@ real(rprec) :: filter_cutoff  ! indicator function only includes values above th
 
 logical :: turbine_cumulative_time ! Used to read in the disk averaged velocities of the turbines
 
-integer :: tbase     ! Number of timesteps between the output
+integer :: tbase            ! Number of timesteps between the output
+
+integer :: turbine_control  ! Control method for turbines. 0 = fixed Ct_prime, 
+                            !  1 = interpolate from file
+                            
+real(rprec), dimension(:), allocatable   :: t_Ctp_list  ! t for turbine_control=1
+real(rprec), dimension(:,:), allocatable :: Ctp_list    ! Ct_prime for turbine_control=1
 
 logical :: use_wake_model                    ! Enable wake model estimator
 real(rprec) :: sigma_du, sigma_k, sigma_Phat ! Variances of noise
@@ -80,8 +85,9 @@ implicit none
 
 character(*), parameter :: sub_name = mod_name // '.turbines_base_init'
 character(*), parameter :: turbine_locations_dat = path // 'turbine_locations.dat'
+character(*), parameter :: Ct_prime_dat = path // 'Ct_prime.dat'
 
-integer :: i, j, k
+integer :: i, j, k, num_t
 real(rprec) :: sxx, syy, shift_base, const
 logical :: exst
 integer :: fid, ios
@@ -103,7 +109,7 @@ if (orientation == 6) then
         call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
     end if
 
-    ! count number of linex and close
+    ! count number of lines and close
     ios = 0
     nloc = 0
     do 
@@ -116,9 +122,42 @@ else
     nloc = num_x*num_y      !number of turbines (locations)
 endif 
 
-!#ifdef PPVERBOSE
+! Read the Ct_prime input data if applicable
+if (turbine_control == 1) then
+    ! Check if file exists and open
+    inquire (file = Ct_prime_dat, exist = exst)
+    if (exst) then
+        fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
+    else
+        call error (sub_name, 'file ' // Ct_prime_dat // 'does not exist')
+    end if
+
+    ! count number of lines and close
+    ios = 0
+    num_t = 0
+    do 
+        read(fid, *, IOstat = ios)
+        if (ios /= 0) exit
+        num_t = num_t + 1
+    enddo
+    close(fid)
+
+    allocate( t_Ctp_list(num_t) )
+    allocate( Ctp_list(num_t, nloc) )
+
+    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) t_Ctp_list(i), Ctp_list(i,:)
+    end do
+    
+    write(*,*) t_Ctp_list
+    write(*,*) Ctp_list
+
+end if
+
+#ifdef PPVERBOSE
 write(*,*) "Number of turbines: ", nloc
-!#endif
+#endif
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
 

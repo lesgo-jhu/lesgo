@@ -9,15 +9,12 @@ cmake_minimum_required(VERSION 2.8.9)
 set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
-# Supported computers: panoramix, njord, marcc
+# Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
 set(hostname "njord")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
-
-#--Sets inclusion of development sections
-set(DEVEL false)
 
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
@@ -50,7 +47,7 @@ set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
-set(USE_RNSE_LS false)
+set(USE_RNS_LS false)
 set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
@@ -83,8 +80,12 @@ project (lesgo)
 set(exec_name "lesgo")
 
 # Common include and link directories
-include_directories($ENV{HOME}/include /usr/local/include /usr/include)
+include_directories(/usr/local/include)
 link_directories(/usr/local/lib)
+if ( NOT(${hostname} STREQUAL "darwin-brew") )
+    include_directories($ENV{HOME}/include /usr/include)
+    link_directories($ENV{HOME}/lib /usr/lib64)
+endif ()
 
 # Include host-specific paths
 #  panoramix
@@ -178,7 +179,7 @@ endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
@@ -226,10 +227,6 @@ if (VERBOSE)
     add_definitions(-DPPVERBOSE)
 endif (VERBOSE)
 
-if (DEVEL)
-    add_definitions(-DPPDEVEL)
-endif (DEVEL)
-
 if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)
 endif (WRITE_ENDIAN STREQUAL "LITTLE")
@@ -255,4 +252,37 @@ else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -framework Accelerate")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
+# Level set subprograms to generate phi
+
+# trees_pre_ls:
+if (USE_LVLSET)
+    set (trees_sources trees_pre_ls.f90 trees_base_ls.f90 trees_setup_ls.f90 
+         trees_io_ls.f90 trees_global_fmask_ls.f90 types.f90 param.f90 
+         messages.f90 string_util.f90 input_util.f90 level_set_base.f90)
+    add_executable(trees_pre_ls ${trees_sources})
+endif()
+
+# cyl_skew_pre_ls:
+if (USE_CYC_SKEW_LS)
+    set(cyl_skew_sources cyl_skew_base_ls.f90 cyl_skew_ls.f90 cyl_skew_pre_ls.f90
+        input_util.f90 param.f90 types.f90 messages.f90 string_util.f90)
+    
+    if (USE_MPI)
+        set(cyl_skew_sources ${cyl_skew_sources} mpi_defs.f90)
+    endif ()
+    
+    if (USE_RNS_LS)
+        set(cyl_skew_sources ${cyl_skew_sources} rns_base_ls.f90 rns_ls.f90 sim_param.f90 
+            functions.f90 grid.f90)
+    endif ()
+    
+    if (USE_LVLSET)
+        set(cyl_skew_sources ${cyl_skew_sources} level_set_base.f90)
+    endif ()
+    
+    add_executable(cyl_skew_pre_ls ${cyl_skew_sources})
+endif ()
+
+# main lesgo executable
 add_executable(${exec_name} ${Sources})
+

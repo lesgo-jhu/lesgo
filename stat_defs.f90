@@ -91,6 +91,7 @@ type turbine_t
   integer :: num_nodes                        ! number of nodes associated with each turbine
   integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
   integer, dimension(6) :: nodes_max          ! search area for nearby nodes
+  real(rprec) :: Ct_prime                     ! thrust coefficient
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node

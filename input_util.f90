@@ -1017,8 +1017,6 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
-     case ('CT_NOPRIME')
-        read (buff(equal_pos+1:), *) Ct_noprime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
@@ -1044,10 +1042,13 @@ do
         read (buff(equal_pos+1:), *) sigma_Phat
      case ('NUM_ENSEMBLE')
         read (buff(equal_pos+1:), *) num_ensemble
+     
+     case ('TURBINE_CONTROL')
+        read (buff(equal_pos+1:), *) turbine_control
 
      case default
-
-        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
+         
      end select
 
   elseif( block_exit_pos == 1 ) then
