@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "njord")
+set(hostname "darwin-brew")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -179,7 +179,8 @@ endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90 wake_model.f90 util.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90 wake_model.f90 util.f90
+        minimize.f90 rh_control.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 

@@ -208,6 +208,8 @@ end subroutine turbines_init
 subroutine wake_model_est_init
 use param, only : u_star, CHAR_BUFF_LENGTH
 use open_file_fid_mod
+use rh_control
+use conjugate_gradient_class
 implicit none
 
 real(rprec) :: U_infty, wm_Delta, wm_Dia
@@ -216,6 +218,12 @@ integer :: i
 type(WakeModel) :: wm_dummy
 character(CHAR_BUFF_LENGTH) :: fpath = 'wake_model'
 logical :: exst
+
+type(MinimizedFarm) :: mfarm
+type(ConjugateGradient) :: cg
+real(rprec), dimension(:), allocatable :: tref, Pref
+real(rprec), dimension(:,:), allocatable :: i_Ctp
+real(rprec) :: i_T, i_t0, i_cfl
 
 string1 = path // 'wake_model/wm_est.dat'
 inquire (file=string1, exist=exst)
@@ -247,6 +255,29 @@ else
     wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, sigma_du, sigma_k, sigma_Phat)
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
+
+i_t0 = 0._rprec
+i_T = 1200._rprec
+i_cfl = 0.99_rprec
+allocate( tref(2) )
+allocate( Pref(2) )
+allocate( i_Ctp(wm_est%wm%N, 2) )
+tref(1) = 0._rprec
+tref(2) = 100._rprec
+Pref = 0.8*sum(wm_est%wm%Phat)
+i_Ctp = 1.33_rprec
+mfarm = MinimizedFarm(wm_est%wm, i_t0, i_T, i_cfl, tref, Pref)
+call mfarm%run(tref, i_Ctp)
+! write(*,*) 'cost:', mfarm%cost
+! write(*,*) 'grad:', mfarm%grad
+! write(*,*) 'Ctp:', mfarm%get_Ctp_vector()
+! write(*,*) 't:', mfarm%t
+! write(*,*) 'Pref:', mfarm%Pref
+! write(*,*) 'Pfarm:', mfarm%Pfarm
+cg = ConjugateGradient(mfarm)
+call cg%minimize(mfarm%get_Ctp_vector())
+write(*,*) mfarm%Pref
+write(*,*) mfarm%Pfarm
 
 ! Generate the files for the wake model estimator
 string1 = trim( path // 'turbine/wake_model_U_infty.dat' )

@@ -80,8 +80,6 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
     integer, intent(in)                   :: i_Nx
     integer                               :: i
     
-         write(*,*) 'WakeModelBase.initialize_val'
-    
     ! Allocate based on number of turbines
     this%N = size(i_s)
     if ( size(i_k) /= this%N ) then
@@ -129,7 +127,7 @@ end subroutine initialize_val
 subroutine computeWakeExpansionFunctions(this)
     implicit none
     class(WakeModelBase), intent(inout) :: this
-    integer                         :: i
+    integer                             :: i
     
     do i = 1, this%N
         this%d(i,:)  = 1.0 + this%k(i) * softplus(2.0 *                                  &
@@ -306,8 +304,6 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
     real(rprec), dimension(:), intent(in) :: i_s, i_k
     integer, intent(in)                   :: i_Nx
     integer                               :: i
-    
-     write(*,*) 'WakeModel.initialize_val'
     
     ! Call base class initializer
     call this%WakeModelBase%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
@@ -706,20 +702,20 @@ end subroutine makeDimensional
 
 subroutine retract(this, fstar, dt, g)
     implicit none
-    class(WakeModelAdjoint), intent(inout)  :: this
-    real(rprec), dimension(:,:), intent(in) :: fstar
-    real(rprec), intent(in)                 :: dt
-    real(rprec), intent(out)                :: g
-    real(rprec), dimension(:), allocatable  :: k1star, k2star, k3star, k4star
-    real(rprec), dimension(:), allocatable  :: k1star_rhs, k2star_rhs, k3star_rhs, k4star_rhs
-    real(rprec)                             :: gk1s, gk2s, gk3s, gk4s
-    real(rprec), dimension(:), allocatable  :: dummy_zeros
-    integer                                 :: i
+    class(WakeModelAdjoint), intent(inout)   :: this
+    real(rprec), dimension(:,:), intent(in)  :: fstar
+    real(rprec), intent(in)                  :: dt
+    real(rprec), dimension(:), intent(inout) :: g
+    real(rprec), dimension(:), allocatable   :: k1star, k2star, k3star, k4star
+    real(rprec), dimension(:), allocatable   :: k1star_rhs, k2star_rhs, k3star_rhs, k4star_rhs
+    real(rprec)                              :: gk1s, gk2s, gk3s, gk4s
+    real(rprec), dimension(:), allocatable   :: dummy_zeros
+    integer                                  :: i
     
     do i = 1, this%N
         this%dustar(i,:) = this%dustar(i,:) - this%rhs(this%dustar(i,:), fstar(i,:), i) * dt
+        g(i) = sum(this%G(i,:) * this%dustar(i,:) / this%d(i,:) / this%d(i,:)) * this%dx
     end do
-    g = sum(this%G * this%dustar / this%d / this%d) * this%dx
     
 end subroutine retract
 
@@ -1083,6 +1079,9 @@ subroutine advance(this, dt, Pm, Ctp)
     r1_if = this%wm%Ctp(1) / ( 4.d0 + this%wm%Ctp(1) )
     Uinftyi = ( Pm(1) / this%wm%Ctp(1) )**(1.d0/3.d0) / (1.d0 - r1_if)
     this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
+    this%wm%VELOCITY = this%wm%U_infty
+    this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
+    this%wm%FORCE = this%wm%VELOCITY / this%wm%TIME
         
     ! Fill into objects
     do i = 1, this%Ne
@@ -1091,7 +1090,10 @@ subroutine advance(this, dt, Pm, Ctp)
             jend   = j*Nx
             this%ensemble(i)%du(j,:)  = this%A(jstart:jend,i)
         end do
-        this%ensemble(i)%U_infty  = this%wm%U_infty
+        this%ensemble(i)%U_infty  = this%ensemble(i)%U_infty
+        this%ensemble(i)%VELOCITY = this%ensemble(i)%U_infty
+        this%ensemble(i)%TIME  = this%ensemble(i)%LENGTH / this%ensemble(i)%VELOCITY
+        this%ensemble(i)%FORCE = this%ensemble(i)%VELOCITY / this%ensemble(i)%TIME
         this%ensemble(i)%k(1:N-1) = this%A(Nx*N+1:,i)
         this%ensemble(i)%k(N)     = this%ensemble(i)%k(N-1)
     end do
