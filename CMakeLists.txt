@@ -132,7 +132,7 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
      press_stag_array.f90 ran3.f90 rmsdiv.f90 scaledep_dynamic.f90 
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 
-     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90 wake_model.f90 util.f90)
+     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90)
 
 link_libraries(lapack blas)
 
@@ -179,7 +179,7 @@ endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90 wake_model.f90 util.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
