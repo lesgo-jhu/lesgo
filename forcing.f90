@@ -28,6 +28,11 @@ module forcing
 ! routines for enforcing a uniform inflow and the fringe region
 ! treatment.
 !
+
+#ifdef PPHIT
+use hit_inflow, only : inflow_HIT
+#endif
+
 implicit none
 
 save
@@ -263,9 +268,12 @@ do jz = jz_min, nz - 1
   end do
 end do
 
+! Cases for CPS, Isotropic Turbulence and Uniform inflow
 #ifdef PPCPS
 call synchronize_cps()
 if( inflow ) call inflow_cond_cps()
+#elif defined(PPHIT)
+if( inflow ) call inflow_HIT()
 #else
 if ( inflow ) call inflow_cond ()
 #endif

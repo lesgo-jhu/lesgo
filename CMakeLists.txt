@@ -57,6 +57,9 @@ set(USE_CYC_SKEW_LS false)
 # Requires configuration of two builds: upstream and downstream
 set(USE_CPS false)
 
+# Homogeneous isotropic turbulence input
+set(USE_HIT true)
+
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
 set(USE_STREAKS false)
@@ -147,6 +150,13 @@ if (USE_CPS)
     set(Sources ${Sources} concurrent_precursor.f90)
     set(exec_name "${exec_name}-cps")
 endif (USE_CPS)
+
+if (USE_HIT)
+    add_definitions(-DPPHIT)
+    set(Sources ${Sources} hit_inflow.f90)
+    set(exec_name "${exec_name}-HIT")
+endif (USE_HIT)
+
 
 if (USE_STREAKS)
     add_definitions(-DPPSTREAKS)
