@@ -58,7 +58,7 @@ set(USE_CYC_SKEW_LS false)
 set(USE_CPS false)
 
 # Homogeneous isotropic turbulence input
-set(USE_HIT true)
+set(USE_HIT false)
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
