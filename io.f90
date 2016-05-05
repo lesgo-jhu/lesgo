@@ -1004,6 +1004,12 @@ use string_util, only : string_concat
 #if PPUSE_TURBINES
 use turbines, only : turbines_checkpoint
 #endif
+
+! HIT Inflow
+#ifdef PPHIT
+use hit_inflow, only : hit_write_restart
+#endif
+
 implicit none
 character(64) :: fname
 real(rprec) :: cfl_w
@@ -1056,6 +1062,10 @@ if(iwm_on==1)then
 	if(coord == 0) call iwm_checkPoint()
 endif
 endif
+
+#ifdef PPHIT
+	if(coord == 0) call hit_write_restart()
+#endif
 
 #if PPUSE_TURBINES
 call turbines_checkpoint

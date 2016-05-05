@@ -77,6 +77,9 @@ type hit_t
     character(128) :: v_file ! file of v field
     character(128) :: w_file ! file of w field
 
+    ! Name of the restart file
+    character(128) :: restartFile='restartHIT.dat'
+
 end type hit_t
 
 ! Declare turbine array variable
@@ -144,6 +147,9 @@ allocate(hit % w_plane(ny, nz))
 
 ! Read the input velocity field
 call extract_HIT_data()
+
+! Read the restart file if present
+call hit_read_restart()
 
 end subroutine initialize_HIT
 
@@ -289,6 +295,55 @@ do i = istart + 1, iend - 1
 end do
 
 end subroutine inflow_HIT
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine hit_write_restart()
+! This subroutine writes the hit restart information
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer :: restartFile=21 ! File to write restart data
+
+! Open the file 
+open( unit=restartFile, file=trim(hit % restartFile), status="replace")
+
+write(restartFile,*) 'xloc'
+
+! Store the location x in the file
+write(restartFile,*) hit % xloc
+
+close(restartFile)
+
+
+end subroutine hit_write_restart
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine hit_read_restart()
+! This subroutine reads the hit restart information
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+
+integer :: restartFile=27 ! File to write restart data
+logical :: file_exists  ! Flag to check if restart file exists
+
+! Check if restart file exists
+inquire(file = trim(hit % restartFile), exist=file_exists)
+
+! If restart file exists read it
+if (file_exists) then
+    ! Open the file
+    open( unit=restartFile, file=trim(hit % restartFile), action="read")
+
+    ! Read past the first line
+    read(restartFile,*)
+
+    ! Read the location x in the file
+    read(restartFile,*) hit % xloc
+    
+    close(restartFile)
+endif
+
+end subroutine hit_read_restart
 
 !-------------------------------------------------------------------------------
 function interpolate3D(xp, yp, zp, x, y, z, u)
