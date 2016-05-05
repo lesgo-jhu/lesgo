@@ -42,24 +42,24 @@ integer, parameter :: nzone = 1  ! # of averaging zones for dyn. Cd
 integer, parameter :: tree_node = 1  ! trees based on u, v, or w nodes
 
 !--specify force model to be used
-#if strcmp(PPfmodel,"d")
+! #if strcmp(PPfmodel,"d")
 character (*), parameter :: fmodel = 'd'
 integer, parameter :: nfcoeff = 1
-#elif strcmp(PPfmodel,"d_germano")
-character (*), parameter :: fmodel = 'd_germano'
-integer, parameter :: nfcoeff = 1
-#elif strcmp(PPfmodel,"dls")
-character (*), parameter :: fmodel = 'dls'
-integer, parameter :: nfcoeff = 3
-#elif strcmp(PPfmodel,"nba")
-character (*), parameter :: fmodel = 'nba'
-integer, parameter :: nfcoeff = 3
-#else
-!#error "Invalid force model specification" CS-I don't know how to do this with cpp
-#endif
+! #elif strcmp(PPfmodel,"d_germano")
+! character (*), parameter :: fmodel = 'd_germano'
+! integer, parameter :: nfcoeff = 1
+! #elif strcmp(PPfmodel,"dls")
+! character (*), parameter :: fmodel = 'dls'
+! integer, parameter :: nfcoeff = 3
+! #elif strcmp(PPfmodel,"nba")
+! character (*), parameter :: fmodel = 'nba'
+! integer, parameter :: nfcoeff = 3
+! #else
+! !#error "Invalid force model specification" CS-I don't know how to do this with cpp
+! #endif
 
-character (*), parameter :: fmodel = $str($fmodel)
-integer, parameter :: nfcoeff = $nfcoeff
+! character (*), parameter :: fmodel = $str($fmodel)
+! integer, parameter :: nfcoeff = $nfcoeff
 
 !--beware, some of these are no longer in use
 logical, parameter :: use_tecplot = .true.
