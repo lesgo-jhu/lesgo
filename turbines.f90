@@ -764,11 +764,11 @@ if (coord == 0) then
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = 0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
+        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         !write values to file                   
             if (modulo (jt_total, tbase) == 0) then
                write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
-                   0.5*p_Ct_prime*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
+                   -0.5*p_Ct_prime*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
             endif 
         !write force to array that will be transferred via MPI    
         disk_force(s) = p_f_n
