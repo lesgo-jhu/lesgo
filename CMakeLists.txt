@@ -26,9 +26,8 @@ set(OUTPUT_EXTRA false)
 # Use FFTW3 libraries (if no FFTW2 will be used)
 set(USE_FFTW3 true)
 
-# Enable parallization support (openmp currently not supported)
+# Enable parallelization support
 set(USE_MPI true)
-set(USE_OPENMP false)
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
