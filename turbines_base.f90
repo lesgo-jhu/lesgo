@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2012-2013  Johns Hopkins University
+!!  Copyright (C) 2012-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -55,14 +55,25 @@ logical :: turbine_cumulative_time ! Used to read in the disk averaged velocitie
 
 integer :: tbase            ! Number of timesteps between the output
 
-integer :: turbine_control  ! Control method for turbines. 0 = fixed Ct_prime, 
+integer :: turbine_control  ! Control method for turbines. 
+                            !  0 = fixed Ct_prime
                             !  1 = interpolate from file
+                            !  2 = receding horizon control
+                            
+real(rprec) :: advancement_time
+real(rprec) :: horizon_time
+integer     :: max_iter
+real(rprec) :: rh_gamma, rh_eta
                             
 real(rprec), dimension(:), allocatable   :: t_Ctp_list  ! t for turbine_control=1
 real(rprec), dimension(:,:), allocatable :: Ctp_list    ! Ct_prime for turbine_control=1
 
-logical :: use_wake_model                    ! Enable wake model estimator
-real(rprec) :: sigma_du, sigma_k, sigma_Phat ! Variances of noise
+real(rprec), dimension(:), allocatable   :: t_Pref_list ! t for turbine_control=2
+real(rprec), dimension(:), allocatable   :: Pref_list   ! Pref for turbine_control=2
+
+logical :: use_wake_model
+real(rprec) :: sigma_du, sigma_k, sigma_Phat  ! Variances of noise
+real(rprec) :: tau_U_infty                    ! Filter time for U_infty
 integer  :: num_ensemble
  
 ! The following are derived from the values above
@@ -86,6 +97,7 @@ implicit none
 character(*), parameter :: sub_name = mod_name // '.turbines_base_init'
 character(*), parameter :: turbine_locations_dat = path // 'turbine_locations.dat'
 character(*), parameter :: Ct_prime_dat = path // 'Ct_prime.dat'
+character(*), parameter :: Pref_dat = path // 'Pref.dat'
 
 integer :: i, j, k, num_t
 real(rprec) :: sxx, syy, shift_base, const
@@ -143,16 +155,42 @@ if (turbine_control == 1) then
     close(fid)
 
     allocate( t_Ctp_list(num_t) )
-    allocate( Ctp_list(num_t, nloc) )
+    allocate( Ctp_list(nloc, num_t) )
 
     fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
     do i = 1, num_t
         read(fid,*) t_Ctp_list(i), Ctp_list(i,:)
     end do
     
-    write(*,*) t_Ctp_list
-    write(*,*) Ctp_list
+end if
 
+! Read the reference signal if applicable
+if(turbine_control == 2) then
+    ! Check if file exists and open
+    inquire (file = Pref_dat, exist = exst)
+    if (exst) then
+        fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
+    else
+        call error (sub_name, 'file ' // Pref_dat // 'does not exist')
+    end if
+
+    ! count number of lines and close
+    ios = 0
+    num_t = 0
+    do 
+        read(fid, *, IOstat = ios)
+        if (ios /= 0) exit
+        num_t = num_t + 1
+    enddo
+    close(fid)
+
+    allocate( t_Pref_list(num_t) )
+    allocate( Pref_list(num_t) )
+
+    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) t_Pref_list(i), Pref_list(i)
+    end do
 end if
 
 #ifdef PPVERBOSE
@@ -268,11 +306,11 @@ elseif (orientation == 6) then
     close(fid)
 endif
 
-!#ifdef PPVERBOSE
+! #ifdef PPVERBOSE
 do k = 1, nloc
     write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height 
 enddo
-!#endif
+! #endif
             
 ! orientation (angles)
 wind_farm%turbine(:)%theta1 = theta1_all

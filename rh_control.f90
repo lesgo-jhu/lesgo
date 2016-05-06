@@ -44,20 +44,20 @@ type, extends(Minimized) :: MinimizedFarm
     real(rprec), dimension(:,:), allocatable     :: grad    ! gradient (turbine, time)
     real(rprec), dimension(:,:), allocatable     :: fdgrad  ! finite-difference gradient (turbine, time)
     real(rprec) :: Ctp0 = 1.33_rprec
-    real(rprec) :: gamma = 0.0_rprec! 0.05_rprec
-    real(rprec) :: eta = 0.0_rprec! 0.005_rprec
+    real(rprec) :: gamma =  0._rprec
+    real(rprec) :: eta =  0._rprec
     real(rprec) :: POWER = 0._rprec
     real(rprec) :: cfl, dt              ! Constant time step
     integer     :: N, Nt
     logical     :: isDimensionless = .false.
 contains
-    procedure, public :: eval
-    procedure, public :: get_Ctp_vector
-    procedure, public :: initialize
-    procedure, public :: makeDimensionless
-    procedure, public :: makeDimensional
-    procedure, public :: finiteDifferenceGradient
-    procedure, public :: run => run_input
+    procedure, public  :: eval
+    procedure, public  :: get_Ctp_vector
+    procedure, public  :: initialize
+    procedure, public  :: makeDimensionless
+    procedure, public  :: makeDimensional
+    procedure, public  :: finiteDifferenceGradient
+    procedure, public  :: run => run_input
     procedure, private :: run_noinput
 end type MinimizedFarm
 
@@ -67,24 +67,29 @@ end interface MinimizedFarm
 
 contains
 
-function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref) result(this)
+function constructor(i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta) result(this)
     implicit none
     type(MinimizedFarm)                         :: this
     class(WakeModel), intent(in)                :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
-    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl
+    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
     
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref) 
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta) 
 end function constructor
 
-subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
+subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta)
     use util, only : interpolate
     implicit none
     class(MinimizedFarm)                        :: this
     class(WakeModel), intent(in)                :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
-    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl
+    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
     integer                                     :: i
+        
+    ! Set reference values
+    this%Ctp0 = i_Ctp0
+    this%gamma = i_gamma
+    this%eta = i_eta
         
     ! Set initial condition for wake model
     this%iw = i_wm
@@ -112,17 +117,16 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
     allocate( this%Pref(this%Nt) )
     allocate( this%Pfarm(this%Nt) )
     call interpolate(i_time, i_Pref, this%t, this%Pref)
-    write(*,*) i_time
-    write(*,*) i_Pref
-    write(*,*) this%t
-    write(*,*) this%Pref
-    write(*,*) this%POWER
     
     ! Allocate other variables
     allocate( this%Ctp(this%N, this%Nt)    )
     allocate( this%grad(this%N, this%Nt)   )
     allocate( this%fdgrad(this%N, this%Nt) )
     
+    ! Put state of wake model Ctp into first array
+    do i = 1, this%Nt
+        this%Ctp(:, i) = this%iw%Ctp
+    end do
     
 end subroutine initialize
 
@@ -141,7 +145,7 @@ subroutine run_input(this, i_t, i_Ctp)
     do n = 1, this%N
         call interpolate(i_t, i_Ctp(n,:), this%t(2:) *  this%w%TIME, this%Ctp(n,2:))
     end do
-    this%Ctp(:,1) = this%Ctp0
+    this%Ctp(:,1) = this%iw%Ctp
     
     call this%run_noinput
 end subroutine run_input
@@ -264,9 +268,10 @@ subroutine makeDimensionless(this)
     
     if (.not.this%isDimensionless) then
         this%isDimensionless = .true.
-        this%Pref = this%Pref / this%POWER
-        this%t    = this%t    / this%w%TIME
-        this%dt   = this%dt   / this%w%TIME
+        this%Pref  = this%Pref / this%POWER
+        this%Pfarm = this%Pfarm / this%POWER
+        this%t     = this%t    / this%w%TIME
+        this%dt    = this%dt   / this%w%TIME
         call this%w%makeDimensionless
         call this%wstar%makeDimensionless
         call this%iw%makeDimensionless
@@ -280,9 +285,10 @@ subroutine makeDimensional(this)
     
     if (this%isDimensionless) then
         this%isDimensionless = .false.
-        this%Pref = this%Pref * this%POWER
-        this%t    = this%t    * this%w%TIME
-        this%dt   = this%dt   * this%w%TIME
+        this%Pref  = this%Pref * this%POWER
+        this%Pfarm = this%Pfarm * this%POWER
+        this%t     = this%t    * this%w%TIME
+        this%dt    = this%dt   * this%w%TIME
         call this%w%makeDimensional
         call this%wstar%makeDimensional
         call this%iw%makeDimensional
@@ -302,7 +308,7 @@ subroutine eval(this, x, f, g)
     do k = 1, this%Nt-1
         this%Ctp(:,k + 1) = x((k - 1) * this%N + 1 : this%N * k)
     end do
-    this%Ctp(:,1) = this%Ctp0
+    this%Ctp(:,1) = this%iw%Ctp
 
     ! Run model
     call this%run_noinput

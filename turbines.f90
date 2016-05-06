@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2010-2013  Johns Hopkins University
+!!  Copyright (C) 2010-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -31,7 +31,6 @@ use grid_defs, only: grid
 use messages
 use string_util
 use wake_model_estimator_class
-use wake_model_class
 
 implicit none
 
@@ -62,9 +61,12 @@ logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
-integer :: fid_k, fid_U_infty, fid_Phat
+integer :: fid_k, fid_U_infty, fid_Phat, fid_u
+integer :: counter = 0
 
 type(wakeModelEstimator) :: wm_est
+real(rprec) :: next_opt_time
+! type(
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -72,6 +74,7 @@ contains
 
 subroutine turbines_init()
 
+use util, only : interpolate
 use open_file_fid_mod
 implicit none
 
@@ -122,6 +125,7 @@ call turbines_nodes                  ! removed large 3D array to limit memory us
 !2.associate new nodes with turbines                               
 !3.normalize such that each turbine's ind integrates to turbine volume
 !4.split domain between processors 
+call turbines_filter_ind()
 
 if (turbine_cumulative_time) then
     if (coord == 0) then
@@ -153,10 +157,14 @@ else
     enddo    
 endif
 
-! Set all Ct_prime to reference in input file
-do k=1,nloc
-    wind_farm%turbine(k)%Ct_prime = Ct_prime
-enddo 
+! Calculate the current Ct_prime
+do k = 1, nloc
+    if (turbine_control == 1) then
+        call interpolate(t_Ctp_list, Ctp_list(k,:), total_time_dim, wind_farm%turbine(k)%Ct_prime)
+    else
+        wind_farm%turbine(k)%Ct_prime = Ct_prime
+    end if
+end do
    
 if (coord .eq. nproc-1) then
     string1=path // 'output/vel_top_of_domain.dat'
@@ -193,12 +201,23 @@ enddo
 
 nullify(x,y,z)
 
-#ifdef PPMPI
-if (use_wake_model .and. coord == 0) then
-#else
+if (turbine_control == 2) then
+    use_wake_model = .true.
+end if
+
 if (use_wake_model) then
-#endif
     call wake_model_est_init
+end if
+
+if (turbine_control == 2) then
+#ifdef PPMPI
+    if (coord == 0) then
+        call rh_control_init
+    end if
+    call transfer_Ctp_list
+#else 
+    call rh_control_init
+#endif
 end if
 
 end subroutine turbines_init
@@ -208,22 +227,17 @@ end subroutine turbines_init
 subroutine wake_model_est_init
 use param, only : u_star, CHAR_BUFF_LENGTH
 use open_file_fid_mod
-use rh_control
-use conjugate_gradient_class
+use wake_model_class
+use util, only : interpolate
 implicit none
 
 real(rprec) :: U_infty, wm_Delta, wm_Dia
 real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
+real(rprec) :: ind_factor
 integer :: i
 type(WakeModel) :: wm_dummy
 character(CHAR_BUFF_LENGTH) :: fpath = 'wake_model'
 logical :: exst
-
-type(MinimizedFarm) :: mfarm
-type(ConjugateGradient) :: cg
-real(rprec), dimension(:), allocatable :: tref, Pref
-real(rprec), dimension(:,:), allocatable :: i_Ctp
-real(rprec) :: i_T, i_t0, i_cfl
 
 string1 = path // 'wake_model/wm_est.dat'
 inquire (file=string1, exist=exst)
@@ -239,7 +253,7 @@ else
     allocate( wm_k(num_x) )
     allocate( wm_s(num_x) )
 
-    wm_k = 0.05
+    wm_k = 0.05_rprec
 
     do i = 1, num_x
         wm_s(i)   = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
@@ -248,36 +262,15 @@ else
 
     U_infty = 0
     do i = 1, num_y
-        U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star)**3 / num_y
+        ind_factor =  wind_farm%turbine(i)%Ct_prime / ( 4.d0 + wind_farm%turbine(i)%Ct_prime )
+        U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star / (1._rprec - ind_factor))**3 / num_y 
     end do
-    U_infty = U_infty**(1.d0/3.d0)
+    U_infty = U_infty**(1._rprec/3._rprec)
 
-    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, sigma_du, sigma_k, sigma_Phat)
+    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx, num_ensemble, &
+                                sigma_du, sigma_k, sigma_Phat, tau_U_infty)
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
-
-i_t0 = 0._rprec
-i_T = 1200._rprec
-i_cfl = 0.99_rprec
-allocate( tref(2) )
-allocate( Pref(2) )
-allocate( i_Ctp(wm_est%wm%N, 2) )
-tref(1) = 0._rprec
-tref(2) = 100._rprec
-Pref = 0.8*sum(wm_est%wm%Phat)
-i_Ctp = 1.33_rprec
-mfarm = MinimizedFarm(wm_est%wm, i_t0, i_T, i_cfl, tref, Pref)
-call mfarm%run(tref, i_Ctp)
-! write(*,*) 'cost:', mfarm%cost
-! write(*,*) 'grad:', mfarm%grad
-! write(*,*) 'Ctp:', mfarm%get_Ctp_vector()
-! write(*,*) 't:', mfarm%t
-! write(*,*) 'Pref:', mfarm%Pref
-! write(*,*) 'Pfarm:', mfarm%Pfarm
-cg = ConjugateGradient(mfarm)
-call cg%minimize(mfarm%get_Ctp_vector())
-write(*,*) mfarm%Pref
-write(*,*) mfarm%Pfarm
 
 ! Generate the files for the wake model estimator
 string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
@@ -286,9 +279,168 @@ string1 = trim( path // 'turbine/wake_model_k.dat' )
 fid_k = open_file_fid( string1, 'append', 'formatted' )
 string1 = trim( path // 'turbine/wake_model_Phat.dat' )
 fid_Phat = open_file_fid( string1, 'append', 'formatted' )
+string1 = trim( path // 'turbine/wake_model_u.dat' )
+fid_u = open_file_fid( string1, 'append', 'formatted' )
 
 end subroutine wake_model_est_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine rh_control_init
+use rh_control
+use conjugate_gradient_class
+use open_file_fid_mod
+implicit none
+
+type(MinimizedFarm) :: mfarm
+type(ConjugateGradient) :: cg
+integer :: num_list
+integer :: fid
+
+next_opt_time = total_time_dim + advancement_time
+
+string1 = path // 'turbine/turbine_Ctp_list.dat'
+inquire (file=string1, exist=exst)
+if (exst) then
+    write(*,*) 'Reading from file turbine_Ctp_list.dat'
+    fid = open_file_fid( string1, 'rewind', 'formatted' )
+    read(fid,*) num_list
+    allocate( t_Ctp_list(num_list) )
+    allocate( Ctp_list(nloc, num_list) )
+    read(fid,*) t_Ctp_list
+    do i=1,nloc
+        read(fid,*) Ctp_list(i,:)  
+    enddo
+    close (fid)
+else  
+    allocate( t_Ctp_list(2) )
+    allocate( Ctp_list(nloc, 2) )
+    t_Ctp_list(1) = total_time_dim
+    t_Ctp_list(2) = next_opt_time-0.000009_rprec
+    Ctp_list = Ct_prime
+endif
+
+end subroutine rh_control_init
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine rh_set_Ctp_list(t_in, Ctp_in)
+implicit none
+real(rprec), dimension(:), intent(in) :: t_in
+real(rprec), dimension(:,:), intent(in) :: Ctp_in
+integer :: i, j, num_t_include, Nt, t_include_start, t_include_stop
+real(rprec), dimension(:), allocatable :: t_temp
+real(rprec), dimension(:,:), allocatable :: Ctp_temp
+
+! Count the number of entries to keep
+num_t_include = 0
+t_include_start = -1
+do i = 1, size(t_Ctp_list)
+    if ( t_include_start < 0 ) then
+        if ( t_Ctp_list(i) >= total_time_dim - advancement_time) then
+            t_include_start = i
+            num_t_include = 1
+        end if
+    else
+        if ( t_Ctp_list(i) < next_opt_time ) then
+            num_t_include = num_t_include + 1
+        else 
+            exit
+        end if
+    end if
+end do
+
+Nt = num_t_include + size(t_in)
+t_include_stop = t_include_start + num_t_include - 1
+! write(*,*) 'here:', num_t_include, t_include_start, t_include_stop
+
+! Store old values in temporary arrays
+t_temp = t_Ctp_list
+Ctp_temp = Ctp_list
+
+! Reallocate the size of the list
+deallocate(t_Ctp_list)
+deallocate(Ctp_list)
+allocate( t_Ctp_list(Nt)  )
+allocate( Ctp_list(nloc, Nt) )
+
+! Place old values into array
+t_Ctp_list(1:num_t_include) = t_temp(t_include_start:t_include_stop)
+Ctp_list(:,1:num_t_include) = Ctp_temp(:,t_include_start:t_include_stop)
+
+! Place new values into array
+t_Ctp_list(num_t_include+1:) = t_in
+do i = 1, num_x
+    do j = 1, num_y
+        Ctp_list((i-1)*num_y+j,num_t_include+1:) = Ctp_in(i,:)
+    end do
+end do
+! 
+! write(*,*) 't_Ctp_list:'
+! write(*,*) t_Ctp_list
+! write(*,*) 'Ctp_list:'
+! write(*,*) Ctp_list
+
+deallocate(t_temp)
+deallocate(Ctp_temp)
+
+end subroutine rh_set_Ctp_list
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#ifdef PPMPI
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine transfer_Ctp_list
+implicit none
+integer :: i, j, Nt, Ntemp
+real(rprec), dimension(:), allocatable :: temp_array
+
+! Transfer the size of t_Ctp_list
+call mpi_barrier (comm, ierr)
+if (coord == 0) then 
+    Nt = size(t_Ctp_list)
+    do i = 1, turbine_in_proc_cnt
+        call MPI_send( Nt, 1, MPI_rprec, i, 3, comm, ierr )
+    end do
+elseif (turbine_in_proc) then
+    call MPI_recv( Nt, 1, MPI_rprec, 0, 3, comm, status, ierr )
+end if
+
+! Allocate the lists if needed
+if ( coord /= 0 .and. allocated(t_Ctp_list) ) then
+    deallocate(t_Ctp_list)
+    deallocate(Ctp_list)
+end if
+
+Ntemp = Nt * (num_x + 1)
+allocate( temp_array(Ntemp) )
+call mpi_barrier (comm, ierr)
+if (coord == 0) then 
+    temp_array(1:Nt) = t_Ctp_list
+    do i = 1, num_x
+        temp_array(Nt*i+1:Nt*(i+1)) = Ctp_list(i+num_y*(i-1),:)
+    end do
+    do i = 1, turbine_in_proc_cnt
+        call MPI_send( temp_array, Ntemp, MPI_rprec, i, 3, comm, ierr )
+    end do
+elseif (turbine_in_proc) then
+    allocate( t_Ctp_list(Nt) )
+    allocate( Ctp_list(nloc, Nt) )
+    call MPI_recv( temp_array, Ntemp, MPI_rprec, 0, 3, comm, status, ierr )
+    ! Place new values into array
+    t_Ctp_list = temp_array(1:Nt)
+    do i = 1, num_x
+        do j = 1, num_y
+            Ctp_list((i-1)*num_y+j,:) = temp_array(Nt*i+1:Nt*(i+1))
+        end do
+    end do
+    
+end if
+
+deallocate(temp_array)
+
+end subroutine transfer_Ctp_list
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !subroutine turbines_nodes(array) ! removed large 3D array to limit memory use
@@ -738,6 +890,7 @@ subroutine turbines_forcing()
 use sim_param, only : u,v,w, fxa,fya,fza
 use functions, only : interp_to_uv_grid
 use util, only : interpolate
+use rh_control
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -749,6 +902,7 @@ real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
+
 real(rprec), dimension(:), allocatable :: wm_Pm, wm_Ctp
 
 nullify(y,z)
@@ -830,9 +984,9 @@ endif
 #endif
 
 !Calculate the current Ct_prime
-if (turbine_control == 1) then
+if (turbine_control > 0 .and. turbine_in_proc) then
     do s = 1, nloc
-        call interpolate(t_Ctp_list, Ctp_list(:,s), total_time_dim, wind_farm%turbine(s)%Ct_prime)
+        call interpolate(t_Ctp_list, Ctp_list(s,:), total_time_dim, wind_farm%turbine(s)%Ct_prime)
     end do
 endif
 
@@ -863,11 +1017,10 @@ if (coord == 0) then
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = 0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
+        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         !write values to file                   
             if (modulo (jt_total, tbase) == 0) then
-               write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
-                   0.5*p_Ct_prime*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
+               write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_Ct_prime
             endif 
         !write force to array that will be transferred via MPI    
         disk_force(s) = p_f_n
@@ -888,6 +1041,10 @@ endif
 #endif 
 
 ! Advance the wake model estimator
+if (turbine_control == 2) then
+    call eval_rh_control
+end if
+
 #ifdef PPMPI
 if (use_wake_model .and. coord == 0) then
 #else
@@ -895,11 +1052,13 @@ if (use_wake_model) then
 #endif
     ! Input thrust coefficient
     allocate ( wm_Ctp(num_x) )
-    wm_Ctp = Ct_prime
+    do i = 1, num_x
+        wm_Ctp(i) = wind_farm%turbine((i-1)*num_y+1)%Ct_prime
+    end do
 
     ! Measure average power along row
     allocate ( wm_Pm(num_x) )
-    wm_Pm = 0.d0
+    wm_Pm = 0._rprec
     do i = 1, num_x
         do j = 1,num_y
             wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) * (wind_farm%turbine((i-1)*num_y+j)%u_d_T * u_star)**3 / num_y
@@ -914,7 +1073,11 @@ if (use_wake_model) then
         write(fid_k, *) total_time_dim, wm_est%wm%k
         write(fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
         write(fid_Phat, *) total_time_dim, wm_est%wm%Phat
+        write(fid_u, *) total_time_dim, wm_est%wm%u
     end if
+    
+    deallocate(wm_Pm)
+    deallocate(wm_Ctp)
 end if
 
 !apply forcing to each node
@@ -946,22 +1109,102 @@ end subroutine turbines_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine eval_rh_control
+use rh_control
+use conjugate_gradient_class
+use wake_model_class
+use util, only : interpolate
+implicit none
+
+type(MinimizedFarm) :: mfarm
+type(ConjugateGradient) :: cg
+real(rprec), dimension(:,:), allocatable :: Ctp_dummy
+type(WakeModel) :: wm_temp
+real(rprec) :: dt_adv
+integer ::  N_adv
+real(rprec), dimension(:), allocatable :: Ctp_adv
+
+#ifdef PPMPI
+if (coord == 0) then
+#endif
+    if (total_time_dim > next_opt_time) then
+!     counter = counter + 1
+        ! Advance the counter
+        next_opt_time = total_time_dim + advancement_time
+        
+!         write(*,*) 'total_time_dim, next_opt_time', total_time_dim, next_opt_time
+        
+        ! Advance wake model to next optimization time
+        wm_temp = wm_est%wm
+        N_adv = ceiling( (next_opt_time - total_time_dim) / dt_dim)
+        dt_adv = (next_opt_time - total_time_dim) / N_adv
+        allocate( Ctp_adv(num_x) )
+        do i = 1, N_adv
+            do j = 1, num_x
+                call interpolate(t_Ctp_list, Ctp_list((j-1)*num_y+1,:), dt_adv*i + total_time_dim, Ctp_adv(j))
+            end do
+!             write(*,*) 'time, Ctp_adv:'
+!             write(*,*) dt_adv*i + total_time_dim, Ctp_adv
+            call wm_temp%advance(Ctp_adv, dt_adv)
+!             write(*,*) Ctp_adv
+        end do
+!         write(*,*) wm_temp%Ctp
+        
+        ! Set initial guess
+        allocate(Ctp_dummy(num_x, size(t_Ctp_list)))
+        do i = 1, num_x
+            Ctp_dummy(i,:) = Ctp_list((i-1)*num_y+1,:)
+        end do
+!         write(*,*) 't_Ctp_list:'
+!         write(*,*) t_Ctp_list
+!         write(*,*) 'Ctp_dummy:'
+!         write(*,*) Ctp_dummy
+!         write(*,*) 'wm_temp%Ctp:'
+!         write(*,*) wm_temp%Ctp
+!         
+        ! Run initial guess in object
+        mfarm = MinimizedFarm(wm_temp, next_opt_time, horizon_time, 0.99_rprec, Ct_prime,&
+                              t_Pref_list, Pref_list, rh_gamma, rh_eta)
+        call mfarm%run(t_Ctp_list, Ctp_dummy)
+    
+        ! Perform optimization
+        write(*,*) "Performing next optimization..."
+        cg = ConjugateGradient(mfarm, max_iter)
+        call cg%minimize(mfarm%get_Ctp_vector())
+        call mfarm%makeDimensional
+        
+!         write(*,*) 'mfarm%t:'
+!         write(*,*) mfarm%t
+!         write(*,*) 'mfarm%Ctp:'
+!         write(*,*) mfarm%Ctp
+!         write(*,*) 'mfarm%Pfarm:'
+!         write(*,*) mfarm%Pfarm
+
+        ! Place results into list
+        call rh_set_Ctp_list(mfarm%t, mfarm%Ctp)
+        
+        deallocate(Ctp_dummy)
+        deallocate(Ctp_adv)
+    end if
+
+#ifdef PPMPI
+end if
+
+call transfer_Ctp_list
+#endif
+
+end subroutine eval_rh_control
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_finalize ()
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
 
 !write disk-averaged velocity to file along with T_avg_dim
-!useful if simulation has multiple runs   >> may not make a large difference
+!useful if simulation has multiple runs   >> may not make a large difference    
 call turbines_checkpoint
-    
-#ifdef PPMPI
-if (use_wake_model .and. coord == 0) then
-#else
-if (use_wake_model) then
-#endif
-    call wm_est%write_to_file(path // 'wake_model')
-end if
     
 !deallocate
 deallocate(wind_farm%turbine) 
@@ -989,6 +1232,32 @@ if (coord == 0) then
     write(fid,*) T_avg_dim
     close (fid)
 endif
+
+! Checkpoint wake model estimator
+#ifdef PPMPI
+if (use_wake_model .and. coord == 0) then
+#else
+if (use_wake_model) then
+#endif
+    call wm_est%write_to_file(path // 'wake_model')
+end if
+
+! Checkpoint receding horizon control
+#ifdef PPMPI
+if (turbine_control == 2 .and. coord == 0) then
+#else
+if (turbine_control == 2) then
+#endif
+    string1 = path // 'turbine/turbine_Ctp_list.dat'
+    fid = open_file_fid( string1, 'rewind', 'formatted' )
+    write(fid,*) size(t_Ctp_list)
+    write(fid,*) t_Ctp_list
+    do i=1,nloc
+        write(fid,*) Ctp_list(i,:)
+    enddo
+    close (fid)
+endif
+
     
 end subroutine turbines_checkpoint
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

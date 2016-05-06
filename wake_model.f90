@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2016  Johns Hopkins University
+!!  Copyright (C) 2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -806,7 +806,7 @@ type :: WakeModelEstimator
     integer                                    :: Ne, Nm, Ns
     real(rprec), dimension(:,:), allocatable   :: A, Aprime, Ahat, Ahatprime, E, D, Dprime
     real(rprec), dimension(:), allocatable     :: Abar, Ahatbar
-    real(rprec) :: tau_U_infty = 300
+    real(rprec)                                :: tau_U_infty = 300
 contains
     procedure, private :: initialize_val
     procedure, private :: initialize_file
@@ -825,17 +825,17 @@ contains
 
 ! Constructor for wake model
 function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,                &
-                         i_sigma_du, i_sigma_k, i_sigma_Phat) result(this)
+                         i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
     implicit none
     type(WakeModelEstimator)              :: this
     real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
     real(rprec), dimension(:), intent(in) :: i_s, i_k
     integer, intent(in)                   :: i_Nx
     integer, intent(in)                   :: i_Ne
-    real(rprec), intent(in)               :: i_sigma_du, i_sigma_k, i_sigma_Phat
+    real(rprec), intent(in)               :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
         
     call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,            &
-                             i_sigma_du, i_sigma_k, i_sigma_Phat)
+                             i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
 end function constructor_val
 
 ! Constructor for wake model that reads from file
@@ -852,22 +852,23 @@ function constructor_file(fpath) result(this)
 end function constructor_file
 
 subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,         &
-                          i_sigma_du, i_sigma_k, i_sigma_Phat)
+                          i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
     real(rprec), intent(in)                     :: i_sigma_du, i_U_infty, i_Delta, i_Dia
     real(rprec), dimension(:), intent(in)       :: i_s, i_k
     integer, intent(in)                         :: i_Nx
     integer, intent(in)                         :: i_Ne
-    real(rprec), intent(in)                     :: i_sigma_k, i_sigma_Phat
+    real(rprec), intent(in)                     :: i_sigma_k, i_sigma_Phat, i_tau
     integer                                     :: i
-    
-
     
     ! Set std deviations for noise
     this%sigma_du   = i_sigma_du
     this%sigma_k    = i_sigma_k
     this%sigma_Phat = i_sigma_Phat
+    
+    ! Filter time for U_infty
+    this%tau_U_infty = i_tau
     
     ! Create ensemble members
     this%Ne = i_Ne
@@ -908,7 +909,7 @@ subroutine initialize_file(this, fpath)
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
     read(fid) this%Ne, this%Nm, this%Ns
-    read(fid) this%sigma_du, this%sigma_k, this%sigma_Phat
+    read(fid) this%sigma_du, this%sigma_k, this%sigma_Phat, this%tau_U_infty
     
     allocate( this%Abar(this%Ns) )
     allocate( this%Ahatbar(this%Nm) )
@@ -958,7 +959,7 @@ subroutine write_to_file(this, fpath)
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
     write(fid) this%Ne, this%Nm, this%Ns
-    write(fid) this%sigma_du, this%sigma_k, this%sigma_Phat
+    write(fid) this%sigma_du, this%sigma_k, this%sigma_Phat, this%tau_U_infty
     write(fid) this%A
     write(fid) this%Aprime
     write(fid) this%Ahat
@@ -1052,11 +1053,11 @@ subroutine advance(this, dt, Pm, Ctp)
     end if
 
     ! Calculate noisy measurements
-    this%E = 0
+    this%E = 0._rprec
     do i = 1, N
         do j = 1, this%Ne
             this%E(i, j) = this%sigma_Phat * random_normal()
-            this%D(i, j) = Pm(i) + this%E(i,j)
+            this%D(i, j) = Pm(i) + this%E(i, j)
         end do
     end do
     this%Dprime = this%D - this%Ahat
@@ -1069,15 +1070,15 @@ subroutine advance(this, dt, Pm, Ctp)
     matmul(this%E, transpose(this%E))), this%Dprime))
         
     ! Compute mean
-    this%Abar = 0
+    this%Abar = 0._rprec
     do i = 1, this%Ne
         this%Abar = this%Abar + this%A(:,i) / this%Ne;
     end do
 
     ! Filter U_infty
     alpha = dt / (this%tau_U_infty + dt)
-    r1_if = this%wm%Ctp(1) / ( 4.d0 + this%wm%Ctp(1) )
-    Uinftyi = ( Pm(1) / this%wm%Ctp(1) )**(1.d0/3.d0) / (1.d0 - r1_if)
+    r1_if = this%wm%Ctp(1) / ( 4._rprec + this%wm%Ctp(1) )
+    Uinftyi = ( Pm(1) / this%wm%Ctp(1) )**(1._rprec/3._rprec) / (1._rprec - r1_if)
     this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
     this%wm%VELOCITY = this%wm%U_infty
     this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
@@ -1090,10 +1091,10 @@ subroutine advance(this, dt, Pm, Ctp)
             jend   = j*Nx
             this%ensemble(i)%du(j,:)  = this%A(jstart:jend,i)
         end do
-        this%ensemble(i)%U_infty  = this%ensemble(i)%U_infty
-        this%ensemble(i)%VELOCITY = this%ensemble(i)%U_infty
-        this%ensemble(i)%TIME  = this%ensemble(i)%LENGTH / this%ensemble(i)%VELOCITY
-        this%ensemble(i)%FORCE = this%ensemble(i)%VELOCITY / this%ensemble(i)%TIME
+        this%ensemble(i)%U_infty  = this%wm%U_infty
+        this%ensemble(i)%VELOCITY = this%wm%VELOCITY
+        this%ensemble(i)%TIME  = this%wm%TIME
+        this%ensemble(i)%FORCE = this%wm%FORCE
         this%ensemble(i)%k(1:N-1) = this%A(Nx*N+1:,i)
         this%ensemble(i)%k(N)     = this%ensemble(i)%k(N-1)
     end do
@@ -1104,7 +1105,6 @@ subroutine advance(this, dt, Pm, Ctp)
     end do
     this%wm%k(1:N-1) = this%Abar(Nx*N+1:)
     this%wm%k(N)     = this%wm%k(N-1)
-
 
     ! Advance ensemble and mean estimate
     call this%advanceEnsemble(Ctp, dt)

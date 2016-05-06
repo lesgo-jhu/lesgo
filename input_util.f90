@@ -1031,9 +1031,24 @@ do
         read (buff(equal_pos+1:), *) turbine_cumulative_time
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
-
+     
+     case ('TURBINE_CONTROL')
+        read (buff(equal_pos+1:), *) turbine_control
+     case ('ADVANCEMENT_TIME')
+        read (buff(equal_pos+1:), *) advancement_time
+     case ('HORIZON_TIME')
+        read (buff(equal_pos+1:), *) horizon_time
+     case ('MAX_ITER')
+        read (buff(equal_pos+1:), *) max_iter
+     case ('RH_GAMMA')
+        read (buff(equal_pos+1:), *) rh_gamma
+     case ('RH_ETA')
+        read (buff(equal_pos+1:), *) rh_eta
+        
      case ('USE_WAKE_MODEL')
         read (buff(equal_pos+1:), *) use_wake_model
+     case ('TAU_U_INFTY')
+        read (buff(equal_pos+1:), *) tau_U_infty
      case ('SIGMA_DU')
         read (buff(equal_pos+1:), *) sigma_du
      case ('SIGMA_K')
@@ -1042,9 +1057,6 @@ do
         read (buff(equal_pos+1:), *) sigma_Phat
      case ('NUM_ENSEMBLE')
         read (buff(equal_pos+1:), *) num_ensemble
-     
-     case ('TURBINE_CONTROL')
-        read (buff(equal_pos+1:), *) turbine_control
 
      case default
          if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )

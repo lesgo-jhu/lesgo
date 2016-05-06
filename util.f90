@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2016-2016  Johns Hopkins University
+!!  Copyright (C) 2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
