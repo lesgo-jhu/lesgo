@@ -1,5 +1,4 @@
-
-Copyright (C) 2009-2013  Johns Hopkins University
+Copyright (C) 2009-2016  Johns Hopkins University
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright
@@ -13,6 +12,9 @@ Written by:
   Claire Verhulst <cverhuls@gmail.com>
   Richard Stevens <r.j.a.m.stevens@gmail.com>
   Tony Martinez <tony.mtos@gmail.com>
+  Joel Bretheim <>
+  Xiang Yang <>
+  Carl Shapiro <crshapiro@gmail.com>
 
 ================================================================================
 				   DISCLAIMER
@@ -58,64 +60,14 @@ The following dependencies are required in order to compile lesgo:
 
   * Fortran 95 compiler: 
 
-    Most modern compilers will work fine. Ones that have been used successfully
-    are G95, GFortran (>= 4.4), Intel, and PGI
-
-  *  hdf5 and CGNS
-    #######################################################
-    NEW INSTRUCTIONS FOR HDF5 AND CGNS BASED ON CGNS 3.3.0
-    HDF5 library (http://www.hdfgroup.org/HDF5/release/obtain5.html)
-    CGNS library (http://cgns.sourceforge.net/)
-    These libraries are used for IO. 
-    It is required to build with Fortran and parallel IO support.
-
-    The following lines should install HDF5 from the SVN repository and
-    CGNS from the git repository.
-    The are commands for bash.
-    The install locations need to be specified.
-    Make sure to specify the install locations on the Makefile.
-    To build these libraries you will need gfortran, gcc, zlib, an mpi version
-    (tested with openmpi and mvapich2)
-    #######################################################
-
-    #!/bin/bash
-
-    # Location to install hdf5
-    export HDF5INSTALL=$HOME/hdf5
-    # Location to install CGNS
-    export CGNSINSTALL=$HOME/cgns
-    # MPI compiler mpicc
-    export MPICC=mpicc
+    Most modern compilers will work fine, but the compiler must support c 
+    preprocessor directives. Compilers that have been used successfully are 
+    gfortran and ifort
     
-    # HDF5
-    svn co -q https://svn.hdfgroup.uiuc.edu/hdf5/branches/hdf5_1_8
-    cd hdf5_1_8 
-    CC=$MPICC ./configure --enable-fortran --enable-parallel --enable-shared --prefix=$HDF5INSTALL
-    make
-    make install
-
-    # CGNS
-    git clone -b master https://github.com/CGNS/CGNS.git CGNS
-    cd CGNS/src    
-    export FC=gfortran
-    export F77=gfortran
-    export CC=mpicc
-    export FLIBS="-Wl,--no-as-needed -ldl -lz"
-    export LIBS="-Wl,--no-as-needed -ldl -lz"
-    ./configure --verbose \
-    --enable-parallel \
-    --with-fortran \
-    --with-hdf5=$HDF5INSTALL \
-    --with-mpi \
-    --enable-64bit \
-    --enable-lfs \
-    --disable-cgnstools \
-    --disable-x \
-    --prefix=$CGNSINSTALL \
-    --libdir=$CGNSINSTALL/lib \
-    --includedir=$CGNSINSTALL/include    
-    make
-    make install
+  * CMake
+  
+    lesgo is designed to be built using CMake (kitware.com/cmake). Compilation 
+    options for CMake are in "CMakeLists.txt".
 
 --------------------------------------------------------------------------------
 				    OPTIONAL
@@ -124,15 +76,15 @@ The following dependencies are required in order to compile lesgo:
   * MPI implementation:
 
     A MPI implementation will be required for MPI support. The code has been
-    developed and used successfully with MPICH2
-    (http://www.mcs.anl.gov/research/projects/mpich2/) but others such as
-    OpenMPI work as well.
-
-  * lesgo-tools (http://panoramix.me.jhu.edu/~jgraham/codes/lesgo/tools)
-
-    lesgo-tools provides a set of scripts that aid in working with stable
-    snapshots of lesgo and post processing data. It provides an update utility
-    for easily grabbing updates as they are pushed out.
+    developed and used successfully with MPICH2 and OPENMPI:
+    http://www.mcs.anl.gov/research/projects/mpich2/
+    http://www.open-mpi.org/
+    
+  *  HDF5 and CGNS
+    
+    lesgo supports to use of the cgns/hdf5 output standard. To enable this 
+    feature, the hdf5 and cgns libraries must be installed.
+    See INSTALLATION_NOTES for installation instructions for these libraries
 
 ================================================================================
 				GETTING STARTED
@@ -150,7 +102,7 @@ Once you configure "CMakeLists.txt" for your system compile lesgo using:
   ./build-lesgo
 
 The compilation will occur in the subdirectory ./bld/ If major changes to 
-"CMakeLists.txt" are made, the above command may faile. In this case, remove
+"CMakeLists.txt" are made, the above command may fail. In this case, remove
 the build directory using:
 
   rm -r bld
@@ -176,14 +128,14 @@ will decay during the spinup period and asymptote once stationarity is
 reached. This gives a good indicator for determining when to start taking
 statistics.
 
-The code count the number of timesteps in a series (using autosubmit) of simulations,
-the number of timesteps at the end of each simulation is stored in total_time.dat
-to make sure that the numbering of all time-dependent files generated by the code 
-are continuous as expected when the simulation would have been completed within
-one run. The total time counter is jt_total. Some variables need to be calculated
-at the beginning of a simulation, which requires the local jt counter in 
-lagrange_Ssim.f90 and lagrange_Sdep.f90. In order to reset the counter one needs
-to change the file total_time.dat.
+The code count the number of timesteps in a series of simulations, the number of 
+timesteps at the end of each simulation is stored in total_time.dat to make sure 
+that the numbering of all time-dependent files generated by the code are continuous 
+as expected when the simulation would have been completed within one run. The total 
+time counter is jt_total. Some variables need to be calculated at the beginning of 
+a simulation, which requires the local jt counter in lagrange_Ssim.f90 and 
+lagrange_Sdep.f90. In order to reset the counter one needs to change the file 
+total_time.dat.
 
 ================================================================================
 				LES FLOW SOLVER
@@ -291,8 +243,8 @@ of their contents. These file use the 'MPI appendix'
 
 The visualization data is located in the directory "output". The "output"
 directory is created by making a 'mkdir' system call and should work fine on all
-Unix based systems. By default these file are written in Tecplot formatted files
-using the 'tecryte' library. The output to this directory depends on the
+Unix based systems. By default these file are written in binary formatted files
+using direct fortran write calls. The output to this directory depends on the
 settings in the OUTPUT block in the input file "lesgo.conf". In this section we
 will discuss the output from the core LES solver of lesgo. All data output from
 various modules will be discussed in their respective sections.
@@ -306,7 +258,7 @@ various modules will be discussed in their respective sections.
       * ddz_avg.dat 	    : Mean of vertical gradients
       * force_avg.dat 	    : Mean field of modeled forces (IBM, turbines, RNS, etc)
       * tau_avg.dat 	    : Mean of the sub-grid scale stress tensor
-      * rs.dat 		    : Reynolds stresses
+      * rs.dat 		        : Reynolds stresses
 
   2) Averaged over z-planes
 
@@ -315,7 +267,7 @@ various modules will be discussed in their respective sections.
     * ddz_zplane_avg.dat    : Mean of vertical gradients
     * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc)
     * tau_zplane_avg.dat    : Mean of the sub-grid scale stress tensor
-    * rs_zplane.dat	    : Reynolds stresses
+    * rs_zplane.dat	        : Reynolds stresses
     * cnpy_zplane.dat	    : Canopy (dispersive) stresses
     * cs_opt2_zplane.dat    : Square of Smagorinsky coefficient from SGS modeling
 
@@ -342,21 +294,6 @@ F) Data along z-planes
 
   * vel.z-<zloc>-<timestep>.dat : 
     Instantaneous velocity sampled at z location <zloc> for the time step <timestep>
-  
-
-................................................................................
-				DEVELOPER NOTES
-................................................................................
-
-A) File ID reservations:
-
-   All data files that use a fixed file identifier should be opened using
-   "open_file" from the "tecryte" library. The library provides a mechanism for
-   handling the file identifiers of files that will remain open during the
-   simulation. It simply provides the file identifier on a first come first
-   serve bases starting with 1001. So if any file identifiers are to be used
-   that are not provided by the tecryte library they should be <=1000, but this
-   is discouraged and should only be done if necessary.
  
 ================================================================================
 		       LEVEL SET IMMERSED BOUNDARY METHOD

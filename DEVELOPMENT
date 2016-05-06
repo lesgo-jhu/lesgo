@@ -1,4 +1,4 @@
-Copyright (C) 2010-2016  Johns Hopkins University
+Copyright (C) 2009-2016  Johns Hopkins University
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright
@@ -82,13 +82,29 @@ ITEMS:
       
 (II) Fix compilation issues with level set. Tecryte will have to be disabled and no
      output will be available. Assigned to CS.
+     
+(II) Cleanup README:
+       - fix alignment of variable locations. Currently it doesn't say anything.
+       - fix description of IO in README
 
 ================================================================================
-                   NOTES
+                   DEVELOPER NOTES
 ================================================================================
-1. Developers MUST support both output types (binary and CGNS). This means that 
+1. Output file type support:
+
+   Developers MUST support both output types (binary and CGNS). This means that 
    any changes or additions you make to one output type MUST be reflected in the
    other output type.
+   
+2. File ID reservations:
+
+   All data files that use a fixed file identifier should be opened using
+   "open_file_fid" function. This function provides a mechanism for
+   handling the file identifiers of files that will remain open during the
+   simulation. It simply provides the file identifier on a first come first
+   serve bases starting with 1000. So if any file identifiers are to be used
+   that are not provided by the open_file_fid function they should be <1000, 
+   but this is discouraged and should only be done if necessary.
 
 ================================================================================
                    BROKEN FEATURES
