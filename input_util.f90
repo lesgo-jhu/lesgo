@@ -426,6 +426,12 @@ subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 use iwmles, only : iwm_on  !xiang
+
+#ifdef PPHIT
+! Type hit has all the information inside
+use hit_inflow, only : hit
+#endif
+
 implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
@@ -469,6 +475,40 @@ do
            read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
+
+#ifdef PPHIT
+    ! Read the input for HIT case
+
+    ! Trubulence intensity input and output
+    case('UP_IN')
+        read (buff(equal_pos+1:), *) hit % up_in
+    case('TI_OUT')
+        read (buff(equal_pos+1:), *) hit % TI_out
+
+    ! Domain length of HIT input
+    case ('LX_HIT')
+        read (buff(equal_pos+1:), *) hit % Lx
+    case ('LY_HIT')
+        read (buff(equal_pos+1:), *) hit % Ly
+    case ('LZ_HIT')
+        read (buff(equal_pos+1:), *) hit % Lz
+
+    ! Number of grid points
+    case ('NX_HIT')
+        read (buff(equal_pos+1:), *) hit % Nx
+    case ('NY_HIT')
+        read (buff(equal_pos+1:), *) hit % Ny
+    case ('NZ_HIT')
+        read (buff(equal_pos+1:), *) hit % Nz
+
+    ! Names of the input files
+    case ('U_FILE')
+        read (buff(equal_pos+1:), *) hit % u_file
+    case ('V_FILE')
+        read (buff(equal_pos+1:), *) hit % v_file
+    case ('W_FILE')
+        read (buff(equal_pos+1:), *) hit % w_file
+#endif
 
      case default      
 

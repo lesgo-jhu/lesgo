@@ -69,6 +69,11 @@ use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 #endif
 
+! HIT Inflow
+#ifdef PPHIT
+use hit_inflow, only : initialize_HIT
+#endif
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
     use atm_lesgo_interface, only: atm_lesgo_initialize
@@ -144,6 +149,13 @@ call turbines_init()    !must occur before initial is called
   call atm_lesgo_initialize ()  
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
+
+#ifdef PPHIT
+    ! This initializes HIT Data
+    ! The input is read from lesgo.conf
+    write(*,*) 'Inflow Condition using HIT Data'
+    call initialize_HIT()
+#endif
 
 ! If using level set method
 #ifdef PPLVLSET
