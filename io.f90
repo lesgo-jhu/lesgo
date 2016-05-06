@@ -595,16 +595,11 @@ integer, intent(IN) :: itype
 character (64) :: fname
 character (64) :: point_name  ! Name of file for point
 integer :: n, i, j, k
-#ifndef PPBINARY
-character (64) :: var_list
-integer :: nvars
-#endif
 
-#ifdef PPCGNS
-character (64) :: fname_cgns ! Name for CGNS output file
+! #ifdef PPCGNS
 ! Vorticity
-real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
-#endif
+! real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
+! #endif
 
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 
@@ -665,20 +660,16 @@ elseif(itype==2) then
     !/// WRITE VELOCITY                       ///
     !////////////////////////////////////////////
     
-#ifdef PPBINARY 
-    call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
-#endif
-    
 #ifdef PPMPI
     call string_concat( fname, '.c', coord )
 #endif
 
     ! Write CGNS Output
 #if defined(PPCGNS) && defined(PPMPI)
-        call string_splice( fname_cgns, path //'output/output_',               &  
+        call string_splice( fname, path //'output/output_',               &  
                             jt_total,'.cgns')
         
-        call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,        &
+        call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,        &
         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
         (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
         x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
@@ -703,9 +694,9 @@ elseif(itype==2) then
 !~           vortz(1:nx,1:ny, 1) = 0.0_rprec
 !~       endif
 
-!~       call string_splice(fname_cgns, path //'output/vorticity_', jt_total,'.cgns')
+!~       call string_splice(fname, path //'output/vorticity_', jt_total,'.cgns')
   
-!~       call write_parallel_cgns(fname_cgns,nx,ny, nz - nz_end, nz_tot,          &
+!~       call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,          &
 !~         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
 !~         (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
 !~         x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                &
@@ -715,9 +706,8 @@ elseif(itype==2) then
 !~ 
 !~         deallocate(vortx, vorty, vortz)
 
-#endif
-        
-#ifdef PPBINARY
+#else
+    call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) u(:nx,:ny,1:nz)
     write(13,rec=2) v(:nx,:ny,1:nz)
@@ -766,10 +756,10 @@ elseif(itype==3) then
         enddo
 
 #if defined(PPCGNS) && defined(PPMPI)    
-            call string_splice( fname_cgns, path // 'output/plane_x_plane',    &
+            call string_splice( fname, path // 'output/plane_x_plane',    &
                                 xplane_loc(i),'_', jt_total, '.cgns')
             
-            call write_parallel_cgns (fname_cgns,1,ny, nz - nz_end, nz_tot,    &
+            call write_parallel_cgns (fname,1,ny, nz - nz_end, nz_tot,    &
                                 (/ 1, 1,   (nz-1)*coord + 1 /),                &
                                 (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /),    &
                             xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),     &
@@ -802,10 +792,10 @@ elseif(itype==4) then
         enddo
 
 #if defined(PPCGNS) && defined(PPMPI)    
-            call string_splice( fname_cgns, path // 'output/plane_y_plane',    &
+            call string_splice( fname, path // 'output/plane_y_plane',    &
                             yplane_loc(j),'_', jt_total, '.cgns')
 
-            call write_parallel_cgns (fname_cgns,nx,1, nz - nz_end, nz_tot,    &
+            call write_parallel_cgns (fname,nx,1, nz - nz_end, nz_tot,    &
                                 (/ 1, 1,   (nz-1)*coord + 1 /),                &
                                 (/ nx, 1, (nz-1)*(coord+1) + 1 - nz_end /),    &
                             x(1:nx) , yplane_loc(j:j) , z(1:(nz-nz_end) ),     &
@@ -834,11 +824,6 @@ elseif(itype==5) then
 #ifdef PPMPI    
             if(zplane(k) % coord == coord) then
 #endif
-
-#ifdef PPBINARY
-            call string_splice( fname, path // 'output/binary_vel.z-',         &
-                                zplane_loc(k), '.', jt_total, '.dat')
-#endif
     
         do j=1,Ny
             do i=1,Nx
@@ -853,15 +838,15 @@ elseif(itype==5) then
     
 #ifdef PPCGNS
     
-            call string_splice( fname_cgns, path // 'output/plane_z_plane',    &
+            call string_splice( fname, path // 'output/plane_z_plane',    &
                                 zplane_loc(k),'_', jt_total, '.cgns')
     
-            call write_serial_cgns ( fname_cgns, nx, ny,1,x,y,zplane_loc(k:k), &
+            call write_serial_cgns ( fname, nx, ny,1,x,y,zplane_loc(k:k), &
                             3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
                         (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
-#endif
-        
-#ifdef PPBINARY
+#else
+            call string_splice( fname, path // 'output/binary_vel.z-',         &
+                                zplane_loc(k), '.', jt_total, '.dat')
             open(unit=13,file=fname,form='unformatted',convert='big_endian',   &
                             access='direct',recl=nx*ny*1*rprec)
             write(13,rec=1) ui(1:nx,1:ny,1)

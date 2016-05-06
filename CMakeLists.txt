@@ -42,7 +42,6 @@ set(USE_ATM false)
 
 # Select the data output
 set(USE_CGNS false)
-set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
@@ -207,11 +206,6 @@ if (USE_DYN_TN)
     set(exec_name "${exec_name}-dyntn")
 endif (USE_DYN_TN)
 
-if (USE_BINARY)
-    add_definitions(-DPPBINARY)
-    set(exec_name "${exec_name}-binary")
-endif (USE_BINARY)
-
 if (USE_SAFETYMODE)
     add_definitions(-DPPSAFETYMODE)
 else (USE_SAFETYMODE)
@@ -220,7 +214,8 @@ endif (USE_SAFETYMODE)
 
 if (USE_CGNS)
     add_definitions(-DPPCGNS)
-    link_libraries(cgns hdf5)    
+    link_libraries(cgns hdf5)   
+    set(exec_name "${exec_name}-cgns") 
 endif (USE_CGNS)
 
 if (USE_FFTW3)
