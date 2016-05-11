@@ -274,13 +274,12 @@ subroutine level_set_vel_err()
 use types, only : rprec
 use param, only : nx, ny, nz, total_time
 use sim_param, only : u, v, w
+use open_file_fid_mod
 #ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 #endif
 implicit none
-
-! include 'tecryte.h'
 
 character (*), parameter :: sub_name = mod_name // '.level_set_vel_err'
 character(*), parameter :: fname_write = path // 'output/level_set_vel_err.dat'
@@ -291,6 +290,7 @@ real(rprec) :: u_err, v_err, w_err
 #ifdef PPMPI
 real(rprec) :: u_err_global, v_err_global, w_err_global
 #endif
+integer :: fid
 
 !  Initialize values
 uv_err_navg = 0
@@ -359,24 +359,20 @@ endif
     u_err = u_err_global / nproc
     v_err = v_err_global / nproc
     w_err = w_err_global / nproc
-
-    ! CS - REMOVED since tecryte is no longer supported. 
-    ! call write_real_data(fname_write, 'append', 'formatted', 2, &
-    !                      (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+    
+    fid = open_file_fid( fname_write, 'append', 'formatted' )
+    write(fid,*) total_time, sqrt( u_err**2 + v_err**2 + w_err**2 )
+    close(fid)
 
   endif
 
 #else
 
-! CS - REMOVED since tecryte is no longer supported. 
-! call write_real_data(fname_write, 'append', 'formatted', 2, &
-!                     (/ total_time, sqrt( u_err**2 + v_err**2 + w_err**2 ) /))
+fid = open_file_fid( fname_write, 'append', 'formatted' )
+write(fid,*) total_time, sqrt( u_err**2 + v_err**2 + w_err**2 )
+close(fid)
 
 #endif
-
-
-
-
 
 return
 end subroutine level_set_vel_err
@@ -3138,6 +3134,7 @@ subroutine level_set_global_CA
 use param, only : jt_total, dt, L_y, L_z
 use sim_param, only : fx, fy, fz
 use sim_param, only : u
+use open_file_fid_mod
 implicit none
 
 ! include 'tecryte.h'
@@ -3149,6 +3146,7 @@ integer, parameter :: lun = 99  !--keep open between calls
 
 logical, save :: file_init = .false.
 logical :: opn, exst
+integer :: fid
 
 real (rp) :: Uinf   !--velocity scale used in calculation of CA
 real (rp) :: CxA, CyA, CzA ! Normalized for coefficients times frontal area
@@ -3208,16 +3206,19 @@ if( coord == 0 ) then
     !  Check that output is not already opened
     if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
-    ! CS - REMOVED since tecryte is no longer supported. 
-    ! if( .not. exst ) call write_tecplot_header_xyline(fCA_out, 'rewind', '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"')
+    if (.not. exst) then
+        fid = open_file_fid( fCA_out, 'rewind', 'formatted' )
+        write(fid,*) '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"'
+        close(fid)
+    end if
 
     file_init = .true.
 
   endif
 
-    ! CS - REMOVED since tecryte is no longer supported. 
-    ! call write_real_data(fCA_out, 'append', 'formatted', 8, &
-    ! (/ total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global /))
+    fid = open_file_fid( fCA_out, 'append', 'formatted' )
+    write(fid,*) total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global
+    close(fid)
 
 #ifdef PPMPI
 end if
