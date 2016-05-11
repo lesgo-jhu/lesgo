@@ -659,10 +659,6 @@ elseif(itype==2) then
     !////////////////////////////////////////////
     !/// WRITE VELOCITY                       ///
     !////////////////////////////////////////////
-    
-#ifdef PPMPI
-    call string_concat( fname, '.c', coord )
-#endif
 
     ! Write CGNS Output
 #if defined(PPCGNS) && defined(PPMPI)
@@ -708,6 +704,9 @@ elseif(itype==2) then
 
 #else
     call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
+#ifdef PPMPI
+    call string_concat( fname, '.c', coord )
+#endif
     open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) u(:nx,:ny,1:nz)
     write(13,rec=2) v(:nx,:ny,1:nz)
