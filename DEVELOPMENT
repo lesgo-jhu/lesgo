@@ -70,6 +70,7 @@ ITEMS:
 
 (NN) Include detailed installation notes.
      Assigned to no one.
+     Add notes for using gfortran on marcc. Assigned to TM.
 
 (NN) Add folder which includes basic submit scripts for different systems like
       MARCC, panoramix, etc.
