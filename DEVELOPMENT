@@ -16,7 +16,7 @@ KEY:
 
 ITEMS:
 
-(II) Move to CMake in order to eliminate the need for out-of-date 
+(CC) Move to CMake in order to eliminate the need for out-of-date 
      dependencies fmakedepf90 and fpx3. This requires changing the 
      precompiler flags to be compatible for cpp (C preprocessor) and 
      writing a new CMakeLists.txt file and build process.
@@ -80,41 +80,47 @@ ITEMS:
       simulation to blow up.
       Assigned to no one.
       
-(II) Fix compilation issues with level set. Tecryte will have to be disabled and no
-     output will be available. Assigned to CS.
+(CC) Fix compilation issues with level set. Tecryte will have to be disabled and replaced
+     by native fortran output. Assigned to CS.
      
 (II) Cleanup README:
-       - fix alignment of variable locations. Currently it doesn't say anything.
-       - fix description of IO in README
+      CS - cleaned up removed features
+       - fix description of point IO
+       
+(NN) Cleanup little/big endian read and write. These are inconsistently used in the code.
 
 ================================================================================
                    DEVELOPER NOTES
 ================================================================================
-1. Output file type support:
+1.  Output file type support:
 
-   Developers MUST support both output types (binary and CGNS). This means that 
-   any changes or additions you make to one output type MUST be reflected in the
-   other output type.
+    Developers MUST support both output types (binary and CGNS). This means that 
+    any changes or additions you make to one output type MUST be reflected in the
+    other output type.
    
-2. File ID reservations:
+2.  File ID reservations:
 
-   All data files that use a fixed file identifier should be opened using
-   "open_file_fid" function. This function provides a mechanism for
-   handling the file identifiers of files that will remain open during the
-   simulation. It simply provides the file identifier on a first come first
-   serve bases starting with 1000. So if any file identifiers are to be used
-   that are not provided by the open_file_fid function they should be <1000, 
-   but this is discouraged and should only be done if necessary.
+    All data files that use a fixed file identifier should be opened using
+    "open_file_fid" function. This function provides a mechanism for
+    handling the file identifiers of files that will remain open during the
+    simulation. It simply provides the file identifier on a first come first
+    serve bases starting with 1000. So if any file identifiers are to be used
+    that are not provided by the open_file_fid function they should be <1000, 
+    but this is discouraged and should only be done if necessary.
+   
+3.  trees_pre_ls:
+
+    This is a legacy program that may have obsolete or non-working features.
+    It was included to preserve the complete functionality of the level set 
+    feature and allow new users to test the capabilities (such as arrays of cubes)
+    New developers using this program may want to take a closer look and clean up 
+    this feature.
 
 ================================================================================
                    BROKEN FEATURES
 ================================================================================
 1. Subgrid models 2, 3, and 4 appear to be broken at the moment
 2. The spectra calculations are broken (jb)
-3. By removing tecryte support and moving to cmake the level set code will not 
-   compile. The legacy makefiles are now stored in mk-old. Work is needed to 
-   move the preprocessor building to cmake and restoring support for these
-   features. (cs)
 
 ================================================================================
                    REMOVED FEATURES
@@ -129,3 +135,20 @@ ITEMS:
    and 2) should, if reimplemented, be done in a consistent way with the current
    coding constructs of lesgo. To obtain the latest code before the remove refer
    to CVS tag: pre_scalar_calculations_remove 
+
+3. 2016-05-12: All of the RNS and CYL_SKEW_LS modules have been removed. These
+   features relied on external libraries and could not be effectively maintained.
+   To obtain the source code for these features look at the repository versions
+   prior to the posted date. 
+   
+   Details about these features can be found in:
+   
+    * Graham, J., Meneveau, C., "Modeling turbulent flow over fractal trees using
+        Renormalized Numerical Simulation: Alternate formulations and numerical
+        experiments", Phys. of Fluids 24 (2012).
+
+    * J. Graham, K. Bai, C. Meneveau, and J. Katz. LES modeling and experimental
+        measurement of boundary layer flow over multi-scale, fractal canopies. In
+        H. Kuerten, B. Geurts, V. Armenio, and J. Froehlich, editors, Direct and
+        Large-Eddy Simulation VIII, volume 15 of ERCOFTAF Series, pages 233­238,
+        2011.

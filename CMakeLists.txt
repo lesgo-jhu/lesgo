@@ -45,8 +45,6 @@ set(USE_CGNS false)
 
 # Select level set
 set(USE_LVLSET false)
-set(USE_RNS_LS false)
-set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
@@ -155,7 +153,6 @@ if (USE_HIT)
     set(exec_name "${exec_name}-HIT")
 endif (USE_HIT)
 
-
 if (USE_STREAKS)
     add_definitions(-DPPSTREAKS)
     set(exec_name "${exec_name}-streaks")
@@ -168,22 +165,6 @@ if (USE_LVLSET)
         trees_global_fmask_ls.f90)
     set(exec_name "${exec_name}-ls")
 endif (USE_LVLSET)
-
-if (USE_RNS_LS)
-    add_definitions(-DPPRNS_LS)
-    set(Sources ${Sources} rns_base_ls.f90 rns_ls.f90)
-    set(exec_name "${exec_name}-rns")
-    if (USE_CYL_SKEW_LS)
-        set(Sources ${Sources} rns_cyl_skew_ls.f90)
-    endif (USE_CYL_SKEW_LS)
-endif (USE_RNS_LS)
-
-if (USE_CYL_SKEW_LS)
-    add_definitions(-DPPCYL_SKEW_LS)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lcgaml")
-    set(Sources ${Sources} cyl_skew_base_ls.f90 cyl_skew_ls.f90)
-    set(exec_name "${exec_name}-cs")
-endif (USE_CYL_SKEW_LS)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
