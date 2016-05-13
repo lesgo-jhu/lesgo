@@ -114,6 +114,7 @@ subroutine level_set_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param, only : path
 use param, only : dx, dy, dz, lbz  !--in addition to those above
+use trees_pre_ls_mod, only : trees_pre_ls
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.level_set_init'
@@ -137,6 +138,15 @@ real (rp) :: x, y, z
 !---------------------------------------------------------------------
 #ifdef PPVERBOSE
 call enter_sub (sub_name)
+#endif
+
+! This is extremely kludgy. This function will write to phi.out, which will 
+! subsequently be read in. Future developers should fix this.
+if (use_trees .and. coord == 0) then
+    call trees_pre_ls
+endif
+#ifdef PPMPI
+call mpi_barrier(comm, ierr)
 #endif
 
 ! First check that the grid spacing is equal in all directions

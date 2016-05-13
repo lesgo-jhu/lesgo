@@ -86,6 +86,8 @@ logical :: phi_0_is_set = .false.
 !real (rp) :: phi(ld, ny, lbz:nz)
 real(rp), allocatable, dimension(:,:,:) :: phi
 
+logical :: use_trees
+
 #ifdef PPMPI
   ! Make sure all values (top and bottom) are less than Nz
   integer :: nphitop = 3

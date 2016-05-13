@@ -719,6 +719,8 @@ do
         read (buff(equal_pos+1:), *) smooth_mode
      case ('ZO_LEVEL_SET')
         read (buff(equal_pos+1:), *) zo_level_set
+     case ('USE_TREES')
+        read (buff(equal_pos+1:), *) use_trees
      
 #ifdef PPMPI
      case ('NPHITOP')
