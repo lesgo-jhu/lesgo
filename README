@@ -34,17 +34,14 @@ they really do." - SC
 The code lesgo solves the filtered N-S equations in the high-Re limit on a
 Cartesian mesh. Originally lesgo was designed to simulate flow in the
 atmospheric boundary layer but has been extended and used to simulate flow over
-tree canopies, wall mounted cubes, cylinders in free stream turbulence, wind
-turbine arrays, and others. At its core is the LES flow solver. Built on top of
-the solver are modules that provide additional functionality such as an immersed
-boundary method, wind farm modeling, and others. The following is a list of the
-major components of lesgo:
+tree canopies, wall mounted cubes, wind turbine arrays, and others. At its core 
+is the LES flow solver. Built on top of the solver are modules that provide 
+additional functionality such as an immersed boundary method, wind farm modeling, 
+and others. The following is a list of the major components of lesgo:
 
   * LES Flow Solver
 
   * Level Set Immersed Boundary Method
-
-  * Renormalized Numerical Simulation 
 
   * Wind farm modeling 
 
