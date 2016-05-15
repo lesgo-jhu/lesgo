@@ -574,7 +574,7 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
-use grid_defs, only : grid
+use grid_m
 use sim_param, only : u,v,w
 ! For computing and writing vorticity
 !~ use sim_param, only: dwdy, dwdx, dvdx, dudy
@@ -1094,7 +1094,7 @@ use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
 use param, only : tavg_calc
-use grid_defs, only : grid
+use grid_m
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
 use stat_defs, only : tavg, tavg_zplane
@@ -1475,7 +1475,7 @@ end subroutine tavg_compute
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use grid_defs, only : grid !x,y,z
+use grid_m
 use stat_defs, only : tavg_t, tavg_total_time, tavg
 use stat_defs, only : rs_t, rs 
 use stat_defs, only : operator(.DIV.), operator(.MUL.)

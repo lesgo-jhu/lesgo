@@ -1844,7 +1844,7 @@ end subroutine enforce_log_profile
 !--assumes a is on u-nodes
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine interp_scal (albz, a, nbot, abot, ntop, atop, x, a_x, node)
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 use functions, only : cell_indx
 use messages
 implicit none
@@ -2039,7 +2039,7 @@ end subroutine interp_scal
 subroutine interp_tij_u (x, txx_x, txy_x, tyy_x, tzz_x)
 use sim_param, only : txx, txy, tyy, tzz
 use functions, only : cell_indx
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 use messages
 
 implicit none
@@ -2254,7 +2254,7 @@ end subroutine interp_tij_u
 subroutine interp_tij_w (x, txz_x, tyz_x)
 use sim_param, only : txz, tyz
 use functions, only : cell_indx
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 use messages
 
 implicit none
@@ -2453,7 +2453,7 @@ subroutine interp_phi (x, phi_x)
 !--assumes phi is on u-nodes
 !
 use functions, only : cell_indx
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 use messages
 implicit none
 
@@ -2632,7 +2632,7 @@ end subroutine interp_phi
 subroutine interp_vel (x, vel)
 use sim_param, only : u, v, w
 use functions, only : cell_indx
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 use messages
 
 implicit none
@@ -3013,7 +3013,7 @@ end subroutine level_set_smooth_vel
 !--autowrapping of points has been added
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine smooth (phi0, albz, a, node)
-use grid_defs, only : grid !autowrap_i, autowrap_j
+use grid_m
 implicit none
 
 real (rp), intent (in) :: phi0
@@ -4519,7 +4519,7 @@ end subroutine level_set_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 real(rp) function safe_cd (i, j, k, d, f)
 use param, only : dx, dy, dz, lbz  !--in addition to those above
-use grid_defs, only : grid ! autowrap_i, autowrap_j
+use grid_m
 implicit none
 
 integer, intent (in) :: i, j, k

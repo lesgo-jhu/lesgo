@@ -210,7 +210,7 @@ integer function cell_indx(indx,dx,px)
 !  lbz <= cell_indx < Nz
 !
 use types, only : rprec
-use grid_defs
+use grid_m
 use messages 
 use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
 implicit none
@@ -232,7 +232,7 @@ nullify(z)
 ! Intialize result
 cell_indx = -1
 
-if(.not. grid % built) call grid_build()
+if(.not. grid % built) call grid%build()
 
 z => grid % z
 
@@ -321,7 +321,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !  Before calling this function, make sure the point exists on the coord
 !  [ test using: z(1) \leq z_p < z(nz-1) ]
 !
-use grid_defs, only : grid
+use grid_m
 use types, only : rprec
 use sim_param, only : u,v
 use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
@@ -437,7 +437,7 @@ end function trilinear_interp
 !~ !  (lbz) set as an input so the k-index will match the k-index of z.  
 !~ !  Before calling this function, make sure the point exists on the coord
 !~ !  [ test using: z(1) \leq z_p < z(nz-1) ]
-!~ use grid_defs, only : grid
+!~ use grid_m
 !~ use param, only : dx,dy,dz,L_x,L_y,L_z, nz
 !~ implicit none
 !~ real(rprec), dimension(:,:,lbz:), intent(IN) :: var
@@ -539,7 +539,7 @@ use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 #endif
-use grid_defs
+use grid_m
 use messages
 implicit none
 
@@ -569,7 +569,7 @@ real(rprec), pointer, dimension(:) :: z
 nullify(z)
 
 !  Build computational mesh if needed
-if(.not. grid % built) call grid_build()
+if(.not. grid % built) call grid%build()
 
 z => grid % z
 
@@ -665,7 +665,7 @@ use param, only : dx, dy, dz, L_x, L_y, nz
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
 #endif
-use grid_defs
+use grid_m
 use messages
 implicit none
 
@@ -696,7 +696,7 @@ nullify(z)
 !if( size(points,1) .ne. 3 ) call error(func_name, 'points not specified correctly.')
 
 !  Build computational mesh if needed
-if(.not. grid % built) call grid_build()
+if(.not. grid % built) call grid%build()
 
 z => grid % z
 

@@ -36,7 +36,7 @@ use types, only : rprec
 use param, only : ny, nz, dt
 
 ! Grid definition (LESGO)
-use grid_defs, only : grid
+use grid_m
 
 implicit none
 

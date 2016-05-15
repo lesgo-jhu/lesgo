@@ -41,7 +41,7 @@ use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
-use grid_defs, only : grid_build
+use grid_m
 use fft, only : init_fft
 use io, only : openfiles
 !use sgs_hist
@@ -49,7 +49,7 @@ use io, only : openfiles
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
 #ifdef PPCPS
-  use concurrent_precursor, only : initialize_cps
+use concurrent_precursor, only : initialize_cps
 #endif
 #endif
 
@@ -133,7 +133,7 @@ call sim_param_init ()
 call sgs_param_init()
 
 ! Initialize uv grid (calculate x,y,z vectors)
-call grid_build()
+call grid%build()
 
 !  Initialize variables used for output statistics and instantaneous data
 call output_init()

@@ -27,7 +27,7 @@ module turbines
 !      Applies the drag-disk forcing
 use param
 use turbines_base
-use grid_defs, only: grid 
+use grid_m
 use messages
 use string_util
 

@@ -259,7 +259,7 @@ end subroutine iwm_demalloc
 !xiang: calculate the left hand side of the iwm system.
 subroutine iwm_calc_lhs()
   use iwmles
-  use grid_defs, only : grid
+  use grid_m, only : grid
   use types,only : rprec
   use param,only : nx,ny,dx,dy,ld
   use sim_param,only : u,v,w,p
