@@ -352,14 +352,7 @@ end do
 !end do
 
 !--this skips zero wavenumber solution, nyquist freqs
-!call tridag_array (a, b, c, RHS_col, p_hat)
-#ifdef PPMPI
-  !call tridag_array_pipelined (0, a, b, c, RHS_col, p_hat)
-  call tridag_array_pipelined( 0, a, b, c, RHS_col, p_hat )
-#else
-  !call tridag_array (a, b, c, RHS_col, p_hat)
-  call tridag_array (a, b, c, RHS_col, p_hat)
-#endif
+call tridag_array (a, b, c, RHS_col, p_hat)
 
 !--zero-wavenumber solution
 #ifdef PPMPI
