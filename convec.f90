@@ -87,7 +87,6 @@ endif
 ! Loop through horizontal slices
 
 const=1._rprec/(nx*ny)
-!$omp parallel do default(shared) private(jz)		
 do jz = lbz, nz
   !--MPI: u1_big, u2_big needed at jz = 0, u3_big not needed though
   !--MPI: could get u{1,2}_big
@@ -162,7 +161,6 @@ do jz = 1, nz
   call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
 end do
-!$omp end parallel do
 
 ! CX
 ! redefinition of const
@@ -181,16 +179,13 @@ else
   jz_min = 1
 end if
 
-!$omp parallel do default(shared) private(jz)
 do jz=jz_min,nz-1
    cc_big(:,:,jz)=const*(u2_big(:,:,jz)*(-vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(vort2_big(:,:,jz))))
 end do
-!$omp end parallel do
 
 ! Loop through horizontal slices
-!$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
   call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))  
 ! un-zero pad
@@ -199,7 +194,6 @@ do jz=1,nz-1
 ! Back to physical space
    call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
 end do
-!$omp end parallel do
 
 ! CY
 ! const should be 1./(nx2*ny2) here
@@ -217,15 +211,12 @@ else
   jz_min = 1
 end if
 
-!$omp parallel do default(shared) private(jz)
 do jz = jz_min, nz - 1
    cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(-vort1_big(:,:,jz))))
 end do
-!$omp end parallel do
 
-!$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
   call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
  ! un-zero pad
@@ -235,7 +226,6 @@ do jz=1,nz-1
 ! Back to physical space
   call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))     
 end do
-!$omp end parallel do
 
 ! CZ
 
@@ -262,17 +252,14 @@ end if
 !  jz_max = nz - 1
 !#endif
 
-!$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
    cc_big(:,:,jz)=const*0.5_rprec*(&
         (u1_big(:,:,jz)+u1_big(:,:,jz-1))*(-vort2_big(:,:,jz))&
         +(u2_big(:,:,jz)+u2_big(:,:,jz-1))*(vort1_big(:,:,jz))&
          )
 end do
-!$omp end parallel do
 
 ! Loop through horizontal slices
-!$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
   call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
 
@@ -283,7 +270,6 @@ do jz=1,nz - 1
 ! Back to physical space
    call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
 end do
-!$omp end parallel do
 
 #ifdef PPMPI
 #ifdef PPSAFETYMODE

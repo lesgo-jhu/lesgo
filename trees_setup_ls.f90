@@ -160,11 +160,6 @@ cosine  = l / sqrt ((rb0 * t)**2 + l**2)
 !lambda_skew(3,1)=sin(45.*3.14/180);
 !lambda_skew(3,3)=cos(45.*3.14/180);
 
-!--not sure how openmp will handle the internal sub variables and
-!  present (brident)
-!$omp parallel do                                             &
-!$omp private(x,d_para,x_para,d_perp,x_perp,rb,dist_sq,dist)  &
-!$omp shared(phi, brident)
 
 do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
 
@@ -235,7 +230,6 @@ do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
   end do
 
 end do
-!$omp end parallel do
 
 if (associated (br % sub_branch)) then
 
