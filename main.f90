@@ -46,10 +46,6 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 #ifdef PPLVLSET
 use level_set, only : level_set_global_CA, level_set_vel_err
 use level_set_base, only : global_CA_calc
-  
-#ifdef PPRNS_LS
-use rns_ls, only : rns_elem_force_ls
-#endif
 #endif
 
 #ifdef PPTURBINES
@@ -256,19 +252,13 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate forcing time
     call clock_forcing%stop
 
-
     ! Calculate the total time of the forcing
     clock_total_f = clock_total_f + clock_forcing % time
 
     !  Update RHS with applied forcing
-#if defined(PPTURBINES) && !( defined(PPLVLSET) && defined(PPRNS_LES) )
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-#elif defined(PPLVLSET) && defined(PPRNS_LS)
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
+#if defined(PPTURBINES)
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)    
 #endif
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Tony ATM
 #ifdef PPATM
@@ -354,13 +344,6 @@ time_loop: do jt_step = nstart, nsteps
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
     call project ()
-
-#if defined(PPLVLSET) && defined(PPRNS_LS)
-    !  Compute the relavent force information ( include reference quantities, CD, etc.)
-    !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-    !  made here.
-    call rns_elem_force_ls()
-#endif
    
     ! Write ke to file
     if (modulo (jt_total, nenergy) == 0) call energy (ke)

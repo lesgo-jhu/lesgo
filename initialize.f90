@@ -56,12 +56,6 @@ use concurrent_precursor, only : initialize_cps
 #ifdef PPLVLSET
 use level_set_base, only : level_set_base_init 
 use level_set, only : level_set_init
-#ifdef PPRNS_LS 
-  use rns_base_ls, only : rns_base_init_ls
-#endif
-#if defined(PPRNS_LS) && defined(PPCYL_SKEW_LS)
-  use rns_cyl_skew_ls, only : rns_init_ls
-#endif
 #endif
 
 #ifdef PPTURBINES
@@ -160,13 +154,7 @@ call turbines_init()    !must occur before initial is called
 ! If using level set method
 #ifdef PPLVLSET
 call level_set_base_init()
-call level_set_init ()
-
-#ifdef PPRNS_LS
-  call rns_base_init_ls()
-  call rns_init_ls ()
-#endif
- 
+call level_set_init () 
 #endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
@@ -188,8 +176,7 @@ if(iwm_on == 1)then
   if(coord==0) write(*,*) 'iwm: finish memory allocation...'
 endif
 endif
-       
-
+    
 
 ! Initialize concurrent precursor stuff
 #if defined(PPMPI) && defined(PPCPS)

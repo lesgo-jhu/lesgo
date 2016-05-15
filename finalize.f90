@@ -30,9 +30,6 @@ use param, only : lbc_mom !xiang: always ensure iwm_on=1 only when lbc_mom=1
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #endif
-#if defined(PPLVLSET) && defined(PPRNS_LS)
-use rns_ls, only : rns_finalize_ls
-#endif
 #ifdef PPTURBINES
 use turbines, only : turbines_finalize
 #endif
@@ -41,14 +38,6 @@ use atm_lesgo_interface, only : atm_lesgo_finalize
 #endif
 
 implicit none
-
-! Level set:
-#ifdef PPLVLSET
-
-#ifdef PPRNS_LS
-  call rns_finalize_ls ()
-#endif
-#endif
 
 ! Turbines:
 #ifdef PPTURBINES

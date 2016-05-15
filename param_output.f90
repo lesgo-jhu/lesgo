@@ -21,12 +21,6 @@
 subroutine param_output()
 !**********************************************************************
 use param
-#ifdef PPRNS_LS
-use rns_base_ls
-#endif
-#ifdef PPCYL_SKEW_LS
-use cyl_skew_base_ls
-#endif
 #ifdef PPLVLSET
 use level_set_base
 #endif
@@ -209,61 +203,6 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'SGS PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'lag_dyn_modify_beta : ', lag_dyn_modify_beta
-#endif
-
-#ifdef PPRNS_LS
-write(2,c_fmt) ''
-write(2,c_fmt) '**********************************************************************'
-write(2,c_fmt) 'RNS_BASE_LS'
-write(2,c_fmt) '**********************************************************************'
-write(2,c_fmt) ''
-write(2,c_fmt) '---------------------------------------------------'
-write(2,c_fmt) 'RNS PARAMETERS'
-write(2,c_fmt) '---------------------------------------------------'
-write(2,i_fmt) 'rns_ntree : ', rns_ntree
-write(2,x2c_fmt) 'rns_tree_layout : ', rns_tree_layout
-write(2,i_fmt) 'temporal_weight : ', temporal_weight
-write(2,f_fmt) 'Tconst : ', Tconst
-write(2,i_fmt) 'weight_nstart : ', weight_nstart
-write(2,i_fmt) 'temporal_model : ', temporal_model
-write(2,i_fmt) 'spatial_model : ', spatial_model
-write(2,i_fmt) 'output_nskip : ', output_nskip
-write(2,i_fmt) 'CD_ramp_nstep : ', CD_ramp_nstep
-write(2,f_fmt) 'alpha_width : ', alpha_width
-write(2,f_fmt) 'alpha_dist : ', alpha_dist
-write(2,f_fmt) 'chi_cutoff : ', chi_cutoff
-write(2,i_fmt) 'ndim : ', ndim
-#endif
-
-#ifdef PPCYL_SKEW_LS
-write(2,c_fmt) ''
-write(2,c_fmt) '**********************************************************************'
-write(2,c_fmt) 'CYL_SKEW_BASE_LS'
-write(2,c_fmt) '**********************************************************************'
-write(2,c_fmt) ''
-write(2,c_fmt) '---------------------------------------------------'
-write(2,c_fmt) 'CYL_SKEW TREE PARAMETERS'
-write(2,c_fmt) '---------------------------------------------------'
-write(2,f_fmt) 'zrot_angle : ', zrot_angle
-write(2,f_fmt) 'skew_angle : ', skew_angle
-write(2,i_fmt) 'ntree : ', ntree
-write(2,i_fmt) 'ngen : ', ngen
-write(2,i_fmt) 'ngen_reslv : ', ngen_reslv
-write(2,i_fmt) 'nbranch : ', nbranch
-write(2,f_fmt) 'd : ', d
-write(2,f_fmt) 'l : ', l
-write(2,f_fmt) 'offset : ', offset
-write(2,f_fmt) 'scale_fact : ', scale_fact
-write(2,l_fmt) 'use_bottom_surf : ', use_bottom_surf
-write(2,f_fmt) 'z_bottom_surf : ', z_bottom_surf
-write(2,l_fmt) 'use_bottom_surf : ', use_top_surf
-write(2,f_fmt) 'z_bottom_surf : ', z_top_surf
-write(2,l_fmt) 'use_right_surf : ', use_right_surf
-write(2,f_fmt) 'y_right_surf : ', y_right_surf
-write(2,l_fmt) 'use_left_surf : ', use_left_surf
-write(2,f_fmt) 'y_left_surf : ', y_left_surf
-write(2,l_fmt) 'filter_chi : ', filter_chi
-write(2,f_fmt) 'filt_width : ', filt_width
 #endif
 
 close(2)
