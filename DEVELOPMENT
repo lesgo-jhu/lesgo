@@ -36,7 +36,7 @@ ITEMS:
      Assigned to no one
      This has been removed from io.f90
 
-(NN) Remove FFTW2 support
+(CC) Remove FFTW2 support
      Assigned to JB
 
 (CC) Fix some IO problems caused by removing Tecryte support

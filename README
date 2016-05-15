@@ -65,6 +65,11 @@ The following dependencies are required in order to compile lesgo:
   
     lesgo is designed to be built using CMake (kitware.com/cmake). Compilation 
     options for CMake are in "CMakeLists.txt".
+    
+  * FFTW3
+  
+    As a spectral code, lesgo uses many Fourier transforms. lesgo relies on the 
+    FFTW3 library (http://www.fftw.org/) to do these transforms.
 
 --------------------------------------------------------------------------------
                     OPTIONAL

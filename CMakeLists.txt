@@ -23,9 +23,6 @@ set(USE_SAFETYMODE true)
 # for diagnosing issues
 set(OUTPUT_EXTRA false)
 
-# Use FFTW3 libraries (if no FFTW2 will be used)
-set(USE_FFTW3 true)
-
 # Enable parallelization support
 set(USE_MPI true)
 
@@ -77,6 +74,9 @@ set(CMAKE_Fortran_COMPILER ${compiler_path})
 enable_language (Fortran)
 project (lesgo)
 set(exec_name "lesgo")
+
+# Library links
+link_libraries(fftw3)    
 
 # Common include and link directories
 include_directories(/usr/local/include)
@@ -136,8 +136,7 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
 if (USE_MPI)
     add_definitions(-DPPMPI)
     set (CMAKE_Fortran_COMPILER mpif90)
-    set(Sources ${Sources} mpi_transpose_mod.f90 tridag_array_pipelined.f90 
-        mpi_defs.f90)
+    set(Sources ${Sources} mpi_transpose_mod.f90 mpi_defs.f90)
     set(exec_name "${exec_name}-mpi")
 endif (USE_MPI)
 
@@ -200,13 +199,6 @@ if (USE_CGNS)
     link_libraries(cgns hdf5)   
     set(exec_name "${exec_name}-cgns") 
 endif (USE_CGNS)
-
-if (USE_FFTW3)
-    add_definitions(-DPPFFTW3)
-    link_libraries(fftw3)    
-else (USE_FFTW3)
-    link_libraries(rfftw fftw)    
-endif (USE_FFTW3)
 
 if (VERBOSE)
     add_definitions(-DPPVERBOSE)

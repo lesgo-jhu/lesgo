@@ -23,19 +23,9 @@
 module fft
 use types,only:rprec
 use param,only:ld,lh,ny,ld_big, ny2, spectra_calc
-#ifdef PPFFTW3
-!use, intrinsic :: iso_c_binding
 use iso_c_binding
-#endif
 implicit none
-#ifdef PPFFTW3
 include'fftw3.f'
-!include'fftw3-mpi.f03'
-!include'fftw3.f'
-!include'fftw3.f03'
-!include'fftw3l.f03'
-!include 'fftw3-mpi.f03'
-#endif
 save
 
 public :: kx, ky, k2, init_fft, forw_spectra
@@ -45,35 +35,8 @@ real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
 integer*8::forw_spectra
 integer*8::forw,back,forw_big,back_big
 
-
-#ifdef PPFFTW3
 real (rprec), dimension (:, :), allocatable :: data, data_big
-#else
 
-!public
-private
-
-public ::  FFTW_FORWARD, FFTW_BACKWARD,&
-     FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL,FFTW_ESTIMATE,FFTW_MEASURE,&
-     FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
-public :: fftwNull_p
-
-! plans
-
-! fftw 2.1.3 stuff
-integer, parameter :: FFTW_FORWARD=-1, FFTW_BACKWARD=1
-integer, parameter :: FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1
-integer, parameter :: FFTW_ESTIMATE=0,FFTW_MEASURE=1
-integer, parameter :: FFTW_OUT_OF_PLACE=0
-integer, parameter :: FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16
-integer, parameter :: FFTW_THREADSAFE=128
-integer, parameter :: FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0
-integer, parameter :: FFTW_SCRAMBLED_INPUT=8192
-integer, parameter :: FFTW_SCRAMBLED_OUTPUT=16384
-
-! Null pointer for fftw2 dummy argument
-integer(2), pointer :: fftwNull_p
-#endif
 contains
 
 !**********************************************************************
@@ -82,7 +45,6 @@ subroutine init_fft()
 use param,only:nx,ny,nx2,ny2
 implicit none
 
-#ifdef PPFFTW3
 ! Allocate temporary arrays for creating the FFTW plans
 allocate( data(ld, ny) )
 allocate( data_big(ld_big, ny2) )
@@ -101,23 +63,6 @@ call dfftw_plan_dft_c2r_2d(back_big,nx2,ny2,data_big,data_big,FFTW_PATIENT,FFTW_
 
 deallocate(data)
 deallocate(data_big)
-
-#else
-call rfftw2d_f77_create_plan(forw,nx,ny,FFTW_REAL_TO_COMPLEX,&
-     FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-call rfftw2d_f77_create_plan(back,nx,ny,FFTW_COMPLEX_TO_REAL,&
-     FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-call rfftw2d_f77_create_plan(forw_big,nx2,ny2,&
-     FFTW_REAL_TO_COMPLEX,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-call rfftw2d_f77_create_plan(back_big,nx2,ny2,&
-     FFTW_COMPLEX_TO_REAL,FFTW_MEASURE+FFTW_IN_PLACE+FFTW_THREADSAFE)
-
-if(spectra_calc) then
-  call rfftw_f77_create_plan(forw_spectra, Nx, FFTW_REAL_TO_COMPLEX, &
-                             FFTW_ESTIMATE)
-endif
-
-#endif
 
 call init_wavenumber()
 end subroutine init_fft
