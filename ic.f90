@@ -91,6 +91,7 @@ subroutine boundary_layer_ic()
 ! A log profile is used that flattens at z=z_i. Noise is added to 
 ! promote the generation of turbulence
 !
+use mpi_defs
 implicit none
 
 if( coord == 0 ) write(*,*) '------> Creating modified log profile for IC'
@@ -185,26 +186,10 @@ end if
 #endif
 
 ! Exchange ghost node information for u, v, and w
-! It doesn't really matter which processor values are exchanged as long as they match
 #ifdef PPMPI
-call mpi_sendrecv (u(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
-                   u(:, :, 0), ld*ny, MPI_RPREC, down, 6,    &
-                   comm, status, ierr)
-call mpi_sendrecv (u(:, :, nz), ld*ny, MPI_RPREC, up, 6,     &
-                   u(:, :, 1), ld*ny, MPI_RPREC, down, 6,    &
-                   comm, status, ierr)
-call mpi_sendrecv (v(:, :, nz-1), ld*ny, MPI_RPREC, up, 7,   &
-                   v(:, :, 0), ld*ny, MPI_RPREC, down, 7,    &
-                   comm, status, ierr)
-call mpi_sendrecv (v(:, :, nz), ld*ny, MPI_RPREC, up, 7,     &
-                   v(:, :, 1), ld*ny, MPI_RPREC, down, 7,    &
-                   comm, status, ierr)
-call mpi_sendrecv (w(:, :, nz-1), ld*ny, MPI_RPREC, up, 8,   &
-                   w(:, :, 0), ld*ny, MPI_RPREC, down, 8,    &
-                   comm, status, ierr)
-call mpi_sendrecv (w(:, :, nz), ld*ny, MPI_RPREC, up, 8,     &
-                   w(:, :, 1), ld*ny, MPI_RPREC, down, 8,    &
-                   comm, status, ierr)
+call mpi_sync_real_array( u, lbz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( v, lbz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( w, lbz, MPI_SYNC_DOWNUP )
 #endif
 
 return
