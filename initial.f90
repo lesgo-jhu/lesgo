@@ -193,38 +193,4 @@ end if
   end if
 #endif
 
-contains
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine add_random ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-implicit none
-
-real (rprec), parameter :: rms = 0.2_rprec
-
-integer :: i, j, k
-integer :: seed
-
-real (rprec) :: noise
-real (rprec) :: ran3
-
-!---------------------------------------------------------------------
-
-seed = -80
-
-do k = 1, nz
-  do j = 1, ny
-    do i = 1, nx
-      noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-      u(i, j, k) = u(i, j, k) + noise
-      noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-      v(i, j, k) = v(i, j, k) + noise
-      noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-      w(i, j, k) = w(i, j, k) + noise
-    end do
-  end do
-end do
-
-end subroutine add_random
-
 end subroutine initial
