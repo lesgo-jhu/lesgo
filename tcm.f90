@@ -40,6 +40,8 @@ integer     :: tcm_maxIter
 real(rprec) :: steady_state_power
 real(rprec) :: tcm_t_eval
 real(rprec) :: tcm_tau
+real(rprec) :: Ctp_min
+real(rprec) :: Ctp_max
 logical     :: scale_Pref
 
 ! Other derived values
@@ -55,20 +57,20 @@ real(rprec), dimension(:), allocatable :: Ct_prime_carray
 real(rprec), dimension(:), allocatable :: u_meas
 
 interface
-    subroutine initialize_tcm (t, Pref, vs, u_hat, s, N, Nt, Nx, u, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter, P_ss, tau) bind(c, name='initialize_tcm')
+    subroutine initialize_tcm (t, Pref, vs, u_hat, s, N, Nt, Nx, u, D, k, delta, cfl, Ctp_ref, Ctp_min, Ctp_max, alpha, gamma, eta, maxIter, P_ss, tau) bind(c, name='initialize_tcm')
         import :: c_double, c_int
         real(c_double), intent(in)          :: t(*), s(*), k(*)
         real(c_double), intent(out)         :: Pref(*), vs(*), u_hat(*)
         real(c_double), intent(out)         :: P_ss
         integer(c_int), intent(in), value   :: N, Nt, Nx, maxIter
-        real(c_double), intent(in), value   :: u, D, delta, cfl, Ctp_ref, alpha, gamma, eta, tau
+        real(c_double), intent(in), value   :: u, D, delta, cfl, Ctp_ref, Ctp_min, Ctp_max, alpha, gamma, eta, tau
     end subroutine initialize_tcm
-    subroutine run_tcm_wrapped (t, Ctp, Pref, vs, u_hat, s, N, Nt, Nx, u, TT, D, k, delta, cfl, Ctp_ref, alpha, gamma, eta, maxIter, t_eval, e, print_result, t_write, tau) bind(c, name='run_model')
+    subroutine run_tcm_wrapped (t, Ctp, Pref, vs, u_hat, s, N, Nt, Nx, u, TT, D, k, delta, cfl, Ctp_ref, Ctp_min, Ctp_max, alpha, gamma, eta, maxIter, t_eval, e, print_result, t_write, tau) bind(c, name='run_model')
         import :: c_double, c_int, c_bool
         real(c_double), intent(in)          :: t(*), s(*), Pref(*), e(*), k(*)
         real(c_double), intent(out)         :: Ctp(*), vs(*), u_hat(*)
         integer(c_int), intent(in), value   :: N, Nt, Nx, maxIter
-        real(c_double), intent(in), value   :: u, TT, D, delta, cfl, Ctp_ref, alpha, gamma, eta, t_eval, t_write, tau
+        real(c_double), intent(in), value   :: u, TT, D, delta, cfl, Ctp_ref, Ctp_min, Ctp_max, alpha, gamma, eta, t_eval, t_write, tau
         logical(c_bool), intent(in),value   :: print_result
     end subroutine run_tcm_wrapped
 end interface
@@ -130,7 +132,7 @@ write(*,*) "u_hat = ", u_hat
 write(*,*) "u_meas = ", u_meas
 !u_meas(:) = 0
 call run_tcm_wrapped(t_carray, Ct_prime_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, &
-    tcm_u, tcm_T, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, &
+    tcm_u, tcm_T, dia_all*z_i, tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, Ctp_min, Ctp_max, tcm_alpha, tcm_gamma, tcm_eta, &
     tcm_maxIter, t_advance, u_meas - u_hat, print_result, tcm_t_eval, tcm_tau)
 
 ! Apply to Ct_prime_list
@@ -201,10 +203,10 @@ allocate(Ct_prime_carray(num_t * num_x))
 Ct_prime_carray(:) = Ct_prime_all
 if (scale_Pref) then
     call initialize_tcm(t_carray, Pref_carray, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, &
-        tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter, steady_state_power, tcm_tau)
+        tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, Ctp_min, Ctp_max, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter, steady_state_power, tcm_tau)
 else
     call initialize_tcm(t_carray, Pref_dummy, vs, u_hat, s, num_x, num_t, tcm_Nx, tcm_u, dia_all*z_i, &
-        tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter, steady_state_power, tcm_tau)
+        tcm_k, tcm_delta, tcm_cfl, Ct_prime_all, Ctp_min, Ctp_max, tcm_alpha, tcm_gamma, tcm_eta, tcm_maxIter, steady_state_power, tcm_tau)
     steady_state_power = 1.0
 endif
 !write(*,*) Pref_carray

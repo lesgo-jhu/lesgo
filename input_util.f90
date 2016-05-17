@@ -1124,6 +1124,10 @@ do
         read (buff(equal_pos+1:), *) tcm_eta
      case ('TCM_MAXITER')
         read (buff(equal_pos+1:), *) tcm_maxIter
+     case ('CTP_MIN')
+        read (buff(equal_pos+1:), *) Ctp_min
+     case ('CTP_MAX')
+        read (buff(equal_pos+1:), *) Ctp_max
      case ('SCALE_PREF')
         read (buff(equal_pos+1:), *) scale_pref
      case default
