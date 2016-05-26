@@ -20,7 +20,7 @@
 !*******************************************************************************
 subroutine initial()
 !*******************************************************************************
-use iwmles, only : iwm_on !xiang for iwm
+use iwmles !xiang for iwm
 use types,only:rprec
 use param
 use sim_param, only : u,v,w,RHSx,RHSy,RHSz

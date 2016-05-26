@@ -28,7 +28,7 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use iwmles, only : iwm_on !xiang for integral wall model initialization
+use iwmles !xiang for integral wall model initialization
 use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
 !use param, only : sgs_hist_calc
 #ifdef PPMPI

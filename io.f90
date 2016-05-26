@@ -141,7 +141,6 @@ ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
 end subroutine energy
 
-
 #ifdef PPCGNS
 #ifdef PPMPI
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -974,7 +973,7 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use iwmles, only : iwm_on !xiang: for iwm check point
+use iwmles !xiang: for iwm check point
 use param, only : nz, checkpoint_file, tavg_calc, lbc_mom !xiang: lbc_mom is used for iwm
 #ifdef PPMPI
 use param, only : comm,ierr
