@@ -39,11 +39,12 @@ ITEMS:
 (CC) Remove FFTW2 support
      Assigned to JB
 
-(CC) Fix some IO problems caused by removing Tecryte support
+(II) Fix some IO problems caused by removing Tecryte support
      Assigned to TM
      Added points writing capabilities.
      Velocity as a function of time is done by having a single file
      per point called point{number}.dat
+     This still needs to be completed for the binary output
 
 (NN) Interpolation from restart files to allow changes in domain size,
      grid size, and domain decomposition for parallelization. 
