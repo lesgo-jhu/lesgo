@@ -24,7 +24,7 @@ ITEMS:
      CS - should work on njord, panoramix, and marcc. Ready for testing.
      JB - successfully tested on njord.
 
-(II) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
+(CC) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
      Assigned to everyone
      TM - removed DEBUG
      CS - removed DBLPREC and DEVEL(never used anyway)
@@ -122,6 +122,7 @@ ITEMS:
 ================================================================================
 1. Subgrid models 2, 3, and 4 appear to be broken at the moment
 2. The spectra calculations are broken (jb)
+3. The sgs histograms are disabled (This uses tecplot anyway) (cs)
 
 ================================================================================
                    REMOVED FEATURES
