@@ -348,12 +348,6 @@ g = g/sumG
 
 !filter indicator function for each turbine
 do b=1,nloc
-    
-    !if (coord == 0) then
-    !    if (verbose) then
-    !        write(*,*) 'Filtering turbine Number ',b
-    !    endif
-    !endif
 
     !create the input array (nx,ny,nz_tot) from a list of included nodes
         temp_array = 0.
@@ -374,12 +368,6 @@ do b=1,nloc
         min_k = wind_farm%turbine(b)%nodes_max(5)
         max_k = wind_farm%turbine(b)%nodes_max(6) 
         cut = trunc   
-
-        !if (coord == 0) then
-        !    if (verbose) then
-        !        write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
-        !    endif
-        !endif
 
         !convolution computed for points (i4,j4,k)
         !only compute for nodes near the turbine (defined by cut aka trunc)
@@ -424,14 +412,8 @@ do b=1,nloc
       enddo
      enddo
     enddo
-        enddo
-
-        !if (coord == 0) then
-        !    if (verbose) then
-        !        write(*,*) 'Convolution complete for turbine ',b
-        !    endif
-        !endif
-
+    enddo
+    
     !normalize this "indicator function" such that it integrates to turbine volume
     sumA = 0.
     do k=1,nz_tot
@@ -447,10 +429,6 @@ do b=1,nloc
     enddo
     turbine_vol = pi/4. * (wind_farm%turbine(b)%dia)**2 * wind_farm%turbine(b)%thk
     out_a = turbine_vol/sumA*out_a
-
-!    if (coord == 0) then
-!        large_node_array_filtered = large_node_array_filtered + out_a ! removed large 3D array to limit memory use
-!    endif
 
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
@@ -501,31 +479,8 @@ do b=1,nloc
 
 enddo
 
-!    !test to make sure domain is divided correctly:
-!        temp_array_2 = 0.
-!        do b=1,nloc
-!        do l=1,wind_farm%turbine(b)%num_nodes
-!            i2 = wind_farm%turbine(b)%nodes(l,1)
-!            j2 = wind_farm%turbine(b)%nodes(l,2)
-!            k2 = wind_farm%turbine(b)%nodes(l,3)
-!            temp_array_2(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
-!        enddo   
-!        enddo
-!        !write to file with .dat.c* extension
-!        call string_splice( string1, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
-!        
-!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
-!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
-
-!    if (coord == 0) then
-!        string1 = path // 'turbine/nodes_filtered.dat'
-!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
-!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
-!    endif
-
 !each processor sends its value of turbine_in_proc
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
-
 #ifdef PPMPI
     if (coord == 0) then
         if (turbine_in_proc) then
