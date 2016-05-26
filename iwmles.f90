@@ -56,8 +56,6 @@ module iwmles
 
   integer :: iwm_ntime_skip=5   ! number of time steps to skip in between wall stress calculation
   real(kind=rprec) :: iwm_dt    ! time step size seen by the wall model
-  integer :: iwm_debug    = 2014  !the file I use to track the performance, this is the year this model is developed
-  integer :: iwm_status   = 2016  !the file for check point use, this is the year I graduate...
   
 contains
 
@@ -81,7 +79,7 @@ subroutine iwm_wallstress
   if(mod(jt,iwm_ntime_skip)==0)then
     call iwm_calc_lhs() !gather flow status, update the integrated unsteady term, convective term, turbulent diffusion term etc.
     call iwm_calc_wallstress() !the subroutine to calculate wall stress
-    !call iwm_monitor() !this is to monitor any quantity from the iwm, useful debugging tool
+    call iwm_monitor() !this is to monitor any quantity from the iwm, useful debugging tool
   endif
   
   !xiang: imposing txz, tyz, dudz, dvdz every time step even iwm_* are not computed every time step. 
@@ -563,61 +561,65 @@ end subroutine iwm_calc_wallstress
 !this subroutine is to monitor the parameters at one point, do not call this subroutine if you are not interested in how the model works
 subroutine iwm_monitor
   use param,only:coord,nx,ny,jt_total
-  
+  use open_file_fid_mod
   implicit none
   
-  integer :: iwm_i,iwm_j,dmpPrd
+  integer :: iwm_i,iwm_j,dmpPrd,fid
   CHARACTER*50 :: fname
   
   dmpPrd=iwm_ntime_skip
   iwm_i=int(nx/2.0_rprec)
   iwm_j=int(ny/2.0_rprec)
   write(fname,'(A,i5.5,A)') 'iwm_track.dat' 
-  open(iwm_debug+coord,file=fname,ACCESS='append') 
+  fid = open_file_fid(fname, 'append', 'formatted' )
   if( mod(jt_total,dmpPrd)==0)then
-    write(iwm_debug+coord,*) iwm_flt_tagvel(iwm_i,iwm_j,:), iwm_utx(iwm_i,iwm_j), iwm_uty(iwm_i,iwm_j),  &
+    write(fid,*) iwm_flt_tagvel(iwm_i,iwm_j,:), iwm_utx(iwm_i,iwm_j), iwm_uty(iwm_i,iwm_j),  &
                              iwm_Ax(iwm_i,iwm_j), iwm_Ay(iwm_i,iwm_j), iwm_tR(iwm_i,iwm_j)
   endif
-  close(iwm_debug+coord)
+  close(fid)
   
 end subroutine iwm_monitor
 
-!put down a check point for the integral wall model, this subroutine is called after maksing sure iwm_on=1
+!put down a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
 subroutine iwm_checkPoint()
+    use open_file_fid_mod 
 	implicit none
-    open(iwm_status,file='iwm_checkPoint.dat', &
-	                form='unformatted', &
-					status='unknown', &
-					position='rewind')
-    write(iwm_status) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &
-	                  iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN), &
-					  iwm_flt_p(:,:), &
-					  iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),    &
-                      iwm_unsdy(:,:,1:iwm_DN), iwm_conv(:,:,1:iwm_DN), iwm_PrsGrad(:,:,1:iwm_DN), &
-					  iwm_diff(:,:,1:iwm_DN), iwm_LHS(:,:,1:iwm_DN), &
-					  iwm_dudzT(:,:,1:iwm_DN), iwm_dudzB(:,:,1:iwm_DN), &
-					  iwm_flt_us(:,:), iwm_tR(:,:), &
-					  iwm_Dz(:,:), iwm_z0(:,:), iwm_Ax(:,:), iwm_Ay(:,:), &
-					  iwm_dt
-    close(iwm_status)
+	
+	integer :: fid
+	
+	fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
+    write(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &
+               iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN), &
+               iwm_flt_p(:,:), &
+               iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),    &
+               iwm_unsdy(:,:,1:iwm_DN), iwm_conv(:,:,1:iwm_DN), iwm_PrsGrad(:,:,1:iwm_DN), &
+               iwm_diff(:,:,1:iwm_DN), iwm_LHS(:,:,1:iwm_DN), &
+               iwm_dudzT(:,:,1:iwm_DN), iwm_dudzB(:,:,1:iwm_DN), &
+               iwm_flt_us(:,:), iwm_tR(:,:), &
+               iwm_Dz(:,:), iwm_z0(:,:), iwm_Ax(:,:), iwm_Ay(:,:), &
+               iwm_dt
+    close(fid)
 end subroutine iwm_checkPoint
 
-!read a check point for the integral wall model, this subroutine is called after maksing sure iwm_on=1
+!read a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
 subroutine iwm_read_checkPoint()
+    use open_file_fid_mod
 	implicit none
-    open(iwm_status+1,file='iwm_checkPoint.dat', &
-	                form='unformatted')
-    read(iwm_status+1)iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &
-	                  iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN), &
-					  iwm_flt_p(:,:), &
-					  iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),    &
-                      iwm_unsdy(:,:,1:iwm_DN), iwm_conv(:,:,1:iwm_DN), iwm_PrsGrad(:,:,1:iwm_DN), &
-					  iwm_diff(:,:,1:iwm_DN), iwm_LHS(:,:,1:iwm_DN), &
-					  iwm_dudzT(:,:,1:iwm_DN), iwm_dudzB(:,:,1:iwm_DN), &
-					  iwm_flt_us(:,:), iwm_tR(:,:), &
-					  iwm_Dz(:,:), iwm_z0(:,:), iwm_Ax(:,:), iwm_Ay(:,:), &
-					  iwm_dt
-    close(iwm_status+1)
+
+	integer :: fid
+
+    fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
+    read(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &
+              iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN), &
+              iwm_flt_p(:,:), &
+              iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),    &
+              iwm_unsdy(:,:,1:iwm_DN), iwm_conv(:,:,1:iwm_DN), iwm_PrsGrad(:,:,1:iwm_DN), &
+              iwm_diff(:,:,1:iwm_DN), iwm_LHS(:,:,1:iwm_DN), &
+              iwm_dudzT(:,:,1:iwm_DN), iwm_dudzB(:,:,1:iwm_DN), &
+              iwm_flt_us(:,:), iwm_tR(:,:), &
+              iwm_Dz(:,:), iwm_z0(:,:), iwm_Ax(:,:), iwm_Ay(:,:), &
+              iwm_dt
+    close(fid)
 end subroutine iwm_read_checkPoint
   
 end module iwmles

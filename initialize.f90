@@ -176,7 +176,6 @@ if(iwm_on == 1)then
   if(coord==0) write(*,*) 'iwm: finish memory allocation...'
 endif
 endif
-    
 
 ! Initialize concurrent precursor stuff
 #if defined(PPMPI) && defined(PPCPS)
