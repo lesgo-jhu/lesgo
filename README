@@ -229,16 +229,16 @@ term 'MPI appendix'
 Below are listed the output files along with a description
 of their contents. These file use the 'MPI appendix'
 
-  1) vel.out : Contains the core part of the restart data for lesgo. In this
-               file the velocity, right hand side of the momentum equation, and
-               several SGS variables are store. Essentially all the data
-               required from the previous time step or steps is located in these
-               files.
+  1) vel.out    : Contains the core part of the restart data for lesgo. In this
+                  file the velocity, right hand side of the momentum equation, and
+                  several SGS variables are store. Essentially all the data
+                  required from the previous time step or steps is located in these
+                  files.
 
-  2) tavg.out : Contains the time averaged data from the previous simulation. In
-                this file the running averages of the velocity, Reynolds stress,
-                etc are store here and are used to maintain the averaging
-                between simulations.
+  2) tavg.out   : Contains the time averaged data from the previous simulation. In
+                  this file the running averages of the velocity, Reynolds stress,
+                  etc are store here and are used to maintain the averaging
+                  between simulations.
 
   3) spectra.out : Contains the time averaged spectra data from
                    the previous simulation.
@@ -251,50 +251,44 @@ settings in the OUTPUT block in the input file "lesgo.conf". In this section we
 will discuss the output from the core LES solver of lesgo. All data output from
 various modules will be discussed in their respective sections.
 
-  A) Time Averaged Data
+For large data files, two binary formats can be used: 1) lesgo binary format and 2) CGNS.
+These files are denoted below with the dummy file extension '.ext'. For lesgo binary, the
+extension will actually be '.bin' and for CGNS the actual extension with '.cgns'. For 
+smaller data files, ASCII is used and end with '.dat'.
+
+A) Time Averaged Data
 
     1) Entire domain (these file use the 'MPI appendix')
 
-      * vel_avg.dat         : Mean velocity field
-      * vel2_avg.dat        : Mean of square products of the velocity field
-      * ddz_avg.dat         : Mean of vertical gradients
-      * force_avg.dat       : Mean field of modeled forces (IBM, turbines, RNS, etc)
-      * tau_avg.dat         : Mean of the sub-grid scale stress tensor
-      * rs.dat              : Reynolds stresses
-
-  2) Averaged over z-planes
-
-    * vel_zplane_avg.dat    : Mean velocity field
-    * vel2_zplane_avg.dat   : Mean of square products of the velocity field
-    * ddz_zplane_avg.dat    : Mean of vertical gradients
-    * force_zplane_avg.dat  : Mean field of modeled forces (IBM, turbines, RNS, etc)
-    * tau_zplane_avg.dat    : Mean of the sub-grid scale stress tensor
-    * rs_zplane.dat         : Reynolds stresses
-    * cnpy_zplane.dat       : Canopy (dispersive) stresses
-    * cs_opt2_zplane.dat    : Square of Smagorinsky coefficient from SGS modeling
+      * vel_avg.ext         : Mean velocity field 
+      * vel2_avg.ext        : Mean of square products of the velocity field
+      * force_avg.ext       : Mean field of modeled forces (IBM, turbines, RNS, etc)
+      * tau_avg.ext         : Mean of the sub-grid scale stress tensor
+      * rs.ext              : Reynolds stresses
+      * cs_opt2.ext         : Square of Smagorinsky coefficient from SGS modeling
 
 B) Domain Data (these files use the 'MPI appendix')
 
-  * vel.<timestep>.dat      : Instantaneous velocity field at time step <timestep>
+  * vel.<timestep>.ext      : Instantaneous velocity field at time step <timestep>
 
 C) Sampled Point Data
 
   * vel.x-<xloc>.y-<yloc>.z-<zloc>.dat :
-    Instantaneous velocity sampled at point (<xloc>,<yloc>,<zloc>) 
+    Instantaneous velocity sampled at point (<xloc>,<yloc>,<zloc>)
 
 D) Data along x-planes (these files use the 'MPI appendix')
 
-  * vel.x-<xloc>-<timestep>.dat :
+  * vel.x-<xloc>.<timestep>.ext :
     Instantaneous velocity sampled at x location <xloc> for the time step <timestep>
 
 E) Data along y-planes (these files use the 'MPI appendix')
 
-  * vel.y-<yloc>-<timestep>.dat :
+  * vel.y-<yloc>.<timestep>.ext :
     Instantaneous velocity sampled at y location <yloc> for the time step <timestep>
 
 F) Data along z-planes
 
-  * vel.z-<zloc>-<timestep>.dat : 
+  * vel.z-<zloc>.<timestep>.ext : 
     Instantaneous velocity sampled at z location <zloc> for the time step <timestep>
  
 ================================================================================

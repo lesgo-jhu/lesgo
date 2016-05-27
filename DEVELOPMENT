@@ -50,8 +50,9 @@ ITEMS:
      grid size, and domain decomposition for parallelization. 
      Assigned to JB
 
-(CC) Include matlab functions for reading binary output files. 
+(II) Include matlab functions for reading binary output files. 
      Assigned to JB
+     After changes to output files for consistency, this probably needs to be updated. (cs)
 
 (II) Related to task above (matlab functions for reading binary output files),
       add a 'post_processing' folder which includes basic utilities for reading

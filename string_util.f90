@@ -44,7 +44,7 @@ interface string_concat
                    string_concat_aia, string_concat_ara, &
                    string_concat_aiai, string_concat_arar, &
                    string_concat_aiaia, string_concat_arara, &
-                   string_concat_araia, &
+                   string_concat_arai, string_concat_araia, &
                    string_concat_aiaiai, string_concat_ararar, &
                    string_concat_aiaiaia, string_concat_ararara
 end interface
@@ -54,7 +54,7 @@ interface string_splice
         string_splice_aia, string_splice_ara, &
         string_splice_aiai, string_splice_arar, &
         string_splice_aiaia, string_splice_arara, &
-        string_splice_araia, &
+        string_splice_araia, string_splice_arai, &
         string_splice_aiaiai, string_splice_ararar, &
         string_splice_aiaiaia, string_splice_ararara
 end interface string_splice
@@ -283,6 +283,25 @@ call string_concat(str,str3)
 
 return
 end subroutine string_concat_araia
+
+!**********************************************************************
+subroutine string_concat_arai(str, str1, r1, str2, i1)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(INOUT) :: str
+character(*), intent(IN) :: str1, str2
+real(rprec) :: r1
+integer, intent(IN) :: i1
+
+call string_concat(str,str1)
+call string_concat(str,r1)
+call string_concat(str,str2)
+call string_concat(str,i1)
+
+return
+end subroutine string_concat_arai
 
 !**********************************************************************
 subroutine string_concat_aiaiai(str, str1, i1, str2, i2, str3, i3)
@@ -547,6 +566,25 @@ s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2)) // s3
 return
 end subroutine string_splice_araia
 
+!**********************************************************************
+subroutine string_splice_arai(s, s1, r1, s2, i2)
+!**********************************************************************
+use types, only : rprec
+implicit none
+
+character(*), intent(inout) :: s
+character(*), intent(in) :: s1, s2
+real(rprec), intent(in) :: r1
+integer, intent(in) :: i2
+character(BUFF_LENGTH) :: b1, b2
+
+write(b1,rformat) r1
+write(b2,iformat) i2
+
+s = s1 // trim(adjustl(b1)) // s2 // trim(adjustl(b2))
+
+return
+end subroutine string_splice_arai
 
 !**********************************************************************
 subroutine string_splice_aiaiai(s, s1, i1, s2, i2, s3, i3)
