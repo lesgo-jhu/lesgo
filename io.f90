@@ -573,6 +573,7 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
+use param, only : write_endian
 use grid_m
 use sim_param, only : u,v,w
 ! For computing and writing vorticity
@@ -660,7 +661,7 @@ elseif(itype==2) then
 #else
     ! Write binary Output
     call string_concat(fname, bin_ext)
-    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+    open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=nx*ny*nz*rprec)
     write(13,rec=1) u(:nx,:ny,1:nz)
     write(13,rec=2) v(:nx,:ny,1:nz)
     write(13,rec=3) w_uv(:nx,:ny,1:nz)
@@ -733,7 +734,7 @@ elseif(itype==3) then
 #else
         ! Write binary output
         call string_concat(fname, bin_ext)
-        open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=ny*nz*rprec)
+        open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=ny*nz*rprec)
         write(13,rec=1) ui
         write(13,rec=2) vi
         write(13,rec=3) wi
@@ -778,7 +779,7 @@ elseif(itype==4) then
 #else
         ! Write binary output
         call string_concat(fname, bin_ext)
-        open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*nz*rprec)
+        open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=nx*nz*rprec)
         write(13,rec=1) ui
         write(13,rec=2) vi
         write(13,rec=3) wi
@@ -825,7 +826,7 @@ elseif(itype==5) then
                     (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
 #else
         call string_concat( fname, '.bin')
-        open(unit=13,file=fname,form='unformatted',convert='big_endian',        &
+        open(unit=13,file=fname,form='unformatted',convert=write_endian,        &
                         access='direct',recl=nx*ny*1*rprec)
         write(13,rec=1) ui(1:nx,1:ny,1)
         write(13,rec=2) vi(1:nx,1:ny,1)
@@ -860,7 +861,7 @@ use param, only : comm,ierr
 #endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model
+use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model,write_endian
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
@@ -883,13 +884,7 @@ call string_concat( fname, '.c', coord )
 #endif
 
 !  Open vel.out (lun_default in io) for final output
-#ifdef PPWRITE_BIG_ENDIAN
-open(11,file=fname,form='unformatted', convert='big_endian', status='unknown', position='rewind')
-#elif PPWRITE_LITTLE_ENDIAN
-open(11,file=fname,form='unformatted', convert='little_endian', status='unknown', position='rewind')
-#else
-open(11,file=fname,form='unformatted', status='unknown', position='rewind')
-#endif
+open(11,file=fname,form='unformatted', convert=write_endian, status='unknown', position='rewind')
 
 if (sgs_model==1) then
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),     &
@@ -1136,6 +1131,7 @@ subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
 use messages
+use param, only : read_endian
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 #ifdef PPOUTPUT_EXTRA
@@ -1172,17 +1168,9 @@ if (.not. exst) then
  
 else
 
-#ifdef PPREAD_BIG_ENDIAN
-open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-#else
-open (1, file=fname, action='read', position='rewind',form='unformatted')
-#endif
-
-read (1) tavg_total_time
-read (1) tavg
-
+open(1, file=fname, action='read', position='rewind',form='unformatted', convert=read_endian)
+read(1) tavg_total_time
+read(1) tavg
 close(1)
 
 endif
@@ -1205,17 +1193,9 @@ endif
 
         tavg_total_time_sgs = 0._rprec  
     else
-#ifdef PPREAD_BIG_ENDIAN
-        open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-        open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-#else
-        open (1, file=fname, action='read', position='rewind',form='unformatted')
-#endif
-
+        open (1, file=fname, action='read', position='rewind',form='unformatted', convert=read_endian)
         read (1) tavg_total_time_sgs
         read (1) tavg_sgs
-
         close(1)    
     endif
     
@@ -1360,7 +1340,7 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use param, only : ny,nz,nz_tot
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
-use param, only : ierr,comm
+use param, only : ierr,comm,write_endian
 #endif
 
 implicit none
@@ -1516,13 +1496,13 @@ x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
 
 #else
 ! Write binary data
-open(unit=13,file=fname_vel,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_vel,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w
 close(13)
 
-open(unit=13,file=fname_vel2,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_vel2,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u2
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v2
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w2
@@ -1531,7 +1511,7 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
 write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
 close(13)
 
-open(unit=13,file=fname_tau,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_tau,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%txx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%txy
 write(13,rec=3) tavg(:nx,:ny,1:nz)%tyy
@@ -1540,11 +1520,11 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
 write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
 close(13)
 
-open(unit=13,file=fname_f,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_f,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
 close(13)
 
-open(unit=13,file=fname_cs,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_cs,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2 
 close(13)
 
@@ -1577,7 +1557,7 @@ rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
 
 #else
 ! Write binary data
-open(unit=13,file=fname_rs,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_rs,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) rs(:nx,:ny,1:nz)%up2
 write(13,rec=2) rs(:nx,:ny,1:nz)%vp2
 write(13,rec=3) rs(:nx,:ny,1:nz)%wp2
@@ -1603,7 +1583,7 @@ subroutine tavg_checkpoint()
 ! This subroutine writes the restart data and is to be called by 'checkpoint'
 ! for intermediate checkpoints and by 'tavg_finalize' at the end of the
 ! simulation.
-use param, only : checkpoint_tavg_file
+use param, only : checkpoint_tavg_file, write_endian
 use stat_defs, only : tavg_total_time, tavg
 #ifdef PPOUTPUT_EXTRA
 use param, only : checkpoint_tavg_sgs_file
@@ -1620,40 +1600,20 @@ call string_concat( fname, '.c', coord)
 #endif
 
 !  Write data to tavg.out
-inquire (unit=1, opened=opn)
-
-#ifdef PPWRITE_BIG_ENDIAN
-open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-#elif PPWRITE_LITTLE_ENDIAN
-open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-#else
-open (1, file=fname, action='write', position='rewind',form='unformatted')
-#endif
-
-! write the entire structures
-write (1) tavg_total_time
-write (1) tavg
+open(1, file=fname, action='write', position='rewind',form='unformatted', convert=write_endian)
+write(1) tavg_total_time
+write(1) tavg
 close(1)
 
-!----
 #ifdef PPOUTPUT_EXTRA
 fname = checkpoint_tavg_sgs_file
 #ifdef PPMPI
   call string_concat( fname, '.c', coord)
 #endif
-
   !  Write data to tavg_sgs.out
-#ifdef PPWRITE_BIG_ENDIAN
-  open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-#elif PPWRITE_LITTLE_ENDIAN
-  open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-#else
-  open (1, file=fname, action='write', position='rewind',form='unformatted')
-#endif
-
-  ! write the entire structures
-  write (1) tavg_total_time_sgs
-  write (1) tavg_sgs
+  open(1, file=fname, action='write', position='rewind',form='unformatted', convert=write_endian)
+  write(1) tavg_total_time_sgs
+  write(1) tavg_sgs
   close(1)
 #endif
 
