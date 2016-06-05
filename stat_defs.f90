@@ -21,7 +21,8 @@
 module stat_defs
 !**********************************************************************
 use types, only : rprec
-use param, only : nx,ny,nz,lh
+use param, only : nx,ny,nz,lh,ld,ny2
+use derivatives, only: convolve, convolve2, dft_direct_back_2d_n_yonlyC
 
 save
 public
@@ -75,6 +76,8 @@ logical :: span_spectra_initialized = .false.
 type tavg_t
   real(rprec) :: u, v, w, u_uv
   real(rprec) :: u2, v2, w2, uv, uw, vw
+  real(rprec) :: su2, sv2, sw2, suv, suw, svw   !!jb
+  real(rprec) :: su2_1d, sv2_1d, sw2_1d, suv_1d, suw_1d, svw_1d   !!jb
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
   real(rprec) :: fx, fy, fz
@@ -365,6 +368,18 @@ c % w2 = a % w2 / b
 c % uv = a % uv / b
 c % uw = a % uw / b
 c % vw = a % vw / b
+c % su2 = a % su2 / b   !!jb
+c % sv2 = a % sv2 / b
+c % sw2 = a % sw2 / b
+c % suv = a % suv / b
+c % suw = a % suw / b
+c % svw = a % svw / b
+c % su2_1d = a % su2_1d / b   !!jb
+c % sv2_1d = a % sv2_1d / b
+c % sw2_1d = a % sw2_1d / b
+c % suv_1d = a % suv_1d / b
+c % suw_1d = a % suw_1d / b
+c % svw_1d = a % svw_1d / b
 c % dudz = a % dudz / b
 c % dvdz = a % dvdz / b
 c % txx = a % txx / b
@@ -604,7 +619,6 @@ implicit none
 integer, intent(in) :: lbz2
 type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
 type(rs_t), allocatable, dimension(:,:,:) :: c
-
 integer :: ubx, uby, ubz
 
 ubx=ubound(a,1)
@@ -622,6 +636,67 @@ c % vpwp = a % vw - a % v * a % w
 
 return
 end function rs_compute
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function rs_compute_fourier( a , lbz2) result(c)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+integer, intent(in) :: lbz2
+type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
+type(rs_t), allocatable, dimension(:,:,:) :: c
+
+real(rprec), allocatable, dimension(:,:,:) :: u_w, v_w, w_w
+real(rprec), allocatable, dimension(:,:,:) :: uuF
+real(rprec), allocatable, dimension(:,:,:) :: vvF
+real(rprec), allocatable, dimension(:,:,:) :: wwF
+real(rprec), allocatable, dimension(:,:,:) :: uvF
+real(rprec), allocatable, dimension(:,:,:) :: uwF
+real(rprec), allocatable, dimension(:,:,:) :: vwF
+
+integer :: ubx, uby, ubz, jz
+ubx=ubound(a,1)
+uby=ubound(a,2)
+ubz=ubound(a,3)
+
+allocate(c(ubx,uby,lbz2:ubz))
+
+allocate(u_w(ld,ny,lbz2:nz))
+allocate(v_w(ld,ny,lbz2:nz))
+allocate(w_w(ld,ny,lbz2:nz))
+allocate(uuF(ld,ny,lbz2:nz))
+allocate(vvF(ld,ny,lbz2:nz))
+allocate(wwF(ld,ny,lbz2:nz))
+allocate(uvF(ld,ny,lbz2:nz))
+allocate(uwF(ld,ny,lbz2:nz))
+allocate(vwF(ld,ny,lbz2:nz))
+
+u_w(:,:,:) = a % u
+v_w(:,:,:) = a % v
+w_w(:,:,:) = a % w
+
+!!$do jz=lbz2,nz
+!!$   call dft_direct_back_2d_n_yonlyC( u_w(:,:,jz) )
+!!$   call dft_direct_back_2d_n_yonlyC( v_w(:,:,jz) )
+!!$   call dft_direct_back_2d_n_yonlyC( w_w(:,:,jz) )
+!!$enddo
+do jz=lbz2,nz
+   uuF(:,:,jz) = convolve2( u_w(:,:,jz), u_w(:,:,jz) )
+   vvF(:,:,jz) = convolve2( v_w(:,:,jz), v_w(:,:,jz) )
+   wwF(:,:,jz) = convolve2( w_w(:,:,jz), w_w(:,:,jz) )
+   uvF(:,:,jz) = convolve2( u_w(:,:,jz), v_w(:,:,jz) )
+   uwF(:,:,jz) = convolve2( u_w(:,:,jz), w_w(:,:,jz) )
+   vwF(:,:,jz) = convolve2( v_w(:,:,jz), w_w(:,:,jz) )
+enddo
+
+c % up2 = a % u2 - uuF !(1:ubx,1:uby,lbz2:ubz)
+c % vp2 = a % v2 - vvF !(1:ubx,1:uby,lbz2:ubz)
+c % wp2 = a % w2 - wwF !(1:ubx,1:uby,lbz2:ubz)
+c % upvp = a % uv - uvF !(1:ubx,1:uby,lbz2:ubz)
+c % upwp = a % uw - uwF !(1:ubx,1:uby,lbz2:ubz)
+c % vpwp = a % vw - vwF !(1:ubx,1:uby,lbz2:ubz)
+
+return
+end function rs_compute_fourier
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function cnpy_tavg_mul( a ) result(c)
@@ -666,6 +741,18 @@ c % w2 = a
 c % uv = a
 c % uw = a
 c % vw = a
+c % su2 = a   !!jb
+c % sv2 = a
+c % sw2 = a
+c % suv = a
+c % suw = a
+c % svw = a
+c % su2_1d = a   !!jb
+c % sv2_1d = a
+c % sw2_1d = a
+c % suv_1d = a
+c % suw_1d = a
+c % svw_1d = a
 c % dudz = a
 c % dvdz = a
 c % txx = a

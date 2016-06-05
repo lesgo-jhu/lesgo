@@ -242,7 +242,7 @@ do
      ld_big = 2 * lh_big
 
      ! Grid spacing (x direction)
-     dx = L_x / nx
+     dx = L_x / nx   !!jb note: this will be changed later if fourier=true
 
      ! Check if we are to enforce uniform grid spacing
      if( uniform_spacing ) then
@@ -355,10 +355,19 @@ do
         read (buff(equal_pos+1:), *) kx_space  !!jb
      case ('KX_DFT')
         read (buff(equal_pos+1:), *) kx_dft  !!jb
+     case ('FOURIER')
+        read (buff(equal_pos+1:), *) fourier  !!jb
      case ('KX_NUM')
         read (buff(equal_pos+1:), *) kx_num    !!jb
      case ('KX_VEC')
            call parse_vector( buff(equal_pos+1:), kx_num, kx_vec )  !!jb
+     case ('KXS_IN')
+           call parse_vector( buff(equal_pos+1:), kx_num, kxs_in )  !!jb
+     case ('NXP')
+        read (buff(equal_pos+1:), *) nxp  !!jb
+     case ('START_PHYS')
+        read (buff(equal_pos+1:), *) start_phys  !!jb
+
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
@@ -373,6 +382,10 @@ do
 
      call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
+  endif
+
+  if (fourier) then   !!jb
+     dx = L_x / nxp
   endif
 
 enddo

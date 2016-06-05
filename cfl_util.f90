@@ -43,8 +43,9 @@ function get_max_cfl() result(cfl)
 !
 ! This function provides the value of the maximum CFL in the entire 
 ! domain
-use param, only : dt, dx, dy, dz, nx, ny, nz
-use sim_param, only : u,v,w
+use param, only : dt, dx, dy, dz, nx, ny, nz, fourier, nxp
+use sim_param, only : u, v, w
+use sim_param, only : uF,vF,wF
 $if($MPI)
 use param, only : ierr, MPI_RPREC
 $endif
@@ -55,9 +56,15 @@ $if($MPI)
 real(rprec) :: cfl_buf
 $endif
 
-cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
-cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
-cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
+if (fourier) then   !! remember dx = L_x / nxp (if fourier=true)
+   cfl_u = maxval( abs(uF(1:nxp,1:ny,1:nz-1)) ) / dx
+   cfl_v = maxval( abs(vF(1:nxp,1:ny,1:nz-1)) ) / dy
+   cfl_w = maxval( abs(wF(1:nxp,1:ny,1:nz-1)) ) / dz
+else
+   cfl_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+   cfl_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy
+   cfl_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
+endif
 
 cfl = dt * maxval( (/ cfl_u, cfl_v, cfl_w /) )
 
@@ -75,8 +82,9 @@ function get_cfl_dt() result(dt)
 !
 ! This functions determines the maximum allowable time step based on the CFL
 ! value specified in the param module
-use param, only : cfl, dx, dy, dz, nx, ny, nz
-use sim_param, only : u,v,w
+use param, only : cfl, dx, dy, dz, nx, ny, nz, fourier, nxp
+use sim_param, only : u,  v,  w
+use sim_param, only : uF, vF, wF
 $if($MPI)
 use param, only : ierr, MPI_RPREC
 $endif
@@ -88,9 +96,15 @@ real(rprec) :: dt_buf
 $endif
 
 ! Avoid division by computing max dt^-1
-dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
-dt_inv_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy 
-dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
+if (fourier) then
+   dt_inv_u = maxval( abs(uF(1:nxp,1:ny,1:nz-1)) ) / dx
+   dt_inv_v = maxval( abs(vF(1:nxp,1:ny,1:nz-1)) ) / dy 
+   dt_inv_w = maxval( abs(wF(1:nxp,1:ny,1:nz-1)) ) / dz
+else
+   dt_inv_u = maxval( abs(u(1:nx,1:ny,1:nz-1)) ) / dx
+   dt_inv_v = maxval( abs(v(1:nx,1:ny,1:nz-1)) ) / dy 
+   dt_inv_w = maxval( abs(w(1:nx,1:ny,1:nz-1)) ) / dz
+endif
 
 dt = cfl / maxval( (/ dt_inv_u, dt_inv_v, dt_inv_w /) )
 

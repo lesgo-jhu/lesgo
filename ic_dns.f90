@@ -44,7 +44,13 @@ else
      $else
      z = (real(jz) - 0.5_rprec) * dz ! non-dimensional
      $endif
-     ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+
+     !! laminar
+     !ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+     
+     !! turbulent
+     ubar(jz)=1._rprec/vonk * log( z * z_i * u_star / nu_molec )
+
      !         ubar(jz)=0.
   end do
 end if

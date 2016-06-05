@@ -19,8 +19,9 @@
 
 subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 use types,only:rprec
-use param,only:ld,ny,nz,BOGUS,lbz,kx_dft
-use derivatives, only : ddx, ddy, ddz_w, ddxy, ddx_n, ddy_n
+use param,only:ld,ny,nz,BOGUS,lbz,kx_dft,kx_space,coord,nx
+use derivatives, only : ddx, ddy, ddz_w, ddxy
+use derivatives, only : ddx_n, ddy_n, ddx_kxspace, ddy_kxspace,wave2phys   !!jb
 
 implicit none
 
@@ -31,6 +32,7 @@ real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
 real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
 
+integer::jx,jy
 
 $if ($DEBUG)
 logical, parameter :: DEBUG = .true.
@@ -40,16 +42,26 @@ $if ($VERBOSE)
 write (*, *) 'started divstress_uv'
 $endif
  
+
+!!$if ( kx_space .and. fourier) then
+!!$   call wave2phys(txz)
+!!$   call wave2phys(tyz)
+!!$endif
+
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
 if (.not. kx_dft) then
   call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
+elseif (kx_space) then
+  call ddx_kxspace(txx, dtxdx, lbz)
 else
   call ddx_n(txx, dtxdx, lbz)    !!jb
 endif
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-if (kx_dft) then
+if (kx_space) then
+  call ddy_kxspace(txy, dtydy, lbz)        !!jb
+elseif (kx_dft) then
   call ddy_n(txy, dtydy, lbz)        !!jb
 endif
 
@@ -60,6 +72,8 @@ call ddz_w(txz, dtzdz, lbz)
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
 if (.not. kx_dft) then
   !!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
+elseif (kx_space) then
+  call ddx_kxspace(txy, dtxdx2, lbz)     !!jb
 else
   call ddx_n(txy, dtxdx2, lbz)     !!jb
 endif
@@ -67,6 +81,8 @@ endif
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
 if (.not. kx_dft) then
   call ddy(tyy, dtydy2, lbz)
+elseif (kx_space) then
+  call ddy_kxspace(tyy, dtydy2, lbz)     !!jb
 else
   call ddy_n(tyy, dtydy2, lbz)     !!jb
 endif
@@ -77,6 +93,38 @@ call ddz_w(tyz, dtzdz2, lbz)
 if (.not. kx_dft) then
   call ddxy(txy , dtxdx2, dtydy, lbz)     !!jb         
 endif
+
+!!$if (kx_space .and. fourier) then
+!!$   call phys2wave(txz)
+!!$   call phys2wave(tyz)
+!!$   call phys2wave(dtd)
+!!$   call phys2wave(txz)   
+!!$endif
+
+!!$if (coord == 0) then
+!!$   if (kx_space) then
+!!$      print*, 'heree5'
+!!$      call wave2phys(dtxdx)
+!!$      call wave2phys(dtydy)
+!!$      call wave2phys(dtzdz)
+!!$      call wave2phys(dtxdx2)
+!!$      call wave2phys(dtydy2)
+!!$      call wave2phys(dtzdz2)
+!!$   endif
+!!$   print*, 'qwe 1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> '
+!!$   do jx=1,nx
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy,dtxdx(jx,jy,1),dtydy(jx,jy,1),dtzdz(jx,jy,1)
+!!$         !!write(*,*) dtzdz(jx,jy,0:3)
+!!$      enddo
+!!$   enddo
+!!$   print*, ' qwe 2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> '
+!!$   do jx=1,nx
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy,dtxdx2(jx,jy,1),dtydy2(jx,jy,1),dtzdz2(jx,jy,1)
+!!$      enddo
+!!$   enddo
+!!$endif
 
 !--MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the

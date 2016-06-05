@@ -34,6 +34,16 @@ public
     real(rprec), dimension(:,:,:),allocatable :: Cs_opt2   ! (C_s)^2, Dynamic Smag coeff
     real(rprec), dimension(:,:),  allocatable :: S
 
+    real(rprec), dimension(:,:,:),allocatable :: S11F,S12F,S22F,S33F,S13F,S23F
+    real(rprec), dimension(:,:,:),allocatable :: Nu_tF      ! eddy viscosity
+    real(rprec), dimension(:,:,:),allocatable :: Cs_opt2F   ! (C_s)^2, Dynamic Smag coeff
+    real(rprec), dimension(:,:),  allocatable :: SF
+
+    real(rprec), dimension(:,:,:),allocatable :: S11_big,S12_big,S22_big
+    real(rprec), dimension(:,:,:),allocatable :: S33_big,S13_big,S23_big
+    !!real(rprec), dimension(:,:,:),allocatable :: Nu_t_big
+    real(rprec), dimension(:,:),  allocatable :: S_big
+
 ! For all dynamic models (2-5)
 !    real(rprec), dimension(:,:,:),allocatable :: ee_now
     real(rprec), dimension(:,:),  allocatable :: L11,L12,L13,L22,L23,L33
@@ -75,6 +85,7 @@ contains
 subroutine sgs_param_init ()
 !**********************************************************************
 use param, only : ld,ny,nz,lbz,molec,nu_molec,u_star,z_i,dx,dy,dz,sgs_model
+use param, only : ld_big, ny2, fourier, L_x, nxp   !!jb
 use test_filtermodule,only:filter_size
 
 implicit none
@@ -91,6 +102,27 @@ allocate ( S33(ld,ny,nz) ); S33=0.0_rprec
 allocate ( Nu_t(ld,ny,nz) ); Nu_t=0.0_rprec
 allocate ( Cs_opt2(ld,ny,nz) ); Cs_opt2=0.0_rprec
 allocate ( S(ld,ny) ); S=0.0_rprec
+
+if (fourier) then
+   allocate ( S11F(nxp+2,ny,nz) ); S11F=0.0_rprec
+   allocate ( S12F(nxp+2,ny,nz) ); S12F=0.0_rprec
+   allocate ( S13F(nxp+2,ny,nz) ); S13F=0.0_rprec
+   allocate ( S22F(nxp+2,ny,nz) ); S22F=0.0_rprec
+   allocate ( S23F(nxp+2,ny,nz) ); S23F=0.0_rprec
+   allocate ( S33F(nxp+2,ny,nz) ); S33F=0.0_rprec
+   allocate ( Nu_tF(nxp+2,ny,nz) ); Nu_tF=0.0_rprec
+   allocate ( Cs_opt2F(nxp+2,ny,nz) ); Cs_opt2F=0.0_rprec
+   allocate ( SF(nxp+2,ny) ); SF=0.0_rprec
+endif
+
+allocate ( S11_big(ld_big,ny2,nz) ); S11_big=0.0_rprec
+allocate ( S12_big(ld_big,ny2,nz) ); S12_big=0.0_rprec
+allocate ( S13_big(ld_big,ny2,nz) ); S13_big=0.0_rprec
+allocate ( S22_big(ld_big,ny2,nz) ); S22_big=0.0_rprec
+allocate ( S23_big(ld_big,ny2,nz) ); S23_big=0.0_rprec
+allocate ( S33_big(ld_big,ny2,nz) ); S33_big=0.0_rprec
+!!$!!allocate ( Nu_t_big(ld,ny,nz) ); Nu_t=0.0_rprec
+allocate ( S_big(ld_big,ny2) ); S_big=0.0_rprec
 
 ! For dynamic models:
 if (sgs_model .ne. 1) then
@@ -182,14 +214,18 @@ if (sgs_model .eq. 5) then
 endif
 
 ! Set constants
-    !!delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional
-    delta=filter_size*(dy*dz)**(1._rprec/2._rprec) ! nondimensional
+!if (fourier) then
+!   delta=filter_size*(real(L_x/nxp,rprec)*dy*dz)**(1._rprec/3._rprec) ! nondimensional
+!else
+!   delta=filter_size*(dx*dy*dz)**(1._rprec/3._rprec) ! nondimensional       
+!endif
+delta=filter_size*(dy*dz)**(1._rprec/2._rprec) ! nondimensional
 
-    if (molec) then
-        nu = (nu_molec/(u_star*z_i))    ! dimensionless
-    else
-        nu = 0._rprec
-    end if   
+if (molec) then
+   nu = (nu_molec/(u_star*z_i))    ! dimensionless
+else
+   nu = 0._rprec
+end if   
 
 return
 end subroutine sgs_param_init

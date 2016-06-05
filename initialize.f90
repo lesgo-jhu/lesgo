@@ -28,6 +28,7 @@ use types, only : rprec
 use param, only : coord,dt,jt_total,nsteps,path
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use param, only : sgs_hist_calc
+use param, only : fourier   !!jb
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
 $endif
@@ -41,7 +42,7 @@ use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
-use grid_defs, only : grid_build
+use grid_defs, only : grid_build, grid_build_fourier  !!jb
 use fft, only : init_fft
 use io, only : openfiles
 use sgs_hist
@@ -132,7 +133,11 @@ call sim_param_init ()
 call sgs_param_init()
 
 ! Initialize uv grid (calculate x,y,z vectors)
-call grid_build()
+if (fourier) then
+   call grid_build_fourier()
+else
+   call grid_build()
+endif
 
 !  Initialize variables used for output statistics and instantaneous data
 call output_init()

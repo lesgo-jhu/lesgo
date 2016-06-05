@@ -38,6 +38,9 @@ use string_util, only : string_concat
 $if ($MPI)
   use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 $endif
+use derivatives, only: phys2wave, wave2phys  !!jb
+use derivatives, only: dft_direct_forw_2d_n, dft_direct_back_2d_n !!jb
+use messages   !!jb
 
 implicit none
 
@@ -48,7 +51,7 @@ character (64) :: fname
 !character (64) :: fname_dyn_tn
 !$endif
 
-integer::jz
+integer::jz,jx,jy
 
 $if ($TURBINES)
 fxa=0._rprec
@@ -145,9 +148,46 @@ end if
 
 $if ($MPI)
 
+!!$if (coord == 0) then
+!!$   do jx=1,3
+!!$      do jy=1,3
+!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
+!!$      enddo
+!!$   enddo
+!!$endif
+
+!!$if ( kx_space ) then    !!jb
+!!$   call phys2wave( u )
+!!$   call phys2wave( v )
+!!$   call phys2wave( w )
+!!$endif
+
+
+!!$if (coord == 0) then
+!!$   do jx=1,3
+!!$      do jy=1,3
+!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
+!!$      enddo
+!!$   enddo
+!!$endif
+
+  call mpi_barrier(comm, ierr)
+ 
   call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
   call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP ) 
   call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
+
+  call mpi_barrier(comm, ierr)
+
+!!$if (coord == 0) then
+!!$   print*, '2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,3
+!!$      do jy=1,3
+!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
+!!$      enddo
+!!$   enddo
+!!$endif
+
   
   if (coord == 0) then
     !--set 0-level velocities to BOGUS
@@ -156,6 +196,27 @@ $if ($MPI)
     w(:, :, lbz) = BOGUS
   end if
 $endif
+
+if ( initu .and. start_phys .and. fourier ) then    !!jb
+   if ( coord == 0 ) then
+      write(*,*) '>>> TRANSFORMING STARTUP VELOCITY AND RHS TO KX SPACE'
+   endif
+   call phys2wave( u )
+   call phys2wave( v )
+   call phys2wave( w )
+   call phys2wave( RHSx )
+   call phys2wave( RHSy )
+   call phys2wave( RHSz )
+endif
+
+if ((.not. initu) .and. fourier) then
+   if ( coord == 0 ) then
+      write(*,*) '>>> TRANSFORMING INITIAL VELOCITY TO KX SPACE'
+   endif
+   call phys2wave( u )
+   call phys2wave( v )
+   call phys2wave( w )
+endif
 
 contains
 

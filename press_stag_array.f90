@@ -55,6 +55,7 @@ use debug_mod
 $endif
 !!use derivatives, only: dft_direct_forw_2d, dft_direct_back_2d   !!jb
 use derivatives, only: dft_direct_forw_2d_n, dft_direct_back_2d_n   !!jb
+use derivatives, only: wave2phys, phys2wave   !!jb
 
 implicit none      
 
@@ -82,10 +83,15 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
 ! Specifiy cached constants
-const  = 1._rprec/(nx*ny)
+if (kx_space) then
+   const = 1._rprec
+else
+   const  = 1._rprec/real(nx*ny,rprec)
+endif
 const2 = const/tadv1/dt
 const3 = 1._rprec/(dz**2)
 const4 = 1._rprec/(dz)
+
 
 ! Allocate arrays
 if( .not. arrays_allocated ) then
@@ -109,6 +115,7 @@ $if ($SAFETYMODE)
 $endif  
 end if
 
+
 !==========================================================================
 ! Get the right hand side ready 
 ! Loop over levels
@@ -126,6 +133,12 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
    call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
    call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz))
+  elseif (kx_space) then
+     !! do nothing!! already in kx_space
+   !call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
+   !call dft_direct_forw_2d_n(rH_y(:,:,jz))
+   !call dft_direct_forw_2d_n(rH_z(:,:,jz))
+
   else
    call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
    call dft_direct_forw_2d_n(rH_y(:,:,jz))
@@ -139,6 +152,15 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
 
 end do
 
+
+!!$if (coord == nproc-1) then
+!!$   do jx=1,ld
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy, rH_x(jx,jy,1), rH_y(jx,jy,1), rH_z(jx,jy,1)
+!!$      enddo
+!!$   enddo
+!!$endif
+
 $if ($MPI)
 !  H_x(:, :, 0) = BOGUS
 !  H_y(:, :, 0) = BOGUS
@@ -150,6 +172,7 @@ $if ($SAFETYMODE)
   rH_z(1:ld:2,:,0) = BOGUS
 $endif
 $endif
+
 
 !--experiment
 !--this causes blow-up
@@ -173,11 +196,15 @@ $else
   rH_z(:,:,nz) = 0._rprec
 $endif
 
+
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   $if ($FFTW3)
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
+    elseif (kx_space) then
+       !! do nothing, already in kx_space
+      !call dft_direct_forw_2d_n( rbottomw )   !!jb
     else
       call dft_direct_forw_2d_n( rbottomw )   !!jb
     endif
@@ -186,6 +213,7 @@ if (coord == 0) then
   $endif
 end if
 
+
 $if ($MPI) 
   if (coord == nproc-1) then
 $endif
@@ -193,6 +221,9 @@ $endif
   $if ($FFTW3)
   if (.not. kx_dft) then
     call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
+  elseif (kx_space) then
+     !! do nothing, already in kx_space
+    !call dft_direct_forw_2d_n( rtopw )   !!jb
   else
     call dft_direct_forw_2d_n( rtopw )   !!jb
   endif
@@ -202,6 +233,23 @@ $endif
 $if($MPI)
   endif
 $endif
+
+
+!!$print*, 'here'
+!!$if (coord == 0) then
+!!$   do jx=1,ld
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy, rbottomw(jx,jy)
+!!$      enddo
+!!$   enddo
+!!$endif
+!!$if (coord == nproc-1) then
+!!$   do jx=1,ld
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy, rtopw(jx,jy)
+!!$      enddo
+!!$   enddo
+!!$endif
 
 ! set oddballs to 0
 ! probably can get rid of this if we're more careful below
@@ -217,6 +265,16 @@ rtopw(ld-1:ld, :)=0._rprec
 rtopw(:, ny/2+1)=0._rprec
 rbottomw(ld-1:ld, :)=0._rprec
 rbottomw(:, ny/2+1)=0._rprec
+
+
+!!$if (coord == nproc-2) then
+!!$   do jx=1,ld
+!!$      do jy=1,ny
+!!$         !write(*,*) jx,jy, rH_x(jx,jy,3), rH_y(jx,jy,3), rH_z(jx,jy,3)
+!!$         write(*,*) jx,jy, rH_z(jx,jy,:)
+!!$      enddo
+!!$   enddo
+!!$endif
 
 !==========================================================================
 ! Loop over (Kx,Ky) to solve for Pressure amplitudes
@@ -267,6 +325,7 @@ else
   jz_min = 1
 
 end if
+
 
 $if ($MPI) 
 if (coord == nproc-1) then
@@ -323,6 +382,17 @@ $if ($MPI)
                      rH_z(1, 1, nz), ld*ny, MPI_RPREC, up, 6,   &
                      comm, status, ierr)                     
 $endif
+
+
+!!$print*, 'here'
+!!$if (coord == nproc-1) then
+!!$   do jx=1,ld
+!!$      do jy=1,ny
+!!$         write(*,*) rH_x(1,1,nz-1), rH_y(1,1,nz-1), rH_z(1,1,nz-1)
+!!$      enddo
+!!$   enddo
+!!$endif
+
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -405,6 +475,7 @@ do jz = jz_min, nz
   end do
 end do
 
+
 $if ($DEBUG)
 if (DEBUG) then
   write (*, *) coord, ' before tridag_array'
@@ -415,12 +486,39 @@ if (DEBUG) then
 end if
 $endif
 
+!!$if (coord == nproc-2) then
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx,jy,RHS_col(jx,jy,:)
+!!$   enddo
+!!$   enddo
+!!$endif
+
+!!$if (coord == 0) then
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx,jy,a(jx,jy,3),b(jx,jy,3),c(jx,jy,3)
+!!$   enddo
+!!$   enddo
+!!$endif
+
+
 !--this skips zero wavenumber solution, nyquist freqs
 $if ($MPI)
   call tridag_array_pipelined ( 0, a, b, c, RHS_col, p_hat )
 $else
   call tridag_array ( a, b, c, RHS_col, p_hat )
 $endif
+
+
+!!$if (coord == nproc-1) then
+!!$   print*, 'p_hat: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx, jy, p_hat(jx,jy,1:2)
+!!$   enddo
+!!$   enddo
+!!$endif
 
 $if ($DEBUG)
 if (DEBUG) then
@@ -439,6 +537,16 @@ if (coord == 0) then
   p_hat(1:2, 1, 0) = 0._rprec
   p_hat(1:2, 1, 1) = p_hat(1:2,1,0) - dz * rbottomw(1:2,1)
 end if
+
+
+!!$if (coord == nproc-1) then
+!!$   print*, 'p_hat: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx, jy, p_hat(jx,jy,0:2)
+!!$   enddo
+!!$   enddo
+!!$endif
 
 do jz = 2, nz
   ! JDA dissertation, eqn(2.88)
@@ -459,9 +567,19 @@ $if ($MPI)
                      comm, status, ierr)  
 $endif
 
+
 !--zero the nyquist freqs
 p_hat(ld-1:ld, :, :) = 0._rprec
 p_hat(:, ny/2+1, :) = 0._rprec
+
+!!$if (coord == nproc-1) then
+!!$   print*, 'p_hat: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx, jy, p_hat(jx,jy,0:2)
+!!$   enddo
+!!$   enddo
+!!$endif
 
 $if ($DEBUG)
 if (DEBUG) call DEBUG_write (p_hat, 'press_stag_array.d.p_hat')
@@ -476,11 +594,14 @@ if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
 $if ($FFTW3)
-  if (.not. kx_dft) then
-    call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
-  else 
-    call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
-  endif
+if (.not. kx_dft) then
+   call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
+elseif (kx_space) then
+   !! no need to get physical    !!jb
+   !call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
+else
+   call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
+endif
 $else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
 $endif
@@ -512,11 +633,27 @@ endif
 end do
 end do
 
+!!$if (coord == nproc-1) then
+!!$   print*, 'p: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx, jy, p_hat(jx,jy,1), dfdx(jx,jy,1), dfdy(jx,jy,1)
+!!$   enddo
+!!$   enddo
+!!$endif
+
+
 $if ($FFTW3)
   if (.not. kx_dft) then
     call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
     call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
     call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))
+  elseif (kx_space) then
+     !! do nothing, stay in kx_space
+    !call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
+    !call dft_direct_back_2d_n(dfdy(:,:,jz))
+    !call dft_direct_back_2d_n(p_hat(:,:,jz))
+
   else
     call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
     call dft_direct_back_2d_n(dfdy(:,:,jz))
@@ -528,6 +665,15 @@ call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
 $endif
 end do
+
+!!$if (coord == 0) then
+!!$   print*, 'p: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) jx, jy, p_hat(jx,jy,1), dfdx(jx,jy,1), dfdy(jx,jy,1)
+!!$   enddo
+!!$   enddo
+!!$endif
 
 !--nz level is not needed elsewhere (although its valid)
 $if ($SAFETYMODE)
@@ -544,6 +690,15 @@ dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
 $if ($SAFETYMODE)
 dfdz(:, :, nz) = BOGUS
 $endif
+
+!!$if (coord == nproc-1) then
+!!$   print*, 'p: >>>>>>>>>>>>>>>>>>>>>>>'
+!!$   do jx=1,ld
+!!$   do jy=1,ny
+!!$      write(*,*) dfdy(jx,jy,0:2)
+!!$   enddo
+!!$   enddo
+!!$endif
 
 ! ! Deallocate arrays
 ! deallocate ( rH_x, rH_y, rH_z )

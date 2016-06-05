@@ -19,7 +19,7 @@
 
 module sim_param
 use types, only : rprec
-use param, only : ld, ny, nz, lbz
+use param, only : ld, ny, nz, lbz, nxp
 implicit none
 
 save
@@ -58,6 +58,12 @@ real (rprec), dimension (:, :, :), allocatable :: dudx_rnl, dudy_rnl, dudz_rnl, 
                                                   dwdx_rnl, dwdy_rnl, dwdz_rnl,  &
                                                   RHSx_rnl, RHSy_rnl, RHSz_rnl
 $endif
+
+real (rprec), dimension (:, :, :), allocatable :: uF, vF, wF
+real (rprec), dimension (:, :, :), allocatable :: dudzF, dvdzF
+real (rprec), dimension (:, :, :), allocatable :: txxF, txyF, tyyF
+real (rprec), dimension (:, :, :), allocatable :: txzF, tyzF, tzzF
+real (rprec), dimension (:, :, :), allocatable :: fxaF
 
 real (rprec), dimension (:, :, :), allocatable :: fxml_rnl, fyml_rnl, fzml_rnl
 !!jb - clean up and remove these ^ when no longer needed for testing
@@ -126,8 +132,21 @@ allocate( fyml_rnl(ld, ny, nz) ); fyml_rnl = 0.0_rprec
 allocate( fzml_rnl(ld, ny, nz) ); fzml_rnl = 0.0_rprec
 $endif
 
+allocate (   uF(nxp+2, ny, lbz:nz) ); uF = 0.0_rprec
+allocate (   vF(nxp+2, ny, lbz:nz) ); vF = 0.0_rprec
+allocate (   wF(nxp+2, ny, lbz:nz) ); wF = 0.0_rprec
+allocate( dudzF(nxp+2, ny, lbz:nz) ); dudzF = 0.0_rprec
+allocate( dvdzF(nxp+2, ny, lbz:nz) ); dvdzF = 0.0_rprec
+allocate(  txxF(nxp+2, ny, lbz:nz) ); txxF = 0.0_rprec
+allocate(  txyF(nxp+2, ny, lbz:nz) ); txyF = 0.0_rprec
+allocate(  tyyF(nxp+2, ny, lbz:nz) ); tyyF = 0.0_rprec
+allocate(  tzzF(nxp+2, ny, lbz:nz) ); tzzF = 0.0_rprec
+allocate(  txzF(nxp+2, ny, lbz:nz) ); txzF = 0.0_rprec
+allocate(  tyzF(nxp+2, ny, lbz:nz) ); tyzF = 0.0_rprec
+
 $if($TURBINES)
 allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
+allocate ( fxaF(nxp+2, ny, nz) ); fxaF = 0.0_rprec
 $endif
 
 $if($LVLSET)

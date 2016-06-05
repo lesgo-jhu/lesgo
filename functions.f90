@@ -39,7 +39,9 @@ public interp_to_uv_grid, &
      interp_to_w_grid, &
      x_avg, &
      get_tau_wall, &
-     i2str
+     i2str, &
+     interleave_c2r, &
+     interleave_r2c
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -721,23 +723,32 @@ function get_tau_wall() result(twall)       !!jb
 !
 ! This function provides plane-averaged value of wall stress magnitude
 use types, only: rprec
-use param, only : nx,ny
-use sim_param, only : txz,tyz
+use param, only : nx, ny, nxp, fourier
+use sim_param, only : txz, tyz, txzF, tyzF
 
 implicit none
-real(rprec) :: twall,txsum,tysum
-integer :: jx,jy
+real(rprec) :: twall, txsum, tysum
+integer :: jx, jy
 
 txsum = 0._rprec
 tysum = 0._rprec
-do jx=1,nx
-do jy=1,ny
-   txsum = txsum + txz(jx,jy,1)
-   tysum = tysum + tyz(jx,jy,1)
-enddo
-enddo
-
+if (fourier) then
+   do jx=1,nxp
+   do jy=1,ny
+      txsum = txsum + txzF(jx,jy,1)
+      tysum = tysum + tyzF(jx,jy,1)
+   enddo
+   enddo
+twall = sqrt( (txsum/(nxp*ny))**2 + (tysum/(nxp*ny))**2  )
+else
+   do jx=1,nx
+   do jy=1,ny
+      txsum = txsum + txz(jx,jy,1)
+      tysum = tysum + tyz(jx,jy,1)
+   enddo
+   enddo
 twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
+endif
 
 return
 end function get_tau_wall
@@ -756,6 +767,77 @@ i2str = adjustl(i2str)
 return
 end function i2str
 
+!**********************************************************************
+function interleave_c2r(fc) result(f)   !!jb
+!**********************************************************************
+! Interleaves the complex type array fc into a real type array f.
 
+use types, only : rprec
+use param, only : ld, nx, ny, nz, lbz, kx_num,ny2,ld_big
+use fft, only: kx_veci
+
+implicit none
+
+complex(rprec), intent(in), dimension(:,:) :: fc
+!real(rprec), dimension(ld_big,ny2) :: f
+real(rprec), allocatable, dimension(:,:) :: f
+integer :: jx, jx_s, ii, ir, jy
+integer :: ld_, ny_
+
+ld_ = size(fc,1) + 2    !! ld or ld_big
+ny_ = size(fc,2)        !! ny or ny2
+
+allocate( f(ld_, ny_) )
+
+f(:,:) = 0._rprec
+
+do jx=1, kx_num
+   jx_s = kx_veci( jx )
+   ii = 2*jx_s     ! imag index
+   ir = ii-1       ! real index
+!do jy=1, ny_
+   f(ir,:) = real ( fc(jx_s,:) ,rprec )
+   f(ii,:) = aimag( fc(jx_s,:) )
+!enddo
+enddo
+
+return
+end function interleave_c2r
+
+
+!**********************************************************************
+function interleave_r2c(f) result(fc)    !!jb
+!**********************************************************************
+! Interleaves the real type array f into a complex type array fc.
+
+use types, only : rprec
+use param, only : ld, nx, ny, nz, lbz, kx_num,ny2,ld_big
+use fft, only: kx_veci
+
+implicit none
+
+real(rprec), intent(in), dimension(:,:) :: f
+!complex(rprec), dimension(nx,ny2) :: fc
+complex(rprec), allocatable, dimension(:,:) :: fc
+
+integer :: jx, jx_s, ii, ir, jy
+integer :: ny_
+
+ny_ = size(f,2)    !! ny or ny2
+allocate(fc(nx,ny_))
+
+fc(:,:) = (0._rprec, 0._rprec)
+
+do jx=1,kx_num
+   jx_s = kx_veci( jx )
+   ii = 2*jx_s     ! imag index
+   ir = ii-1       ! real index
+!do jy=1,ny_   !!ny2
+   fc(jx_s,:) = cmplx( f(ir,:), f(ii,:), rprec )
+!enddo
+enddo
+
+return
+end function interleave_r2c
 
 end module functions

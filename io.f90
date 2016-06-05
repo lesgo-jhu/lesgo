@@ -38,7 +38,7 @@ $endif
 save
 private
 
-public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init,write_tau_wall,energy_kx_spectral_complex
+public jt_total, openfiles, closefiles, energy, output_loop, output_final,output_init,write_tau_wall,energy_kx_spectral_complex,energy_kx_spectral_complex_fourier
 
 character (*), parameter :: mod_name = 'io'
 
@@ -276,6 +276,38 @@ enddo
 return
 end subroutine y_pert
 
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine y_pert_fourier (u, u_pert)    !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!! subtract out spanwise average of u
+!! similar to x_avg subroutine in rnl_util.f90, but returns the 
+!! perturbation field rather than the average field
+use types,only:rprec
+use param,only:nxp,ny,nz,lbz
+implicit none
+
+real(rprec), dimension(nxp+2,ny,lbz:nz), intent(in)  :: u
+real(rprec), dimension(nxp+2,ny,lbz:nz), intent(out) :: u_pert
+real(rprec), dimension(nxp+2,lbz:nz) :: u_avg_temp
+
+integer :: j
+
+u_avg_temp = 0.0_rprec
+do j=1,ny
+   u_avg_temp(:,:) = u_avg_temp(:,:) + u(:,j,:)
+enddo
+
+u_avg_temp = u_avg_temp / ny
+
+do j=1,ny
+   u_pert(:,j,:) = u(:,j,:) - u_avg_temp(:,:)
+enddo
+
+return
+end subroutine y_pert_fourier
+
+
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine energy_kx_spectral_complex (u1,u2,u3)    !!jb
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -375,6 +407,109 @@ $endif
 
 return
 end subroutine energy_kx_spectral_complex
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine energy_kx_spectral_complex_fourier (u1,u2,u3)    !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only: rprec
+use param
+use messages
+use fft
+use functions, only: i2str
+
+implicit none
+
+integer :: jx, jy, jz        !! remember lh = nx/2 + 1
+integer :: lhF
+real(rprec), dimension(nxp+2,ny,lbz:nz), intent(in) :: u1,u2,u3
+real(rprec), dimension(nxp+2,ny,lbz:nz) :: u1p,u2p,u3p
+complex(rprec), dimension(nxp/2+1) :: u1hat, u2hat, u3hat
+real(rprec), dimension(nxp/2+1) :: u1pow, u2pow, u3pow, ke
+$if ($MPI)
+  real(rprec), dimension(nxp/2+1) :: ke_total
+$endif
+character(len = 10), dimension(nxp/2+1) :: ke_str    !! for file header
+
+lhF = nxp/2+1
+
+! Initialize variables
+ke = 0.0_rprec
+$if ($MPI)
+   ke_total = 0.0_rprec
+$endif
+
+if (jt_total == wbase) then
+   do jx = 1 , nxp/2+1
+      ke_str(jx) = 'kx='//trim(i2str(jx-1))//' '
+   enddo
+endif
+
+u1pow = 0._rprec
+u2pow = 0._rprec
+u3pow = 0._rprec
+
+!! pull out spanwise mean
+call y_pert_fourier(u1, u1p)
+call y_pert_fourier(u2, u2p)
+call y_pert_fourier(u3, u3p)
+
+do jy=1,ny
+do jz=1,nz-1
+
+   !! remove mean if total velocity...
+   
+   $if ($FFTW3)
+   call dfftw_execute_dft_r2c( forw_complex_fourier, u1p(:,jy,jz), u1hat )
+   call dfftw_execute_dft_r2c( forw_complex_fourier, u2p(:,jy,jz), u2hat )
+   call dfftw_execute_dft_r2c( forw_complex_fourier, u3p(:,jy,jz), u3hat )
+   $else
+   !call rfftw_f77_one( forw_spectra, u1p(:,jy,jz), u1hat )
+   !call rfftw_f77_one( forw_spectra, u2p(:,jy,jz), u2hat )
+   !call rfftw_f77_one( forw_spectra, u3p(:,jy,jz), u3hat )
+   $endif
+
+   ! normalize
+   u1hat = u1hat / nxp**0.5d0
+   u2hat = u2hat / nxp**0.5d0
+   u3hat = u3hat / nxp**0.5d0
+
+   u1pow(1)  = u1pow(1)  + 0.5d0 * u1hat(1) * conjg(u1hat(1))
+   u2pow(1)  = u2pow(1)  + 0.5d0 * u2hat(1) * conjg(u2hat(1))
+   u3pow(1)  = u3pow(1)  + 0.5d0 * u3hat(1) * conjg(u3hat(1))
+   u1pow(lhF) = u1pow(lhF) + 0.5d0 * u1hat(lhF) * conjg(u1hat(lhF))
+   u2pow(lhF) = u2pow(lhF) + 0.5d0 * u2hat(lhF) * conjg(u2hat(lhF))
+   u3pow(lhF) = u3pow(lhF) + 0.5d0 * u3hat(lhF) * conjg(u3hat(lhF))
+
+   do jx=2,lhF-1
+      u1pow(jx) = u1pow(jx) + u1hat(jx) * conjg( u1hat(jx) )
+      u2pow(jx) = u2pow(jx) + u2hat(jx) * conjg( u2hat(jx) )
+      u3pow(jx) = u3pow(jx) + u3hat(jx) * conjg( u3hat(jx) )
+   enddo
+
+enddo
+enddo
+
+ke = u1pow + u2pow + u3pow
+
+$if ($MPI)
+  call mpi_reduce (ke, ke_total, lhF, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+  if (rank == 0) then  !--note its rank here, not coord
+    ke = ke_total   !!/nproc
+    open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+    if (jt_total==wbase) write(2,*) 'timestep ', ke_str     !! header output
+    write(2,*) jt_total, ke
+    close(2)
+  end if
+  call mpi_barrier(comm,ierr)
+$else
+open(2,file=path // 'output/ke_kx.dat',status='unknown',form='formatted',position='append')
+if (jt_total==wbase) write(2,*) 'timestep ',ke_str    !! header output
+write(2,*) jt_total, ke
+close(2)
+$endif
+
+return
+end subroutine energy_kx_spectral_complex_fourier
 
 $if($CGNS)
 $if ($MPI)
@@ -657,6 +792,12 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
+!use param, only : kx_space  !!jb
+!use derivatives, only : wave2phys, phys2wave  !!jb
+use param, only : fourier  !!jb
+use derivatives, only : wave2physF  !!jb
+use sim_param, only : u, v, w,  dudz,  dvdz,  txx,  txy,  tyy,  txz,  tyz,  tzz   !!jb
+use sim_param, only : uF,vF,wF, dudzF, dvdzF, txxF, txyF, tyyF, txzF, tyzF, tzzF  !!jb
 use stat_defs, only : tavg_initialized,tavg_dt
 
 $if (not $FFTW3)
@@ -688,8 +829,22 @@ if (tavg_calc) then
     ! Are we at the beginning or a multiple of nstart?
     if ( mod(jt_total-tavg_nstart,tavg_nskip)==0 ) then
 
+!!$       if ( fourier ) then   !!jb
+!!$         call wave2physF( u, uF )
+!!$         call wave2physF( v, vF )
+!!$         call wave2physF( w, wF )
+!!$         call wave2physF( txx, txxF )
+!!$         call wave2physF( txy, txyF )
+!!$         call wave2physF( tyy, tyyF )
+!!$         call wave2physF( txz, txzF )
+!!$         call wave2physF( tyz, tyzF )
+!!$         call wave2physF( tzz, tzzF )
+!!$         call wave2physF( dudz, dudzF )
+!!$         call wave2physF( dvdz, dvdzF )
+!!$       endif
+
       ! Check if we have initialized tavg
-      if (.not.tavg_initialized) then
+       if (.not.tavg_initialized) then
         if (coord == 0) then
           write(*,*) '-------------------------------'   
           write(*,"(1a,i9,1a,i9)") 'Starting running time summation from ', tavg_nstart, ' to ', tavg_nend
@@ -697,11 +852,15 @@ if (tavg_calc) then
         endif  ! coord==0
       
         call tavg_init()
-      else
-        call tavg_compute ()
-      endif  ! init
-     
-    endif  ! mod of nskip
+     else
+        !if (fourier) then
+        !   call tavg_compute_fourier ()
+        !else
+           call tavg_compute ()
+        !endif
+     endif  ! init
+
+   endif  ! mod of nskip
 
   endif  ! between nstart and nend
 
@@ -798,12 +957,12 @@ if(domain_calc) then
         write(*,"(1a,i9,1a,i9)") 'Writing instantaneous domain velocities from ', domain_nstart, ' to ', domain_nend
         write(*,"(1a,i9)") 'Iteration skip:', domain_nskip
         write(*,*) '-------------------------------'
-      endif
+     endif
 
-    endif
-    call inst_write(2)
   endif
-endif 
+  call inst_write(2)
+endif
+endif
 
 !  Determine if instantaneous x-plane velocities are to be recorded
 if(xplane_calc) then
@@ -883,6 +1042,8 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
+!use param, only: kx_space    !!jb
+!use derivatives, only: wave2phys, phys2wave    !!jb
 use grid_defs, only : grid
 use sim_param, only : u,v,w
 $if($DEBUG)
@@ -947,6 +1108,12 @@ zw => grid % zw
 
 !  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
+
+!!$if (kx_space) then      !!jb
+!!$   call wave2phys(u)     
+!!$   call wave2phys(v)
+!!$   call wave2phys(w)
+!!$endif
 
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
@@ -1924,6 +2091,12 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
+!!$if (kx_space) then       !!jb
+!!$   call phys2wave(u)
+!!$   call phys2wave(v)
+!!$   call phys2wave(w)
+!!$endif
+
 $if($LVLSET or $DEBUG)
 contains
 $endif
@@ -2053,6 +2226,8 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 !use sgs_param, only: F_ee2, F_deedt2, ee_past
 !$endif
 use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt, cfl
+!use param, only: kx_space    !!jb
+!use derivatives, only: wave2phys, phys2wave    !!jb
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
@@ -2075,6 +2250,15 @@ $else
 open(11,file=fname,form='unformatted', status='unknown', position='rewind')
 $endif
 
+!!$if (kx_space) then         !!jb
+!!$   call wave2phys(u)
+!!$   call wave2phys(v)
+!!$   call wave2phys(w)
+!!$   call wave2phys(RHSx)
+!!$   call wave2phys(RHSy)
+!!$   call wave2phys(RHSz)
+!!$endif
+
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
      RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
      Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
@@ -2082,6 +2266,15 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
+
+!!$if (kx_space) then         !!jb
+!!$   call phys2wave(u)
+!!$   call phys2wave(v)
+!!$   call phys2wave(w)
+!!$   call phys2wave(RHSx)
+!!$   call phys2wave(RHSy)
+!!$   call phys2wave(RHSz)
+!!$endif
 
 $if($MPI)
 call mpi_barrier( comm, ierr )
@@ -2153,7 +2346,7 @@ end subroutine checkpoint
 subroutine output_final()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use stat_defs, only : tavg_initialized
-use param, only : tavg_calc
+use param, only : tavg_calc, fourier
 $if(not $FFTW3)
 use stat_defs, only : spectra_initialized
 use param, only : spectra_calc
@@ -2168,8 +2361,13 @@ implicit none
 ! Perform final checkpoing
 call checkpoint()
 
+
 !  Check if average quantities are to be recorded
-if(tavg_calc .and. tavg_initialized ) call tavg_finalize()
+!if (fourier) then
+!   if(tavg_calc .and. tavg_initialized) call tavg_finalize_fourier()
+!else
+   if(tavg_calc .and. tavg_initialized) call tavg_finalize()
+!endif
 
 $if(not $FFTW3)
 !  Check if spectra is to be computed
@@ -2247,7 +2445,8 @@ z => grid % z
 
 if( tavg_calc ) then
 
-  allocate(tavg(nx,ny,lbz:nz))
+  !!allocate(tavg(nx,ny,lbz:nz))  !!jb
+  allocate(tavg(ld,ny,lbz:nz))
   allocate(tavg_zplane(nz))
 
   $if($OUTPUT_EXTRA)
@@ -2257,7 +2456,7 @@ if( tavg_calc ) then
   ! Initialize the derived types tavg and tavg_zplane  
   do k=1,Nz
     do j=1, Ny
-      do i=1, Nx
+      do i=1, ld !!Nx  !!jb
         call type_set( tavg(i,j,k), 0._rprec )
         $if($OUTPUT_EXTRA)
         call type_set( tavg_sgs(i,j,k), 0._rprec )
@@ -2578,7 +2777,7 @@ use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 $endif
-use param, only : nx,ny,nz,lbz,jzmax
+use param, only : nx,ny,nz,lbz,jzmax, fourier, ld_big, ny2
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 $if($TURBINES)
 use sim_param, only : fxa
@@ -2590,28 +2789,145 @@ $if($ATM)
 use sim_param, only : fxa, fya, fza
 $endif
 use functions, only : interp_to_w_grid
+use derivatives, only: convolve_rnl, dft_direct_back_2d_n_yonlyC
+use derivatives, only: convolve, convolve2, dft_direct_back_2d_n_yonlyC_big
+use derivatives, only: wave2physF, dft_direct_forw_2d_n_yonlyC, phys2wave
+use emul_complex, only: OPERATOR(.MULCC.)   !!jb
+use sim_param, only: uF, vF, wF
 
 implicit none
 
-integer :: i,j,k
+integer :: i,j,k,jz
 
 real(rprec) :: u_p, v_p, w_p
 real(rprec), allocatable, dimension(:,:,:) :: u_w, v_w
+real(rprec), allocatable, dimension(:,:,:) :: u_w_big, v_w_big
+!if (fourier) then  !!jb
+   real(rprec), allocatable, dimension(:,:,:) :: w_w
+   real(rprec), allocatable, dimension(:,:,:) :: uuF
+   real(rprec), allocatable, dimension(:,:,:) :: vvF
+   real(rprec), allocatable, dimension(:,:,:) :: wwF
+   real(rprec), allocatable, dimension(:,:,:) :: uvF
+   real(rprec), allocatable, dimension(:,:,:) :: uwF
+   real(rprec), allocatable, dimension(:,:,:) :: vwF
 
-allocate(u_w(nx,ny,lbz:nz),v_w(nx,ny,lbz:nz))
+   real(rprec), allocatable, dimension(:,:,:) :: sp11
+   real(rprec), allocatable, dimension(:,:,:) :: sp22
+   real(rprec), allocatable, dimension(:,:,:) :: sp33
+   real(rprec), allocatable, dimension(:,:,:) :: sp12
+   real(rprec), allocatable, dimension(:,:,:) :: sp13
+   real(rprec), allocatable, dimension(:,:,:) :: sp23
+
+   real(rprec), allocatable, dimension(:,:,:) :: sp11d
+   real(rprec), allocatable, dimension(:,:,:) :: sp22d
+   real(rprec), allocatable, dimension(:,:,:) :: sp33d
+   real(rprec), allocatable, dimension(:,:,:) :: sp12d
+   real(rprec), allocatable, dimension(:,:,:) :: sp13d
+   real(rprec), allocatable, dimension(:,:,:) :: sp23d
+
+!endif
+
+!allocate(u_w(nx,ny,lbz:nz),v_w(nx,ny,lbz:nz))
+allocate(u_w(ld,ny,lbz:nz),v_w(ld,ny,lbz:nz))
+
+!if (fourier) then   !!jb
+   !allocate(w_w(nx,ny,lbz:nz))
+   allocate(w_w(ld,ny,lbz:nz))
+
+   allocate(uuF(ld,ny,lbz:nz))
+   allocate(vvF(ld,ny,lbz:nz))
+   allocate(wwF(ld,ny,lbz:nz))
+   allocate(uvF(ld,ny,lbz:nz))
+   allocate(uwF(ld,ny,lbz:nz))
+   allocate(vwF(ld,ny,lbz:nz))
+
+   allocate(sp11(ld,ny,lbz:nz))  !! for 2D spectra
+   allocate(sp22(ld,ny,lbz:nz))
+   allocate(sp33(ld,ny,lbz:nz))
+   allocate(sp12(ld,ny,lbz:nz))
+   allocate(sp13(ld,ny,lbz:nz))
+   allocate(sp23(ld,ny,lbz:nz))
+
+   allocate(sp11d(ld,ny,lbz:nz))  !! for 1D spectra
+   allocate(sp22d(ld,ny,lbz:nz))
+   allocate(sp33d(ld,ny,lbz:nz))
+   allocate(sp12d(ld,ny,lbz:nz))
+   allocate(sp13d(ld,ny,lbz:nz))
+   allocate(sp23d(ld,ny,lbz:nz))
+
+!endif
 
 !  Interpolate velocities to w-grid
-u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( u(1:nx,1:ny,lbz:nz), lbz )
-v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid( v(1:nx,1:ny,lbz:nz), lbz )
+u_w(1:ld,1:ny,lbz:nz) = interp_to_w_grid( u(1:ld,1:ny,lbz:nz), lbz )
+v_w(1:ld,1:ny,lbz:nz) = interp_to_w_grid( v(1:ld,1:ny,lbz:nz), lbz )
+
+if (fourier) then
+   w_w(1:ld,1:ny,lbz:nz) = w(1:ld,1:ny,lbz:nz)   !!jb
+endif
+
+call wave2physF(u_w, uF)  !! for 1D spectra
+call wave2physF(v_w, vF)
+call wave2physF(w_w, wF)
+do jz=lbz,nz
+   call dft_direct_forw_2d_n_yonlyC( uF(:,:,jz) )  
+   call dft_direct_forw_2d_n_yonlyC( vF(:,:,jz) )
+   call dft_direct_forw_2d_n_yonlyC( wF(:,:,jz) )
+enddo
+
+do jz=lbz,nz   !!jb
+   sp11(:,:,jz) = u_w(:,:,jz) .MULCC.  u_w(:,:,jz)
+   sp22(:,:,jz) = v_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+   sp33(:,:,jz) = w_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+   sp12(:,:,jz) = u_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+   sp13(:,:,jz) = u_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+   sp23(:,:,jz) = v_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+enddo
+do jz=lbz,nz   !!jb
+   sp11d(:,:,jz) = uF(:,:,jz) .MULCC.  uF(:,:,jz)
+   sp22d(:,:,jz) = vF(:,:,jz) .MULCC.  vF(:,:,jz)
+   sp33d(:,:,jz) = wF(:,:,jz) .MULCC.  wF(:,:,jz)
+   sp12d(:,:,jz) = uF(:,:,jz) .MULCC.  vF(:,:,jz)
+   sp13d(:,:,jz) = uF(:,:,jz) .MULCC.  wF(:,:,jz)
+   sp23d(:,:,jz) = vF(:,:,jz) .MULCC.  wF(:,:,jz)
+enddo
+
+!!$if (coord == 0) then
+!!$   print*, 'prem >>'
+!!$   do i=1,nx
+!!$      do j=1,ny
+!!$         write(*,*) i, j, sp11d(i,j,3), uF(i,j,3)
+!!$      enddo
+!!$   enddo
+!!$endif
+
+if (fourier) then
+   do jz=lbz,nz
+      call dft_direct_back_2d_n_yonlyC( u_w(:,:,jz) )
+      call dft_direct_back_2d_n_yonlyC( v_w(:,:,jz) )
+      call dft_direct_back_2d_n_yonlyC( w_w(:,:,jz) )
+   enddo
+   do jz=lbz,nz
+      uuF(:,:,jz) = convolve2( u_w(:,:,jz), u_w(:,:,jz) )
+      vvF(:,:,jz) = convolve2( v_w(:,:,jz), v_w(:,:,jz) )
+      wwF(:,:,jz) = convolve2( w_w(:,:,jz), w_w(:,:,jz) )
+      uvF(:,:,jz) = convolve2( u_w(:,:,jz), v_w(:,:,jz) )
+      uwF(:,:,jz) = convolve2( u_w(:,:,jz), w_w(:,:,jz) )
+      vwF(:,:,jz) = convolve2( v_w(:,:,jz), w_w(:,:,jz) )
+   enddo
+endif
 
 $if($MPI)
 k=0
 do j=1,ny
-   do i=1,nx
+   do i=1,ld  !!nx  !!jb
 
       u_p = u_w(i,j,k)
-      v_p = v_w(i,j,k) 
-      w_p = w(i,j,k)
+      v_p = v_w(i,j,k)
+      if (fourier) then        !! u_p, v_p, w_p all in kx space (not kx,ky space)
+        w_p = w_w(i,j,k)
+      else
+        w_p = w(i,j,k)
+      endif
 
       ! === uv-grid variables === 
       tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + u(i,j,k) * tavg_dt                    
@@ -2621,12 +2937,36 @@ do j=1,ny
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
       tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
 
+      if (fourier) then
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + uuF(i,j,k) * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + vvF(i,j,k) * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + wwF(i,j,k) * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + uvF(i,j,k) * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + uwF(i,j,k) * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + vwF(i,j,k) * tavg_dt
+      else
       tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
       tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
       tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
       tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
       tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
+      endif
+
+      if (fourier) then
+      tavg(i,j,k)%su2 = tavg(i,j,k)%su2 + sp11(i,j,k) * tavg_dt
+      tavg(i,j,k)%sv2 = tavg(i,j,k)%sv2 + sp22(i,j,k) * tavg_dt
+      tavg(i,j,k)%sw2 = tavg(i,j,k)%sw2 + sp33(i,j,k) * tavg_dt
+      tavg(i,j,k)%suv = tavg(i,j,k)%suv + sp12(i,j,k) * tavg_dt
+      tavg(i,j,k)%suw = tavg(i,j,k)%suw + sp13(i,j,k) * tavg_dt
+      tavg(i,j,k)%svw = tavg(i,j,k)%svw + sp23(i,j,k) * tavg_dt
+      tavg(i,j,k)%su2_1d = tavg(i,j,k)%su2_1d + sp11d(i,j,k) * tavg_dt
+      tavg(i,j,k)%sv2_1d = tavg(i,j,k)%sv2_1d + sp22d(i,j,k) * tavg_dt
+      tavg(i,j,k)%sw2_1d = tavg(i,j,k)%sw2_1d + sp33d(i,j,k) * tavg_dt
+      tavg(i,j,k)%suv_1d = tavg(i,j,k)%suv_1d + sp12d(i,j,k) * tavg_dt
+      tavg(i,j,k)%suw_1d = tavg(i,j,k)%suw_1d + sp13d(i,j,k) * tavg_dt
+      tavg(i,j,k)%svw_1d = tavg(i,j,k)%svw_1d + sp23d(i,j,k) * tavg_dt
+      endif
 
       tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * tavg_dt
       tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * tavg_dt
@@ -2646,11 +2986,15 @@ $endif
 
 do k=1,jzmax  
   do j=1,ny
-    do i=1,nx
+    do i=1,ld  !!nx  !!jb
    
       u_p = u_w(i,j,k)
       v_p = v_w(i,j,k) 
-      w_p = w(i,j,k)
+      if (fourier) then
+        w_p = w_w(i,j,k)
+      else
+        w_p = w(i,j,k)
+      endif
 
       ! === uv-grid variables === 
       tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + u(i,j,k) * tavg_dt
@@ -2660,12 +3004,36 @@ do k=1,jzmax
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
       tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
 
+      if (fourier) then
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + uuF(i,j,k) * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + vvF(i,j,k) * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + wwF(i,j,k) * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + uvF(i,j,k) * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + uwF(i,j,k) * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + vwF(i,j,k) * tavg_dt
+      else
       tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
       tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
       tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
       tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
       tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
+      endif
+
+      if (fourier) then
+      tavg(i,j,k)%su2 = tavg(i,j,k)%su2 + sp11(i,j,k) * tavg_dt
+      tavg(i,j,k)%sv2 = tavg(i,j,k)%sv2 + sp22(i,j,k) * tavg_dt
+      tavg(i,j,k)%sw2 = tavg(i,j,k)%sw2 + sp33(i,j,k) * tavg_dt
+      tavg(i,j,k)%suv = tavg(i,j,k)%suv + sp12(i,j,k) * tavg_dt
+      tavg(i,j,k)%suw = tavg(i,j,k)%suw + sp13(i,j,k) * tavg_dt
+      tavg(i,j,k)%svw = tavg(i,j,k)%svw + sp23(i,j,k) * tavg_dt
+      tavg(i,j,k)%su2_1d = tavg(i,j,k)%su2_1d + sp11d(i,j,k) * tavg_dt
+      tavg(i,j,k)%sv2_1d = tavg(i,j,k)%sv2_1d + sp22d(i,j,k) * tavg_dt
+      tavg(i,j,k)%sw2_1d = tavg(i,j,k)%sw2_1d + sp33d(i,j,k) * tavg_dt
+      tavg(i,j,k)%suv_1d = tavg(i,j,k)%suv_1d + sp12d(i,j,k) * tavg_dt
+      tavg(i,j,k)%suw_1d = tavg(i,j,k)%suw_1d + sp13d(i,j,k) * tavg_dt
+      tavg(i,j,k)%svw_1d = tavg(i,j,k)%svw_1d + sp23d(i,j,k) * tavg_dt
+      endif
 
       tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudz(i,j,k) * tavg_dt
       tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdz(i,j,k) * tavg_dt
@@ -2713,8 +3081,8 @@ $endif
       
       tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
       
-    enddo
-  enddo
+   enddo
+enddo
 enddo
 
 $if ($OUTPUT_EXTRA)
@@ -2775,6 +3143,214 @@ return
 end subroutine tavg_compute
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tavg_compute_fourier()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This subroutine collects the stats for each flow 
+!  variable quantity
+use stat_defs, only : tavg,tavg_total_time,tavg_dt
+$if($OUTPUT_EXTRA)
+use param, only : sgs_model
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs
+use sgs_param
+$endif
+use param, only : nxp,ny,nz,lbz,jzmax
+!use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+use sim_param, only : uF,vF,wF, dudzF, dvdzF, txxF, txyF, tyyF, txzF, tyzF, tzzF
+!!$$if($TURBINES)
+!!$use sim_param, only : fxa
+!!$$endif
+!!$$if($LVLSET)
+!!$use sim_param, only : fx, fy, fz, fxa, fya, fza
+!!$$endif
+!!$$if($ATM)
+!!$use sim_param, only : fxa, fya, fza
+!!$$endif
+use functions, only : interp_to_w_grid
+
+implicit none
+
+integer :: i,j,k
+
+real(rprec) :: u_p, v_p, w_p
+real(rprec), allocatable, dimension(:,:,:) :: u_w, v_w
+
+allocate(u_w(nxp,ny,lbz:nz),v_w(nxp,ny,lbz:nz))
+
+!  Interpolate velocities to w-grid
+u_w(1:nxp,1:ny,lbz:nz) = interp_to_w_grid( uF(1:nxp,1:ny,lbz:nz), lbz )
+v_w(1:nxp,1:ny,lbz:nz) = interp_to_w_grid( vF(1:nxp,1:ny,lbz:nz), lbz )
+
+$if($MPI)
+k=0
+do j=1,ny
+   do i=1,nxp
+
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
+      w_p = wF(i,j,k)
+
+      ! === uv-grid variables === 
+      tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + uF(i,j,k) * tavg_dt                    
+
+      ! === w-grid variables === 
+      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
+      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
+
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
+
+      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdzF(i,j,k) * tavg_dt
+
+      ! === uv-grid variables ===
+      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txxF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyyF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txyF(i,j,k) * tavg_dt
+      ! === w-grid variables === 
+      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyzF(i,j,k) * tavg_dt
+
+   enddo
+enddo
+$endif
+
+do k=1,jzmax  
+  do j=1,ny
+    do i=1,nxp
+   
+      u_p = u_w(i,j,k)
+      v_p = v_w(i,j,k) 
+      w_p = wF(i,j,k)
+
+      ! === uv-grid variables === 
+      tavg(i,j,k)%u_uv = tavg(i,j,k)%u_uv + uF(i,j,k) * tavg_dt
+
+      ! === w-grid variables === 
+      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
+      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
+
+      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
+      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
+      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
+      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
+      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p * tavg_dt
+      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p * tavg_dt
+
+      tavg(i,j,k)%dudz = tavg(i,j,k)%dudz + dudzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%dvdz = tavg(i,j,k)%dvdz + dvdzF(i,j,k) * tavg_dt
+
+      ! === uv-grid variables ===
+      tavg(i,j,k)%txx = tavg(i,j,k)%txx + txxF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyy = tavg(i,j,k)%tyy + tyyF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tzz = tavg(i,j,k)%tzz + tzzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%txy = tavg(i,j,k)%txy + txyF(i,j,k) * tavg_dt
+      ! === w-grid variables === 
+      tavg(i,j,k)%txz = tavg(i,j,k)%txz + txzF(i,j,k) * tavg_dt
+      tavg(i,j,k)%tyz = tavg(i,j,k)%tyz + tyzF(i,j,k) * tavg_dt
+
+
+
+!!$$if ($TURBINES and not $LVLSET)      
+!!$      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
+!!$      ! === uv-grid variables === 
+!!$      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
+!!$!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
+!!$      ! === w-grid variables === 
+!!$
+!!$!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
+!!$$elseif ($LVLSET)
+!!$
+!!$      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
+!!$      ! === uv-grid variables === 
+!!$      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
+!!$      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt
+!!$      ! === w-grid variables === 
+!!$      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * tavg_dt
+!!$$elseif ($ATM)
+!!$      tavg(i,j,k)%fx = tavg(i,j,k)%fx + ( fxa(i,j,k)) * tavg_dt 
+!!$      tavg(i,j,k)%fy = tavg(i,j,k)%fy + ( fya(i,j,k)) * tavg_dt
+!!$      ! === w-grid variables === 
+!!$      tavg(i,j,k)%fz = tavg(i,j,k)%fz + ( fza(i,j,k)) * tavg_dt
+!!$$else
+!!$      ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
+!!$      ! === uv-grid variables === 
+!!$!      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k)             ) * tavg_dt 
+!!$!      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
+!!$      ! === w-grid variables === 
+!!$!      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
+!!$$endif
+      
+      tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
+      
+    enddo
+  enddo
+enddo
+
+!!$$if ($OUTPUT_EXTRA)
+!!$do k=1,jzmax       
+!!$  do j=1,ny
+!!$    do i=1,nx
+!!$       ! === w-grid variables ===
+!!$       tavg_sgs(i,j,k)%Nu_t = tavg_sgs(i,j,k)%Nu_t + Nu_t(i,j,k) * tavg_dt
+!!$    enddo
+!!$ enddo
+!!$enddo
+!!$
+!!$if (sgs_model.gt.1) then
+!!$   do k=1,jzmax       
+!!$      do j=1,ny
+!!$         do i=1,nx
+!!$            ! === w-grid variables ===
+!!$            tavg_sgs(i,j,k)%ee_now = tavg_sgs(i,j,k)%ee_now + ee_now(i,j,k) * tavg_dt
+!!$         enddo
+!!$      enddo
+!!$   enddo
+!!$endif
+
+!!$if (sgs_model.gt.3) then
+!!$   do k=1,jzmax       
+!!$      do j=1,ny
+!!$         do i=1,nx
+!!$            ! === w-grid variables ===
+!!$            tavg_sgs(i,j,k)%Tn = tavg_sgs(i,j,k)%Tn + Tn_all(i,j,k) * tavg_dt
+!!$            tavg_sgs(i,j,k)%F_LM = tavg_sgs(i,j,k)%F_LM + F_LM(i,j,k) * tavg_dt
+!!$            tavg_sgs(i,j,k)%F_MM = tavg_sgs(i,j,k)%F_MM + F_MM(i,j,k) * tavg_dt
+!!$            tavg_sgs(i,j,k)%F_QN = tavg_sgs(i,j,k)%F_QN + F_QN(i,j,k) * tavg_dt
+!!$            tavg_sgs(i,j,k)%F_NN = tavg_sgs(i,j,k)%F_NN + F_NN(i,j,k) * tavg_dt
+!!$            
+!!$!            $if ($DYN_TN)
+!!$!            tavg_sgs(i,j,k)%F_ee2 = tavg_sgs(i,j,k)%F_ee2 + F_ee2(i,j,k) * tavg_dt
+!!$!            tavg_sgs(i,j,k)%F_deedt2 = tavg_sgs(i,j,k)%F_deedt2 + F_deedt2(i,j,k) * tavg_dt
+!!$!            $endif         
+!!$         enddo
+!!$      enddo
+!!$   enddo
+!!$endif
+!!$$endif
+
+deallocate( u_w, v_w )
+
+! Update tavg_total_time for variable time stepping
+tavg_total_time = tavg_total_time + tavg_dt
+$if($OUTPUT_EXTRA)
+tavg_total_time_sgs = tavg_total_time_sgs + tavg_dt
+$endif
+
+! Set tavg_dt back to zero for next increment
+tavg_dt = 0.0_rprec
+
+return
+
+end subroutine tavg_compute_fourier
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_finalize()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use grid_defs, only : grid !x,y,z
@@ -2784,7 +3360,7 @@ use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only :  operator(.ADD.), operator(.SUB.)
 use stat_defs, only : type_set, type_zero_bogus
 use stat_defs, only : tavg_interp_to_uv_grid, tavg_interp_to_w_grid
-use stat_defs, only : rs_compute, cnpy_tavg_mul
+use stat_defs, only : rs_compute, cnpy_tavg_mul, rs_compute_fourier  !!jb
 $if($OUTPUT_EXTRA)
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 $endif
@@ -2797,6 +3373,7 @@ $endif
 $if($LVLSET)
 use level_set_base, only : phi
 $endif
+use param, only: fourier   !!jb
 
 implicit none
 
@@ -2808,13 +3385,15 @@ character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
 character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
-     fname_rs, fname_cs, fname_u_vel_grid
+     fname_rs, fname_cs, fname_u_vel_grid, &
+     fname_sp, fname_sp1d   !!jb
      
-! For bindary output
+! For binary output
 character(64) :: fname_velb, &
      fname_vel2b, fname_ddzb, &
      fname_taub, fname_fb, &
-     fname_rsb, fname_csb, fname_u_vel_gridb
+     fname_rsb, fname_csb, fname_u_vel_gridb, &
+     fname_spb, fname_sp1db  !!jb
 
 $if($CGNS)
 ! For CGNS
@@ -2866,7 +3445,8 @@ favg = real(nx*ny,kind=rprec)
 
 nullify(x,y,z,zw)
 
-allocate(rs(nx,ny,lbz:nz), rs_zplane(nz))
+!!allocate(rs(nx,ny,lbz:nz), rs_zplane(nz))
+allocate(rs(ld,ny,lbz:nz), rs_zplane(nz))  !!jb
 allocate(cnpy_zplane(nz))
 
 x => grid % x
@@ -2884,6 +3464,7 @@ fname_ddz = path // 'output/ddz_avg.dat'
 fname_tau = path // 'output/tau_avg.dat'
 fname_f = path // 'output/force_avg.dat'
 fname_rs = path // 'output/rs.dat'
+fname_sp = path // 'output/sp.dat'   !!jb
 fname_cs = path // 'output/cs_opt2.dat'
 fname_u_vel_grid = path // 'output/u_grid_vel.dat'
 
@@ -2907,6 +3488,8 @@ fname_ddzb = path // 'output/binary_ddz_avg.dat'
 fname_taub = path // 'output/binary_tau_avg.dat'
 fname_fb = path // 'output/binary_force_avg.dat'
 fname_rsb = path // 'output/binary_rs.dat'
+fname_spb = path // 'output/binary_sp.dat'
+fname_sp1db = path // 'output/binary_sp1d.dat'
 fname_csb = path // 'output/binary_cs_opt2.dat'
 fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
 
@@ -2934,6 +3517,8 @@ $if ($MPI)
   call string_concat( fname_taub, '.c', coord)
   call string_concat( fname_fb, '.c', coord)
   call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_spb, '.c', coord)
+  call string_concat( fname_sp1db, '.c', coord)
   call string_concat( fname_csb, '.c', coord)
   call string_concat( fname_u_vel_gridb, '.c',coord)
   $else
@@ -3006,6 +3591,15 @@ allocate(tavg_zplane_tot(nz_tot))
 
 $endif
 
+!!$if (coord == 0) then
+!!$print*, "bef >>>"
+!!$do i=1,nx
+!!$do j=1,6
+!!$write(*,*) i, j, tavg(i,j,3)%su2
+!!$enddo
+!!$enddo
+!!$endif
+
 !  Perform time averaging operation
 !  tavg = tavg / tavg_total_time
 do k=jzmin,jzmax
@@ -3015,6 +3609,16 @@ do k=jzmin,jzmax
     enddo
   enddo
 enddo
+
+!!$if (coord == 0) then
+!!$print*, "aft >>>"
+!!$do i=1,nx
+!!$do j=1,6
+!!$write(*,*) i, j, tavg(i,j,3)%su2
+!!$enddo
+!!$enddo
+!!$endif
+
 
 $if ($OUTPUT_EXTRA)
 do k=1,jzmax
@@ -3048,6 +3652,12 @@ if (jzmin==0) then  !coord==0 only
   tavg(:,:,0:1)%uw = 0.0_rprec
   tavg(:,:,0:1)%vw = 0.0_rprec
   tavg(:,:,0:1)%uv = 0.0_rprec
+  tavg(:,:,0:1)%su2 = 0.0_rprec   !!jb
+  tavg(:,:,0:1)%sv2 = 0.0_rprec
+  tavg(:,:,0:1)%sw2 = 0.0_rprec
+  tavg(:,:,0:1)%suw = 0.0_rprec
+  tavg(:,:,0:1)%svw = 0.0_rprec
+  tavg(:,:,0:1)%suv = 0.0_rprec
 endif
 
 ! Interpolate between grids where necessary
@@ -3085,7 +3695,11 @@ do k=1,nz
 enddo
 
 ! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
-rs = rs_compute( tavg , lbz)
+if (fourier) then  !!jb
+   rs = rs_compute_fourier( tavg, lbz)
+else
+   rs = rs_compute( tavg , lbz)
+endif
 
 ! Compute planar averaged Reynolds stress
 do k = 1, nz
@@ -3228,6 +3842,24 @@ write(13,rec=3) tavg(:nx,:ny,1:nz)%w2
 write(13,rec=4) tavg(:nx,:ny,1:nz)%uw
 write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
 write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
+close(13)
+
+open(unit=13,file=fname_spb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%su2
+write(13,rec=2) tavg(:nx,:ny,1:nz)%sv2
+write(13,rec=3) tavg(:nx,:ny,1:nz)%sw2
+write(13,rec=4) tavg(:nx,:ny,1:nz)%suw
+write(13,rec=5) tavg(:nx,:ny,1:nz)%svw
+write(13,rec=6) tavg(:nx,:ny,1:nz)%suv
+close(13)
+
+open(unit=13,file=fname_sp1db,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%su2_1d
+write(13,rec=2) tavg(:nx,:ny,1:nz)%sv2_1d
+write(13,rec=3) tavg(:nx,:ny,1:nz)%sw2_1d
+write(13,rec=4) tavg(:nx,:ny,1:nz)%suw_1d
+write(13,rec=5) tavg(:nx,:ny,1:nz)%svw_1d
+write(13,rec=6) tavg(:nx,:ny,1:nz)%suv_1d
 close(13)
 
 open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
@@ -3689,6 +4321,923 @@ $endif
 
 return
 end subroutine tavg_finalize
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine tavg_finalize_fourier()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use grid_defs, only : grid !x,y,z
+use stat_defs, only : tavg_t, tavg_zplane, tavg_total_time, tavg
+use stat_defs, only : rs_t, rs, rs_zplane, cnpy_zplane 
+use stat_defs, only : operator(.DIV.), operator(.MUL.)
+use stat_defs, only :  operator(.ADD.), operator(.SUB.)
+use stat_defs, only : type_set, type_zero_bogus
+use stat_defs, only : tavg_interp_to_uv_grid, tavg_interp_to_w_grid
+use stat_defs, only : rs_compute, cnpy_tavg_mul
+$if($OUTPUT_EXTRA)
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs
+$endif
+use param, only : ny,nz,nz_tot, nxp
+$if($MPI)
+use mpi_defs, only : mpi_sync_real_array
+use param, only : MPI_RPREC,coord_of_rank,rank_of_coord,comm,ierr,down,up,status
+use stat_defs, only : rs_t, tavg_t
+$endif
+$if($LVLSET)
+use level_set_base, only : phi
+$endif
+
+implicit none
+
+!~ include 'tecryte.h'
+
+character (*), parameter :: sub_name = mod_name // '.tavg_finalize'
+
+! For .dat output
+character(64) :: fname_vel, &
+     fname_vel2, fname_ddz, &
+     fname_tau, fname_f, &
+     fname_rs, fname_cs, fname_u_vel_grid
+     
+! For bindary output
+character(64) :: fname_velb, &
+     fname_vel2b, fname_ddzb, &
+     fname_taub, fname_fb, &
+     fname_rsb, fname_csb, fname_u_vel_gridb
+
+$if($CGNS)
+! For CGNS
+character(64) :: fname_vel_cgns_uv, fname_vel_cgns, &
+     fname_vel2_cgns, fname_ddz_cgns, &
+     fname_tau_cgns, fname_f_cgns, &
+     fname_rs_cgns, fname_cs_cgns, fname_u_vel_grid_cgns
+$endif
+     
+character(64) :: fname_vel_zplane, fname_vel2_zplane, &
+  fname_ddz_zplane, fname_tau_zplane, fname_f_zplane, &
+  fname_rs_zplane, fname_cs_zplane, fname_cnpy_zplane
+$if($OUTPUT_EXTRA)  
+character(64) :: fname_sgs_TnNu, fname_sgs_Fsub
+character(64) :: fname_sgs_ee
+$endif  
+
+integer :: i,j,k
+
+$if($MPI)
+
+integer :: MPI_RS, MPI_CNPY, MPI_TAVG
+integer :: rs_type(1), rs_block(1), rs_disp(1)
+integer :: cnpy_type(1), cnpy_block(1), cnpy_disp(1)
+integer :: tavg_type(1), tavg_block(1), tavg_disp(1)
+
+! Definitions for reconstructing z-planar averaged data
+integer :: sendsize
+integer, allocatable, dimension(:) :: recvsize, recvstride
+real(rprec), allocatable, dimension(:) :: z_tot, zw_tot
+type(rs_t), allocatable, dimension(:) :: rs_zplane_tot
+type(rs_t), allocatable, dimension(:) :: cnpy_zplane_tot
+type(tavg_t), allocatable, dimension(:) :: tavg_zplane_tot
+
+$endif
+
+type(rs_t) :: cnpy_avg
+type(tavg_t) :: tavg_avg
+
+real(rprec) :: favg
+
+$if($LVLSET)
+real(rprec) :: fx_global, fy_global, fz_global
+$endif
+
+real(rprec), pointer, dimension(:) :: x,y,z,zw
+
+favg = real(nxp*ny,kind=rprec)
+
+nullify(x,y,z,zw)
+
+!!allocate(rs(nxp,ny,lbz:nz), rs_zplane(nz))
+allocate(rs(ld,ny,lbz:nz), rs_zplane(nz))   !!jb
+allocate(cnpy_zplane(nz))
+
+x => grid % x
+y => grid % y
+z => grid % z
+zw => grid % zw
+
+! All processors need not do this, but that is ok
+!  Set file names
+
+! .dat
+fname_vel = path // 'output/vel_avg.dat'
+fname_vel2 = path // 'output/vel2_avg.dat'
+fname_ddz = path // 'output/ddz_avg.dat'
+fname_tau = path // 'output/tau_avg.dat'
+fname_f = path // 'output/force_avg.dat'
+fname_rs = path // 'output/rs.dat'
+fname_cs = path // 'output/cs_opt2.dat'
+fname_u_vel_grid = path // 'output/u_grid_vel.dat'
+
+$if($CGNS)
+! CGNS
+fname_vel_cgns_uv = path // 'output/veluv_avg.cgns'
+fname_vel_cgns = path // 'output/vel_avg.cgns'
+fname_vel2_cgns = path // 'output/vel2_avg.cgns'
+fname_ddz_cgns = path // 'output/ddz_avg.cgns'
+fname_tau_cgns = path // 'output/tau_avg.cgns'
+fname_f_cgns = path // 'output/force_avg.cgns'
+fname_rs_cgns = path // 'output/rs.cgns'
+fname_cs_cgns = path // 'output/cs_opt2.cgns'
+fname_u_vel_grid_cgns = path // 'output/u_grid_vel.cgns'
+$endif
+
+! Binary
+fname_velb = path // 'output/binary_vel_avg.dat'
+fname_vel2b = path // 'output/binary_vel2_avg.dat'
+fname_ddzb = path // 'output/binary_ddz_avg.dat'
+fname_taub = path // 'output/binary_tau_avg.dat'
+fname_fb = path // 'output/binary_force_avg.dat'
+fname_rsb = path // 'output/binary_rs.dat'
+fname_csb = path // 'output/binary_cs_opt2.dat'
+fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
+
+fname_vel_zplane = path // 'output/vel_zplane_avg.dat'
+fname_vel2_zplane = path // 'output/vel2_zplane_avg.dat'
+fname_ddz_zplane = path // 'output/ddz_zplane_avg.dat'
+fname_tau_zplane = path // 'output/tau_zplane_avg.dat'
+fname_f_zplane = path // 'output/force_zplane_avg.dat'
+fname_rs_zplane = path // 'output/rs_zplane.dat'
+fname_cnpy_zplane = path // 'output/cnpy_zplane.dat'
+fname_cs_zplane = path // 'output/cs_opt2_zplane.dat'
+
+$if($OUTPUT_EXTRA)  
+fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
+fname_sgs_Fsub = path // 'output/Fsub_avg.dat'
+fname_sgs_ee = path // 'output/ee_avg.dat'
+$endif  
+  
+$if ($MPI)
+  $if($BINARY)
+  !  For MPI implementation     
+  call string_concat( fname_velb, '.c', coord)
+  call string_concat( fname_vel2b, '.c', coord)
+  call string_concat( fname_ddzb, '.c', coord)
+  call string_concat( fname_taub, '.c', coord)
+  call string_concat( fname_fb, '.c', coord)
+  call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_csb, '.c', coord)
+  call string_concat( fname_u_vel_gridb, '.c',coord)
+  $else
+  call string_concat( fname_vel, '.c', coord)
+  call string_concat( fname_vel2, '.c', coord)
+  call string_concat( fname_ddz, '.c', coord)
+  call string_concat( fname_tau, '.c', coord)
+  call string_concat( fname_f, '.c', coord)
+  call string_concat( fname_rs, '.c', coord)
+  call string_concat( fname_cs, '.c', coord)
+  call string_concat( fname_u_vel_grid, '.c', coord)
+  $endif
+  
+  $if($OUTPUT_EXTRA)  
+  call string_concat( fname_sgs_TnNu, '.c', coord)
+  call string_concat( fname_sgs_Fsub, '.c', coord)
+  call string_concat( fname_sgs_ee, '.c', coord)
+  $endif    
+$endif
+
+! Final checkpoint all restart data
+call tavg_checkpoint()
+
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
+! Zero bogus values
+call type_zero_bogus( tavg(:,:,nz) )
+
+$if($MPI)
+! Build MPI types for derived types
+rs_type = MPI_RPREC
+rs_block = 6 ! Number of rs subtypes
+rs_disp = 0
+
+cnpy_type = MPI_RPREC
+cnpy_block = 6 ! Number of cnpy subtypes
+cnpy_disp = 0
+
+tavg_type = MPI_RPREC
+tavg_block = 21 ! Number of tavg subtypes
+tavg_disp = 0
+
+!  Create MPI type structures consistent with the derived types
+call MPI_TYPE_STRUCT(1, rs_block, rs_disp, rs_type, MPI_RS, ierr)
+if(ierr /= 0) call error(sub_name,'Error in setting MPI_RS:', ierr)
+Call MPI_Type_commit(MPI_RS,ierr)
+if(ierr /= 0) call error(sub_name,'Error in committing MPI_RS:', ierr)
+
+
+call MPI_TYPE_STRUCT(1, cnpy_block, cnpy_disp, cnpy_type, MPI_CNPY, ierr)
+if(ierr /= 0) call error(sub_name,'Error in setting MPI_CNPY:', ierr)
+Call MPI_Type_commit(MPI_CNPY,ierr)  
+if(ierr /= 0) call error(sub_name,'Error in committing MPI_CNPY:', ierr)
+   
+call MPI_TYPE_STRUCT(1, tavg_block, tavg_disp, tavg_type, MPI_TAVG, ierr)
+if(ierr /= 0) call error(sub_name,'Error in setting MPI_TAVG:', ierr)
+Call MPI_Type_commit(MPI_TAVG,ierr)
+if(ierr /= 0) call error(sub_name,'Error in committing MPI_TAVG:', ierr)
+
+!  Allocate space only on base processor for assembled z-plane data
+! *_tot_t is the assembled data without the overlap nodes (the final stuff that is outputted)
+! All processes need to allocate the space even though it is not directly used
+allocate(z_tot(nz_tot))
+allocate(zw_tot(nz_tot))
+allocate(rs_zplane_tot(nz_tot))
+allocate(cnpy_zplane_tot(nz_tot))
+allocate(tavg_zplane_tot(nz_tot))
+
+$endif
+
+!  Perform time averaging operation
+!  tavg = tavg / tavg_total_time
+do k=jzmin,jzmax
+  do j=1, Ny
+    do i=1, Nxp
+      tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
+    enddo
+  enddo
+enddo
+
+$if ($OUTPUT_EXTRA)
+do k=1,jzmax
+  do j=1, Ny
+    do i=1, Nxp
+      tavg_sgs(i,j,k) = tavg_sgs(i,j,k) .DIV. tavg_total_time_sgs
+    enddo
+  enddo
+enddo
+$endif
+
+!  Sync entire tavg structure
+$if($MPI)
+call mpi_sendrecv (tavg(:,:,1), nxp*ny, MPI_TAVG, down, 1,  &
+                   tavg(:,:,nz), nxp*ny, MPI_TAVG, up, 1,   &
+                   comm, status, ierr)
+call mpi_sendrecv (tavg(:,:,nz-1), nxp*ny, MPI_TAVG, up, 2,  &
+                   tavg(:,:,0), nxp*ny, MPI_TAVG, down, 2,   &
+                   comm, status, ierr)
+$endif
+
+! Anything with velocity is on the w-grid so these
+!   values for coord==0 at k=1 should be zeroed (otherwise bogus)
+if (jzmin==0) then  !coord==0 only
+  tavg(:,:,0:1)%u = 0.0_rprec
+  tavg(:,:,0:1)%v = 0.0_rprec
+  tavg(:,:,0:1)%w = 0.0_rprec
+  tavg(:,:,0:1)%u2 = 0.0_rprec
+  tavg(:,:,0:1)%v2 = 0.0_rprec
+  tavg(:,:,0:1)%w2 = 0.0_rprec
+  tavg(:,:,0:1)%uw = 0.0_rprec
+  tavg(:,:,0:1)%vw = 0.0_rprec
+  tavg(:,:,0:1)%uv = 0.0_rprec
+endif
+
+! Interpolate between grids where necessary
+tavg = tavg_interp_to_w_grid( tavg )
+
+! Anything with velocity is on the w-grid so these
+!   values for coord==0 at k=1 should be zeroed (otherwise bogus)
+if (jzmin==0) then  !coord==0 only
+  tavg(:,:,0:1)%fx = 0.0_rprec 
+  tavg(:,:,0:1)%fy = 0.0_rprec   
+
+  tavg(:,:,0:1)%txx = 0.0_rprec    
+  tavg(:,:,0:1)%txy = 0.0_rprec    
+  tavg(:,:,0:1)%tyy = 0.0_rprec    
+  tavg(:,:,0:1)%tzz = 0.0_rprec
+endif
+
+!  Average over z-planes
+do k=1,nz
+  
+  !  Initialize to 0 for summations
+  call type_set( tavg_zplane(k), 0._rprec )
+
+  do j=1, Ny
+    do i=1, Nxp
+
+      tavg_zplane(k) = tavg_zplane(k) .ADD. tavg(i,j,k)
+
+    enddo
+  enddo
+
+  !  Divide by number of summation points 
+  tavg_zplane(k) = tavg_zplane(k) .DIV. favg
+
+enddo
+
+! Compute the Reynolds stresses: bar(u_i * u_j) - bar(u_i) * bar(u_j)
+rs = rs_compute( tavg , lbz)
+
+! Compute planar averaged Reynolds stress
+do k = 1, nz
+
+  !  Initialize to 0
+  call type_set( rs_zplane(k), 0._rprec)
+
+  do j = 1, ny
+    do i = 1, nxp
+      rs_zplane(k) = rs_zplane(k) .ADD. rs(i,j,k) 
+    enddo    
+  enddo
+
+  rs_zplane(k) = rs_zplane(k) .DIV. favg
+  
+enddo
+
+
+!  Compute the Canopy/Dispersive Stresses: <bar(u_i)*bar(u_j)>_xy - <bar(u_i)>_xy * <bar(u_j)>_xy
+do k = 1, nz  
+
+  ! Initialize to 0
+  call type_set( cnpy_avg, 0._rprec)
+  call type_set( tavg_avg, 0._rprec)
+
+  do j=1, Ny
+    do i=1, Nxp
+      cnpy_avg = cnpy_avg .ADD. cnpy_tavg_mul( tavg(i,j,k) )
+      tavg_avg = tavg_avg .ADD. tavg(i,j,k)
+    enddo
+  enddo
+
+  cnpy_avg = cnpy_avg .DIV. favg
+  tavg_avg = tavg_avg .DIV. favg
+
+  cnpy_zplane(k) = cnpy_avg .SUB. cnpy_tavg_mul( tavg_avg )
+
+  !cnpy_zplane(k) % up2  = fa*sum(tavg(:,:,k)%u * tavg(:,:,k)%u) - (fa*sum( tavg(:,:,k)%u ))**2
+  !cnpy_zplane(k) % vp2  = fa*sum(tavg(:,:,k)%v * tavg(:,:,k)%v) - (fa*sum( tavg(:,:,k)%v ))**2
+  !cnpy_zplane(k) % wp2  = fa*sum(tavg(:,:,k)%w * tavg(:,:,k)%w) - (fa*sum( tavg(:,:,k)%w ))**2
+  !cnpy_zplane(k) % upwp = fa*sum(tavg(:,:,k)%u * tavg(:,:,k)%w) - fa*sum( tavg(:,:,k)%u ) * fa*sum( tavg(:,:,k)%w )
+  !cnpy_zplane(k) % vpwp = fa*sum(tavg(:,:,k)%v * tavg(:,:,k)%w) - fa*sum( tavg(:,:,k)%v ) * fa*sum( tavg(:,:,k)%w )
+  !cnpy_zplane(k) % upvp = fa*sum(tavg(:,:,k)%u * tavg(:,:,k)%v) - fa*sum( tavg(:,:,k)%u ) * fa*sum( tavg(:,:,k)%v )
+  
+enddo
+
+$if($MPI)
+call mpi_barrier( comm, ierr )
+$endif
+
+$if($CGNS)
+    ! Write CGNS Data
+    call write_parallel_cgns (fname_vel_cgns_uv ,nxp, ny, nz - nz_end, nz_tot,  &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , z(1:(nz-nz_end) ),                                     &
+    1, (/ 'VelocityX' /),                                                      &
+    (/ tavg(1:nxp,1:ny,1:nz - nz_end) % u_uv /) )
+
+    call write_parallel_cgns (fname_vel_cgns, nxp, ny, nz - nz_end, nz_tot,     &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ),                                    &
+    3, (/ 'VelocityX', 'VelocityY', 'VelocityZ'/),                             &
+    (/ tavg(1:nxp,1:ny,1:nz- nz_end) % u,                                       &
+       tavg(1:nxp,1:ny,1:nz- nz_end) % v,                                       &
+       tavg(1:nxp,1:ny,1:nz- nz_end) % w /) )
+    
+    call write_parallel_cgns(fname_vel2_cgns,nxp,ny,nz- nz_end,nz_tot,          &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
+    (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
+    (/ tavg(1:nxp,1:ny,1:nz- nz_end) % u2,                                      &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % v2,                                         &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % w2,                                         &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % uw,                                         &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % vw,                                         &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % uv /) )
+    
+    call write_parallel_cgns(fname_ddz_cgns,nxp,ny,nz- nz_end,nz_tot,           &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),    &
+    (/ tavg(1:nxp,1:ny,1:nz- nz_end) % dudz,                                    &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % dvdz /) )
+    
+    call write_parallel_cgns(fname_tau_cgns,nxp,ny,nz- nz_end,nz_tot,           &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
+    (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
+    (/ tavg(1:nxp,1:ny,1:nz- nz_end) % txx,                                     &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % txy,                                        &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % tyy,                                        &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % txz,                                        &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % tyz,                                        &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % tzz /) )  
+      
+    call write_parallel_cgns(fname_f_cgns,nxp,ny,nz- nz_end,nz_tot,             &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
+    (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
+    (/ tavg(1:nxp,1:ny,1:nz- nz_end) % fx,                                      &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % fy,                                         &
+    tavg(1:nxp,1:ny,1:nz- nz_end) % fz /) )
+    
+    call write_parallel_cgns(fname_rs_cgns,nxp,ny,nz- nz_end,nz_tot,            &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
+    (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
+    (/ rs(1:nxp,1:ny,1:nz- nz_end) % up2,                                       &
+    rs(1:nxp,1:ny,1:nz- nz_end) % vp2,                                          &
+    rs(1:nxp,1:ny,1:nz- nz_end) % wp2,                                          &
+    rs(1:nxp,1:ny,1:nz- nz_end) % upwp,                                         &
+    rs(1:nxp,1:ny,1:nz- nz_end) % vpwp,                                         &
+    rs(1:nxp,1:ny,1:nz- nz_end) % upvp /) )
+    
+    call write_parallel_cgns(fname_cs_cgns,nxp,ny,nz- nz_end,nz_tot,            &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+    (/ nxp, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
+    x(1:nxp) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
+    (/ 'Cs_Coeff'/),  (/ tavg(1:nxp,1:ny,1:nz- nz_end) % cs_opt2 /) )
+$endif
+
+! ----- Write all the 3D data -----
+$if($BINARY)
+open(unit=13,file=fname_velb,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) tavg(:nxp,:ny,1:nz)%u
+write(13,rec=2) tavg(:nxp,:ny,1:nz)%v
+write(13,rec=3) tavg(:nxp,:ny,1:nz)%w
+close(13)
+
+open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) tavg(:nxp,:ny,1:nz)%u2
+write(13,rec=2) tavg(:nxp,:ny,1:nz)%v2
+write(13,rec=3) tavg(:nxp,:ny,1:nz)%w2
+write(13,rec=4) tavg(:nxp,:ny,1:nz)%uw
+write(13,rec=5) tavg(:nxp,:ny,1:nz)%vw
+write(13,rec=6) tavg(:nxp,:ny,1:nz)%uv
+close(13)
+
+open(unit=13,file=fname_ddzb,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) tavg(:nxp,:ny,1:nz)%dudz
+write(13,rec=2) tavg(:nxp,:ny,1:nz)%dvdz
+close(13)
+
+open(unit=13,file=fname_taub,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) tavg(:nxp,:ny,1:nz)%txx
+write(13,rec=2) tavg(:nxp,:ny,1:nz)%txy
+write(13,rec=3) tavg(:nxp,:ny,1:nz)%tyy
+write(13,rec=4) tavg(:nxp,:ny,1:nz)%txz
+write(13,rec=5) tavg(:nxp,:ny,1:nz)%tyz
+write(13,rec=6) tavg(:nxp,:ny,1:nz)%tzz
+close(13)
+
+open(unit=13,file=fname_fb,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) tavg(:nxp,:ny,1:nz)%fx
+write(13,rec=2) tavg(:nxp,:ny,1:nz)%fy
+write(13,rec=3) tavg(:nxp,:ny,1:nz)%fz
+close(13)
+
+open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian', access='direct',recl=nxp*ny*nz*rprec)
+write(13,rec=1) rs(:nxp,:ny,1:nz)%up2 
+write(13,rec=2) rs(:nxp,:ny,1:nz)%vp2 
+write(13,rec=3) rs(:nxp,:ny,1:nz)%wp2 
+write(13,rec=4) rs(:nxp,:ny,1:nz)%upwp
+write(13,rec=5) rs(:nxp,:ny,1:nz)%vpwp
+write(13,rec=6) rs(:nxp,:ny,1:nz)%upvp
+close(13)
+
+!!$open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
+!!$write(13,rec=1) tavg(:nxp,:ny,1:nz)%cs_opt2 
+!!$close(13)
+
+$else
+
+  $if ($LVLSET)
+
+!~   call write_tecplot_header_ND(fname_vel, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_vel, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % u, &
+!~        tavg(:,:,1:nz) % v, &
+!~        tavg(:,:,1:nz) % w /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_vel2, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~        numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_vel2, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % u2, &
+!~        tavg(:,:,1:nz) % v2, &
+!~        tavg(:,:,1:nz) % w2, &
+!~        tavg(:,:,1:nz) % uw, &
+!~        tavg(:,:,1:nz) % vw, &
+!~        tavg(:,:,1:nz) % uv /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_ddz, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_ddz, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % dudz, &
+!~        tavg(:,:,1:nz) % dvdz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_tau, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~        numtostr(coord,6), 2)  
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_tau, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % txx, &
+!~        tavg(:,:,1:nz) % txy, &
+!~        tavg(:,:,1:nz) % tyy, &
+!~        tavg(:,:,1:nz) % txz, &
+!~        tavg(:,:,1:nz) % tyz, &
+!~        tavg(:,:,1:nz) % tzz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_f, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_f, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % fx, &
+!~        tavg(:,:,1:nz) % fy, &
+!~        tavg(:,:,1:nz) % fz /), &
+!~        4, x, y, zw(1:nz))
+
+    $if($MPI)
+
+    call mpi_allreduce(sum(tavg(1:nxp,1:ny,1:nz-1)%fx), fx_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    call mpi_allreduce(sum(tavg(1:nxp,1:ny,1:nz-1)%fy), fy_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+    call mpi_allreduce(sum(tavg(1:nxp,1:ny,1:nz-1)%fz), fz_global, 1, MPI_RPREC, MPI_SUM, comm, ierr)
+
+    $else
+
+    fx_global = sum(tavg(1:nxp,1:ny,1:nz-1)%fx)
+    fy_global = sum(tavg(1:nxp,1:ny,1:nz-1)%fy)
+    fz_global = sum(tavg(1:nxp,1:ny,1:nz-1)%fz)
+    
+    $endif
+
+!~   call write_tecplot_header_ND(fname_rs, 'rewind', 10, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+!~        numtostr(coord,6), 2)  
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_rs, 'append', 'formatted', 7, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        rs(:,:,1:nz)%up2, &
+!~        rs(:,:,1:nz)%vp2, &
+!~        rs(:,:,1:nz)%wp2, &
+!~        rs(:,:,1:nz)%upwp, &
+!~        rs(:,:,1:nz)%vpwp, &
+!~        rs(:,:,1:nz)%upvp /), &
+!~        4, x, y, zw(1:nz))
+!~   
+!~   call write_tecplot_header_ND(fname_cs, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<cs2>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_cs, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz), &
+!~        tavg(:,:,1:nz) % cs_opt2 /), &
+!~        4, x, y, zw(1:nz))
+
+  $else
+
+!~   call write_tecplot_header_ND(fname_vel, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<u>","<v>","<w>"', numtostr(coord, 6), 2)
+!~   call write_real_data_3D(fname_vel, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % u, &
+!~        tavg(:,:,1:nz) % v, &
+!~        tavg(:,:,1:nz) % w /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_vel2, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_vel2, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % u2, &
+!~        tavg(:,:,1:nz) % v2, &
+!~        tavg(:,:,1:nz) % w2, &
+!~        tavg(:,:,1:nz) % uw, &
+!~        tavg(:,:,1:nz) % vw, &
+!~        tavg(:,:,1:nz) % uv /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_ddz, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_ddz, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % dudz, &
+!~        tavg(:,:,1:nz) % dvdz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_tau, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_tau, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % txx, &
+!~        tavg(:,:,1:nz) % txy, &
+!~        tavg(:,:,1:nz) % tyy, &
+!~        tavg(:,:,1:nz) % txz, &
+!~        tavg(:,:,1:nz) % tyz, &
+!~        tavg(:,:,1:nz) % tzz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_f, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_f, 'append', 'formatted', 3, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz) % fx, &
+!~        tavg(:,:,1:nz) % fy, &
+!~        tavg(:,:,1:nz) % fz /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_rs, 'rewind', 9, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', &
+!~        numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_rs, 'append', 'formatted', 6, nx, ny, nz, &
+!~        (/ rs(:,:,1:nz)%up2, &
+!~        rs(:,:,1:nz)%vp2, &
+!~        rs(:,:,1:nz)%wp2, &
+!~        rs(:,:,1:nz)%upwp, &
+!~        rs(:,:,1:nz)%vpwp, &
+!~        rs(:,:,1:nz)%upvp /), &
+!~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_cs, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<cs2>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_cs, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ tavg(:,:,1:nz)% cs_opt2 /), &
+!~        4, x, y, zw(1:nz))
+
+  $endif
+
+$endif
+
+!----
+$if($OUTPUT_EXTRA)
+
+  $if($LVLSET)
+
+!~   call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+!~   !  write phi and x,y,z
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), 4)  
+!~   
+!~   call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 8, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "phi", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+!~     !  write phi and x,y,z
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 1, nx, ny, nz, &
+!~        (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), 4)  
+!~ 
+  $else
+!~   
+!~   call write_tecplot_header_ND(fname_sgs_TnNu, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<Tn>", "<Nu_t>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_sgs_TnNu, 'append', 'formatted', 2, nx, ny, nz, &
+!~        (/ tavg_sgs % Tn, tavg_sgs % Nu_t /), &
+!:~        4, x, y, zw(1:nz))
+!~ 
+!~   call write_tecplot_header_ND(fname_sgs_Fsub, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!~        '"x", "y", "z", "<F_LM>", "<F_MM>", "<F_QN>", "<F_NN>"', numtostr(coord,6), 2)
+!~   call write_real_data_3D(fname_sgs_Fsub, 'append', 'formatted', 4, nx, ny, nz, &
+!~        (/ tavg_sgs % F_LM, tavg_sgs % F_MM, tavg_sgs % F_QN, tavg_sgs % F_NN /), &
+!~        4, x, y, zw(1:nz))
+
+  $endif
+  
+    
+!  $if($DYN_TN)
+!    
+!    $if($LVLSET)
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 7, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "phi", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!!~     !  write phi and x,y,z
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), 4)  
+!!~ 
+!    $else
+!!~     
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 6, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "<ee_now>", "<F_ee2>", "<F_deedt2>"', numtostr(coord,6), 2)
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 3, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now, tavg_sgs % F_ee2, tavg_sgs % F_deedt2 /), &
+!!~          4, x, y, zw(1:nz))
+!    
+!    $endif        
+!    
+!  $else
+!  
+!    $if($LVLSET)
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 5, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "phi", "<ee_now>"', numtostr(coord,6), 2)
+!!~     !  write phi and x,y,z
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ phi(1:nx,1:ny,1:nz) /), 4, x, y, zw(1:nz))
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now /), 4)  
+!    
+!    $else
+!
+!!~     call write_tecplot_header_ND(fname_sgs_ee, 'rewind', 4, (/ Nx+1, Ny+1, Nz/), &
+!!~          '"x", "y", "z", "<ee_now>"', numtostr(coord,6), 2)
+!!~     call write_real_data_3D(fname_sgs_ee, 'append', 'formatted', 1, nx, ny, nz, &
+!!~          (/ tavg_sgs % ee_now /), &
+!!~          4, x, y, zw(1:nz))
+!    
+!    $endif        
+!
+!  $endif
+    
+$endif
+!----
+
+
+! Construct zplane data 
+$if($MPI)
+
+  allocate(recvsize(nproc),recvstride(nproc))
+
+  sendsize=nz-1
+  recvsize=nz-1
+  recvstride=coord_of_rank*(nz-1)
+
+  ! Set very bottom values
+  if( coord == 0 ) then
+
+     z_tot(1) = z(1)
+     zw_tot(1) = zw(1)
+     rs_zplane_tot(1) = rs_zplane(1)
+     cnpy_zplane_tot(1) = cnpy_zplane(1)
+     tavg_zplane_tot(1) = tavg_zplane(1)
+
+  endif
+
+  call mpi_gatherv( z(2), sendsize, MPI_RPREC, &
+       z_tot(2), recvsize, recvstride, MPI_RPREC, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( zw(2), sendsize, MPI_RPREC, &
+       zw_tot(2), recvsize, recvstride, MPI_RPREC, &
+       rank_of_coord(0), comm, ierr)
+  
+  call mpi_gatherv( rs_zplane(2), sendsize, MPI_RS, &
+       rs_zplane_tot(2), recvsize, recvstride, MPI_RS, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( cnpy_zplane(2), sendsize, MPI_CNPY, &
+       cnpy_zplane_tot(2), recvsize, recvstride, MPI_CNPY, &
+       rank_of_coord(0), comm, ierr)
+
+  call mpi_gatherv( tavg_zplane(2), sendsize, MPI_TAVG, &
+       tavg_zplane_tot(2), recvsize, recvstride, MPI_TAVG, &
+       rank_of_coord(0), comm, ierr)
+
+  deallocate(recvsize, recvstride)
+
+  call MPI_Type_free (MPI_RS, ierr)
+  call MPI_Type_free (MPI_CNPY, ierr)
+  call mpi_type_free (MPI_TAVG, ierr)    
+
+  ! Write reconstructed data only if bottom processor
+  if( coord == 0 ) then
+  
+!~     call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz_tot /), &
+!~       '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, Nz_tot, &
+!~       (/ tavg_zplane_tot % u, tavg_zplane_tot % v, tavg_zplane_tot % w /), 0, zw_tot)
+!~ 
+!~     call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz_tot/), &
+!~       '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~       numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ tavg_zplane_tot % u2, tavg_zplane_tot % v2, tavg_zplane_tot % w2, &
+!~       tavg_zplane_tot % uw, tavg_zplane_tot % vw, tavg_zplane_tot % uv /), &
+!~       0, zw_tot) 
+!~   
+!~     call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz_tot/), &
+!~       '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, Nz_tot, &
+!~       (/ tavg_zplane_tot % dudz, tavg_zplane_tot % dvdz /), 0, zw_tot)
+!~   
+!~     call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~       numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ tavg_zplane_tot % txx, tavg_zplane_tot % txy, tavg_zplane_tot % tyy, &
+!~       tavg_zplane_tot % txz, tavg_zplane_tot % tyz, tavg_zplane_tot % tzz /), 0, zw_tot) 
+!~   
+!~     call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz_tot/), &
+!~       '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, Nz_tot, &
+!~       (/ tavg_zplane_tot % fx, tavg_zplane_tot % fy, tavg_zplane_tot % fz /), 0, zw_tot)  
+!~   
+!~     call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ rs_zplane_tot % up2, rs_zplane_tot%vp2, rs_zplane_tot%wp2, &
+!~       rs_zplane_tot%upwp, rs_zplane_tot%vpwp, rs_zplane_tot%upvp /), 0, zw_tot)    
+!~  
+!~     call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz_tot/), &
+!~       '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~     call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, Nz_tot, &
+!~       (/ cnpy_zplane_tot % up2, cnpy_zplane_tot%vp2, cnpy_zplane_tot%wp2, &
+!~       cnpy_zplane_tot%upwp, cnpy_zplane_tot%vpwp, cnpy_zplane_tot%upvp /), 0, zw_tot)         
+!~       
+!~     call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz_tot/), &
+!~       '"z", "<cs2>"', numtostr(coord,6), 2)
+!~     call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, Nz_tot, &
+!~       (/ tavg_zplane_tot % cs_opt2 /), 0, zw_tot)        
+
+    deallocate(z_tot, zw_tot)      
+    deallocate(tavg_zplane_tot)
+    deallocate(rs_zplane_tot)
+    deallocate(cnpy_zplane_tot)
+  
+  endif
+
+$else
+
+!~ call write_tecplot_header_ND(fname_vel_zplane, 'rewind', 4, (/ Nz /), &
+!~    '"z", "<u>","<v>","<w>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_vel_zplane, 'append', 'formatted', 3, nz, &
+!~   (/ tavg_zplane % u, tavg_zplane % v, tavg_zplane % w /), 0, zw(1:nz))
+!~ 
+!~ call write_tecplot_header_ND(fname_vel2_zplane, 'rewind', 7, (/ Nz/), &
+!~    '"z", "<u<sup>2</sup>>","<v<sup>2</sup>>","<w<sup>2</sup>>", "<uw>", "<vw>", "<uv>"', &
+!~    numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_vel2_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ tavg_zplane % u2, tavg_zplane % v2, tavg_zplane % w2, &
+!~   tavg_zplane % uw, tavg_zplane % vw, tavg_zplane % uv /), 0, zw(1:nz)) 
+!~   
+!~ call write_tecplot_header_ND(fname_ddz_zplane, 'rewind', 3, (/ Nz/), &
+!~    '"z", "<dudz>","<dvdz>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_ddz_zplane, 'append', 'formatted', 2, nz, &
+!~   (/ tavg_zplane % dudz, tavg_zplane % dvdz /), 0, zw(1:nz))
+!~   
+!~ call write_tecplot_header_ND(fname_tau_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<t<sub>xx</sub>>","<t<sub>xy</sub>>","<t<sub>yy</sub>>", "<t<sub>xz</sub>>", "<t<sub>yz</sub>>", "<t<sub>zz</sub>>"', &
+!~    numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_tau_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ tavg_zplane % txx, tavg_zplane % txy, tavg_zplane % tyy, &
+!~   tavg_zplane % txz, tavg_zplane % tyz, tavg_zplane % tzz /), 0, zw(1:nz)) 
+!~   
+!~ call write_tecplot_header_ND(fname_f_zplane, 'rewind', 4, (/Nz/), &
+!~    '"z", "<f<sub>x</sub>>","<f<sub>y</sub>>","<f<sub>z</sub>>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_f_zplane, 'append', 'formatted', 3, nz, &
+!~   (/ tavg_zplane % fx, tavg_zplane % fy, tavg_zplane % fz /), 0, zw(1:nz))  
+!~   
+!~ call write_tecplot_header_ND(fname_rs_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_rs_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ rs_zplane % up2, rs_zplane%vp2, rs_zplane%wp2, &
+!~   rs_zplane%upwp, rs_zplane%vpwp, rs_zplane%upvp /), 0, zw(1:nz))
+!~ 
+!~ call write_tecplot_header_ND(fname_cnpy_zplane, 'rewind', 7, (/Nz/), &
+!~    '"z", "<upup>","<vpvp>","<wpwp>", "<upwp>", "<vpwp>", "<upvp>"', numtostr(coord,6), 2)  
+!~ call write_real_data_1D(fname_cnpy_zplane, 'append', 'formatted', 6, nz, &
+!~   (/ cnpy_zplane % up2, cnpy_zplane%vp2, cnpy_zplane%wp2, &
+!~   cnpy_zplane%upwp, cnpy_zplane%vpwp, cnpy_zplane%upvp /), 0, zw(1:nz))  
+!~   
+!~ call write_tecplot_header_ND(fname_cs_zplane, 'rewind', 2, (/Nz/), &
+!~    '"z", "<cs2>"', numtostr(coord,6), 2)
+!~ call write_real_data_1D(fname_cs_zplane, 'append', 'formatted', 1, nz, &
+!~   (/ tavg_zplane % cs_opt2 /), 0, zw(1:nz))    
+  
+$endif
+
+
+deallocate(tavg, tavg_zplane, rs, rs_zplane, cnpy_zplane)
+$if($OUTPUT_EXTRA)
+deallocate(tavg_sgs)
+$endif
+
+nullify(x,y,z,zw)
+
+$if($MPI)
+! Ensure all writes complete before preceeding
+call mpi_barrier( comm, ierr )
+$endif
+
+return
+end subroutine tavg_finalize_fourier
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine tavg_checkpoint()

@@ -96,10 +96,16 @@ write(2,i_fmt) 'ml_start : ', ml_start
 write(2,i_fmt) 'ml_end : ', ml_end
 write(2,x3l_fmt) 'kx_space : ', kx_space
 write(2,x3l_fmt) 'kx_dft : ', kx_dft
+write(2,x3l_fmt) 'fourier : ', fourier
 write(2,i_fmt) 'kx_num : ', kx_num
 do n=1,kx_num
   write(2,if_fmt) 'n, kx_vec(n) : ', n, kx_vec(n)
 enddo
+do n=1,kx_num
+  write(2,if_fmt) 'n, kxs(n) : ', n, kxs_in(n)
+enddo
+write(2,i_fmt) 'nxp : ', nxp
+write(2,x3l_fmt) 'start_phys : ', start_phys
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'

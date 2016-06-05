@@ -22,8 +22,9 @@
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
 use types,only:rprec
-use param,only:ld,nx,ny,nz, nproc, coord, BOGUS, lbz,kx_dft
-use derivatives, only : ddx, ddy, ddz_uv, ddx_n, ddy_n
+use param,only:ld,nx,ny,nz, nproc, coord, BOGUS, lbz,kx_dft,kx_space
+use derivatives, only : ddx, ddy, ddz_uv
+use derivatives, only : ddx_n, ddy_n, ddx_kxspace, ddy_kxspace  !!jb
 
 implicit none
 
@@ -40,6 +41,8 @@ $endif
 !--tx 1:nz => dtxdx 1:nz
   if (.not. kx_dft) then
     call ddx(tx, dtxdx, lbz)        !!jb
+  elseif (kx_space) then
+    call ddx_kxspace(tx, dtxdx, lbz)
   else
     call ddx_n(tx, dtxdx, lbz)
   endif
@@ -53,6 +56,8 @@ $endif
 !--ty 1:nz => dtydy 1:nz
 if (.not. kx_dft) then
    call ddy(ty, dtydy, lbz)
+elseif (kx_space) then
+   call ddy_kxspace(ty, dtydy, lbz)
 else
    call ddy_n(ty, dtydy, lbz)
 endif

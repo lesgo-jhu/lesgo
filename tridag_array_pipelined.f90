@@ -63,7 +63,6 @@ else
    end_kx = lh-1
 endif
 
-
 if (coord == 0) then
 
   do jy = 1, ny

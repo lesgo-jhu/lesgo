@@ -42,6 +42,10 @@ use fft
 !!use derivatives, only: dft_direct_forw_2d, dft_direct_back_2d   !!jb
 use derivatives, only: dft_direct_forw_2d_n, dft_direct_back_2d_n   !!jb
 use derivatives, only: dft_direct_forw_2d_n_big, dft_direct_back_2d_n_big   !!jb
+use derivatives, only: dft_direct_forw_2d_n_yonlyC_big, dft_direct_back_2d_n_yonlyC_big   !!jb
+use derivatives, only: dft_direct_forw_2d_n_yonlyC, dft_direct_back_2d_n_yonlyC   !!jb
+!use emul_complex, only : OPERATOR(.MULC.)  !!jb
+use derivatives, only: convolve, wave2phys, convolve_rnl
 
 $if ($DEBUG)
 use debug_mod
@@ -74,6 +78,7 @@ real (rprec), save, allocatable, dimension (:,:,:) :: u1_big, u2_big, u3_big
 !--MPI: only u1_big(0:nz-1), u2_big(0:nz-1), u3_big(1:nz) are used
 real (rprec), save, allocatable, dimension (:, :, :) :: vort1_big, vort2_big, vort3_big
 logical, save :: arrays_allocated = .false. 
+real(rprec),dimension(ld,ny,lbz:nz) :: temp_jb, temp1  !!jb
 
 real(kind=rprec) :: const
 
@@ -109,7 +114,11 @@ endif
 ! sc: it would be nice to NOT have to loop through slices here
 ! Loop through horizontal slices
 
-const=1._rprec/(nx*ny)
+if (kx_space) then
+ const = 1._rprec
+else
+ const=1._rprec/(nx*ny)
+endif
 !$omp parallel do default(shared) private(jz)		
 do jz = lbz, nz
   !--MPI: u1_big, u2_big needed at jz = 0, u3_big not needed though
@@ -124,6 +133,8 @@ do jz = lbz, nz
       call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
+    elseif (kx_space) then
+       !! do nothing!! already in kx_space
     else
       call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
       call dft_direct_forw_2d_n(cy(:,:,jz))
@@ -136,9 +147,9 @@ do jz = lbz, nz
   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
   $endif 
 ! zero pad: padd takes care of the oddballs
-   call padd(u1_big(:,:,jz),cx(:,:,jz))
-   call padd(u2_big(:,:,jz),cy(:,:,jz))
-   call padd(u3_big(:,:,jz),cz(:,:,jz))
+  call padd(u1_big(:,:,jz),cx(:,:,jz))   !! no changes needed for kx_space here
+  call padd(u2_big(:,:,jz),cy(:,:,jz))
+  call padd(u3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
@@ -146,6 +157,8 @@ do jz = lbz, nz
       call dfftw_execute_dft_c2r(back_big,u1_big(:,:,jz),   u1_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))  
+    elseif (kx_space) then
+       !! do nothing again
     else
       call dft_direct_back_2d_n_big(u1_big(:,:,jz))  !!jb
       call dft_direct_back_2d_n_big(u2_big(:,:,jz))
@@ -211,6 +224,8 @@ do jz = 1, nz
       call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
+    elseif (kx_space) then
+       !! do nothing again
     else
       call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
       call dft_direct_forw_2d_n(cy(:,:,jz))
@@ -222,10 +237,9 @@ do jz = 1, nz
    call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
   $endif 
-   call padd(vort1_big(:,:,jz),cx(:,:,jz))
-   call padd(vort2_big(:,:,jz),cy(:,:,jz))
-   call padd(vort3_big(:,:,jz),cz(:,:,jz))
-
+  call padd(vort1_big(:,:,jz),cx(:,:,jz))  !! no changes needed for kx_space
+  call padd(vort2_big(:,:,jz),cy(:,:,jz))
+  call padd(vort3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
@@ -233,6 +247,8 @@ do jz = 1, nz
       call dfftw_execute_dft_c2r(back_big,vort1_big(:,:,jz),   vort1_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
+    elseif (kx_space) then
+       !! do nothing again
     else
       call dft_direct_back_2d_n_big(vort1_big(:,:,jz))
       call dft_direct_back_2d_n_big(vort2_big(:,:,jz))
@@ -248,12 +264,118 @@ end do
 
 ! CX
 ! redefinition of const
-const=1._rprec/(nx2*ny2)
+
+!!$if (coord == 0) then
+!!$print*, 'before yt:'
+!!$do jx=1,nx
+!!$do jy=1,ny
+!!$write(*,*) jx,jy,u1_big(jx,jy,3)
+!!$enddo
+!!$enddo
+!!$endif
+
+!!$if (coord == 0) then
+!!$   if (kx_space) then
+!!$            
+!!$      print*, 'ert1: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld_big
+!!$         do jy=1,ny2
+!!$            write(*,*) jx, jy, vort1_big(jx,jy,3), vort2_big(jx,jy,3), vort3_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$   else
+!!$      call dfftw_execute_dft_r2c(forw_big,vort1_big(:,:,3),   vort1_big(:,:,3))
+!!$      call dfftw_execute_dft_r2c(forw_big,vort2_big(:,:,3),   vort2_big(:,:,3))
+!!$      call dfftw_execute_dft_r2c(forw_big,vort3_big(:,:,3),   vort3_big(:,:,3))
+!!$      vort1_big(:,:,3) = vort1_big(:,:,3) / (nx2*ny2)
+!!$      vort2_big(:,:,3) = vort2_big(:,:,3) / (nx2*ny2)
+!!$      vort3_big(:,:,3) = vort3_big(:,:,3) / (nx2*ny2)
+!!$      print*, 'ert2: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld_big
+!!$         do jy=1,ny2
+!!$            write(*,*) jx, jy, vort1_big(jx,jy,3), vort2_big(jx,jy,3), vort3_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$
+!!$   endif
+!!$
+!!$endif
+
+
+!!$if (coord == 0) then
+!!$   if (kx_space) then
+!!$      print*, 'wer1: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld_big
+!!$         do jy=1,ny2
+!!$            write(*,*) jx, jy, u1_big(jx,jy,3), u2_big(jx,jy,3), u3_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$   else
+!!$      call dfftw_execute_dft_r2c(forw_big,u1_big(:,:,3),   u1_big(:,:,3))
+!!$      call dfftw_execute_dft_r2c(forw_big,u2_big(:,:,3),   u2_big(:,:,3))
+!!$      call dfftw_execute_dft_r2c(forw_big,u3_big(:,:,3),   u3_big(:,:,3))
+!!$      u1_big(:,:,3) = u1_big(:,:,3) / (nx2*ny2)
+!!$      u2_big(:,:,3) = u2_big(:,:,3) / (nx2*ny2)
+!!$      u3_big(:,:,3) = u3_big(:,:,3) / (nx2*ny2)
+!!$      print*, 'wer2: !!!!!!!!!!!'
+!!$      do jx=1,ld_big
+!!$         do jy=1,ny2
+!!$            write(*,*) jx, jy, u1_big(jx,jy,3), u2_big(jx,jy,3), u3_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$   endif
+!!$endif
+
+
+!! all u_big and vort_big match up to here so far   !!jb
+!! go to y-physical space ( ky --> y )
+
+!!$if (coord == 0) then
+!!$u2_big = u1_big
+!!$u3_big = u1_big
+!!$call dft_direct_back_2d_n_yonlyC_big( u3_big(:,:,3) )
+!!$u2_big = u3_big
+!!$call dft_direct_forw_2d_n_yonlyC_big( u3_big(:,:,3) )
+!!$
+!!$   do jx=1,ld_big
+!!$      do jy=1,ny2
+!!$         write(*,*) jx, jy, u1_big(jx,jy,3), u3_big(jx,jy,3), u2_big(jx,jy,3)
+!!$      enddo
+!!$   enddo
+!!$endif
+
+if (kx_space) then
+  do jz=lbz,nz
+     call dft_direct_back_2d_n_yonlyC_big( u1_big(:,:,jz) )
+     call dft_direct_back_2d_n_yonlyC_big( u2_big(:,:,jz) )
+     call dft_direct_back_2d_n_yonlyC_big( u3_big(:,:,jz) )
+  enddo
+  do jz=1,nz
+     call dft_direct_back_2d_n_yonlyC_big( vort1_big(:,:,jz) )
+     call dft_direct_back_2d_n_yonlyC_big( vort2_big(:,:,jz) )
+     call dft_direct_back_2d_n_yonlyC_big( vort3_big(:,:,jz) )
+  enddo
+
+  !! these next two for CZ
+  !call dft_direct_back_2d_n_yonlyC_big( u1_big(:,:,0) )
+  !call dft_direct_back_2d_n_yonlyC_big( u2_big(:,:,0) )
+endif
+
+if (kx_space) then
+  const=1._rprec
+else
+  const=1._rprec/(nx2*ny2)
+endif
 
 if (coord == 0) then
-  ! the cc's contain the normalization factor for the upcoming fft's
-  cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
+   ! the cc's contain the normalization factor for the upcoming fft's
+   if (kx_space) then
+      cc_big(:,:,1)=const*(convolve_rnl(u2_big(:,:,1), -vort3_big(:,:,1))&
+       +0.5_rprec*convolve_rnl(u3_big(:,:,2), (vort2_big(:,:,exper))))
+   else
+      cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,exper)))
+   endif
   !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -265,11 +387,34 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min,nz-1
+   if (kx_space) then
+   cc_big(:,:,jz)=const*(convolve_rnl(u2_big(:,:,jz), -vort3_big(:,:,jz))&
+        +0.5_rprec*(convolve_rnl(u3_big(:,:,jz+1), vort2_big(:,:,jz+1))&
+        +convolve_rnl(u3_big(:,:,jz), vort2_big(:,:,jz))))
+   else
    cc_big(:,:,jz)=const*(u2_big(:,:,jz)*(-vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(vort2_big(:,:,jz))))
+   endif
 end do
 !$omp end parallel do
+
+!!$if (coord == 0) then
+!!$   if (kx_space) then
+!!$      print*, 'kx_space cx: >>>>>'
+!!$      call dft_direct_forw_2d_n_yonlyC_big( cc_big(:,:,3) )
+!!$   else
+!!$      print*, 'cx: >>>>>'
+!!$      call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,3),cc_big(:,:,3))
+!!$   endif
+!!$
+!!$   do jx=1,ld_big
+!!$      do jy=1,ny2
+!!$         write(*,*) jx, jy, cc_big(jx,jy,3)
+!!$      enddo
+!!$   enddo
+!!$endif
+
 
 ! Loop through horizontal slices
 !$omp parallel do default(shared) private(jz)	
@@ -277,6 +422,8 @@ do jz=1,nz-1
   $if ($FFTW3)
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
+    elseif (kx_space) then
+      call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
     else
       call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
@@ -293,6 +440,30 @@ do jz=1,nz-1
 !!$enddo
 !!$enddo
 !!$endif
+
+!!$if (coord == 0 .and. jz==3) then
+!!$   if (kx_space) then
+!!$      
+!!$      print*, 'cx kx_space: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld
+!!$         do jy=1,ny
+!!$            write(*,*) jx, jy, cc_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$   else
+!!$      !call dfftw_execute_dft_c2r(back_big, cc_big(:,:,3), cc_big(:,:,3))
+!!$      !cc_big(:,:,3) = cc_big(:,:,3) / (nx2*ny2)
+!!$      print*, 'cx: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld
+!!$         do jy=1,ny
+!!$            write(*,*) jx, jy, cc_big(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$
+!!$   endif
+!!$
+!!$endif
+
 
 ! un-zero pad
 ! note: cc_big is going into cx!!!!
@@ -312,6 +483,8 @@ do jz=1,nz-1
    $if ($FFTW3)
      if (.not. kx_dft) then
        call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
+     elseif (kx_space) then
+        !! do nothing again
      else
        call dft_direct_back_2d_n(cx(:,:,jz))   !!jb
      endif
@@ -321,13 +494,44 @@ do jz=1,nz-1
 end do
 !$omp end parallel do
 
+
+
+!!$if (coord == 0) then
+!!$   if (kx_space) then
+!!$      
+!!$      !call wave2phys(cx)
+!!$      print*, 'cx kx_space: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,ld
+!!$         do jy=1,ny
+!!$            write(*,*) jx, jy, cx(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$   else
+!!$      print*, 'cx: >>>>>>>>>>>>>>>>>>>>'
+!!$      do jx=1,nx
+!!$         do jy=1,ny
+!!$            write(*,*) jx, jy, cx(jx,jy,3)
+!!$         enddo
+!!$      enddo
+!!$
+!!$   endif
+!!$
+!!$endif
+
+
+
 ! CY
 ! const should be 1./(nx2*ny2) here
 
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
-  cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
+  if (kx_space) then
+   cc_big(:,:,1)=const*(convolve_rnl(u1_big(:,:,1), (vort3_big(:,:,1)))&
+       +0.5_rprec*(convolve_rnl(u3_big(:,:,2), -vort1_big(:,:,exper))))
+  else
+   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
        +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,exper)))
+  endif
   !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -339,9 +543,15 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz = jz_min, nz - 1
-   cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
+   if (kx_space) then
+    cc_big(:,:,jz)=const*(convolve_rnl(u1_big(:,:,jz), (vort3_big(:,:,jz)))&
+        +0.5_rprec*(convolve_rnl(u3_big(:,:,jz+1), (-vort1_big(:,:,jz+1)))&
+        +convolve_rnl(u3_big(:,:,jz), -vort1_big(:,:,jz))))
+   else
+    cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(-vort1_big(:,:,jz))))
+   endif
 end do
 !$omp end parallel do
 
@@ -350,7 +560,9 @@ do jz=1,nz-1
   $if ($FFTW3)
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-    else  
+    elseif (kx_space) then
+      call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
+    else
       call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
@@ -364,6 +576,8 @@ do jz=1,nz-1
   $if ($FFTW3)
     if (.not. kx_dft) then
       call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))  
+    elseif (kx_space) then
+       !! do nothing again
     else
       call dft_direct_back_2d_n(cy(:,:,jz))   !!jb
     endif
@@ -372,6 +586,7 @@ do jz=1,nz-1
   $endif
 end do
 !$omp end parallel do
+
 
 ! CZ
 
@@ -400,19 +615,29 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
-   cc_big(:,:,jz)=const*0.5_rprec*(&
+   if (kx_space) then
+    cc_big(:,:,jz)=const*0.5_rprec*(&
+       convolve_rnl(u1_big(:,:,jz)+u1_big(:,:,jz-1), -vort2_big(:,:,jz))&
+        +convolve_rnl(u2_big(:,:,jz)+u2_big(:,:,jz-1), vort1_big(:,:,jz))&
+         )
+   else
+    cc_big(:,:,jz)=const*0.5_rprec*(&
         (u1_big(:,:,jz)+u1_big(:,:,jz-1))*(-vort2_big(:,:,jz))&
         +(u2_big(:,:,jz)+u2_big(:,:,jz-1))*(vort1_big(:,:,jz))&
          )
+   endif
 end do
 !$omp end parallel do
 
 ! Loop through horizontal slices
-!$omp parallel do default(shared) private(jz)		
+!$omp parallel do default(shared) private(jz)
+		
 do jz=1,nz - 1
   $if ($FFTW3)
     if (.not. kx_dft) then
       call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
+    elseif (kx_space) then
+      call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
     else
       call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
@@ -428,6 +653,8 @@ do jz=1,nz - 1
    $if ($FFTW3)
      if (.not. kx_dft) then
        call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
+     elseif (kx_space) then
+        !! do nothing again 
      else
        call dft_direct_back_2d_n(cz(:,:,jz))   !!jb
      endif

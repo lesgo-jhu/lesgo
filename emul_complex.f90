@@ -26,8 +26,8 @@ module emul_complex
 ! real array is to contain interleaved complex information.
 !  
 ! Written by : 
-!     Jason Graham <jgraha8@gmail.com>
-!
+!     Jason Graham  <jgraha8@gmail.com>
+!     Joel Bretheim <jbretheim@gmail.com>
 
 use types, only : rprec
 use messages, only : error
@@ -44,7 +44,9 @@ private
 
 public :: operator( .MUL. ), &
      operator( .MULI. ), &
-     operator( .MULR. )
+     operator( .MULR. ), &
+     operator( .MULC. ), &    !!jb
+     operator( .MULCC. )      !!jb
 
 $if($DEBUG)
 character (*), parameter :: mod_name = 'emul_complex'
@@ -71,6 +73,18 @@ interface operator (.MULR.)
    module procedure &
         mul_real_complex_real_2D
 end interface
+
+! COMPLEX X COMPLEX             !!jb
+interface operator (.MULC.)     !!jb
+   module procedure &           !!jb
+        mul_complex_complex_2D  !!jb
+end interface                   !!jb
+
+! COMPLEX X CONJ(COMPLEX)             !!jb
+interface operator (.MULCC.)          !!jb
+   module procedure &                 !!jb
+        mul_complex_conjcomplex_2D    !!jb
+end interface                         !!jb
 
 contains
 
@@ -364,5 +378,148 @@ enddo
 return
 
 end function mul_real_complex_real_2D
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function mul_complex_complex_2D( a, b ) result(c)       !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This function emulates the multiplication of two complex 2D array by
+!  emulating the two input real arrays (a, b) as complex types.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input real array
+!    b (real,size(nx_r,ny))     - input real array 
+!
+!  Output:
+! 
+!    c (real,size(nx_r,ny))     - output real array
+!
+!  Note: a, b, and c are real arrays emulating complex arrays
+!  
+implicit none
+
+$if($DEBUG)
+character (*), parameter :: sub_name = mod_name // '.mul_complex_complex_2D'
+$endif
+
+real(rprec), dimension(:, :), intent(in)  :: a
+real(rprec), dimension(:, :), intent(in)  :: b
+real(rprec), allocatable, dimension(:, :) :: c
+
+!  Cached variables
+real(rprec) ::  a_r, a_i, b_r, b_i
+integer :: i,j,ir,ii
+integer :: nx_r, ny, nx_c
+
+! Get the size of the incoming arrays
+nx_r = size(a,1)  !!  = ld_big,  should also equal size(b,1)
+ny   = size(a,2)  !!  = ny2
+nx_c = nx_r / 2   !!  = ld_big / 2
+
+$if ($DEBUG)
+if ( nx_r .NE. size(b,1) .OR. &
+     ny .NE. size(b,2) ) call error( sub_name, 'Mismatch in input array sizes')
+$endif
+
+! Allocate returned array
+allocate( c(nx_r, ny) )
+
+!  Emulate complex multiplication
+!  Using outer loop to get contiguous memory access
+do j=1, ny     !!  = ny2
+do i=1, nx_c   !!  = ld_big / 2
+
+    !  Real and imaginary indicies of a, b
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    b_r = b(ir,j)
+    b_i = b(ii,j)
+
+    !  Perform multiplication
+    c(ir,j) = a_r * b_r - a_i * b_i
+    c(ii,j) = a_r * b_i + a_i * b_r
+
+enddo
+enddo
+
+return
+
+end function mul_complex_complex_2D
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function mul_complex_conjcomplex_2D( a, b ) result(c)       !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  This function emulates the multiplication of two complex 2D array by
+!  emulating the two input real arrays (a, b) as complex types.
+!  This compute a times complex conjugate of b.
+!
+!  Input:
+!  
+!    a (real,size(nx_r,ny))     - input real array
+!    b (real,size(nx_r,ny))     - input real array 
+!
+!  Output:
+! 
+!    c (real,size(nx_r,ny))     - output real array
+!
+!  Note: a, b, and c are real arrays emulating complex arrays
+!  
+implicit none
+
+$if($DEBUG)
+character (*), parameter :: sub_name = mod_name // '.mul_complex_complex_2D'
+$endif
+
+real(rprec), dimension(:, :), intent(in)  :: a
+real(rprec), dimension(:, :), intent(in)  :: b
+real(rprec), allocatable, dimension(:, :) :: c
+
+!  Cached variables
+real(rprec) ::  a_r, a_i, b_r, b_i
+integer :: i,j,ir,ii
+integer :: nx_r, ny, nx_c
+
+! Get the size of the incoming arrays
+nx_r = size(a,1)  !!  = ld_big,  should also equal size(b,1)
+ny   = size(a,2)  !!  = ny2
+nx_c = nx_r / 2   !!  = ld_big / 2
+
+$if ($DEBUG)
+if ( nx_r .NE. size(b,1) .OR. &
+     ny .NE. size(b,2) ) call error( sub_name, 'Mismatch in input array sizes')
+$endif
+
+! Allocate returned array
+allocate( c(nx_r, ny) )
+
+!  Emulate complex multiplication
+!  Using outer loop to get contiguous memory access
+do j=1, ny     !!  = ny2
+do i=1, nx_c   !!  = ld_big / 2
+
+    !  Real and imaginary indicies of a, b
+    ii = 2*i
+    ir = ii-1
+  
+    !  Cache multi-usage variables
+    a_r = a(ir,j)
+    a_i = a(ii,j)
+    b_r = b(ir,j)
+    b_i = b(ii,j)
+
+    !  Perform multiplication ( a times conj(b) )
+    c(ir,j) = a_r * b_r + a_i * b_i
+    c(ii,j) = a_i * b_r - a_r * b_i 
+
+enddo
+enddo
+
+return
+
+end function mul_complex_conjcomplex_2D
 
 end module emul_complex

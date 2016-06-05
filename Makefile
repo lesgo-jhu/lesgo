@@ -76,6 +76,7 @@ SRCS =  cfl_util.f90 \
 	types.f90 \
         unpadd.f90 \
 	wallstress.f90 \
+	wallstress_fourier.f90 \
 	wallstress_dns.f90
 
 LVLSET_SRCS = level_set_base.f90 level_set.f90 linear_simple.f90

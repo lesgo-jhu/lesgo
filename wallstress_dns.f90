@@ -19,8 +19,9 @@
 
 subroutine wallstress_dns ()
 use types,only:rprec
-use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom
+use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom !,kx_space
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
+!!use derivatives, only: wave2phys, phys2wave   !!jb
 implicit none
 integer::jx,jy
 
@@ -34,6 +35,16 @@ select case (lbc_mom)
     dvdz(:, :, 1) = 0._rprec
 
   case (1) ! Wall
+
+!!$     if ( kx_space ) then
+!!$      call wave2phys(u)   !!jb  ( only coord 0 is calling wallstress_dns )
+!!$      call wave2phys(v)   !! could speed up by doing single slice only (jz=1 only)
+!!$      call wave2phys(txz) !!   instead of whole processor
+!!$      call wave2phys(tyz)
+!!$      call wave2phys(dudz)
+!!$      call wave2phys(dvdz)
+!!$     endif
+
     do jy=1,ny
     do jx=1,nx
        txz(jx,jy,1)=-nu_molec/(z_i*u_star)*u(jx,jy,1)/(0.5_rprec*dz)
@@ -42,6 +53,15 @@ select case (lbc_mom)
        dvdz(jx,jy,1)=v(jx,jy,1)/(0.5_rprec*dz)
     end do
     end do
+
+!!$    if ( kx_space ) then   !!jb
+!!$     call phys2wave(u)
+!!$     call phys2wave(v)
+!!$     call phys2wave(txz)
+!!$     call phys2wave(tyz)
+!!$     call phys2wave(dudz)
+!!$     call phys2wave(dvdz)
+!!$    endif
 
   case default
 

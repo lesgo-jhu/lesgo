@@ -63,6 +63,8 @@ $endif
 $if ($TURBINES)
 use sim_param, only : fxa
 use turbines, only:turbines_forcing
+!!use turbines, only:turbines_forcing_fourier
+use turbines, only:turbines_RNL
 $endif
 
 $if ($USE_RNL)
@@ -70,6 +72,7 @@ use sim_param, only: u, v, w, fxml_rnl, fyml_rnl, fzml_rnl
 use sim_param, only: RHSx, RHSy, RHSz
 use param, only: use_md,jt_total,ml_start,ml_end
 $endif
+use param, only: fourier
 
 implicit none
 
@@ -84,22 +87,26 @@ $endif
 $endif
 
 $if ($TURBINES)
-! Reset applied force arrays
-fxa = 0._rprec
-call turbines_forcing ()
-$endif
-
-$if ($USE_RNL)
-if (use_md .and. jt_total >= ml_start .and. jt_total < ml_end) then
    ! Reset applied force arrays
-   fxml_rnl = 0._rprec
-   fyml_rnl = 0._rprec
-   fzml_rnl = 0._rprec
-   call mode_damp(u,v,w)
-   !!call mode_damp(RHSx,RHSy,RHSz)
-endif
+   fxa = 0._rprec
+   if (fourier) then
+      !call turbines_forcing_fourier ()
+      call turbines_RNL()
+   else
+      call turbines_forcing ()
+   endif
 $endif
 
+!!$$if ($USE_RNL)
+!!$if (use_md .and. jt_total >= ml_start .and. jt_total < ml_end) then
+!!$   ! Reset applied force arrays
+!!$   fxml_rnl = 0._rprec
+!!$   fyml_rnl = 0._rprec
+!!$   fzml_rnl = 0._rprec
+!!$   call mode_damp(u,v,w)
+!!$   !!call mode_damp(RHSx,RHSy,RHSz)
+!!$endif
+!!$$endif
 
 end subroutine forcing_applied
 
@@ -334,7 +341,7 @@ end subroutine project
 subroutine kx_zero_out()
 
 use param, only: nx,ny,nz,lbz,jt_total,wbase,L_z,coord,u_star,nproc
-!use param, only: kx_allow, kx_allow2
+use param, only: kx_allow !, kx_allow2
 use param, only: ld
 use sim_param, only: u,v,w
 use grid_defs, only: grid
@@ -342,7 +349,7 @@ use fft
 
 implicit none
 
-integer :: jx, jy, jz, xloc !,cutHere,cutHere2
+integer :: jx, jy, jz, xloc, cutHere !,cutHere2
 real(rprec) :: const
 real(rprec), pointer, dimension(:) :: zw
 real(rprec), dimension(ld) :: uz, vz, wz
@@ -350,7 +357,7 @@ real(rprec), dimension(ld) :: uz, vz, wz
 nullify(zw)
 zw => grid % zw
 
-!cutHere = 2 * kx_allow
+cutHere = 2 * kx_allow
 !cutHere2 = 2 * kx_allow2
 
 uz = 0.0_rprec
@@ -365,41 +372,21 @@ do jz=1,nz-1
      v(:,jy,jz) = const * v(:,jy,jz)
      w(:,jy,jz) = const * w(:,jy,jz)
 
-!!$     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), u(:,jy,jz))
-!!$     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), v(:,jy,jz))
-!!$     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), w(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), u(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), v(:,jy,jz))
+     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), w(:,jy,jz))
 
-     call dfftw_execute_dft_r2c(forw_1d, u(:,jy,jz), uz(:) )
-     call dfftw_execute_dft_r2c(forw_1d, v(:,jy,jz), vz(:) )
-     call dfftw_execute_dft_r2c(forw_1d, w(:,jy,jz), wz(:) )
+     u(3:4,jy,jz) = 0._rprec
+     v(3:4,jy,jz) = 0._rprec    
+     w(3:4,jy,jz) = 0._rprec
 
-!!$     u(3:cutHere,jy,jz) = 0._rprec    !! zero out kx modes 1 to (kx_allow-1)
-!!$     v(3:cutHere,jy,jz) = 0._rprec    
-!!$     w(3:cutHere,jy,jz) = 0._rprec
-
-     u(:,jy,jz) = 0.0_rprec
-     v(:,jy,jz) = 0.0_rprec
-     w(:,jy,jz) = 0.0_rprec
-
-     do jx=1, kx_num
-        xloc = 2*kx_veci(jx)
-        u(xloc-1 : xloc,jy,jz) = uz(xloc-1 : xloc)
-        v(xloc-1 : xloc,jy,jz) = vz(xloc-1 : xloc)
-        w(xloc-1 : xloc,jy,jz) = wz(xloc-1 : xloc)
-     enddo
-
-
-!!$     u(cutHere+3:cutHere2 ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-!!$     v(cutHere+3:cutHere2 ,jy,jz) = 0._rprec    
-!!$     w(cutHere+3:cutHere2 ,jy,jz) = 0._rprec
-
-!!$     u(cutHere2+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-!!$     v(cutHere2+3: ,jy,jz) = 0._rprec    
-!!$     w(cutHere2+3: ,jy,jz) = 0._rprec
-
-!!$     u(cutHere+3: ,jy,jz) = 0._rprec  !! zero out kx modes of kx_allow+1 to end
-!!$     v(cutHere+3: ,jy,jz) = 0._rprec    
-!!$     w(cutHere+3: ,jy,jz) = 0._rprec
+     u(9:14,jy,jz) = 0._rprec
+     v(9:14,jy,jz) = 0._rprec    
+     w(9:14,jy,jz) = 0._rprec
+     
+     u(17:18,jy,jz) = 0._rprec
+     v(17:18,jy,jz) = 0._rprec    
+     w(17:18,jy,jz) = 0._rprec
 
      call dfftw_execute_dft_c2r(back_1d, u(:,jy,jz), u(:,jy,jz))
      call dfftw_execute_dft_c2r(back_1d, v(:,jy,jz), v(:,jy,jz))

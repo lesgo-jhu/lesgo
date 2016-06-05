@@ -168,6 +168,7 @@ if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz:nz z dimensions.')
 !  Set mpi data size
 mpi_datasize = sx*sy
 
+
 if(isync == MPI_SYNC_DOWN) then
 
    call sync_down()
