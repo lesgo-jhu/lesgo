@@ -367,6 +367,8 @@ do
         read (buff(equal_pos+1:), *) nxp  !!jb
      case ('START_PHYS')
         read (buff(equal_pos+1:), *) start_phys  !!jb
+     case ('SPECTRA_JB')
+        read (buff(equal_pos+1:), *) spectra_jb  !!jb
 
      case default
 

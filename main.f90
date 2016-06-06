@@ -1683,7 +1683,6 @@ time_loop: do jt_step = nstart, nsteps
        ! only written to screen, not used otherwise
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
-
        if (coord == 0) then
           write(*,*)
           write(*,'(a)') '========================================'
@@ -1713,7 +1712,6 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(a)') '========================================'
        end if
-
        if (fourier) then
           if (coord == 0) then            !!jb
              write(*,'(a)') '===================== BOTTOM WALL =================='

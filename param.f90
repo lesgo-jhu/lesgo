@@ -158,6 +158,7 @@ module param
   integer, allocatable, dimension(:) :: kxs
   integer :: nxp=32
   logical :: start_phys=.false.
+  logical :: spectra_jb=.false.
 
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS

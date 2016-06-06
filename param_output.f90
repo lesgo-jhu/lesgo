@@ -106,6 +106,7 @@ do n=1,kx_num
 enddo
 write(2,i_fmt) 'nxp : ', nxp
 write(2,x3l_fmt) 'start_phys : ', start_phys
+write(2,x3l_fmt) 'spectra_jb : ', spectra_jb
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'
