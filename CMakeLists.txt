@@ -28,8 +28,8 @@ set(USE_MPI true)
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
-set(WRITE_ENDIAN "DEFAULT")
-set(READ_ENDIAN "DEFAULT")
+set(WRITE_ENDIAN "BIG")
+set(READ_ENDIAN "BIG")
 
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation

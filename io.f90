@@ -1249,7 +1249,8 @@ do j=1,ny
 
       tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p2 * tavg_dt
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
+      tavg(i,j,k)%w_uv = tavg(i,j,k)%w + w_p2 * tavg_dt
 
       tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt
       tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt
@@ -1279,7 +1280,8 @@ do k=1,jzmax
     
       tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
       tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p2 * tavg_dt
+      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
+      tavg(i,j,k)%w_uv = tavg(i,j,k)%w + w_p2 * tavg_dt
 
       tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
       tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
@@ -1349,7 +1351,7 @@ implicit none
 character(64) :: bin_ext
 #endif
 
-character(64) :: fname_vel, fname_vel2, fname_tau, fname_f, fname_rs, fname_cs
+character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_f, fname_rs, fname_cs
 
 integer :: i,j,k
 
@@ -1365,7 +1367,8 @@ zw => grid % zw
 allocate(rs(nx,ny,lbz:nz))
 
 ! Common file name
-fname_vel = path // 'output/vel_avg'
+fname_vel = path // 'output/veluv_avg'
+fname_velw = path // 'output/velw_avg'
 fname_vel2 = path // 'output/vel2_avg'
 fname_tau = path // 'output/tau_avg'
 fname_f = path // 'output/force_avg'
@@ -1375,6 +1378,7 @@ fname_cs = path // 'output/cs_opt2'
 ! CGNS
 #ifdef PPCGNS
 call string_concat(fname_vel, '.cgns')
+call string_concat(fname_velw, '.cgns')
 call string_concat(fname_vel2, '.cgns')
 call string_concat(fname_tau, '.cgns')
 call string_concat(fname_f, '.cgns')
@@ -1389,6 +1393,7 @@ call string_splice(bin_ext, '.c', coord, '.bin')
 bin_ext = '.bin'
 #endif
 call string_concat(fname_vel, bin_ext)
+call string_concat(fname_velw, bin_ext)
 call string_concat(fname_vel2, bin_ext)
 call string_concat(fname_tau, bin_ext)
 call string_concat(fname_f, bin_ext)
@@ -1452,10 +1457,16 @@ call write_parallel_cgns (fname_vel ,nx, ny, nz - nz_end, nz_tot,           &
 (/ 1, 1,   (nz-1)*coord + 1 /),                                             &
 (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
 x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                      &
-2, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                             &
+3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                             &
 (/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                       &
    tavg(1:nx,1:ny,1:nz - nz_end) % v,                                       &
-   tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
+   tavg(1:nx,1:ny,1:nz- nz_end) % w_uv /) )
+   
+call write_parallel_cgns (fname_velw ,nx, ny, nz - nz_end, nz_tot,          &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                     &
+1, (/ 'VelocityZ' /), (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
 
 call write_parallel_cgns(fname_vel2,nx,ny,nz- nz_end,nz_tot,                &
 (/ 1, 1,   (nz-1)*coord + 1 /),                                             &
@@ -1499,6 +1510,11 @@ x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
 open(unit=13,file=fname_vel,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
+write(13,rec=3) tavg(:nx,:ny,1:nz)%w_uv
+close(13)
+
+! Write binary data
+open(unit=13,file=fname_velw,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w
 close(13)
 
