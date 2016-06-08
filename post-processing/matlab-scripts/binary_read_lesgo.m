@@ -10,38 +10,51 @@
 clear all; close all; clc;
 
 % specify which files to load
-avgVelocities    = 1;
-reynoldsStresses = 1;
-snapshots        = 1;
+avgVelocities    = true;
+reynoldsStresses = true;
+domain_snapshots = true;
+x_snapshots      = true;
+y_snapshots      = true;
+z_snapshots      = true;
 
 % specify file names (must choose a particular velocity snapshot)
-str_names_snap = dir('./output/binary_vel.1000.dat.c*');
-str_names_avg  = dir('./output/binary_vel_avg.dat*');
-str_names_rs   = dir('./output/binary_rs.dat*');
+snap_time = 501;
+xloc = 0.1;
+yloc = 0.1;
+zloc = 0.1;
 
 % read in computational domain parameters from lesgo_param.out 
 [nx,ny,nz2,nz_tot,nproc,z_i,L_x,L_y,L_z,dx,dy,dz,u_star,nu_molec] = getParams('lesgo_param.out');
 
-% (number of cores used by simulation)
-cores = nproc;
-dummycores=1:1:cores;
-zmin_buf=dummycores*(nz2-1)-nz2+2;
-zmax_buf=dummycores*(nz2-1)+1;
+% (number of nproc used by simulation)
+dummynproc=1:1:nproc;
+zmin_buf=dummynproc*(nz2-1)-nz2+2;
+zmax_buf=dummynproc*(nz2-1)+1;
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 % fetch average velocity fields
 if avgVelocities
-    [u,v,w] = getAvgVel(nx,ny,nz2,cores,str_names_avg,zmin_buf,zmax_buf);   
+    [u,v,w] = getAvgVelUV(nx,ny,nz2,nproc,zmin_buf,zmax_buf);   
 end
 
 % fetch instantaneous snapshot velocity fields
-if snapshots
-    [ubig,vbig,wbig] = getSnap(nx,ny,nz2,cores,str_names_snap,zmin_buf,zmax_buf);   
+if domain_snapshots
+    [ubig,vbig,wbig] = getSnap(snap_time,nx,ny,nz2,nproc,zmin_buf,zmax_buf);   
 end
+if x_snapshots
+    [ux,vx,wx] = getSnapX(snap_time,xloc,ny,nz2,nproc,zmin_buf,zmax_buf);   
+end
+if y_snapshots
+    [uy,vy,wy] = getSnapY(snap_time,yloc,ny,nz2,nproc,zmin_buf,zmax_buf);   
+end
+if z_snapshots
+    [uz,vz,wz] = getSnapZ(snap_time,zloc,nx,ny,nproc);
+end
+
 
 % fetch Reynolds stresses
 if reynoldsStresses
-    [uu,vv,ww,uw,vw,uv] = getReyStress(nx,ny,nz2,cores,str_names_rs,zmin_buf,zmax_buf);
+    [uu,vv,ww,uw,vw,uv] = getReyStress(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
 end
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -85,9 +98,20 @@ figure
 plot(z_w, uuMean,'ob')
 
 figure
-pcolor(ubig(:,:,1))
+pcolor(ubig(:,:,4))
 shading interp; colorbar;
 
+figure
+pcolor(ux')
+shading interp; colorbar;
+
+figure
+pcolor(uy')
+shading interp; colorbar;
+
+figure
+pcolor(uz)
+shading interp; colorbar;
 
 
 
