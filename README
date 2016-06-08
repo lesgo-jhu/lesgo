@@ -260,7 +260,8 @@ A) Time Averaged Data
 
     1) Entire domain (these file use the 'MPI appendix')
 
-      * vel_avg.ext         : Mean velocity field 
+      * veluv_avg.ext       : Mean u, v, w velocity field on uv grid
+      * velw_avg.ext        : Mean w velocity on w grid
       * vel2_avg.ext        : Mean of square products of the velocity field
       * force_avg.ext       : Mean field of modeled forces (IBM, turbines, RNS, etc)
       * tau_avg.ext         : Mean of the sub-grid scale stress tensor
