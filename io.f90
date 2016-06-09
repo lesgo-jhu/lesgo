@@ -950,7 +950,6 @@ end subroutine force_tot
 !return
 !end subroutine RHS_sync
 
->>>>>>> devel_branch
 end subroutine inst_write
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
