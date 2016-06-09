@@ -44,20 +44,6 @@ module param
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
 #endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
-#ifdef PPWRITE_BIG_ENDIAN
-  character(*), parameter :: write_endian = 'big_endian'
-#elif PPWRITE_LITTLE_ENDIAN
-  character(*), parameter :: write_endian = 'little_endian'
-#else
-  character(*), parameter :: write_endian = 'native'
-#endif
-#ifdef PPREAD_BIG_ENDIAN
-  character(*), parameter :: read_endian = 'big_endian'
-#elif PPREAD_LITTLE_ENDIAN
-  character(*), parameter :: read_endian = 'little_endian'
-#else
-  character(*), parameter :: read_endian = 'native'
-#endif
 
 !---------------------------------------------------
 ! MPI PARAMETERS
@@ -211,6 +197,11 @@ module param
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
+
+  ! Specify endianness of output and input files.
+  ! Choose from 'big', 'little', or 'native'
+  character(:), allocatable :: write_endian
+  character(:), allocatable :: read_endian
 
   ! how often to display stdout
   integer :: wbase = 100

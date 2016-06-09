@@ -26,11 +26,6 @@ set(OUTPUT_EXTRA false)
 # Enable parallelization support
 set(USE_MPI true)
 
-# Read and write binary files as big_endian or little_endian
-# Options: DEFAULT, LITTLE, or BIG
-set(WRITE_ENDIAN "BIG")
-set(READ_ENDIAN "BIG")
-
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
@@ -53,6 +48,9 @@ set(USE_HIT false)
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
 set(USE_STREAKS false)
+
+# What does this do?!
+set(USE_DYN_TN false)
 
 ################################################################################
 #                         Set up build (do not change)
@@ -204,22 +202,6 @@ endif (USE_CGNS)
 if (VERBOSE)
     add_definitions(-DPPVERBOSE)
 endif (VERBOSE)
-
-if (WRITE_ENDIAN STREQUAL "LITTLE")
-    add_definitions(-DPPWRITE_LITTLE_ENDIAN)
-endif (WRITE_ENDIAN STREQUAL "LITTLE")
-
-if (WRITE_ENDIAN STREQUAL "BIG")
-    add_definitions(-DPPWRITE_BIG_ENDIAN)
-endif (WRITE_ENDIAN STREQUAL "BIG")
-
-if (READ_ENDIAN STREQUAL "LITTLE")
-    add_definitions(-DPPREAD_LITTLE_ENDIAN)
-endif (READ_ENDIAN STREQUAL "LITTLE")
-
-if (READ_ENDIAN STREQUAL "BIG")
-    add_definitions(-DPPREAD_BIG_ENDIAN)
-endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")

@@ -539,6 +539,7 @@ use param
 implicit none
 
 character(*), parameter :: block_name = 'OUTPUT'
+integer :: dummy
 
 do 
 
@@ -553,6 +554,26 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
+     case ('READ_ENDIAN')
+        read (buff(equal_pos+1:), *) dummy
+        if (dummy == 1) then
+            read_endian = 'big_endian'
+        else if (dummy == 2) then
+            read_endian = 'little_endian'
+        else
+            read_endian = 'native'
+        endif
+            
+     case ('WRITE_ENDIAN')
+        read (buff(equal_pos+1:), *) dummy
+        if (dummy == 1) then
+            write_endian = 'big_endian'
+        else if (dummy == 2) then
+            write_endian = 'little_endian'
+        else
+            write_endian = 'native'
+        endif
+        
      case ('WBASE')
         read (buff(equal_pos+1:), *) wbase
 
