@@ -2,5 +2,5 @@
 cmake . -Bbld
 cd bld
 make
-cp lesgo-* ../
+cp lesgo* ../
 cd ..
