@@ -594,6 +594,12 @@ real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 #ifndef PPCGNS
 character(64) :: bin_ext
+
+#ifdef PPMPI
+call string_splice(bin_ext, '.c', coord, '.bin')
+#else
+bin_ext = '.bin'
+#endif
 #endif
 
 ! #ifdef PPCGNS
@@ -610,11 +616,6 @@ y => grid % y
 z => grid % z
 zw => grid % zw
 
-#ifdef PPMPI
-call string_splice(bin_ext, '.c', coord, '.bin')
-#else
-bin_ext = '.bin'
-#endif
 
 !  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
