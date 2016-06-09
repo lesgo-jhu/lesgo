@@ -328,12 +328,12 @@ real(rprec), intent(in), dimension(:) :: input ! Data to be written
 real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
 
 integer :: fn=1          ! CGNS file index number
-integer :: ier         ! CGNS error status
+integer :: ier           ! CGNS error status
 integer :: base=1        ! base number
 integer :: zone=1        ! zone number
-integer :: nnodes      ! Number of nodes in this processor
+integer :: nnodes        ! Number of nodes in this processor
 integer :: sol =1        ! solution number
-integer :: field     ! section number
+integer :: field         ! section number
 integer(cgsize_t) :: sizes(3,3)    ! Sizes
 
 ! Building the lcoal mesh
