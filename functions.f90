@@ -41,7 +41,8 @@ public interp_to_uv_grid, &
      get_tau_wall, &
      i2str, &
      interleave_c2r, &
-     interleave_r2c
+     interleave_r2c, &
+     x_avg_fourier
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -716,6 +717,37 @@ enddo
 
 return
 end function x_avg
+
+
+!**********************************************************************
+function x_avg_fourier(vel) result(vel_avg)
+!**********************************************************************
+! This function returns the streamwise-average of the 3D field vel.
+
+use types, only : rprec
+use param, only : ld, nx, ny, nz, lbz, nxp
+
+implicit none
+
+real(rprec), intent(in), dimension(:,:,:) :: vel
+real(rprec), dimension(ny,lbz:nz) :: tmp
+real(rprec), dimension(ld,ny,lbz:nz) :: vel_avg
+integer :: i
+
+tmp     = 0.0_rprec
+vel_avg = 0.0_rprec
+
+do i=1, nxp
+   tmp = tmp + vel(i,:,:)
+enddo
+tmp = tmp / real(nxp,rprec)
+
+do i=1, nx
+   vel_avg(i,:,:) = tmp
+enddo
+
+return
+end function x_avg_fourier
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function get_tau_wall() result(twall)       !!jb

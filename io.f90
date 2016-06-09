@@ -2782,6 +2782,8 @@ use derivatives, only: convolve, convolve2, dft_direct_back_2d_n_yonlyC_big
 use derivatives, only: wave2physF, dft_direct_forw_2d_n_yonlyC, phys2wave
 use emul_complex, only: OPERATOR(.MULCC.)   !!jb
 use sim_param, only: uF, vF, wF
+use param, only: nxp
+use functions, only: x_avg_fourier
 
 implicit none
 
@@ -2813,6 +2815,20 @@ real(rprec), allocatable, dimension(:,:,:) :: u_w_big, v_w_big
    real(rprec), allocatable, dimension(:,:,:) :: sp13d
    real(rprec), allocatable, dimension(:,:,:) :: sp23d
 
+   real(rprec), allocatable, dimension(:,:,:) :: sp11_
+   real(rprec), allocatable, dimension(:,:,:) :: sp22_
+   real(rprec), allocatable, dimension(:,:,:) :: sp33_
+   real(rprec), allocatable, dimension(:,:,:) :: sp12_
+   real(rprec), allocatable, dimension(:,:,:) :: sp13_
+   real(rprec), allocatable, dimension(:,:,:) :: sp23_
+
+   real(rprec), allocatable, dimension(:,:,:) :: sp11d_
+   real(rprec), allocatable, dimension(:,:,:) :: sp22d_
+   real(rprec), allocatable, dimension(:,:,:) :: sp33d_
+   real(rprec), allocatable, dimension(:,:,:) :: sp12d_
+   real(rprec), allocatable, dimension(:,:,:) :: sp13d_
+   real(rprec), allocatable, dimension(:,:,:) :: sp23d_
+
 !endif
 
 !allocate(u_w(nx,ny,lbz:nz),v_w(nx,ny,lbz:nz))
@@ -2842,6 +2858,21 @@ allocate(u_w(ld,ny,lbz:nz),v_w(ld,ny,lbz:nz))
    allocate(sp12d(ld,ny,lbz:nz))
    allocate(sp13d(ld,ny,lbz:nz))
    allocate(sp23d(ld,ny,lbz:nz))
+
+   allocate(sp11_(nxp+2,ny,lbz:nz))  !! for 2D spectra
+   allocate(sp22_(nxp+2,ny,lbz:nz))
+   allocate(sp33_(nxp+2,ny,lbz:nz))
+   allocate(sp12_(nxp+2,ny,lbz:nz))
+   allocate(sp13_(nxp+2,ny,lbz:nz))
+   allocate(sp23_(nxp+2,ny,lbz:nz))
+
+   allocate(sp11d_(nxp+2,ny,lbz:nz))  !! for 1D spectra
+   allocate(sp22d_(nxp+2,ny,lbz:nz))
+   allocate(sp33d_(nxp+2,ny,lbz:nz))
+   allocate(sp12d_(nxp+2,ny,lbz:nz))
+   allocate(sp13d_(nxp+2,ny,lbz:nz))
+   allocate(sp23d_(nxp+2,ny,lbz:nz))
+
 !endif
 
 !  Interpolate velocities to w-grid
@@ -2863,25 +2894,60 @@ if (spectra_jb) then
    enddo
 endif
 
+!!$do jz=lbz,nz   !!jb
+!!$   sp11(:,:,jz) = u_w(:,:,jz) .MULCC.  u_w(:,:,jz)
+!!$   sp22(:,:,jz) = v_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+!!$   sp33(:,:,jz) = w_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+!!$   sp12(:,:,jz) = u_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+!!$   sp13(:,:,jz) = u_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+!!$   sp23(:,:,jz) = v_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+!!$enddo
+!!$
+!!$if (spectra_jb) then
+!!$   do jz=lbz,nz   !!jb
+!!$      sp11d(:,:,jz) = uF(:,:,jz) .MULCC.  uF(:,:,jz)
+!!$      sp22d(:,:,jz) = vF(:,:,jz) .MULCC.  vF(:,:,jz)
+!!$      sp33d(:,:,jz) = wF(:,:,jz) .MULCC.  wF(:,:,jz)
+!!$      sp12d(:,:,jz) = uF(:,:,jz) .MULCC.  vF(:,:,jz)
+!!$      sp13d(:,:,jz) = uF(:,:,jz) .MULCC.  wF(:,:,jz)
+!!$      sp23d(:,:,jz) = vF(:,:,jz) .MULCC.  wF(:,:,jz)
+!!$   enddo
+!!$endif
+
 do jz=lbz,nz   !!jb
-   sp11(:,:,jz) = u_w(:,:,jz) .MULCC.  u_w(:,:,jz)
-   sp22(:,:,jz) = v_w(:,:,jz) .MULCC.  v_w(:,:,jz)
-   sp33(:,:,jz) = w_w(:,:,jz) .MULCC.  w_w(:,:,jz)
-   sp12(:,:,jz) = u_w(:,:,jz) .MULCC.  v_w(:,:,jz)
-   sp13(:,:,jz) = u_w(:,:,jz) .MULCC.  w_w(:,:,jz)
-   sp23(:,:,jz) = v_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+   sp11_(:,:,jz) = u_w(:,:,jz) .MULCC.  u_w(:,:,jz)
+   sp22_(:,:,jz) = v_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+   sp33_(:,:,jz) = w_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+   sp12_(:,:,jz) = u_w(:,:,jz) .MULCC.  v_w(:,:,jz)
+   sp13_(:,:,jz) = u_w(:,:,jz) .MULCC.  w_w(:,:,jz)
+   sp23_(:,:,jz) = v_w(:,:,jz) .MULCC.  w_w(:,:,jz)
 enddo
 
 if (spectra_jb) then
    do jz=lbz,nz   !!jb
-      sp11d(:,:,jz) = uF(:,:,jz) .MULCC.  uF(:,:,jz)
-      sp22d(:,:,jz) = vF(:,:,jz) .MULCC.  vF(:,:,jz)
-      sp33d(:,:,jz) = wF(:,:,jz) .MULCC.  wF(:,:,jz)
-      sp12d(:,:,jz) = uF(:,:,jz) .MULCC.  vF(:,:,jz)
-      sp13d(:,:,jz) = uF(:,:,jz) .MULCC.  wF(:,:,jz)
-      sp23d(:,:,jz) = vF(:,:,jz) .MULCC.  wF(:,:,jz)
+      sp11d_(:,:,jz) = uF(:,:,jz) .MULCC.  uF(:,:,jz)
+      sp22d_(:,:,jz) = vF(:,:,jz) .MULCC.  vF(:,:,jz)
+      sp33d_(:,:,jz) = wF(:,:,jz) .MULCC.  wF(:,:,jz)
+      sp12d_(:,:,jz) = uF(:,:,jz) .MULCC.  vF(:,:,jz)
+      sp13d_(:,:,jz) = uF(:,:,jz) .MULCC.  wF(:,:,jz)
+      sp23d_(:,:,jz) = vF(:,:,jz) .MULCC.  wF(:,:,jz)
    enddo
 endif
+
+sp11 = x_avg_fourier(sp11_)
+sp22 = x_avg_fourier(sp22_)
+sp33 = x_avg_fourier(sp33_)
+sp12 = x_avg_fourier(sp12_)
+sp13 = x_avg_fourier(sp13_)
+sp23 = x_avg_fourier(sp23_)
+sp11d = x_avg_fourier(sp11d_)
+sp22d = x_avg_fourier(sp22d_)
+sp33d = x_avg_fourier(sp33d_)
+sp12d = x_avg_fourier(sp12d_)
+sp13d = x_avg_fourier(sp13d_)
+sp23d = x_avg_fourier(sp23d_)
+
+
 
 !!$if (coord == 0) then
 !!$   print*, 'prem >>'

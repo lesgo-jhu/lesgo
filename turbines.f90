@@ -1564,7 +1564,7 @@ do jy = 1, ny !ny2
    r5 = sqrt( abs(y(jy)-2.35619)**2 + abs(z(jz)-height_all)**2 )
    r6 = sqrt( abs(y(jy)-2.87979)**2 + abs(z(jz)-height_all)**2 )
    if ( r1 .le. rad .or. r2 .le. rad .or. r3 .le. rad .or. r4 .le. rad .or. r5 .le. rad .or. r6 .le. rad) then
-   do jx=1,4
+   do jx=1,4  !4
    !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
    fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
    enddo
