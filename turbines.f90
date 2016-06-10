@@ -186,7 +186,7 @@ character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
 
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
-real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_gamma=> null(), p_theta2=> null()
+real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3=> null() 
 
 real(rprec), pointer, dimension(:) :: x, y, z
@@ -208,7 +208,7 @@ do s=1,nloc
         p_height => wind_farm%turbine(s)%height 
         p_dia => wind_farm%turbine(s)%dia 
         p_thk => wind_farm%turbine(s)%thk
-        p_gamma => wind_farm%turbine(s)%gamma
+        p_theta1 => wind_farm%turbine(s)%theta1
         p_theta2 => wind_farm%turbine(s)%theta2
         p_nhat1 => wind_farm%turbine(s)%nhat(1)
         p_nhat2 => wind_farm%turbine(s)%nhat(2)
@@ -221,8 +221,8 @@ do s=1,nloc
     kmax = R_t/dz + 2
 
     !determine unit normal vector for each turbine	
-    p_nhat1 = -cos(pi*p_gamma/180.)*cos(pi*p_theta2/180.)
-    p_nhat2 = -sin(pi*p_gamma/180.)*cos(pi*p_theta2/180.)
+    p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
+    p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     p_nhat3 = sin(pi*p_theta2/180.)
 
     !determine nearest (i,j,k) to turbine center
