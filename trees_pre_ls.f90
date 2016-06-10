@@ -23,7 +23,7 @@ contains
 
 subroutine trees_pre_ls
 use types, only : rprec
-use param, only : path, write_endian
+use param, only : path
 use param, only : nx, ny, nz, BOGUS, nproc
 use input_util, only : read_input_conf
 use trees_base_ls, only : grid_initialize, pt_of_grid
@@ -126,7 +126,7 @@ do ip = ipmin, ipmax
   if (MPI_split) then
 
     write (fphi_raw_out_MPI, '(a,a,i0)') trim (fphi_raw_out), MPI_suffix, ip
-    open (1, file=fphi_raw_out_MPI, form='unformatted', action='write', position='rewind', convert=write_endian)
+    open (1, file=fphi_raw_out_MPI, form='unformatted')
 
     !--note some overlap here for local 0, nz levels (less MPI comms later)
     !lbz = ip * (nz - 1) / nproc       !--0 level (local)
@@ -215,7 +215,7 @@ do ip = ipmin, ipmax
 
   else  !--no MPI_split (ip = 1)
 
-    open (1, file=fphi_raw_out, form='unformatted', action='write', position='rewind', convert=write_endian)
+    open (1, file=fphi_raw_out, form='unformatted')
     write (1) phi(:, :, 1:nz)  !--all k = 1:nz are valid here
     close (1)
 

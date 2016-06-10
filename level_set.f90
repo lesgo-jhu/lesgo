@@ -209,7 +209,13 @@ inquire (file=fphi_in, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert=read_endian)
+#ifdef PPREAD_BIG_ENDIAN
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
+#elif PPREAD_LITTLE_ENDIAN
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
+#else
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
+#endif
 
 read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0

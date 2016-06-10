@@ -584,10 +584,6 @@ use stat_defs, only : xplane, yplane, zplane, point
 #ifdef PPMPI
 use param, only :ny,nz,comm,ierr
 #endif
-#ifdef PPLVLSET
-use level_set_base, only : phi
-use sim_param, only : fx,fy,fz,fxa,fya,fza
-#endif
 
 implicit none
 
@@ -596,11 +592,6 @@ character (64) :: fname
 integer :: n, i, j, k
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
 real(rprec), pointer, dimension(:) :: x,y,z,zw
-
-#ifdef PPLVLSET
-real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
-#endif
-
 #ifndef PPCGNS
 character(64) :: bin_ext
 
@@ -1452,9 +1443,8 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use param, only : ny,nz,nz_tot
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
-use param, only : ierr,comm
+use param, only : ierr,comm,write_endian
 #endif
-use param, only : write_endian
 
 implicit none
 
