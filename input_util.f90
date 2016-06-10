@@ -894,8 +894,8 @@ do
      case ('STAG_PERC')
         read (buff(equal_pos+1:), *) stag_perc
 
-     case ('THETA1_ALL')
-        read (buff(equal_pos+1:), *) theta1_all
+     case ('GAMMA')
+        call parse_vector( buff(equal_pos+1:), n_gamma, gamma )
      case ('THETA2_ALL')
         read (buff(equal_pos+1:), *) theta2_all
 

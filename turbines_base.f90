@@ -40,7 +40,9 @@ integer :: orientation      ! orientation 1=aligned, 2=horiz stagger,
                             !  3=vert stagger by row, 4=vert stagger checkerboard
 real(rprec) :: stag_perc    ! stagger percentage from baseline
 
-real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zero)
+real(rprec), dimension(:), allocatable :: gamma   ! angle from upstream (CCW from above, -x
+integer :: n_gamma
+
 real(rprec) :: theta2_all   ! angle above horizontal
 
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
@@ -271,7 +273,12 @@ enddo
 !#endif
             
 ! orientation (angles)
-wind_farm%turbine(:)%theta1 = theta1_all
+if (n_gamma /= num_x) then
+    call error(sub_name, 'Number of gammas must equal number of streamwise rows of turbines')
+endif
+do k = 1, num_x
+    wind_farm%turbine( ((k-1)*num_y+1):k*num_y)%gamma = gamma(k)
+enddo
 wind_farm%turbine(:)%theta2 = theta2_all
 
 end subroutine turbines_base_init

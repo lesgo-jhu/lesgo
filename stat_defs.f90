@@ -85,7 +85,7 @@ end type tavg_sgs_t
 type turbine_t
   real(rprec) :: xloc, yloc, height, dia, thk
   real(rprec) :: vol_c                        ! term used for volume correction  
-  real(rprec) :: theta1                       ! angle CCW(from above) from -x direction [degrees]
+  real(rprec) :: gamma                        ! angle CCW(from above) from -x direction [degrees]
   real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
   real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
   integer :: num_nodes                        ! number of nodes associated with each turbine
