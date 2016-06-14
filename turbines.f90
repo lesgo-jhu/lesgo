@@ -55,7 +55,6 @@ integer, dimension(:), allocatable :: turbine_in_proc_array
 integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
 integer :: fid_k, fid_U_infty, fid_Phat, fid_u
-integer, dimension(:), allocatable :: fid_Ctp
 integer :: counter = 0
 
 type(wakeModelEstimator) :: wm_est
@@ -266,12 +265,6 @@ string1 = trim( path // 'turbine/wake_model_Phat.dat' )
 fid_Phat = open_file_fid( string1, 'append', 'formatted' )
 string1 = trim( path // 'turbine/wake_model_u.dat' )
 fid_u = open_file_fid( string1, 'append', 'formatted' )
-
-allocate( fid_Ctp(num_x) )
-do i = 1, num_x
-    call string_splice( string1, path //  'turbine/wake_model_Ctp_', i, '.dat' )
-    fid_Ctp = open_file_fid( string1, 'append', 'formatted' )
-end do
 
 end subroutine wake_model_est_init
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -954,10 +947,6 @@ if (use_wake_model) then
         write(fid_U_infty, *) total_time_dim, wm_est%wm%U_infty
         write(fid_Phat, *) total_time_dim, wm_est%wm%Phat
         write(fid_u, *) total_time_dim, wm_est%wm%u
-        do i = 1, num_x
-            write(fid_Ctp(i), *) t_Ctp_list
-            write(fid_Ctp(i), *) Ctp_list(i, :)
-        end do
     end if
     
     deallocate(wm_Pm)
