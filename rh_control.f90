@@ -62,7 +62,7 @@ contains
 end type MinimizedFarm
 
 interface MinimizedFarm
-    procedure :: constructor
+    module procedure :: constructor
 end interface MinimizedFarm
 
 contains
@@ -81,7 +81,7 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_ga
     use util, only : interpolate
     implicit none
     class(MinimizedFarm)                        :: this
-    class(WakeModel), intent(in)                :: i_wm
+    type(WakeModel), intent(in)                :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
     real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
     integer                                     :: i
