@@ -541,8 +541,6 @@ implicit none
 real(rprec), dimension(:) :: x, y
 real(rprec) :: xi, yi
 integer     :: i, j, N
-real(rprec) :: dx
-character(*), parameter :: fun_name = mod_name // '.linear_interp_ss'
 
 N = size(y)
 j = binary_search(x, xi)
@@ -571,9 +569,8 @@ function linear_interp_aa(x, y, xi) result(yi)
 implicit none
 real(rprec), dimension(:) :: x, y, xi
 real(rprec), dimension(:), allocatable :: yi
-integer     :: i, Ni 
-real(rprec) :: dx
-character(*), parameter :: fun_name = mod_name // '.linear_interp_sa'
+integer :: i, Ni 
+character(*), parameter :: fun_name = mod_name // '.linear_interp_aa'
 
 ! Check array sizes
 if ( size(x) /= size(y) ) then
@@ -607,7 +604,6 @@ function binary_search(arr,val) result(low)
 !  low          - lower index of the array bracket 
 !                 0 if val < arr(1), N if val < arr(N))
 !
-use types, only : rprec
 implicit none
 
 real(rprec), dimension(:) :: arr
