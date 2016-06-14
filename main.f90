@@ -26,10 +26,10 @@ program main
 ! 
 
 use types, only : rprec
-use clocks 
+use clock_m
 use param
 use sim_param
-use grid_defs, only : grid_build
+use grid_m
 use io, only : energy, output_loop, output_final, jt_total
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
@@ -46,10 +46,6 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 #ifdef PPLVLSET
 use level_set, only : level_set_global_CA, level_set_vel_err
 use level_set_base, only : global_CA_calc
-  
-#ifdef PPRNS_LS
-use rns_ls, only : rns_elem_force_ls
-#endif
 #endif
 
 #ifdef PPTURBINES
@@ -87,7 +83,7 @@ real(rprec) :: maxdummy ! Used to calculate maximum with mpi_allreduce
 #endif
 
 ! Start the clocks, both local and total
-call clock_start( clock )
+call clock%start
 
 ! Initialize time variable
 tt = 0
@@ -98,7 +94,7 @@ jt_total = 0
 call initialize()
 
 if(coord == 0) then
-   call clock_stop( clock )
+   call clock%stop
 #ifdef PPMPI
    write(*,'(1a,E15.7)') 'Initialization wall time: ', clock % time
 #else
@@ -106,7 +102,7 @@ if(coord == 0) then
 #endif
 endif
 
-call clock_start( clock_total )
+call clock_total%start
 
 ! Initialize starting loop index 
 ! If new simulation jt_total=0 by definition, if restarting jt_total
@@ -128,7 +124,7 @@ allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
 time_loop: do jt_step = nstart, nsteps   
   
    ! Get the starting time for the iteration
-   call clock_start( clock )
+   call clock%start
 
    if( use_cfl_dt ) then
       
@@ -248,27 +244,21 @@ time_loop: do jt_step = nstart, nsteps
     !  Applied forcing (forces are added to RHS{x,y,z})
 
     ! Calculate forcing time
-    call clock_start( clock_forcing )  
+    call clock_forcing%start
 
     ! Apply forcing. These forces will later go into RHS
     call forcing_applied()
 
     ! Calculate forcing time
-    call clock_stop( clock_forcing )
-
+    call clock_forcing%stop
 
     ! Calculate the total time of the forcing
     clock_total_f = clock_total_f + clock_forcing % time
 
     !  Update RHS with applied forcing
-#if defined(PPTURBINES) && !( defined(PPLVLSET) && defined(PPRNS_LES) )
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-#elif defined(PPLVLSET) && defined(PPRNS_LS)
-    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)
-    RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fya(:,:,1:nz-1)
-    RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
+#if defined(PPTURBINES)
+    RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxa(:,:,1:nz-1)    
 #endif
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Tony ATM
 #ifdef PPATM
@@ -354,13 +344,6 @@ time_loop: do jt_step = nstart, nsteps
     !   uses fx,fy,fz calculated above
     !   for MPI: syncs 1 -> Nz and Nz-1 -> 0 nodes info for u,v,w    
     call project ()
-
-#if defined(PPLVLSET) && defined(PPRNS_LS)
-    !  Compute the relavent force information ( include reference quantities, CD, etc.)
-    !  of the RNS elements using the IBM force; No modification to f{x,y,z} is
-    !  made here.
-    call rns_elem_force_ls()
-#endif
    
     ! Write ke to file
     if (modulo (jt_total, nenergy) == 0) call energy (ke)
@@ -377,8 +360,8 @@ time_loop: do jt_step = nstart, nsteps
     if (modulo (jt_total, wbase) == 0) then
        
        ! Get the ending time for the iteration
-       call clock_stop( clock )
-       call clock_stop( clock_total )
+       call clock%stop
+       call clock_total%stop
 
        ! Calculate rms divergence of velocity
        ! only written to screen, not used otherwise
@@ -506,7 +489,7 @@ close(2)
 call output_final()
 
 ! Stop wall clock
-call clock_stop( clock_total )
+call clock_total%stop
 #ifdef PPMPI
 if( coord == 0 )  write(*,"(a,e15.7)") 'Simulation wall time (s) : ', clock_total % time
 #else

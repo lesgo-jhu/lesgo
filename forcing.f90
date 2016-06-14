@@ -28,6 +28,11 @@ module forcing
 ! routines for enforcing a uniform inflow and the fringe region
 ! treatment.
 !
+
+#ifdef PPHIT
+use hit_inflow, only : inflow_HIT
+#endif
+
 implicit none
 
 save
@@ -52,13 +57,6 @@ subroutine forcing_applied()
 !
 use types, only : rprec
 
-#ifdef PPLVLSET
-#ifdef PPRNS_LS
-use sim_param, only : fxa, fya, fza
-use rns_ls, only : rns_forcing_ls
-#endif
-#endif
-
 #ifdef PPTURBINES
 use sim_param, only : fxa
 use turbines, only:turbines_forcing
@@ -72,16 +70,6 @@ use atm_lesgo_interface, only : atm_lesgo_forcing
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 implicit none
-
-#ifdef PPLVLSET
-#ifdef PPRNS_LS
-! Reset applied force arrays
-fxa = 0._rprec
-fya = 0._rprec
-fza = 0._rprec
-call rns_forcing_ls()
-#endif
-#endif
 
 #ifdef PPTURBINES
 ! Reset applied force arrays
@@ -116,9 +104,6 @@ use types, only : rprec
 #ifdef PPLVLSET
   use level_set, only : level_set_forcing
   use sim_param, only : fx, fy, fz
-#ifdef PPRNS_LS
-  use rns_ls, only : rns_elem_force_ls
-#endif
 #endif
 implicit none
 
@@ -263,9 +248,12 @@ do jz = jz_min, nz - 1
   end do
 end do
 
+! Cases for CPS, Isotropic Turbulence and Uniform inflow
 #ifdef PPCPS
 call synchronize_cps()
 if( inflow ) call inflow_cond_cps()
+#elif defined(PPHIT)
+if( inflow ) call inflow_HIT()
 #else
 if ( inflow ) call inflow_cond ()
 #endif

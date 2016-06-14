@@ -23,17 +23,13 @@ set(USE_SAFETYMODE true)
 # for diagnosing issues
 set(OUTPUT_EXTRA false)
 
-# Use FFTW3 libraries (if no FFTW2 will be used)
-set(USE_FFTW3 true)
-
-# Enable parallization support (openmp currently not supported)
+# Enable parallelization support
 set(USE_MPI true)
-set(USE_OPENMP false)
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
-set(WRITE_ENDIAN "DEFAULT")
-set(READ_ENDIAN "DEFAULT")
+set(WRITE_ENDIAN "BIG")
+set(READ_ENDIAN "BIG")
 
 # Select a turbine model
 # USE_TURBINE: Actuator Disk Model without Rotation
@@ -43,20 +39,23 @@ set(USE_ATM false)
 
 # Select the data output
 set(USE_CGNS false)
-set(USE_BINARY true)
 
 # Select level set
 set(USE_LVLSET false)
-set(USE_RNS_LS false)
-set(USE_CYC_SKEW_LS false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
 set(USE_CPS false)
 
+# Homogeneous isotropic turbulence input
+set(USE_HIT false)
+
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
 set(USE_STREAKS false)
+
+# What does this do?
+set(USE_DYN_TN false)
 
 ################################################################################
 #                         Set up build (do not change)
@@ -78,6 +77,9 @@ set(CMAKE_Fortran_COMPILER ${compiler_path})
 enable_language (Fortran)
 project (lesgo)
 set(exec_name "lesgo")
+
+# Library links
+link_libraries(fftw3)    
 
 # Common include and link directories
 include_directories(/usr/local/include)
@@ -129,18 +131,18 @@ set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 
      messages.f90 open_file.f90 padd.f90 param.f90 param_output.f90 
-     press_stag_array.f90 ran3.f90 rmsdiv.f90 scaledep_dynamic.f90 
+     press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 
-     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90)
+     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90 init_random_seed.f90
+     iwmles.f90)
 
 link_libraries(lapack blas)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
     set (CMAKE_Fortran_COMPILER mpif90)
-    set(Sources ${Sources} mpi_transpose_mod.f90 tridag_array_pipelined.f90 
-        mpi_defs.f90)
+    set(Sources ${Sources} mpi_transpose_mod.f90 mpi_defs.f90)
     set(exec_name "${exec_name}-mpi")
 endif (USE_MPI)
 
@@ -150,6 +152,12 @@ if (USE_CPS)
     set(exec_name "${exec_name}-cps")
 endif (USE_CPS)
 
+if (USE_HIT)
+    add_definitions(-DPPHIT)
+    set(Sources ${Sources} hit_inflow.f90)
+    set(exec_name "${exec_name}-HIT")
+endif (USE_HIT)
+
 if (USE_STREAKS)
     add_definitions(-DPPSTREAKS)
     set(exec_name "${exec_name}-streaks")
@@ -157,29 +165,15 @@ endif (USE_STREAKS)
 
 if (USE_LVLSET)
     add_definitions(-DPPLVLSET)
-    set(Sources ${Sources} level_set_base.f90 level_set.f90 linear_simple.f90)
+    set(Sources ${Sources} level_set_base.f90 level_set.f90 linear_simple.f90 
+        trees_pre_ls.f90 trees_base_ls.f90 trees_setup_ls.f90 trees_io_ls.f90 
+        trees_global_fmask_ls.f90)
     set(exec_name "${exec_name}-ls")
 endif (USE_LVLSET)
 
-if (USE_RNS_LS)
-    add_definitions(-DPPRNS_LS)
-    set(Sources ${Sources} rns_base_ls.f90 rns_ls.f90)
-    set(exec_name "${exec_name}-rns")
-    if (USE_CYL_SKEW_LS)
-        set(Sources ${Sources} rns_cyl_skew_ls.f90)
-    endif (USE_CYL_SKEW_LS)
-endif (USE_RNS_LS)
-
-if (USE_CYL_SKEW_LS)
-    add_definitions(-DPPCYL_SKEW_LS)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lcgaml")
-    set(Sources ${Sources} cyl_skew_base_ls.f90 cyl_skew_ls.f90)
-    set(exec_name "${exec_name}-cs")
-endif (USE_CYL_SKEW_LS)
-
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90 wake_model.f90 util.f90
+    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90 wake_model.f90
         minimize.f90 rh_control.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
@@ -201,11 +195,6 @@ if (USE_DYN_TN)
     set(exec_name "${exec_name}-dyntn")
 endif (USE_DYN_TN)
 
-if (USE_BINARY)
-    add_definitions(-DPPBINARY)
-    set(exec_name "${exec_name}-binary")
-endif (USE_BINARY)
-
 if (USE_SAFETYMODE)
     add_definitions(-DPPSAFETYMODE)
 else (USE_SAFETYMODE)
@@ -214,15 +203,9 @@ endif (USE_SAFETYMODE)
 
 if (USE_CGNS)
     add_definitions(-DPPCGNS)
-    link_libraries(cgns hdf5)    
+    link_libraries(cgns hdf5)   
+    set(exec_name "${exec_name}-cgns") 
 endif (USE_CGNS)
-
-if (USE_FFTW3)
-    add_definitions(-DPPFFTW3)
-    link_libraries(fftw3)    
-else (USE_FFTW3)
-    link_libraries(rfftw fftw)    
-endif (USE_FFTW3)
 
 if (VERBOSE)
     add_definitions(-DPPVERBOSE)
@@ -246,43 +229,11 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin 
-         -assume byterecl")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -framework Accelerate")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-
-# Level set subprograms to generate phi
-
-# trees_pre_ls:
-if (USE_LVLSET)
-    set (trees_sources trees_pre_ls.f90 trees_base_ls.f90 trees_setup_ls.f90 
-         trees_io_ls.f90 trees_global_fmask_ls.f90 types.f90 param.f90 
-         messages.f90 string_util.f90 input_util.f90 level_set_base.f90)
-    add_executable(trees_pre_ls ${trees_sources})
-endif()
-
-# cyl_skew_pre_ls:
-if (USE_CYC_SKEW_LS)
-    set(cyl_skew_sources cyl_skew_base_ls.f90 cyl_skew_ls.f90 cyl_skew_pre_ls.f90
-        input_util.f90 param.f90 types.f90 messages.f90 string_util.f90)
-    
-    if (USE_MPI)
-        set(cyl_skew_sources ${cyl_skew_sources} mpi_defs.f90)
-    endif ()
-    
-    if (USE_RNS_LS)
-        set(cyl_skew_sources ${cyl_skew_sources} rns_base_ls.f90 rns_ls.f90 sim_param.f90 
-            functions.f90 grid.f90)
-    endif ()
-    
-    if (USE_LVLSET)
-        set(cyl_skew_sources ${cyl_skew_sources} level_set_base.f90)
-    endif ()
-    
-    add_executable(cyl_skew_pre_ls ${cyl_skew_sources})
-endif ()
 
 # main lesgo executable
 add_executable(${exec_name} ${Sources})

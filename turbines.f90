@@ -18,16 +18,11 @@
 !!
 
 module turbines
-! This module currently contains all of the subroutines associated with drag-disk turbines:
-!  (1) turbines_init
-!      This routine creates the 'turbine' folder and starts the turbine forcing output files.
-!      It also creates the indicator function (Gaussian-filtered from binary locations - in or out)
-!      and sets values for turbine type (node locations, etc)
-!  (2) turbines_forcing
-!      Applies the drag-disk forcing
+! This module contains all of the subroutines associated with drag-disk turbines:
+
 use param
 use turbines_base
-use grid_defs, only: grid 
+use grid_m
 use messages
 use string_util
 use wake_model_estimator_class
@@ -43,8 +38,6 @@ real(rprec) :: T_avg_dim_file
 real(rprec), dimension(:), allocatable :: z_tot
 
 character (100) :: string1
-!real(rprec), dimension(:,:,:), allocatable :: large_node_array    !used for visualizing node locations. Richard: ! removed large 3D array to limit memory use
-!real(rprec), dimension(:,:,:), allocatable :: large_node_array_filtered ! Richard: ! removed large 3D array to limit memory use
 real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
 integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,ssx,ssy,ssz, p
@@ -74,7 +67,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine turbines_init()
-
+!  This subroutine creates the 'turbine' folder and starts the turbine forcing output files.
+!  It also creates the indicator function (Gaussian-filtered from binary locations - in or out)
+!  and sets values for turbine type (node locations, etc)
 use util, only : interpolate
 use open_file_fid_mod
 implicit none
@@ -90,8 +85,6 @@ y => grid % y
 z => grid % z
 
 ! Allocate and initialize
-!allocate(large_node_array(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
-!allocate(large_node_array_filtered(nx,ny,nz_tot)) ! removed large 3D array to limit memory use
 allocate(turbine_in_proc_array(nproc-1))
 allocate(z_tot(nz_tot))
 allocate(file_id(nloc))
@@ -111,16 +104,7 @@ enddo
 
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
-!    large_node_array = 0.
-!    call turbines_nodes(large_node_array)
 call turbines_nodes                  ! removed large 3D array to limit memory use
-    
-!    if (coord == 0) then
-!      !to write the node locations to file
-!      string1 = path // 'turbine/nodes_unfiltered.dat'
-!      call write_tecplot_header_ND(string1,'rewind', 4, (/nx+1, ny+1, nz_tot/), '"x", "y", "z", "nodes_unfiltered"', numtostr(0,1), 1)
-!      call write_real_data_3D(string1, 'append','formatted', 1, nx, ny, nz_tot, (/large_node_array/), 4, x,y,z_tot)
-!    endif
 
 !1.smooth/filter indicator function                     
 !2.associate new nodes with turbines                               
@@ -458,7 +442,6 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 
 real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
-!real(rprec), dimension(nx,ny,nz_tot) :: array ! removed large 3D array to limit memory use
 
 real(rprec), pointer :: p_xloc => null(), p_yloc=> null(), p_height=> null()
 real(rprec), pointer :: p_dia => null(), p_thk=> null(), p_theta1=> null(), p_theta2=> null()
@@ -491,15 +474,6 @@ do s=1,nloc
 
     !identify "search area"
     R_t = p_dia/2.
-            !if (coord == 0) then
-            !    if (verbose) then
-            !      write(*,*) '     rad:',R_t
-            !      write(*,*) '     dx:',dx
-            !      write(*,*) '     dy:',dy
-            !      write(*,*) '     dz:',dz
-            !      write(*,*) '     thk:',p_thk
-            !    endif
-            !endif
     imax = R_t/dx + 2
     jmax = R_t/dy + 2
     kmax = R_t/dz + 2
@@ -508,22 +482,11 @@ do s=1,nloc
     p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     p_nhat2 = -sin(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
     p_nhat3 = sin(pi*p_theta2/180.)
-            !if (coord == 0) then
-            !    if (verbose) then
-            !      write(*,*) '     n_hat', p_nhat1, p_nhat2, p_nhat3
-            !    endif
-            !endif
 
     !determine nearest (i,j,k) to turbine center
     icp = nint(p_xloc/dx)
     jcp = nint(p_yloc/dy)
     kcp = nint(p_height/dz + 0.5)
-            !if (coord == 0) then
-            !    if (verbose) then
-            !      write(*,*) '     turbine center (i,j,k)',icp,jcp,kcp
-            !      write(*,*) '     turbine center (x,y,z)',x(icp),y(jcp),z_tot(kcp)
-            !    endif
-            !endif
 
     !determine limits for checking i,j,k
     !due to spectral BCs, i and j may be < 1 or > nx,ny
@@ -534,19 +497,12 @@ do s=1,nloc
     max_j = jcp+jmax
     min_k = max((kcp-kmax),1)
     max_k = min((kcp+kmax),nz_tot)
-            !if (coord == 0) then
-            !    if (verbose) then
-            !      write(*,*) '     i limits, range', min_i, max_i, dx*(max_i-min_i)
-            !      write(*,*) '     j limits, range', min_j, max_j, dy*(max_j-min_j)
-            !      write(*,*) '     k limits, range', min_k, max_k, dz*(max_k-min_k)
-            !    endif
-            !endif
-            wind_farm%turbine(s)%nodes_max(1) = min_i
-            wind_farm%turbine(s)%nodes_max(2) = max_i
-            wind_farm%turbine(s)%nodes_max(3) = min_j
-            wind_farm%turbine(s)%nodes_max(4) = max_j
-            wind_farm%turbine(s)%nodes_max(5) = min_k
-            wind_farm%turbine(s)%nodes_max(6) = max_k            
+    wind_farm%turbine(s)%nodes_max(1) = min_i
+    wind_farm%turbine(s)%nodes_max(2) = max_i
+    wind_farm%turbine(s)%nodes_max(3) = min_j
+    wind_farm%turbine(s)%nodes_max(4) = max_j
+    wind_farm%turbine(s)%nodes_max(5) = min_k
+    wind_farm%turbine(s)%nodes_max(6) = max_k            
 
     !check neighboring grid points	
     do k=min_k,max_k
@@ -581,12 +537,6 @@ do s=1,nloc
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 !if r_disk<R_t and r_norm within thk/2 from turbine -- this node is part of the turbine
                 if ( (r_disk .LE. R_t) .AND. (r_norm .LE. p_thk/2.) ) then
-                    !if (coord == 0) then
-                    !    if (verbose) then
-                    !      write(*,*) '     FOUND NODE', i,j,k
-                    !    endif
-                    !endif
-!                    array(i2,j2,k) = 1.  ! removed large 3D array to limit memory use
                     wind_farm%turbine(s)%ind(count_i) = 1. 
                     wind_farm%turbine(s)%nodes(count_i,1) = i2
                     wind_farm%turbine(s)%nodes(count_i,2) = j2
@@ -640,62 +590,22 @@ y => grid % y
 z => grid % z
 
 !create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
-!if(wind_farm%ifilter==2) then		!2-> Gaussian
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
-      do k=1,nz_tot
-        do j=1,ny
-          do i=1,nx
+do k=1,nz_tot
+    do j=1,ny
+        do i=1,nx
             r2 = ((real(i)-nx/2.)*dx)**2 + ((real(j)-ny/2.)*dy)**2 + ((real(k)-(nz_tot-1)/2.)*dz)**2
             g(i,j,k) = sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-          enddo
         enddo
-      enddo
-!endif
+    enddo
+enddo
 
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
 g = g/sumG
 
-!display the convolution function
-    !if (coord == 0) then
-    !    if(.false.) then
-    !      write(*,*) 'Convolution function'
-    !      write(*,*) g
-    !      write(*,*) 'integral of g(i,j,k): ',sumG
-    !    endif       
-    !endif
-
-    !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
-!    if (coord == 0) then    
-!        i=nx/2
-!        j=ny/2
-!        do k2=1,nz_tot
-!          do j2=1,ny
-!            do i2=1,nx
-!            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
-!            enddo
-!          enddo
-!        enddo
-
-        !if (.false.) then
-        !    fname0 = path // 'turbine/convolution_function.dat'
-        !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
-        !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
-
-        !    if (verbose) then
-        !        write(*,*) 'Convolution function written to Tecplot file.'
-        !    endif
-        !endif
-!    endif
-
 !filter indicator function for each turbine
 do b=1,nloc
-    
-    !if (coord == 0) then
-    !    if (verbose) then
-    !        write(*,*) 'Filtering turbine Number ',b
-    !    endif
-    !endif
 
     !create the input array (nx,ny,nz_tot) from a list of included nodes
         temp_array = 0.
@@ -716,12 +626,6 @@ do b=1,nloc
         min_k = wind_farm%turbine(b)%nodes_max(5)
         max_k = wind_farm%turbine(b)%nodes_max(6) 
         cut = trunc   
-
-        !if (coord == 0) then
-        !    if (verbose) then
-        !        write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
-        !    endif
-        !endif
 
         !convolution computed for points (i4,j4,k)
         !only compute for nodes near the turbine (defined by cut aka trunc)
@@ -766,14 +670,8 @@ do b=1,nloc
       enddo
      enddo
     enddo
-        enddo
-
-        !if (coord == 0) then
-        !    if (verbose) then
-        !        write(*,*) 'Convolution complete for turbine ',b
-        !    endif
-        !endif
-
+    enddo
+    
     !normalize this "indicator function" such that it integrates to turbine volume
     sumA = 0.
     do k=1,nz_tot
@@ -789,10 +687,6 @@ do b=1,nloc
     enddo
     turbine_vol = pi/4. * (wind_farm%turbine(b)%dia)**2 * wind_farm%turbine(b)%thk
     out_a = turbine_vol/sumA*out_a
-
-!    if (coord == 0) then
-!        large_node_array_filtered = large_node_array_filtered + out_a ! removed large 3D array to limit memory use
-!    endif
 
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
@@ -843,31 +737,8 @@ do b=1,nloc
 
 enddo
 
-!    !test to make sure domain is divided correctly:
-!        temp_array_2 = 0.
-!        do b=1,nloc
-!        do l=1,wind_farm%turbine(b)%num_nodes
-!            i2 = wind_farm%turbine(b)%nodes(l,1)
-!            j2 = wind_farm%turbine(b)%nodes(l,2)
-!            k2 = wind_farm%turbine(b)%nodes(l,3)
-!            temp_array_2(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
-!        enddo   
-!        enddo
-!        !write to file with .dat.c* extension
-!        call string_splice( string1, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
-!        
-!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
-!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
-
-!    if (coord == 0) then
-!        string1 = path // 'turbine/nodes_filtered.dat'
-!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
-!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
-!    endif
-
 !each processor sends its value of turbine_in_proc
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
-
 #ifdef PPMPI
     if (coord == 0) then
         if (turbine_in_proc) then
@@ -894,9 +765,9 @@ end subroutine turbines_filter_ind
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbines_forcing()
+! This subroutine applies the drag-disk forcing
 use sim_param, only : u,v,w, fxa,fya,fza
-use functions, only : interp_to_uv_grid
-use util, only : interpolate
+use functions, only : linear_interp, interp_to_uv_grid
 use rh_control
 implicit none
 
@@ -992,8 +863,10 @@ endif
 
 !Calculate the current Ct_prime
 if (turbine_control > 0 .and. turbine_in_proc) then
+!     write(*,*) t_Ctp_list
+!     write(*,*) Ctp_list
     do s = 1, nloc
-        call interpolate(t_Ctp_list, Ctp_list(s,:), total_time_dim, wind_farm%turbine(s)%Ct_prime)
+        wind_farm%turbine(s)%Ct_prime = linear_interp(t_Ctp_list, Ctp_list(s,:), total_time_dim)
     end do
 endif
 

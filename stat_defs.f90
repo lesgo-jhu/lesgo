@@ -64,7 +64,7 @@ logical :: tavg_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
-  real(rprec) :: u, v, w
+  real(rprec) :: u, v, w, w_uv
   real(rprec) :: u2, v2, w2, uv, uw, vw
 !  real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz

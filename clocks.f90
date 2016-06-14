@@ -18,7 +18,7 @@
 !!
 
 !*********************************************************************
-module clocks
+module clock_m
 !*********************************************************************
 !
 ! This module provides the clock data type (object) and the
@@ -30,14 +30,15 @@ implicit none
 save 
 private
 
-public clock_t, &
-     clock_start, &
-     clock_stop
+public clock_t
 
 type clock_t
-   real(rprec) :: start
-   real(rprec) :: stop
-   real(rprec) :: time
+    real(rprec) :: start_time
+    real(rprec) :: stop_time
+    real(rprec) :: time
+contains
+    procedure, public :: start
+    procedure, public :: stop
 end type clock_t
 
 !---------------------------------------------------------------------
@@ -45,45 +46,45 @@ contains
 !---------------------------------------------------------------------
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine clock_start( this )
+subroutine start( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #ifdef PPMPI
 use mpi, only : mpi_wtime
 #endif
 implicit none
 
-type(clock_t), intent(inout) :: this
+class(clock_t), intent(inout) :: this
 
 #ifdef PPMPI
-this % start = mpi_wtime()
+this % start_time = mpi_wtime()
 #else
-call cpu_time( this % start )
+call cpu_time( this % start_time )
 #endif
 
 return
-end subroutine clock_start
+end subroutine start
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine clock_stop( this )
+subroutine stop( this )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #ifdef PPMPI
 use mpi, only : mpi_wtime
 #endif
 implicit none
 
-type(clock_t), intent(inout) :: this
+class(clock_t), intent(inout) :: this
 
 #ifdef PPMPI
-this % stop = mpi_wtime()
+this % stop_time = mpi_wtime()
 #else
-call cpu_time( this % stop )
+call cpu_time( this % stop_time )
 #endif
 
 ! Compute the clock time
-this % time = this % stop - this % start
+this % time = this % stop_time - this % start_time
 
 return
 
-end subroutine clock_stop
+end subroutine stop
 
-end module clocks
+end module clock_m

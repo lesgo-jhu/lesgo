@@ -159,7 +159,7 @@ if (turbine_control == 1) then
 
     fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
     do i = 1, num_t
-        read(fid,*) t_Ctp_list(i), Ctp_list(i,:)
+        read(fid,*) t_Ctp_list(i), Ctp_list(:,i)
     end do
     
 end if

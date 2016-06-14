@@ -28,7 +28,7 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use iwmles, only : iwm_on !xiang for integral wall model initialization
+use iwmles !xiang for integral wall model initialization
 use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
 !use param, only : sgs_hist_calc
 #ifdef PPMPI
@@ -41,7 +41,7 @@ use sgs_param, only : sgs_param_init
 use input_util, only : read_input_conf
 use test_filtermodule, only : test_filter_init
 use sim_param, only : sim_param_init
-use grid_defs, only : grid_build
+use grid_m
 use fft, only : init_fft
 use io, only : openfiles
 !use sgs_hist
@@ -49,24 +49,23 @@ use io, only : openfiles
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
 #ifdef PPCPS
-  use concurrent_precursor, only : initialize_cps
+use concurrent_precursor, only : initialize_cps
 #endif
 #endif
 
 #ifdef PPLVLSET
 use level_set_base, only : level_set_base_init 
 use level_set, only : level_set_init
-#ifdef PPRNS_LS 
-  use rns_base_ls, only : rns_base_init_ls
-#endif
-#if defined(PPRNS_LS) && defined(PPCYL_SKEW_LS)
-  use rns_cyl_skew_ls, only : rns_init_ls
-#endif
 #endif
 
 #ifdef PPTURBINES
 use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
+#endif
+
+! HIT Inflow
+#ifdef PPHIT
+use hit_inflow, only : initialize_HIT
 #endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
@@ -128,7 +127,7 @@ call sim_param_init ()
 call sgs_param_init()
 
 ! Initialize uv grid (calculate x,y,z vectors)
-call grid_build()
+call grid%build()
 
 !  Initialize variables used for output statistics and instantaneous data
 call output_init()
@@ -145,16 +144,17 @@ call turbines_init()    !must occur before initial is called
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
+#ifdef PPHIT
+    ! This initializes HIT Data
+    ! The input is read from lesgo.conf
+    write(*,*) 'Inflow Condition using HIT Data'
+    call initialize_HIT()
+#endif
+
 ! If using level set method
 #ifdef PPLVLSET
 call level_set_base_init()
-call level_set_init ()
-
-#ifdef PPRNS_LS
-  call rns_base_init_ls()
-  call rns_init_ls ()
-#endif
- 
+call level_set_init () 
 #endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
@@ -176,8 +176,6 @@ if(iwm_on == 1)then
   if(coord==0) write(*,*) 'iwm: finish memory allocation...'
 endif
 endif
-       
-
 
 ! Initialize concurrent precursor stuff
 #if defined(PPMPI) && defined(PPCPS)

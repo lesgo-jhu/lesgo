@@ -124,16 +124,6 @@ do
      
      call level_set_block()
 
-#ifdef PPRNS_LS
-    case ('RNS_LS')
-       call rns_block()
-#endif
-
-#ifdef PPCYL_SKEW_LS
-    case ('CYL_SKEW_LS')
-       call cyl_skew_block()
-#endif
-
 #endif
 
   case ('SGS_HIST')
@@ -426,6 +416,12 @@ subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 use iwmles, only : iwm_on  !xiang
+
+#ifdef PPHIT
+! Type hit has all the information inside
+use hit_inflow, only : hit
+#endif
+
 implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
@@ -469,6 +465,40 @@ do
            read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
+
+#ifdef PPHIT
+    ! Read the input for HIT case
+
+    ! Trubulence intensity input and output
+    case('UP_IN')
+        read (buff(equal_pos+1:), *) hit % up_in
+    case('TI_OUT')
+        read (buff(equal_pos+1:), *) hit % TI_out
+
+    ! Domain length of HIT input
+    case ('LX_HIT')
+        read (buff(equal_pos+1:), *) hit % Lx
+    case ('LY_HIT')
+        read (buff(equal_pos+1:), *) hit % Ly
+    case ('LZ_HIT')
+        read (buff(equal_pos+1:), *) hit % Lz
+
+    ! Number of grid points
+    case ('NX_HIT')
+        read (buff(equal_pos+1:), *) hit % Nx
+    case ('NY_HIT')
+        read (buff(equal_pos+1:), *) hit % Ny
+    case ('NZ_HIT')
+        read (buff(equal_pos+1:), *) hit % Nz
+
+    ! Names of the input files
+    case ('U_FILE')
+        read (buff(equal_pos+1:), *) hit % u_file
+    case ('V_FILE')
+        read (buff(equal_pos+1:), *) hit % v_file
+    case ('W_FILE')
+        read (buff(equal_pos+1:), *) hit % w_file
+#endif
 
      case default      
 
@@ -679,6 +709,8 @@ do
         read (buff(equal_pos+1:), *) smooth_mode
      case ('ZO_LEVEL_SET')
         read (buff(equal_pos+1:), *) zo_level_set
+     case ('USE_TREES')
+        read (buff(equal_pos+1:), *) use_trees
      
 #ifdef PPMPI
      case ('NPHITOP')
@@ -719,175 +751,6 @@ enddo
 
 return
 end subroutine  level_set_block
-
-#ifdef PPRNS_LS
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine rns_block()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use rns_base_ls
-implicit none
-
-character(*), parameter :: block_name = 'RNS'
-
-do 
-
-  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
-                 equal_pos, ios )
-  if (ios /= 0) call error( sub_name, 'Bad read in block')
-
-  if( block_exit_pos == 0 ) then
-
-     ! Check that the data entry conforms to correct format
-     call checkentry()
-
-     select case (uppercase(buff(1:equal_pos-1)))
-
-     case ('RNS_NTREE') 
-        read (buff(equal_pos+1:), *) rns_ntree
-     case ('RNS_TREE_LAYOUT')
-        read (buff(equal_pos+1:), *) rns_tree_layout
-     case ('TEMPORAL_WEIGHT')
-        read (buff(equal_pos+1:), *) temporal_weight
-     case ('TCONST')
-        Read (buff(equal_pos+1:), *) Tconst
-     case ('WEIGHT_NSTART')
-        read (buff(equal_pos+1:), *) weight_nstart
-     case ('TEMPORAL_MODEL')
-        read (buff(equal_pos+1:), *) temporal_model
-     case ('SPATIAL_MODEL')
-        read (buff(equal_pos+1:), *) spatial_model
-     case ('OUTPUT_NSKIP')
-        read (buff(equal_pos+1:), *) output_nskip
-     case ('CD_RAMP_NSTEP')
-        read (buff(equal_pos+1:), *) CD_ramp_nstep
-     case ('ALPHA_WIDTH')
-        read (buff(equal_pos+1:), *) alpha_width
-     case ('ALPHA_DIST')
-        read (buff(equal_pos+1:), *) alpha_dist
-     case ('CHI_CUTOFF')
-        read (buff(equal_pos+1:), *) chi_cutoff
-
-     case default
-
-        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
-
-     end select
-
-  elseif( block_exit_pos == 1 ) then
-
-     return
-
-  else
-
-     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
-
-  endif
-
-enddo
-
-return
-end subroutine  rns_block
-#endif
-
-#ifdef PPCYL_SKEW_LS
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine cyl_skew_block()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use types, only : rprec
-use param, only : pi
-use cyl_skew_base_ls, only : zrot_angle, skew_angle, &
-                             use_bottom_surf, z_bottom_surf, &
-                             use_top_surf, z_top_surf, &
-                             use_left_surf, y_left_surf, &
-                             use_right_surf, y_right_surf, &
-                             ntree, tree_location, &
-                             ngen, ngen_reslv, nbranch, d, l, offset, &
-                             scale_fact, filter_chi, filt_width
-implicit none
-
-character(*), parameter :: block_name = 'CYL_SKEW'
-
-do 
-
-  call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
-                 equal_pos, ios )
-
-  if (ios /= 0) call error( sub_name, 'Bad read in block')
-
-  if( block_exit_pos == 0 ) then
-
-     ! Check that the data entry conforms to correct format
-     call checkentry()
-
-     select case (uppercase(buff(1:equal_pos-1)))
-
-     case ('ZROT_ANGLE') 
-        read (buff(equal_pos+1:), *) zrot_angle
-        ! Convert to radians
-        zrot_angle = pi * zrot_angle / 180.0_rprec
-     case ('SKEW_ANGLE')
-        read (buff(equal_pos+1:), *) skew_angle
-        ! Convert to radians
-        skew_angle = pi * skew_angle / 180.0_rprec
-     case ('USE_BOTTOM_SURF')
-        read (buff(equal_pos+1:), *) use_bottom_surf
-     case ('Z_BOTTOM_SURF')
-        Read (buff(equal_pos+1:), *) z_bottom_surf
-     case ('USE_TOP_SURF')
-        read (buff(equal_pos+1:), *) use_top_surf
-     case ('Z_TOP_SURF')
-        Read (buff(equal_pos+1:), *) z_top_surf
-     case ('USE_RIGHT_SURF')
-        read (buff(equal_pos+1:), *) use_right_surf
-     case ('Y_RIGHT_SURF')
-        Read (buff(equal_pos+1:), *) y_right_surf
-     case ('USE_LEFT_SURF')
-        read (buff(equal_pos+1:), *) use_left_surf
-     case ('Y_LEFT_SURF')
-        Read (buff(equal_pos+1:), *) y_left_surf
-     case ('TREE_LOCATION')
-        call parse_vector(buff(equal_pos+1:), ntree, tree_location )
-     case ('NGEN')
-        read (buff(equal_pos+1:), *) ngen
-     case ('NGEN_RESLV')
-        read (buff(equal_pos+1:), *) ngen_reslv
-     case ('NBRANCH')
-        read (buff(equal_pos+1:), *) nbranch
-     case ('D')
-        read (buff(equal_pos+1:), *) d
-     case ('L')
-        read (buff(equal_pos+1:), *) l
-     case ('OFFSET')
-        read (buff(equal_pos+1:), *) offset
-     case ('SCALE_FACT')
-        read (buff(equal_pos+1:), *) scale_fact
-     case ('FILTER_CHI')
-        read (buff(equal_pos+1:), *) filter_chi
-     case ('FILT_WIDTH')
-        read (buff(equal_pos+1:), *) filt_width
-
-     case default
-
-        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
-
-     end select
-
-  elseif( block_exit_pos == 1 ) then
-
-     return
-
-  else
-
-     call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
-
-  endif
-
-enddo
-
-return
-end subroutine  cyl_skew_block
-#endif
-
 #endif
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

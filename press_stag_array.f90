@@ -53,8 +53,6 @@ use emul_complex, only : OPERATOR(.MULI.)
 
 implicit none      
 
-
-
 real(rprec) :: const,const2,const3,const4
 
 integer::jx,jy,jz
@@ -116,16 +114,10 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_y(:, :, jz) = const2 * v(:, :, jz) 
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
-#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
   call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
   call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz)) 
-#else
-  call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_real_to_complex(forw,rH_y(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_real_to_complex(forw,rH_z(:,:,jz),fftwNull_p)
-#endif
-
+  
 end do
 
 
@@ -166,11 +158,7 @@ rH_y(1:ld:2,:,nz) = BOGUS
 
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
-#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
-#else
-  call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
-#endif
 
 end if
 
@@ -178,11 +166,7 @@ end if
   if (coord == nproc-1) then
 #endif
   rtopw(:, :) = const * divtz(:, :, nz)
-#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
-#else
-  call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
-#endif
 #ifdef PPMPI
   endif
 #endif
@@ -352,14 +336,7 @@ end do
 !end do
 
 !--this skips zero wavenumber solution, nyquist freqs
-!call tridag_array (a, b, c, RHS_col, p_hat)
-#ifdef PPMPI
-  !call tridag_array_pipelined (0, a, b, c, RHS_col, p_hat)
-  call tridag_array_pipelined( 0, a, b, c, RHS_col, p_hat )
-#else
-  !call tridag_array (a, b, c, RHS_col, p_hat)
-  call tridag_array (a, b, c, RHS_col, p_hat)
-#endif
+call tridag_array (a, b, c, RHS_col, p_hat)
 
 !--zero-wavenumber solution
 #ifdef PPMPI
@@ -406,11 +383,7 @@ p_hat(:, ny/2+1, :) = 0._rprec
 !...Now need to get p_hat(wave,level) to physical p(jx,jy,jz)   
 !.....Loop over height levels     
 
-#ifdef PPFFTW3
 call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
-#else
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
-#endif
 do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,lh
@@ -432,15 +405,9 @@ do jx=1,lh
 ! note the oddballs of p_hat are already 0, so we should be OK here
 end do
 end do
-#ifdef PPFFTW3
 call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
 call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
 call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))    
-#else
-call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
-call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)
-call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,jz),fftwNull_p)
-#endif
 end do
 
 !--nz level is not needed elsewhere (although its valid)

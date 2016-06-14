@@ -22,9 +22,10 @@ use types,only:rprec
 use param
 use sim_param,only:u,v,w
 implicit none
-real(kind=rprec),dimension(nz)::ubar
-real(kind=rprec)::rms,temp,ran3
-integer::jx,jy,jz,seed,z
+real(rprec),dimension(nz)::ubar
+real(rprec)::rms,temp
+integer::jx,jy,jz,z
+real(rprec) :: dummy_rand
 
 if (inflow) then
 
@@ -32,8 +33,6 @@ if (inflow) then
   ubar = inflow_velocity
 
 else
-
-  seed=-112
 
   ! calculate height of first uvp point in wall units
   ! lets do a laminar case (?)
@@ -45,6 +44,8 @@ else
   end do  
 end if
 
+call init_random_seed
+
 do jz=1,nz
   print *,'jz, ubar:',jz,ubar(jz)
 end do
@@ -54,9 +55,12 @@ rms=0.2_rprec
 do jz=1,nz
   do jy=1,ny
      do jx=1,nx
-       u(jx,jy,jz)=ubar(jz)+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       v(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
-       w(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(ran3(seed)-.5_rprec)/u_star
+       call random_number(dummy_rand)
+       u(jx,jy,jz)=ubar(jz)+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
+       call random_number(dummy_rand)
+       v(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
+       call random_number(dummy_rand)
+       w(jx,jy,jz)=0._rprec+(rms/.289_rprec)*(dummy_rand-.5_rprec)/u_star
     end do
   end do
 end do

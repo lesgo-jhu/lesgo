@@ -24,14 +24,10 @@ subroutine finalize()
 ! This subroutine is called by the main program. It is a driver subroutine for
 ! calling all the finalize routines of the various lesgo modules.
 !
-use param, only : coord
-use iwmles, only : iwm_on !xiang for iwm finalize
-use param, only : lbc_mom !xiang: always ensure iwm_on=1 only when lbc_mom=1
+use param, only : coord, lbc_mom
+use iwmles !xiang for iwm finalize. always ensure iwm_on=1 only when lbc_mom=1
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
-#endif
-#if defined(PPLVLSET) && defined(PPRNS_LS)
-use rns_ls, only : rns_finalize_ls
 #endif
 #ifdef PPTURBINES
 use turbines, only : turbines_finalize
@@ -41,14 +37,6 @@ use atm_lesgo_interface, only : atm_lesgo_finalize
 #endif
 
 implicit none
-
-! Level set:
-#ifdef PPLVLSET
-
-#ifdef PPRNS_LS
-  call rns_finalize_ls ()
-#endif
-#endif
 
 ! Turbines:
 #ifdef PPTURBINES

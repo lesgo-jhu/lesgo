@@ -20,7 +20,7 @@
 subroutine ic()
   use types,only:rprec
   use param
-  use sim_param,only:u,v,w
+  use sim_param, only : u, v, w
   use messages, only : error
 #ifdef PPTURBINES
   use turbines, only: turbine_vel_init
@@ -36,34 +36,29 @@ subroutine ic()
     real(rprec) :: zo_turbines
 #endif    
   
-  integer::jx,jy,jz,seed
+  integer :: jx, jy, jz
   integer :: jz_abs
 
-  real(kind=rprec),dimension(nz)::ubar
-  real(kind=rprec)::rms, noise, arg, arg2
-  real(kind=rprec)::z,w_star
+  real(rprec),dimension(nz) :: ubar
+  real(rprec) :: rms, sigma_rv, noise, arg, arg2
+  real(rprec) :: z
 
 #ifdef PPTURBINES
   zo_turbines = 0._rprec
 #endif
 
 #ifdef PPCPS  
-
-  call boundary_layer_ic()
-
+    call boundary_layer_ic()
 #else
-  
-  if ( inflow ) then  !--no turbulence
-     call uniform_ic()
-  else
-     call boundary_layer_ic()
-  end if
-
+    if ( inflow ) then  !--no turbulence
+        call uniform_ic()
+    else
+        call boundary_layer_ic()
+    end if
 #endif
 
-  !VK Display the mean vertical profiles of the initialized variables on the
-  !screen
-  do jz=1,nz
+  ! Display the mean vertical profiles of the initialized variables to std output
+  do jz = lbz, nz
 #ifdef PPMPI
      z = (coord*(nz-1) + jz - 0.5_rprec) * dz
 #else
@@ -82,7 +77,6 @@ subroutine uniform_ic()
 implicit none
 
 u = inflow_velocity 
-!v = 0.05_rprec * inflow_velocity
 v = 0._rprec
 w = 0._rprec
 
@@ -92,127 +86,97 @@ end subroutine uniform_ic
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine boundary_layer_ic()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! Log profile that is modified to flatten at z=z_i
-! This is a hot mess (JSG 20111221)
-#ifdef PPCYL_SKEW_LS
-use cyl_skew_base_ls
+! 
+! This subroutine produces an initial condition for the boundary layer.
+! A log profile is used that flattens at z=z_i. Noise is added to 
+! promote the generation of turbulence
+!
+#ifdef PPMPI
+use mpi_defs
 #endif
 implicit none
 
-interface
-   function ran3(idum)
-     integer(4) idum
-     real(8) :: ran3
-   end function ran3
-end interface
-
-!w_star=(9.81_rprec/T_init*wt_s*z_i)**(1._rprec/3._rprec)
-w_star = u_star
-
-
-!      T_star=wt_s/w_star
-!      q_star=T_star
-
-!#ifdef PPMPI
-!  seed = -80 - coord
-!#else
-!  seed=-80
-!#endif
-
 if( coord == 0 ) write(*,*) '------> Creating modified log profile for IC'
-do jz=1,nz
 
+do jz = 1, nz
 #ifdef PPMPI
-   z = (coord*(nz-1) + jz - 0.5_rprec) * dz
+    z = (coord*(nz-1) + jz - 0.5_rprec) * dz
 #else
-   z=(jz-.5_rprec)*dz
+    z = (jz - 0.5_rprec) * dz
 #endif
 
-   ! Another kludge for creating a channel profile. For now ignoring location of actual surface.
-#ifdef PPCYL_SKEW_LS
-   if( use_top_surf ) then
-      if( z > L_z / 2 ) z = L_z - z
-   endif
-#endif
-
-   ! IC in equilibrium with rough surface (rough dominates in effective zo)
-   arg2=z/zo
-   arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
+    ! IC in equilibrium with rough surface (rough dominates in effective zo)
+    arg2 = z/zo
+    arg = (1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z
 
 #ifdef PPLVLSET
-   ! Kludge to adjust magnitude of velocity profile
-   ! Not critical - may delete
-   arg = 0.357*arg
+    ! Kludge to adjust magnitude of velocity profile
+    ! Not critical - may delete
+    arg = 0.357*arg
 #endif
 
 #ifdef PPTURBINES
-   call turbine_vel_init (zo_turbines)
-   arg2=z/zo_turbines
-   arg=(1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z          
+    call turbine_vel_init (zo_turbines)
+    arg2 = z/zo_turbines
+    arg = (1._rprec/vonk)*log(arg2)!-1./(2.*vonk*z_i*z_i)*z*z          
 #endif        
 
-   !ubar(jz)=arg
-
-   ! Added by VK for making the u less than 1...need to change this
-   ! initialization routine
-   if (coriolis_forcing) then
-      ubar(jz)=arg/30._rprec
-   else
-      ubar(jz)=arg
-
-   end if
-
-   if ((coriolis_forcing).and.(z.gt.(.5_rprec))) ubar(jz)=ug
-
+    if (coriolis_forcing) then
+        if (z > 0.5_rprec) then
+            ubar(jz) = ug
+        else
+            ubar(jz) = arg/30._rprec
+        end if
+    else
+        ubar(jz) = arg
+    end if
 end do
 
 rms = 3._rprec
-do jz=1,nz
-#ifdef PPMPI
-   jz_abs = coord * (nz-1) + jz
-   z = (coord * (nz-1) + jz - 0.5_rprec) * dz * z_i    !dimensions in meters
-#else
-   jz_abs = jz
-   z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
-#endif
-   seed = -80 - jz_abs  !--trying to make consistent init for MPI
-   do jy=1,ny
-      do jx=1,nx
-         !...Ran3 returns uniform RV between 0 and 1. (sigma_rv=0.289)
-         !...Taking std dev of vel as 1 at all heights
-         if (z.le.z_i) then
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            u(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star+ubar(jz)
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            v(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star !noise
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            w(jx,jy,jz)=noise*(1._rprec-z/z_i)*w_star/u_star
-! Tony ATM
-!~ u(jx,jy,jz)=1._rprec
-!~ v(jx,jy,jz)=0._rprec
-!~ w(jx,jy,jz)=0._rprec
+sigma_rv = 0.289_rprec
 
-         else
-! Tony ATM
-!~ u(jx,jy,jz)=1._rprec
-!~ v(jx,jy,jz)=0._rprec
-!~ w(jx,jy,jz)=0._rprec
-            noise=rms/.289_rprec*(ran3(seed)-.5_rprec)
-            u(jx,jy,jz)=noise*w_star/u_star*.01_rprec+ubar(jz)
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            v(jx,jy,jz)=noise*w_star/u_star*.01_rprec
-            noise=rms/.289_rprec*(ran3(seed)-0.5_rprec)
-            w(jx,jy,jz)=noise*w_star/u_star*.01_rprec
-         end if
-      end do
-   end do
+! Fill u, v, and w with uniformly distributed random numbers between 0 and 1
+call init_random_seed
+call random_number(u)
+call random_number(v)
+call random_number(w)
+
+! Center random number about 0 and rescale
+u = rms / sigma_rv * (u - 0.5_rprec)
+v = rms / sigma_rv * (v - 0.5_rprec)
+w = rms / sigma_rv * (w - 0.5_rprec)
+
+! Rescale noise depending on distance from wall and mean log profile
+do jz = 1, nz
+#ifdef PPMPI
+    jz_abs = coord * (nz-1) + jz
+    z = (coord * (nz-1) + jz - 0.5_rprec) * dz * z_i    !dimensions in meters
+#else
+    jz_abs = jz
+    z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
+#endif
+    if (z <= z_i) then
+        u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i)
+        w(:,:,jz) = w(:,:,jz) * (1._rprec-z / z_i)
+    else
+        u(:,:,jz) = u(:,:,jz) * 0.01_rprec + ubar(jz)
+        v(:,:,jz) = v(:,:,jz) * 0.01_rprec
+        w(:,:,jz) = w(:,:,jz) * 0.01_rprec
+    end if
 end do
 
-!...BC for W
+! Bottom boundary conditions
 if (coord == 0) then
-   w(1:nx, 1:ny, 1) = 0._rprec
+   w(:, :, 1) = 0._rprec
+#ifdef PPMPI
+   u(:, :, 0) = 0._rprec
+   v(:, :, 0) = 0._rprec
+   w(:, :, 0) = 0._rprec
+#endif
 end if
 
+! Set upper boundary condition as zero gradient in u and v and no penetration in w
 #ifdef PPMPI
 if (coord == nproc-1) then
 #endif    
@@ -221,6 +185,13 @@ if (coord == nproc-1) then
    v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
 #ifdef PPMPI
 end if
+#endif
+
+! Exchange ghost node information for u, v, and w
+#ifdef PPMPI
+call mpi_sync_real_array( u, lbz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( v, lbz, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( w, lbz, MPI_SYNC_DOWNUP )
 #endif
 
 return

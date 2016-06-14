@@ -10,38 +10,55 @@
 clear all; close all; clc;
 
 % specify which files to load
-avgVelocities    = 1;
-reynoldsStresses = 1;
-snapshots        = 1;
+avgVelocities    = true;
+domain_snapshots = true;
+x_snapshots      = true;
+y_snapshots      = true;
+z_snapshots      = true;
+points           = true;
 
 % specify file names (must choose a particular velocity snapshot)
-str_names_snap = dir('./output/binary_vel.1000.dat.c*');
-str_names_avg  = dir('./output/binary_vel_avg.dat*');
-str_names_rs   = dir('./output/binary_rs.dat*');
+snap_time = 1;
+xloc = 0.1;
+yloc = 0.1;
+zloc = 0.1;
+ploc = [0.1,0.1,0.1];
 
 % read in computational domain parameters from lesgo_param.out 
 [nx,ny,nz2,nz_tot,nproc,z_i,L_x,L_y,L_z,dx,dy,dz,u_star,nu_molec] = getParams('lesgo_param.out');
 
-% (number of cores used by simulation)
-cores = nproc;
-dummycores=1:1:cores;
-zmin_buf=dummycores*(nz2-1)-nz2+2;
-zmax_buf=dummycores*(nz2-1)+1;
+% (number of nproc used by simulation)
+dummynproc=1:1:nproc;
+zmin_buf=dummynproc*(nz2-1)-nz2+2;
+zmax_buf=dummynproc*(nz2-1)+1;
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 % fetch average velocity fields
 if avgVelocities
-    [u,v,w] = getAvgVel(nx,ny,nz2,cores,str_names_avg,zmin_buf,zmax_buf);   
+    [u,v,w_uv] = getAvgVelUV(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    w = getAvgVelW(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    [uu,vv,ww,uw,vw,uv] = getReyStress(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    [u2,v2,w2,uw2,vw2,uv2] = getAvgVel2(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    [txx,txy,tyy,txz,tyz,tzz] = getAvgTau(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    fx = getAvgForce(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
+    CS = getCSOpt2(nx,ny,nz2,nproc,zmin_buf,zmax_buf);
 end
 
 % fetch instantaneous snapshot velocity fields
-if snapshots
-    [ubig,vbig,wbig] = getSnap(nx,ny,nz2,cores,str_names_snap,zmin_buf,zmax_buf);   
+if domain_snapshots
+    [ubig,vbig,wbig] = getSnap(snap_time,nx,ny,nz2,nproc,zmin_buf,zmax_buf);   
 end
-
-% fetch Reynolds stresses
-if reynoldsStresses
-    [uu,vv,ww,uw,vw,uv] = getReyStress(nx,ny,nz2,cores,str_names_rs,zmin_buf,zmax_buf);
+if x_snapshots
+    [ux,vx,wx] = getSnapX(snap_time,xloc,ny,nz2,nproc,zmin_buf,zmax_buf);   
+end
+if y_snapshots
+    [uy,vy,wy] = getSnapY(snap_time,yloc,ny,nz2,nproc,zmin_buf,zmax_buf);   
+end
+if z_snapshots
+    [uz,vz,wz] = getSnapZ(snap_time,zloc,nx,ny,nproc);
+end
+if points
+    [t,up,vp,wp] = getPoint(ploc(1),ploc(2),ploc(3));
 end
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -49,7 +66,7 @@ end
 x    = 0.0  : dx : L_x-dx;
 y    = 0.0  : dy : L_y-dy;
 z_w  = 0.0  : dz : L_z;     % for avg vels, avg (rs's, dudz,dvdz,txz,tyz)
-z_uv = dz/2 : dz : L_z;     % for inst vels, avg (txx,txy,tzz,txy)
+z_uv = dz/2 : dz : L_z+dz/2;     % for inst vels, avg (txx,txy,tzz,txy)
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 % averages across x and y directions (already time-averaged)
@@ -57,9 +74,7 @@ if avgVelocities
     uMean = squeeze(mean(mean(u)));
     vMean = squeeze(mean(mean(v)));
     wMean = squeeze(mean(mean(w)));
-end
 
-if reynoldsStresses
     uuMean = squeeze(mean(mean(uu)));
     vvMean = squeeze(mean(mean(vv)));
     wwMean = squeeze(mean(mean(ww)));
@@ -70,25 +85,77 @@ end
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 % basic plots
-figure
-plot(z_w, uMean,'b')
-print('-dpdf','mvp')
+if avgVelocities
+    figure
+    subplot(1,2,1)
+    plot(z_w,uMean,'b')
+    xlabel('z','interpreter','tex')
+    ylabel('<u>','interpreter','tex')
 
-figure
-kappa = 0.4;  z0 = .0001;
-loglaw = 1/kappa * log(z_w ./ z0);    % rough wall
-semilogx( z_w, loglaw,'k')
-hold on
-semilogx(z_w, uMean,'ob')
+    subplot(1,2,2)
+    kappa = 0.4;  z0 = .0001;
+    loglaw = 1/kappa * log(z_w ./ z0);    % rough wall
+    semilogx(z_w,loglaw,'k')
+    hold on
+    semilogx(z_w,uMean,'ob')
+    hold off
+    xlabel('z','interpreter','tex')
+    ylabel('<u>','interpreter','tex')
+    legend('Log Law','LES')
 
-figure
-plot(z_w, uuMean,'ob')
+    figure
+    plot(z_uv, uuMean,'ob')
+    xlabel('z','interpreter','tex')
+    ylabel('<u''u''>','interpreter','tex')
+end
 
-figure
-pcolor(ubig(:,:,1))
-shading interp; colorbar;
+if domain_snapshots
+    figure
+    [X,Y] = meshgrid(x,y);
+    pcolor(X,Y,ubig(:,:,4)')
+    xlabel('x')
+    ylabel('y')
+    title(['Streamwise velocity at z = ',num2str(z_uv(4))])
+    shading interp; colorbar;
+end
+    
+if x_snapshots
+    figure
+    [Y,Z] = meshgrid(y,z_uv);
+    pcolor(Y,Z,ux')
+    xlabel('y')
+    ylabel('z')
+    title(['Streamwise velocity at x = ',num2str(xloc)])
+    shading interp; colorbar;
+end
 
+if y_snapshots
+    figure
+    [X,Z] = meshgrid(x,z_uv);
+    pcolor(X,Z,uy')
+    xlabel('x')
+    ylabel('z')
+    title(['Streamwise velocity at y = ',num2str(yloc)])
+    shading interp; colorbar;
+end
 
+if z_snapshots
+    figure
+    [X,Y] = meshgrid(x,y);
+    pcolor(X,Y,uz')
+    xlabel('x')
+    ylabel('y')
+    title(['Streamwise velocity at z = ',num2str(zloc)])
+    shading interp; colorbar;
+end
+
+if points
+    figure
+    plot(t,[up,vp,wp])
+    xlabel('t')
+    ylabel('Velocity')
+    legend('u','v','w')
+end
 
 
 

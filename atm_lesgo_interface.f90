@@ -47,7 +47,7 @@ use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,  &
 use sim_param, only : fxa, fya, fza, u, v, w
 
 ! Grid definition (LESGO)
-use grid_defs, only : grid
+use grid_m, only : grid
 
 ! MPI implementation from LESGO
 #ifdef PPMPI

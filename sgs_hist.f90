@@ -48,7 +48,7 @@ subroutine sgs_hist_init()
 !  If sgs_hist_cumulative is true, then these values will be read 
 !    from hist_{param,vals}.out rather than lesgo.conf.
 
-use grid_defs, only : grid
+use grid_m
 use functions, only : cell_indx
 use string_util, only : string_concat
 use open_file_fid_mod

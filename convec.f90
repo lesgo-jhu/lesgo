@@ -87,7 +87,6 @@ endif
 ! Loop through horizontal slices
 
 const=1._rprec/(nx*ny)
-!$omp parallel do default(shared) private(jz)		
 do jz = lbz, nz
   !--MPI: u1_big, u2_big needed at jz = 0, u3_big not needed though
   !--MPI: could get u{1,2}_big
@@ -95,32 +94,19 @@ do jz = lbz, nz
    cx(:,:,jz)=const*u1(:,:,jz)
    cy(:,:,jz)=const*u2(:,:,jz)
    cz(:,:,jz)=const*u3(:,:,jz)
-   
-#ifdef PPFFTW3
+! do forward fft on normal-size arrays   
   call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
   call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-#else
-! do forward fft on normal-size arrays
-  call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
-#endif 
 ! zero pad: padd takes care of the oddballs
    call padd(u1_big(:,:,jz),cx(:,:,jz))
    call padd(u2_big(:,:,jz),cy(:,:,jz))
    call padd(u3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
-#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back_big,u1_big(:,:,jz),   u1_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))    
-#else
-  call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_complex_to_real(back_big,u2_big(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_complex_to_real(back_big,u3_big(:,:,jz),fftwNull_p)
-#endif
 end do
 
 do jz = 1, nz
@@ -161,33 +147,20 @@ do jz = 1, nz
 
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
-#ifdef PPFFTW3
-  call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
-  call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
-  call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-#else
 ! do forward fft on normal-size arrays
-   call rfftwnd_f77_one_real_to_complex(forw,cx(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
-   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
-#endif 
+   call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
+   call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
+   call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
    call padd(vort1_big(:,:,jz),cx(:,:,jz))
    call padd(vort2_big(:,:,jz),cy(:,:,jz))
    call padd(vort3_big(:,:,jz),cz(:,:,jz))
 
 ! Back to physical space
 ! the normalization should be ok...
-#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back_big,vort1_big(:,:,jz),   vort1_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
   call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
-#else
-  call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_complex_to_real(back_big,vort2_big(:,:,jz),fftwNull_p)
-  call rfftwnd_f77_one_complex_to_real(back_big,vort3_big(:,:,jz),fftwNull_p)
-#endif
 end do
-!$omp end parallel do
 
 ! CX
 ! redefinition of const
@@ -206,33 +179,21 @@ else
   jz_min = 1
 end if
 
-!$omp parallel do default(shared) private(jz)
 do jz=jz_min,nz-1
    cc_big(:,:,jz)=const*(u2_big(:,:,jz)*(-vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(vort2_big(:,:,jz))))
 end do
-!$omp end parallel do
 
 ! Loop through horizontal slices
-!$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
-#ifdef PPFFTW3
-  call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-#else
-  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-#endif   
+  call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))  
 ! un-zero pad
 ! note: cc_big is going into cx!!!!
    call unpadd(cx(:,:,jz),cc_big(:,:,jz))
 ! Back to physical space
-#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
-#else
-   call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),fftwNull_p)
-#endif
 end do
-!$omp end parallel do
 
 ! CY
 ! const should be 1./(nx2*ny2) here
@@ -250,33 +211,21 @@ else
   jz_min = 1
 end if
 
-!$omp parallel do default(shared) private(jz)
 do jz = jz_min, nz - 1
    cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(-vort1_big(:,:,jz))))
 end do
-!$omp end parallel do
 
-!$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
-#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-#else
-  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-#endif
  ! un-zero pad
 ! note: cc_big is going into cy!!!!
    call unpadd(cy(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-#ifdef PPFFTW3
   call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))     
-#else
-  call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),fftwNull_p)
-#endif
 end do
-!$omp end parallel do
 
 ! CZ
 
@@ -303,36 +252,24 @@ end if
 !  jz_max = nz - 1
 !#endif
 
-!$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
    cc_big(:,:,jz)=const*0.5_rprec*(&
         (u1_big(:,:,jz)+u1_big(:,:,jz-1))*(-vort2_big(:,:,jz))&
         +(u2_big(:,:,jz)+u2_big(:,:,jz-1))*(vort1_big(:,:,jz))&
          )
 end do
-!$omp end parallel do
 
 ! Loop through horizontal slices
-!$omp parallel do default(shared) private(jz)		
 do jz=1,nz - 1
-#ifdef PPFFTW3
   call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
-#else
-  call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
-#endif
 
 ! un-zero pad
 ! note: cc_big is going into cz!!!!
    call unpadd(cz(:,:,jz),cc_big(:,:,jz))
 
 ! Back to physical space
-#ifdef PPFFTW3
    call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
-#else
-   call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),fftwNull_p)
-#endif
 end do
-!$omp end parallel do
 
 #ifdef PPMPI
 #ifdef PPSAFETYMODE
