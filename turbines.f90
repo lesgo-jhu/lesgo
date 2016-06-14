@@ -509,8 +509,7 @@ end subroutine turbines_filter_ind
 subroutine turbines_forcing()
 ! This subroutine applies the drag-disk forcing
 use sim_param, only : u,v,w, fxa,fya,fza
-use functions, only : interp_to_uv_grid
-use util, only : interpolate
+use functions, only : linear_interp, interp_to_uv_grid
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -604,7 +603,7 @@ endif
 !Calculate the current Ct_prime
 if (turbine_control == 1) then
     do s = 1, nloc
-        call interpolate(t_Ctp_list, Ctp_list(:,s), total_time_dim, wind_farm%turbine(s)%Ct_prime)
+        wind_farm%turbine(s)%Ct_prime = linear_interp(t_Ctp_list, Ctp_list(:,s), total_time_dim)
     end do
 endif
 

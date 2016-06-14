@@ -25,16 +25,22 @@ use types, only : rprec
 implicit none
 save
 private
-public interp_to_uv_grid, &
-     trilinear_interp, &
-     linear_interp, &
-     cell_indx, &
-     buff_indx, &
-     points_avg_3d, & 
-     plane_avg_3d, &     
-     interp_to_w_grid
+public interp_to_uv_grid,   &
+    trilinear_interp,       &
+    linear_interp,          &
+    cell_indx,              &
+    buff_indx,              &
+    points_avg_3d,          & 
+    plane_avg_3d,           &     
+    interp_to_w_grid
 
 character (*), parameter :: mod_name = 'functions'
+
+interface linear_interp
+    module procedure :: linear_interp_ss
+    module procedure :: linear_interp_sa
+    module procedure :: linear_interp_aa
+end interface linear_interp
 
 contains
 
@@ -497,9 +503,8 @@ end function trilinear_interp
 !~ return
 !~ end function trilinear_interp
 
-
 !**********************************************************************
-real(rprec) function linear_interp(u1,u2,dx,xdiff)
+real(rprec) function linear_interp_ss(u1,u2,dx,xdiff)
 !**********************************************************************
 !
 !  This function performs linear interpolation 
@@ -515,10 +520,130 @@ implicit none
 
 real(rprec), intent(IN) :: u1, u2, dx, xdiff
 
-linear_interp = u1 + (xdiff) * (u2 - u1) / dx
+linear_interp_ss = u1 + (xdiff) * (u2 - u1) / dx
 
 return
-end function linear_interp
+end function linear_interp_ss
+
+!**********************************************************************
+function linear_interp_sa(x, y, xi) result(yi)
+!**********************************************************************
+!
+!  This function performs linear interpolation from a set of points (x,y)
+!  to a point (xi,yi)
+!  
+!  Inputs:
+!  x            - array of x's
+!  y            - array of y's
+!  xi           - point to interpolate from (x,y)
+!
+implicit none
+real(rprec), dimension(:) :: x, y
+real(rprec) :: xi, yi
+integer     :: i, j, N
+real(rprec) :: dx
+character(*), parameter :: fun_name = mod_name // '.linear_interp_ss'
+
+N = size(y)
+j = binary_search(x, xi)
+if (j == 0) then
+    yi = y(1)
+else if (j == N) then
+    yi = y(N)
+else
+    yi = linear_interp_ss(y(j), y(j+1), x(j+1)-x(j), (xi - x(j)))
+end if
+    
+end function linear_interp_sa
+
+!**********************************************************************
+function linear_interp_aa(x, y, xi) result(yi)
+!**********************************************************************
+!
+!  This function performs linear interpolation from a set of points (x,y)
+!  to another set of points (xi,yi)
+!  
+!  Inputs:
+!  x            - array of x's
+!  y            - array of y's
+!  xi           - array of points to interpolate from (x,y)
+!
+implicit none
+real(rprec), dimension(:) :: x, y, xi
+real(rprec), dimension(:), allocatable :: yi
+integer     :: i, Ni 
+real(rprec) :: dx
+character(*), parameter :: fun_name = mod_name // '.linear_interp_sa'
+
+! Check array sizes
+if ( size(x) /= size(y) ) then
+    call error(fun_name,'Interpolation pairs must be of equal size.')
+end if
+
+! Allocate output 
+Ni = size(xi)
+allocate(yi(Ni))
+
+! For each element of the array perform interpolation
+do i = 1, Ni
+    yi(i) = linear_interp_sa(x, y, xi(i))
+end do
+    
+end function linear_interp_aa
+
+!**********************************************************************
+function binary_search(arr,val) result(low)
+!**********************************************************************
+!
+!  This function performs a binary search on a sorted array. Given the 
+!  provided value, adjacent low and high indices of the array are found
+!  such that the provided value is bracketed. Guaranteed log2(N) search.
+!  
+!  Inputs:
+!  arr          - sorted array of values to search
+!  val          - value to be bracketed
+!
+!  Output:
+!  low          - lower index of the array bracket 
+!                 0 if val < arr(1), N if val < arr(N))
+!
+use types, only : rprec
+implicit none
+
+real(rprec), dimension(:) :: arr
+real(rprec) :: val
+integer :: low, mid, high, N
+
+! Size of array
+N = size(arr)
+
+! Check if value is outside bounds
+if ( val < arr(1) ) then
+    low = 0
+    return
+end if
+if ( val > arr(N) ) then
+    low = N
+    return
+end if
+
+! Otherwise perform bisection
+low = 1
+high = N
+do while (high - low > 1)
+    mid = (low + high) / 2
+    if ( arr(mid) > val ) then
+        high = mid
+    elseif ( arr(mid) < val ) then
+        low = mid
+    else
+        low = mid
+        return
+    endif
+end do
+
+return
+end function binary_search
 
 !**********************************************************************
 real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)

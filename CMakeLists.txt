@@ -54,6 +54,9 @@ set(USE_HIT false)
 # streaks effects on averaging
 set(USE_STREAKS false)
 
+# What does this do?
+set(USE_DYN_TN false)
+
 ################################################################################
 #                         Set up build (do not change)
 ################################################################################
@@ -168,7 +171,7 @@ endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90)
+    set(Sources ${Sources} turbines.f90 turbines_base.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
@@ -223,8 +226,7 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin 
-         -assume byterecl")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
