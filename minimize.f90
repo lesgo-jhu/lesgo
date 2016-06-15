@@ -34,7 +34,7 @@ contains
 end type Minimized
 
 interface Minimized
-    procedure :: constructor
+    module procedure :: constructor
 end interface Minimized
 
 !! Interface for the scalar-valued function to be minimized. This interface must evaluate 
@@ -106,7 +106,7 @@ contains
 end type LineSearch
 
 interface LineSearch
-    procedure :: constructor
+    module procedure :: constructor
 end interface LineSearch
 
 contains
@@ -524,7 +524,7 @@ contains
 end type ConjugateGradient
 
 interface ConjugateGradient
-    procedure :: constructor
+    module procedure :: constructor
 end interface ConjugateGradient
 
 contains
