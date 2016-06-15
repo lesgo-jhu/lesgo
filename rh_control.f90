@@ -323,24 +323,24 @@ subroutine eval(this, x, f, g)
     end do
 end subroutine eval
 
-subroutine finiteDifferenceGradient(this)
-    implicit none
-    class(MinimizedFarm), intent(inout)     :: this
-    type(MinimizedFarm)                     :: mf
-    integer :: n, k
-    real(rprec) :: dCtp
-    
-    this%fdgrad = 0.d0
-    dCtp = sqrt( epsilon( this%Ctp(n,k) ) )
-    do n = 1, this%N
-        do k = 2, this%Nt
-            mf = this
-            mf%Ctp(n,k) = mf%Ctp(n,k) + dCtp
-            call mf%run_noinput
-            this%fdgrad(n,k) = (mf%cost - this%cost) / dCtp
-        end do
-    end do
-end subroutine finiteDifferenceGradient
+! subroutine finiteDifferenceGradient(this)
+!     implicit none
+!     class(MinimizedFarm), intent(inout)     :: this
+!     class(MinimizedFarm)                    :: mf
+!     integer :: n, k
+!     real(rprec) :: dCtp
+!     
+!     this%fdgrad = 0.d0
+!     dCtp = sqrt( epsilon( this%Ctp(n,k) ) )
+!     do n = 1, this%N
+!         do k = 2, this%Nt
+!             mf = this
+!             mf%Ctp(n,k) = mf%Ctp(n,k) + dCtp
+!             call mf%run_noinput
+!             this%fdgrad(n,k) = (mf%cost - this%cost) / dCtp
+!         end do
+!     end do
+! end subroutine finiteDifferenceGradient
 
 function get_Ctp_vector(this) result(Ctp_vec)
     implicit none
