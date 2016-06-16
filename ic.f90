@@ -91,7 +91,9 @@ subroutine boundary_layer_ic()
 ! A log profile is used that flattens at z=z_i. Noise is added to 
 ! promote the generation of turbulence
 !
+#ifdef PPMPI
 use mpi_defs
+#endif
 implicit none
 
 if( coord == 0 ) write(*,*) '------> Creating modified log profile for IC'

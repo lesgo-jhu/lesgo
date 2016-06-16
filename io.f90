@@ -1437,13 +1437,14 @@ use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only : operator(.ADD.), operator(.SUB.)
 use stat_defs, only : tavg_interp_to_uv_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
+use param, only : write_endian
 #ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 #endif
 use param, only : ny,nz,nz_tot
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
-use param, only : ierr,comm,write_endian
+use param, only : ierr,comm
 #endif
 
 implicit none
