@@ -291,9 +291,9 @@ do s=1,nloc
     enddo
     wind_farm%turbine(s)%num_nodes = count_n
 
-    if (coord == 0) then
-        write(*,*) '     Turbine #',s,'has',count_n,'unfiltered nodes in entire domain'
-    endif
+!     if (coord == 0) then
+!         write(*,*) '     Turbine #',s,'has',count_n,'unfiltered nodes in entire domain'
+!     endif
     
 enddo
 
@@ -311,143 +311,187 @@ subroutine turbines_filter_ind()
 !       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
 
 implicit none
+include'fftw3.f'
 
 character (*), parameter :: sub_name = mod_name // '.turbines_filter_ind'
 
-!real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
-! Richard: Commented out g_shift. This large array is not used  fg can easily be replaced by single double
-real(rprec), dimension(nx,ny,nz_tot) :: out_a, g
-real(rprec), dimension(nx,ny,nz_tot) :: temp_array
-!real(rprec), dimension(nx,ny,nz) :: temp_array_2 ! Richard: Commented out to save i/o operations and memory
+real(rprec), dimension(nx,ny,nz_tot) :: out_a
 real(rprec) :: sumG,delta2,r2,sumA
 real(rprec) :: turbine_vol
-real(rprec) :: fg ! Removed the 3D matrix as it is only used as a temporary dummy variable
+integer*8 plan
 
+real(rprec), dimension(:,:,:), allocatable :: g, temp_array
+complex(rprec), dimension(:,:,:),allocatable :: ghat, temp_array_hat
+integer :: Nxt, Nyt, Nzt
+integer :: iloc, jloc, kloc
 real(rprec), pointer, dimension(:) :: x,y,z
 
-!logical :: verbose = .false.
+! Set points to grid
 nullify(x,y,z)
 x => grid % x
 y => grid % y
 z => grid % z
 
+! Only do the convolution in a smaller prism for each turbine. First, determine
+! the largest domain size needed based on indicator nodes and make a power of 2 
+! for the FFTs in the convolution
+Nxt = 0
+Nyt = 0
+Nzt = 0
+do b = 1, nloc
+    min_i = wind_farm%turbine(b)%nodes_max(1)
+    max_i = wind_farm%turbine(b)%nodes_max(2) 
+    min_j = wind_farm%turbine(b)%nodes_max(3) 
+    max_j = wind_farm%turbine(b)%nodes_max(4) 
+    min_k = wind_farm%turbine(b)%nodes_max(5)
+    max_k = wind_farm%turbine(b)%nodes_max(6)
+    
+    Nxt = max(Nxt, 2*(max_i - min_i));
+    Nyt = max(Nyt, 2*(max_j - min_j));
+    Nzt = max(Nzt, 2*(max_k - min_k));
+end do
+
+Nxt = 2**ceiling(log(real(Nxt))/log(2.))
+Nyt = 2**ceiling(log(real(Nyt))/log(2.))
+Nzt = 2**ceiling(log(real(Nzt))/log(2.))
+
+! Allocate arrays for convolution
+allocate(g(Nxt,Nyt,Nzt))
+allocate(temp_array(Nxt,Nyt,Nzt))
+allocate(ghat(Nxt/2+1,Nyt,Nzt))
+allocate(temp_array_hat(Nxt/2+1,Nyt,Nzt))
+
 ! Create convolution function. In order for the convolution not to add another shift to 
 ! the indicator function, the convolution function is centered at (0,0,0) and periodic
 ! in x, y, and z
-delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 g = 0
-do k=1,nz_tot
-    do j=1,ny
-        do i=1,nx
+delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
+do k=1,Nzt
+    do j=1,Nyt
+        do i=1,Nxt
             ! Place a Gaussian at each corner of the domain
-            r2 = ((real(i))*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz)**2
+            r2 = ((real(i)-1)*dx)**2 + ((real(j)-1)*dy)**2 + ((real(k)-1)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz)**2
+            
+            r2 = ((real(i)-Nxt)*dx)**2 + ((real(j)-1)*dy)**2 + ((real(k)-1)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz)**2
+            
+            r2 = ((real(i)-1)*dx)**2 + ((real(j)-Nyt)*dy)**2 + ((real(k)-1)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz)**2
+            
+            r2 = ((real(i)-Nxt)*dx)**2 + ((real(j)-Nyt)*dy)**2 + ((real(k)-1)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz-nz_tot)**2
+            
+            r2 = ((real(i)-1)*dx)**2 + ((real(j)-1)*dy)**2 + ((real(k)-Nzt)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz-nz_tot)**2
+            
+            r2 = ((real(i)-Nxt)*dx)**2 + ((real(j)-1)*dy)**2 + ((real(k)-Nzt)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz-nz_tot)**2
+            
+            r2 = ((real(i)-1)*dx)**2 + ((real(j)-Nyt)*dy)**2 + ((real(k)-Nzt)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz-nz_tot)**2
+            
+            r2 = ((real(i)-Nxt)*dx)**2 + ((real(j)-Nyt)*dy)**2 + ((real(k)-Nzt)*dz)**2
             g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
         enddo
     enddo
 enddo
+! 
+! ! Write the convolution function to file
+! write(*,*) Nxt, Nyt, Nzt
+! fname = path // 'g.bin'
+! open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=Nxt*Nyt*Nzt*rprec)
+! write(13,rec=1) g
+! close(13)
 
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
-write(*,*) 'sumG = ', sumG
 g = g/sumG
 
-!filter indicator function for each turbine
+! filter indicator function for each turbine
 do b=1,nloc
+    ! Find a node near the center of the turbines
+    iloc = floor(wind_farm%turbine(b)%xloc / dx)
+    jloc = floor(wind_farm%turbine(b)%yloc / dy)
+    kloc = floor(wind_farm%turbine(b)%height / dz)
 
-    !create the input array (nx,ny,nz_tot) from a list of included nodes
-        temp_array = 0.
-        do l=1,wind_farm%turbine(b)%num_nodes
-            i2 = wind_farm%turbine(b)%nodes(l,1)
-            j2 = wind_farm%turbine(b)%nodes(l,2)
-            k2 = wind_farm%turbine(b)%nodes(l,3)
-            temp_array(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
-        enddo
-
-    !perform convolution on temp_array --> out_a    
-        out_a=0.
-
-        min_i = wind_farm%turbine(b)%nodes_max(1) 
-        max_i = wind_farm%turbine(b)%nodes_max(2) 
-        min_j = wind_farm%turbine(b)%nodes_max(3) 
-        max_j = wind_farm%turbine(b)%nodes_max(4) 
-        min_k = wind_farm%turbine(b)%nodes_max(5)
-        max_k = wind_farm%turbine(b)%nodes_max(6) 
-        cut = trunc   
-
-        !convolution computed for points (i4,j4,k)
-        !only compute for nodes near the turbine (defined by cut aka trunc)
-        do k=max(min_k-cut,1),min(max_k+cut,nz_tot)    
-        do j=(min_j-cut),(max_j+cut)
-        do i=(min_i-cut),(max_i+cut)
-        
-            i4 = mod(i+nx-1,nx)+1       !since values may be out 1-nx,1-ny domain (spectral BCs)
-            j4 = mod(j+ny-1,ny)+1              
-        
-          !for each (i4,j4,k), center convolution function on that point and 'integrate' 
-          !relative coords are (ssx,ssy,ssz). absolute coords of other/surrounding points are (i2,j2,k2)
-          !only need to consider other/surrounding points near (i4,j4,k) since conv. function is compact
-          do k2=max(k-trunc,1),min(k+trunc,nz_tot)     !currently using truncated Gaussian
-          do j2=j-trunc,j+trunc
-          do i2=i-trunc,i+trunc
-
-            i3 = mod(i2+nx-1,nx)+1      !since values may be out 1-nx,1-ny domain (spectral BCs)
-            j3 = mod(j2+ny-1,ny)+1             
-          
-            ssx = mod(i2-i+nx/2+nx-1,nx)+1
-            ssy = mod(j2-j+ny/2+ny-1,ny)+1       
-            ssz = k2-k+(nz_tot-1)/2       !since no spectral BCs in z-direction
-                             
-            if( ssz < 1) then
-                !fg(i2,j2,k2) = 0.
-                fg=0.
-                write(*,*) 'See turbines.f90, ssz < 1'                    
-            elseif( ssz > nz_tot ) then
-                !fg(i2,j2,k2) = 0.
-                fg=0.
-                write(*,*) 'See turbines.f90, ssz > nz_tot'                    
-            else
-                !fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
-                !out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
-                fg = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
-                out_a(i4,j4,k) = out_a(i4,j4,k) + fg*dx*dy*dz
-            endif    
-        
-        enddo
-       enddo
-      enddo
-     enddo
+    ! create the input array from a list of included nodes
+    ! start the indexing relative to (min_i,min_j,min_k) and wrap
+    temp_array = 0.
+    do l=1,wind_farm%turbine(b)%num_nodes
+        i = wind_farm%turbine(b)%nodes(l,1)
+        j = wind_farm%turbine(b)%nodes(l,2)
+        k = wind_farm%turbine(b)%nodes(l,3)
+        i2 = i - iloc + Nxt/2
+        j2 = j - jloc + Nyt/2
+        k2 = k - kloc + Nzt/2
+        temp_array(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
     enddo
-    enddo
+!     
+!     ! Write the first test file with the indicator values
+!     if (b == 1) then
+!         fname = path // 'ind.bin'
+!         open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=Nxt*Nyt*Nzt*rprec)
+!         write(13,rec=1) temp_array
+!         close(13)
+!     end if
     
-    !normalize this "indicator function" such that it integrates to turbine volume
-    sumA = 0.
-    do k=1,nz_tot
-     do j=1,ny
-      do i=1,nx
-            if (out_a(i,j,k) < filter_cutoff) then
-            out_a(i,j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
-            else
-                sumA = sumA + out_a(i,j,k)*dx*dy*dz
-            endif            
-      enddo
-     enddo
-    enddo
+    ! Do the convolution in g*temp_array in Fourier space
+    call dfftw_plan_dft_r2c_3d(plan, Nxt, Nyt, Nzt, g, ghat, FFTW_ESTIMATE)
+    call dfftw_execute_dft_r2c(plan, g, ghat)
+    call dfftw_destroy_plan(plan)
+
+    call dfftw_plan_dft_r2c_3d(plan, Nxt, Nyt, Nzt, temp_array, temp_array_hat, FFTW_ESTIMATE)
+    call dfftw_execute_dft_r2c(plan, temp_array, temp_array_hat)
+    call dfftw_destroy_plan(plan)
+
+    temp_array_hat = ghat*temp_array_hat
+
+    call dfftw_plan_dft_c2r_3d(plan, Nxt, Nyt, Nzt, temp_array_hat, temp_array, FFTW_ESTIMATE)
+    call dfftw_execute_dft_c2r(plan, temp_array_hat, temp_array)
+    call dfftw_destroy_plan(plan)
+
+    ! Normalize the output of fftw 
+    temp_array = temp_array * (dx * dy * dz) / (Nxt * Nyt * Nzt)
+!     
+!     ! Write the first test file with the indicator values
+!     if (b == 1) then
+!         fname = path // 'filt.bin'
+!         open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=Nxt*Nyt*Nzt*rprec)
+!         write(13,rec=1) temp_array
+!         close(13)
+!     end if
+    
+    ! Now place temp_array into out_a, which is the size of the whole domain
+    out_a = 0
+    sumA = 0
+    do k2 = max(1 - kloc + Nzt/2, 1), min(nz_tot - kloc + Nzt/2, Nzt)
+        do j2 = 1, Nyt
+            do i2 = 1, Nxt
+                i = mod(i2 + iloc - Nxt/2 - 1, nx) + 1
+                j = mod(j2 + jloc - Nyt/2 - 1, ny) + 1
+                k = k2 + kloc - Nzt/2
+                out_a(i,j,k) = temp_array(i2,j2,k2)
+                if (out_a(i,j,k) < filter_cutoff) then
+                    out_a(i,j,k) = 0.
+                else
+                    sumA = sumA + out_a(i,j,k)*dx*dy*dz
+                endif    
+            end do
+        end do
+    end do
+    
+    ! normalize this "indicator function" such that it integrates to turbine volume
     turbine_vol = pi/4. * (wind_farm%turbine(b)%dia)**2 * wind_farm%turbine(b)%thk
     out_a = turbine_vol/sumA*out_a
+!     
+!     ! Write the second test file with the filtered values
+!     if (b == 1) then
+!         fname = path // 'filt.bin'
+!         open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=nx*ny*nz_tot*rprec)
+!         write(13,rec=1) out_a
+!         close(13)
+!     endif
 
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
@@ -466,35 +510,35 @@ do b=1,nloc
 #endif
 
     do k=k_start,k_end  !global k     
-     do j=1,ny
-      do i=1,nx
-       if (out_a(i,j,k) > filter_cutoff) then
-        wind_farm%turbine(b)%ind(count_i) = out_a(i,j,k)
-        wind_farm%turbine(b)%nodes(count_i,1) = i
-        wind_farm%turbine(b)%nodes(count_i,2) = j
-        wind_farm%turbine(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
-        count_n = count_n + 1
-        count_i = count_i + 1
-        turbine_in_proc = .true.                    
-       endif
-      enddo
-     enddo
+        do j=1,ny
+            do i=1,nx
+                if (out_a(i,j,k) > filter_cutoff) then
+                    wind_farm%turbine(b)%ind(count_i) = out_a(i,j,k)
+                    wind_farm%turbine(b)%nodes(count_i,1) = i
+                    wind_farm%turbine(b)%nodes(count_i,2) = j
+                    wind_farm%turbine(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
+                    count_n = count_n + 1
+                    count_i = count_i + 1
+                    turbine_in_proc = .true.                    
+                endif
+            enddo
+        enddo
     enddo
     wind_farm%turbine(b)%num_nodes = count_n
     
-    if (count_n > 0) then
-#ifdef PPMPI
-
-            call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
-            write(*,*) trim(string1)
-            
-#else
-
-            call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
-            write(*,*) trim(string1)
-
-#endif
-    endif
+!     if (count_n > 0) then
+! #ifdef PPMPI
+! 
+!             call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
+!             write(*,*) trim(string1)
+!             
+! #else
+! 
+!             call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
+!             write(*,*) trim(string1)
+! 
+! #endif
+!     endif
 
 enddo
 
@@ -502,15 +546,15 @@ enddo
 !if false, disk-avg velocity will not be sent (since it will always be 0.)
 #ifdef PPMPI
     if (coord == 0) then
-        if (turbine_in_proc) then
-            write(*,*),'Coord 0 has turbine nodes' 
-        endif
+!         if (turbine_in_proc) then
+!             write(*,*),'Coord 0 has turbine nodes' 
+!         endif
         do i=1,nproc-1
             call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
 
             if (buffer_logical) then
-                call string_splice( string1, 'Coord', i,' has turbine nodes')
-                write(*,*) trim(string1)
+!                 call string_splice( string1, 'Coord', i,' has turbine nodes')
+!                 write(*,*) trim(string1)
                 turbine_in_proc_cnt = turbine_in_proc_cnt + 1
                 turbine_in_proc_array(turbine_in_proc_cnt) = i
             endif
@@ -519,7 +563,13 @@ enddo
         call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
     endif
 #endif
+
+! Cleanup arrays and pointers
 nullify(x,y,z)
+deallocate(g)
+deallocate(temp_array)
+deallocate(ghat)
+deallocate(temp_array_hat)
 
 end subroutine turbines_filter_ind
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -552,6 +602,9 @@ call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velo
 #endif
 
 w_uv = interp_to_uv_grid(w, lbz)
+
+call turbines_nodes
+call turbines_filter_ind
 
 disk_avg_vels = 0.
 
