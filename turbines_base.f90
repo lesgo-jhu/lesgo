@@ -19,7 +19,7 @@
 
 module turbines_base
 use types, only : rprec
-use stat_defs, only : wind_farm
+use stat_defs, only : wind_farm, turb_ind_func
 use param, only : path
 #ifdef PPMPI
   use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
