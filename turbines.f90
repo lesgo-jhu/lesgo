@@ -331,38 +331,19 @@ x => grid % x
 y => grid % y
 z => grid % z
 
-! Create convolution function. In order for the convolution not to add another shift to 
-! the indicator function, the convolution function is centered at (0,0,0) and periodic
-! in x, y, and z
+!create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
-g = 0
 do k=1,nz_tot
     do j=1,ny
         do i=1,nx
-            ! Place a Gaussian at each corner of the domain
-            r2 = ((real(i))*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz-nz_tot)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j))*dy)**2 + ((real(k))*dz-nz_tot)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i))*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz-nz_tot)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
-            r2 = ((real(i)-nx)*dx)**2 + ((real(j)-ny)*dy)**2 + ((real(k))*dz-nz_tot)**2
-            g(i,j,k) = g(i,j,k) + sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
+            r2 = ((real(i)-nx/2.)*dx)**2 + ((real(j)-ny/2.)*dy)**2 + ((real(k)-(nz_tot-1)/2.)*dz)**2
+            g(i,j,k) = sqrt(6./(pi*delta2))*6./(pi*delta2)*exp(-6.*r2/delta2)
         enddo
     enddo
 enddo
 
 !normalize the convolution function
 sumG = sum(g(:,:,:))*dx*dy*dz
-write(*,*) 'sumG = ', sumG
 g = g/sumG
 
 !filter indicator function for each turbine
