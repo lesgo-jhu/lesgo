@@ -368,7 +368,7 @@ time_loop: do jt_step = nstart, nsteps
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
-        ! This takes care of the clock times, to obtain the qunatites based
+        ! This takes care of the clock times, to obtain the quantities based
         ! on all the processors, not just processor 0
 #ifdef PPMPI
             call mpi_allreduce(clock % time, maxdummy,1, mpi_rprec,  &
