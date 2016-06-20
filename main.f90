@@ -1805,7 +1805,7 @@ $endif
 
 call finalize()
 
-write(*,*) 'coord, jTIME: ', coord, jtime2-jtime1
-if(coord == 0 ) write(*,'(a)') 'Simulation complete'
+if(coord == 0) write(*,*) 'jT: ', jtime2-jtime1
+if(coord == 0) write(*,'(a)') 'Simulation complete'
 
 end program main
