@@ -886,8 +886,6 @@ do
 
      case ('ALPHA')
         read (buff(equal_pos+1:), *) alpha
-     case ('TRUNC')
-        read (buff(equal_pos+1:), *) trunc
      case ('FILTER_CUTOFF')
         read (buff(equal_pos+1:), *) filter_cutoff
      case ('TURBINE_CUMULATIVE_TIME')

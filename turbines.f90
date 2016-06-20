@@ -94,18 +94,13 @@ do k=1,nz_tot
     z_tot(k) = (k - 0.5_rprec) * dz
 enddo
 
-!find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
-!each processor finds turbines in the entire domain
+!Compute a lookup table object for the indicator function 
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 call turb_ind_func%init(delta2, thk_all, dia_all, max( max(nx, ny), nz) )
-call turbines_nodes                  ! removed large 3D array to limit memory use
 
-!1.smooth/filter indicator function                     
-!2.associate new nodes with turbines                               
-!3.normalize such that each turbine's ind integrates to turbine volume
-!4.split domain between processors 
-
-! call turbines_filter_ind()
+!find turbine nodes - including filtered ind, n_hat, num_nodes, and nodes for each turbine
+!each processor finds turbines in its domain
+call turbines_nodes
 
 if (turbine_cumulative_time) then
     if (coord == 0) then
@@ -325,24 +320,10 @@ do s=1,nloc
     ! Calculate turbine volume
     turbine_vol(s) = pi/4. * (wind_farm%turbine(s)%dia)**2 * wind_farm%turbine(s)%thk
     
-        if (count_n > 0) then
-! #ifdef PPMPI
-! 
-!             call string_splice( string1, 'Turbine number ', s,' has ', count_n,' filtered nodes in coord ', coord )
-!             write(*,*) trim(string1)
-!             
-! #else
-! 
-!             call string_splice( string1, 'Turbine number ',s,' has ',count_n,' filtered nodes' )
-!             write(*,*) trim(string1)
-! 
-! #endif
-    endif
 enddo
 
-!send the disk-avg values to coord==0
+! Sum the indicator function across all processors if using MPI
 #ifdef PPMPI 
-! call mpi_barrier (comm, ierr)
 buffer_array = sumA
 call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
 #endif
@@ -357,27 +338,21 @@ end do
 #ifdef PPMPI
 turbine_in_proc_cnt = 0
 if (coord == 0) then
-!     if (turbine_in_proc) then
-!         write(*,*),'Coord 0 has turbine nodes' 
-!     endif
     do i=1,nproc-1
-        call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
-
+        call MPI_recv(buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
         if (buffer_logical) then
-!             call string_splice( string1, 'Coord ', i,' has turbine nodes')
-!             write(*,*) trim(string1)
             turbine_in_proc_cnt = turbine_in_proc_cnt + 1
             turbine_in_proc_array(turbine_in_proc_cnt) = i
         endif
     enddo
 else
-    call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
+    call MPI_send(turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
 endif
 #endif
 
+! Cleanup
 deallocate(sumA)
 deallocate(turbine_vol)
-
 nullify(x,y,z)
 
 end subroutine turbines_nodes
@@ -412,6 +387,7 @@ call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velo
 
 w_uv = interp_to_uv_grid(w, lbz)
 
+! This is a holding location for doing dynamic yaw (to test speed)
 call turbines_nodes
 
 disk_avg_vels = 0.
