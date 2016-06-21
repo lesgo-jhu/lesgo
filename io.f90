@@ -1325,7 +1325,7 @@ use sgs_param
 use param, only : nx,ny,nz,lbz,jzmax
 use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
 #ifdef PPTURBINES
-use sim_param, only : fxa
+use sim_param, only : fxa, fya, fza
 #endif
 use functions, only : interp_to_uv_grid
 

@@ -29,7 +29,7 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 #endif
 #ifdef PPTURBINES
-use sim_param,only:fxa,fyz,fza
+use sim_param,only:fxa,fya,fza
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 !#ifdef PPATM
