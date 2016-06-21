@@ -68,7 +68,7 @@ type tavg_t
   real(rprec) :: u2, v2, w2, uv, uw, vw
 !  real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
-  real(rprec) :: fx!, fy, fz
+  real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2  
 end type tavg_t
   
@@ -166,6 +166,7 @@ END INTERFACE
 
 contains
 
+#ifdef PPTURBINES
 function val(this, r, x) result(Rval)
 use functions, only : linear_interp
 implicit none
@@ -290,6 +291,7 @@ this%R23 = this%R23 / this%R23(1)
 ! close(13)
 
 end subroutine init
+#endif
 
 !//////////////////////////////////////////////////////////////////////
 !/////////////////// TAVG OPERATORS ///////////////////////////////////
