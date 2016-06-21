@@ -522,7 +522,9 @@ if (turbine_in_proc) then
             j2 = wind_farm%turbine(s)%nodes(l,2)
             k2 = wind_farm%turbine(s)%nodes(l,3)
             ind2 = wind_farm%turbine(s)%ind(l)
-            fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2 
+            fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2
+            fya(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(2)*ind2
+            fza(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(3)*ind2
         enddo
     enddo
 endif    

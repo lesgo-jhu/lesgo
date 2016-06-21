@@ -29,7 +29,7 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 #endif
 #ifdef PPTURBINES
-use sim_param,only:fxa
+use sim_param,only:fxa,fyz,fza
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 !#ifdef PPATM
@@ -62,6 +62,8 @@ logical :: iwm_file_flag !xiang: for iwm restart
 
 #ifdef PPTURBINES
 fxa=0._rprec
+fya=0._rprec
+fza=0._rprec
 #endif
 
 #ifdef PPLVLSET

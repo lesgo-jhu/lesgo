@@ -871,8 +871,8 @@ allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 ! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
 #if ( defined(PPTURBINES) && !defined(PPLVLSET) )
 fx_tot = fxa(1:nx,1:ny,1:nz)
-fy_tot = 0._rprec
-fz_tot = 0._rprec
+fy_tot = fya(1:nx,1:ny,1:nz)
+fz_tot = fza(1:nx,1:ny,1:nz)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #elif PPATM
@@ -1392,6 +1392,8 @@ do k=1,jzmax
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
 #ifdef PPTURBINES       
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt 
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt 
+      tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza(i,j,k) * tavg_dt 
 #endif
       tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
       
