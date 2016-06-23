@@ -25,9 +25,8 @@ module iwmles
   implicit none
   
   private
-  public iwm_wallstress, iwm_malloc, iwm_demalloc, iwm_checkpoint, iwm_read_checkpoint, iwm_on
+  public iwm_wallstress, iwm_malloc, iwm_demalloc, iwm_checkpoint, iwm_read_checkpoint
   
-  integer :: iwm_on
   !                                                  u_tau,x  u_tau,y  tau_wall,x tau_wall,y
   real(kind=rprec), dimension(:,:),   allocatable :: iwm_utx, iwm_uty, iwm_tauwx, iwm_tauwy
   !                                                  filtered tangential velocity, current and previous
@@ -580,7 +579,7 @@ subroutine iwm_monitor
   
 end subroutine iwm_monitor
 
-!put down a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
+!put down a check point for the integral wall model, this subroutine is called after making sure lbc_mom=3
 subroutine iwm_checkPoint()
     use open_file_fid_mod 
 	implicit none
@@ -601,7 +600,7 @@ subroutine iwm_checkPoint()
     close(fid)
 end subroutine iwm_checkPoint
 
-!read a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
+!read a check point for the integral wall model, this subroutine is called after making sure lbc_mom=3
 subroutine iwm_read_checkPoint()
     use open_file_fid_mod
 	implicit none

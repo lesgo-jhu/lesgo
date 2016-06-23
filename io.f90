@@ -1040,10 +1040,8 @@ else
 endif
 
 !xiang check point for iwm
-if(lbc_mom==1)then
-if(iwm_on==1)then
+if(lbc_mom==3)then
 	if(coord == 0) call iwm_checkPoint()
-endif
 endif
 
 #ifdef PPHIT

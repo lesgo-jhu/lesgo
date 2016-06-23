@@ -169,20 +169,14 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
     !   MPI: bottom process only
-    if (dns_bc) then
-        if (coord == 0) then
-            call wallstress_dns ()
-        end if
-    else    ! "impose" wall stress 
-        if (coord == 0) then
-            call wallstress ()                            
-        end if
-    end if    
+    if (coord == 0) then
+        call wallstress ()
+    end if
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
-    if (dns_bc .and. molec) then
+    if (lbc_mom == 1 .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
     else        
         call sgs_stag()

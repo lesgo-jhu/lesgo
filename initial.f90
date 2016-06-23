@@ -89,10 +89,8 @@ call string_concat( fname, '.c', coord )
 !check iwm restart file
 inquire (file='iwm_checkPoint.dat', exist=iwm_file_flag)
 if(iwm_file_flag)then
-	if(lbc_mom == 1)then
-	if(iwm_on ==1)then
+	if(lbc_mom == 3)then
 		if(coord==0) call iwm_read_checkPoint()
-	endif
 	endif
 endif
 
@@ -169,7 +167,7 @@ if(initu)then
   close(13)
 
 else
-  if (dns_bc) then
+  if (lbc_mom==1) then
      if (coord == 0) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else
