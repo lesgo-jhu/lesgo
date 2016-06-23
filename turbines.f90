@@ -387,12 +387,21 @@ call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)     !syncing intermediate w-velo
 
 w_uv = interp_to_uv_grid(w, lbz)
 
-! This is a holding location for doing dynamic yaw (to test speed)
-call turbines_nodes
+! Do interpolation for dynamically changing parameters
+do s = 1, nloc
+    if (dyn_theta1) wind_farm%turbine(s)%theta1 =                       &
+        linear_interp(theta1_time, theta1_arr(s,:), total_time_dim)
+    if (dyn_theta2) wind_farm%turbine(s)%theta2 =                       &
+        linear_interp(theta2_time, theta2_arr(s,:), total_time_dim)
+    if (dyn_Ct_prime) wind_farm%turbine(s)%Ct_prime =                   &
+        linear_interp(Ct_prime_time, Ct_prime_arr(s,:), total_time_dim)        
+end do
 
-disk_avg_vels = 0.
+! Recompute the turbine position if theta1 or theta2 can change
+if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
 !Each processor calculates the weighted disk-averaged velocity
+disk_avg_vels = 0.
 if (turbine_in_proc) then
 
     !for each turbine:        
@@ -455,13 +464,6 @@ elseif (turbine_in_proc) then
     call MPI_send( disk_avg_vels, nloc, MPI_rprec, 0, 3, comm, ierr )
 endif                          
 #endif
-
-!Calculate the current Ct_prime
-if (turbine_control == 1) then
-    do s = 1, nloc
-        wind_farm%turbine(s)%Ct_prime = linear_interp(t_Ctp_list, Ctp_list(:,s), total_time_dim)
-    end do
-endif
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then           

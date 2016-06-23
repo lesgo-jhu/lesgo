@@ -875,6 +875,16 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
+        
+     case ('READ_PARAM')
+        read (buff(equal_pos+1:), *) read_param     
+
+     case ('DYN_THETA1')
+        read (buff(equal_pos+1:), *) dyn_theta1
+     case ('DYN_THETA2')
+        read (buff(equal_pos+1:), *) dyn_theta2
+     case ('DYN_CT_PRIME')
+        read (buff(equal_pos+1:), *) dyn_Ct_prime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
@@ -887,10 +897,8 @@ do
         read (buff(equal_pos+1:), *) turbine_cumulative_time
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
+
      case default
-     
-     case ('TURBINE_CONTROL')
-        read (buff(equal_pos+1:), *) turbine_control
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
