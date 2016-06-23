@@ -791,8 +791,6 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-!use param, only : kx_space  !!jb
-!use derivatives, only : wave2phys, phys2wave  !!jb
 use param, only : fourier  !!jb
 use derivatives, only : wave2physF  !!jb
 use sim_param, only : u, v, w,  dudz,  dvdz,  txx,  txy,  tyy,  txz,  tyz,  tzz   !!jb
@@ -827,20 +825,6 @@ if (tavg_calc) then
 
     ! Are we at the beginning or a multiple of nstart?
     if ( mod(jt_total-tavg_nstart,tavg_nskip)==0 ) then
-
-!!$       if ( fourier ) then   !!jb
-!!$         call wave2physF( u, uF )
-!!$         call wave2physF( v, vF )
-!!$         call wave2physF( w, wF )
-!!$         call wave2physF( txx, txxF )
-!!$         call wave2physF( txy, txyF )
-!!$         call wave2physF( tyy, tyyF )
-!!$         call wave2physF( txz, txzF )
-!!$         call wave2physF( tyz, tyzF )
-!!$         call wave2physF( tzz, tzzF )
-!!$         call wave2physF( dudz, dudzF )
-!!$         call wave2physF( dvdz, dvdzF )
-!!$       endif
 
       ! Check if we have initialized tavg
        if (.not.tavg_initialized) then
@@ -1035,8 +1019,6 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
-!use param, only: kx_space    !!jb
-!use derivatives, only: wave2phys, phys2wave    !!jb
 use grid_defs, only : grid
 use sim_param, only : u,v,w
 $if($DEBUG)
@@ -1101,12 +1083,6 @@ zw => grid % zw
 
 !  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
-
-!!$if (kx_space) then      !!jb
-!!$   call wave2phys(u)     
-!!$   call wave2phys(v)
-!!$   call wave2phys(w)
-!!$endif
 
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
@@ -2084,12 +2060,6 @@ endif
 deallocate(w_uv)
 nullify(x,y,z,zw)
 
-!!$if (kx_space) then       !!jb
-!!$   call phys2wave(u)
-!!$   call phys2wave(v)
-!!$   call phys2wave(w)
-!!$endif
-
 $if($LVLSET or $DEBUG)
 contains
 $endif
@@ -2219,8 +2189,6 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 !use sgs_param, only: F_ee2, F_deedt2, ee_past
 !$endif
 use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt, cfl
-!use param, only: kx_space    !!jb
-!use derivatives, only: wave2phys, phys2wave    !!jb
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
@@ -2243,15 +2211,6 @@ $else
 open(11,file=fname,form='unformatted', status='unknown', position='rewind')
 $endif
 
-!!$if (kx_space) then         !!jb
-!!$   call wave2phys(u)
-!!$   call wave2phys(v)
-!!$   call wave2phys(w)
-!!$   call wave2phys(RHSx)
-!!$   call wave2phys(RHSy)
-!!$   call wave2phys(RHSz)
-!!$endif
-
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
      RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),  &
      Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),     &
@@ -2259,15 +2218,6 @@ write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),           &
 
 ! Close the file to ensure that the data is flushed and written to file
 close(11)
-
-!!$if (kx_space) then         !!jb
-!!$   call phys2wave(u)
-!!$   call phys2wave(v)
-!!$   call phys2wave(w)
-!!$   call phys2wave(RHSx)
-!!$   call phys2wave(RHSy)
-!!$   call phys2wave(RHSz)
-!!$endif
 
 $if($MPI)
 call mpi_barrier( comm, ierr )

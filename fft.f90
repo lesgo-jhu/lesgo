@@ -241,18 +241,14 @@ end subroutine init_fft
 subroutine init_wavenumber()
 !**********************************************************************
 use param, only: lh, nx, ny, L_x, L_y, pi, coord, nx2
-use param, only: kxs_in, kxs, kx_dft
+use param, only: kxs_in, kxs
 implicit none
 integer :: jx,jy,ii
 complex(rprec) :: c1, c1_big   !!jb
 complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
 
 ! Allocate wavenumbers
-!!if (kx_dft) then             !!jb
-!!  allocate( kx(kx_num,ny), ky(kx_num,ny), k2(kx_num,ny) )
-!!else
   allocate( kx(lh,ny), ky(lh,ny), k2(lh,ny) )
-!!endif
   
   allocate( kxs ( kx_num ) )    !!jb
   allocate( kx_veci ( kx_num ) )    !!jb
@@ -264,7 +260,7 @@ complex(rprec) :: imag = (0.0_rprec, 1.0_rprec)   !!jb
   kx_veci_n(kx_num+1 : kx_num+kx_num-2) = nx+2 - kx_veci(2:kx_num-1)
   kx_veci_n_big(kx_num+1 : kx_num+kx_num-2) = nx2+2 - kx_veci(2:kx_num-1)
 
-if (kx_dft) then
+if (fourier) then
   allocate( expp(kx_num, nx), expn(kx_num, nx) )
   allocate( expp_big(kx_num, nx2), expn_big(kx_num, nx2) )
   allocate( expp_n(nx, nx), expn_n(nx, nx) )
@@ -309,12 +305,6 @@ endif
 do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
 end do
-
-!!$if (kx_dft) then   !!jb
-!!$ do jx=1,kx_num
-!!$    kx(jx,:) = kx_vec(jx)
-!!$ end do
-!!$endif
 
 if (fourier) then   !!jb
  do jx=1,kx_num

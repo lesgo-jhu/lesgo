@@ -148,29 +148,6 @@ end if
 
 $if ($MPI)
 
-!!$if (coord == 0) then
-!!$   do jx=1,3
-!!$      do jy=1,3
-!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
-!!$      enddo
-!!$   enddo
-!!$endif
-
-!!$if ( kx_space ) then    !!jb
-!!$   call phys2wave( u )
-!!$   call phys2wave( v )
-!!$   call phys2wave( w )
-!!$endif
-
-
-!!$if (coord == 0) then
-!!$   do jx=1,3
-!!$      do jy=1,3
-!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
-!!$      enddo
-!!$   enddo
-!!$endif
-
   call mpi_barrier(comm, ierr)
  
   call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
@@ -178,16 +155,6 @@ $if ($MPI)
   call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP ) 
 
   call mpi_barrier(comm, ierr)
-
-!!$if (coord == 0) then
-!!$   print*, '2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-!!$   do jx=1,3
-!!$      do jy=1,3
-!!$         write(*,*) v(jx,jy,0),v(jx,jy,1),v(jx,jy,nz-1),v(jx,jy,nz)
-!!$      enddo
-!!$   enddo
-!!$endif
-
   
   if (coord == 0) then
     !--set 0-level velocities to BOGUS

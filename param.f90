@@ -143,8 +143,6 @@ module param
 
   ! mode limiting options for RNL    !!jb
   logical :: molec=.false., sgs=.true., dns_bc=.false.
-  logical :: kx_space=.false.  
-  logical :: kx_dft=.false.
   logical :: fourier=.false.
   integer :: kx_num=4
   real(rprec), allocatable, dimension(:) :: kx_vec

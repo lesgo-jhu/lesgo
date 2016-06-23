@@ -19,7 +19,7 @@
 
 subroutine wallstress_dns ()
 use types,only:rprec
-use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom !,kx_space
+use param,only:nx,ny,nu_molec,z_i,u_star,dz,lbc_mom !,fourier
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
 !!use derivatives, only: wave2phys, phys2wave   !!jb
 implicit none
@@ -36,7 +36,7 @@ select case (lbc_mom)
 
   case (1) ! Wall
 
-!!$     if ( kx_space ) then
+!!$     if ( fourier ) then
 !!$      call wave2phys(u)   !!jb  ( only coord 0 is calling wallstress_dns )
 !!$      call wave2phys(v)   !! could speed up by doing single slice only (jz=1 only)
 !!$      call wave2phys(txz) !!   instead of whole processor
@@ -54,7 +54,7 @@ select case (lbc_mom)
     end do
     end do
 
-!!$    if ( kx_space ) then   !!jb
+!!$    if ( fourier ) then   !!jb
 !!$     call phys2wave(u)
 !!$     call phys2wave(v)
 !!$     call phys2wave(txz)

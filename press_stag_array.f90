@@ -83,7 +83,7 @@ real(rprec), dimension(2) :: aH_x, aH_y ! Used to emulate complex scalar
 
 !---------------------------------------------------------------------
 ! Specifiy cached constants
-if (kx_space) then
+if (fourier) then
    const = 1._rprec
 else
    const  = 1._rprec/real(nx*ny,rprec)
@@ -129,20 +129,15 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
    rH_z(:, :, jz) = const2 * w(:, :, jz) 
 
   $if ($FFTW3)
-  if (.not. kx_dft) then
+  if (.not. fourier) then
    call dfftw_execute_dft_r2c(forw, rH_x(:,:,jz), rH_x(:,:,jz))
    call dfftw_execute_dft_r2c(forw, rH_y(:,:,jz), rH_y(:,:,jz)) 
    call dfftw_execute_dft_r2c(forw, rH_z(:,:,jz), rH_z(:,:,jz))
-  elseif (kx_space) then
-     !! do nothing!! already in kx_space
+  else
+   !! do nothing, already in fourier space
    !call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
    !call dft_direct_forw_2d_n(rH_y(:,:,jz))
    !call dft_direct_forw_2d_n(rH_z(:,:,jz))
-
-  else
-   call dft_direct_forw_2d_n(rH_x(:,:,jz))   !!jb
-   call dft_direct_forw_2d_n(rH_y(:,:,jz))
-   call dft_direct_forw_2d_n(rH_z(:,:,jz))
   endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw,rH_x(:,:,jz),fftwNull_p)
@@ -200,13 +195,11 @@ $endif
 if (coord == 0) then
   rbottomw(:, :) = const * divtz(:, :, 1)
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw, rbottomw, rbottomw ) 
-    elseif (kx_space) then
-       !! do nothing, already in kx_space
-      !call dft_direct_forw_2d_n( rbottomw )   !!jb
     else
-      call dft_direct_forw_2d_n( rbottomw )   !!jb
+      !! do nothing, already in fourier space
+      !call dft_direct_forw_2d_n( rbottomw )   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex (forw, rbottomw(:, :), fftwNull_p)
@@ -219,13 +212,11 @@ $if ($MPI)
 $endif
   rtopw(:, :) = const * divtz(:, :, nz)
   $if ($FFTW3)
-  if (.not. kx_dft) then
+  if (.not. fourier) then
     call dfftw_execute_dft_r2c(forw, rtopw, rtopw)
-  elseif (kx_space) then
-     !! do nothing, already in kx_space
-    !call dft_direct_forw_2d_n( rtopw )   !!jb
   else
-    call dft_direct_forw_2d_n( rtopw )   !!jb
+     !! do nothing, already in fourier space
+    !call dft_direct_forw_2d_n( rtopw )   !!jb
   endif
   $else
   call rfftwnd_f77_one_real_to_complex (forw, rtopw(:, :), fftwNull_p)
@@ -405,7 +396,7 @@ if (DEBUG) then
 end if
 $endif
 
-if (kx_dft) then
+if (fourier) then
    end_kx = kx_num
 else
    end_kx = lh-1
@@ -420,7 +411,7 @@ do jz = jz_min, nz
 
       if (jx*jy == 1) cycle
 
-      if (.not. kx_dft) then
+      if (.not. fourier) then
 
       ii = 2*jx   ! imaginary index 
       ir = ii - 1 ! real index
@@ -594,13 +585,11 @@ if (DEBUG) write (*, *) 'press_stag_array: before inverse FFT'
 $endif
 
 $if ($FFTW3)
-if (.not. kx_dft) then
+if (.not. fourier) then
    call dfftw_execute_dft_c2r(back,p_hat(:,:,0), p_hat(:,:,0))    
-elseif (kx_space) then
-   !! no need to get physical    !!jb
-   !call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
 else
-   call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
+   !! do nothing, already in fourier space (no need to get physical)
+   !call dft_direct_back_2d_n( p_hat(:,:,0) )   !!jb
 endif
 $else
 call rfftwnd_f77_one_complex_to_real(back,p_hat(:,:,0),fftwNull_p)
@@ -609,7 +598,7 @@ do jz=1,nz-1  !--used to be nz
 do jy=1,ny
 do jx=1,end_kx  !lh     !!jb
 
-if (.not. kx_dft) then
+if (.not. fourier) then
   ii = 2*jx
   ir = ii - 1
 
@@ -644,20 +633,15 @@ end do
 
 
 $if ($FFTW3)
-  if (.not. kx_dft) then
+  if (.not. fourier) then
     call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
     call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
     call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))
-  elseif (kx_space) then
-     !! do nothing, stay in kx_space
+  else
+    !! do nothing, already in fourier space
     !call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
     !call dft_direct_back_2d_n(dfdy(:,:,jz))
     !call dft_direct_back_2d_n(p_hat(:,:,jz))
-
-  else
-    call dft_direct_back_2d_n(dfdx(:,:,jz))    !!jb
-    call dft_direct_back_2d_n(dfdy(:,:,jz))
-    call dft_direct_back_2d_n(p_hat(:,:,jz))
   endif
 $else
 call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)

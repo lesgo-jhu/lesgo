@@ -87,8 +87,6 @@ write(2,x3l_fmt) 'molec, sgs, dns_bc : ', molec, sgs, dns_bc
 write(2,x3l_fmt) 'trigger : ', trigger
 write(2,i_fmt) 'trig_on : ', trig_on
 write(2,i_fmt) 'trig_off : ', trig_off
-write(2,x3l_fmt) 'kx_space : ', kx_space
-write(2,x3l_fmt) 'kx_dft : ', kx_dft
 write(2,x3l_fmt) 'fourier : ', fourier
 write(2,i_fmt) 'kx_num : ', kx_num
 do n=1,kx_num

@@ -337,10 +337,6 @@ do
         read (buff(equal_pos+1:), *) trig_on  !!jb
      case ('TRIG_OFF')
         read (buff(equal_pos+1:), *) trig_off  !!jb
-     case ('KX_SPACE')
-        read (buff(equal_pos+1:), *) kx_space  !!jb
-     case ('KX_DFT')
-        read (buff(equal_pos+1:), *) kx_dft  !!jb
      case ('FOURIER')
         read (buff(equal_pos+1:), *) fourier  !!jb
      case ('KX_NUM')

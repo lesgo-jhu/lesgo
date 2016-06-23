@@ -52,10 +52,10 @@ public ddx, &
      dft_direct_back_2d_n_yonlyC_big, &
      dft_direct_forw_2d_n_big, &
      dft_direct_back_2d_n_big, &
-     filt_da_direct_n, &
+     !filt_da_direct_n, &
      filt_da_kxspace, &
-     ddx_n, &
-     ddy_n, &
+     !ddx_n, &
+     !ddy_n, &
      phys2wave, &
      phys2wave_pr, &
      wave2phys, &
@@ -190,127 +190,127 @@ return
 
 end subroutine ddy
 
-!**********************************************************************
-subroutine ddx_n(f,dfdx,lbz)              
-!**********************************************************************
-!  This subroutine computes the partial derivative of f with respect to
-!  x using spectral decomposition.
+!!$!**********************************************************************
+!!$subroutine ddx_n(f,dfdx,lbz)              
+!!$!**********************************************************************
+!!$!  This subroutine computes the partial derivative of f with respect to
+!!$!  x using spectral decomposition.
+!!$
+!!$use types,only:rprec
+!!$use param,only:ld,nx,ny,nz
+!!$use fft
+!!$use emul_complex, only : OPERATOR(.MULI.)
+!!$implicit none
+!!$
+!!$integer::jz
+!!$
+!!$integer, intent(in) :: lbz
+!!$real(rprec), dimension(:,:,lbz:), intent(in) :: f
+!!$real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
+!!$
+!!$real(rprec) :: const
+!!$
+!!$const = 1._rprec / ( nx * ny )
+!!$
+!!$! Loop through horizontal slices
+!!$do jz=lbz,nz
+!!$
+!!$  !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
+!!$  dfdx(:,:,jz)=const*f(:,:,jz)
+!!$  $if ($FFTW3)
+!!$  !!call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz),dfdx(:,:,jz))
+!!$  call dft_direct_forw_2d_n( dfdx(:,:,jz)  )      !!jb
+!!$  $else
+!!$  call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
+!!$  $endif
+!!$
+!!$  ! Zero padded region and Nyquist frequency
+!!$  !  dfdx_c(lh,:,jz)=0._rprec ! Complex version
+!!$  !  dfdx_c(:,ny/2+1,jz)=0._rprec !  Complex version
+!!$  dfdx(ld-1:ld,:,jz) = 0._rprec
+!!$  dfdx(:,ny/2+1,jz) = 0._rprec
+!!$
+!!$  ! Compute coefficients for pseudospectral derivative calculation
+!!$  !  dfdx_c(:,:,jz)=eye*kx(:,:)*dfdx_c(:,:,jz) ! Complex version
+!!$
+!!$  !  Use complex emulation of dfdx to perform complex multiplication
+!!$  !  Optimized version for real(eye*kx)=0; only passing imaginary part of eye*kx
+!!$  dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
+!!$
+!!$  ! Perform inverse transform to get pseudospectral derivative
+!!$  $if ($FFTW3)
+!!$  !!call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
+!!$  call dft_direct_back_2d_n( dfdx(:,:,jz)  )      !!jb
+!!$  $else
+!!$  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
+!!$  $endif
+!!$
+!!$enddo
+!!$
+!!$return
+!!$
+!!$end subroutine ddx_n
 
-use types,only:rprec
-use param,only:ld,nx,ny,nz
-use fft
-use emul_complex, only : OPERATOR(.MULI.)
-implicit none
-
-integer::jz
-
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx
-
-real(rprec) :: const
-
-const = 1._rprec / ( nx * ny )
-
-! Loop through horizontal slices
-do jz=lbz,nz
-
-  !  Use dfdx to hold f; since we are doing IN_PLACE FFT's this is required
-  dfdx(:,:,jz)=const*f(:,:,jz)
-  $if ($FFTW3)
-  !!call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz),dfdx(:,:,jz))
-  call dft_direct_forw_2d_n( dfdx(:,:,jz)  )      !!jb
-  $else
-  call rfftwnd_f77_one_real_to_complex(forw,dfdx(:,:,jz),fftwNull_p)       
-  $endif
-
-  ! Zero padded region and Nyquist frequency
-  !  dfdx_c(lh,:,jz)=0._rprec ! Complex version
-  !  dfdx_c(:,ny/2+1,jz)=0._rprec !  Complex version
-  dfdx(ld-1:ld,:,jz) = 0._rprec
-  dfdx(:,ny/2+1,jz) = 0._rprec
-
-  ! Compute coefficients for pseudospectral derivative calculation
-  !  dfdx_c(:,:,jz)=eye*kx(:,:)*dfdx_c(:,:,jz) ! Complex version
-
-  !  Use complex emulation of dfdx to perform complex multiplication
-  !  Optimized version for real(eye*kx)=0; only passing imaginary part of eye*kx
-  dfdx(:,:,jz) = dfdx(:,:,jz) .MULI. kx
-
-  ! Perform inverse transform to get pseudospectral derivative
-  $if ($FFTW3)
-  !!call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
-  call dft_direct_back_2d_n( dfdx(:,:,jz)  )      !!jb
-  $else
-  call rfftwnd_f77_one_complex_to_real(back,dfdx(:,:,jz),fftwNull_p)
-  $endif
-
-enddo
-
-return
-
-end subroutine ddx_n
-
-!**********************************************************************
-subroutine ddy_n(f,dfdy, lbz)              
-!**********************************************************************
-!
-!  This subroutine computes the partial derivative of f with respect to
-!  y using spectral decomposition.
-!  
-use types,only:rprec
-use param,only:ld,nx,ny,nz
-use fft
-use emul_complex, only : OPERATOR(.MULI.)
-implicit none      
-
-integer::jz
-  
-integer, intent(in) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(in) :: f
-real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
-
-real(rprec) :: const
-
-const = 1._rprec / ( nx * ny )
-
-! Loop through horizontal slices
-do jz=lbz,nz    
-
-  !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
-  dfdy(:,:,jz)=const*f(:,:,jz)  
-  $if ($FFTW3)
-  !!call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
-  call dft_direct_forw_2d_n( dfdy(:,:,jz)  )      !!jb
-  $else
-  call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
-  $endif
-
-  ! Zero padded region and Nyquist frequency
-  !  dfdy_c(lh,:,jz)=0._rprec ! Complex version
-  !  dfdy_c(:,ny/2+1,jz)=0._rprec !  Complex version
-  dfdy(ld-1:ld,:,jz) = 0._rprec
-  dfdy(:,ny/2+1,jz) = 0._rprec   
-
-  ! Compute coefficients for pseudospectral derivative calculation
-  !  dfdy_c(:,:,jz)=eye*ky(:,:)*dfdy_c(:,:,jz) ! Complex version
-
-  !  Use complex emulation of dfdy to perform complex multiplication
-  !  Optimized version for real(eye*ky)=0; only passing imaginary part of eye*ky
-  dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
-
-  ! Perform inverse transform to get pseudospectral derivative
-  $if ($FFTW3)
-  !!call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
-  call dft_direct_back_2d_n( dfdy(:,:,jz)  )      !!jb
-  $else
-  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)     
-  $endif
-end do
-
-return
-
-end subroutine ddy_n
+!!$!**********************************************************************
+!!$subroutine ddy_n(f,dfdy, lbz)              
+!!$!**********************************************************************
+!!$!
+!!$!  This subroutine computes the partial derivative of f with respect to
+!!$!  y using spectral decomposition.
+!!$!  
+!!$use types,only:rprec
+!!$use param,only:ld,nx,ny,nz
+!!$use fft
+!!$use emul_complex, only : OPERATOR(.MULI.)
+!!$implicit none      
+!!$
+!!$integer::jz
+!!$  
+!!$integer, intent(in) :: lbz
+!!$real(rprec), dimension(:,:,lbz:), intent(in) :: f
+!!$real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdy
+!!$
+!!$real(rprec) :: const
+!!$
+!!$const = 1._rprec / ( nx * ny )
+!!$
+!!$! Loop through horizontal slices
+!!$do jz=lbz,nz    
+!!$
+!!$  !  Use dfdy to hold f; since we are doing IN_PLACE FFT's this is required
+!!$  dfdy(:,:,jz)=const*f(:,:,jz)  
+!!$  $if ($FFTW3)
+!!$  !!call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
+!!$  call dft_direct_forw_2d_n( dfdy(:,:,jz)  )      !!jb
+!!$  $else
+!!$  call rfftwnd_f77_one_real_to_complex(forw,dfdy(:,:,jz),fftwNull_p)     
+!!$  $endif
+!!$
+!!$  ! Zero padded region and Nyquist frequency
+!!$  !  dfdy_c(lh,:,jz)=0._rprec ! Complex version
+!!$  !  dfdy_c(:,ny/2+1,jz)=0._rprec !  Complex version
+!!$  dfdy(ld-1:ld,:,jz) = 0._rprec
+!!$  dfdy(:,ny/2+1,jz) = 0._rprec   
+!!$
+!!$  ! Compute coefficients for pseudospectral derivative calculation
+!!$  !  dfdy_c(:,:,jz)=eye*ky(:,:)*dfdy_c(:,:,jz) ! Complex version
+!!$
+!!$  !  Use complex emulation of dfdy to perform complex multiplication
+!!$  !  Optimized version for real(eye*ky)=0; only passing imaginary part of eye*ky
+!!$  dfdy(:,:,jz) = dfdy(:,:,jz) .MULI. ky
+!!$
+!!$  ! Perform inverse transform to get pseudospectral derivative
+!!$  $if ($FFTW3)
+!!$  !!call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
+!!$  call dft_direct_back_2d_n( dfdy(:,:,jz)  )      !!jb
+!!$  $else
+!!$  call rfftwnd_f77_one_complex_to_real(back,dfdy(:,:,jz),fftwNull_p)     
+!!$  $endif
+!!$end do
+!!$
+!!$return
+!!$
+!!$end subroutine ddy_n
 
 !**********************************************************************
 subroutine ddx_kxspace(f,dfdx,lbz)              
@@ -501,7 +501,7 @@ $if ($MPI)
     dfdz(:,:,nz)=0._rprec  !--do not need to do this...
   else
     do jy=1,ny
-    do jx=1,ld !nx    !!jb   !! fourier   !! kx_space
+    do jx=1,ld !nx    !!jb   !! fourier   !! fourier
        dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
     end do
     end do
@@ -540,7 +540,7 @@ integer::jx,jy,jz
 const=1._rprec/dz
 do jz=lbz,nz-1
 do jy=1,ny
-do jx=1,ld !nx    !!jb   !! fourier   !! kx_space
+do jx=1,ld !nx    !!jb   !! fourier   !! fourier
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz+1)-f(jx,jy,jz))
 end do
 end do
@@ -1838,68 +1838,68 @@ end subroutine dft_direct_back_2d_n_yonlyC_big
 !return
 !end subroutine filt_da_direct
 
-!**********************************************************************
-subroutine filt_da_direct_n(f,dfdx,dfdy, lbz)
-!**********************************************************************
-!
-! kills the oddball components in f, and calculates in horizontal derivatives
-!--supplies results for jz=$lbz:nz
-!--MPI: all these arrays are 0:nz
-!--MPI: on exit, u,dudx,dudy,v,dvdx,dvdy,w,dwdx,dwdy valid on jz=0:nz,
-!  except on bottom process (0 level set to BOGUS, starts at 1)
-!
-use types,only:rprec
-use param,only:ld,nx,ny,nz,coord
-use fft
-use emul_complex, only : OPERATOR(.MULI.)
-implicit none
-integer::jz,jy,jx
-
-integer, intent(in) :: lbz
-real(rprec), dimension(:, :, lbz:), intent(inout) :: f
-real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
-
-real(rprec) :: const
-
-const = 1._rprec/(nx*ny)
-
-! loop through horizontal slices
-do jz=lbz,nz
-
-  f(:,:,jz)=const*f(:,:,jz)  
-
-  !$if ($FFTW3)
-  call dft_direct_forw_2d_n( f(:,:,jz) )
-  !call dft_direct_forw_2d_n_yonlyC( f(:,:,jz) )
-  !$else
-  !write(*,*) 'WARNING - no subroutine available'
-  !$endif
-
-  ! Zero padded region and Nyquist frequency
-  f(ld-1:ld,:,jz) = 0._rprec
-  f(:,ny/2+1,jz) = 0._rprec   
-
-  !  Compute in-plane derivatives
-  dfdx(:,:,jz) = f(:,:,jz) .MULI. kx
-  dfdy(:,:,jz) = f(:,:,jz) .MULI. ky
-
-  ! the oddballs for derivatives should already be dead, since they are for f
-  ! inverse transform 
-  !$if ($FFTW3)
-  call dft_direct_back_2d_n( f(:,:,jz) )
-  call dft_direct_back_2d_n( dfdx(:,:,jz) )
-  call dft_direct_back_2d_n( dfdy(:,:,jz) )
-  !call dft_direct_back_2d_n_yonlyC( f(:,:,jz) )
-  !call dft_direct_back_2d_n_yonlyC( dfdx(:,:,jz) )
-  !call dft_direct_back_2d_n_yonlyC( dfdy(:,:,jz) )
-  !$else
-  !write(*,*) 'WARNING - no subroutine available'
-  !$endif  
-
-end do
-
-return
-end subroutine filt_da_direct_n
+!!$!**********************************************************************
+!!$subroutine filt_da_direct_n(f,dfdx,dfdy, lbz)
+!!$!**********************************************************************
+!!$!
+!!$! kills the oddball components in f, and calculates in horizontal derivatives
+!!$!--supplies results for jz=$lbz:nz
+!!$!--MPI: all these arrays are 0:nz
+!!$!--MPI: on exit, u,dudx,dudy,v,dvdx,dvdy,w,dwdx,dwdy valid on jz=0:nz,
+!!$!  except on bottom process (0 level set to BOGUS, starts at 1)
+!!$!
+!!$use types,only:rprec
+!!$use param,only:ld,nx,ny,nz,coord
+!!$use fft
+!!$use emul_complex, only : OPERATOR(.MULI.)
+!!$implicit none
+!!$integer::jz,jy,jx
+!!$
+!!$integer, intent(in) :: lbz
+!!$real(rprec), dimension(:, :, lbz:), intent(inout) :: f
+!!$real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
+!!$
+!!$real(rprec) :: const
+!!$
+!!$const = 1._rprec/(nx*ny)
+!!$
+!!$! loop through horizontal slices
+!!$do jz=lbz,nz
+!!$
+!!$  f(:,:,jz)=const*f(:,:,jz)  
+!!$
+!!$  !$if ($FFTW3)
+!!$  call dft_direct_forw_2d_n( f(:,:,jz) )
+!!$  !call dft_direct_forw_2d_n_yonlyC( f(:,:,jz) )
+!!$  !$else
+!!$  !write(*,*) 'WARNING - no subroutine available'
+!!$  !$endif
+!!$
+!!$  ! Zero padded region and Nyquist frequency
+!!$  f(ld-1:ld,:,jz) = 0._rprec
+!!$  f(:,ny/2+1,jz) = 0._rprec   
+!!$
+!!$  !  Compute in-plane derivatives
+!!$  dfdx(:,:,jz) = f(:,:,jz) .MULI. kx
+!!$  dfdy(:,:,jz) = f(:,:,jz) .MULI. ky
+!!$
+!!$  ! the oddballs for derivatives should already be dead, since they are for f
+!!$  ! inverse transform 
+!!$  !$if ($FFTW3)
+!!$  call dft_direct_back_2d_n( f(:,:,jz) )
+!!$  call dft_direct_back_2d_n( dfdx(:,:,jz) )
+!!$  call dft_direct_back_2d_n( dfdy(:,:,jz) )
+!!$  !call dft_direct_back_2d_n_yonlyC( f(:,:,jz) )
+!!$  !call dft_direct_back_2d_n_yonlyC( dfdx(:,:,jz) )
+!!$  !call dft_direct_back_2d_n_yonlyC( dfdy(:,:,jz) )
+!!$  !$else
+!!$  !write(*,*) 'WARNING - no subroutine available'
+!!$  !$endif  
+!!$
+!!$end do
+!!$
+!!$return
+!!$end subroutine filt_da_direct_n
 
 !**********************************************************************
 subroutine filt_da_kxspace(f, dfdx, dfdy, lbz)

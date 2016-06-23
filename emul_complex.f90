@@ -31,7 +31,7 @@ module emul_complex
 
 use types, only : rprec
 use messages, only : error
-use param, only : kx_num, kx_dft,coord   !!jb
+use param, only : kx_num, coord, fourier   !!jb
 use fft, only: kx_veci
 implicit none
 
@@ -262,7 +262,7 @@ $endif
 ! Allocate the returned array
 allocate( b(nx_r, ny ) )
 
-if (kx_dft) then        !!jb
+if (fourier) then        !!jb
    end_kx = kx_num
 else
    end_kx = nx_c
@@ -274,7 +274,7 @@ endif
 do j=1, ny !  Using outer loop to get contiguous memory access
   do i=1,end_kx   !nx_c       !!jb
 
-    if (kx_dft) then
+    if (fourier) then
 
     i_s = kx_veci(i)
 

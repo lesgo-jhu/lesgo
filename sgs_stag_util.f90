@@ -777,7 +777,7 @@ $endif
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
-!!if (fourier) then   !! kx_space
+!!if (fourier) then   
 !!$   do jz=1,nz
 !!$      call padd(S11_big(:,:,jz), S11(:,:,jz))
 !!$      call padd(S22_big(:,:,jz), S22(:,:,jz))

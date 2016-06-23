@@ -114,7 +114,7 @@ endif
 ! sc: it would be nice to NOT have to loop through slices here
 ! Loop through horizontal slices
 
-if (kx_space) then
+if (fourier) then
  const = 1._rprec
 else
  const=1._rprec/(nx*ny)
@@ -129,16 +129,15 @@ do jz = lbz, nz
    cz(:,:,jz)=const*u3(:,:,jz)
    
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-    elseif (kx_space) then
-       !! do nothing!! already in kx_space
     else
-      call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
-      call dft_direct_forw_2d_n(cy(:,:,jz))
-      call dft_direct_forw_2d_n(cz(:,:,jz))
+      !! do nothing, already in fourier space
+      !call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
+      !call dft_direct_forw_2d_n(cy(:,:,jz))
+      !call dft_direct_forw_2d_n(cz(:,:,jz))
     endif
   $else
 ! do forward fft on normal-size arrays
@@ -147,22 +146,21 @@ do jz = lbz, nz
   call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
   $endif 
 ! zero pad: padd takes care of the oddballs
-  call padd(u1_big(:,:,jz),cx(:,:,jz))   !! no changes needed for kx_space here
+  call padd(u1_big(:,:,jz),cx(:,:,jz))   !! no changes needed for fourier here
   call padd(u2_big(:,:,jz),cy(:,:,jz))
   call padd(u3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_c2r(back_big,u1_big(:,:,jz),   u1_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,u2_big(:,:,jz),   u2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,u3_big(:,:,jz),   u3_big(:,:,jz))  
-    elseif (kx_space) then
-       !! do nothing again
     else
-      call dft_direct_back_2d_n_big(u1_big(:,:,jz))  !!jb
-      call dft_direct_back_2d_n_big(u2_big(:,:,jz))
-      call dft_direct_back_2d_n_big(u3_big(:,:,jz))
+      !! do nothing, already in fourier space
+      !call dft_direct_back_2d_n_big(u1_big(:,:,jz))  !!jb
+      !call dft_direct_back_2d_n_big(u2_big(:,:,jz))
+      !call dft_direct_back_2d_n_big(u3_big(:,:,jz))
     endif
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,u1_big(:,:,jz),fftwNull_p)
@@ -220,16 +218,15 @@ do jz = 1, nz
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw,cx(:,:,jz),cx(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cy(:,:,jz),cy(:,:,jz))
       call dfftw_execute_dft_r2c(forw,cz(:,:,jz),cz(:,:,jz))
-    elseif (kx_space) then
-       !! do nothing again
     else
-      call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
-      call dft_direct_forw_2d_n(cy(:,:,jz))
-      call dft_direct_forw_2d_n(cz(:,:,jz))
+      !! do nothing, already in fourier space
+      !call dft_direct_forw_2d_n(cx(:,:,jz))  !!jb
+      !call dft_direct_forw_2d_n(cy(:,:,jz))
+      !call dft_direct_forw_2d_n(cz(:,:,jz))
     endif
   $else
 ! do forward fft on normal-size arrays
@@ -237,22 +234,21 @@ do jz = 1, nz
    call rfftwnd_f77_one_real_to_complex(forw,cy(:,:,jz),fftwNull_p)
    call rfftwnd_f77_one_real_to_complex(forw,cz(:,:,jz),fftwNull_p)
   $endif 
-  call padd(vort1_big(:,:,jz),cx(:,:,jz))  !! no changes needed for kx_space
+  call padd(vort1_big(:,:,jz),cx(:,:,jz))  !! no changes needed for fourier
   call padd(vort2_big(:,:,jz),cy(:,:,jz))
   call padd(vort3_big(:,:,jz),cz(:,:,jz))
 ! Back to physical space
 ! the normalization should be ok...
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_c2r(back_big,vort1_big(:,:,jz),   vort1_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,vort2_big(:,:,jz),   vort2_big(:,:,jz))
       call dfftw_execute_dft_c2r(back_big,vort3_big(:,:,jz),   vort3_big(:,:,jz))
-    elseif (kx_space) then
-       !! do nothing again
     else
-      call dft_direct_back_2d_n_big(vort1_big(:,:,jz))
-      call dft_direct_back_2d_n_big(vort2_big(:,:,jz))
-      call dft_direct_back_2d_n_big(vort3_big(:,:,jz))
+      !! do nothing, already in fourier space
+      !call dft_direct_back_2d_n_big(vort1_big(:,:,jz))
+      !call dft_direct_back_2d_n_big(vort2_big(:,:,jz))
+      !call dft_direct_back_2d_n_big(vort3_big(:,:,jz))
     endif
   $else
   call rfftwnd_f77_one_complex_to_real(back_big,vort1_big(:,:,jz),fftwNull_p)
@@ -275,7 +271,7 @@ end do
 !!$endif
 
 !!$if (coord == 0) then
-!!$   if (kx_space) then
+!!$   if (fourier) then
 !!$            
 !!$      print*, 'ert1: >>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld_big
@@ -303,7 +299,7 @@ end do
 
 
 !!$if (coord == 0) then
-!!$   if (kx_space) then
+!!$   if (fourier) then
 !!$      print*, 'wer1: >>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld_big
 !!$         do jy=1,ny2
@@ -344,7 +340,7 @@ end do
 !!$   enddo
 !!$endif
 
-if (kx_space) then
+if (fourier) then
   do jz=lbz,nz
      call dft_direct_back_2d_n_yonlyC_big( u1_big(:,:,jz) )
      call dft_direct_back_2d_n_yonlyC_big( u2_big(:,:,jz) )
@@ -361,7 +357,7 @@ if (kx_space) then
   !call dft_direct_back_2d_n_yonlyC_big( u2_big(:,:,0) )
 endif
 
-if (kx_space) then
+if (fourier) then
   const=1._rprec
 else
   const=1._rprec/(nx2*ny2)
@@ -369,7 +365,7 @@ endif
 
 if (coord == 0) then
    ! the cc's contain the normalization factor for the upcoming fft's
-   if (kx_space) then
+   if (fourier) then
       cc_big(:,:,1)=const*(convolve_rnl(u2_big(:,:,1), -vort3_big(:,:,1))&
        +0.5_rprec*convolve_rnl(u3_big(:,:,2), (vort2_big(:,:,exper))))
    else
@@ -387,7 +383,7 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min,nz-1
-   if (kx_space) then
+   if (fourier) then
    cc_big(:,:,jz)=const*(convolve_rnl(u2_big(:,:,jz), -vort3_big(:,:,jz))&
         +0.5_rprec*(convolve_rnl(u3_big(:,:,jz+1), vort2_big(:,:,jz+1))&
         +convolve_rnl(u3_big(:,:,jz), vort2_big(:,:,jz))))
@@ -400,8 +396,8 @@ end do
 !$omp end parallel do
 
 !!$if (coord == 0) then
-!!$   if (kx_space) then
-!!$      print*, 'kx_space cx: >>>>>'
+!!$   if (fourier) then
+!!$      print*, 'fourier cx: >>>>>'
 !!$      call dft_direct_forw_2d_n_yonlyC_big( cc_big(:,:,3) )
 !!$   else
 !!$      print*, 'cx: >>>>>'
@@ -420,12 +416,12 @@ end do
 !$omp parallel do default(shared) private(jz)	
 do jz=1,nz-1
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-    elseif (kx_space) then
+    elseif (fourier) then
       call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
-    else
-      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
+    !else
+    !  call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
@@ -442,9 +438,9 @@ do jz=1,nz-1
 !!$endif
 
 !!$if (coord == 0 .and. jz==3) then
-!!$   if (kx_space) then
+!!$   if (fourier) then
 !!$      
-!!$      print*, 'cx kx_space: >>>>>>>>>>>>>>>>>>>>'
+!!$      print*, 'cx fourier: >>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld
 !!$         do jy=1,ny
 !!$            write(*,*) jx, jy, cc_big(jx,jy,3)
@@ -481,12 +477,11 @@ do jz=1,nz-1
 
 ! Back to physical space
    $if ($FFTW3)
-     if (.not. kx_dft) then
+     if (.not. fourier) then
        call dfftw_execute_dft_c2r(back, cx(:,:,jz),   cx(:,:,jz))   
-     elseif (kx_space) then
-        !! do nothing again
      else
-       call dft_direct_back_2d_n(cx(:,:,jz))   !!jb
+        !! do nothing, already in fourier space
+       !call dft_direct_back_2d_n(cx(:,:,jz))   !!jb
      endif
    $else
    call rfftwnd_f77_one_complex_to_real(back,cx(:,:,jz),fftwNull_p)
@@ -497,10 +492,10 @@ end do
 
 
 !!$if (coord == 0) then
-!!$   if (kx_space) then
+!!$   if (fourier) then
 !!$      
 !!$      !call wave2phys(cx)
-!!$      print*, 'cx kx_space: >>>>>>>>>>>>>>>>>>>>'
+!!$      print*, 'cx fourier: >>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld
 !!$         do jy=1,ny
 !!$            write(*,*) jx, jy, cx(jx,jy,3)
@@ -525,7 +520,7 @@ end do
 
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
-  if (kx_space) then
+  if (fourier) then
    cc_big(:,:,1)=const*(convolve_rnl(u1_big(:,:,1), (vort3_big(:,:,1)))&
        +0.5_rprec*(convolve_rnl(u3_big(:,:,2), -vort1_big(:,:,exper))))
   else
@@ -543,7 +538,7 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz = jz_min, nz - 1
-   if (kx_space) then
+   if (fourier) then
     cc_big(:,:,jz)=const*(convolve_rnl(u1_big(:,:,jz), (vort3_big(:,:,jz)))&
         +0.5_rprec*(convolve_rnl(u3_big(:,:,jz+1), (-vort1_big(:,:,jz+1)))&
         +convolve_rnl(u3_big(:,:,jz), -vort1_big(:,:,jz))))
@@ -558,12 +553,12 @@ end do
 !$omp parallel do default(shared) private(jz)		
 do jz=1,nz-1
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,jz),cc_big(:,:,jz))
-    elseif (kx_space) then
+    elseif (fourier) then
       call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
-    else
-      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
+    !else
+    !  call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
@@ -574,12 +569,11 @@ do jz=1,nz-1
 
 ! Back to physical space
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_c2r(back,cy(:,:,jz),   cy(:,:,jz))  
-    elseif (kx_space) then
-       !! do nothing again
     else
-      call dft_direct_back_2d_n(cy(:,:,jz))   !!jb
+      !! do nothing, already in fourier space
+      !call dft_direct_back_2d_n(cy(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_complex_to_real(back,cy(:,:,jz),fftwNull_p)
@@ -615,7 +609,7 @@ end if
 
 !$omp parallel do default(shared) private(jz)
 do jz=jz_min, nz - 1
-   if (kx_space) then
+   if (fourier) then
     cc_big(:,:,jz)=const*0.5_rprec*(&
        convolve_rnl(u1_big(:,:,jz)+u1_big(:,:,jz-1), -vort2_big(:,:,jz))&
         +convolve_rnl(u2_big(:,:,jz)+u2_big(:,:,jz-1), vort1_big(:,:,jz))&
@@ -634,12 +628,12 @@ end do
 		
 do jz=1,nz - 1
   $if ($FFTW3)
-    if (.not. kx_dft) then
+    if (.not. fourier) then
       call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
-    elseif (kx_space) then
+    elseif (fourier) then
       call dft_direct_forw_2d_n_yonlyC_big(cc_big(:,:,jz))   !!jb
-    else
-      call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
+    !else
+    !  call dft_direct_forw_2d_n_big(cc_big(:,:,jz))   !!jb
     endif
   $else
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
@@ -651,12 +645,11 @@ do jz=1,nz - 1
 
 ! Back to physical space
    $if ($FFTW3)
-     if (.not. kx_dft) then
+     if (.not. fourier) then
        call dfftw_execute_dft_c2r(back,cz(:,:,jz),   cz(:,:,jz))
-     elseif (kx_space) then
-        !! do nothing again 
      else
-       call dft_direct_back_2d_n(cz(:,:,jz))   !!jb
+        !! do nothing, already in fourier space
+       !call dft_direct_back_2d_n(cz(:,:,jz))   !!jb
      endif
    $else
    call rfftwnd_f77_one_complex_to_real(back,cz(:,:,jz),fftwNull_p)

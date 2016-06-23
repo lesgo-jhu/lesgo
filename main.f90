@@ -34,8 +34,8 @@ use io, only : energy, output_loop, output_final, jt_total
 use io, only : write_tau_wall, energy_kx_spectral_complex, energy_kx_spectral_complex_fourier
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
-use derivatives, only : ddx, ddy, ddx_n, ddy_n           !!jb
-use derivatives, only : dft_direct_forw_2d_n, dft_direct_back_2d_n, filt_da_direct_n  !!jb
+use derivatives, only : ddx, ddy
+use derivatives, only : dft_direct_forw_2d_n, dft_direct_back_2d_n  !!jb
 use derivatives, only : dft_direct_forw_2d_n_yonly, dft_direct_back_2d_n_yonly  !!jb
 use derivatives, only : dft_direct_forw_2d_n_yonlyC, dft_direct_back_2d_n_yonlyC  !!jb
 use derivatives, only : dft_direct_forw_2d_n_yonlyC_big, dft_direct_back_2d_n_yonlyC_big  !!jb
@@ -125,13 +125,13 @@ if(coord == 0) then
    !$if ($USE_RNL)
    !!kx_vec = kx_vec * 2._rprec * pi / L_x   !! aspect ratio change
    
-   if ( coord == 0 .and. kx_space) then
+   if ( coord == 0 .and. fourier) then
       write(*,*) '>>>>>>>>>>>>>>>>>>>>>>>>>>'
-      write(*,*) 'SIMULATING IN KX SPACE !!!'
+      write(*,*) 'SIMULATING IN FOURIER SPACE !!!'
       write(*,*) '<<<<<<<<<<<<<<<<<<<<<<<<<<'
    endif
 
-   if ( coord == 0 .and. kx_dft) then   
+   if ( coord == 0 .and. fourier) then   
       write(*,*) '=================================='
       write(*,*) 'RNL modes >>>> '
       write(*,*) 'kx_num: ', kx_num
@@ -185,7 +185,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$      print*, 'END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
 !!$   endif
 
-!!$   if ( kx_space ) then    !!jb
+!!$   if ( fourier ) then    !!jb
 !!$      if ( coord == 0 ) then
 !!$         write(*,*) 'TRANSFORMING VELOCITY TO KX SPACE !!!'
 !!$      endif
@@ -196,7 +196,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$
 
 !!$  if (coord == 0) then
-!!$     if ( kx_space ) then    !!jb
+!!$     if ( fourier ) then    !!jb
 !!$        w(:,:,:) = u(:,:,:)
 !!$        call wave2phys( u )
 !!$        v = u**2
@@ -216,7 +216,7 @@ time_loop: do jt_step = nstart, nsteps
 
 
 !!$  if (coord == 0) then
-!!$     if ( kx_space ) then    !!jb
+!!$     if ( fourier ) then    !!jb
 !!$        call wave2phys( u )
 !!$        call wave2phys( v )
 !!$        call wave2phys( w )
@@ -230,7 +230,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$  endif
 
 
-!!$  if ( kx_space ) then    !!jb
+!!$  if ( fourier ) then    !!jb
 !!$     call phys2wave( u )
 !!$     call phys2wave( v )
 !!$     call phys2wave( w )
@@ -245,7 +245,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$      enddo
 !!$   endif
 !!$
-!!$  if ( kx_space ) then    !!jb
+!!$  if ( fourier ) then    !!jb
 !!$     call wave2phys( u )
 !!$     call wave2phys( v )
 !!$     call wave2phys( w )
@@ -278,7 +278,7 @@ time_loop: do jt_step = nstart, nsteps
    endif
 
 !!$   if (coord == 0) then
-!!$     if ( kx_space ) then    !!jb
+!!$     if ( fourier ) then    !!jb
 !!$        call wave2phys( u )
 !!$        call wave2phys( v )
 !!$        call wave2phys( w )
@@ -321,7 +321,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$if (coord == 0) then
 !!$print*, 'TEST DFTs >>>>>>>>>>>>>>>>>>>>>>>>'
 !!$
-!!$if (kx_space) then
+!!$if (fourier) then
 !!$   call wave2phys(u)
 !!$endif
 !!$
@@ -742,33 +742,16 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-
 !!$  do jx=1,nx
 !!$  do jy=1,ny
 !!$    u(jx,jy,:) = sin( L_x/nx*(jx-1) * 3.0_rprec ) + sin( L_x/nx*(jx-1) * 1.0_rprec ) + .56
 !!$  enddo
 !!$  enddo
 
-!!$    u_rnl(:,:,:) = u(:,:,:)
-!!$    call ddx(u,dudx,lbz)
-!!$    call ddx_n(u_rnl, dudx_rnl,lbz)
-
-!!$    u_rnl(:,:,:) = u(:,:,:)
-!!$    call filt_da (u, dudx, dudy, lbz)
-!!$    call filt_da_direct_n (u_rnl, dudx_rnl, dudy_rnl, lbz)
-    
-!!$    u_rnl(:,:,:) = u(:,:,:)
-!!$    call ddy(u,dudy,lbz)
-!!$    call ddy_n(u_rnl, dudy_rnl,lbz)
-
-    if (kx_space) then
+    if (fourier) then
        call filt_da_kxspace (u, dudx, dudy, lbz)    
        call filt_da_kxspace (v, dvdx, dvdy, lbz)    
        call filt_da_kxspace (w, dwdx, dwdy, lbz)    
-    elseif (kx_dft) then
-       call filt_da_direct_n (u, dudx, dudy, lbz)    
-       call filt_da_direct_n (v, dvdx, dvdy, lbz)    
-       call filt_da_direct_n (w, dwdx, dwdy, lbz)    
     else
        call filt_da (u, dudx, dudy, lbz)
        call filt_da (v, dvdx, dvdy, lbz)
@@ -777,7 +760,7 @@ time_loop: do jt_step = nstart, nsteps
 
     !call mpi_barrier(comm,ierr)
 !!$    if (coord == 0) then
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys(dudx)
 !!$          call wave2phys(dudy)
 !!$          call wave2phys(dvdx)
@@ -818,7 +801,7 @@ time_loop: do jt_step = nstart, nsteps
     call ddz_w(w, dwdz, lbz)
 
 !!$    if (coord == nproc-1) then
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys(dudz)
 !!$          call wave2phys(dvdz)
 !!$          call wave2phys(dwdz)
@@ -849,7 +832,7 @@ time_loop: do jt_step = nstart, nsteps
     $endif
 
 !!$    if (coord == 0) then
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys( tyz )
 !!$          call wave2phys( dudz )
 !!$          call wave2phys( u )
@@ -860,7 +843,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$          write(*,*) dudz(jx,jy,1:3)
 !!$       enddo
 !!$       enddo
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call phys2wave( tyz )
 !!$          call phys2wave( dudz )
 !!$          call phys2wave( u )
@@ -941,7 +924,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$       $endif
        call sgs_stag() 
     else     
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$         call wave2phys( dudx )
 !!$         call wave2phys( dudy )
 !!$         call wave2phys( dudz )
@@ -963,10 +946,10 @@ time_loop: do jt_step = nstart, nsteps
        !if (fourier) then
        !   call sgs_stag_fourier()
        !else
-          call sgs_stag()    !! not updated yet for kx_space for sgs=true
+          call sgs_stag()    !! not updated yet for fourier for sgs=true
        !endif
 
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$         call phys2wave( dudx )
 !!$         call phys2wave( dudy )
 !!$         call phys2wave( dudz )
@@ -1003,14 +986,14 @@ time_loop: do jt_step = nstart, nsteps
 !!$    print*, 'here wall 1: !>>>>>>>>>>>>>>>>>>'
 !!$    do jx=1,nx
 !!$    do jy=1,ny
-!!$       write(*,*) txx(jx,jy,nz), txy(jx,jy,nz), txz(jx,jy,nz)
+!!$       write(*,*) txx(jx,jy,2), txy(jx,jy,2), txz(jx,jy,2)
 !!$       !write(*,*) u(jx,jy,1), v(jx,jy,1), w(jx,jy,1)
 !!$    enddo
 !!$    enddo
 !!$    print*, 'here wall 2: !>>>>>>>>>>>>>>>>>>'
 !!$    do jx=1,nx
 !!$    do jy=1,ny
-!!$       write(*,*) tyy(jx,jy,nz), tyz(jx,jy,nz), tzz(jx,jy,nz)
+!!$       write(*,*) tyy(jx,jy,2), tyz(jx,jy,2), tzz(jx,jy,2)
 !!$       !write(*,*) u(jx,jy,3), v(jx,jy,3), w(jx,jy,3)
 !!$    enddo
 !!$    enddo
@@ -1038,8 +1021,8 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif    
 
-    !!if (kx_space) call wave2phys(txz)
-    !!if (kx_space) call wave2phys(tyz)
+    !!if (fourier) call wave2phys(txz)
+    !!if (fourier) call wave2phys(tyz)
 
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
@@ -1047,7 +1030,7 @@ time_loop: do jt_step = nstart, nsteps
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
 
 !!$    if (coord == 0) then
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys(divtx)
 !!$          call wave2phys(divty)
 !!$       endif
@@ -1061,7 +1044,7 @@ time_loop: do jt_step = nstart, nsteps
     call divstress_w(divtz, txz, tyz, tzz)
 
 !!$    if (coord == 0) then
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          !call wave2phys(divtx)
 !!$          !call wave2phys(divty)
 !!$          !call wave2phys(divtz)
@@ -1090,7 +1073,7 @@ time_loop: do jt_step = nstart, nsteps
     $endif
 
 !!$    if (coord == 0) then
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys(dwdy)
 !!$          call wave2phys(dvdz)
 !!$          call wave2phys(dudz)
@@ -1113,7 +1096,7 @@ time_loop: do jt_step = nstart, nsteps
     $if ($USE_RNL)  
     call convec(u,v,w,dudy,dudz,dvdx,dvdz,dwdx,dwdy,RHSx,RHSy,RHSz)
 
-    if (.not. kx_space) then
+    if (.not. fourier) then
        u_rnl = u - x_avg(u)
        v_rnl = v - x_avg(v)
        w_rnl = w - x_avg(w)
@@ -1155,8 +1138,8 @@ time_loop: do jt_step = nstart, nsteps
 
 
 !!$    if (coord == 0) then
-!!$       if (kx_space) then
-!!$          print*, 'kx_space rhs: >>>>>>>>>>>'
+!!$       if (fourier) then
+!!$          print*, 'fourier rhs: >>>>>>>>>>>'
 !!$          call wave2phys(RHSx)
 !!$          call wave2phys(RHSy)
 !!$          call wave2phys(RHSz)
@@ -1214,7 +1197,7 @@ time_loop: do jt_step = nstart, nsteps
 
 !!$    if (coord == nproc-1) then
 !!$       print*, 'yot >>>>>>>>>>>'
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave(RHSx)
 !!$          call phys2wave(RHSy)
 !!$          call phys2wave(RHSz)
@@ -1236,7 +1219,7 @@ time_loop: do jt_step = nstart, nsteps
 
 !!$     if (coord == 0) then
 !!$       print*, 'here >> !'
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave(RHSx)
 !!$          call phys2wave(RHSy)
 !!$          call phys2wave(RHSz)
@@ -1265,9 +1248,9 @@ time_loop: do jt_step = nstart, nsteps
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
     if (use_mean_p_force) then
-       if (kx_space) then
+       if (fourier) then
           !! only add to the mean (kx=0) mode
-          !! no need to transform mean_p_force to kx_space
+          !! no need to transform mean_p_force to kx space
           RHSx(1, 1, 1:nz-1) = RHSx(1, 1, 1:nz-1) + mean_p_force !/real(nx*ny,rprec)
        else
           RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
@@ -1275,7 +1258,7 @@ time_loop: do jt_step = nstart, nsteps
     end if
 
 !!$     if (coord == 0) then
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave(RHSx)
 !!$          call phys2wave(RHSy)
 !!$          call phys2wave(RHSz)
@@ -1339,32 +1322,8 @@ time_loop: do jt_step = nstart, nsteps
     !  Look in sim_param.f90 for the assignment of the arrays.
         
     !  Applied forcing (forces are added to RHS{x,y,z})
-    !! forcing_applied not yet enabled for kx_space cases    !!jb
     
-    $if ($TURBINES)
-!!$    if (fourier) then
-!!$        call wave2physF(u, uF)
-!!$        call wave2physF(v, vF)
-!!$        call wave2physF(w, wF)
-!!$    endif
-    $endif
-
     call forcing_applied()
-
-!!$    if (.not. fourier) then
-!!$        call phys2wave(fxa)
-!!$    endif
-
-!!$    if (coord == 0) then
-!!$    print*, 'Forcing: >>>>'
-!!$    do jz=1,nz
-!!$    do jy=1,ny
-!!$    do jx=1,ld
-!!$       write(*,*) jz, jy, jx, fxa(jx,jy,jz)
-!!$    enddo
-!!$    enddo
-!!$    enddo
-!!$    end if
 
     !  Update RHS with applied forcing
     $if ($TURBINES and not ($LVLSET and $RNS_LS))
@@ -1404,7 +1363,7 @@ time_loop: do jt_step = nstart, nsteps
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
 
 !!$    if (coord == 0) then
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave(RHSx)
 !!$          call phys2wave(RHSy)
 !!$          call phys2wave(RHSz)
@@ -1449,7 +1408,7 @@ time_loop: do jt_step = nstart, nsteps
     !   do not need to store p --> only need gradient
     !   provides p, dpdx, dpdy at 0:nz-1 and dpdz at 1:nz-1
     
-!!$    if (kx_space) then
+!!$    if (fourier) then
 !!$      call wave2phys(u)
 !!$      call wave2phys(v)
 !!$      call wave2phys(w)
@@ -1486,7 +1445,7 @@ time_loop: do jt_step = nstart, nsteps
 
     call press_stag_array()
 
-!!$    if (kx_space) then
+!!$    if (fourier) then
 !!$      call phys2wave(u)
 !!$      call phys2wave(v)
 !!$      call phys2wave(w)
@@ -1499,7 +1458,7 @@ time_loop: do jt_step = nstart, nsteps
 
 !!$    if (coord == nproc-1) then
 !!$       print*, 'yot >>>>>>>>>>>'
-!!$       if (kx_space) then
+!!$       if (fourier) then
 !!$          call wave2phys(RHSy)
 !!$          call wave2phys(RHSz)
 !!$       endif
@@ -1518,7 +1477,7 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
 
 !!$    if (coord == 0) then
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave_pr(dpdx)
 !!$          call phys2wave_pr(dpdy)
 !!$          call phys2wave_pr(dpdz)
@@ -1578,7 +1537,7 @@ time_loop: do jt_step = nstart, nsteps
     call project ()
 
 !!$    if (coord == 0) then
-!!$       if (.not. kx_space) then
+!!$       if (.not. fourier) then
 !!$          call phys2wave(u)
 !!$          call phys2wave(v)
 !!$          call phys2wave(w)

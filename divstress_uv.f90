@@ -19,9 +19,9 @@
 
 subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
 use types,only:rprec
-use param,only:ld,ny,nz,BOGUS,lbz,kx_dft,kx_space,coord,nx
+use param,only:ld,ny,nz,BOGUS,lbz,fourier,coord,nx
 use derivatives, only : ddx, ddy, ddz_w, ddxy
-use derivatives, only : ddx_n, ddy_n, ddx_kxspace, ddy_kxspace,wave2phys   !!jb
+use derivatives, only : ddx_kxspace, ddy_kxspace, wave2phys   !!jb
 
 implicit none
 
@@ -41,28 +41,18 @@ $endif
 $if ($VERBOSE)
 write (*, *) 'started divstress_uv'
 $endif
- 
-
-!!$if ( kx_space .and. fourier) then
-!!$   call wave2phys(txz)
-!!$   call wave2phys(tyz)
-!!$endif
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-if (.not. kx_dft) then
+if (.not. fourier) then
   call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
-elseif (kx_space) then
-  call ddx_kxspace(txx, dtxdx, lbz)
 else
-  call ddx_n(txx, dtxdx, lbz)    !!jb
+  call ddx_kxspace(txx, dtxdx, lbz)
 endif
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-if (kx_space) then
+if (fourier) then
   call ddy_kxspace(txy, dtydy, lbz)        !!jb
-elseif (kx_dft) then
-  call ddy_n(txy, dtydy, lbz)        !!jb
 endif
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
@@ -70,39 +60,26 @@ call ddz_w(txz, dtzdz, lbz)
 
 ! compute stress gradients      
 !--MPI: tx 1:nz-1 => dtxdx 1:nz-1
-if (.not. kx_dft) then
-  !!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
-elseif (kx_space) then
+if (fourier) then
   call ddx_kxspace(txy, dtxdx2, lbz)     !!jb
-else
-  call ddx_n(txy, dtxdx2, lbz)     !!jb
 endif
 
 !--MPI: ty 1:nz-1 => dtdy 1:nz-1
-if (.not. kx_dft) then
+if (.not. fourier) then
   call ddy(tyy, dtydy2, lbz)
-elseif (kx_space) then
-  call ddy_kxspace(tyy, dtydy2, lbz)     !!jb
 else
-  call ddy_n(tyy, dtydy2, lbz)     !!jb
+  call ddy_kxspace(tyy, dtydy2, lbz)     !!jb
 endif
 
 !--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(tyz, dtzdz2, lbz)
 
-if (.not. kx_dft) then
+if (.not. fourier) then
   call ddxy(txy , dtxdx2, dtydy, lbz)     !!jb         
 endif
 
-!!$if (kx_space .and. fourier) then
-!!$   call phys2wave(txz)
-!!$   call phys2wave(tyz)
-!!$   call phys2wave(dtd)
-!!$   call phys2wave(txz)   
-!!$endif
-
 !!$if (coord == 0) then
-!!$   if (kx_space) then
+!!$   if (fourier) then
 !!$      print*, 'heree5'
 !!$      call wave2phys(dtxdx)
 !!$      call wave2phys(dtydy)

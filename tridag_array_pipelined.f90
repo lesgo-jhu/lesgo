@@ -57,7 +57,7 @@ nchunks = ny
 
 chunksize = ny / nchunks  !--make sure nchunks divides ny evenly
 
-if (kx_dft) then    !!jb
+if (fourier) then    !!jb
    end_kx = kx_num
 else
    end_kx = lh-1
@@ -75,7 +75,7 @@ $if ($DEBUG)
       end if
 $endif
 
-if (kx_dft) then
+if (fourier) then
 
       jx_s = kx_veci(jx)
 
@@ -141,7 +141,7 @@ do q = 1, nchunks
 
         if (jx*jy == 1) cycle
 
-        if (kx_dft) then
+        if (fourier) then
 
         jx_s = kx_veci(jx)
 
@@ -165,7 +165,7 @@ $if ($DEBUG)
         end if
 $endif
 
-if (.not. kx_dft) then
+if (.not. fourier) then
 
         ii = 2*jx
         ir = ii - 1
@@ -280,7 +280,7 @@ do q = 1, nchunks
 
         if (jx*jy == 1) cycle
 
-        if (kx_dft) then
+        if (fourier) then
 
         jx_s = kx_veci(jx)
         

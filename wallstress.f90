@@ -22,9 +22,8 @@
 !--provides txz, tyz (w-nodes) and dudz, dvdz (w-nodes) at jz=1
 subroutine wallstress ()
 use types,only:rprec
-use param,only:dz,nx,ny,vonk,lbc_mom,zo !,kx_space
+use param,only:dz,nx,ny,vonk,lbc_mom,zo
 use sim_param,only:u,v,dudz,dvdz,txz,tyz
-!!use derivatives, only: wave2phys, phys2wave    !!jb
 use derivatives, only: dft_direct_back_2d_n_yonlyC_big, dft_direct_forw_2d_n_yonlyC_big
 use derivatives, only: convolve
 use test_filtermodule
