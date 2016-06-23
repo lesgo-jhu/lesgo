@@ -83,7 +83,7 @@ contains
 !   read from the input file.
 
 subroutine turbines_base_init()
-use param, only: L_x, L_y, dx, dy, dz, pi, z_i
+use param, only: L_x, L_y, dx, dy, dz, pi, z_i, nz
 use open_file_fid_mod
 use messages
 implicit none
@@ -94,7 +94,7 @@ character(*), parameter :: theta1_dat = path // 'input_turbines/theta1.dat'
 character(*), parameter :: theta2_dat = path // 'input_turbines/theta2.dat'
 character(*), parameter :: Ct_prime_dat = path // 'input_turbines/Ct_prime.dat'
 
-integer :: i, j, k, num_t
+integer :: i, j, k, num_t, k_start, k_end
 real(rprec) :: sxx, syy, shift_base, const
 logical :: exst
 integer :: fid, ios
@@ -347,13 +347,31 @@ if (dyn_Ct_prime) then
     end do
 end if
 
-if (coord == 0) then
-do k = 1, nloc
-    write(*,*)  wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height, &
-                wind_farm%turbine(k)%dia, wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,   &
-                wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
+! Find the center of each turbine
+do k = 1,nloc     
+    wind_farm%turbine(k)%icp = nint(wind_farm%turbine(k)%xloc/dx)
+    wind_farm%turbine(k)%jcp = nint(wind_farm%turbine(k)%yloc/dy)
+    wind_farm%turbine(k)%kcp = nint(wind_farm%turbine(k)%height/dz + 0.5)
+     
+    ! Check if turbine is the current processor  
+#ifdef PPMPI
+    k_start = 1+coord*(nz-1)
+    k_end = nz-1+coord*(nz-1)
+#else
+    k_start = 1
+    k_end = nz
+#endif
+    
+    if (wind_farm%turbine(k)%kcp>=k_start .and. wind_farm%turbine(k)%kcp<=k_end) then
+        wind_farm%turbine(k)%center_in_proc = .true.
+    else
+        wind_farm%turbine(k)%center_in_proc = .false.
+    end if
+    
+    ! Make kcp the local index
+    wind_farm%turbine(k)%kcp = wind_farm%turbine(k)%kcp - k_start + 1
+
 end do
-end if
 
 end subroutine turbines_base_init
 

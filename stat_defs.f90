@@ -102,6 +102,8 @@ type turbine_t
   integer :: num_nodes                        ! number of nodes associated with each turbine
   integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
   integer, dimension(6) :: nodes_max          ! search area for nearby nodes
+  integer :: icp, jcp, kcp                    ! location of turbine center (local k)
+  logical :: center_in_proc                   ! true if the center is in the processor
   real(rprec) :: Ct_prime                     ! thrust coefficient
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk

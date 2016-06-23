@@ -667,18 +667,18 @@ setting turbine_cumulative_time = .true.
 --------------------------------------------------------------------------------
 
 All output files relating to the turbines can be found in the "turbine" folder.
-The indicator function is written to "nodes_filtered*" and "nodes_unfiltered*"
-Tecplot-formatted files.  It can be useful to load these files with data output
-to visualize the turbines, but this can be tricky with Tecplot (it requires
-interpolation between zones).
 
-The following quantities are also written to file for each turbine:
-    current time
+The following quantities are also written to file for each turbine in the files 
+"turbine_#.dat":
+    current time (dimensional
+    disk center u velocity
+    disk center v velocity
+    disk center w velocity
     instantaneous disk-averaged velocity
     current time- and disk-averaged velocity
-    instantaneous total force for this turbine
-    instantaneous power for this turbine
-in the files "turbine_#_forcing.dat".
+    theta1
+    theta2
+    Ct_prime
 
 Finally, the values of the time- and disk-averaged velocity for each turbine as
 well as the filtering time scale are written to file "turbine_u_d_T.dat".  
