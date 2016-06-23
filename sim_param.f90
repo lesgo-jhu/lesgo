@@ -65,9 +65,6 @@ real (rprec), dimension (:, :, :), allocatable :: txxF, txyF, tyyF
 real (rprec), dimension (:, :, :), allocatable :: txzF, tyzF, tzzF
 real (rprec), dimension (:, :, :), allocatable :: fxaF
 
-real (rprec), dimension (:, :, :), allocatable :: fxml_rnl, fyml_rnl, fzml_rnl
-!!jb - clean up and remove these ^ when no longer needed for testing
-
 contains
 
 !
@@ -127,9 +124,6 @@ allocate( dwdy_rnl(ld, ny, lbz:nz) ); dwdy_rnl = 0.0_rprec
 allocate( RHSx_rnl(ld, ny, lbz:nz) ); RHSx_rnl = 0.0_rprec
 allocate( RHSy_rnl(ld, ny, lbz:nz) ); RHSy_rnl = 0.0_rprec
 allocate( RHSz_rnl(ld, ny, lbz:nz) ); RHSz_rnl = 0.0_rprec
-allocate( fxml_rnl(ld, ny, nz) ); fxml_rnl = 0.0_rprec
-allocate( fyml_rnl(ld, ny, nz) ); fyml_rnl = 0.0_rprec
-allocate( fzml_rnl(ld, ny, nz) ); fzml_rnl = 0.0_rprec
 $endif
 
 allocate (   uF(nxp+2, ny, lbz:nz) ); uF = 0.0_rprec

@@ -241,7 +241,7 @@ end subroutine init_fft
 subroutine init_wavenumber()
 !**********************************************************************
 use param, only: lh, nx, ny, L_x, L_y, pi, coord, nx2
-use param, only: kxs_in, kxs, kx_limit, kx_allow, kx_dft
+use param, only: kxs_in, kxs, kx_dft
 implicit none
 integer :: jx,jy,ii
 complex(rprec) :: c1, c1_big   !!jb
@@ -310,25 +310,10 @@ do jx=1,lh-1
    kx(jx,:) = real(jx-1,kind=rprec)
 end do
 
-!!$kx(1,:) = 0._rprec
-!!$kx(2,:) = 2._rprec
-!!$kx(3,:) = 3._rprec
-!!$kx(4,:) = 7._rprec
-!!$kx(5,:) = 0._rprec
-
-
 !!$if (kx_dft) then   !!jb
 !!$ do jx=1,kx_num
 !!$    kx(jx,:) = kx_vec(jx)
 !!$ end do
-!!$endif
-
-if (kx_limit) then     !!jb
-   kx(:,:) = real(kx_allow,kind=rprec) * kx(:,:)
-endif
-
-!!$if (kx_limit) then     !!jb
-!!$   kx(2,:) = real(kx_allow,kind=rprec)
 !!$endif
 
 if (fourier) then   !!jb

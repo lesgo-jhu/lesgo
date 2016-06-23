@@ -1375,14 +1375,6 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)    
     $endif
 
-!!$    $if ($USE_RNL)
-!!$    if (use_md) then      !! for mode damping
-!!$       RHSx(:,:,1:nz-1) = RHSx(:,:,1:nz-1) + fxml_rnl(:,:,1:nz-1)
-!!$       RHSy(:,:,1:nz-1) = RHSy(:,:,1:nz-1) + fyml_rnl(:,:,1:nz-1)
-!!$       RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fzml_rnl(:,:,1:nz-1)
-!!$    endif
-!!$    $endif
-   
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !////////////////////////////////////////////////////// 
@@ -1448,18 +1440,6 @@ time_loop: do jt_step = nstart, nsteps
         call DEBUG_write (w(:, :, 1:nz), 'main.b.w')
     end if
     $endif
-
-    if (use_md) then    !!jb
-       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
-          call mode_damp(u,v,w)
-       endif
-    endif
-    
-    if (use_kxz) then    !!jb
-       if ( jt_total >= ml_start .and. jt_total < ml_end ) then
-          call kx_zero_out()
-       endif
-    endif
 
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
@@ -1696,12 +1676,6 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
           write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
-          $if($USE_RNL)   !!jb
-          !!write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
-          if (kx_limit) write(*,*) '  Using kx_limit'
-          if (use_md) write(*,*) '  Using mode damping'
-          if (use_kxz) write(*,*) '  Using kx zeroing'
-          $endif
           write(*,*)
           $if($MPI)
           write(*,'(1a)') 'Simulation wall times (s): '
