@@ -43,7 +43,6 @@ subroutine wallstress
 !       See X.I.A. Yang, J. Sadique, R. Mittal & C. Meneveau, "Integral wall 
 !           model for large eddy simulations of wall-bounded turbulent flows." (2015)
 !
-
 use types, only : rprec
 use param, only : lbc_mom
 use messages, only : error
@@ -92,13 +91,13 @@ end subroutine ws_free
 !**********************************************************************
 subroutine ws_dns
 !**********************************************************************
-use param, only : ld, nx, ny, nz, nu_molec, z_i, u_star, dz
+use param, only : nx, ny, nu_molec, z_i, u_star, dz
 use sim_param , only : u, v
 implicit none
 integer :: i, j
 
-do j = 1, ny
-    do i = 1, nx
+do j=1,ny
+    do i=1,nx
        txz(i,j,1) = -nu_molec/(z_i*u_star)*u(i,j,1)/(0.5_rprec*dz)
        tyz(i,j,1) = -nu_molec/(z_i*u_star)*v(i,j,1)/(0.5_rprec*dz)
        dudz(i,j,1) = u(i,j,1)/(0.5_rprec*dz)
@@ -111,15 +110,14 @@ end subroutine ws_dns
 !**********************************************************************
 subroutine ws_equilibrium
 !**********************************************************************
-use param,only:dz,ld,lh,nx,ny,nz,vonk,zo
-use messages, only : error
-use sim_param,only:u,v
+use param, only : dz, ld, nx, ny, vonk, zo
+use sim_param, only : u, v
 use test_filtermodule
 implicit none
-integer::i,j
-real(rprec),dimension(nx,ny)::denom,u_avg,ustar
-real(rprec),dimension(ld,ny)::u1,v1
-real(rprec)::const
+integer :: i, j
+real(rprec), dimension(nx, ny) :: denom, u_avg, ustar
+real(rprec), dimension(ld, ny) :: u1, v1
+real(rprec) :: const
 
 u1=u(:,:,1)
 v1=v(:,:,1)

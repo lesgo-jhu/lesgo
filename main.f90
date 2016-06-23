@@ -178,19 +178,18 @@ time_loop: do jt_step = nstart, nsteps
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
     if (lbc_mom == 1 .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
-    else        
+    else
         call sgs_stag()
     end if
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
 #ifdef PPMPI
-        call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
-                           tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
-                           comm, status, ierr)
+    call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,    &
+                       tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,     &
+                       comm, status, ierr)
 #endif
 
-    
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
