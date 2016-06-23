@@ -77,7 +77,7 @@ write(2,f_fmt) 'vonk : ', vonk
 write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
 write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
 write(2,f_fmt) 'nu_molec : ', nu_molec
-write(2,x3l_fmt) 'molec, sgs, dns_bc : ', molec, sgs, dns_bc
+write(2,x3l_fmt) 'molec, sgs : ', molec, sgs
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'

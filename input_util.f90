@@ -319,8 +319,6 @@ do
         read (buff(equal_pos+1:), *) molec
      case ('SGS')
         read (buff(equal_pos+1:), *) sgs
-     case ('DNS_BC')
-        read (buff(equal_pos+1:), *) dns_bc
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
@@ -415,7 +413,6 @@ end subroutine  time_block
 subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
-use iwmles, only : iwm_on  !xiang
 
 #ifdef PPHIT
 ! Type hit has all the information inside
@@ -447,8 +444,6 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
-	 case ('IWM_ACTIVE')                     ! Xiang flag for integral wall model
-	    Read (buff(equal_pos+1:), *) iwm_on  
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')

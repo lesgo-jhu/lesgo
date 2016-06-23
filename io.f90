@@ -44,7 +44,7 @@ implicit none
 save
 private
 
-public jt_total, openfiles, energy, output_loop, output_final,output_init
+public jt_total, openfiles, energy, output_loop, output_final, output_init, write_tau_wall
 
 ! Where to start start and end with nz index.
 ! For coord==nproc-1 nz_end=0 else  nz_end=1
@@ -140,6 +140,30 @@ ke = ke*0.5_rprec/(nx*ny*(nz-1))
 #endif
 
 end subroutine energy
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_tau_wall()   !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types ,only: rprec
+use param ,only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
+use param ,only: L_x, z_i, u_star
+use functions ,only: get_tau_wall
+implicit none
+
+real(rprec) :: turnovers
+
+turnovers = total_time_dim / (L_x * z_i / u_star) 
+
+open(2,file=path // 'output/tau_wall.dat',status='unknown',form='formatted',position='append')
+
+!! one time header output
+if (jt_total==wbase) write(2,*) 'jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, tau_wall'
+
+!! continual time-related output
+write(2,*) jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, get_tau_wall()
+close(2)
+
+end subroutine write_tau_wall
 
 #ifdef PPCGNS
 #ifdef PPMPI
@@ -1016,10 +1040,8 @@ else
 endif
 
 !xiang check point for iwm
-if(lbc_mom==1)then
-if(iwm_on==1)then
+if(lbc_mom==3)then
 	if(coord == 0) call iwm_checkPoint()
-endif
 endif
 
 #ifdef PPHIT

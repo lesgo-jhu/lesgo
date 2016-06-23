@@ -586,7 +586,7 @@ end subroutine turbines_checkpoint
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine turbine_vel_init(zo_high)
-!  called from ic.f90 if initu, dns_bc, S_FLAG are all false.
+!  called from ic.f90 if initu, lbc_mom==1, S_FLAG are all false.
 !  this accounts for the turbines when creating the initial velocity profile.
 
 use param, only: zo

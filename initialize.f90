@@ -169,12 +169,10 @@ call test_filter_init( )
 call initial()
 
 !memory allocation for integral wall model xiang
-if(lbc_mom == 1)then
-if(iwm_on == 1)then
+if(lbc_mom == 3)then
   if(coord==0) write(*,*) 'iwm: start memory allocation...'
   if(coord==0) call iwm_malloc()
   if(coord==0) write(*,*) 'iwm: finish memory allocation...'
-endif
 endif
 
 ! Initialize concurrent precursor stuff

@@ -30,7 +30,7 @@ use clock_m
 use param
 use sim_param
 use grid_m
-use io, only : energy, output_loop, output_final, jt_total
+use io, only : energy, output_loop, output_final, jt_total, write_tau_wall
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -38,6 +38,7 @@ use cfl_util
 !use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
+use functions, only: get_tau_wall
 
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -168,34 +169,27 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
     !   MPI: bottom process only
-    if (dns_bc) then
-        if (coord == 0) then
-            call wallstress_dns ()
-        end if
-    else    ! "impose" wall stress 
-        if (coord == 0) then
-            call wallstress ()                            
-        end if
-    end if    
+    if (coord == 0) then
+        call wallstress ()
+    end if
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
-    if (dns_bc .and. molec) then
+    if (lbc_mom == 1 .and. molec) then
         call dns_stress(txx,txy,txz,tyy,tyz,tzz)
-    else        
+    else
         call sgs_stag()
     end if
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
 #ifdef PPMPI
-        call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,   &
-                           tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,  &
-                           comm, status, ierr)
+    call mpi_sendrecv (tzz(:, :, nz-1), ld*ny, MPI_RPREC, up, 6,    &
+                       tzz(:, :, 0), ld*ny, MPI_RPREC, down, 6,     &
+                       comm, status, ierr)
 #endif
 
-    
     ! Compute divergence of SGS shear stresses     
     !   the divt's and the diagonal elements of t are not equivalenced in this version
     !   provides divtz 1:nz-1, except 1:nz at top process
@@ -370,7 +364,7 @@ time_loop: do jt_step = nstart, nsteps
        call rmsdiv (rmsdivvel)
        maxcfl = get_max_cfl()
 
-        ! This takes care of the clock times, to obtain the qunatites based
+        ! This takes care of the clock times, to obtain the quantities based
         ! on all the processors, not just processor 0
 #ifdef PPMPI
             call mpi_allreduce(clock % time, maxdummy,1, mpi_rprec,  &
@@ -399,6 +393,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
+          write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
           write(*,*)
 #ifdef PPMPI
           write(*,'(1a)') 'Simulation wall times (s): '
@@ -411,6 +406,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cummulative Forcing: ', clock_total_f
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
+          call write_tau_wall()   !!jb
        end if
 
        ! Check if we are to check the allowable runtime
