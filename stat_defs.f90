@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -79,8 +79,19 @@ type tavg_sgs_t
 end type tavg_sgs_t
 #endif
 
-! Types for including wind-turbines as drag disks
+! Types for including wind turbines as drag disks
 #ifdef PPTURBINES
+
+! Indicator function calculator
+type turb_ind_func_t
+  real(rprec), dimension(:), allocatable :: r
+  real(rprec), dimension(:), allocatable :: R23
+  real(rprec) :: R1_prefactor, sqrt6overdelta, t_half
+contains
+  procedure, public :: init
+  procedure, public :: val
+end type turb_ind_func_t
+
 ! Single turbines
 type turbine_t
   real(rprec) :: xloc, yloc, height, dia, thk
@@ -95,25 +106,17 @@ type turbine_t
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
+  type(turb_ind_func_t) :: turb_ind_func      ! object to calculate indicator function
 end type turbine_t
 
-! A collection of wind-turbines
+! A collection of wind turbines
 type wind_farm_t
   type(turbine_t), pointer, dimension(:) :: turbine
 end type wind_farm_t
-    
+
+! The wind farm
 type(wind_farm_t) :: wind_farm
 
-type turb_ind_func_t
-  real(rprec), dimension(:), allocatable :: r
-  real(rprec), dimension(:), allocatable :: R23
-  real(rprec) :: R1_prefactor, sqrt6overdelta, t_half
-contains
-  procedure, public :: init
-  procedure, public :: val
-end type turb_ind_func_t
-
-type(turb_ind_func_t) :: turb_ind_func
 #endif
 
 ! Create types for outputting data (instantaneous or averaged)

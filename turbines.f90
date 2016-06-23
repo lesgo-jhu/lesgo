@@ -96,7 +96,10 @@ enddo
 
 !Compute a lookup table object for the indicator function 
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
-call turb_ind_func%init(delta2, thk_all, dia_all, max( max(nx, ny), nz) )
+do s = 1, nloc
+    call  wind_farm%turbine(s)%turb_ind_func%init(delta2, wind_farm%turbine(s)%thk,                    &
+         wind_farm%turbine(s)%dia, max( max(nx, ny), nz) )
+end do
 
 !find turbine nodes - including filtered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in its domain
@@ -301,7 +304,7 @@ do s=1,nloc
                 !(remaining) length projected onto turbine disk
                 r_disk = sqrt(r*r - r_norm*r_norm)
                 ! get the filter value
-                filt = turb_ind_func%val(r_disk, r_norm)
+                filt = wind_farm%turbine(s)%turb_ind_func%val(r_disk, r_norm)
                 if ( filt > filter_cutoff ) then
                     wind_farm%turbine(s)%ind(count_i) = filt
                     wind_farm%turbine(s)%nodes(count_i,1) = i2
@@ -424,7 +427,7 @@ if (turbine_in_proc) then
                 * wind_farm%turbine(s)%ind(l)        
          enddo
          
-        ! write center disk velocity to file                   
+        ! write center disk velocity to file         
         if (modulo (jt_total, tbase) == 0) then
             icp = nint(wind_farm%turbine(s)%xloc/dx)
             jcp = nint(wind_farm%turbine(s)%yloc/dy)
@@ -476,12 +479,12 @@ if (coord == 0) then
 
     !for each turbine:        
     do s=1,nloc            
-         
+
         !set pointers
-        p_u_d => wind_farm%turbine(s)%u_d   
-        p_u_d_T => wind_farm%turbine(s)%u_d_T   
-        p_f_n => wind_farm%turbine(s)%f_n                
-        p_Ct_prime => wind_farm%turbine(s)%Ct_prime  
+        p_u_d => wind_farm%turbine(s)%u_d
+        p_u_d_T => wind_farm%turbine(s)%u_d_T
+        p_f_n => wind_farm%turbine(s)%f_n
+        p_Ct_prime => wind_farm%turbine(s)%Ct_prime
         
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -492,15 +495,16 @@ if (coord == 0) then
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
-        !write values to file                   
-            if (modulo (jt_total, tbase) == 0) then
-               write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T, p_f_n, &
-                   -0.5*p_Ct_prime*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy)
-            endif 
         !write force to array that will be transferred via MPI    
+        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         disk_force(s) = p_f_n
         
+        !write values to file                   
+        if (modulo (jt_total, tbase) == 0) then
+           write( file_id(s), *) total_time_dim, p_u_d, p_u_d_T,                    &
+           wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2, p_Ct_prime
+        endif 
+
     enddo                   
 endif
 

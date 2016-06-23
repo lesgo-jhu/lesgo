@@ -19,7 +19,7 @@
 
 module turbines_base
 use types, only : rprec
-use stat_defs, only : wind_farm, turb_ind_func
+use stat_defs, only : wind_farm
 use param, only : path, coord
 #ifdef PPMPI
   use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
@@ -168,6 +168,9 @@ endif
 
 ! Non-dimensionalize length values by z_i
 do k = 1, nloc
+    height_all = height_all / z_i
+    dia_all = dia_all / z_i
+    thk_all = thk_all / z_i
     wind_farm%turbine(k)%height = wind_farm%turbine(k)%height / z_i
     wind_farm%turbine(k)%dia = wind_farm%turbine(k)%dia / z_i
     ! Resize thickness capture at least on plane of gridpoints
@@ -341,14 +344,6 @@ if (dyn_Ct_prime) then
     do i = 1, num_t
         read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
     end do
-end if
-
-if (coord == 0) then
-do k = 1, nloc
-    write(*,*)  wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height, &
-                wind_farm%turbine(k)%dia, wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,   &
-                wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
-end do
 end if
 
 end subroutine turbines_base_init
