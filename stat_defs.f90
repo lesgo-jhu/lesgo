@@ -86,7 +86,7 @@ end type tavg_sgs_t
 type turb_ind_func_t
   real(rprec), dimension(:), allocatable :: r
   real(rprec), dimension(:), allocatable :: R23
-  real(rprec) :: R1_prefactor, sqrt6overdelta, t_half
+  real(rprec) :: sqrt6overdelta, t_half
 contains
   procedure, public :: init
   procedure, public :: val
@@ -178,13 +178,13 @@ real(rprec), intent(in) :: r, x
 real(rprec) :: R1, R23, Rval
 
 R23 = linear_interp(this%r, this%R23, r)
-R1 = 0.5*( erf(this%sqrt6overdelta*(this%t_half + x)) + erf(this%sqrt6overdelta*(this%t_half - x)) )
-Rval = R1 * R23 
+R1 = erf(this%sqrt6overdelta*(this%t_half + x)) + erf(this%sqrt6overdelta*(this%t_half - x))
+Rval = 0.5 * R1 * R23 
 
 end function val
 
 subroutine init(this, delta2, thk, dia, N)
-use param, only : write_endian, path
+use param, only : write_endian, path, pi
 use functions, only : bilinear_interp
 implicit none
 include'fftw3.f'
@@ -193,7 +193,7 @@ class(turb_ind_func_t), intent(inout) :: this
 real(rprec), intent(in) :: delta2, thk, dia
 integer, intent(in) :: N
 
-real(rprec) :: pi, L, d, R
+real(rprec) :: L, d, R
 integer, dimension(:), allocatable :: ind
 real(rprec), dimension(:), allocatable :: yz
 real(rprec), dimension(:,:), allocatable :: g, f, h
@@ -204,7 +204,6 @@ integer :: i, j
 integer*8 plan
 complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
 
-pi = 4.*atan(1.)
 L = 4 * dia
 d = L / N
 R = 0.5 * dia;
@@ -219,7 +218,6 @@ allocate(hhat(N/2+1, N))
 allocate(fhat(N/2+1, N))
 
 ! Calculate constants
-this%R1_prefactor = 0.5 / thk
 this%t_half = 0.5 * thk
 this%sqrt6overdelta = sqrt(6._rprec) / sqrt(delta2)
 

@@ -167,10 +167,10 @@ else
 endif
 
 ! Non-dimensionalize length values by z_i
+height_all = height_all / z_i
+dia_all = dia_all / z_i
+thk_all = thk_all / z_i
 do k = 1, nloc
-    height_all = height_all / z_i
-    dia_all = dia_all / z_i
-    thk_all = thk_all / z_i
     wind_farm%turbine(k)%height = wind_farm%turbine(k)%height / z_i
     wind_farm%turbine(k)%dia = wind_farm%turbine(k)%dia / z_i
     ! Resize thickness capture at least on plane of gridpoints
@@ -179,11 +179,12 @@ do k = 1, nloc
     wind_farm%turbine(k)%vol_c = dx*dy*dz/(pi/4.*(wind_farm%turbine(k)%dia)**2 * wind_farm%turbine(k)%thk)
 end do
 
+! Spacing between turbines (as multiple of mean diameter)
+sx = L_x / (num_x * dia_all )
+sy = L_y / (num_y * dia_all )
+
 ! Place turbines based on orientation flag
 if (.not. read_param) then
-    ! Spacing between turbines (as multiple of mean diameter)
-    sx = L_x / (num_x * dia_all )
-    sy = L_y / (num_y * dia_all )
 
     ! Baseline locations (evenly spaced, not staggered aka aligned)
     !  x,y-locations
@@ -344,6 +345,14 @@ if (dyn_Ct_prime) then
     do i = 1, num_t
         read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
     end do
+end if
+
+if (coord == 0) then
+do k = 1, nloc
+    write(*,*)  wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height, &
+                wind_farm%turbine(k)%dia, wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,   &
+                wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
+end do
 end if
 
 end subroutine turbines_base_init
