@@ -607,6 +607,10 @@ use stat_defs, only : xplane, yplane, zplane
 use stat_defs, only : point
 use param, only : ny, nz
 #endif
+#ifdef PPLVLSET
+use level_set_base, only : phi
+use sim_param, only : fx,fy,fz,fxa,fya,fza
+#endif
 
 implicit none
 
@@ -618,12 +622,18 @@ real(rprec), pointer, dimension(:) :: x,y,z,zw
 #ifndef PPCGNS
 character(64) :: bin_ext
 
+#ifdef PPLVLSET
+real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
+#endif
+
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
 #else
 bin_ext = '.bin'
 #endif
 #endif
+
+
 
 ! #ifdef PPCGNS
 ! Vorticity
