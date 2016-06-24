@@ -26,13 +26,15 @@ subroutine initialize()
 !
 use types, only : rprec
 use param, only : path
-use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
+use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use iwmles !xiang for integral wall model initialization
 use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
 !use param, only : sgs_hist_calc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
+#else
+use param, only : chcoord, nproc
 #endif
 
 use cfl_util

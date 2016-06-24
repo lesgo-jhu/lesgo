@@ -43,9 +43,6 @@ character (64) :: fmt
 integer, parameter :: lun = 6  ! system dependent
 
 integer :: call_level = 0
-#ifdef PPMPI
-  integer :: ierr
-#endif
 
 interface error
   module procedure error_a, error_ai, error_al, error_aia, error_ai_array,  &
@@ -286,10 +283,6 @@ write (lun, '(1x,a)') trim (msg)
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
-
 stop
 
 end subroutine error_a
@@ -307,10 +300,6 @@ write (lun, '(1x,a)') 'In ' // name // ':'
 write (lun, '(1x,a,1x,i0)') trim (msg), i
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
-
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
 
 stop
 
@@ -336,10 +325,6 @@ write (lun, fmt) trim (msg), i_arr
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
-
 stop
 
 end subroutine error_ai_array
@@ -356,10 +341,6 @@ write (lun, '(1x,a)') 'In ' // name // ':'
 write (lun, '(1x,a,1x,i0,1x,a)') trim (msg1), i, trim (msg2)
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
-
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
 
 stop
 
@@ -379,10 +360,6 @@ write (lun, '(1x,a,1x,i0,1x,a,1x,es11.4)') trim (msg1), i, trim (msg2), r
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
-
 stop
 
 end subroutine error_aiar
@@ -400,10 +377,6 @@ write (lun, '(1x,a,1x,l1)') trim (msg), l
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
-
 stop
 
 end subroutine error_al
@@ -420,10 +393,6 @@ write (lun, '(1x,a)') 'In ' // name // ':'
 write (lun, '(1x,a,1x,es11.4)') trim (msg), r
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
-
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
 
 stop
 
@@ -448,10 +417,6 @@ write (lun, '(1x,a)') 'In ' // name // ':'
 write (lun, fmt) trim (msg), r_arr
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
-
-#ifdef PPMPI
-  !call mpi_finalize (ierr)
-#endif
 
 stop
 

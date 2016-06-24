@@ -46,10 +46,8 @@ private
 
 public jt_total, openfiles, energy, output_loop, output_final, output_init, write_tau_wall
 
-! Where to start start and end with nz index.
-! For coord==nproc-1 nz_end=0 else  nz_end=1
-! For coord==0       nz_st=0 else   nz_st=1
-integer :: nz_st, nz_end
+! Where to end with nz index.
+integer :: nz_end
 
 contains
 
@@ -604,9 +602,10 @@ use sim_param, only : u,v,w
 !~ use sim_param, only: dwdy, dwdx, dvdx, dudy
 !~ use functions, only : interp_to_w_grid
 
-use stat_defs, only : xplane, yplane, zplane, point
+use stat_defs, only : xplane, yplane, zplane
 #ifdef PPMPI
-use param, only :ny,nz,comm,ierr
+use stat_defs, only : point
+use param, only : ny, nz
 #endif
 
 implicit none
@@ -1041,11 +1040,11 @@ endif
 
 !xiang check point for iwm
 if(lbc_mom==3)then
-	if(coord == 0) call iwm_checkPoint()
+    if(coord == 0) call iwm_checkPoint()
 endif
 
 #ifdef PPHIT
-	if(coord == 0) call hit_write_restart()
+    if(coord == 0) call hit_write_restart()
 #endif
 
 #if PPUSE_TURBINES
@@ -1102,7 +1101,6 @@ use stat_defs, only : type_set
 use open_file_fid_mod
 implicit none
 
-character(120) :: fname
 integer :: i,j,k
 real(rprec), pointer, dimension(:) :: x,y,z
 
@@ -1271,7 +1269,7 @@ character (*), parameter :: MPI_suffix = '.c'
 #endif
 character (128) :: fname
 
-logical :: opn, exst
+logical :: exst
 
 fname = ftavg_in
 #ifdef PPMPI
@@ -1345,7 +1343,10 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 #endif
 use param, only : nx,ny,nz,lbz,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+use sim_param, only : u, v, w
+#ifdef PPMPI
+use sim_param, only : txx, txy, tyy, txz, tyz, tzz
+#endif
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
 #endif
@@ -1465,7 +1466,7 @@ use param, only : write_endian
 #ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 #endif
-use param, only : ny,nz,nz_tot
+use param, only : ny,nz
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
 use param, only : ierr,comm
@@ -1734,7 +1735,6 @@ use stat_defs, only : tavg_total_time_sgs, tavg_sgs
 implicit none
 
 character(64) :: fname
-logical :: opn
 
 fname = checkpoint_tavg_file
 #ifdef PPMPI

@@ -38,7 +38,7 @@ else
   ! lets do a laminar case (?)
   do jz=1,nz
   
-     z=(real(jz)-.5_rprec)*dz ! non-dimensional
+     z=int((real(jz)-.5_rprec)*dz) ! non-dimensional
      ubar(jz)=(u_star*z_i/nu_molec)*z*(1._rprec-.5_rprec*z) ! non-dimensional
   !         ubar(jz)=0.
   end do  

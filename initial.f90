@@ -91,9 +91,9 @@ call string_concat( fname, '.c', coord )
 !check iwm restart file
 inquire (file='iwm_checkPoint.dat', exist=iwm_file_flag)
 if(iwm_file_flag)then
-	if(lbc_mom == 3)then
-		if(coord==0) call iwm_read_checkPoint()
-	endif
+    if(lbc_mom == 3)then
+        if(coord==0) call iwm_read_checkPoint()
+    endif
 endif
 
 

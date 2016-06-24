@@ -27,7 +27,7 @@ subroutine scaledep_dynamic(Cs_1D)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary.  mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:path,ld,nx,ny,nz,dx,dy,dz,coord
+use param,only:path,ld,nx,ny,nz,coord
 use sim_param,only:u,v,w
 use sgs_stag_util,only:rtnewt
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar

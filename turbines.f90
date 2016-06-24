@@ -39,18 +39,19 @@ real(rprec), dimension(:), allocatable :: z_tot
 character (100) :: string1
 real(rprec) :: eps !epsilon used for disk velocity time-averaging
 
-integer :: i,j,k,i2,j2,k2,i3,j3,i4,j4,b,l,s,ssx,ssy,ssz, p
+integer :: i,j,k,i2,j2,k2,l,s
 integer :: imax,jmax,kmax,count_i,count_n
-integer :: min_i,max_i,min_j,max_j,min_k,max_k,cut
+integer :: min_i,max_i,min_j,max_j,min_k,max_k
 integer :: k_start, k_end
-logical :: exst, opn
+logical :: exst
 
 logical :: turbine_in_proc=.false.      !init, do not change this
 
-real(rprec) :: buffer
-logical :: buffer_logical
 integer, dimension(:), allocatable :: turbine_in_proc_array
+#ifdef PPMPI
 integer :: turbine_in_proc_cnt = 0
+logical :: buffer_logical
+#endif
 integer, dimension(:), allocatable :: file_id
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -162,15 +163,16 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_nodes'
 
-real(rprec) :: R_t,rx,ry,rz,r,r_norm,r_disk
+real(rprec) :: rx,ry,rz,r,r_norm,r_disk
 
 real(rprec), pointer :: p_xloc => null(), p_yloc => null(), p_height => null()
 real(rprec), pointer :: p_dia => null(), p_thk => null(), p_theta1 => null(), p_theta2 => null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3 => null() 
 integer :: icp, jcp, kcp
 
+#ifdef PPMPI
 real(rprec), dimension(:), allocatable :: buffer_array
-
+#endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
 real(rprec) :: filt
@@ -206,9 +208,9 @@ do s=1,nloc
     p_nhat3 => wind_farm%turbine(s)%nhat(3)
 
     !identify "search area"
-    imax = p_dia/dx + 2
-    jmax = p_dia/dy + 2
-    kmax = p_dia/dz + 2
+    imax = int(p_dia/dx + 2)
+    jmax = int(p_dia/dy + 2)
+    kmax = int(p_dia/dz + 2)
 
     !determine unit normal vector for each turbine	
     p_nhat1 = -cos(pi*p_theta1/180.)*cos(pi*p_theta2/180.)
@@ -240,9 +242,9 @@ do s=1,nloc
     !update num_nodes, nodes, and ind for this turbine
     !and split domain between processors
     !z(nz) and z(1) of neighboring coords match so each coord gets (local) 1 to nz-1
-    wind_farm%turbine(s)%ind = 0.
-    wind_farm%turbine(s)%nodes = 0.
-    wind_farm%turbine(s)%num_nodes = 0.
+    wind_farm%turbine(s)%ind = 0._rprec
+    wind_farm%turbine(s)%nodes = 0
+    wind_farm%turbine(s)%num_nodes = 0
     count_n = 0
     count_i = 1
 #ifdef PPMPI
@@ -362,7 +364,10 @@ real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
 
-real(rprec), dimension(4*nloc) :: send_array, recv_array
+real(rprec), dimension(4*nloc) :: send_array
+#ifdef PPMPI
+real(rprec), dimension(4*nloc) :: recv_array
+#endif
 
 nullify(y,z)
 y => grid % y

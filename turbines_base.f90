@@ -113,13 +113,12 @@ allocate(wind_farm%turbine(nloc))
 if (read_param) then
     ! Check if file exists and open
     inquire (file = param_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(param_dat, 'rewind', 'formatted')
-    else
+    if (.not. exst) then
         call error (sub_name, 'file ' // param_dat // 'does not exist')
     end if
 
     ! count number of lines and close
+    fid = open_file_fid(param_dat, 'rewind', 'formatted')
     ios = 0
     nloc = 0
     do 
@@ -264,13 +263,12 @@ end if
 if (dyn_theta1) then
     ! Check if file exists and open
     inquire (file = theta1_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(theta1_dat, 'rewind', 'formatted')
-    else
+    if (.not. exst) then
         call error (sub_name, 'file ' // theta1_dat // 'does not exist')
     end if
-
+        
     ! count number of lines and close
+    fid = open_file_fid(theta1_dat, 'rewind', 'formatted')
     ios = 0
     num_t = 0
     do 
@@ -293,13 +291,12 @@ end if
 if (dyn_theta2) then
     ! Check if file exists and open
     inquire (file = theta2_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(theta2_dat, 'rewind', 'formatted')
-    else
+    if (.not. exst) then
         call error (sub_name, 'file ' // theta2_dat // 'does not exist')
     end if
 
     ! count number of lines and close
+    fid = open_file_fid(theta2_dat, 'rewind', 'formatted')
     ios = 0
     num_t = 0
     do 
@@ -322,13 +319,12 @@ end if
 if (dyn_Ct_prime) then
     ! Check if file exists and open
     inquire (file = Ct_prime_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
-    else
+    if (.not. exst) then
         call error (sub_name, 'file ' // Ct_prime_dat // 'does not exist')
     end if
 
     ! count number of lines and close
+    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
     ios = 0
     num_t = 0
     do 

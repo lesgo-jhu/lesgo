@@ -130,9 +130,7 @@ subroutine inflow_cond ()
 !  velocity.
 !
 use types, only : rprec
-use param, only : inflow_velocity, nx, ny, nz, &
-                  fringe_region_end, fringe_region_len
-use param, only : coord
+use param, only : inflow_velocity, nx, ny, nz
 use sim_param, only : u, v, w
 use messages, only : error
 use fringe_util

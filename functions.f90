@@ -70,10 +70,10 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 !  It is assumed that the array var has been synced if using MPI.
 
 use types, only : rprec
-use param,only : nz
+use param, only : nz
 use messages
 #ifdef PPMPI
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 
@@ -158,10 +158,9 @@ function interp_to_w_grid(var, lbz) result(var_w)
 !  therefore be set manually after this interpolation.
 
 use types, only : rprec
-use param,only : nz
+use param, only : nz
 use messages
 #ifdef PPMPI
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 
@@ -331,8 +330,7 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !
 use grid_m
 use types, only : rprec
-use sim_param, only : u,v
-use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
+use param, only : dx, dy, dz
 implicit none
 
 integer, intent(in) :: lbz
@@ -811,10 +809,10 @@ real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !
 
 use types, only : rprec
-use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
+use param, only : Nz
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC, comm, coord
 #endif
 use grid_m
 use messages
@@ -937,10 +935,10 @@ real(rprec) function points_avg_3d(var, lbz, npoints, points)
 !
 
 use types, only : rprec
-use param, only : dx, dy, dz, L_x, L_y, nz
+use param, only : nz
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC, comm
 #endif
 use grid_m
 use messages

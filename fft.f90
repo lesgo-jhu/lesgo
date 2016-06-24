@@ -18,7 +18,7 @@
 !!
 
 !**********************************************************************
-! fftw 2.1.X version
+! fftw 2.X version
 !**********************************************************************
 module fft
 use types,only:rprec
@@ -70,7 +70,7 @@ end subroutine init_fft
 !**********************************************************************
 subroutine init_wavenumber()
 !**********************************************************************
-use param,only:lh,nx,ny,L_x,L_y,pi
+use param,only:lh,ny,L_x,L_y,pi
 implicit none
 integer :: jx,jy
 

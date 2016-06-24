@@ -21,7 +21,7 @@
 subroutine unpadd(cc,cc_big)
 !*******************************************************************************
 use types,only:rprec
-use param,only:ld,nx,ny,ny2,nz,ld_big,lh
+use param,only:ld,nx,ny,ny2,ld_big
 implicit none
 
 !  cc and cc_big are interleaved as complex arrays

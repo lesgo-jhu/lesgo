@@ -407,15 +407,15 @@ implicit none
 
 type(tavg_t), dimension(:,:), intent(inout) :: c
 
-!c % txx = 0._rprec
-!c % tyy = 0._rprec
-!c % tzz = 0._rprec
-!c % txy = 0._rprec
-!c % txz = 0._rprec
-!c % tyz = 0._rprec
-!c % fx = 0._rprec
-!c % fy = 0._rprec
-!c % fz = 0._rprec
+c % txx = 0._rprec
+c % tyy = 0._rprec
+c % tzz = 0._rprec
+c % txy = 0._rprec
+c % txz = 0._rprec
+c % tyz = 0._rprec
+c % fx = 0._rprec
+c % fy = 0._rprec
+c % fz = 0._rprec
 
 return
 end subroutine tavg_zero_bogus_2D
@@ -428,15 +428,15 @@ implicit none
 
 type(tavg_t), dimension(:,:,:), intent(inout) :: c
 
-!c % txx = 0._rprec
-!c % tyy = 0._rprec
-!c % tzz = 0._rprec
-!c % txy = 0._rprec
-!c % txz = 0._rprec
-!c % tyz = 0._rprec
-!c % fx = 0._rprec
-!c % fy = 0._rprec
-!c % fz = 0._rprec
+c % txx = 0._rprec
+c % tyy = 0._rprec
+c % tzz = 0._rprec
+c % txy = 0._rprec
+c % txz = 0._rprec
+c % tyz = 0._rprec
+c % fx = 0._rprec
+c % fy = 0._rprec
+c % fz = 0._rprec
 
 return
 end subroutine tavg_zero_bogus_3D

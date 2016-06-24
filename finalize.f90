@@ -45,7 +45,7 @@ call turbines_finalize ()   ! must come before MPI finalize
 
 !finalize for integral wall model xiang
 if(lbc_mom == 3)then
-	if(coord==0) call iwm_demalloc()
+    if(coord==0) call iwm_demalloc()
 endif 
 
 ! Actuator Turbine Model:
