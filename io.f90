@@ -1256,7 +1256,7 @@ use param, only : read_endian
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 #ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 #endif
 implicit none
 
@@ -1338,7 +1338,6 @@ subroutine tavg_compute()
 !  variable quantity
 use stat_defs, only : tavg,tavg_total_time,tavg_dt
 #ifdef PPOUTPUT_EXTRA
-use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 #endif
