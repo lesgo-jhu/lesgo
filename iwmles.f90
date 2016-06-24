@@ -25,9 +25,8 @@ module iwmles
   implicit none
   
   private
-  public iwm_wallstress, iwm_malloc, iwm_demalloc, iwm_checkpoint, iwm_read_checkpoint, iwm_on
+  public iwm_wallstress, iwm_malloc, iwm_demalloc, iwm_checkpoint, iwm_read_checkpoint
   
-  integer :: iwm_on
   !                                                  u_tau,x  u_tau,y  tau_wall,x tau_wall,y
   real(kind=rprec), dimension(:,:),   allocatable :: iwm_utx, iwm_uty, iwm_tauwx, iwm_tauwy
   !                                                  filtered tangential velocity, current and previous
@@ -85,13 +84,13 @@ subroutine iwm_wallstress
   !xiang: imposing txz, tyz, dudz, dvdz every time step even iwm_* are not computed every time step. 
   do iwm_i=1,nx
   do iwm_j=1,ny
-	txz(iwm_i,iwm_j,1)=-iwm_tauwx(iwm_i,iwm_j)   !wall stress, use the value calculated in iwm, note the negative sign
+    txz(iwm_i,iwm_j,1)=-iwm_tauwx(iwm_i,iwm_j)   !wall stress, use the value calculated in iwm, note the negative sign
     tyz(iwm_i,iwm_j,1)=-iwm_tauwy(iwm_i,iwm_j)   !wall stress, use the value calculated in iwm, note the negative sign
-	
-	!xiang: I think those quantities should be consistent with the iwm.
-	!       Users could switch back to equilibrium values, which I have tested and is fine.
-	dudz(iwm_i,iwm_j,1)=iwm_dudzT(iwm_i,iwm_j,iwm_dirx) !dudz, use the value calculated in iwm, note the positive sign
-	dvdz(iwm_i,iwm_j,1)=iwm_dudzT(iwm_i,iwm_j,iwm_diry) !dudz, use the value calculated in iwm, note the positive sign
+    
+    !xiang: I think those quantities should be consistent with the iwm.
+    !       Users could switch back to equilibrium values, which I have tested and is fine.
+    dudz(iwm_i,iwm_j,1)=iwm_dudzT(iwm_i,iwm_j,iwm_dirx) !dudz, use the value calculated in iwm, note the positive sign
+    dvdz(iwm_i,iwm_j,1)=iwm_dudzT(iwm_i,iwm_j,iwm_diry) !dudz, use the value calculated in iwm, note the positive sign
   end do
   end do
   
@@ -262,10 +261,10 @@ subroutine iwm_calc_lhs()
   p_inst=p(:,:,1)
   do iwm_i=1,nx
   do iwm_j=1,ny
-	p_inst(iwm_i,iwm_j)= p_inst(iwm_i,iwm_j) &
-	                    -0.5_rprec*( (u_inst(iwm_i,iwm_j))**2.0_rprec &
-	                                +(v_inst(iwm_i,iwm_j))**2.0_rprec &
-	                                +(w_inst(iwm_i,iwm_j))**2.0_rprec   )  ! the real pressure is needed, this step is CODE SPECIFIC!
+    p_inst(iwm_i,iwm_j)= p_inst(iwm_i,iwm_j) &
+                        -0.5_rprec*( (u_inst(iwm_i,iwm_j))**2.0_rprec &
+                                    +(v_inst(iwm_i,iwm_j))**2.0_rprec &
+                                    +(w_inst(iwm_i,iwm_j))**2.0_rprec   )  ! the real pressure is needed, this step is CODE SPECIFIC!
   end do
   end do
   !obtain the pressure fluctuations
@@ -293,11 +292,11 @@ subroutine iwm_calc_lhs()
   do iwm_i=1,nx
   do iwm_j=1,ny
     iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx) = iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)*(1._rprec-iwm_tR(iwm_i,iwm_j)) &
-	                                      +u_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
+                                          +u_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
     iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry) = iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)*(1._rprec-iwm_tR(iwm_i,iwm_j)) &
-	                                      +v_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
+                                          +v_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
     iwm_flt_p     (iwm_i,iwm_j)          = iwm_flt_p     (iwm_i,iwm_j)         *(1._rprec-iwm_tR(iwm_i,iwm_j)) &
-	                                      +p_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
+                                          +p_inst        (iwm_i,iwm_j)         *iwm_tR(iwm_i,iwm_j)
   end do
   end do
 
@@ -305,10 +304,10 @@ subroutine iwm_calc_lhs()
   do iwm_i=1,nx
   do iwm_j=1,ny
     !the unsteady term
-	iwm_unsdy(iwm_i,iwm_j,iwm_dirx)=(iwm_inte(iwm_i,iwm_j,iwm_Lu)-iwm_inte_m(iwm_i,iwm_j,iwm_Lu))/iwm_dt
+    iwm_unsdy(iwm_i,iwm_j,iwm_dirx)=(iwm_inte(iwm_i,iwm_j,iwm_Lu)-iwm_inte_m(iwm_i,iwm_j,iwm_Lu))/iwm_dt
     iwm_unsdy(iwm_i,iwm_j,iwm_diry)=(iwm_inte(iwm_i,iwm_j,iwm_Lv)-iwm_inte_m(iwm_i,iwm_j,iwm_Lv))/iwm_dt  
     !the convective term
-	phip=iwm_inte(autowrap_i(iwm_i+1),iwm_j,iwm_Luu)
+    phip=iwm_inte(autowrap_i(iwm_i+1),iwm_j,iwm_Luu)
     phim=iwm_inte(autowrap_i(iwm_i-1),iwm_j,iwm_Luu)
     Luux=(phip-phim)/dx/2._rprec
     phip=iwm_inte(iwm_i,autowrap_j(iwm_j+1),iwm_Luv)
@@ -329,21 +328,21 @@ subroutine iwm_calc_lhs()
     iwm_conv(iwm_i,iwm_j,iwm_dirx)=Luux+Luvy-iwm_flt_tagvel_m(iwm_i,iwm_j,iWM_dirx)*(Lux+Lvy)
     iwm_conv(iwm_i,iwm_j,iwm_diry)=Luvx+Lvvy-iwm_flt_tagvel_m(iwm_i,iwm_j,iWM_diry)*(Lux+Lvy)    
     !the pressure gradient term
-	phip=iwm_flt_p(autowrap_i(iwm_i+1),iwm_j)
+    phip=iwm_flt_p(autowrap_i(iwm_i+1),iwm_j)
     phim=iwm_flt_p(autowrap_i(iwm_i-1),iwm_j)
     iwm_PrsGrad(iwm_i,iwm_j,iwm_dirx)=(phip-phim)/dx/2._rprec*iwm_Dz(iwm_i,iwm_j)-1.0_rprec*iwm_Dz(iwm_i,iwm_j) !including the mean unit pressure gradient
-	phip=iwm_flt_p(iwm_i,autowrap_j(iwm_j+1))
+    phip=iwm_flt_p(iwm_i,autowrap_j(iwm_j+1))
     phim=iwm_flt_p(iwm_i,autowrap_j(iwm_j-1))
     iwm_PrsGrad(iwm_i,iwm_j,iwm_diry)=(phip-phim)/dy/2._rprec*iwm_Dz(iwm_i,iwm_j)     
     !the left hand side.
-	iwm_lhs(iwm_i,iwm_j,iwm_dirx)=  -iwm_inte(iwm_i,iwm_j,iwm_Lu) &
-	                              +iwm_dt*( iwm_conv(iwm_i,iwm_j,iwm_dirx) &
-								           +iwm_PrsGrad(iwm_i,iwm_j,iwm_dirx) &
-										   -iwm_diff(iwm_i,iwm_j,iwm_dirx)     )  ! this is the integrated momentum equation, except for the Lu term
+    iwm_lhs(iwm_i,iwm_j,iwm_dirx)=  -iwm_inte(iwm_i,iwm_j,iwm_Lu) &
+                                  +iwm_dt*( iwm_conv(iwm_i,iwm_j,iwm_dirx) &
+                                           +iwm_PrsGrad(iwm_i,iwm_j,iwm_dirx) &
+                                           -iwm_diff(iwm_i,iwm_j,iwm_dirx)     )  ! this is the integrated momentum equation, except for the Lu term
     iwm_lhs(iwm_i,iwm_j,iwm_diry)=  -iwm_inte(iwm_i,iwm_j,iwm_Lv) &
-	                              +iwm_dt*( iwm_conv(iwm_i,iwm_j,iwm_diry) &
-								           +iwm_PrsGrad(iwm_i,iwm_j,iwm_diry) &
-										   -iwm_diff(iwm_i,iwm_j,iwm_diry)     ) ! this is the integrated momentum equation, except for the Lv term
+                                  +iwm_dt*( iwm_conv(iwm_i,iwm_j,iwm_diry) &
+                                           +iwm_PrsGrad(iwm_i,iwm_j,iwm_diry) &
+                                           -iwm_diff(iwm_i,iwm_j,iwm_diry)     ) ! this is the integrated momentum equation, except for the Lv term
   end do
   end do
 
@@ -371,8 +370,7 @@ end subroutine iwm_slv
 
 subroutine iwm_calc_wallstress
   use types,only:rprec
-  use param,only:vonk,nx,ny,coord,ld
-  use sim_param,only:u,v
+  use param,only:vonk,nx,ny
   use test_filtermodule
   
   implicit none
@@ -384,7 +382,6 @@ subroutine iwm_calc_wallstress
   real(kind=rprec) :: iwmutxP,iwmutyP
   integer          :: iter, MaxIter, equil_flag, div_flag
   real(kind=rprec) :: equilWMpara,equilutx,equiluty
-  CHARACTER*50     :: fname
   real(kind=rprec) :: iwmpAx, iwmpAy, iwmputx,iwmputy,iwmpz0,iwmpDz
   real(kind=rprec) :: utaup
   real(kind=rprec) :: dVelzT, dVelzB, Vel
@@ -444,13 +441,13 @@ subroutine iwm_calc_wallstress
       endif
     end do  
     
-	!infinity check  !!this check is never invoked, but it is useful to keep!!
+    !infinity check  !!this check is never invoked, but it is useful to keep!!
     if(iwm_utx(iwm_i,iwm_j)-1.0==iwm_utx(iwm_i,iwm_j) .or. iwm_uty(iwm_i,iwm_j)-1.0==iwm_uty(iwm_i,iwm_j))then  
         equil_flag=1
-		div_flag  =1
+        div_flag  =1
     endif
-	
-	!calculate equilibrium us for equil_flag=1 use
+    
+    !calculate equilibrium us for equil_flag=1 use
     equilutx=vonk*iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)/log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j))  
     equiluty=vonk*iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)/log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j))    
     if(equil_flag==1)then
@@ -458,46 +455,46 @@ subroutine iwm_calc_wallstress
       iwm_uty(iwm_i,iwm_j)=equiluty
     endif
     
-	!calculate Ax, Ay
+    !calculate Ax, Ay
     if(equil_flag==1)then
       iwmpAx=0.0_rprec
       iwmpAy=0.0_rprec
     else
       iwmpAx= ( iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)  &
-	           -iwm_utx(iwm_i,iwm_j)/vonk*log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))   &
-			 /((1.0_rprec-iwm_z0(iwm_i,iwm_j)/iwm_Dz(iwm_i,iwm_j)))                              !eq. D2 in Yang et al 2015
+               -iwm_utx(iwm_i,iwm_j)/vonk*log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))   &
+             /((1.0_rprec-iwm_z0(iwm_i,iwm_j)/iwm_Dz(iwm_i,iwm_j)))                              !eq. D2 in Yang et al 2015
       iwmpAy= ( iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)  &
-	           -iwm_uty(iwm_i,iwm_j)/vonk*log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))   &
-			 /((1.0_rprec-iwm_z0(iwm_i,iwm_j)/iwm_Dz(iwm_i,iwm_j)))                              !eq. D2 in Yang et al 2015
+               -iwm_uty(iwm_i,iwm_j)/vonk*log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))   &
+             /((1.0_rprec-iwm_z0(iwm_i,iwm_j)/iwm_Dz(iwm_i,iwm_j)))                              !eq. D2 in Yang et al 2015
     endif
-	
-	!check for excessive linear term correction !!after first 100 step this check is rarely invoked!!
-	if(abs(iwmpAx)>1.0_rprec .or. abs(iwmpAy)>1.0_rprec)then
-		equil_flag=1
-		iwm_utx(iwm_i,iwm_j)=equilutx
-        iwm_uty(iwm_i,iwm_j)=equiluty
-		iwmpAx=0.0_rprec
-        iwmpAy=0.0_rprec
-	endif
     
-	!store the linear correction
-	iwm_Ax(iwm_i,iwm_j)=iwmpAx
+    !check for excessive linear term correction !!after first 100 step this check is rarely invoked!!
+    if(abs(iwmpAx)>1.0_rprec .or. abs(iwmpAy)>1.0_rprec)then
+        equil_flag=1
+        iwm_utx(iwm_i,iwm_j)=equilutx
+        iwm_uty(iwm_i,iwm_j)=equiluty
+        iwmpAx=0.0_rprec
+        iwmpAy=0.0_rprec
+    endif
+    
+    !store the linear correction
+    iwm_Ax(iwm_i,iwm_j)=iwmpAx
     iwm_Ay(iwm_i,iwm_j)=iwmpAy
-	
-	!update integral for last time step
+    
+    !update integral for last time step
     iwm_inte_m(iwm_i,iwm_j,iwm_Lu ) = iwm_inte(iwm_i,iwm_j,iwm_Lu )
     iwm_inte_m(iwm_i,iwm_j,iwm_Lv ) = iwm_inte(iwm_i,iwm_j,iwm_Lv )
     iwm_inte_m(iwm_i,iwm_j,iwm_Luv) = iwm_inte(iwm_i,iwm_j,iwm_Luv)
     iwm_inte_m(iwm_i,iwm_j,iwm_Luu) = iwm_inte(iwm_i,iwm_j,iwm_Luu)
     iwm_inte_m(iwm_i,iwm_j,iwm_Lvv) = iwm_inte(iwm_i,iwm_j,iwm_Lvv)
     
-	!those temporary variables are used for convenient reference
+    !those temporary variables are used for convenient reference
     iwmputx = iwm_utx(iwm_i,iwm_j)
     iwmputy = iwm_uty(iwm_i,iwm_j)
     iwmpDz  = iwm_Dz (iwm_i,iwm_j)
     iwmpz0  = iwm_z0 (iwm_i,iwm_j)
-	
-	!calculate the needed integrals
+    
+    !calculate the needed integrals
     iwm_inte(iwm_i,iwm_j,iwm_Lu) = 1.0/2.0*iwmpDz*iwmpAx*(1.0-iwmpz0/iwmpDz)**2.0 &
            +1.0/vonk*iwmputx*iwmpDz*(iwmpz0/iwmpDz-1.0+log(iwmpDz/iwmpz0))     ! Eq. D7 in Yang et al 2015
     iwm_inte(iwm_i,iwm_j,iwm_Lv) = 1.0/2.0*iwmpDz*iwmpAy*(1.0-iwmpz0/iwmpDz)**2.0 &
@@ -505,36 +502,36 @@ subroutine iwm_calc_wallstress
     iwm_inte(iwm_i,iwm_j,iwm_Luv) = 1.0/vonk**2.0*iwmputx*iwmputy*iwmpDz*(1.0-2*iwmpz0/iwmpDz+(1.0-log(iwmpDz/iwmpz0))**2.0) &
            +1.0/3.0*iwmpAx*iwmpAy*iwmpDz*(1.0 - iwmpz0/iwmpDz)**3.0 &
            -1.0/4.0/vonk*(iwmpAx*iwmputy+iwmpAy*iwmputx)*iwmpDz &
-		    *(1.0-4.0*iwmpz0/iwmpDz+3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))   ! Eq. D8 in Yang et al 2015
+            *(1.0-4.0*iwmpz0/iwmpDz+3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))   ! Eq. D8 in Yang et al 2015
     iwm_inte(iwm_i,iwm_j,iwm_Luu) = 1.0/vonk**2.0*iwmputx**2.0*iwmpDz*((log(iwmpDz/iwmpz0)-1.0)**2.0-2.0*iwmpz0/iwmpDz+1.0) &
            +1.0/3.0*iwmpAx**2.0*iwmpDz*(1.0-iwmpz0/iwmpDz)**3.0 &
            -1.0/2.0/vonk*iwmputx*iwmpAx*iwmpDz &
-		    *(1.0-4.0*iwmpz0/iwmpDz+3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))   ! Eq. D8 in Yang et al 2015           
+            *(1.0-4.0*iwmpz0/iwmpDz+3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))   ! Eq. D8 in Yang et al 2015           
     iwm_inte(iwm_i,iwm_j,iwm_Lvv) = 1.0/vonk**2.0*iwmputy**2.0*iwmpDz*((log(iwmpDz/iwmpz0)-1.0)**2.0-2.0*iwmpz0/iwmpDz+1.0) &
            +1.0/3.0*iwmpAy**2.0*iwmpDz*(1.0-iwmpz0/iwmpDz)**3.0 &
            -1.0/2.0/vonk*iwmputy*iwmpAy*iwmpDz&
-		   *(1.0-4.0*iwmpz0/iwmpDz-3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))    ! Eq. D9 in Yang et al 2015
+           *(1.0-4.0*iwmpz0/iwmpDz-3.0*iwmpz0**2.0/iwmpDz**2.0-2.0*log(iwmpDz/iwmpz0)+4.0*iwmpz0/iwmpDz*log(iwmpDz/iwmpz0))    ! Eq. D9 in Yang et al 2015
     
-	!calculate top and bottom derivatives
+    !calculate top and bottom derivatives
     iwm_dudzT(iwm_i,iwm_j,iwm_dirx)=1.0/iwmpDz*(iwmpAx+iwmputx/vonk)  ! Eq. D5 (a)
     iwm_dudzT(iwm_i,iwm_j,iwm_diry)=1.0/iwmpDz*(iwmpAy+iwmputy/vonk)
     iwm_dudzB(iwm_i,iwm_j,iwm_dirx)=1.0/iwmpDz*iwmpAx+iwmputx/vonk/iwmpz0  ! Eq. D5 (b)
     iwm_dudzB(iwm_i,iwm_j,iwm_diry)=1.0/iwmpDz*iwmpAy+iwmputy/vonk/iwmpz0
-	
-	!calculte the turbulent diffusion term
+    
+    !calculte the turbulent diffusion term
     Vel=sqrt(iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)**2.0_rprec+iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)**2.0_rprec) !total velocity
     dVelzT=abs(iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)/Vel*iwm_dudzT(iwm_i,iwm_j,iwm_dirx) &
               +iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)/Vel*iwm_dudzT(iwm_i,iwm_j,iwm_diry))    ! Eq. D6
     dvelzB=sqrt(iwm_dudzB(iwm_i,iwm_j,iwm_dirx)**2.0_rprec+iwm_dudzB(iwm_i,iwm_j,iwm_diry)**2.0_rprec)  !Eq. D6
     iwm_diff(iwm_i,iwm_j,iwm_dirx)= (vonk*iwmpDz)**2.0_rprec*dVelzT*iwm_dudzT(iwm_i,iwm_j,iwm_dirx) &
-	                               -(vonk*iwmpz0)**2.0_rprec*dVelzB*iwm_dudzB(iwm_i,iwm_j,iwm_dirx)    !Eq. D4, the eddy viscosity is nu_T=(vonk*y)^2*dudy, hence the formule
+                                   -(vonk*iwmpz0)**2.0_rprec*dVelzB*iwm_dudzB(iwm_i,iwm_j,iwm_dirx)    !Eq. D4, the eddy viscosity is nu_T=(vonk*y)^2*dudy, hence the formule
     iwm_diff(iwm_i,iwm_j,iwm_diry)= (vonk*iwmpDz)**2.0_rprec*dVelzT*iwm_dudzT(iwm_i,iwm_j,iwm_diry) &
-	                               -(vonk*iwmpz0)**2.0_rprec*dVelzB*iwm_dudzB(iwm_i,iwm_j,iwm_diry)    !Eq. D4
+                                   -(vonk*iwmpz0)**2.0_rprec*dVelzB*iwm_dudzB(iwm_i,iwm_j,iwm_diry)    !Eq. D4
   
     !calculate the wall stress
-	if(equil_flag==1)then
+    if(equil_flag==1)then
       equilWMpara= sqrt(iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)**2.0_rprec+iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)**2.0_rprec) &
-	              *vonk**2.0_rprec/(log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))**2.0_rprec
+                  *vonk**2.0_rprec/(log(iwm_Dz(iwm_i,iwm_j)/iwm_z0(iwm_i,iwm_j)))**2.0_rprec
       iwm_tauwx(iwm_i,iwm_j)=equilWMpara*iwm_flt_tagvel(iwm_i,iwm_j,iwm_dirx)
       iwm_tauwy(iwm_i,iwm_j)=equilWMpara*iwm_flt_tagvel(iwm_i,iwm_j,iwm_diry)
     else
@@ -542,17 +539,17 @@ subroutine iwm_calc_wallstress
       iwm_tauwy(iwm_i,iwm_j)=(vonk*iwmpz0)**2.0_rprec*dVelzB*iwm_dudzB(iwm_i,iwm_j,iwm_diry) 
     endif
     
-	!calculate the friciton velocity 
-	utaup=(iwm_tauwx(iwm_i,iwm_j)**2.0_rprec +iwm_tauwy(iwm_i,iwm_j)**2.0_rprec )**0.25_rprec  !definition of friction velocity
+    !calculate the friciton velocity 
+    utaup=(iwm_tauwx(iwm_i,iwm_j)**2.0_rprec +iwm_tauwy(iwm_i,iwm_j)**2.0_rprec )**0.25_rprec  !definition of friction velocity
     iwm_flt_us(iwm_i,iwm_i)=iwm_flt_us(iwm_i,iwm_j)*(1.0_rprec -iwm_tR(iwm_i,iwm_j))+utaup*iwm_tR(iwm_i,iwm_j) !the filtered friction velocity used for filtering time scale
 
-	!update the filtering time scale
+    !update the filtering time scale
     iwm_tR(iwm_i,iwm_j)=iwm_dt/(iwm_Dz(iwm_i,iwm_j)/iwm_flt_us(iwm_i,iwm_j)/vonk)  !Eq. 26
     !filtering time scale can only be larger than the time step, if not, then just use the instantaneous flow field to do the model
-	if(iwm_tR(iwm_i,iwm_j)>1.0_rprec)then
+    if(iwm_tR(iwm_i,iwm_j)>1.0_rprec)then
       iwm_tR(iwm_i,iwm_j)=1.0_rprec
     endif
-	
+    
   end do
   end do
   
@@ -560,7 +557,7 @@ end subroutine iwm_calc_wallstress
 
 !this subroutine is to monitor the parameters at one point, do not call this subroutine if you are not interested in how the model works
 subroutine iwm_monitor
-  use param,only:coord,nx,ny,jt_total
+  use param,only:nx,ny,jt_total
   use open_file_fid_mod
   implicit none
   
@@ -580,14 +577,14 @@ subroutine iwm_monitor
   
 end subroutine iwm_monitor
 
-!put down a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
+!put down a check point for the integral wall model, this subroutine is called after making sure lbc_mom=3
 subroutine iwm_checkPoint()
     use open_file_fid_mod 
-	implicit none
-	
-	integer :: fid
-	
-	fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
+    implicit none
+    
+    integer :: fid
+    
+    fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
     write(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &
                iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN), &
                iwm_flt_p(:,:), &
@@ -601,12 +598,12 @@ subroutine iwm_checkPoint()
     close(fid)
 end subroutine iwm_checkPoint
 
-!read a check point for the integral wall model, this subroutine is called after making sure iwm_on=1
+!read a check point for the integral wall model, this subroutine is called after making sure lbc_mom=3
 subroutine iwm_read_checkPoint()
     use open_file_fid_mod
-	implicit none
+    implicit none
 
-	integer :: fid
+    integer :: fid
 
     fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
     read(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:), &

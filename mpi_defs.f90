@@ -162,7 +162,7 @@ subroutine mpi_sync_real_array( var, lbz, isync )
 !
 use types, only : rprec
 use mpi
-use param, only : MPI_RPREC, down, up, comm, status, ierr, nproc, coord, nz
+use param, only : MPI_RPREC, down, up, comm, status, ierr, nz
 use messages
 
 implicit none

@@ -1661,6 +1661,8 @@ integer, parameter :: e1(nd) = (/ 1, 0, 0 /)
 integer, parameter :: e2(nd) = (/ 0, 1, 0 /)
 integer, parameter :: e3(nd) = (/ 0, 0, 1 /)
 
+character(1024) :: msg
+
 integer :: int_dir(nd)
 integer :: int_b_dot_f
 integer :: int_b_dot_p

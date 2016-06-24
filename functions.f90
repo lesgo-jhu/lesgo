@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -27,12 +27,14 @@ save
 private
 public interp_to_uv_grid,   &
     trilinear_interp,       &
+    bilinear_interp,        &
     linear_interp,          &
     cell_indx,              &
     buff_indx,              &
     points_avg_3d,          & 
     plane_avg_3d,           &     
-    interp_to_w_grid
+    interp_to_w_grid,       &
+    get_tau_wall
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -41,6 +43,12 @@ interface linear_interp
     module procedure :: linear_interp_sa
     module procedure :: linear_interp_aa
 end interface linear_interp
+
+interface bilinear_interp
+    module procedure :: bilinear_interp_ss
+    module procedure :: bilinear_interp_sa
+    module procedure :: bilinear_interp_aa
+end interface bilinear_interp
 
 contains
 
@@ -62,30 +70,28 @@ function interp_to_uv_grid(var, lbz) result(var_uv)
 !  It is assumed that the array var has been synced if using MPI.
 
 use types, only : rprec
-use param,only : nz
+use param, only : nz
 use messages
 #ifdef PPMPI
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
+use param, only : coord, nproc
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 
 implicit none
 
-real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+real(rprec), dimension(:,:,lbz:), intent(in) :: var
 integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_uv
 
 integer :: sx,sy,ubz
 
-#ifdef PPVERBOSE
 character (*), parameter :: sub_name = mod_name // '.interp_to_uv_grid'
-#endif
 
 sx=size(var,1)
 sy=size(var,2)
 ubz=ubound(var,3)
 
-if( ubz .ne. nz ) call error( 'interp_to_uv_grid', 'Input array must lbz:nz z dimensions.')
+if( ubz .ne. nz ) call error(sub_name, 'Input array must lbz:nz z dimensions.')
 
 allocate(var_uv(sx,sy,lbz:ubz))
 
@@ -152,31 +158,27 @@ function interp_to_w_grid(var, lbz) result(var_w)
 !  therefore be set manually after this interpolation.
 
 use types, only : rprec
-use param,only : nz
+use param, only : nz
 use messages
 #ifdef PPMPI
-use param, only : coord, nproc, MPI_RPREC, down, up,  comm, status, ierr
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN, MPI_SYNC_DOWNUP
 #endif
 
 implicit none
 
-real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+real(rprec), dimension(:,:,lbz:), intent(in) :: var
 integer, intent(in) :: lbz
 real(rprec), allocatable, dimension(:,:,:) :: var_w
-
 integer :: sx,sy,ubz
 !integer :: i,j,k
 
-#ifdef PPVERBOSE
 character (*), parameter :: sub_name = mod_name // '.interp_to_w_grid'
-#endif
 
 sx=size(var,1)
 sy=size(var,2)
 ubz=ubound(var,3)
 
-if( ubz .ne. nz ) call error( 'interp_to_w_grid', 'Input array must lbz:nz z dimensions.')
+if( ubz .ne. nz ) call error(sub_name, 'Input array must lbz:nz z dimensions.')
 
 allocate(var_w(sx,sy,lbz:ubz))
 
@@ -222,13 +224,12 @@ use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
 implicit none
 
 character (*), intent (in) :: indx
-real(rprec), intent(IN) :: dx
+real(rprec), intent(in) :: dx
 
 real(rprec) :: px ! Global value
 
-#ifdef PPVERBOSE
 character (*), parameter :: func_name = mod_name // '.cell_indx'
-#endif
+
 real(rprec), parameter :: thresh = 1.e-9_rprec
 
 real(rprec), pointer, dimension(:) :: z
@@ -329,14 +330,13 @@ real(rprec) function trilinear_interp(var,lbz,xyz)
 !
 use grid_m
 use types, only : rprec
-use sim_param, only : u,v
-use param, only : nx, ny, nz, dx, dy, dz, coord, L_x, L_y
+use param, only : dx, dy, dz
 implicit none
 
-integer, intent(IN) :: lbz
-real(rprec), dimension(:,:,lbz:), intent(IN) :: var
+integer, intent(in) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(in) :: var
 integer :: istart, jstart, kstart, istart1, jstart1, kstart1
-real(rprec), intent(IN), dimension(3) :: xyz
+real(rprec), intent(in), dimension(3) :: xyz
 
 !integer, parameter :: nvar = 3
 real(rprec) :: u1,u2,u3,u4,u5,u6
@@ -446,9 +446,9 @@ end function trilinear_interp
 !~ use grid_m
 !~ use param, only : dx,dy,dz,L_x,L_y,L_z, nz
 !~ implicit none
-!~ real(rprec), dimension(:,:,lbz:), intent(IN) :: var
-!~ integer    , intent(IN) :: lbz
-!~ real(rprec), intent(IN), dimension(3) :: xyz
+!~ real(rprec), dimension(:,:,lbz:), intent(in) :: var
+!~ integer    , intent(in) :: lbz
+!~ real(rprec), intent(in), dimension(3) :: xyz
 !~ real(rprec), pointer   , dimension(:) :: x,y,z
 !~ integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 !~ real(rprec) :: u1,u2,u3,u4,u5,u6,xdiff,ydiff,zdiff,px,py
@@ -504,6 +504,136 @@ end function trilinear_interp
 !~ end function trilinear_interp
 
 !**********************************************************************
+real(rprec) function bilinear_interp_ss(u11,u21,u12,u22,dx,dy,xdiff,ydiff)
+!**********************************************************************
+!
+!  This function performs linear interpolation 
+!  
+!  Inputs:
+!  u11          - lower bound value in x direction for lower y
+!  u21          - upper bound value in x direction for lower y
+!  u12          - lower bound value in x direction for upper y
+!  u22          - upper bound value in x direction for upper y
+!  dx           - length delta for the grid in x direction
+!  dy           - length delta for the grid in y direction
+!  xdiff        - distance from the point of interest to the u11 node in x direction
+!  xdiff        - distance from the point of interest to the u11 node in y direction
+!
+use types, only : rprec
+implicit none
+
+real(rprec), intent(in) :: u11, u12, u21, u22, dx, dy, xdiff, ydiff
+real(rprec) :: v1, v2
+
+v1 = linear_interp(u11, u21, dx, xdiff)
+v2 = linear_interp(u12, u22, dx, xdiff)
+
+bilinear_interp_ss = linear_interp(v1,v2,dy,ydiff)
+
+return
+end function bilinear_interp_ss
+
+!**********************************************************************
+function bilinear_interp_sa_nocheck(x, y, v, xq, yq) result(vq)
+!**********************************************************************
+!
+!  This function performs the linear interpolation fo bilinear_interp_sa
+!  and bilinear_interp_aa without checking bounds of the input arrays.
+!  It should not be called directly.
+!
+implicit none
+real(rprec), dimension(:), intent(in) :: x, y
+real(rprec), dimension(:,:), intent(in) :: v
+real(rprec), intent(in) :: xq, yq
+real(rprec) :: vq
+integer     :: i, j, Nx, Ny
+
+Nx = size(x)
+Ny = size(x)
+i = binary_search(x, xq)
+if (i == 0) then
+    vq = linear_interp(y, v(1,:), yq)
+else if (i == Nx) then
+    vq = linear_interp(y, v(Nx,:), yq)
+else
+    j = binary_search(y, yq)
+    if (j == 0) then
+        vq = linear_interp(v(i,1), v(i+1,1), x(i+1)-x(i), xq - x(i))
+    else if (j == Ny) then
+        vq = linear_interp(v(i,Ny), v(i+1,Ny), x(i+1)-x(i), xq - x(i))    
+    else
+        vq = bilinear_interp_ss( v(i,j), v(i+1,j), v(i,j+1), v(i+1,j+1), &
+             x(i+1) - x(i), y(j+1) - y(j), xq - x(i), yq - y(j) )
+    end if
+end if
+    
+end function bilinear_interp_sa_nocheck
+
+!**********************************************************************
+function bilinear_interp_sa(x, y, v, xq, yq) result(vq)
+!**********************************************************************
+!
+!  This function performs linear interpolation from a set of points 
+!  defined on a grid (x,y) with values v to a query point (xq, yq)
+!  
+!  Inputs:
+!  x            - array of sample points
+!  v            - array of values at sample points
+!  xq           - query point
+!
+implicit none
+real(rprec), dimension(:), intent(in) :: x, y
+real(rprec), dimension(:,:), intent(in) :: v
+real(rprec), intent(in) :: xq, yq
+real(rprec) :: vq
+character(*), parameter :: func_name = mod_name // '.bilinear_interp_sa'
+
+if ( size(v,1) /= size(x) .or. size(v,2) /= size(y)) then
+    call error(func_name, 'Array v must have a size of [size(x), size(y)]')
+end if
+
+vq = bilinear_interp_sa_nocheck(x, y, v, xq, yq)
+    
+end function bilinear_interp_sa
+
+!**********************************************************************
+function bilinear_interp_aa(x, y, v, xq, yq) result(vq)
+!**********************************************************************
+!
+!  This function performs linear interpolation from a set of points 
+!  defined on a grid (x,y) with values v to an array of query points
+!  (xq, yq)
+!  
+!  Inputs:
+!  x            - array of sample points
+!  v            - array of values at sample points
+!  xq           - array of query points
+!
+implicit none
+real(rprec), dimension(:), intent(in) :: x, y
+real(rprec), dimension(:,:), intent(in) :: v
+real(rprec), dimension(:), intent(in) :: xq, yq
+real(rprec), dimension(:), allocatable :: vq
+integer :: i, N
+character(*), parameter :: func_name = mod_name // '.bilinear_interp_sa'
+
+if ( size(v,1) /= size(x) .or. size(v,2) /= size(y)) then
+    call error(func_name, 'Array v must have a size of [size(x), size(y)]')
+end if
+if ( size(xq) /= size(yq) ) then
+    call error(func_name, 'Arrays xq and yq must be the same size')
+end if
+
+N = size(xq)
+allocate(vq(N))
+
+do i = 1, N
+    vq(i) = bilinear_interp_sa_nocheck(x, y, v, xq(i), yq(i))
+end do
+    
+end function bilinear_interp_aa
+
+!**********************************************************************
 real(rprec) function linear_interp_ss(u1,u2,dx,xdiff)
 !**********************************************************************
 !
@@ -518,7 +648,7 @@ real(rprec) function linear_interp_ss(u1,u2,dx,xdiff)
 use types, only : rprec
 implicit none
 
-real(rprec), intent(IN) :: u1, u2, dx, xdiff
+real(rprec), intent(in) :: u1, u2, dx, xdiff
 
 linear_interp_ss = u1 + (xdiff) * (u2 - u1) / dx
 
@@ -526,64 +656,88 @@ return
 end function linear_interp_ss
 
 !**********************************************************************
-function linear_interp_sa(x, y, xi) result(yi)
+function linear_interp_sa_nocheck(x, v, xq) result(vq)
 !**********************************************************************
 !
-!  This function performs linear interpolation from a set of points (x,y)
-!  to a point (xi,yi)
-!  
-!  Inputs:
-!  x            - array of x's
-!  y            - array of y's
-!  xi           - point to interpolate from (x,y)
+!  This function performs the linear interpolation fo linear_interp_sa
+!  and linear_interp_aa without checking bounds of the input arrays.
+!  It should not be called directly.
 !
 implicit none
-real(rprec), dimension(:) :: x, y
-real(rprec) :: xi, yi
-integer     :: i, j, N
+real(rprec), dimension(:), intent(in) :: x, v
+real(rprec), intent(in) :: xq
+real(rprec) :: vq
+integer :: i, N
 
-N = size(y)
-j = binary_search(x, xi)
-if (j == 0) then
-    yi = y(1)
-else if (j == N) then
-    yi = y(N)
+N = size(v)
+i = binary_search(x, xq)
+if (i == 0) then
+    vq = v(1)
+else if (i == N) then
+    vq = v(N)
 else
-    yi = linear_interp_ss(y(j), y(j+1), x(j+1)-x(j), (xi - x(j)))
+    vq = linear_interp_ss(v(i), v(i+1), x(i+1)-x(i), (xq - x(i)))
 end if
+    
+end function linear_interp_sa_nocheck
+
+!**********************************************************************
+function linear_interp_sa(x, v, xq) result(vq)
+!**********************************************************************
+!
+!  This function performs linear interpolation from a set of points x
+!  with values v to a query point xq
+!  
+!  Inputs:
+!  x            - array of sample points
+!  v            - array of values at sample points
+!  xq           - query point
+!
+implicit none
+real(rprec), dimension(:), intent(in) :: x, v
+real(rprec), intent(in) :: xq
+real(rprec) :: vq
+character(*), parameter :: func_name = mod_name // '.linear_interp_sa'
+
+if ( size(v) /= size(x) ) then
+    call error(func_name, 'Arrays x and v must be the same size')
+end if
+
+vq = linear_interp_sa_nocheck(x, v, xq)
     
 end function linear_interp_sa
 
 !**********************************************************************
-function linear_interp_aa(x, y, xi) result(yi)
+function linear_interp_aa(x, v, xq) result(vq)
 !**********************************************************************
 !
-!  This function performs linear interpolation from a set of points (x,y)
-!  to another set of points (xi,yi)
+!  This function performs linear interpolation from a set of points x
+!  with values v to an array of query points xq
 !  
 !  Inputs:
-!  x            - array of x's
-!  y            - array of y's
-!  xi           - array of points to interpolate from (x,y)
+!  x            - array of sample points
+!  v            - array of values at sample points
+!  xq           - array of query points
 !
 implicit none
-real(rprec), dimension(:) :: x, y, xi
-real(rprec), dimension(:), allocatable :: yi
-integer :: i, Ni 
-character(*), parameter :: fun_name = mod_name // '.linear_interp_aa'
+real(rprec), dimension(:), intent(in) :: x, v
+real(rprec), dimension(:), intent(in) :: xq
+real(rprec), dimension(:), allocatable :: vq
+integer :: i, N
+character(*), parameter :: func_name = mod_name // '.linear_interp_aa'
 
 ! Check array sizes
-if ( size(x) /= size(y) ) then
-    call error(fun_name,'Interpolation pairs must be of equal size.')
+if ( size(v) /= size(x) ) then
+    call error(func_name, 'Arrays x and v must be the same size')
 end if
 
 ! Allocate output 
-Ni = size(xi)
-allocate(yi(Ni))
+N = size(xq)
+allocate(vq(N))
 
 ! For each element of the array perform interpolation
-do i = 1, Ni
-    yi(i) = linear_interp_sa(x, y, xi(i))
+do i = 1, N
+    vq(i) = linear_interp_sa_nocheck(x, v, xq(i))
 end do
     
 end function linear_interp_aa
@@ -655,20 +809,20 @@ real(rprec) function plane_avg_3d(var, lbz, bp1, bp2, bp3, nzeta, neta)
 !
 
 use types, only : rprec
-use param, only : Nx, Ny, Nz, dx, dy, dz, L_x, L_y
+use param, only : Nz
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC, comm, coord
 #endif
 use grid_m
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,lbz:) :: var
-integer, intent(IN) :: lbz   !lower bound on z (lbz) for variable sent
-real(RPREC), intent(IN), dimension(:) :: bp1, bp2, bp3
+real(rprec), intent(in), dimension(:,:,lbz:) :: var
+integer, intent(in) :: lbz   !lower bound on z (lbz) for variable sent
+real(rprec), intent(in), dimension(:) :: bp1, bp2, bp3
 
-INTEGER, INTENT(IN) :: nzeta, neta
+integer, intent(in) :: nzeta, neta
 
 character (*), parameter :: func_name = mod_name // '.plane_avg_3d'
 
@@ -676,14 +830,14 @@ integer :: i, j, nsum
 
 #ifdef PPMPI
 integer :: nsum_global
-REAL(RPREC) :: var_sum_global
+real(rprec) :: var_sum_global
 #endif
 
-REAL(RPREC) :: dzeta, deta, vec_mag, zmin, zmax
-REAL(RPREC) :: var_sum
+real(rprec) :: dzeta, deta, vec_mag, zmin, zmax
+real(rprec) :: var_sum
 
-real(RPREC), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
-real(RPREC), dimension(3) :: bp4
+real(rprec), dimension(3) :: zeta_vec, eta_vec, eta, cell_center
+real(rprec), dimension(3) :: bp4
 
 real(rprec), pointer, dimension(:) :: z
 
@@ -781,19 +935,19 @@ real(rprec) function points_avg_3d(var, lbz, npoints, points)
 !
 
 use types, only : rprec
-use param, only : dx, dy, dz, L_x, L_y, nz
+use param, only : nz
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC, comm
 #endif
 use grid_m
 use messages
 implicit none
 
-real(rprec), intent(IN), dimension(:,:,lbz:) :: var
-integer, intent(IN) :: lbz      !lower bound on z (lbz) for variable sent
-integer, intent(IN) :: npoints
-real(rprec), intent(IN), dimension(3,npoints) :: points
+real(rprec), intent(in), dimension(:,:,lbz:) :: var
+integer, intent(in) :: lbz      !lower bound on z (lbz) for variable sent
+integer, intent(in) :: npoints
+real(rprec), intent(in), dimension(3,npoints) :: points
 
 character (*), parameter :: func_name = mod_name // '.points_avg_3d'
 
@@ -897,5 +1051,31 @@ endif
   
 return
 end function buff_indx
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_tau_wall() result(twall)       !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides plane-averaged value of wall stress magnitude
+use types, only: rprec
+use param, only : nx, ny
+use sim_param, only : txz, tyz
+
+implicit none
+real(rprec) :: twall, txsum, tysum
+integer :: jx, jy
+
+txsum = 0._rprec
+tysum = 0._rprec
+do jx=1,nx
+   do jy=1,ny
+      txsum = txsum + txz(jx,jy,1)
+      tysum = tysum + tyz(jx,jy,1)
+   enddo
+enddo
+twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
+
+return
+end function get_tau_wall
 
 end module functions

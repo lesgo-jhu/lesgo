@@ -25,7 +25,7 @@ subroutine finalize()
 ! calling all the finalize routines of the various lesgo modules.
 !
 use param, only : coord, lbc_mom
-use iwmles !xiang for iwm finalize. always ensure iwm_on=1 only when lbc_mom=1
+use iwmles, only : iwm_demalloc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #endif
@@ -44,10 +44,8 @@ call turbines_finalize ()   ! must come before MPI finalize
 #endif   
 
 !finalize for integral wall model xiang
-if(lbc_mom == 1)then
-if(iwm_on ==  1)then
-	if(coord==0) call iwm_demalloc()
-endif
+if(lbc_mom == 3)then
+    if(coord==0) call iwm_demalloc()
 endif 
 
 ! Actuator Turbine Model:

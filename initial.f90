@@ -29,7 +29,7 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use sgs_param, only:F_ee2,F_deedt2,ee_past
 #endif
 #ifdef PPTURBINES
-use sim_param,only:fxa
+use sim_param,only:fxa,fya,fza
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 !#ifdef PPATM
@@ -62,6 +62,8 @@ logical :: iwm_file_flag !xiang: for iwm restart
 
 #ifdef PPTURBINES
 fxa=0._rprec
+fya=0._rprec
+fza=0._rprec
 #endif
 
 #ifdef PPLVLSET
@@ -89,11 +91,9 @@ call string_concat( fname, '.c', coord )
 !check iwm restart file
 inquire (file='iwm_checkPoint.dat', exist=iwm_file_flag)
 if(iwm_file_flag)then
-	if(lbc_mom == 1)then
-	if(iwm_on ==1)then
-		if(coord==0) call iwm_read_checkPoint()
-	endif
-	endif
+    if(lbc_mom == 3)then
+        if(coord==0) call iwm_read_checkPoint()
+    endif
 endif
 
 
@@ -169,7 +169,7 @@ if(initu)then
   close(13)
 
 else
-  if (dns_bc) then
+  if (lbc_mom==1) then
      if (coord == 0) write(*,*) '--> Creating initial velocity field with DNS BCs'
      call ic_dns()
   else

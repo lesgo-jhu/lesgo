@@ -20,9 +20,10 @@
 module turbines_base
 use types, only : rprec
 use stat_defs, only : wind_farm
-use param, only : path
+use param, only : path, coord
+use open_file_fid_mod
 #ifdef PPMPI
-  use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
+use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
 #endif
 
 implicit none
@@ -37,13 +38,20 @@ real(rprec) :: height_all   ! baseline height in meters
 real(rprec) :: thk_all      ! baseline thickness in meters
 
 integer :: orientation      ! orientation 1=aligned, 2=horiz stagger,
-                            !  3=vert stagger by row, 4=vert stagger checkerboard
+                            !  3=vert stagger by row, 4=vert stagger checkerboard,
+                            !  5=2 pushed forward for cps
 real(rprec) :: stag_perc    ! stagger percentage from baseline
 
 real(rprec) :: theta1_all   ! angle from upstream (CCW from above, -x dir is zero)
 real(rprec) :: theta2_all   ! angle above horizontal
 
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
+
+logical :: read_param       ! Read parameters from input_turbines/param.dat
+
+logical :: dyn_theta1       ! Dynamically change theta1 from input_turbines/theta1.dat
+logical :: dyn_theta2       ! Dynamically change theta2 from input_turbines/theta2.dat
+logical :: dyn_Ct_prime     ! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
 
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
 
@@ -55,27 +63,27 @@ logical :: turbine_cumulative_time ! Used to read in the disk averaged velocitie
 
 integer :: tbase            ! Number of timesteps between the output
 
-integer :: turbine_control  ! Control method for turbines. 
-                            !  0 = fixed Ct_prime
-                            !  1 = interpolate from file
-                            !  2 = receding horizon control
-                            
-real(rprec) :: advancement_time
+logical :: use_receding_horizon        
+integer :: advancement_base
 real(rprec) :: horizon_time
 integer     :: max_iter
 real(rprec) :: rh_gamma, rh_eta
-                            
-real(rprec), dimension(:), allocatable   :: t_Ctp_list  ! t for turbine_control=1
-real(rprec), dimension(:,:), allocatable :: Ctp_list    ! Ct_prime for turbine_control=1
-
-real(rprec), dimension(:), allocatable   :: t_Pref_list ! t for turbine_control=2
-real(rprec), dimension(:), allocatable   :: Pref_list   ! Pref for turbine_control=2
 
 logical :: use_wake_model
 real(rprec) :: sigma_du, sigma_k, sigma_Phat  ! Variances of noise
 real(rprec) :: tau_U_infty                    ! Filter time for U_infty
 integer  :: num_ensemble
  
+! Arrays for interpolating dynamic controls
+real(rprec), dimension(:,:), allocatable :: theta1_arr
+real(rprec), dimension(:), allocatable :: theta1_time
+real(rprec), dimension(:,:), allocatable :: theta2_arr
+real(rprec), dimension(:), allocatable :: theta2_time
+real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
+real(rprec), dimension(:), allocatable :: Ct_prime_time
+real(rprec), dimension(:), allocatable :: Pref_arr
+real(rprec), dimension(:), allocatable :: Pref_time
+
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) diameter
@@ -89,21 +97,21 @@ contains
 !   read from the input file.
 
 subroutine turbines_base_init()
-use param, only: L_x, L_y, dx, dy, dz, pi, z_i
-use open_file_fid_mod
+use param, only: L_x, L_y, dx, dy, dz, pi, z_i, nz
 use messages
 implicit none
 
-character(*), parameter :: sub_name = mod_name // '.turbines_base_init'
-character(*), parameter :: turbine_locations_dat = path // 'turbine_locations.dat'
-character(*), parameter :: Ct_prime_dat = path // 'Ct_prime.dat'
-character(*), parameter :: Pref_dat = path // 'Pref.dat'
+integer :: fid
 
-integer :: i, j, k, num_t
+character(*), parameter :: sub_name = mod_name // '.turbines_base_init'
+character(*), parameter :: param_dat = path // 'input_turbines/param.dat'
+character(*), parameter :: theta1_dat = path // 'input_turbines/theta1.dat'
+character(*), parameter :: theta2_dat = path // 'input_turbines/theta2.dat'
+character(*), parameter :: Ct_prime_dat = path // 'input_turbines/Ct_prime.dat'
+character(*), parameter :: Pref_dat = path // 'input_turbines/Pref.dat'
+
+integer :: i, j, k, num_t, k_start, k_end
 real(rprec) :: sxx, syy, shift_base, const
-logical :: exst
-integer :: fid, ios
-real(rprec) :: xl, yl, zl
 
 ! set turbine parameters
 ! turbines are numbered as follows:
@@ -111,112 +119,71 @@ real(rprec) :: xl, yl, zl
 !   #2 = next turbine in the y-direction, etc. (go along rows)
 
 ! Allocate wind turbine array derived type
-if (orientation == 6) then
-! Count number of turbines listed in turbine_locations.dat
-    ! Check if file exists and open
-    inquire (file = turbine_locations_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(turbine_locations_dat, 'rewind', 'formatted')
-    else
-        call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
-    end if
-
-    ! count number of lines and close
-    ios = 0
-    nloc = 0
-    do 
-        read(fid, *, IOstat = ios)
-        if (ios /= 0) exit
-        nloc = nloc + 1
-    enddo
-    close(fid)
-else
-    nloc = num_x*num_y      !number of turbines (locations)
-endif 
-
-! Read the Ct_prime input data if applicable
-if (turbine_control == 1) then
-    ! Check if file exists and open
-    inquire (file = Ct_prime_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
-    else
-        call error (sub_name, 'file ' // Ct_prime_dat // 'does not exist')
-    end if
-
-    ! count number of lines and close
-    ios = 0
-    num_t = 0
-    do 
-        read(fid, *, IOstat = ios)
-        if (ios /= 0) exit
-        num_t = num_t + 1
-    enddo
-    close(fid)
-
-    allocate( t_Ctp_list(num_t) )
-    allocate( Ctp_list(nloc, num_t) )
-
-    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
-    do i = 1, num_t
-        read(fid,*) t_Ctp_list(i), Ctp_list(:,i)
-    end do
-    
-end if
-
-! Read the reference signal if applicable
-if(turbine_control == 2) then
-    ! Check if file exists and open
-    inquire (file = Pref_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
-    else
-        call error (sub_name, 'file ' // Pref_dat // 'does not exist')
-    end if
-
-    ! count number of lines and close
-    ios = 0
-    num_t = 0
-    do 
-        read(fid, *, IOstat = ios)
-        if (ios /= 0) exit
-        num_t = num_t + 1
-    enddo
-    close(fid)
-
-    allocate( t_Pref_list(num_t) )
-    allocate( Pref_list(num_t) )
-
-    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
-    do i = 1, num_t
-        read(fid,*) t_Pref_list(i), Pref_list(i)
-    end do
-end if
-
-#ifdef PPVERBOSE
-write(*,*) "Number of turbines: ", nloc
-#endif
+nloc = num_x*num_y
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
 
-! Non-dimensionalize length values by z_i
-dia_all = dia_all / z_i
-height_all = height_all / z_i
-thk_all = thk_all / z_i
-! Resize thickness capture at least on plane of gridpoints
-thk_all = max ( thk_all, dx*1.01 )
+! Read parameters from file if needed
+if (read_param) then
+    nloc = count_lines(param_dat)
+    
+    ! Check that there are enough lines from which to read data
+    if (nloc < num_x*num_y) then
+        nloc = num_x*num_y
+        call error(sub_name, param_dat // 'must have num_x*num_y lines')
+    else if (nloc > num_x*num_y) then
+        call warn(sub_name, param_dat // ' has more than num_x*num_y lines. ' &
+                  // 'Only reading first num_x*num_y lines')
+    end if
+    
+    ! Read from parameters file, which should be in this format:
+    !   xloc [meters], yloc [meters], height [meters], dia [meters], thk [meters], 
+    !   theta1 [degrees], theta2 [degrees], Ct_prime [-]
+    write(*,*) "Reading from", param_dat
+    fid = open_file_fid(param_dat, 'rewind', 'formatted')
+    do k = 1, nloc
+        read(fid,*) wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height, &
+                    wind_farm%turbine(k)%dia, wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,   &
+                    wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
+    enddo
+    close(fid)
+    
+    ! Make turbine locations dimensionless
+    do k = 1, nloc
+        wind_farm%turbine(k)%xloc = wind_farm%turbine(k)%xloc / z_i
+        wind_farm%turbine(k)%yloc = wind_farm%turbine(k)%yloc / z_i
+    end do
+    
+else
+    ! This will not yet set the locations
+    wind_farm%turbine(:)%height = height_all
+    wind_farm%turbine(:)%dia = dia_all
+    wind_farm%turbine(:)%thk = thk_all 
+    wind_farm%turbine(:)%theta1 = theta1_all
+    wind_farm%turbine(:)%theta2 = theta2_all
+    wind_farm%turbine(:)%Ct_prime = Ct_prime
+endif
 
-! Set baseline values for size
-wind_farm%turbine(:)%height = height_all
-wind_farm%turbine(:)%dia = dia_all
-wind_farm%turbine(:)%thk = thk_all                      
-wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+! Non-dimensionalize length values by z_i
+height_all = height_all / z_i
+dia_all = dia_all / z_i
+thk_all = thk_all / z_i
+do k = 1, nloc
+    wind_farm%turbine(k)%height = wind_farm%turbine(k)%height / z_i
+    wind_farm%turbine(k)%dia = wind_farm%turbine(k)%dia / z_i
+    ! Resize thickness capture at least on plane of gridpoints
+    wind_farm%turbine(k)%thk = max(wind_farm%turbine(k)%thk / z_i, dx * 1.01)
+    ! Set baseline values for size 
+    wind_farm%turbine(k)%vol_c = dx*dy*dz/(pi/4.*(wind_farm%turbine(k)%dia)**2 * wind_farm%turbine(k)%thk)
+end do
 
 ! Spacing between turbines (as multiple of mean diameter)
 sx = L_x / (num_x * dia_all )
 sy = L_y / (num_y * dia_all )
 
-if (orientation /= 6) then
+! Place turbines based on orientation flag
+if (.not. read_param) then
+
     ! Baseline locations (evenly spaced, not staggered aka aligned)
     !  x,y-locations
     k = 1
@@ -229,93 +196,182 @@ if (orientation /= 6) then
             k = k + 1
         enddo
     enddo
-endif
-
-! HERE PLACE TURBINES (x,y-positions) BASED ON 'ORIENTATION' FLAG
-if (orientation == 1) then
-! Evenly-spaced, not staggered
-!  Use baseline as set above       
+    
+    select case (orientation)
+        ! Evenly-spaced, not staggered
+        !  Use baseline as set above      
+        case (1)
+    
+        ! Evenly-spaced, horizontally staggered only
+        ! Shift each row according to stag_perc    
+        case (2)
+            do i = 2, num_x
+                do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+                    shift_base = syy * stag_perc/100.
+                    wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc + (i-1)*shift_base , L_y )
+                enddo
+            enddo
  
-elseif (orientation == 2) then
-! Evenly-spaced, horizontally staggered only
-! Shift each row according to stag_perc
-    do i = 2, num_x
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-            shift_base = syy * stag_perc/100.
-            wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc + (i-1)*shift_base , L_y )
-        enddo
-    enddo
- 
-elseif (orientation == 3) then 
-! Evenly-spaced, only vertically staggered (by rows)
-! Make even rows taller
-    do i = 2, num_x, 2
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-            wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
-        enddo
-    enddo
-    ! Make odd rows shorter
-    do i = 1, num_x, 2
-        do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
-            wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
-        enddo
-    enddo
- 
-elseif (orientation == 4) then        
-! Evenly-spaced, only vertically staggered, checkerboard pattern
-    k = 1
-    do i = 1, num_x 
-        do j = 1, num_y
-            const = 2.*mod(real(i+j),2.)-1.  ! this should alternate between 1, -1
-            wind_farm%turbine(k)%height = height_all*(1.+const*stag_perc/100.)
-            k = k + 1
-        enddo
-    enddo
+        ! Evenly-spaced, only vertically staggered (by rows)
+        case (3)
+            ! Make even rows taller
+            do i = 2, num_x, 2
+                do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+                    wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
+                enddo
+            enddo
+            ! Make odd rows shorter
+            do i = 1, num_x, 2
+                do k = 1+num_y*(i-1), num_y*i         ! these are the numbers for turbines in row i
+                    wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
+                enddo
+            enddo
+       
+        ! Evenly-spaced, only vertically staggered, checkerboard pattern
+        case (4)
+            k = 1
+            do i = 1, num_x 
+                do j = 1, num_y
+                    const = 2.*mod(real(i+j),2.)-1.  ! this should alternate between 1, -1
+                    wind_farm%turbine(k)%height = height_all*(1.+const*stag_perc/100.)
+                    k = k + 1
+                enddo
+            enddo
 
-elseif (orientation == 5) then        
-! Aligned, but shifted forward for efficient use of simulation space during CPS runs
-! Usual placement is baseline as set above
+        ! Aligned, but shifted forward for efficient use of simulation space during CPS runs
+        ! Usual placement is baseline as set above
+        case (5)
+        ! Shift in spanwise direction: Note that stag_perc is now used
+            k=1
+            dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
+            do i = 1, num_x
+                do j = 1, num_y
+                    dummy2=dummy*(i-1)         
+                    wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
+                    k=k+1
+                enddo
+            enddo      
 
-    ! Shift in spanwise direction: Note that stag_perc is now used
-    k=1
-    dummy=stag_perc*(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
-    do i = 1, num_x
-        do j = 1, num_y
-            dummy2=dummy*(i-1)         
-            wind_farm%turbine(k)%yloc=mod(wind_farm%turbine(k)%yloc +dummy2,L_y)
-            k=k+1
-        enddo
-    enddo      
-elseif (orientation == 6) then
-! Read x, y, and z locations in meters directly from turbine_locations.dat
+        case default
+            call error (sub_name, 'invalid orientation')
+        
+    end select
+end if
 
-    write(*,*) "Reading turbine locations from file."
-    inquire (file = turbine_locations_dat, exist = exst)
-    if (exst) then
-        fid = open_file_fid(turbine_locations_dat, 'rewind', 'formatted')
+! Read the theta1 input data
+if (dyn_theta1) then
+    ! Allocate arrays
+    num_t = count_lines(theta1_dat)
+    allocate( theta1_time(num_t) )
+    allocate( theta1_arr(nloc, num_t) )
+
+    ! Read values
+    fid = open_file_fid(theta1_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) theta1_time(i), theta1_arr(:,i)
+    end do
+end if
+
+! Read the theta2 input data
+if (dyn_theta2) then
+    ! Allocate arrays
+    num_t = count_lines(theta2_dat)
+    allocate( theta2_time(num_t) )
+    allocate( theta2_arr(nloc, num_t) )
+
+    ! Read values
+    fid = open_file_fid(theta2_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) theta2_time(i), theta2_arr(:,i)
+    end do
+end if
+
+! Read the Ct_prime input data
+if (dyn_Ct_prime) then
+    ! Allocate arrays
+    num_t = count_lines(Ct_prime_dat)
+    allocate( Ct_prime_time(num_t) )
+    allocate( Ct_prime_arr(nloc, num_t) )
+
+    ! Read values
+    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
+    end do
+end if
+
+! Read the reference signal if applicable
+if (use_receding_horizon) then
+    ! Allocate arrays
+    num_t = count_lines(Pref_dat)
+    allocate( Pref_arr(num_t) )
+    allocate( Pref_time(num_t) )
+
+    ! Read values
+    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) Pref_time(i), Pref_arr(i)
+    end do
+end if
+
+! Find the center of each turbine
+do k = 1,nloc     
+    wind_farm%turbine(k)%icp = nint(wind_farm%turbine(k)%xloc/dx)
+    wind_farm%turbine(k)%jcp = nint(wind_farm%turbine(k)%yloc/dy)
+    wind_farm%turbine(k)%kcp = nint(wind_farm%turbine(k)%height/dz + 0.5)
+     
+    ! Check if turbine is the current processor  
+#ifdef PPMPI
+    k_start = 1+coord*(nz-1)
+    k_end = nz-1+coord*(nz-1)
+#else
+    k_start = 1
+    k_end = nz
+#endif
+    
+    if (wind_farm%turbine(k)%kcp>=k_start .and. wind_farm%turbine(k)%kcp<=k_end) then
+        wind_farm%turbine(k)%center_in_proc = .true.
     else
-        call error (sub_name, 'file ' // turbine_locations_dat // 'does not exist')
+        wind_farm%turbine(k)%center_in_proc = .false.
     end if
+    
+    ! Make kcp the local index
+    wind_farm%turbine(k)%kcp = wind_farm%turbine(k)%kcp - k_start + 1
 
-    do k = 1, nloc
-        read(fid,*) xl, yl, zl
-        wind_farm%turbine(k)%xloc = xl / z_i
-        wind_farm%turbine(k)%yloc = yl / z_i
-        wind_farm%turbine(k)%height = zl / z_i
-    enddo
-    close(fid)
-endif
-
-! #ifdef PPVERBOSE
-do k = 1, nloc
-    write(*,*) "Turbine ", k, " located at: ", wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc, wind_farm%turbine(k)%height 
-enddo
-! #endif
-            
-! orientation (angles)
-wind_farm%turbine(:)%theta1 = theta1_all
-wind_farm%turbine(:)%theta2 = theta2_all
+end do
 
 end subroutine turbines_base_init
+
+function count_lines(fname) result(N)
+use messages
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+character(*), intent(in) :: fname
+logical :: exst
+integer :: fid, ios
+integer :: N
+
+character(*), parameter :: sub_name = mod_name // '.count_lines'
+
+! Check if file exists and open
+inquire (file = trim(fname), exist = exst)
+if (.not. exst) then
+    call error (sub_name, 'file ' // trim(fname) // 'does not exist')
+end if
+fid = open_file_fid(trim(fname), 'rewind', 'formatted')
+
+! count number of lines and close
+ios = 0
+N = 0
+do 
+    read(fid, *, IOstat = ios)
+    if (ios /= 0) exit
+    N = N + 1
+enddo
+
+! Close file
+close(fid)
+
+end function count_lines
 
 end module turbines_base

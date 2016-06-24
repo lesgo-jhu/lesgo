@@ -319,8 +319,6 @@ do
         read (buff(equal_pos+1:), *) molec
      case ('SGS')
         read (buff(equal_pos+1:), *) sgs
-     case ('DNS_BC')
-        read (buff(equal_pos+1:), *) dns_bc
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
@@ -415,7 +413,6 @@ end subroutine  time_block
 subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
-use iwmles, only : iwm_on  !xiang
 
 #ifdef PPHIT
 ! Type hit has all the information inside
@@ -447,8 +444,6 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
-	 case ('IWM_ACTIVE')                     ! Xiang flag for integral wall model
-	    Read (buff(equal_pos+1:), *) iwm_on  
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')
@@ -880,14 +875,22 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
+        
+     case ('READ_PARAM')
+        read (buff(equal_pos+1:), *) read_param     
+
+     case ('DYN_THETA1')
+        read (buff(equal_pos+1:), *) dyn_theta1
+     case ('DYN_THETA2')
+        read (buff(equal_pos+1:), *) dyn_theta2
+     case ('DYN_CT_PRIME')
+        read (buff(equal_pos+1:), *) dyn_Ct_prime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
 
      case ('ALPHA')
         read (buff(equal_pos+1:), *) alpha
-     case ('TRUNC')
-        read (buff(equal_pos+1:), *) trunc
      case ('FILTER_CUTOFF')
         read (buff(equal_pos+1:), *) filter_cutoff
      case ('TURBINE_CUMULATIVE_TIME')
@@ -895,10 +898,10 @@ do
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
      
-     case ('TURBINE_CONTROL')
-        read (buff(equal_pos+1:), *) turbine_control
-     case ('ADVANCEMENT_TIME')
-        read (buff(equal_pos+1:), *) advancement_time
+     case ('USE_RECEDING_HORIZON')
+        read (buff(equal_pos+1:), *) use_receding_horizon
+     case ('ADVANCEMENT_BASE')
+        read (buff(equal_pos+1:), *) advancement_base
      case ('HORIZON_TIME')
         read (buff(equal_pos+1:), *) horizon_time
      case ('MAX_ITER')

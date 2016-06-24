@@ -116,7 +116,7 @@ subroutine test_filter ( f )
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
 use fft
-use param,only:nx,ny
+use param,only:ny
 use emul_complex, only : OPERATOR(.MULR.)
 implicit none
 
@@ -140,7 +140,7 @@ subroutine test_test_filter ( f )
 ! note: this filters in-place, so input is ruined
 use types,only:rprec
 use fft
-use param,only:nx,ny
+use param,only:ny
 use emul_complex, only : OPERATOR(.MULR.)
 implicit none
 

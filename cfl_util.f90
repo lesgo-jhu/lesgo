@@ -44,7 +44,7 @@ use sim_param, only : u,v,w
 
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC
 #endif
 
 implicit none
@@ -83,7 +83,7 @@ use sim_param, only : u,v,w
 
 #ifdef PPMPI
 use mpi
-use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
+use param, only : ierr, MPI_RPREC
 #endif
 
 implicit none

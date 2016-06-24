@@ -56,7 +56,7 @@ contains
     procedure, public  :: initialize
     procedure, public  :: makeDimensionless
     procedure, public  :: makeDimensional
-    procedure, public  :: finiteDifferenceGradient
+!     procedure, public  :: finiteDifferenceGradient
     procedure, public  :: run => run_input
     procedure, private :: run_noinput
 end type MinimizedFarm
@@ -78,10 +78,10 @@ function constructor(i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_
 end function constructor
 
 subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta)
-    use util, only : interpolate
+    use functions, only : linear_interp
     implicit none
     class(MinimizedFarm)                        :: this
-    type(WakeModel), intent(in)                :: i_wm
+    type(WakeModel), intent(in)                 :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
     real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
     integer                                     :: i
@@ -116,7 +116,7 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_ga
     ! Interpolate the reference signal
     allocate( this%Pref(this%Nt) )
     allocate( this%Pfarm(this%Nt) )
-    call interpolate(i_time, i_Pref, this%t, this%Pref)
+    this%Pref = linear_interp(i_time, i_Pref, this%t)
     
     ! Allocate other variables
     allocate( this%Ctp(this%N, this%Nt)    )
@@ -131,7 +131,7 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_ga
 end subroutine initialize
 
 subroutine run_input(this, i_t, i_Ctp)
-    use util, only : interpolate
+    use functions, only : linear_interp
     implicit none
     class(MinimizedFarm), intent(inout)        :: this
     real(rprec), dimension(:), intent(in)      :: i_t
@@ -143,7 +143,7 @@ subroutine run_input(this, i_t, i_Ctp)
     
     ! Interpolate input onto object
     do n = 1, this%N
-        call interpolate(i_t, i_Ctp(n,:), this%t(2:) *  this%w%TIME, this%Ctp(n,2:))
+        this%Ctp(n,2:) = linear_interp(i_t, i_Ctp(n,:), this%t(2:) * this%w%TIME)
     end do
     this%Ctp(:,1) = this%iw%Ctp
     
@@ -151,10 +151,9 @@ subroutine run_input(this, i_t, i_Ctp)
 end subroutine run_input
 
 subroutine run_noinput(this)
-    use util, only : interpolate
+    use functions, only : linear_interp
     implicit none
     class(MinimizedFarm), intent(inout)        :: this
-    real(rprec), dimension(:), allocatable     :: u
     integer                                    :: i, n, k
     real(rprec), dimension(:), allocatable     :: du_super
     real(rprec), dimension(:), allocatable     :: uhatstar, ustar ! adjoint forcing terms

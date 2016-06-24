@@ -17,22 +17,24 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                   Wake Model Base Class
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module wake_model_base_class
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!*******************************************************************************
+module wake_model_base_m
+!*******************************************************************************
 use types, only : rprec
-use util,  only : logistic, softplus, gaussian
+use util, only : logistic, softplus, gaussian
 use messages
 implicit none
 
 private
-public WakeModelBase
+public wake_model_base
 
-type WakeModelBase
-    real(rprec), dimension(:),   allocatable :: s    ! turbine location
-    real(rprec), dimension(:),   allocatable :: k    ! wake expansion coefficient
-    real(rprec), dimension(:),   allocatable :: x    ! streamwise coordinate
+type wake_model_base
+    real(rprec), dimension(:), allocatable :: s    ! turbine location
+    real(rprec), dimension(:), allocatable :: k    ! wake expansion coefficient
+    real(rprec), dimension(:), allocatable :: x    ! streamwise coordinate
     real(rprec), dimension(:,:), allocatable :: G    ! Gaussian forcing function (turbine, space)
     real(rprec), dimension(:,:), allocatable :: d    ! dimensionless wake diameter (turbine, space)
     real(rprec), dimension(:,:), allocatable :: dp   ! d/dx of d (turbine, space)
@@ -47,135 +49,145 @@ type WakeModelBase
     logical     :: isDimensionless = .false.
     real(rprec) :: LENGTH=0, VELOCITY=0, TIME=0, FORCE=0
 contains
-    procedure, public  :: initialize_val
-    procedure, public  :: print
-    procedure, public  :: makeDimensionless
-    procedure, public  :: makeDimensional
-    procedure, public  :: computeWakeExpansionFunctions
-    
-end type WakeModelBase
+    procedure, public :: initialize_val
+    procedure, public :: print
+    procedure, public :: makeDimensionless
+    procedure, public :: makeDimensional
+    procedure, public :: computeWakeExpansionFunctions
+end type wake_model_base
 
-interface WakeModelBase
+interface wake_model_base
     module procedure :: constructor_val
-end interface WakeModelBase
+end interface wake_model_base
 
 contains
 
-! Constructor for wake model with values given
+!*******************************************************************************
 function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx) result(this)
-    implicit none
-    type(WakeModelBase)                   :: this
-    real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
-    real(rprec), dimension(:), intent(in) :: i_s, i_k
-    integer, intent(in)                   :: i_Nx
-    
-    call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+!*******************************************************************************
+! Constructor for wake model with values given
+implicit none
+type(wake_model_base)                   :: this
+real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
+real(rprec), dimension(:), intent(in) :: i_s, i_k
+integer, intent(in)                   :: i_Nx
+
+call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+
 end function constructor_val
 
+!*******************************************************************************
 subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
-    implicit none
-    class(WakeModelBase), intent(inout)   :: this
-    real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
-    real(rprec), dimension(:), intent(in) :: i_s, i_k
-    integer, intent(in)                   :: i_Nx
-    integer                               :: i
-    
-    ! Allocate based on number of turbines
-    this%N = size(i_s)
-    if ( size(i_k) /= this%N ) then
-        call error('WakeModelBase.initialize','s and k must be the same size')
-    end if
-    allocate( this%s(this%N)    )
-    allocate( this%k(this%N)    )
+!*******************************************************************************
+implicit none
+class(wake_model_base), intent(inout)   :: this
+real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
+real(rprec), dimension(:), intent(in) :: i_s, i_k
+integer, intent(in)                   :: i_Nx
+integer                               :: i
 
-    ! Allocate based on number of gridpoints
-    this%Nx = i_Nx
-    allocate( this%x(this%Nx) )
-    allocate( this%G(this%N,  this%Nx) )
-    allocate( this%d(this%N,  this%Nx) )
-    allocate( this%dp(this%N, this%Nx) )
-    allocate( this%w(this%N,  this%Nx) )
-    allocate( this%fp(this%N, this%Nx) )
+! Allocate based on number of turbines
+this%N = size(i_s)
+if ( size(i_k) /= this%N ) then
+    call error('wake_model_base.initialize','s and k must be the same size')
+end if
+allocate( this%s(this%N)    )
+allocate( this%k(this%N)    )
 
-    ! Assign input arguments
-    this%s          = i_s
-    this%U_infty    = i_U_infty
-    this%Delta      = i_Delta
-    this%k          = i_k
-    this%Dia        = i_Dia
-    
-    ! Normalization constants
-    this%VELOCITY = i_U_infty
-    this%LENGTH   = i_Dia
-    this%TIME     = this%LENGTH / this%VELOCITY
-    this%FORCE    = this%VELOCITY / this%TIME
-    
-    ! Calculate other variables
-    this%dx = ( this%s(1) + this%s(this%N) ) / this%Nx
-    this%x(1) = this%dx/2
-    do i = 2, this%Nx
-        this%x(i) = this%x(i-1) + this%dx
-    end do
-    do i = 1, this%N
-        this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
-    end do
+! Allocate based on number of gridpoints
+this%Nx = i_Nx
+allocate( this%x(this%Nx) )
+allocate( this%G(this%N,  this%Nx) )
+allocate( this%d(this%N,  this%Nx) )
+allocate( this%dp(this%N, this%Nx) )
+allocate( this%w(this%N,  this%Nx) )
+allocate( this%fp(this%N, this%Nx) )
 
-    call this%computeWakeExpansionFunctions
+! Assign input arguments
+this%s          = i_s
+this%U_infty    = i_U_infty
+this%Delta      = i_Delta
+this%k          = i_k
+this%Dia        = i_Dia
+
+! Normalization constants
+this%VELOCITY = i_U_infty
+this%LENGTH   = i_Dia
+this%TIME     = this%LENGTH / this%VELOCITY
+this%FORCE    = this%VELOCITY / this%TIME
+
+! Calculate other variables
+this%dx = ( this%s(1) + this%s(this%N) ) / this%Nx
+this%x(1) = this%dx/2
+do i = 2, this%Nx
+    this%x(i) = this%x(i-1) + this%dx
+end do
+do i = 1, this%N
+    this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
+end do
+
+call this%computeWakeExpansionFunctions
     
 end subroutine initialize_val
 
+!*******************************************************************************
 subroutine computeWakeExpansionFunctions(this)
-    implicit none
-    class(WakeModelBase), intent(inout) :: this
-    integer                             :: i
-    
-    do i = 1, this%N
-        this%d(i,:)  = 1.0 + this%k(i) * softplus(2.0 *                                  &
-            (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)
-        this%dp(i,:) = 2.0 * this%k(i) * logistic(2.0 *                                  &
-            (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)/this%Dia
-        this%w(i,:)  = 2.0 * this%U_infty * this%dp(i,:) / this%d(i,:)
-        this%fp(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )   
-    end do
+!*******************************************************************************
+implicit none
+class(wake_model_base), intent(inout) :: this
+integer                             :: i
+
+do i = 1, this%N
+    this%d(i,:)  = 1.0 + this%k(i) * softplus(2.0 *                            &
+        (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)
+    this%dp(i,:) = 2.0 * this%k(i) * logistic(2.0 *                            &
+        (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)/this%Dia
+    this%w(i,:)  = 2.0 * this%U_infty * this%dp(i,:) / this%d(i,:)
+    this%fp(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )   
+end do
 
 end subroutine computeWakeExpansionFunctions
 
+!*******************************************************************************
 subroutine makeDimensionless(this)
-    implicit none
-    class(WakeModelBase), intent(inout)  :: this
-    
-    if (.not.this%isDimensionless) then
-        this%isDimensionless = .true.
-        this%s       = this%s / this%LENGTH
-        this%U_infty = this%U_infty / this%VELOCITY
-        this%Delta   = this%Delta / this%LENGTH
-        this%Dia     = this%Dia / this%LENGTH
-        this%dx      = this%dx / this%LENGTH
-        this%x       = this%x / this%LENGTH
-        this%G       = this%G * this%LENGTH         ! G has units 1/length
-        this%dp      = this%dp * this%LENGTH        ! dp has units 1/length
-        this%w       = this%w * this%TIME           ! w has units 1/time
-        this%fp      = this%fp / this%FORCE
-    end if
+!*******************************************************************************
+implicit none
+class(wake_model_base), intent(inout)  :: this
+
+if (.not.this%isDimensionless) then
+    this%isDimensionless = .true.
+    this%s       = this%s / this%LENGTH
+    this%U_infty = this%U_infty / this%VELOCITY
+    this%Delta   = this%Delta / this%LENGTH
+    this%Dia     = this%Dia / this%LENGTH
+    this%dx      = this%dx / this%LENGTH
+    this%x       = this%x / this%LENGTH
+    this%G       = this%G * this%LENGTH         ! G has units 1/length
+    this%dp      = this%dp * this%LENGTH        ! dp has units 1/length
+    this%w       = this%w * this%TIME           ! w has units 1/time
+    this%fp      = this%fp / this%FORCE
+end if
 end subroutine makeDimensionless
 
+!*******************************************************************************
 subroutine makeDimensional(this)
-    implicit none
-    class(WakeModelBase), intent(inout)  :: this
-    
-    if (this%isDimensionless) then
-        this%isDimensionless = .false.
-        this%s       = this%s * this%LENGTH
-        this%U_infty = this%U_infty * this%VELOCITY
-        this%Delta   = this%Delta * this%LENGTH
-        this%Dia     = this%Dia * this%LENGTH
-        this%dx      = this%dx * this%LENGTH
-        this%x       = this%x * this%LENGTH
-        this%G       = this%G / this%LENGTH         ! G has units 1/length
-        this%dp      = this%dp / this%LENGTH        ! dp has units 1/length
-        this%w       = this%w / this%TIME           ! w has units 1/time   
-        this%fp      = this%fp * this%FORCE  
-    end if
+!*******************************************************************************
+implicit none
+class(wake_model_base), intent(inout)  :: this
+
+if (this%isDimensionless) then
+    this%isDimensionless = .false.
+    this%s       = this%s * this%LENGTH
+    this%U_infty = this%U_infty * this%VELOCITY
+    this%Delta   = this%Delta * this%LENGTH
+    this%Dia     = this%Dia * this%LENGTH
+    this%dx      = this%dx * this%LENGTH
+    this%x       = this%x * this%LENGTH
+    this%G       = this%G / this%LENGTH         ! G has units 1/length
+    this%dp      = this%dp / this%LENGTH        ! dp has units 1/length
+    this%w       = this%w / this%TIME           ! w has units 1/time   
+    this%fp      = this%fp * this%FORCE  
+end if
 end subroutine makeDimensional
 
 ! Writes object to file
@@ -183,13 +195,13 @@ end subroutine makeDimensional
 !     use open_file_fid_mod
 !     use param, only : CHAR_BUFF_LENGTH
 !     implicit none
-!     class(WakeModelBase), intent(in) :: this
+!     class(wake_model_base), intent(in) :: this
 !     character(CHAR_BUFF_LENGTH), intent(in)  :: fstring
 !     integer :: i, fid
 !     
 !     !  Open vel.out (lun_default in io) for final output
 !     fid = open_file_fid(fstring, 'rewind', 'unformatted')
-!     write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                           &
+!     write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,               &
 !                this%U_infty, this%isDimensionless
 !     write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
 !     write(fid) this%s
@@ -204,35 +216,38 @@ end subroutine makeDimensional
 ! 
 ! end subroutine write_to_file
 
-! Prints all variables of the class to standard output
-subroutine print(this)
-    implicit none
-    class(WakeModelBase), intent(in) :: this
-    integer :: i
 
-    write(*,*) ' U_infty         = ', this%U_infty
-    write(*,*) ' Delta           = ', this%Delta
-    write(*,*) ' Dia             = ', this%Dia
-    write(*,*) ' Nx              = ', this%Nx
-    write(*,*) ' x               = ', this%x
-    write(*,*) ' dx              = ', this%dx
-    write(*,*) ' isDimensionless = ', this%isDimensionless
-    write(*,*) ' LENGTH          = ', this%LENGTH
-    write(*,*) ' VELOCITY        = ', this%VELOCITY
-    write(*,*) ' TIME            = ', this%TIME
-    write(*,*) ' FORCE           = ', this%FORCE
-    do i = 1, this%N
-        write(*,*) ' Wake', i,':'
-        write(*,*) '  s       = ', this%s(i)
-        write(*,*) '  k       = ', this%k(i)
-        write(*,*) '  G       = ', this%G(i,:)
-        write(*,*) '  d       = ', this%d(i,:)
-        write(*,*) '  dp      = ', this%dp(i,:)
-        write(*,*) '  w       = ', this%w(i,:)
-    end do
+!*******************************************************************************
+subroutine print(this)
+!*******************************************************************************
+! Prints all variables of the class to standard output
+implicit none
+class(wake_model_base), intent(in) :: this
+integer :: i
+
+write(*,*) ' U_infty         = ', this%U_infty
+write(*,*) ' Delta           = ', this%Delta
+write(*,*) ' Dia             = ', this%Dia
+write(*,*) ' Nx              = ', this%Nx
+write(*,*) ' x               = ', this%x
+write(*,*) ' dx              = ', this%dx
+write(*,*) ' isDimensionless = ', this%isDimensionless
+write(*,*) ' LENGTH          = ', this%LENGTH
+write(*,*) ' VELOCITY        = ', this%VELOCITY
+write(*,*) ' TIME            = ', this%TIME
+write(*,*) ' FORCE           = ', this%FORCE
+do i = 1, this%N
+    write(*,*) ' Wake', i,':'
+    write(*,*) '  s       = ', this%s(i)
+    write(*,*) '  k       = ', this%k(i)
+    write(*,*) '  G       = ', this%G(i,:)
+    write(*,*) '  d       = ', this%d(i,:)
+    write(*,*) '  dp      = ', this%dp(i,:)
+    write(*,*) '  w       = ', this%w(i,:)
+end do
 end subroutine print
 
-end module wake_model_base_class
+end module wake_model_base_m
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                   Wake Model Class
@@ -240,14 +255,14 @@ end module wake_model_base_class
 module wake_model_class
 use types, only : rprec
 use util,  only : logistic, softplus, gaussian
-use wake_model_base_class
+use wake_model_base_m
 use messages
 implicit none
 
 private
 public WakeModel
 
-type, extends(WakeModelBase) :: WakeModel
+type, extends(wake_model_base) :: WakeModel
     real(rprec), dimension(:,:), allocatable :: du   ! velocity deficit (turbine, space)
     real(rprec), dimension(:), allocatable   :: u    ! superimposed velocity (space)
     real(rprec), dimension(:), allocatable   :: uhat ! estimated local turbine velocity (turbine)
@@ -297,16 +312,15 @@ function constructor_file(fstring) result(this)
 end function constructor_file
 
 subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
-    use wake_model_base_class
+    use wake_model_base_m
     implicit none
     class(WakeModel), intent(inout)       :: this
     real(rprec), intent(in)               :: i_U_infty, i_Delta, i_Dia
     real(rprec), dimension(:), intent(in) :: i_s, i_k
     integer, intent(in)                   :: i_Nx
-    integer                               :: i
     
     ! Call base class initializer
-    call this%WakeModelBase%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+    call this%wake_model_base%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
 
     allocate( this%du(this%N, this%Nx) )
     allocate( this%u(this%Nx) )
@@ -373,7 +387,7 @@ subroutine makeDimensionless(this)
     class(WakeModel), intent(inout)  :: this
     
     if (.not.this%isDimensionless) then
-        call this%WakeModelBase%makeDimensionless    
+        call this%wake_model_base%makeDimensionless    
         this%du      = this%du / this%VELOCITY
         this%u       = this%u / this%VELOCITY
         this%uhat    = this%uhat / this%VELOCITY
@@ -386,7 +400,7 @@ subroutine makeDimensional(this)
     class(WakeModel), intent(inout)  :: this
     
     if (this%isDimensionless) then
-        call this%WakeModelBase%makeDimensional  
+        call this%wake_model_base%makeDimensional  
         this%du      = this%du * this%VELOCITY
         this%u       = this%u * this%VELOCITY
         this%uhat    = this%uhat * this%VELOCITY
@@ -401,7 +415,7 @@ subroutine write_to_file(this, fstring)
     implicit none
     class(WakeModel), intent(in) :: this
     character(CHAR_BUFF_LENGTH), intent(in)  :: fstring
-    integer :: i, fid
+    integer :: fid
     
     !  Open vel.out (lun_default in io) for final output
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
@@ -508,14 +522,14 @@ end module wake_model_class
 module wake_model_adjoint_class
 use types, only : rprec
 use util,  only : logistic, softplus, gaussian
-use wake_model_base_class
+use wake_model_base_m
 use messages
 implicit none
 
 private
 public WakeModelAdjoint
 
-type, extends(WakeModelBase) :: WakeModelAdjoint
+type, extends(wake_model_base) :: WakeModelAdjoint
     real(rprec), dimension(:,:), allocatable :: dustar ! adjointvelocity deficit (turbine, space)
 contains
     procedure, public  :: initialize_val
@@ -561,16 +575,15 @@ end function constructor_val
 ! end function constructor_file
 
 subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
-    use wake_model_base_class
+    use wake_model_base_m
     implicit none
     class(WakeModelAdjoint), intent(inout) :: this
     real(rprec), intent(in)                :: i_U_infty, i_Delta, i_Dia
     real(rprec), dimension(:), intent(in)  :: i_s, i_k
     integer, intent(in)                    :: i_Nx
-    integer                                :: i
     
     ! Call base class initializer
-    call this%WakeModelBase%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
+    call this%wake_model_base%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx)
 
     allocate( this%dustar(this%N, this%Nx) )  
     
@@ -629,7 +642,7 @@ subroutine makeDimensionless(this)
     class(WakeModelAdjoint), intent(inout)  :: this
     
     if (.not.this%isDimensionless) then
-        call this%WakeModelBase%makeDimensionless    
+        call this%wake_model_base%makeDimensionless    
         this%dustar = this%dustar / this%VELOCITY
     end if
 end subroutine makeDimensionless
@@ -639,7 +652,7 @@ subroutine makeDimensional(this)
     class(WakeModelAdjoint), intent(inout)  :: this
     
     if (this%isDimensionless) then
-        call this%WakeModelBase%makeDimensional  
+        call this%wake_model_base%makeDimensional  
         this%dustar = this%dustar * this%VELOCITY
     end if
 end subroutine makeDimensional
@@ -706,10 +719,9 @@ subroutine retract(this, fstar, dt, g)
     real(rprec), dimension(:,:), intent(in)  :: fstar
     real(rprec), intent(in)                  :: dt
     real(rprec), dimension(:), intent(inout) :: g
-    real(rprec), dimension(:), allocatable   :: k1star, k2star, k3star, k4star
-    real(rprec), dimension(:), allocatable   :: k1star_rhs, k2star_rhs, k3star_rhs, k4star_rhs
-    real(rprec)                              :: gk1s, gk2s, gk3s, gk4s
-    real(rprec), dimension(:), allocatable   :: dummy_zeros
+    !real(rprec), dimension(:), allocatable   :: k1star, k2star, k3star, k4star
+    !real(rprec), dimension(:), allocatable   :: k1star_rhs, k2star_rhs, k3star_rhs, k4star_rhs
+    !real(rprec)                              :: gk1s, gk2s, gk3s, gk4s
     integer                                  :: i
     
     do i = 1, this%N
@@ -903,8 +915,8 @@ subroutine initialize_file(this, fpath)
 
     class(WakeModelEstimator)   :: this
     character(*), intent(in)    :: fpath
-    character(CHAR_BUFF_LENGTH) :: fstring, str
-    integer                     :: i, fid    
+    character(CHAR_BUFF_LENGTH) :: fstring
+    integer                     :: i, fid
 
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
@@ -952,7 +964,7 @@ subroutine write_to_file(this, fpath)
     
     class(WakeModelEstimator)   :: this
     character(*), intent(in)    :: fpath
-    character(CHAR_BUFF_LENGTH) :: fstring, str
+    character(CHAR_BUFF_LENGTH) :: fstring
     integer                     :: i, fid    
 
     call system('mkdir -vp ' // fpath)

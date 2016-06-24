@@ -46,8 +46,7 @@ subroutine sgs_stag ()
 
 use types,only:rprec
 use param
-use sim_param,only: u,v,w,dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz,  &
-                    txx, txy, txz, tyy, tyz, tzz
+use sim_param,only: txx, txy, txz, tyy, tyz, tzz
 use sgs_param
 use messages
 

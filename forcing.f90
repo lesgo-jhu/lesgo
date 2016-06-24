@@ -58,7 +58,7 @@ subroutine forcing_applied()
 use types, only : rprec
 
 #ifdef PPTURBINES
-use sim_param, only : fxa
+use sim_param, only : fxa, fya, fza
 use turbines, only:turbines_forcing
 #endif
 
@@ -74,6 +74,8 @@ implicit none
 #ifdef PPTURBINES
 ! Reset applied force arrays
 fxa = 0._rprec
+fya = 0._rprec
+fza = 0._rprec
 call turbines_forcing ()
 #endif
 
@@ -128,9 +130,7 @@ subroutine inflow_cond ()
 !  velocity.
 !
 use types, only : rprec
-use param, only : inflow_velocity, nx, ny, nz, &
-                  fringe_region_end, fringe_region_len
-use param, only : coord
+use param, only : inflow_velocity, nx, ny, nz
 use sim_param, only : u, v, w
 use messages, only : error
 use fringe_util

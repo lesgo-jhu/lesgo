@@ -147,7 +147,7 @@ module param
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
     
-  logical :: molec=.false., sgs=.true., dns_bc=.false.
+  logical :: molec=.false., sgs=.true.
   
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS

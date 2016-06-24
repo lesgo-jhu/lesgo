@@ -42,11 +42,6 @@ interface gaussian
     module procedure :: gaussian_array
 end interface gaussian
 
-interface interpolate
-    module procedure :: interpolate_scalar
-    module procedure :: interpolate_array
-end interface interpolate
-
 contains
 
 ! softplus function of the form sp(x) = ln(1 + exp(x-s)) with scalar input
@@ -232,65 +227,6 @@ subroutine rosenbrock(x, f, g)
     g(2) = 2 * 100.0 * (x(2) - x(1)**2);
     
 end subroutine rosenbrock
-
-! linear interpolation between 1D-arrays
-subroutine interpolate_scalar(x, y, xi, yi)
-    implicit none
-    real(rprec), dimension(:), intent(in)  :: x, y
-    real(rprec), intent(in)                :: xi
-    real(rprec), intent(out)               :: yi
-    real(rprec), dimension(:), allocatable :: xi_array, yi_array
-    
-    allocate( xi_array(1) )
-    allocate( yi_array(1) )
-    xi_array(1) = xi
-    call interpolate(x, y, xi_array, yi_array)
-    yi = yi_array(1)
-    
-end subroutine interpolate_scalar
-
-! linear interpolation between 1D-arrays
-subroutine interpolate_array(x, y, xi, yi)
-    implicit none
-    real(rprec), dimension(:), intent(in)  :: x, y, xi
-    real(rprec), dimension(:), intent(out) :: yi
-    integer     :: i, j   
-    real(rprec) :: dx, t 
-    
-    if ( size(x) /= size(y) .or. size(xi) /= size(yi)) then
-        call error('util.inteprolate','Interpolation pairs must be of equal size.')
-    end if
-    if ( size(x) /= size(y) ) then
-        call error('util.inteprolate','Interpolation pairs must be of equal size.')
-    end if
-    do i = 2, size(x)
-        if ( x(i-1) >= x(i) ) then
-            call error('util.interpolate','array x must be monotonically increasing')
-        end if
-    end do
-    do i = 2, size(xi)
-        if ( xi(i-1) >= xi(i) ) then
-            call error('util.interpolate','array xi must be monotonically increasing')
-        end if
-    end do
-
-    j = 1
-    do i = 1, size(xi)
-        if ( xi(i) <= x(1) ) then
-            yi(i) = y(1)
-        else if ( xi(i) >= x( size(x) ) ) then
-            yi(i) = y( size(x) )
-        else
-            do while ( xi(i) > x(j+1) )
-                j = j + 1
-            end do
-            dx = x(j+1) - x(j)
-            t = ( xi(i) - x(j) ) / dx
-            yi(i) = (1-t) * y(j) + t * y(j+1)
-        end if
-    end do
-    
-end subroutine interpolate_array
 
 ! Matrix inverse. This is a wrapper for Lapack. A must be a square matrix.
 function inverse(A) result(Ainv)

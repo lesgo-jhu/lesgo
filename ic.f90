@@ -36,11 +36,11 @@ subroutine ic()
     real(rprec) :: zo_turbines
 #endif    
   
-  integer :: jx, jy, jz
+  integer :: jz
   integer :: jz_abs
 
   real(rprec),dimension(nz) :: ubar
-  real(rprec) :: rms, sigma_rv, noise, arg, arg2
+  real(rprec) :: rms, sigma_rv, arg, arg2
   real(rprec) :: z
 
 #ifdef PPTURBINES

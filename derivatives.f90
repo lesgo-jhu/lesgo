@@ -47,7 +47,7 @@ subroutine ddx(f,dfdx,lbz)
 !  
 
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
@@ -99,7 +99,7 @@ subroutine ddy(f,dfdy, lbz)
 !  y using spectral decomposition.
 !  
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none      
@@ -146,7 +146,7 @@ end subroutine ddy
 subroutine ddxy (f, dfdx, dfdy, lbz)              
 !**********************************************************************
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
@@ -197,7 +197,10 @@ subroutine ddz_uv(f, dfdz, lbz)
 !  bottom process it only supplies 2:nz
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
+use param,only:nx,ny,nz,dz,BOGUS
+#ifdef PPMPI
+use param,only:nproc,coord
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -271,7 +274,10 @@ subroutine ddz_w(f, dfdz, lbz)
 !  has 1:nz-1
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
+use param,only:nx,ny,nz,dz,BOGUS
+#ifdef PPMPI
+use param,only:nproc,coord
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -322,7 +328,7 @@ subroutine filt_da(f,dfdx,dfdy, lbz)
 !  except on bottom process (0 level set to BOGUS, starts at 1)
 !
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none

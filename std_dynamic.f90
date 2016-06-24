@@ -28,7 +28,7 @@ subroutine std_dynamic(Cs_1D)
 ! stuff is done on uv-nodes
 ! can save more mem if necessary. mem requirement ~ n^2, not n^3
 use types,only:rprec
-use param,only:ld,ny,nz,dx,dy,dz, coord
+use param,only:ld,ny,nz,coord
 use sim_param,only:u,v,w
 use sgs_param,only:S11,S12,S13,S22,S23,S33,delta,S,u_bar,v_bar,w_bar
 use sgs_param,only:L11,L12,L13,L22,L23,L33,M11,M12,M13,M22,M23,M33
