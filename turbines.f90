@@ -85,7 +85,6 @@ integer, public :: tbase
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of diameter
 real(rprec) :: sy           ! spacing in the y-direction
-real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
 ! Arrays for interpolating dynamic controls
 real(rprec), dimension(:,:), allocatable :: theta1_arr
@@ -108,21 +107,16 @@ character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
 character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
 integer, dimension(:), allocatable :: forcing_fid
 
-real(rprec) :: T_avg_dim_file
-real(rprec), dimension(:), allocatable :: z_tot
+! epsilon used for disk velocity time-averaging
+real(rprec) :: eps 
 
-character (100) :: string1
-real(rprec) :: eps ! epsilon used for disk velocity time-averaging
-
+! Commonly used indices
 integer :: i,j,k,i2,j2,k2,l,s
-integer :: imax,jmax,kmax,count_i,count_n
-integer :: min_i,max_i,min_j,max_j,min_k,max_k
 integer :: k_start, k_end
-logical :: exst
 
-logical :: turbine_in_proc=.false.      ! init, do not change this
-
+! Variables to keep track of which processors have turbines
 integer, dimension(:), allocatable :: turbine_in_proc_array
+logical :: turbine_in_proc = .false.
 #ifdef PPMPI
 integer :: turbine_in_proc_cnt = 0
 logical :: buffer_logical
@@ -145,8 +139,9 @@ implicit none
 real(rprec), pointer, dimension(:) :: x,y,z
 character (*), parameter :: sub_name = mod_name // '.turbines_init'
 integer :: fid
-real(rprec) :: delta2
-logical :: test_logical
+real(rprec) :: T_avg_dim_file, delta2
+logical :: test_logical, exst
+character (100) :: string1
 
 ! Set pointers
 nullify(x,y,z)
@@ -159,17 +154,11 @@ nloc = num_x*num_y
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
 allocate(turbine_in_proc_array(nproc-1))
-allocate(z_tot(nz_tot))
 allocate(forcing_fid(nloc))
 turbine_in_proc_array = 0
 
 ! Create turbine directory
 call system("mkdir -vp turbine") 
-
-! z_tot for total domain (since z is local to the processor)
-do k = 1,nz_tot
-    z_tot(k) = (k - 0.5_rprec) * dz
-end do
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i
@@ -302,6 +291,10 @@ real(rprec), pointer :: p_dia => null(), p_thk => null()
 real(rprec), pointer :: p_theta1 => null(), p_theta2 => null()
 real(rprec), pointer :: p_nhat1 => null(), p_nhat2=> null(), p_nhat3 => null() 
 integer :: icp, jcp, kcp
+integer :: imax, jmax, kmax
+integer :: min_i, max_i, min_j, max_j, min_k, max_k
+integer :: count_i, count_n
+real(rprec), dimension(:), allocatable :: z_tot
 
 #ifdef PPMPI
 real(rprec), dimension(:), allocatable :: buffer_array
@@ -322,6 +315,12 @@ turbine_in_proc = .false.
 allocate(sumA(nloc))
 allocate(turbine_vol(nloc))
 sumA = 0
+
+! z_tot for total domain (since z is local to the processor)
+allocate(z_tot(nz_tot))
+do k = 1,nz_tot
+    z_tot(k) = (k - 0.5_rprec) * dz
+end do
 
 do s=1,nloc
     
@@ -381,13 +380,6 @@ do s=1,nloc
     wind_farm%turbine(s)%num_nodes = 0
     count_n = 0
     count_i = 1
-#ifdef PPMPI
-    k_start = max(1+coord*(nz-1), min_k)
-    k_end = min(nz-1+coord*(nz-1), max_k)
-#else
-    k_start = 1
-    k_end = nz
-#endif
     
     do k=k_start,k_end  !global k     
         do j=min_j,max_j
@@ -476,6 +468,7 @@ end if
 deallocate(sumA)
 deallocate(turbine_vol)
 nullify(x,y,z)
+deallocate(z_tot)
 
 end subroutine turbines_nodes
 
@@ -776,8 +769,8 @@ implicit none
 
 character(*), parameter :: sub_name = mod_name // '.place_turbines'
 
-integer :: i, j, k
 real(rprec) :: sxx, syy, shift_base, const
+real(rprec) :: dummy, dummy2
 logical :: exst
 integer :: fid
 
