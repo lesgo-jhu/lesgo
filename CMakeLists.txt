@@ -171,7 +171,7 @@ endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90)
+    set(Sources ${Sources} turbines.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 

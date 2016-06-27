@@ -833,7 +833,7 @@ end subroutine  sgs_hist_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use turbines_base
+use turbines
 implicit none
 
 character(*), parameter :: block_name = 'TURBINES'
