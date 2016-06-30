@@ -61,7 +61,6 @@ use level_set, only : level_set_init
 #endif
 
 #ifdef PPTURBINES
-use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 #endif
 
@@ -136,7 +135,6 @@ call output_init()
 
 ! Initialize turbines
 #ifdef PPTURBINES
-call turbines_base_init()
 call turbines_init()    !must occur before initial is called
 #endif
 

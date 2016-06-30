@@ -833,7 +833,7 @@ end subroutine  sgs_hist_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use turbines_base
+use turbines
 implicit none
 
 character(*), parameter :: block_name = 'TURBINES'
@@ -910,6 +910,10 @@ do
         read (buff(equal_pos+1:), *) rh_gamma
      case ('RH_ETA')
         read (buff(equal_pos+1:), *) rh_eta
+     case ('CT_PRIME_MIN')
+        read (buff(equal_pos+1:), *) Ct_prime_min
+     case ('CT_PRIME_MAX')
+        read (buff(equal_pos+1:), *) Ct_prime_max
         
      case ('USE_WAKE_MODEL')
         read (buff(equal_pos+1:), *) use_wake_model

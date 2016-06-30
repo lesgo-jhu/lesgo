@@ -213,8 +213,6 @@ subroutine search(this, x, f, g, s, stp, o_numFunEval)
     ddy = dd0
     ! Start of iteration
     do
-!         write(*,*) stp
-!         write(*,*) stx, sty
         ! Interval of uncertainty
         if (this%bracketed) then
             this%curMinStep = min(stx, sty)
@@ -239,15 +237,10 @@ subroutine search(this, x, f, g, s, stp, o_numFunEval)
         ! Evaluate the function and gradient at stp and compute the directional derivative.
         x = x0 + stp * s
         call this%mini%eval(x, f, g)
-!         write(*,*) 'Ctp  from line search', x
-!         write(*,*) 'grad from line search', g
         numFunEval = numFunEval + 1
         dg = sum(g*s)
         ftest1 = f0 + stp * ddtest
-!         write(*,*) this%bracketed
-!         write(*,*) stp <= this%curMinStep
-!         write(*,*) stp >= this%curMaxStep
-!         write(*,*) .not.take_step_success
+
         ! Tests for convergence issues. Strange behaviors will return normally and 
         ! print a warning to std output
         if ((this%bracketed .and. (stp <= this%curMinStep .or. stp >= this%curMaxStep))  &
@@ -518,6 +511,8 @@ type :: ConjugateGradient
     real(rprec), dimension(:), allocatable :: x, xp ! current and previous location
     real(rprec), dimension(:), allocatable :: g, gp ! current and previous gradients
     real(rprec), dimension(:), allocatable :: h, hp ! current and previous search direction
+    real(rprec) :: lb = -10000000!-Infinity
+    real(rprec) :: ub = 10000000!Infinity
 contains
    procedure, public    :: minimize
    procedure, private   :: evaluate_gamma
@@ -529,16 +524,18 @@ end interface ConjugateGradient
 
 contains
 
-function constructor(i_mini, i_maxIter, i_tol) result(this)
+function constructor(i_mini, i_maxIter, i_lb, i_ub, i_tol) result(this)
     implicit none
     type(ConjugateGradient) :: this
     class(Minimized), target :: i_mini
     integer, intent(in), optional       :: i_maxIter 
-    real(rprec), intent(in), optional   :: i_tol
+    real(rprec), intent(in), optional   :: i_lb, i_ub, i_tol
 
     ! Assign input arguments
     if ( present(i_maxIter) )   this%maxIter = i_maxIter
     if ( present(i_tol) )       this%tol     = i_tol
+    if ( present(i_lb) )        this%lb      = i_lb
+    if ( present(i_ub) )        this%ub      = i_ub
     this%mini => i_mini
     this%ls = LineSearch(i_mini)
 end function constructor
@@ -557,7 +554,7 @@ subroutine minimize(this, i_x, o_x)
     real(rprec), dimension(:), intent(in)   :: i_x
     real(rprec), dimension(:), intent(out), optional :: o_x
     real(rprec) :: d, delta_f, stp
-    integer     :: i
+    integer     :: i, j
     integer     :: dummy = 0
     
     ! Allocate arrays
@@ -568,7 +565,6 @@ subroutine minimize(this, i_x, o_x)
     allocate(this%g(size(i_x)))
     allocate(this%h(size(i_x)))
     allocate(this%gd(size(i_x)))
-    !if ( present(o_x) ) allocate(o_x(size(i_x)))
     
     ! Evaluate gradient and function at starting position
     this%xp = i_x
@@ -583,7 +579,6 @@ subroutine minimize(this, i_x, o_x)
     this%x  = this%xp
     this%gd = this%g
     
-    write(*,*) 'Iteration ', 0,': f = ', this%f
     d = sum(this%g * this%h)
     delta_f = -0.5 * d
     
@@ -602,23 +597,47 @@ subroutine minimize(this, i_x, o_x)
         stp = min(1.0, -2.0 * delta_f / d)
         call this%ls%search(this%x, this%f, this%g, this%h, stp, dummy)
         this%fnev = this%fnev + dummy
+        
+        ! Safeguard step against bounds
+        do j = 1, size(this%x)
+            this%x(j) = min( max(this%x(j), this%lb), this%ub)
+        end do
+        call this%mini%eval(this%x, this%f, this%g)
 
         ! Check for convergence
         if ( 2.0 * abs(this%fp - this%f) <= this%tol * ( abs(this%fp) + abs(this%f) +    &
          this%eps ) .or. sum(this%g*this%g) == 0 ) then
-            write(*,*) 'Minimum found after ', this%fnev, ' function evaluations'
+            ! Set output if present
             if ( present(o_x) ) o_x = this%x
+            
             ! Evaluate minimization at current point
             call this%mini%eval(this%x, this%f, this%g)
+            
+            ! Print result
+            write(*,*) 'Minimum f = ',this%f, 'found after ', i, ' iterations.'
+            
+            return
+        else if (this%f > this%fp) then
+            ! Reset to previous point
+            this%x = this%xp;
+            this%f = this%fp;
+            this%g = this%gp;
+            
+            ! Set output if present
+            if ( present(o_x) ) o_x = this%x
+            
+            ! Evaluate minimization at current point
+            call this%mini%eval(this%x, this%f, this%g)
+            
+            ! Print result
+            write(*,*) 'Value increased after ', i,                            &
+                ' iterations. Minimum function value is f = ', this%f
             return
         end if
 
         ! Compute next search direction
         call this%evaluate_gamma
         this%h = -this%g + this%gamma * this%hp
-        
-        ! Print output
-        write(*,*) 'Iteration ', i, ': f = ', this%f
 
         ! Swap arrays
         delta_f = max(this%fp - this%f, 10 * epsilon(this%f))
@@ -628,9 +647,16 @@ subroutine minimize(this, i_x, o_x)
         this%xp = this%x
         this%fp = this%f
     end do
+    
     ! Evaluate minimization at current point
     call this%mini%eval(this%x, this%f, this%g)
+    
+    ! Set output if present
     if ( present(o_x) ) o_x = this%x
+    
+    ! Print result
+    write(*,*) 'Maximum number of iterations reached. ',                       &
+        'Minimum function value is f = ', this%f
 end subroutine minimize
 
 end module conjugate_gradient_class

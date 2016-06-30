@@ -344,7 +344,7 @@ end subroutine eval
 function get_Ctp_vector(this) result(Ctp_vec)
     implicit none
     class(MinimizedFarm) :: this
-    real(rprec), dimension(:),allocatable   :: Ctp_vec
+    real(rprec), dimension(:),allocatable :: Ctp_vec
     integer :: k
     
     allocate(Ctp_vec(size(this%Ctp) - this%N))

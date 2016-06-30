@@ -124,6 +124,7 @@ do i = 2, this%Nx
 end do
 do i = 1, this%N
     this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
+    this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
 end do
 
 call this%computeWakeExpansionFunctions
@@ -347,7 +348,7 @@ subroutine initialize_file(this, fstring)
     
     !  Open vel.out (lun_default in io) for final output
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
-    read(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                           &
+    read(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                  &
               this%U_infty, this%isDimensionless
     read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
     
@@ -377,6 +378,7 @@ subroutine initialize_file(this, fstring)
     
     do i = 1, this%N
         this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
+        this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
     end do
     call this%computeWakeExpansionFunctions
     
@@ -419,7 +421,7 @@ subroutine write_to_file(this, fstring)
     
     !  Open vel.out (lun_default in io) for final output
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
-    write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                           &
+    write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                 &
                this%U_infty, this%isDimensionless
     write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
     write(fid) this%s
@@ -480,8 +482,8 @@ subroutine advance(this, Ctp, dt)
     allocate(du_superimposed(this%Nx))
     du_superimposed = 0.0
     do i = 1, this%N
-        this%du(i,:) = this%du(i,:) +                                                    &
-          dt * this%rhs(this%du(i,:), this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
+        this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),             &
+            this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
         du_superimposed = du_superimposed + this%du(i,:)**2
     end do
     du_superimposed = sqrt(du_superimposed)
@@ -516,9 +518,9 @@ end function rhs
 
 end module wake_model_class
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                   Wake Model Adjoint Class
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module wake_model_adjoint_class
 use types, only : rprec
 use util,  only : logistic, softplus, gaussian
