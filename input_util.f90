@@ -893,8 +893,6 @@ do
         read (buff(equal_pos+1:), *) alpha
      case ('FILTER_CUTOFF')
         read (buff(equal_pos+1:), *) filter_cutoff
-     case ('TURBINE_CUMULATIVE_TIME')
-        read (buff(equal_pos+1:), *) turbine_cumulative_time
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
 
