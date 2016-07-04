@@ -113,13 +113,7 @@ end if
 
 if(initu)then
 
-#ifdef PPREAD_BIG_ENDIAN
-    open(12,file=fname,form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-    open(12,file=fname,form='unformatted', convert='little_endian')
-#else
-    open(12,file=fname,form='unformatted')
-#endif
+    open(12,file=fname,form='unformatted', convert=read_endian)
   
     if(.not. USE_MPI .or. (USE_MPI .and. coord == 0) ) write(*,*) '--> Reading initial velocity field from file'
 
@@ -136,13 +130,7 @@ if(initu)then
         inquire (file=fname_dyn_tn, exist=exst)
         if (exst) then
 
-#ifdef PPREAD_BIG_ENDIAN
-            open(13,file=fname_dyn_tn,form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-            open(13,file=fname_dyn_tn,form='unformatted', convert='little_endian')
-#else
-            open(13,file=fname_dyn_tn,form='unformatted')
-#endif
+            open(13,file=fname_dyn_tn,form='unformatted', convert=read_endian)
 
             read(13) F_ee2(:,:,1:nz), F_deedt2(:,:,1:nz), ee_past(:,:,1:nz)
 
