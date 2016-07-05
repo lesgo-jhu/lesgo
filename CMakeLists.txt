@@ -64,6 +64,7 @@ set(USE_DYN_TN false)
 #  Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set(compiler_name "ifort")
+    add_definitions(-DPPIFORT)
 #  GNU
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     add_definitions(-DPPGFOFTRAN)
