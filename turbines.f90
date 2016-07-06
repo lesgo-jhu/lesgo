@@ -565,7 +565,7 @@ if (coord == 0) then
     do i=1,turbine_in_proc_cnt
         j = turbine_in_proc_array(i)
         recv_array = 0._rprec
-        call MPI_recv( recv_array, nloc, MPI_rprec, j, 3, comm, status, ierr )
+        call MPI_recv( recv_array, 4*nloc, MPI_rprec, j, 3, comm, status, ierr )
         send_array = send_array + recv_array
     end do
     
@@ -577,7 +577,7 @@ if (coord == 0) then
         w_vel_center(s) = send_array(3*nloc+s)
     end do
 elseif (turbine_in_proc) then
-    call MPI_send( send_array, nloc, MPI_rprec, 0, 3, comm, ierr )
+    call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
 end if
 #endif
 
