@@ -60,10 +60,11 @@ set(USE_STREAKS false)
 # Set compiler versions for Cmake
 #  Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    add_definitions(-DPPIFORT)
     set(compiler_name "ifort")
 #  GNU
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-    add_definitions(-DPPGFOFTRAN)
+    add_definitions(-DPPGFORTRAN)
     set(compiler_name "gfortran")
 endif ()
 find_program(WHICH NAMES which)
@@ -222,8 +223,7 @@ endif (READ_ENDIAN STREQUAL "BIG")
 
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin 
-         -assume byterecl")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
