@@ -325,8 +325,8 @@ c % vw = a % vw + b % vw
 !c % txz = a % txz + b % txz
 !c % tyz = a % tyz + b % tyz
 c % fx = a % fx + b % fx
-!c % fy = a % fy + b % fy
-!c % fz = a % fz + b % fz
+c % fy = a % fy + b % fy
+c % fz = a % fz + b % fz
 c % cs_opt2 = a % cs_opt2 + b % cs_opt2
 
 return
@@ -357,8 +357,8 @@ c % vw = a % vw - b % vw
 !c % txz = a % txz - b % txz
 !c % tyz = a % tyz - b % tyz
 c % fx = a % fx - b % fx
-!c % fy = a % fy - b % fy
-!c % fz = a % fz - b % fz
+c % fy = a % fy - b % fy
+c % fz = a % fz - b % fz
 c % cs_opt2 = a % cs_opt2 - b % cs_opt2
 
 return
@@ -392,8 +392,8 @@ c % vw = a % vw + b
 !c % txz = a % txz + b
 !c % tyz = a % tyz + b
 c % fx = a % fx + b
-!c % fy = a % fy + b
-!c % fz = a % fz + b
+c % fy = a % fy + b
+c % fz = a % fz + b
 c % cs_opt2 = a % cs_opt2 + b
 
 return
