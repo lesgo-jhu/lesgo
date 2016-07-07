@@ -274,6 +274,7 @@ if (allocated(this%r) ) then
     deallocate(this%r)
 end if
 allocate( this%r(N) )
+allocate( this%R23(N) )
 
 Lr = R + 2 * sqrt(delta2)
 dr = Lr / (N - 1)
