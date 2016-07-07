@@ -1651,7 +1651,7 @@ close(13)
 
 ! Write binary data
 open(unit=13,file=fname_velw,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=3) tavg(:nx,:ny,1:nz)%w
+write(13,rec=1) tavg(:nx,:ny,1:nz)%w
 close(13)
 
 open(unit=13,file=fname_vel2,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
@@ -1674,6 +1674,8 @@ close(13)
 
 open(unit=13,file=fname_f,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
+write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
+write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
 close(13)
 
 open(unit=13,file=fname_cs,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
