@@ -403,7 +403,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Iteration: ', clock % time
           write(*,'(1a,E15.7)') '  Cumulative: ', clock_total % time
           write(*,'(1a,E15.7)') '  Forcing: ', clock_forcing % time
-          write(*,'(1a,E15.7)') '  Cummulative Forcing: ', clock_total_f
+          write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
           call write_tau_wall()   !!jb
