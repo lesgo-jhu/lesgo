@@ -471,8 +471,8 @@ c % vw = a % vw / b
 !c % txz = a % txz / b
 !c % tyz = a % tyz / b
 c % fx = a % fx / b
-!c % fy = a % fy / b
-!c % fz = a % fz / b
+c % fy = a % fy / b
+c % fz = a % fz / b
 c % cs_opt2 = a % cs_opt2 / b
 
 return
@@ -503,8 +503,8 @@ c % vw = a % vw * b % vw
 !c % txz = a % txz * b % txz
 !c % tyz = a % tyz * b % tyz
 c % fx = a % fx * b % fx
-!c % fy = a % fy * b % fy
-!c % fz = a % fz * b % fz
+c % fy = a % fy * b % fy
+c % fz = a % fz * b % fz
 c % cs_opt2 = a % cs_opt2 * b % cs_opt2
 
 return
@@ -538,8 +538,8 @@ c % vw = a % vw * b
 !c % txz = a % txz * b
 !c % tyz = a % tyz * b
 c % fx = a % fx * b
-!c % fy = a % fy * b
-!c % fz = a % fz * b
+c % fy = a % fy * b
+c % fz = a % fz * b
 c % cs_opt2 = a % cs_opt2 * b
 
 return
@@ -592,7 +592,7 @@ allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-!c % fz = interp_to_uv_grid( a % fz, lbz )
+c % fz = interp_to_uv_grid( a % fz, lbz )
 c % w  =interp_to_uv_grid(a %w,lbz)
 c % w2 =interp_to_uv_grid(a %w2,lbz)
 
@@ -625,8 +625,8 @@ c = a
 !c % tzz =  interp_to_w_grid( a % tzz, lbz )
 !c % txy =  interp_to_w_grid( a % txy, lbz )
 
-!c % fx = interp_to_w_grid( a % fx, lbz )
-!c % fy = interp_to_w_grid( a % fy, lbz )
+c % fx = interp_to_w_grid( a % fx, lbz )
+c % fy = interp_to_w_grid( a % fy, lbz )
 
 return
 
@@ -771,8 +771,8 @@ c % txy = a
 c % txz = a
 c % tyz = a
 c % fx = a
-!c % fy = a
-!c % fz = a
+c % fy = a
+c % fz = a
 c % cs_opt2 = a
 
 return

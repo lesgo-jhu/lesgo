@@ -1299,7 +1299,7 @@ if (.not. exst) then
  
 else
 
-open(1, file=fname, action='read', position='rewind',form='unformatted', convert=read_endian)
+open(1, file=fname, action='read', position='rewind', form='unformatted', convert=read_endian)
 read(1) tavg_total_time
 read(1) tavg
 close(1)
@@ -1324,7 +1324,7 @@ endif
 
         tavg_total_time_sgs = 0._rprec  
     else
-        open (1, file=fname, action='read', position='rewind',form='unformatted', convert=read_endian)
+        open (1, file=fname, action='read', position='rewind', form='unformatted', convert=read_endian)
         read (1) tavg_total_time_sgs
         read (1) tavg_sgs
         close(1)    
@@ -1422,7 +1422,7 @@ do k=1,jzmax
       tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
       tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
       tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-#ifdef PPTURBINES       
+#ifdef PPTURBINES
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt 
       tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt 
       tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza(i,j,k) * tavg_dt 
@@ -1589,56 +1589,58 @@ call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
 ! Write all the 3D data
 #ifdef PPCGNS
 ! Write CGNS Data
-call write_parallel_cgns (fname_vel ,nx, ny, nz - nz_end, nz_tot,           &
-(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                      &
-3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                             &
-(/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                       &
-   tavg(1:nx,1:ny,1:nz - nz_end) % v,                                       &
+call write_parallel_cgns (fname_vel ,nx, ny, nz - nz_end, nz_tot,              &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 3,                                      &
+(/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                                   &
+(/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                          &
+   tavg(1:nx,1:ny,1:nz - nz_end) % v,                                          &
    tavg(1:nx,1:ny,1:nz- nz_end) % w_uv /) )
    
-call write_parallel_cgns (fname_velw ,nx, ny, nz - nz_end, nz_tot,          &
-(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                     &
+call write_parallel_cgns (fname_velw ,nx, ny, nz - nz_end, nz_tot,             &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                        &
 1, (/ 'VelocityZ' /), (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
 
-call write_parallel_cgns(fname_vel2,nx,ny,nz- nz_end,nz_tot,                &
-(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                  &
-(/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),   &
-(/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                       &
-tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
-tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                          &
-tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                          &
-tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                          &
-tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
+call write_parallel_cgns(fname_vel2,nx,ny,nz- nz_end,nz_tot,                   &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                     &
+(/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
     
-call write_parallel_cgns(fname_tau,nx,ny,nz- nz_end,nz_tot,                 &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                         &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                  &
-(/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),   &
-(/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                      &
-tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
-tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                         &
-tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                         &
-tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                         &
-tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
+call write_parallel_cgns(fname_tau,nx,ny,nz- nz_end,nz_tot,                    &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                     &
+(/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
 
-call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                   &
-(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
-(/ 'bodyForX' /),                                                           &
-(/ tavg(1:nx,1:ny,1:nz- nz_end) % fx/) )
+call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                     &
+(/ 'bodyForX', 'bodyForY', 'bodyForZ' /),                                      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
 
-call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                  &
-(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
+call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                     &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                     &
 (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
 
 #else
