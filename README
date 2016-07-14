@@ -8,13 +8,13 @@ without any warranty.
 Written by:
 
   Stuart Chester
-  Jason Graham <jgraha8@gmail.com>
-  Claire Verhulst <cverhuls@gmail.com>
-  Richard Stevens <r.j.a.m.stevens@gmail.com>
-  Tony Martinez <tony.mtos@gmail.com>
-  Joel Bretheim <jbretheim@gmail.com>
-  Xiang Yang <xiangyang@jhu.edu>
-  Carl Shapiro <crshapiro@gmail.com>
+  Jason Graham     <jgraha8@gmail.com>
+  Claire Verhulst  <cverhuls@gmail.com>
+  Richard Stevens  <r.j.a.m.stevens@gmail.com>
+  Tony Martinez    <tony.mtos@gmail.com>
+  Joel Bretheim    <jbretheim@gmail.com>
+  Xiang Yang       <xiangyang@jhu.edu>
+  Carl Shapiro     <crshapiro@gmail.com>
 
 ================================================================================
                     DISCLAIMER
@@ -260,12 +260,12 @@ A) Time Averaged Data
 
     1) Entire domain (these file use the 'MPI appendix')
 
-      * veluv_avg.ext       : Mean u, v, w velocity field on uv grid
-      * velw_avg.ext        : Mean w velocity on w grid
+      * veluv_avg.ext       : Mean u, v, w velocity field [on uv grid]
+      * velw_avg.ext        : Mean w velocity [on w grid]
       * vel2_avg.ext        : Mean of square products of the velocity field
       * force_avg.ext       : Mean field of modeled forces (IBM, turbines, RNS, etc)
       * tau_avg.ext         : Mean of the sub-grid scale stress tensor
-      * rs.ext              : Reynolds stresses
+      * rs.ext              : Reynolds stresses [same grid as vel2]
       * cs_opt2.ext         : Square of Smagorinsky coefficient from SGS modeling
 
 B) Domain Data (these files use the 'MPI appendix')
