@@ -598,9 +598,9 @@ allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-c % fz = interp_to_uv_grid( a % fz, lbz )
-c % w  =interp_to_uv_grid(a %w,lbz)
-c % w2 =interp_to_uv_grid(a %w2,lbz)
+c % fz = interp_to_uv_grid(a % fz, lbz )
+c % w  = interp_to_uv_grid(a % w,lbz)
+c % w2 = interp_to_uv_grid(a % w2,lbz)
 
 return
 
@@ -720,8 +720,10 @@ c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
 c % wp2 = a % w2 - a % w * a % w
 c % upvp = a % uv - a % u * a % v
-c % upwp = a % uw - a % u * a % w
-c % vpwp = a % vw - a % v * a % w
+!! using w_uv below instead of w ensures that the Reynolds stresses are on
+!! the same grid as the squared velocities (i.e., the uv grid)
+c % upwp = a % uw - a % u * a % w_uv   !!jb
+c % vpwp = a % vw - a % v * a % w_uv   !!jb
 
 return
 end function rs_compute
