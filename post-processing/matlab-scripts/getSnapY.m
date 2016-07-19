@@ -1,8 +1,8 @@
-function [ u,v,w ] = getSnapY( step,loc,nx,nz2,nproc,zmin_buf,zmax_buf)
+function [ u,v,w ] = getSnapY(p,step,loc)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
-    for i=1:nproc
+for i=1:p.nproc
     
     % Open the file
     fname = ['./output/vel.y-',sprintf('%0.5f',loc),'.',num2str(step),'.c',num2str(i-1),'.bin'];
@@ -12,20 +12,20 @@ function [ u,v,w ] = getSnapY( step,loc,nx,nz2,nproc,zmin_buf,zmax_buf)
     end
 
     % Determine the interval of the matrix where the data should be stored
-    zmin=zmin_buf(i);
-    zmax=zmax_buf(i);
+    zmin=p.zmin_buf(i);
+    zmax=p.zmax_buf(i);
 
     % Scan the data
-    dummy=fread(fid,nx*nz2, 'double','s');
-    u(1:nx,zmin:zmax)=reshape(dummy,nx,nz2);
-    dummy=fread(fid,nx*nz2, 'double','s'); 
-    v(1:nx,zmin:zmax)=reshape(dummy,nx,nz2);
-    dummy=fread(fid,nx*nz2, 'double','s'); 
-    w(1:nx,zmin:zmax)=reshape(dummy,nx,nz2);
+    dummy=fread(fid,p.nx*p.nz2, 'double',p.fmt);
+    u(1:p.nx,zmin:zmax)=reshape(dummy,p.nx,p.nz2);
+    dummy=fread(fid,p.nx*p.nz2, 'double',p.fmt); 
+    v(1:p.nx,zmin:zmax)=reshape(dummy,p.nx,p.nz2);
+    dummy=fread(fid,p.nx*p.nz2, 'double',p.fmt); 
+    w(1:p.nx,zmin:zmax)=reshape(dummy,p.nx,p.nz2);
     
     fclose(fid);
 
-    end
+end
     
 end
 

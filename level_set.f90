@@ -112,7 +112,7 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine level_set_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : path
+use param, only : path, read_endian
 use param, only : dx, dy, dz, lbz  !--in addition to those above
 use trees_pre_ls_mod, only : trees_pre_ls
 implicit none
@@ -209,13 +209,7 @@ inquire (file=fphi_in, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
-#ifdef PPREAD_BIG_ENDIAN
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
-#else
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-#endif
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert=read_endian)
 
 read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0

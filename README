@@ -55,7 +55,7 @@ Each of these components are discussed in detail in the following sections.
 
 The following dependencies are required in order to compile lesgo:
 
-  * Fortran 95 compiler: 
+  * Fortran compiler: 
 
     Most modern compilers will work fine, but the compiler must support C 
     preprocessor directives. Compilers that have been used successfully are 

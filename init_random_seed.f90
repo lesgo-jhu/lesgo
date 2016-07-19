@@ -27,7 +27,10 @@ subroutine init_random_seed()
 ! This subroutine is taken from gcc:
 ! https://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED
 !
-use iso_fortran_env, only: int64
+#ifdef PPIFORT
+use ifport, only : getpid
+#endif
+use iso_fortran_env, only : int64
 implicit none
 integer, allocatable :: seed(:)
 integer :: i, n, un, istat, dt(8), pid

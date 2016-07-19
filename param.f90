@@ -45,18 +45,18 @@ module param
 #endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
 #ifdef PPWRITE_BIG_ENDIAN
-  character(*), parameter :: write_endian = 'big_endian'
+  character(*), parameter :: write_endian = 'BIG_ENDIAN'
 #elif PPWRITE_LITTLE_ENDIAN
-  character(*), parameter :: write_endian = 'little_endian'
+  character(*), parameter :: write_endian = 'LITTLE_ENDIAN'
 #else
-  character(*), parameter :: write_endian = 'native'
+  character(*), parameter :: write_endian = 'NATIVE'
 #endif
 #ifdef PPREAD_BIG_ENDIAN
-  character(*), parameter :: read_endian = 'big_endian'
+  character(*), parameter :: read_endian = 'BIG_ENDIAN'
 #elif PPREAD_LITTLE_ENDIAN
-  character(*), parameter :: read_endian = 'little_endian'
+  character(*), parameter :: read_endian = 'LITTLE_ENDIAN'
 #else
-  character(*), parameter :: read_endian = 'native'
+  character(*), parameter :: read_endian = 'NATIVE'
 #endif
 
 !---------------------------------------------------

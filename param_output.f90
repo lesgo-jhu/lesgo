@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!**********************************************************************
+!*******************************************************************************
 subroutine param_output()
-!**********************************************************************
+!*******************************************************************************
 use param
 #ifdef PPLVLSET
 use level_set_base
@@ -29,7 +29,7 @@ implicit none
 
 integer :: n
 
-character(*), parameter :: fname = path // 'lesgo_param.out'
+character(*), parameter :: fname = path // 'output/lesgo_param.out'
 
 character(*), parameter :: c_fmt = '(a)'
 character(*), parameter :: x2c_fmt = '(2a)'
@@ -48,8 +48,9 @@ character(*), parameter :: x3f_fmt = '(a,3e15.7)'
 
 character(*), parameter :: if_fmt='(a,i7,e15.7)'
 character(*), parameter :: ix3f_fmt='(a,i7,3e15.7)'
+character(13) :: ch
 
-open (unit = 2,file = fname, status='unknown',form='formatted', &
+open (unit = 2,file = fname, status='unknown',form='formatted',                &
   action='write',position='rewind')
 
 write(2,c_fmt) '**********************************************************************'
@@ -109,6 +110,26 @@ write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
+#if ( defined(PPWRITE_BIG_ENDIAN) || defined(PPWRITE_LITTLE_ENDIAN) )
+write(2,x2c_fmt) 'write_endian : ', write_endian
+#elif (defined(PPIFORT))
+! According to https://software.intel.com/en-us/node/524834:
+! Intel Fortran expects numeric data to be in native little endian order.
+write(2,x2c_fmt) 'write_endian : ', 'LITTLE_ENDIAN'
+#else
+inquire(2,convert=ch)
+write(2,x2c_fmt) 'write_endian : ', ch
+#endif
+#if ( defined(PPREAD_BIG_ENDIAN) || defined(PPREAD_LITTLE_ENDIAN) )
+write(2,x2c_fmt) 'read_endian : ', write_endian
+#elif (defined(PPIFORT))
+! According to https://software.intel.com/en-us/node/524834:
+! Intel Fortran expects numeric data to be in native little endian order.
+write(2,x2c_fmt) 'read_endian : ', 'LITTLE_ENDIAN'
+#else
+inquire(2,convert=ch)
+write(2,x2c_fmt) 'read_endian : ', ch
+#endif
 write(2,i_fmt) 'wbase : ', wbase
 write(2,i_fmt) 'nenergy : ', nenergy
 write(2,i_fmt) 'lag_cfl_count : ', lag_cfl_count

@@ -76,9 +76,7 @@ real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
 real(rprec), public :: alpha
 ! indicator function only includes values above this threshold
-real(rprec), public :: filter_cutoff  
-! Used to read in the disk averaged velocities of the turbines
-logical, public :: turbine_cumulative_time  
+real(rprec), public :: filter_cutoff    
 ! Number of timesteps between the output
 integer, public :: tbase
 
@@ -251,35 +249,28 @@ end do
 ! each turbine. Each processor finds turbines in its domain
 call turbines_nodes
 
-! Read the time-averaged disk velocities from file if needed
-if (cumulative_time) then
-    if (coord == 0) then
-        inquire (file=u_d_T_dat, exist=exst)
-        if (exst) then
-            write(*,*) 'Reading from file ', trim(u_d_T_dat)
-            fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
-            do i=1,nloc
-                read(fid,*) wind_farm%turbine(i)%u_d_T    
-            end do    
-            read(fid,*) T_avg_dim_file
-            if (T_avg_dim_file /= T_avg_dim) then
-                write(*,*) 'Time-averaging window does not match value in ',   &
-                           trim(u_d_T_dat)
-            end if
-            close (fid)
-        else  
-            write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-            write (*, *) 'Assuming u_d_T = -1. for all turbines'
-            do k=1,nloc
-                wind_farm%turbine(k)%u_d_T = -1.
-            end do
-        end if                                    
+! Read the time-averaged disk velocities from file if available
+if (coord == 0) then
+    inquire (file=u_d_T_dat, exist=exst)
+    if (exst) then
+        write(*,*) 'Reading from file ', trim(u_d_T_dat)
+        fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
+        do i=1,nloc
+            read(fid,*) wind_farm%turbine(i)%u_d_T    
+        end do    
+        read(fid,*) T_avg_dim_file
+        if (T_avg_dim_file /= T_avg_dim) then
+            write(*,*) 'Time-averaging window does not match value in ',   &
+                       trim(u_d_T_dat)
+        end if
+        close (fid)
+    else  
+        write (*, *) 'File ', trim(u_d_T_dat), ' not found'
+        write (*, *) 'Assuming u_d_T = -1. for all turbines'
+        do k=1,nloc
+            wind_farm%turbine(k)%u_d_T = -1.
+        end do
     end if
-else
-    write (*, *) 'Assuming u_d_T = -1 for all turbines'
-    do k=1,nloc
-        wind_farm%turbine(k)%u_d_T = -1.
-    end do    
 end if
 
 ! Generate top of domain file
@@ -716,7 +707,7 @@ if (coord == 0) then
     do i=1,turbine_in_proc_cnt
         j = turbine_in_proc_array(i)
         recv_array = 0._rprec
-        call MPI_recv( recv_array, nloc, MPI_rprec, j, 3, comm, status, ierr )
+        call MPI_recv( recv_array, 4*nloc, MPI_rprec, j, 3, comm, status, ierr )
         send_array = send_array + recv_array
     end do
     
@@ -728,7 +719,7 @@ if (coord == 0) then
         w_vel_center(s) = send_array(3*nloc+s)
     end do
 elseif (turbine_in_proc) then
-    call MPI_send( send_array, nloc, MPI_rprec, 0, 3, comm, ierr )
+    call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
 end if
 #endif
 

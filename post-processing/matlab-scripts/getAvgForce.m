@@ -1,8 +1,8 @@
-function fx = getAvgForce( nx,ny,nz2,nproc,zmin_buf,zmax_buf)
+function [ fx,fy,fz ] = getAvgForce(p)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
-    for i=1:nproc
+for i=1:p.nproc
     
     % Open the file
     fname = ['./output/force_avg.c',num2str(i-1),'.bin'];
@@ -12,15 +12,20 @@ function fx = getAvgForce( nx,ny,nz2,nproc,zmin_buf,zmax_buf)
     end
 
     % Determine the interval of the matrix where the data should be stored
-    zmin=zmin_buf(i);
-    zmax=zmax_buf(i);
+    zmin=p.zmin_buf(i);
+    zmax=p.zmax_buf(i);
     
     % Scan the data
-    dummy=fread(fid,nx*ny*nz2, 'double','s'); 
-    fx(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
+    N = p.nx*p.ny*p.nz2;
+    dummy=fread(fid,N,'double',p.fmt);
+    fx(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    fy(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt); 
+    fz(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
     
     fclose(fid);
-    end
+end
 
 end
 

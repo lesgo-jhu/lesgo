@@ -39,7 +39,7 @@ subroutine wallstress
 !           Lagrangian dynamic model for large eddy simulation of complex 
 !           turbulent flows" (2005) -- Appendix
 !
-!   4 - Integral wall model
+!   3 - Integral wall model
 !       See X.I.A. Yang, J. Sadique, R. Mittal & C. Meneveau, "Integral wall 
 !           model for large eddy simulations of wall-bounded turbulent flows." (2015)
 !
