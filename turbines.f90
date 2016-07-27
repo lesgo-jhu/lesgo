@@ -288,7 +288,7 @@ if(coord==0) then
 end if
 
 ! Initialize wake mode and receding horizon
-if (use_wake_model) call wake_model_est_init
+if (use_wake_model .and. coord == 0) call wake_model_est_init
 if (use_receding_horizon) call receding_horizon_init
 
 ! Cleanup
