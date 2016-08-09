@@ -846,12 +846,13 @@ subroutine eval_receding_horizon ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use rh_control
 use conjugate_gradient_class
+use lbfgsb_class
 use wake_model_class
 use functions, only : linear_interp
 implicit none
 
 type(MinimizedFarm) :: mfarm
-type(ConjugateGradient) :: cg
+type(lbfgsb) :: cg
 real(rprec), dimension(:,:), allocatable :: Ct_prime_dummy
 integer :: num_t = 0
 real(rprec), dimension(:), allocatable :: buffer_array
@@ -871,7 +872,7 @@ if (modulo (jt_total, advancement_base) == 0) then
         call mfarm%run(Ct_prime_time, Ct_prime_dummy)
 
         ! Perform optimization
-        cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+        cg = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
     
         call cg%minimize(mfarm%get_Ctp_vector())
         call mfarm%makeDimensional
