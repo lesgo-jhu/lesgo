@@ -796,8 +796,8 @@ subroutine minimize(this, i_x, o_x)
     if ( present(o_x) ) o_x = this%x
     
     ! Print result
-    write(*,*) 'Maximum number of iterations reached. ',                       &
-        'Minimum function value is f = ', this%f
+            write(*,*) 'Conjugate gradient terminated after ', this%maxIter,   &
+                'iterations. Minimum f = ', this%f
 end subroutine minimize
 
 end module conjugate_gradient_class
