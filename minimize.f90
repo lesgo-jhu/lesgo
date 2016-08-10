@@ -602,8 +602,6 @@ subroutine minimize_priv(this, x, n, m)
             exit
         end if
         
-        
-        
         ! When task(1:4)='ABNO', the routine has terminated abnormally
         !   without being able to satisfy the termination conditions,
         !   x contains the best approximation found,
@@ -623,7 +621,7 @@ subroutine minimize_priv(this, x, n, m)
     end do
 
     ! Print result
-    write(*,*) 'Minimum f = ',f, 'found after ', iter, ' iterations.'
+    write(*,*) 'L-BFGS-B terminated after ', iter, 'iterations. Minimum f = ',f
     
 end subroutine minimize_priv
 
@@ -756,7 +754,8 @@ subroutine minimize(this, i_x, o_x)
             call this%mini%eval(this%x, this%f, this%g)
             
             ! Print result
-            write(*,*) 'Minimum f = ',this%f, 'found after ', i, ' iterations.'
+            write(*,*) 'Conjugate gradient terminated after ', i,              &
+                'iterations. Minimum f = ', this%f
             
             return
         else if (this%f > this%fp) then
@@ -772,8 +771,8 @@ subroutine minimize(this, i_x, o_x)
             call this%mini%eval(this%x, this%f, this%g)
             
             ! Print result
-            write(*,*) 'Value increased after ', i,                            &
-                ' iterations. Minimum function value is f = ', this%f
+            write(*,*) 'Conjugate gradient terminated after ', i,              &
+                'iterations. Minimum f = ', this%f
             return
         end if
 
