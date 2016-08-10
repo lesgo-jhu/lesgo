@@ -898,6 +898,8 @@ do
      
      case ('USE_RECEDING_HORIZON')
         read (buff(equal_pos+1:), *) use_receding_horizon
+     case ('SOLVER')
+        read (buff(equal_pos+1:), *) solver
      case ('ADVANCEMENT_BASE')
         read (buff(equal_pos+1:), *) advancement_base
      case ('HORIZON_TIME')
