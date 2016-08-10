@@ -81,7 +81,8 @@ real(rprec), public :: filter_cutoff
 integer, public :: tbase
 
 ! Input file values for receding horizon control
-logical, public :: use_receding_horizon        
+logical, public :: use_receding_horizon
+integer, public :: solver     
 integer, public :: advancement_base
 real(rprec), public :: horizon_time
 integer, public     :: max_iter
@@ -852,7 +853,8 @@ use functions, only : linear_interp
 implicit none
 
 type(MinimizedFarm) :: mfarm
-type(lbfgsb) :: cg
+type(ConjugateGradient) :: cg
+type(lbfgsb) :: bf
 real(rprec), dimension(:,:), allocatable :: Ct_prime_dummy
 integer :: num_t = 0
 real(rprec), dimension(:), allocatable :: buffer_array
@@ -872,9 +874,13 @@ if (modulo (jt_total, advancement_base) == 0) then
         call mfarm%run(Ct_prime_time, Ct_prime_dummy)
 
         ! Perform optimization
-        cg = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-    
-        call cg%minimize(mfarm%get_Ctp_vector())
+        if (solver == 1) then
+            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+            call cg%minimize(mfarm%get_Ctp_vector())
+        else
+            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+            call bf%minimize(mfarm%get_Ctp_vector())        
+        end if
         call mfarm%makeDimensional
         
         ! Place result in buffer array
