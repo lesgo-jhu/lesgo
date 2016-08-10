@@ -541,7 +541,8 @@ subroutine minimize(this, i_x, o_x)
     
     ! Allocate work array
     allocate(x_work(size(i_x)))
-    
+    x_work = i_x
+ 
     ! Call private method
     call this%minimize_priv(x_work, n, m)
     
@@ -573,7 +574,7 @@ subroutine minimize_priv(this, x, n, m)
     factr = this%tol/epsilon(1._rprec)
     pgtol = 0._rprec
     task = 'START'
-    iprint = 99
+    iprint = -1
     
     iter = 0
     do while (iter < this%maxIter)
@@ -620,6 +621,9 @@ subroutine minimize_priv(this, x, n, m)
         end if
         
     end do
+
+    ! Print result
+    write(*,*) 'Minimum f = ',f, 'found after ', iter, ' iterations.'
     
 end subroutine minimize_priv
 
