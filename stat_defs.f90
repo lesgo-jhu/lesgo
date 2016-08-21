@@ -311,6 +311,7 @@ type(tavg_t) :: c
 c % u = a % u + b % u
 c % v = a % v + b % v
 c % w = a % w + b % w
+c % w_uv = a % w_uv + b % w_uv
 c % u2 = a % u2 + b % u2
 c % v2 = a % v2 + b % v2
 c % w2 = a % w2 + b % w2
@@ -319,12 +320,12 @@ c % uw = a % uw + b % uw
 c % vw = a % vw + b % vw
 !c % dudz = a % dudz + b % dudz
 !c % dvdz = a % dvdz + b % dvdz
-!c % txx = a % txx + b % txx
-!c % tyy = a % tyy + b % tyy
-!c % tzz = a % tzz + b % tzz
-!c % txy = a % txy + b % txy
-!c % txz = a % txz + b % txz
-!c % tyz = a % tyz + b % tyz
+c % txx = a % txx + b % txx
+c % tyy = a % tyy + b % tyy
+c % tzz = a % tzz + b % tzz
+c % txy = a % txy + b % txy
+c % txz = a % txz + b % txz
+c % tyz = a % tyz + b % tyz
 c % fx = a % fx + b % fx
 c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
@@ -343,6 +344,7 @@ type(tavg_t) :: c
 c % u = a % u - b % u
 c % v = a % v - b % v
 c % w = a % w - b % w
+c % w_uv = a % w_uv - b % w_uv
 c % u2 = a % u2 - b % u2
 c % v2 = a % v2 - b % v2
 c % w2 = a % w2 - b % w2
@@ -351,12 +353,12 @@ c % uw = a % uw - b % uw
 c % vw = a % vw - b % vw 
 !c % dudz = a % dudz - b % dudz
 !c % dvdz = a % dvdz - b % dvdz
-!c % txx = a % txx - b % txx
-!c % tyy = a % tyy - b % tyy
-!c % tzz = a % tzz - b % tzz
-!c % txy = a % txy - b % txy
-!c % txz = a % txz - b % txz
-!c % tyz = a % tyz - b % tyz
+c % txx = a % txx - b % txx
+c % tyy = a % tyy - b % tyy
+c % tzz = a % tzz - b % tzz
+c % txy = a % txy - b % txy
+c % txz = a % txz - b % txz
+c % tyz = a % tyz - b % tyz
 c % fx = a % fx - b % fx
 c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
@@ -378,6 +380,7 @@ type(tavg_t) :: c
 c % u = a % u + b
 c % v = a % v + b
 c % w = a % w + b
+c % w_uv = a % w_uv + b
 c % u2 = a % u2 + b
 c % v2 = a % v2 + b
 c % w2 = a % w2 + b
@@ -386,12 +389,12 @@ c % uw = a % uw + b
 c % vw = a % vw + b
 !c % dudz = a % dudz + b
 !c % dvdz = a % dvdz + b
-!c % txx = a % txx + b
-!c % tzz = a % tzz + b
-!c % tyy = a % tyy + b
-!c % txy = a % txy + b
-!c % txz = a % txz + b
-!c % tyz = a % tyz + b
+c % txx = a % txx + b
+c % tzz = a % tzz + b
+c % tyy = a % tyy + b
+c % txy = a % txy + b
+c % txz = a % txz + b
+c % tyz = a % tyz + b
 c % fx = a % fx + b
 c % fy = a % fy + b
 c % fz = a % fz + b
@@ -456,6 +459,7 @@ type(tavg_t) :: c
 c % u = a % u / b
 c % v = a % v / b
 c % w = a % w / b
+c % w_uv = a % w_uv / b
 c % u2 = a % u2 / b
 c % v2 = a % v2 / b
 c % w2 = a % w2 / b
@@ -464,12 +468,12 @@ c % uw = a % uw / b
 c % vw = a % vw / b
 !c % dudz = a % dudz / b
 !c % dvdz = a % dvdz / b
-!c % txx = a % txx / b
-!c % tyy = a % tyy / b
-!c % tzz = a % tzz / b
-!c % txy = a % txy / b
-!c % txz = a % txz / b
-!c % tyz = a % tyz / b
+c % txx = a % txx / b
+c % tyy = a % tyy / b
+c % tzz = a % tzz / b
+c % txy = a % txy / b
+c % txz = a % txz / b
+c % tyz = a % tyz / b
 c % fx = a % fx / b
 c % fy = a % fy / b
 c % fz = a % fz / b
@@ -488,6 +492,7 @@ type(tavg_t) :: c
 c % u = a % u * b % u
 c % v = a % v * b % v
 c % w = a % w * b % w
+c % w_uv = a % w_uv * b % w_uv
 c % u2 = a % u2 * b % u2
 c % v2 = a % v2 * b % v2
 c % w2 = a % w2 * b % w2
@@ -496,12 +501,12 @@ c % uw = a % uw * b % uw
 c % vw = a % vw * b % vw
 !c % dudz = a % dudz * b % dudz
 !c % dvdz = a % dvdz * b % dvdz
-!c % txx = a % txx * b % txx
-!c % tyy = a % tyy * b % tyy
-!c % tzz = a % tzz * b % tzz
-!c % txy = a % txy * b % txy
-!c % txz = a % txz * b % txz
-!c % tyz = a % tyz * b % tyz
+c % txx = a % txx * b % txx
+c % tyy = a % tyy * b % tyy
+c % tzz = a % tzz * b % tzz
+c % txy = a % txy * b % txy
+c % txz = a % txz * b % txz
+c % tyz = a % tyz * b % tyz
 c % fx = a % fx * b % fx
 c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
@@ -523,6 +528,7 @@ type(tavg_t) :: c
 c % u = a % u * b
 c % v = a % v * b
 c % w = a % w * b
+c % w_uv = a % w_uv * b
 c % u2 = a % u2 * b
 c % v2 = a % v2 * b
 c % w2 = a % w2 * b
@@ -531,12 +537,12 @@ c % uw = a % uw * b
 c % vw = a % vw * b
 !c % dudz = a % dudz * b
 !c % dvdz = a % dvdz * b
-!c % txx = a % txx * b
-!c % tyy = a % tyy * b
-!c % tzz = a % tzz * b
-!c % txy = a % txy * b
-!c % txz = a % txz * b
-!c % tyz = a % tyz * b
+c % txx = a % txx * b
+c % tyy = a % tyy * b
+c % tzz = a % tzz * b
+c % txy = a % txy * b
+c % txz = a % txz * b
+c % tyz = a % tyz * b
 c % fx = a % fx * b
 c % fy = a % fy * b
 c % fz = a % fz * b
@@ -592,9 +598,9 @@ allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-c % fz = interp_to_uv_grid( a % fz, lbz )
-c % w  =interp_to_uv_grid(a %w,lbz)
-c % w2 =interp_to_uv_grid(a %w2,lbz)
+c % fz = interp_to_uv_grid(a % fz, lbz )
+c % w  = interp_to_uv_grid(a % w,lbz)
+c % w2 = interp_to_uv_grid(a % w2,lbz)
 
 return
 
@@ -620,10 +626,10 @@ allocate(c(ubx,uby,lbz:ubz))
 
 c = a
 
-!c % txx =  interp_to_w_grid( a % txx, lbz )
-!c % tyy =  interp_to_w_grid( a % tyy, lbz )
-!c % tzz =  interp_to_w_grid( a % tzz, lbz )
-!c % txy =  interp_to_w_grid( a % txy, lbz )
+c % txx =  interp_to_w_grid( a % txx, lbz )
+c % tyy =  interp_to_w_grid( a % tyy, lbz )
+c % tzz =  interp_to_w_grid( a % tzz, lbz )
+c % txy =  interp_to_w_grid( a % txy, lbz )
 
 c % fx = interp_to_w_grid( a % fx, lbz )
 c % fy = interp_to_w_grid( a % fy, lbz )
@@ -714,8 +720,10 @@ c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
 c % wp2 = a % w2 - a % w * a % w
 c % upvp = a % uv - a % u * a % v
-c % upwp = a % uw - a % u * a % w
-c % vpwp = a % vw - a % v * a % w
+!! using w_uv below instead of w ensures that the Reynolds stresses are on
+!! the same grid as the squared velocities (i.e., the uv grid)
+c % upwp = a % uw - a % u * a % w_uv   !!jb
+c % vpwp = a % vw - a % v * a % w_uv   !!jb
 
 return
 end function rs_compute
@@ -756,6 +764,7 @@ type(tavg_t), intent(out) :: c
 c % u = a
 c % v = a
 c % w = a
+c % w_uv = a
 c % u2 = a
 c % v2 = a
 c % w2 = a

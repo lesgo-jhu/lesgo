@@ -1368,60 +1368,37 @@ integer :: i,j,k
 real(rprec) :: u_p, v_p, w_p, w_p2
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 allocate(w_uv(nx,ny,lbz:nz))
+
 w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
 
-#ifdef PPMPI
-k=0
-do j=1,ny
-   do i=1,nx
-
-      u_p = u(i,j,k)
-      v_p = v(i,j,k) 
-      w_p = w(i,j,k)
-      w_p2= w_uv(i,j,k)
-
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
-      tavg(i,j,k)%w_uv = tavg(i,j,k)%w + w_p2 * tavg_dt
-
-      tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt
-      tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt
-      tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt
-      tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt
-      tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt
-      tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt
-
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-   enddo
-enddo
-#endif
-
-do k=1,jzmax  
+do k=lbz,jzmax     !! lbz = 0 for mpi runs, otherwise lbz = 1  
   do j=1,ny
     do i=1,nx
    
-      u_p = u(i,j,k)
-      v_p = v(i,j,k) 
-      w_p = w(i,j,k)
-      w_p2= w_uv(i,j,k)
+      u_p = u(i,j,k)       !! uv grid
+      v_p = v(i,j,k)       !! uv grid
+      w_p = w(i,j,k)       !! w grid
+      w_p2= w_uv(i,j,k)    !! uv grid
     
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
-      tavg(i,j,k)%w_uv = tavg(i,j,k)%w + w_p2 * tavg_dt
+      tavg(i,j,k) % u = tavg(i,j,k) % u + u_p * tavg_dt !! uv grid                   
+      tavg(i,j,k) % v = tavg(i,j,k) % v + v_p * tavg_dt !! uv grid                      
+      tavg(i,j,k) % w = tavg(i,j,k) % w + w_p * tavg_dt !! w grid
+      tavg(i,j,k) % w_uv = tavg(i,j,k) % w_uv + w_p2 * tavg_dt !! uv grid
 
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
+      tavg(i,j,k) % u2 = tavg(i,j,k) % u2 + u_p * u_p * tavg_dt !! uv grid
+      tavg(i,j,k) % v2 = tavg(i,j,k) % v2 + v_p * v_p * tavg_dt !! uv grid
+      tavg(i,j,k) % w2 = tavg(i,j,k) % w2 + w_p * w_p * tavg_dt !! w grid
+      tavg(i,j,k) % uv = tavg(i,j,k) % uv + u_p * v_p * tavg_dt !! uv grid
+      tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p * w_p2 * tavg_dt !! uv grid
+      tavg(i,j,k) % vw = tavg(i,j,k) % vw + v_p * w_p2 * tavg_dt !! uv grid
+      
+      tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt !! w grid
+      tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt !! w grid
+
 #ifdef PPTURBINES
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt 
       tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt 
@@ -1695,7 +1672,7 @@ call mpi_barrier( comm, ierr )
 ! Do the Reynolds stress calculations afterwards. Now we can interpolate w and
 ! ww to the uv grid and do the calculations. We have already written the data to
 ! the files so we can overwrite now
-tavg = tavg_interp_to_uv_grid( tavg )
+!!!tavg = tavg_interp_to_uv_grid( tavg )    !!jb
 rs = rs_compute(tavg , lbz)
 
 #ifdef PPCGNS

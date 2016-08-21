@@ -660,6 +660,7 @@ end do
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
 !Each processor calculates the weighted disk-averaged velocity
+send_array = 0._rprec
 disk_avg_vel = 0._rprec
 u_vel_center = 0._rprec
 v_vel_center = 0._rprec

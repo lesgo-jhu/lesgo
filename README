@@ -8,13 +8,13 @@ without any warranty.
 Written by:
 
   Stuart Chester
-  Jason Graham <jgraha8@gmail.com>
-  Claire Verhulst <cverhuls@gmail.com>
-  Richard Stevens <r.j.a.m.stevens@gmail.com>
-  Tony Martinez <tony.mtos@gmail.com>
-  Joel Bretheim <jbretheim@gmail.com>
-  Xiang Yang <xiangyang@jhu.edu>
-  Carl Shapiro <crshapiro@gmail.com>
+  Jason Graham     <jgraha8@gmail.com>
+  Claire Verhulst  <cverhuls@gmail.com>
+  Richard Stevens  <r.j.a.m.stevens@gmail.com>
+  Tony Martinez    <tony.mtos@gmail.com>
+  Joel Bretheim    <jbretheim@gmail.com>
+  Xiang Yang       <xiangyang@jhu.edu>
+  Carl Shapiro     <crshapiro@gmail.com>
 
 ================================================================================
                     DISCLAIMER
@@ -214,6 +214,9 @@ are the same as found in lesgo.
  divtz                                                      X
 
 When writing data to file the variables are interpolated to the same grid.
+The statistics may not be on the same grid as the corresponding instantaneous 
+variables above. See section below (" A) Time Averaged Data ") for notes on
+which grid each statistic is recorded on.
 
 ================================================================================
                     DATA OUTPUT
@@ -258,15 +261,18 @@ smaller data files, ASCII is used and end with '.dat'.
 
 A) Time Averaged Data
 
-    1) Entire domain (these file use the 'MPI appendix')
+    1) Entire domain (these file use the 'MPI appendix'). Note the comments in brackets []
+       which denote the grid that each statistic is recorded on.
 
-      * veluv_avg.ext       : Mean u, v, w velocity field on uv grid
-      * velw_avg.ext        : Mean w velocity on w grid
-      * vel2_avg.ext        : Mean of square products of the velocity field
-      * force_avg.ext       : Mean field of modeled forces (IBM, turbines, RNS, etc)
-      * tau_avg.ext         : Mean of the sub-grid scale stress tensor
-      * rs.ext              : Reynolds stresses
-      * cs_opt2.ext         : Square of Smagorinsky coefficient from SGS modeling
+      * veluv_avg.ext : Mean u, v, w velocity field [on uv grid]
+      * velw_avg.ext  : Mean w velocity [on w grid]
+      * vel2_avg.ext  : Mean of square products of the velocity field
+                      : [all on uv grid except for ww which is on w grid]
+      * force_avg.ext : Mean field of modeled forces (IBM, turbines, RNS, etc)
+      * tau_avg.ext   : Mean of the sub-grid scale stress tensor
+                      : [all on uv grid except txz, tyz which are on w grid]
+      * rs.ext        : Reynolds stresses [same grids as corresponding vel2]
+      * cs_opt2.ext   : Square of Smagorinsky coefficient from SGS modeling
 
 B) Domain Data (these files use the 'MPI appendix')
 
