@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "darwin-brew")
+set(hostname "default")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -45,7 +45,7 @@ set(USE_LVLSET false)
 
 # Concurrent precursor simulation 
 # Requires configuration of two builds: upstream and downstream
-set(USE_CPS false)
+set(USE_CPS true)
 
 # Homogeneous isotropic turbulence input
 set(USE_HIT false)
@@ -105,7 +105,8 @@ elseif (${hostname} STREQUAL "marcc")
     # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
         include_directories(/cm/shared/apps/Intel/fftw/3.3.4/include)
-        link_directories(/cm/shared/apps/Intel/fftw/3.3.4/lib)
+        link_directories(/cm/shared/apps/Intel/fftw/3.3.4/lib
+        /cm/shared/apps/blas/3.2.1/lib /cm/shared/apps/Intel/lapack/3.3.0/lib)
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
         if (USE_CGNS)
