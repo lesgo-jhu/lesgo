@@ -996,7 +996,7 @@ subroutine write_to_file(this, fpath)
 end subroutine write_to_file
 
 subroutine generateInitialEnsemble(this, Ctp)
-    use util, only : random_normal, init_random_seed
+    use util, only : random_normal
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
     real(rprec), dimension(:)                   :: Ctp
