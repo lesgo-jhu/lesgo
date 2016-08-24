@@ -913,6 +913,8 @@ if (modulo (jt_total, advancement_base) == 0) then
     end if
         
     ! Place row Ct_prime's into interpolation array
+    deallocate(Ct_prime_time)
+    allocate(Ct_prime_time(num_t))
     Ct_prime_time = buffer_array(1:num_t)
     deallocate(Ct_prime_arr)
     allocate( Ct_prime_arr(nloc,num_t) )
