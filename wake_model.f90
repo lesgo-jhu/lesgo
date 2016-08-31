@@ -845,7 +845,7 @@ subroutine generateInitialEnsemble(this, Ctp)
     real(rprec), dimension(:)                   :: Ctp
     real(rprec)                                 :: dt
     real(rprec), parameter                      :: cfl = 0.99
-    real(rprec)                                 :: FTT
+    real(rprec)                                 :: FFT
     integer                                     :: i, j, N, Nx, jstart, jend
     
     if (size(Ctp) /= this%ensemble(1)%N) then
@@ -859,11 +859,11 @@ subroutine generateInitialEnsemble(this, Ctp)
     
     ! Calculate safe dt.
     dt          = cfl * this%wm%dx / this%wm%U_infty
-    FTT         = this%wm%x(this%wm%Nx) / this%wm%U_Infty
+    FFT         = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
-    ! Do at least 1 FTT of simulations to get good ensemble statistics  
+    ! Do at least 1 FFT of simulations to get good ensemble statistics  
     N = this%wm%N  
-    do i = 1, floor(FTT / dt)
+    do i = 1, floor(FFT / dt)
         call this%advanceEnsemble(Ctp, dt)
     end do
     
