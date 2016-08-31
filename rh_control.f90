@@ -158,6 +158,8 @@ subroutine run_noinput(this)
     real(rprec), dimension(:), allocatable     :: du_super
     real(rprec), dimension(:), allocatable     :: uhatstar, ustar ! adjoint forcing terms
     real(rprec), dimension(:,:,:), allocatable :: fstar           ! adjoint forcing (turbine, time, space)
+    real(rprec), dimension(:,:), allocatable :: phistar1        ! adjoint forcing (turbine, time)
+    real(rprec), dimension(:,:), allocatable :: phistar2        ! adjoint forcing (turbine, time)
     real(rprec), dimension(:), allocatable     :: g
 
     ! Allocate some variables
@@ -165,6 +167,8 @@ subroutine run_noinput(this)
     allocate( uhatstar(this%N) )
     allocate( ustar(this%w%Nx) )
     allocate( fstar(this%N, this%Nt, this%w%Nx) )
+    allocate( phistar1(this%N, this%Nt) )
+    allocate( phistar2(this%N, this%Nt) )
     
     ! Make dimensionless
     call this%makeDimensionless
@@ -194,16 +198,13 @@ subroutine run_noinput(this)
         ! Calculate contribution to cost function
         this%cost = this%cost + (this%Pfarm(k) - this%Pref(k))**2 * this%dt
         
-        ! Calculate contribution to the gradient (dJ_1/dCt'_n) at time k
-        do n = 1, this%N
-          this%grad(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3 * this%dt
-        end do
-        
         ! Calculate adjoint forcing
         uhatstar = -6.d0 * (this%Pfarm(k) - this%Pref(k)) * this%Ctp(:,k) * this%w%uhat**2
         ustar = 0
         do n = 1, this%N
             ustar = ustar + this%w%G(n,:) * uhatstar(n)
+            phistar1(n,k) = -8._rprec * this%w%U_infty**2 / ( ( 4._rprec + this%w%Ctp(n))**2 )
+            phistar2(n,k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3
         end do
         du_super = this%w%U_infty - this%w%u
         do n = 1, this%N
@@ -221,40 +222,39 @@ subroutine run_noinput(this)
     allocate( g(this%N) )
     do k = this%Nt-1, 1, -1
         g = 0._rprec
-        call this%wstar%retract(fstar(:,k+1,:), this%dt, g)
+        call this%wstar%retract(fstar(:,k+1,:), phistar1(:,k+1), phistar2(:,k+1), this%dt, g)
         do n = 1, this%N
-            this%grad(n, k) = this%grad(n, k) - g(n) * 8.d0 * this%w%U_infty**2 &
-            / ( ( 4.d0 + this%Ctp(n,k))**2 ) * this%dt
+            this%grad(n, k) = this%grad(n, k) + g(n) * this%dt
         end do
     end do
     
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Regularizations
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    ! Regularization of derivative
-    ! NOTE: This gamma is not the same as the C++ version anymore....find out what the right value should be!
-    do n = 1, this%N
-        do k = 2, this%Nt
-            this%cost = this%cost + this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1))**2 / this%dt
-            this%grad(n,k) = this%grad(n,k) + 2.d0 * this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1)) / this%dt
-        end do
-        do k = 2, this%Nt - 1
-            this%grad(n,k) = this%grad(n,k) - 2.d0 * this%gamma * (this%Ctp(n,k+1) - this%Ctp(n,k)) / this%dt
-        end do
-    end do
-    
-    ! Regularization of difference to reference Ctp
-    do n = 1, this%N
-        do k = 2, this%Nt
-            ! NOTE: This was in here, and I didn't notice!
-            ! NOTE: probably should be removed pow((double)n / (p.Nt() - 1), 2.0) * pow(Ctp[i][n] - p.Ctp_ref(), 2.0);
-            this%cost = this%cost + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
-             this%eta * (this%Ctp(n,k) - this%Ctp0)**2 * this%dt
-            this%grad(n,k) = this%grad(n,k) + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
-             2.d0 * this%eta * (this%Ctp(n,k) - this%Ctp0) * this%dt
-        end do
-    end do
+! 
+!     ! Regularization of derivative
+!     ! NOTE: This gamma is not the same as the C++ version anymore....find out what the right value should be!
+!     do n = 1, this%N
+!         do k = 2, this%Nt
+!             this%cost = this%cost + this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1))**2 / this%dt
+!             this%grad(n,k) = this%grad(n,k) + 2.d0 * this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1)) / this%dt
+!         end do
+!         do k = 2, this%Nt - 1
+!             this%grad(n,k) = this%grad(n,k) - 2.d0 * this%gamma * (this%Ctp(n,k+1) - this%Ctp(n,k)) / this%dt
+!         end do
+!     end do
+!     
+!     ! Regularization of difference to reference Ctp
+!     do n = 1, this%N
+!         do k = 2, this%Nt
+!             ! NOTE: This was in here, and I didn't notice!
+!             ! NOTE: probably should be removed pow((double)n / (p.Nt() - 1), 2.0) * pow(Ctp[i][n] - p.Ctp_ref(), 2.0);
+!             this%cost = this%cost + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
+!              this%eta * (this%Ctp(n,k) - this%Ctp0)**2 * this%dt
+!             this%grad(n,k) = this%grad(n,k) + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
+!              2.d0 * this%eta * (this%Ctp(n,k) - this%Ctp0) * this%dt
+!         end do
+!     end do
     
     ! Set first step of gradient to zeros since it is fixed
     this%grad(:,1) = 0.d0
