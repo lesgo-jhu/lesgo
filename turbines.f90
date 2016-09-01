@@ -106,6 +106,7 @@ real(rprec), dimension(:), allocatable :: theta1_time
 real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
 real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
+real(rprec), dimension(:,:), allocatable :: phi_arr
 real(rprec), dimension(:), allocatable :: Ct_prime_time
 
 ! Input files
@@ -318,7 +319,7 @@ inquire (file=string1, exist=exst)
 
 if (exst) then
     write(*,*) 'Reading wake model estimator data from wake_model/'  
-    wm_est = WakeModelEstimator(path // 'wake_model')
+    wm_est = WakeModelEstimator(path // 'wake_model', sigma_du, sigma_k, sigma_Phat, tau_U_infty)
 else
     wm_Dia = dia_all*z_i
     wm_Delta = 0.5 * wm_Dia
@@ -394,13 +395,16 @@ if (exst) then
     read(fid) N
     allocate( Ct_prime_time(N) )
     allocate( Ct_prime_arr(nloc, N) )
+    allocate( phi_arr(num_x, N) )
     read(fid) Ct_prime_time
     read(fid) Ct_prime_arr
     close(fid)
 else
     allocate( Ct_prime_time(1) )
     allocate( Ct_prime_arr(nloc, 1) )
+    allocate( phi_arr(num_x, 1) )
     Ct_prime_arr = Ct_prime
+    phi_arr = Ct_prime
 end if
 
 end subroutine receding_horizon_init
@@ -856,31 +860,24 @@ implicit none
 type(MinimizedFarm) :: mfarm
 type(ConjugateGradient) :: cg
 type(lbfgsb) :: bf
-real(rprec), dimension(:,:), allocatable :: Ct_prime_dummy
 integer :: num_t = 0
 real(rprec), dimension(:), allocatable :: buffer_array
 
 ! Only perform receding horizon control every advancement step
 if (modulo (jt_total, advancement_base) == 0) then
     if (coord == 0) then
-        ! Place row Ct_prime's into an array
-        allocate( Ct_prime_dummy(num_x, size(Ct_prime_time)) )
-        do i = 1, num_x
-            Ct_prime_dummy(i,:) = Ct_prime_arr( (i-1)*num_y + 1, :)
-        end do
-
         ! Run initial guess in object
         mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
             Ct_prime, Pref_time, Pref_arr, rh_gamma, rh_eta)
-        call mfarm%run(Ct_prime_time, Ct_prime_dummy)
+        call mfarm%run(Ct_prime_time, phi_arr)
 
         ! Perform optimization
         if (solver == 1) then
             cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call cg%minimize(mfarm%get_Ctp_vector())
+            call cg%minimize(mfarm%get_phi_vector())
         else
             bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call bf%minimize(mfarm%get_Ctp_vector())        
+            call bf%minimize(mfarm%get_phi_vector())        
         end if
         call mfarm%makeDimensional
         
@@ -891,9 +888,11 @@ if (modulo (jt_total, advancement_base) == 0) then
         do i = 1, num_x
             buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
         end do
-        
-        ! Cleanup
-        deallocate(Ct_prime_dummy)
+
+        ! Store phi vector for next iteration
+        deallocate(phi_arr)
+        allocate( phi_arr(num_x, num_t) )
+        phi_arr = mfarm%phi
         
 #ifdef PPMPI
         ! Send to other processors
@@ -904,6 +903,7 @@ if (modulo (jt_total, advancement_base) == 0) then
                 11, comm, ierr)
         end do
     else
+        
         ! Receive from coord 0
         call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
         num_t = num_t / (num_x+1)
@@ -923,7 +923,8 @@ if (modulo (jt_total, advancement_base) == 0) then
             Ct_prime_arr(j + (i-1)*num_y, :) = buffer_array((num_t*i+1):num_t*(i+1))
         end do
     end do
-    
+
+    ! Cleanup 
     deallocate(buffer_array)
 end if
 
@@ -980,6 +981,7 @@ if (use_receding_horizon .and. coord == 0) then
     write(fid) size(Ct_prime_time)
     write(fid) Ct_prime_time
     write(fid) Ct_prime_arr
+    write(fid) phi_arr
     close(fid)
 end if
     

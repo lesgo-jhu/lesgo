@@ -55,6 +55,7 @@ type, extends(Minimized) :: MinimizedFarm
 contains
     procedure, public  :: eval
     procedure, public  :: get_Ctp_vector
+    procedure, public  :: get_phi_vector
     procedure, public  :: initialize
     procedure, public  :: makeDimensionless
     procedure, public  :: makeDimensional
@@ -146,7 +147,7 @@ subroutine run_input(this, i_t, i_phi)
     
     ! Interpolate input onto object
     do n = 1, this%N
-        this%phi(n,:) = linear_interp(i_t, i_phi(n,:), this%t(2:) * this%w%TIME)
+        this%phi(n,:) = linear_interp(i_t, i_phi(n,:), this%t * this%w%TIME)
     end do
 
     call this%run_noinput
@@ -174,10 +175,10 @@ subroutine run_noinput(this)
     call this%makeDimensionless
         
     ! Reset cost and gradient
-    this%cost = 0
-    this%grad = 0
-    this%Pfarm = 0
-    fstar = 0.d0
+    this%cost = 0._rprec
+    this%grad = 0._rprec
+    this%Pfarm = 0._rprec
+    fstar = 0._rprec
     
     ! Assign initial conditions
     this%w = this%iw
@@ -192,7 +193,7 @@ subroutine run_noinput(this)
     do k = 2, this%Nt
         ! Calculate next thrust coefficient
         do n = 1, this%N
-            this%Ctp(n,k) = this%Ctp(n,k-1) + ( this%phi(n,k-1) - this%Ctp(n,k-1) ) / this%tau
+            this%Ctp(n,k) = this%Ctp(n,k-1) + this%dt * ( this%phi(n,k-1) - this%Ctp(n,k-1) ) / this%tau
         end do
     
         ! Calculate next step
@@ -229,14 +230,14 @@ subroutine run_noinput(this)
     ! Backward (Adjoint) Simulation
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     allocate( g(this%N) )
-    g = 0._rprec
     do k = this%Nt-1, 1, -1
         ! Integrate Ctstar (which is held in grad)
         do n = 1, this%N
-            this%grad(n, k) = this%grad(n, k+1) - this%dt * ( this%grad(n, k+1) + phistar(n, k+1) ) / this%tau
+            this%grad(n, k) = this%grad(n, k+1) - this%dt * ( this%grad(n, k+1) / this%tau + phistar(n, k+1) )
         end do
 
         ! Integrate adjoint wake model
+        g = 0._rprec
         call this%wstar%retract(fstar(:,k+1,:), this%dt, g)
 
         ! Add additional term to phistar
@@ -295,11 +296,10 @@ subroutine eval(this, x, f, g)
     real(rprec), dimension(:),  intent(inout)             :: g
     integer                         :: k
 
-    ! Place x in this%Ctp 
+    ! Place x in this%phi 
     do k = 1, this%Nt-1
-        this%Ctp(:,k + 1) = x((k - 1) * this%N + 1 : this%N * k)
+        this%phi(:,k) = x((k - 1) * this%N + 1 : this%N * k)
     end do
-    this%Ctp(:,1) = this%iw%Ctp
 
     ! Run model
     call this%run_noinput
@@ -333,6 +333,20 @@ end subroutine eval
 !     end do
 ! end subroutine finiteDifferenceGradient
 
+function get_phi_vector(this) result(phi_vec)
+    implicit none
+    class(MinimizedFarm) :: this
+    real(rprec), dimension(:),allocatable :: phi_vec
+    integer :: k
+    
+    allocate(phi_vec(size(this%phi) - this%N))
+    
+    do k = 1, this%Nt-1
+        phi_vec((k - 1) * this%N + 1 : this%N * k) = this%phi(:,k)
+    end do
+    
+end function get_phi_vector
+
 function get_Ctp_vector(this) result(Ctp_vec)
     implicit none
     class(MinimizedFarm) :: this
@@ -342,7 +356,7 @@ function get_Ctp_vector(this) result(Ctp_vec)
     allocate(Ctp_vec(size(this%Ctp) - this%N))
     
     do k = 1, this%Nt-1
-        Ctp_vec((k - 1) * this%N + 1 : this%N * k) = this%Ctp(:,k + 1)
+        Ctp_vec((k - 1) * this%N + 1 : this%N * k) = this%Ctp(:,k)
     end do
     
 end function get_Ctp_vector

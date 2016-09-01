@@ -853,15 +853,16 @@ function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,       
 end function constructor_val
 
 ! Constructor for wake model that reads from file
-function constructor_file(fpath) result(this)
+function constructor_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
     use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     implicit none
     
     type(WakeModelEstimator) :: this
     character(*), intent(in) :: fpath
+    real(rprec), intent(in)  :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
     
-    call this%initialize_file(fpath)
+    call this%initialize_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
 
 end function constructor_file
 
@@ -909,7 +910,7 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ne,
     
 end subroutine initialize_val
 
-subroutine initialize_file(this, fpath)
+subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
     use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     use string_util, only : string_splice
@@ -919,11 +920,19 @@ subroutine initialize_file(this, fpath)
     character(*), intent(in)    :: fpath
     character(CHAR_BUFF_LENGTH) :: fstring
     integer                     :: i, fid
+    real(rprec), intent(in)     :: i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau
+
+    ! Set std deviations for noise
+    this%sigma_du   = i_sigma_du
+    this%sigma_k    = i_sigma_k
+    this%sigma_Phat = i_sigma_Phat
+
+    ! Filter time for U_infty
+    this%tau_U_infty = i_tau
 
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
     read(fid) this%Ne, this%Nm, this%Ns
-    read(fid) this%sigma_du, this%sigma_k, this%sigma_Phat, this%tau_U_infty
     
     allocate( this%Abar(this%Ns) )
     allocate( this%Ahatbar(this%Nm) )
@@ -953,8 +962,7 @@ subroutine initialize_file(this, fpath)
     do i = 1, this%Ne
         call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
         this%ensemble(i) = WakeModel(fstring)
-    end do
-    
+    end do 
     
 end subroutine initialize_file
 
@@ -973,7 +981,6 @@ subroutine write_to_file(this, fpath)
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
     write(fid) this%Ne, this%Nm, this%Ns
-    write(fid) this%sigma_du, this%sigma_k, this%sigma_Phat, this%tau_U_infty
     write(fid) this%A
     write(fid) this%Aprime
     write(fid) this%Ahat
