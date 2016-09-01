@@ -36,6 +36,7 @@ type, extends(Minimized) :: MinimizedFarm
     type(WakeModelAdjoint)  :: wstar   ! adjoint wake (turbine)
     type(WakeModelAdjoint)  :: iwstar  ! adjoint wake initial condition  (turbine)
     real(rprec), dimension(:,:), allocatable     :: Ctp     ! local thrust coefficient (turbine, time)
+    real(rprec), dimension(:,:), allocatable     :: phi     ! control variable coefficient (turbine, time)
     real(rprec), dimension(:), allocatable       :: t       ! times
     real(rprec), dimension(:), allocatable       :: Pref    ! reference signal
     real(rprec), dimension(:), allocatable       :: Pfarm   ! farm power
@@ -50,6 +51,7 @@ type, extends(Minimized) :: MinimizedFarm
     real(rprec) :: cfl, dt              ! Constant time step
     integer     :: N, Nt
     logical     :: isDimensionless = .false.
+    real(rprec) :: tau = 120._rprec
 contains
     procedure, public  :: eval
     procedure, public  :: get_Ctp_vector
@@ -120,6 +122,7 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_ga
     
     ! Allocate other variables
     allocate( this%Ctp(this%N, this%Nt)    )
+    allocate( this%phi(this%N, this%Nt)    )
     allocate( this%grad(this%N, this%Nt)   )
     allocate( this%fdgrad(this%N, this%Nt) )
     
@@ -130,12 +133,12 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_ga
     
 end subroutine initialize
 
-subroutine run_input(this, i_t, i_Ctp)
+subroutine run_input(this, i_t, i_phi)
     use functions, only : linear_interp
     implicit none
     class(MinimizedFarm), intent(inout)        :: this
     real(rprec), dimension(:), intent(in)      :: i_t
-    real(rprec), dimension(:,:), intent(in)    :: i_Ctp
+    real(rprec), dimension(:,:), intent(in)    :: i_phi
     integer                                    :: n
     
     ! Make dimensionless
@@ -143,10 +146,9 @@ subroutine run_input(this, i_t, i_Ctp)
     
     ! Interpolate input onto object
     do n = 1, this%N
-        this%Ctp(n,2:) = linear_interp(i_t, i_Ctp(n,:), this%t(2:) * this%w%TIME)
+        this%phi(n,:) = linear_interp(i_t, i_phi(n,:), this%t(2:) * this%w%TIME)
     end do
-    this%Ctp(:,1) = this%iw%Ctp
-    
+
     call this%run_noinput
 end subroutine run_input
 
@@ -158,6 +160,7 @@ subroutine run_noinput(this)
     real(rprec), dimension(:), allocatable     :: du_super
     real(rprec), dimension(:), allocatable     :: uhatstar, ustar ! adjoint forcing terms
     real(rprec), dimension(:,:,:), allocatable :: fstar           ! adjoint forcing (turbine, time, space)
+    real(rprec), dimension(:,:), allocatable   :: phistar         ! adjoint forcing (turbine, time)
     real(rprec), dimension(:), allocatable     :: g
 
     ! Allocate some variables
@@ -165,6 +168,7 @@ subroutine run_noinput(this)
     allocate( uhatstar(this%N) )
     allocate( ustar(this%w%Nx) )
     allocate( fstar(this%N, this%Nt, this%w%Nx) )
+    allocate( phistar(this%N, this%Nt) )
     
     ! Make dimensionless
     call this%makeDimensionless
@@ -178,6 +182,7 @@ subroutine run_noinput(this)
     ! Assign initial conditions
     this%w = this%iw
     this%wstar = this%iwstar
+    this%Ctp(:,1) = this%w%Ctp
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Forward Simulation
@@ -185,8 +190,13 @@ subroutine run_noinput(this)
     
     ! Iterate in time
     do k = 2, this%Nt
+        ! Calculate next thrust coefficient
+        do n = 1, this%N
+            this%Ctp(n,k) = this%Ctp(n,k-1) + ( this%phi(n,k-1) - this%Ctp(n,k-1) ) / this%tau
+        end do
+    
         ! Calculate next step
-        call this%w%advance(this%Ctp(:, k), this%dt)
+        call this%w%advance(this%Ctp(:,k), this%dt)
         
         ! Calculate farm power
         this%Pfarm(k) = sum(this%w%Phat)
@@ -194,9 +204,9 @@ subroutine run_noinput(this)
         ! Calculate contribution to cost function
         this%cost = this%cost + (this%Pfarm(k) - this%Pref(k))**2 * this%dt
         
-        ! Calculate contribution to the gradient (dJ_1/dCt'_n) at time k
+        ! Calculate the contribution dJ/dCt'_n to phistar at time k
         do n = 1, this%N
-          this%grad(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3 * this%dt
+            phistar(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3
         end do
         
         ! Calculate adjoint forcing
@@ -219,45 +229,25 @@ subroutine run_noinput(this)
     ! Backward (Adjoint) Simulation
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     allocate( g(this%N) )
+    g = 0._rprec
     do k = this%Nt-1, 1, -1
-        g = 0._rprec
-        call this%wstar%retract(fstar(:,k+1,:), this%dt, g)
+        ! Integrate Ctstar (which is held in grad)
         do n = 1, this%N
-            this%grad(n, k) = this%grad(n, k) - g(n) * 8.d0 * this%w%U_infty**2 &
-            / ( ( 4.d0 + this%Ctp(n,k))**2 ) * this%dt
+            this%grad(n, k) = this%grad(n, k+1) - this%dt * ( this%grad(n, k+1) + phistar(n, k+1) ) / this%tau
         end do
-    end do
-    
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! Regularizations
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    ! Regularization of derivative
-    ! NOTE: This gamma is not the same as the C++ version anymore....find out what the right value should be!
-    do n = 1, this%N
-        do k = 2, this%Nt
-            this%cost = this%cost + this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1))**2 / this%dt
-            this%grad(n,k) = this%grad(n,k) + 2.d0 * this%gamma * (this%Ctp(n,k) - this%Ctp(n,k-1)) / this%dt
-        end do
-        do k = 2, this%Nt - 1
-            this%grad(n,k) = this%grad(n,k) - 2.d0 * this%gamma * (this%Ctp(n,k+1) - this%Ctp(n,k)) / this%dt
+        ! Integrate adjoint wake model
+        call this%wstar%retract(fstar(:,k+1,:), this%dt, g)
+
+        ! Add additional term to phistar
+        do n = 1, this%N
+            phistar(n, k) = phistar(n, k) - g(n) * 8.d0 * this%w%U_infty**2 &
+            / ( ( 4.d0 + this%Ctp(n,k))**2 )
         end do
     end do
-    
-    ! Regularization of difference to reference Ctp
-    do n = 1, this%N
-        do k = 2, this%Nt
-            ! NOTE: This was in here, and I didn't notice!
-            ! NOTE: probably should be removed pow((double)n / (p.Nt() - 1), 2.0) * pow(Ctp[i][n] - p.Ctp_ref(), 2.0);
-            this%cost = this%cost + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
-             this%eta * (this%Ctp(n,k) - this%Ctp0)**2 * this%dt
-            this%grad(n,k) = this%grad(n,k) + &! ((k * 1.d0) / (this%Nt - 1.d0))**2 * &
-             2.d0 * this%eta * (this%Ctp(n,k) - this%Ctp0) * this%dt
-        end do
-    end do
-    
-    ! Set first step of gradient to zeros since it is fixed
-    this%grad(:,1) = 0.d0
+
+    ! Multiply Ctstar to get gradient
+    this%grad = -this%grad / this%tau * this%dt
     
 end subroutine run_noinput
 
@@ -271,6 +261,7 @@ subroutine makeDimensionless(this)
         this%Pfarm = this%Pfarm / this%POWER
         this%t     = this%t    / this%w%TIME
         this%dt    = this%dt   / this%w%TIME
+        this%tau   = this%tau / this%w%TIME
         call this%w%makeDimensionless
         call this%wstar%makeDimensionless
         call this%iw%makeDimensionless
@@ -288,6 +279,7 @@ subroutine makeDimensional(this)
         this%Pfarm = this%Pfarm * this%POWER
         this%t     = this%t    * this%w%TIME
         this%dt    = this%dt   * this%w%TIME
+        this%tau   = this%tau * this%w%TIME
         call this%w%makeDimensional
         call this%wstar%makeDimensional
         call this%iw%makeDimensional
