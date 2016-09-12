@@ -86,7 +86,7 @@ integer, public :: solver
 integer, public :: advancement_base
 real(rprec), public :: horizon_time
 integer, public     :: max_iter
-real(rprec), public :: rh_gamma, rh_eta
+real(rprec), public :: phi_tau
 real(rprec), public :: Ct_prime_min, Ct_prime_max
 
 ! Input file values for wake model
@@ -868,7 +868,7 @@ if (modulo (jt_total, advancement_base) == 0) then
     if (coord == 0) then
         ! Run initial guess in object
         mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
-            Ct_prime, Pref_time, Pref_arr, rh_gamma, rh_eta)
+            Pref_time, Pref_arr, phi_tau)
         call mfarm%run(Ct_prime_time, phi_arr)
 
         ! Perform optimization

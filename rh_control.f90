@@ -45,8 +45,6 @@ type, extends(Minimized) :: MinimizedFarm
     real(rprec), dimension(:,:), allocatable     :: grad    ! gradient (turbine, time)
     real(rprec), dimension(:,:), allocatable     :: fdgrad  ! finite-difference gradient (turbine, time)
     real(rprec) :: Ctp0 = 1.33_rprec
-    real(rprec) :: gamma =  0._rprec
-    real(rprec) :: eta =  0._rprec
     real(rprec) :: POWER = 0._rprec
     real(rprec) :: cfl, dt              ! Constant time step
     integer     :: N, Nt
@@ -54,7 +52,7 @@ type, extends(Minimized) :: MinimizedFarm
     real(rprec) :: tau = 120._rprec
 contains
     procedure, public  :: eval
-    procedure, public  :: get_Ctp_vector
+!    procedure, public  :: get_Ctp_vector
     procedure, public  :: get_phi_vector
     procedure, public  :: initialize
     procedure, public  :: makeDimensionless
@@ -70,30 +68,28 @@ end interface MinimizedFarm
 
 contains
 
-function constructor(i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta) result(this)
+function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau) result(this)
     implicit none
     type(MinimizedFarm)                         :: this
     class(WakeModel), intent(in)                :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
-    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
+    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_tau
     
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta) 
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau) 
 end function constructor
 
-subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_Ctp0, i_time, i_Pref, i_gamma, i_eta)
+subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
     use functions, only : linear_interp
     implicit none
     class(MinimizedFarm)                        :: this
     type(WakeModel), intent(in)                 :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
-    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_Ctp0, i_gamma, i_eta
+    real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_tau
     integer                                     :: i
         
     ! Set reference values
-    this%Ctp0 = i_Ctp0
-    this%gamma = i_gamma
-    this%eta = i_eta
-        
+    this%tau = i_tau    
+    
     ! Set initial condition for wake model
     this%iw = i_wm
     call this%iw%makeDimensional
@@ -207,11 +203,11 @@ subroutine run_noinput(this)
         
         ! Calculate the contribution dJ/dCt'_n to phistar at time k
         do n = 1, this%N
-            phistar(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3
+            phistar(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3 * this%dt
         end do
         
         ! Calculate adjoint forcing
-        uhatstar = -6.d0 * (this%Pfarm(k) - this%Pref(k)) * this%Ctp(:,k) * this%w%uhat**2
+        uhatstar = -6.d0 * (this%Pfarm(k) - this%Pref(k)) * this%Ctp(:,k) * this%w%uhat**2 * this%dt
         ustar = 0
         do n = 1, this%N
             ustar = ustar + this%w%G(n,:) * uhatstar(n)
@@ -248,7 +244,7 @@ subroutine run_noinput(this)
     end do
 
     ! Multiply Ctstar to get gradient
-    this%grad = -this%grad / this%tau * this%dt
+    this%grad = -this%grad / this%tau
     
 end subroutine run_noinput
 
@@ -336,7 +332,7 @@ end subroutine eval
 function get_phi_vector(this) result(phi_vec)
     implicit none
     class(MinimizedFarm) :: this
-    real(rprec), dimension(:),allocatable :: phi_vec
+    real(rprec), dimension(:), allocatable :: phi_vec
     integer :: k
     
     allocate(phi_vec(size(this%phi) - this%N))
@@ -347,19 +343,18 @@ function get_phi_vector(this) result(phi_vec)
     
 end function get_phi_vector
 
-function get_Ctp_vector(this) result(Ctp_vec)
-    implicit none
-    class(MinimizedFarm) :: this
-    real(rprec), dimension(:),allocatable :: Ctp_vec
-    integer :: k
-    
-    allocate(Ctp_vec(size(this%Ctp) - this%N))
-    
-    do k = 1, this%Nt-1
-        Ctp_vec((k - 1) * this%N + 1 : this%N * k) = this%Ctp(:,k)
-    end do
-    
-end function get_Ctp_vector
-    
+! function get_Ctp_vector(this) result(Ctp_vec)
+!     implicit none
+!     class(MinimizedFarm) :: this
+!     real(rprec), dimension(:), allocatable :: Ctp_vec
+!     integer :: k
+!     
+!     allocate(Ctp_vec(size(this%Ctp) - this%N))
+!     
+!     do k = 1, this%Nt-1
+!         Ctp_vec((k - 1) * this%N + 1 : this%N * k) = this%Ctp(:,k)
+!     end do
+!     
+! end function get_Ctp_vector
 
 end module rh_control

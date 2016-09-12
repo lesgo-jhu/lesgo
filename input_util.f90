@@ -906,10 +906,8 @@ do
         read (buff(equal_pos+1:), *) horizon_time
      case ('MAX_ITER')
         read (buff(equal_pos+1:), *) max_iter
-     case ('RH_GAMMA')
-        read (buff(equal_pos+1:), *) rh_gamma
-     case ('RH_ETA')
-        read (buff(equal_pos+1:), *) rh_eta
+     case ('PHI_TAU')
+        read (buff(equal_pos+1:), *) phi_tau
      case ('CT_PRIME_MIN')
         read (buff(equal_pos+1:), *) Ct_prime_min
      case ('CT_PRIME_MAX')
