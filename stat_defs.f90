@@ -105,10 +105,12 @@ type turbine_t
   integer :: icp, jcp, kcp                    ! location of turbine center (local k)
   logical :: center_in_proc                   ! true if the center is in the processor
   real(rprec) :: Ct_prime                     ! thrust coefficient
+  real(rprec) :: Cp_prime                     ! power coefficient (phi * Ct_prime)
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
   type(turb_ind_func_t) :: turb_ind_func      ! object to calculate indicator function
+  real(rprec) :: omega                        ! Rotational speed (s^-1)
 end type turbine_t
 
 ! A collection of wind turbines

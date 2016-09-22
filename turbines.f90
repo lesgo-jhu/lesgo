@@ -77,7 +77,15 @@ real(rprec), public :: alpha
 ! indicator function only includes values above this threshold
 real(rprec), public :: filter_cutoff    
 ! Number of timesteps between the output
-integer, public :: tbase            
+integer, public :: tbase
+! Cp_prime corrections
+real(rprec), public :: phi_a, phi_b, phi_c, phi_d, phi_x0
+! Air density
+real(rprec), public :: rho
+! Inertia (kg*m^2)
+real(rprec), public :: inertia_all
+! Torque gain (kg*m^2)
+real(rprec), public :: torque_gain
 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
@@ -170,6 +178,9 @@ sy = L_y / (num_y * dia_all )
 ! Place the turbines and specify some parameters
 call place_turbines
 
+! Calculate Cp_prime
+call calc_Cp_prime
+
 ! Resize thickness to capture at least on plane of gridpoints
 ! and set baseline values for size
 do k = 1, nloc
@@ -229,7 +240,7 @@ if (coord == 0) then
         write(*,*) 'Reading from file ', trim(u_d_T_dat)
         fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
         do i=1,nloc
-            read(fid,*) wind_farm%turbine(i)%u_d_T    
+            read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega 
         end do    
         read(fid,*) T_avg_dim_file
         if (T_avg_dim_file /= T_avg_dim) then
@@ -239,9 +250,10 @@ if (coord == 0) then
         close (fid)
     else  
         write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-        write (*, *) 'Assuming u_d_T = -1. for all turbines'
+        write (*, *) 'Assuming u_d_T = -1, omega = 1 for all turbines'
         do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -1.
+            wind_farm%turbine(k)%u_d_T = -1._rprec
+            wind_farm%turbine(k)%omega = 1._rprec
         end do
     end if                                    
 end if
@@ -476,7 +488,8 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
-real(rprec), pointer :: p_Ct_prime => null()
+real(rprec), pointer :: p_Ct_prime => null(), p_Cp_prime => null()
+real(rprec), pointer :: p_omega => null()
 integer, pointer :: p_icp => null(), p_jcp => null(), p_kcp => null()
 
 real(rprec) :: ind2
@@ -484,6 +497,7 @@ real(rprec), dimension(nloc) :: disk_avg_vel, disk_force
 real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
+real(rprec) :: const
 
 real(rprec), dimension(4*nloc) :: send_array
 #ifdef PPMPI
@@ -512,6 +526,9 @@ do s = 1, nloc
     if (dyn_Ct_prime) wind_farm%turbine(s)%Ct_prime =                          &
         linear_interp(Ct_prime_time, Ct_prime_arr(s,:), total_time_dim)        
 end do
+
+! If we need to calculate new Cp_prime's
+if (dyn_Ct_prime) call calc_Cp_prime
 
 ! Recompute the turbine position if theta1 or theta2 can change
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
@@ -597,6 +614,8 @@ if (coord == 0) then
         p_u_d_T => wind_farm%turbine(s)%u_d_T
         p_f_n => wind_farm%turbine(s)%f_n
         p_Ct_prime => wind_farm%turbine(s)%Ct_prime
+        p_Cp_prime => wind_farm%turbine(s)%Cp_prime
+        p_omega => wind_farm%turbine(s)%omega
         
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -611,12 +630,17 @@ if (coord == 0) then
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         disk_force(s) = p_f_n
         
+        ! Calculate rotational speed. Power needs to be dimensional!
+        const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
+        p_omega = p_omega + dt_dim / inertia_all *                             &
+                (const * (p_u_d_T*u_star)**3 - torque_gain*p_omega**2)
+        
         !write values to file                   
         if (modulo (jt_total, tbase) == 0) then
             write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
                 v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
                 wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
-                p_Ct_prime
+                p_Ct_prime, p_Cp_prime, p_omega
         end if 
 
     end do                   
@@ -697,7 +721,7 @@ integer :: fid
 if (coord == 0) then  
     fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
     do i=1,nloc
-        write(fid,*) wind_farm%turbine(i)%u_d_T
+        write(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega 
     end do           
     write(fid,*) T_avg_dim
     close (fid)
@@ -954,6 +978,27 @@ if (dyn_Ct_prime) then
 end if
 
 end subroutine read_control_files
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine calc_Cp_prime()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+implicit none
+integer :: k
+real(rprec) :: phi
+
+! Calculate Cp_prime
+do k = 1, nloc
+    if (wind_farm%turbine(k)%Ct_prime > phi_x0) then
+        phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
+    else
+        phi = phi_a*wind_farm%turbine(k)%Ct_prime**3                           &
+            + phi_b*wind_farm%turbine(k)%Ct_prime**2                           &
+            + phi_c*wind_farm%turbine(k)%Ct_prime + phi_d
+    end if
+    wind_farm%turbine(k)%Cp_prime = wind_farm%turbine(k)%Ct_prime*phi
+end do
+
+end subroutine calc_Cp_prime
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function count_lines(fname) result(N)

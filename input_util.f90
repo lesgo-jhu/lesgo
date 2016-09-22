@@ -895,7 +895,25 @@ do
         read (buff(equal_pos+1:), *) filter_cutoff
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
-
+        
+     case ('PHI_A')
+        read (buff(equal_pos+1:), *) phi_a
+     case ('PHI_B')
+        read (buff(equal_pos+1:), *) phi_b
+     case ('PHI_C')
+        read (buff(equal_pos+1:), *) phi_c
+     case ('PHI_D')
+        read (buff(equal_pos+1:), *) phi_d
+     case ('PHI_X0')
+        read (buff(equal_pos+1:), *) phi_x0
+        
+     case ('RHO')
+        read (buff(equal_pos+1:), *) rho
+     case ('INERTIA_ALL')
+        read (buff(equal_pos+1:), *) inertia_all
+     case ('TORQUE_GAIN')
+        read (buff(equal_pos+1:), *) torque_gain
+        
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
