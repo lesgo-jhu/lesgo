@@ -533,11 +533,11 @@ end do
 ! Calculate Ct_prime and Cp_prime
 do s = 1, nloc
     wind_farm%turbine(s)%Ct_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
-        Ct_prime_arr, 0._rprec, wind_farm%turbine(s)%omega * 0.5 *             &
+        Ct_prime_arr, 0._rprec, -wind_farm%turbine(s)%omega * 0.5 *            &
         wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
         
     wind_farm%turbine(s)%Cp_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
-        Ct_prime_arr, 0._rprec, wind_farm%turbine(s)%omega * 0.5 *             &
+        Cp_prime_arr, 0._rprec, -wind_farm%turbine(s)%omega * 0.5 *            &
         wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
 end do
 
@@ -1035,11 +1035,11 @@ a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
 allocate( iCtp(size(beta_arr), size(lambda)) )
 allocate( iCpp(size(beta_arr), size(lambda)) )
 allocate( ilp(size(beta_arr), size(lambda)) )
-iCtp = Ct/(1-a)**2
-iCpp = Cp/(1-a)**2
+iCtp = Ct/((1._rprec-a)**2)
+iCpp = Cp/((1._rprec-a)**3)
 do i = 1, size(beta_arr)
     do j = 1, size(lambda)
-        ilp(i,j) = lambda(j)/(1 - a(i,j))
+        ilp(i,j) = lambda(j)/(1._rprec - a(i,j))
     end do
 end do
 
