@@ -633,7 +633,7 @@ if (coord == 0) then
         ! Calculate rotational speed. Power needs to be dimensional!
         const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
         p_omega = p_omega + dt_dim / inertia_all *                             &
-                (const * (p_u_d_T*u_star)**3 - torque_gain*p_omega**2)
+                (const*(p_u_d_T*u_star)**3/p_omega - torque_gain*p_omega**2)
         
         !write values to file                   
         if (modulo (jt_total, tbase) == 0) then
@@ -995,7 +995,7 @@ do k = 1, nloc
             + phi_b*wind_farm%turbine(k)%Ct_prime**2                           &
             + phi_c*wind_farm%turbine(k)%Ct_prime + phi_d
     end if
-    wind_farm%turbine(k)%Cp_prime = wind_farm%turbine(k)%Ct_prime*phi
+    wind_farm%turbine(k)%Cp_prime = wind_farm%turbine(k)%Ct_prime*phi**3
 end do
 
 end subroutine calc_Cp_prime
