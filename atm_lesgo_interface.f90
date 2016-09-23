@@ -383,7 +383,7 @@ do i = 1, numberOfTurbines
     endif
 enddo
 
-!~     call myClock % clock_stop()
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Update ', myClock % time
 
 
