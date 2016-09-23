@@ -883,8 +883,6 @@ do
         read (buff(equal_pos+1:), *) dyn_theta1
      case ('DYN_THETA2')
         read (buff(equal_pos+1:), *) dyn_theta2
-     case ('DYN_CT_PRIME')
-        read (buff(equal_pos+1:), *) dyn_Ct_prime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim

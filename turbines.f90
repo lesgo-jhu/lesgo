@@ -68,8 +68,6 @@ logical, public :: read_param
 logical, public :: dyn_theta1        
 ! Dynamically change theta2 from input_turbines/theta2.dat
 logical, public :: dyn_theta2        
-! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
-logical, public :: dyn_Ct_prime
 ! disk-avg time scale in seconds (default 600) 
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -97,15 +95,22 @@ real(rprec), dimension(:,:), allocatable :: theta1_arr
 real(rprec), dimension(:), allocatable :: theta1_time
 real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
+
+! Arrays for interpolating power and thrust coefficients
+real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
 real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
-real(rprec), dimension(:), allocatable :: Ct_prime_time
+real(rprec), dimension(:), allocatable :: lambda_prime_arr
+real(rprec), dimension(:), allocatable :: beta_arr
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
 character(*), parameter :: param_dat = path // input_folder // 'param.dat'
 character(*), parameter :: theta1_dat = path // input_folder // 'theta1.dat'
 character(*), parameter :: theta2_dat = path // input_folder // 'theta2.dat'
-character(*), parameter :: Ct_prime_dat = path // input_folder // 'Ct_prime.dat'
+character(*), parameter :: Ct_dat = path // input_folder // 'Ct.dat'
+character(*), parameter :: Cp_dat = path // input_folder // 'Cp.dat'
+character(*), parameter :: lambda_dat = path // input_folder // 'lambda.dat'
+character(*), parameter :: beta_dat = path // input_folder // 'beta.dat'
 
 ! Output files
 character(*), parameter :: output_folder = 'turbine/'
@@ -178,9 +183,6 @@ sy = L_y / (num_y * dia_all )
 ! Place the turbines and specify some parameters
 call place_turbines
 
-! Calculate Cp_prime
-call calc_Cp_prime
-
 ! Resize thickness to capture at least on plane of gridpoints
 ! and set baseline values for size
 do k = 1, nloc
@@ -220,6 +222,9 @@ end do
 
 ! Read dynamic control input files
 call read_control_files
+
+! Read power and thrust coefficient curves
+call generate_Ct_Cp_prime_arrays
 
 !Compute a lookup table object for the indicator function 
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
@@ -482,7 +487,7 @@ subroutine turbines_forcing()
 ! This subroutine applies the drag-disk forcing
 ! 
 use sim_param, only : u,v,w, fxa,fya,fza
-use functions, only : linear_interp, interp_to_uv_grid
+use functions, only : linear_interp, interp_to_uv_grid, bilinear_interp
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
@@ -523,12 +528,18 @@ do s = 1, nloc
         linear_interp(theta1_time, theta1_arr(s,:), total_time_dim)
     if (dyn_theta2) wind_farm%turbine(s)%theta2 =                              &
         linear_interp(theta2_time, theta2_arr(s,:), total_time_dim)
-    if (dyn_Ct_prime) wind_farm%turbine(s)%Ct_prime =                          &
-        linear_interp(Ct_prime_time, Ct_prime_arr(s,:), total_time_dim)        
 end do
 
-! If we need to calculate new Cp_prime's
-if (dyn_Ct_prime) call calc_Cp_prime
+! Calculate Ct_prime and Cp_prime
+do s = 1, nloc
+    wind_farm%turbine(s)%Ct_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
+        Ct_prime_arr, 0._rprec, wind_farm%turbine(s)%omega * 0.5 *             &
+        wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
+        
+    wind_farm%turbine(s)%Cp_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
+        Ct_prime_arr, 0._rprec, wind_farm%turbine(s)%omega * 0.5 *             &
+        wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
+end do
 
 ! Recompute the turbine position if theta1 or theta2 can change
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
@@ -926,7 +937,6 @@ subroutine read_control_files
 ! This subroutine reads the input files for dynamic controls with theta1, 
 ! theta2, and Ct_prime. This is calles from turbines_init.
 !
-use param, only: pi
 use open_file_fid_mod
 use messages
 implicit none
@@ -963,42 +973,109 @@ if (dyn_theta2) then
     end do
 end if
 
-! Read the Ct_prime input data
-if (dyn_Ct_prime) then
-    ! Count number of entries and allocate
-    num_t = count_lines(Ct_prime_dat)
-    allocate( Ct_prime_time(num_t) )
-    allocate( Ct_prime_arr(nloc, num_t) )
-
-    ! Read values from file
-    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
-    do i = 1, num_t
-        read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
-    end do
-end if
-
 end subroutine read_control_files
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine calc_Cp_prime()
+subroutine generate_Ct_Cp_prime_arrays
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use open_file_fid_mod
+use functions, only : linear_interp
 implicit none
-integer :: k
-real(rprec) :: phi
+integer :: N, fid
+real(rprec), dimension(:), allocatable :: lambda
+real(rprec), dimension(:,:), allocatable :: Ct, Cp, a
+real(rprec), dimension(:,:), allocatable :: iCtp, iCpp, ilp
+real(rprec) :: dlp, phi
 
-! Calculate Cp_prime
-do k = 1, nloc
-    if (wind_farm%turbine(k)%Ct_prime > phi_x0) then
-        phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
-    else
-        phi = phi_a*wind_farm%turbine(k)%Ct_prime**3                           &
-            + phi_b*wind_farm%turbine(k)%Ct_prime**2                           &
-            + phi_c*wind_farm%turbine(k)%Ct_prime + phi_d
-    end if
-    wind_farm%turbine(k)%Cp_prime = wind_farm%turbine(k)%Ct_prime*phi**3
+! Read lambda
+N = count_lines(lambda_dat)
+allocate( lambda(N) )
+fid = open_file_fid(lambda_dat, 'rewind', 'formatted')
+do i = 1, N
+    read(fid,*) lambda(i)
 end do
 
-end subroutine calc_Cp_prime
+! Read beta
+N = count_lines(beta_dat)
+allocate( beta_arr(N) )
+fid = open_file_fid(beta_dat, 'rewind', 'formatted')
+do i = 1, N
+    read(fid,*) beta_arr(i)
+end do
+
+! Read Ct
+allocate( Ct(size(beta_arr), size(lambda)) )
+fid = open_file_fid(Ct_dat, 'rewind', 'formatted')
+do i = 1, size(beta_arr)
+    read(fid,*) Ct(i,:)
+end do
+
+! Read Cp
+allocate( Cp(size(beta_arr), size(lambda)) )
+fid = open_file_fid(Cp_dat, 'rewind', 'formatted')
+do i = 1, size(beta_arr)
+    read(fid,*) Cp(i,:)
+end do
+
+! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
+! Prevent negative power coefficients
+do i = 1, size(beta_arr)
+    do j = 1, size(lambda)
+        if (Ct(i,j) < 0._rprec) Ct(i,j) = 0._rprec
+        if (Ct(i,j) > 1._rprec) Ct(i,j) = 1._rprec
+        if (Cp(i,j) < 0._rprec) Cp(i,j) = 0._rprec
+    end do
+end do
+
+! Calculate induction factor
+allocate( a(size(beta_arr), size(lambda)) )
+a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
+
+! Calculate local Ct, Cp, and lambda
+allocate( iCtp(size(beta_arr), size(lambda)) )
+allocate( iCpp(size(beta_arr), size(lambda)) )
+allocate( ilp(size(beta_arr), size(lambda)) )
+iCtp = Ct/(1-a)**2
+iCpp = Cp/(1-a)**2
+do i = 1, size(beta_arr)
+    do j = 1, size(lambda)
+        ilp(i,j) = lambda(j)/(1 - a(i,j))
+    end do
+end do
+
+! Adjust the lambda_prime and Cp_prime to use the LES velocity
+do i = 1, size(beta_arr)
+    do j = 1, size(lambda)
+        if (iCtp(i,j) > phi_x0) then
+            phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
+        else
+            phi = phi_a*iCtp(i,j)**3 + phi_b*iCtp(i,j)**2                      &
+                + phi_c*iCtp(i,j) + phi_d
+        end if
+        ilp(i,j) = ilp(i,j) * phi
+        iCpp(i,j) = iCpp(i,j) * phi**3
+    end do
+end do
+
+! Set the lambda_prime's onto which these curves will be interpolated
+allocate( lambda_prime_arr(size(lambda)*3) )
+lambda_prime_arr(1) = maxval(ilp(:,1))
+lambda_prime_arr(size(lambda)*3) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime_arr(size(lambda)*3) - lambda_prime_arr(1)) 
+dlp = dlp / (size(lambda)*3 - 1)
+do i = 2, size(lambda)*3 - 1
+    lambda_prime_arr(i) = lambda_prime_arr(i-1) + dlp
+end do
+
+! Interpolate onto Ct_prime and Cp_prime arrays
+allocate( Ct_prime_arr(size(beta_arr), size(lambda_prime_arr)) )
+allocate( Cp_prime_arr(size(beta_arr), size(lambda_prime_arr)) )
+do i = 1, size(beta_arr)
+    Ct_prime_arr(i,:) = linear_interp(ilp(i,:), iCtp(i,:), lambda_prime_arr)
+    Cp_prime_arr(i,:) = linear_interp(ilp(i,:), iCpp(i,:), lambda_prime_arr)
+end do
+
+end subroutine generate_Ct_Cp_prime_arrays
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function count_lines(fname) result(N)
