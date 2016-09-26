@@ -28,6 +28,7 @@ use grid_m
 use messages
 use string_util
 use stat_defs, only : wind_farm
+use bicubic_spline
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
 #endif
@@ -97,10 +98,7 @@ real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
 
 ! Arrays for interpolating power and thrust coefficients
-real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
-real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
-real(rprec), dimension(:), allocatable :: lambda_prime_arr
-real(rprec), dimension(:), allocatable :: beta_arr
+type(bicubic_spline_t) :: Cp_prime_spline, Ct_prime_spline
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
@@ -224,7 +222,7 @@ end do
 call read_control_files
 
 ! Read power and thrust coefficient curves
-call generate_Ct_Cp_prime_arrays
+call generate_splines
 
 !Compute a lookup table object for the indicator function 
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
@@ -532,13 +530,13 @@ end do
 
 ! Calculate Ct_prime and Cp_prime
 do s = 1, nloc
-    wind_farm%turbine(s)%Ct_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
-        Ct_prime_arr, 0._rprec, -wind_farm%turbine(s)%omega * 0.5 *            &
-        wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
+    call Ct_prime_spline%interp(0._rprec, -wind_farm%turbine(s)%omega * 0.5    &
+        * wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star,&
+        wind_farm%turbine(s)%Ct_prime)
         
-    wind_farm%turbine(s)%Cp_prime = bilinear_interp(beta_arr, lambda_prime_arr,&
-        Cp_prime_arr, 0._rprec, -wind_farm%turbine(s)%omega * 0.5 *            &
-        wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star)
+    call Cp_prime_spline%interp(0._rprec, -wind_farm%turbine(s)%omega * 0.5    &
+        * wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star,&
+        wind_farm%turbine(s)%Cp_prime)
 end do
 
 ! Recompute the turbine position if theta1 or theta2 can change
@@ -976,7 +974,7 @@ end if
 end subroutine read_control_files
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine generate_Ct_Cp_prime_arrays
+subroutine generate_splines
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use open_file_fid_mod
 use functions, only : linear_interp
@@ -986,6 +984,10 @@ real(rprec), dimension(:), allocatable :: lambda
 real(rprec), dimension(:,:), allocatable :: Ct, Cp, a
 real(rprec), dimension(:,:), allocatable :: iCtp, iCpp, ilp
 real(rprec) :: dlp, phi
+real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
+real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
+real(rprec), dimension(:), allocatable :: lambda_prime_arr
+real(rprec), dimension(:), allocatable :: beta_arr
 
 ! Read lambda
 N = count_lines(lambda_dat)
@@ -1075,7 +1077,24 @@ do i = 1, size(beta_arr)
     Cp_prime_arr(i,:) = linear_interp(ilp(i,:), iCpp(i,:), lambda_prime_arr)
 end do
 
-end subroutine generate_Ct_Cp_prime_arrays
+! Now generate splines
+Ct_prime_spline = bicubic_spline_t(beta_arr, lambda_prime_arr, Ct_prime_arr)
+Cp_prime_spline = bicubic_spline_t(beta_arr, lambda_prime_arr, Cp_prime_arr)
+
+! Cleanup
+deallocate (lambda)
+deallocate (Ct)
+deallocate (Cp)
+deallocate (a)
+deallocate (iCtp)
+deallocate (iCpp)
+deallocate (ilp)
+deallocate (Cp_prime_arr)
+deallocate (Ct_prime_arr)
+deallocate (lambda_prime_arr)
+deallocate (beta_arr)
+
+end subroutine generate_splines
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function count_lines(fname) result(N)

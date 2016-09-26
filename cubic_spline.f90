@@ -175,7 +175,6 @@ real(rprec), dimension(:), intent(in) :: xq
 real(rprec), dimension(:), intent(out) :: vq
 real(rprec), dimension(:), intent(out), optional :: vqp
 integer :: i, N
-real(rprec) :: A, B, C, D
 
 N = size(xq)
 

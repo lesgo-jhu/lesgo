@@ -137,7 +137,7 @@ class(bicubic_spline_t) :: this
 real(rprec), dimension(:), intent(in) :: xq, yq
 real(rprec), dimension(:), intent(out) :: vq
 real(rprec), dimension(:), intent(out), optional :: vqpx, vqpy
-integer :: i, j, Nq
+integer :: i, Nq
 
 ! Check input dimensions
 Nq = size(xq)
