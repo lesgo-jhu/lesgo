@@ -35,10 +35,10 @@ set(READ_ENDIAN "DEFAULT")
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
 set(USE_TURBINES false)
-set(USE_ATM false)
+set(USE_ATM true)
 
 # Select the data output
-set(USE_CGNS false)
+set(USE_CGNS true)
 
 # Select level set
 set(USE_LVLSET false)
@@ -117,7 +117,7 @@ elseif (${hostname} STREQUAL "marcc")
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
 #  all other systems
-elseif (${hostname} STREQUAL "generic")
+elseif (${hostname} STREQUAL "default")
     # nothing yet, but can add if needed
     if (USE_CGNS)
         include_directories($ENV{HOME}/cgns/include/)
