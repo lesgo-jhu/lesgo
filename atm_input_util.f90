@@ -73,6 +73,8 @@ type turbineArray_t
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
+    real(rprec) :: VelNacelle_sampled = 0._rprec ! Sampled nacelle Vel
+    real(rprec) :: VelNacelle_corrected = 0._rprec ! Corrected nacelle Vel
     real(rprec) :: u_infinity_mean = 0._rprec ! Mean velocity
 
     ! The MPI communicator for this turbine
@@ -412,6 +414,11 @@ do
             read(buff(10:), *) turbineArray(n) % nacelleCd
 !~             write(*,*)  'cd is: ', &
 !~                          turbineArray(n) % nacelleCd
+        endif 
+        if( buff(1:14) == 'nacelleEpsilon' ) then
+            read(buff(15:), *) turbineArray(n) % nacelleEpsilon
+!~             write(*,*)  'cd is: ', &
+!~                          turbineArray(n) % nacelleEpsilon
         endif 
         if( buff(1:3) == 'TSR' ) then
             read(buff(4:), *) turbineArray(n) % TSR
