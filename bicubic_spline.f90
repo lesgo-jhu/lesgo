@@ -42,7 +42,8 @@ type :: bicubic_spline_t
     real(rprec), dimension(:), allocatable :: x, y
     integer :: N, M
 contains
-     procedure, private :: interp_scalar, interp_array
+    procedure, private :: interp_scalar
+    procedure, private :: interp_array
     generic, public :: interp => interp_scalar, interp_array
 end type bicubic_spline_t
 
