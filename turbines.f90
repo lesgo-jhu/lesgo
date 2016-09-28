@@ -97,8 +97,10 @@ real(rprec), dimension(:), allocatable :: theta1_time
 real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
 
-! Arrays for interpolating power and thrust coefficients
+! Arrays for interpolating power and thrust coefficients for LES
 type(bicubic_spline_t) :: Cp_prime_spline, Ct_prime_spline
+! Arrays for interpolating power and thrust coefficients for wake model
+type(bicubic_spline_t) :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
@@ -978,16 +980,18 @@ subroutine generate_splines
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use open_file_fid_mod
 use functions, only : linear_interp
+use cubic_spline
 implicit none
-integer :: N, fid
+integer :: N, fid, Nlp
 real(rprec), dimension(:), allocatable :: lambda
 real(rprec), dimension(:,:), allocatable :: Ct, Cp, a
 real(rprec), dimension(:,:), allocatable :: iCtp, iCpp, ilp
 real(rprec) :: dlp, phi
 real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
 real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
-real(rprec), dimension(:), allocatable :: lambda_prime_arr
-real(rprec), dimension(:), allocatable :: beta_arr
+real(rprec), dimension(:), allocatable :: lambda_prime
+real(rprec), dimension(:), allocatable :: beta
+type(cubic_spline_t) :: cspl
 
 ! Read lambda
 N = count_lines(lambda_dat)
@@ -999,29 +1003,29 @@ end do
 
 ! Read beta
 N = count_lines(beta_dat)
-allocate( beta_arr(N) )
+allocate( beta(N) )
 fid = open_file_fid(beta_dat, 'rewind', 'formatted')
 do i = 1, N
-    read(fid,*) beta_arr(i)
+    read(fid,*) beta(i)
 end do
 
 ! Read Ct
-allocate( Ct(size(beta_arr), size(lambda)) )
+allocate( Ct(size(beta), size(lambda)) )
 fid = open_file_fid(Ct_dat, 'rewind', 'formatted')
-do i = 1, size(beta_arr)
+do i = 1, size(beta)
     read(fid,*) Ct(i,:)
 end do
 
 ! Read Cp
-allocate( Cp(size(beta_arr), size(lambda)) )
+allocate( Cp(size(beta), size(lambda)) )
 fid = open_file_fid(Cp_dat, 'rewind', 'formatted')
-do i = 1, size(beta_arr)
+do i = 1, size(beta)
     read(fid,*) Cp(i,:)
 end do
 
 ! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
 ! Prevent negative power coefficients
-do i = 1, size(beta_arr)
+do i = 1, size(beta)
     do j = 1, size(lambda)
         if (Ct(i,j) < 0._rprec) Ct(i,j) = 0._rprec
         if (Ct(i,j) > 1._rprec) Ct(i,j) = 1._rprec
@@ -1030,23 +1034,52 @@ do i = 1, size(beta_arr)
 end do
 
 ! Calculate induction factor
-allocate( a(size(beta_arr), size(lambda)) )
+allocate( a(size(beta), size(lambda)) )
 a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
 
 ! Calculate local Ct, Cp, and lambda
-allocate( iCtp(size(beta_arr), size(lambda)) )
-allocate( iCpp(size(beta_arr), size(lambda)) )
-allocate( ilp(size(beta_arr), size(lambda)) )
+allocate( iCtp(size(beta), size(lambda)) )
+allocate( iCpp(size(beta), size(lambda)) )
+allocate( ilp(size(beta), size(lambda)) )
 iCtp = Ct/((1._rprec-a)**2)
 iCpp = Cp/((1._rprec-a)**3)
-do i = 1, size(beta_arr)
+do i = 1, size(beta)
     do j = 1, size(lambda)
         ilp(i,j) = lambda(j)/(1._rprec - a(i,j))
     end do
 end do
 
+! Allocate the lambda_prime array
+Nlp = size(lambda)*3
+allocate( lambda_prime(Nlp) )
+
+! First save the uncorrected splines for use with the wake model
+! Set the lambda_prime's onto which these curves will be interpolated
+lambda_prime(1) = maxval(ilp(:,1))
+lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime(Nlp) - lambda_prime(1)) 
+dlp = dlp / (Nlp - 1)
+do i = 2, Nlp - 1
+    lambda_prime(i) = lambda_prime(i-1) + dlp
+end do
+
+! Interpolate onto Ct_prime and Cp_prime arrays
+allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
+allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
+do i = 1, size(beta)
+    cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+    cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+end do
+
+! Now generate splines
+wm_Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr)
+wm_Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr)
+
+! Now save the adjusted splines for LES
 ! Adjust the lambda_prime and Cp_prime to use the LES velocity
-do i = 1, size(beta_arr)
+do i = 1, size(beta)
     do j = 1, size(lambda)
         if (iCtp(i,j) > phi_x0) then
             phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
@@ -1060,26 +1093,27 @@ do i = 1, size(beta_arr)
 end do
 
 ! Set the lambda_prime's onto which these curves will be interpolated
-allocate( lambda_prime_arr(size(lambda)*3) )
-lambda_prime_arr(1) = maxval(ilp(:,1))
-lambda_prime_arr(size(lambda)*3) = minval(ilp(:,size(lambda)))
-dlp = (lambda_prime_arr(size(lambda)*3) - lambda_prime_arr(1)) 
-dlp = dlp / (size(lambda)*3 - 1)
-do i = 2, size(lambda)*3 - 1
-    lambda_prime_arr(i) = lambda_prime_arr(i-1) + dlp
+lambda_prime(1) = maxval(ilp(:,1))
+lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime(Nlp) - lambda_prime(1)) 
+dlp = dlp / (Nlp - 1)
+do i = 2, Nlp - 1
+    lambda_prime(i) = lambda_prime(i-1) + dlp
 end do
 
 ! Interpolate onto Ct_prime and Cp_prime arrays
-allocate( Ct_prime_arr(size(beta_arr), size(lambda_prime_arr)) )
-allocate( Cp_prime_arr(size(beta_arr), size(lambda_prime_arr)) )
-do i = 1, size(beta_arr)
-    Ct_prime_arr(i,:) = linear_interp(ilp(i,:), iCtp(i,:), lambda_prime_arr)
-    Cp_prime_arr(i,:) = linear_interp(ilp(i,:), iCpp(i,:), lambda_prime_arr)
+allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
+allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
+do i = 1, size(beta)
+    cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+    cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
 end do
 
 ! Now generate splines
-Ct_prime_spline = bicubic_spline_t(beta_arr, lambda_prime_arr, Ct_prime_arr)
-Cp_prime_spline = bicubic_spline_t(beta_arr, lambda_prime_arr, Cp_prime_arr)
+Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr)
+Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr)
 
 ! Cleanup
 deallocate (lambda)
@@ -1091,8 +1125,8 @@ deallocate (iCpp)
 deallocate (ilp)
 deallocate (Cp_prime_arr)
 deallocate (Ct_prime_arr)
-deallocate (lambda_prime_arr)
-deallocate (beta_arr)
+deallocate (lambda_prime)
+deallocate (beta)
 
 end subroutine generate_splines
 
