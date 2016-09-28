@@ -1213,7 +1213,7 @@ end do
 
 ! Create wake model
 wm = wake_model_t(wm_s, U_infty, 0.5*dia_all*z_i, wm_k, dia_all*z_i, rho,      &
-    inertia_all, num_x, wm_Ct_prime_spline, wm_Cp_prime_spline)
+    inertia_all, 2*nx, wm_Ct_prime_spline, wm_Cp_prime_spline)
     
 ! Create output files
 
