@@ -29,6 +29,7 @@ use messages
 use string_util
 use stat_defs, only : wind_farm
 use bicubic_spline
+use wake_model
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
 #endif
@@ -86,6 +87,9 @@ real(rprec), public :: inertia_all
 ! Torque gain (kg*m^2)
 real(rprec), public :: torque_gain
 
+! Wake model
+type(wake_model_t) :: wm
+
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of diameter
@@ -117,6 +121,7 @@ character(*), parameter :: output_folder = 'turbine/'
 character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
 character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
 integer, dimension(:), allocatable :: forcing_fid
+integer, dimension(:), allocatable :: wm_fid
 
 ! epsilon used for disk velocity time-averaging
 real(rprec) :: eps 
@@ -170,6 +175,7 @@ turbine_in_proc_array = 0
 
 ! Create turbine directory
 call system("mkdir -vp turbine") 
+call system("mkdir -vp wake_model") 
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i
@@ -276,6 +282,8 @@ if(coord==0) then
         forcing_fid(s) = open_file_fid( string1, 'append', 'formatted' )
     end do
 end if
+
+if (coord==0) call wake_model_init
 
 nullify(x,y,z)
 
@@ -503,6 +511,7 @@ real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
 real(rprec) :: const
+real(rprec), dimension(:), allocatable :: beta
 
 real(rprec), dimension(4*nloc) :: send_array
 #ifdef PPMPI
@@ -692,10 +701,26 @@ if (coord .eq. nproc-1) then
     close(1)
 end if
 
+! Update wake model
+if (coord == 0) then
+    allocate( beta(num_x) )
+    beta = 0._rprec
+    call wm%advance(beta, torque_gain*wm%omega**2, dt_dim)
+    !write values to file                   
+    if (modulo (jt_total, tbase) == 0) then
+        do s = 1, num_x
+            write( wm_fid(s), *) total_time_dim, wm%Ctp(s), wm%Cpp(s),         &
+                wm%uhat(s), wm%omega(s), wm%Phat(s)
+        end do
+    end if 
+    deallocate(beta)
+end if
+
 ! Cleanup
 deallocate(w_uv)
 nullify(y,z)
 nullify(p_icp, p_jcp, p_kcp)
+
 
 end subroutine turbines_forcing
 
@@ -1049,9 +1074,11 @@ do i = 1, size(beta)
     end do
 end do
 
-! Allocate the lambda_prime array
+! Allocate arrays
 Nlp = size(lambda)*3
 allocate( lambda_prime(Nlp) )
+allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
+allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
 
 ! First save the uncorrected splines for use with the wake model
 ! Set the lambda_prime's onto which these curves will be interpolated
@@ -1064,8 +1091,6 @@ do i = 2, Nlp - 1
 end do
 
 ! Interpolate onto Ct_prime and Cp_prime arrays
-allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
-allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
 do i = 1, size(beta)
     cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
@@ -1102,8 +1127,6 @@ do i = 2, Nlp - 1
 end do
 
 ! Interpolate onto Ct_prime and Cp_prime arrays
-allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
-allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
 do i = 1, size(beta)
     cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
@@ -1167,5 +1190,46 @@ end do
 close(fid)
 
 end function count_lines
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine wake_model_init
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use open_file_fid_mod
+
+real(rprec) :: U_infty
+real(rprec), dimension(:), allocatable :: wm_k, wm_s
+integer :: i
+character (100) :: string1
+
+U_infty = 8._rprec
+
+! Specify spacing and wake expansion coefficients
+allocate( wm_k(num_x) )
+allocate( wm_s(num_x) )
+wm_k = 0.05_rprec
+do i = 1, num_x
+    wm_s(i) = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
+end do
+
+! Create wake model
+wm = wake_model_t(wm_s, U_infty, 0.5*dia_all*z_i, wm_k, dia_all*z_i, rho,      &
+    inertia_all, num_x, wm_Ct_prime_spline, wm_Cp_prime_spline)
+    
+! Create output files
+
+! Generate the files for the turbine forcing output
+allocate( wm_fid(num_x) )
+do i = 1,num_x
+    call string_splice( string1, path // 'wake_model/turbine_', i, '.dat' )
+    wm_fid(i) = open_file_fid( string1, 'append', 'formatted' )
+end do
+
+! Cleanup
+deallocate(wm_k)
+deallocate(wm_s)
+
+end subroutine wake_model_init
+
+
 
 end module turbines
