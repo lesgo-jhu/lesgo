@@ -261,7 +261,7 @@ if (coord == 0) then
         close (fid)
     else  
         write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-        write (*, *) 'Assuming u_d_T = -1, omega = 1 for all turbines'
+        write (*, *) 'Assuming u_d_T = -8, omega = 1 for all turbines'
         do k=1,nloc
             wind_farm%turbine(k)%u_d_T = -1._rprec
             wind_farm%turbine(k)%omega = 1._rprec
@@ -539,17 +539,6 @@ do s = 1, nloc
         linear_interp(theta2_time, theta2_arr(s,:), total_time_dim)
 end do
 
-! Calculate Ct_prime and Cp_prime
-do s = 1, nloc
-    call Ct_prime_spline%interp(0._rprec, -wind_farm%turbine(s)%omega * 0.5    &
-        * wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star,&
-        wind_farm%turbine(s)%Ct_prime)
-        
-    call Cp_prime_spline%interp(0._rprec, -wind_farm%turbine(s)%omega * 0.5    &
-        * wind_farm%turbine(s)%dia * z_i / wind_farm%turbine(s)%u_d_T / u_star,&
-        wind_farm%turbine(s)%Cp_prime)
-end do
-
 ! Recompute the turbine position if theta1 or theta2 can change
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
@@ -637,25 +626,32 @@ if (coord == 0) then
         p_Cp_prime => wind_farm%turbine(s)%Cp_prime
         p_omega => wind_farm%turbine(s)%omega
         
+        ! Calculate rotational speed. Power needs to be dimensional.
+        ! Use the previous step's values.
+        const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
+        p_omega = p_omega + dt_dim / inertia_all *                             &
+                (const*(p_u_d_T*u_star)**3/p_omega - torque_gain*p_omega**2)
+        
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
         p_u_d = disk_avg_vel(s) * wind_farm%turbine(s)%vol_c
 
         !add this current value to the "running average" (first order filter)
         p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-
+        
+        ! Calculate Ct_prime and Cp_prime
+        call Ct_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
+            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
+        call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
+            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
+        
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
         !write force to array that will be transferred via MPI    
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         disk_force(s) = p_f_n
         
-        ! Calculate rotational speed. Power needs to be dimensional!
-        const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
-        p_omega = p_omega + dt_dim / inertia_all *                             &
-                (const*(p_u_d_T*u_star)**3/p_omega - torque_gain*p_omega**2)
-        
-        !write values to file                   
+        !write current step's values to file                   
         if (modulo (jt_total, tbase) == 0) then
             write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
                 v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
