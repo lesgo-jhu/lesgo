@@ -36,7 +36,7 @@ integer, parameter :: MPI_SYNC_UP=2
 integer, parameter :: MPI_SYNC_DOWNUP=3
 
 #ifdef PPCGNS
-integer, public :: cgnsParallelComm, cgnsSerialComm
+integer, public :: cgnsParallelComm !, cgnsSerialComm
 #endif
 
 contains
@@ -126,10 +126,13 @@ end if
     ! Set the CGNS parallel Communicator
     cgnsParallelComm = localComm
 
+    ! Set the parallel communicator
+    call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+
     ! Set the serial communicator
     ! It is one communicator per processor
     ! creates : CGNSserialComm
-    call MPI_COMM_SPLIT(localComm, coord, 0, CGNSserialComm, ierr)
+!~     call MPI_COMM_SPLIT(localComm, coord, 0, CGNSserialComm, ierr)
 #endif
 
 return
