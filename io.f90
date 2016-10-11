@@ -34,7 +34,7 @@ use mpi
 use cgns
 
 #ifdef PPMPI
-use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
+!~ use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
 use param, only: ierr
 #endif
 
@@ -200,8 +200,8 @@ integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 integer :: i,j,k
 real(rprec), dimension(nx,ny,nz) :: xyz
 
-! Set the parallel communicator
-call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+!~ ! Set the parallel communicator
+!~ call cgp_mpi_comm_f(cgnsParallelComm, ierr)
 
 ! Convert types such that CGNS libraries can handle the input
 start_n(1) = int(start_n_in(1), cgsize_t)
@@ -334,65 +334,71 @@ call cgp_close_f(fn, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 end subroutine write_parallel_cgns
-#endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
-                               num_fields, fieldNames, input )
+subroutine write_null_cgns ( file_name, nx, ny, nz, nz_tot, start_n_in,    &
+                                     end_n_in, xin, yin, zin, num_fields,      &
+                                     fieldNames )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 implicit none
 
-integer, intent(in) :: nx, ny, nz, num_fields
+integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
 character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
-real(rprec), intent(in), dimension(:) :: input ! Data to be written
-real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: xin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: yin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: zin ! Coordinates to write
+integer, intent(in) :: start_n_in(3)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n_in(3)  ! Where the total node counter ends nodes
 
-integer :: fn=1          ! CGNS file index number
-integer :: ier           ! CGNS error status
-integer :: base=1        ! base number
-integer :: zone=1        ! zone number
-integer :: nnodes        ! Number of nodes in this processor
-integer :: sol =1        ! solution number
-integer :: field         ! section number
-integer(cgsize_t) :: sizes(3,3)    ! Sizes
+integer :: fn=1        ! CGNS file index number
+integer :: ier         ! CGNS error status
+integer :: base=1      ! base number
+integer :: zone=1      ! zone number
+integer :: nnodes      ! Number of nodes in this processor
+integer :: sol =1      ! solution number
+integer :: field       ! section number
+integer(cgsize_t) :: sizes(3,3)  ! Sizes
+
+! Convert input to right data type
+integer(cgsize_t) :: start_n(3)  ! Where the total node counter starts nodes
+integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 
 ! Building the lcoal mesh
 integer :: i,j,k
-real(rprec), dimension(nx,ny,nz) :: x,y,z
+real(rprec), dimension(nx,ny,nz) :: xyz
+
+!~ ! Set the parallel communicator
+!~ call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+
+! Convert types such that CGNS libraries can handle the input
+start_n(1) = int(start_n_in(1), cgsize_t)
+start_n(2) = int(start_n_in(2), cgsize_t)
+start_n(3) = int(start_n_in(3), cgsize_t)
+end_n(1) = int(end_n_in(1), cgsize_t)
+end_n(2) = int(end_n_in(2), cgsize_t)
+end_n(3) = int(end_n_in(3), cgsize_t)
 
 ! The total number of nodes in this processor
 nnodes=nx*ny*nz
 
-! Create grid points
-do k=1,nz
-    do j=1,ny
-        do i=1,nx
-            x(i,j,k) = xin(i)
-            y(i,j,k) = yin(j)
-            z(i,j,k) = zin(k)
-        enddo
-    enddo
-enddo
-
 ! Sizes, used to create zone
-sizes(:,1) = (/nx,ny,nz/)
-sizes(:,2) = (/nx-1,ny-1,nz-1/)
-sizes(:,3) = (/0 , 0, 0/)
+sizes(:,1) = (/int(nx, cgsize_t),int(ny, cgsize_t),int(nz_tot, cgsize_t)/)
+sizes(:,2) = (/int(nx-1, cgsize_t),int(ny-1, cgsize_t),int(nz_tot-1, cgsize_t)/)
+sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
 
 ! Open CGNS file
 call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
-!~ if (ier .ne. CG_OK) call cg_error_exit_f
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write base
 call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write zone
 call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write print info to screen
 if (coord .eq. 0) then
@@ -400,35 +406,359 @@ if (coord .eq. 0) then
 endif
 
 ! Create data nodes for coordinates
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
-                      x(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
-                      y(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
-                      z(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! This is done for the 3 dimensions x,y and z
+! It writes the coordinates
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = xin(i)
+        enddo
+    enddo
+enddo
+write(*,*) 'Error NOT Here 0'
+
+call cgp_coord_write_data_f(fn, base, zone, 1,   &
+                            start_n, end_n, %VAL(0), ier)    
+if (ier .ne. CG_OK) call cgp_error_exit_f
+write(*,*) 'Error NOT Here'
+
+! Write out the queued coordinate data
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = yin(j)
+        enddo
+    enddo
+enddo
+call cgp_coord_write_data_f(fn, base, zone, 2,   &
+                            start_n, end_n, %VAL(0), ier)   
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write out the queued coordinate data
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
+call cgp_coord_write_data_f(fn, base, zone, 3,   &
+                            start_n, end_n, %VAL(0), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+    
 ! Create a centered solution
 call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write the solution
 do i=1,num_fields
-    call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
-                           input((i-1)*nnodes+1:(i)*nnodes), field, ier)
-    if (ier .ne. CG_OK) call cg_error_exit_f
+    call cgp_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+                           field, ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
+
+    call cgp_field_write_data_f(fn, base, zone, sol, field, start_n, end_n,    &
+                                %VAL(0), ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
 
 enddo
 
 ! Close the file
-call cg_close_f(fn, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_close_f(fn, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-end subroutine write_serial_cgns
+end subroutine write_null_cgns
+#endif
+
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
+!~                                num_fields, fieldNames, input )
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ 
+!~ implicit none
+!~ 
+!~ integer, intent(in) :: nx, ny, nz, num_fields
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+!~ real(rprec), intent(in), dimension(:) :: input ! Data to be written
+!~ real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ ! Building the lcoal mesh
+!~ integer :: i,j,k
+!~ real(rprec), dimension(nx,ny,nz) :: x,y,z
+!~ 
+!~ ! The total number of nodes in this processor
+!~ nnodes=nx*ny*nz
+!~ 
+!~ ! Create grid points
+!~ do k=1,nz
+!~     do j=1,ny
+!~         do i=1,nx
+!~             x(i,j,k) = xin(i)
+!~             y(i,j,k) = yin(j)
+!~             z(i,j,k) = zin(k)
+!~         enddo
+!~     enddo
+!~ enddo
+!~ 
+!~ ! Sizes, used to create zone
+!~ sizes(:,1) = (/nx,ny,nz/)
+!~ sizes(:,2) = (/nx-1,ny-1,nz-1/)
+!~ sizes(:,3) = (/0 , 0, 0/)
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       x(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       y(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       z(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+!~                            input((i-1)*nnodes+1:(i)*nnodes), field, ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ end subroutine write_serial_cgns
+!~ 
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine write_null_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
+!~                               num_fields, fieldNames )
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ 
+!~ implicit none
+!~ 
+!~ integer, intent(in) :: nx, ny, nz, num_fields
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+!~ real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ ! Building the lcoal mesh
+!~ integer :: i,j,k
+!~ real(rprec), dimension(nx,ny,nz) :: x,y,z
+!~ 
+!~ ! The total number of nodes in this processor
+!~ nnodes=nx*ny*nz
+!~ 
+!~ ! Create grid points
+!~ do k=1,nz
+!~     do j=1,ny
+!~         do i=1,nx
+!~             x(i,j,k) = xin(i)
+!~             y(i,j,k) = yin(j)
+!~             z(i,j,k) = zin(k)
+!~         enddo
+!~     enddo
+!~ enddo
+!~ 
+!~ ! Sizes, used to create zone
+!~ sizes(:,1) = (/nx,ny,nz/)
+!~ sizes(:,2) = (/nx-1,ny-1,nz-1/)
+!~ sizes(:,3) = (/0 , 0, 0/)
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ write(*,*) 'Error NOT Here 0'
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+!~                            %VAL(0), field, ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ write(*,*) 'Error NOT Here 1'
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+!~ 
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ integer, intent(in) :: num_fields
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ integer :: i
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, %VAL(0),     &
+!~                            %VAL(0), %VAL(0), ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+
+!~ end subroutine write_null_cgns
 ! END OF  CGNS  PART
 #endif 
 
@@ -827,52 +1157,66 @@ elseif(itype==4) then
 !  Write instantaneous z-plane values
 elseif(itype==5) then
 
-#if defined(PPCGNS) && defined(PPMPI)
-        ! Set the serial communicator
-        call cgp_mpi_comm_f(cgnsSerialComm, ierr)
-#endif
-
     allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
 
     !  Loop over all zplane locations
     do k=1,zplane_nloc
+
+#ifdef PPCGNS
+        ! Common file name portion for all output types
+        call string_splice(fname, path // 'output/vel.z-',                      &
+                zplane_loc(k), '.', jt_total)
+                call string_concat(fname, '.cgns')
+#endif
+
 #ifdef PPMPI    
         if(zplane(k) % coord == coord) then
 #endif
-        do j=1,Ny
-            do i=1,Nx
-                ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),            &
-                     u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),            &
-                     v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),         &
-                     w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+            do j=1,Ny
+                do i=1,Nx
+                    ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),        &
+                         u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                    vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),        &
+                         v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                    wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),     &
+                         w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                enddo
             enddo
-        enddo
-        
-        ! Common file name portion for all output types
-        call string_splice(fname, path // 'output/vel.z-', zplane_loc(k), '.', jt_total)
-    
+            
 #ifdef PPCGNS
-        call string_concat(fname, '.cgns')
-        call write_serial_cgns ( fname, nx, ny,1,x,y,zplane_loc(k:k),           &
-                        3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),         &
-                    (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
+            ! Write CGNS Data
+            ! Only the processor with data writes, the other one is written
+            ! using null arguments with 'write_null_cgns'
+            call write_parallel_cgns (fname ,nx, ny, 1, 1,                      &
+            (/ 1, 1,   1 /),                                                    &
+            (/ nx, ny, 1 /),                                                    &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
+            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                        &
+            (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
+
 #else
-        call string_concat( fname, '.bin')
-        open(unit=13,file=fname,form='unformatted',convert=write_endian,        &
-                        access='direct',recl=nx*ny*1*rprec)
-        write(13,rec=1) ui(1:nx,1:ny,1)
-        write(13,rec=2) vi(1:nx,1:ny,1)
-        write(13,rec=3) wi(1:nx,1:ny,1)
-        close(13)
+            call string_concat( fname, '.bin')
+            open(unit=13,file=fname,form='unformatted',convert=write_endian,    &
+                            access='direct',recl=nx*ny*1*rprec)
+            write(13,rec=1) ui(1:nx,1:ny,1)
+            write(13,rec=2) vi(1:nx,1:ny,1)
+            write(13,rec=3) wi(1:nx,1:ny,1)
+            close(13)
 #endif
      
 #ifdef PPMPI 
+        else
+
+            call write_null_cgns (fname ,nx, ny, 1, 1,                          &
+            (/ 1, 1,   1 /),                                                    &
+            (/ nx, ny, 1 /),                                                    &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
+            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
+
         endif
 #endif
     enddo
-  
+
     deallocate(ui,vi,wi)
 
 else

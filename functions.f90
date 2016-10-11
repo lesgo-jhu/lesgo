@@ -549,7 +549,7 @@ real(rprec) :: vq
 integer     :: i, j, Nx, Ny
 
 Nx = size(x)
-Ny = size(x)
+Ny = size(y)
 i = binary_search(x, xq)
 if (i == 0) then
     vq = linear_interp(y, v(1,:), yq)
