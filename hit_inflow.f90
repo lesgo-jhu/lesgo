@@ -51,7 +51,7 @@ type hit_t
     real(rprec) :: xloc=0.
 
     ! The sweeping velocity
-    real(rprec) :: U_sweep
+!~     real(rprec) :: U_sweep
 
     ! The input and output turbulence intensity
     ! By definition up_in/U_sweep = TI_out
@@ -216,10 +216,11 @@ integer :: j, k
 
 ! Compute the location in x
 ! Sweeping velocity is U_sw = u'_DB / TI
-hit % U_sweep = hit % up_in / hit % TI_out
+!~ hit % U_sweep = hit % up_in / hit % TI_out
 
 ! Update the location of where to sample
-hit % xloc = hit % xloc + 1. * dt
+! The LES sweeping is done at the inflow_velocity speed
+hit % xloc = hit % xloc + inflow_velocity * dt
 
 ! Periodic condition
 if (hit % xloc > hit % Lx) then
@@ -230,14 +231,15 @@ endif
 do j = 1, Ny
     do k = 1, Nz
         ! Scale the inflow by the inflow velocity
-        hit % u_plane(j,k) = inflow_velocity * (1. +  1. / hit % U_sweep *     &
+        hit % u_plane(j,k) = inflow_velocity * (1. +  hit % TI_out *           &
             interpolate3D(hit % xloc, grid % y(j), grid %  z(k),               &
                             hit % x, hit % y, hit % z, hit % u))
-        hit % v_plane(j,k) = inflow_velocity * (1. / hit % U_sweep  *          &
+
+        hit % v_plane(j,k) = inflow_velocity * (hit % TI_out  *                &
             interpolate3D(hit % xloc, grid % y(j), grid %  z(k),               &
                             hit % x, hit % y, hit % z, hit % v))
 
-        hit % w_plane(j,k) = inflow_velocity * (1. / hit % U_sweep *           &
+        hit % w_plane(j,k) = inflow_velocity * (hit % TI_out *                 &
             interpolate3D(hit % xloc, grid % y(j), grid %  zw(k),              &
                             hit % x, hit % y, hit % z, hit % w))
     enddo
@@ -368,6 +370,14 @@ real(rprec) :: c00, c01, c10, c11, c0, c1
 nx=size(x)
 ny=size(y)
 nz=size(z)
+
+! Initialize variables to prevent compiler warnings
+i0 = 1
+i1 = 1
+j0 = 1
+j1 = 1
+k0 = 1
+k1 = 1
 
 !!!!! x
 ! Point outside (lower bound)
