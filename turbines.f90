@@ -993,6 +993,27 @@ if (turbine_in_proc .or. coord == 0) then
         do s = 1,nloc
             wind_farm%turbine(s)%Ct_prime = dummy
         enddo
+    elseif (control == 7) then
+        Pref = num_y * interpolate(Pref_t_list(1,:), Pref_list(1,:), total_time_dim)
+        Pref = Pref / (0.5 * pi * wind_farm%turbine(nloc)%dia**2 * z_i**2 * 0.25)
+        if (coord == 0) write(*,*) Pref
+        do i = 1,num_x-1
+            do j = 1, num_y
+                s = j + num_y*(i-1)
+                Pref = Pref + wind_farm%turbine(s)%Ct_prime*(wind_farm%turbine(s)%u_d_T**3) * (u_star**3)
+            enddo
+        enddo
+        ud3sum = 0.
+        do j = 1,num_y
+            s = j + num_y*(num_x-1)
+            ud3sum = ud3sum + (wind_farm%turbine(s)%u_d_T**3) * (u_star**3)
+        enddo
+        if (coord == 0) write(*,*) Pref, ud3sum
+        dummy = min(max(-Pref/(ud3sum), 0.), 2.)
+        do j = 1,num_y
+            s = j + num_y*(num_x-1)
+            wind_farm%turbine(s)%Ct_prime = dummy
+        enddo
     else
         call error ('turbines_forcing', 'invalid control')
     endif

@@ -77,6 +77,11 @@ real(rprec) :: x1, y1               ! Location of first turbine
 integer :: nloc             ! total number of turbines
 real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
+! PI control for back row
+real(rprec) :: Kp_pref      ! proportional term
+real(rprec) :: Ki_pref      ! integral term
+real(rprec) :: e_pref       ! error in Pref
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -320,7 +325,7 @@ if (control == 2) then
         write(*,*) "Pref_list for row ", k, " is: ", Pref_list(k,:)
         $endif
     enddo
-elseif (control == 3 .OR. control == 6) then
+elseif (control == 3 .OR. control == 6 .OR. control == 7) then
     ! Count number of lines
     if (control == 3) then
         Pref_dat = path // 'input/Pref.dat'
