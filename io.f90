@@ -1206,13 +1206,13 @@ elseif(itype==5) then
      
 #ifdef PPMPI 
         else
-
+#ifdef PPCGNS
             call write_null_cgns (fname ,nx, ny, 1, 1,                          &
             (/ 1, 1,   1 /),                                                    &
             (/ nx, ny, 1 /),                                                    &
             x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
             (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
-
+#endif
         endif
 #endif
     enddo
