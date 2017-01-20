@@ -57,7 +57,7 @@ contains
     procedure, public  :: initialize
     procedure, public  :: makeDimensionless
     procedure, public  :: makeDimensional
-!     procedure, public  :: finiteDifferenceGradient
+    procedure, public  :: finiteDifferenceGradient
     procedure, public  :: run => run_input
     procedure, private :: run_noinput
 end type MinimizedFarm
@@ -310,24 +310,24 @@ subroutine eval(this, x, f, g)
     end do
 end subroutine eval
 
-! subroutine finiteDifferenceGradient(this)
-!     implicit none
-!     class(MinimizedFarm), intent(inout)     :: this
-!     class(MinimizedFarm)                    :: mf
-!     integer :: n, k
-!     real(rprec) :: dCtp
-!     
-!     this%fdgrad = 0.d0
-!     dCtp = sqrt( epsilon( this%Ctp(n,k) ) )
-!     do n = 1, this%N
-!         do k = 2, this%Nt
-!             mf = this
-!             mf%Ctp(n,k) = mf%Ctp(n,k) + dCtp
-!             call mf%run_noinput
-!             this%fdgrad(n,k) = (mf%cost - this%cost) / dCtp
-!         end do
-!     end do
-! end subroutine finiteDifferenceGradient
+subroutine finiteDifferenceGradient(this)
+    implicit none
+    class(MinimizedFarm), intent(inout)     :: this
+    type(MinimizedFarm)                     :: mf
+    integer :: n, k
+    real(rprec) :: dphi
+    
+    this%fdgrad = 0.d0
+    dphi = sqrt( epsilon( this%Ctp(n,k) ) )
+    do n = 1, this%N
+        do k = 1, this%Nt
+            mf = this
+            mf%phi(n,k) = mf%phi(n,k) + dphi
+            call mf%run_noinput
+            this%fdgrad(n,k) = (mf%cost - this%cost) / dphi
+        end do
+    end do
+end subroutine finiteDifferenceGradient
 
 function get_phi_vector(this) result(phi_vec)
     implicit none
