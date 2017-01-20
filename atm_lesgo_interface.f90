@@ -67,7 +67,7 @@ use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
                            atm_print_initialize, updateInterval
 
 ! Used for testing time 
-use clocks 
+! use clock_m
 
 implicit none
 
@@ -363,7 +363,7 @@ integer :: i
 
 !~ type(clock_t) :: myClock
 
-!~ call clock_start( myClock )
+!~ call myClock % start()
 ! Get the velocity from w onto the uv grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
@@ -371,7 +371,7 @@ w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 ! Update the blade positions based on the time-step
 ! Time needs to be dimensionalized
 ! All processors carry the blade points
-!~  call clock_start( myClock )
+!~ call myCock%start_time();
 !~ call atm_update(dt*z_i/u_star)
 
 ! Loop through all turbines and rotate the blades
@@ -383,7 +383,7 @@ do i = 1, numberOfTurbines
     endif
 enddo
 
-!~     call clock_stop( myClock )
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Update ', myClock % time
 
 
@@ -424,11 +424,11 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         endif
         
     enddo
-!~     call clock_stop( myClock )
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Forces ', myClock % time
 
 
-!~  call clock_start( myClock )
+!~  call myClock % start()
 ! This will gather all the blade forces from all processors
 #ifdef PPMPI
     ! This will gather all values used in MPI
@@ -437,13 +437,13 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~     call mpi_barrier( MPI_COMM_WORLD, ierr )
 
 #endif
-!~     call clock_stop( myClock )
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
 
 
 
-!~  call clock_start( myClock )
+!~  call myClock % start()
     do i=1,numberOfTurbines
 !~         if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
         if (turbineArray(i) % operate) then
@@ -472,14 +472,14 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~             write(*,*) 'Integrated Total Force is: ', totForce
 !~         endif
 endif
-!~     call clock_stop( myClock )
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Convolute force ', myClock % time
 
     ! This will apply body forces onto the flow field if there are forces within
     ! this domain
-!~  call clock_start( myClock )
+!~  call myClock % start()
     call atm_lesgo_apply_force()
-!~     call clock_stop( myClock )
+!~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Apply force ', myClock % time
 
 !!! Sync the integrated forces (used for debugging)
@@ -514,10 +514,10 @@ endif
 
 do i=1, numberOfTurbines
     if (coord == turbineArray(i) % master) then
-    !~  call clock_start( myClock )
+    !~  call myClock % start()
 
         call atm_output(i, jt_total, total_time*z_i/u_star)
-    !~     call clock_stop( myClock )
+    !~     call myClock % stop()
     !~     write(*,*) 'coord ', coord, '  Output ', myClock % time
     endif 
 enddo
@@ -935,7 +935,7 @@ const3=const1*const2
 ! Body Force implementation using velocity sampling at the actuator point
 if (turbineArray(i) % sampling == 'atPoint') then
 
-    !~  call clock_start( myClock )
+    !~  call myClock % start()
     do c=1,forceFieldUV(i) % c
         a= forceFieldUV(i) %  location(1:3,c)
         force=0._rprec
@@ -1024,7 +1024,7 @@ if (turbineArray(i) % sampling == 'atPoint') then
 ! and cannot be generally coded from the actuator_turbine_model module
 elseif (turbineArray(i) % sampling == 'Spalart') then
 
-    !~  call clock_start( myClock )
+    !~  call myClock % start()
     do c=1,forceFieldUV(i) % c
         a= forceFieldUV(i) %  location(1:3,c)
         force=0._rprec

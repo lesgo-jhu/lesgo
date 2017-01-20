@@ -118,7 +118,7 @@ elseif (${hostname} STREQUAL "marcc")
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
 #  all other systems
-elseif (${hostname} STREQUAL "generic")
+elseif (${hostname} STREQUAL "default")
     # nothing yet, but can add if needed
     if (USE_CGNS)
         include_directories($ENV{HOME}/cgns/include/)
