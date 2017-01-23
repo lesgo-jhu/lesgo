@@ -28,7 +28,8 @@ use grid_m
 use messages
 use string_util
 use stat_defs, only : wind_farm
-use wake_model_estimator_class
+use bicubic_spline
+use wake_model
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array 
 #endif
@@ -38,7 +39,8 @@ implicit none
 save
 private
 
-public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
+public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize,&
+          generate_splines
 
 character (*), parameter :: mod_name = 'turbines'
 
@@ -69,8 +71,6 @@ logical, public :: read_param
 logical, public :: dyn_theta1        
 ! Dynamically change theta2 from input_turbines/theta2.dat
 logical, public :: dyn_theta2        
-! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
-logical, public :: dyn_Ct_prime
 ! disk-avg time scale in seconds (default 600) 
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -79,21 +79,17 @@ real(rprec), public :: alpha
 real(rprec), public :: filter_cutoff    
 ! Number of timesteps between the output
 integer, public :: tbase
+! Cp_prime corrections
+real(rprec), public :: phi_a, phi_b, phi_c, phi_d, phi_x0
+! Air density
+real(rprec), public :: rho
+! Inertia (kg*m^2)
+real(rprec), public :: inertia_all
+! Torque gain (kg*m^2)
+real(rprec), public :: torque_gain
 
-! Input file values for receding horizon control
-logical, public :: use_receding_horizon
-integer, public :: solver     
-integer, public :: advancement_base
-real(rprec), public :: horizon_time
-integer, public     :: max_iter
-real(rprec), public :: phi_tau
-real(rprec), public :: Ct_prime_min, Ct_prime_max
-
-! Input file values for wake model
-logical, public :: use_wake_model
-real(rprec), public :: sigma_du, sigma_k, sigma_Phat  ! Variances of noise
-real(rprec), public :: tau_U_infty                    ! Filter time for U_infty
-integer, public  :: num_ensemble
+! Wake model
+type(wake_model_t) :: wm
 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
@@ -105,23 +101,28 @@ real(rprec), dimension(:,:), allocatable :: theta1_arr
 real(rprec), dimension(:), allocatable :: theta1_time
 real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
-real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
-real(rprec), dimension(:,:), allocatable :: phi_arr
-real(rprec), dimension(:), allocatable :: Ct_prime_time
+
+! Arrays for interpolating power and thrust coefficients for LES
+type(bicubic_spline_t), public :: Cp_prime_spline, Ct_prime_spline
+! Arrays for interpolating power and thrust coefficients for wake model
+type(bicubic_spline_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
 character(*), parameter :: param_dat = path // input_folder // 'param.dat'
 character(*), parameter :: theta1_dat = path // input_folder // 'theta1.dat'
 character(*), parameter :: theta2_dat = path // input_folder // 'theta2.dat'
-character(*), parameter :: Ct_prime_dat = path // input_folder // 'Ct_prime.dat'
-character(*), parameter :: Pref_dat = path // input_folder // 'Pref.dat'
+character(*), parameter :: Ct_dat = path // input_folder // 'Ct.dat'
+character(*), parameter :: Cp_dat = path // input_folder // 'Cp.dat'
+character(*), parameter :: lambda_dat = path // input_folder // 'lambda.dat'
+character(*), parameter :: beta_dat = path // input_folder // 'beta.dat'
 
 ! Output files
 character(*), parameter :: output_folder = 'turbine/'
 character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
 character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
 integer, dimension(:), allocatable :: forcing_fid
+integer, dimension(:), allocatable :: wm_fid
 
 ! epsilon used for disk velocity time-averaging
 real(rprec) :: eps 
@@ -137,14 +138,6 @@ logical :: turbine_in_proc = .false.
 integer :: turbine_in_proc_cnt = 0
 logical :: buffer_logical
 #endif
-
-! Receding horizon control
-real(rprec), dimension(:), allocatable :: Pref_arr
-real(rprec), dimension(:), allocatable :: Pref_time
-
-! Wake model estimation
-type(wakeModelEstimator) :: wm_est
-integer :: k_fid, U_infty_fid, Phat_fid, u_fid
 
 contains
 
@@ -167,9 +160,6 @@ real(rprec) :: T_avg_dim_file, delta2
 logical :: test_logical, exst
 character (100) :: string1
 
-! Turn on wake model if use_receding_horizon
-if (use_receding_horizon) use_wake_model = .true.
-
 ! Set pointers
 nullify(x,y,z)
 x => grid % x
@@ -186,6 +176,7 @@ turbine_in_proc_array = 0
 
 ! Create turbine directory
 call system("mkdir -vp turbine") 
+call system("mkdir -vp wake_model") 
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i
@@ -239,6 +230,9 @@ end do
 ! Read dynamic control input files
 call read_control_files
 
+! Read power and thrust coefficient curves
+call generate_splines
+
 !Compute a lookup table object for the indicator function 
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 do s = 1, nloc
@@ -258,7 +252,7 @@ if (coord == 0) then
         write(*,*) 'Reading from file ', trim(u_d_T_dat)
         fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
         do i=1,nloc
-            read(fid,*) wind_farm%turbine(i)%u_d_T    
+            read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega 
         end do    
         read(fid,*) T_avg_dim_file
         if (T_avg_dim_file /= T_avg_dim) then
@@ -268,11 +262,12 @@ if (coord == 0) then
         close (fid)
     else  
         write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-        write (*, *) 'Assuming u_d_T = -1. for all turbines'
+        write (*, *) 'Assuming u_d_T = -8, omega = 1 for all turbines'
         do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -1.
+            wind_farm%turbine(k)%u_d_T = -1._rprec
+            wind_farm%turbine(k)%omega = 1._rprec
         end do
-    end if
+    end if                                    
 end if
 
 ! Generate top of domain file
@@ -289,125 +284,11 @@ if(coord==0) then
     end do
 end if
 
-! Initialize wake mode and receding horizon
-if (use_wake_model .and. coord == 0) call wake_model_est_init
-if (use_receding_horizon) call receding_horizon_init
+if (coord==0) call wake_model_init
 
-! Cleanup
 nullify(x,y,z)
 
 end subroutine turbines_init
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine wake_model_est_init
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : u_star, CHAR_BUFF_LENGTH
-use open_file_fid_mod
-use wake_model_class
-use functions, only : linear_interp
-implicit none
-
-real(rprec) :: U_infty, wm_Delta, wm_Dia
-real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
-real(rprec) :: ind_factor
-integer :: i
-logical :: exst
-character(100) :: string1
-
-string1 = path // 'wake_model/wm_est.dat'
-inquire (file=string1, exist=exst)
-
-if (exst) then
-    write(*,*) 'Reading wake model estimator data from wake_model/'  
-    wm_est = WakeModelEstimator(path // 'wake_model', sigma_du, sigma_k, sigma_Phat, tau_U_infty)
-else
-    wm_Dia = dia_all*z_i
-    wm_Delta = 0.5 * wm_Dia
-
-    allocate( wm_Ctp(num_x) )
-    allocate( wm_k(num_x) )
-    allocate( wm_s(num_x) )
-
-    wm_k = 0.05_rprec
-
-    do i = 1, num_x
-        wm_s(i) = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
-        wm_Ctp(i) = Ct_prime
-    end do 
-
-    U_infty = 0
-    do i = 1, num_y
-        ind_factor =  wind_farm%turbine(i)%Ct_prime /                          &
-            ( 4.d0 + wind_farm%turbine(i)%Ct_prime )
-        U_infty = U_infty - (wind_farm%turbine(i)%u_d_T * u_star /             &
-            (1._rprec - ind_factor))**3 / num_y 
-    end do
-    U_infty = U_infty**(1._rprec/3._rprec)
-
-    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
-        num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
-    call wm_est%generateInitialEnsemble(wm_Ctp)
-end if
-
-! Generate the files for the wake model estimator
-string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
-U_infty_fid = open_file_fid( string1, 'append', 'formatted' )
-string1 = trim( path // 'turbine/wake_model_k.dat' )
-k_fid = open_file_fid( string1, 'append', 'formatted' )
-string1 = trim( path // 'turbine/wake_model_Phat.dat' )
-Phat_fid = open_file_fid( string1, 'append', 'formatted' )
-string1 = trim( path // 'turbine/wake_model_u.dat' )
-u_fid = open_file_fid( string1, 'append', 'formatted' )
-
-! Write initial values
-write(k_fid, *) total_time_dim, wm_est%wm%k
-write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
-write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
-write(u_fid, *) total_time_dim, wm_est%wm%u
-
-end subroutine wake_model_est_init
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine receding_horizon_init
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use open_file_fid_mod
-use wake_model_class
-use functions, only : linear_interp
-implicit none
-
-logical :: exst
-character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
-integer :: fid, N
-
-! We're now going to use dynamic Ct_primes for the control
-! Deallocate the arrays because they will be reset.
-if (.not. dyn_Ct_prime) then
-    dyn_Ct_prime = .true.
-else
-    deallocate( Ct_prime_time )
-    deallocate( Ct_prime_arr )
-end if
-
-inquire (file=rh_dat, exist=exst)
-
-if (exst) then
-    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
-    read(fid) N
-    allocate( Ct_prime_time(N) )
-    allocate( Ct_prime_arr(nloc, N) )
-    allocate( phi_arr(num_x, N) )
-    read(fid) Ct_prime_time
-    read(fid) Ct_prime_arr
-    close(fid)
-else
-    allocate( Ct_prime_time(1) )
-    allocate( Ct_prime_arr(nloc, 1) )
-    allocate( phi_arr(num_x, 1) )
-    Ct_prime_arr = Ct_prime
-    phi_arr = Ct_prime
-end if
-
-end subroutine receding_horizon_init
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_nodes
@@ -615,13 +496,14 @@ subroutine turbines_forcing()
 ! This subroutine applies the drag-disk forcing
 ! 
 use sim_param, only : u,v,w, fxa,fya,fza
-use functions, only : linear_interp, interp_to_uv_grid
+use functions, only : linear_interp, interp_to_uv_grid, bilinear_interp
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
-real(rprec), pointer :: p_Ct_prime => null()
+real(rprec), pointer :: p_Ct_prime => null(), p_Cp_prime => null()
+real(rprec), pointer :: p_omega => null()
 integer, pointer :: p_icp => null(), p_jcp => null(), p_kcp => null()
 
 real(rprec) :: ind2
@@ -629,13 +511,13 @@ real(rprec), dimension(nloc) :: disk_avg_vel, disk_force
 real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
+real(rprec) :: const
+real(rprec), dimension(:), allocatable :: beta
 
 real(rprec), dimension(4*nloc) :: send_array
 #ifdef PPMPI
 real(rprec), dimension(4*nloc) :: recv_array
 #endif
-
-real(rprec), dimension(:), allocatable :: wm_Pm, wm_Ctp
 
 nullify(y,z)
 y => grid % y
@@ -656,8 +538,6 @@ do s = 1, nloc
         linear_interp(theta1_time, theta1_arr(s,:), total_time_dim)
     if (dyn_theta2) wind_farm%turbine(s)%theta2 =                              &
         linear_interp(theta2_time, theta2_arr(s,:), total_time_dim)
-    if (dyn_Ct_prime .or. use_receding_horizon) wind_farm%turbine(s)%Ct_prime =&
-        linear_interp(Ct_prime_time, Ct_prime_arr(s,:), total_time_dim)        
 end do
 
 ! Recompute the turbine position if theta1 or theta2 can change
@@ -744,6 +624,14 @@ if (coord == 0) then
         p_u_d_T => wind_farm%turbine(s)%u_d_T
         p_f_n => wind_farm%turbine(s)%f_n
         p_Ct_prime => wind_farm%turbine(s)%Ct_prime
+        p_Cp_prime => wind_farm%turbine(s)%Cp_prime
+        p_omega => wind_farm%turbine(s)%omega
+        
+        ! Calculate rotational speed. Power needs to be dimensional.
+        ! Use the previous step's values.
+        const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
+        p_omega = p_omega + dt_dim / inertia_all *                             &
+                (const*(p_u_d_T*u_star)**3/p_omega - torque_gain*p_omega**2)
         
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -751,19 +639,25 @@ if (coord == 0) then
 
         !add this current value to the "running average" (first order filter)
         p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-
+        
+        ! Calculate Ct_prime and Cp_prime
+        call Ct_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
+            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
+        call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
+            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
+        
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
         !write force to array that will be transferred via MPI    
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
         disk_force(s) = p_f_n
         
-        !write values to file                   
+        !write current step's values to file                   
         if (modulo (jt_total, tbase) == 0) then
             write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
                 v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
                 wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
-                p_Ct_prime
+                p_Ct_prime, p_Cp_prime, p_omega
         end if 
 
     end do                   
@@ -804,131 +698,28 @@ if (coord .eq. nproc-1) then
     close(1)
 end if
 
-if (use_wake_model .and. coord == 0) then
-    ! Input thrust coefficient
-    allocate ( wm_Ctp(num_x) )
-    do i = 1, num_x
-        wm_Ctp(i) = wind_farm%turbine((i-1)*num_y+1)%Ct_prime
-    end do
-
-    ! Measure average power along row
-    allocate ( wm_Pm(num_x) )
-    wm_Pm = 0._rprec
-    do i = 1, num_x
-        do j = 1, num_y
-            wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) *                                  &
-                (wind_farm%turbine((i-1)*num_y + j)%u_d_T * u_star)**3 / num_y
-        end do
-    end do
-
-    ! Advance the estimator with the measurements
-    call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
-    
-    ! Write to file
+! Update wake model
+if (coord == 0) then
+    allocate( beta(num_x) )
+    beta = 0._rprec
+    call wm%advance(beta, torque_gain*wm%omega**2, dt_dim)
+    !write values to file                   
     if (modulo (jt_total, tbase) == 0) then
-        write(k_fid, *) total_time_dim, wm_est%wm%k
-        write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
-        write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
-        write(u_fid, *) total_time_dim, wm_est%wm%u
-    end if
-    
-    ! Cleanup
-    deallocate(wm_Ctp)
-    deallocate(wm_Pm)
+        do s = 1, num_x
+            write( wm_fid(s), *) total_time_dim, wm%Ctp(s), wm%Cpp(s),         &
+                wm%uhat(s), wm%omega(s), wm%Phat(s)
+        end do
+    end if 
+    deallocate(beta)
 end if
-
-! Calculate the receding horizon trajectories
-if (use_receding_horizon) call eval_receding_horizon
 
 ! Cleanup
 deallocate(w_uv)
 nullify(y,z)
 nullify(p_icp, p_jcp, p_kcp)
 
+
 end subroutine turbines_forcing
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine eval_receding_horizon ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use rh_control
-use conjugate_gradient_class
-use lbfgsb_class
-use wake_model_class
-use functions, only : linear_interp
-implicit none
-
-type(MinimizedFarm) :: mfarm
-type(ConjugateGradient) :: cg
-type(lbfgsb) :: bf
-integer :: num_t = 0
-real(rprec), dimension(:), allocatable :: buffer_array
-
-! Only perform receding horizon control every advancement step
-if (modulo (jt_total, advancement_base) == 0) then
-    if (coord == 0) then
-        ! Run initial guess in object
-        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
-            Pref_time, Pref_arr, phi_tau)
-        call mfarm%run(Ct_prime_time, phi_arr)
-
-        ! Perform optimization
-        if (solver == 1) then
-            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call cg%minimize(mfarm%get_phi_vector())
-        else
-            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call bf%minimize(mfarm%get_phi_vector())        
-        end if
-        call mfarm%makeDimensional
-        
-        ! Place result in buffer array
-        num_t = mfarm%Nt
-        allocate( buffer_array((num_x + 1) * num_t) )
-        buffer_array(1:num_t) = mfarm%t
-        do i = 1, num_x
-            buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
-        end do
-
-        ! Store phi vector for next iteration
-        deallocate(phi_arr)
-        allocate( phi_arr(num_x, num_t) )
-        phi_arr = mfarm%phi
-        
-#ifdef PPMPI
-        ! Send to other processors
-        do i = 1, nproc-1
-            call MPI_send( (num_x + 1) * mfarm%Nt, 1, MPI_integer, i, &
-                10, comm, ierr)
-            call MPI_send( buffer_array, (num_x + 1) * mfarm%Nt, MPI_rprec, i, &
-                11, comm, ierr)
-        end do
-    else
-        
-        ! Receive from coord 0
-        call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
-        num_t = num_t / (num_x+1)
-        allocate( buffer_array(num_t*(num_x+1)) )
-        call MPI_recv(buffer_array, num_t*(num_x+1), MPI_rprec, 0, 11, comm, status, ierr)
-#endif
-    end if
-        
-    ! Place row Ct_prime's into interpolation array
-    deallocate(Ct_prime_time)
-    allocate(Ct_prime_time(num_t))
-    Ct_prime_time = buffer_array(1:num_t)
-    deallocate(Ct_prime_arr)
-    allocate( Ct_prime_arr(nloc,num_t) )
-    do i = 1, num_x
-        do j = 1, num_y
-            Ct_prime_arr(j + (i-1)*num_y, :) = buffer_array((num_t*i+1):num_t*(i+1))
-        end do
-    end do
-
-    ! Cleanup 
-    deallocate(buffer_array)
-end if
-
-end subroutine eval_receding_horizon
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_finalize ()
@@ -957,32 +748,16 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_checkpoint'
 integer :: fid
-character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
 
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
 if (coord == 0) then  
     fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
     do i=1,nloc
-        write(fid,*) wind_farm%turbine(i)%u_d_T
+        write(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega 
     end do           
     write(fid,*) T_avg_dim
     close (fid)
-end if
-
-! Checkpoint wake model estimator
-if (use_wake_model .and. coord == 0) then
-    call wm_est%write_to_file(path // 'wake_model')
-end if
-
-! Checkpoint receding horizon controller
-if (use_receding_horizon .and. coord == 0) then
-    fid = open_file_fid( rh_dat, 'rewind', 'unformatted')
-    write(fid) size(Ct_prime_time)
-    write(fid) Ct_prime_time
-    write(fid) Ct_prime_arr
-    write(fid) phi_arr
-    close(fid)
 end if
     
 end subroutine turbines_checkpoint
@@ -1184,7 +959,6 @@ subroutine read_control_files
 ! This subroutine reads the input files for dynamic controls with theta1, 
 ! theta2, and Ct_prime. This is calles from turbines_init.
 !
-use param, only: pi
 use open_file_fid_mod
 use messages
 implicit none
@@ -1221,35 +995,160 @@ if (dyn_theta2) then
     end do
 end if
 
-! Read the Ct_prime input data
-if (dyn_Ct_prime) then
-    ! Count number of entries and allocate
-    num_t = count_lines(Ct_prime_dat)
-    allocate( Ct_prime_time(num_t) )
-    allocate( Ct_prime_arr(nloc, num_t) )
-
-    ! Read values from file
-    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
-    do i = 1, num_t
-        read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
-    end do
-end if
-
-! Read the Pref input data
-if (use_receding_horizon) then
-    ! Count number of entries and allocate
-    num_t = count_lines(Pref_dat)
-    allocate( Pref_time(num_t) )
-    allocate( Pref_arr(num_t) )
-
-    ! Read values from file
-    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
-    do i = 1, num_t
-        read(fid,*) Pref_time(i), Pref_arr(i)
-    end do
-end if
-
 end subroutine read_control_files
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine generate_splines
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use open_file_fid_mod
+use functions, only : linear_interp
+use cubic_spline
+implicit none
+integer :: N, fid, Nlp
+real(rprec), dimension(:), allocatable :: lambda
+real(rprec), dimension(:,:), allocatable :: Ct, Cp, a
+real(rprec), dimension(:,:), allocatable :: iCtp, iCpp, ilp
+real(rprec) :: dlp, phi
+real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
+real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
+real(rprec), dimension(:), allocatable :: lambda_prime
+real(rprec), dimension(:), allocatable :: beta
+type(cubic_spline_t) :: cspl
+
+! Read lambda
+N = count_lines(lambda_dat)
+allocate( lambda(N) )
+fid = open_file_fid(lambda_dat, 'rewind', 'formatted')
+do i = 1, N
+    read(fid,*) lambda(i)
+end do
+
+! Read beta
+N = count_lines(beta_dat)
+allocate( beta(N) )
+fid = open_file_fid(beta_dat, 'rewind', 'formatted')
+do i = 1, N
+    read(fid,*) beta(i)
+end do
+
+! Read Ct
+allocate( Ct(size(beta), size(lambda)) )
+fid = open_file_fid(Ct_dat, 'rewind', 'formatted')
+do i = 1, size(beta)
+    read(fid,*) Ct(i,:)
+end do
+
+! Read Cp
+allocate( Cp(size(beta), size(lambda)) )
+fid = open_file_fid(Cp_dat, 'rewind', 'formatted')
+do i = 1, size(beta)
+    read(fid,*) Cp(i,:)
+end do
+
+! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
+! Prevent negative power coefficients
+do i = 1, size(beta)
+    do j = 1, size(lambda)
+        if (Ct(i,j) < 0._rprec) Ct(i,j) = 0._rprec
+        if (Ct(i,j) > 1._rprec) Ct(i,j) = 1._rprec
+        if (Cp(i,j) < 0._rprec) Cp(i,j) = 0._rprec
+    end do
+end do
+
+! Calculate induction factor
+allocate( a(size(beta), size(lambda)) )
+a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
+
+! Calculate local Ct, Cp, and lambda
+allocate( iCtp(size(beta), size(lambda)) )
+allocate( iCpp(size(beta), size(lambda)) )
+allocate( ilp(size(beta), size(lambda)) )
+iCtp = Ct/((1._rprec-a)**2)
+iCpp = Cp/((1._rprec-a)**3)
+do i = 1, size(beta)
+    do j = 1, size(lambda)
+        ilp(i,j) = lambda(j)/(1._rprec - a(i,j))
+    end do
+end do
+
+! Allocate arrays
+Nlp = size(lambda)*3
+allocate( lambda_prime(Nlp) )
+allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
+allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
+
+! First save the uncorrected splines for use with the wake model
+! Set the lambda_prime's onto which these curves will be interpolated
+lambda_prime(1) = maxval(ilp(:,1))
+lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime(Nlp) - lambda_prime(1)) 
+dlp = dlp / (Nlp - 1)
+do i = 2, Nlp - 1
+    lambda_prime(i) = lambda_prime(i-1) + dlp
+end do
+
+! Interpolate onto Ct_prime and Cp_prime arrays
+do i = 1, size(beta)
+    cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+    cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+end do
+
+! Now generate splines
+wm_Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr)
+wm_Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr)
+
+! Now save the adjusted splines for LES
+! Adjust the lambda_prime and Cp_prime to use the LES velocity
+do i = 1, size(beta)
+    do j = 1, size(lambda)
+        if (iCtp(i,j) > phi_x0) then
+            phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
+        else
+            phi = phi_a*iCtp(i,j)**3 + phi_b*iCtp(i,j)**2                      &
+                + phi_c*iCtp(i,j) + phi_d
+        end if
+        ilp(i,j) = ilp(i,j) * phi
+        iCpp(i,j) = iCpp(i,j) * phi**3
+    end do
+end do
+
+! Set the lambda_prime's onto which these curves will be interpolated
+lambda_prime(1) = maxval(ilp(:,1))
+lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime(Nlp) - lambda_prime(1)) 
+dlp = dlp / (Nlp - 1)
+do i = 2, Nlp - 1
+    lambda_prime(i) = lambda_prime(i-1) + dlp
+end do
+
+! Interpolate onto Ct_prime and Cp_prime arrays
+do i = 1, size(beta)
+    cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+    cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+end do
+
+! Now generate splines
+Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr)
+Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr)
+
+! Cleanup
+deallocate (lambda)
+deallocate (Ct)
+deallocate (Cp)
+deallocate (a)
+deallocate (iCtp)
+deallocate (iCpp)
+deallocate (ilp)
+deallocate (Cp_prime_arr)
+deallocate (Ct_prime_arr)
+deallocate (lambda_prime)
+deallocate (beta)
+
+end subroutine generate_splines
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function count_lines(fname) result(N)
@@ -1288,5 +1187,44 @@ end do
 close(fid)
 
 end function count_lines
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine wake_model_init
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use open_file_fid_mod
+
+real(rprec) :: U_infty
+real(rprec), dimension(:), allocatable :: wm_k, wm_s
+integer :: i
+character (100) :: string1
+
+U_infty = 8._rprec
+
+! Specify spacing and wake expansion coefficients
+allocate( wm_k(num_x) )
+allocate( wm_s(num_x) )
+wm_k = 0.05_rprec
+do i = 1, num_x
+    wm_s(i) = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
+end do
+
+! Create wake model
+wm = wake_model_t(wm_s, U_infty, 0.25*dia_all*z_i, wm_k, dia_all*z_i, rho,      &
+    inertia_all, 2*nx, wm_Ct_prime_spline, wm_Cp_prime_spline)
+    
+! Create output files
+
+! Generate the files for the turbine forcing output
+allocate( wm_fid(num_x) )
+do i = 1,num_x
+    call string_splice( string1, path // 'wake_model/turbine_', i, '.dat' )
+    wm_fid(i) = open_file_fid( string1, 'append', 'formatted' )
+end do
+
+! Cleanup
+deallocate(wm_k)
+deallocate(wm_s)
+
+end subroutine wake_model_init
 
 end module turbines

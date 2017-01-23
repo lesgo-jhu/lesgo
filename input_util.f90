@@ -883,8 +883,6 @@ do
         read (buff(equal_pos+1:), *) dyn_theta1
      case ('DYN_THETA2')
         read (buff(equal_pos+1:), *) dyn_theta2
-     case ('DYN_CT_PRIME')
-        read (buff(equal_pos+1:), *) dyn_Ct_prime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
@@ -895,40 +893,28 @@ do
         read (buff(equal_pos+1:), *) filter_cutoff
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
-     
-     case ('USE_RECEDING_HORIZON')
-        read (buff(equal_pos+1:), *) use_receding_horizon
-     case ('SOLVER')
-        read (buff(equal_pos+1:), *) solver
-     case ('ADVANCEMENT_BASE')
-        read (buff(equal_pos+1:), *) advancement_base
-     case ('HORIZON_TIME')
-        read (buff(equal_pos+1:), *) horizon_time
-     case ('MAX_ITER')
-        read (buff(equal_pos+1:), *) max_iter
-     case ('PHI_TAU')
-        read (buff(equal_pos+1:), *) phi_tau
-     case ('CT_PRIME_MIN')
-        read (buff(equal_pos+1:), *) Ct_prime_min
-     case ('CT_PRIME_MAX')
-        read (buff(equal_pos+1:), *) Ct_prime_max
         
-     case ('USE_WAKE_MODEL')
-        read (buff(equal_pos+1:), *) use_wake_model
-     case ('TAU_U_INFTY')
-        read (buff(equal_pos+1:), *) tau_U_infty
-     case ('SIGMA_DU')
-        read (buff(equal_pos+1:), *) sigma_du
-     case ('SIGMA_K')
-        read (buff(equal_pos+1:), *) sigma_k
-     case ('SIGMA_PHAT')
-        read (buff(equal_pos+1:), *) sigma_Phat
-     case ('NUM_ENSEMBLE')
-        read (buff(equal_pos+1:), *) num_ensemble
-
+     case ('PHI_A')
+        read (buff(equal_pos+1:), *) phi_a
+     case ('PHI_B')
+        read (buff(equal_pos+1:), *) phi_b
+     case ('PHI_C')
+        read (buff(equal_pos+1:), *) phi_c
+     case ('PHI_D')
+        read (buff(equal_pos+1:), *) phi_d
+     case ('PHI_X0')
+        read (buff(equal_pos+1:), *) phi_x0
+        
+     case ('RHO')
+        read (buff(equal_pos+1:), *) rho
+     case ('INERTIA_ALL')
+        read (buff(equal_pos+1:), *) inertia_all
+     case ('TORQUE_GAIN')
+        read (buff(equal_pos+1:), *) torque_gain
+        
      case default
-         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
-         
+
+        if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select
 
   elseif( block_exit_pos == 1 ) then

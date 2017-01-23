@@ -28,6 +28,7 @@ private
 public interp_to_uv_grid,   &
     trilinear_interp,       &
     bilinear_interp,        &
+    binary_search,          &
     linear_interp,          &
     cell_indx,              &
     buff_indx,              &

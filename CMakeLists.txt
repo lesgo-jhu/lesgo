@@ -175,8 +175,9 @@ endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 util.f90 wake_model.f90
-        minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
+    set(Sources ${Sources} turbines.f90 util.f90 wake_model.f90 wake_model_base.f90
+        cubic_spline.f90 bicubic_spline.f90 tridiagonal.f90)
+#        minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
