@@ -47,15 +47,15 @@ type rs_t
   real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp 
 end type rs_t
 
-type spectra_t
-  real(rprec), dimension(:), allocatable :: power
-  real(rprec), dimension(:), allocatable :: upower,vpower,wpower
-  integer :: istart, coord
-  real(rprec) :: ldiff 
-end type spectra_t
+!!$type spectra_t
+!!$  real(rprec), dimension(:), allocatable :: power
+!!$  real(rprec), dimension(:), allocatable :: upower,vpower,wpower
+!!$  integer :: istart, coord
+!!$  real(rprec) :: ldiff 
+!!$end type spectra_t
 
-real(rprec) :: spectra_total_time
-real(rprec) :: span_spectra_total_time
+!real(rprec) :: spectra_total_time
+!real(rprec) :: span_spectra_total_time
 real(rprec) :: tavg_total_time
 $if($OUTPUT_EXTRA)
 real(rprec) :: tavg_total_time_sgs
@@ -65,29 +65,35 @@ real(rprec) :: tavg_dt
 ! Switch for determining if time averaging has been initialized
 logical :: tavg_initialized = .false.
 
-! Time between calls of spectra_compute, built by summing dt
-real(rprec) :: spectra_dt
-real(rprec) :: span_spectra_dt
-! Switch for determining if time averaging has been initialized
-logical :: spectra_initialized = .false.
-logical :: span_spectra_initialized = .false.
+!!$! Time between calls of spectra_compute, built by summing dt
+!!$real(rprec) :: spectra_dt
+!!$real(rprec) :: span_spectra_dt
+!!$! Switch for determining if time averaging has been initialized
+!!$logical :: spectra_initialized = .false.
+!!$logical :: span_spectra_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
   real(rprec) :: u, v, w, u_uv
   real(rprec) :: u2, v2, w2, uv, uw, vw
-  real(rprec) :: su2, sv2, sw2, suv, suw, svw   !!jb
-  real(rprec) :: su2_1d, sv2_1d, sw2_1d, suv_1d, suw_1d, svw_1d   !!jb
   real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
   real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2  
+  real(rprec) :: Nu_t   !!jb
 end type tavg_t
+
+type spec_t     !!jb
+   real(rprec) :: uu, vv, ww, uv, uw, vw
+   real(rprec) :: vortx, vorty, vortz
+   real(rprec) :: vortp, vorts  ! physical and spectral
+   real(rprec) :: vortsx, vortsy, vortsz  ! spectral
+end type spec_t
   
 !  Sums performed over time (for subgrid variables)
 $if($OUTPUT_EXTRA)
 type tavg_sgs_t
-  real(rprec) :: Tn, Nu_t
+  real(rprec) :: Tn  !, Nu_t    !!jb (moved Nu_t up to tavg_t)
   real(rprec) :: F_LM, F_MM, F_QN, F_NN
 !  real(rprec) :: ee_now
 !  $if ($DYN_TN)
@@ -150,6 +156,10 @@ type(zplane_t), allocatable, dimension(:) :: zplane
 
 type(tavg_t), allocatable, dimension(:,:,:) :: tavg
 type(tavg_t), allocatable, dimension(:) :: tavg_zplane
+type(spec_t), allocatable, dimension(:,:,:) :: spec1dkx
+type(spec_t), allocatable, dimension(:,:,:) :: spec1dky
+type(spec_t), allocatable, dimension(:,:,:) :: spec2d
+type(spec_t), allocatable, dimension(:,:,:) :: specvort
 
 $if ($OUTPUT_EXTRA)
 type(tavg_sgs_t), allocatable, dimension(:,:,:) :: tavg_sgs
@@ -157,8 +167,8 @@ $endif
 
 type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
-type(spectra_t), allocatable, dimension(:) :: spectra
-type(spectra_t), allocatable, dimension(:) :: span_spectra
+!type(spectra_t), allocatable, dimension(:) :: spectra
+!type(spectra_t), allocatable, dimension(:) :: span_spectra
 
 ! Overloaded operators for tavg and rs types
 INTERFACE OPERATOR (.ADD.)
@@ -171,9 +181,9 @@ END INTERFACE
 
 INTERFACE OPERATOR (.DIV.)
   $if($OUTPUT_EXTRA)
-    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, tavg_sgs_scalar_div
+    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, spec_scalar_div, tavg_sgs_scalar_div
   $else
-    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div
+    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, spec_scalar_div  !!jb
   $endif  
 END INTERFACE
 
@@ -183,9 +193,9 @@ END INTERFACE
 
 INTERFACE type_set
   $if($OUTPUT_EXTRA)
-    MODULE PROCEDURE tavg_set, rs_set, tavg_sgs_set
+    MODULE PROCEDURE tavg_set, rs_set, spec_set, tavg_sgs_set
   $else
-    MODULE PROCEDURE tavg_set, rs_set
+    MODULE PROCEDURE tavg_set, rs_set, spec_set  !!jb
   $endif  
 END INTERFACE
 
@@ -232,6 +242,7 @@ c % fx = a % fx + b % fx
 c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
 c % cs_opt2 = a % cs_opt2 + b % cs_opt2
+c % Nu_t = a % Nu_t + b % Nu_t
 
 return
 end function tavg_add
@@ -265,6 +276,7 @@ c % fx = a % fx - b % fx
 c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
 c % cs_opt2 = a % cs_opt2 - b % cs_opt2
+c % Nu_t = a % Nu_t - b % Nu_t
 
 return
 end function tavg_sub
@@ -301,6 +313,7 @@ c % fx = a % fx + b
 c % fy = a % fy + b
 c % fz = a % fz + b
 c % cs_opt2 = a % cs_opt2 + b
+c % Nu_t = a % Nu_t + b
 
 return
 end function tavg_scalar_add
@@ -368,18 +381,6 @@ c % w2 = a % w2 / b
 c % uv = a % uv / b
 c % uw = a % uw / b
 c % vw = a % vw / b
-c % su2 = a % su2 / b   !!jb
-c % sv2 = a % sv2 / b
-c % sw2 = a % sw2 / b
-c % suv = a % suv / b
-c % suw = a % suw / b
-c % svw = a % svw / b
-c % su2_1d = a % su2_1d / b   !!jb
-c % sv2_1d = a % sv2_1d / b
-c % sw2_1d = a % sw2_1d / b
-c % suv_1d = a % suv_1d / b
-c % suw_1d = a % suw_1d / b
-c % svw_1d = a % svw_1d / b
 c % dudz = a % dudz / b
 c % dvdz = a % dvdz / b
 c % txx = a % txx / b
@@ -392,9 +393,39 @@ c % fx = a % fx / b
 c % fy = a % fy / b
 c % fz = a % fz / b
 c % cs_opt2 = a % cs_opt2 / b
+c % Nu_t = a % Nu_t / b
 
 return
 end function tavg_scalar_div
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function spec_scalar_div( a, b ) result(c)     !!jb
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+implicit none
+
+type(spec_t), intent(in) :: a
+real(rprec), intent(in) :: b
+type(spec_t) :: c
+
+c % uu = a % uu / b
+c % vv = a % vv / b
+c % ww = a % ww / b
+c % uv = a % uv / b
+c % uw = a % uw / b
+c % vw = a % vw / b
+
+c % vortx = a % vortx / b
+c % vorty = a % vorty / b
+c % vortz = a % vortz / b
+c % vortp = a % vortp / b
+c % vortsx = a % vortsx / b
+c % vortsy = a % vortsy / b
+c % vortsz = a % vortsz / b
+c % vorts = a % vorts / b
+
+return
+end function spec_scalar_div
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 function tavg_mul( a, b) result(c)
@@ -425,6 +456,7 @@ c % fx = a % fx * b % fx
 c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
 c % cs_opt2 = a % cs_opt2 * b % cs_opt2
+c % Nu_t = a % Nu_t * b % Nu_t
 
 return
 end function tavg_mul
@@ -461,6 +493,7 @@ c % fx = a % fx * b
 c % fy = a % fy * b
 c % fz = a % fz * b
 c % cs_opt2 = a % cs_opt2 * b
+c % Nu_t = a % Nu_t * b
 
 return
 end function tavg_scalar_mul
@@ -741,18 +774,6 @@ c % w2 = a
 c % uv = a
 c % uw = a
 c % vw = a
-c % su2 = a   !!jb
-c % sv2 = a
-c % sw2 = a
-c % suv = a
-c % suw = a
-c % svw = a
-c % su2_1d = a   !!jb
-c % sv2_1d = a
-c % sw2_1d = a
-c % suv_1d = a
-c % suw_1d = a
-c % svw_1d = a
 c % dudz = a
 c % dvdz = a
 c % txx = a
@@ -765,9 +786,37 @@ c % fx = a
 c % fy = a
 c % fz = a
 c % cs_opt2 = a
+c % Nu_t = a
 
 return
 end subroutine tavg_set
+
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine spec_set( c, a )    !!jb
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types, only : rprec
+implicit none
+real(rprec), intent(in) :: a
+type(spec_t), intent(out) :: c
+
+c % uu = a
+c % vv = a
+c % ww = a
+c % uv = a
+c % uw = a
+c % vw = a
+
+c % vortx = a
+c % vorty = a
+c % vortz = a
+c % vortp = a
+c % vortsx = a
+c % vortsy = a
+c % vortsz = a
+c % vorts = a
+
+return
+end subroutine spec_set
 
 $if($OUTPUT_EXTRA)
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

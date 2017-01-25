@@ -25,7 +25,7 @@ subroutine finalize()
 ! calling all the finalize routines of the various lesgo modules.
 !
 use param, only : sgs_hist_calc
-use io, only : closefiles
+!use io, only : closefiles
 use sgs_hist
 $if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
@@ -40,7 +40,7 @@ $endif
 implicit none
 
 ! Close all files opened by calling 'openfiles'
-call closefiles()
+!call closefiles()
 
 ! Level set:
 $if ($LVLSET)

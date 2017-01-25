@@ -734,16 +734,16 @@ real(rprec), dimension(ny,lbz:nz) :: tmp
 real(rprec), dimension(ld,ny,lbz:nz) :: vel_avg
 integer :: i
 
-tmp     = 0.0_rprec
-vel_avg = 0.0_rprec
+tmp(:,:)       = 0.0_rprec
+vel_avg(:,:,:) = 0.0_rprec
 
 do i=1, nxp
-   tmp = tmp + vel(i,:,:)
+   tmp(:,:) = tmp(:,:) + vel(i,:,:)
 enddo
-tmp = tmp / real(nxp,rprec)
+tmp(:,:) = tmp(:,:) / real(nxp,rprec)
 
 do i=1, nx
-   vel_avg(i,:,:) = tmp
+   vel_avg(i,:,:) = tmp(:,:)
 enddo
 
 return

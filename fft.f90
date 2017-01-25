@@ -336,15 +336,21 @@ end do
 ! magnitude squared: will have 0's around the edge
       k2 = kx*kx + ky*ky
 
+!!$if (coord == 0) then
+!!$   write (*,*) 'jx, jy, kx, ky, k2 =========================== '
+!!$   do jx=1,lh
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy,kx(jx,jy),ky(jx,jy),k2(jx,jy)
+!!$      enddo
+!!$   enddo
+!!$endif
+
 if (coord == 0) then
-   write (*,*) 'jx, jy, kx, ky, k2 =========================== '
+   write (*,*) 'jx, kx(jx,1:3) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
    do jx=1,lh
-      do jy=1,ny
-         write(*,*) jx,jy,kx(jx,jy),ky(jx,jy),k2(jx,jy)
-      enddo
+      write(*,*) jx, kx(jx,1:3)
    enddo
 endif
-
 
 end subroutine init_wavenumber
 

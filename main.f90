@@ -83,6 +83,7 @@ logical, parameter :: DEBUG = .false.
 $endif
 
 integer :: jt_step, nstart,jx,jy,jz  !!jb jx,jy
+integer :: qq  !!jb
 real(kind=rprec) rmsdivvel,ke, maxcfl
 real (rprec):: tt
 real (rprec) :: triggerFactor    !!jb
@@ -91,7 +92,7 @@ real (rprec) :: jtime1, jtime2   !!jb
 !!complex(rprec), dimension(8) :: uc, vc, wc   !!jb
 !!complex(rprec), dimension(8,8) :: uc
 !!real(rprec), dimension(16) :: ur, vr, wr   !!jb
-!!real(rprec), dimension(14,6,9) :: u2, v2
+!!real(rprec), dimension(16,32,32) :: u2, v2
 !!real(rprec), dimension(20,9,9) :: u2_big, v2_big
 !!real(rprec), dimension(10,12,9) :: q
 !!real(rprec), dimension(10,8,9) :: ut
@@ -160,18 +161,18 @@ time_loop: do jt_step = nstart, nsteps
    call cpu_time(jtime1)   !!jb
 
 !!$   if (coord == 0) then
-!!$      do jx=1,nx
-!!$      do jy=1,ny
-!!$      u(jx,jy,:) = 2.2 + 2.1*sin(L_x/(nx)*(jx-1)*1.0) + 2.3*sin(L_y/(ny)*(jy-1)*1.0)
-!!$      u(jx,jy,:) = u(jx,jy,:) + 2.7*sin(L_x/(nx)*(jx-1)*2.0) + 2.4*sin(L_y/(ny)*(jy-1)*2.0)
-!!$      u(jx,jy,:) = u(jx,jy,:) + 3.7*sin(L_x/(nx)*(jx-1)*5.0) + 3.4*sin(L_y/(ny)*(jy-1)*3.0)
-!!$      u(jx,jy,:) = u(jx,jy,:) + 4.7*sin(L_x/(nx)*(jx-1)*6.0) + 1.4*sin(L_y/(ny)*(jy-1)*2.0)
-!!$      enddo
-!!$      enddo
-!!$      u2 = u**2
+!!$      !do jx=1,nx
+!!$      !do jy=1,ny
+!!$      !u(jx,jy,:) = 2.2 + 2.1*sin(L_x/(nx)*(jx-1)*1.0) + 2.3*sin(L_y/(ny)*(jy-1)*1.0)
+!!$      !u(jx,jy,:) = u(jx,jy,:) + 2.7*sin(L_x/(nx)*(jx-1)*2.0) + 2.4*sin(L_y/(ny)*(jy-1)*2.0)
+!!$      !u(jx,jy,:) = u(jx,jy,:) + 3.7*sin(L_x/(nx)*(jx-1)*5.0) + 3.4*sin(L_y/(ny)*(jy-1)*3.0)
+!!$      !u(jx,jy,:) = u(jx,jy,:) + 4.7*sin(L_x/(nx)*(jx-1)*6.0) + 1.4*sin(L_y/(ny)*(jy-1)*2.0)
+!!$      !enddo
+!!$      !enddo
+!!$      rhsx = u**2
 !!$      v = u
 !!$      call phys2wave( v )
-!!$      call dfftw_execute_dft_r2c(forw, u2(:,:,1), u2(:,:,1))
+!!$      call dfftw_execute_dft_r2c(forw, rhsx(:,:,1), rhsx(:,:,1))
 !!$
 !!$      call dft_direct_back_2d_n_yonlyC( v(:,:,1) )
 !!$      w = 0._rprec
@@ -180,7 +181,9 @@ time_loop: do jt_step = nstart, nsteps
 !!$
 !!$      print*, 'COMPARE >>>>>>>>>>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld
-!!$         write(*,*) jx, u2(jx,1,1)/real(nx*ny,rprec), w(jx,1,1)
+!!$      do jy=1,ny
+!!$         write(*,*) jx,jy, rhsx(jx,jy,1)/real(nx*ny,rprec), w(jx,jy,1)
+!!$      enddo
 !!$      enddo
 !!$      print*, 'END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
 !!$   endif
@@ -800,7 +803,7 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
-!!$    if (coord == nproc-1) then
+!!$    if (coord == 0) then
 !!$       if (fourier) then
 !!$          call wave2phys(dudz)
 !!$          call wave2phys(dvdz)
@@ -986,14 +989,14 @@ time_loop: do jt_step = nstart, nsteps
 !!$    print*, 'here wall 1: !>>>>>>>>>>>>>>>>>>'
 !!$    do jx=1,nx
 !!$    do jy=1,ny
-!!$       write(*,*) txx(jx,jy,2), txy(jx,jy,2), txz(jx,jy,2)
+!!$       write(*,*) txx(jx,jy,1), txy(jx,jy,1), txz(jx,jy,1)
 !!$       !write(*,*) u(jx,jy,1), v(jx,jy,1), w(jx,jy,1)
 !!$    enddo
 !!$    enddo
 !!$    print*, 'here wall 2: !>>>>>>>>>>>>>>>>>>'
 !!$    do jx=1,nx
 !!$    do jy=1,ny
-!!$       write(*,*) tyy(jx,jy,2), tyz(jx,jy,2), tzz(jx,jy,2)
+!!$       write(*,*) tyy(jx,jy,1), tyz(jx,jy,1), tzz(jx,jy,1)
 !!$       !write(*,*) u(jx,jy,3), v(jx,jy,3), w(jx,jy,3)
 !!$    enddo
 !!$    enddo
@@ -1043,7 +1046,7 @@ time_loop: do jt_step = nstart, nsteps
 
     call divstress_w(divtz, txz, tyz, tzz)
 
-!!$    if (coord == 0) then
+!!$    if (coord == nproc-1) then
 !!$       if (.not. fourier) then
 !!$          !call wave2phys(divtx)
 !!$          !call wave2phys(divty)
@@ -1056,7 +1059,7 @@ time_loop: do jt_step = nstart, nsteps
 !!$       print*, 'compare divs: >>>>>>>>>>>>>>>>'
 !!$       do jx=1,ld
 !!$       do jy=1,ny
-!!$          write(*,*) divtx(jx,jy,1),divty(jx,jy,3),divtz(jx,jy,nz-1)
+!!$          write(*,*) divtx(jx,jy,nz-1),divty(jx,jy,nz-1),divtz(jx,jy,nz-1)
 !!$          !write(*,*) jx, jy, txz(jx,jy,1:2)
 !!$       enddo
 !!$       enddo
@@ -1072,20 +1075,30 @@ time_loop: do jt_step = nstart, nsteps
     end if
     $endif
 
-!!$    if (coord == 0) then
+!!$    if (coord == nproc-1) then
 !!$       if (fourier) then
-!!$          call wave2phys(dwdy)
-!!$          call wave2phys(dvdz)
-!!$          call wave2phys(dudz)
-!!$          call wave2phys(dwdx)
 !!$          call wave2phys(u)
 !!$          call wave2phys(v)
+!!$          call wave2phys(w)
+!!$          call wave2phys(dudy)
+!!$          call wave2phys(dudz)
+!!$          call wave2phys(dvdx)
+!!$          call wave2phys(dvdz)
+!!$          call wave2phys(dwdx)
+!!$          call wave2phys(dwdy)
+!!$          call wave2phys(RHSx)
+!!$          call wave2phys(RHSy)
+!!$          call wave2phys(RHSz)
 !!$       endif
 !!$       print*, 'yot: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$       qq = 1
 !!$       do jx=1,nx
 !!$       do jy=1,ny
-!!$          write(*,*) dwdy(jx,jy,1), dvdz(jx,jy,1), dudz(jx,jy,1), dwdx(jx,jy,1)
-!!$          !!write(*,*) u(jx,jy,0:1), v(jx,jy,0:1)
+!!$          write(*,*) u(jx,jy,qq), v(jx,jy,qq), w(jx,jy,qq)
+!!$          write(*,*) dudy(jx,jy,qq), dudz(jx,jy,qq), dvdx(jx,jy,qq)
+!!$          write(*,*) dvdz(jx,jy,qq), dwdx(jx,jy,qq), dwdy(jx,jy,qq)
+!!$          write(*,*) RHSx(jx,jy,qq), RHSy(jx,jy,qq), RHSz(jx,jy,qq)
+!!$          print*, '---------------------------------------------'
 !!$       enddo
 !!$       enddo
 !!$    endif
@@ -1169,6 +1182,34 @@ time_loop: do jt_step = nstart, nsteps
     $endif
 
 !!$    if (coord == 0) then
+!!$       if (fourier) then
+!!$          call wave2phys(u)
+!!$          call wave2phys(v)
+!!$          call wave2phys(w)
+!!$          call wave2phys(dudy)
+!!$          call wave2phys(dudz)
+!!$          call wave2phys(dvdx)
+!!$          call wave2phys(dvdz)
+!!$          call wave2phys(dwdx)
+!!$          call wave2phys(dwdy)
+!!$          call wave2phys(RHSx)
+!!$          call wave2phys(RHSy)
+!!$          call wave2phys(RHSz)
+!!$       endif
+!!$       print*, 'yot: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
+!!$       qq = 2
+!!$       do jx=1,nx
+!!$       do jy=1,ny
+!!$          write(*,*) u(jx,jy,qq), v(jx,jy,qq), w(jx,jy,qq)
+!!$          write(*,*) dudy(jx,jy,qq), dudz(jx,jy,qq), dvdx(jx,jy,qq)
+!!$          write(*,*) dvdz(jx,jy,qq), dwdx(jx,jy,qq), dwdy(jx,jy,qq)
+!!$          write(*,*) RHSx(jx,jy,qq), RHSy(jx,jy,qq), RHSz(jx,jy,qq)
+!!$          print*, '---------------------------------------------'
+!!$       enddo
+!!$       enddo
+!!$    endif
+
+!!$    if (coord == 0) then
 !!$       print*, 'TEST INTERLEAVE >>>>>>>>>>>>>>>>>>>>>>>'
 !!$       call wave2phys(u)
 !!$       call dfftw_execute_dft_r2c(forw, u(:,:,3), u(:,:,3) )
@@ -1197,14 +1238,14 @@ time_loop: do jt_step = nstart, nsteps
 
 !!$    if (coord == nproc-1) then
 !!$       print*, 'yot >>>>>>>>>>>'
-!!$       if (.not. fourier) then
-!!$          call phys2wave(RHSx)
-!!$          call phys2wave(RHSy)
-!!$          call phys2wave(RHSz)
-!!$          call phys2wave( w )
+!!$       if (fourier) then
+!!$          call wave2phys(RHSx)
+!!$          call wave2phys(RHSy)
+!!$          call wave2phys(RHSz)
+!!$          call wave2phys( w )
 !!$       endif
 !!$       do jx=1,ld
-!!$       do jy=1,ny
+!!$       do jy=1,1
 !!$          write(*,*) RHSy(jx,jy,1:2), RHSz(jx,jy,1:2)
 !!$       enddo
 !!$       enddo
@@ -1219,14 +1260,14 @@ time_loop: do jt_step = nstart, nsteps
 
 !!$     if (coord == 0) then
 !!$       print*, 'here >> !'
-!!$       if (.not. fourier) then
-!!$          call phys2wave(RHSx)
-!!$          call phys2wave(RHSy)
-!!$          call phys2wave(RHSz)
+!!$       if (fourier) then
+!!$          call wave2phys(RHSx)
+!!$          call wave2phys(RHSy)
+!!$          call wave2phys(RHSz)
 !!$       endif
-!!$       do jx=1,ld
+!!$       do jx=1,nx
 !!$       do jy=1,ny
-!!$          write(*,*) RHSx(jx,jy,1), RHSy(jx,jy,2), RHSz(jx,jy,nz-1)
+!!$          write(*,*) RHSx(jx,jy,2), RHSy(jx,jy,2), RHSz(jx,jy,2)
 !!$       enddo
 !!$       enddo
 !!$    endif
@@ -1264,9 +1305,9 @@ time_loop: do jt_step = nstart, nsteps
 !!$          call phys2wave(RHSz)
 !!$       endif
 !!$       print*, 'here >><<>><<>><<>>'
-!!$       do jx=1,ld
-!!$       do jy=1,ny
-!!$          write(*,*) RHSx(jx,jy,3), RHSy(jx,jy,3), RHSz(jx,jy,3)
+!!$       do jx=1,nx
+!!$       do jy=1,1
+!!$          write(*,*) jx,RHSx(jx,jy,3), RHSy(jx,jy,3), RHSz(jx,jy,3)
 !!$       enddo
 !!$       enddo
 !!$    endif

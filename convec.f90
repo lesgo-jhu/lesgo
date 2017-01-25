@@ -169,7 +169,7 @@ do jz = lbz, nz
   $endif
 end do
 
-!!$!if (coord == 0) then
+!if (coord == 0) then
 !!$if (coord == nproc-1) then
 !!$write(*,*) 'COMPARE u1_big back  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
 !!$do jx=1,ld_big
@@ -303,20 +303,20 @@ end do
 !!$      print*, 'wer1: >>>>>>>>>>>>>>>>>>>>'
 !!$      do jx=1,ld_big
 !!$         do jy=1,ny2
-!!$            write(*,*) jx, jy, u1_big(jx,jy,3), u2_big(jx,jy,3), u3_big(jx,jy,3)
+!!$            write(*,*) jx, jy, u1_big(jx,jy,1), u2_big(jx,jy,1), u3_big(jx,jy,1)
 !!$         enddo
 !!$      enddo
 !!$   else
-!!$      call dfftw_execute_dft_r2c(forw_big,u1_big(:,:,3),   u1_big(:,:,3))
-!!$      call dfftw_execute_dft_r2c(forw_big,u2_big(:,:,3),   u2_big(:,:,3))
-!!$      call dfftw_execute_dft_r2c(forw_big,u3_big(:,:,3),   u3_big(:,:,3))
-!!$      u1_big(:,:,3) = u1_big(:,:,3) / (nx2*ny2)
-!!$      u2_big(:,:,3) = u2_big(:,:,3) / (nx2*ny2)
-!!$      u3_big(:,:,3) = u3_big(:,:,3) / (nx2*ny2)
+!!$      call dfftw_execute_dft_r2c(forw_big,u1_big(:,:,1),   u1_big(:,:,1))
+!!$      call dfftw_execute_dft_r2c(forw_big,u2_big(:,:,1),   u2_big(:,:,1))
+!!$      call dfftw_execute_dft_r2c(forw_big,u3_big(:,:,1),   u3_big(:,:,1))
+!!$      u1_big(:,:,1) = u1_big(:,:,1) / (nx2*ny2)
+!!$      u2_big(:,:,1) = u2_big(:,:,1) / (nx2*ny2)
+!!$      u3_big(:,:,1) = u3_big(:,:,1) / (nx2*ny2)
 !!$      print*, 'wer2: !!!!!!!!!!!'
 !!$      do jx=1,ld_big
 !!$         do jy=1,ny2
-!!$            write(*,*) jx, jy, u1_big(jx,jy,3), u2_big(jx,jy,3), u3_big(jx,jy,3)
+!!$            write(*,*) jx, jy, u1_big(jx,jy,1), u2_big(jx,jy,1), u3_big(jx,jy,1)
 !!$         enddo
 !!$      enddo
 !!$   endif
@@ -327,7 +327,7 @@ end do
 !! go to y-physical space ( ky --> y )
 
 !!$if (coord == 0) then
-!!$u2_big = u1_big
+!!$!u2_big = u1_big
 !!$u3_big = u1_big
 !!$call dft_direct_back_2d_n_yonlyC_big( u3_big(:,:,3) )
 !!$u2_big = u3_big
@@ -398,15 +398,17 @@ end do
 !!$if (coord == 0) then
 !!$   if (fourier) then
 !!$      print*, 'fourier cx: >>>>>'
+!!$      call dft_direct_forw_2d_n_yonlyC_big( cc_big(:,:,1) )
 !!$      call dft_direct_forw_2d_n_yonlyC_big( cc_big(:,:,3) )
 !!$   else
 !!$      print*, 'cx: >>>>>'
+!!$      call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,1),cc_big(:,:,1))
 !!$      call dfftw_execute_dft_r2c(forw_big, cc_big(:,:,3),cc_big(:,:,3))
 !!$   endif
 !!$
 !!$   do jx=1,ld_big
 !!$      do jy=1,ny2
-!!$         write(*,*) jx, jy, cc_big(jx,jy,3)
+!!$         write(*,*) jx, jy, cc_big(jx,jy,1), cc_big(jx,jy,3)
 !!$      enddo
 !!$   enddo
 !!$endif
@@ -427,7 +429,7 @@ do jz=1,nz-1
   call rfftwnd_f77_one_real_to_complex(forw_big,cc_big(:,:,jz),fftwNull_p)
   $endif   
 
-!!$!if (coord == 0) then
+!if (coord == 0) then
 !!$if (coord == nproc-1 .and. jz == 1) then
 !!$write(*,*) 'COMPARE cc_big forw >>>>>>>>>>>>>>>>>>>>>>>>>>>>>'
 !!$do jx=1,ld_big
@@ -512,8 +514,6 @@ end do
 !!$   endif
 !!$
 !!$endif
-
-
 
 ! CY
 ! const should be 1./(nx2*ny2) here

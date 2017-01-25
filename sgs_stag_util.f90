@@ -243,16 +243,16 @@ $endif
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
 !   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
-!!$do jz=1,nz
-!!$do jy=1,ny
-!!$do jx=1,nx
-!!$   S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)**2 +           S22(jx,jy,jz)**2 +&
-!!$                              S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
-!!$                              S13(jx,jy,jz)**2 +           S23(jx,jy,jz)**2 )))
-!!$   Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*l(jz)**2
-!!$end do
-!!$end do
-!!$end do
+!do jz=1,nz
+!do jy=1,ny
+!do jx=1,nx
+!   S(jx,jy) = sqrt( 2._rprec*(S11(jx,jy,jz)**2 +           S22(jx,jy,jz)**2 +&
+!                              S33(jx,jy,jz)**2 + 2._rprec*(S12(jx,jy,jz)**2 +&
+!                              S13(jx,jy,jz)**2 +           S23(jx,jy,jz)**2 )))
+!   Nu_t(jx,jy,jz)=S(jx,jy)*Cs_opt2(jx,jy,jz)*l(jz)**2
+!end do
+!end do
+!end do
 
 if (fourier) then
    do jz=1,nz

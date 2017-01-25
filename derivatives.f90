@@ -68,7 +68,8 @@ public ddx, &
      ddy_kxspace, &
      convolve, &
      convolve2, &
-     convolve_rnl
+     convolve_rnl, &
+     ky_spectra_calc_jb
 
 contains
 
@@ -1672,8 +1673,73 @@ enddo
 return
 end subroutine dft_direct_back_2d_n_yonlyC
 
+! >>>>>>>>>>>>>>>> spectra_jb >>>>>>>>>>>>>>>>>>>
 
+!**********************************************************************
+function ky_spectra_calc_jb( f1, g1, rc_case ) result(fg_out)
+!**********************************************************************
+!
+! Computes ky spectra
+!
+use types,only:rprec
+use param,only:ld,nx,ny,nz,coord,nproc,fourier
+use fft !,only:ky_vec
+implicit none
 
+real(rprec), dimension(:, :), intent(in) :: f1, g1
+integer, intent(in) :: rc_case
+integer :: jx, jy, i, j, ii, ir, jy_r, jx_s
+real(rprec) :: const
+
+real(rprec), dimension(nx, ny) :: f, g
+complex(rprec), dimension(nx, ny/2+1) :: fhat, ghat, fghat
+real(rprec), dimension(ld, ny) :: fg_out
+
+f(:,:) = 0._rprec
+g(:,:) = 0._rprec
+fg_out(:,:) = 0._rprec
+
+const = 1._rprec / real(ny,rprec)
+f(:,:) = const * f1(1:nx,1:ny)
+g(:,:) = const * g1(1:nx,1:ny)
+fhat(:,:)  = ( 0._rprec, 0._rprec  )
+ghat(:,:)  = ( 0._rprec, 0._rprec  )
+fghat(:,:)  = ( 0._rprec, 0._rprec  )
+
+! remains in complex space
+do jx=1,nx
+  call dfftw_execute_dft_r2c(forw_span_spectra, f(jx,1:ny), fhat(jx,1:ny/2+1) )
+  call dfftw_execute_dft_r2c(forw_span_spectra, g(jx,1:ny), ghat(jx,1:ny/2+1) )
+enddo
+
+do jx=1,nx
+do jy=1,ny/2+1
+   fghat(jx,jy) = fhat(jx,jy) * conjg( ghat(jx,jy) )
+enddo
+enddo
+
+! note: Fortran intrinsic function 'real' works fine here for GNU compiler, but this
+! operation might require the instrinsic 'realpart' function with other compilers
+select case (rc_case)
+case(0)  !! f1 = g1, thus fg_out is purely real
+   do jy=1,ny/2+1
+      fg_out(1:nx,jy) = real( fghat(1:nx,jy) )
+   enddo
+case(1)  !! f1 /= g1, thus fg_out is NOT purely real so we take its magnitude
+   do jy=1,ny/2+1
+      fg_out(1:nx,jy) = real( abs(fghat(1:nx,jy)) )
+   enddo
+!!$   if (coord == 0) then
+!!$      do jy=1,ny/2+1
+!!$         write(*,*) 'fghat(1,jy): ', jy, fghat(1,jy),fg_out(1,jy)
+!!$      enddo
+!!$   endif
+end select
+
+return
+end function ky_spectra_calc_jb
+
+! <<<<<<<<<<<< spectra_jb <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 !**********************************************************************
@@ -2381,8 +2447,8 @@ real(rprec), dimension(:,:), intent(in) :: f, g
 real(rprec), dimension(ld,ny2) :: out
 
 !!complex(rprec), dimension(nx+nx-1,ny2) :: fc, gc, outc
-!complex(rprec), dimension(nx2+nx2-1,ny2) :: fc, gc, outc
-complex(rprec), dimension(nx+nx-1,ny2) :: fc, gc, outc
+complex(rprec), dimension(nx2+nx2-1,ny2) :: fc, gc, outc
+!complex(rprec), dimension(nx+nx-1,ny2) :: fc, gc, outc
 integer :: jx,jy,jx_s,ii,ir,k,i,j,st,jx1,jx2,s
 
 fc(:,:)  = ( 0._rprec, 0._rprec  )
@@ -2392,8 +2458,10 @@ out(:,:)  = 0._rprec
 
 !! f, g are in kx space, structured as real arrays
 !! now re-structure as complex arrays
-fc(1:nx,:) = interleave_r2c( f(:,:) )
-gc(1:nx,:) = interleave_r2c( g(:,:) )
+fc(1:nx2,:) = interleave_r2c( f(:,:) )
+gc(1:nx2,:) = interleave_r2c( g(:,:) )
+!fc(1:nx,:) = interleave_r2c( f(:,:) )
+!gc(1:nx,:) = interleave_r2c( g(:,:) )
 
 !!$if (coord==0) then
 !!$print*, 'fc, gc: '
@@ -2403,14 +2471,14 @@ gc(1:nx,:) = interleave_r2c( g(:,:) )
 !!$endif
 
 !! get the -kx modes from the +kx modes
-!!$do jx=2,nx2/2
-!!$   fc(nx2-jx+2,:) = conjg( fc(jx,:) )
-!!$   gc(nx2-jx+2,:) = conjg( gc(jx,:) )
-!!$enddo
-do jx=2,nx/2
-   fc(nx-jx+2,:) = conjg( fc(jx,:) )
-   gc(nx-jx+2,:) = conjg( gc(jx,:) )
+do jx=2,nx2/2
+   fc(nx2-jx+2,:) = conjg( fc(jx,:) )
+   gc(nx2-jx+2,:) = conjg( gc(jx,:) )
 enddo
+!!$do jx=2,nx/2
+!!$   fc(nx-jx+2,:) = conjg( fc(jx,:) )
+!!$   gc(nx-jx+2,:) = conjg( gc(jx,:) )
+!!$enddo
 
 !!$if (coord==0) then
 !!$print*, 'fc, gc: '
@@ -2419,22 +2487,22 @@ enddo
 !!$   enddo
 !!$endif
 
-!!$do jx1 = 1, (nx2 + nx2 - 1)
-!!$do jx2 = 1, nx2
-!!$   s = jx1 - jx2 + 1
-!!$   if(s .gt. 0 .and. s .le. nx2) then
-!!$      outc(jx1,:) = outc(jx1,:) + fc(jx2,:) * gc(s,:)
-!!$   endif
-!!$enddo
-!!$enddo
-do jx1 = 1, (nx + nx - 1)
-do jx2 = 1, nx
+do jx1 = 1, (nx2 + nx2 - 1)
+do jx2 = 1, nx2
    s = jx1 - jx2 + 1
    if(s .gt. 0 .and. s .le. nx2) then
       outc(jx1,:) = outc(jx1,:) + fc(jx2,:) * gc(s,:)
    endif
 enddo
 enddo
+!!$do jx1 = 1, (nx + nx - 1)
+!!$do jx2 = 1, nx
+!!$   s = jx1 - jx2 + 1
+!!$   if(s .gt. 0 .and. s .le. nx2) then
+!!$      outc(jx1,:) = outc(jx1,:) + fc(jx2,:) * gc(s,:)
+!!$   endif
+!!$enddo
+!!$enddo
 
 !!$if (coord==0) then
 !!$print*, 'outc: '
@@ -2443,8 +2511,8 @@ enddo
 !!$   enddo
 !!$endif
 
-!outc(1:nx2-1,:) = outc(1:nx2-1,:) + outc(nx2+1:nx2+nx2-1,:)
-outc(1:nx-1,:) = outc(1:nx-1,:) + outc(nx+1:nx+nx-1,:)
+outc(1:nx2-1,:) = outc(1:nx2-1,:) + outc(nx2+1:nx2+nx2-1,:)
+!outc(1:nx-1,:) = outc(1:nx-1,:) + outc(nx+1:nx+nx-1,:)
 
 !! re-structure the complex array into a real array
 out(:,:) = interleave_c2r( outc(1:nx,:) )

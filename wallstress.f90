@@ -96,7 +96,7 @@ select case (lbc_mom)
 !!$    enddo
 !!$    enddo
 
-    !!!u_avg(1:nx,1:ny) = sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)  !here
+    !u_avg(1:nx,1:ny) = sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)  !here
     ustar=u_avg*vonk/denom
 
 if (fourier) then
