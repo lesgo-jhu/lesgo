@@ -2,6 +2,7 @@ program test
 
 use types, only : rprec
 use wake_model
+use wake_model_adjoint
 use turbines, only : generate_splines, wm_Ct_prime_spline, wm_Cp_prime_spline
 ! use rh_control
 use open_file_fid_mod
@@ -15,9 +16,14 @@ real(rprec) :: cfl, dt
 
 ! wake model variables
 type(wake_model_t) :: wm
+type(wake_model_adjoint_t) :: wma
 real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
-integer :: N, Nx
+integer :: N, Nx, Nt
+
+! adjoint variables
+real(rprec), dimension(:,:,:), allocatable :: fstar
+real(rprec), dimension(:,:), allocatable :: Adu
 
 ! 
 ! ! minimizer
@@ -36,6 +42,7 @@ torque_gain = 2.1648e6
 U_infty = 9._rprec
 N = 7
 Nx = 256
+Nt = 2*Nx
 allocate(s(N))
 allocate(k(N))
 allocate(beta(N))
@@ -48,19 +55,28 @@ end do
 call generate_splines
 wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
                   wm_Ct_prime_spline, wm_Cp_prime_spline)
-
+                  
+! adjoint variables
+allocate(fstar(Nt, N, Nx))
+allocate(Adu(Nt, N))
+fstar(:,:,:) = 0._rprec
 
 ! integrate the wake model forward in time at least 2 flow through times
 dt = cfl * wm%dx / U_infty
-do i = 1, 2*wm%Nx
+do i = 1, Nt
     do j = 1, wm%N
         gen_torque = torque_gain * wm%omega**2
     end do
     call wm%advance(beta, gen_torque, dt)
-    write(*,*) dt*i, wm%uhat(1), wm%omega(1), wm%Ctp(1), wm%Cpp(1), wm%beta(1)
+    call wm%adjoint_values(fstar(i,:,:), Adu(i,:))
+!     write(*,*) dt*i, wm%uhat(1), wm%omega(1), wm%Ctp(1), wm%Cpp(1), wm%beta(1)
 end do
 
+write(*,*) Adu(Nt,:)
 
+! write(*,*) Adu(Nt,:)
+
+deallocate(fstar)
 
 ! 
 ! ! create minimizer

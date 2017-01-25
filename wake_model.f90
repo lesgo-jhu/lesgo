@@ -48,6 +48,8 @@ type, extends(wake_model_base_t) :: wake_model_t
     real(rprec), dimension(:), allocatable :: omega
     ! blade pitch angle
     real(rprec), dimension(:), allocatable :: beta
+    ! local tip speed ratio
+    real(rprec), dimension(:), allocatable :: lambda_prime
     ! generator torque
     real(rprec), dimension(:), allocatable :: gen_torque
 contains
@@ -59,7 +61,7 @@ contains
     procedure, public :: makeDimensional
     procedure, public :: advance
     procedure, private :: rhs
-    
+    procedure, public :: adjoint_values
 end type wake_model_t
 
 interface wake_model_t
@@ -123,6 +125,7 @@ allocate( this%Ctp(this%N)  )
 allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
 allocate( this%beta(this%N)  )
+allocate( this%lambda_prime(this%N)  )
 allocate( this%gen_torque(this%N)  )
 
 this%du(:,:) = 0._rprec
@@ -133,6 +136,7 @@ this%Ctp(:) = 0._rprec
 this%Cpp(:) = 0._rprec
 this%omega(:) = 1._rprec
 this%beta(:) = 0._rprec
+this%lambda_prime(:) = 0.5_rprec * this%Dia / this%U_infty
 this%gen_torque(:) = 0._rprec
     
 end subroutine initialize_val
@@ -165,7 +169,7 @@ allocate( this%G(this%N,  this%Nx) )
 allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
 allocate( this%w(this%N,  this%Nx) )
-allocate( this%fp(this%N, this%Nx) )
+allocate( this%f(this%N, this%Nx) )
 allocate( this%du(this%N, this%Nx) )    
 
 read(fid) this%s
@@ -288,7 +292,7 @@ real(rprec), intent(in) :: dt
 real(rprec), dimension(:), intent(in) :: beta, gen_torque
 integer :: i
 real(rprec), dimension(:), allocatable :: du_superimposed
-real(rprec) :: lambda_prime, Paero
+real(rprec) :: Paero
 
 if (size(beta) /= this%N .or. size(gen_torque) /= this%N) then
     call error('wake_model_t.advance','beta and gen_torque must be size N')
@@ -299,7 +303,7 @@ allocate(du_superimposed(this%Nx))
 du_superimposed = 0.0
 do i = 1, this%N
     this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),                 &
-        this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
+        this%f(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
     du_superimposed = du_superimposed + this%du(i,:)**2
 end do
 du_superimposed = sqrt(du_superimposed)
@@ -320,9 +324,9 @@ do i = 1, this%N
     this%beta(i) = beta(i)
     this%gen_torque(i) = gen_torque(i)
     this%uhat(i) = sum(this%G(i,:) * this%u * this%dx)
-    lambda_prime = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
-    call this%Ctp_spline%interp(this%beta(i), lambda_prime, this%Ctp(i))
-    call this%Cpp_spline%interp(this%beta(i), lambda_prime, this%Cpp(i))
+    this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
+    call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
+    call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 end do
     
@@ -346,5 +350,41 @@ ddudx = ddx_upwind1(du, this%dx)
 ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 
 end function rhs
+
+!*******************************************************************************
+subroutine adjoint_values(this, fstar, Adu)
+!*******************************************************************************
+
+implicit none
+class(wake_model_t), intent(in) :: this
+real(rprec), dimension(:,:), intent(out) :: fstar
+real(rprec), dimension(:), intent(out) :: Adu
+
+real(rprec), dimension(:), allocatable :: du_super, dCt_dbeta, dCt_dlambda
+real(rprec) :: dummy
+integer :: n, i
+allocate(du_super(this%Nx))
+allocate(dCt_dbeta(this%N))
+allocate(dCt_dlambda(this%N))
+
+du_super = this%U_infty - this%u
+do n = 1, this%N
+    fstar(n, :) = - this%du(n,:) / du_super
+    do i = 1, this%Nx
+        if ( du_super(i) <= 1E-10 )   fstar(n, i) = 0._rprec
+    end do
+    call this%Ctp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
+                           dCt_dbeta(n), dCt_dlambda(n))
+end do
+
+
+
+    Adu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%omega *  this%Dia/ this%uhat
+
+deallocate(du_super)
+deallocate(dCt_dbeta)
+deallocate(dCt_dlambda)
+
+end subroutine adjoint_values
 
 end module wake_model

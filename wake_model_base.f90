@@ -44,8 +44,8 @@ type wake_model_base_t
     real(rprec), dimension(:,:), allocatable :: dp
     ! wake expansion function (turbine, space)
     real(rprec), dimension(:,:), allocatable :: w
-    ! forcing prefactor f = fp*Ctp/(4+Ctp)  (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: fp
+    ! forcing prefactor (turbine, space)
+    real(rprec), dimension(:,:), allocatable :: f
     ! inlet velocity
     real(rprec) :: U_infty = 0
     ! Gaussian forcing width
@@ -130,7 +130,7 @@ allocate( this%G(this%N,  this%Nx) )
 allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
 allocate( this%w(this%N,  this%Nx) )
-allocate( this%fp(this%N, this%Nx) )
+allocate( this%f(this%N, this%Nx) )
 
 ! Assign input arguments
 this%s   = i_s
@@ -175,7 +175,7 @@ do i = 1, this%N
     this%dp(i,:) = 2.0 * this%k(i) * logistic(2.0 *                            &
         (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)/this%Dia
     this%w(i,:) = 2.0 * this%U_infty * this%dp(i,:) / this%d(i,:)
-    this%fp(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )   
+    this%f(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )   
 end do
 
 end subroutine computeWakeExpansionFunctions
@@ -197,7 +197,7 @@ if (.not.this%isDimensionless) then
     this%G = this%G * this%LENGTH         ! G has units 1/length
     this%dp = this%dp * this%LENGTH        ! dp has units 1/length
     this%w = this%w * this%TIME           ! w has units 1/time
-    this%fp = this%fp / this%FORCE
+    this%f = this%f / this%FORCE
 end if
 end subroutine makeDimensionless
 
@@ -218,7 +218,7 @@ if (this%isDimensionless) then
     this%G = this%G / this%LENGTH         ! G has units 1/length
     this%dp = this%dp / this%LENGTH        ! dp has units 1/length
     this%w = this%w / this%TIME           ! w has units 1/time   
-    this%fp = this%fp * this%FORCE  
+    this%f = this%f * this%FORCE  
 end if
 end subroutine makeDimensional
 
