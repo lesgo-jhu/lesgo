@@ -33,13 +33,15 @@ public wake_model_t
 
 type, extends(wake_model_base_t) :: wake_model_t
     ! velocity deficit (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: du   
+    real(rprec), dimension(:,:), allocatable :: du
     ! superimposed velocity (space)
-    real(rprec), dimension(:), allocatable :: u    
+    real(rprec), dimension(:), allocatable :: u
     ! estimated local turbine velocity (turbine)
-    real(rprec), dimension(:), allocatable :: uhat 
-    ! estimated turbine power (turbine)
-    real(rprec), dimension(:), allocatable :: Phat 
+    real(rprec), dimension(:), allocatable :: uhat
+    ! estimated generator power (turbine)
+    real(rprec), dimension(:), allocatable :: Phat
+    ! estimated aerodynamic power (turbine)
+    real(rprec), dimension(:), allocatable :: Paero
     ! local thrust coefficient (turbine)
     real(rprec), dimension(:), allocatable :: Ctp
     ! local thrust coefficient (turbine)
@@ -121,6 +123,7 @@ allocate( this%du(this%N, this%Nx) )
 allocate( this%u(this%Nx) )
 allocate( this%uhat(this%N) )
 allocate( this%Phat(this%N) )
+allocate( this%Paero(this%N) )
 allocate( this%Ctp(this%N)  )
 allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
@@ -132,13 +135,14 @@ this%du(:,:) = 0._rprec
 this%u(:) = this%U_infty
 this%uhat(:) = this%U_infty
 this%Phat(:) = 0._rprec
+this%Paero(:) = 0._rprec
 this%Ctp(:) = 0._rprec
 this%Cpp(:) = 0._rprec
 this%omega(:) = 1._rprec
 this%beta(:) = 0._rprec
 this%lambda_prime(:) = 0.5_rprec * this%Dia / this%U_infty
 this%gen_torque(:) = 0._rprec
-    
+
 end subroutine initialize_val
 
 !*******************************************************************************
@@ -162,6 +166,7 @@ allocate( this%s(this%N)    )
 allocate( this%k(this%N)    )
 allocate( this%uhat(this%N) )
 allocate( this%Phat(this%N) )
+allocate( this%Paero(this%N) )
 allocate( this%Ctp(this%N)  )
 allocate( this%x(this%Nx) )
 allocate( this%u(this%Nx) )
@@ -170,7 +175,7 @@ allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
 allocate( this%w(this%N,  this%Nx) )
 allocate( this%f(this%N, this%Nx) )
-allocate( this%du(this%N, this%Nx) )    
+allocate( this%du(this%N, this%Nx) )
 
 read(fid) this%s
 read(fid) this%k
@@ -179,6 +184,7 @@ read(fid) this%du
 read(fid) this%u
 read(fid) this%uhat
 read(fid) this%Phat
+read(fid) this%Paero
 read(fid) this%Ctp
 close(fid)
 
@@ -197,11 +203,12 @@ implicit none
 class(wake_model_t), intent(inout) :: this
 
 if (.not.this%isDimensionless) then
-    call this%wake_model_base_t%makeDimensionless    
+    call this%wake_model_base_t%makeDimensionless
     this%du = this%du / this%VELOCITY
     this%u = this%u / this%VELOCITY
     this%uhat = this%uhat / this%VELOCITY
-    this%Phat = this%uhat / this%VELOCITY**3
+    this%Phat = this%Phat / this%VELOCITY**3
+    this%Paero = this%Paero / this%VELOCITY**3
 end if
 
 end subroutine makeDimensionless
@@ -213,11 +220,12 @@ implicit none
 class(wake_model_t), intent(inout) :: this
 
 if (this%isDimensionless) then
-    call this%wake_model_base_t%makeDimensional  
+    call this%wake_model_base_t%makeDimensional
     this%du = this%du * this%VELOCITY
     this%u = this%u * this%VELOCITY
     this%uhat = this%uhat * this%VELOCITY
-    this%Phat = this%uhat * this%VELOCITY**3
+    this%Phat = this%Phat * this%VELOCITY**3
+    this%Paero = this%Paero * this%VELOCITY**3
 end if
 
 end subroutine makeDimensional
@@ -245,6 +253,7 @@ write(fid) this%du
 write(fid) this%u
 write(fid) this%uhat
 write(fid) this%Phat
+write(fid) this%Paero
 write(fid) this%Ctp
 close(fid)
 
@@ -292,7 +301,6 @@ real(rprec), intent(in) :: dt
 real(rprec), dimension(:), intent(in) :: beta, gen_torque
 integer :: i
 real(rprec), dimension(:), allocatable :: du_superimposed
-real(rprec) :: Paero
 
 if (size(beta) /= this%N .or. size(gen_torque) /= this%N) then
     call error('wake_model_t.advance','beta and gen_torque must be size N')
@@ -310,16 +318,16 @@ du_superimposed = sqrt(du_superimposed)
 
 ! Calculate new rotational speed
 do i = 1, this%N
-    Paero = this%rho * pi * this%Dia**2 * this%Cpp(i) * this%uhat(i)**3 / 8.d0
-    this%omega(i) = this%omega(i) + dt * (Paero / this%omega(i)         &
+    this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i) * this%uhat(i)**3 / 8.d0
+    this%omega(i) = this%omega(i) + dt * (this%Paero(i) / this%omega(i)       &
         - this%gen_torque(i)) / this%inertia
-        
+
 end do
 
 ! Find the velocity field
 this%u = this%U_infty - du_superimposed
 
-! Find estimated velocities
+! Find estimated velocities, coefficients, and power
 do i = 1, this%N
     this%beta(i) = beta(i)
     this%gen_torque(i) = gen_torque(i)
@@ -329,7 +337,7 @@ do i = 1, this%N
     call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 end do
-    
+
 end subroutine advance
 
 !*******************************************************************************
@@ -352,20 +360,24 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_values(this, fstar, Adu)
+subroutine adjoint_values(this, Pref, fstar, Adu, Aw, Bj, Bdu, Bw)
 !*******************************************************************************
 
 implicit none
 class(wake_model_t), intent(in) :: this
+real(rprec), intent(in) :: Pref
 real(rprec), dimension(:,:), intent(out) :: fstar
-real(rprec), dimension(:), intent(out) :: Adu
+real(rprec), dimension(:), intent(out) :: Adu, Aw, Bj, Bdu, Bw
 
 real(rprec), dimension(:), allocatable :: du_super, dCt_dbeta, dCt_dlambda
+real(rprec), dimension(:), allocatable :: dCp_dbeta, dCp_dlambda
 real(rprec) :: dummy
 integer :: n, i
 allocate(du_super(this%Nx))
 allocate(dCt_dbeta(this%N))
 allocate(dCt_dlambda(this%N))
+allocate(dCp_dbeta(this%N))
+allocate(dCp_dlambda(this%N))
 
 du_super = this%U_infty - this%u
 do n = 1, this%N
@@ -375,15 +387,25 @@ do n = 1, this%N
     end do
     call this%Ctp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
                            dCt_dbeta(n), dCt_dlambda(n))
+    call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
+                           dCp_dbeta(n), dCp_dlambda(n))
 end do
 
-
-
-    Adu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%omega *  this%Dia/ this%uhat
+Adu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega           &
+      * 0.5_rprec *  this%Dia / this%uhat**2
+Aw  = (this%Paero / this%inertia) * (3._rprec / (this%omega * this%uhat)       &
+      -0.5_rprec * this%Dia * dCp_dlambda / (this%uhat**2 * this%Cpp) )
+Bj  = -2._rprec * (sum(this%Phat) - Pref) * this%gen_torque
+Bdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia &
+      / this%uhat
+Bw  = (this%Paero / this%inertia) * (0.5_rprec * this%Dia * dCp_dlambda        &
+      / (this%uhat * this%omega * this%Cpp) - this%omega**(-2))
 
 deallocate(du_super)
 deallocate(dCt_dbeta)
 deallocate(dCt_dlambda)
+deallocate(dCp_dbeta)
+deallocate(dCp_dlambda)
 
 end subroutine adjoint_values
 

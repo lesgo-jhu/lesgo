@@ -21,11 +21,13 @@ real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 integer :: N, Nx, Nt
 
+real(rprec) :: Pref
+
 ! adjoint variables
 real(rprec), dimension(:,:,:), allocatable :: fstar
-real(rprec), dimension(:,:), allocatable :: Adu
+real(rprec), dimension(:,:), allocatable :: Adu, Aw, Bj, Bdu, Bw
 
-! 
+!
 ! ! minimizer
 ! type(MinimizedFarm) :: mf
 ! real(rprec) :: t0, T, tau
@@ -55,11 +57,20 @@ end do
 call generate_splines
 wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
                   wm_Ct_prime_spline, wm_Cp_prime_spline)
-                  
+
 ! adjoint variables
 allocate(fstar(Nt, N, Nx))
 allocate(Adu(Nt, N))
-fstar(:,:,:) = 0._rprec
+allocate(Aw(Nt, N))
+allocate(Bj(Nt, N))
+allocate(Bdu(Nt, N))
+allocate(Bw(Nt, N))
+fstar = 0._rprec
+Adu = 0._rprec
+Aw = 0._rprec
+Bj = 0._rprec
+Bdu = 0._rprec
+Bw = 0._rprec
 
 ! integrate the wake model forward in time at least 2 flow through times
 dt = cfl * wm%dx / U_infty
@@ -68,17 +79,26 @@ do i = 1, Nt
         gen_torque = torque_gain * wm%omega**2
     end do
     call wm%advance(beta, gen_torque, dt)
-    call wm%adjoint_values(fstar(i,:,:), Adu(i,:))
+    write(*,*) sum(wm%Phat)
+    Pref = 1.1E7
+    call wm%adjoint_values(Pref, fstar(i,:,:), Adu(i,:), Aw(i,:), Bj(i,:), Bdu(i,:), Bw(i,:))
 !     write(*,*) dt*i, wm%uhat(1), wm%omega(1), wm%Ctp(1), wm%Cpp(1), wm%beta(1)
 end do
 
 write(*,*) Adu(Nt,:)
-
-! write(*,*) Adu(Nt,:)
+write(*,*) Aw(Nt,:)
+write(*,*) Bj(Nt,:)
+write(*,*) Bdu(Nt,:)
+write(*,*) Bw(Nt,:)
 
 deallocate(fstar)
+deallocate(Adu)
+deallocate(Aw)
+deallocate(Bj)
+deallocate(Bdu)
+deallocate(Bw)
 
-! 
+!
 ! ! create minimizer
 ! t0 = 0
 ! T = 5._rprec * 60._rprec
@@ -89,11 +109,11 @@ deallocate(fstar)
 ! Pref = 0.2_rprec * 1.33_rprec * U_infty**3 * N
 ! tau = 120._rprec
 ! mf = MinimizedFarm(wm, t0, T, cfl, time, Pref, tau)
-! 
+!
 ! allocate(phi_in(N, 2))
 ! phi_in = 1.33_rprec
 ! call mf%run(time, phi_in)
-! 
+!
 ! call mf%finiteDifferenceGradient
 ! write(*,*) mf%fdgrad - mf%grad
 
