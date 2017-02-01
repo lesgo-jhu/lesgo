@@ -65,7 +65,7 @@ type wake_model_base_t
     ! Specifies whether the wake model is in a dimensionless state
     logical :: isDimensionless = .false.
     ! Dimensional scales
-    real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, FORCE = 0
+    real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0, TORQUE = 0, POWER = 0
     ! Splines for Ctp and Cpp
     type(bicubic_spline_t) Ctp_spline, Cpp_spline
 contains
@@ -145,7 +145,9 @@ this%inertia = i_inertia
 this%VELOCITY = i_U_infty
 this%LENGTH = i_Dia
 this%TIME = this%LENGTH / this%VELOCITY
-this%FORCE = this%VELOCITY / this%TIME
+this%MASS = this%rho * this%LENGTH**3
+this%TORQUE = this%MASS * this%LENGTH**2 / this%TIME**2
+this%POWER = this%MASS * this%LENGTH**2 / this%TIME**3
 
 ! Calculate other variables
 this%dx = ( this%s(1) + this%s(this%N) ) / this%Nx
@@ -188,16 +190,25 @@ class(wake_model_base_t), intent(inout) :: this
 
 if (.not.this%isDimensionless) then
     this%isDimensionless = .true.
+    ! units L
     this%s = this%s / this%LENGTH
-    this%U_infty = this%U_infty / this%VELOCITY
+    this%x = this%x / this%LENGTH
     this%Delta = this%Delta / this%LENGTH
     this%Dia = this%Dia / this%LENGTH
     this%dx = this%dx / this%LENGTH
-    this%x = this%x / this%LENGTH
-    this%G = this%G * this%LENGTH         ! G has units 1/length
-    this%dp = this%dp * this%LENGTH        ! dp has units 1/length
-    this%w = this%w * this%TIME           ! w has units 1/time
-    this%f = this%f / this%FORCE
+    ! units L^-1
+    this%G = this%G * this%LENGTH
+    this%dp = this%dp * this%LENGTH
+    ! units T^-1
+    this%w = this%w * this%TIME
+    ! units V*T^-1
+    this%f = this%f / this%VELOCITY * this%TIME
+    ! units V
+    this%U_infty = this%U_infty / this%VELOCITY
+    ! units M*L^-3
+    this%rho = this%rho / this%MASS * this%LENGTH**3
+    ! unites TORQUE^-1
+    this%inertia = this%inertia * this%TORQUE
 end if
 end subroutine makeDimensionless
 
@@ -208,24 +219,31 @@ implicit none
 class(wake_model_base_t), intent(inout) :: this
 
 if (this%isDimensionless) then
-    this%isDimensionless = .false.
+    ! units L
     this%s = this%s * this%LENGTH
-    this%U_infty = this%U_infty * this%VELOCITY
+    this%x = this%x * this%LENGTH
     this%Delta = this%Delta * this%LENGTH
     this%Dia = this%Dia * this%LENGTH
     this%dx = this%dx * this%LENGTH
-    this%x = this%x * this%LENGTH
-    this%G = this%G / this%LENGTH         ! G has units 1/length
-    this%dp = this%dp / this%LENGTH        ! dp has units 1/length
-    this%w = this%w / this%TIME           ! w has units 1/time   
-    this%f = this%f * this%FORCE  
+    ! units L^-1
+    this%G = this%G / this%LENGTH
+    this%dp = this%dp / this%LENGTH
+    ! units T^-1
+    this%w = this%w / this%TIME
+    ! units V*T^-1
+    this%f = this%f * this%VELOCITY / this%TIME
+    ! units V
+    this%U_infty = this%U_infty * this%VELOCITY
+    ! units M*L^-3
+    this%rho = this%rho * this%MASS / this%LENGTH**3
+    ! unites TORQUE^-1
+    this%inertia = this%inertia / this%TORQUE
 end if
 end subroutine makeDimensional
 
-
-!*******************************************************************************
+! ********************************************************************************
 ! subroutine write_to_file(this, fstring)
-!*******************************************************************************
+! ********************************************************************************
 ! Writes object to file
 ! use open_file_fid_mod
 ! use param, only : CHAR_BUFF_LENGTH
@@ -236,21 +254,17 @@ end subroutine makeDimensional
 ! 
 ! !  Open vel.out (lun_default in io) for final output
 ! fid = open_file_fid(fstring, 'rewind', 'unformatted')
-! write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,               &
+! write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                     &
 !            this%U_infty, this%isDimensionless
 ! write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
 ! write(fid) this%s
 ! write(fid) this%k
 ! write(fid) this%x
-! write(fid) this%du
-! write(fid) this%u
-! write(fid) this%uhat
-! write(fid) this%Phat
-! write(fid) this%Ctp
+! 
+! 
 ! close(fid)
 ! 
 ! end subroutine write_to_file
-
 
 !*******************************************************************************
 subroutine print(this)
@@ -260,26 +274,26 @@ implicit none
 class(wake_model_base_t), intent(in) :: this
 integer :: i
 
-write(*,*) ' U_infty  = ', this%U_infty
-write(*,*) ' Delta    = ', this%Delta
-write(*,*) ' Dia      = ', this%Dia
-write(*,*) ' Nx       = ', this%Nx
-write(*,*) ' x        = ', this%x
-write(*,*) ' dx       = ', this%dx
-write(*,*) ' isDimensionless = ', this%isDimensionless
-write(*,*) ' LENGTH   = ', this%LENGTH
-write(*,*) ' VELOCITY = ', this%VELOCITY
-write(*,*) ' TIME     = ', this%TIME
-write(*,*) ' FORCE    = ', this%FORCE
-do i = 1, this%N
-    write(*,*) ' Wake', i,':'
-    write(*,*) '  s = ', this%s(i)
-    write(*,*) '  k = ', this%k(i)
-    write(*,*) '  G = ', this%G(i,:)
-    write(*,*) '  d = ', this%d(i,:)
-    write(*,*) '  dp = ', this%dp(i,:)
-    write(*,*) '  w = ', this%w(i,:)
-end do
+! write(*,*) ' U_infty  = ', this%U_infty
+! write(*,*) ' Delta    = ', this%Delta
+! write(*,*) ' Dia      = ', this%Dia
+! write(*,*) ' Nx       = ', this%Nx
+! write(*,*) ' x        = ', this%x
+! write(*,*) ' dx       = ', this%dx
+! write(*,*) ' isDimensionless = ', this%isDimensionless
+! write(*,*) ' LENGTH   = ', this%LENGTH
+! write(*,*) ' VELOCITY = ', this%VELOCITY
+! write(*,*) ' TIME     = ', this%TIME
+! ! write(*,*) ' FORCE    = ', this%FORCE
+! do i = 1, this%N
+!     write(*,*) ' Wake', i,':'
+!     write(*,*) '  s = ', this%s(i)
+!     write(*,*) '  k = ', this%k(i)
+!     write(*,*) '  G = ', this%G(i,:)
+!     write(*,*) '  d = ', this%d(i,:)
+!     write(*,*) '  dp = ', this%dp(i,:)
+!     write(*,*) '  w = ', this%w(i,:)
+! end do
 end subroutine print
 
 end module wake_model_base
