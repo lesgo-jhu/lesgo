@@ -37,7 +37,7 @@ type wake_model_base_t
     ! streamwise coordinate
     real(rprec), dimension(:), allocatable :: x
     ! Gaussian forcing function (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: G   
+    real(rprec), dimension(:,:), allocatable :: G
     ! dimensionless wake diameter (turbine, space)
     real(rprec), dimension(:,:), allocatable :: d
     ! d/dx of d (turbine, space)
@@ -70,7 +70,7 @@ type wake_model_base_t
     type(bicubic_spline_t) Ctp_spline, Cpp_spline
 contains
     procedure, public :: initialize_val
-    procedure, public :: print
+    ! procedure, public :: print
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
     procedure, public :: computeWakeExpansionFunctions
@@ -161,7 +161,7 @@ do i = 1, this%N
 end do
 
 call this%computeWakeExpansionFunctions
-    
+
 end subroutine initialize_val
 
 !*******************************************************************************
@@ -177,7 +177,7 @@ do i = 1, this%N
     this%dp(i,:) = 2.0 * this%k(i) * logistic(2.0 *                            &
         (this%s(i) + 2.0 * this%Delta)/this%Dia, 2.0*this%x/this%Dia)/this%Dia
     this%w(i,:) = 2.0 * this%U_infty * this%dp(i,:) / this%d(i,:)
-    this%f(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )   
+    this%f(i,:) = 2.0 * this%U_infty**2 * this%G(i,:) / ( this%d(i,:)**2 )
 end do
 
 end subroutine computeWakeExpansionFunctions
@@ -251,7 +251,7 @@ end subroutine makeDimensional
 ! class(wake_model_base_t), intent(in) :: this
 ! character(CHAR_BUFF_LENGTH), intent(in) :: fstring
 ! integer :: i, fid
-! 
+!
 ! !  Open vel.out (lun_default in io) for final output
 ! fid = open_file_fid(fstring, 'rewind', 'unformatted')
 ! write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                     &
@@ -260,40 +260,40 @@ end subroutine makeDimensional
 ! write(fid) this%s
 ! write(fid) this%k
 ! write(fid) this%x
-! 
-! 
+!
+!
 ! close(fid)
-! 
+!
 ! end subroutine write_to_file
-
-!*******************************************************************************
-subroutine print(this)
-!*******************************************************************************
-! Prints all variables of the class to standard output
-implicit none
-class(wake_model_base_t), intent(in) :: this
-integer :: i
-
-! write(*,*) ' U_infty  = ', this%U_infty
-! write(*,*) ' Delta    = ', this%Delta
-! write(*,*) ' Dia      = ', this%Dia
-! write(*,*) ' Nx       = ', this%Nx
-! write(*,*) ' x        = ', this%x
-! write(*,*) ' dx       = ', this%dx
-! write(*,*) ' isDimensionless = ', this%isDimensionless
-! write(*,*) ' LENGTH   = ', this%LENGTH
-! write(*,*) ' VELOCITY = ', this%VELOCITY
-! write(*,*) ' TIME     = ', this%TIME
-! ! write(*,*) ' FORCE    = ', this%FORCE
-! do i = 1, this%N
-!     write(*,*) ' Wake', i,':'
-!     write(*,*) '  s = ', this%s(i)
-!     write(*,*) '  k = ', this%k(i)
-!     write(*,*) '  G = ', this%G(i,:)
-!     write(*,*) '  d = ', this%d(i,:)
-!     write(*,*) '  dp = ', this%dp(i,:)
-!     write(*,*) '  w = ', this%w(i,:)
-! end do
-end subroutine print
+!
+! !*******************************************************************************
+! subroutine print(this)
+! !*******************************************************************************
+! ! Prints all variables of the class to standard output
+! implicit none
+! class(wake_model_base_t), intent(in) :: this
+! integer :: i
+!
+! ! write(*,*) ' U_infty  = ', this%U_infty
+! ! write(*,*) ' Delta    = ', this%Delta
+! ! write(*,*) ' Dia      = ', this%Dia
+! ! write(*,*) ' Nx       = ', this%Nx
+! ! write(*,*) ' x        = ', this%x
+! ! write(*,*) ' dx       = ', this%dx
+! ! write(*,*) ' isDimensionless = ', this%isDimensionless
+! ! write(*,*) ' LENGTH   = ', this%LENGTH
+! ! write(*,*) ' VELOCITY = ', this%VELOCITY
+! ! write(*,*) ' TIME     = ', this%TIME
+! ! ! write(*,*) ' FORCE    = ', this%FORCE
+! ! do i = 1, this%N
+! !     write(*,*) ' Wake', i,':'
+! !     write(*,*) '  s = ', this%s(i)
+! !     write(*,*) '  k = ', this%k(i)
+! !     write(*,*) '  G = ', this%G(i,:)
+! !     write(*,*) '  d = ', this%d(i,:)
+! !     write(*,*) '  dp = ', this%dp(i,:)
+! !     write(*,*) '  w = ', this%w(i,:)
+! ! end do
+! end subroutine print
 
 end module wake_model_base

@@ -202,11 +202,17 @@ class(wake_model_t), intent(inout) :: this
 
 if (.not.this%isDimensionless) then
     call this%wake_model_base_t%makeDimensionless
+    ! units V
     this%du = this%du / this%VELOCITY
     this%u = this%u / this%VELOCITY
     this%uhat = this%uhat / this%VELOCITY
-    this%Phat = this%Phat / this%VELOCITY**3
-    this%Paero = this%Paero / this%VELOCITY**3
+    ! units power
+    this%Phat = this%Phat / this%POWER
+    this%Paero = this%Paero / this%POWER
+    ! units T^-1
+    this%omega = this%omega * this%TIME
+    ! units TORQUE
+    this%gen_torque = this%gen_torque / this%TORQUE
 end if
 
 end subroutine makeDimensionless
@@ -219,11 +225,17 @@ class(wake_model_t), intent(inout) :: this
 
 if (this%isDimensionless) then
     call this%wake_model_base_t%makeDimensional
+    ! units V
     this%du = this%du * this%VELOCITY
     this%u = this%u * this%VELOCITY
     this%uhat = this%uhat * this%VELOCITY
-    this%Phat = this%Phat * this%VELOCITY**3
-    this%Paero = this%Paero * this%VELOCITY**3
+    ! units power
+    this%Phat = this%Phat * this%POWER
+    this%Paero = this%Paero * this%POWER
+    ! units T^-1
+    this%omega = this%omega / this%TIME
+    ! units TORQUE
+    this%gen_torque = this%gen_torque * this%TORQUE
 end if
 
 end subroutine makeDimensional
