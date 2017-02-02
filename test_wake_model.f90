@@ -16,7 +16,7 @@ real(rprec) :: cfl, dt
 
 ! wake model variables
 type(wake_model_t) :: wm
-type(wake_model_adjoint_t) :: wma
+! type(wake_model_adjoint_t) :: wma
 real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 integer :: N, Nx, Nt
@@ -44,7 +44,7 @@ torque_gain = 2.1648e6
 U_infty = 9._rprec
 N = 7
 Nx = 256
-Nt = 2*Nx
+Nt = 5!*Nx
 allocate(s(N))
 allocate(k(N))
 allocate(beta(N))
@@ -72,31 +72,48 @@ Bj = 0._rprec
 Bdu = 0._rprec
 Bw = 0._rprec
 
+call wm%makeDimensionless
+
 ! integrate the wake model forward in time at least 2 flow through times
-dt = cfl * wm%dx / U_infty
+dt = cfl * wm%dx / wm%U_infty
 do i = 1, Nt
     do j = 1, wm%N
-        gen_torque = torque_gain * wm%omega**2
+        gen_torque = torque_gain * wm%omega**2 / wm%TIME**2 / wm%TORQUE
     end do
     call wm%advance(beta, gen_torque, dt)
-    write(*,*) sum(wm%Phat)
-    Pref = 1.1E7
+    write(*,*) sum(wm%Phat)*wm%POWER
+    Pref = 1._rprec
     call wm%adjoint_values(Pref, fstar(i,:,:), Adu(i,:), Aw(i,:), Bj(i,:), Bdu(i,:), Bw(i,:))
-!     write(*,*) dt*i, wm%uhat(1), wm%omega(1), wm%Ctp(1), wm%Cpp(1), wm%beta(1)
 end do
-
-write(*,*) Adu(Nt,:)
-write(*,*) Aw(Nt,:)
-write(*,*) Bj(Nt,:)
-write(*,*) Bdu(Nt,:)
-write(*,*) Bw(Nt,:)
-
-deallocate(fstar)
-deallocate(Adu)
-deallocate(Aw)
-deallocate(Bj)
-deallocate(Bdu)
-deallocate(Bw)
+!
+! write(*,*) "Adu = ", Adu(Nt,:)
+! write(*,*) "Aw = ", Aw(Nt,:)
+! write(*,*) "Bj = ", Bj(Nt,:)
+! write(*,*) "Bdu = ", Bdu(Nt,:)
+! write(*,*) "Bw = ", Bw(Nt,:)
+!
+! deallocate(fstar)
+! deallocate(Adu)
+! deallocate(Aw)
+! deallocate(Bj)
+! deallocate(Bdu)
+! deallocate(Bw)
+!
+! write(*,*) "int(G) = ", sum(wm%G,2)*wm%dx
+!
+! ! call wm%makeDimensional
+! write(*,*) "uhat = ", wm%uhat
+! write(*,*) "gen_torque = ", wm%gen_torque
+! write(*,*) "Paero = ", wm%Paero
+! write(*,*) "omega = ", wm%omega
+! write(*,*) "J = ", wm%inertia
+!
+! write(*,*) "TIME = ", wm%TIME
+! write(*,*) "LENGTH = ", wm%LENGTH
+! write(*,*) "VELOCITY = ", wm%VELOCITY
+! write(*,*) "MASS = ", wm%MASS
+! write(*,*) "TORQUE = ", wm%TORQUE
+! write(*,*) "POWER = ", wm%POWER
 
 !
 ! ! create minimizer

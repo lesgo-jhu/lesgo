@@ -201,14 +201,14 @@ if (.not.this%isDimensionless) then
     this%dp = this%dp * this%LENGTH
     ! units T^-1
     this%w = this%w * this%TIME
-    ! units V*T^-1
+    ! units V*T^-2
     this%f = this%f / this%VELOCITY * this%TIME
     ! units V
     this%U_infty = this%U_infty / this%VELOCITY
     ! units M*L^-3
     this%rho = this%rho / this%MASS * this%LENGTH**3
-    ! unites TORQUE^-1
-    this%inertia = this%inertia * this%TORQUE
+    ! units TORQUE*T^2
+    this%inertia = this%inertia / ( this%TORQUE * this%TIME**2 )
 end if
 end subroutine makeDimensionless
 
@@ -236,8 +236,8 @@ if (this%isDimensionless) then
     this%U_infty = this%U_infty * this%VELOCITY
     ! units M*L^-3
     this%rho = this%rho * this%MASS / this%LENGTH**3
-    ! unites TORQUE^-1
-    this%inertia = this%inertia / this%TORQUE
+    ! units TORQUE*T^2
+    this%inertia = this%inertia * this%TORQUE * this%TIME**2
 end if
 end subroutine makeDimensional
 

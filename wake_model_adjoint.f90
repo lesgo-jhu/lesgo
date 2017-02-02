@@ -32,40 +32,28 @@ private
 public wake_model_adjoint_t
 
 type, extends(wake_model_base_t) :: wake_model_adjoint_t
-! 
-!     ! velocity deficit (turbine, space)
-!     real(rprec), dimension(:,:), allocatable :: du
-!     ! superimposed velocity (space)
-!     real(rprec), dimension(:), allocatable :: u    
-!     ! estimated local turbine velocity (turbine)
-!     real(rprec), dimension(:), allocatable :: uhat 
-!     ! estimated turbine power (turbine)
-!     real(rprec), dimension(:), allocatable :: Phat 
-!     ! local thrust coefficient (turbine)
-!     real(rprec), dimension(:), allocatable :: Ctp
-!     ! local thrust coefficient (turbine)
-!     real(rprec), dimension(:), allocatable :: Cpp
-!     ! rotational speed (turbine) (needs to be nondimensionalized)
-!     real(rprec), dimension(:), allocatable :: omega
-!     ! blade pitch angle
-!     real(rprec), dimension(:), allocatable :: beta
-!     ! generator torque
-!     real(rprec), dimension(:), allocatable :: gen_torque
+    ! adjoint velocity deficit (turbine,space)
+    real(rprec), dimension(:,:), allocatable :: du_star
+    ! adjoint superimposed velocity (space)
+    real(rprec), dimension(:), allocatable :: u_star
+    ! adjoint estimated local turbine velocity (turbine)
+    real(rprec), dimension(:), allocatable :: uhat_star
+    ! adjoint rotational speed (turbine)
+    real(rprec), dimension(:), allocatable :: omega_star
 contains
     procedure, public :: initialize_val
-    procedure, private :: initialize_file
+    ! procedure, private :: initialize_file
 !     procedure, public :: print
 !     procedure, public :: write_to_file
-!     procedure, public :: makeDimensionless
-!     procedure, public :: makeDimensional
-!     procedure, public :: advance
-!     procedure, private :: rhs
-!     
+    procedure, public :: makeDimensionless
+    procedure, public :: makeDimensional
+    procedure, public :: retract
+    procedure, private :: rhs
 end type wake_model_adjoint_t
 
 interface wake_model_adjoint_t
     module procedure :: constructor_val
-    module procedure :: constructor_file
+    ! module procedure :: constructor_file
 end interface wake_model_adjoint_t
 
 contains
@@ -85,21 +73,21 @@ type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
     i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
 end function constructor_val
-
-!*******************************************************************************
-function constructor_file(fstring) result(this)
-!*******************************************************************************
-! Constructor for wake model that reads from file
-use open_file_fid_mod
-use param, only : CHAR_BUFF_LENGTH
-implicit none
-
-type(wake_model_adjoint_t) :: this
-character(*), intent(in) :: fstring
-
-call this%initialize_file(fstring)
-
-end function constructor_file
+!
+! !*******************************************************************************
+! function constructor_file(fstring) result(this)
+! !*******************************************************************************
+! ! Constructor for wake model that reads from file
+! use open_file_fid_mod
+! use param, only : CHAR_BUFF_LENGTH
+! implicit none
+!
+! type(wake_model_adjoint_t) :: this
+! character(*), intent(in) :: fstring
+!
+! call this%initialize_file(fstring)
+!
+! end function constructor_file
 
 !*******************************************************************************
 subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
@@ -116,17 +104,12 @@ type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&
     i_rho, i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
 
-! allocate( this%du(this%N, this%Nx) )
-! allocate( this%u(this%Nx) )
-! allocate( this%uhat(this%N) )
-! allocate( this%Phat(this%N) )
-! allocate( this%Ctp(this%N)  )
-! allocate( this%Cpp(this%N)  )
-! allocate( this%omega(this%N)  )
-! allocate( this%beta(this%N)  )
-! allocate( this%gen_torque(this%N)  )
-! 
-! this%du(:,:) = 0._rprec
+allocate( this%du_star(this%N, this%Nx) )
+allocate( this%u_star(this%Nx) )
+allocate( this%uhat_star(this%N) )
+allocate( this%omega_star(this%N)  )
+!
+this%du_star(:,:) = 0._rprec
 ! this%u(:) = this%U_infty
 ! this%uhat(:) = this%U_infty
 ! this%Phat(:) = 0._rprec
@@ -135,26 +118,26 @@ call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&
 ! this%omega(:) = 1._rprec
 ! this%beta(:) = 0._rprec
 ! this%gen_torque(:) = 0._rprec
-    
+
 end subroutine initialize_val
-
-!*******************************************************************************
-subroutine initialize_file(this, fstring)
-!*******************************************************************************
-use open_file_fid_mod
-use param, only : CHAR_BUFF_LENGTH
-implicit none
-
-class(wake_model_adjoint_t), intent(inout) :: this
-character(*), intent(in) :: fstring
-integer :: i, fid
-! 
+!
+! !*******************************************************************************
+! subroutine initialize_file(this, fstring)
+! !*******************************************************************************
+! use open_file_fid_mod
+! use param, only : CHAR_BUFF_LENGTH
+! implicit none
+!
+! class(wake_model_adjoint_t), intent(inout) :: this
+! character(*), intent(in) :: fstring
+! integer :: i, fid
+!
 ! !  Open vel.out (lun_default in io) for final output
 ! fid = open_file_fid(fstring, 'rewind', 'unformatted')
 ! read(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                      &
 !           this%U_infty, this%isDimensionless
 ! read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
-! 
+!
 ! allocate( this%s(this%N)    )
 ! allocate( this%k(this%N)    )
 ! allocate( this%uhat(this%N) )
@@ -167,8 +150,8 @@ integer :: i, fid
 ! allocate( this%dp(this%N, this%Nx) )
 ! allocate( this%w(this%N,  this%Nx) )
 ! allocate( this%fp(this%N, this%Nx) )
-! allocate( this%du(this%N, this%Nx) )    
-! 
+! allocate( this%du(this%N, this%Nx) )
+!
 ! read(fid) this%s
 ! read(fid) this%k
 ! read(fid) this%x
@@ -178,47 +161,51 @@ integer :: i, fid
 ! read(fid) this%Phat
 ! read(fid) this%Ctp
 ! close(fid)
-! 
+!
 ! do i = 1, this%N
 !     this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
 !     this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
 ! end do
 ! call this%computeWakeExpansionFunctions
+!
+! end subroutine initialize_file
+!
+!*******************************************************************************
+subroutine makeDimensionless(this)
+!*******************************************************************************
+implicit none
+class(wake_model_adjoint_t), intent(inout) :: this
 
-end subroutine initialize_file
-! 
-! !*******************************************************************************
-! subroutine makeDimensionless(this)
-! !*******************************************************************************
-! implicit none
-! class(wake_model_adjoint_t), intent(inout) :: this
-! 
-! if (.not.this%isDimensionless) then
-!     call this%wake_model_base_t%makeDimensionless    
-!     this%du = this%du / this%VELOCITY
-!     this%u = this%u / this%VELOCITY
-!     this%uhat = this%uhat / this%VELOCITY
-!     this%Phat = this%uhat / this%VELOCITY**3
-! end if
-! 
-! end subroutine makeDimensionless
-! 
-! !*******************************************************************************
-! subroutine makeDimensional(this)
-! !*******************************************************************************
-! implicit none
-! class(wake_model_adjoint_t), intent(inout) :: this
-! 
-! if (this%isDimensionless) then
-!     call this%wake_model_base_t%makeDimensional  
-!     this%du = this%du * this%VELOCITY
-!     this%u = this%u * this%VELOCITY
-!     this%uhat = this%uhat * this%VELOCITY
-!     this%Phat = this%uhat * this%VELOCITY**3
-! end if
-! 
-! end subroutine makeDimensional
-! 
+if (.not.this%isDimensionless) then
+    call this%wake_model_base_t%makeDimensionless
+    ! units V
+    this%du_star = this%du_star / this%VELOCITY
+    this%u_star = this%u_star / this%VELOCITY
+    this%uhat_star = this%uhat_star / this%VELOCITY
+    ! units T^(-1)
+    this%omega_star = this%omega_star * this%TIME
+end if
+
+end subroutine makeDimensionless
+
+!*******************************************************************************
+subroutine makeDimensional(this)
+!*******************************************************************************
+implicit none
+class(wake_model_adjoint_t), intent(inout) :: this
+
+if (this%isDimensionless) then
+    call this%wake_model_base_t%makeDimensional
+    ! units V
+    this%du_star = this%du_star * this%VELOCITY
+    this%u_star = this%u_star * this%VELOCITY
+    this%uhat_star = this%uhat_star * this%VELOCITY
+    ! units T^(-1)
+    this%omega_star = this%omega_star / this%TIME
+end if
+
+end subroutine makeDimensional
+!
 ! !*******************************************************************************
 ! subroutine write_to_file(this, fstring)
 ! !*******************************************************************************
@@ -229,7 +216,7 @@ end subroutine initialize_file
 ! class(wake_model_adjoint_t), intent(in) :: this
 ! character(CHAR_BUFF_LENGTH), intent(in) :: fstring
 ! integer :: fid
-! 
+!
 ! !  Open vel.out (lun_default in io) for final output
 ! fid = open_file_fid(fstring, 'rewind', 'unformatted')
 ! write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                     &
@@ -244,9 +231,9 @@ end subroutine initialize_file
 ! write(fid) this%Phat
 ! write(fid) this%Ctp
 ! close(fid)
-! 
+!
 ! end subroutine write_to_file
-! 
+!
 ! !*******************************************************************************
 ! subroutine print(this)
 ! !*******************************************************************************
@@ -254,7 +241,7 @@ end subroutine initialize_file
 ! implicit none
 ! class(wake_model_adjoint_t), intent(in) :: this
 ! integer :: i
-! 
+!
 ! write(*,*) ' U_infty = ', this%U_infty
 ! write(*,*) ' Delta   = ', this%Delta
 ! write(*,*) ' Dia     = ', this%Dia
@@ -277,9 +264,9 @@ end subroutine initialize_file
 !     write(*,*) '  dp = ', this%dp(i,:)
 !     write(*,*) '  w = ', this%w(i,:)
 ! end do
-! 
+!
 ! end subroutine print
-! 
+!
 ! !*******************************************************************************
 ! subroutine advance(this, beta, gen_torque, dt)
 ! !*******************************************************************************
@@ -290,11 +277,11 @@ end subroutine initialize_file
 ! integer :: i
 ! real(rprec), dimension(:), allocatable :: du_superimposed
 ! real(rprec) :: lambda_prime, Paero
-! 
+!
 ! if (size(beta) /= this%N .or. size(gen_torque) /= this%N) then
 !     call error('wake_model_adjoint_t.advance','beta and gen_torque must be size N')
 ! end if
-! 
+!
 ! ! Compute new wake deficit and superimpose wakes
 ! allocate(du_superimposed(this%Nx))
 ! du_superimposed = 0.0
@@ -304,18 +291,18 @@ end subroutine initialize_file
 !     du_superimposed = du_superimposed + this%du(i,:)**2
 ! end do
 ! du_superimposed = sqrt(du_superimposed)
-! 
+!
 ! ! Calculate new rotational speed
 ! do i = 1, this%N
 !     Paero = this%rho * pi * this%Dia**2 * this%Cpp(i) * this%uhat(i)**3 / 8.d0
 !     this%omega(i) = this%omega(i) + dt * (Paero / this%omega(i)         &
 !         - this%gen_torque(i)) / this%inertia
-!         
+!
 ! end do
-! 
+!
 ! ! Find the velocity field
 ! this%u = this%U_infty - du_superimposed
-! 
+!
 ! ! Find estimated velocities
 ! do i = 1, this%N
 !     this%beta(i) = beta(i)
@@ -326,26 +313,61 @@ end subroutine initialize_file
 !     call this%Cpp_spline%interp(this%beta(i), lambda_prime, this%Cpp(i))
 !     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 ! end do
-!     
+!
 ! end subroutine advance
-! 
-! !*******************************************************************************
-! function rhs(this, du, f, i) result(ddudt)
-! !*******************************************************************************
-! ! Evaluates RHS of wake equation
-! use util, only : ddx_upwind1
-! implicit none
-! class(wake_model_adjoint_t), intent(in) :: this
-! real(rprec), dimension(:), intent(in) :: f, du
-! integer, intent(in) :: i
-! real(rprec), dimension(:), allocatable :: ddudt, ddudx
-! 
-! allocate(ddudt(this%Nx))
-! allocate(ddudx(this%Nx))
-! 
-! ddudx = ddx_upwind1(du, this%dx)
-! ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
-! 
-! end function rhs
+
+!*******************************************************************************
+subroutine retract(this, fstar, Adu, Aw, Bj, Bdu, Bw, dt)!, g)
+    !***************************************************************************
+    implicit none
+    class(wake_model_adjoint_t), intent(inout) :: this
+    real(rprec), dimension(:,:), intent(in) :: fstar
+    real(rprec), dimension(:), intent(in) :: Adu, Aw, Bj, Bdu, Bw
+    real(rprec), intent(in) :: dt
+    real(rprec) :: fdustar
+    integer :: i
+
+    ! adjoint of velocity field is a sum. Set to 0
+    this%u_star = 0._rprec
+
+    ! compute adjoints of everything except velocity field
+    do i = 1, this%N
+        ! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
+        fdustar = sum(this%f(i,:)*this%du_star(i,:)) * this%dx
+        ! forward differencing of adjoint rotational speed equation
+        this%omega_star(i) = this%omega_star(i) + dt * ( Bj(i) + Bdu(i)*fdustar&
+                             + Bw(i) * this%omega_star(i) )
+        ! adjoint of estimated velocity
+        this%uhat_star(i) = Adu(i)*fdustar + Aw(i)*this%omega_star(i)
+        ! superimpose adjoints of estimated velocities
+        this%u_star = this%u_star + this%G(i,:)*this%uhat_star(i)
+    enddo
+
+    ! compute velocity field adjoints
+    do i = 1, this%N
+        this%du_star(i,:) = this%du_star(i,:) - dt                             &
+            * this%rhs(this%du_star(i,:), fstar(i,:)*this%u_star, i)
+    enddo
+
+end subroutine retract
+
+!*******************************************************************************
+function rhs(this, du, f, i) result(ddudt)
+!*******************************************************************************
+! Evaluates RHS of wake equation
+use util, only : ddx_downwind1
+implicit none
+class(wake_model_adjoint_t), intent(in) :: this
+real(rprec), dimension(:), intent(in) :: f, du
+integer, intent(in) :: i
+real(rprec), dimension(:), allocatable :: ddudt, ddudx
+
+allocate(ddudt(this%Nx))
+allocate(ddudx(this%Nx))
+
+ddudx = ddx_downwind1(du, this%dx)
+ddudt = -this%U_infty * ddudx - this%w(i,:) * du - f
+
+end function rhs
 
 end module wake_model_adjoint

@@ -46,7 +46,7 @@ type, extends(wake_model_base_t) :: wake_model_t
     real(rprec), dimension(:), allocatable :: Ctp
     ! local thrust coefficient (turbine)
     real(rprec), dimension(:), allocatable :: Cpp
-    ! rotational speed (turbine) (needs to be nondimensionalized)
+    ! rotational speed (turbine)
     real(rprec), dimension(:), allocatable :: omega
     ! blade pitch angle
     real(rprec), dimension(:), allocatable :: beta
@@ -304,6 +304,8 @@ end subroutine makeDimensional
 !*******************************************************************************
 subroutine advance(this, beta, gen_torque, dt)
 !*******************************************************************************
+! Note: every input value is for time step n. Values at time step n-1 were saved
+! during the previous call the advance and are used before being reassigned.
 implicit none
 class(wake_model_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
@@ -327,10 +329,8 @@ du_superimposed = sqrt(du_superimposed)
 
 ! Calculate new rotational speed
 do i = 1, this%N
-    this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i) * this%uhat(i)**3 / 8.d0
     this%omega(i) = this%omega(i) + dt * (this%Paero(i) / this%omega(i)       &
         - this%gen_torque(i)) / this%inertia
-
 end do
 
 ! Find the velocity field
@@ -344,6 +344,8 @@ do i = 1, this%N
     this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
     call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
     call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
+    this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &
+                    * this%uhat(i)**3 / 8._rprec
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 end do
 
