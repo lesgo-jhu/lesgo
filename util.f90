@@ -210,14 +210,14 @@ subroutine rosenbrock(x, f, g)
     implicit none
     real(rprec), dimension(:), intent(in)                 :: x
     real(rprec), intent(inout)                            :: f
-    real(rprec), dimension(:), allocatable, intent(inout) :: g
+    real(rprec), dimension(:), intent(inout) :: g
     
     if (size(x) /= 2) then
         call error('util.rosenbrock','Rosenbrock requires an array of size 2.')
     end if
-    if (.not. allocated(g)) then
-        allocate(g(2))
-    end if
+   !  if (.not. allocated(g)) then
+!         allocate(g(2))
+!     end if
 
     ! Function value
     f = (1.0 - x(1))**2 + 100.0 * (x(2) - x(1)**2)**2;
