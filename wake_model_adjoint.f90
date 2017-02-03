@@ -109,15 +109,10 @@ allocate( this%u_star(this%Nx) )
 allocate( this%uhat_star(this%N) )
 allocate( this%omega_star(this%N)  )
 !
-this%du_star(:,:) = 0._rprec
-! this%u(:) = this%U_infty
-! this%uhat(:) = this%U_infty
-! this%Phat(:) = 0._rprec
-! this%Ctp(:) = 0._rprec
-! this%Cpp(:) = 0._rprec
-! this%omega(:) = 1._rprec
-! this%beta(:) = 0._rprec
-! this%gen_torque(:) = 0._rprec
+this%du_star = 0._rprec
+this%u_star = 0._rprec
+this%uhat_star = 0._rprec
+this%omega_star = 0._rprec
 
 end subroutine initialize_val
 !

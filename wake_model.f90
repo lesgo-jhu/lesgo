@@ -131,17 +131,17 @@ allocate( this%beta(this%N)  )
 allocate( this%lambda_prime(this%N)  )
 allocate( this%gen_torque(this%N)  )
 
-this%du(:,:) = 0._rprec
-this%u(:) = this%U_infty
-this%uhat(:) = this%U_infty
-this%Phat(:) = 0._rprec
-this%Paero(:) = 0._rprec
-this%Ctp(:) = 0._rprec
-this%Cpp(:) = 0._rprec
-this%omega(:) = 1._rprec
-this%beta(:) = 0._rprec
-this%lambda_prime(:) = 0.5_rprec * this%Dia / this%U_infty
-this%gen_torque(:) = 0._rprec
+this%du = 0._rprec
+this%u = this%U_infty
+this%uhat = this%U_infty
+this%Phat = 0._rprec
+this%Paero = 0._rprec
+this%Ctp = 0._rprec
+this%Cpp = 0._rprec
+this%omega = 1._rprec
+this%beta = 0._rprec
+this%lambda_prime = 0.5_rprec * this%Dia / this%U_infty
+this%gen_torque = 0._rprec
 
 end subroutine initialize_val
 !

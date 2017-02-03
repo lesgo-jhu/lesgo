@@ -16,7 +16,7 @@ real(rprec) :: cfl, dt
 
 ! wake model variables
 type(wake_model_t) :: wm
-! type(wake_model_adjoint_t) :: wma
+type(wake_model_adjoint_t) :: wma
 real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 integer :: N, Nx, Nt
@@ -56,7 +56,9 @@ do i = 1, N
 end do
 call generate_splines
 wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
-                  wm_Ct_prime_spline, wm_Cp_prime_spline)
+    wm_Ct_prime_spline, wm_Cp_prime_spline)
+wma = wake_model_adjoint_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,        &
+    wm_Ct_prime_spline, wm_Cp_prime_spline)
 
 ! adjoint variables
 allocate(fstar(Nt, N, Nx))
@@ -81,10 +83,16 @@ do i = 1, Nt
         gen_torque = torque_gain * wm%omega**2 / wm%TIME**2 / wm%TORQUE
     end do
     call wm%advance(beta, gen_torque, dt)
-    write(*,*) sum(wm%Phat)*wm%POWER
-    Pref = 1._rprec
     call wm%adjoint_values(Pref, fstar(i,:,:), Adu(i,:), Aw(i,:), Bj(i,:), Bdu(i,:), Bw(i,:))
 end do
+
+! integrate adjoints backwards in time
+do i = 1, Nt
+    call wma%retract(fstar(i,:,:), Adu(i,:), Aw(i,:), Bj(i,:), Bdu(i,:), Bw(i,:), dt)
+    write(*,*) wma%uhat_star
+end do
+
+
 !
 ! write(*,*) "Adu = ", Adu(Nt,:)
 ! write(*,*) "Aw = ", Aw(Nt,:)
