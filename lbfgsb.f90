@@ -1,5 +1,24 @@
+!!
+!!  Copyright (C) 2016  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
 !*******************************************************************************
-module lbfgsb_class
+module lbfgsb
 !*******************************************************************************
 use types, only : rprec
 use minimize
@@ -7,11 +26,11 @@ use line_search
 use messages
 
 private
-public lbfgsb
+public lbfgsb_t
 
-type :: lbfgsb
+type :: lbfgsb_t
     class(minimize_t), pointer :: mini => NULL()
-    integer :: maxiteri = 10000      ! maximum number of iteriations
+    integer :: maxiteri = 10000      ! maximum number of iterations
     real(rprec) :: lb = -10000000   ! -Infinity
     real(rprec) :: ub = 10000000    ! Infinity
     real(rprec) :: tol = 1E-6       ! convergence level
@@ -19,11 +38,11 @@ type :: lbfgsb
 contains
    procedure, public :: minimize
    procedure, private :: minimize_priv
-end type lbfgsb
+end type lbfgsb_t
 
-interface lbfgsb
+interface lbfgsb_t
     module procedure :: constructor
-end interface lbfgsb
+end interface lbfgsb_t
 
 contains
 
@@ -31,16 +50,16 @@ contains
 function constructor(i_mini, i_maxiteri, i_lb, i_ub, i_tol) result(this)
 !*******************************************************************************
 implicit none
-type(lbfgsb) :: this
+type(lbfgsb_t) :: this
 class(minimize_t), target :: i_mini
 integer, intent(in), optional :: i_maxiteri
 real(rprec), intent(in), optional :: i_lb, i_ub, i_tol
 
 ! Assign input arguments
-if ( present(i_maxiteri) )   this%maxiteri = i_maxiteri
-if ( present(i_tol) )       this%tol     = i_tol
-if ( present(i_lb) )        this%lb      = i_lb
-if ( present(i_ub) )        this%ub      = i_ub
+if ( present(i_maxiteri) ) this%maxiteri = i_maxiteri
+if ( present(i_tol) ) this%tol = i_tol
+if ( present(i_lb) ) this%lb = i_lb
+if ( present(i_ub) ) this%ub = i_ub
 this%mini => i_mini
 this%ls = line_search_t(i_mini, 1E-3_rprec, 0.9_rprec, 0.1_rprec)
 end function constructor
@@ -49,7 +68,7 @@ end function constructor
 subroutine minimize(this, i_x, o_x)
 !*******************************************************************************
 implicit none
-class(lbfgsb), intent(inout) :: this
+class(lbfgsb_t), intent(inout) :: this
 real(rprec), dimension(:), intent(in) :: i_x
 real(rprec), dimension(:), intent(out), optional :: o_x
 real(rprec), dimension(:), allocatable :: x_work
@@ -75,7 +94,7 @@ end subroutine minimize
 subroutine minimize_priv(this, x, n, m)
 !*******************************************************************************
 implicit none
-class(lbfgsb), intent(inout) :: this
+class(lbfgsb_t), intent(inout) :: this
 integer, intent(in) :: n, m
 real(rprec), dimension(n), intent(inout) :: x
 real(rprec), dimension(n) :: l, u, g
@@ -88,47 +107,23 @@ real(rprec) :: f, factr, pgtol
 character*60 :: task
 integer :: iprint
 
-! n is an integer variable.
-!   On entry n is the dimension of the problem.
-!   On exit n is unchanged.
-!
-! m is an integer variable.
-!   On entry m is the maximum number of variable metric corrections
-!     used to define the limited memory matrix.
-!   On exit m is unchanged.
-!
-! x is a double precision array of dimension n.
-!   On entry x is an approximation to the solution.
-!   On exit x is the current approximation.
-!
-! l is a double precision array of dimension n.
-!   On entry l is the lower bound on x.
-!   On exit l is unchanged.
-!
-! u is a double precision array of dimension n.
-!   On entry u is the upper bound on x.
-!   On exit u is unchanged.
-!
-! nbd is an integer array of dimension n.
-!   On entry nbd represents the type of bounds imposed on the
+! n is the dimension of the problem.
+! m is the maximum number of variable metric corrections
+!   used to define the limited memory matrix.
+! x is an approximation to the solution.
+! l is the lower bound on x.
+! u is the upper bound on x.
+! nbd represents the type of bounds imposed on the
 !     variables, and must be specified as follows:
 !     nbd(i)=0 if x(i) is unbounded,
 !            1 if x(i) has only a lower bound,
 !            2 if x(i) has both lower and upper bounds, and
 !            3 if x(i) has only an upper bound.
-!   On exit nbd is unchanged.
+! f is the value of the function at x.
+! g is the value of the gradient at x.
 !
-! f is a double precision variable.
-!   On first entry f is unspecified.
-!   On final exit f is the value of the function at x.
-!
-! g is a double precision array of dimension n.
-!   On first entry g is unspecified.
-!   On final exit g is the value of the gradient at x.
-!
-! factr is a double precision variable.
-!   On entry factr >= 0 is specified by the user.  The iteriation
-!     will stop when
+! factr is a value that specified when the iteration
+!     will stop
 !
 !     (f^k - f^{k+1})/max{|f^k|,|f^{k+1}|,1} <= factr*epsmch
 !
@@ -136,10 +131,9 @@ integer :: iprint
 !     generated by the code. Typical values for factr: 1.d+12 for
 !     low accuracy; 1.d+7 for moderate accuracy; 1.d+1 for extremely
 !     high accuracy.
-!   On exit factr is unchanged.
 !
 ! pgtol is a double precision variable.
-!   On entry pgtol >= 0 is specified by the user.  The iteriation
+!   On entry pgtol >= 0 is specified by the user.  The iteration
 !     will stop when
 !
 !             max{|proj g_i | i = 1, ..., n} <= pgtol
@@ -158,15 +152,13 @@ integer :: iprint
 ! iprint is an integer variable that must be set by the user.
 !   It controls the frequency and type of output generated:
 !    iprint<0    no output is generated;
-!    iprint=0    print only 1._rprec line at the last iteriation;
-!    0<iprint<99 print also f and |proj g| every iprint iteriations;
-!    iprint=99   print details of every iteriation except n-vectors;
+!    iprint=0    print only 1._rprec line at the last iteration;
+!    0<iprint<99 print also f and |proj g| every iprint iterations;
+!    iprint=99   print details of every iteration except n-vectors;
 !    iprint=100  print also the changes of active set and final x;
-!    iprint>100  print details of every iteriation including x and g;
+!    iprint>100  print details of every iteration including x and g;
 !   When iprint > 0, the file iteriate.dat will be created to
-!                    summarize the iteriation.
-!
-! csave is a working string of characters of length 60.
+!                    summarize the iteration.
 
 real(rprec), dimension(8*m) :: wa
 real(rprec), dimension(m, m) :: ss, wt
@@ -533,7 +525,7 @@ do while (iter < this%maxiteri)
 end do
 
 ! Print result
-write(*,*) 'L-BFGS-B terminated after ', iter, 'iteriations. Minimum f = ',f
+write(*,*) 'L-BFGS-B terminated after ', iter, 'iterations. Minimum f = ',f
 
 end subroutine minimize_priv
 
@@ -1121,6 +1113,11 @@ integer :: i,j,col2,nfree,nbreak,pointr,ibp,nleft,ibkmin,iter
 double precision :: f1,f2,dt,dtm,tsum,dibp,zibp,dibp2,bkmin, tu,tl,wmc,wmp,wmw
 double precision :: ddot,tj,tj0,neggi,sbgnrm,f2_org
 logical :: iterate = .true., finish_loop = .true.
+
+! initialize to prevent warning at compile time
+nleft = -100000
+tu = -1000000d0
+tl = -1000000d0
 
 ! Check the status of the variables, reset iwhere(i) if necessary;
 !   compute the Cauchy direction d and the breakpoints t; initialize
@@ -2452,4 +2449,4 @@ endif
 end subroutine formk
 
 
-end module lbfgsb_class
+end module lbfgsb

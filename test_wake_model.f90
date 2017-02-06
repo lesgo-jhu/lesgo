@@ -10,7 +10,7 @@ use wake_model_adjoint
 use open_file_fid_mod
 use functions, only : linear_interp
 use cubic_spline
-use lbfgsb_class
+use lbfgsb
 use minimize
 use util, only : rosenbrock
 implicit none
@@ -30,12 +30,15 @@ implicit none
 ! real(rprec) :: Pref
 
 type(minimize_t) mini
-type(lbfgsb) :: l
+type(lbfgsb_t) :: l
 real(rprec), dimension(2) :: x, ox
+real(rprec) :: lb, ub
+lb = -10000000._rprec
+ub = 0.5_rprec
 
 x = 111._rprec
 mini = minimize_t(rosenbrock)
-l = lbfgsb(mini)
+l = lbfgsb_t(mini)!, 1000, lb, ub)
 call l%minimize(x, ox)
 write(*,*) ox
 !
