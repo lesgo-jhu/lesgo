@@ -33,7 +33,7 @@ type(minimize_t) mini
 type(lbfgsb) :: l
 real(rprec), dimension(2) :: x, ox
 
-x = 100._rprec
+x = 111._rprec
 mini = minimize_t(rosenbrock)
 l = lbfgsb(mini)
 call l%minimize(x, ox)

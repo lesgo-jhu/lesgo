@@ -39,11 +39,11 @@ type :: line_search_t
     real(rprec) :: xtol = 1E-6              ! Maximum relative width of uncertainty
     real(rprec) :: minStep = 0.0            ! Minimum step size
     real(rprec) :: maxStep = 10000          ! Maximum step size
-    integer :: maxFunEval = 100         ! Maximum number of function evaluations
+    integer :: maxFunEval = 100             ! Maximum number of function evaluations
     ! NOTE: Should not be const
-    logical :: bracketed = .false.      ! The minimum is current bracketed
+    logical :: bracketed = .false.          ! The minimum is current bracketed
     real(rprec) :: curMinStep  = 0.0        ! Minimum step for current trial within interval of uncertainty
-    real(rprec) :: curMaxStep  = 0.0       ! Maximum step for current trial within interval of uncertainty
+    real(rprec) :: curMaxStep  = 0.0        ! Maximum step for current trial within interval of uncertainty
     character(13) :: class_name = 'line_search_t'
 contains
     procedure, public :: search
