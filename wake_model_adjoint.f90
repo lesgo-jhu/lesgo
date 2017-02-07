@@ -313,36 +313,36 @@ end subroutine makeDimensional
 
 !*******************************************************************************
 subroutine retract(this, fstar, Adu, Aw, Bj, Bdu, Bw, dt)!, g)
-    !***************************************************************************
-    implicit none
-    class(wake_model_adjoint_t), intent(inout) :: this
-    real(rprec), dimension(:,:), intent(in) :: fstar
-    real(rprec), dimension(:), intent(in) :: Adu, Aw, Bj, Bdu, Bw
-    real(rprec), intent(in) :: dt
-    real(rprec) :: fdustar
-    integer :: i
+!***************************************************************************
+implicit none
+class(wake_model_adjoint_t), intent(inout) :: this
+real(rprec), dimension(:,:), intent(in) :: fstar
+real(rprec), dimension(:), intent(in) :: Adu, Aw, Bj, Bdu, Bw
+real(rprec), intent(in) :: dt
+real(rprec) :: fdustar
+integer :: i
 
-    ! adjoint of velocity field is a sum. Set to 0
-    this%u_star = 0._rprec
+! adjoint of velocity field is a sum. Set to 0
+this%u_star = 0._rprec
 
-    ! compute adjoints of everything except velocity field
-    do i = 1, this%N
-        ! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
-        fdustar = sum(this%f(i,:)*this%du_star(i,:)) * this%dx
-        ! forward differencing of adjoint rotational speed equation
-        this%omega_star(i) = this%omega_star(i) + dt * ( Bj(i) + Bdu(i)*fdustar&
-                             + Bw(i) * this%omega_star(i) )
-        ! adjoint of estimated velocity
-        this%uhat_star(i) = Adu(i)*fdustar + Aw(i)*this%omega_star(i)
-        ! superimpose adjoints of estimated velocities
-        this%u_star = this%u_star + this%G(i,:)*this%uhat_star(i)
-    enddo
+! compute adjoints of everything except velocity field
+do i = 1, this%N
+    ! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
+    fdustar = sum(this%f(i,:)*this%du_star(i,:)) * this%dx
+    ! forward differencing of adjoint rotational speed equation
+    this%omega_star(i) = this%omega_star(i) + dt * ( Bj(i) + Bdu(i)*fdustar&
+                         + Bw(i) * this%omega_star(i) )
+    ! adjoint of estimated velocity
+    this%uhat_star(i) = Adu(i)*fdustar + Aw(i)*this%omega_star(i)
+    ! superimpose adjoints of estimated velocities
+    this%u_star = this%u_star + this%G(i,:)*this%uhat_star(i)
+enddo
 
-    ! compute velocity field adjoints
-    do i = 1, this%N
-        this%du_star(i,:) = this%du_star(i,:) - dt                             &
-            * this%rhs(this%du_star(i,:), fstar(i,:)*this%u_star, i)
-    enddo
+! compute velocity field adjoints
+do i = 1, this%N
+    this%du_star(i,:) = this%du_star(i,:) - dt                             &
+        * this%rhs(this%du_star(i,:), fstar(i,:)*this%u_star, i)
+enddo
 
 end subroutine retract
 

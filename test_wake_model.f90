@@ -31,6 +31,8 @@ real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 ! allocate(Bdu(Nt,N))
 ! allocate(Bw(Nt,N))
 integer :: N, Nx, Nt
+real(rprec) :: Ctp, dCtp_dbeta, dCtp_dlambda
+real(rprec) :: fCtp, fdCtp_dbeta, fdCtp_dlambda, dd
 
 type(turbines_mpc_t) :: controller
 
@@ -97,12 +99,23 @@ end do
 call controller%makeDimensionless
 
 ! run with adjoints and compare to finite difference gradient
-call controller%run()
-call controller%finite_difference_gradient
-write(*,*) "grad_beta:", controller%grad_beta
-write(*,*) "fdgrad_beta:", controller%fdgrad_beta
-write(*,*) "grad_gen_torque:", controller%grad_gen_torque
-write(*,*) "fdgrad_gen_torque:", controller%fdgrad_gen_torque
-! write(*,*) controller%fdgrad_gen_torque
+! call controller%run()
+! call controller%finite_difference_gradient
+! write(*,*) "grad_beta:", controller%grad_beta
+! write(*,*) "fdgrad_beta:", controller%fdgrad_beta
+! write(*,*) "grad_gen_torque:", controller%grad_gen_torque
+! write(*,*) "fdgrad_gen_torque:", controller%fdgrad_gen_torque
+! ! write(*,*) controller%fdgrad_gen_torque
+
+! write(*,*) wm%  lambda_prime
+call wm_Ct_prime_spline%interp(0.1_rprec, wm%lambda_prime(1), Ctp, dCtp_dbeta, dCtp_dlambda)
+write(*,*) Ctp, dCtp_dbeta, dCtp_dlambda
+! real(rprec) :: fCtp, fdCtp_dbeta, fdCtp_dlambda
+dd = sqrt( epsilon( 1._rprec ) )
+call wm_Ct_prime_spline%interp(0.1_rprec+dd, wm%lambda_prime(1), fCtp)
+fdCtp_dbeta = (fCtp - Ctp) / dd
+call wm_Ct_prime_spline%interp(0.1_rprec, wm%lambda_prime(1)+dd, fCtp)
+fdCtp_dlambda = (fCtp - Ctp) / dd
+write(*,*) Ctp, fdCtp_dbeta, fdCtp_dlambda
 
 end program test
