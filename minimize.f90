@@ -74,10 +74,10 @@ subroutine eval(this, x, f, g)
 ! Evaluates the function pointer. Overload this procedure if extending this base
 ! class
 implicit none
-class(minimize_t), intent(inout)             :: this
-real(rprec), dimension(:), intent(in)       :: x
-real(rprec), intent(inout)                  :: f
-real(rprec), dimension(:), intent(inout)    :: g
+class(minimize_t), intent(inout) :: this
+real(rprec), dimension(:), intent(in) :: x
+real(rprec), intent(inout) :: f
+real(rprec), dimension(:), intent(inout) :: g
 
 call this%fun(x, f, g)
 
