@@ -547,6 +547,12 @@ do while (iter < this%maxiteri)
 
 end do
 
+! Evaluate minimization at current point
+call this%mini%eval(x, f, g)
+
+! Set output if present
+! if ( present(o_x) ) o_x = this%x
+
 ! Print result
 write(*,*) 'L-BFGS-B terminated after ', iter, 'iterations. Minimum f = ',f
 

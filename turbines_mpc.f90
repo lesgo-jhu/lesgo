@@ -220,7 +220,6 @@ do k = this%Nt-1, 1, -1
     call this%wstar%retract(fstar(k+1,:,:), Uw(k+1,:), Udu(k+1,:), Wj(k+1,:),   &
         Ww(k+1,:), Wdu(k+1,:), this%dt) ! Definitely should be k+1
     do i = 1, this%N
-!         this%grad_beta(i,k) = this%grad_beta(i,k) &
         this%grad_beta(i,k) = Bw(k,i) * this%wstar%omega_star(i) * this%dt + Bdu(k,i)    &
             * sum(this%wstar%du_star(i,:) * this%w%G(i,:) / this%w%d(i,:)**2) * this%w%dx * this%dt
 !             definitely should be k
@@ -256,8 +255,8 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1)*this%N+1
     istop = this%N*k
-    this%beta(:,k) = x(istart:istop)
-    this%gen_torque(:,k) = x(istart+iskip:istop+iskip)
+    this%beta(:,k+1) = x(istart:istop)
+    this%gen_torque(:,k+1) = x(istart+iskip:istop+iskip)
 end do
 
 ! Run model
@@ -266,14 +265,15 @@ call this%run
 ! Return cost function
 f = this%cost
 
+write(*,*) f
+
 ! Return gradient as vector
 g = 0._rprec
 do k = 1, this%Nt-1
-istart = (k-1)*this%N+1
     istart = (k-1)*this%N+1
     istop = this%N*k
-    g(istart:istop) = this%grad_beta(:,k)
-    g(istart+iskip:istop+iskip) = this%grad_gen_torque(:,k)
+    g(istart:istop) = this%grad_beta(:,k+1)
+    g(istart+iskip:istop+iskip) = this%grad_gen_torque(:,k+1)
 end do
 end subroutine eval
 
@@ -292,9 +292,8 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k - 1) * this%N + 1
     istop = this%N * k
-    write(*,*) istart, istop    
-    x(istart:istop) = this%beta(:,k)
-    x(istart+iskip:istop+iskip) = this%gen_torque(:,k)
+    x(istart:istop) = this%beta(:,k+1)
+    x(istart+iskip:istop+iskip) = this%gen_torque(:,k+1)
 end do
     
 end function get_control_vector

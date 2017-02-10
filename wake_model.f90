@@ -414,6 +414,13 @@ Ww = -this%Paero / this%omega**2 / this%inertia                                &
 Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia / this%uhat
 Bw = - dCp_dbeta * this%Paero / this%omega / this%Cpp / this%inertia
 Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
+do n = 1, this%N
+    if (this%Cpp(n) <= 1E-10) then
+        Uw = 0._rprec
+        Ww = 0._rprec
+        Bw = 0._rprec
+    end if
+end do
 
 deallocate(du_super)
 deallocate(dCt_dbeta)
