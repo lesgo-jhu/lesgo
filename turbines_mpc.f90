@@ -178,25 +178,23 @@ implicit none
 class(turbines_mpc_t), intent(inout) :: this
 integer :: i, k
 real(rprec), dimension(:,:,:), allocatable :: fstar
-real(rprec), dimension(:,:), allocatable :: Adu, Aw, Bj, Bdu, Bw, Gdu, Gw
+real(rprec), dimension(:,:), allocatable :: Uw, Udu, Wj, Ww, Wdu, Bw, Bdu
 
 ! allocate adjoint forcing terms
 allocate(fstar(this%Nt,this%N,this%w%Nx))
-allocate(Adu(this%Nt,this%N))
-allocate(Aw(this%Nt,this%N))
-allocate(Bj(this%Nt,this%N))
-allocate(Bdu(this%Nt,this%N))
+allocate(Uw(this%Nt,this%N))
+allocate(Udu(this%Nt,this%N))
+allocate(Wj(this%Nt,this%N))
+allocate(Ww(this%Nt,this%N))
+allocate(Wdu(this%Nt,this%N))
 allocate(Bw(this%Nt,this%N))
-allocate(Gdu(this%Nt,this%N))
-allocate(Gw(this%Nt,this%N))
+allocate(Bdu(this%Nt,this%N))
 fstar =  0._rprec
-Adu = 0._rprec
-Aw = 0._rprec
-Bj = 0._rprec
-Bdu = 0._rprec
+Uw = 0._rprec
+Wj = 0._rprec
+Ww = 0._rprec
 Bw = 0._rprec
-Gdu = 0._rprec
-Gw = 0._rprec
+Bdu = 0._rprec
 
 ! reset costs and gradients
 this%cost = 0._rprec
@@ -205,42 +203,41 @@ this%grad_gen_torque = 0._rprec
 
 ! Run forward in time
 this%w = this%iw
-call this%w%adjoint_values(this%Pref(1), fstar(1,:,:), Adu(1,:), Aw(1,:),  &
-    Bj(1,:), Bdu(1,:), Bw(1,:), Gdu(1,:), Gw(1,:))
+call this%w%adjoint_values(this%Pref(1), fstar(1,:,:), Uw(1,:), Udu(1,:),      &
+    Wj(1,:), Ww(1,:), Wdu(1,:), Bw(1,:), Bdu(1,:))
 do k = 2, this%Nt
     call this%w%advance(this%beta(:,k), this%gen_torque(:,k), this%dt)
-    this%Pfarm(k) = sum(this%w%Phat)
-    call this%w%adjoint_values(this%Pref(k), fstar(k,:,:), Adu(k,:), Aw(k,:),  &
-        Bj(k,:), Bdu(k,:), Bw(k,:), Gdu(k,:), Gw(k,:))
+    call this%w%adjoint_values(this%Pref(k), fstar(k,:,:), Uw(k,:), Udu(k,:),  &
+        Wj(k,:),  Ww(k,:), Wdu(k,:), Bw(k,:), Bdu(k,:))
+    this%cost = this%cost + this%dt * (sum(this%w%Phat) - this%Pref(k))**2
     ! calculate contribution of cost function to gradient
-    this%grad_gen_torque(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))      &
-        * this%w%omega * this%dt
+    this%grad_gen_torque(:,k) = 2._rprec * (sum(this%w%Phat) - this%Pref(k)) * this%w%omega * this%dt
 end do
-this%cost = sum( (this%Pref-this%Pfarm)**2 ) * this%dt
 
 ! Run backwards in time
 this%wstar = this%iwstar
 do k = this%Nt-1, 1, -1
-    call this%wstar%retract(fstar(k+1,:,:), Adu(k+1,:), Aw(k+1,:), Bj(k+1,:),  &
-        Bdu(k+1,:), Bw(k+1,:), this%dt)
-    this%grad_gen_torque(:,k) = this%grad_gen_torque(:,k)                      &
-        + this%wstar%omega_star / this%wstar%inertia * this%dt
-    this%grad_beta(:,k) = Gw(k,:) * this%wstar%omega_star * this%dt
+    call this%wstar%retract(fstar(k+1,:,:), Uw(k+1,:), Udu(k+1,:), Wj(k+1,:),   &
+        Ww(k+1,:), Wdu(k+1,:), this%dt) ! Definitely should be k+1
     do i = 1, this%N
-        this%grad_beta(i,k) = this%grad_beta(i,k) + Gdu(k,i)  * this%dt        &
-            * sum(this%wstar%du_star(i,:) * this%wstar%f(i,:)) * this%wstar%dx
+!         this%grad_beta(i,k) = this%grad_beta(i,k) &
+        this%grad_beta(i,k) = Bw(k,i) * this%wstar%omega_star(i) * this%dt + Bdu(k,i)    &
+            * sum(this%wstar%du_star(i,:) * this%w%G(i,:) / this%w%d(i,:)**2) * this%w%dx * this%dt
+!             definitely should be k
     end do
+    this%grad_gen_torque(:,k) = this%grad_gen_torque(:,k) + this%wstar%omega_star / this%w%inertia  * this%dt
 end do
+
 
 ! deallocate adjoint forcing terms
 deallocate(fstar)
-deallocate(Adu)
-deallocate(Aw)
-deallocate(Bj)
-deallocate(Bdu)
+deallocate(Uw)
+deallocate(Udu)
+deallocate(Wj)
+deallocate(Ww)
+deallocate(Wdu)
 deallocate(Bw)
-deallocate(Gdu)
-deallocate(Gw)
+deallocate(Bdu)
 
 end subroutine run
 
@@ -326,6 +323,7 @@ do n = 1, this%N
 end do
 
 ! calculate gradient for gen_torque
+dphi = sqrt( epsilon( this%beta(1,1) ) )
 this%fdgrad_gen_torque = 0._rprec
 do n = 1, this%N
     do k = 1, this%Nt

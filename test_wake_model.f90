@@ -14,7 +14,7 @@ use turbines_mpc
 implicit none
 
 ! common variables
-integer :: i
+integer :: i, j
 real(rprec) :: cfl, dt
 
 ! wake model variables
@@ -23,7 +23,7 @@ type(wake_model_t) :: wm
 real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 ! real(rprec), dimension(:,:,:), allocatable :: fstar
-! real(rprec), dimension(:,:), allocatable :: Adu, Aw, Bj, Bdu, Bw
+! real(rprec), dimension(:,:), allocatable :: Aj, Adu, Aw, Bj, Bdu, Bw
 ! allocate(fstar(Nt,N,Nx))
 ! allocate(Adu(Nt,N))
 ! allocate(Aw(Nt,N))
@@ -31,8 +31,6 @@ real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 ! allocate(Bdu(Nt,N))
 ! allocate(Bw(Nt,N))
 integer :: N, Nx, Nt
-real(rprec) :: Ctp, dCtp_dbeta, dCtp_dlambda
-real(rprec) :: fCtp, fdCtp_dbeta, fdCtp_dlambda, dd
 
 type(turbines_mpc_t) :: controller
 
@@ -67,14 +65,14 @@ torque_gain = 2.1648e6
 U_infty = 9._rprec
 N = 7
 Nx = 256
-Nt = 5*Nx
+Nt = 0.5*Nx
 allocate(s(N))
 allocate(k(N))
 allocate(beta(N))
 allocate(gen_torque(N))
 
 k = 0.05_rprec
-beta = -1._rprec
+beta = 1.33_rprec
 do i = 1, N
     s(i) = 7._rprec * Dia * i
 end do
@@ -92,30 +90,23 @@ end do
 ! Create controller, set input values, and make dimensionless
 Pref = 0.9*sum(wm%Phat)
 controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
-controller%beta = -1._rprec
+do i = 1, controller%Nt
+    do j = 1, N
+        controller%beta(j,i) = 1.33_rprec + 0.001_rprec*i + 0.0001_rprec*j
+    end do
+end do
 do i = 1,controller%Nt
-    controller%gen_torque(:,i) = gen_torque
+        controller%gen_torque(:,i) = gen_torque
 end do
 call controller%makeDimensionless
 
 ! run with adjoints and compare to finite difference gradient
-! call controller%run()
-! call controller%finite_difference_gradient
-! write(*,*) "grad_beta:", controller%grad_beta
-! write(*,*) "fdgrad_beta:", controller%fdgrad_beta
-! write(*,*) "grad_gen_torque:", controller%grad_gen_torque
-! write(*,*) "fdgrad_gen_torque:", controller%fdgrad_gen_torque
-! ! write(*,*) controller%fdgrad_gen_torque
-
-! write(*,*) wm%  lambda_prime
-call wm_Ct_prime_spline%interp(0.1_rprec, wm%lambda_prime(1), Ctp, dCtp_dbeta, dCtp_dlambda)
-write(*,*) Ctp, dCtp_dbeta, dCtp_dlambda
-! real(rprec) :: fCtp, fdCtp_dbeta, fdCtp_dlambda
-dd = sqrt( epsilon( 1._rprec ) )
-call wm_Ct_prime_spline%interp(0.1_rprec+dd, wm%lambda_prime(1), fCtp)
-fdCtp_dbeta = (fCtp - Ctp) / dd
-call wm_Ct_prime_spline%interp(0.1_rprec, wm%lambda_prime(1)+dd, fCtp)
-fdCtp_dlambda = (fCtp - Ctp) / dd
-write(*,*) Ctp, fdCtp_dbeta, fdCtp_dlambda
+call controller%run()
+call controller%finite_difference_gradient
+write(*,*) "gb = [", controller%grad_beta(:,2:), "];"
+write(*,*) "gdb = [", controller%fdgrad_beta(:,2:), "];"
+write(*,*) "gT = [", controller%grad_gen_torque(:,2:), "];"
+write(*,*) "gdT = [", controller%fdgrad_gen_torque(:,2:), "];"
+! write(*,*) controller%fdgrad_gen_torque
 
 end program test

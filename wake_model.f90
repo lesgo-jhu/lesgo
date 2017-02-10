@@ -322,7 +322,7 @@ allocate(du_superimposed(this%Nx))
 du_superimposed = 0._rprec
 do i = 1, this%N
     this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),                 &
-        this%f(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
+        this%f(i,:) * this%Ctp(i) / (4._rprec + this%Ctp(i)), i)
     du_superimposed = du_superimposed + this%du(i,:)**2
 end do
 du_superimposed = sqrt(du_superimposed)
@@ -371,14 +371,14 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_values(this, Pref, fstar, Adu, Aw, Bj, Bdu, Bw, Gdu, Gw)
+subroutine adjoint_values(this, Pref, fstar, Uw, Udu, Wj, Ww, Wdu, Bw, Bdu)
 !*******************************************************************************
 
 implicit none
 class(wake_model_t), intent(in) :: this
 real(rprec), intent(in) :: Pref
 real(rprec), dimension(:,:), intent(out) :: fstar
-real(rprec), dimension(:), intent(out) :: Adu, Aw, Bj, Bdu, Bw, Gdu, Gw
+real(rprec), dimension(:), intent(out) :: Uw, Udu, Wj, Ww, Wdu, Bw, Bdu
 
 real(rprec), dimension(:), allocatable :: du_super, dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), allocatable :: dCp_dbeta, dCp_dlambda
@@ -390,6 +390,7 @@ allocate(dCt_dlambda(this%N))
 allocate(dCp_dbeta(this%N))
 allocate(dCp_dlambda(this%N))
 
+! Calculate fstar and derivatives of Ct and Cp
 du_super = this%U_infty - this%u
 do n = 1, this%N
     fstar(n, :) = - this%du(n,:) / du_super
@@ -402,17 +403,17 @@ do n = 1, this%N
                            dCp_dbeta(n), dCp_dlambda(n))
 end do
 
-Adu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega           &
-      * 0.5_rprec *  this%Dia / this%uhat**2
-Aw  = (this%Paero / this%inertia) * (3._rprec / (this%omega * this%uhat)       &
-      -0.5_rprec * this%Dia * dCp_dlambda / (this%uhat**2 * this%Cpp) )
-Bj  = -2._rprec * (sum(this%Phat) - Pref) * this%gen_torque
-Bdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia &
-      / this%uhat
-Bw  = (this%Paero / this%inertia) * (0.5_rprec * this%Dia * dCp_dlambda        &
-      / (this%uhat * this%omega * this%Cpp) - this%omega**(-2))
-Gdu = - 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dbeta
-Gw = - this%Phat / this%omega / this%Cpp * dCp_dbeta / this%inertia
+! Everything else can be calculated at once
+Uw = 3._rprec * this%Paero / this%uhat / this%omega / this%inertia             &
+    - this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat**2 /this%Cpp / this%inertia
+Udu = - 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega         &
+    * 0.5_rprec * this%Dia / this%uhat**2
+Wj = - 2._rprec * (sum(this%Phat) - Pref) * this%Phat / this%omega
+Ww = -this%Paero / this%omega**2 / this%inertia                                &
+    + this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat / this%omega /this%Cpp / this%inertia
+Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia / this%uhat
+Bw = - dCp_dbeta * this%Paero / this%omega / this%Cpp / this%inertia
+Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
 
 deallocate(du_super)
 deallocate(dCt_dbeta)

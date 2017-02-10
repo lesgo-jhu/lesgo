@@ -312,37 +312,44 @@ end subroutine makeDimensional
 ! end subroutine advance
 
 !*******************************************************************************
-subroutine retract(this, fstar, Adu, Aw, Bj, Bdu, Bw, dt)!, g)
+subroutine retract(this, fstar, Uw, Udu, Wj, Ww, Wdu, dt)
 !***************************************************************************
 implicit none
 class(wake_model_adjoint_t), intent(inout) :: this
 real(rprec), dimension(:,:), intent(in) :: fstar
-real(rprec), dimension(:), intent(in) :: Adu, Aw, Bj, Bdu, Bw
+real(rprec), dimension(:), intent(in) :: Uw, Udu, Wj, Ww, Wdu
 real(rprec), intent(in) :: dt
-real(rprec) :: fdustar
+real(rprec), dimension(:), allocatable :: fdustar
 integer :: i
 
-! adjoint of velocity field is a sum. Set to 0
-this%u_star = 0._rprec
-
-! compute adjoints of everything except velocity field
+allocate(fdustar(this%N))
+! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
 do i = 1, this%N
-    ! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
-    fdustar = sum(this%f(i,:)*this%du_star(i,:)) * this%dx
-    ! forward differencing of adjoint rotational speed equation
-    this%omega_star(i) = this%omega_star(i) + dt * ( Bj(i) + Bdu(i)*fdustar&
-                         + Bw(i) * this%omega_star(i) )
-    ! adjoint of estimated velocity
-    this%uhat_star(i) = Adu(i)*fdustar + Aw(i)*this%omega_star(i)
-    ! superimpose adjoints of estimated velocities
+    fdustar(i) = sum( this%f(i,:) * this%du_star(i,:) ) * this%dx
+end do
+
+! Compute adjoint of estimated velocity
+this%uhat_star = Uw * this%omega_star + Udu*fdustar
+
+! adjoint of velocity field
+this%u_star = 0._rprec
+do i = 1, this%N
     this%u_star = this%u_star + this%G(i,:)*this%uhat_star(i)
-enddo
+end do
+
+! Adjoint for rotational equations
+do i = 1, this%N
+    this%omega_star(i) = this%omega_star(i)                                    &
+        + dt * ( Wj(i) + Ww(i)*this%omega_star(i) + Wdu(i)*fdustar(i))
+end do
 
 ! compute velocity field adjoints
 do i = 1, this%N
-    this%du_star(i,:) = this%du_star(i,:) - dt                             &
+    this%du_star(i,:) = this%du_star(i,:) - dt                                 &
         * this%rhs(this%du_star(i,:), fstar(i,:)*this%u_star, i)
-enddo
+end do
+
+deallocate(fdustar)
 
 end subroutine retract
 
@@ -361,7 +368,7 @@ allocate(ddudt(this%Nx))
 allocate(ddudx(this%Nx))
 
 ddudx = ddx_downwind1(du, this%dx)
-ddudt = -this%U_infty * ddudx - this%w(i,:) * du - f
+ddudt = -this%U_infty * ddudx + this%w(i,:) * du - f
 
 end function rhs
 
