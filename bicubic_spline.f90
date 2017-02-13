@@ -40,6 +40,7 @@ public bicubic_spline_t
 type :: bicubic_spline_t
     type(cubic_spline_t), dimension(:), allocatable :: xspline, yspline
     real(rprec), dimension(:), allocatable :: x, y
+    character(:), allocatable :: x_low_bc, x_high_bc, y_low_bc, y_high_bc
     integer :: N, M
 contains
     procedure, private :: interp_scalar
@@ -54,18 +55,19 @@ end interface bicubic_spline_t
 contains
 
 !*******************************************************************************
-function constructor(i_x, i_y, i_v) result(this)
+function constructor(x, y, v, x_low_bc, x_high_bc, y_low_bc, y_high_bc) result(this)
 !*******************************************************************************
 implicit none
 type(bicubic_spline_t) :: this
-real(rprec), dimension(:), intent(in) :: i_x, i_y
-real(rprec), dimension(:,:), intent(in) :: i_v
+real(rprec), dimension(:), intent(in) :: x, y
+real(rprec), dimension(:,:), intent(in) :: v
+character(*), intent(in), optional :: x_low_bc, x_high_bc, y_low_bc, y_high_bc
 integer :: i
 
 ! Check size of inputs
-this%N = size(i_x)
-this%M = size(i_y)
-if ( size(i_v, 1) /= this%N .or. size(i_v, 2) /= this%M) then 
+this%N = size(x)
+this%M = size(y)
+if ( size(v, 1) /= this%N .or. size(v, 2) /= this%M) then 
     call error('bicubic_spline_t/error','v must be an NxM array')
 end if
 
@@ -74,17 +76,27 @@ allocate( this%xspline(this%M) )
 allocate( this%yspline(this%N) )
 allocate( this%x(this%N) )
 allocate( this%y(this%M) )
-this%x = i_x
-this%y = i_y
+this%x = x
+this%y = y
+
+! Specify boundary condition types
+this%x_low_bc = 'natural'
+this%x_high_bc = 'natural'
+this%y_low_bc = 'natural'
+this%y_high_bc = 'natural'
+if ( present(x_low_bc) ) this%x_low_bc = x_low_bc
+if ( present(x_high_bc) ) this%x_high_bc = x_high_bc
+if ( present(y_low_bc) ) this%y_low_bc = y_low_bc
+if ( present(y_high_bc) ) this%y_high_bc = y_high_bc
 
 ! Create a cubic spline for each x location along the y coordinate
 do i = 1, this%N
-    this%yspline(i) = cubic_spline_t(i_y, i_v(i,:))
+    this%yspline(i) = cubic_spline_t(y, v(i,:), this%y_low_bc, this%y_high_bc)
 end do
 
 ! Create a cubic spline for each y location along the x coordinate
 do i = 1, this%M
-    this%xspline(i) = cubic_spline_t(i_x, i_v(:,i))
+    this%xspline(i) = cubic_spline_t(x, v(:,i), this%x_low_bc, this%x_high_bc)
 end do
 
 end function constructor

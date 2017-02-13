@@ -79,12 +79,24 @@ this%a = i_a
 this%b = i_b
 this%c = i_c
 
+! Check diagonal for zeros
+do i = 1, this%N
+    if (this%b(i) == 0._rprec) then
+        call error('tridiagonal_t/constructor',                                &
+            'found zero element along diagonal on row ', i)
+    end if
+end do
+
 ! Perform forward matrix evaluations
 this%p(1) = this%b(1)
 this%m(1) = 0._rprec
 do i = 2, this%N
     this%m(i) = this%a(i) / this%p(i-1)
     this%p(i) = this%b(i) - this%m(i) * this%c(i-1)
+    if (this%p(i) == 0._rprec) then
+        call error('tridiagonal_t/constructor',                                &
+            'found zero pivot on row ', i)
+    end if
 end do
 
 end function constructor
