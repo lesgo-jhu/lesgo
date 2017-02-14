@@ -13,26 +13,26 @@ use conjugate_gradient
 ! use minimize
 ! use util, only : rosenbrock
 implicit none
-! 
+!
 ! ! common variables
 ! integer :: i, j
 ! real(rprec) :: cfl, dt
-! 
+!
 ! ! wake model variables
 ! type(wake_model_t) :: wm, wmi
 ! real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 ! real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 ! integer :: N, Nx, Nt
-! 
+!
 ! type(turbines_mpc_t) :: controller
 ! ! type(conjugate_gradient_t) :: m
 ! type(lbfgsb_t) :: m
-! 
+!
 ! real(rprec), dimension(:), allocatable :: Pref
 ! real(rprec), dimension(:), allocatable :: time
 ! real(rprec), dimension(:), allocatable :: cx, g
 ! real(rprec) :: f
-! 
+!
 ! allocate(time(2))
 ! allocate(Pref(2))
 ! time(1) = 0._rprec
@@ -50,7 +50,7 @@ implicit none
 ! l = lbfgsb_t(mini)!, 1000, lb, ub)
 ! call l%minimize(x, ox)
 ! write(*,*) ox
-! 
+!
 ! ! initialize wake model
 ! cfl = 0.01_rprec
 ! Dia = 126._rprec
@@ -66,7 +66,7 @@ implicit none
 ! allocate(k(N))
 ! allocate(beta(N))
 ! allocate(gen_torque(N))
-! 
+!
 ! k = 0.05_rprec
 ! beta = 0._rprec
 ! beta(N) = 5._rprec
@@ -76,7 +76,7 @@ implicit none
 ! call generate_splines
 ! wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
 !     wm_Ct_prime_spline, wm_Cp_prime_spline)
-! 
+!
 ! ! integrate the wake model forward in time to get reference power
 ! dt = cfl * wm%dx / wm%U_infty
 ! do i = 1, Nt
@@ -84,7 +84,7 @@ implicit none
 !     call wm%advance(beta, gen_torque, dt)
 ! end do
 ! Pref = 1.05*sum(wm%Phat)
-! 
+!
 ! ! Reset wake model and create controller
 ! ! wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
 ! !     wm_Ct_prime_spline, wm_Cp_prime_spline)
@@ -98,11 +98,11 @@ implicit none
 ! ! write(*,*) controller%gen_torque
 ! ! call controller%makeDimensionless
 ! call controller%run()
-! ! 
+! !
 ! ! m = conjugate_gradient_t(controller, 1000)
 ! m = lbfgsb_t(controller, 300)
 ! call m%minimize( controller%get_control_vector() )
-! ! 
+! !
 ! ! ! Run in the wake model
 ! ! call controller%makeDimensional
 ! ! do i = 1, controller%Nt
@@ -110,71 +110,95 @@ implicit none
 ! !     write(*,*) wm%beta
 ! !     write(*,*) wm%gen_torque
 ! ! end do
-! 
-! 
+!
+!
 ! ! write(*,*) controller%gen_torque
 ! ! allocate(g(size(cx)))
 ! ! call controller%eval(cx,f,g)
-! 
-! 
-! 
-! real(rprec) :: Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-! 
-! call generate_splines()
-! 
-! write(*,*) "beta, lambda_prime, Ctp, Cpp, dCtp_dbeta, Ctp_dlambda, dCpp_dbeta, Cpp_dlambda"
+!
+!
+!
+real(rprec) :: Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+
+call generate_splines()
+
+write(*,*) "beta, lambda_prime, Ctp, Cpp, dCtp_dbeta, Ctp_dlambda, dCpp_dbeta, Cpp_dlambda"
 ! call wm_Ct_prime_spline%interp(0._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
 ! call wm_Cp_prime_spline%interp(0._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
 ! write(*,*) 0._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-! call wm_Ct_prime_spline%interp(-51._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-! call wm_Cp_prime_spline%interp(-51._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-! write(*,*) 25._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-! call wm_Ct_prime_spline%interp(25._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-! call wm_Cp_prime_spline%interp(25._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-! write(*,*) 25._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-
-real(rprec), dimension(:), allocatable :: x, v, xi, vi
-integer :: N, i, Ni
-real(rprec) :: dx, pi, L, dxi, x0
-type(cubic_spline_t) :: sp
-
-N = 50
-allocate( x(N) )
-allocate( v(N) )
-
-pi = 4._rprec*atan(1._rprec)
-L = 7._rprec*pi/8._rprec
-x0 = -7._rprec*pi/16._rprec
-dx = L/(N-1)
-do i = 1, N
-    x(i) = tan(dx * (i-1) + x0)
-    v(i) = sin(x(i))
-end do
-
-write(*,*) "x = [", x, "];"
-write(*,*) "v = [", v, "];"
-
-sp = cubic_spline_t(x, v, 'not-a-knot', 'not-a-knot')!, cos(x(1)), cos(x(N)))
-
-Ni = 256
-allocate( xi(Ni) )
-allocate( vi(Ni) )
-
-L = x(N) - x(1)
-dxi = 2*L/(Ni-1)
-do i = 1, Ni
-    xi(i) = dxi * (i-1) - L/2 + x(1)
-end do
-
-call sp%interp(xi, vi)
-
-write(*,*) "xi = [", xi, "];"
-write(*,*) "vi = [", vi, "];"
-
-deallocate(x)
-deallocate(v)
-deallocate(xi)
-deallocate(vi)
+! call wm_Ct_prime_spline%interp(-100._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(-100._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) -100._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! call wm_Ct_prime_spline%interp(100._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(100._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) 100._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda!
+! call wm_Ct_prime_spline%interp(0._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(0._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) 0._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(-1._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(-1._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -1._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! call wm_Ct_prime_spline%interp(100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) 100._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! call wm_Ct_prime_spline%interp(-100._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(-100._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) -100._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! call wm_Ct_prime_spline%interp(100._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(100._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) 100._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda! real(rprec), dimension(:), allocatable :: x, v, xi, vi
+! call wm_Ct_prime_spline%interp(-100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(-100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) -100._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! integer :: N, i, Ni
+! real(rprec) :: dx, pi, L, dxi, x0
+! type(cubic_spline_t) :: sp
+! real(rprec) :: Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+!
+! call generate_splines()
+!
+! call wm_Ct_prime_spline%interp(100._rprec, 1000._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(100._rprec, 1000._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+! write(*,*) Ctp, dCtp_dbeta, dCtp_dlambda
+! write(*,*) Cpp, dCpp_dbeta, dCpp_dlambda
+! !
+! N = 50
+! allocate( x(N) )
+! allocate( v(N) )
+!
+! pi = 4._rprec*atan(1._rprec)
+! L = 7._rprec*pi/8._rprec
+! x0 = -7._rprec*pi/16._rprec
+! dx = L/(N-1)
+! do i = 1, N
+!     x(i) = tan(dx * (i-1) + x0)
+!     v(i) = sin(x(i))
+! end do
+!
+! write(*,*) "x = [", x, "];"
+! write(*,*) "v = [", v, "];"
+!
+! sp = cubic_spline_t(x, v, 'not-a-knot', 'not-a-knot')!, cos(x(1)), cos(x(N)))
+!
+! Ni = 256
+! allocate( xi(Ni) )
+! allocate( vi(Ni) )
+!
+! L = x(N) - x(1)
+! dxi = 2*L/(Ni-1)
+! do i = 1, Ni
+!     xi(i) = dxi * (i-1) - L/2 + x(1)
+! end do
+!
+! call sp%interp(xi, vi)
+!
+! write(*,*) "xi = [", xi, "];"
+! write(*,*) "vi = [", vi, "];"
+!
+! deallocate(x)
+! deallocate(v)
+! deallocate(xi)
+! deallocate(vi)
 
 
 end program test

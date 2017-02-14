@@ -22,19 +22,19 @@ module cubic_spline
 !*******************************************************************************
 ! The cubic_spline_t class performs cubic spline interpolation for a 1D function
 ! v(x). The evaluated data is passed on construction. Interpolation is evaluated
-! for real sample points xq passed as values or arrays. The first derivatives 
+! for real sample points xq passed as values or arrays. The first derivatives
 ! can also be returned as optional arguments.
 !
-! The resulting interpolation has continuous first and second derivatives. 
-! Linear extrapolation is used for evaluation points xq outside of the interval 
+! The resulting interpolation has continuous first and second derivatives.
+! Linear extrapolation is used for evaluation points xq outside of the interval
 ! of x's passed at construction.
 !
 ! Three boundary conditions are available:
 !   Natural:    Second derivatives are at x(1) or x(N)
 !   Clamped:    First derivatives are specified at x(1) or x(N)
 !   Not-a-knot: A single spline is used on the interval between x(1) and x(3)
-!               or x(N-2) and x(N). This can alternatively be viewed as 
-!               requiring continuity of the third derivative at x(2) or x(N-1) 
+!               or x(N-2) and x(N). This can alternatively be viewed as
+!               requiring continuity of the third derivative at x(2) or x(N-1)
 !
 use types, only : rprec
 use messages
@@ -49,6 +49,7 @@ type :: cubic_spline_t
     integer :: N
     character(:), allocatable :: low_bc, high_bc
     real(rprec) :: low_f = 0._rprec, high_f = 0._rprec
+    character(14) :: type_name = "cubic_spline_t"
 contains
     procedure, private :: interp_scalar
     procedure, private :: interp_array
@@ -62,15 +63,15 @@ end interface cubic_spline_t
 contains
 
 !*******************************************************************************
-function constructor(x, v, i_low_bc, i_high_bc, low_f, high_f) result(this)
+function constructor(x, v, low_bc, high_bc, low_f, high_f) result(this)
 !*******************************************************************************
-! Constructor for cubic_spline_t. Takes points v(x) that are used for the 
+! Constructor for cubic_spline_t. Takes points v(x) that are used for the
 ! interpolation. This function also evaluates the second derivative as these x's
 ! using the tridiagonal matrix algorithm.
 !
 ! By default, the constructor using natural boundary conditions with vanishing
-! second derivatives. Other boundary conditions can be specified by supplying 
-! the optional arguments i_low_bc or i_high_bc. The values of the specified 
+! second derivatives. Other boundary conditions can be specified by supplying
+! the optional arguments low_bc or high_bc. The values of the specified
 ! derivatives can be passed sing the optional arguments low_f and high_f.
 !
 use tridiagonal
@@ -78,19 +79,20 @@ implicit none
 
 type(cubic_spline_t) :: this
 real(rprec), dimension(:), intent(in) :: x, v
-character(*), intent(in), optional :: i_low_bc, i_high_bc
+character(*), intent(in), optional :: low_bc, high_bc
 real(rprec), intent(in), optional :: low_f, high_f
 real(rprec), dimension(:), allocatable :: a, b, c, d
 real(rprec) :: aa, bb
 integer :: Nm, offset
 type(tridiagonal_t) :: M
 integer :: i, j
+character(14) :: proc_name = "constructor"
 
 ! set optional arguments
 this%low_bc = "natural"
 this%high_bc = "natural"
-if (present(i_low_bc)) this%low_bc = i_low_bc
-if (present(i_high_bc)) this%high_bc = i_high_bc
+if (present(low_bc)) this%low_bc = low_bc
+if (present(high_bc)) this%high_bc = high_bc
 if (present(low_f)) this%low_f = low_f
 if (present(high_f)) this%high_f = high_f
 
@@ -99,13 +101,14 @@ this%N = size(x)
 
 ! Check that all input arguments are the same size
 if ( size(v) /= this%N ) then
-    call error('cubic_spline_t/constructor','x and v must be the same size')
+    call error(this%type_name // '.' // proc_name,                             &
+        'x and v must be the same size')
 end if
 
 ! Check that x is sorted
 do i = 2, this%N
     if ( x(i) < x(i-1) ) then
-        call error('cubic_spline_t/constructor', 'x must be increasing')
+        call error(this%type_name // '.' // proc_name, 'x must be increasing')
     end if
 end do
 
@@ -130,7 +133,7 @@ if  (uppercase(this%high_bc) == 'NOT-A-KNOT') then
     Nm = Nm - 1
 end if
 
-! Allocate tridiagonal matrix arrays. 
+! Allocate tridiagonal matrix arrays.
 allocate( a(Nm) )
 allocate( b(Nm) )
 allocate( c(Nm) )
@@ -143,7 +146,7 @@ do i = 2, Nm-1
     b(i) = (this%x(j+1) - this%x(j-1)) / 3._rprec
     c(i) = (this%x(j+1) - this%x(j)) / 6._rprec
     d(i) = (this%v(j+1) - this%v(j)) / (this%x(j+1) - this%x(j))               &
-         - (this%v(j) - this%v(j-1)) / (this%x(j) - this%x(j-1)) 
+         - (this%v(j) - this%v(j-1)) / (this%x(j) - this%x(j-1))
 end do
 
 ! Apply low boundary conditions
@@ -167,8 +170,8 @@ select case (uppercase(this%low_bc))
         b(1) = (aa**3 - aa) * (this%x(3) - this%x(1))**2 / 6._rprec
         c(1) = (bb**3 - bb) * (this%x(3) - this%x(1))**2 / 6._rprec
         d(1) = this%v(2) - aa*this%v(1) - bb*this%v(3)
-    case default 
-        call error('cubic_spline_t/constructor',                               &
+    case default
+        call error(this%type_name // '.' // proc_name,                         &
             'Invalid low boundary condition type ' // this%low_bc)
 end select
 
@@ -197,8 +200,8 @@ select case (uppercase(this%high_bc))
         b(Nm) = (aa**3 - aa) * (this%x(this%N) - this%x(this%N-2))**2 / 6._rprec
         a(Nm) = (bb**3 - bb) * (this%x(this%N) - this%x(this%N-2))**2 / 6._rprec
         d(Nm) = this%v(this%N-1) - aa*this%v(this%N-2) - bb*this%v(this%N)
-    case default 
-        call error('cubic_spline_t/constructor',                               &
+    case default
+        call error(this%type_name // '.' // proc_name,                         &
             'Invalid high boundary condition type ' // this%high_bc)
 end select
 
@@ -239,7 +242,7 @@ end function constructor
 !*******************************************************************************
 subroutine interp_scalar(this, xq, vq, vqp)
 !*******************************************************************************
-! Perform interpolation for a single point. Uses binary_search to find the 
+! Perform interpolation for a single point. Uses binary_search to find the
 ! interval on which the sample point lies. This is a guaranteed log2(N) search
 ! method.
 !
