@@ -371,12 +371,12 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_values(this, Pref, fstar, Uw, Udu, Wj, Ww, Wdu, Bw, Bdu)
+subroutine adjoint_values(this, Pref, kappa, fstar, Uw, Udu, Wj, Ww, Wdu, Bw, Bdu)
 !*******************************************************************************
 
 implicit none
 class(wake_model_t), intent(in) :: this
-real(rprec), intent(in) :: Pref
+real(rprec), intent(in) :: Pref, kappa
 real(rprec), dimension(:,:), intent(out) :: fstar
 real(rprec), dimension(:), intent(out) :: Uw, Udu, Wj, Ww, Wdu, Bw, Bdu
 
@@ -390,6 +390,8 @@ allocate(dCt_dlambda(this%N))
 allocate(dCp_dbeta(this%N))
 allocate(dCp_dlambda(this%N))
 
+Wj = 0._rprec
+
 ! Calculate fstar and derivatives of Ct and Cp
 du_super = this%U_infty - this%u
 do n = 1, this%N
@@ -401,6 +403,7 @@ do n = 1, this%N
                            dCt_dbeta(n), dCt_dlambda(n))
     call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
                            dCp_dbeta(n), dCp_dlambda(n))
+    if (this%omega(n) < 0._rprec) Wj(n) = -2._rprec * kappa * this%omega(n)
 end do
 
 ! Everything else can be calculated at once
@@ -408,7 +411,7 @@ Uw = 3._rprec * this%Paero / this%uhat / this%omega / this%inertia             &
     - this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat**2 /this%Cpp / this%inertia
 Udu = - 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega         &
     * 0.5_rprec * this%Dia / this%uhat**2
-Wj = - 2._rprec * (sum(this%Phat) - Pref) * this%Phat / this%omega
+Wj = Wj - 2._rprec * (sum(this%Phat) - Pref) * this%Phat / this%omega
 Ww = -this%Paero / this%omega**2 / this%inertia                                &
     + this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat / this%omega /this%Cpp / this%inertia
 Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia / this%uhat

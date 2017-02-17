@@ -270,6 +270,7 @@ call active(n,l,u,nbd,x,iwhere,iprint,prjctd,cnstnd,boxed)
 task = 'FG_START'
 iter = 0
 call this%mini%eval(x, f, g)
+write(*,*) f
 
 ! Compute the infinity norm of the (-) projected gradient.
 call projgr(n,l,u,nbd,x,g,sbgnrm)
@@ -538,6 +539,7 @@ do while (iter < this%maxiteri)
     stp = 1._rprec
     this%ls%maxStep = stpmx
     call this%mini%eval(x, f, g)
+    write(*,*) f
     gdold = ddot(n,g,1,d,1)
     call this%ls%search(x, f, g, d, stp, dummy)
     gd = ddot(n,g,1,d,1)

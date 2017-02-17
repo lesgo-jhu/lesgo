@@ -39,6 +39,7 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec), dimension(:,:), allocatable :: grad_beta, grad_gen_torque      ! gradients
     real(rprec), dimension(:,:), allocatable :: fdgrad_beta, fdgrad_gen_torque ! finite difference gradients
     real(rprec) :: cost = 0._rprec
+    real(rprec) :: kappa = 1._rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -64,7 +65,7 @@ class(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
 real(rprec), intent(in) :: i_t0, i_T, i_cfl
 
-call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref) 
+call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
 end function constructor
 
 !*******************************************************************************
@@ -116,7 +117,7 @@ allocate( this%Pref(this%Nt) )
 allocate( this%Pfarm(this%Nt) )
 this%Pref = linear_interp(i_time, i_Pref, this%t)
 this%Pfarm(1) = sum(this%w%Phat)
-! 
+!
 ! ! Allocate other variables
 ! allocate( this%Ctp(this%N, this%Nt)    )
 ! allocate( this%phi(this%N, this%Nt)    )
@@ -179,6 +180,7 @@ class(turbines_mpc_t), intent(inout) :: this
 integer :: i, k
 real(rprec), dimension(:,:,:), allocatable :: fstar
 real(rprec), dimension(:,:), allocatable :: Uw, Udu, Wj, Ww, Wdu, Bw, Bdu
+real(rprec) :: min_omega
 
 ! allocate adjoint forcing terms
 allocate(fstar(this%Nt,this%N,this%w%Nx))
@@ -196,6 +198,8 @@ Ww = 0._rprec
 Bw = 0._rprec
 Bdu = 0._rprec
 
+min_omega = 10000._rprec
+
 ! reset costs and gradients
 this%cost = 0._rprec
 this%grad_beta = 0._rprec
@@ -203,15 +207,24 @@ this%grad_gen_torque = 0._rprec
 
 ! Run forward in time
 this%w = this%iw
-call this%w%adjoint_values(this%Pref(1), fstar(1,:,:), Uw(1,:), Udu(1,:),      &
+call this%w%adjoint_values(this%Pref(1), this%kappa, fstar(1,:,:), Uw(1,:), Udu(1,:),      &
     Wj(1,:), Ww(1,:), Wdu(1,:), Bw(1,:), Bdu(1,:))
 do k = 2, this%Nt
     call this%w%advance(this%beta(:,k), this%gen_torque(:,k), this%dt)
-    call this%w%adjoint_values(this%Pref(k), fstar(k,:,:), Uw(k,:), Udu(k,:),  &
+    call this%w%adjoint_values(this%Pref(k), this%kappa, fstar(k,:,:), Uw(k,:), Udu(k,:),  &
         Wj(k,:),  Ww(k,:), Wdu(k,:), Bw(k,:), Bdu(k,:))
+    this%Pfarm(k) = sum(this%w%Phat)
     this%cost = this%cost + this%dt * (sum(this%w%Phat) - this%Pref(k))**2
+    do i = 1, this%N
+        if (this%w%omega(i) < 0._rprec) then
+            this%cost = this%cost + this%dt * this%kappa * this%w%omega(i)**2
+            ! write(*,*) this%w%omega(i)
+            ! write(*,*)this%dt * this%kappa * this%w%omega(i)**2
+        end if
+    end do
     ! calculate contribution of cost function to gradient
     this%grad_gen_torque(:,k) = 2._rprec * (sum(this%w%Phat) - this%Pref(k)) * this%w%omega * this%dt
+    min_omega = min(min_omega, minval(this%w%omega))
 end do
 
 ! Run backwards in time
@@ -227,6 +240,9 @@ do k = this%Nt-1, 1, -1
     this%grad_gen_torque(:,k) = this%grad_gen_torque(:,k) + this%wstar%omega_star / this%w%inertia  * this%dt
 end do
 
+! write(*,*) "Pref:", this%Pref
+! write(*,*) "Phat:", sum(this%w%Phat)
+! write(*,*) "min_omega = ", min_omega, this%cost
 
 ! deallocate adjoint forcing terms
 deallocate(fstar)
@@ -265,8 +281,6 @@ call this%run
 ! Return cost function
 f = this%cost
 
-write(*,*) f
-
 ! Return gradient as vector
 g = 0._rprec
 do k = 1, this%Nt-1
@@ -295,7 +309,7 @@ do k = 1, this%Nt-1
     x(istart:istop) = this%beta(:,k+1)
     x(istart+iskip:istop+iskip) = this%gen_torque(:,k+1)
 end do
-    
+
 end function get_control_vector
 
 !*******************************************************************************
