@@ -123,30 +123,62 @@ real(rprec) :: Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
 call generate_splines()
 
 write(*,*) "beta, lambda_prime, Ctp, Cpp, dCtp_dbeta, Ctp_dlambda, dCpp_dbeta, Cpp_dlambda"
+write(*,*) "This should be near the peak power point"
 call wm_Ct_prime_spline%interp(0._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
 call wm_Cp_prime_spline%interp(0._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
 write(*,*) 0._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-call wm_Ct_prime_spline%interp(-100._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(-100._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) -100._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-call wm_Ct_prime_spline%interp(100._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(100._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) 100._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda!
-call wm_Ct_prime_spline%interp(0._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(0._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) 0._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-call wm_Ct_prime_spline%interp(-1._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(-1._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) -1._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-call wm_Ct_prime_spline%interp(100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) 100._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-call wm_Ct_prime_spline%interp(-100._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(-100._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
-write(*,*) -100._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "other points"
+call wm_Ct_prime_spline%interp(-5._rprec, 5._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-5._rprec, 5._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -5._rprec, 5._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(5._rprec, 5._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(5._rprec, 5._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 5._rprec, 5._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(-5._rprec, 15._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-5._rprec, 15._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -5._rprec, 15._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(5._rprec, 15._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(5._rprec, 15._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 5._rprec, 15._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "Everything should be 0:"
 call wm_Ct_prime_spline%interp(100._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
 call wm_Cp_prime_spline%interp(100._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
 write(*,*) 100._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(0._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(0._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 0._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(-100._rprec, -1._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-100._rprec, -1._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -100._rprec, -1._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(-100._rprec, 11._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-100._rprec, 11._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -100._rprec, 11._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(-100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -100._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "Cp' = 0, Ct' is near zero. All derivatives should be zero, except maybe dCt'/dbeta"
+call wm_Ct_prime_spline%interp(-20._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-20._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -20._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "Cp' = 0, Ct' has a value, and DCt'/dlambda is positive."
+call wm_Ct_prime_spline%interp(100._rprec, 5._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(100._rprec, 5._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 100._rprec, 5._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "Cp' = 0, Ct' has a value, and DCt'/dbeta is positive."
+call wm_Ct_prime_spline%interp(-5._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(-5._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) -5._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+write(*,*) "Cp' = 0, Ct'=4, and all derivatives are 0:"
+call wm_Ct_prime_spline%interp(100._rprec, 20._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(100._rprec, 20._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 100._rprec, 20._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 100._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+call wm_Ct_prime_spline%interp(30._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
+call wm_Cp_prime_spline%interp(30._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)
+write(*,*) 30._rprec, 100._rprec, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+
 ! real(rprec), dimension(:), allocatable :: x, v, xi, vi
 ! call wm_Ct_prime_spline%interp(-100._rprec, 100._rprec, Ctp, dCtp_dbeta, dCtp_dlambda)
 ! call wm_Cp_prime_spline%interp(-100._rprec, 100._rprec, Cpp, dCpp_dbeta, dCpp_dlambda)

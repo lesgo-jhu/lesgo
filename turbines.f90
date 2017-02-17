@@ -1002,7 +1002,7 @@ subroutine generate_splines
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use open_file_fid_mod
 use functions, only : linear_interp
-use cubic_spline
+use pchip
 implicit none
 integer :: N, fid, Nlp
 real(rprec), dimension(:), allocatable :: lambda
@@ -1013,7 +1013,7 @@ real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
 real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
 real(rprec), dimension(:), allocatable :: lambda_prime
 real(rprec), dimension(:), allocatable :: beta
-type(cubic_spline_t) :: cspl
+type(pchip_t) :: cspl
 
 ! Read lambda
 N = count_lines(lambda_dat)
@@ -1089,11 +1089,29 @@ end do
 
 ! Interpolate onto Ct_prime and Cp_prime arrays
 do i = 1, size(beta)
-    cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+    cspl = pchip_t(ilp(i,:), iCtp(i,:))
     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
-    cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+    cspl = pchip_t(ilp(i,:), iCpp(i,:))
     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
 end do
+
+! Make sure the edges of Cp_prime are zero with zero gradient
+Cp_prime_arr(1,:) = 0._rprec
+Cp_prime_arr(2,:) = 0._rprec
+Cp_prime_arr(:,1) = 0._rprec
+Cp_prime_arr(:,2) = 0._rprec
+Cp_prime_arr(size(beta),:) = 0._rprec
+Cp_prime_arr(size(beta)-1,:) = 0._rprec
+Cp_prime_arr(:,Nlp) = 0._rprec
+Cp_prime_arr(:,Nlp-1) = 0._rprec
+
+! For Ct_prime, low beta and lambda are zero. All edges have zero gradient
+Ct_prime_arr(1,:) = 0._rprec
+Ct_prime_arr(2,:) = 0._rprec
+Ct_prime_arr(:,1) = 0._rprec
+Ct_prime_arr(:,2) = 0._rprec
+Ct_prime_arr(size(beta),:) = Ct_prime_arr(size(beta)-1,:)
+Ct_prime_arr(:,Nlp) = Ct_prime_arr(:,Nlp-1)
 
 ! Now generate splines
 wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
@@ -1125,9 +1143,9 @@ wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
 !
 ! ! Interpolate onto Ct_prime and Cp_prime arrays
 ! do i = 1, size(beta)
-!     cspl = cubic_spline_t(ilp(i,:), iCtp(i,:))
+!     cspl = pchip_t(ilp(i,:), iCtp(i,:))
 !     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
-!     cspl = cubic_spline_t(ilp(i,:), iCpp(i,:))
+!     cspl = pchip_t(ilp(i,:), iCpp(i,:))
 !     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
 ! end do
 !
