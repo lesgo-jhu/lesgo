@@ -23,7 +23,7 @@ module wake_model_base
 use types, only : rprec
 use util, only : logistic, softplus, gaussian
 use messages
-use bicubic_spline
+use bi_pchip
 implicit none
 
 private
@@ -67,7 +67,7 @@ type wake_model_base_t
     ! Dimensional scales
     real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0, TORQUE = 0, POWER = 0
     ! Splines for Ctp and Cpp
-    type(bicubic_spline_t) Ctp_spline, Cpp_spline
+    type(bi_pchip_t) Ctp_spline, Cpp_spline
 contains
     procedure, public :: initialize_val
     ! procedure, public :: print
@@ -92,7 +92,7 @@ type(wake_model_base_t) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_s, i_k
 integer, intent(in) :: i_Nx
-type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
     i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
@@ -109,7 +109,7 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_s, i_k
 integer, intent(in) :: i_Nx
 integer :: i
-type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 ! Allocate based on number of turbines
 this%N = size(i_s)

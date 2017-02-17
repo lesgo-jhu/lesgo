@@ -24,7 +24,7 @@ use types, only : rprec
 use util,  only : logistic, softplus, gaussian
 use wake_model_base
 use messages
-use bicubic_spline
+use bi_pchip
 use param, only : pi
 implicit none
 
@@ -83,7 +83,7 @@ type(wake_model_t) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_s, i_k
 integer, intent(in) :: i_Nx
-type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
     i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
@@ -113,7 +113,7 @@ class(wake_model_t), intent(inout) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_s, i_k
 integer, intent(in) :: i_Nx
-type(bicubic_spline_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 ! Call base class initializer
 call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&

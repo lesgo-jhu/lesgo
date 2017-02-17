@@ -28,7 +28,7 @@ use grid_m
 use messages
 use string_util
 use stat_defs, only : wind_farm
-use bicubic_spline
+use bi_pchip
 use wake_model
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
@@ -103,9 +103,9 @@ real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
 
 ! Arrays for interpolating power and thrust coefficients for LES
-type(bicubic_spline_t), public :: Cp_prime_spline, Ct_prime_spline
+type(bi_pchip_t), public :: Cp_prime_spline, Ct_prime_spline
 ! Arrays for interpolating power and thrust coefficients for wake model
-type(bicubic_spline_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
+type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
@@ -1096,10 +1096,8 @@ do i = 1, size(beta)
 end do
 
 ! Now generate splines
-wm_Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr,        &
-    'clamped', 'clamped', 'clamped', 'clamped')
-wm_Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr,        &
-    'clamped', 'clamped', 'clamped', 'clamped')
+wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
+wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
 !
 ! ! Now save the adjusted splines for LES
 ! ! Adjust the lambda_prime and Cp_prime to use the LES velocity
@@ -1134,8 +1132,8 @@ wm_Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr,        &
 ! end do
 !
 ! ! Now generate splines
-! Ct_prime_spline = bicubic_spline_t(beta, lambda_prime, Ct_prime_arr)
-! Cp_prime_spline = bicubic_spline_t(beta, lambda_prime, Cp_prime_arr)
+! Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
+! Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
 
 ! Cleanup
 deallocate (lambda)
