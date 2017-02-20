@@ -63,8 +63,8 @@ real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 integer :: N, Nx, Nt
 
 type(turbines_mpc_t) :: controller
-type(conjugate_gradient_t) :: m
-! type(lbfgsb_t) :: m
+! type(conjugate_gradient_t) :: m
+type(lbfgsb_t) :: m
 
 real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
@@ -74,7 +74,7 @@ real(rprec), dimension(:), allocatable :: time
 allocate(time(2))
 allocate(Pref(2))
 time(1) = 0._rprec
-time(2) = 600._rprec
+time(2) = 300._rprec
 !
 ! type(minimize_t) mini
 ! type(lbfgsb_t) :: l
@@ -97,9 +97,9 @@ rho = 1.225_rprec
 inertia = 4.0469e+07_rprec
 torque_gain = 2.1648e6
 U_infty = 9._rprec
-N = 1
-Nx = 256
-Nt = 100*Nx
+N = 5
+Nx = 64
+Nt = N**2*Nx
 allocate(s(N))
 allocate(k(N))
 allocate(beta(N))
@@ -120,31 +120,48 @@ do i = 1, Nt
     gen_torque = torque_gain * wm%omega**2
     call wm%advance(beta, gen_torque, dt)
 end do
-Pref = 0.9*sum(wm%Phat)
+Pref = 0.5*sum(wm%Phat)
 ! Reset wake model and create controller
 ! wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
 !     wm_Ct_prime_spline, wm_Cp_prime_spline)
 controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
 controller%beta = 0._rprec
-do i = 1, N
-    controller%gen_torque(i,:) = gen_torque(i)
+controller%alpha = 0._rprec
+
+! Make sure that if there's a problem with indexing, it will show up.
+do i = 1, controller%N
+    do j = 1, controller%Nt
+        controller%beta(i, j) = j*0.001 + i*0.01
+        controller%alpha(i, j) =  j*0.001 + i*0.01
+    end do
 end do
+
+! do i = 1, N
+    ! controller%gen_torque(i,:) = gen_torque(i)
+! end do
 ! write(*,*) gen_torque
 ! write(*,*) controller%gen_torques
 call controller%makeDimensionless
 call controller%run()
-write(*,*) "dJdb:", controller%grad_beta
-write(*,*) "dJdT:", controller%grad_gen_torque
-!
-m = conjugate_gradient_t(controller, 2)
-! m = lbfgsb_t(controller, 300)
-call m%minimize( controller%get_control_vector() )
-call controller%run()
+! write(*,*) "dJdb:", controller%grad_beta
+! write(*,*) "dJdT:", controller%grad_alpha
+! !
+! m = conjugate_gradient_t(controller, 2)
+! m = lbfgsb_t(controller, 100)
+! call m%minimize( controller%get_control_vector() )
+! call controller%run()
+! write(*,*) "beta:", controller%beta
+! write(*,*) "alpha", controller%alpha
+! write(*,*) "Pref", controller%Pref
+! write(*,*) "Pfarm", controller%Pfarm
 call controller%finite_difference_gradient()
-write(*,*) "dJdb:", controller%grad_beta
-write(*,*) "dJdT:", controller%grad_gen_torque
-write(*,*) "fddJdb:", controller%fdgrad_beta
-write(*,*) "fddJdT:", controller%fdgrad_gen_torque
+open(1,file='out.dat')
+write(1,*) controller%grad_beta
+write(1,*) controller%grad_alpha
+write(1,*) controller%fdgrad_beta
+write(1,*) controller%fdgrad_alpha
+close(1)
+write(*,*) controller%dt
 ! write(*,*) "Pfarm:", controller%Pfarm
 ! write(*,*) "Pref:", controller%Pref
 ! write(*,*) "beta:", controller%beta

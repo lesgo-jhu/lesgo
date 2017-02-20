@@ -312,12 +312,12 @@ end subroutine makeDimensional
 ! end subroutine advance
 
 !*******************************************************************************
-subroutine retract(this, fstar, Uw, Udu, Wj, Ww, Wdu, dt)
+subroutine retract(this, fstar, Udu, Uw, Uj, Wdu, Wu, Ww, Wj, dt)
 !***************************************************************************
 implicit none
 class(wake_model_adjoint_t), intent(inout) :: this
 real(rprec), dimension(:,:), intent(in) :: fstar
-real(rprec), dimension(:), intent(in) :: Uw, Udu, Wj, Ww, Wdu
+real(rprec), dimension(:), intent(in) :: Udu, Uw, Uj, Wdu, Wu, Ww, Wj
 real(rprec), intent(in) :: dt
 real(rprec), dimension(:), allocatable :: fdustar
 integer :: i
@@ -329,7 +329,7 @@ do i = 1, this%N
 end do
 
 ! Compute adjoint of estimated velocity
-this%uhat_star = Uw * this%omega_star + Udu*fdustar
+this%uhat_star = Uj + Uw * this%omega_star + Udu*fdustar
 
 ! adjoint of velocity field
 this%u_star = 0._rprec
