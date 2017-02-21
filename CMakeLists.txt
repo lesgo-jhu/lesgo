@@ -35,10 +35,10 @@ set(READ_ENDIAN "DEFAULT")
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
 set(USE_TURBINES false)
-set(USE_ATM false)
+set(USE_ATM true)
 
 # Select the data output
-set(USE_CGNS false)
+set(USE_CGNS true)
 
 # Select level set
 set(USE_LVLSET false)
