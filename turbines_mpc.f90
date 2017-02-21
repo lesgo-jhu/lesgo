@@ -235,6 +235,7 @@ do k = 2, this%Nt
         dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
     ! calculate contribution to cost function
     this%Pfarm(k) = sum(this%w%Phat)
+    this%gen_torque(:,k) = this%w%gen_torque
     this%cost = this%cost + this%dt * (sum(this%w%Phat) - this%Pref(k))**2
     ! calculate adjoint values that depend on cost function
     Uj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &

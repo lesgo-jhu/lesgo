@@ -53,14 +53,14 @@ use conjugate_gradient
 implicit none
 
 ! common variables
-integer :: i, j
+integer :: i, j, ii
 real(rprec) :: cfl, dt
 
 ! wake model variables
 type(wake_model_t) :: wm, wmi
 real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
-integer :: N, Nx, Nt
+integer :: N, Nx, Nt, Nskip
 
 type(turbines_mpc_t) :: controller
 ! type(conjugate_gradient_t) :: m
@@ -68,26 +68,9 @@ type(lbfgsb_t) :: m
 
 real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
-! real(rprec), dimension(:), allocatable :: cx, g
-! real(rprec) :: f
-!
-allocate(time(2))
-allocate(Pref(2))
-time(1) = 0._rprec
-time(2) = 1200._rprec
-!
-! type(minimize_t) mini
-! type(lbfgsb_t) :: l
-! real(rprec), dimension(2) :: x, ox
-! real(rprec) :: lb, ub
-! lb = -10000000._rprec
-! ub = 0.5_rprec
-!
-! x = 111._rprec
-! mini = minimize_t(rosenbrock)
-! l = lbfgsb_t(mini)!, 1000, lb, ub)
-! call l%minimize(x, ox)
-! write(*,*) ox
+real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
+integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
+integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8, alpha_fid=9
 
 ! initialize wake model
 cfl = 0.01_rprec
@@ -106,7 +89,7 @@ allocate(beta(N))
 allocate(gen_torque(N))
 
 k = 0.05_rprec
-beta = 0._rprec
+beta = 3._rprec
 do i = 1, N
     s(i) = 7._rprec * Dia * i
 end do
@@ -117,36 +100,111 @@ wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
 ! integrate the wake model forward in time to get reference power
 dt = cfl * wm%dx / wm%U_infty
 do i = 1, Nt
-    gen_torque = torque_gain * wm%omega**2
+    gen_torque = 1.9*torque_gain * wm%omega**2
     call wm%advance(beta, gen_torque, dt)
 end do
 
-! Create controller
-Pref = 0.75*sum(wm%Phat)
-controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
-controller%beta(:,2:) = -3._rprec
-controller%alpha(:,2:) = 0._rprec
+! Create power reference
+allocate(time(2))
+allocate(Pref(2))
+time(1) = 0._rprec
+time(2) = 2._rprec*wm%x(wm%Nx)/wm%U_infty
+Pref = 1.1*sum(wm%Phat)
 
-! do i = 1, N
-    ! controller%gen_torque(i,:) = gen_torque(i)
-! end do
-! write(*,*) gen_torque
-! write(*,*) controller%gen_torques
+! Create controller
+controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
+controller%beta(:,2:) = 3._rprec
+controller%alpha(:,2:) = 0._rprec
 call controller%makeDimensionless
 call controller%run()
-! write(*,*) "dJdb:", controller%grad_beta
-! write(*,*) "dJdT:", controller%grad_alpha
-! !
+
+! Do the initial optimization
 ! m = conjugate_gradient_t(controller, 500)
-m = lbfgsb_t(controller, 100)
+m = lbfgsb_t(controller, 10)
 call m%minimize( controller%get_control_vector() )
 call controller%run()
 
-do i = 2, controller%Nt
-    call wm%advance(controller%beta(:,i), controller%gen_torque(:,i), controller%dt)
-    write(*,*) wm%uhat
+! Allocate control vectors
+allocate(beta_c(controller%N, controller%Nt))
+allocate(alpha_c(controller%N, controller%Nt))
+allocate(gen_torque_c(controller%N, controller%Nt))
+
+! open files
+open(omega_fid,file='omega.dat')
+open(beta_fid,file='beta.dat')
+open(gen_torque_fid,file='gen_torque.dat')
+open(uhat_fid,file='uhat.dat')
+open(Ctp_fid,file='Ctp.dat')
+open(Cpp_fid,file='Cpp.dat')
+open(Pref_fid,file='Pref.dat')
+open(Pfarm_fid,file='Pfarm.dat')
+open(alpha_fid,file='alpha.dat')
+
+write(omega_fid,*) wm%omega
+write(beta_fid,*) wm%beta
+write(gen_torque_fid,*) wm%gen_torque
+write(uhat_fid,*) wm%uhat
+write(Ctp_fid,*) wm%Ctp
+write(Cpp_fid,*) wm%Cpp
+write(Pref_fid,*) Pref(1)
+write(Pfarm_fid,*) sum(wm%Phat)
+write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
+
+Nskip = 10
+do j = 1, 20
+    ! Copy over control vectors
+    call controller%MakeDimensional
+    beta_c = controller%beta
+    alpha_c = controller%alpha
+    gen_torque_c = controller%gen_torque
+
+    ! Advance wake model
+    do i = 2, Nskip+1
+        call wm%advance(beta_c(:,i), gen_torque_c(:,i), controller%dt)
+        write(omega_fid,*) wm%omega
+        write(beta_fid,*) wm%beta
+        write(gen_torque_fid,*) wm%gen_torque
+        write(uhat_fid,*) wm%uhat
+        write(Ctp_fid,*) wm%Ctp
+        write(Cpp_fid,*) wm%Cpp
+        write(Pref_fid,*) controller%Pref(i)
+        write(Pfarm_fid,*) sum(wm%Phat)
+        write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
+        write(*,*) "Percent error:",                                           &
+            (sum(wm%Phat) - controller%Pref(i))/controller%Pref(i)*100._rprec
+    end do
+
+    ! create controller
+    controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
+    controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
+    controller%alpha(:,:controller%Nt-Nskip) = alpha_c(:,Nskip+1:)
+    do ii = controller%Nt-Nskip, controller%Nt
+        controller%beta(:,ii) = beta_c(:,controller%Nt)
+        controller%alpha(:,ii) = 0._rprec
+    end do
+    call controller%makeDimensionless
+    call controller%run()
+
+    ! minimize
+    ! m = conjugate_gradient_t(controller, 500)
+    m = lbfgsb_t(controller, 10)
+    call m%minimize( controller%get_control_vector() )
+    call controller%run()
+
 end do
 
+! close files
+open(omega_fid)
+open(beta_fid)
+open(gen_torque_fid)
+open(uhat_fid)
+open(Ctp_fid)
+open(Cpp_fid)
+open(Pref_fid)
+open(Pfarm_fid)
+open(alpha_fid)
+
+write(*,*) controller%dt
 ! write(*,*) "beta:", controller%beta
 ! write(*,*) "alpha", controller%alpha
 ! write(*,*) "Pref", controller%Pref
