@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "generic")
+set(hostname "default")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
