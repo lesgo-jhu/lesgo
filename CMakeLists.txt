@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "generic")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -35,10 +35,10 @@ set(READ_ENDIAN "DEFAULT")
 # USE_TURBINE: Actuator Disk Model without Rotation
 # USE_ATM: Actuator Line/Sector Model 
 set(USE_TURBINES false)
-set(USE_ATM true)
+set(USE_ATM false)
 
 # Select the data output
-set(USE_CGNS true)
+set(USE_CGNS false)
 
 # Select level set
 set(USE_LVLSET false)
