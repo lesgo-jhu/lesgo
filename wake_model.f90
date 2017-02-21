@@ -342,10 +342,10 @@ do i = 1, this%N
     this%gen_torque(i) = gen_torque(i)
     this%uhat(i) = sum(this%G(i,:) * this%u * this%dx)
     this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
-    ! call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
-    ! call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
-    call this%Ctp_spline%interp(this%beta(i), 11._rprec, this%Ctp(i))
-    call this%Cpp_spline%interp(this%beta(i), 11._rprec, this%Cpp(i))
+    call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
+    call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
+!     call this%Ctp_spline%interp(this%beta(i), 11._rprec, this%Ctp(i))
+!     call this%Cpp_spline%interp(this%beta(i), 11._rprec, this%Cpp(i))
     this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &
                     * this%uhat(i)**3 / 8._rprec
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
@@ -393,6 +393,11 @@ integer :: n, i
 ! allocate variables
 allocate(du_super(this%Nx))
 
+! do n = 1, this%N
+!     call this%Ctp_spline%interp(beta(n), this%lambda_prime(n), dummy,     &
+!                        dCt_dbeta(n), dCt_dlambda(n))
+! end do
+
 ! advance wake model with dummy generator torque
 call this%advance(beta, this%gen_torque, dt)
 
@@ -400,9 +405,6 @@ call this%advance(beta, this%gen_torque, dt)
 this%Phat = (1._rprec - alpha) * this%Paero
 this%gen_torque = this%Phat / this%omega
 
-!
-! Wj = 0._rprec
-!
 ! Calculate fstar and derivatives of Ct and Cp
 du_super = this%U_infty - this%u
 do n = 1, this%N
@@ -410,33 +412,35 @@ do n = 1, this%N
     do i = 1, this%Nx
         if ( du_super(i) <= 1E-10 )   fstar(n, i) = 0._rprec
     end do
-    ! call this%Ctp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
-    !                        dCt_dbeta(n), dCt_dlambda(n))
-    ! call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
-                        !    dCp_dbeta(n), dCp_dlambda(n))
-    call this%Ctp_spline%interp(this%beta(n), 11._rprec, dummy,     &
-                           dCt_dbeta(n), dCt_dlambda(n))
-    call this%Cpp_spline%interp(this%beta(n), 11._rprec, dummy,     &
+    call this%Ctp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
+                       dCt_dbeta(n), dCt_dlambda(n))
+    call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
                            dCp_dbeta(n), dCp_dlambda(n))
+!     call this%Ctp_spline%interp(this%beta(n), 11._rprec, dummy,     &
+!                            dCt_dbeta(n), dCt_dlambda(n))
+!     call this%Cpp_spline%interp(this%beta(n), 11._rprec, dummy,     &
+!                            dCp_dbeta(n), dCp_dlambda(n))
 !     if (this%omega(n) < 0._rprec) Wj(n) = -2._rprec * kappa * this%omega(n)
 end do
 
 ! Everything else can be calculated at once
-Udu = 0._rprec
-Uw = alpha / this%inertia / this%omega * 3._rprec * this%Paero / this%uhat    ! &
-    ! - alpha / this%inertia * this%Paero / this%Cpp * dCp_dlambda * 0.5_rprec   &
-    ! * this%Dia / this%uhat**2
-Wdu = 0._rprec
-Ww = alpha / this%inertia * this%Paero / this%omega**2                     !    &
-    ! - alpha / this%inertia * this%Paero / this%omega * this%Dia * 0.5_rprec    &
-    ! / this%Cpp / this%uhat * dCp_dlambda
+Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega           &
+    * 0.5_rprec * this%Dia / this%uhat**2
+Uw = alpha / this%inertia / this%omega * 3._rprec * this%Paero / this%uhat     &
+    - alpha / this%inertia * this%Paero / this%Cpp * dCp_dlambda * 0.5_rprec   &
+    * this%Dia / this%uhat**2
+Wdu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                       &
+    * 0.5_rprec * this%Dia / this%uhat
+Ww = alpha / this%inertia * this%Paero / this%omega**2                         &
+    - alpha / this%inertia * this%Paero / this%omega * this%Dia * 0.5_rprec    &
+    / this%Cpp / this%uhat * dCp_dlambda
 Wu = 0._rprec
 Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
 Bu = 0._rprec
 Bw = -alpha / this%inertia / this%omega * this%Paero / this%Cpp * dCp_dbeta
 Adu = 0._rprec
 Au = 0._rprec
-Aw = -alpha / this%inertia * this%Paero / this%omega
+Aw = -this%Paero / this%inertia / this%omega
 
 ! Fix values that may be NaNs
 do n = 1, this%N
@@ -447,22 +451,6 @@ do n = 1, this%N
         Aw(n) = 0._rprec
     end if
 end do
-! Uw = 3._rprec * this%Paero / this%uhat / this%omega / this%inertia             &
-!     - this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat**2 /this%Cpp / this%inertia
-! Udu = - 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega         &
-!     * 0.5_rprec * this%Dia / this%uhat**2
-! Wj = Wj - 2._rprec * (sum(this%Phat) - Pref) * this%Phat / this%omega
-! Ww = -this%Paero / this%omega**2 / this%inertia                                &
-!     + this%Paero * dCp_dlambda * 0.5_rprec*this%Dia / this%uhat / this%omega /this%Cpp / this%inertia
-! Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * 0.5_rprec * this%Dia / this%uhat
-! Bw = - dCp_dbeta * this%Paero / this%omega / this%Cpp / this%inertia
-! do n = 1, this%N
-!     if (this%Cpp(n) <= 1E-10) then
-!         Uw = 0._rprec
-!         Ww = 0._rprec
-!         Bw = 0._rprec
-!     end if
-! end do
 
 ! cleanup
 deallocate(du_super)

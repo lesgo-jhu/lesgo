@@ -74,7 +74,7 @@ real(rprec), dimension(:), allocatable :: time
 allocate(time(2))
 allocate(Pref(2))
 time(1) = 0._rprec
-time(2) = 300._rprec
+time(2) = 1200._rprec
 !
 ! type(minimize_t) mini
 ! type(lbfgsb_t) :: l
@@ -97,8 +97,8 @@ rho = 1.225_rprec
 inertia = 4.0469e+07_rprec
 torque_gain = 2.1648e6
 U_infty = 9._rprec
-N = 5
-Nx = 64
+N = 7
+Nx = 128
 Nt = N**2*Nx
 allocate(s(N))
 allocate(k(N))
@@ -120,21 +120,12 @@ do i = 1, Nt
     gen_torque = torque_gain * wm%omega**2
     call wm%advance(beta, gen_torque, dt)
 end do
-Pref = 0.5*sum(wm%Phat)
-! Reset wake model and create controller
-! wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
-!     wm_Ct_prime_spline, wm_Cp_prime_spline)
-controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
-controller%beta = 0._rprec
-controller%alpha = 0._rprec
 
-! Make sure that if there's a problem with indexing, it will show up.
-do i = 1, controller%N
-    do j = 1, controller%Nt
-        controller%beta(i, j) = j*0.001 + i*0.01
-        controller%alpha(i, j) =  j*0.001 + i*0.01
-    end do
-end do
+! Create controller
+Pref = 0.75*sum(wm%Phat)
+controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
+controller%beta(:,2:) = -3._rprec
+controller%alpha(:,2:) = 0._rprec
 
 ! do i = 1, N
     ! controller%gen_torque(i,:) = gen_torque(i)
@@ -146,22 +137,28 @@ call controller%run()
 ! write(*,*) "dJdb:", controller%grad_beta
 ! write(*,*) "dJdT:", controller%grad_alpha
 ! !
-! m = conjugate_gradient_t(controller, 2)
-! m = lbfgsb_t(controller, 100)
-! call m%minimize( controller%get_control_vector() )
-! call controller%run()
+! m = conjugate_gradient_t(controller, 500)
+m = lbfgsb_t(controller, 100)
+call m%minimize( controller%get_control_vector() )
+call controller%run()
+
+do i = 2, controller%Nt
+    call wm%advance(controller%beta(:,i), controller%gen_torque(:,i), controller%dt)
+    write(*,*) wm%uhat
+end do
+
 ! write(*,*) "beta:", controller%beta
 ! write(*,*) "alpha", controller%alpha
 ! write(*,*) "Pref", controller%Pref
 ! write(*,*) "Pfarm", controller%Pfarm
-call controller%finite_difference_gradient()
-open(1,file='out.dat')
-write(1,*) controller%grad_beta
-write(1,*) controller%grad_alpha
-write(1,*) controller%fdgrad_beta
-write(1,*) controller%fdgrad_alpha
-close(1)
-write(*,*) controller%dt
+! call controller%finite_difference_gradient()
+! open(1,file='out.dat')
+! write(1,*) controller%grad_beta
+! write(1,*) controller%grad_alpha
+! write(1,*) controller%fdgrad_beta
+! write(1,*) controller%fdgrad_alpha
+! close(1)
+! write(*,*) controller%dt
 ! write(*,*) "Pfarm:", controller%Pfarm
 ! write(*,*) "Pref:", controller%Pref
 ! write(*,*) "beta:", controller%beta
