@@ -21,8 +21,9 @@
 !--nz may not be used anyway (BC is used instead)
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
-use types,only:rprec
-use param,only:ld,nx,ny,nz, coord, BOGUS, lbz
+use types, only : rprec
+use param, only : ld, nx, ny, nz, coord, BOGUS, lbz
+use param, only : ubc_mom   !! channel
 use derivatives, only : ddx, ddy, ddz_uv
 #ifdef PPMPI
 use param,only:nproc,coord
