@@ -231,7 +231,7 @@ const=1._rprec/dz
 
 #endif
 
-do jz=2,nz-1
+do jz=2,nz  !nz-1   !!channel
 do jy=1,ny
 do jx=1,nx    
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz)-f(jx,jy,jz-1))
@@ -239,26 +239,28 @@ end do
 end do
 end do
 
+!! >>>>> this section commented out for channel capabilities
 !--should integrate this into the above loop, explicit zeroing is not
 !  needed, since dudz, dvdz are forced to zero by copying the u, v fields
 !--also, what happens when called with tzz? 
-#ifdef PPMPI 
-
-  if (coord == nproc-1) then
-    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-  else
-    do jy=1,ny
-    do jx=1,nx
-       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
-    end do
-    end do
-  endif
-
-#else
-
-  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-
-#endif
+!!$#ifdef PPMPI 
+!!$
+!!$  if (coord == nproc-1) then
+!!$    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$  else
+!!$    do jy=1,ny
+!!$    do jx=1,nx
+!!$       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+!!$    end do
+!!$    end do
+!!$  endif
+!!$
+!!$#else
+!!$
+!!$  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$
+!!$#endif
+!! <<<<< this section commented out for channel capabilities
 
 return
 end subroutine ddz_uv
