@@ -444,6 +444,8 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
+     case ('UBC_MOM')
+        Read (buff(equal_pos+1:), *) ubc_mom
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')

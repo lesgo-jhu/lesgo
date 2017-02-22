@@ -184,8 +184,10 @@ module param
   logical :: inilag = .true.
 
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
-  ! NOTE: the upper boundary condition is implicitly stress free
+  ! NOTE: the upper boundary condition is implicitly stress free (until ...
+  ! channel branch is complete)
   integer :: lbc_mom = 1
+  integer :: ubc_mom = 0
   
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
