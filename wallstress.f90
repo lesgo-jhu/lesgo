@@ -45,12 +45,14 @@ subroutine wallstress
 !
 use types, only : rprec
 use param, only : lbc_mom
+use param, only : ubc_mom, coord, nproc, nz ! these necessary only for upper bc
 use messages, only : error
 use iwmles, only : iwm_wallstress
 use sim_param, only : txz, tyz, dudz, dvdz
 implicit none
 character(*), parameter :: sub_name = 'wallstress'
 
+! Lower boundary condition
 select case (lbc_mom)
     ! Stress free
     case (0)                        
@@ -72,6 +74,29 @@ select case (lbc_mom)
     case default
         call error (sub_name, 'invalid lbc_mom')
         
+end select
+
+! Upper boundary condition
+select case (ubc_mom)
+   ! Stress free
+   case (0)
+      call error (sub_name, 'invalid ubc_mom')  ! still to do
+
+   ! DNS wall
+   case (1)
+      call error (sub_name, 'invalid ubc_mom')  ! still to do
+
+   ! Equilibrium wall model
+   case (2)
+      call ws_equilibrium()
+
+   ! Integral wall model
+   case (3)
+      call error (sub_name, 'invalid ubc_mom')  ! still to do
+
+   case default
+      call error (sub_name, 'invalid ubc_mom')
+
 end select
 
 contains
@@ -143,8 +168,8 @@ if (coord == 0) then
 endif
 
 if (coord == nproc-1) then
-   u1=u(:,:,1)
-   v1=v(:,:,1)
+   u1=u(:,:,nz-1)
+   v1=v(:,:,nz-1)
    call test_filter ( u1 )
    call test_filter ( v1 )
    denom=log(0.5_rprec*dz/zo)
@@ -154,13 +179,13 @@ if (coord == nproc-1) then
    do j=1,ny
       do i=1,nx
          const=-(ustar(i,j)**2)/u_avg(i,j)
-         txz(i,j,1)=const*u1(i,j)
-         tyz(i,j,1)=const*v1(i,j)
+         txz(i,j,nz)=const*u1(i,j)
+         tyz(i,j,nz)=const*v1(i,j)
          !this is as in Moeng 84
-         dudz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
-         dvdz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
-         dudz(i,j,1)=merge(0._rprec,dudz(i,j,1),u(i,j,1).eq.0._rprec)
-         dvdz(i,j,1)=merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
+         dudz(i,j,nz)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,nz-1)/u_avg(i,j)
+         dvdz(i,j,nz)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,nz-1)/u_avg(i,j)
+         dudz(i,j,nz)=merge(0._rprec,dudz(i,j,1),u(i,j,nz-1).eq.0._rprec)
+         dvdz(i,j,nz)=merge(0._rprec,dvdz(i,j,1),v(i,j,nz-1).eq.0._rprec)
       end do
    end do
 endif
