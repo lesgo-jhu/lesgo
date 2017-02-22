@@ -119,26 +119,51 @@ real(rprec), dimension(nx, ny) :: denom, u_avg, ustar
 real(rprec), dimension(ld, ny) :: u1, v1
 real(rprec) :: const
 
-u1=u(:,:,1)
-v1=v(:,:,1)
-call test_filter ( u1 )
-call test_filter ( v1 )
-denom=log(0.5_rprec*dz/zo)
-u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
-ustar=u_avg*vonk/denom
+if (coord == 0) then
+   u1=u(:,:,1)
+   v1=v(:,:,1)
+   call test_filter ( u1 )
+   call test_filter ( v1 )
+   denom=log(0.5_rprec*dz/zo)
+   u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
+   ustar=u_avg*vonk/denom
 
-do j=1,ny
-    do i=1,nx
-        const=-(ustar(i,j)**2)/u_avg(i,j)
-        txz(i,j,1)=const*u1(i,j)
-        tyz(i,j,1)=const*v1(i,j)
-        !this is as in Moeng 84
-        dudz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
-        dvdz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
-        dudz(i,j,1)=merge(0._rprec,dudz(i,j,1),u(i,j,1).eq.0._rprec)
-        dvdz(i,j,1)=merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
-    end do
-end do
+   do j=1,ny
+      do i=1,nx
+         const=-(ustar(i,j)**2)/u_avg(i,j)
+         txz(i,j,1)=const*u1(i,j)
+         tyz(i,j,1)=const*v1(i,j)
+         !this is as in Moeng 84
+         dudz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
+         dvdz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
+         dudz(i,j,1)=merge(0._rprec,dudz(i,j,1),u(i,j,1).eq.0._rprec)
+         dvdz(i,j,1)=merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
+      end do
+   end do
+endif
+
+if (coord == nproc-1) then
+   u1=u(:,:,1)
+   v1=v(:,:,1)
+   call test_filter ( u1 )
+   call test_filter ( v1 )
+   denom=log(0.5_rprec*dz/zo)
+   u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
+   ustar=u_avg*vonk/denom
+
+   do j=1,ny
+      do i=1,nx
+         const=-(ustar(i,j)**2)/u_avg(i,j)
+         txz(i,j,1)=const*u1(i,j)
+         tyz(i,j,1)=const*v1(i,j)
+         !this is as in Moeng 84
+         dudz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,1)/u_avg(i,j)
+         dvdz(i,j,1)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,1)/u_avg(i,j)
+         dudz(i,j,1)=merge(0._rprec,dudz(i,j,1),u(i,j,1).eq.0._rprec)
+         dvdz(i,j,1)=merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
+      end do
+   end do
+endif
 
 end subroutine ws_equilibrium
 
