@@ -88,6 +88,24 @@ else
   end do
 end if
 
+!!channel
+if (ubc_mom > 0 .and. coord == nproc-1) then  !--jb ( ubc_mom > 1 means wall )
+  ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
+  do jy=1,ny
+  do jx=1,nx
+  ! in old version, it looks like some people tried some stuff with dwdz here
+  ! but they were zeroed out, so they were left out of this version
+     divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)
+  end do
+  end do
+else
+  do jy=1,ny
+  do jx=1,nx              
+     divt(jx,jy,nz)=dtxdx(jx,jy,nz) + dtydy(jx,jy,nz) + dtzdz(jx,jy,nz)
+  end do
+  end do
+end if
+
 do jz=2,nz-1
 do jy=1,ny
 do jx=1,nx              
