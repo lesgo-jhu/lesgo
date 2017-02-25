@@ -109,7 +109,7 @@ else if (inflow) then
         call ic_uniform
 #endif
 else if (lbc_mom==1) then
-    if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
+    if (coord == 0) write(*,*) '--> Creating initial laminar profile ',&
         'field with DNS BCs'
     call ic_dns()
 else
@@ -196,17 +196,34 @@ use param
 use sim_param,only:u,v,w
 implicit none
 
-real(rprec),dimension(nz)::ubar
-real(rprec)::rms,temp
-integer::jx,jy,jz,z
+real(rprec), dimension(nz) :: ubar
+real(rprec) :: rms, temp, z
+integer :: jx, jy, jz
 real(rprec) :: dummy_rand
 
 ! Calculate the average streamwise velocity based on height of first uvp point 
 ! in wall units
-do jz=1,nz
-    z = int((real(jz)-.5_rprec)*dz) ! non-dimensional
-    ubar(jz) = (u_star*z_i/nu_molec)*z*(1._rprec-.5_rprec*z) ! non-dimensional
-end do
+
+if ( abs(ubot) > 0 .or. abs(utop) > 0 ) then  !! linear laminar profile (couette)
+   do jz=1,nz
+#ifdef PPMPI
+        z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#else
+        z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#endif
+      ubar(jz)= (utop-ubot)/L_z * z + ubot ! non-dimensional
+   end do
+else
+   do jz=1,nz  !! parabolic laminar profile (channel)
+#ifdef PPMPI
+        z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#else
+        z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#endif
+      ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+   end do
+endif
+
 
 ! Get random seeds to populate the initial condition with noise
 call init_random_seed
@@ -250,8 +267,10 @@ end do
 ! Make sure field satisfies boundary conditions
 w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
-u(:,:,nz)=u(:,:,nz-1)
-v(:,:,nz)=v(:,:,nz-1)
+if (ubc_mom == 0) then
+   u(:,:,nz) = u(:,:,nz-1)
+   v(:,:,nz) = v(:,:,nz-1)
+endif
 
 end subroutine ic_dns
 
