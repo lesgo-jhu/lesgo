@@ -100,6 +100,8 @@ write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
 write(2,i_fmt) 'ubc_mom : ', ubc_mom
+write(2,f_fmt) 'ubot : ', ubot
+write(2,f_fmt) 'utop : ', utop
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end

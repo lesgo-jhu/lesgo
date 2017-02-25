@@ -446,6 +446,10 @@ do
         Read (buff(equal_pos+1:), *) lbc_mom
      case ('UBC_MOM')
         Read (buff(equal_pos+1:), *) ubc_mom
+     case ('UBOT')
+        Read (buff(equal_pos+1:), *) ubot
+     case ('UTOP')
+        Read (buff(equal_pos+1:), *) utop
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')

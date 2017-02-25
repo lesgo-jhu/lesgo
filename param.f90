@@ -188,6 +188,11 @@ module param
   ! channel branch is complete)
   integer :: lbc_mom = 1
   integer :: ubc_mom = 0
+
+  ! Prescribe bottom and top wall streamwise velocity
+  ! Only for DNS (sgs=.false.) and full channel (lbc_mom = ubc_mom = 1)
+  real(rprec) :: ubot = 0.0_rprec   ! nondimensional
+  real(rprec) :: utop = 0.0_rprec   ! nondimensional
   
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
