@@ -520,6 +520,10 @@ do k=1, numBl
     enddo
 enddo
 
+! Apply the first rotation
+turbineArray(i) % deltaAzimuth = azimuth
+call atm_rotateBlades(i)
+
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -624,9 +628,6 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
     ! No torque controller option
     if (turbineModel(j) % TorqueControllerType == "none") then
 
-!~         ! Compute the change in blade position at new rotor speed.
-!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt
-
     elseif (turbineModel(j) % TorqueControllerType == "fiveRegion") then
 
         ! Get the generator speed.
@@ -701,10 +702,6 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
             rotSpeed = max(0.0,rotSpeed)
             rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
         endif
-
-!~         ! Compute the change in blade position at new rotor speed.
-!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt;
-
 
     ! Torque control for fixed tip speed ratio
     ! Note that this current method does NOT support Coning in the rotor

@@ -51,7 +51,7 @@ type turbineArray_t
     real(rprec) :: epsilon ! Width of the smearing Gaussian function
     character(128) :: sampling ! Sampling method for velocity atPoint or Spalart
     character(128) :: rotationDir ! Direction of rotation ('cw')
-    real(rprec) :: Azimuth           
+    real(rprec) :: Azimuth   ! Angle of rotation of the rotor 
     real(rprec) :: RotSpeed  ! Speed of the rotor (rpm)
     real(rprec) :: Pitch              
     real(rprec) :: NacYaw    ! The yaw angle of the nacelle         
