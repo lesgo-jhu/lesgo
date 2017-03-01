@@ -408,6 +408,11 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') '========================================'
           call write_tau_wall()   !!jb
        end if
+       if (coord == 0) then  !!jb  !!remove
+          write(*,*) 'u: ', u(1,1,1:3)
+          write(*,*) 'v: ', v(1,1,1:3)
+          write(*,*) 'w: ', w(1,1,1:3)
+       endif
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then

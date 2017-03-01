@@ -118,6 +118,7 @@ end do
 !--set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
 
+if ( ubc_mom .ne. 1 ) then
 #ifdef PPMPI 
   if (coord == nproc-1) then
     do jy=1,ny
@@ -139,6 +140,7 @@ divt(ld-1:ld, :, 1:nz-1) = 0._rprec
   end do
   divt(ld-1:ld, :, nz) = 0._rprec
 #endif
+endif
 
 #ifdef PPVERBOSE
 write (*, *) 'finished divstress_w'

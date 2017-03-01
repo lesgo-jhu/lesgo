@@ -148,7 +148,7 @@ do jz = 1, nz
      end select
   endif
   
-  if ( (coord == nproc-1) .and. (jz == nz-1) ) then  !!channel    or nz?
+  if ( ubc_mom > 0 .and. (coord == nproc-1) .and. (jz == nz-1) ) then  !!channel    or nz?
 
      select case (ubc_mom)
 
@@ -175,7 +175,7 @@ do jz = 1, nz
   !else   !!channel
    
   ! very kludgy -- fix later      !! channel
-  if (.not.(coord==0 .and. jz==1) .and. .not. (coord==nproc-1 .and. jz==nz-1)  ) then
+  if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and. coord==nproc-1 .and. jz==nz-1)  ) then
      cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
      cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
   end if
@@ -214,7 +214,7 @@ else
   jz_min = 1
 end if
 
-if (coord == nproc-1 ) then  !!channel
+if (ubc_mom>0 .and. coord == nproc-1 ) then  !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   !!channel
@@ -259,7 +259,7 @@ else
   jz_min = 1
 end if
 
-if (coord == nproc-1) then   !!channel
+if (ubc_mom>0 .and. coord == nproc-1) then   !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    !!channel
@@ -301,7 +301,7 @@ else
   jz_min = 1
 end if
 
-if (coord == nproc-1) then     !!channel
+if (ubc_mom > 0 .and. coord == nproc-1) then     !!channel
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)

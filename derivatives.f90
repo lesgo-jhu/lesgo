@@ -231,7 +231,7 @@ const=1._rprec/dz
 
 #endif
 
-do jz=2,nz  !nz-1   !!channel
+do jz=2,nz-1
 do jy=1,ny
 do jx=1,nx    
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz)-f(jx,jy,jz-1))

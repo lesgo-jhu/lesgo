@@ -275,10 +275,10 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 if (coord == nproc-1) then
 #endif
 
-  ! no-stress top
-  u(:,:,nz)=u(:,:,nz-1)
-  ! no-stress top
-  v(:,:,nz)=v(:,:,nz-1)
+  if (ubc_mom == 0) then    ! no-stress top
+     u(:,:,nz) = u(:,:,nz-1)
+     v(:,:,nz) = v(:,:,nz-1) 
+  endif
   ! no permeability
   w(:, :, nz)=0._rprec
 

@@ -84,7 +84,7 @@ select case (ubc_mom)
 
    ! DNS wall
    case (1)
-      call error (sub_name, 'invalid ubc_mom')  ! still to do
+      call ws_dns()
 
    ! Equilibrium wall model
    case (2)
@@ -117,18 +117,32 @@ end subroutine ws_free
 subroutine ws_dns
 !**********************************************************************
 use param, only : nx, ny, nu_molec, z_i, u_star, dz
+use param, only : coord, ubot, utop  !!channel
 use sim_param , only : u, v
 implicit none
 integer :: i, j
 
-do j=1,ny
+if (coord == 0) then
+  do j=1,ny
     do i=1,nx
-       txz(i,j,1) = -nu_molec/(z_i*u_star)*u(i,j,1)/(0.5_rprec*dz)
-       tyz(i,j,1) = -nu_molec/(z_i*u_star)*v(i,j,1)/(0.5_rprec*dz)
-       dudz(i,j,1) = u(i,j,1)/(0.5_rprec*dz)
-       dvdz(i,j,1) = v(i,j,1)/(0.5_rprec*dz)
+       dudz(i,j,1) = ( u(i,j,1) - ubot ) / (0.5_rprec*dz)
+       dvdz(i,j,1) = v(i,j,1) / (0.5_rprec*dz)
+       txz(i,j,1) = -nu_molec/(z_i*u_star)*dudz(i,j,1)
+       tyz(i,j,1) = -nu_molec/(z_i*u_star)*dvdz(i,j,1)
     end do
-end do
+  end do
+endif
+
+if (coord == nproc-1) then
+  do j=1,ny
+    do i=1,nx
+       dudz(i,j,nz) = ( utop - u(i,j,nz-1) ) / (0.5_rprec*dz)
+       dvdz(i,j,nz) = -v(i,j,nz-1) / (0.5_rprec*dz)
+       txz(i,j,nz) = -nu_molec/(z_i*u_star)*dudz(i,j,nz)
+       tyz(i,j,nz) = -nu_molec/(z_i*u_star)*dvdz(i,j,nz)
+    end do
+  end do
+endif
 
 end subroutine ws_dns
 

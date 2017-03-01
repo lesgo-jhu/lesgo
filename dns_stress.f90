@@ -20,21 +20,27 @@
 subroutine dns_stress(txx,txy,txz,tyy,tyz,tzz)
 ! using the 'sgs' sign convention for stress, so there is a - sign
 use types,only:rprec
-use param,only:ld,nx,ny,nz,z_i,u_star,nu_molec,  &
-               coord, BOGUS
+use param,only:ld,nx,ny,nz,z_i,u_star,nu_molec
+use param,only:coord, BOGUS, ubc_mom, lbz
 use sim_param,only:dudx,dudy,dudz,dvdx,dvdy,dvdz,dwdx,dwdy,dwdz
 #ifdef PPMPI
-use param,only:nproc,coord
+use param, only: nproc, coord
+use mpi_defs, only: mpi_sync_real_array, MPI_SYNC_DOWN
 #endif
+
 implicit none
 real(kind=rprec),dimension(ld,ny,nz),intent(out)::txx,txy,txz,tyy, tyz,tzz
 real(kind=rprec)::S11,S12,S13,S22,S23,S33
 real(kind=rprec)::nu
-integer::jx,jy,jz
-integer :: jz_min
+integer :: jx, jy, jz
+integer :: jz_min, jz_max
 
 ! non-dimensional molecular viscosity
 nu=nu_molec/(z_i*u_star)
+
+#ifdef PPMPI
+  call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
+#endif
 
 ! uvp-nodes
 do jz=1, nz-1
@@ -75,7 +81,13 @@ else
   jz_min = 1
 end if
 
-do jz = jz_min, nz-1
+if (coord == nproc-1) then  !--jb
+   jz_max = nz-1
+else
+   jz_max = nz
+endif
+
+do jz = jz_min, jz_max  !nz-1
   do jy = 1, ny
     do jx = 1, nx
       S13 = 0.5_rprec*(dudz(jx,jy,jz)+dwdx(jx,jy,jz))
@@ -87,26 +99,34 @@ do jz = jz_min, nz-1
 end do
 
 #ifdef PPMPI 
-  if (coord == nproc-1) then
+  if (coord == nproc-1 .and. ubc_mom == 0) then
     ! stress-free lid: this should check which bc options we use
     txz(:,:,nz)=0._rprec
     tyz(:,:,nz)=0._rprec
-  else
-    !--nz here saves communication in MPI version: can only do this since
-    !  dudz, dwdx, dvdz, dwdy are available at nz (not true w/ all components)
-    do jy = 1, ny
-      do jx = 1, nx
-        S13 = 0.5_rprec*(dudz(jx,jy,nz)+dwdx(jx,jy,nz))
-        S23 = 0.5_rprec*(dvdz(jx,jy,nz)+dwdy(jx,jy,nz))
-        txz(jx,jy,nz) = -2._rprec*nu*S13
-        tyz(jx,jy,nz) = -2._rprec*nu*S23
-      enddo
-    enddo
   endif
+!!$  else
+!!$    !--nz here saves communication in MPI version: can only do this since
+!!$    !  dudz, dwdx, dvdz, dwdy are available at nz (not true w/ all components)
+!!$    do jy = 1, ny
+!!$      do jx = 1, nx
+!!$        S13 = 0.5_rprec*(dudz(jx,jy,nz)+dwdx(jx,jy,nz))
+!!$        S23 = 0.5_rprec*(dvdz(jx,jy,nz)+dwdy(jx,jy,nz))
+!!$        txz(jx,jy,nz) = -2._rprec*nu*S13
+!!$        tyz(jx,jy,nz) = -2._rprec*nu*S23
+!!$      enddo
+!!$    enddo
+!!$  endif
 #else
   ! stress-free lid: this should check which bc options we use
-  txz(:,:,nz)=0._rprec
-  tyz(:,:,nz)=0._rprec
+  if (ubc_mom == 0) then
+    txz(:,:,nz)=0._rprec
+    tyz(:,:,nz)=0._rprec
+  endif
+#endif
+
+#ifdef PPMPI
+  call mpi_sync_real_array( txz(:,:,lbz:), 0, MPI_SYNC_DOWN )
+  call mpi_sync_real_array( tyz(:,:,lbz:), 0, MPI_SYNC_DOWN )
 #endif
 
 end subroutine dns_stress
