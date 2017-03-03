@@ -118,6 +118,8 @@ elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
 #  all other systems
 elseif (${hostname} STREQUAL "default")
+    include_directories($ENV{HOME}/codes/fftw3/include)
+    link_directories($ENV{HOME}/codes/fftw3/lib)
     # nothing yet, but can add if needed
     if (USE_CGNS)
         include_directories($ENV{HOME}/cgns/include/)
