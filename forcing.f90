@@ -275,6 +275,7 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 if (coord == nproc-1) then
 #endif
 
+  ! TODO: if ubc_mom not 0 then left as BOGUS, how to handle?
   if (ubc_mom == 0) then    ! no-stress top
      u(:,:,nz) = u(:,:,nz-1)
      v(:,:,nz) = v(:,:,nz-1) 

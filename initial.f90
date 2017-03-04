@@ -100,6 +100,7 @@ else
     inilag = .true.
 end if
 
+! TODO: initial profile depends on ubc_mom
 if (initu) then
     if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
     call ic_file
@@ -267,6 +268,7 @@ end do
 ! Make sure field satisfies boundary conditions
 w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
+! TODO: does this matter? (it assumes slip BC at top)
 if (ubc_mom == 0) then
    u(:,:,nz) = u(:,:,nz-1)
    v(:,:,nz) = v(:,:,nz-1)
@@ -379,6 +381,7 @@ if (coord == 0) then
 end if
 
 ! Set upper boundary condition as zero gradient in u and v and no penetration in w
+! TODO: does this matter? (it assumes slip BC at top)
 #ifdef PPMPI
 if (coord == nproc-1) then
 #endif    

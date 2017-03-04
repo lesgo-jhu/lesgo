@@ -361,6 +361,8 @@ tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
 #endif 
 
+! TODO: need this to depend on ubc_mom flag
+! note: this is nullifying wallstress calcs some maybe just remove here
 #ifdef PPMPI 
   if (coord == nproc-1) then  !assuming stress-free lid?
     txz(:,:,nz)=0._rprec

@@ -190,6 +190,8 @@ if (coord == nproc-1) then
    u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
    ustar=u_avg*vonk/denom
 
+   ! TODO: I think need to switch signs of stress and derivative here
+   ! note: I think this gets written over in sgs_stag routine
    do j=1,ny
       do i=1,nx
          const=-(ustar(i,j)**2)/u_avg(i,j)
