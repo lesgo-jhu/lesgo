@@ -80,6 +80,7 @@ end select
 select case (ubc_mom)
    ! Stress free
    case (0)
+      ! TODO: implement here
       call error (sub_name, 'invalid ubc_mom')  ! still to do
 
    ! DNS wall
@@ -190,18 +191,16 @@ if (coord == nproc-1) then
    u_avg=sqrt(u1(1:nx,1:ny)**2+v1(1:nx,1:ny)**2)
    ustar=u_avg*vonk/denom
 
-   ! TODO: I think need to switch signs of stress and derivative here
-   ! note: I think this gets written over in sgs_stag routine
    do j=1,ny
       do i=1,nx
-         const=-(ustar(i,j)**2)/u_avg(i,j)
+         const=(ustar(i,j)**2)/u_avg(i,j) ! diff sign for upper b.c.
          txz(i,j,nz)=const*u1(i,j)
          tyz(i,j,nz)=const*v1(i,j)
          !this is as in Moeng 84
-         dudz(i,j,nz)=ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,nz-1)/u_avg(i,j)
-         dvdz(i,j,nz)=ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,nz-1)/u_avg(i,j)
-         dudz(i,j,nz)=merge(0._rprec,dudz(i,j,1),u(i,j,nz-1).eq.0._rprec)
-         dvdz(i,j,nz)=merge(0._rprec,dvdz(i,j,1),v(i,j,nz-1).eq.0._rprec)
+         dudz(i,j,nz)=-ustar(i,j)/(0.5_rprec*dz*vonK)*u(i,j,nz-1)/u_avg(i,j)
+         dvdz(i,j,nz)=-ustar(i,j)/(0.5_rprec*dz*vonK)*v(i,j,nz-1)/u_avg(i,j)
+         dudz(i,j,nz)=merge(0._rprec,dudz(i,j,nz),u(i,j,nz-1).eq.0._rprec)
+         dvdz(i,j,nz)=merge(0._rprec,dvdz(i,j,nz),v(i,j,nz-1).eq.0._rprec)
       end do
    end do
 endif

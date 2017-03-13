@@ -361,16 +361,17 @@ tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
 #endif 
 
-! TODO: need this to depend on ubc_mom flag
-! note: this is nullifying wallstress calcs some maybe just remove here
+! TODO: redundant? remove? should be handled by wallstress.f90
 #ifdef PPMPI 
-  if (coord == nproc-1) then  !assuming stress-free lid?
+  if (coord == nproc-1 .and. ubc_mom == 0) then
     txz(:,:,nz)=0._rprec
     tyz(:,:,nz)=0._rprec
   end if
 #else
-  txz(:,:,nz)=0._rprec
-  tyz(:,:,nz)=0._rprec
+  if (ubc_mom == 0) then
+    txz(:,:,nz)=0._rprec
+    tyz(:,:,nz)=0._rprec
+  end if
 #endif
 
 #ifdef PPVERBOSE
