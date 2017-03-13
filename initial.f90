@@ -313,7 +313,6 @@ do jz = 1, nz
     if(lbc_mom  > 0 .and. ubc_mom > 0) z = min(z, dz*nproc*(nz-1) - z)
     ! For upside-down half-channel, choose upper wall
     if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1) - z
-    
 
     ! IC in equilibrium with rough surface (rough dominates in effective zo)
     arg2 = z/zo
