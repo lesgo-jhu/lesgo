@@ -305,8 +305,8 @@ end do
       dfdz(:, :, lbz) = BOGUS
 #endif      
     endif
-    ! TODO: treat depending on ubc_mom?
-    if (coord == nproc-1) then
+    ! TODO: is this necessary?
+    if (coord == nproc-1 .and. ubc_mom == 0) then
       dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
     else
 #ifdef PPSAFETYMODE
