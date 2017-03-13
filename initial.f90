@@ -302,6 +302,7 @@ character(*), parameter :: sub_name = 'ic'
     real(rprec) :: zo_turbines = 0._rprec
 #endif
 
+! TODO: redefine z in channel case so distance to nearest wall
 do jz = 1, nz
 #ifdef PPMPI
     z = (coord*(nz-1) + jz - 0.5_rprec) * dz

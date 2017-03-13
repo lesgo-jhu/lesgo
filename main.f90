@@ -168,7 +168,7 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
-    !   MPI: bottom process only
+    !   MPI: bottom and top processes only
     if (coord == 0 .or. coord == nproc-1) then
         call wallstress ()
     end if
@@ -222,6 +222,7 @@ time_loop: do jt_step = nstart, nsteps
     !  (assumes old dpdx has NOT been added to RHSx_f, etc)
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
+    ! TODO: if channel, double the force
     if (use_mean_p_force) then
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
