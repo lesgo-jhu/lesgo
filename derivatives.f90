@@ -278,7 +278,7 @@ subroutine ddz_w(f, dfdz, lbz)
 use types,only:rprec
 use param,only:nx,ny,nz,dz,BOGUS
 #ifdef PPMPI
-use param,only:nproc,coord
+use param,only:nproc,coord,ubc_mom
 #endif
 implicit none
 
