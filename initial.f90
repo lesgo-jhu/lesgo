@@ -302,13 +302,18 @@ character(*), parameter :: sub_name = 'ic'
     real(rprec) :: zo_turbines = 0._rprec
 #endif
 
-! TODO: redefine z in channel case so distance to nearest wall
 do jz = 1, nz
 #ifdef PPMPI
     z = (coord*(nz-1) + jz - 0.5_rprec) * dz
 #else
     z = (jz - 0.5_rprec) * dz
 #endif
+
+    ! For channel flow, choose closest wall
+    if(lbc_mom  > 0 .and. ubc_mom > 0) z = min(z, dz*nproc*(nz-1) - z)
+    ! For upside-down half-channel, choose upper wall
+    if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1) - z
+    
 
     ! IC in equilibrium with rough surface (rough dominates in effective zo)
     arg2 = z/zo
