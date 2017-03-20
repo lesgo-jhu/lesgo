@@ -229,6 +229,15 @@ const=1._rprec/dz
     end do
   end if
 
+  !! channel - pj
+  if (coord < nproc-1) then
+    do jy=1,ny
+    do jx=1,nx
+       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+    end do
+    end do
+  end if
+
 #endif
 
 do jz=2,nz-1

@@ -72,7 +72,6 @@ call ddz_uv(tz, dtzdz, lbz)
 #endif
 #endif
 
-! TODO does this give the right behavior for slip wall at bottom
 ! or is it necessary to condition on lbc_mom like done below?
 if (coord == 0) then
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
@@ -92,7 +91,6 @@ else
 end if
 
 !!channel
-! TODO not sure why this is necessary, since it is not necessary for lbc_mom
 if (ubc_mom > 0 .and. coord == nproc-1) then  !--jb ( ubc_mom > 1 means wall )
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
   do jy=1,ny
