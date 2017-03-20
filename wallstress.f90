@@ -54,6 +54,7 @@ character(*), parameter :: sub_name = 'wallstress'
 integer :: bc_mom
 
 ! Choose which bc flag to use
+bc_mom = -1
 if(coord == 0      ) bc_mom = lbc_mom
 if(coord == nproc-1) bc_mom = ubc_mom
 
@@ -68,16 +69,27 @@ select case (bc_mom)
         call ws_dns
 
     ! Equilibrium wall model
-    case (2)                        
+    case (2)                       
         call ws_equilibrium
 
-    ! Integral wall model
+    ! Integral wall model (not implemented for top wall)
     case (3)                        
+      if (coord == 0) then 
         call iwm_wallstress()
+      else if (coord == nproc-1) then
+        call error (sub_name, 'invalid ubc_mom')
+      end if
     
     ! Otherwise, invalid
+    case (-1)
+        call error (sub_name, 'invalid use of wallstress not on boundary proc')
+
     case default
+      if (coord == 0) then 
         call error (sub_name, 'invalid lbc_mom')
+      else if (coord == nproc-1) then
+        call error (sub_name, 'invalid ubc_mom')
+      end if
         
 end select
 
