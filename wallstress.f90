@@ -51,9 +51,14 @@ use iwmles, only : iwm_wallstress
 use sim_param, only : txz, tyz, dudz, dvdz
 implicit none
 character(*), parameter :: sub_name = 'wallstress'
+integer :: bc_mom
+
+! Choose which bc flag to use
+if(coord == 0      ) bc_mom = lbc_mom
+if(coord == nproc-1) bc_mom = ubc_mom
 
 ! Lower boundary condition
-select case (lbc_mom)
+select case (bc_mom)
     ! Stress free
     case (0)                        
         call ws_free
@@ -76,30 +81,6 @@ select case (lbc_mom)
         
 end select
 
-! Upper boundary condition
-select case (ubc_mom)
-   ! Stress free
-   case (0)
-      ! TODO: implement here
-      call error (sub_name, 'invalid ubc_mom')  ! still to do
-
-   ! DNS wall
-   case (1)
-      call ws_dns()
-
-   ! Equilibrium wall model
-   case (2)
-      call ws_equilibrium()
-
-   ! Integral wall model
-   case (3)
-      call error (sub_name, 'invalid ubc_mom')  ! still to do
-
-   case default
-      call error (sub_name, 'invalid ubc_mom')
-
-end select
-
 contains
 
 !**********************************************************************
@@ -107,10 +88,19 @@ subroutine ws_free
 !**********************************************************************
 implicit none
 
-txz(:, :, 1) = 0._rprec
-tyz(:, :, 1) = 0._rprec
-dudz(:, :, 1) = 0._rprec
-dvdz(:, :, 1) = 0._rprec
+if (coord == 0) then
+  txz(:, :, 1) = 0._rprec
+  tyz(:, :, 1) = 0._rprec
+  dudz(:, :, 1) = 0._rprec
+  dvdz(:, :, 1) = 0._rprec
+end if
+
+if (coord == nproc-1) then
+  txz(:, :,nz-1) = 0._rprec 
+  tyz(:, :,nz-1) = 0._rprec
+  dudz(:,:,nz-1) = 0._rprec
+  dvdz(:,:,nz-1) = 0._rprec
+end if
 
 end subroutine ws_free
 
