@@ -148,8 +148,7 @@ do jz = 1, nz
      end select
   endif
 
-  ! TODO: redundant logic for ubc_mom == 0 case 
-  if ( ubc_mom > 0 .and. (coord == nproc-1) .and. (jz == nz-1) ) then  !!channel    or nz?
+  if ( (coord == nproc-1) .and. (jz == nz-1) ) then  !!channel    or nz?
 
      select case (ubc_mom)
 
