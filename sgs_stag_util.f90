@@ -485,6 +485,8 @@ end if
     call mpi_sync_real_array( dwdz(:,:,1:), 1, MPI_SYNC_DOWN )
 #endif
 
+!TODO: this is only copying dwdz down, below dudz(nz) and dvdz(nz) are needed ??
+
 ! Calculate Sij for the rest of the domain
 !   values are stored on w-nodes
 !   dudz, dvdz, dwdx, dwdy are already stored on w-nodes
