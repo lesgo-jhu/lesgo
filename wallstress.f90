@@ -51,81 +51,92 @@ use iwmles, only : iwm_wallstress
 use sim_param, only : txz, tyz, dudz, dvdz
 implicit none
 character(*), parameter :: sub_name = 'wallstress'
-integer :: bc_mom
-
-! Choose which bc flag to use
-bc_mom = -1
-if(coord == 0      ) bc_mom = lbc_mom
-if(coord == nproc-1) bc_mom = ubc_mom
 
 ! Lower boundary condition
-select case (bc_mom)
+if (coord == 0) then
+  select case (lbc_mom)
     ! Stress free
     case (0)                        
-        call ws_free
+        call ws_free_lbc
     
     ! DNS wall
     case (1)                        
-        call ws_dns
+        call ws_dns_lbc
 
     ! Equilibrium wall model
     case (2)                       
-        call ws_equilibrium
+        call ws_equilibrium_lbc
 
     ! Integral wall model (not implemented for top wall)
     case (3)                        
-      if (coord == 0) then 
         call iwm_wallstress()
-      else if (coord == nproc-1) then
-        call error (sub_name, 'invalid ubc_mom')
-      end if
     
     ! Otherwise, invalid
-    case (-1)
-        call error (sub_name, 'invalid use of wallstress not on boundary proc')
 
     case default
-      if (coord == 0) then 
         call error (sub_name, 'invalid lbc_mom')
-      else if (coord == nproc-1) then
+  end select
+end if
+
+if (coord == nproc-1) then
+  select case (ubc_mom)
+     ! Stress free
+    case (0)                        
+        call ws_free_ubc
+    
+    ! DNS wall
+    case (1)                        
+        call ws_dns_ubc
+
+    ! Equilibrium wall model
+    case (2)                       
+        call ws_equilibrium_ubc
+
+    ! Integral wall model (not implemented for top wall)
+    case (3)                        
         call error (sub_name, 'invalid ubc_mom')
-      end if
-        
-end select
+
+    ! Otherwise, invalid
+    case default       
+        call error (sub_name, 'invalid ubc_mom')
+  end select
+end if
 
 contains
 
 !**********************************************************************
-subroutine ws_free
+subroutine ws_free_lbc
 !**********************************************************************
 implicit none
 
-if (coord == 0) then
   txz(:, :, 1) = 0._rprec
   tyz(:, :, 1) = 0._rprec
   dudz(:, :, 1) = 0._rprec
   dvdz(:, :, 1) = 0._rprec
-end if
 
-if (coord == nproc-1) then
-  txz(:, :,nz-1) = 0._rprec 
-  tyz(:, :,nz-1) = 0._rprec
-  dudz(:,:,nz-1) = 0._rprec
-  dvdz(:,:,nz-1) = 0._rprec
-end if
-
-end subroutine ws_free
+end subroutine ws_free_lbc
 
 !**********************************************************************
-subroutine ws_dns
+subroutine ws_free_ubc
+!**********************************************************************
+implicit none
+
+  txz(:, :,nz) = 0._rprec 
+  tyz(:, :,nz) = 0._rprec
+  dudz(:,:,nz) = 0._rprec
+  dvdz(:,:,nz) = 0._rprec
+
+end subroutine ws_free_ubc
+
+!**********************************************************************
+subroutine ws_dns_lbc
 !**********************************************************************
 use param, only : nx, ny, nu_molec, z_i, u_star, dz
-use param, only : coord, ubot, utop  !!channel
+use param, only : ubot
 use sim_param , only : u, v
 implicit none
 integer :: i, j
 
-if (coord == 0) then
   do j=1,ny
     do i=1,nx
        dudz(i,j,1) = ( u(i,j,1) - ubot ) / (0.5_rprec*dz)
@@ -134,9 +145,18 @@ if (coord == 0) then
        tyz(i,j,1) = -nu_molec/(z_i*u_star)*dvdz(i,j,1)
     end do
   end do
-endif
 
-if (coord == nproc-1) then
+end subroutine ws_dns_lbc
+
+!**********************************************************************
+subroutine ws_dns_ubc
+!**********************************************************************
+use param, only : nx, ny, nu_molec, z_i, u_star, dz
+use param, only : utop
+use sim_param , only : u, v
+implicit none
+integer :: i, j
+
   do j=1,ny
     do i=1,nx
        dudz(i,j,nz) = ( utop - u(i,j,nz-1) ) / (0.5_rprec*dz)
@@ -145,12 +165,11 @@ if (coord == nproc-1) then
        tyz(i,j,nz) = -nu_molec/(z_i*u_star)*dvdz(i,j,nz)
     end do
   end do
-endif
 
-end subroutine ws_dns
+end subroutine ws_dns_ubc
 
 !**********************************************************************
-subroutine ws_equilibrium
+subroutine ws_equilibrium_lbc
 !**********************************************************************
 use param, only : dz, ld, nx, ny, vonk, zo
 use sim_param, only : u, v
@@ -161,7 +180,6 @@ real(rprec), dimension(nx, ny) :: denom, u_avg, ustar
 real(rprec), dimension(ld, ny) :: u1, v1
 real(rprec) :: const
 
-if (coord == 0) then
    u1=u(:,:,1)
    v1=v(:,:,1)
    call test_filter ( u1 )
@@ -182,9 +200,22 @@ if (coord == 0) then
          dvdz(i,j,1)=merge(0._rprec,dvdz(i,j,1),v(i,j,1).eq.0._rprec)
       end do
    end do
-endif
 
-if (coord == nproc-1) then
+end subroutine ws_equilibrium_lbc
+
+!**********************************************************************
+subroutine ws_equilibrium_ubc
+!**********************************************************************
+use param, only : dz, ld, nx, ny, vonk, zo
+use sim_param, only : u, v
+use test_filtermodule
+implicit none
+integer :: i, j
+real(rprec), dimension(nx, ny) :: denom, u_avg, ustar
+real(rprec), dimension(ld, ny) :: u1, v1
+real(rprec) :: const
+
+
    u1=u(:,:,nz-1)
    v1=v(:,:,nz-1)
    call test_filter ( u1 )
@@ -205,8 +236,7 @@ if (coord == nproc-1) then
          dvdz(i,j,nz)=merge(0._rprec,dvdz(i,j,nz),v(i,j,nz-1).eq.0._rprec)
       end do
    end do
-endif
 
-end subroutine ws_equilibrium
+end subroutine ws_equilibrium_ubc
 
 end subroutine wallstress
