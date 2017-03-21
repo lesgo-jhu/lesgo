@@ -216,6 +216,7 @@ end if
 
 if (ubc_mom>0 .and. coord == nproc-1 ) then  !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
+  ! TODO: nz-1 --> nz for u3_big ?
   cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   !!channel
   !--vort2(jz=1) is located on uvp-node           ^  try with nz-1 (experimental)
@@ -261,6 +262,7 @@ end if
 
 if (ubc_mom>0 .and. coord == nproc-1) then   !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
+  ! TODO: nz-1 --> nz for u3_big ?
   cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    !!channel
   !--vort1(jz=1) is uvp-node                       ^ try with nz-1 (experimental)
