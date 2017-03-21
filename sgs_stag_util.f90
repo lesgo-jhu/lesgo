@@ -74,7 +74,7 @@ real(kind=rprec) :: const3 !RICHARD: USED FOR OPTIMIZATION
 real(kind=rprec) :: const4 !RICHARD: USED FOR OPTIMIZATION
 
 integer::jx,jy,jz
-integer :: jz_min
+integer :: jz_min,jz_max
 
 #ifdef PPVERBOSE
 call enter_sub (sub_name)
@@ -190,7 +190,7 @@ end do
 !    call sgs_hist_update_vals( )
 !  endif
 !  endif
-  
+   
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
 if (coord == 0) then
 
@@ -232,7 +232,7 @@ if (coord == 0) then
             end do
         end if                     
 
-    case (1) ! Wall
+    case (1:) ! Wall
        
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
     !   recall: for this case, Sij are stored on uvp-nodes        
@@ -274,6 +274,92 @@ else
     
 end if
 
+ 
+! Calculate txx, txy, tyy, tzz for bottom level: jz=nz node (coord==nproc-1 only)
+if (coord == nproc-1) then
+
+    select case (ubc_mom)
+
+    case (0) ! Stress free
+    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
+    !   recall: for this case, Sij are stored on w-nodes      
+
+        if (sgs) then
+            do jy=1,ny
+            do jx=1,nx        
+                ! Total viscosity
+                const=0.5_rprec*(Nu_t(jx,jy,nz-1) + Nu_t(jx,jy,nz)) + nu
+                const2=2._rprec*(Nu_t(jx,jy,nz-1) + nu)
+
+                ! for top wall, it is nz-1 on the uv-grid
+                txx(jx,jy,nz-1)=-const*(S11(jx,jy,nz-1) + S11(jx,jy,nz))
+                txy(jx,jy,nz-1)=-const*(S12(jx,jy,nz-1) + S12(jx,jy,nz))
+                tyy(jx,jy,nz-1)=-const*(S22(jx,jy,nz-1) + S22(jx,jy,nz))
+                tzz(jx,jy,nz-1)=-const*(S33(jx,jy,nz-1) + S33(jx,jy,nz))
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-const2*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-const2*S23(jx,jy,nz-1)
+            end do
+            end do
+        else    
+            const = 0._rprec
+            do jy=1,ny
+            do jx=1,nx      
+                txx(jx,jy,nz-1)=-(nu)*(S11(jx,jy,nz-1) + S11(jx,jy,nz))
+                txy(jx,jy,nz-1)=-(nu)*(S12(jx,jy,nz-1) + S12(jx,jy,nz))
+                tyy(jx,jy,nz-1)=-(nu)*(S22(jx,jy,nz-1) + S22(jx,jy,nz))
+                tzz(jx,jy,nz-1)=-(nu)*(S33(jx,jy,nz-1) + S33(jx,jy,nz))
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-2._rprec*(nu)*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-2._rprec*(nu)*S23(jx,jy,nz-1)
+            end do
+            end do
+        end if                     
+
+    case (1:) ! Wall
+       
+    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
+    !   recall: for this case, Sij are stored on uvp-nodes        
+        
+        if (sgs) then
+            do jy=1,ny
+            do jx=1,nx         
+                const = -2._rprec*(Nu_t(jx,jy,1)+nu)                   
+                const2=-2._rprec*(Nu_t(jx,jy,nz-1) + nu)
+
+                txx(jx,jy,nz-1) = const*S11(jx,jy,nz-1)
+                txy(jx,jy,nz-1) = const*S12(jx,jy,nz-1)
+                tyy(jx,jy,nz-1) = const*S22(jx,jy,nz-1)
+                tzz(jx,jy,nz-1) = const*S33(jx,jy,nz-1)
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)= const2*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)= const2*S23(jx,jy,nz-1)
+            end do
+            end do
+        else    
+            const = 0._rprec
+            do jy=1,ny
+            do jx=1,nx      
+                txx(jx,jy,nz-1) = -2._rprec*(nu)*S11(jx,jy,nz-1)
+                txy(jx,jy,nz-1) = -2._rprec*(nu)*S12(jx,jy,nz-1)
+                tyy(jx,jy,nz-1) = -2._rprec*(nu)*S22(jx,jy,nz-1)
+                tzz(jx,jy,nz-1) = -2._rprec*(nu)*S33(jx,jy,nz-1)
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-2._rprec*(nu)*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-2._rprec*(nu)*S23(jx,jy,nz-1)
+            end do
+            end do
+        end if       
+       
+    end select
+  
+    jz_max = nz-2      ! since last level already calculated
+    
+else   
+    jz_max = nz-1
+    
+end if
+
 ! Calculate all tau for the rest of the domain
 !   txx, txy, tyy, tzz not needed at nz (so they aren't calculated)
 !     txz, tyz at nz will be done later
@@ -282,7 +368,7 @@ end if
 if (sgs) then 
     const3=-2._rprec*(nu)*0.5_rprec
     const4=-2._rprec*(nu)
-    do jz=jz_min, nz-1
+    do jz=jz_min, jz_max
     do jy=1,ny
     do jx=1,nx
               
@@ -384,7 +470,7 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 implicit none
 
 integer::jx,jy,jz
-integer :: jz_min
+integer :: jz_min,jz_max
 
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 
@@ -420,7 +506,7 @@ if (coord == 0) then
         end do
         end do
 
-    case (1) ! Wall
+    case (1:) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
         do jy=1,ny
@@ -497,7 +583,7 @@ if (coord == nproc-1) then
         end do
         end do
 
-    case (1) ! Wall
+    case (1:) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
         do jy=1,ny
@@ -518,10 +604,10 @@ if (coord == nproc-1) then
   
     end select
   
-    jz_min = 2      ! since first level already calculated
+    jz_max = nz-1      ! since last level already calculated
 
 else
-    jz_min = 1
+    jz_max = nz
 
 end if
 
@@ -535,7 +621,7 @@ end if
 ! Calculate Sij for the rest of the domain
 !   values are stored on w-nodes
 !   dudz, dvdz, dwdx, dwdy are already stored on w-nodes
-do jz=jz_min, nz
+do jz=jz_min, jz_max
 do jy=1,ny
 do jx=1,nx              
 !    ux=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1)) 
