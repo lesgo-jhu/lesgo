@@ -39,7 +39,7 @@ use cfl_util
 !use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
-use functions, only: get_tau_wall_bot
+use functions, only: get_tau_wall_bot, get_tau_wall_top
 
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -412,7 +412,7 @@ time_loop: do jt_step = nstart, nsteps
        end if
        if(coord == nproc-1) then
           write(*,'(a)') '========================================'
-          write(*,'(a,E15.7)') '  Top wall stress: ', get_tau_wall_bot()
+          write(*,'(a,E15.7)') '  Top wall stress: ', get_tau_wall_top()
           write(*,'(a)') '========================================'
           call write_tau_wall_top()
        end if
