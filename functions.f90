@@ -34,7 +34,8 @@ public interp_to_uv_grid,   &
     points_avg_3d,          & 
     plane_avg_3d,           &     
     interp_to_w_grid,       &
-    get_tau_wall
+    get_tau_wall_bot,       &
+    get_tau_wall_top
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -1053,7 +1054,7 @@ return
 end function buff_indx
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function get_tau_wall() result(twall)       !!jb
+function get_tau_wall_bot() result(twall)       !!jb
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! This function provides plane-averaged value of wall stress magnitude
@@ -1076,6 +1077,33 @@ enddo
 twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
 
 return
-end function get_tau_wall
+end function get_tau_wall_bot
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_tau_wall_top() result(twall)       !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides plane-averaged value of wall stress magnitude
+use types, only: rprec
+use param, only : nx, ny, nz
+use sim_param, only : txz, tyz
+
+implicit none
+real(rprec) :: twall, txsum, tysum
+integer :: jx, jy
+
+txsum = 0._rprec
+tysum = 0._rprec
+do jx=1,nx
+   do jy=1,ny
+      txsum = txsum + txz(jx,jy,nz)
+      tysum = tysum + tyz(jx,jy,nz)
+   enddo
+enddo
+twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
+
+return
+end function get_tau_wall_top
 
 end module functions

@@ -30,7 +30,8 @@ use clock_m
 use param
 use sim_param
 use grid_m
-use io, only : energy, output_loop, output_final, jt_total, write_tau_wall
+use io, only : energy, output_loop, output_final, jt_total, &
+               & write_tau_wall_bot, write_tau_wall_top
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -38,7 +39,7 @@ use cfl_util
 !use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
-use functions, only: get_tau_wall
+use functions, only: get_tau_wall_bot
 
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -394,7 +395,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
-          write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
+          write(*,'(a,E15.7)') '  Bot wall stress: ', get_tau_wall_bot()
           write(*,*)
 #ifdef PPMPI
           write(*,'(1a)') 'Simulation wall times (s): '
@@ -407,7 +408,13 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
-          call write_tau_wall()   !!jb
+          call write_tau_wall_bot()   !!jb
+       end if
+       if(coord == nproc-1) then
+          write(*,'(a)') '========================================'
+          write(*,'(a,E15.7)') '  Top wall stress: ', get_tau_wall_bot()
+          write(*,'(a)') '========================================'
+          call write_tau_wall_top()
        end if
        if (coord == 0) then  !!jb  !!remove
           write(*,*) 'u: ', u(1,1,1:3)
