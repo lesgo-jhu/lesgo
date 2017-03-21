@@ -478,6 +478,66 @@ else
 
 end if
 
+! Calculate Sij for jz=nz (coord==nproc-1 only)
+!   stored on uvp-nodes (this level only nz on w-grid --> nz-1 on uvp-grid) for 'wall'
+!   stored on w-nodes (all) for 'stress free'
+if (coord == nproc-1) then
+
+    select case (ubc_mom)
+
+    case (0) ! Stress free
+
+        do jy=1,ny
+        do jx=1,nx              ! Sij values are supposed to be on w-nodes for this case
+                                !   does that mean they (Sij) should all be zero?
+            ux=dudx(jx,jy,nz-1)  
+            uy=dudy(jx,jy,nz-1)    
+            uz=dudz(jx,jy,nz)   ! this comes from wallstress() i.e. zero
+            vx=dvdx(jx,jy,nz-1)   
+            vy=dvdy(jx,jy,nz-1)  
+            vz=dvdz(jx,jy,nz)   ! this comes from wallstress() i.e. zero
+            wx=dwdx(jx,jy,nz)  
+            wy=dwdy(jx,jy,nz)  
+            wz=0.5_rprec*(dwdz(jx,jy,nz-1) + 0._rprec) ! pj not sure why but copied lbc 
+                              
+            ! these values are stored on w-nodes
+            S11(jx,jy,nz)=ux          
+            S12(jx,jy,nz)=0.5_rprec*(uy+vx) 
+            S13(jx,jy,nz)=0.5_rprec*(uz+wx) 
+            S22(jx,jy,nz)=vy          
+            S23(jx,jy,nz)=0.5_rprec*(vz+wy) 
+            S33(jx,jy,nz)=wz          
+        end do
+        end do
+
+    case (1) ! Wall
+    ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
+    ! recall dwdx and dwdy are stored on w-nodes (always)
+        do jy=1,ny
+        do jx=1,nx              
+
+            ! these values stored on uvp-nodes
+            S11(jx,jy,nz)=dudx(jx,jy,nz-1)         
+            S12(jx,jy,nz)=0.5_rprec*(dudy(jx,jy,nz-1)+dvdx(jx,jy,nz-1)) 
+            wx=0.5_rprec*(dwdx(jx,jy,nz-1)+dwdx(jx,jy,nz)) 
+            S13(jx,jy,nz)=0.5_rprec*(dudz(jx,jy,nz)+wx) ! dudz from wallstress()
+            S22(jx,jy,nz)=dvdy(jx,jy,nz-1)          
+            wy=0.5_rprec*(dwdy(jx,jy,nz-1)+dwdy(jx,jy,nz))             
+            S23(jx,jy,nz)=0.5_rprec*(dvdz(jx,jy,nz)+wy) ! dvdz from wallstress()
+            S33(jx,jy,nz)=dwdz(jx,jy,nz-1)         
+
+        end do
+        end do
+  
+    end select
+  
+    jz_min = 2      ! since first level already calculated
+
+else
+    jz_min = 1
+
+end if
+
 #ifdef PPMPI
     ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
     ! (only 1:nz-1) exchange information between processors to set
