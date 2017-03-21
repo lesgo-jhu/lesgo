@@ -361,19 +361,6 @@ tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
 #endif 
 
-!! TODO: redundant? remove? should be handled by wallstress.f90
-!#ifdef PPMPI 
-!  if (coord == nproc-1 .and. ubc_mom == 0) then
-!    txz(:,:,nz)=0._rprec
-!    tyz(:,:,nz)=0._rprec
-!  end if
-!#else
-!  if (ubc_mom == 0) then
-!    txz(:,:,nz)=0._rprec
-!    tyz(:,:,nz)=0._rprec
-!  end if
-!#endif
-
 #ifdef PPVERBOSE
 call exit_sub (sub_name)
 #endif
