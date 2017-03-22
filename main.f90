@@ -154,6 +154,8 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
+    !if(coord==0) write(*,*) 'Bot u = ', sum(u(:,:,1))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top u = ', sum(u(:,:,nz-1))/(nx*ny)
     call filt_da (u, dudx, dudy, lbz)
     call filt_da (v, dvdx, dvdy, lbz)
     call filt_da (w, dwdx, dwdy, lbz)
@@ -162,6 +164,8 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 2:nz
     call ddz_uv(u, dudz, lbz)
     call ddz_uv(v, dvdz, lbz)
+    !if(coord==0) write(*,*) 'Bot dudz = ', sum(dudz(:,:,2))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top dudz = ', sum(dudz(:,:,nz-1))/(nx*ny)
        
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
@@ -173,6 +177,8 @@ time_loop: do jt_step = nstart, nsteps
     if (coord == 0 .or. coord == nproc-1) then
         call wallstress ()
     end if
+    !if(coord==0) write(*,*) 'Bot txz = ', sum(txz(:,:,1))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top txz = ', sum(txz(:,:,nz))/(nx*ny)
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
@@ -182,6 +188,8 @@ time_loop: do jt_step = nstart, nsteps
     else
         call sgs_stag()
     end if
+    !if(coord==0) write(*,*) 'Bot txz = ', sum(txz(:,:,2))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top txz = ', sum(txz(:,:,nz-1))/(nx*ny)
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
@@ -196,10 +204,14 @@ time_loop: do jt_step = nstart, nsteps
     !   provides divtz 1:nz-1, except 1:nz at top process
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
+    !if(coord==0) write(*,*) 'Bot divtx = ', sum(divtx(:,:,1))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top divtx = ', sum(divtx(:,:,nz-1))/(nx*ny)
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
+    !if(coord==0) write(*,*) 'Bot cy = ', sum(RHSy(:,:,2)**2)/(nx*ny)
+    !if(coord==nproc-1) write(*,*) 'Top cy = ', sum(RHSy(:,:,nz-2)**2)/(nx*ny)
 
     ! Add div-tau term to RHS variable 
     !   this will be used for pressure calculation
@@ -223,7 +235,6 @@ time_loop: do jt_step = nstart, nsteps
     !  (assumes old dpdx has NOT been added to RHSx_f, etc)
     !  we add force (mean press forcing) here so that u^(*) is as close
     !  to the final velocity as possible
-    ! TODO: if channel, double the force
     if (use_mean_p_force) then
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
