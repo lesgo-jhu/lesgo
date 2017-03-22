@@ -68,7 +68,7 @@ if (sgs) then
    jzHi = nz-1     !! can remove after testing
 else
    jzLo = 1        !! for DNS
-   jzHi = nz-1     !! can remove after testing, TODO possible asymmetry
+   jzHi = nz-1     !! can remove after testing
 endif
 
 #ifdef PPVERBOSE
@@ -148,34 +148,37 @@ do jz = 1, nz
      end select
   endif
 
-  if ( (coord == nproc-1) .and. (jz == nz-1) ) then  !!channel    or nz?
+  ! TODO this should be jz = nz on w-grid, faking jz = nz-1 on uvp-grid
+  if ( (coord == nproc-1) .and. (jz == nz) ) then  !!channel    or nz?
 
      select case (ubc_mom)
 
      ! Stress free
      case (0)
 
-         cx(:, :, nz-1) = 0._rprec
-         cy(:, :, nz-1) = 0._rprec
+         cx(:, :, nz) = 0._rprec
+         cy(:, :, nz) = 0._rprec
 
       ! No-slip and wall model
       case (1:)
 
          !--du3d2(jz=1) should be 0, so we could use this
-         cx(:, :, nz-1) = const * ( 0.5_rprec * (du3d2(:, :, nz-1) +  &
+         ! TODO this cx = vort1 is uvp nz-1 but w nz
+         cx(:, :, nz) = const * ( 0.5_rprec * (du3d2(:, :, nz-1) +  &
                                               du3d2(:, :, nz))   &
                                  - du2d3(:, :, nz-1) )
          !--du3d1(jz=1) should be 0, so we could use this
-         cy(:, :, nz-1) = const * ( du1d3(:, :, nz-1) -               &
+         ! TODO this cy = vort2 is uvp nz-1 but w nz
+         cy(:, :, nz) = const * ( du1d3(:, :, nz-1) -               &
                                  0.5_rprec * (du3d1(:, :, nz-1) +  &
                                               du3d1(:, :, nz)) )
 
       end select
    endif
   !else   !!channel
-   
+
   ! very kludgy -- fix later      !! channel
-  if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and. coord==nproc-1 .and. jz==nz-1)  ) then
+  if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and. coord==nproc-1 .and. jz==nz)  ) then
      cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
      cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
   end if
@@ -216,9 +219,8 @@ end if
 
 if (ubc_mom>0 .and. coord == nproc-1 ) then  !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
-  ! TODO: nz-1 --> nz for u3_big ?
   cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
-       +0.5_rprec*u3_big(:,:,nz)*(vort2_big(:,:,jzHi)))   !!channel
+       +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   !!channel
   !--vort2(jz=1) is located on uvp-node           ^  try with nz-1 (experimental)
   !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
   !  below the wall (could arguably be 0.25 * u3(:,:,2))
@@ -262,9 +264,8 @@ end if
 
 if (ubc_mom>0 .and. coord == nproc-1) then   !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
-  ! TODO: nz-1 --> nz for u3_big ?
   cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
-       +0.5_rprec*u3_big(:,:,nz)*(-vort1_big(:,:,jzHi)))    !!channel
+       +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    !!channel
   !--vort1(jz=1) is uvp-node                       ^ try with nz-1 (experimental)
   !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
   !  below the wall
