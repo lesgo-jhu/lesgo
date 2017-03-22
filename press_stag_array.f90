@@ -186,6 +186,11 @@ rH_z(ld-1:ld, :, 1:nz-1)=0._rprec
 rH_x(:, ny/2+1, 1:nz-1)=0._rprec
 rH_y(:, ny/2+1, 1:nz-1)=0._rprec
 rH_z(:, ny/2+1, 1:nz-1)=0._rprec
+! should also set to zero for rH_z (nz) on coord == nproc-1
+!if (coord == nproc-1) then
+!  rH_z(ld-1:ld, :, nz) = 0._rprec
+!  rH_z(:, ny/2+1, nz)=0._rprec
+!end if
 
 !--with MPI; topw and bottomw are only on top & bottom processes
 !topw(lh, :)=0._rprec
