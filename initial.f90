@@ -268,7 +268,6 @@ end do
 ! Make sure field satisfies boundary conditions
 w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
-! TODO: does this matter? (it assumes slip BC at top)
 if (ubc_mom == 0) then
    u(:,:,nz) = u(:,:,nz-1)
    v(:,:,nz) = v(:,:,nz-1)
@@ -364,6 +363,12 @@ do jz = 1, nz
     jz_abs = jz
     z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
 #endif
+
+    ! For channel flow, choose closest wall
+    if(lbc_mom  > 0 .and. ubc_mom > 0) z = min(z, dz*nproc*(nz-1)*z_i - z)
+    ! For upside-down half-channel, choose upper wall
+    if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
+
     if (z <= z_i) then
         u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
         v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i)
@@ -386,13 +391,14 @@ if (coord == 0) then
 end if
 
 ! Set upper boundary condition as zero gradient in u and v and no penetration in w
-! TODO: does this matter? (it assumes slip BC at top)
 #ifdef PPMPI
 if (coord == nproc-1) then
 #endif    
     w(1:nx, 1:ny, nz) = 0._rprec
-    u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
-    v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
+    !u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
+    !v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
+    u(1:nx, 1:ny, nz) = 0._rprec
+    v(1:nx, 1:ny, nz) = 0._rprec
 #ifdef PPMPI
 end if
 #endif
