@@ -143,9 +143,9 @@ divt(ld-1:ld, :, 1:nz-1) = 0._rprec
 !  divt(ld-1:ld, :, nz) = 0._rprec
 !#endif
 !endif
-!
-!#ifdef PPVERBOSE
-!write (*, *) 'finished divstress_w'
-!#endif
+
+#ifdef PPVERBOSE
+write (*, *) 'finished divstress_w'
+#endif
 
 end subroutine divstress_w
