@@ -327,6 +327,7 @@ if (coord == nproc-1) then
                 const = -2._rprec*(Nu_t(jx,jy,nz)+nu)                   
                 const2=-2._rprec*(Nu_t(jx,jy,nz-1) + nu)
 
+                ! Note: Sij(nz) is on uvp-node at nz-1
                 txx(jx,jy,nz-1) = const*S11(jx,jy,nz)
                 txy(jx,jy,nz-1) = const*S12(jx,jy,nz)
                 tyy(jx,jy,nz-1) = const*S22(jx,jy,nz)
