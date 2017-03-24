@@ -332,7 +332,7 @@ end do
 #endif      
     end if
 #else
-  dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
+  dfdz(:,:,nz)= BOGUS !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
 #endif
 
 
