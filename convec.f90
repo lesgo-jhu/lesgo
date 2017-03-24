@@ -217,7 +217,7 @@ else
   jz_min = 1
 end if
 
-if (ubc_mom>0 .and. coord == nproc-1 ) then  !!channel
+if (coord == nproc-1 ) then  !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   !!channel
@@ -262,7 +262,7 @@ else
   jz_min = 1
 end if
 
-if (ubc_mom>0 .and. coord == nproc-1) then   !!channel
+if (coord == nproc-1) then   !!channel
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
        +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    !!channel
@@ -297,6 +297,8 @@ if (coord == 0) then
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+  !--wrong, we do solve z-eqn (w-eqn) at bottom wall --pj
+  !--earlier comment is also wrong, it is true that cz = 0 at both walls and slip BC
   cc_big(:,:,1)=0._rprec
   !! ^must change for Couette flow ... ?
   jz_min = 2
@@ -304,10 +306,12 @@ else
   jz_min = 1
 end if
 
-if (ubc_mom > 0 .and. coord == nproc-1) then     !!channel
+if (coord == nproc-1) then     !!channel
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+  !--but now we do solve z-eqn (w-eqn) at top wall --pj
+  !--earlier comment is also wrong, it is true that cz = 0 at both walls and slip BC
   cc_big(:,:,nz)=0._rprec
   !! ^must change for Couette flow ... ?
   jz_max = nz-1
