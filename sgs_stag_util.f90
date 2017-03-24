@@ -327,10 +327,10 @@ if (coord == nproc-1) then
                 const = -2._rprec*(Nu_t(jx,jy,nz)+nu)                   
                 const2=-2._rprec*(Nu_t(jx,jy,nz-1) + nu)
 
-                txx(jx,jy,nz-1) = const*S11(jx,jy,nz-1)
-                txy(jx,jy,nz-1) = const*S12(jx,jy,nz-1)
-                tyy(jx,jy,nz-1) = const*S22(jx,jy,nz-1)
-                tzz(jx,jy,nz-1) = const*S33(jx,jy,nz-1)
+                txx(jx,jy,nz-1) = const*S11(jx,jy,nz)
+                txy(jx,jy,nz-1) = const*S12(jx,jy,nz)
+                tyy(jx,jy,nz-1) = const*S22(jx,jy,nz)
+                tzz(jx,jy,nz-1) = const*S33(jx,jy,nz)
                 ! for top wall, include w-grid stress since we now touched nz-1
                 txz(jx,jy,nz-1)= const2*S13(jx,jy,nz-1)
                 tyz(jx,jy,nz-1)= const2*S23(jx,jy,nz-1)
