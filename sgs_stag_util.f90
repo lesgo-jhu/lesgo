@@ -324,7 +324,7 @@ if (coord == nproc-1) then
         if (sgs) then
             do jy=1,ny
             do jx=1,nx         
-                const = -2._rprec*(Nu_t(jx,jy,1)+nu)                   
+                const = -2._rprec*(Nu_t(jx,jy,nz)+nu)                   
                 const2=-2._rprec*(Nu_t(jx,jy,nz-1) + nu)
 
                 txx(jx,jy,nz-1) = const*S11(jx,jy,nz-1)
