@@ -156,6 +156,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
     !if(coord==0) write(*,*) 'Bot u = ', sum(u(:,:,1))/(nx*ny)
     !if(coord==nproc-1) write(*,*) 'Top u = ', sum(u(:,:,nz-1))/(nx*ny)
+    !if(coord==nproc-1) write(*,*) sum(w(:,:,nz-1))/(nx*ny)
     call filt_da (u, dudx, dudy, lbz)
     call filt_da (v, dvdx, dvdy, lbz)
     call filt_da (w, dwdx, dwdy, lbz)
@@ -218,6 +219,7 @@ time_loop: do jt_step = nstart, nsteps
     RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = -RHSz(:, :, 1:nz-1) - divtz(:, :, 1:nz-1)
+    if(coord==nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
 
     ! Coriolis: add forcing to RHS
     if (coriolis_forcing) then
@@ -304,6 +306,15 @@ time_loop: do jt_step = nstart, nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
+    if (coord==nproc-1) then
+        w(:,:,nz) = w(:,:,nz) +                   &
+                         dt * ( tadv1 * RHSz(:,:,nz) +  &
+                                tadv2 * RHSz_f(:,:,nz) )
+        !write(*,*) 'intermediate w:'
+        !write(*,*) minval(w(:,:,nz)), sum(w(:,:,nz))/(nx*ny), maxval(w(:,:,nz))
+        !write(*,*) minval(w(:,:,nz-1)), sum(w(:,:,nz-1))/(nx*ny), maxval(w(:,:,nz-1))
+        !write(*,*) minval(w(:,:,nz-2)), sum(w(:,:,nz-2))/(nx*ny), maxval(w(:,:,nz-2))
+    end if
 
     ! Set unused values to BOGUS so unintended uses will be noticable
 #ifdef PPSAFETYMODE
@@ -318,7 +329,7 @@ time_loop: do jt_step = nstart, nsteps
     !--this has to do with what bc are imposed on intermediate velocity    
     u(:, :, nz) = BOGUS
     v(:, :, nz) = BOGUS
-    w(:, :, nz) = BOGUS
+    if(coord<nproc-1) w(:, :, nz) = BOGUS
 #endif
 
     !//////////////////////////////////////////////////////
@@ -335,6 +346,13 @@ time_loop: do jt_step = nstart, nsteps
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    if(coord==nproc-1) then
+      RHSz(:,:,nz) = RHSz(:,:,nz) - dpdz(:,:,nz)
+      !write(*,*) 'dp/dz:'
+      !write(*,*) minval(dpdz(:,:,nz)),sum(dpdz(:,:,nz))/(nx*ny),maxval(dpdz(:,:,nz))
+      !write(*,*) minval(dpdz(:,:,nz-1)),sum(dpdz(:,:,nz-1))/(nx*ny),maxval(dpdz(:,:,nz-1))
+      !write(*,*) minval(dpdz(:,:,nz-2)),sum(dpdz(:,:,nz-2))/(nx*ny),maxval(dpdz(:,:,nz-2))
+    end if
 
     !//////////////////////////////////////////////////////
     !/// INDUCED FORCES                                 ///
@@ -367,7 +385,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Check the total time of the simulation up to this point on the master node and send this to all
    
     if (modulo (jt_total, wbase) == 0) then
-       
+
        ! Get the ending time for the iteration
        call clock%stop
        call clock_total%stop

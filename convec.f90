@@ -335,7 +335,7 @@ do jz = jz_min, jz_max    !nz - 1    !!channel
 end do
 
 ! Loop through horizontal slices
-do jz=1,nz - 1
+do jz=1,nz !nz - 1
   call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
 
 ! un-zero pad
@@ -358,7 +358,7 @@ end do
 #ifdef PPSAFETYMODE
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
-cz(:, :, nz) = BOGUS
+if(coord<nproc-1) cz(:, :, nz) = BOGUS
 #endif
 
 #ifdef PPVERBOSE

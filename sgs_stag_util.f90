@@ -390,7 +390,7 @@ else
     
     const=0._rprec  ! removed from tij expressions below since it's zero
     
-    do jz=jz_min, nz-1
+    do jz=jz_min, jz_max
     do jy=1,ny
     do jx=1,nx
        

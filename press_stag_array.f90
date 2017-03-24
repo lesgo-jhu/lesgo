@@ -120,8 +120,6 @@ do jz=1,nz-1  !--experiment: was nz here (see below experiments)
   
 end do
 
-
-
 #ifdef PPMPI
 !  H_x(:, :, 0) = BOGUS
 !  H_y(:, :, 0) = BOGUS
@@ -146,14 +144,18 @@ rH_y(1:ld:2,:,nz) = BOGUS
 
 #ifdef PPMPI
   if (coord == nproc-1) then
-    rH_z(:,:,nz) = 0._rprec
+    !rH_z(:,:,nz) = 0._rprec
+    rH_z(:,:,nz) = const2 * w(:,:,nz)
+    call dfftw_execute_dft_r2c(forw, rH_z(:,:,nz), rH_z(:,:,jz))
   else
 #ifdef PPSAFETYMODE
     rH_z(1:ld:2,:,nz) = BOGUS !--perhaps this should be 0 on top process?
 #endif    
   endif
 #else
-  rH_z(:,:,nz) = 0._rprec
+  !rH_z(:,:,nz) = 0._rprec
+  rH_z(:,:,nz) = const2 * w(:,:,nz)
+  call dfftw_execute_dft_r2c(forw, rH_z(:,:,nz), rH_z(:,:,jz))
 #endif
 
 if (coord == 0) then
@@ -187,10 +189,10 @@ rH_x(:, ny/2+1, 1:nz-1)=0._rprec
 rH_y(:, ny/2+1, 1:nz-1)=0._rprec
 rH_z(:, ny/2+1, 1:nz-1)=0._rprec
 ! should also set to zero for rH_z (nz) on coord == nproc-1
-!if (coord == nproc-1) then
-!  rH_z(ld-1:ld, :, nz) = 0._rprec
-!  rH_z(:, ny/2+1, nz)=0._rprec
-!end if
+if (coord == nproc-1) then
+  rH_z(ld-1:ld, :, nz) = 0._rprec
+  rH_z(:, ny/2+1, nz)=0._rprec
+end if
 
 !--with MPI; topw and bottomw are only on top & bottom processes
 !topw(lh, :)=0._rprec
@@ -364,6 +366,14 @@ do jz = 2, nz
   p_hat(1:2, 1, jz) = p_hat(1:2, 1, jz-1) + rH_z(1:2, 1, jz) * dz
 end do
 
+if(coord==nproc-1) then
+      !write(*,*) 'p:'
+      !write(*,*) minval(p_hat(:,:,nz)),sum(p_hat(:,:,nz))/(nx*ny),maxval(p_hat(:,:,nz))
+      !write(*,*) minval(p_hat(:,:,nz-1)),sum(p_hat(:,:,nz-1))/(nx*ny),maxval(p_hat(:,:,nz-1))
+      !write(*,*) minval(p_hat(:,:,nz-2)),sum(p_hat(:,:,nz-2))/(nx*ny),maxval(p_hat(:,:,nz-2))
+end if
+
+
 #ifdef PPMPI
   !--send p_hat(1, 1, nz) to "up"
   !call mpi_send (p_hat(1, 1, nz), 1, MPI_CPREC, up, 8, comm, ierr)
@@ -414,12 +424,13 @@ call dfftw_execute_dft_c2r(back,dfdx(:,:,jz), dfdx(:,:,jz))
 call dfftw_execute_dft_c2r(back,dfdy(:,:,jz), dfdy(:,:,jz))
 call dfftw_execute_dft_c2r(back,p_hat(:,:,jz), p_hat(:,:,jz))    
 end do
+if(coord==nproc-1) call dfftw_execute_dft_c2r(back,p_hat(:,:,nz),p_hat(:,:,nz))
 
 !--nz level is not needed elsewhere (although its valid)
 #ifdef PPSAFETYMODE
 dfdx(:, :, nz) = BOGUS
 dfdy(:, :, nz) = BOGUS
-p_hat(:, :, nz) = BOGUS
+if(coord<nproc-1) p_hat(:, :, nz) = BOGUS
 #endif
 
 ! Final step compute the z-derivative of p_hat
@@ -428,8 +439,16 @@ p_hat(:, :, nz) = BOGUS
 dfdz(1:nx, 1:ny, 1:nz-1) = (p_hat(1:nx, 1:ny, 1:nz-1) -   &
      p_hat(1:nx, 1:ny, 0:nz-2)) / dz
 #ifdef PPSAFETYMODE
-dfdz(:, :, nz) = BOGUS
+if(coord<nproc-1)  dfdz(:, :, nz) = BOGUS
 #endif
+if(coord==nproc-1) dfdz(1:nx,1:ny,nz) = (p_hat(1:nx,1:ny,nz)-p_hat(1:nx,1:ny,nz-1))/ dz
+
+if(coord==nproc-1) then
+      !write(*,*) 'p:'
+      !write(*,*) minval(p_hat(:,:,nz)),sum(p_hat(:,:,nz))/(nx*ny),maxval(p_hat(:,:,nz))
+      !write(*,*) minval(p_hat(:,:,nz-1)),sum(p_hat(:,:,nz-1))/(nx*ny),maxval(p_hat(:,:,nz-1))
+      !write(*,*) minval(p_hat(:,:,nz-2)),sum(p_hat(:,:,nz-2))/(nx*ny),maxval(p_hat(:,:,nz-2))
+end if
 
 ! ! Deallocate arrays
 ! deallocate ( rH_x, rH_y, rH_z )
