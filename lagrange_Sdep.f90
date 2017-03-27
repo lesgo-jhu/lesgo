@@ -110,15 +110,26 @@ do jz = 1,nz
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
         ! (except for very first level which should be on uvp-nodes)
-        ! TODO: NOTE, the location of Nu_T depends on B.C. type!!!
-        if ( ( coord == 0 ) .and. (jz == 1) ) then  ! uvp-nodes bottom
-            u_bar(:,:) = u(:,:,1)
-            v_bar(:,:) = v(:,:,1)
-            w_bar(:,:) = .25_rprec*w(:,:,2)
-        else if ( ( coord == nproc-1 ) .and. (jz == nz) ) then ! uvp-nodes top
-            u_bar(:,:) = u(:,:,nz-1)
-            v_bar(:,:) = v(:,:,nz-1)
-            w_bar(:,:) = .25_rprec*w(:,:,nz-1) ! TODO: why is this 0.25 and not 0.5 ?
+        if ( ( coord == 0 ) .and. (jz == 1) ) then
+            if (lbc_mom == 0) then ! first point on w-grid (at wall)
+                u_bar(:,:) = u(:,:,1) ! stress free dudz = 0, so copy next-door
+                v_bar(:,:) = v(:,:,1)
+                w_bar(:,:) = 0._rprec ! no-penetration
+            else ! first point on uvp-grid (off-wall by 0.5*dz)
+                u_bar(:,:) = u(:,:,1) ! no interpolation needed 
+                v_bar(:,:) = v(:,:,1)
+                w_bar(:,:) = .25_rprec*w(:,:,2) ! TODO: why is this 0.25 and not 0.5?
+            end if
+        else if ( ( coord == nproc-1 ) .and. (jz == nz) ) then
+            if (ubc_mom == 0) then ! first point on w-grid (at wall)
+                u_bar(:,:) = u(:,:,nz-1) ! stress free dudz = 0, so copy next-door
+                v_bar(:,:) = v(:,:,nz-1)
+                w_bar(:,:) = 0._rprec ! no-penetration
+            else ! first point on uvp-grid, at nz-1 location (off-wall by 0.5*dz)
+                u_bar(:,:) = u(:,:,nz-1) ! no interpolation needed 
+                v_bar(:,:) = v(:,:,nz-1)
+                w_bar(:,:) = .25_rprec*w(:,:,nz-1) ! TODO: why is this 0.25 and not 0.5?
+            end if
         else  ! w-nodes
             u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
             v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
