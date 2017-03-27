@@ -343,15 +343,16 @@ real(rprec), intent(in), dimension(3) :: xyz
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
-real(rprec), pointer, dimension(:) :: x,y,z
+real(rprec), pointer, dimension(:) :: x,y,z,zw
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 
-nullify(x,y,z)
+nullify(x,y,z,zw)
 nullify(autowrap_i, autowrap_j)
 
-x => grid % x
-y => grid % y
-z => grid % z
+x  => grid % x
+y  => grid % y
+z  => grid % z
+zw => grid % zw
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
 
@@ -421,7 +422,7 @@ u6=u3 + (ydiff) * (u4 - u3) / dy
 !trilinear_interp = linear_interp(u5,u6,dz,zdiff)
 trilinear_interp = u5 + (zdiff) * (u6 - u5) / dz
 
-nullify(x,y,z)
+nullify(x,y,z,zw)
 nullify(autowrap_i, autowrap_j)
 
 return
