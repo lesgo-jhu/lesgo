@@ -62,9 +62,9 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 
 implicit none
 
-#ifdef PPVERBOSE
+!#ifdef PPVERBOSE ! pj -- removed for error handling
 character (*), parameter :: sub_name = 'sgs_stag'
-#endif
+!#endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
 !real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
@@ -107,34 +107,93 @@ if (sgs) then
             ! Parameters (Co and nn) for wallfunction defined in param.f90
             Cs_opt2 = Co**2  ! constant coefficient
             
-            if (lbc_mom == 0) then
-               ! Stress free
+            if (lbc_mom == 0 .and. ubc_mom == 0) then
+                ! both Stress free
                 l = delta        
-            else       
-                ! The variable "l" calculated below is l_sgs/Co where l_sgs is from JDA eqn(2.30)
-                if (coord == 0) then
+            else if (lbc_mom > 0 .and. ubc_mom == 0) then 
+                ! top Stress free, bottom wall
 
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == 0) then
                     ! z's nondimensional, l here is on uv-nodes
                     zz(1) = 0.5_rprec * dz                    
                     l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
                                 (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                
-                    do jz = 2, nz
-                        ! z's nondimensional, l here is on w-nodes
-                        zz(jz) = (jz - 1) * dz                        
-                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
-                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                    end do
+
+                    jz_min = 2
                 else
-                    do jz = 1, nz
-                        ! z's nondimensional, l here is on w-nodes
-                        zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
-                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                    jz_min = 1
+                end if
+ 
+                do jz = jz_min, nz
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+
+            else if (lbc_mom > 0 .and. ubc_mom > 0) then
+                ! both top and bottom walls, zz is distance to nearest wall
+
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == 0) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(1) = 0.5_rprec * dz                    
+                    l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
                                 (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                    end do 
+
+                    jz_min = 2
+                else
+                    jz_min = 1
                 end if
 
+                if (coord == nproc-1) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(nz) = 0.5_rprec * dz
+                    l(nz) = ( Co**(wall_damp_exp)*(vonk*zz(nz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                    jz_max = nz-1
+                else
+                    jz_max = nz
+                end if
+ 
+                do jz = jz_min, jz_max
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
+                    zz(jz) = min( zz(jz), (nz-1)*nproc*dz - zz(jz) )
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+                
+            else if (lbc_mom == 0 .and. ubc_mom > 0) then
+                ! both top wall, bottom stress free, zz is distance to top
+
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == nproc-1) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(nz) = 0.5_rprec * dz
+                    l(nz) = ( Co**(wall_damp_exp)*(vonk*zz(nz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                    jz_max = nz-1
+                else
+                    jz_max = nz
+                end if
+ 
+                do jz = 1, jz_max
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((nproc - coord)*(nz - 1) - (jz - 1)) * dz 
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+
+            else
+                call error (sub_name, 'invalid b.c. combination')
             end if
+           
+
 #endif
 
     else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to sgs_model)
