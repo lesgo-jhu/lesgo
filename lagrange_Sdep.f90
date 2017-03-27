@@ -406,16 +406,18 @@ do jz = 1,nz
              (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
 
         !--MPI: this is not valid
-        ! TODO: what is Beta and why jz=nz spec here?
 #ifdef PPMPI 
-          if ((coord == nproc-1).and.(jz == nz)) then
+          if ((coord == nproc-1).and.(jz == nz).and.ubc_mom==0) then
             Beta(:,:,jz)=1._rprec
           endif
 #else
-          if (jz == nz) then
+          if (jz == nz .and. ubc_mom==0) then
             Beta(:,:,jz)=1._rprec
           endif
 #endif
+          if (coord == 0 .and. jz == 1 .and. lbc_mom==0) then
+            Beta(:,:,jz)=1._rprec
+          end if
         
     ! Clip Beta and set Cs_opt2 for each point in the plane
         do jy = 1, ny
