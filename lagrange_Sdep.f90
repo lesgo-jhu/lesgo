@@ -116,6 +116,9 @@ do jz = 1,nz
             v_bar(:,:) = v(:,:,1)
             w_bar(:,:) = .25_rprec*w(:,:,2)
         else if ( ( coord == nproc-1 ) .and. (jz == nz) ) then ! uvp-nodes top
+            u_bar(:,:) = u(:,:,nz-1)
+            v_bar(:,:) = v(:,:,nz-1)
+            w_bar(:,:) = .25_rprec*w(:,:,nz-1)
         else  ! w-nodes
             u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
             v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
