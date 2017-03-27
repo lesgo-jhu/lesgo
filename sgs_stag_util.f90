@@ -231,7 +231,7 @@ end if
 
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
-!   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
+!   stored on w-nodes (on uvp node for jz=1 or nz for 'wall' BC only) 
 do jz=1,nz
 do jy=1,ny
 do jx=1,nx

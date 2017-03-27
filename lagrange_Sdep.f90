@@ -110,10 +110,12 @@ do jz = 1,nz
     ! Calculate Lij
         ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
         ! (except for very first level which should be on uvp-nodes)
-        if ( ( coord == 0 ) .and. (jz == 1) ) then  ! uvp-nodes
+        ! TODO: NOTE, the location of Nu_T depends on B.C. type!!!
+        if ( ( coord == 0 ) .and. (jz == 1) ) then  ! uvp-nodes bottom
             u_bar(:,:) = u(:,:,1)
             v_bar(:,:) = v(:,:,1)
             w_bar(:,:) = .25_rprec*w(:,:,2)
+        else if ( ( coord == nproc-1 ) .and. (jz == nz) ) then ! uvp-nodes top
         else  ! w-nodes
             u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
             v_bar(:,:) = .5_rprec*(v(:,:,jz) + v(:,:,jz-1))  
