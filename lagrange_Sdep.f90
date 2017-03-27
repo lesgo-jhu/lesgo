@@ -118,7 +118,7 @@ do jz = 1,nz
             else ! first point on uvp-grid (off-wall by 0.5*dz)
                 u_bar(:,:) = u(:,:,1) ! no interpolation needed 
                 v_bar(:,:) = v(:,:,1)
-                w_bar(:,:) = .25_rprec*w(:,:,2) ! TODO: why is this 0.25 and not 0.5?
+                w_bar(:,:) = .25_rprec*w(:,:,2)
             end if
         else if ( ( coord == nproc-1 ) .and. (jz == nz) ) then
             if (ubc_mom == 0) then ! first point on w-grid (at wall)
@@ -128,7 +128,7 @@ do jz = 1,nz
             else ! first point on uvp-grid, at nz-1 location (off-wall by 0.5*dz)
                 u_bar(:,:) = u(:,:,nz-1) ! no interpolation needed 
                 v_bar(:,:) = v(:,:,nz-1)
-                w_bar(:,:) = .25_rprec*w(:,:,nz-1) ! TODO: why is this 0.25 and not 0.5?
+                w_bar(:,:) = .25_rprec*w(:,:,nz-1)
             end if
         else  ! w-nodes
             u_bar(:,:) = .5_rprec*(u(:,:,jz) + u(:,:,jz-1)) 
