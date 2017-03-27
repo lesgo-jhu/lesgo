@@ -406,6 +406,7 @@ do jz = 1,nz
              (Cs_opt2_4d(:,:)/Cs_opt2_2d(:,:))**(log(tf1)/(log(tf2)-log(tf1)))
 
         !--MPI: this is not valid
+        ! TODO: what is Beta and why jz=nz spec here?
 #ifdef PPMPI 
           if ((coord == nproc-1).and.(jz == nz)) then
             Beta(:,:,jz)=1._rprec
