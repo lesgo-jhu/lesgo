@@ -153,7 +153,6 @@ zw => grid % zw
             enddo
             enddo
             enddo               
-        ! Top-most level should not allow negative w
 #ifdef PPMPI
             if (coord.eq.nproc-1) then
 #endif
@@ -234,6 +233,6 @@ zw => grid % zw
 write (*, *) 'finished interpolag_Sdep'
 #endif
 
-nullify(x,y,z)
+nullify(x,y,z,zw)
 
 end subroutine interpolag_Sdep
