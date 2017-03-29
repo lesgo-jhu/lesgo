@@ -110,7 +110,8 @@ zw => grid % zw
                     xyz_past(1) = x(i) - u(i,j,k)*lagran_dt ! no interpolation needed
                     xyz_past(2) = y(j) - v(i,j,k)*lagran_dt
                     ! use uvp-node for z-grid, interpolate w
-                    xyz_past(3) = z(k) - 0.5_rprec*w(i,j,k+1)*lagran_dt
+                    xyz_past(3) = z(k) - 0.25_rprec*w(i,j,k+1)*lagran_dt
+                    ! assume quadratic w near wall, hence 0.25 --pj
 
                     ! Interpolate -- copied from below by pj    
                     F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
@@ -184,7 +185,8 @@ zw => grid % zw
                     xyz_past(1) = x(i) - u(i,j,k-1)*lagran_dt ! no interpolation needed
                     xyz_past(2) = y(j) - v(i,j,k-1)*lagran_dt
                     ! use uvp-node for z-grid, interpolate w
-                    xyz_past(3) = z(k) - 0.5_rprec*w(i,j,k-1)*lagran_dt                    
+                    xyz_past(3) = z(k) - 0.25_rprec*w(i,j,k-1)*lagran_dt
+                    ! assume quadratic w near wall, hence 0.25 --pj
 
                     ! Interpolate
                     F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
