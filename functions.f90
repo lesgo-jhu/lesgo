@@ -420,6 +420,91 @@ return
 end function cell_indx
 
 !**********************************************************************
+real(rprec) function trilinear_interp_w(var,lbz,xyz)
+!**********************************************************************
+!
+!  This subroutine perform trilinear interpolation for a point that
+!  exists in the cell with lower dimension (cell index) : istart,jstart,kstart
+!  for the point xyz
+!  
+!  istart, jstart, kstart are used to determine the cell location on the
+!  w-grid; these are defined in output_init
+!
+!  This assumes that var is on the w-grid
+!
+!  The variable sent to this subroutine should have a lower-bound-on-z 
+!  (lbz) set as an input so the k-index will match the k-index of z.  
+!  Before calling this function, make sure the point exists on the coord
+!  [ test using: z(1) \leq z_p < z(nz-1) ]
+!
+use grid_m
+use types, only : rprec
+use param, only : dx, dy, dz
+implicit none
+
+integer, intent(in) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(in) :: var
+integer :: istart, jstart, kstart, istart1, jstart1, kstart1
+real(rprec), intent(in), dimension(3) :: xyz
+
+!integer, parameter :: nvar = 3
+real(rprec) :: u1,u2,u3,u4,u5,u6
+real(rprec) :: xdiff, ydiff, zdiff
+
+real(rprec), pointer, dimension(:) :: x,y,zw
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
+nullify(x,y,zw)
+nullify(autowrap_i, autowrap_j)
+
+x => grid % x
+y => grid % y
+zw => grid % zw
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
+
+!  Initialize stuff
+u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
+
+! Determine istart, jstart, kstart by calling cell_indx
+istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
+jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
+kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
+
+! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
+! Set +1 values
+istart1 = autowrap_i(istart+1) ! Autowrap index
+jstart1 = autowrap_j(jstart+1) ! Autowrap index
+kstart1 = kstart + 1
+
+!  Compute xdiff
+xdiff = xyz(1) - x(istart)
+!  Compute ydiff
+ydiff = xyz(2) - y(jstart)
+!  Compute zdiff
+zdiff = xyz(3) - zw(kstart)
+
+!  Perform the 7 linear interpolations
+!  Perform interpolations in x-direction 
+u1=var(istart,  jstart,  kstart)  + (xdiff) * (var(istart1, jstart,  kstart)  - var(istart,  jstart,  kstart)) / dx
+u2=var(istart,  jstart1, kstart)  + (xdiff) * (var(istart1, jstart1, kstart)  - var(istart,  jstart1, kstart)) / dx
+u3=var(istart,  jstart,  kstart1) + (xdiff) * (var(istart1, jstart,  kstart1) - var(istart,  jstart,  kstart1)) / dx
+u4=var(istart,  jstart1, kstart1) + (xdiff) * (var(istart1, jstart1, kstart1) - var(istart,  jstart1, kstart1)) / dx
+
+!  Perform interpolations in y-direction
+u5=u1 + (ydiff) * (u2 - u1) / dy
+u6=u3 + (ydiff) * (u4 - u3) / dy
+!  Perform interpolation in z-direction
+trilinear_interp = u5 + (zdiff) * (u6 - u5) / dz
+
+nullify(x,y,zw)
+nullify(autowrap_i, autowrap_j)
+
+return
+end function trilinear_interp
+
+
+!**********************************************************************
 real(rprec) function trilinear_interp(var,lbz,xyz)
 !**********************************************************************
 !
