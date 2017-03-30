@@ -136,10 +136,9 @@ zw => grid % zw
             do j=1,ny
             do i=1,nx
                 ! Determine position at previous timestep (u,v interp to w-grid)
-                xyz_past(1) = x(i) - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
-                xyz_past(2) = y(j) - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt
-                ! TODO: for w-nodes, use zw
-                xyz_past(3) = z(k) - w(i,j,k)*lagran_dt               
+                xyz_past(1) = x(i)  - 0.5_rprec*(u(i,j,k-1)+u(i,j,k))*lagran_dt
+                xyz_past(2) = y(j)  - 0.5_rprec*(v(i,j,k-1)+v(i,j,k))*lagran_dt
+                xyz_past(3) = zw(k) - w(i,j,k)*lagran_dt               
 
                 ! Interpolate
                 F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
