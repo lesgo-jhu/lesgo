@@ -484,6 +484,16 @@ end do
         call mpi_sync_real_array( Tn_all, 0, MPI_SYNC_DOWNUP )  
 #endif   
 
+! Set zero-gradient B.C. (for next step)
+! TODO : make this irrelevant so we can remove
+if(coord == 0) then
+  F_LM(:,:,0) = F_LM(:,:,1)
+  F_MM(:,:,0) = F_MM(:,:,1)
+  F_QN(:,:,0) = F_QN(:,:,1)
+  F_NN(:,:,0) = F_NN(:,:,1)
+end if
+! Note jz=nz already used at top wall, so can't enforce B.C. here --pj
+
 #ifdef PPLVLSET
     ! Zero Cs_opt2 inside objects
     call level_set_Cs_lag_dyn ()
