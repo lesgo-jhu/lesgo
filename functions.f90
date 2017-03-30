@@ -27,6 +27,7 @@ save
 private
 public interp_to_uv_grid,   &
     trilinear_interp,       &
+    trilinear_interp_w,     &
     bilinear_interp,        &
     linear_interp,          &
     cell_indx,              &
