@@ -39,7 +39,7 @@ use sgs_param, only: F_ee2, F_deedt2, ee_past
 #endif
 use sim_param,only:u,v,w
 use grid_m
-use functions, only:trilinear_interp
+use functions, only:trilinear_interp_w
 #ifdef PPMPI
 use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 #endif
@@ -84,7 +84,7 @@ zw => grid % zw
         tempee_past = ee_past  
 #endif 
 
-        ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp
+        ! Loop over domain (within proc): for each, calc xyz_past then trilinear_interp_w
         ! Variables x,y,z, F_LM, F_MM, F_QN, F_NN, etc are on w-grid
         ! Interpolation out of top/bottom of domain is not permitted.
         ! Note: x,y,z values are only good for k=1:nz-1 within each proc
@@ -114,14 +114,14 @@ zw => grid % zw
                     ! assume quadratic w near wall, hence 0.25 --pj
 
                     ! Interpolate -- copied from below by pj    
-                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
+                    F_LM(i,j,k)=trilinear_interp_w(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_MM(i,j,k)=trilinear_interp_w(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_QN(i,j,k)=trilinear_interp_w(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_NN(i,j,k)=trilinear_interp_w(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
 #ifdef PPDYN_TN
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_ee2(i,j,k)=trilinear_interp_w(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_deedt2(i,j,k)=trilinear_interp_w(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    ee_past(i,j,k)=trilinear_interp_w(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
 #endif 
                   end do
                   end do
@@ -141,14 +141,14 @@ zw => grid % zw
                 xyz_past(3) = zw(k) - w(i,j,k)*lagran_dt               
 
                 ! Interpolate
-                F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
+                F_LM(i,j,k)=trilinear_interp_w(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_MM(i,j,k)=trilinear_interp_w(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_QN(i,j,k)=trilinear_interp_w(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_NN(i,j,k)=trilinear_interp_w(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
 #ifdef PPDYN_TN
-                F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_ee2(i,j,k)=trilinear_interp_w(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                F_deedt2(i,j,k)=trilinear_interp_w(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                ee_past(i,j,k)=trilinear_interp_w(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
 #endif 
             enddo
             enddo
@@ -167,14 +167,14 @@ zw => grid % zw
                     xyz_past(3) = zw(k)
                     
                     ! Interpolate
-                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
+                    F_LM(i,j,k)=trilinear_interp_w(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_MM(i,j,k)=trilinear_interp_w(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_QN(i,j,k)=trilinear_interp_w(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_NN(i,j,k)=trilinear_interp_w(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
 #ifdef PPDYN_TN
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
+                    F_ee2(i,j,k)=trilinear_interp_w(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_deedt2(i,j,k)=trilinear_interp_w(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    ee_past(i,j,k)=trilinear_interp_w(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
 #endif
                   enddo
                   enddo    
@@ -188,14 +188,14 @@ zw => grid % zw
                     ! assume quadratic w near wall, hence 0.25 --pj
 
                     ! Interpolate
-                    F_LM(i,j,k) = trilinear_interp(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_MM(i,j,k) = trilinear_interp(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_QN(i,j,k) = trilinear_interp(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_NN(i,j,k) = trilinear_interp(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
+                    F_LM(i,j,k)=trilinear_interp_w(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_MM(i,j,k)=trilinear_interp_w(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_QN(i,j,k)=trilinear_interp_w(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_NN(i,j,k)=trilinear_interp_w(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                      
 #ifdef PPDYN_TN
-                    F_ee2(i,j,k) = trilinear_interp(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    F_deedt2(i,j,k) = trilinear_interp(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
-                    ee_past(i,j,k) = trilinear_interp(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
+                    F_ee2(i,j,k)=trilinear_interp_w(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_deedt2(i,j,k)=trilinear_interp_w(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    ee_past(i,j,k)=trilinear_interp_w(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)    
 #endif
 
                   end do
