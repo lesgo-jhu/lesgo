@@ -204,6 +204,114 @@ return
 end function interp_to_w_grid
 
 !**********************************************************************
+integer function cell_indx_w(indx,dx,px)
+!**********************************************************************
+! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
+!   spacing=[dx or dy or dz] and the [x or y or z] location and returns
+!   the value of the lower index (cell index). Also include is implicit
+!   wrapping of the spatial location px
+! 
+!  cell_indx should always be:
+!  1<= cell_indx <= Nx
+!  or
+!  1<= cell_indx <= Ny
+!  or
+!  lbz <= cell_indx < Nz
+!
+use types, only : rprec
+use grid_m
+use messages 
+use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
+implicit none
+
+character (*), intent (in) :: indx
+real(rprec), intent(in) :: dx
+
+real(rprec) :: px ! Global value
+
+character (*), parameter :: func_name = mod_name // '.cell_indx'
+
+real(rprec), parameter :: thresh = 1.e-9_rprec
+
+real(rprec), pointer, dimension(:) :: z
+
+! Nullify pointers
+nullify(z)
+! Intialize result
+cell_indx = -1
+
+if(.not. grid % built) call grid%build()
+
+z => grid % z
+
+select case (indx)
+  case ('i')
+
+    ! Autowrap spatial point   
+    px = modulo(px,L_x)
+   
+    ! Check lower boundary
+    if( abs(px) / L_x < thresh ) then
+
+      cell_indx = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_x ) / L_x < thresh ) then
+   
+      cell_indx = Nx
+
+    else
+
+      ! Returned values 1 < cell_indx < Nx
+      cell_indx = floor (px / dx) + 1
+
+   endif
+
+  case ('j')
+
+    ! Autowrap spatial point
+    px = modulo(px, L_y) 
+
+    ! Check lower boundary
+    if( abs(px) / L_y < thresh ) then
+
+      cell_indx = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_y ) / L_y < thresh ) then
+
+      cell_indx = Ny
+
+    else
+
+      ! Returned values 1 < cell_indx < Ny
+      cell_indx = floor (px / dx) + 1
+
+   endif
+
+  !  Need to compute local distance to get local k index
+  case ('k')
+
+      ! Check upper boundary 
+    if( abs( px - z(Nz) ) / L_z < thresh ) then
+
+      cell_indx = Nz-1
+
+    else
+
+      cell_indx = floor ((px - z(1)) / dx) + 1
+
+    endif
+
+end select
+
+nullify(z)
+
+return
+end function cell_indx_w
+
+
+!**********************************************************************
 integer function cell_indx(indx,dx,px)
 !**********************************************************************
 ! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
