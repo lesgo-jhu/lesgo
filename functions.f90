@@ -239,7 +239,7 @@ real(rprec), pointer, dimension(:) :: zw
 ! Nullify pointers
 nullify(zw)
 ! Intialize result
-cell_indx = -1
+cell_indx_w = -1
 
 if(.not. grid % built) call grid%build()
 
@@ -254,17 +254,17 @@ select case (indx)
     ! Check lower boundary
     if( abs(px) / L_x < thresh ) then
 
-      cell_indx = 1
+      cell_indx_w = 1
 
     ! Check upper boundary 
     elseif( abs( px - L_x ) / L_x < thresh ) then
    
-      cell_indx = Nx
+      cell_indx_w = Nx
 
     else
 
       ! Returned values 1 < cell_indx < Nx
-      cell_indx = floor (px / dx) + 1
+      cell_indx_w = floor (px / dx) + 1
 
    endif
 
@@ -276,17 +276,17 @@ select case (indx)
     ! Check lower boundary
     if( abs(px) / L_y < thresh ) then
 
-      cell_indx = 1
+      cell_indx_w = 1
 
     ! Check upper boundary 
     elseif( abs( px - L_y ) / L_y < thresh ) then
 
-      cell_indx = Ny
+      cell_indx_w = Ny
 
     else
 
       ! Returned values 1 < cell_indx < Ny
-      cell_indx = floor (px / dx) + 1
+      cell_indx_w = floor (px / dx) + 1
 
    endif
 
@@ -296,11 +296,11 @@ select case (indx)
       ! Check upper boundary 
     if( abs( px - zw(Nz) ) / L_z < thresh ) then
 
-      cell_indx = Nz-1
+      cell_indx_w = Nz-1
 
     else
 
-      cell_indx = floor ((px - zw(1)) / dx) + 1
+      cell_indx_w = floor ((px - zw(1)) / dx) + 1
 
     endif
 
@@ -467,9 +467,9 @@ autowrap_j => grid % autowrap_j
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
 ! Determine istart, jstart, kstart by calling cell_indx
-istart = cell_indx('i',dx,xyz(1)) ! 1<= istart <= Nx
-jstart = cell_indx('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx('k',dz,xyz(3)) ! lbz <= kstart < Nz
+istart = cell_indx_w('i',dx,xyz(1)) ! 1<= istart <= Nx
+jstart = cell_indx_w('j',dy,xyz(2)) ! 1<= jstart <= Ny
+kstart = cell_indx_w('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
 ! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 ! Set +1 values
@@ -495,13 +495,13 @@ u4=var(istart,  jstart1, kstart1) + (xdiff) * (var(istart1, jstart1, kstart1) - 
 u5=u1 + (ydiff) * (u2 - u1) / dy
 u6=u3 + (ydiff) * (u4 - u3) / dy
 !  Perform interpolation in z-direction
-trilinear_interp = u5 + (zdiff) * (u6 - u5) / dz
+trilinear_interp_w = u5 + (zdiff) * (u6 - u5) / dz
 
 nullify(x,y,zw)
 nullify(autowrap_i, autowrap_j)
 
 return
-end function trilinear_interp
+end function trilinear_interp_w
 
 
 !**********************************************************************
