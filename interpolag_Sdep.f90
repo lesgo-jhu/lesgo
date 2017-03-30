@@ -102,8 +102,20 @@ zw => grid % zw
                     xyz_past(2) = y(j) - v(i,j,k)*lagran_dt
                     ! use w-node for z-grid, w = 0 no penetration
                     xyz_past(3) = zw(k)
+
+                    ! Interpolate -- copied from below by pj    
+                    F_LM(i,j,k)=trilinear_interp_w(tempF_LM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_MM(i,j,k)=trilinear_interp_w(tempF_MM(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_QN(i,j,k)=trilinear_interp_w(tempF_QN(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_NN(i,j,k)=trilinear_interp_w(tempF_NN(1:nx,1:ny,lbz:nz),lbz,xyz_past)                          
+#ifdef PPDYN_TN
+                    F_ee2(i,j,k)=trilinear_interp_w(tempF_ee2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    F_deedt2(i,j,k)=trilinear_interp_w(tempF_deedt2(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+                    ee_past(i,j,k)=trilinear_interp_w(tempee_past(1:nx,1:ny,lbz:nz),lbz,xyz_past)
+#endif 
                   end do
                   end do
+
                 else ! on uvp-grid
                   do j=1,ny
                   do i=1,nx
@@ -184,7 +196,7 @@ zw => grid % zw
                     xyz_past(1) = x(i) - u(i,j,k-1)*lagran_dt ! no interpolation needed
                     xyz_past(2) = y(j) - v(i,j,k-1)*lagran_dt
                     ! use uvp-node for z-grid, interpolate w
-                    xyz_past(3) = z(k) - 0.25_rprec*w(i,j,k-1)*lagran_dt
+                    xyz_past(3) = z(k-1) - 0.25_rprec*w(i,j,k-1)*lagran_dt
                     ! assume quadratic w near wall, hence 0.25 --pj
 
                     ! Interpolate
