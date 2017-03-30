@@ -209,7 +209,8 @@ integer function cell_indx_w(indx,dx,px)
 ! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
 !   spacing=[dx or dy or dz] and the [x or y or z] location and returns
 !   the value of the lower index (cell index). Also include is implicit
-!   wrapping of the spatial location px
+!   wrapping of the spatial location px. For z, the w-grid is used. To
+!   use uv-grid for cell index, please see cell_indx() function.
 ! 
 !  cell_indx should always be:
 !  1<= cell_indx <= Nx
@@ -233,16 +234,16 @@ character (*), parameter :: func_name = mod_name // '.cell_indx'
 
 real(rprec), parameter :: thresh = 1.e-9_rprec
 
-real(rprec), pointer, dimension(:) :: z
+real(rprec), pointer, dimension(:) :: zw
 
 ! Nullify pointers
-nullify(z)
+nullify(zw)
 ! Intialize result
 cell_indx = -1
 
 if(.not. grid % built) call grid%build()
 
-z => grid % z
+zw => grid % zw
 
 select case (indx)
   case ('i')
@@ -293,19 +294,19 @@ select case (indx)
   case ('k')
 
       ! Check upper boundary 
-    if( abs( px - z(Nz) ) / L_z < thresh ) then
+    if( abs( px - zw(Nz) ) / L_z < thresh ) then
 
       cell_indx = Nz-1
 
     else
 
-      cell_indx = floor ((px - z(1)) / dx) + 1
+      cell_indx = floor ((px - zw(1)) / dx) + 1
 
     endif
 
 end select
 
-nullify(z)
+nullify(zw)
 
 return
 end function cell_indx_w
