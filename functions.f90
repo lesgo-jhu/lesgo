@@ -428,9 +428,13 @@ real(rprec) function trilinear_interp_w(var,lbz,xyz)
 !  for the point xyz
 !  
 !  istart, jstart, kstart are used to determine the cell location on the
-!  w-grid; these are defined in output_init
+!  w-grid (with exceptions, see below); these are defined in output_init
 !
-!  This assumes that var is on the w-grid
+!  This assumes that var is on the w-grid, except (jz=1 .and. coord==0)
+!  .or. (jz=nz .and. coord==nproc-1) when these are near wall BC, in which case
+!  the var is assumed to be on the uv-grid. This oddity is because this
+!  function is designed for interpolating variables for the lagrangian subgrid
+!  models and for wall BC lesgo stores nu_t not at the wall but 0.5*dz off it.
 !
 !  The variable sent to this subroutine should have a lower-bound-on-z 
 !  (lbz) set as an input so the k-index will match the k-index of z.  
@@ -439,7 +443,7 @@ real(rprec) function trilinear_interp_w(var,lbz,xyz)
 !
 use grid_m
 use types, only : rprec
-use param, only : dx, dy, dz
+use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz
 implicit none
 
 integer, intent(in) :: lbz
@@ -451,14 +455,15 @@ real(rprec), intent(in), dimension(3) :: xyz
 real(rprec) :: u1,u2,u3,u4,u5,u6
 real(rprec) :: xdiff, ydiff, zdiff
 
-real(rprec), pointer, dimension(:) :: x,y,zw
+real(rprec), pointer, dimension(:) :: x,y,z,zw
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 
-nullify(x,y,zw)
+nullify(x,y,z,zw)
 nullify(autowrap_i, autowrap_j)
 
-x => grid % x
-y => grid % y
+x  => grid % x
+y  => grid % y
+z  => grid % z
 zw => grid % zw
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -466,23 +471,53 @@ autowrap_j => grid % autowrap_j
 !  Initialize stuff
 u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
 
-! Determine istart, jstart, kstart by calling cell_indx
+! X and Y index not affected by z-grid details
+! Determine istart, jstart by calling cell_indx
 istart = cell_indx_w('i',dx,xyz(1)) ! 1<= istart <= Nx
 jstart = cell_indx_w('j',dy,xyz(2)) ! 1<= jstart <= Ny
-kstart = cell_indx_w('k',dz,xyz(3)) ! lbz <= kstart < Nz
 
-! Extra term with kstart accounts for shift in var k-index if lbz.ne.1
 ! Set +1 values
 istart1 = autowrap_i(istart+1) ! Autowrap index
 jstart1 = autowrap_j(jstart+1) ! Autowrap index
-kstart1 = kstart + 1
 
 !  Compute xdiff
 xdiff = xyz(1) - x(istart)
 !  Compute ydiff
 ydiff = xyz(2) - y(jstart)
-!  Compute zdiff
-zdiff = xyz(3) - zw(kstart)
+
+if(coord==0 .and. lbc_mom>0 .and. xyz(3) < zw(2)) then ! special case
+  if (xyz(3) < z(1)) then ! below first point, zero grad BC
+    kstart  = 1
+    kstart1 = 1 ! use same z-index for both sides of interp (zero grad)
+    zdiff   = 0._rprec  ! kstart==kstart1, so u1==u3 .and. u2==u4, so u5==u6
+    ! therefore, zdiff is irrelevant in this case
+  else ! in-between jz=1 and jz=2, which are sep by only 0.5*dz
+    kstart  = 1
+    kstart1 = 2
+    zdiff   = 2._rprec*(xyz(3) - z(kstart)) ! use uvp-grid for z
+    ! multiply by 2 to achieve effective dz/2 in last step of interp
+  end if
+else if (coord==nproc-1 .and. ubc_mom>0 .and. xyz(3) > zw(nz-1)) then ! special case
+  if (xyz(3) > z(nz-1)) then ! above last point, zero grad BC
+    kstart  = nz
+    kstart1 = nz ! use same z-index for both sides of interp (zero grad)
+    zdiff   = 0._rprec  ! kstart==kstart1, so u1==u3 .and. u2==u4, so u5==u6
+    ! therefore, zdiff is irrelevant in this case
+  else ! in-between jz=nz-1 and jz=nz, which are sep by only 0.5*dz
+    kstart  = nz-1
+    kstart1 = nz
+    zdiff   = 2._rprec*(xyz(3) - z(kstart)) ! use uvp-grid for z
+    ! multiply by 2 to achieve effective dz/2 in last step of interp
+  end if
+else ! Determine kstart by calling cell_indx_w
+  kstart = cell_indx_w('k',dz,xyz(3)) ! lbz <= kstart < Nz
+
+  ! Set +1 values
+  kstart1 = kstart + 1
+
+  !  Compute zdiff
+  zdiff = xyz(3) - zw(kstart)
+end if
 
 !  Perform the 7 linear interpolations
 !  Perform interpolations in x-direction 
@@ -497,7 +532,7 @@ u6=u3 + (ydiff) * (u4 - u3) / dy
 !  Perform interpolation in z-direction
 trilinear_interp_w = u5 + (zdiff) * (u6 - u5) / dz
 
-nullify(x,y,zw)
+nullify(x,y,z,zw)
 nullify(autowrap_i, autowrap_j)
 
 return
