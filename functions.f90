@@ -507,7 +507,7 @@ else if (coord==nproc-1 .and. ubc_mom>0 .and. xyz(3) > zw(nz-1)) then ! special 
   else ! in-between jz=nz-1 and jz=nz, which are sep by only 0.5*dz
     kstart  = nz-1
     kstart1 = nz
-    zdiff   = 2._rprec*(xyz(3) - z(kstart)) ! use uvp-grid for z
+    zdiff   = 2._rprec*(xyz(3) - zw(kstart)) ! use w-grid for z
     ! multiply by 2 to achieve effective dz/2 in last step of interp
   end if
 else ! Determine kstart by calling cell_indx_w
