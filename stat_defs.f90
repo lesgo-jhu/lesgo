@@ -722,6 +722,7 @@ c % wp2 = a % w2 - a % w * a % w
 c % upvp = a % uv - a % u * a % v
 !! using w_uv below instead of w ensures that the Reynolds stresses are on
 !! the same grid as the squared velocities (i.e., the uv grid)
+! TODO: should be consistent with w-grid calc
 c % upwp = a % uw - a % u * a % w_uv   !!jb
 c % vpwp = a % vw - a % v * a % w_uv   !!jb
 

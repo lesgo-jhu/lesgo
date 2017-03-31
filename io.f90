@@ -1741,8 +1741,9 @@ allocate(w_uv(nx,ny,lbz:nz),u_w(nx,ny,lbz:nz))
 
 w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
 u_w(1:nx,1:ny,lbz:nz) =  interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
+!TODO also same for v!
 ! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
-! can zero u_w at BC anyway below
+! can zero u_w at BC anyway:
 if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
 if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
 
