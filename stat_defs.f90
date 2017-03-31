@@ -64,7 +64,7 @@ logical :: tavg_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
-  real(rprec) :: u, v, w, w_uv
+  real(rprec) :: u, v, w, u_w, v_w, w_uv
   real(rprec) :: u2, v2, w2, uv, uw, vw
 !  real(rprec) :: dudz, dvdz
   real(rprec) :: txx, tyy, tzz, txy, txz, tyz
@@ -311,6 +311,8 @@ type(tavg_t) :: c
 c % u = a % u + b % u
 c % v = a % v + b % v
 c % w = a % w + b % w
+c % u_w  = a % u_w  + b % u_w
+c % v_w  = a % v_w  + b % v_w
 c % w_uv = a % w_uv + b % w_uv
 c % u2 = a % u2 + b % u2
 c % v2 = a % v2 + b % v2
@@ -344,6 +346,8 @@ type(tavg_t) :: c
 c % u = a % u - b % u
 c % v = a % v - b % v
 c % w = a % w - b % w
+c % u_w  = a % u_w  - b % u_w 
+c % v_w  = a % v_w  - b % v_w 
 c % w_uv = a % w_uv - b % w_uv
 c % u2 = a % u2 - b % u2
 c % v2 = a % v2 - b % v2
@@ -380,6 +384,8 @@ type(tavg_t) :: c
 c % u = a % u + b
 c % v = a % v + b
 c % w = a % w + b
+c % u_w  = a % u_w  + b
+c % v_w  = a % v_w  + b
 c % w_uv = a % w_uv + b
 c % u2 = a % u2 + b
 c % v2 = a % v2 + b
@@ -459,6 +465,8 @@ type(tavg_t) :: c
 c % u = a % u / b
 c % v = a % v / b
 c % w = a % w / b
+c % u_w  = a % u_w  / b
+c % v_w  = a % v_w  / b
 c % w_uv = a % w_uv / b
 c % u2 = a % u2 / b
 c % v2 = a % v2 / b
@@ -492,6 +500,8 @@ type(tavg_t) :: c
 c % u = a % u * b % u
 c % v = a % v * b % v
 c % w = a % w * b % w
+c % u_w  = a % u_w  * b % u_w 
+c % v_w  = a % v_w  * b % v_w 
 c % w_uv = a % w_uv * b % w_uv
 c % u2 = a % u2 * b % u2
 c % v2 = a % v2 * b % v2
@@ -528,6 +538,8 @@ type(tavg_t) :: c
 c % u = a % u * b
 c % v = a % v * b
 c % w = a % w * b
+c % u_w  = a % u_w  * b
+c % v_w  = a % v_w  * b
 c % w_uv = a % w_uv * b
 c % u2 = a % u2 * b
 c % v2 = a % v2 * b
@@ -720,11 +732,10 @@ c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
 c % wp2 = a % w2 - a % w * a % w
 c % upvp = a % uv - a % u * a % v
-!! using w_uv below instead of w ensures that the Reynolds stresses are on
-!! the same grid as the squared velocities (i.e., the uv grid)
-! TODO: should be consistent with w-grid calc
-c % upwp = a % uw - a % u * a % w_uv   !!jb
-c % vpwp = a % vw - a % v * a % w_uv   !!jb
+!! using u_w and v_w below instead of u and v ensures that the Reynolds
+!! stresses are on the same grid as the squared velocities (i.e., w-grid)
+c % upwp = a % uw - a % u_w * a % w   !!pj
+c % vpwp = a % vw - a % v_w * a % w   !!pj
 
 return
 end function rs_compute
@@ -765,6 +776,8 @@ type(tavg_t), intent(out) :: c
 c % u = a
 c % v = a
 c % w = a
+c % u_w  = a
+c % v_w  = a
 c % w_uv = a
 c % u2 = a
 c % v2 = a
