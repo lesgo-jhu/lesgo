@@ -1721,7 +1721,7 @@ use stat_defs, only : tavg,tavg_total_time,tavg_dt
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 #endif
-use param, only : nx,ny,nz,lbz,jzmax
+use param, only : nx,ny,nz,lbz,jzmax,ubc_mom,lbc_mom
 use sim_param, only : u, v, w
 #ifdef PPMPI
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
@@ -1729,23 +1729,29 @@ use sim_param, only : txx, txy, tyy, txz, tyz, tzz
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
 #endif
-use functions, only : interp_to_uv_grid
+use functions, only : interp_to_uv_grid, interp_to_w_grid
 
 implicit none
 
 integer :: i,j,k
 
-real(rprec) :: u_p, v_p, w_p, w_p2
-real(rprec), allocatable, dimension(:,:,:) :: w_uv
-allocate(w_uv(nx,ny,lbz:nz))
+real(rprec) :: u_p, u_p2, v_p, w_p, w_p2
+real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w
+allocate(w_uv(nx,ny,lbz:nz),u_w(nx,ny,lbz:nz))
 
 w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
+u_w(1:nx,1:ny,lbz:nz) =  interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
+! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
+! can zero u_w at BC anyway below
+if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
+if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
 
 do k=lbz,jzmax     !! lbz = 0 for mpi runs, otherwise lbz = 1  
   do j=1,ny
     do i=1,nx
    
       u_p = u(i,j,k)       !! uv grid
+      u_p2= u_w(i,j,k)     !! w grid 
       v_p = v(i,j,k)       !! uv grid
       w_p = w(i,j,k)       !! w grid
       w_p2= w_uv(i,j,k)    !! uv grid
@@ -1755,11 +1761,13 @@ do k=lbz,jzmax     !! lbz = 0 for mpi runs, otherwise lbz = 1
       tavg(i,j,k) % w = tavg(i,j,k) % w + w_p * tavg_dt !! w grid
       tavg(i,j,k) % w_uv = tavg(i,j,k) % w_uv + w_p2 * tavg_dt !! uv grid
 
+      ! Note: compute u'w' on w-grid because stresses on w-grid --pj
       tavg(i,j,k) % u2 = tavg(i,j,k) % u2 + u_p * u_p * tavg_dt !! uv grid
       tavg(i,j,k) % v2 = tavg(i,j,k) % v2 + v_p * v_p * tavg_dt !! uv grid
       tavg(i,j,k) % w2 = tavg(i,j,k) % w2 + w_p * w_p * tavg_dt !! w grid
       tavg(i,j,k) % uv = tavg(i,j,k) % uv + u_p * v_p * tavg_dt !! uv grid
-      tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p * w_p2 * tavg_dt !! uv grid
+      !tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p * w_p2 * tavg_dt !! uv grid
+      tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p2 * w_p * tavg_dt !! w grid
       tavg(i,j,k) % vw = tavg(i,j,k) % vw + v_p * w_p2 * tavg_dt !! uv grid
       
       tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt !! uv grid
