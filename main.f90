@@ -154,9 +154,6 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate velocity derivatives
     ! Calculate dudx, dudy, dvdx, dvdy, dwdx, dwdy (in Fourier space)
-    !if(coord==0) write(*,*) 'Bot u = ', sum(u(:,:,1))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top u = ', sum(u(:,:,nz-1))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) sum(w(:,:,nz-1))/(nx*ny)
     call filt_da (u, dudx, dudy, lbz)
     call filt_da (v, dvdx, dvdy, lbz)
     call filt_da (w, dwdx, dwdy, lbz)
@@ -165,8 +162,6 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 2:nz
     call ddz_uv(u, dudz, lbz)
     call ddz_uv(v, dvdz, lbz)
-    !if(coord==0) write(*,*) 'Bot dudz = ', sum(dudz(:,:,2))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top dudz = ', sum(dudz(:,:,nz-1))/(nx*ny)
        
     ! Calculate dwdz using finite differences (for 0:nz-1 on w-nodes)
     !  except bottom coord, only 1:nz-1
@@ -178,8 +173,6 @@ time_loop: do jt_step = nstart, nsteps
     if (coord == 0 .or. coord == nproc-1) then
         call wallstress ()
     end if
-    !if(coord==0) write(*,*) 'Bot txz = ', sum(txz(:,:,1))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top txz = ', sum(txz(:,:,nz))/(nx*ny)
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
@@ -189,8 +182,6 @@ time_loop: do jt_step = nstart, nsteps
     else
         call sgs_stag()
     end if
-    !if(coord==0) write(*,*) 'Bot txz = ', sum(txz(:,:,2))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top txz = ', sum(txz(:,:,nz-1))/(nx*ny)
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
@@ -205,14 +196,10 @@ time_loop: do jt_step = nstart, nsteps
     !   provides divtz 1:nz-1, except 1:nz at top process
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz) ! saves one FFT with previous version
     call divstress_w(divtz, txz, tyz, tzz)
-    !if(coord==0) write(*,*) 'Bot divtx = ', sum(divtx(:,:,1))/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top divtx = ', sum(divtx(:,:,nz-1))/(nx*ny)
 
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
-    !if(coord==0) write(*,*) 'Bot cy = ', sum(RHSy(:,:,2)**2)/(nx*ny)
-    !if(coord==nproc-1) write(*,*) 'Top cy = ', sum(RHSy(:,:,nz-2)**2)/(nx*ny)
 
     ! Add div-tau term to RHS variable 
     !   this will be used for pressure calculation
@@ -310,10 +297,6 @@ time_loop: do jt_step = nstart, nsteps
         w(:,:,nz) = w(:,:,nz) +                   &
                          dt * ( tadv1 * RHSz(:,:,nz) +  &
                                 tadv2 * RHSz_f(:,:,nz) )
-        !write(*,*) 'intermediate w:'
-        !write(*,*) minval(w(:,:,nz)), sum(w(:,:,nz))/(nx*ny), maxval(w(:,:,nz))
-        !write(*,*) minval(w(:,:,nz-1)), sum(w(:,:,nz-1))/(nx*ny), maxval(w(:,:,nz-1))
-        !write(*,*) minval(w(:,:,nz-2)), sum(w(:,:,nz-2))/(nx*ny), maxval(w(:,:,nz-2))
     end if
 
     ! Set unused values to BOGUS so unintended uses will be noticable
@@ -348,10 +331,6 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
     if(coord==nproc-1) then
       RHSz(:,:,nz) = RHSz(:,:,nz) - dpdz(:,:,nz)
-      !write(*,*) 'dp/dz:'
-      !write(*,*) minval(dpdz(:,:,nz)),sum(dpdz(:,:,nz))/(nx*ny),maxval(dpdz(:,:,nz))
-      !write(*,*) minval(dpdz(:,:,nz-1)),sum(dpdz(:,:,nz-1))/(nx*ny),maxval(dpdz(:,:,nz-1))
-      !write(*,*) minval(dpdz(:,:,nz-2)),sum(dpdz(:,:,nz-2))/(nx*ny),maxval(dpdz(:,:,nz-2))
     end if
 
     !//////////////////////////////////////////////////////
@@ -437,7 +416,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
-          call write_tau_wall_bot()   !!jb
+          call write_tau_wall_bot()
        end if
        if(coord == nproc-1) then
           write(*,'(a)') '========================================'
@@ -445,11 +424,6 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') '========================================'
           call write_tau_wall_top()
        end if
-       if (coord == 0) then  !!jb  !!remove
-          write(*,*) 'u: ', u(1,1,1:3)
-          write(*,*) 'v: ', v(1,1,1:3)
-          write(*,*) 'w: ', w(1,1,1:3)
-       endif
 
        ! Check if we are to check the allowable runtime
        if( runtime > 0 ) then
