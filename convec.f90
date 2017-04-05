@@ -148,8 +148,7 @@ do jz = 1, nz
      end select
   endif
 
-  ! TODO this should be jz = nz on w-grid, faking jz = nz-1 on uvp-grid
-  if ( (coord == nproc-1) .and. (jz == nz) ) then  !!channel    or nz?
+  if ( (coord == nproc-1) .and. (jz == nz) ) then
 
      select case (ubc_mom)
 
@@ -163,12 +162,12 @@ do jz = 1, nz
       case (1:)
 
          !--du3d2(jz=1) should be 0, so we could use this
-         ! TODO this cx = vort1 is uvp nz-1 but w nz
+         ! this cx = vort1 is actually uvp nz-1 but stored as w nz
          cx(:, :, nz) = const * ( 0.5_rprec * (du3d2(:, :, nz-1) +  &
                                               du3d2(:, :, nz))   &
                                  - du2d3(:, :, nz-1) )
          !--du3d1(jz=1) should be 0, so we could use this
-         ! TODO this cy = vort2 is uvp nz-1 but w nz
+         ! this cy = vort2 is actually uvp nz-1 but stored as w nz
          cy(:, :, nz) = const * ( du1d3(:, :, nz-1) -               &
                                  0.5_rprec * (du3d1(:, :, nz-1) +  &
                                               du3d1(:, :, nz)) )

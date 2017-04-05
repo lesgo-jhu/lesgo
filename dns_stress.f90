@@ -98,7 +98,6 @@ do jz = jz_min, jz_max  !nz-1
   end do
 end do
 
-! TODO: needs to handle ubc_mom > 0 cases
 #ifdef PPMPI 
   if (coord == nproc-1 .and. ubc_mom == 0) then
     ! stress-free lid: this should check which bc options we use

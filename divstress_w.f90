@@ -119,31 +119,6 @@ end do
 !--set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-!! TODO: is this intentional? the if-logic is overlapping
-!if ( ubc_mom .ne. 1 ) then
-!#ifdef PPMPI 
-!  if (coord == nproc-1) then
-!    do jy=1,ny
-!    do jx=1,nx              
-!       divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
-!    end do
-!    end do
-!    divt(ld-1:ld, :, nz) = 0._rprec
-!  else
-!#ifdef PPSAFETYMODE
-!    divt(:, :, nz) = BOGUS
-!#endif    
-!  endif
-!#else
-!  do jy=1,ny
-!  do jx=1,nx              
-!     divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
-!  end do
-!  end do
-!  divt(ld-1:ld, :, nz) = 0._rprec
-!#endif
-!endif
-
 #ifdef PPVERBOSE
 write (*, *) 'finished divstress_w'
 #endif

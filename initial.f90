@@ -100,7 +100,6 @@ else
     inilag = .true.
 end if
 
-! TODO: initial profile depends on ubc_mom
 if (initu) then
     if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
     call ic_file
