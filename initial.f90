@@ -221,13 +221,21 @@ if ( abs(ubot) > 0 .or. abs(utop) > 0 ) then  !! linear laminar profile (couette
         z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
 #endif
         if(z < L_z/2) then ! bottom half
-            ! assume log-law
-            ubar(jz) = u_star*(1/vonk*log(z*u_star/nu_molec)+5.2) + ubot
+            ! assume log-law, non-dimensional
+            z = z*u_star/nu_molec ! z+
+            !ubar(jz) = (1/vonk*log(z)+5.2) + ubot
+            ubar(jz) = (log((z+11)**4.02/(z**2-7.37*z+83.3)**0.79) &
+                     &  + 5.63*atan(0.12_rprec*z-0.441) - 3.81)    &
+                     & + ubot
         else ! top half
-            z = L_z - z
-            ! assume log-law deficit
-            ubar(jz) = -u_star*(1/vonk*log(z*u_star/nu_molec)+5.2) + utop
+            z = (L_z - z)*u_star/nu_molec !z+
+            ! assume log-law deficit, non-dimensional
+            ubar(jz) = -(log((z+11)**4.02/(z**2-7.37*z+83.3)**0.79) &
+                     &   + 5.63*atan(0.12_rprec*z-0.441) - 3.81)    &
+                     & + utop
         end if
+        ! TODO remove debugging write
+        write(*,*) (coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz, z, ubar(jz)
    end do 
 else
    do jz=1,nz  !! parabolic laminar profile (channel)
@@ -239,6 +247,11 @@ else
       ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
    end do
 endif
+
+! TODO remove debugging write
+!do jz=1,nz-1
+!  write(*,*) (coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz, ubar(jz)
+!end do
 
 ! Get random seeds to populate the initial condition with noise
 call init_random_seed
