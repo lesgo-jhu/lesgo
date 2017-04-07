@@ -205,14 +205,30 @@ real(rprec) :: dummy_rand
 ! in wall units
 
 if ( abs(ubot) > 0 .or. abs(utop) > 0 ) then  !! linear laminar profile (couette)
+!   do jz=1,nz
+!#ifdef PPMPI
+!        z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+!#else
+!        z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+!#endif
+!      ubar(jz)= (utop-ubot)/L_z * z + ubot ! non-dimensional
+!   end do
+   ! Double log-law profile (Couette)
    do jz=1,nz
 #ifdef PPMPI
         z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
 #else
         z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
 #endif
-      ubar(jz)= (utop-ubot)/L_z * z + ubot ! non-dimensional
-   end do
+        if(z < L_z/2) then ! bottom half
+            ! assume log-law
+            ubar(jz) = u_star*(1/vonk*log(z*u_star/nu_molec)+5.2) + ubot
+        else ! top half
+            z = L_z - z
+            ! assume log-law deficit
+            ubar(jz) = -u_star*(1/vonk*log(z*u_star/nu_molec)+5.2) + utop
+        end if
+   end do 
 else
    do jz=1,nz  !! parabolic laminar profile (channel)
 #ifdef PPMPI
@@ -223,7 +239,6 @@ else
       ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
    end do
 endif
-
 
 ! Get random seeds to populate the initial condition with noise
 call init_random_seed
