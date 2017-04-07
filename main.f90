@@ -177,11 +177,11 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
-    if (lbc_mom == 1 .and. molec) then
-        call dns_stress(txx,txy,txz,tyy,tyz,tzz)
-    else
+    !if (lbc_mom == 1 .and. molec) then
+    !    call dns_stress(txx,txy,txz,tyy,tyz,tzz)
+    !else
         call sgs_stag()
-    end if
+    !end if
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
