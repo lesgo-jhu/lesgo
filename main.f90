@@ -228,6 +228,8 @@ time_loop: do jt_step = nstart, nsteps
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
     end if
 
+    ! TODO add optional random forcing here
+
     !//////////////////////////////////////////////////////
     !/// APPLIED FORCES                                 ///
     !//////////////////////////////////////////////////////
