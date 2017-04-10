@@ -31,6 +31,7 @@ module hit_inflow
 
 ! Real precision from LESGO
 use types, only : rprec
+use fringe_region
 
 ! Data from LESGO
 use param, only : ny, nz, dt
@@ -40,7 +41,7 @@ use grid_m
 
 implicit none
 
-public :: hit, inflow_HIT, initialize_HIT
+public :: hit, inflow_HIT, HIT_init
 
 type hit_t
     ! This type includes all the information for a HIT case
@@ -88,7 +89,7 @@ type(hit_t), target :: hit
 contains
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine initialize_HIT ()
+subroutine HIT_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 !  This initializes the HIT case by reading input and allocating arrays
@@ -151,7 +152,7 @@ call extract_HIT_data()
 ! Read the restart file if present
 call hit_read_restart()
 
-end subroutine initialize_HIT
+end subroutine HIT_init
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine extract_HIT_data ()
@@ -254,47 +255,20 @@ subroutine inflow_HIT ()
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity with Homogeneous Isotropic Inflow.
 !
-use param, only : nx, ny, nz
-use sim_param, only : u, v, w
-use messages, only : error
-use fringe_util
+use fringe_region
 implicit none
-
-integer :: i, i_w
-integer :: istart, istart_w
-integer :: iplateau
-integer :: iend, iend_w
-
-real (rprec) :: alpha, beta
+integer :: i
 
 ! Compute the velocity at a plane
 call compute_HIT_plane_data ()
 
-!--these may be out of 1, ..., nx
-call fringe_init( istart, iplateau, iend )
-
-!--wrapped versions
-iend_w = modulo (iend - 1, nx) + 1
-istart_w = modulo (istart - 1, nx) + 1
-
-! Set end of domain (uniform inflow + turbulence)
-u(iend_w, :, :) = hit % u_plane(:,:)
-v(iend_w, :, :) = hit % v_plane(:,:)
-w(iend_w, :, :) = hit % w_plane(:,:)
-
-!--skip istart since we know vel at istart, iend already
-do i = istart + 1, iend - 1
-
-  i_w = modulo (i - 1, nx) + 1
-
-  beta = fringe_weighting( i, istart, iplateau )
-  alpha = 1.0_rprec - beta
-
-  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * hit % u_plane(:,:)
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz) + beta * hit % v_plane(:,:)
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz) + beta * hit % w_plane(:,:)
-
+do i = 1, fringe%n
+    fringe%u(i,:,:) = hit%u_plane(:,:)
+    fringe%v(i,:,:) = hit%v_plane(:,:)
+    fringe%w(i,:,:) = hit%w_plane(:,:)
 end do
+
+call fringe%apply_vel
 
 end subroutine inflow_HIT
 

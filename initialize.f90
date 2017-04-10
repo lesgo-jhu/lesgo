@@ -50,10 +50,9 @@ use io, only : openfiles
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
-#ifdef PPCPS
-use concurrent_precursor, only : initialize_cps
 #endif
-#endif
+
+use inflow
 
 #ifdef PPLVLSET
 use level_set_base, only : level_set_base_init 
@@ -64,14 +63,9 @@ use level_set, only : level_set_init
 use turbines, only : turbines_init, turbines_forcing
 #endif
 
-! HIT Inflow
-#ifdef PPHIT
-use hit_inflow, only : initialize_HIT
-#endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-    use atm_lesgo_interface, only: atm_lesgo_initialize
+use atm_lesgo_interface, only: atm_lesgo_initialize
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
@@ -140,16 +134,9 @@ call turbines_init()    !must occur before initial is called
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-  call atm_lesgo_initialize ()  
+call atm_lesgo_initialize ()  
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
-
-#ifdef PPHIT
-    ! This initializes HIT Data
-    ! The input is read from lesgo.conf
-    write(*,*) 'Inflow Condition using HIT Data'
-    call initialize_HIT()
-#endif
 
 ! If using level set method
 #ifdef PPLVLSET
@@ -168,17 +155,15 @@ call test_filter_init( )
 ! Initialize velocity field
 call initial()
 
-!memory allocation for integral wall model xiang
+! memory allocation for integral wall model xiang
 if(lbc_mom == 3)then
-  if(coord==0) write(*,*) 'iwm: start memory allocation...'
-  if(coord==0) call iwm_malloc()
-  if(coord==0) write(*,*) 'iwm: finish memory allocation...'
+    if(coord==0) write(*,*) 'iwm: start memory allocation...'
+    if(coord==0) call iwm_malloc()
+    if(coord==0) write(*,*) 'iwm: finish memory allocation...'
 endif
 
-! Initialize concurrent precursor stuff
-#if defined(PPMPI) && defined(PPCPS)
-call initialize_cps()
-#endif
+! initialize inflow conditions
+call inflow_init
 
 ! Initialize sgs variable histogram calc
 !if (sgs_hist_calc) then

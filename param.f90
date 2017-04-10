@@ -190,6 +190,9 @@ module param
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
 
+  ! inflow conditions
+  integer :: inflow_cond = 0
+
   ! prescribed inflow:   
   logical :: inflow = .false.
   ! if inflow is true the following should be set:
@@ -197,6 +200,9 @@ module param
     real(rprec) :: fringe_region_end  = 1.0_rprec
     ! length of fringe region as a fraction of L_x
     real(rprec) :: fringe_region_len = 0.125_rprec
+    ! position of right end of recycle region, as a fraction of L_x
+    real(rprec) :: recycl_region_end = 0.75_rprec
+    logical :: use_cps = .false.
 
     ! Use uniform inflow instead of concurrent precursor inflow
     logical :: uniform_inflow = .false.

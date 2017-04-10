@@ -1333,7 +1333,7 @@ end subroutine inst_write
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use iwmles !xiang: for iwm check point
-use param, only : nz, checkpoint_file, tavg_calc, lbc_mom !xiang: lbc_mom is used for iwm
+use param, only : nz, checkpoint_file, tavg_calc, lbc_mom, inflow_cond !xiang: lbc_mom is used for iwm
 #ifdef PPMPI
 use param, only : comm,ierr
 #endif
@@ -1346,11 +1346,10 @@ use string_util, only : string_concat
 #if PPUSE_TURBINES
 use turbines, only : turbines_checkpoint
 #endif
+use inflow
 
 ! HIT Inflow
-#ifdef PPHIT
 use hit_inflow, only : hit_write_restart
-#endif
 
 implicit none
 character(64) :: fname
@@ -1397,9 +1396,9 @@ if(lbc_mom==3)then
     if(coord == 0) call iwm_checkPoint()
 endif
 
-#ifdef PPHIT
+if (inflow_cond == 3) then
     if(coord == 0) call hit_write_restart()
-#endif
+end if
 
 #if PPUSE_TURBINES
 call turbines_checkpoint

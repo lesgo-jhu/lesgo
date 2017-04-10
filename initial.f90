@@ -103,11 +103,9 @@ end if
 if (initu) then
     if (coord == 0) write(*,*) '--> Reading initial velocity field from file'
     call ic_file
-#ifndef PPCPS
-else if (inflow) then
-        if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
-        call ic_uniform
-#endif
+else if (inflow_cond == 2) then
+    if (coord == 0) write(*,*) '--> Creating initial uniform velocity field'
+    call ic_uniform
 else if (lbc_mom==1) then
     if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
         'field with DNS BCs'

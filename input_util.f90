@@ -414,10 +414,8 @@ subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
 
-#ifdef PPHIT
 ! Type hit has all the information inside
 use hit_inflow, only : hit
-#endif
 
 implicit none
 
@@ -446,14 +444,21 @@ do
         Read (buff(equal_pos+1:), *) lbc_mom
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
+     case ('INFLOW_COND')
+        read (buff(equal_pos+1:), *) inflow_cond
      case ('INFLOW')
         read (buff(equal_pos+1:), *) inflow
+     case ('INFLOW_VELOCITY')
+        read (buff(equal_pos+1:), *) inflow_velocity
      case ('FRINGE_REGION_END')
         read (buff(equal_pos+1:), *) fringe_region_end
      case ('FRINGE_REGION_LEN')
         read (buff(equal_pos+1:), *) fringe_region_len
-     case ('INFLOW_VELOCITY')
-        read (buff(equal_pos+1:), *) inflow_velocity
+     case ('RECYCL_REGION_END')
+        read (buff(equal_pos+1:), *) recycl_region_end
+     case ('USE_CPS')
+        read (buff(equal_pos+1:), *) use_cps
+
      case ('USE_MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) use_mean_p_force
      case ('EVAL_MEAN_P_FORCE')
@@ -461,10 +466,9 @@ do
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
 
-#ifdef PPHIT
-    ! Read the input for HIT case
 
-    ! Trubulence intensity input and output
+    ! Read the input for HIT case
+    ! Turbulence intensity input and output
     case('UP_IN')
         read (buff(equal_pos+1:), *) hit % up_in
     case('TI_OUT')
@@ -493,7 +497,6 @@ do
         read (buff(equal_pos+1:), *) hit % v_file
     case ('W_FILE')
         read (buff(equal_pos+1:), *) hit % w_file
-#endif
 
      case default      
 

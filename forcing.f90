@@ -41,7 +41,6 @@ private
 
 public :: forcing_applied, &
           forcing_induced, &
-          inflow_cond, &
           project
 
 contains
@@ -104,8 +103,8 @@ subroutine forcing_induced()
 !  
 use types, only : rprec
 #ifdef PPLVLSET
-  use level_set, only : level_set_forcing
-  use sim_param, only : fx, fy, fz
+use level_set, only : level_set_forcing
+use sim_param, only : fx, fy, fz
 #endif
 implicit none
 
@@ -123,61 +122,6 @@ return
 end subroutine forcing_induced
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine inflow_cond ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!
-!  Enforces prescribed inflow condition based on an uniform inflow
-!  velocity.
-!
-use types, only : rprec
-use param, only : inflow_velocity, nx, ny, nz
-use sim_param, only : u, v, w
-use messages, only : error
-use fringe_util
-implicit none
-
-#ifdef PPVERBOSE
-character (*), parameter :: sub_name = 'inflow_cond'
-#endif
-
-integer :: i, i_w
-integer :: istart, istart_w
-integer :: iplateau
-integer :: iend, iend_w
-
-real (rprec) :: alpha, beta
-
-!--these may be out of 1, ..., nx
-call fringe_init( istart, iplateau, iend )
-
-!--wrapped versions
-iend_w = modulo (iend - 1, nx) + 1
-istart_w = modulo (istart - 1, nx) + 1
-
-! Set end of domain
-u(iend_w, :, :) = inflow_velocity
-v(iend_w, :, :) = 0._rprec
-w(iend_w, :, :) = 0._rprec
-
-!--skip istart since we know vel at istart, iend already
-do i = istart + 1, iend - 1
-
-  i_w = modulo (i - 1, nx) + 1
-
-  beta = fringe_weighting( i, istart, iplateau )
-  alpha = 1.0_rprec - beta
-
-  u(i_w, 1:ny, 1:nz) = alpha * u(i_w, 1:ny, 1:nz) + beta * inflow_velocity
-  v(i_w, 1:ny, 1:nz) = alpha * v(i_w, 1:ny, 1:nz)
-  w(i_w, 1:ny, 1:nz) = alpha * w(i_w, 1:ny, 1:nz)
-
-end do
-
-return
-end subroutine inflow_cond
-
-
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine project ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
@@ -186,11 +130,9 @@ subroutine project ()
 use param
 use sim_param
 use messages
+use inflow
 #ifdef PPMPI
-  use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
-#ifdef PPCPS
-  use concurrent_precursor, only : synchronize_cps, inflow_cond_cps
-#endif
+use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWNUP
 #endif
 implicit none
 
@@ -248,40 +190,28 @@ do jz = jz_min, nz - 1
   end do
 end do
 
-! Cases for CPS, Isotropic Turbulence and Uniform inflow
-#ifdef PPCPS
-call synchronize_cps()
-if( inflow ) call inflow_cond_cps()
-#elif defined(PPHIT)
-if( inflow ) call inflow_HIT()
-#else
-if ( inflow ) call inflow_cond ()
-#endif
+! Apply inflow conditions in necessary
+call inflow_apply()
 
-!--left this stuff last, so BCs are still enforced, no matter what
-!  inflow_cond does
-
+! This stuff must be last, so BCs are still enforced, no matter what
+! inflow_apply() does
 #ifdef PPMPI
-
 ! Exchange ghost node information (since coords overlap)                     
-call mpi_sync_real_array( u, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( v, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )  
-  
+call mpi_sync_real_array(u, 0, MPI_SYNC_DOWNUP)
+call mpi_sync_real_array(v, 0, MPI_SYNC_DOWNUP)
+call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)  
 #endif
 
 !--enfore bc at top
 #ifdef PPMPI
 if (coord == nproc-1) then
 #endif
-
   ! no-stress top
   u(:,:,nz)=u(:,:,nz-1)
   ! no-stress top
   v(:,:,nz)=v(:,:,nz-1)
   ! no permeability
   w(:, :, nz)=0._rprec
-
 #ifdef PPMPI
 endif
 #endif

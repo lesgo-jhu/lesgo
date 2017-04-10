@@ -46,9 +46,7 @@ subroutine initialize_mpi()
 !**********************************************************************
 use types, only : rprec
 use param
-#ifdef PPCPS
 use concurrent_precursor
-#endif
 #ifdef PPCGNS
 use cgns
 #endif
@@ -68,13 +66,7 @@ end if
 call mpi_init (ierr)
 
 ! Set the local communicator
-#ifdef PPCPS
-    ! Create the local communicator (split from MPI_COMM_WORLD)
-    ! This also sets the globally defined intercommunicator (bridge)
-    call create_mpi_comms_cps( localComm ) 
-#else
-    localComm = MPI_COMM_WORLD
-#endif
+call create_mpi_comms(localComm) 
 
 call mpi_comm_size (localComm, np, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)

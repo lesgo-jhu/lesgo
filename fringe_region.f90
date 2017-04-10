@@ -42,13 +42,14 @@ module fringe_region
 !
 
 use types, only : rprec
-use messages
 implicit none
 
 private
 public fringe_region_t
 
 type fringe_region_t
+    ! check if initialized
+    
     ! number of points in the fringe region
     integer :: n
     ! fringe weights
@@ -61,7 +62,6 @@ contains
     procedure, private :: initialize
     procedure, public :: sample_vel
     procedure, public :: apply_vel
-    ! destructor
     final :: destructor
 end type fringe_region_t
 
@@ -70,6 +70,11 @@ interface fringe_region_t
     module procedure constructor_len
     module procedure constructor_num
 end interface fringe_region_t
+
+! Fringe region
+type(fringe_region_t), public :: fringe
+! recycling region, if using shifted periodic boundary conditions
+type(fringe_region_t), public :: recycl
 
 contains
 
@@ -129,6 +134,8 @@ integer :: i, np
 np = 3*this%n/4
 
 ! Calculate weighting functions. beta is a cosine profile with plateau
+if (allocated(this%alpha)) deallocate(this%alpha)
+if (allocated(this%beta)) deallocate(this%beta)
 allocate(this%alpha(this%n))
 allocate(this%beta(this%n))
 this%beta = 1._rprec
@@ -138,12 +145,16 @@ end do
 this%alpha = 1.0_rprec - this%beta
 
 ! Wrapped index
+if (allocated(this%iwrap)) deallocate(this%iwrap)
 allocate(this%iwrap(this%n))
 do i = 1, this%n
    this%iwrap(i) = modulo(istart+i-1, nx ) + 1
 end do
 
 ! Allocate the sample block
+if (allocated(this%u)) deallocate(this%u)
+if (allocated(this%v)) deallocate(this%v)
+if (allocated(this%w)) deallocate(this%w)
 allocate(this%u(this%n, ny, nz))
 allocate(this%v(this%n, ny, nz))
 allocate(this%w(this%n, ny, nz))
