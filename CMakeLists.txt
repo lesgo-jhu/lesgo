@@ -43,13 +43,6 @@ set(USE_CGNS false)
 # Select level set
 set(USE_LVLSET false)
 
-# Concurrent precursor simulation 
-# Requires configuration of two builds: upstream and downstream
-set(USE_CPS false)
-
-# Homogeneous isotropic turbulence input
-set(USE_HIT false)
-
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
 set(USE_STREAKS false)
@@ -126,10 +119,10 @@ elseif (${hostname} STREQUAL "default")
 endif ()
 
 # List common sources
-set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
+set (Sources cfl_util.f90 clocks.f90 convec.f90 concurrent_precursor.f90 derivatives.f90 divstress_uv.f90
      divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 
-     forcing.f90 fringe_util.f90 fringe_region.f90 functions.f90 grid.f90
-     initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
+     forcing.f90 fringe_region.f90 functions.f90 grid.f90
+     inflow.f90 hit_inflow.f90 initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 
      messages.f90 open_file.f90 param.f90 param_output.f90 
      press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 
@@ -144,18 +137,6 @@ if (USE_MPI)
     set(Sources ${Sources} mpi_transpose_mod.f90 mpi_defs.f90)
     set(exec_name "${exec_name}-mpi")
 endif (USE_MPI)
-
-if (USE_CPS)
-    add_definitions(-DPPCPS)
-    set(Sources ${Sources} concurrent_precursor.f90)
-    set(exec_name "${exec_name}-cps")
-endif (USE_CPS)
-
-if (USE_HIT)
-    add_definitions(-DPPHIT)
-    set(Sources ${Sources} hit_inflow.f90)
-    set(exec_name "${exec_name}-HIT")
-endif (USE_HIT)
 
 if (USE_STREAKS)
     add_definitions(-DPPSTREAKS)
@@ -230,7 +211,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable
