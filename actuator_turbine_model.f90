@@ -326,6 +326,11 @@ do i = 1,numberOfTurbines
         write(1,*) 'turbineNumber bladeNumber axialForce'
         close(1)
 
+        open(unit=1, file="./turbineOutput/"//                                 &
+                     trim(turbineArray(i) % turbineName)//"/nacelle")
+        write(1,*) 'time Velocity-no-correction Velocity-w-correction'
+        close(1)
+
     endif
 enddo
 
@@ -515,6 +520,10 @@ do k=1, numBl
     enddo
 enddo
 
+! Apply the first rotation
+turbineArray(i) % deltaAzimuth = azimuth
+call atm_rotateBlades(i)
+
 end subroutine atm_create_points
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -619,9 +628,6 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
     ! No torque controller option
     if (turbineModel(j) % TorqueControllerType == "none") then
 
-!~         ! Compute the change in blade position at new rotor speed.
-!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt
-
     elseif (turbineModel(j) % TorqueControllerType == "fiveRegion") then
 
         ! Get the generator speed.
@@ -696,10 +702,6 @@ PitchControlAngle => turbineArray(i) % PitchControlAngle
             rotSpeed = max(0.0,rotSpeed)
             rotSpeed = min(rotSpeed,(RatedGenSpeed*rpmRadSec)/GBRatio)
         endif
-
-!~         ! Compute the change in blade position at new rotor speed.
-!~         turbineArray(i) % deltaAzimuth = rotSpeed * dt;
-
 
     ! Torque control for fixed tip speed ratio
     ! Note that this current method does NOT support Coning in the rotor
@@ -884,19 +886,6 @@ do m=1, turbineModel(j) % numBl
         enddo
     enddo
 enddo
-
-! Calculate the smearing value epsilon for the nacelle
-! It will be the hub radius unless the grid is coarser, and thus
-! the epsilon value will be used
-if (turbineArray(i) % nacelle) then
-!~     if ( turbineArray(i) % epsilon > 2 * turbineModel(j) % hubRad ) then
-!~         turbineArray(i) % nacelleEpsilon = turbineArray(i) % epsilon
-!~     else
-!~         turbineArray(i) % nacelleEpsilon = 2 * turbineModel(j) % hubRad
-!~     endif
-turbineArray(i) % nacelleEpsilon = 4.25
-write(*,*) turbineArray(i) % nacelleEpsilon
-endif
 
 end subroutine atm_calculate_variables
 
@@ -1117,13 +1106,24 @@ nacelleAlignedVector = turbineArray(i) % uvShaft
 
 ! Velocity projected in the direction of the nacelle
 V = dot_product( nacelleAlignedVector , U_local)
-    write(*,*) 'Nacelle Velocity is: ', V
-    write(*,*) 'nacelleAlignedVector is: ', nacelleAlignedVector
+!~     write(*,*) 'Nacelle Velocity before correction is: ', V
+!~     write(*,*) 'nacelleAlignedVector is: ', nacelleAlignedVector
+
+! The sampled velocity (uncorrected)
+turbineArray(i) % VelNacelle_sampled = V
+
+! Apply the velocity correction
+V = V / (1. - .25/ pi * turbineArray(i) % nacelleCd * area /                   &
+                turbineArray(i) % nacelleEpsilon**2 )
+!~ write(*,*) 'Nacelle Velocity after correction is: ', V
+
+! The velocity (corrected)
+turbineArray(i) % VelNacelle_corrected = V
 
 if (V .ge. 0.) then
     ! Drag force
     drag = 0.5_rprec * turbineArray(i) % nacelleCd * (V**2.) * area
-    
+
     ! Drag Vector
     turbineArray(i) % nacelleForce = - drag * nacelleAlignedVector
 !~     write(*,*) 'Nacelle Cd= ', turbineArray(i) % nacelleCd
@@ -1239,7 +1239,7 @@ integer :: j, m
 integer :: powerFile=11, rotSpeedFile=12, bladeFile=13, liftFile=14, dragFile=15
 integer :: ClFile=16, CdFile=17, alphaFile=18, VrelFile=19
 integer :: VaxialFile=20, VtangentialFile=21, pitchFile=22, thrustFile=23
-integer :: tangentialForceFile=24, axialForceFile=25, yawfile=26
+integer :: tangentialForceFile=24, axialForceFile=25, yawfile=26, nacelleFile=27
 
 ! Output only if the number of intervals is right
 if ( mod(jt_total-1, outputInterval) == 0) then
@@ -1303,6 +1303,9 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     open(unit=pitchFile,position="append",                                     &
     file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/pitch")
 
+    open(unit=nacelleFile,position="append",                                     &
+    file="./turbineOutput/"//trim(turbineArray(i) % turbineName)//"/nacelle")
+
     call atm_compute_power(i)
     write(powerFile,*) time, turbineArray(i) % powerRotor,                     &
                        turbineArray(i) % powerGen
@@ -1312,6 +1315,8 @@ if ( mod(jt_total-1, outputInterval) == 0) then
                        turbineArray(i) % IntSpeedError
     write(YawFile,*) time, turbineArray(i) % deltaNacYaw,                      &
                            turbineArray(i) % NacYaw
+    write(nacelleFile,*) time, turbineArray(i) % VelNacelle_sampled,           &
+                           turbineArray(i) % VelNacelle_corrected
 
     ! Will write only the first actuator section of the blade
     do m=1, turbineModel(j) % numBl
@@ -1353,6 +1358,7 @@ if ( mod(jt_total-1, outputInterval) == 0) then
     close(tangentialForceFile)
     close(axialForceFile)
     close(yawFile)
+    close(nacelleFile)
 
     write(*,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     write(*,*) '!  Done Writing Actuator Turbine Model output  !'
