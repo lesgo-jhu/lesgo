@@ -25,6 +25,8 @@ annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               1.
 TSR               6.
+tipALMCorrection        true
+optimalEpsilon   0.25
 }
 
 TURBINE_2 {
@@ -45,5 +47,7 @@ annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               0.
 TSR               6.
+tipALMCorrection        false
+optimalEpsilon   0.25
 }
 
