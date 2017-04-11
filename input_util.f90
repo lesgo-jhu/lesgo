@@ -466,6 +466,12 @@ do
            read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
+     case ('USE_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) use_random_force
+     case ('STOP_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) stop_random_force
+     case ('RMS_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) rms_random_force
 
 #ifdef PPHIT
     ! Read the input for HIT case

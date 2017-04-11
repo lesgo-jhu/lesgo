@@ -214,6 +214,13 @@ module param
   ! Specify whether mean_p_force should be evaluated as 1/L_z
   logical :: eval_mean_p_force = .false. 
   real(rprec) :: mean_p_force = 1.0_rprec
+
+  ! if true, provides random forcing for v & w until certain number of time steps
+  logical :: use_random_force = .false.
+  ! specify how many time steps random force should be used
+  integer :: stop_random_force = 20000
+  ! specify the rms magnitude of the random forcing to apply
+  real(rprec) :: rms_random_force = 0.4_rprec
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
