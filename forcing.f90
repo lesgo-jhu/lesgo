@@ -56,27 +56,24 @@ subroutine forcing_random()
 ! evaluation of u* (not at wall) so that mass conservation is preserved.
 !
 use types, only : rprec
-use param, only : nx,ny,nz,coord
+use param, only : nx,ny,nz,rms_random_force
 use sim_param, only : RHSy, RHSz
 
-real (rprec) :: rms_forcing, dummy_rand ! TODO make this a user input
-integer :: jx,jy,jz ! TODO subroutine this?
+real (rprec) :: dummy_rand
+integer :: jx,jy,jz
 
 ! Note: the "default" rms of a unif variable is 0.289
-rms_forcing = 0.4_rprec ! TODO do not hard code this
-
 call init_random_seed
 do jz=2,nz-1 ! don't force too close to the wall
 do jy=1,ny
 do jx=1,nx
-    call random_number(dummy_rand)
-    RHSy(jx,jy,jz) = RHSy(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
-    call random_number(dummy_rand)
-    RHSz(jx,jy,jz) = RHSz(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
+  call random_number(dummy_rand)
+  RHSy(jx,jy,jz) = RHSy(jx,jy,jz) + (rms_random_force/.289_rprec)*(dummy_rand-.5_rprec)
+  call random_number(dummy_rand)
+  RHSz(jx,jy,jz) = RHSz(jx,jy,jz) + (rms_random_force/.289_rprec)*(dummy_rand-.5_rprec)
 end do
 end do
 end do
-if(coord == 0) write(*,*) 'Random forcing added.' ! TODO remove this
 
 end subroutine forcing_random
 
