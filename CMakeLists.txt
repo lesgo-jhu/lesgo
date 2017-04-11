@@ -129,7 +129,7 @@ endif ()
 
 # List common sources
 set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
-     divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 
+     divstress_w.f90 emul_complex.f90 fft.f90 finalize.f90 
      forcing.f90 fringe_util.f90 functions.f90 grid.f90
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 
