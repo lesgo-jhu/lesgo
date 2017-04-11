@@ -71,11 +71,11 @@ character (*), parameter :: prog_name = 'main'
 
 integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
-real (rprec) :: tt, dummy_rand
+real (rprec) :: tt!, dummy_rand !TODO remove this
 logical :: random_forcing ! TODO make this a user input
 integer :: stop_forcing   ! TODO make this a user input
-real (rprec) :: rms_forcing ! TODO make this a user input
-integer :: jx,jy,jz ! TODO subroutine this?
+!real (rprec) :: rms_forcing ! TODO make this a user input
+!integer :: jx,jy,jz ! TODO subroutine this?
 
 type(clock_t) :: clock, clock_total, clock_forcing
 
@@ -233,25 +233,25 @@ time_loop: do jt_step = nstart, nsteps
     end if
 
     ! Optional random forcing, i.e. to help prevent relaminarization
-    ! Note: the "default" rms of a unif variable is 0.289
+!    ! Note: the "default" rms of a unif variable is 0.289
     random_forcing = .true. ! TODO do not hard code this
     stop_forcing = 20000 ! TODO do not hard code this
     if (random_forcing .and. jt_total < stop_forcing) then
-      call init_random_seed
-      rms_forcing = 0.4_rprec ! TODO do not hard code this
-      do jz=2,nz-1 ! don't force too close to the wall
-      do jy=1,ny
-      do jx=1,nx
-        call random_number(dummy_rand)
-        RHSy(jx,jy,jz) = RHSy(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
-        call random_number(dummy_rand)
-        RHSz(jx,jy,jz) = RHSz(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
-      end do
-      end do
-      end do
-      if(coord == 0) write(*,*) 'Random forcing added.' ! TODO remove this
+      call forcing_random()
+!      call init_random_seed
+!      rms_forcing = 0.4_rprec ! TODO do not hard code this
+!      do jz=2,nz-1 ! don't force too close to the wall
+!      do jy=1,ny
+!      do jx=1,nx
+!        call random_number(dummy_rand)
+!        RHSy(jx,jy,jz) = RHSy(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
+!        call random_number(dummy_rand)
+!        RHSz(jx,jy,jz) = RHSz(jx,jy,jz) + (rms_forcing/.289_rprec)*(dummy_rand-.5_rprec)
+!      end do
+!      end do
+!      end do
+!      if(coord == 0) write(*,*) 'Random forcing added.' ! TODO remove this
     end if
-    ! TODO check: is it necessary to remove mean of w-forcing? does p solver do this?
 
     !//////////////////////////////////////////////////////
     !/// APPLIED FORCES                                 ///
