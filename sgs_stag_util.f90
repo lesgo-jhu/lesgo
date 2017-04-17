@@ -62,9 +62,9 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 
 implicit none
 
-#ifdef PPVERBOSE
+!#ifdef PPVERBOSE ! pj -- removed for error handling
 character (*), parameter :: sub_name = 'sgs_stag'
-#endif
+!#endif
 
 real(kind=rprec),dimension(nz)::l,ziko,zz
 !real(kind=rprec),dimension(ld,ny) :: txzp, tyzp
@@ -74,7 +74,7 @@ real(kind=rprec) :: const3 !RICHARD: USED FOR OPTIMIZATION
 real(kind=rprec) :: const4 !RICHARD: USED FOR OPTIMIZATION
 
 integer::jx,jy,jz
-integer :: jz_min
+integer :: jz_min,jz_max
 
 #ifdef PPVERBOSE
 call enter_sub (sub_name)
@@ -107,34 +107,93 @@ if (sgs) then
             ! Parameters (Co and nn) for wallfunction defined in param.f90
             Cs_opt2 = Co**2  ! constant coefficient
             
-            if (lbc_mom == 0) then
-               ! Stress free
+            if (lbc_mom == 0 .and. ubc_mom == 0) then
+                ! both Stress free
                 l = delta        
-            else       
-                ! The variable "l" calculated below is l_sgs/Co where l_sgs is from JDA eqn(2.30)
-                if (coord == 0) then
+            else if (lbc_mom > 0 .and. ubc_mom == 0) then 
+                ! top Stress free, bottom wall
 
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == 0) then
                     ! z's nondimensional, l here is on uv-nodes
                     zz(1) = 0.5_rprec * dz                    
                     l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
                                 (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                
-                    do jz = 2, nz
-                        ! z's nondimensional, l here is on w-nodes
-                        zz(jz) = (jz - 1) * dz                        
-                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
-                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                    end do
+
+                    jz_min = 2
                 else
-                    do jz = 1, nz
-                        ! z's nondimensional, l here is on w-nodes
-                        zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
-                        l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                    jz_min = 1
+                end if
+ 
+                do jz = jz_min, nz
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+
+            else if (lbc_mom > 0 .and. ubc_mom > 0) then
+                ! both top and bottom walls, zz is distance to nearest wall
+
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == 0) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(1) = 0.5_rprec * dz                    
+                    l(1) = ( Co**(wall_damp_exp)*(vonk*zz(1))**(-wall_damp_exp) +  &
                                 (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
-                    end do 
+
+                    jz_min = 2
+                else
+                    jz_min = 1
                 end if
 
+                if (coord == nproc-1) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(nz) = 0.5_rprec * dz
+                    l(nz) = ( Co**(wall_damp_exp)*(vonk*zz(nz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                    jz_max = nz-1
+                else
+                    jz_max = nz
+                end if
+ 
+                do jz = jz_min, jz_max
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((jz - 1) + coord * (nz - 1)) * dz                        
+                    zz(jz) = min( zz(jz), (nz-1)*nproc*dz - zz(jz) )
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+                
+            else if (lbc_mom == 0 .and. ubc_mom > 0) then
+                ! both top wall, bottom stress free, zz is distance to top
+
+                ! The variable "l" calculated below is l_sgs/Co
+                ! -- where l_sgs is from JDA eqn(2.30)
+                if (coord == nproc-1) then
+                    ! z's nondimensional, l here is on uv-nodes
+                    zz(nz) = 0.5_rprec * dz
+                    l(nz) = ( Co**(wall_damp_exp)*(vonk*zz(nz))**(-wall_damp_exp) +  &
+                                (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                    jz_max = nz-1
+                else
+                    jz_max = nz
+                end if
+ 
+                do jz = 1, jz_max
+                    ! z's nondimensional, l here is on w-nodes
+                    zz(jz) = ((nproc - coord)*(nz - 1) - (jz - 1)) * dz 
+                    l(jz) = ( Co**(wall_damp_exp)*(vonk*zz(jz))**(-wall_damp_exp) +  &
+                            (delta)**(-wall_damp_exp) )**(-1._rprec/wall_damp_exp)
+                end do 
+
+            else
+                call error (sub_name, 'invalid b.c. combination')
             end if
+           
+
 #endif
 
     else    ! Dynamic procedures: modify/set Sij and Cs_opt2 (specific to sgs_model)
@@ -172,7 +231,7 @@ end if
 
 
 ! Define |S| and eddy viscosity (nu_t= c_s^2 l^2 |S|) for entire domain
-!   stored on w-nodes (on uvp node for jz=1 and 'wall' BC only) 
+!   stored on w-nodes (on uvp node for jz=1 or nz for 'wall' BC only) 
 do jz=1,nz
 do jy=1,ny
 do jx=1,nx
@@ -190,7 +249,7 @@ end do
 !    call sgs_hist_update_vals( )
 !  endif
 !  endif
-  
+   
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
 if (coord == 0) then
 
@@ -232,7 +291,7 @@ if (coord == 0) then
             end do
         end if                     
 
-    case (1) ! Wall
+    case (1:) ! Wall
        
     ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
     !   recall: for this case, Sij are stored on uvp-nodes        
@@ -274,6 +333,93 @@ else
     
 end if
 
+ 
+! Calculate txx, txy, tyy, tzz for bottom level: jz=nz node (coord==nproc-1 only)
+if (coord == nproc-1) then
+
+    select case (ubc_mom)
+
+    case (0) ! Stress free
+    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
+    !   recall: for this case, Sij are stored on w-nodes      
+
+        if (sgs) then
+            do jy=1,ny
+            do jx=1,nx        
+                ! Total viscosity
+                const=0.5_rprec*(Nu_t(jx,jy,nz-1) + Nu_t(jx,jy,nz)) + nu
+                const2=2._rprec*(Nu_t(jx,jy,nz-1) + nu)
+
+                ! for top wall, it is nz-1 on the uv-grid
+                txx(jx,jy,nz-1)=-const*(S11(jx,jy,nz-1) + S11(jx,jy,nz))
+                txy(jx,jy,nz-1)=-const*(S12(jx,jy,nz-1) + S12(jx,jy,nz))
+                tyy(jx,jy,nz-1)=-const*(S22(jx,jy,nz-1) + S22(jx,jy,nz))
+                tzz(jx,jy,nz-1)=-const*(S33(jx,jy,nz-1) + S33(jx,jy,nz))
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-const2*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-const2*S23(jx,jy,nz-1)
+            end do
+            end do
+        else    
+            const = 0._rprec
+            do jy=1,ny
+            do jx=1,nx      
+                txx(jx,jy,nz-1)=-(nu)*(S11(jx,jy,nz-1) + S11(jx,jy,nz))
+                txy(jx,jy,nz-1)=-(nu)*(S12(jx,jy,nz-1) + S12(jx,jy,nz))
+                tyy(jx,jy,nz-1)=-(nu)*(S22(jx,jy,nz-1) + S22(jx,jy,nz))
+                tzz(jx,jy,nz-1)=-(nu)*(S33(jx,jy,nz-1) + S33(jx,jy,nz))
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-2._rprec*(nu)*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-2._rprec*(nu)*S23(jx,jy,nz-1)
+            end do
+            end do
+        end if                     
+
+    case (1:) ! Wall
+       
+    ! txx,txy,tyy,tzz stored on uvp-nodes (for this and all levels)
+    !   recall: for this case, Sij are stored on uvp-nodes        
+        
+        if (sgs) then
+            do jy=1,ny
+            do jx=1,nx         
+                const = -2._rprec*(Nu_t(jx,jy,nz)+nu)                   
+                const2=-2._rprec*(Nu_t(jx,jy,nz-1) + nu)
+
+                ! Note: Sij(nz) is on uvp-node at nz-1
+                txx(jx,jy,nz-1) = const*S11(jx,jy,nz)
+                txy(jx,jy,nz-1) = const*S12(jx,jy,nz)
+                tyy(jx,jy,nz-1) = const*S22(jx,jy,nz)
+                tzz(jx,jy,nz-1) = const*S33(jx,jy,nz)
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)= const2*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)= const2*S23(jx,jy,nz-1)
+            end do
+            end do
+        else    
+            const = 0._rprec
+            do jy=1,ny
+            do jx=1,nx      
+                txx(jx,jy,nz-1) = -2._rprec*(nu)*S11(jx,jy,nz-1)
+                txy(jx,jy,nz-1) = -2._rprec*(nu)*S12(jx,jy,nz-1)
+                tyy(jx,jy,nz-1) = -2._rprec*(nu)*S22(jx,jy,nz-1)
+                tzz(jx,jy,nz-1) = -2._rprec*(nu)*S33(jx,jy,nz-1)
+                ! for top wall, include w-grid stress since we now touched nz-1
+                txz(jx,jy,nz-1)=-2._rprec*(nu)*S13(jx,jy,nz-1)
+                tyz(jx,jy,nz-1)=-2._rprec*(nu)*S23(jx,jy,nz-1)
+            end do
+            end do
+        end if       
+       
+    end select
+  
+    jz_max = nz-2      ! since last level already calculated
+    
+else   
+    jz_max = nz-1
+    
+end if
+
 ! Calculate all tau for the rest of the domain
 !   txx, txy, tyy, tzz not needed at nz (so they aren't calculated)
 !     txz, tyz at nz will be done later
@@ -282,7 +428,7 @@ end if
 if (sgs) then 
     const3=-2._rprec*(nu)*0.5_rprec
     const4=-2._rprec*(nu)
-    do jz=jz_min, nz-1
+    do jz=jz_min, jz_max
     do jy=1,ny
     do jx=1,nx
               
@@ -304,7 +450,7 @@ else
     
     const=0._rprec  ! removed from tij expressions below since it's zero
     
-    do jz=jz_min, nz-1
+    do jz=jz_min, jz_max
     do jy=1,ny
     do jx=1,nx
        
@@ -361,16 +507,6 @@ tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
 #endif 
 
-#ifdef PPMPI 
-  if (coord == nproc-1) then  !assuming stress-free lid?
-    txz(:,:,nz)=0._rprec
-    tyz(:,:,nz)=0._rprec
-  end if
-#else
-  txz(:,:,nz)=0._rprec
-  tyz(:,:,nz)=0._rprec
-#endif
-
 #ifdef PPVERBOSE
 call exit_sub (sub_name)
 #endif
@@ -394,7 +530,7 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 implicit none
 
 integer::jx,jy,jz
-integer :: jz_min
+integer :: jz_min,jz_max
 
 real (rprec) :: ux, uy, uz, vx, vy, vz, wx, wy, wz
 
@@ -430,7 +566,7 @@ if (coord == 0) then
         end do
         end do
 
-    case (1) ! Wall
+    case (1:) ! Wall
     ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
     ! recall dwdx and dwdy are stored on w-nodes (always)
         do jy=1,ny
@@ -475,6 +611,66 @@ else
 
 end if
 
+! Calculate Sij for jz=nz (coord==nproc-1 only)
+!   stored on uvp-nodes (this level only nz on w-grid --> nz-1 on uvp-grid) for 'wall'
+!   stored on w-nodes (all) for 'stress free'
+if (coord == nproc-1) then
+
+    select case (ubc_mom)
+
+    case (0) ! Stress free
+
+        do jy=1,ny
+        do jx=1,nx              ! Sij values are supposed to be on w-nodes for this case
+                                !   does that mean they (Sij) should all be zero?
+            ux=dudx(jx,jy,nz-1)  
+            uy=dudy(jx,jy,nz-1)    
+            uz=dudz(jx,jy,nz)   ! this comes from wallstress() i.e. zero
+            vx=dvdx(jx,jy,nz-1)   
+            vy=dvdy(jx,jy,nz-1)  
+            vz=dvdz(jx,jy,nz)   ! this comes from wallstress() i.e. zero
+            wx=dwdx(jx,jy,nz)  
+            wy=dwdy(jx,jy,nz)  
+            wz=0.5_rprec*(dwdz(jx,jy,nz-1) + 0._rprec) ! pj not sure why but copied lbc 
+                              
+            ! these values are stored on w-nodes
+            S11(jx,jy,nz)=ux          
+            S12(jx,jy,nz)=0.5_rprec*(uy+vx) 
+            S13(jx,jy,nz)=0.5_rprec*(uz+wx) 
+            S22(jx,jy,nz)=vy          
+            S23(jx,jy,nz)=0.5_rprec*(vz+wy) 
+            S33(jx,jy,nz)=wz          
+        end do
+        end do
+
+    case (1:) ! Wall
+    ! recall dudz and dvdz are stored on uvp-nodes for first level only, 'wall' only
+    ! recall dwdx and dwdy are stored on w-nodes (always)
+        do jy=1,ny
+        do jx=1,nx              
+
+            ! these values stored on uvp-nodes
+            S11(jx,jy,nz)=dudx(jx,jy,nz-1)         
+            S12(jx,jy,nz)=0.5_rprec*(dudy(jx,jy,nz-1)+dvdx(jx,jy,nz-1)) 
+            wx=0.5_rprec*(dwdx(jx,jy,nz-1)+dwdx(jx,jy,nz)) 
+            S13(jx,jy,nz)=0.5_rprec*(dudz(jx,jy,nz)+wx) ! dudz from wallstress()
+            S22(jx,jy,nz)=dvdy(jx,jy,nz-1)          
+            wy=0.5_rprec*(dwdy(jx,jy,nz-1)+dwdy(jx,jy,nz))             
+            S23(jx,jy,nz)=0.5_rprec*(dvdz(jx,jy,nz)+wy) ! dvdz from wallstress()
+            S33(jx,jy,nz)=dwdz(jx,jy,nz-1)         
+
+        end do
+        end do
+  
+    end select
+  
+    jz_max = nz-1      ! since last level already calculated
+
+else
+    jz_max = nz
+
+end if
+
 #ifdef PPMPI
     ! dudz calculated for 0:nz-1 (on w-nodes) except bottom process
     ! (only 1:nz-1) exchange information between processors to set
@@ -485,7 +681,7 @@ end if
 ! Calculate Sij for the rest of the domain
 !   values are stored on w-nodes
 !   dudz, dvdz, dwdx, dwdy are already stored on w-nodes
-do jz=jz_min, nz
+do jz=jz_min, jz_max
 do jy=1,ny
 do jx=1,nx              
 !    ux=0.5_rprec*(dudx(jx,jy,jz) + dudx(jx,jy,jz-1)) 

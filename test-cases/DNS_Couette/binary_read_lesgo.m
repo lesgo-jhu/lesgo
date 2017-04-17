@@ -11,7 +11,7 @@ clear all; close all; clc;
 
 % specify which files to load
 avgVelocities    = true;
-dns_profiles     = true; % Re_tau = 1000 channel flow
+dns_profiles     = false; % Re_tau = 1000 channel flow
 domain_snapshots = false;
 x_snapshots      = false;
 y_snapshots      = false;
@@ -83,35 +83,40 @@ if avgVelocities
     uvMean = squeeze(mean(mean(uv)));
     
     txzMean = squeeze(mean(mean(txz)));
+    nz = length(uMean);
 end
 
 % >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 % basic plots
 if avgVelocities
     figure
-    plot(p.z_uv,uMean,'b')
+    plot(p.z_uv(1:nz-1),uMean(1:nz-1),'b')
+    hold on
+    plot(2-p.z_uv(1:nz-1),-uMean(1:nz-1),'r')
     if dns_profiles
         hold on
         plot(dns_z,dns_u,'r')
     end
-    ylim([0,30])
+    %ylim([-1,1])
     xlabel('z','interpreter','tex')
     ylabel('<u>','interpreter','tex')
 
     figure
-    kappa = 0.41;  z0 = .0001186;
-    loglaw = 1/kappa * log(p.z_uv ./ z0);    % rough wall
-    semilogx(p.z_uv,loglaw,'k')
+    kappa = 0.41;  nu = 0.001; ustar = sqrt(-txzMean(1)); Re_tau = ustar/nu;
+    loglaw = (1/kappa * log(ustar * p.z_uv(1:nz-1) ./ nu) + 5.0);    % rough wall
+    semilogx(p.z_uv(1:nz-1)*ustar/nu,loglaw,'k')
     hold on
-    semilogx(p.z_uv,uMean,'ob')
+    semilogx(p.z_uv(1:nz-1)*ustar/nu,p.z_uv(1:nz-1)*ustar/nu,'k--')
+    semilogx(p.z_uv(1:nz-1)*ustar/nu,(uMean(1:nz-1)+1)/ustar,'ob')
+    semilogx((2-p.z_uv(1:nz-1))*ustar/nu,(1-uMean(1:nz-1))/ustar,'og')
     if dns_profiles
       semilogx(dns_z,dns_u,'r')
     end
     hold off
-    xlim([0.01,1])
-    ylim([0,25])
-    xlabel('z','interpreter','tex')
-    ylabel('<u>','interpreter','tex')
+    xlim([1,2*ustar/nu])
+    ylim([0,2/ustar])
+    xlabel('z^+','interpreter','tex')
+    ylabel('<u>^+','interpreter','tex')
     if dns_profiles
         legend('Log Law','LES','DNS','Location','best')
     else
@@ -119,49 +124,49 @@ if avgVelocities
     end
 
     figure
-    plot(p.z_w, -uwMean,'ob')
+    plot(p.z_w*ustar/nu, -uwMean/ustar^2,'ob')
     hold on
-    plot(p.z_w, -txzMean,'oc')
-    plot(p.z_w, -txzMean - uwMean,'ko')
+    plot(p.z_w*ustar/nu, -txzMean/ustar^2,'oc')
+    plot(p.z_w*ustar/nu, (-txzMean - uwMean)/ustar^2,'ko')
     if dns_profiles
         plot(dns_z,-dns_uw,'b')
         plot(dns_z,dns_tau,'c')
         plot(dns_z,dns_tau-dns_uw,'k')
     end
-    plot(p.z_w, (1-p.z_w),'k')
+    plot(p.z_w*ustar/nu, ones(nz),'k')
     hold off
-    xlabel('z','interpreter','tex')
-    ylabel('<u''w''>','interpreter','tex')
+    xlabel('z^+','interpreter','tex')
+    ylabel('<u''w''>^+','interpreter','tex')
     
     figure
-    plot(p.z_uv, uuMean, 'ob')
+    plot(p.z_uv(1:nz-1)*ustar/nu, uuMean(1:nz-1)/ustar^2, 'ob')
     if dns_profiles
         hold on
         plot(dns_z,dns_uu,'b')
     end
-    ylim([0,8])
-    xlabel('z','interpreter','tex')
-    ylabel('<u''u''>','interpreter','tex')
+    %ylim([0,8])
+    xlabel('z^+','interpreter','tex')
+    ylabel('<u''u''>^+','interpreter','tex')
     
     figure
-    plot(p.z_uv, vvMean, 'ob')
+    plot(p.z_uv(1:nz-1)*ustar/nu, vvMean(1:nz-1)/ustar^2, 'ob')
     if dns_profiles
         hold on
         plot(dns_z,dns_vv, 'b')
     end
-    ylim([0,4])
-    xlabel('z','interpreter','tex')
-    ylabel('<v''v''>','interpreter','tex')
+    %ylim([0,4])
+    xlabel('z^+','interpreter','tex')
+    ylabel('<v''v''>^+','interpreter','tex')
     
     figure
-    plot(p.z_w, wwMean, 'ob')
+    plot(p.z_w(1:nz-1)*ustar/nu, wwMean(1:nz-1)/ustar^2, 'ob')
     if dns_profiles
         hold on
         plot(dns_z,dns_ww,'b')
     end
-    ylim([0,2])
-    xlabel('z','interpreter','tex')
-    ylabel('<w''w''>','interpreter','tex')
+    %ylim([0,2])
+    xlabel('z^+','interpreter','tex')
+    ylabel('<w''w''>^+','interpreter','tex')
 end
 
 if domain_snapshots

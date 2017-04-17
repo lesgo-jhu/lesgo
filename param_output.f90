@@ -99,6 +99,9 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
+write(2,i_fmt) 'ubc_mom : ', ubc_mom
+write(2,f_fmt) 'ubot : ', ubot
+write(2,f_fmt) 'utop : ', utop
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
@@ -106,6 +109,9 @@ write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
 write(2,f_fmt) 'mean_p_force : ', mean_p_force
+write(2,l_fmt) 'use_random_force : ', use_random_force
+write(2,i_fmt) 'stop_random_force : ', stop_random_force
+write(2,f_fmt) 'rms_random_force : ', rms_random_force
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'DATA OUTPUT PARAMETERS'

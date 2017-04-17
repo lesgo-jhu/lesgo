@@ -444,6 +444,12 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
+     case ('UBC_MOM')
+        Read (buff(equal_pos+1:), *) ubc_mom
+     case ('UBOT')
+        Read (buff(equal_pos+1:), *) ubot
+     case ('UTOP')
+        Read (buff(equal_pos+1:), *) utop
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')
@@ -460,6 +466,12 @@ do
            read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
+     case ('USE_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) use_random_force
+     case ('STOP_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) stop_random_force
+     case ('RMS_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) rms_random_force
 
 #ifdef PPHIT
     ! Read the input for HIT case

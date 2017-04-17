@@ -39,12 +39,44 @@ save
 
 private
 
-public :: forcing_applied, &
+public :: forcing_random, &
+          forcing_applied, &
           forcing_induced, &
           inflow_cond, &
           project
 
 contains
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine forcing_random()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This subroutine generates a random body force that is helpful to
+! trigger transition at low Re DNS. The forces are applied to RHS in
+! evaluation of u* (not at wall) so that mass conservation is preserved.
+!
+use types, only : rprec
+use param, only : nx,ny,nz,rms_random_force
+use sim_param, only : RHSy, RHSz
+
+real (rprec) :: dummy_rand
+integer :: jx,jy,jz
+
+! Note: the "default" rms of a unif variable is 0.289
+call init_random_seed
+do jz=2,nz-1 ! don't force too close to the wall
+do jy=1,ny
+do jx=1,nx
+  call random_number(dummy_rand)
+  RHSy(jx,jy,jz) = RHSy(jx,jy,jz) + (rms_random_force/.289_rprec)*(dummy_rand-.5_rprec)
+  call random_number(dummy_rand)
+  RHSz(jx,jy,jz) = RHSz(jx,jy,jz) + (rms_random_force/.289_rprec)*(dummy_rand-.5_rprec)
+end do
+end do
+end do
+
+end subroutine forcing_random
+
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine forcing_applied()
@@ -275,10 +307,11 @@ call mpi_sync_real_array( w, 0, MPI_SYNC_DOWNUP )
 if (coord == nproc-1) then
 #endif
 
-  ! no-stress top
-  u(:,:,nz)=u(:,:,nz-1)
-  ! no-stress top
-  v(:,:,nz)=v(:,:,nz-1)
+  ! Note: for ubc_mom > 0, u and v and nz will be written to output as BOGUS
+  if (ubc_mom == 0) then    ! no-stress top
+     u(:,:,nz) = u(:,:,nz-1)
+     v(:,:,nz) = v(:,:,nz-1) 
+  endif
   ! no permeability
   w(:, :, nz)=0._rprec
 

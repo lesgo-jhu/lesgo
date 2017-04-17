@@ -21,8 +21,8 @@
 !--nz may not be used anyway (BC is used instead)
 !--MPI: provides 1:nz-1, except at top 1:nz
 subroutine divstress_w(divt, tx, ty, tz)
-use types,only:rprec
-use param,only:ld,nx,ny,nz, coord, BOGUS, lbz
+use types, only : rprec
+use param, only : ld, nx, ny, nz, coord, BOGUS, lbz
 use derivatives, only : ddx, ddy, ddz_uv
 #ifdef PPMPI
 use param,only:nproc,coord
@@ -71,6 +71,7 @@ call ddz_uv(tz, dtzdz, lbz)
 #endif
 #endif
 
+! or is it necessary to condition on lbc_mom like done below?
 if (coord == 0) then
   ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
   do jy=1,ny
@@ -88,6 +89,24 @@ else
   end do
 end if
 
+!!channel
+if (coord == nproc-1) then 
+  ! at wall we have to assume that dz(tzz)=0.0.  Any better ideas?
+  do jy=1,ny
+  do jx=1,nx
+  ! in old version, it looks like some people tried some stuff with dwdz here
+  ! but they were zeroed out, so they were left out of this version
+     divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)
+  end do
+  end do
+else
+  do jy=1,ny
+  do jx=1,nx              
+     divt(jx,jy,nz)=dtxdx(jx,jy,nz) + dtydy(jx,jy,nz) + dtzdz(jx,jy,nz)
+  end do
+  end do
+end if
+
 do jz=2,nz-1
 do jy=1,ny
 do jx=1,nx              
@@ -98,28 +117,6 @@ end do
 
 !--set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
-
-#ifdef PPMPI 
-  if (coord == nproc-1) then
-    do jy=1,ny
-    do jx=1,nx              
-       divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
-    end do
-    end do
-    divt(ld-1:ld, :, nz) = 0._rprec
-  else
-#ifdef PPSAFETYMODE
-    divt(:, :, nz) = BOGUS
-#endif    
-  endif
-#else
-  do jy=1,ny
-  do jx=1,nx              
-     divt(jx,jy,nz)=dtxdx(jx,jy,nz)+dtydy(jx,jy,nz)+dtzdz(jx,jy,nz)
-  end do
-  end do
-  divt(ld-1:ld, :, nz) = 0._rprec
-#endif
 
 #ifdef PPVERBOSE
 write (*, *) 'finished divstress_w'

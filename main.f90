@@ -30,7 +30,8 @@ use clock_m
 use param
 use sim_param
 use grid_m
-use io, only : energy, output_loop, output_final, jt_total, write_tau_wall
+use io, only : energy, output_loop, output_final, jt_total, &
+               & write_tau_wall_bot, write_tau_wall_top
 use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
@@ -38,7 +39,7 @@ use cfl_util
 !use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
-use functions, only: get_tau_wall
+use functions, only: get_tau_wall_bot, get_tau_wall_top
 
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
@@ -70,7 +71,7 @@ character (*), parameter :: prog_name = 'main'
 
 integer :: jt_step, nstart
 real(kind=rprec) rmsdivvel,ke, maxcfl
-real (rprec):: tt
+real (rprec) :: tt
 
 type(clock_t) :: clock, clock_total, clock_forcing
 
@@ -168,19 +169,15 @@ time_loop: do jt_step = nstart, nsteps
 
     ! Calculate wall stress and derivatives at the wall (txz, tyz, dudz, dvdz at jz=1)
     !   using the velocity log-law
-    !   MPI: bottom process only
-    if (coord == 0) then
+    !   MPI: bottom and top processes only
+    if (coord == 0 .or. coord == nproc-1) then
         call wallstress ()
     end if
 
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
-    if (lbc_mom == 1 .and. molec) then
-        call dns_stress(txx,txy,txz,tyy,tyz,tzz)
-    else
-        call sgs_stag()
-    end if
+    call sgs_stag()
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
@@ -205,6 +202,7 @@ time_loop: do jt_step = nstart, nsteps
     RHSx(:, :, 1:nz-1) = -RHSx(:, :, 1:nz-1) - divtx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = -RHSy(:, :, 1:nz-1) - divty(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = -RHSz(:, :, 1:nz-1) - divtz(:, :, 1:nz-1)
+    if(coord==nproc-1) RHSz(:,:,nz) = -RHSz(:,:,nz)-divtz(:,:,nz)
 
     ! Coriolis: add forcing to RHS
     if (coriolis_forcing) then
@@ -224,6 +222,11 @@ time_loop: do jt_step = nstart, nsteps
     !  to the final velocity as possible
     if (use_mean_p_force) then
         RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) + mean_p_force
+    end if
+
+    ! Optional random forcing, i.e. to help prevent relaminarization
+    if (use_random_force .and. jt_total < stop_random_force) then
+      call forcing_random()
     end if
 
     !//////////////////////////////////////////////////////
@@ -291,6 +294,11 @@ time_loop: do jt_step = nstart, nsteps
     w(:, :, 1:nz-1) = w(:, :, 1:nz-1) +                   &
                      dt * ( tadv1 * RHSz(:, :, 1:nz-1) +  &
                             tadv2 * RHSz_f(:, :, 1:nz-1) )
+    if (coord==nproc-1) then
+        w(:,:,nz) = w(:,:,nz) +                   &
+                         dt * ( tadv1 * RHSz(:,:,nz) +  &
+                                tadv2 * RHSz_f(:,:,nz) )
+    end if
 
     ! Set unused values to BOGUS so unintended uses will be noticable
 #ifdef PPSAFETYMODE
@@ -305,7 +313,7 @@ time_loop: do jt_step = nstart, nsteps
     !--this has to do with what bc are imposed on intermediate velocity    
     u(:, :, nz) = BOGUS
     v(:, :, nz) = BOGUS
-    w(:, :, nz) = BOGUS
+    if(coord<nproc-1) w(:, :, nz) = BOGUS
 #endif
 
     !//////////////////////////////////////////////////////
@@ -322,6 +330,9 @@ time_loop: do jt_step = nstart, nsteps
     RHSx(:, :, 1:nz-1) = RHSx(:, :, 1:nz-1) - dpdx(:, :, 1:nz-1)
     RHSy(:, :, 1:nz-1) = RHSy(:, :, 1:nz-1) - dpdy(:, :, 1:nz-1)
     RHSz(:, :, 1:nz-1) = RHSz(:, :, 1:nz-1) - dpdz(:, :, 1:nz-1)
+    if(coord==nproc-1) then
+      RHSz(:,:,nz) = RHSz(:,:,nz) - dpdz(:,:,nz)
+    end if
 
     !//////////////////////////////////////////////////////
     !/// INDUCED FORCES                                 ///
@@ -354,7 +365,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Check the total time of the simulation up to this point on the master node and send this to all
    
     if (modulo (jt_total, wbase) == 0) then
-       
+
        ! Get the ending time for the iteration
        call clock%stop
        call clock_total%stop
@@ -393,7 +404,7 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(a)') 'Flow field information:'          
           write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
           write(*,'(a,E15.7)') '  Kinetic energy: ', ke
-          write(*,'(a,E15.7)') '  Wall stress: ', get_tau_wall()
+          write(*,'(a,E15.7)') '  Bot wall stress: ', get_tau_wall_bot()
           write(*,*)
 #ifdef PPMPI
           write(*,'(1a)') 'Simulation wall times (s): '
@@ -406,7 +417,13 @@ time_loop: do jt_step = nstart, nsteps
           write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
           write(*,'(1a,E15.7)') '   Forcing %: ', clock_total_f /clock_total % time
           write(*,'(a)') '========================================'
-          call write_tau_wall()   !!jb
+          call write_tau_wall_bot()
+       end if
+       if(coord == nproc-1) then
+          write(*,'(a)') '========================================'
+          write(*,'(a,E15.7)') '  Top wall stress: ', get_tau_wall_top()
+          write(*,'(a)') '========================================'
+          call write_tau_wall_top()
        end if
 
        ! Check if we are to check the allowable runtime

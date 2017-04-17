@@ -109,7 +109,7 @@ else if (inflow) then
         call ic_uniform
 #endif
 else if (lbc_mom==1) then
-    if (coord == 0) write(*,*) '--> Creating initial boundary layer velocity ',&
+    if (coord == 0) write(*,*) '--> Creating initial laminar profile ',&
         'field with DNS BCs'
     call ic_dns()
 else
@@ -196,17 +196,33 @@ use param
 use sim_param,only:u,v,w
 implicit none
 
-real(rprec),dimension(nz)::ubar
-real(rprec)::rms,temp
-integer::jx,jy,jz,z
+real(rprec), dimension(nz) :: ubar
+real(rprec) :: rms, temp, z
+integer :: jx, jy, jz
 real(rprec) :: dummy_rand
 
 ! Calculate the average streamwise velocity based on height of first uvp point 
 ! in wall units
-do jz=1,nz
-    z = int((real(jz)-.5_rprec)*dz) ! non-dimensional
-    ubar(jz) = (u_star*z_i/nu_molec)*z*(1._rprec-.5_rprec*z) ! non-dimensional
-end do
+
+if ( abs(ubot) > 0 .or. abs(utop) > 0 ) then  !! linear laminar profile (couette)
+   do jz=1,nz
+#ifdef PPMPI
+        z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#else
+        z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#endif
+      ubar(jz)= (utop-ubot)/2*(2*z/L_z-1)**5 + (utop+ubot)/2 ! non-dimensional
+   end do
+else
+   do jz=1,nz  !! parabolic laminar profile (channel)
+#ifdef PPMPI
+        z=(coord*(nz-1) + real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#else
+        z = (real(jz,rprec) - 0.5_rprec) * dz ! non-dimensional
+#endif
+      ubar(jz)=(u_star*z_i/nu_molec) * z * (1._rprec - 0.5_rprec*z) ! non-dimensional
+   end do
+endif
 
 ! Get random seeds to populate the initial condition with noise
 call init_random_seed
@@ -250,8 +266,10 @@ end do
 ! Make sure field satisfies boundary conditions
 w(:,:,1)=0._rprec
 w(:,:,nz)=0._rprec
-u(:,:,nz)=u(:,:,nz-1)
-v(:,:,nz)=v(:,:,nz-1)
+if (ubc_mom == 0) then
+   u(:,:,nz) = u(:,:,nz-1)
+   v(:,:,nz) = v(:,:,nz-1)
+endif
 
 end subroutine ic_dns
 
@@ -287,6 +305,11 @@ do jz = 1, nz
 #else
     z = (jz - 0.5_rprec) * dz
 #endif
+
+    ! For channel flow, choose closest wall
+    if(lbc_mom  > 0 .and. ubc_mom > 0) z = min(z, dz*nproc*(nz-1) - z)
+    ! For upside-down half-channel, choose upper wall
+    if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1) - z
 
     ! IC in equilibrium with rough surface (rough dominates in effective zo)
     arg2 = z/zo
@@ -338,6 +361,12 @@ do jz = 1, nz
     jz_abs = jz
     z = (jz-.5_rprec) * dz * z_i                        !dimensions in meters
 #endif
+
+    ! For channel flow, choose closest wall
+    if(lbc_mom  > 0 .and. ubc_mom > 0) z = min(z, dz*nproc*(nz-1)*z_i - z)
+    ! For upside-down half-channel, choose upper wall
+    if(lbc_mom == 0 .and. ubc_mom > 0) z = dz*nproc*(nz-1)*z_i - z
+
     if (z <= z_i) then
         u(:,:,jz) = u(:,:,jz) * (1._rprec-z / z_i) + ubar(jz)
         v(:,:,jz) = v(:,:,jz) * (1._rprec-z / z_i)
@@ -364,8 +393,10 @@ end if
 if (coord == nproc-1) then
 #endif    
     w(1:nx, 1:ny, nz) = 0._rprec
-    u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
-    v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
+    !u(1:nx, 1:ny, nz) = u(1:nx, 1:ny, nz-1)
+    !v(1:nx, 1:ny, nz) = v(1:nx, 1:ny, nz-1)
+    u(1:nx, 1:ny, nz) = 0._rprec
+    v(1:nx, 1:ny, nz) = 0._rprec
 #ifdef PPMPI
 end if
 #endif

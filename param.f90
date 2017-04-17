@@ -184,8 +184,15 @@ module param
   logical :: inilag = .true.
 
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
-  ! NOTE: the upper boundary condition is implicitly stress free
+  ! NOTE: the upper boundary condition is implicitly stress free (until ...
+  ! channel branch is complete)
   integer :: lbc_mom = 1
+  integer :: ubc_mom = 0
+
+  ! Prescribe bottom and top wall streamwise velocity
+  ! Only for DNS (sgs=.false.) and full channel (lbc_mom = ubc_mom = 1)
+  real(rprec) :: ubot = 0.0_rprec   ! nondimensional
+  real(rprec) :: utop = 0.0_rprec   ! nondimensional
   
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
@@ -207,6 +214,13 @@ module param
   ! Specify whether mean_p_force should be evaluated as 1/L_z
   logical :: eval_mean_p_force = .false. 
   real(rprec) :: mean_p_force = 1.0_rprec
+
+  ! if true, provides random forcing for v & w until certain number of time steps
+  logical :: use_random_force = .false.
+  ! specify how many time steps random force should be used
+  integer :: stop_random_force = 20000
+  ! specify the rms magnitude of the random forcing to apply
+  real(rprec) :: rms_random_force = 0.4_rprec
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS

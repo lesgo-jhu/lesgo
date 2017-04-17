@@ -27,6 +27,7 @@ save
 private
 public interp_to_uv_grid,   &
     trilinear_interp,       &
+    trilinear_interp_w,     &
     bilinear_interp,        &
     linear_interp,          &
     cell_indx,              &
@@ -34,7 +35,8 @@ public interp_to_uv_grid,   &
     points_avg_3d,          & 
     plane_avg_3d,           &     
     interp_to_w_grid,       &
-    get_tau_wall
+    get_tau_wall_bot,       &
+    get_tau_wall_top
 
 character (*), parameter :: mod_name = 'functions'
 
@@ -203,6 +205,115 @@ return
 end function interp_to_w_grid
 
 !**********************************************************************
+integer function cell_indx_w(indx,dx,px)
+!**********************************************************************
+! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
+!   spacing=[dx or dy or dz] and the [x or y or z] location and returns
+!   the value of the lower index (cell index). Also include is implicit
+!   wrapping of the spatial location px. For z, the w-grid is used. To
+!   use uv-grid for cell index, please see cell_indx() function.
+! 
+!  cell_indx should always be:
+!  1<= cell_indx <= Nx
+!  or
+!  1<= cell_indx <= Ny
+!  or
+!  lbz <= cell_indx < Nz
+!
+use types, only : rprec
+use grid_m
+use messages 
+use param, only : nx, ny, nz, L_x, L_y, L_z, lbz
+implicit none
+
+character (*), intent (in) :: indx
+real(rprec), intent(in) :: dx
+
+real(rprec) :: px ! Global value
+
+character (*), parameter :: func_name = mod_name // '.cell_indx'
+
+real(rprec), parameter :: thresh = 1.e-9_rprec
+
+real(rprec), pointer, dimension(:) :: zw
+
+! Nullify pointers
+nullify(zw)
+! Intialize result
+cell_indx_w = -1
+
+if(.not. grid % built) call grid%build()
+
+zw => grid % zw
+
+select case (indx)
+  case ('i')
+
+    ! Autowrap spatial point   
+    px = modulo(px,L_x)
+   
+    ! Check lower boundary
+    if( abs(px) / L_x < thresh ) then
+
+      cell_indx_w = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_x ) / L_x < thresh ) then
+   
+      cell_indx_w = Nx
+
+    else
+
+      ! Returned values 1 < cell_indx < Nx
+      cell_indx_w = floor (px / dx) + 1
+
+   endif
+
+  case ('j')
+
+    ! Autowrap spatial point
+    px = modulo(px, L_y) 
+
+    ! Check lower boundary
+    if( abs(px) / L_y < thresh ) then
+
+      cell_indx_w = 1
+
+    ! Check upper boundary 
+    elseif( abs( px - L_y ) / L_y < thresh ) then
+
+      cell_indx_w = Ny
+
+    else
+
+      ! Returned values 1 < cell_indx < Ny
+      cell_indx_w = floor (px / dx) + 1
+
+   endif
+
+  !  Need to compute local distance to get local k index
+  case ('k')
+
+      ! Check upper boundary 
+    if( abs( px - zw(Nz) ) / L_z < thresh ) then
+
+      cell_indx_w = Nz-1
+
+    else
+
+      cell_indx_w = floor ((px - zw(1)) / dx) + 1
+
+    endif
+
+end select
+
+nullify(zw)
+
+return
+end function cell_indx_w
+
+
+!**********************************************************************
 integer function cell_indx(indx,dx,px)
 !**********************************************************************
 ! This routine takes index=['i' or 'j' or 'k'] and the magnitude of the 
@@ -308,6 +419,126 @@ nullify(z)
 
 return
 end function cell_indx
+
+!**********************************************************************
+real(rprec) function trilinear_interp_w(var,lbz,xyz)
+!**********************************************************************
+!
+!  This subroutine perform trilinear interpolation for a point that
+!  exists in the cell with lower dimension (cell index) : istart,jstart,kstart
+!  for the point xyz
+!  
+!  istart, jstart, kstart are used to determine the cell location on the
+!  w-grid (with exceptions, see below); these are defined in output_init
+!
+!  This assumes that var is on the w-grid, except (jz=1 .and. coord==0)
+!  .or. (jz=nz .and. coord==nproc-1) when these are near wall BC, in which case
+!  the var is assumed to be on the uv-grid. This oddity is because this
+!  function is designed for interpolating variables for the lagrangian subgrid
+!  models and for wall BC lesgo stores nu_t not at the wall but 0.5*dz off it.
+!
+!  The variable sent to this subroutine should have a lower-bound-on-z 
+!  (lbz) set as an input so the k-index will match the k-index of z.  
+!  Before calling this function, make sure the point exists on the coord
+!  [ test using: z(1) \leq z_p < z(nz-1) ]
+!
+use grid_m
+use types, only : rprec
+use param, only : dx, dy, dz, coord, nproc, lbc_mom, ubc_mom, nz
+implicit none
+
+integer, intent(in) :: lbz
+real(rprec), dimension(:,:,lbz:), intent(in) :: var
+integer :: istart, jstart, kstart, istart1, jstart1, kstart1
+real(rprec), intent(in), dimension(3) :: xyz
+
+!integer, parameter :: nvar = 3
+real(rprec) :: u1,u2,u3,u4,u5,u6
+real(rprec) :: xdiff, ydiff, zdiff
+
+real(rprec), pointer, dimension(:) :: x,y,z,zw
+integer, pointer, dimension(:) :: autowrap_i, autowrap_j
+
+nullify(x,y,z,zw)
+nullify(autowrap_i, autowrap_j)
+
+x  => grid % x
+y  => grid % y
+z  => grid % z
+zw => grid % zw
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
+
+!  Initialize stuff
+u1=0.; u2=0.; u3=0.; u4=0.; u5=0.; u6=0.
+
+! X and Y index not affected by z-grid details
+! Determine istart, jstart by calling cell_indx
+istart = cell_indx_w('i',dx,xyz(1)) ! 1<= istart <= Nx
+jstart = cell_indx_w('j',dy,xyz(2)) ! 1<= jstart <= Ny
+
+! Set +1 values
+istart1 = autowrap_i(istart+1) ! Autowrap index
+jstart1 = autowrap_j(jstart+1) ! Autowrap index
+
+!  Compute xdiff
+xdiff = xyz(1) - x(istart)
+!  Compute ydiff
+ydiff = xyz(2) - y(jstart)
+
+if(coord==0 .and. lbc_mom>0 .and. xyz(3) < zw(2)) then ! special case
+  if (xyz(3) < z(1)) then ! below first point, zero grad BC
+    kstart  = 1
+    kstart1 = 1 ! use same z-index for both sides of interp (zero grad)
+    zdiff   = 0._rprec  ! kstart==kstart1, so u1==u3 .and. u2==u4, so u5==u6
+    ! therefore, zdiff is irrelevant in this case
+  else ! in-between jz=1 and jz=2, which are sep by only 0.5*dz
+    kstart  = 1
+    kstart1 = 2
+    zdiff   = 2._rprec*(xyz(3) - z(kstart)) ! use uvp-grid for z
+    ! multiply by 2 to achieve effective dz/2 in last step of interp
+  end if
+else if (coord==nproc-1 .and. ubc_mom>0 .and. xyz(3) > zw(nz-1)) then ! special case
+  if (xyz(3) > z(nz-1)) then ! above last point, zero grad BC
+    kstart  = nz
+    kstart1 = nz ! use same z-index for both sides of interp (zero grad)
+    zdiff   = 0._rprec  ! kstart==kstart1, so u1==u3 .and. u2==u4, so u5==u6
+    ! therefore, zdiff is irrelevant in this case
+  else ! in-between jz=nz-1 and jz=nz, which are sep by only 0.5*dz
+    kstart  = nz-1
+    kstart1 = nz
+    zdiff   = 2._rprec*(xyz(3) - zw(kstart)) ! use w-grid for z
+    ! multiply by 2 to achieve effective dz/2 in last step of interp
+  end if
+else ! Determine kstart by calling cell_indx_w
+  kstart = cell_indx_w('k',dz,xyz(3)) ! lbz <= kstart < Nz
+
+  ! Set +1 values
+  kstart1 = kstart + 1
+
+  !  Compute zdiff
+  zdiff = xyz(3) - zw(kstart)
+end if
+
+!  Perform the 7 linear interpolations
+!  Perform interpolations in x-direction 
+u1=var(istart,  jstart,  kstart)  + (xdiff) * (var(istart1, jstart,  kstart)  - var(istart,  jstart,  kstart)) / dx
+u2=var(istart,  jstart1, kstart)  + (xdiff) * (var(istart1, jstart1, kstart)  - var(istart,  jstart1, kstart)) / dx
+u3=var(istart,  jstart,  kstart1) + (xdiff) * (var(istart1, jstart,  kstart1) - var(istart,  jstart,  kstart1)) / dx
+u4=var(istart,  jstart1, kstart1) + (xdiff) * (var(istart1, jstart1, kstart1) - var(istart,  jstart1, kstart1)) / dx
+
+!  Perform interpolations in y-direction
+u5=u1 + (ydiff) * (u2 - u1) / dy
+u6=u3 + (ydiff) * (u4 - u3) / dy
+!  Perform interpolation in z-direction
+trilinear_interp_w = u5 + (zdiff) * (u6 - u5) / dz
+
+nullify(x,y,z,zw)
+nullify(autowrap_i, autowrap_j)
+
+return
+end function trilinear_interp_w
+
 
 !**********************************************************************
 real(rprec) function trilinear_interp(var,lbz,xyz)
@@ -1053,7 +1284,7 @@ return
 end function buff_indx
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-function get_tau_wall() result(twall)       !!jb
+function get_tau_wall_bot() result(twall)       !!jb
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! This function provides plane-averaged value of wall stress magnitude
@@ -1076,6 +1307,33 @@ enddo
 twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
 
 return
-end function get_tau_wall
+end function get_tau_wall_bot
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+function get_tau_wall_top() result(twall)       !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+! This function provides plane-averaged value of wall stress magnitude
+use types, only: rprec
+use param, only : nx, ny, nz
+use sim_param, only : txz, tyz
+
+implicit none
+real(rprec) :: twall, txsum, tysum
+integer :: jx, jy
+
+txsum = 0._rprec
+tysum = 0._rprec
+do jx=1,nx
+   do jy=1,ny
+      txsum = txsum + txz(jx,jy,nz)
+      tysum = tysum + tyz(jx,jy,nz)
+   enddo
+enddo
+twall = sqrt( (txsum/(nx*ny))**2 + (tysum/(nx*ny))**2  )
+
+return
+end function get_tau_wall_top
 
 end module functions
