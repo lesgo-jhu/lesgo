@@ -63,6 +63,8 @@ type turbineArray_t
     real(rprec) :: PitchControlAngle = 0._rprec
     real(rprec) :: IntSpeedError = 0._rprec
     real(rprec) :: IntPowerError = 0._rprec
+    logical :: tipALMCorrection  ! Includes a correction for tip
+    real(rprec) :: optimalEpsilon = 0.25 ! The optimal epsilon (m)
 
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
@@ -150,7 +152,6 @@ type turbineArray_t
     ! as lift coefficitent, angle of attack, etc
     real(rprec), allocatable, dimension(:,:,:,:) :: bladeVectorDummy
     real(rprec), allocatable, dimension(:,:,:) :: bladeScalarDummy
-
 
     ! An indicator of shaft direction.  The convention is that when viewed
     ! from upwind, the rotor turns clockwise for positive rotation angles,
@@ -424,6 +425,16 @@ do
             read(buff(4:), *) turbineArray(n) % TSR
 !~             write(*,*)  'TSR is: ', &
 !~                          turbineArray(n) % TSR
+        endif 
+        if( buff(1:16) == 'tipALMCorrection' ) then
+            read(buff(17:), *) turbineArray(n) % optimalEpsilon
+!~             write(*,*)  'tipALMCorrection is: ', &
+!~                          turbineArray(n) % tipALMCorrection
+        endif 
+        if( buff(1:14) == 'optimalEpsilon' ) then
+            read(buff(15:), *) turbineArray(n) % optimalEpsilon
+!~             write(*,*)  'optimalEpsilon is: ', &
+!~                          turbineArray(n) % optimalEpsilon
         endif 
     endif        
 end do
