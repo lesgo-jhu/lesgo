@@ -36,7 +36,7 @@ public :: create_mpi_comms, &
 character (*), parameter :: mod_name = 'concurrent_precursor'
 
 integer, parameter :: RED=0  ! Upstream domain   (producer)
-integer, parameter :: BLUE=1 ! Downstream domain (consumer) 
+integer, parameter :: BLUE=1 ! Downstream domain (consumer)
 
 integer :: interComm, color
 
@@ -50,7 +50,7 @@ subroutine create_mpi_comms(localComm)
 ! communicator into two communicators (localComm). The two new
 ! communicators are then bridged to create an intercommunicator
 ! (interComm).
-! 
+!
 use param, only : ierr, use_cps, inflow_cond
 use messages
 implicit none
@@ -61,6 +61,7 @@ integer :: world_np, world_rank
 integer :: remoteLeader
 integer :: memberKey
 integer :: share_int = 0
+integer :: dummy
 
 character (*), parameter :: sub_name = mod_name // '.create_mpi_comms'
 
@@ -70,29 +71,31 @@ call mpi_comm_rank(MPI_COMM_WORLD, world_rank, ierr)
 
 ! Sum together the use_cps values
 if (use_cps) share_int = 1
-call MPI_Allreduce(share_int, share_int, 1, MPI_INTEGER, MPI_SUM,              &
+    call MPI_Allreduce(share_int, dummy, 1, MPI_INTEGER, MPI_SUM,              &
     MPI_COMM_WORLD, ierr)
+    call mpi_barrier(MPI_COMM_WORLD, ierr)
+    share_int = dummy
 if (share_int == 0) then
     ! Do not use CPS
     localComm = MPI_COMM_WORLD
 else if (share_int == world_np) then
     ! Use CPS
     write(*,*) "Using Concurrent Precursor method"
-    
+
     ! Set color
     if (inflow_cond == 5) then
         color = BLUE
     else
         color = RED
     end if
-    
+
     ! Make sure there are exactly half with inflow conditions
     call MPI_Allreduce(color, share_int, 1, MPI_INTEGER, MPI_SUM,              &
         MPI_COMM_WORLD, ierr)
     if (share_int /= world_np / 2) then
-        call error(sub_name ,'There must be one process with inflow conditions')    
+        call error(sub_name ,'There must be one process with inflow conditions')
     end if
-    
+
     ! set the remote leader for each intercommunicator interComm
     share_int = color
     call MPI_Bcast(share_int, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
@@ -101,10 +104,10 @@ else if (share_int == world_np) then
     else
         remoteLeader = world_np / 2
     end if
-    
+
     ! Generate member key
     memberKey=modulo(world_rank, world_np / 2)
-    
+
     ! Split the world communicator into intracommunicators localComm
     call MPI_Comm_split(MPI_COMM_WORLD, color, memberKey, localComm, ierr)
 
@@ -112,7 +115,7 @@ else if (share_int == world_np) then
     call mpi_intercomm_create( localComm, 0, MPI_COMM_WORLD, remoteLeader, 1,  &
         interComm, ierr)
 else
-    call error(sub_name, 'Inconsistent use of use_cps')    
+    call error(sub_name, 'Inconsistent use of use_cps')
 end if
 
 end subroutine create_mpi_comms
@@ -177,7 +180,7 @@ elseif( color == RED ) then
     call mpi_send(recycl%v(1,1,1), size, MPI_RPREC, &
         rank_of_coord(coord), 2, interComm, ierr )
     call mpi_send(recycl%w(1,1,1), size, MPI_RPREC, &
-        rank_of_coord(coord), 3, interComm, ierr )   
+        rank_of_coord(coord), 3, interComm, ierr )
 else
     call error( sub_name, 'Erroneous color specification')
 endif
