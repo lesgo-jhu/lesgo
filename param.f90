@@ -35,12 +35,12 @@ module param
 
 !---------------------------------------------------
 ! GLOBAL PARAMETERS
-!---------------------------------------------------  
+!---------------------------------------------------
   integer, parameter :: CHAR_BUFF_LENGTH = 1024 ! Default size of string buffers with unknown length
   character(*), parameter :: PATH = './'
   character(*), parameter :: checkpoint_file = path // 'vel.out'
   character(*), parameter :: checkpoint_tavg_file = path // 'tavg.out'
-#ifdef PPOUTPUT_EXTRA 
+#ifdef PPOUTPUT_EXTRA
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
 #endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
@@ -89,7 +89,7 @@ module param
 
 !---------------------------------------------------
 ! COMPUTATIONAL DOMAIN PARAMETERS
-!---------------------------------------------------  
+!---------------------------------------------------
 
   integer, parameter :: iBOGUS = -1234567890  !--NOT a new Apple product
   real (rprec), parameter :: BOGUS = -1234567890._rprec
@@ -102,118 +102,116 @@ module param
 
   ! this value is dimensional [m]:
   real(rprec) :: z_i = 1000.0_rprec
-    
-  ! these values should be non-dimensionalized by z_i: 
+
+  ! these values should be non-dimensionalized by z_i:
   ! set as multiple of BL height (z_i) then non-dimensionalized by z_i
   logical :: uniform_spacing = .false.
   real(rprec) :: L_x = 2.0*pi, L_y=2.0*pi, L_z=1.0_rprec
 
   ! these values are also non-dimensionalized by z_i:
   real(rprec) :: dx, dy, dz
-  
+
 !---------------------------------------------------
 ! MODEL PARAMETERS
-!---------------------------------------------------   
+!---------------------------------------------------
 
   ! Model type: 1->Smagorinsky; 2->Dynamic; 3->Scale dependent
   !             4->Lagrangian scale-sim   5-> Lagragian scale-dep
   integer :: sgs_model=5, wall_damp_exp=2
 
-  ! timesteps between dynamic Cs updates           
+  ! timesteps between dynamic Cs updates
   integer :: cs_count = 5
 
   ! When to start dynamic Cs calculations
   integer :: DYN_init = 100
-  
+
   ! Cs is the Smagorinsky Constant
   ! Co and wall_damp_exp are used in the mason model for smagorisky coeff
   real(rprec) :: Co = 0.16_rprec
-  
+
   ! test filter type: 1->cut off 2->Gaussian 3->Top-hat
   integer :: ifilter = 1
 
   ! u_star=0.45 m/s if coriolis_forcing=.FALSE. and =ug if coriolis_forcing=.TRUE.
   real(rprec) :: u_star = 0.45_rprec
 
-  ! von Karman constant     
+  ! von Karman constant
   real(rprec) :: vonk = 0.4_rprec
-  
+
   ! Coriolis stuff
   ! coriol=non-dim coriolis parameter,
   ! ug=horiz geostrophic vel, vg=transverse geostrophic vel
-  logical :: coriolis_forcing = .true. 
+  logical :: coriolis_forcing = .true.
   real(rprec) :: coriol = 1.0e-4_rprec, ug=1.0_rprec, vg=0.0_rprec
 
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
-    
+
   logical :: molec=.false., sgs=.true.
-  
+
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
-!---------------------------------------------------   
+!---------------------------------------------------
 
   integer :: nsteps = 50000
   ! -- Maximum runtime in seconds. Simulation will exit if exceeded. (disabled by default)
-  integer :: runtime = -1 
+  integer :: runtime = -1
 
-  logical :: use_cfl_dt = .false.  
+  logical :: use_cfl_dt = .false.
   real(rprec) :: cfl = 0.05
   real(rprec) :: dt_f=2.0e-4, cfl_f=0.05
 
   real(rprec) :: dt = 2.0e-4_rprec
   real(rprec) :: dt_dim
-  
+
   ! time advance parameters (Adams-Bashforth, 2nd order accurate)
   real(rprec) :: tadv1, tadv2
-  
+
   logical :: cumulative_time = .true.
   character (*), parameter :: fcumulative_time = path // 'total_time.dat'
-  
+
   integer :: jt=0                 ! Local time counter
   integer :: jt_total=0           ! Global time counter
   real(rprec) :: total_time, total_time_dim
-  
+
 !---------------------------------------------------
 ! BOUNDARY/INITIAL CONDITION PARAMETERS
-!---------------------------------------------------  
+!---------------------------------------------------
 
   ! initu = true to read from a file; false to create with random noise
   logical :: initu = .false.
   ! initlag = true to initialize cs, FLM & FMM; false to read from vel.out
   logical :: inilag = .true.
 
-  ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
+  ! lbc: lower boundary condition:  0 - stress free, 1 - wall
   ! NOTE: the upper boundary condition is implicitly stress free
   integer :: lbc_mom = 1
-  
+
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
 
   ! inflow conditions
   integer :: inflow_cond = 0
 
-  ! prescribed inflow:   
-  logical :: inflow = .false.
+  ! prescribed inflow:
   ! if inflow is true the following should be set:
-    ! position of right end of fringe region, as a fraction of L_x
-    real(rprec) :: fringe_region_end  = 1.0_rprec
-    ! length of fringe region as a fraction of L_x
-    real(rprec) :: fringe_region_len = 0.125_rprec
-    ! position of right end of recycle region, as a fraction of L_x
-    real(rprec) :: recycl_region_end = 0.75_rprec
-    logical :: use_cps = .false.
+  ! position of right end of fringe region, as a fraction of L_x
+  real(rprec) :: fringe_region_end  = 1.0_rprec
+  ! length of fringe region as a fraction of L_x
+  real(rprec) :: fringe_region_len = 0.125_rprec
+  ! position of right end of recycle region, as a fraction of L_x
+  real(rprec) :: recycl_region_end = 0.75_rprec
+  logical :: use_cps = .false.
 
     ! Use uniform inflow instead of concurrent precursor inflow
-    logical :: uniform_inflow = .false.
-      real(rprec) :: inflow_velocity = 1.0_rprec
+    real(rprec) :: inflow_velocity = 1.0_rprec
 
   ! if true, imposes a pressure gradient in the x-direction to force the flow
   logical :: use_mean_p_force = .true.
   ! Specify whether mean_p_force should be evaluated as 1/L_z
-  logical :: eval_mean_p_force = .false. 
+  logical :: eval_mean_p_force = .false.
   real(rprec) :: mean_p_force = 1.0_rprec
-  
+
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
 !---------------------------------------------------
@@ -224,7 +222,7 @@ module param
   ! how often to write ke to check_ke.out
   integer :: nenergy = 100
 
-  ! how often to display Lagrangian CFL condition of 
+  ! how often to display Lagrangian CFL condition of
   ! dynamic SGS models
   integer :: lag_cfl_count = 1000
 
@@ -245,7 +243,7 @@ module param
   ! domain instantaneous output
   logical :: domain_calc=.false.
   integer :: domain_nstart=10000, domain_nend=50000, domain_nskip=10000
-  
+
   ! x-plane instantaneous output
   logical :: xplane_calc=.false.
   integer :: xplane_nstart=10000, xplane_nend=50000, xplane_nskip=10000

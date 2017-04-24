@@ -24,13 +24,13 @@ use types, only : rprec
 use param, only : path, CHAR_BUFF_LENGTH
 implicit none
 
-save 
+save
 private
 
 public :: read_input_conf
 
 character (*), parameter :: mod_name = 'string_util'
- 
+
 character (*), parameter :: input_conf = path // 'lesgo.conf'
 character (*), parameter :: comment = '!'
 !character (*), parameter :: ldelim = '('  !--no whitespace allowed
@@ -93,7 +93,7 @@ do
   if (ios /= 0) exit
 
   if (block_entry_pos == 0) then  !--for now, invalid format if no block entry found
-    call error (sub_name, 'block entry not found on line', line) 
+    call error (sub_name, 'block entry not found on line', line)
   end if
 
   ! Find block
@@ -104,24 +104,24 @@ do
      call domain_block()
 
   case ('MODEL')
-         
+
      call model_block()
 
   case ('TIME')
-     
+
      call time_block()
 
   case ('FLOW_COND')
 
-     call flow_cond_block()      
-      
+     call flow_cond_block()
+
   case ('OUTPUT')
 
      call output_block()
 
 #ifdef PPLVLSET
   case ('LEVEL_SET')
-     
+
      call level_set_block()
 
 #endif
@@ -132,7 +132,7 @@ do
 
 #ifdef PPTURBINES
   case ('TURBINES')
-  
+
      call turbines_block()
 #endif
 
@@ -147,7 +147,7 @@ do
      enddo
 
   end select
-  
+
 end do
 
 close (lun)
@@ -166,7 +166,7 @@ character(*), parameter :: block_name = 'DOMAIN'
 integer :: ival_read
 real(rprec) :: val_read
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -175,8 +175,8 @@ do
   if( block_exit_pos == 0 ) then
 
      ! Check that the data entry conforms to correct format
-     call checkentry() 
-     
+     call checkentry()
+
      select case (uppercase(buff(1:equal_pos-1)))
 
      case ('NPROC')
@@ -185,7 +185,7 @@ do
         read (buff(equal_pos+1:), *) Nx
      case ('NY')
         read (buff(equal_pos+1:), *) Ny
-     case ('NZ') 
+     case ('NZ')
         read (buff(equal_pos+1:), *) Nz_tot
      case ('Z_I')
         read (buff(equal_pos+1:), *) z_i
@@ -210,18 +210,18 @@ do
         ! Reset to 1
         nproc=1
         if( coord == 0 ) &
-             call mesg( sub_name, 'Reseting nproc to: ', nproc )          
+             call mesg( sub_name, 'Reseting nproc to: ', nproc )
      endif
 #endif
-     
+
      ! Set the processor owned vertical grid spacing
      nz = floor ( real( nz_tot, rprec ) / nproc ) + 1
 
      ! Recompute nz_tot to be compliant with computed nz
      ival_read = nz_tot
-     nz_tot = ( nz - 1 ) * nproc + 1 
+     nz_tot = ( nz - 1 ) * nproc + 1
      if( coord == 0 .AND. ival_read /= nz_tot ) &
-          call mesg( sub_name, 'Reseting Nz (total) to: ', nz_tot )          
+          call mesg( sub_name, 'Reseting Nz (total) to: ', nz_tot )
      ! Grid size for dealiasing
      nx2 = 3 * nx / 2
      ny2 = 3 * ny / 2
@@ -250,7 +250,7 @@ do
              call mesg( sub_name, 'Reseting Lz to: ', L_z )
 
      endif
-     
+
      ! Grid spacing (y and z directions)
      dy = L_y / ny
      dz = L_z / ( nz_tot - 1 )
@@ -262,7 +262,7 @@ do
      call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
 
   endif
-     
+
 enddo
 
 return
@@ -276,22 +276,22 @@ implicit none
 
 character(*), parameter :: block_name = 'MODEL'
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
-  if (ios /= 0) call error( sub_name, 'Bad read in block') 
+  if (ios /= 0) call error( sub_name, 'Bad read in block')
 
   if( block_exit_pos == 0 ) then
 
      ! Check that the data entry conforms to correct format
-     call checkentry()  
+     call checkentry()
 
      select case (uppercase(buff(1:equal_pos-1)))
 
      case ('SGS_MODEL')
         read (buff(equal_pos+1:), *) sgs_model
-     case ('WALL_DAMP_EXP') 
+     case ('WALL_DAMP_EXP')
         read (buff(equal_pos+1:), *) wall_damp_exp
      case ('CS_COUNT')
         read (buff(equal_pos+1:), *) cs_count
@@ -328,7 +328,7 @@ do
   elseif( block_exit_pos == 1 ) then
 
      return
-     
+
   else
 
      call error( sub_name, block_name // ' data block not formatted correctly: ' // buff(1:equal_pos-1) )
@@ -349,7 +349,7 @@ implicit none
 
 character(*), parameter :: block_name = 'TIME'
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -369,9 +369,9 @@ do
      case ('RUNTIME')
         read (buff(equal_pos+1:), *) runtime
 
-     case ('USE_CFL_DT') 
+     case ('USE_CFL_DT')
         read (buff(equal_pos+1:), *) use_cfl_dt
-        
+
      case ('CFL')
         read (buff(equal_pos+1:), *) cfl
 
@@ -421,9 +421,9 @@ implicit none
 
 character(*), parameter :: block_name = 'FLOW_COND'
 
-real(rprec) :: val_read 
+real(rprec) :: val_read
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -446,8 +446,6 @@ do
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW_COND')
         read (buff(equal_pos+1:), *) inflow_cond
-     case ('INFLOW')
-        read (buff(equal_pos+1:), *) inflow
      case ('INFLOW_VELOCITY')
         read (buff(equal_pos+1:), *) inflow_velocity
      case ('FRINGE_REGION_END')
@@ -498,7 +496,7 @@ do
     case ('W_FILE')
         read (buff(equal_pos+1:), *) hit % w_file
 
-     case default      
+     case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
 
@@ -512,7 +510,7 @@ do
         ! Evaluate the mean pressure force
         mean_p_force = 1.0_rprec / L_z
         if( coord == 0 .AND. abs( val_read - mean_p_force ) >= thresh )  &
-             call mesg( sub_name, 'Reseting mean_p_force to: ', mean_p_force ) 
+             call mesg( sub_name, 'Reseting mean_p_force to: ', mean_p_force )
 
      endif
 
@@ -538,7 +536,7 @@ implicit none
 
 character(*), parameter :: block_name = 'OUTPUT'
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -562,7 +560,7 @@ do
 
      case ('CHECKPOINT_DATA')
         read (buff(equal_pos+1:), *) checkpoint_data
-     case ('CHECKPOINT_NSKIP')        
+     case ('CHECKPOINT_NSKIP')
         read (buff(equal_pos+1:), *) checkpoint_nskip
 
      case ('TAVG_CALC')
@@ -668,7 +666,7 @@ use level_set_base
 implicit none
 
 character(*), parameter :: block_name = 'LEVEL_SET'
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -681,9 +679,9 @@ do
 
      select case (uppercase(buff(1:equal_pos-1)))
 
-     case ('GLOBAL_CA_CALC') 
+     case ('GLOBAL_CA_CALC')
         read (buff(equal_pos+1:), *) global_CA_calc
-     case ('GLOBAL_CA_NSKIP') 
+     case ('GLOBAL_CA_NSKIP')
         read (buff(equal_pos+1:), *) global_CA_nskip
      case ('VEL_BC')
         read (buff(equal_pos+1:), *) vel_bc
@@ -709,7 +707,7 @@ do
         read (buff(equal_pos+1:), *) zo_level_set
      case ('USE_TREES')
         read (buff(equal_pos+1:), *) use_trees
-     
+
 #ifdef PPMPI
      case ('NPHITOP')
         read (buff(equal_pos+1:), *) nphitop
@@ -759,7 +757,7 @@ implicit none
 
 character(*), parameter :: block_name = 'SGS_HIST'
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -841,7 +839,7 @@ implicit none
 
 character(*), parameter :: block_name = 'TURBINES'
 
-do 
+do
 
   call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                  equal_pos, ios )
@@ -878,9 +876,9 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
-        
+
      case ('READ_PARAM')
-        read (buff(equal_pos+1:), *) read_param     
+        read (buff(equal_pos+1:), *) read_param
 
      case ('DYN_THETA1')
         read (buff(equal_pos+1:), *) dyn_theta1
@@ -927,10 +925,10 @@ implicit none
 
 if( equal_pos == 0 ) call error( sub_name, 'Bad read in block at line', line, ': ' // trim(adjustl(buff)))
 !--invalid if nothing after equals
-if (len_trim (buff) == equal_pos) call error (sub_name, 'nothing after equals sign in line', line) 
+if (len_trim (buff) == equal_pos) call error (sub_name, 'nothing after equals sign in line', line)
 
 return
-end subroutine checkentry  
+end subroutine checkentry
 
 end subroutine read_input_conf
 
@@ -938,7 +936,7 @@ end subroutine read_input_conf
 subroutine readline(lun, line, buff, block_entry_pos, &
                     block_exit_pos, equal_pos, ios )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! 
+!
 ! This subroutine reads the specified line and determines the attributes
 ! of the contents of the line.
 !
@@ -958,7 +956,7 @@ block_exit_pos = 0
 equal_pos = 0
 ios = -1
 
-do     
+do
 
   line = line + 1
   read (lun, '(a)', iostat=ios) buff
@@ -967,7 +965,7 @@ do
   call eat_whitespace (buff)
 
   if (verify (buff, ' ') == 0) cycle  !--drop blank lines
-  
+
   if (buff (1:len (comment)) == comment) cycle  !--drop comment lines
 
   block_entry_pos = index( buff, block_entry )
@@ -976,7 +974,7 @@ do
 
   exit
 
-enddo 
+enddo
 return
 end subroutine readline
 
@@ -1048,7 +1046,7 @@ else
    allocate( vector( nelem ) )
 endif
 
-! Now parse result string 
+! Now parse result string
 do n=1, nelem
 
    ! Dimension of the minor vector

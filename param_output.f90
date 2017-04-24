@@ -100,7 +100,7 @@ write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
 write(2,f_fmt) 'zo : ', zo
-write(2,l_fmt) 'inflow : ', inflow
+write(2,l_fmt) 'inflow_cond : ', inflow_cond
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
 write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
