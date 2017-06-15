@@ -70,7 +70,8 @@ real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
 real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
 integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
-integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8, alpha_fid=9
+integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8
+integer, parameter :: alpha_fid=9, u_fid=61
 
 ! initialize wake model
 cfl = 0.01_rprec
@@ -89,7 +90,7 @@ allocate(beta(N))
 allocate(gen_torque(N))
 
 k = 0.05_rprec
-beta = 3._rprec
+beta = 0._rprec
 do i = 1, N
     s(i) = 7._rprec * Dia * i
 end do
@@ -109,20 +110,25 @@ allocate(time(2))
 allocate(Pref(2))
 time(1) = 0._rprec
 time(2) = 2._rprec*wm%x(wm%Nx)/wm%U_infty
-Pref = 1.1*sum(wm%Phat)
+Pref = 0.75*sum(wm%Phat)
 
 ! Create controller
 controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
-controller%beta(:,2:) = 3._rprec
+controller%beta(:,2:) = 0._rprec
 controller%alpha(:,2:) = 0._rprec
 call controller%makeDimensionless
 call controller%run()
 
 ! Do the initial optimization
 ! m = conjugate_gradient_t(controller, 500)
-m = lbfgsb_t(controller, 10)
+m = lbfgsb_t(controller, 100)
 call m%minimize( controller%get_control_vector() )
 call controller%run()
+!write(*,*) "beta"
+!write(*,*) controller%grad_beta
+!write(*,*) "alpha"
+!write(*,*) controller%grad_alpha
+
 
 ! Allocate control vectors
 allocate(beta_c(controller%N, controller%Nt))
@@ -139,6 +145,7 @@ open(Cpp_fid,file='Cpp.dat')
 open(Pref_fid,file='Pref.dat')
 open(Pfarm_fid,file='Pfarm.dat')
 open(alpha_fid,file='alpha.dat')
+open(u_fid,file='u.dat')
 
 write(omega_fid,*) wm%omega
 write(beta_fid,*) wm%beta
@@ -149,9 +156,10 @@ write(Cpp_fid,*) wm%Cpp
 write(Pref_fid,*) Pref(1)
 write(Pfarm_fid,*) sum(wm%Phat)
 write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
+write(u_fid,*) wm%u
 
 Nskip = 10
-do j = 1, 20
+do j = 1, 50
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
@@ -170,6 +178,7 @@ do j = 1, 20
         write(Pref_fid,*) controller%Pref(i)
         write(Pfarm_fid,*) sum(wm%Phat)
         write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
+        write(u_fid,*) wm%u
         write(*,*) "Percent error:",                                           &
             (sum(wm%Phat) - controller%Pref(i))/controller%Pref(i)*100._rprec
     end do
@@ -187,23 +196,24 @@ do j = 1, 20
 
     ! minimize
     ! m = conjugate_gradient_t(controller, 500)
-    m = lbfgsb_t(controller, 10)
+    m = lbfgsb_t(controller, 100)
     call m%minimize( controller%get_control_vector() )
     call controller%run()
 
 end do
 
 ! close files
-open(omega_fid)
-open(beta_fid)
-open(gen_torque_fid)
-open(uhat_fid)
-open(Ctp_fid)
-open(Cpp_fid)
-open(Pref_fid)
-open(Pfarm_fid)
-open(alpha_fid)
-
+close(omega_fid)
+close(beta_fid)
+close(gen_torque_fid)
+close(uhat_fid)
+close(Ctp_fid)
+close(Cpp_fid)
+close(Pref_fid)
+close(Pfarm_fid)
+close(alpha_fid)
+close(u_fid)
+call controller%makeDimensional()
 write(*,*) controller%dt
 ! write(*,*) "beta:", controller%beta
 ! write(*,*) "alpha", controller%alpha
