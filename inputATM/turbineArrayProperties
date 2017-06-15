@@ -25,7 +25,7 @@ annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               1.
 TSR               6.
-tipALMCorrection        true
+tipALMCorrection        .true.
 optimalEpsilon   0.25
 }
 
@@ -47,7 +47,7 @@ annulusSectionAngle     0.
 nacelleFlag             false
 nacelleCd               0.
 TSR               6.
-tipALMCorrection        false
+tipALMCorrection        .false.
 optimalEpsilon   0.25
 }
 

@@ -63,7 +63,7 @@ type turbineArray_t
     real(rprec) :: PitchControlAngle = 0._rprec
     real(rprec) :: IntSpeedError = 0._rprec
     real(rprec) :: IntPowerError = 0._rprec
-    logical :: tipALMCorrection  ! Includes a correction for tip
+    logical :: tipALMCorrection = .false. ! Includes a correction for tip
     real(rprec) :: optimalEpsilon = 0.25 ! The optimal epsilon (m)
 
     ! Not read variables
@@ -121,6 +121,8 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: Vmag
     ! Lift coefficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cl
+    ! Lift coefficient correction at each actuator point
+    real(rprec), allocatable, dimension(:,:,:) :: Cl_correction
     ! Drag coeficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cd
     ! Lift at each actuator point
@@ -132,14 +134,11 @@ type turbineArray_t
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
 
-    ! These variables are to make corrections based on filtering
-    ! Optimum value of epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt(:,:,:)
-    ! Axial velocity filtered at 2 epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: windVectors_2f(:,:,:,:)
-    ! Axial velocity filtered at 2 epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: bladeForces_2f(:,:,:,:)
+    ! These variables are to make corrections based on optimum value of epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt
 
+!~     ! The circulation needed for the correction
+!~     real(rprec), allocatable, dimension(:,:,:) :: Gamma
 
     ! Induction factor and u infinity
     real(rprec), allocatable, dimension(:,:,:) :: induction_a
@@ -427,7 +426,7 @@ do
 !~                          turbineArray(n) % TSR
         endif 
         if( buff(1:16) == 'tipALMCorrection' ) then
-            read(buff(17:), *) turbineArray(n) % optimalEpsilon
+            read(buff(17:), *) turbineArray(n) % tipALMCorrection
 !~             write(*,*)  'tipALMCorrection is: ', &
 !~                          turbineArray(n) % tipALMCorrection
         endif 
@@ -814,6 +813,8 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cl(numBl,                                       &
              numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl_correction(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cd(numBl,                                       &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % lift(numBl,                                     &
@@ -836,6 +837,8 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
+!~     allocate(turbineArray(i) % Gamma(numBl,                              &
+!~              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
     allocate(turbineArray(i) % bladeVectorDummy(numBl,                         &

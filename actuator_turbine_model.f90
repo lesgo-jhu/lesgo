@@ -812,6 +812,89 @@ endif
 end subroutine atm_rotateBlades
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine atm_compute_cl_correction(i)
+! This subroutine compute the correction for the Cl
+! It needs to be run only once in the initialization
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+integer, intent(in) :: i             ! Turbine number
+integer :: j                         ! Turbine type
+integer :: m, n, q                   ! Counters tu be used in do loops
+real(rprec) :: a,b,c                 ! Correction coefficients
+real(rprec) :: chord                 ! The chord value
+real(rprec) :: r                     ! The radial distance from the tip
+real(rprec) :: eps_opt               ! The optimal epsilon
+
+! Constants for the tip vortex solution
+a=0.029
+b=-2./3.
+c=0.357
+
+! The turbine type number
+j=turbineArray(i) % turbineTypeID
+
+! First determine the circulation based on the last portion of the blade
+do q=1, turbineArray(i) % numBladePoints
+    do n=1, turbineArray(i) % numAnnulusSections
+        do m=1, turbineModel(j) % numBl
+
+            ! The chord
+            chord = turbineArray(i) % chord(m,n,q)
+
+            ! Compute the optimal epsilon
+            turbineArray(i) % epsilon_opt(m,n,q) =                             &
+                chord * turbineArray(i) % optimalEpsilon
+
+            ! The optimal epsilon value
+            eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
+        
+            ! Distance from the tip 
+            r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
+                        -                                                      &
+                        turbineModel(j) % TipRad)
+
+            ! The correction eta
+            turbineArray(i) % cl_correction(m, n, q) =                         &
+                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
+                (1 - exp(-r**2/eps_opt**2)) +                                  &
+                2 * pi * a * eps_opt**(1+b) *                                  &
+                (1 - exp(-c*abs(r/eps_opt)**3))) /                             &
+                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
+                (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +                          &
+                2 * pi * a * turbineArray(i) % epsilon**(1+b) *                                  &
+                (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
+!~         write(*,*) 'Correction is ', r, turbineArray(i) % cl_correction(m, n, q)
+        enddo
+    enddo
+enddo
+
+end subroutine atm_compute_cl_correction
+
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine atm_correct_cl(i)
+!~ ! This subroutine employs a correction for the Cl
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ implicit none
+
+!~ integer, intent(in) :: i             ! Turbine number
+!~ integer :: j                         ! Turbine type
+!~ integer :: m, n, q                   ! Counters tu be used in do loops
+
+!~ ! The turbine type number
+!~ j=turbineArray(i) % turbineTypeID
+
+!~ ! First determine the circulation based on the last portion of the blade
+!~ do q=1, turbineArray(i) % numBladePoints
+!~     do n=1, turbineArray(i) % numAnnulusSections
+!~         do m=1, turbineModel(j) % numBl
+!~             turbineArray(i) % cl(m,n,q) = turbineArray(i) % cl(m,n,q) *        &
+!~                             turbineArray(i) % cl_correction(m,n,q)
+!~         enddo
+!~     enddo
+!~ enddo
+
+!~ end subroutine atm_correct_cl
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_calculate_variables(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 ! Calculates the variables of the model that need information from the input
@@ -878,14 +961,12 @@ do m=1, turbineModel(j) % numBl
                                    interpolate_i(bladeRadius(m,n,q),           &
                                    turbineModel(j) % radius(1:NumSec),         &
                                    turbineModel(j) % sectionType(1:NumSec))
-
-            ! Hard coded optimum value of epsilon star (0.2 = epsilon/chord)
-            ! Martinez-Meneveau 2015 Optimal Smoothing Length Scale
-            turbineArray(i) % epsilon_opt(m,n,q) =                             &
-                        0.2 * turbineArray(i) % chord(m,n,q)
         enddo
     enddo
 enddo
+
+! Compute the lift correction for this case
+call atm_compute_cl_correction(i)
 
 end subroutine atm_calculate_variables
 
@@ -1013,6 +1094,11 @@ k = turbineModel(j) % airfoilType(sectionType_i) % n
 cl(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                  turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
+
+! Correct the lift coefficient
+if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
+    cl(m,n,q) = cl(m,n,q) * turbineArray(i) % cl_correction(m, n, q)
+endif
 
 ! Drag coefficient
 cd(m,n,q)= interpolate(alpha(m,n,q),                                           &
