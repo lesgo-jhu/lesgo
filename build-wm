@@ -1,0 +1,7 @@
+#!/bin/sh
+cmake . -Bbld
+cd bld
+make
+cp mpc ../
+cp startup ../
+cd ..
