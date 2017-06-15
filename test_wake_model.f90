@@ -1,37 +1,36 @@
-
-module test_mod
-
-contains
-!*******************************************************************************
-subroutine P_minimize(x, f, g)
-!*******************************************************************************
-use types, only : rprec
-use turbines, only : wm_Ct_prime_spline, wm_Cp_prime_spline
-implicit none
-real(rprec), dimension(:), intent(in) :: x
-real(rprec), intent(inout) :: f
-real(rprec), dimension(:), intent(inout) :: g
-real(rprec) :: lp, b, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
-real(rprec) :: a, u
-
-b = x(1)
-lp = x(2)
-
-call wm_Ct_prime_spline%interp(b, lp, Ctp, dCtp_dbeta, dCtp_dlambda)
-call wm_Cp_prime_spline%interp(b, lp, Cpp, dCpp_dbeta, dCpp_dlambda)
-
-a = Ctp/(4._rprec + Ctp)
-u = (1 - a)
-f = -Cpp * u**3
-
-g(1) = -dCpp_dbeta * u**3                                                      &
-    + 3._rprec * Cpp * u**2 * 4._rprec / (4._rprec + Ctp)**2 * dCtp_dbeta
-g(2) = -dCpp_dlambda * u**3                                                    &
-    + 3._rprec * Cpp * u**2 * 4._rprec / (4._rprec + Ctp)**2 * dCtp_dlambda
-
-end subroutine P_minimize
-
-end module test_mod
+! module test_mod
+! 
+! contains
+! !*******************************************************************************
+! subroutine P_minimize(x, f, g)
+! !*******************************************************************************
+! use types, only : rprec
+! use turbines, only : wm_Ct_prime_spline, wm_Cp_prime_spline
+! implicit none
+! real(rprec), dimension(:), intent(in) :: x
+! real(rprec), intent(inout) :: f
+! real(rprec), dimension(:), intent(inout) :: g
+! real(rprec) :: lp, b, Ctp, Cpp, dCtp_dbeta, dCtp_dlambda, dCpp_dbeta, dCpp_dlambda
+! real(rprec) :: a, u
+! 
+! b = x(1)
+! lp = x(2)
+! 
+! call wm_Ct_prime_spline%interp(b, lp, Ctp, dCtp_dbeta, dCtp_dlambda)
+! call wm_Cp_prime_spline%interp(b, lp, Cpp, dCpp_dbeta, dCpp_dlambda)
+! 
+! a = Ctp/(4._rprec + Ctp)
+! u = (1 - a)
+! f = -Cpp * u**3
+! 
+! g(1) = -dCpp_dbeta * u**3                                                      &
+!     + 3._rprec * Cpp * u**2 * 4._rprec / (4._rprec + Ctp)**2 * dCtp_dbeta
+! g(2) = -dCpp_dlambda * u**3                                                    &
+!     + 3._rprec * Cpp * u**2 * 4._rprec / (4._rprec + Ctp)**2 * dCtp_dlambda
+! 
+! end subroutine P_minimize
+! 
+! end module test_mod
 
 !*******************************************************************************
 program test
@@ -69,6 +68,7 @@ type(lbfgsb_t) :: m
 real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
 real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
+real(rprec) :: tt, T
 integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
 integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8
 integer, parameter :: alpha_fid=9, u_fid=61
@@ -101,19 +101,31 @@ wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
 ! integrate the wake model forward in time to get reference power
 dt = cfl * wm%dx / wm%U_infty
 do i = 1, Nt
-    gen_torque = 1.9*torque_gain * wm%omega**2
+    gen_torque = torque_gain * wm%omega**2
     call wm%advance(beta, gen_torque, dt)
 end do
 
 ! Create power reference
-allocate(time(2))
-allocate(Pref(2))
+allocate(time(3))
+allocate(Pref(3))
 time(1) = 0._rprec
-time(2) = 2._rprec*wm%x(wm%Nx)/wm%U_infty
-Pref = 0.75*sum(wm%Phat)
+time(2) = 300._rprec
+time(3) = 600._rprec
+time(4) = 2000._rprec
+Pref(1) = sum(wm%Phat)
+Pref(2) = sum(wm%Phat)
+Pref(3) = 0.75*sum(wm%Phat)
+Pref(4) = 0.75*sum(wm%Phat)
+! Pref(3) = 0.75*sum(wm%Phat)
+! Pref(4) = 0.75*sum(wm%Phat)
+
+write(*,*) time
+write(*,*) Pref
 
 ! Create controller
-controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
+tt = 0._rprec
+T = 2._rprec*wm%x(wm%Nx)/wm%U_infty
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref)
 controller%beta(:,2:) = 0._rprec
 controller%alpha(:,2:) = 0._rprec
 call controller%makeDimensionless
@@ -121,14 +133,13 @@ call controller%run()
 
 ! Do the initial optimization
 ! m = conjugate_gradient_t(controller, 500)
-m = lbfgsb_t(controller, 100)
+m = lbfgsb_t(controller, 10)
 call m%minimize( controller%get_control_vector() )
 call controller%run()
 !write(*,*) "beta"
 !write(*,*) controller%grad_beta
 !write(*,*) "alpha"
 !write(*,*) controller%grad_alpha
-
 
 ! Allocate control vectors
 allocate(beta_c(controller%N, controller%Nt))
@@ -158,8 +169,8 @@ write(Pfarm_fid,*) sum(wm%Phat)
 write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
 write(u_fid,*) wm%u
 
-Nskip = 10
-do j = 1, 50
+Nskip = 4
+do j = 1,100
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
@@ -168,6 +179,8 @@ do j = 1, 50
 
     ! Advance wake model
     do i = 2, Nskip+1
+        tt = tt + controller%dt
+        write(*,*) tt
         call wm%advance(beta_c(:,i), gen_torque_c(:,i), controller%dt)
         write(omega_fid,*) wm%omega
         write(beta_fid,*) wm%beta
@@ -179,12 +192,16 @@ do j = 1, 50
         write(Pfarm_fid,*) sum(wm%Phat)
         write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
         write(u_fid,*) wm%u
+!         write(*,*) "beta:", beta_c(:,i)
+!         write(*,*) "gen_torque:", gen_torque_c(:,i)
         write(*,*) "Percent error:",                                           &
             (sum(wm%Phat) - controller%Pref(i))/controller%Pref(i)*100._rprec
     end do
 
     ! create controller
-    controller = turbines_mpc_t(wm, 0._rprec, time(2), 0.99_rprec, time, Pref)
+    controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref)
+!     write(*,*) controller%t
+!     write(*,*) controller%Pref
     controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
     controller%alpha(:,:controller%Nt-Nskip) = alpha_c(:,Nskip+1:)
     do ii = controller%Nt-Nskip, controller%Nt
@@ -196,7 +213,7 @@ do j = 1, 50
 
     ! minimize
     ! m = conjugate_gradient_t(controller, 500)
-    m = lbfgsb_t(controller, 100)
+    m = lbfgsb_t(controller, 10)
     call m%minimize( controller%get_control_vector() )
     call controller%run()
 

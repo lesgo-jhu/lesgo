@@ -320,7 +320,7 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    this%beta(:,k+1) = x(istart:istop) * 100._rprec
+    this%beta(:,k+1) = x(istart:istop) * 1000._rprec
     this%alpha(:,k+1) = x(istart+iskip:istop+iskip)
 end do
 
@@ -335,7 +335,7 @@ g = 0._rprec
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    g(istart:istop) = this%grad_beta(:,k+1) * 100._rprec
+    g(istart:istop) = this%grad_beta(:,k+1) * 1000._rprec
     g(istart+iskip:istop+iskip) = this%grad_alpha(:,k+1)
 end do
 end subroutine eval
@@ -355,7 +355,7 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = this%beta(:,k+1) / 100._rprec
+    x(istart:istop) = this%beta(:,k+1) / 1000._rprec
     x(istart+iskip:istop+iskip) = this%alpha(:,k+1)
 end do
 
