@@ -838,7 +838,8 @@ do q=1, turbineArray(i) % numBladePoints
         do m=1, turbineModel(j) % numBl
 
             ! The chord
-            chord = turbineArray(i) % chord(m,n,q)
+!~             chord = turbineArray(i) % chord(m,n,q)
+            chord = turbineArray(i) % chord(m,n,turbineArray(i) % numBladePoints)
 
             ! Compute the optimal epsilon
             turbineArray(i) % epsilon_opt(m,n,q) =                             &
