@@ -34,6 +34,7 @@ real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
 real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
 real(rprec) :: tt, T
+real(rprec) :: Ca, Cb
 integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
 integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8
 integer, parameter :: alpha_fid=9, u_fid=61
@@ -81,8 +82,6 @@ Pref(1) = sum(wm%Phat)
 Pref(2) = sum(wm%Phat)
 Pref(3) = 0.75*sum(wm%Phat)
 Pref(4) = 0.75*sum(wm%Phat)
-! Pref(3) = 0.75*sum(wm%Phat)
-! Pref(4) = 0.75*sum(wm%Phat)
 
 write(*,*) time
 write(*,*) Pref
@@ -94,7 +93,9 @@ controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref)
 controller%beta(:,2:) = 0._rprec
 controller%alpha(:,2:) = 0._rprec
 call controller%makeDimensionless
-call controller%run()
+call controller%rescale_gradient
+Ca = controller%Ca
+Cb = controller%Cb
 
 ! Do the initial optimization
 ! m = conjugate_gradient_t(controller, 500)
@@ -171,7 +172,7 @@ do j = 1,100
         controller%alpha(:,ii) = 0._rprec
     end do
     call controller%makeDimensionless
-    call controller%run()
+    call controller%rescale_gradient(Ca, Cb)
 
     ! minimize
     ! m = conjugate_gradient_t(controller, 500)

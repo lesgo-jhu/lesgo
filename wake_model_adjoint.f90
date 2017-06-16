@@ -340,7 +340,7 @@ end do
 ! Adjoint for rotational equations
 do i = 1, this%N
     this%omega_star(i) = this%omega_star(i)                                    &
-        - dt * ( Wj(i) + Ww(i)*this%omega_star(i) + Wdu(i)*fdustar(i))
+        + dt * ( Wj(i) + Ww(i)*this%omega_star(i) + Wdu(i)*fdustar(i))
 end do
 
 ! compute velocity field adjoints

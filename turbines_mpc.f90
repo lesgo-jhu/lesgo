@@ -45,6 +45,9 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec), dimension(:,:), allocatable :: gen_torque
     real(rprec) :: cost = 0._rprec
     real(rprec) :: kappa = 1._rprec
+    ! scaling constants for gradient
+    real(rprec) :: Ca = 1._rprec
+    real(rprec) :: Cb = 1._rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -53,6 +56,7 @@ contains
     procedure, public :: get_control_vector
     procedure, public :: run
     procedure, public :: finite_difference_gradient
+    procedure, public :: rescale_gradient
 end type turbines_mpc_t
 
 interface turbines_mpc_t
@@ -243,7 +247,7 @@ do k = 2, this%Nt
         + 2._rprec * (this%Pfarm(k) - this%Pref(k))                            &
         * (1 - this%alpha(:,k)) * this%w%Paero / this%w%Cpp * dCp_dlambda      &
         * 0.5_rprec * this%w%Dia / this%w%uhat**2 * this%w%omega
-    Wj(k,:) = 2._rprec * (this%Pfarm(k) - this%Pref(k))                        &
+    Wj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
         * (1 - this%alpha(:,k)) * this%w%Paero / this%w%Cpp * dCp_dlambda      &
         * 0.5_rprec * this%w%Dia / this%w%uhat
     ! Make sure there are no Nans or Infs
@@ -320,8 +324,8 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    this%beta(:,k+1) = x(istart:istop) * 1000._rprec
-    this%alpha(:,k+1) = x(istart+iskip:istop+iskip)
+    this%beta(:,k+1) = x(istart:istop) * this%Cb
+    this%alpha(:,k+1) = x(istart+iskip:istop+iskip) * this%Ca
 end do
 
 ! Run model
@@ -335,8 +339,8 @@ g = 0._rprec
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    g(istart:istop) = this%grad_beta(:,k+1) * 1000._rprec
-    g(istart+iskip:istop+iskip) = this%grad_alpha(:,k+1)
+    g(istart:istop) = this%grad_beta(:,k+1) * this%Cb
+    g(istart+iskip:istop+iskip) = this%grad_alpha(:,k+1) * this%Ca
 end do
 end subroutine eval
 
@@ -355,8 +359,8 @@ iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = this%beta(:,k+1) / 1000._rprec
-    x(istart+iskip:istop+iskip) = this%alpha(:,k+1)
+    x(istart:istop) = this%beta(:,k+1) / this%Cb
+    x(istart+iskip:istop+iskip) = this%alpha(:,k+1) / this%Ca
 end do
 
 end function get_control_vector
@@ -396,5 +400,28 @@ do n = 1, this%N
 end do
 
 end subroutine finite_difference_gradient
+
+!*******************************************************************************
+subroutine rescale_gradient(this, Ca, Cb)
+!*******************************************************************************
+implicit none
+class(turbines_mpc_t), intent(inout) :: this
+real(rprec), intent(in), optional :: Ca, Cb
+
+call this%run()
+if ( present(Ca) ) then
+    this%Ca = Ca
+else
+    this%Ca = 1._rprec / maxval(abs(this%grad_alpha))
+end if
+if ( present(Cb) ) then
+    this%Cb = Cb
+else
+    this%Cb = 1._rprec / maxval(abs(this%grad_beta))
+end if
+
+write(*,*) this%Ca, this%Cb
+
+end subroutine rescale_gradient
 
 end module turbines_mpc

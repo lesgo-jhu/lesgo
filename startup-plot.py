@@ -25,7 +25,7 @@ plt.xlim([0,7])
 
 ax = fig.add_subplot(3,3,2)
 ax.plot(t/60,gen_torque/1E6)
-plt.ylabel(r'$Q_g$ (MN-m)')
+plt.ylabel(r'$Q$ (MN-m)')
 plt.xlim([0,7])
 
 ax = fig.add_subplot(3,3,3)
@@ -56,7 +56,7 @@ plt.xlim([0,7])
 
 ax = fig.add_subplot(3,3,8)
 ax.plot(t/60,aero_torque/1E6)
-plt.ylabel(r'$Q_a$ (MN-m)')
+plt.ylabel(r'$P/\omega$ (MN-m)')
 plt.xlabel(r'time (min)')
 plt.xlim([0,7])
 

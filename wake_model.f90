@@ -416,11 +416,6 @@ do n = 1, this%N
                        dCt_dbeta(n), dCt_dlambda(n))
     call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
                            dCp_dbeta(n), dCp_dlambda(n))
-!     call this%Ctp_spline%interp(this%beta(n), 11._rprec, dummy,     &
-!                            dCt_dbeta(n), dCt_dlambda(n))
-!     call this%Cpp_spline%interp(this%beta(n), 11._rprec, dummy,     &
-!                            dCp_dbeta(n), dCp_dlambda(n))
-!     if (this%omega(n) < 0._rprec) Wj(n) = -2._rprec * kappa * this%omega(n)
 end do
 
 ! Everything else can be calculated at once
@@ -429,10 +424,10 @@ Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega           
 Uw = alpha / this%inertia / this%omega * 3._rprec * this%Paero / this%uhat     &
     - alpha / this%inertia * this%Paero / this%Cpp * dCp_dlambda * 0.5_rprec   &
     * this%Dia / this%uhat**2
-Wdu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                       &
+Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                        &
     * 0.5_rprec * this%Dia / this%uhat
-Ww = alpha / this%inertia * this%Paero / this%omega**2                         &
-    - alpha / this%inertia * this%Paero / this%omega * this%Dia * 0.5_rprec    &
+Ww = -alpha / this%inertia * this%Paero / this%omega**2                        &
+    + alpha / this%inertia * this%Paero / this%omega * this%Dia * 0.5_rprec    &
     / this%Cpp / this%uhat * dCp_dlambda
 Wu = 0._rprec
 Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
