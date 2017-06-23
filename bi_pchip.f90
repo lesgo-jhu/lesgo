@@ -101,7 +101,6 @@ real(rprec), intent(out) :: vq
 real(rprec), intent(out), optional :: vqpx, vqpy
 real(rprec), dimension(:), allocatable :: vqx, vqy
 type(pchip_t) :: xqspline, yqspline
-real(rprec) :: low_f, high_f
 integer :: i
 
 ! First evaluate the value along the x-direction

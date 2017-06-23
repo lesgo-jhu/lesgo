@@ -1212,23 +1212,25 @@ subroutine wake_model_init
 use open_file_fid_mod
 
 real(rprec) :: U_infty
-real(rprec), dimension(:), allocatable :: wm_k, wm_s
+real(rprec), dimension(:), allocatable :: wm_k, wm_sx, wm_sy
 integer :: i
 character (100) :: string1
 
 U_infty = 8._rprec
 
 ! Specify spacing and wake expansion coefficients
-allocate( wm_k(num_x) )
-allocate( wm_s(num_x) )
+allocate( wm_k(nloc) )
+allocate( wm_sx(nloc) )
+allocate( wm_sy(nloc) )
 wm_k = 0.05_rprec
-do i = 1, num_x
-    wm_s(i) = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
+do i = 1, nloc
+    wm_sx(i) = wind_farm%turbine(i)%xloc * z_i
+    wm_sy(i) = wind_farm%turbine(i)%yloc * z_i
 end do
 
 ! Create wake model
-wm = wake_model_t(wm_s, U_infty, 0.25*dia_all*z_i, wm_k, dia_all*z_i, rho,      &
-    inertia_all, 2*nx, wm_Ct_prime_spline, wm_Cp_prime_spline)
+wm = wake_model_t(wm_sx, wm_sy, U_infty, 0.25*dia_all*z_i, wm_k, dia_all*z_i,  &
+    rho, inertia_all, 2*nx, 2*ny, wm_Ct_prime_spline, wm_Cp_prime_spline)
 
 ! Create output files
 
@@ -1241,7 +1243,8 @@ end do
 
 ! Cleanup
 deallocate(wm_k)
-deallocate(wm_s)
+deallocate(wm_sx)
+deallocate(wm_sy)
 
 end subroutine wake_model_init
 

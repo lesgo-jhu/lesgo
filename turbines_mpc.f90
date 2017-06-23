@@ -96,10 +96,12 @@ this%iw = i_wm
 call this%iw%makeDimensional
 this%w = this%iw
 
+! write(*,*) this%w%lambda_prime
+
 ! Adjoint wake model
-this%iwstar = wake_model_adjoint_t(this%w%s, this%w%U_infty, this%w%Delta,     &
-    this%w%k, this%w%Dia, this%w%rho, this%w%inertia, this%w%Nx,               &
-    this%w%Ctp_spline, this%w%Cpp_spline)
+this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,       &
+    this%w%Delta, this%w%k, this%w%Dia, this%w%rho, this%w%inertia, this%w%Nx, &
+    this%w%Ny, this%w%Ctp_spline, this%w%Cpp_spline)
 this%wstar = this%iwstar
 
 ! Create time for the time horizon
@@ -180,7 +182,7 @@ subroutine run(this)
 implicit none
 class(turbines_mpc_t), intent(inout) :: this
 integer :: i, k, n
-real(rprec), dimension(:,:,:), allocatable :: fstar
+real(rprec), dimension(:,:,:), allocatable :: du
 real(rprec), dimension(:,:), allocatable :: Udu, Uw, Wdu, Wu, Ww
 real(rprec), dimension(:,:), allocatable :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:,:), allocatable :: Uj, Wj
@@ -189,7 +191,7 @@ real(rprec), dimension(:), allocatable :: dCp_dbeta, dCp_dlambda
 real(rprec) :: dummy
 
 ! allocate adjoint forcing terms
-allocate(fstar(this%Nt,this%N,this%w%Nx))
+allocate(du(this%Nt, this%N, this%w%Nx))
 allocate(Udu(this%Nt,this%N))
 allocate(Uw(this%Nt,this%N))
 allocate(Wdu(this%Nt,this%N))
@@ -203,7 +205,7 @@ allocate(Au(this%Nt,this%N))
 allocate(Aw(this%Nt,this%N))
 allocate(Uj(this%Nt,this%N))
 allocate(Wj(this%Nt,this%N))
-fstar = 0._rprec
+du = 0._rprec
 Udu = 0._rprec
 Uw = 0._rprec
 Wdu = 0._rprec
@@ -234,9 +236,10 @@ this%w = this%iw
 do k = 2, this%Nt
     ! advance with a dummy generator torque
     call this%w%adjoint_advance(this%beta(:,k), this%alpha(:,k), this%dt,      &
-        fstar(k,:,:), Udu(k,:), Uw(k,:), Wdu(k,:), Wu(k,:), Ww(k,:),           &
+        Udu(k,:), Uw(k,:), Wdu(k,:), Wu(k,:), Ww(k,:),                         &
         Bdu(k,:), Bu(k,:), Bw(k,:), Adu(k,:), Au(k,:), Aw(k,:),                &
         dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
+    du(k,:,:) = this%w%du
     ! calculate contribution to cost function
     this%Pfarm(k) = sum(this%w%Phat)
     this%gen_torque(:,k) = this%w%gen_torque
@@ -267,12 +270,16 @@ do k = 2, this%Nt
         * this%w%Paero * this%dt
 end do
 
+! write(*,*) "Cp/db:"
+! write(*,*) dCp_dbeta
+
 ! Run backwards in time
 this%wstar = this%iwstar
 do k = this%Nt-1, 1, -1
+!     write(*,*) "Here"
     ! retract adjoint wake model. Indices should definitely should be k+1
-    call this%wstar%retract(fstar(k+1,:,:), Udu(k+1,:), Uw(k+1,:), Uj(k+1,:),  &
-        Wdu(k+1,:), Wu(k+1,:), Ww(k+1,:), Wj(k+1,:), this%dt)
+    call this%wstar%retract(du(k+1,:,:), Udu(k+1,:), Uw(k+1,:), Uj(k+1,:),  &
+        Wdu(k+1,:), Ww(k+1,:), Wj(k+1,:), this%dt)
     do i = 1, this%N
         dummy = sum(this%wstar%du_star(i,:) * this%w%G(i,:) / this%w%d(i,:)**2)&
             * this%w%dx
@@ -288,7 +295,7 @@ do k = this%Nt-1, 1, -1
 end do
 
 ! cleanup
-deallocate(fstar)
+deallocate(du)
 deallocate(Udu)
 deallocate(Uw)
 deallocate(Wdu)
@@ -420,7 +427,7 @@ else
     this%Cb = 1._rprec / maxval(abs(this%grad_beta))
 end if
 
-write(*,*) this%Ca, this%Cb
+! write(*,*) this%Ca, this%Cb
 
 end subroutine rescale_gradient
 

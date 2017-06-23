@@ -22,9 +22,9 @@ real(rprec) :: cfl, dt
 
 ! wake model variables
 type(wake_model_t) :: wm, wmi
-real(rprec), dimension(:), allocatable :: s, k, beta, gen_torque
+real(rprec), dimension(:), allocatable :: sx, sy, k, beta, gen_torque
 real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
-integer :: N, Nx, Nt, Nskip
+integer :: N, Nx, Ny, Nt, Nskip
 
 type(turbines_mpc_t) :: controller
 ! type(conjugate_gradient_t) :: m
@@ -38,30 +38,33 @@ real(rprec) :: Ca, Cb
 integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
 integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8
 integer, parameter :: alpha_fid=9, u_fid=61
+real(rprec) :: dummy1, dummy2, dummy3
 
 ! initialize wake model
-cfl = 0.01_rprec
+cfl = 0.1_rprec
 Dia = 126._rprec
-Delta = 0.5_rprec * Dia
+Delta = 0.25_rprec * Dia
 rho = 1.225_rprec
 inertia = 4.0469e+07_rprec
 torque_gain = 2.1648e6
 U_infty = 9._rprec
-N = 7
-Nx = 128
-Nt = N**2*Nx
-allocate(s(N))
+N = 4
+Nx = 64
+Ny = 32
+Nt = 8*Nx
+allocate(sx(N))
+allocate(sy(N))
 allocate(k(N))
 allocate(beta(N))
 allocate(gen_torque(N))
-
 k = 0.05_rprec
 beta = 0._rprec
 do i = 1, N
-    s(i) = 7._rprec * Dia * i
+    sx(i) = 7._rprec * Dia * i
+    sy(i) = 2.5_rprec * Dia
 end do
 call generate_splines
-wm = wake_model_t(s, U_infty, Delta, k, Dia, rho, inertia, Nx,                 &
+wm = wake_model_t(sx, sy, U_infty, Delta, k, Dia, rho, inertia, Nx, Ny,        &
     wm_Ct_prime_spline, wm_Cp_prime_spline)
 
 ! integrate the wake model forward in time to get reference power
@@ -72,19 +75,27 @@ do i = 1, Nt
 end do
 
 ! Create power reference
-allocate(time(3))
-allocate(Pref(3))
+allocate(time(7))
+allocate(Pref(7))
 time(1) = 0._rprec
-time(2) = 300._rprec
-time(3) = 600._rprec
-time(4) = 2000._rprec
+time(2) = 60._rprec
+time(3) = 120._rprec
+time(4) = 360._rprec
+time(5) = 420._rprec
+time(6) = 600._rprec
+time(7) = 660._rprec
 Pref(1) = sum(wm%Phat)
 Pref(2) = sum(wm%Phat)
-Pref(3) = 0.75*sum(wm%Phat)
-Pref(4) = 0.75*sum(wm%Phat)
+Pref(3) = 0.9*sum(wm%Phat)
+Pref(4) = 0.9*sum(wm%Phat)
+Pref(5) = 1.2*sum(wm%Phat)
+Pref(6) = 1.2*sum(wm%Phat)
+Pref(7) = 0.9*sum(wm%Phat)
 
 write(*,*) time
 write(*,*) Pref
+! write(*,*) sum(wm%Phat)
+! write(*,*) wm%lambda_prime
 
 ! Create controller
 tt = 0._rprec
@@ -96,16 +107,22 @@ call controller%makeDimensionless
 call controller%rescale_gradient
 Ca = controller%Ca
 Cb = controller%Cb
+! write(*,*) Ca, Cb
 
 ! Do the initial optimization
 ! m = conjugate_gradient_t(controller, 500)
 m = lbfgsb_t(controller, 10)
 call m%minimize( controller%get_control_vector() )
+! call controller%finite_difference_gradient()
 call controller%run()
-!write(*,*) "beta"
-!write(*,*) controller%grad_beta
-!write(*,*) "alpha"
-!write(*,*) controller%grad_alpha
+! write(*,*) "beta"
+! write(*,*) controller%grad_beta
+! write(*,*) "alpha"
+! write(*,*) controller%grad_alpha
+! write(*,*) "fdbeta"
+! write(*,*) controller%fdgrad_beta
+! write(*,*) "fdalpha"
+! write(*,*) controller%fdgrad_alpha
 
 ! Allocate control vectors
 allocate(beta_c(controller%N, controller%Nt))
@@ -136,8 +153,8 @@ write(Pfarm_fid,*) sum(wm%Phat)
 write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
 write(u_fid,*) wm%u
 
-Nskip = 4
-do j = 1,100
+Nskip = 1
+do j = 1,150
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
@@ -175,7 +192,7 @@ do j = 1,100
     call controller%rescale_gradient(Ca, Cb)
 
     ! minimize
-    ! m = conjugate_gradient_t(controller, 500)
+!     m = conjugate_gradient_t(controller, 500)
     m = lbfgsb_t(controller, 10)
     call m%minimize( controller%get_control_vector() )
     call controller%run()

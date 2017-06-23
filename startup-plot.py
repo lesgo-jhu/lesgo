@@ -3,7 +3,15 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 plt.style.use('std-srf')
 
-dt = 6.1249999999999999E-002
+dt = 0.33906250000000004
+
+# x = np.loadtxt('output-startup/x.dat')
+# y = np.loadtxt('output-startup/y.dat')
+# u = np.loadtxt('output-startup/u.dat')
+# u = np.reshape(u,[np.size(y),np.size(x)], order='C')
+# X,Y = np.meshgrid(x,y)
+# plt.pcolor(X,Y,u,cmap="seismic")
+# plt.show()
 
 omega = np.loadtxt('output-startup/omega.dat')
 beta = np.loadtxt('output-startup/beta.dat')

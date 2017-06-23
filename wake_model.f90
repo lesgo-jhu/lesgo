@@ -34,8 +34,8 @@ public wake_model_t
 type, extends(wake_model_base_t) :: wake_model_t
     ! velocity deficit (turbine, space)
     real(rprec), dimension(:,:), allocatable :: du
-    ! superimposed velocity (space)
-    real(rprec), dimension(:), allocatable :: u
+    ! superimposed velocity (x, y)
+    real(rprec), dimension(:,:), allocatable :: u
     ! estimated local turbine velocity (turbine)
     real(rprec), dimension(:), allocatable :: uhat
     ! estimated generator power (turbine)
@@ -74,19 +74,19 @@ end interface wake_model_t
 contains
 
 !*******************************************************************************
-function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline) result(this)
+function constructor_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
 type(wake_model_t) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
-real(rprec), dimension(:), intent(in) :: i_s, i_k
-integer, intent(in) :: i_Nx
+real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
+integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
-call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 end function constructor_val
 !
 ! !*******************************************************************************
@@ -105,22 +105,22 @@ end function constructor_val
 ! end function constructor_file
 
 !*******************************************************************************
-subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 !*******************************************************************************
 implicit none
 class(wake_model_t), intent(inout) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
-real(rprec), dimension(:), intent(in) :: i_s, i_k
-integer, intent(in) :: i_Nx
+real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
+integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 ! Call base class initializer
-call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&
-    i_rho, i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k,&
+    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 
 allocate( this%du(this%N, this%Nx) )
-allocate( this%u(this%Nx) )
+allocate( this%u(this%Nx, this%Ny) )
 allocate( this%uhat(this%N) )
 allocate( this%Phat(this%N) )
 allocate( this%Paero(this%N) )
@@ -310,22 +310,23 @@ implicit none
 class(wake_model_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
 real(rprec), dimension(:), intent(in) :: beta, gen_torque
-integer :: i
-real(rprec), dimension(:), allocatable :: du_superimposed
+integer :: i, ii
 
 if (size(beta) /= this%N .or. size(gen_torque) /= this%N) then
     call error('wake_model_t.advance','beta and gen_torque must be size N')
 end if
 
 ! Compute new wake deficit and superimpose wakes
-allocate(du_superimposed(this%Nx))
-du_superimposed = 0._rprec
+this%u = 0._rprec
 do i = 1, this%N
     this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),                 &
         this%f(i,:) * this%Ctp(i) / (4._rprec + this%Ctp(i)), i)
-    du_superimposed = du_superimposed + this%du(i,:)**2
+    do ii = 1, this%Nx
+        this%u(ii,this%Istart(i,ii):this%Iend(i,ii)) =                         &
+            this%u(ii,this%Istart(i,ii):this%Iend(i,ii)) + this%du(i,ii)**2
+    end do
 end do
-du_superimposed = sqrt(du_superimposed)
+this%u = sqrt(this%u)
 
 ! Calculate new rotational speed
 do i = 1, this%N
@@ -334,18 +335,21 @@ do i = 1, this%N
 end do
 
 ! Find the velocity field
-this%u = this%U_infty - du_superimposed
+this%u = this%U_infty - this%u
 
 ! Find estimated velocities, coefficients, and power
+this%uhat = 0._rprec
 do i = 1, this%N
     this%beta(i) = beta(i)
     this%gen_torque(i) = gen_torque(i)
-    this%uhat(i) = sum(this%G(i,:) * this%u * this%dx)
+    do ii = this%Gstart(i), this%Gend(i)
+        this%uhat(i) = this%uhat(i) + this%dx * this%dy *                      &
+        sum(this%u(ii,this%Istart(i,ii):this%Iend(i,ii))) *                    &
+        this%G(i,ii) / this%Isum(i,ii)
+    end do
     this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
     call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
     call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
-!     call this%Ctp_spline%interp(this%beta(i), 11._rprec, this%Ctp(i))
-!     call this%Cpp_spline%interp(this%beta(i), 11._rprec, this%Cpp(i))
     this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &
                     * this%uhat(i)**3 / 8._rprec
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
@@ -373,30 +377,20 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_advance(this, beta, alpha, dt, fstar, Udu, Uw, Wdu, Wu, Ww, &
+subroutine adjoint_advance(this, beta, alpha, dt, Udu, Uw, Wdu, Wu, Ww,     &
     Bdu, Bu, Bw, Adu, Au, Aw, dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
 !*******************************************************************************
 implicit none
 class(wake_model_t), intent(inout) :: this
 real(rprec), dimension(:), intent(in) :: beta, alpha
 real(rprec), intent(in) :: dt
-real(rprec), dimension(:,:), intent(out) :: fstar
 real(rprec), dimension(:), intent(out) :: Udu, Uw, Wdu, Wu, Ww
 real(rprec), dimension(:), intent(out) :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:), intent(out) :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), intent(out) :: dCp_dbeta, dCp_dlambda
-real(rprec), dimension(:), allocatable :: du_super
 
-real(rprec) :: dummy
-integer :: n, i
-
-! allocate variables
-allocate(du_super(this%Nx))
-
-! do n = 1, this%N
-!     call this%Ctp_spline%interp(beta(n), this%lambda_prime(n), dummy,     &
-!                        dCt_dbeta(n), dCt_dlambda(n))
-! end do
+real(rprec) :: dummy, dummy1, dummy2, dummy3
+integer :: n
 
 ! advance wake model with dummy generator torque
 call this%advance(beta, this%gen_torque, dt)
@@ -405,21 +399,16 @@ call this%advance(beta, this%gen_torque, dt)
 this%Phat = (1._rprec - alpha) * this%Paero
 this%gen_torque = this%Phat / this%omega
 
-! Calculate fstar and derivatives of Ct and Cp
-du_super = this%U_infty - this%u
+! Calculate derivatives of Ct and Cp
 do n = 1, this%N
-    fstar(n, :) = - this%du(n,:) / du_super
-    do i = 1, this%Nx
-        if ( du_super(i) <= 1E-10 )   fstar(n, i) = 0._rprec
-    end do
     call this%Ctp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
-                       dCt_dbeta(n), dCt_dlambda(n))
+        dCt_dbeta(n), dCt_dlambda(n))
     call this%Cpp_spline%interp(this%beta(n), this%lambda_prime(n), dummy,     &
-                           dCp_dbeta(n), dCp_dlambda(n))
+        dCp_dbeta(n), dCp_dlambda(n))
 end do
 
 ! Everything else can be calculated at once
-Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega           &
+Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega          &
     * 0.5_rprec * this%Dia / this%uhat**2
 Uw = alpha / this%inertia / this%omega * 3._rprec * this%Paero / this%uhat     &
     - alpha / this%inertia * this%Paero / this%Cpp * dCp_dlambda * 0.5_rprec   &
@@ -446,9 +435,6 @@ do n = 1, this%N
         Aw(n) = 0._rprec
     end if
 end do
-
-! cleanup
-deallocate(du_super)
 
 end subroutine adjoint_advance
 

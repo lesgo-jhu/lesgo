@@ -35,7 +35,7 @@ type, extends(wake_model_base_t) :: wake_model_adjoint_t
     ! adjoint velocity deficit (turbine,space)
     real(rprec), dimension(:,:), allocatable :: du_star
     ! adjoint superimposed velocity (space)
-    real(rprec), dimension(:), allocatable :: u_star
+    real(rprec), dimension(:,:), allocatable :: u_star
     ! adjoint estimated local turbine velocity (turbine)
     real(rprec), dimension(:), allocatable :: uhat_star
     ! adjoint rotational speed (turbine)
@@ -59,19 +59,19 @@ end interface wake_model_adjoint_t
 contains
 
 !*******************************************************************************
-function constructor_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline) result(this)
+function constructor_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
 type(wake_model_adjoint_t) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
-real(rprec), dimension(:), intent(in) :: i_s, i_k
-integer, intent(in) :: i_Nx
+real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
+integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
-call this%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,           &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 end function constructor_val
 !
 ! !*******************************************************************************
@@ -90,32 +90,32 @@ end function constructor_val
 ! end function constructor_file
 
 !*******************************************************************************
-subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 !*******************************************************************************
 implicit none
 class(wake_model_adjoint_t), intent(inout) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
-real(rprec), dimension(:), intent(in) :: i_s, i_k
-integer, intent(in) :: i_Nx
+real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
+integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 
 ! Call base class initializer
-call this%wake_model_base_t%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia,&
-    i_rho, i_inertia, i_Nx, i_Ctp_spline, i_Cpp_spline)
+call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k,&
+    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
 
 allocate( this%du_star(this%N, this%Nx) )
-allocate( this%u_star(this%Nx) )
+allocate( this%u_star(this%Nx, this%Ny) )
 allocate( this%uhat_star(this%N) )
 allocate( this%omega_star(this%N)  )
-!
+
 this%du_star = 0._rprec
 this%u_star = 0._rprec
 this%uhat_star = 0._rprec
 this%omega_star = 0._rprec
 
 end subroutine initialize_val
-!
+
 ! !*******************************************************************************
 ! subroutine initialize_file(this, fstring)
 ! !*******************************************************************************
@@ -312,17 +312,22 @@ end subroutine makeDimensional
 ! end subroutine advance
 
 !*******************************************************************************
-subroutine retract(this, fstar, Udu, Uw, Uj, Wdu, Wu, Ww, Wj, dt)
+subroutine retract(this, du, Udu, Uw, Uj, Wdu, Ww, Wj, dt)
 !***************************************************************************
 implicit none
 class(wake_model_adjoint_t), intent(inout) :: this
-real(rprec), dimension(:,:), intent(in) :: fstar
-real(rprec), dimension(:), intent(in) :: Udu, Uw, Uj, Wdu, Wu, Ww, Wj
+real(rprec), dimension(:,:), intent(in) :: du
+real(rprec), dimension(:), intent(in) :: Udu, Uw, Uj, Wdu, Ww, Wj
 real(rprec), intent(in) :: dt
 real(rprec), dimension(:), allocatable :: fdustar
-integer :: i
+real(rprec), dimension(:,:), allocatable :: fstar
+real(rprec), dimension(:,:), allocatable :: du_super
+integer :: i, ii, j
 
 allocate(fdustar(this%N))
+allocate(fstar(this%N, this%Nx))
+allocate(du_super(this%Nx, this%Ny))
+
 ! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
 do i = 1, this%N
     fdustar(i) = sum( this%f(i,:) * this%du_star(i,:) ) * this%dx
@@ -331,10 +336,45 @@ end do
 ! Compute adjoint of estimated velocity
 this%uhat_star = Uj + Uw * this%omega_star + Udu*fdustar
 
+! write(*,*) this%uhat_star
+
+! evaluate inverse of superimposed forward velocity deficits
+du_super = 0._rprec
+do i = 1, this%N
+    do ii = 1, this%Nx
+        du_super(ii,this%Istart(i,ii):this%Iend(i,ii)) =                       &
+            du_super(ii,this%Istart(i,ii):this%Iend(i,ii)) + du(i,ii)**2
+    end do
+end do
+du_super = sqrt(du_super)
+do i = 1, this%Nx
+    do j = 1, this%Ny
+        if ( abs(du_super(i,j)) <= 1E-6 ) then
+            du_super(i,j) = 0._rprec
+        else
+            du_super(i,j) = 1._rprec / du_super(i,j)
+        endif
+    end do
+end do
+
 ! adjoint of velocity field
 this%u_star = 0._rprec
 do i = 1, this%N
-    this%u_star = this%u_star + this%G(i,:)*this%uhat_star(i)
+    do ii = this%Gstart(i), this%Gend(i)
+        this%u_star(ii,this%Istart(i,ii):this%Iend(i,ii))                      &
+            = this%u_star(ii,this%Istart(i,ii):this%Iend(i,ii))                &
+            + this%G(i,ii) / this%Isum(i,ii) * this%uhat_star(i)
+    end do
+end do
+
+! Calculate fstar
+fstar = 0._rprec
+do i = 1, this%N
+    do ii = 1, this%Nx
+        fstar(i,ii) = -du(i,ii) *                                              &
+            sum( this%u_star(ii,this%Istart(i,ii):this%Iend(i,ii))             &
+            * du_super(ii,this%Istart(i,ii):this%Iend(i,ii)) ) * this%dy
+    end do
 end do
 
 ! Adjoint for rotational equations
@@ -346,11 +386,14 @@ end do
 ! compute velocity field adjoints
 do i = 1, this%N
     this%du_star(i,:) = this%du_star(i,:) - dt                                 &
-        * this%rhs(this%du_star(i,:), fstar(i,:)*this%u_star, i)
+        * this%rhs(this%du_star(i,:), fstar(i,:), i)
 end do
 
+! write(*,*) this%du_star
 
 deallocate(fdustar)
+deallocate(fstar)
+deallocate(du_super)
 
 end subroutine retract
 
