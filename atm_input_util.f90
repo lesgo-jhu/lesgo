@@ -64,6 +64,7 @@ type turbineArray_t
     real(rprec) :: IntSpeedError = 0._rprec
     real(rprec) :: IntPowerError = 0._rprec
     logical :: tipALMCorrection = .false. ! Includes a correction for tip
+    logical :: rootALMCorrection = .false. ! Includes a correction for tip
     real(rprec) :: optimalEpsilon = 0.25 ! The optimal epsilon (m)
 
     ! Not read variables
@@ -429,6 +430,11 @@ do
             read(buff(17:), *) turbineArray(n) % tipALMCorrection
 !~             write(*,*)  'tipALMCorrection is: ', &
 !~                          turbineArray(n) % tipALMCorrection
+        endif 
+        if( buff(1:17) == 'rootALMCorrection' ) then
+            read(buff(18:), *) turbineArray(n) % rootALMCorrection
+!~             write(*,*)  'rootALMCorrection is: ', &
+!~                          turbineArray(n) % rootALMCorrection
         endif 
         if( buff(1:14) == 'optimalEpsilon' ) then
             read(buff(15:), *) turbineArray(n) % optimalEpsilon

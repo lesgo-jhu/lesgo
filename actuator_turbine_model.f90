@@ -820,8 +820,10 @@ integer, intent(in) :: i             ! Turbine number
 integer :: j                         ! Turbine type
 integer :: m, n, q                   ! Counters tu be used in do loops
 real(rprec) :: a,b,c                 ! Correction coefficients
-real(rprec) :: chord                 ! The chord value
+real(rprec) :: chord                 ! The chord value at the tip
+real(rprec) :: chord_r               ! The chord value at the root
 real(rprec) :: r                     ! The radial distance from the tip
+real(rprec) :: r_r                   ! The radial distance from the root
 real(rprec) :: eps_opt               ! The optimal epsilon
 
 ! Constants for the tip vortex solution
@@ -832,14 +834,16 @@ c=0.357
 ! The turbine type number
 j=turbineArray(i) % turbineTypeID
 
-! First determine the circulation based on the last portion of the blade
+! Correction for the tip
 do q=1, turbineArray(i) % numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
         do m=1, turbineModel(j) % numBl
 
             ! The chord
 !~             chord = turbineArray(i) % chord(m,n,q)
-            chord = turbineArray(i) % chord(m,n,turbineArray(i) % numBladePoints)
+            chord = turbineArray(i) % chord(m,n,                               &
+                            turbineArray(i) % numBladePoints)
+            chord_r = turbineArray(i) % chord(m,n,1)
 
             ! Compute the optimal epsilon
             turbineArray(i) % epsilon_opt(m,n,q) =                             &
@@ -852,18 +856,48 @@ do q=1, turbineArray(i) % numBladePoints
             r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
                         -                                                      &
                         turbineModel(j) % TipRad)
+            r_r = abs(turbineArray(i) % bladeRadius(m,n,q)                     &
+                        -                                                      &
+                        turbineArray(i) % bladeRadius(m,n,1))
 
-            ! The correction eta
-            turbineArray(i) % cl_correction(m, n, q) =                         &
-                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
-                (1 - exp(-r**2/eps_opt**2)) +                                  &
-                2 * pi * a * eps_opt**(1+b) *                                  &
-                (1 - exp(-c*abs(r/eps_opt)**3))) /                             &
-                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
-                (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +                          &
-                2 * pi * a * turbineArray(i) % epsilon**(1+b) *                                  &
-                (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
-!~         write(*,*) 'Correction is ', r, turbineArray(i) % cl_correction(m, n, q)
+            ! Correction for the root
+            if (turbineArray(i) % rootALMCorrection .eqv. .true.)  then
+            
+                ! The correction eta for both tip and root
+                turbineArray(i) % cl_correction(m, n, q) =                     &
+                    ! Tip
+                    ( 2 * (r/chord)**2 -                                       &
+                    (r/chord)/2 * (1 - exp(-r**2/eps_opt**2)) +                &
+                    2 * pi * a * eps_opt**(1+b) *                              &
+                    (1 - exp(-c*abs(r/eps_opt)**3))                            &
+                    ! Root
+                    - (r_r/chord_r)/2 * (1 - exp(-r_r**2/eps_opt**2)) +        &
+                    2 * pi * a * eps_opt**(1+b) *                              &
+                    (1 - exp(-c*abs(r_r/eps_opt)**3))                          &                    
+                    ) /                                                        &
+                    ! Tip
+                    ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
+                    (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
+                    2 * pi * a * turbineArray(i) % epsilon**(1+b) *            &
+                    (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3))          &
+                    ! Root
+                    - (r_r/chord_r)/2 *                                        &
+                    (1 - exp(-(r_r/chord_r)**2/turbineArray(i) % epsilon**2)) +&
+                    2 * pi * a * turbineArray(i) % epsilon**(1+b) *            &
+                    (1 - exp(-c*abs(r_r/turbineArray(i) % epsilon)**3))        &
+                    ) 
+            else
+                ! The correction eta
+                turbineArray(i) % cl_correction(m, n, q) =                     &
+                    ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
+                    (1 - exp(-r**2/eps_opt**2)) +                              &
+                    2 * pi * a * eps_opt**(1+b) *                              &
+                    (1 - exp(-c*abs(r/eps_opt)**3))) /                         &
+                    ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
+                    (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
+                    2 * pi * a * turbineArray(i) % epsilon**(1+b) *            &
+                    (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
+            endif
         enddo
     enddo
 enddo

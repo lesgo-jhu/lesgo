@@ -26,6 +26,7 @@ nacelleFlag             false
 nacelleCd               1.
 TSR               6.
 tipALMCorrection        .true.
+rootALMCorrection        .true.
 optimalEpsilon   0.25
 }
 
@@ -48,6 +49,7 @@ nacelleFlag             false
 nacelleCd               0.
 TSR               6.
 tipALMCorrection        .false.
+rootALMCorrection        .false.
 optimalEpsilon   0.25
 }
 
