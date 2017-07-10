@@ -873,14 +873,14 @@ do q=1, turbineArray(i) % numBladePoints
                     (r_r/chord_r)**2 * (r/chord)/2 *                           &
                         (1 - exp(-r**2/eps_opt**2)) +                          &
                     ! Term 3 (1/r^2)
-                    (r_r/chord_r)**2 * 2 * pi * a * eps_opt**(1+b) *           &
+                    (r_r/chord_r)**2 * 2 * pi * a * (eps_opt/chord)**(1+b) *   &
                     (1 - exp(-c*abs(r/eps_opt)**3)) -                          &
                     ! Root
                     ! Term 2 (1/r)
                     (r/chord)**2 * (r_r/chord_r)/2 *                           &
                         (1 - exp(-r_r**2/eps_opt**2)) +                        &
                     ! Term 3 (1/r^2)
-                    (r/chord)**2 * 2 * pi * a * eps_opt**(1+b) *                              &
+                    (r/chord)**2 * 2 * pi * a * (eps_opt/chord_r)**(1+b) *                              &
                     (1 - exp(-c*abs(r_r/eps_opt)**3))                          &                    
                     ) /                                                        &
                     ! Denominator
@@ -892,15 +892,15 @@ do q=1, turbineArray(i) % numBladePoints
                     (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
                     ! Term 3 (1/r^2)
                     (r_r/chord_r)**2 * 2 * pi * a *                            &
-                    turbineArray(i) % epsilon**(1+b) *                         &
+                    (turbineArray(i) % epsilon/chord)**(1+b) *                 &
                     (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)) -        &
                     ! Root
                     ! Term 2 (1/r)
                     (r/chord)**2 * (r_r/chord_r)/2 *                           &
                     (1 - exp(-(r_r/chord_r)**2/turbineArray(i) % epsilon**2)) +&
                     ! Term 3 (1/r^2)
-                    (r/chord)**2 * 2 * pi * a *                            &
-                    turbineArray(i) % epsilon**(1+b) *                         &
+                    (r/chord)**2 * 2 * pi * a *                                &
+                    (turbineArray(i) % epsilon/chord_r)**(1+b) *               &
                     (1 - exp(-c*abs(r_r/turbineArray(i) % epsilon)**3))        &
                     )
 write(*,*) 'Cl coefficient is:', turbineArray(i) % cl_correction(m, n, q) 
@@ -909,11 +909,11 @@ write(*,*) 'Cl coefficient is:', turbineArray(i) % cl_correction(m, n, q)
                 turbineArray(i) % cl_correction(m, n, q) =                     &
                     ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
                     (1 - exp(-r**2/eps_opt**2)) +                              &
-                    2 * pi * a * eps_opt**(1+b) *                              &
+                    2 * pi * a * (eps_opt/chord)**(1+b) *                      &
                     (1 - exp(-c*abs(r/eps_opt)**3))) /                         &
                     ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
                     (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
-                    2 * pi * a * turbineArray(i) % epsilon**(1+b) *            &
+                    2 * pi * a * (turbineArray(i) % epsilon/chord)**(1+b) *    &
                     (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
             endif
         enddo
