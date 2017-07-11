@@ -825,6 +825,11 @@ real(rprec) :: chord_r               ! The chord value at the root
 real(rprec) :: r                     ! The radial distance from the tip
 real(rprec) :: r_r                   ! The radial distance from the root
 real(rprec) :: eps_opt               ! The optimal epsilon
+real(rprec) :: eps_s                 ! The epsilon value in the simulation
+
+! Terms for correction equation
+real(rprec) :: term0, term1_tip, term2_tip, term1_root, term2_root 
+real(rprec) :: term1_tip_d, term2_tip_d, term1_root_d, term2_root_d 
 
 ! Constants for the tip vortex solution
 a=0.029
@@ -847,11 +852,14 @@ do q=1, turbineArray(i) % numBladePoints
 
             ! Compute the optimal epsilon
             turbineArray(i) % epsilon_opt(m,n,q) =                             &
-                chord * turbineArray(i) % optimalEpsilon
+                chord * turbineArray(i) % optimalEpsilonChord
 
-            ! The optimal epsilon value
+            ! The optimal epsilon value in meters
             eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
-        
+
+            ! Simulation epsilon
+            eps_s = turbineArray(i) % epsilon
+
             ! Distance from the tip 
             r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
                         -                                                      &
@@ -865,56 +873,43 @@ do q=1, turbineArray(i) % numBladePoints
             
                 ! The correction eta for both tip and root
                 ! The correction needs to be multiplied by both radii^2
+
+term0 = 2. * (r/chord)**2 * (r_r/chord_r)**2
+
+! Numerator terms
+term1_tip = (r_r/chord_r)**2 * (r/chord)/2 * (1. - exp(-r**2/eps_opt**2))
+term2_tip = (r_r/chord_r)**2 * 2. * pi * a * (eps_opt/chord)**(1.+b) *         &
+                    (1. - exp(-c*abs(r/eps_opt)**3))
+term1_root = (r/chord)**2 * (r_r/chord_r)/2 * (1. - exp(-r_r**2/eps_opt**2))
+term2_root = (r/chord)**2 * 2. * pi * a * (eps_opt/chord_r)**(1.+b) *          &
+                    (1. - exp(-c*abs(r_r/eps_opt)**3))
+
+! Denominator terms
+term1_tip_d = (r_r/chord_r)**2 * (r/chord)/2 * (1. - exp(-r**2/eps_s**2)) 
+term2_tip_d = (r_r/chord_r)**2 * 2. * pi * a * (eps_s/chord)**(1.+b) *         &
+                    (1. - exp(-c*abs(r/eps_s)**3))
+term1_root_d = (r/chord)**2 * (r_r/chord_r)/2 * (1. - exp(-r_r**2/eps_s**2))
+term2_root_d = (r/chord)**2 * 2. * pi * a * (eps_s/chord_r)**(1.+b) *          &
+                    (1. - exp(-c*abs(r_r/eps_s)**3))
+
+
                 turbineArray(i) % cl_correction(m, n, q) =                     &
-                    ! Tip
-                    ! Term 1 with constant circulation
-                    ( 2 * (r/chord)**2 * (r_r/chord_r)**2 -                    &
-                    ! Term 2 (1/r)
-                    (r_r/chord_r)**2 * (r/chord)/2 *                           &
-                        (1 - exp(-r**2/eps_opt**2)) +                          &
-                    ! Term 3 (1/r^2)
-                    (r_r/chord_r)**2 * 2 * pi * a * (eps_opt/chord)**(1+b) *   &
-                    (1 - exp(-c*abs(r/eps_opt)**3)) -                          &
-                    ! Root
-                    ! Term 2 (1/r)
-                    (r/chord)**2 * (r_r/chord_r)/2 *                           &
-                        (1 - exp(-r_r**2/eps_opt**2)) +                        &
-                    ! Term 3 (1/r^2)
-                    (r/chord)**2 * 2 * pi * a * (eps_opt/chord_r)**(1+b) *                              &
-                    (1 - exp(-c*abs(r_r/eps_opt)**3))                          &                    
-                    ) /                                                        &
-                    ! Denominator
-                    ! Tip
-                    ! Term 1 with constant circulation
-                    (2 * (r/chord)**2 * (r_r/chord_r)**2 -                     &
-                    ! Term 2 (1/r)
-                    (r_r/chord_r)**2 * (r/chord)/2 *                           &
-                    (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
-                    ! Term 3 (1/r^2)
-                    (r_r/chord_r)**2 * 2 * pi * a *                            &
-                    (turbineArray(i) % epsilon/chord)**(1+b) *                 &
-                    (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)) -        &
-                    ! Root
-                    ! Term 2 (1/r)
-                    (r/chord)**2 * (r_r/chord_r)/2 *                           &
-                    (1 - exp(-(r_r/chord_r)**2/turbineArray(i) % epsilon**2)) +&
-                    ! Term 3 (1/r^2)
-                    (r/chord)**2 * 2 * pi * a *                                &
-                    (turbineArray(i) % epsilon/chord_r)**(1+b) *               &
-                    (1 - exp(-c*abs(r_r/turbineArray(i) % epsilon)**3))        &
-                    )
-write(*,*) 'Cl coefficient is:', turbineArray(i) % cl_correction(m, n, q) 
+            (term0 -term1_tip   + term2_tip    -term1_root   + term2_root )/ &
+            (term0 -term1_tip_d + term2_tip_d  -term1_root_d + term2_root_d )
+
+
+write(*,*) 'Cl coefficient correction is:', turbineArray(i) % cl_correction(m, n, q) 
             else
                 ! The correction eta
                 turbineArray(i) % cl_correction(m, n, q) =                     &
-                    ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
-                    (1 - exp(-r**2/eps_opt**2)) +                              &
-                    2 * pi * a * (eps_opt/chord)**(1+b) *                      &
-                    (1 - exp(-c*abs(r/eps_opt)**3))) /                         &
-                    ( 2 * (r/chord)**2 - (r/chord)/2 *                         &
-                    (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
-                    2 * pi * a * (turbineArray(i) % epsilon/chord)**(1+b) *    &
-                    (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
+                    ( 2. * (r/chord)**2 - (r/chord)/2 *                         &
+                    (1. - exp(-r**2/eps_opt**2)) +                              &
+                    2. * pi * a * (eps_opt/chord)**(1+b) *                      &
+                    (1. - exp(-c*abs(r/eps_opt)**3))) /                         &
+                    ( 2. * (r/chord)**2 - (r/chord)/2 *                         &
+                    (1. - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +    &
+                    2. * pi * a * (turbineArray(i) % epsilon/chord)**(1+b) *    &
+                    (1. - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
             endif
         enddo
     enddo
