@@ -27,7 +27,7 @@ nacelleCd               1.
 TSR               6.
 tipALMCorrection        .true.
 rootALMCorrection        .true.
-optimalEpsilon   0.25
+optimalEpsilonChord   0.25
 }
 
 TURBINE_2 {
@@ -50,6 +50,6 @@ nacelleCd               0.
 TSR               6.
 tipALMCorrection        .false.
 rootALMCorrection        .false.
-optimalEpsilon   0.25
+optimalEpsilonChord   0.25
 }
 
