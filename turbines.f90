@@ -29,7 +29,7 @@ use messages
 use string_util
 use stat_defs, only : wind_farm
 use bi_pchip
-use wake_model
+use wake_model_estimator
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
 #endif
@@ -87,9 +87,21 @@ real(rprec), public :: rho
 real(rprec), public :: inertia_all
 ! Torque gain (kg*m^2)
 real(rprec), public :: torque_gain
+! time constant for estimating freestream velocity [seconds]
+real(rprec), public :: tau_U_infty
+! std. deviation of noise of velocity deficit
+real(rprec), public :: sigma_du = 0.5
+! std. deviation of noise of wake expansion coefficient
+real(rprec), public :: sigma_k = 0.001
+! std. deviation of noise of power measurements
+real(rprec), public :: sigma_uhat = 1.0
+! std. deviation of noise of rotational speed
+real(rprec), public :: sigma_omega = 0.01
+! Number of members in ensemble
+integer, public :: num_ensemble = 250
 
 ! Wake model
-type(wake_model_t) :: wm
+type(wake_model_estimator_t) :: wm
 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
@@ -645,12 +657,14 @@ if (coord == 0) then
             * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
         call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
             * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
-
+        
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
         !write force to array that will be transferred via MPI
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
         disk_force(s) = p_f_n
+        
+        disk_force(s) = 0._rprec
 
         !write current step's values to file
         if (modulo (jt_total, tbase) == 0) then
@@ -697,21 +711,25 @@ if (coord .eq. nproc-1) then
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 end if
-
-! Update wake model
-if (coord == 0) then
-    allocate( beta(num_x) )
-    beta = 0._rprec
-    call wm%advance(beta, torque_gain*wm%omega**2, dt_dim)
-    !write values to file
-    if (modulo (jt_total, tbase) == 0) then
-        do s = 1, num_x
-            write( wm_fid(s), *) total_time_dim, wm%Ctp(s), wm%Cpp(s),         &
-                wm%uhat(s), wm%omega(s), wm%Phat(s)
-        end do
-    end if
-    deallocate(beta)
-end if
+! 
+! ! Update wake model
+! if (coord == 0) then
+!     allocate( beta(nloc) )
+!     beta = 0._rprec     
+!     call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
+!         torque_gain*wind_farm%turbine(:)%omega**2, beta,                       &
+!         wind_farm%turbine(:)%omega, dt_dim)
+! !     write(*,*) "farm:", wind_farm%turbine(:)%omega
+! !     write(*,*) "model:", wm%wm%omega
+!     !write values to file
+! !     if (modulo (jt_total, tbase) == 0) then
+! !         do s = 1, nloc
+! !             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
+! !                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
+! !         end do
+! !     end if
+!     deallocate(beta)
+! end if
 
 ! Cleanup
 deallocate(w_uv)
@@ -1116,42 +1134,42 @@ Ct_prime_arr(:,Nlp) = Ct_prime_arr(:,Nlp-1)
 ! Now generate splines
 wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
 wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
-!
-! ! Now save the adjusted splines for LES
-! ! Adjust the lambda_prime and Cp_prime to use the LES velocity
-! do i = 1, size(beta)
-!     do j = 1, size(lambda)
-!         if (iCtp(i,j) > phi_x0) then
-!             phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
-!         else
-!             phi = phi_a*iCtp(i,j)**3 + phi_b*iCtp(i,j)**2                      &
-!                 + phi_c*iCtp(i,j) + phi_d
-!         end if
-!         ilp(i,j) = ilp(i,j) * phi
-!         iCpp(i,j) = iCpp(i,j) * phi**3
-!     end do
-! end do
-!
-! ! Set the lambda_prime's onto which these curves will be interpolated
-! lambda_prime(1) = maxval(ilp(:,1))
-! lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
-! dlp = (lambda_prime(Nlp) - lambda_prime(1))
-! dlp = dlp / (Nlp - 1)
-! do i = 2, Nlp - 1
-!     lambda_prime(i) = lambda_prime(i-1) + dlp
-! end do
-!
-! ! Interpolate onto Ct_prime and Cp_prime arrays
-! do i = 1, size(beta)
-!     cspl = pchip_t(ilp(i,:), iCtp(i,:))
-!     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
-!     cspl = pchip_t(ilp(i,:), iCpp(i,:))
-!     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
-! end do
-!
-! ! Now generate splines
-! Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
-! Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
+
+! Now save the adjusted splines for LES
+! Adjust the lambda_prime and Cp_prime to use the LES velocity
+do i = 1, size(beta)
+    do j = 1, size(lambda)
+        if (iCtp(i,j) > phi_x0) then
+            phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
+        else
+            phi = phi_a*iCtp(i,j)**3 + phi_b*iCtp(i,j)**2                      &
+                + phi_c*iCtp(i,j) + phi_d
+        end if
+        ilp(i,j) = ilp(i,j) * phi
+        iCpp(i,j) = iCpp(i,j) * phi**3
+    end do
+end do
+
+! Set the lambda_prime's onto which these curves will be interpolated
+lambda_prime(1) = maxval(ilp(:,1))
+lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
+dlp = (lambda_prime(Nlp) - lambda_prime(1))
+dlp = dlp / (Nlp - 1)
+do i = 2, Nlp - 1
+    lambda_prime(i) = lambda_prime(i-1) + dlp
+end do
+
+! Interpolate onto Ct_prime and Cp_prime arrays
+do i = 1, size(beta)
+    cspl = pchip_t(ilp(i,:), iCtp(i,:))
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+    cspl = pchip_t(ilp(i,:), iCpp(i,:))
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+end do
+
+! Now generate splines
+Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
+Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
 
 ! Cleanup
 deallocate (lambda)
@@ -1229,8 +1247,11 @@ do i = 1, nloc
 end do
 
 ! Create wake model
-wm = wake_model_t(wm_sx, wm_sy, U_infty, 0.25*dia_all*z_i, wm_k, dia_all*z_i,  &
-    rho, inertia_all, 2*nx, 2*ny, wm_Ct_prime_spline, wm_Cp_prime_spline)
+wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,               &
+    0.25*dia_all*z_i, wm_k, dia_all*z_i, rho, inertia_all, 2*nx, 2*ny,         &
+    wm_Ct_prime_spline, wm_Cp_prime_spline, sigma_du, sigma_k, sigma_omega,    &
+    sigma_uhat, tau_U_infty)
+call wm%generate_initial_ensemble(torque_gain)
 
 ! Create output files
 

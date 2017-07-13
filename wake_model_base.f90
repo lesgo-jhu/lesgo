@@ -79,12 +79,15 @@ type wake_model_base_t
     real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0, TORQUE = 0, POWER = 0
     ! Splines for Ctp and Cpp
     type(bi_pchip_t) Ctp_spline, Cpp_spline
+    ! Determine whether a turbine is waked or not
+    logical, dimension(:), allocatable :: waked
+    integer :: Nwaked
 contains
     procedure, public :: initialize_val
     ! procedure, public :: print
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
-!     procedure, public :: computeWakeExpansionFunctions
+    procedure, public :: compute_wake_expansion
 end type wake_model_base_t
 
 interface wake_model_base_t
@@ -119,10 +122,11 @@ class(wake_model_base_t), intent(inout) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
-integer :: i, ii
+integer :: i, j, ii
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec) :: xstart, xend, ystart, yend
 integer, dimension(1) :: temp_int
+real(rprec) :: R
 
 ! Allocate based on number of turbines
 this%N = size(i_sx)
@@ -153,6 +157,7 @@ allocate( this%f(this%N, this%Nx) )
 allocate( this%Istart(this%N, this%Nx) )
 allocate( this%Iend(this%N, this%Nx) )
 allocate( this%Isum(this%N, this%Nx) )
+allocate( this%waked(this%N) ) 
 
 ! Assign input arguments
 this%sx = i_sx
@@ -202,6 +207,19 @@ do i = 1, this%N
     this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
 end do
 
+call this%compute_wake_expansion
+
+end subroutine initialize_val
+
+!*******************************************************************************
+subroutine compute_wake_expansion(this)
+!*******************************************************************************
+implicit none
+class(wake_model_base_t), intent(inout) :: this
+integer :: i, ii, j
+integer, dimension(1) :: temp_int
+real(rprec) :: R
+
 ! Compute wake expansion functions
 do i = 1, this%N
     this%d(i,:) = 1.0 + this%k(i) * softplus(2.0 *                             &
@@ -223,7 +241,23 @@ do i = 1, this%N
     end do
 end do
 
-end subroutine initialize_val
+! Determine whether a turbine is waked or not
+this%waked = .false.
+this%Nwaked = 0
+do i = 1, this%N
+    do j = 1, this%N
+        if (this%waked(i)) cycle
+        R = 0.5 * this%Dia * (1._rprec + this%k(j) * softplus(2._rprec *       &
+        (this%sx(j) + 2.0 * this%Delta)/this%Dia, 2.0 * this%sx(i)/this%Dia) )
+        if (this%sx(i)>this%sx(j) .and. (R-abs(this%sy(i)-this%sy(j)))>0) then
+            this%waked(i) = .true.
+            this%Nwaked = this%Nwaked + 1
+            cycle
+        end if
+    end do
+end do
+
+end subroutine compute_wake_expansion
 
 !*******************************************************************************
 subroutine makeDimensionless(this)
