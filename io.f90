@@ -1187,12 +1187,12 @@ elseif(itype==5) then
 
     !  Loop over all zplane locations
     do k=1,zplane_nloc
-
-#ifdef PPCGNS
         ! Common file name portion for all output types
-        call string_splice(fname, path // 'output/vel.z-',                      &
+        call string_splice(fname, path // 'output/vel.z-',                     &
                 zplane_loc(k), '.', jt_total)
-                call string_concat(fname, '.cgns')
+                
+#ifdef PPCGNS
+        call string_concat(fname, '.cgns')
 #endif
 
 #ifdef PPMPI    
@@ -1200,11 +1200,11 @@ elseif(itype==5) then
 #endif
             do j=1,Ny
                 do i=1,Nx
-                    ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),        &
+                    ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),       &
                          u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                    vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),        &
+                    vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),       &
                          v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                    wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),     &
+                    wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),    &
                          w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
                 enddo
             enddo
@@ -1213,16 +1213,16 @@ elseif(itype==5) then
             ! Write CGNS Data
             ! Only the processor with data writes, the other one is written
             ! using null arguments with 'write_null_cgns'
-            call write_parallel_cgns (fname ,nx, ny, 1, 1,                      &
-            (/ 1, 1,   1 /),                                                    &
-            (/ nx, ny, 1 /),                                                    &
-            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
-            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                        &
+            call write_parallel_cgns (fname ,nx, ny, 1, 1,                     &
+            (/ 1, 1,   1 /),                                                   &
+            (/ nx, ny, 1 /),                                                   &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                            &
+            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                       &
             (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
 
 #else
-            call string_concat( fname, '.bin')
-            open(unit=13,file=fname,form='unformatted',convert=write_endian,    &
+            call string_concat(fname, bin_ext)
+            open(unit=13,file=fname,form='unformatted',convert=write_endian,   &
                             access='direct',recl=nx*ny*1*rprec)
             write(13,rec=1) ui(1:nx,1:ny,1)
             write(13,rec=2) vi(1:nx,1:ny,1)
@@ -1233,10 +1233,10 @@ elseif(itype==5) then
 #ifdef PPMPI 
         else
 #ifdef PPCGNS
-            call write_null_cgns (fname ,nx, ny, 1, 1,                          &
-            (/ 1, 1,   1 /),                                                    &
-            (/ nx, ny, 1 /),                                                    &
-            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
+            call write_null_cgns (fname ,nx, ny, 1, 1,                         &
+            (/ 1, 1,   1 /),                                                   &
+            (/ nx, ny, 1 /),                                                   &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                            &
             (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
 #endif
         endif
