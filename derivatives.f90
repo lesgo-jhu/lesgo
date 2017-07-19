@@ -178,8 +178,8 @@ implicit none
 
 
 integer, intent(in) :: lbz
-real(rprec), dimension(:, :, lbz:), intent(inout) :: f
-real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdx, dfdy
+real(rprec), dimension(:,:,lbz:), intent(inout) :: f
+real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdx, dfdy
 real(rprec) :: const
 integer :: jz
 
@@ -218,8 +218,8 @@ subroutine ddz_uv(f, dfdz, lbz)
 !
 ! This subroutine computes the partial derivative of f with respect to z using 
 ! 2nd order finite differencing. f is on the uv grid and dfdz is on the w grid. 
-! The serial version provides dfdz(:, :, 2:nz), and the value at jz=1 is not 
-! touched. The MPI version provides dfdz(:, :, 1:nz), except at the bottom 
+! The serial version provides dfdz(:,:,2:nz), and the value at jz=1 is not 
+! touched. The MPI version provides dfdz(:,:,1:nz), except at the bottom 
 ! process it only supplies 2:nz
 !
 use types, only : rprec
@@ -230,15 +230,15 @@ use param, only : nproc, coord
 implicit none
 
 integer, intent(in) :: lbz
-real(rprec), dimension(:, :, lbz:), intent(in) :: f
-real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdz
+real(rprec), dimension(:,:,lbz:), intent(in) :: f
+real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdz
 integer :: jx, jy, jz
 real(rprec) :: const
 
 const = 1._rprec/dz
 
 #if defined(PPMPI) && defined(PPSAFETYMODE)
-dfdz(:, :, 0) = BOGUS
+dfdz(:,:,0) = BOGUS
 #endif
 
 ! Calculate derivative.
@@ -271,8 +271,8 @@ subroutine ddz_w(f, dfdz, lbz)
 !
 ! This subroutine computes the partial derivative of f with respect to z using 
 ! 2nd order finite differencing. f is on the w grid and dfdz is on the uv grid. 
-! The serial version provides dfdz(:, :, 1:nz-1), and the value at jz=1 is not 
-! touched. The MPI version provides dfdz(:, :, 0:nz-1), except at the top and 
+! The serial version provides dfdz(:,:,1:nz-1), and the value at jz=1 is not 
+! touched. The MPI version provides dfdz(:,:,0:nz-1), except at the top and 
 ! bottom processes, which each has has 0:nz, and 1:nz-1, respectively.
 !
 use types, only : rprec
@@ -282,8 +282,8 @@ use param, only : coord
 #endif
 implicit none
 
-real(rprec), dimension(:, :, lbz:), intent(in) :: f
-real(rprec), dimension(:, :, lbz:), intent(inout) :: dfdz
+real(rprec), dimension(:,:,lbz:), intent(in) :: f
+real(rprec), dimension(:,:,lbz:), intent(inout) :: dfdz
 integer, intent(in) :: lbz
 real(rprec)::const
 integer :: jx, jy, jz
@@ -301,11 +301,11 @@ end do
 #ifdef PPMPI
 ! bottom process cannot calculate dfdz(jz=0)
 if (coord == 0) then
-    dfdz(:, :, lbz) = BOGUS
+    dfdz(:,:,lbz) = BOGUS
 endif
 #endif
 ! All processes cannot calculate dfdz(jz=nz)
-dfdz(:, :, nz) = BOGUS
+dfdz(:,:,nz) = BOGUS
 #endif
 
 end subroutine ddz_w
