@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -15,7 +15,10 @@
 !!
 !!  You should have received a copy of the GNU General Public License
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+
+!*******************************************************************************
 module sim_param
+!*******************************************************************************
 use types, only : rprec
 use param, only : ld, ny, nz, lbz
 implicit none
@@ -25,33 +28,23 @@ public
 
 logical :: sim_param_initialized = .false.
 
-real (rprec), dimension (:, :, :), allocatable :: u, v, w
-real (rprec), dimension (:, :, :), allocatable :: dudx, dudy, dudz,  &
-                                                  dvdx, dvdy, dvdz,  &
-                                                  dwdx, dwdy, dwdz,  &
-                                                  RHSx, RHSy, RHSz,  &
-                                                  RHSx_f, RHSy_f, RHSz_f
+real(rprec), dimension(:,:,:), allocatable :: u, v, w,                         &
+    dudx, dudy, dudz, dvdx, dvdy, dvdz,  dwdx, dwdy, dwdz,                     &
+    RHSx, RHSy, RHSz, RHSx_f, RHSy_f, RHSz_f,                                  &
+    dpdx, dpdy, dpdz, txx, txy, tyy,                                           &
+    txz, tyz, tzz, divtx, divty, divtz,                                        &
+    fx, fy, fz, fxa, fya, fza
+real(rprec), target, dimension(:,:,:), allocatable :: p
 
-real (rprec), dimension (:, :, :), allocatable :: dpdx, dpdy, dpdz
-
-real (rprec), dimension (:, :, :), allocatable :: txx, txy, tyy
-real (rprec), dimension (:, :, :), allocatable :: txz, tyz, tzz
-
-real (rprec), target, dimension (:, :, :), allocatable :: p
-
-real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
-
-real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
-                                                  fxa, fya, fza
 contains
 
+!*******************************************************************************
+subroutine sim_param_init ()
+!*******************************************************************************
 !
 ! This subroutine initilizes all global arrays defined in the sim_param
 ! module. Here they are allocated and initialized to zero.
 !
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine sim_param_init ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
 allocate ( u(ld, ny, lbz:nz) ); u = 0.0_rprec
@@ -100,10 +93,10 @@ allocate ( fz(ld, ny, nz) ); fz = 0.0_rprec
 if( .not. allocated(fxa) ) allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
 if( .not. allocated(fya) ) allocate ( fya(ld, ny, nz) ); fya = 0.0_rprec
 if( .not. allocated(fza) ) allocate ( fza(ld, ny, nz) ); fza = 0.0_rprec
-#endif 
+#endif
 
 sim_param_initialized = .true.
 
-return
 end subroutine sim_param_init
+
 end module sim_param
