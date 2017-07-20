@@ -20,8 +20,10 @@
 !*******************************************************************************
 subroutine std_dynamic(Cs_1D)
 !*******************************************************************************
-! Subroutine uses the standard dynamic model to calculate the Smagorinsky 
+!
+! Subroutine uses the standard dynamic model to calculate the Smagorinsky
 ! coefficient Cs_1D and |S|. This is done layer-by-layer to save memory.
+!
 use types, only : rprec
 use param, only : ld, ny, nz, coord
 use test_filtermodule
@@ -52,7 +54,7 @@ do jz = 1, nz
         u_bar(:,:) = u(:,:,1)
         v_bar(:,:) = v(:,:,1)
         w_bar(:,:) = 0.25_rprec*w(:,:,2)
-    else  
+    else
         ! w-nodes
         L11(:,:) = 0.5_rprec*(u(:,:,jz) + u(:,:,jz-1))*                        &
             0.5_rprec*(u(:,:,jz) + u(:,:,jz-1))
@@ -69,12 +71,12 @@ do jz = 1, nz
    end if
 
     ! in-place filtering
-    call test_filter ( u_bar )  
+    call test_filter ( u_bar )
     call test_filter ( v_bar )
     call test_filter ( w_bar )
-    
-    call test_filter ( L11 )  
-    L11 = L11 - u_bar*u_bar  
+
+    call test_filter ( L11 )
+    L11 = L11 - u_bar*u_bar
     call test_filter ( L12 )
     L12 = L12 - u_bar*v_bar
     call test_filter ( L13 )
@@ -84,7 +86,7 @@ do jz = 1, nz
     call test_filter ( L23 )
     L23 = L23 - v_bar*w_bar
     call test_filter ( L33 )
-    L33 = L33 - w_bar*w_bar  
+    L33 = L33 - w_bar*w_bar
 
     ! calculate |S|
     S(:,:) = sqrt(2._rprec*(S11(:,:,jz)**2 + S22(:,:,jz)**2 +                  &
@@ -92,12 +94,12 @@ do jz = 1, nz
         S13(:,:,jz)**2 + S23(:,:,jz)**2)))
 
     ! S_ij already on w-nodes
-    S11_bar(:,:) = S11(:,:,jz)  
-    S12_bar(:,:) = S12(:,:,jz)  
-    S13_bar(:,:) = S13(:,:,jz)  
-    S22_bar(:,:) = S22(:,:,jz)  
-    S23_bar(:,:) = S23(:,:,jz)  
-    S33_bar(:,:) = S33(:,:,jz)  
+    S11_bar(:,:) = S11(:,:,jz)
+    S12_bar(:,:) = S12(:,:,jz)
+    S13_bar(:,:) = S13(:,:,jz)
+    S22_bar(:,:) = S22(:,:,jz)
+    S23_bar(:,:) = S23(:,:,jz)
+    S33_bar(:,:) = S33(:,:,jz)
 
     call test_filter ( S11_bar )
     call test_filter ( S12_bar )
@@ -121,7 +123,7 @@ do jz = 1, nz
     call test_filter ( S_S13_bar )
     call test_filter ( S_S22_bar )
     call test_filter ( S_S23_bar )
-    call test_filter ( S_S33_bar )      
+    call test_filter ( S_S33_bar )
 
     ! now put beta back into M_ij
     const = 2._rprec*delta**2
@@ -131,17 +133,17 @@ do jz = 1, nz
     M22 = const*(S_S22_bar - 4._rprec*S_bar*S22_bar)
     M23 = const*(S_S23_bar - 4._rprec*S_bar*S23_bar)
     M33 = const*(S_S33_bar - 4._rprec*S_bar*S33_bar)
-        
+
     Cs_1D(jz) =                                                                &
         sum(L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23))/       &
         sum(M11**2 + M22**2 + M33**2 + 2._rprec*(M12**2 + M13**2 + M23**2))
     Cs_1D(jz) = max(0._rprec, Cs_1D(jz))
 
-    ! Calculate ee_now (the current value of eij*eij) 
+    ! Calculate ee_now (the current value of eij*eij)
     LM = L11*M11+L22*M22+L33*M33+2._rprec*(L12*M12+L13*M13+L23*M23)
     MM = M11**2+M22**2+M33**2+2._rprec*(M12**2+M13**2+M23**2)
     ee_now(:,:,jz) = L11**2+L22**2+L33**2+2._rprec*(L12**2+L13**2+L23**2)      &
-                     -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2     
+                     -2._rprec*LM*Cs_1D(jz) + MM*Cs_1D(jz)**2
 end do
 
 end subroutine std_dynamic
