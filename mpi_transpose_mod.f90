@@ -21,7 +21,7 @@
 module mpi_transpose_mod
 !*******************************************************************************
 use types, only : rprec
-use param, only : np => nproc, comm_cart => comm, coord, ierr, MPI_CPREC
+use param, only : nproc, comm, coord, ierr, MPI_CPREC
 use mpi
 implicit none
 
@@ -37,7 +37,7 @@ subroutine mpi_transpose (mx, my, mz, a, b)
 !
 !--the sizes of a, b are assumed shape here to allow us to use arrays
 !  dimensioned for the Nyquist frequency in x-direction
-!--only a(1:mx, 1:my, 1:mz) & b(1:mz*np, 1:my, 1:mx/np) are used
+!--only a(1:mx, 1:my, 1:mz) & b(1:mz*nproc, 1:my, 1:mx/nproc) are used
 !
 implicit none
 
@@ -51,52 +51,52 @@ integer :: up, down
 integer :: status(MPI_STATUS_SIZE)
 integer :: i, k, jx, jz
 logical, save :: init = .false.
-complex(rprec) :: tmpout(mx/np, my, mz), tmpin(mx/np, my, mz)
+complex(rprec) :: tmpout(mx/nproc, my, mz), tmpin(mx/nproc, my, mz)
 integer, save, allocatable, dimension(:) :: src, dest
 logical, save :: arrays_allocated = .false.
 
 if( .not. arrays_allocated ) then
-    allocate(src(np-1))
-    allocate(dest(np-1))
+    allocate(src(nproc-1))
+    allocate(dest(nproc-1))
     arrays_allocated = .true.
 endif
 
 if (.not. init) then
-    do ip = 1, np-1
+    do ip = 1, nproc-1
         ! this is a bit awkward: really want periodic topology so can
         ! use cart_shift here but this is not good for the finite
         ! differences, so perhaps create a new cartisian topology from
         ! existing one, but we no not allow reordering and we do allow
         ! periodicity
-        up = modulo (coord + ip, np)    ! corresponds to dest(ip)
-        down = modulo (coord - ip, np)  ! corresponds to src(ip)
+        up = modulo (coord + ip, nproc)    ! corresponds to dest(ip)
+        down = modulo (coord - ip, nproc)  ! corresponds to src(ip)
 
-        call MPI_cart_rank (comm_cart, (/ up /), dest(ip), ierr)
-        call MPI_cart_rank (comm_cart, (/ down /), src(ip), ierr)
+        call MPI_cart_rank (comm, (/ up /), dest(ip), ierr)
+        call MPI_cart_rank (comm, (/ down /), src(ip), ierr)
     end do
 
     init = .true.
 end if
 
 !--block size
-bs = mx*my*mz/np
+bs = mx*my*mz/nproc
 
-do ip = 1, np-1
-    up = modulo (coord + ip, np)    ! corresponds to dest(ip)
-    down = modulo (coord - ip, np)  ! corresponds to src(ip)
+do ip = 1, nproc-1
+    up = modulo (coord + ip, nproc)    ! corresponds to dest(ip)
+    down = modulo (coord - ip, nproc)  ! corresponds to src(ip)
 
     ! copy chunk "up" into buffer (no local transpose)
     do jz = 1, mz
-    do jx = 1, mx/np
-        tmpout(jx, :, jz) = a(up*mx/np+jx, :, jz)
+    do jx = 1, mx/nproc
+        tmpout(jx, :, jz) = a(up*mx/nproc+jx, :, jz)
     end do
     end do
 
     call MPI_sendrecv (tmpout(1,1,1), bs, MPI_CPREC, dest(ip), ip,             &
-        tmpin(1,1,1), bs, MPI_CPREC, src(ip), ip, comm_cart, status, ierr)
+        tmpin(1,1,1), bs, MPI_CPREC, src(ip), ip, comm, status, ierr)
 
     ! copy chunk "down" from tmpin to b, in transposed order
-    do i = 1, mx/np
+    do i = 1, mx/nproc
     do k = 1, mz
         jz = down*mz + k
         b(jz, :, i) = tmpin(i, :, k)
@@ -106,9 +106,9 @@ end do
 
 ! local transpose on non-transferred data
 ! chunk 'rank' should not have have been sent/received
-do i = 1, mx/np
+do i = 1, mx/nproc
 do k = 1, mz
-    jx = coord*mx/np + i
+    jx = coord*mx/nproc + i
     jz = coord*mz + k
     b(jz, :, i) = a(jx, :, k)
 end do
