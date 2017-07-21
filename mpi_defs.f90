@@ -54,7 +54,6 @@ use cgns
 #endif
 implicit none
 
-integer :: np
 integer :: ip, coords(1)
 integer :: localComm
 
@@ -67,17 +66,8 @@ integer :: localComm
     localComm = MPI_COMM_WORLD
 #endif
 
-call mpi_comm_size (localComm, np, ierr)
+call mpi_comm_size (localComm, nproc, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)
-
-! check if run-time number of processes agrees with nproc parameter
-if (np /= nproc) then
-    write (*, *) 'runtime number of procs = ', np,                             &
-        ' not equal to nproc = ', nproc
-    stop
-else
-   nproc = np
-endif
 
 ! set up a 1d cartesian topology
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),                &

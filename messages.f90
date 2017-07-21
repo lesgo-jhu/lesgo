@@ -54,8 +54,8 @@ integer, parameter :: lun = 6
 integer :: call_level = 0
 
 interface error
-    module procedure error_a, error_ai, error_al, error_aia, error_ai_array,   &
-        error_aiar, error_ar, error_ar_array
+    module procedure error_a, error_ai, error_al, error_aia, error_aiai,       &
+        error_ai_array, error_aiar, error_arar, error_ar, error_ar_array
 end interface
 
 interface mesg
@@ -324,6 +324,23 @@ stop
 end subroutine error_aia
 
 !*******************************************************************************
+subroutine error_aiai (name, msg1, i1, msg2, i2)
+!*******************************************************************************
+character(*), intent (in) :: name
+character(*), intent (in) :: msg1, msg2
+integer, intent (in) :: i1, i2
+
+write (lun, '(1x,a)') '*****ERROR*****'
+write (lun, '(1x,a)') 'In ' // name // ':'
+write (lun, '(1x,a,1x,i0,1x,a,1x,i0)') trim (msg1), i1, trim (msg2), i2
+write (lun, '(1x,a)') '***************'
+write (lun, '(1x,a)') 'Program aborted'
+
+stop
+
+end subroutine error_aiai
+
+!*******************************************************************************
 subroutine error_aiar (name, msg1, i, msg2, r)
 !*******************************************************************************
 character(*), intent (in) :: name
@@ -340,6 +357,23 @@ write (lun, '(1x,a)') 'Program aborted'
 stop
 
 end subroutine error_aiar
+
+!*******************************************************************************
+subroutine error_arar (name, msg1, r1, msg2, r2)
+!*******************************************************************************
+character(*), intent (in) :: name
+character(*), intent (in) :: msg1, msg2
+real(rprec), intent (in) :: r1, r2
+
+write (lun, '(1x,a)') '*****ERROR*****'
+write (lun, '(1x,a)') 'In ' // name // ':'
+write (lun, '(1x,a,1x,es11.4,1x,a,1x,es11.4)') trim (msg1), r1, trim (msg2), r2
+write (lun, '(1x,a)') '***************'
+write (lun, '(1x,a)') 'Program aborted'
+
+stop
+
+end subroutine error_arar
 
 !*******************************************************************************
 subroutine error_al (name, msg, l)

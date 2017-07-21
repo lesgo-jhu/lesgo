@@ -173,7 +173,7 @@ time_loop: do jt_step = nstart, nsteps
     !  except bottom coord, only 1:nz-1
     call ddz_w(w, dwdz, lbz)
 
-    ! Calculate wall stress and derivatives at the wall 
+    ! Calculate wall stress and derivatives at the wall
     ! (txz, tyz, dudz, dvdz at jz=1)
     ! using the velocity log-law
     ! MPI: bottom and top processes only
@@ -195,7 +195,7 @@ time_loop: do jt_step = nstart, nsteps
 #endif
 
     ! Compute divergence of SGS shear stresses
-    ! the divt's and the diagonal elements of t are not equivalenced 
+    ! the divt's and the diagonal elements of t are not equivalenced
     ! in this version. Provides divtz 1:nz-1, except 1:nz at top process
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
     call divstress_w(divtz, txz, tyz, tzz)
@@ -353,7 +353,7 @@ time_loop: do jt_step = nstart, nsteps
     ! Write output files
     call output_loop()
 
-    ! Check the total time of the simulation up to this point on the master 
+    ! Check the total time of the simulation up to this point on the master
     ! node and send this to all
 
     if (modulo (jt_total, wbase) == 0) then
@@ -428,8 +428,8 @@ time_loop: do jt_step = nstart, nsteps
         if (runtime > 0) then
 
 #ifdef PPMPI
-            ! Determine the processor that has used most time and communicate     
-            ! this. Needed to make sure that all processors stop at the same 
+            ! Determine the processor that has used most time and communicate
+            ! this. Needed to make sure that all processors stop at the same
             ! time and not just some of them
             call mpi_allreduce(clock_total % time, rbuffer, 1, MPI_RPREC,      &
                 MPI_MAX, MPI_COMM_WORLD, ierr)

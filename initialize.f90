@@ -20,7 +20,7 @@
 !***********************************************************************
 subroutine initialize()
 !***********************************************************************
-! 
+!
 ! This subroutine is a driver that calls all top-level initialization
 ! subroutines.
 !
@@ -56,7 +56,7 @@ use concurrent_precursor, only : initialize_cps
 #endif
 
 #ifdef PPLVLSET
-use level_set_base, only : level_set_base_init 
+use level_set_base, only : level_set_base_init
 use level_set, only : level_set_init
 #endif
 
@@ -69,11 +69,9 @@ use turbines, only : turbines_init, turbines_forcing
 use hit_inflow, only : initialize_HIT
 #endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-    use atm_lesgo_interface, only: atm_lesgo_initialize
+use atm_lesgo_interface, only: atm_lesgo_initialize
 #endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 implicit none
 
@@ -82,26 +80,26 @@ character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
 ! Create output directory
 if( coord == 0 ) call system( make_output_dir )
 
+! Initialize MPI
+#ifdef PPMPI
+call initialize_mpi()
+#else
+if (nproc /= 1) then
+    write (*, *) 'nproc /=1 for non-MPI run is an error'
+    stop
+end if
+if (USE_MPI) then
+    write (*, *) 'inconsistent use of USE_MPI and $MPI'
+    stop
+end if
+chcoord = ''
+#endif
+
 ! Read input file
 ! This obtains all major data defined in param
 call read_input_conf()
 
-! Initialize MPI
-#ifdef PPMPI
-  call initialize_mpi()
-#else
-  if (nproc /= 1) then
-    write (*, *) 'nproc /=1 for non-MPI run is an error'
-    stop
-  end if
-  if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
-  chcoord = ''
-#endif
-
-! Open output files (total_time.dat and check_ke.out)  
+! Open output files (total_time.dat and check_ke.out)
 call openfiles()
 
 if( jt_total >= nsteps ) then
@@ -112,11 +110,11 @@ if( jt_total >= nsteps ) then
    ! First make sure everyone in has finished
    call mpi_barrier( MPI_COMM_WORLD, ierr )
    call mpi_finalize (ierr)
-#endif 
+#endif
    stop
 endif
 
-! Write simulation data to file 
+! Write simulation data to file
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
 ! the input was read correctly and is sane.
@@ -140,7 +138,7 @@ call turbines_init()    !must occur before initial is called
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-  call atm_lesgo_initialize ()  
+  call atm_lesgo_initialize ()
 #endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
@@ -154,7 +152,7 @@ call turbines_init()    !must occur before initial is called
 ! If using level set method
 #ifdef PPLVLSET
 call level_set_base_init()
-call level_set_init () 
+call level_set_init ()
 #endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
@@ -188,8 +186,8 @@ call initialize_cps()
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then
    if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-      if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
-      dt = get_cfl_dt() 
+      if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.'
+      dt = get_cfl_dt()
       dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
       dt_dim = dt * z_i / u_star
    endif
