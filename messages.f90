@@ -49,7 +49,6 @@ character (2), parameter :: n_l = achar (10) // ' '
 character (64) :: fmt
 ! system dependent
 integer, parameter :: lun = 6
-integer :: call_level = 0
 
 interface error
     module procedure error_a, error_ai, error_al, error_aia, error_aiai,       &
