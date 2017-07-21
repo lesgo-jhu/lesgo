@@ -54,7 +54,8 @@ set(USE_HIT false)
 # streaks effects on averaging
 set(USE_STREAKS false)
 
-# What does this do?
+# Dynamically update T, the timescale for Lagrangian averaging, using Taylor 
+# timescale
 set(USE_DYN_TN false)
 
 ################################################################################
