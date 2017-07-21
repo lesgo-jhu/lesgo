@@ -58,8 +58,6 @@ use mpi_defs, only : mpi_sync_real_array, MPI_SYNC_DOWN
 use level_set, only : level_set_BC, level_set_Cs
 #endif
 
-!use sgs_hist, only: sgs_hist_update_vals
-
 implicit none
 
 character (*), parameter :: sub_name = 'sgs_stag'
@@ -236,13 +234,6 @@ do jx = 1, nx
 end do
 end do
 end do
-
-! Update the values for the sgs-variable histograms
-!  if (sgs_hist_calc) then
-!  if ( (jt_total .ge. sgs_hist_nstart) .and. (mod(jt_total,sgs_hist_nskip).eq.0) ) then
-!    call sgs_hist_update_vals( )
-!  endif
-!  endif
 
 ! Calculate txx, txy, tyy, tzz for bottom level: jz=1 node (coord==0 only)
 if (coord == 0) then

@@ -30,7 +30,6 @@ use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
 use iwmles
 use param, only : lbc_mom
-!use param, only : sgs_hist_calc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #else
@@ -46,7 +45,6 @@ use sim_param, only : sim_param_init
 use grid_m
 use fft, only : init_fft
 use io, only : openfiles
-!use sgs_hist
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
@@ -172,11 +170,6 @@ endif
 #if defined(PPMPI) && defined(PPCPS)
 call initialize_cps()
 #endif
-
-! Initialize sgs variable histogram calc
-!if (sgs_hist_calc) then
-!  call sgs_hist_init()
-!endif
 
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then

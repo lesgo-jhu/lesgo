@@ -53,11 +53,6 @@ endif
 call atm_lesgo_finalize ()   ! write the restart files
 #endif
 
-! SGS variable histograms
-!if (sgs_hist_calc) then
-!  call sgs_hist_finalize()
-!endif
-
 ! MPI:
 #ifdef PPMPI
 ! First make sure everyone in has finished

@@ -36,7 +36,6 @@ use fft
 use derivatives, only : filt_da, ddz_uv, ddz_w
 use test_filtermodule
 use cfl_util
-!use sgs_hist
 use sgs_stag_util, only : sgs_stag
 use forcing
 use functions, only: get_tau_wall_bot, get_tau_wall_top
