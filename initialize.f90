@@ -165,7 +165,7 @@ call initial()
 
 ! Initialize integral wall model xiang
 if (lbc_mom == 3) then
-    if (coord==0) call iwm_malloc()
+    if (coord==0) call iwm_init()
 endif
 
 ! Initialize concurrent precursor stuff
