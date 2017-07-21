@@ -33,13 +33,9 @@ use param,only:nproc,coord
 implicit none
 
 real(rprec),dimension(ld,ny,lbz:nz),intent(out)::divt
-real(rprec), dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
-real(rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
-integer::jx,jy,jz
-
-#ifdef PPVERBOSE
-write (*, *) 'started divstress_w'
-#endif
+real(rprec),dimension (ld, ny, lbz:nz), intent (in) :: tx, ty, tz
+real(rprec),dimension(ld,ny,lbz:nz) :: dtxdx, dtydy, dtzdz
+integer :: jx, jy, jz
 
 ! compute stress gradients
 ! tx 1:nz => dtxdx 1:nz
@@ -119,9 +115,5 @@ end do
 
 ! set ld-1, ld to 0 (could maybe do BOGUS)
 divt(ld-1:ld, :, 1:nz-1) = 0._rprec
-
-#ifdef PPVERBOSE
-write (*, *) 'finished divstress_w'
-#endif
 
 end subroutine divstress_w

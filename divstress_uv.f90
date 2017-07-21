@@ -34,10 +34,6 @@ real(rprec), dimension(ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
 real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx, dtydy, dtzdz
 real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx2, dtydy2, dtzdz2
 
-#ifdef PPVERBOSE
-write (*, *) 'started divstress_uv'
-#endif
-
 ! compute stress gradients
 ! MPI: tx 1:nz-1 => dtxdx 1:nz-1
 call ddx(txx, dtxdx, lbz)  ! really should replace with ddxy (save an fft)
@@ -84,11 +80,6 @@ divty(ld-1:ld,:,1:nz-1) = 0._rprec
 divty(:,:,0) = BOGUS
 #endif
 divty(:,:,nz) = BOGUS
-#endif
-
-
-#ifdef PPVERBOSE
-write (*, *) 'finished divstress_uv'
 #endif
 
 end subroutine divstress_uv

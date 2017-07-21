@@ -64,10 +64,6 @@ integer :: count_all, count_clip
 integer :: j
 #endif
 
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
-
 ! Set coefficients
 opftdelta = opftime*delta
 powcoeff = -1._rprec/8._rprec
@@ -342,9 +338,5 @@ call level_set_Cs_lag_dyn ()
 
 ! Reset variable for use during next set of cs_count timesteps
 if( use_cfl_dt ) lagran_dt = 0._rprec
-
-#ifdef PPVERBOSE
-call exit_sub(sub_name)
-#endif
 
 end subroutine lagrange_Ssim

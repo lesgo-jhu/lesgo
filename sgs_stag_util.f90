@@ -69,10 +69,6 @@ real(rprec) :: const, const2, const3, const4
 integer :: jx, jy, jz
 integer :: jz_min, jz_max
 
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
-
 ! Cs is Smagorinsky's constant. l is a filter size (non-dim.)
 call calc_Sij ()
 
@@ -473,10 +469,6 @@ txx(:, :, nz) = BOGUS
 txy(:, :, nz) = BOGUS
 tyy(:, :, nz) = BOGUS
 tzz(:, :, nz) = BOGUS
-#endif
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
 #endif
 
 end subroutine sgs_stag

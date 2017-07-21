@@ -48,10 +48,6 @@ use mpi_defs, only:mpi_sync_real_array,MPI_SYNC_DOWNUP
 use cfl_util, only : get_max_cfl
 implicit none
 
-#ifdef PPVERBOSE
-character (*), parameter :: sub_name = 'interpolag_Ssim'
-#endif
-
 real(rprec), dimension(3) :: xyz_past
 real(rprec), dimension(ld,ny,lbz:nz) :: tempF_LM, tempF_MM
 #ifdef PPDYN_TN
@@ -62,10 +58,6 @@ integer :: i,j,k,kmin
 real (rprec) :: lcfl
 
 real(rprec), pointer, dimension(:) :: x,y,z
-
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 nullify(x,y,z)
 x => grid % x
@@ -167,10 +159,6 @@ if (mod (jt_total, lag_cfl_count) .eq. 0) then
     print*, 'Lagrangian CFL condition= ', lcfl
 #endif
 endif
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 nullify(x,y,z)
 

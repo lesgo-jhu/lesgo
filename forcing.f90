@@ -159,10 +159,6 @@ use messages, only : error
 use fringe_util
 implicit none
 
-#ifdef PPVERBOSE
-character (*), parameter :: sub_name = 'inflow_cond'
-#endif
-
 integer :: i, i_w
 integer :: istart, istart_w
 integer :: iplateau
@@ -216,10 +212,6 @@ implicit none
 integer :: jx, jy, jz
 integer :: jz_min
 real(rprec) :: RHS, tconst
-
-#ifdef PPVERBOSE
-character(*), parameter :: sub_name='project'
-#endif
 
 ! Caching
 tconst = tadv1 * dt

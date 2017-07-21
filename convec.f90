@@ -52,12 +52,7 @@ else
     jzHi = nz-1     !! can remove after testing
 endif
 
-#ifdef PPVERBOSE
-write (*, *) 'started convec'
-#endif
-
 if( .not. arrays_allocated ) then
-
    allocate( cc_big( ld_big,ny2,nz ) )
    allocate( u_big(ld_big, ny2, lbz:nz) )
    allocate( v_big(ld_big, ny2, lbz:nz) )
@@ -66,7 +61,6 @@ if( .not. arrays_allocated ) then
    allocate( vort2_big( ld_big,ny2,nz ) )
    allocate( vort3_big( ld_big,ny2,nz ) )
    arrays_allocated = .true.
-
 endif
 
 ! Recall dudz, and dvdz are on UVP node for k=1 only
@@ -335,10 +329,6 @@ RHSz(: ,:, 0) = BOGUS
 RHSx(:, :, nz) = BOGUS
 RHSy(:, :, nz) = BOGUS
 if(coord<nproc-1) RHSz(:, :, nz) = BOGUS
-#endif
-
-#ifdef PPVERBOSE
-write (*, *) 'finished convec'
 #endif
 
 end subroutine convec

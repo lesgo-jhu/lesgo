@@ -63,10 +63,6 @@ if( .not. arrays_allocated ) then
     arrays_allocated = .true.
 endif
 
-#ifdef PPVERBOSE
-write (*, *) 'started press_stag_array'
-#endif
-
 if (coord == 0) then
     p(:,:,0) = 0._rprec
 #ifdef PPSAFETYMODE
@@ -290,9 +286,5 @@ dpdz(1:nx, 1:ny, 1:nz-1) = (p(1:nx, 1:ny, 1:nz-1) - p(1:nx, 1:ny, 0:nz-2)) / dz
 if(coord<nproc-1)  dpdz(:,:,nz) = BOGUS
 #endif
 if(coord==nproc-1) dpdz(1:nx,1:ny,nz) = (p(1:nx,1:ny,nz)-p(1:nx,1:ny,nz-1))/ dz
-
-#ifdef PPVERBOSE
-write (*, *) 'finished press_stag_array'
-#endif
 
 end subroutine press_stag_array

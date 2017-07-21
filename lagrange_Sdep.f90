@@ -74,10 +74,6 @@ character (64) :: fnamek
 integer :: count_all, count_clip
 #endif
 
-#ifdef PPVERBOSE
-write (*, *) 'started lagrange_Sdep'
-#endif
-
 ! Set coefficients
 opftdelta = opftime*delta
 powcoeff = -1._rprec/8._rprec
@@ -475,9 +471,5 @@ call level_set_Cs_lag_dyn ()
 
 ! Reset variable for use during next set of cs_count timesteps
 if( use_cfl_dt ) lagran_dt = 0.0_rprec
-
-#ifdef PPVERBOSE
-    write (*, *) 'finished lagrange_Sdep'
-#endif
 
 end subroutine lagrange_Sdep

@@ -13,9 +13,6 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Otherwise, default settings are used
 set(hostname "default")
 
-#--Set global VERBOSE flag;
-set(VERBOSE false)
-
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
 
@@ -207,10 +204,6 @@ if (USE_CGNS)
     link_libraries(cgns hdf5)   
     set(exec_name "${exec_name}-cgns") 
 endif (USE_CGNS)
-
-if (VERBOSE)
-    add_definitions(-DPPVERBOSE)
-endif (VERBOSE)
 
 if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)

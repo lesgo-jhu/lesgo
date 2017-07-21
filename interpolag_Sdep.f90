@@ -57,10 +57,6 @@ integer :: i, j, k, kmin
 real(rprec) :: lcfl
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
-#ifdef PPVERBOSE
-write (*, *) 'started interpolag_Sdep'
-#endif
-
 nullify(x,y,z,zw)
 x  => grid % x
 y  => grid % y
@@ -268,10 +264,6 @@ if (mod (jt_total, lag_cfl_count) .eq. 0) then
     print*, 'Lagrangian CFL condition= ', lcfl
 #endif
 endif
-
-#ifdef PPVERBOSE
-write (*, *) 'finished interpolag_Sdep'
-#endif
 
 nullify(x,y,z,zw)
 
