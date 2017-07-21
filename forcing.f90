@@ -129,8 +129,8 @@ subroutine forcing_induced()
 !
 use types, only : rprec
 #ifdef PPLVLSET
-  use level_set, only : level_set_forcing
-  use sim_param, only : fx, fy, fz
+use level_set, only : level_set_forcing
+use sim_param, only : fx, fy, fz
 #endif
 implicit none
 

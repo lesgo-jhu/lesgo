@@ -30,7 +30,7 @@ use types, only : rprec
 implicit none
 
 private
-public iwm_wallstress, iwm_init, iwm_demalloc,                                 &
+public iwm_wallstress, iwm_init, iwm_finalize,                                 &
     iwm_checkpoint, iwm_read_checkpoint
 
 ! u_tau,x  u_tau,y
@@ -227,7 +227,7 @@ iwm_dt=iwm_ntime_skip*cfl*L_x/nx/uinit
 end subroutine iwm_init
 
 !*******************************************************************************
-subroutine iwm_demalloc
+subroutine iwm_finalize
 !*******************************************************************************
 !
 ! This subroutine deallocates memory used for iwm
@@ -262,7 +262,7 @@ deallocate(iwm_z0)
 deallocate(iwm_Ax)
 deallocate(iwm_Ay)
 
-end subroutine iwm_demalloc
+end subroutine iwm_finalize
 
 
 !*******************************************************************************
