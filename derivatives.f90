@@ -20,7 +20,7 @@
 !*******************************************************************************
 module derivatives
 !*******************************************************************************
-! 
+!
 ! This module contains all of the major subroutines used for computing
 ! derivatives.
 !
@@ -34,12 +34,12 @@ public ddx, ddy, ddxy, filt_da, ddz_uv, ddz_w
 contains
 
 !*******************************************************************************
-subroutine ddx(f,dfdx,lbz)              
+subroutine ddx(f,dfdx,lbz)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
 ! x using spectral decomposition.
-!  
+!
 use types, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
@@ -71,23 +71,22 @@ do jz = lbz, nz
 
     ! Perform inverse transform to get pseudospectral derivative
     call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
-
 enddo
 
 end subroutine ddx
 
 !*******************************************************************************
-subroutine ddy(f,dfdy, lbz)              
+subroutine ddy(f,dfdy, lbz)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
 ! y using spectral decomposition.
-!  
+!
 use types, only : rprec
 use param, only : ld, nx, ny, nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
-implicit none      
+implicit none
 
 integer, intent(in) :: lbz
 real(rprec), dimension(:,:,lbz:), intent(in) :: f
@@ -100,7 +99,7 @@ const = 1._rprec / ( nx * ny )
 ! Loop through horizontal slices
 do jz = lbz, nz
     !  Use dfdy to hold f; since we are doing in place FFTs this is required
-    dfdy(:,:,jz) = const * f(:,:,jz)  
+    dfdy(:,:,jz) = const * f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, dfdy(:,:,jz), dfdy(:,:,jz))
 
     ! Zero padded region and Nyquist frequency
@@ -119,7 +118,7 @@ end do
 end subroutine ddy
 
 !*******************************************************************************
-subroutine ddxy (f, dfdx, dfdy, lbz)              
+subroutine ddxy (f, dfdx, dfdy, lbz)
 !*******************************************************************************
 !
 ! This subroutine computes the partial derivative of f with respect to
@@ -142,7 +141,7 @@ const = 1._rprec / ( nx * ny )
 ! Loop through horizontal slices
 do jz = lbz, nz
     ! Use dfdy to hold f; since we are doing in place FFTs this is required
-    dfdx(:,:,jz) = const*f(:,:,jz)   
+    dfdx(:,:,jz) = const*f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, dfdx(:,:,jz), dfdx(:,:,jz))
 
     ! Zero padded region and Nyquist frequency
@@ -159,15 +158,15 @@ do jz = lbz, nz
     ! Perform inverse transform to get pseudospectral derivative
     call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
     call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
- 
 end do
+
 end subroutine ddxy
 
 !*******************************************************************************
 subroutine filt_da(f,dfdx,dfdy, lbz)
 !*******************************************************************************
 !
-! This subroutine kills the oddball components in f and computes the partial 
+! This subroutine kills the oddball components in f and computes the partial
 ! derivative of f with respect to x and y using spectral decomposition.
 !
 use types, only : rprec
@@ -188,12 +187,12 @@ const = 1._rprec/(nx*ny)
 ! loop through horizontal slices
 do jz = lbz, nz
     ! Calculate FFT in place
-    f(:,:,jz) = const*f(:,:,jz)  
+    f(:,:,jz) = const*f(:,:,jz)
     call dfftw_execute_dft_r2c(forw, f(:,:,jz), f(:,:,jz))
 
     ! Kill oddballs in zero padded region and Nyquist frequency
     f(ld-1:ld,:,jz) = 0._rprec
-    f(:,ny/2+1,jz) = 0._rprec   
+    f(:,ny/2+1,jz) = 0._rprec
 
     ! Use complex emulation of dfdy to perform complex multiplication
     ! Optimized version for real(eye*ky)=0
@@ -203,11 +202,10 @@ do jz = lbz, nz
 
     ! Perform inverse transform to get pseudospectral derivative
     ! The oddballs for derivatives should already be dead, since they are for f
-    ! inverse transform 
+    ! inverse transform
     call dfftw_execute_dft_c2r(back, f(:,:,jz), f(:,:,jz))
     call dfftw_execute_dft_c2r(back, dfdx(:,:,jz), dfdx(:,:,jz))
     call dfftw_execute_dft_c2r(back, dfdy(:,:,jz), dfdy(:,:,jz))
-
 end do
 
 end subroutine filt_da
@@ -216,10 +214,10 @@ end subroutine filt_da
 subroutine ddz_uv(f, dfdz, lbz)
 !*******************************************************************************
 !
-! This subroutine computes the partial derivative of f with respect to z using 
-! 2nd order finite differencing. f is on the uv grid and dfdz is on the w grid. 
-! The serial version provides dfdz(:,:,2:nz), and the value at jz=1 is not 
-! touched. The MPI version provides dfdz(:,:,1:nz), except at the bottom 
+! This subroutine computes the partial derivative of f with respect to z using
+! 2nd order finite differencing. f is on the uv grid and dfdz is on the w grid.
+! The serial version provides dfdz(:,:,2:nz), and the value at jz=1 is not
+! touched. The MPI version provides dfdz(:,:,1:nz), except at the bottom
 ! process it only supplies 2:nz
 !
 use types, only : rprec
@@ -246,7 +244,7 @@ dfdz(:,:,0) = BOGUS
 ! if coord == 0, dudz(1) will be set in wallstress
 do jz = 1, nz
 do jy = 1, ny
-do jx = 1, nx    
+do jx = 1, nx
     dfdz(jx,jy,jz) = const*(f(jx,jy,jz)-f(jx,jy,jz-1))
 end do
 end do
@@ -255,12 +253,12 @@ end do
 ! Not necessarily accurate at top and bottom boundary
 ! Set to BOGUS just to be safe
 #ifdef PPSAFETYMODE
-    if (coord == 0) then
-        dfdz(:,:,1) = BOGUS
-    end if
-    if (coord == nproc-1) then
-        dfdz(:,:,nz) = BOGUS
-    end if
+if (coord == 0) then
+    dfdz(:,:,1) = BOGUS
+end if
+if (coord == nproc-1) then
+    dfdz(:,:,nz) = BOGUS
+end if
 #endif
 
 end subroutine ddz_uv
@@ -269,10 +267,10 @@ end subroutine ddz_uv
 subroutine ddz_w(f, dfdz, lbz)
 !*******************************************************************************
 !
-! This subroutine computes the partial derivative of f with respect to z using 
-! 2nd order finite differencing. f is on the w grid and dfdz is on the uv grid. 
-! The serial version provides dfdz(:,:,1:nz-1), and the value at jz=1 is not 
-! touched. The MPI version provides dfdz(:,:,0:nz-1), except at the top and 
+! This subroutine computes the partial derivative of f with respect to z using
+! 2nd order finite differencing. f is on the w grid and dfdz is on the uv grid.
+! The serial version provides dfdz(:,:,1:nz-1), and the value at jz=1 is not
+! touched. The MPI version provides dfdz(:,:,0:nz-1), except at the top and
 ! bottom processes, which each has has 0:nz, and 1:nz-1, respectively.
 !
 use types, only : rprec
