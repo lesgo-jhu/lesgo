@@ -24,8 +24,6 @@ module messages
 ! The messages module provides interfaces for subroutines that write
 ! information to standard out:
 !
-!   enter_sub:  Used in verbose mode to indicate when a subroutine starts
-!   exit_sub:   Used in verbose mode to indicate when a subroutine ends
 !   error:      writes an error message and aborts the program
 !   warn:       writes a warning message, but continues to run the program
 !   mesg:       writes a simple message
@@ -39,7 +37,7 @@ implicit none
 save
 private
 
-public :: enter_sub, exit_sub, error, warn, mesg
+public :: error, warn, mesg
 public :: n_l
 
 integer, parameter :: n_blanks = 32
@@ -65,30 +63,6 @@ interface mesg
 end interface
 
 contains
-
-!*******************************************************************************
-subroutine enter_sub (name)
-!*******************************************************************************
-character(*), intent (in) :: name
-integer :: n
-
-call_level = call_level + 1
-n = min (n_blanks, call_level-1)
-write (lun, '(1x,a)') blanks(1:n) // name // ': started'
-
-end subroutine enter_sub
-
-!*******************************************************************************
-subroutine exit_sub (name)
-!*******************************************************************************
-character(*), intent (in) :: name
-integer :: n
-
-n = min (n_blanks, call_level-1)
-write (lun, '(1x,a)') blanks(1:n) // name // ': done'
-call_level = call_level - 1
-
-end subroutine exit_sub
 
 !*******************************************************************************
 subroutine message_a (name, msg)
