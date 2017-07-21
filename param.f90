@@ -268,11 +268,6 @@ integer :: zplane_nstart=10000, zplane_nend=50000, zplane_nskip=10000
 integer :: zplane_nloc=1
 real(rprec), allocatable, dimension(:) :: zplane_loc
 
-logical :: spectra_calc=.false.
-integer :: spectra_nstart=10000, spectra_nend=50000, spectra_nskip=100
-integer :: spectra_nloc=1
-real(rprec), allocatable, dimension(:) :: spectra_loc
-
 ! Outputs histograms of {Cs^2, Tn, Nu_t, ee} for z-plane locations given below
 logical :: sgs_hist_calc = .false.
 logical :: sgs_hist_cumulative = .false.

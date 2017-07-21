@@ -568,16 +568,6 @@ do
                 read (buff(equal_pos+1:), *) zplane_nskip
             case ('ZPLANE_LOC')
                 call parse_vector( buff(equal_pos+1:), zplane_nloc, zplane_loc )
-            case ('SPECTRA_CALC')
-                read (buff(equal_pos+1:), *) spectra_calc
-            case ('SPECTRA_NSTART')
-                read (buff(equal_pos+1:), *) spectra_nstart
-            case ('SPECTRA_NEND')
-                read (buff(equal_pos+1:), *) spectra_nend
-            case ('SPECTRA_NSKIP')
-                read (buff(equal_pos+1:), *) spectra_nskip
-            case ('SPECTRA_LOC')
-                call parse_vector(buff(equal_pos+1:), spectra_nloc, spectra_loc)
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

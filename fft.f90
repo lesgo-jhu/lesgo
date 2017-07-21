@@ -22,7 +22,7 @@
 !*******************************************************************************
 module fft
 use types, only : rprec
-use param, only : ld,lh,ny,ld_big, ny2, spectra_calc
+use param, only : ld, lh, ny, ld_big, ny2
 use iso_c_binding
 implicit none
 include 'fftw3.f'
@@ -30,11 +30,10 @@ save
 
 public :: padd, unpadd, init_fft
 
-public :: kx, ky, k2, forw_spectra
+public :: kx, ky, k2
 public :: forw, back, forw_big, back_big
 
 real(rprec), allocatable, dimension(:,:) :: kx, ky, k2
-integer*8 :: forw_spectra
 integer*8 :: forw, back, forw_big, back_big
 real (rprec), dimension (:, :), allocatable :: data, data_big
 
