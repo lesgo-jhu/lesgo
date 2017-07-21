@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2011-2013  Johns Hopkins University
+!!  Copyright (C) 2011-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!***********************************************************************
+!*******************************************************************************
 subroutine initialize()
-!***********************************************************************
+!*******************************************************************************
 !
 ! This subroutine is a driver that calls all top-level initialization
 ! subroutines.
@@ -28,8 +28,8 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use iwmles !xiang for integral wall model initialization
-use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
+use iwmles
+use param, only : lbc_mom
 !use param, only : sgs_hist_calc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
@@ -78,7 +78,7 @@ implicit none
 character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
 
 ! Create output directory
-if( coord == 0 ) call system( make_output_dir )
+if (coord == 0) call system( make_output_dir )
 
 ! Initialize MPI
 #ifdef PPMPI
@@ -89,7 +89,7 @@ if (nproc /= 1) then
     stop
 end if
 if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
+    write (*, *) 'inconsistent use of USE_MPI and CPP MPI flag'
     stop
 end if
 chcoord = ''
@@ -104,21 +104,20 @@ call openfiles()
 
 if( jt_total >= nsteps ) then
 
-   if(coord == 0 ) write(*,'(a)') 'Full number of time steps reached'
-   ! MPI:
+    if (coord == 0) write(*,'(a)') 'Full number of time steps reached'
 #ifdef PPMPI
-   ! First make sure everyone in has finished
-   call mpi_barrier( MPI_COMM_WORLD, ierr )
-   call mpi_finalize (ierr)
+    ! First make sure everyone in has finished
+    call mpi_barrier( MPI_COMM_WORLD, ierr )
+    call mpi_finalize (ierr)
 #endif
-   stop
+    stop
 endif
 
 ! Write simulation data to file
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
 ! the input was read correctly and is sane.
-if(coord == 0) call param_output()
+if (coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
@@ -133,20 +132,18 @@ call output_init()
 
 ! Initialize turbines
 #ifdef PPTURBINES
-call turbines_init()    !must occur before initial is called
+call turbines_init()    ! must occur before initial is called
 #endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-  call atm_lesgo_initialize ()
+call atm_lesgo_initialize()
 #endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 #ifdef PPHIT
-    ! This initializes HIT Data
-    ! The input is read from lesgo.conf
-    write(*,*) 'Inflow Condition using HIT Data'
-    call initialize_HIT()
+! This initializes HIT Data
+! The input is read from lesgo.conf
+write(*,*) 'Inflow Condition using HIT Data'
+call initialize_HIT()
 #endif
 
 ! If using level set method
@@ -166,11 +163,9 @@ call test_filter_init( )
 ! Initialize velocity field
 call initial()
 
-!memory allocation for integral wall model xiang
-if(lbc_mom == 3)then
-  if(coord==0) write(*,*) 'iwm: start memory allocation...'
-  if(coord==0) call iwm_malloc()
-  if(coord==0) write(*,*) 'iwm: finish memory allocation...'
+! Initialize integral wall model xiang
+if (lbc_mom == 3) then
+    if (coord==0) call iwm_malloc()
 endif
 
 ! Initialize concurrent precursor stuff
@@ -185,13 +180,13 @@ call initialize_cps()
 
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then
-   if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-      if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.'
-      dt = get_cfl_dt()
-      dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
-      dt_dim = dt * z_i / u_star
-   endif
+    if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
+        if (coord == 0) write(*,*)                                             &
+            '--> Using 1st order Euler for first time step.'
+        dt = get_cfl_dt()
+        dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+        dt_dim = dt * z_i / u_star
+    endif
 endif
 
-return
 end subroutine initialize

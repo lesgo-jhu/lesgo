@@ -30,7 +30,7 @@ use types, only : rprec
 implicit none
 
 private
-public iwm_wallstress, iwm_malloc, iwm_demalloc,                               &
+public iwm_wallstress, iwm_init, iwm_demalloc,                                 &
     iwm_checkpoint, iwm_read_checkpoint
 
 ! u_tau,x  u_tau,y
@@ -125,7 +125,7 @@ end subroutine iwm_wallstress
 
 !xiang:
 !*******************************************************************************
-subroutine iwm_malloc
+subroutine iwm_init
 !*******************************************************************************
 !
 ! This subroutine allocates memory and initializes everything with plug flow
@@ -224,7 +224,7 @@ iwm_Ay = 0._rprec
 ! time step seen by the iwm
 iwm_dt=iwm_ntime_skip*cfl*L_x/nx/uinit
 
-end subroutine iwm_malloc
+end subroutine iwm_init
 
 !*******************************************************************************
 subroutine iwm_demalloc
