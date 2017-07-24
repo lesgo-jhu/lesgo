@@ -61,7 +61,9 @@ contains
 !     procedure, public :: write_to_file
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
-    procedure, public :: advance
+    procedure, private :: advance_val
+    procedure, private :: advance_noval
+    generic, public :: advance => advance_val, advance_noval
     procedure, private :: rhs
     procedure, public :: adjoint_advance
 end type wake_model_t
@@ -75,7 +77,8 @@ contains
 
 !*******************************************************************************
 function constructor_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline) result(this)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)          &
+    result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
@@ -84,9 +87,10 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 
 call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 end function constructor_val
 !
 ! !*******************************************************************************
@@ -106,7 +110,7 @@ end function constructor_val
 
 !*******************************************************************************
 subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
-    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 !*******************************************************************************
 implicit none
 class(wake_model_t), intent(inout) :: this
@@ -114,11 +118,14 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 
 ! Call base class initializer
-call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k,&
-    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta,     &
+    i_k, i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,      &
+    i_torque_gain)
 
+! Allocate
 allocate( this%du(this%N, this%Nx) )
 allocate( this%u(this%Nx, this%Ny) )
 allocate( this%uhat(this%N) )
@@ -131,6 +138,7 @@ allocate( this%beta(this%N)  )
 allocate( this%lambda_prime(this%N)  )
 allocate( this%gen_torque(this%N)  )
 
+! initialize
 this%du = 0._rprec
 this%u = this%U_infty
 this%uhat = this%U_infty
@@ -302,7 +310,21 @@ end subroutine makeDimensional
 ! end subroutine print
 
 !*******************************************************************************
-subroutine advance(this, beta, gen_torque, dt)
+subroutine advance_noval(this, dt)
+!*******************************************************************************
+! Note: every input value is for time step n. Values at time step n-1 were saved
+! during the previous call the advance and are used before being reassigned.
+implicit none
+class(wake_model_t), intent(inout) :: this
+real(rprec), intent(in) :: dt
+
+! call with current values and torque gain
+call this%advance_val(this%beta, this%torque_gain * this%omega**2, dt)
+
+end subroutine advance_noval
+
+!*******************************************************************************
+subroutine advance_val(this, beta, gen_torque, dt)
 !*******************************************************************************
 ! Note: every input value is for time step n. Values at time step n-1 were saved
 ! during the previous call the advance and are used before being reassigned.
@@ -355,7 +377,7 @@ do i = 1, this%N
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 end do
 
-end subroutine advance
+end subroutine advance_val
 
 !*******************************************************************************
 function rhs(this, du, f, i) result(ddudt)
@@ -377,7 +399,7 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_advance(this, beta, alpha, dt, Udu, Uw, Wdu, Wu, Ww,     &
+subroutine adjoint_advance(this, beta, alpha, dt, Udu, Uw, Wdu, Wu, Ww,        &
     Bdu, Bu, Bw, Adu, Au, Aw, dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
 !*******************************************************************************
 implicit none

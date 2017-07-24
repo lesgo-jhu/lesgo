@@ -58,20 +58,18 @@ integer :: np
 integer :: ip, coords(1)
 integer :: localComm
 
-!--check for consistent preprocessor & param.f90 definitions of 
+!--check for consistent preprocessor & param.f90 definitions of
 !  MPI and $MPI
 if (.not. USE_MPI) then
   write (*, *) 'inconsistent use of USE_MPI and $MPI'
   stop
 end if
 
-call mpi_init (ierr)
-
 ! Set the local communicator
 #ifdef PPCPS
     ! Create the local communicator (split from MPI_COMM_WORLD)
     ! This also sets the globally defined intercommunicator (bridge)
-    call create_mpi_comms_cps( localComm ) 
+    call create_mpi_comms_cps( localComm )
 #else
     localComm = MPI_COMM_WORLD
 #endif
@@ -85,10 +83,10 @@ if (np /= nproc) then
                ' not equal to nproc = ', nproc
   stop
 else
-   nproc = np 
+   nproc = np
 endif
 
-  !--set up a 1d cartesian topology 
+  !--set up a 1d cartesian topology
 call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
   .false., comm, ierr)
 
@@ -141,7 +139,7 @@ end subroutine initialize_mpi
 !**********************************************************************
 subroutine mpi_sync_real_array( var, lbz, isync )
 !**********************************************************************
-! 
+!
 ! This subroutine provides a generic method for syncing arrays in
 ! lesgo. This method applies to arrays indexed in the direction starting
 ! from both 0 and 1. For arrays starting from index of 1, only the
@@ -156,12 +154,12 @@ subroutine mpi_sync_real_array( var, lbz, isync )
 !
 ! Arguments:
 !
-! var   : three dimensional array to be sync'd accross processors 
+! var   : three dimensional array to be sync'd accross processors
 ! lbz   : the lower bound of var for the z index; its specification resolves
 !         descrepencies between arrays indexed starting at 0 from those at 1
-! isync : flag for determining the type of synchronization and takes on values, 
-!         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS 
-!         module. 
+! isync : flag for determining the type of synchronization and takes on values,
+!         MPI_SYNC_DOWN, MPI_SYNC_UP, or MPI_SYNC_DOWNUP from the MPI_DEFS
+!         module.
 !
 use types, only : rprec
 use mpi
@@ -237,7 +235,7 @@ implicit none
 call mpi_sendrecv (var(:,:,1), mpi_datasize, MPI_RPREC, down, 1,  &
   var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 1,   &
   comm, status, ierr)
-    
+
 return
 
 end subroutine sync_down
@@ -253,9 +251,8 @@ call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 2,  &
 
 return
 
-end subroutine sync_up 
+end subroutine sync_up
 
 end subroutine mpi_sync_real_array
 
 end module mpi_defs
-

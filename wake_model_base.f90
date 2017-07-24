@@ -65,6 +65,8 @@ type wake_model_base_t
     real(rprec) :: rho = 0
     ! Rotor inertia
     real(rprec) :: inertia = 0
+    ! default torque gain
+    real(rprec) :: torque_gain
     ! grid spacing
     real(rprec) :: dx = 0
     real(rprec) :: dy = 0
@@ -76,7 +78,8 @@ type wake_model_base_t
     ! Specifies whether the wake model is in a dimensionless state
     logical :: isDimensionless = .false.
     ! Dimensional scales
-    real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0, TORQUE = 0, POWER = 0
+    real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0
+    real(rprec) :: TORQUE = 0, POWER = 0
     ! Splines for Ctp and Cpp
     type(bi_pchip_t) Ctp_spline, Cpp_spline
     ! Determine whether a turbine is waked or not
@@ -98,7 +101,8 @@ contains
 
 !*******************************************************************************
 function constructor_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline) result(this)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)          &
+    result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
@@ -107,15 +111,16 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 
 call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 
 end function constructor_val
 
 !*******************************************************************************
 subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
-    i_rho,i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_rho,i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 !*******************************************************************************
 implicit none
 class(wake_model_base_t), intent(inout) :: this
@@ -127,6 +132,7 @@ type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec) :: xstart, xend, ystart, yend
 integer, dimension(1) :: temp_int
 real(rprec) :: R
+real(rprec), intent(in) :: i_torque_gain
 
 ! Allocate based on number of turbines
 this%N = size(i_sx)
@@ -157,7 +163,7 @@ allocate( this%f(this%N, this%Nx) )
 allocate( this%Istart(this%N, this%Nx) )
 allocate( this%Iend(this%N, this%Nx) )
 allocate( this%Isum(this%N, this%Nx) )
-allocate( this%waked(this%N) ) 
+allocate( this%waked(this%N) )
 
 ! Assign input arguments
 this%sx = i_sx
@@ -168,6 +174,7 @@ this%k = i_k
 this%Dia = i_Dia
 this%rho = i_rho
 this%inertia = i_inertia
+this%torque_gain = i_torque_gain
 
 ! Normalization constants
 this%VELOCITY = i_U_infty
@@ -290,6 +297,7 @@ if (.not.this%isDimensionless) then
     this%rho = this%rho / this%MASS * this%LENGTH**3
     ! units TORQUE*T^2
     this%inertia = this%inertia / ( this%TORQUE * this%TIME**2 )
+    this%torque_gain = this%torque_gain / ( this%TORQUE * this%TIME**2 )
 end if
 end subroutine makeDimensionless
 
@@ -322,6 +330,7 @@ if (this%isDimensionless) then
     this%rho = this%rho * this%MASS / this%LENGTH**3
     ! units TORQUE*T^2
     this%inertia = this%inertia * this%TORQUE * this%TIME**2
+    this%torque_gain = this%torque_gain *  this%TORQUE * this%TIME**2
 end if
 end subroutine makeDimensional
 

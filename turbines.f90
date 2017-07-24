@@ -88,7 +88,7 @@ real(rprec), public :: inertia_all
 ! Torque gain (kg*m^2)
 real(rprec), public :: torque_gain
 ! time constant for estimating freestream velocity [seconds]
-real(rprec), public :: tau_U_infty
+real(rprec), public :: tau_U_infty = 300
 ! std. deviation of noise of velocity deficit
 real(rprec), public :: sigma_du = 0.5
 ! std. deviation of noise of wake expansion coefficient
@@ -98,7 +98,7 @@ real(rprec), public :: sigma_uhat = 1.0
 ! std. deviation of noise of rotational speed
 real(rprec), public :: sigma_omega = 0.01
 ! Number of members in ensemble
-integer, public :: num_ensemble = 250
+integer, public :: num_ensemble = 50
 
 ! Wake model
 type(wake_model_estimator_t) :: wm
@@ -140,7 +140,7 @@ integer, dimension(:), allocatable :: wm_fid
 real(rprec) :: eps
 
 ! Commonly used indices
-integer :: i,j,k,i2,j2,k2,l,s
+integer :: i, j, k, i2, j2, k2, l, s
 integer :: k_start, k_end
 
 ! Variables to keep track of which processors have turbines
@@ -643,7 +643,7 @@ if (coord == 0) then
         ! Use the previous step's values.
         const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
         p_omega = p_omega + dt_dim / inertia_all *                             &
-                (const*(p_u_d_T*u_star)**3/p_omega - torque_gain*p_omega**2)
+                (const*(p_u_d_T*u_star)**3/p_omega - 0.5*torque_gain*p_omega**2)
 
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -657,13 +657,13 @@ if (coord == 0) then
             * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
         call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
             * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
-        
+
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
         !write force to array that will be transferred via MPI
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
         disk_force(s) = p_f_n
-        
+
         disk_force(s) = 0._rprec
 
         !write current step's values to file
@@ -711,25 +711,25 @@ if (coord .eq. nproc-1) then
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 end if
-! 
-! ! Update wake model
-! if (coord == 0) then
-!     allocate( beta(nloc) )
-!     beta = 0._rprec     
-!     call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
-!         torque_gain*wind_farm%turbine(:)%omega**2, beta,                       &
-!         wind_farm%turbine(:)%omega, dt_dim)
-! !     write(*,*) "farm:", wind_farm%turbine(:)%omega
-! !     write(*,*) "model:", wm%wm%omega
-!     !write values to file
-! !     if (modulo (jt_total, tbase) == 0) then
-! !         do s = 1, nloc
-! !             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
-! !                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
-! !         end do
-! !     end if
-!     deallocate(beta)
-! end if
+
+! Update wake model
+if (coord == 0) then
+    allocate( beta(nloc) )
+    beta = 0._rprec
+    call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
+        torque_gain*wind_farm%turbine(:)%omega**2, beta,                       &
+        wind_farm%turbine(:)%omega, dt_dim)
+    ! write(*,*) "farm:", wind_farm%turbine(:)%omega
+    ! write(*,*) "model:", wm%wm%omega
+    !write values to file
+!     if (modulo (jt_total, tbase) == 0) then
+!         do s = 1, nloc
+!             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
+!                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
+!         end do
+!     end if
+    deallocate(beta)
+end if
 
 ! Cleanup
 deallocate(w_uv)
@@ -1249,9 +1249,9 @@ end do
 ! Create wake model
 wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,               &
     0.25*dia_all*z_i, wm_k, dia_all*z_i, rho, inertia_all, 2*nx, 2*ny,         &
-    wm_Ct_prime_spline, wm_Cp_prime_spline, sigma_du, sigma_k, sigma_omega,    &
-    sigma_uhat, tau_U_infty)
-call wm%generate_initial_ensemble(torque_gain)
+    wm_Ct_prime_spline, wm_Cp_prime_spline,  torque_gain, sigma_du, sigma_k,   &
+    sigma_omega, sigma_uhat, tau_U_infty)
+call wm%generate_initial_ensemble()
 
 ! Create output files
 

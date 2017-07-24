@@ -35,7 +35,7 @@ type :: wake_model_estimator_t
     type(wake_model_t), dimension(:), allocatable :: ensemble
     type(wake_model_t) :: wm
     integer :: Ne, Nm, Ns
-    real(rprec), dimension(:,:), allocatable :: A, Aprime, Ahat, Ahatprime 
+    real(rprec), dimension(:,:), allocatable :: A, Aprime, Ahat, Ahatprime
     real(rprec), dimension(:,:), allocatable :: E, D, Dprime
     real(rprec), dimension(:), allocatable :: Abar, Ahatbar
     real(rprec) :: sigma_du, sigma_k, sigma_omega, sigma_uhat
@@ -43,7 +43,10 @@ type :: wake_model_estimator_t
 contains
     procedure, public :: initialize_val
     procedure, public :: advance
-    procedure, public :: advance_ensemble
+    procedure, private :: advance_ensemble_val
+    procedure, private :: advance_ensemble_noval
+    generic, public :: advance_ensemble => advance_ensemble_val,               &
+        advance_ensemble_noval
     procedure, public :: generate_initial_ensemble
 end type wake_model_estimator_t
 
@@ -56,7 +59,7 @@ contains
 
 !*******************************************************************************
 function constructor_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
-    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,                  &
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain,   &
     i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
@@ -66,19 +69,20 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Ne, i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 
 call this%initialize_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
-    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,                  &
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain,   &
     i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
-    
+
 end function constructor_val
 
 !*******************************************************************************
 subroutine initialize_val(this, i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k,     &
     i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,           &
-    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+    i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
 !*******************************************************************************
 use param, only : coord
 use grid_m
@@ -88,6 +92,7 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Ne, i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 integer :: i
@@ -100,15 +105,15 @@ this%sigma_uhat = i_sigma_uhat
 this%tau = i_tau
 
 ! Create wake model
-this%wm = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k,                    &
-    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
-    
+this%wm = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,      &
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
+
 ! Create ensemble
 this%Ne = i_Ne
 allocate( this%ensemble(this%Ne) )
 do i = 1, this%Ne
-    this%ensemble(i) = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k,       &
-        i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    this%ensemble(i) = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,&
+        i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 end do
 
 ! Allocate filter matrices
@@ -127,13 +132,12 @@ allocate( this%Dprime(this%Nm, this%Ne) )
 end subroutine initialize_val
 
 !*******************************************************************************
-subroutine generate_initial_ensemble(this, torque_gain)
+subroutine generate_initial_ensemble(this)
 !*******************************************************************************
 use util, only : random_normal
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
-real(rprec), intent(in) :: torque_gain
-real(rprec), parameter :: cfl = 0.99
+real(rprec), parameter :: cfl = 0.05
 real(rprec) :: dt, FTT
 integer:: i, j, N, Nx, jstart, jend
 real(rprec), dimension(:), allocatable :: beta
@@ -155,32 +159,32 @@ Nx = this%wm%Nx
 allocate( beta(N) )
 beta = 0._rprec
 
-! Do at least 1 FTT of simulations to get good ensemble statistics  
+! Do at least 1 FTT of simulations to get good ensemble statistics
 do i = 1, floor(FTT / dt)
-    call this%advance_ensemble(beta, torque_gain*this%wm%omega**2, dt)
+    call this%advance_ensemble(dt)
+    ! write(*,*) sum(this%ensemble(1)%Phat), sum(this%ensemble(2)%Phat)
 end do
 
-! call advance_ensemble(this, beta, torque_gain*this%wm%omega**2, dt)
-! 
-! ! Place ensemble into a matrix with each member in a column
-! this%Abar = 0
-! this%Ahatbar = 0
-! do i = 1, this%Ne
-!     do j = 1, N
-!         jstart = (j-1)*Nx+1
-!         jend   = j*Nx
-!         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
-!     end do
-!     this%A(Nx*N+1:,i) = this%ensemble(i)%k(1:N-1)
-!     this%Ahat(:,i)    = this%ensemble(i)%uhat
-!     this%Abar         = this%Abar + this%A(:,i) / this%Ne
-!     this%Ahatbar      = this%Ahatbar + this%Ahat(:,i) / this%Ne
-! end do
-! do j = 1, this%Ne
-!     this%Aprime(:,j) = this%A(:,j) - this%Abar
-!     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
-! end do
-    
+! Place ensemble into a matrix with each member in a column
+this%Abar = 0
+this%Ahatbar = 0
+do i = 1, this%Ne
+    do j = 1, N
+        jstart = (j-1)*Nx+1
+        jend   = j*Nx
+        this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+    end do
+    this%A(Nx*N+1:Nx*(N+1),i) = this%ensemble(i)%omega(:)
+    this%A(Nx*(N+1)+1:,i) = this%ensemble(i)%k(1:N-1)
+    this%Ahat(:,i) = this%ensemble(i)%uhat
+    this%Abar = this%Abar + this%A(:,i) / this%Ne
+    this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
+end do
+do j = 1, this%Ne
+    this%Aprime(:,j) = this%A(:,j) - this%Abar
+    this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+end do
+
 end subroutine generate_initial_ensemble
 
 !*******************************************************************************
@@ -214,6 +218,9 @@ if (size(gen_torque) /= N) then
     call error('wake_model_t.advance','gen_torque must be size N')
 end if
 
+write(*,*) "um: ", um
+write(*,*) "uhat: ", this%wm%uhat
+
 ! Calculate noisy measurements
 this%E = 0._rprec
 do i = 1, N
@@ -236,7 +243,7 @@ this%Dprime = this%D - this%Ahat
 this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +         &
     matmul(this%E, transpose(this%E))), this%Dprime))
-    
+
 ! Compute mean
 this%Abar = 0._rprec
 do i = 1, this%Ne
@@ -247,9 +254,12 @@ end do
 Uinftyi = 0._rprec
 N_unwaked = this%wm%N - this%wm%Nwaked
 alpha = dt / (this%tau + dt)
+write(*,*) "tau = ", this%tau
+write(*,*) "alpha = ", alpha
 do i = 1, this%wm%N
     if (.not.this%wm%waked(i)) then
         Uinftyi = Uinftyi + (4._rprec + this%wm%Ctp(i))/4._rprec*um(i)/N_unwaked
+        write(*,*) "Uinftyi_intermediate:", Uinftyi
     end if
 end do
 this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
@@ -257,7 +267,7 @@ this%wm%VELOCITY = this%wm%U_infty
 this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
 this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
 this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
-write(*,*) this%wm%U_infty
+write(*,*) "Ctp:", this%wm%Ctp
 
 ! Fill into objects
 do i = 1, this%Ne
@@ -310,7 +320,7 @@ end do
 end subroutine advance
 
 !*******************************************************************************
-subroutine advance_ensemble(this, beta, gen_torque, dt)
+subroutine advance_ensemble_val(this, beta, gen_torque, dt)
 !*******************************************************************************
 use param, only : pi
 use util, only  : random_normal
@@ -324,7 +334,7 @@ integer :: i, j, N
 ! always safeguard against negative k's, du's, and omega's
 N = this%wm%N
 do i = 1, this%Ne
-    do j = 1,N
+    do j = 1, N
         this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                      &
             + sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
         this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)                &
@@ -333,7 +343,6 @@ do i = 1, this%Ne
             0._rprec)
         this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
             + sqrt(dt) * this%sigma_omega * random_normal(), 0._rprec)
-                              
     end do
     this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
     call this%ensemble(i)%compute_wake_expansion
@@ -341,8 +350,41 @@ do i = 1, this%Ne
 end do
 call this%wm%compute_wake_expansion
 call this%wm%advance(beta, gen_torque, dt)
-    
-end subroutine advance_ensemble
+
+end subroutine advance_ensemble_val
+
+!*******************************************************************************
+subroutine advance_ensemble_noval(this, dt)
+!*******************************************************************************
+use param, only : pi
+use util, only  : random_normal
+implicit none
+class(wake_model_estimator_t), intent(inout) :: this
+real(rprec), intent(in) :: dt
+integer :: i, j, N
+
+! Advance step for objects
+! always safeguard against negative k's, du's, and omega's
+N = this%wm%N
+do i = 1, this%Ne
+    do j = 1, N
+        this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                      &
+            + sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
+        this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)                &
+            + sqrt(dt) * this%sigma_du * random_normal()                       &
+            * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
+            0._rprec)
+        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
+            + sqrt(dt) * this%sigma_omega * random_normal(), 0._rprec)
+    end do
+    this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
+    call this%ensemble(i)%compute_wake_expansion
+    call this%ensemble(i)%advance(dt)
+end do
+call this%wm%compute_wake_expansion
+call this%wm%advance(dt)
+
+end subroutine advance_ensemble_noval
 
 
 end module wake_model_estimator
