@@ -134,6 +134,12 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+    ! The function G=1/2 * Cl * c * Vmag^2
+    real(rprec), allocatable, dimension(:,:,:) :: G
+    ! The derivative of G
+    real(rprec), allocatable, dimension(:,:,:) :: dG
+    ! Cl base for the correction
+    real(rprec), allocatable, dimension(:,:,:) :: Cl_b
 
     ! These variables are to make corrections based on optimum value of epsilon
     real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt
@@ -843,8 +849,12 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
-!~     allocate(turbineArray(i) % Gamma(numBl,                              &
-!~              numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % G(numBl,                                        &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % dG(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl_b(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
     allocate(turbineArray(i) % bladeVectorDummy(numBl,                         &

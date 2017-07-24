@@ -443,8 +443,6 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
 
-
-
 !~  call myClock % start()
     do i=1,numberOfTurbines
 !~         if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
@@ -462,7 +460,10 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~                     forceFieldUV(i) % force(1,c) * dx *dy * dz * z_i**2*u_star**2
 !~             endif
 !~         enddo
-        
+
+        ! Compute the correction for the Cl coefficient
+        call atm_compute_cl_correction(i)
+            
     enddo
     
 !~         totForce=0.
@@ -809,6 +810,9 @@ endif
     
         endif
     endif
+
+!~ ! Compute the correction for the Cl coefficient
+!~ call atm_compute_cl_correction(i)
 
 
 end subroutine atm_lesgo_force
