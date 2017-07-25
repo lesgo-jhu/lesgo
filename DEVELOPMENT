@@ -1,9 +1,21 @@
-Copyright (C) 2009-2016  Johns Hopkins University
-
-Copying and distribution of this file, with or without modification,
-are permitted in any medium without royalty provided the copyright
-notice and this notice are preserved.  This file is offered as-is,
-without any warranty.
+!!
+!!  Copyright (C) 2009-2016  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
 
 ================================================================================
                    TO DO LIST
@@ -24,7 +36,7 @@ ITEMS:
      CS - should work on njord, panoramix, and marcc. Ready for testing.
      JB - successfully tested on njord.
 
-(II) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
+(CC) Remove deprecated preprocessor flags DEBUG, VERBOSE, DBLPREC
      Assigned to everyone
      TM - removed DEBUG
      CS - removed DBLPREC and DEVEL(never used anyway)
@@ -39,11 +51,12 @@ ITEMS:
 (CC) Remove FFTW2 support
      Assigned to JB
 
-(CC) Fix some IO problems caused by removing Tecryte support
+(II) Fix some IO problems caused by removing Tecryte support
      Assigned to TM
      Added points writing capabilities.
      Velocity as a function of time is done by having a single file
      per point called point{number}.dat
+     This still needs to be completed for the binary output
 
 (NN) Interpolation from restart files to allow changes in domain size,
      grid size, and domain decomposition for parallelization. 
@@ -51,6 +64,7 @@ ITEMS:
 
 (CC) Include matlab functions for reading binary output files. 
      Assigned to JB
+     After changes to output files for consistency.
 
 (II) Related to task above (matlab functions for reading binary output files),
       add a 'post_processing' folder which includes basic utilities for reading
@@ -81,14 +95,15 @@ ITEMS:
       simulation to blow up.
       Assigned to no one.
       
-(CC) Fix compilation issues with level set. Tecryte will have to be disabled and replaced
-     by native fortran output. Assigned to CS.
+(CC) Fix compilation issues with level set. Tecryte will have to be disabled and
+     replaced by native fortran output. Assigned to CS.
      
-(II) Cleanup README:
+(CC) Cleanup README:
       CS - cleaned up removed features
-       - fix description of point IO
+      CS - fixed description of point IO
        
-(NN) Cleanup little/big endian read and write. These are inconsistently used in the code.
+(CC) Cleanup little/big endian read and write. These are inconsistently used in 
+     the code.
 
 ================================================================================
                    DEVELOPER NOTES
@@ -122,6 +137,7 @@ ITEMS:
 ================================================================================
 1. Subgrid models 2, 3, and 4 appear to be broken at the moment
 2. The spectra calculations are broken (jb)
+3. The sgs histograms are disabled (This uses tecplot anyway) (cs)
 
 ================================================================================
                    REMOVED FEATURES

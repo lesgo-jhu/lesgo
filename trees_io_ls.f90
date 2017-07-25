@@ -349,7 +349,7 @@ subroutine draw_tree_array (name)
 implicit none
 
 character (*), intent (in) :: name
-
+character(1024) :: msg
 character (*), parameter :: sub_name = mod_name //      &
                                            '.draw_tree_array'
 
@@ -554,7 +554,7 @@ subroutine read_ta_data (name)
 implicit none
 
 character (*), intent (in) :: name
-
+character(1024) :: msg
 character (*), parameter :: sub_name = mod_name // '.read_ta_data'
 
 integer, parameter :: lun = 1
@@ -739,7 +739,7 @@ subroutine write_ta_data (name)
 implicit none
 
 character (*), intent (in) :: name
-
+character(1024) :: msg
 character (*), parameter :: sub_name = mod_name // '.write_ta_data'
 
 integer, parameter :: lun = 1

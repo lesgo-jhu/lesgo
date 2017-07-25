@@ -1,0 +1,58 @@
+!!
+!!  Copyright (C) 2009-xxxx  Johns Hopkins University
+!!
+!!  This file is part of lesgo.
+!!
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
+!!
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
+!!
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+!!
+
+
+Proposed Guidelines:
+
+License Heading
+    All source files must begin with the licensing information shown at the top 
+    of this file.
+
+Maximum line width
+    All lines must be less than 80 characters in width. A long line in fortran
+    source files should be continued with an ampersand. For example:
+    
+        k = (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10)  &
+            * (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10)
+            
+Tabs vs. spaces
+    Use spaces for all alignments. Indentation uses 4 spaces instead of a tab.
+    Set your text editor to emit 4 spaces when you press the tab key. Do loops 
+    should be indented 4 spaces.
+  
+    do i = 1, N
+        {Do something}
+    end do
+  
+    Sequential loops may be aligned together, as shown below. 
+    do i = 1, Nx
+    do j = 1, Ny
+        {Do something}
+    end do
+    end do
+  
+    However, use this style if the do loops do not appear together
+    do i = 1, Nx
+        {Do something}
+        do j = 1, Ny
+            {Do something else}
+        end do
+    end do
+   
+   

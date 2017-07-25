@@ -319,8 +319,6 @@ do
         read (buff(equal_pos+1:), *) molec
      case ('SGS')
         read (buff(equal_pos+1:), *) sgs
-     case ('DNS_BC')
-        read (buff(equal_pos+1:), *) dns_bc
      case default
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
@@ -415,7 +413,6 @@ end subroutine  time_block
 subroutine flow_cond_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 use param
-use iwmles, only : iwm_on  !xiang
 
 #ifdef PPHIT
 ! Type hit has all the information inside
@@ -447,8 +444,12 @@ do
         read (buff(equal_pos+1:), *) inilag
      case ('LBC_MOM')
         Read (buff(equal_pos+1:), *) lbc_mom
-	 case ('IWM_ACTIVE')                     ! Xiang flag for integral wall model
-	    Read (buff(equal_pos+1:), *) iwm_on  
+     case ('UBC_MOM')
+        Read (buff(equal_pos+1:), *) ubc_mom
+     case ('UBOT')
+        Read (buff(equal_pos+1:), *) ubot
+     case ('UTOP')
+        Read (buff(equal_pos+1:), *) utop
      case ('ZO')
         read (buff(equal_pos+1:), *) zo
      case ('INFLOW')
@@ -465,6 +466,12 @@ do
            read (buff(equal_pos+1:), *) eval_mean_p_force
      case ('MEAN_P_FORCE')
         read (buff(equal_pos+1:), *) mean_p_force
+     case ('USE_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) use_random_force
+     case ('STOP_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) stop_random_force
+     case ('RMS_RANDOM_FORCE')
+           read (buff(equal_pos+1:), *) rms_random_force
 
 #ifdef PPHIT
     ! Read the input for HIT case
@@ -838,7 +845,7 @@ end subroutine  sgs_hist_block
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine turbines_block()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use turbines_base
+use turbines
 implicit none
 
 character(*), parameter :: block_name = 'TURBINES'
@@ -880,24 +887,28 @@ do
 
      case ('CT_PRIME')
         read (buff(equal_pos+1:), *) Ct_prime
+        
+     case ('READ_PARAM')
+        read (buff(equal_pos+1:), *) read_param     
+
+     case ('DYN_THETA1')
+        read (buff(equal_pos+1:), *) dyn_theta1
+     case ('DYN_THETA2')
+        read (buff(equal_pos+1:), *) dyn_theta2
+     case ('DYN_CT_PRIME')
+        read (buff(equal_pos+1:), *) dyn_Ct_prime
 
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
 
      case ('ALPHA')
         read (buff(equal_pos+1:), *) alpha
-     case ('TRUNC')
-        read (buff(equal_pos+1:), *) trunc
      case ('FILTER_CUTOFF')
         read (buff(equal_pos+1:), *) filter_cutoff
-     case ('TURBINE_CUMULATIVE_TIME')
-        read (buff(equal_pos+1:), *) turbine_cumulative_time
      case ('TBASE')
         read (buff(equal_pos+1:), *) tbase
+
      case default
-     
-     case ('TURBINE_CONTROL')
-        read (buff(equal_pos+1:), *) turbine_control
 
         if(coord == 0) call mesg( sub_name, 'Found unused data value in ' // block_name // ' block: ' // buff(1:equal_pos-1) )
      end select

@@ -24,9 +24,8 @@ subroutine finalize()
 ! This subroutine is called by the main program. It is a driver subroutine for
 ! calling all the finalize routines of the various lesgo modules.
 !
-use param, only : coord
-use iwmles, only : iwm_on !xiang for iwm finalize
-use param, only : lbc_mom !xiang: always ensure iwm_on=1 only when lbc_mom=1
+use param, only : coord, lbc_mom
+use iwmles, only : iwm_demalloc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #endif
@@ -45,10 +44,8 @@ call turbines_finalize ()   ! must come before MPI finalize
 #endif   
 
 !finalize for integral wall model xiang
-if(lbc_mom == 1)then
-if(iwm_on ==  1)then
-	if(coord==0) call iwm_demalloc()
-endif
+if(lbc_mom == 3)then
+    if(coord==0) call iwm_demalloc()
 endif 
 
 ! Actuator Turbine Model:

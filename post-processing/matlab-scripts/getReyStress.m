@@ -1,39 +1,37 @@
-function [ uu,vv,ww,uw,vw,uv ] = getReyStress( nx,ny,nz2,cores,str,zmin_buf,zmax_buf)
+function [ uu,vv,ww,uw,vw,uv ] = getReyStress(p)
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
-    for i=1:cores
-
-    % Access the different files    
-    name_rs = str(i).name;
-    fid_rs  = fopen(strcat('./output/',name_rs),'r');
-
-    % Determine the core number of the file in order to store the data in the right location
-    name2_rs = regexp(name_rs, '.c', 'split');  % split of the last numbers behind the core number. This indicates the domain 
-    domain=char(name2_rs(2));                % convert the cell structure to a string structure
-    domain=str2double(domain);            % convert the string to a numerical value that can be used later on
+for i=1:p.nproc
+    
+    % Open the file
+    fname = ['./output/rs.c',num2str(i-1),'.bin'];
+    fid=fopen(fname,'r');
+    if (fid < 0) 
+        error('getSnap:fname',['Could not open file ',fname]);
+    end
 
     % Determine the interval of the matrix where the data should be stored
-    zmin=zmin_buf(domain+1);
-    zmax=zmax_buf(domain+1);
+    zmin=p.zmin_buf(i);
+    zmax=p.zmax_buf(i);
 
     % Scan the data
-    
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s');
-    uu(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s'); 
-    vv(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s'); 
-    ww(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s');
-    uw(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s'); 
-    vw(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
-    dummy=fread(fid_rs,nx*ny*nz2, 'double','s'); 
-    uv(1:nx,1:ny,zmin:zmax)=reshape(dummy,nx,ny,nz2);
+    N = p.nx*p.ny*p.nz2;
+    dummy=fread(fid,N,'double',p.fmt);
+    uu(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    vv(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    ww(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    uw(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    vw(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
+    dummy=fread(fid,N,'double',p.fmt);
+    uv(1:p.nx,1:p.ny,zmin:zmax)=reshape(dummy,p.nx,p.ny,p.nz2);
                 
-    fclose(fid_rs);
-    end
+    fclose(fid);
+end
     
 end
 

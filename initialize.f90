@@ -26,13 +26,15 @@ subroutine initialize()
 !
 use types, only : rprec
 use param, only : path
-use param, only : USE_MPI, nproc, coord, dt, jt_total, nsteps, chcoord
+use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use iwmles, only : iwm_on !xiang for integral wall model initialization
+use iwmles !xiang for integral wall model initialization
 use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
 !use param, only : sgs_hist_calc
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
+#else
+use param, only : chcoord, nproc
 #endif
 
 use cfl_util
@@ -59,7 +61,6 @@ use level_set, only : level_set_init
 #endif
 
 #ifdef PPTURBINES
-use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 #endif
 
@@ -134,7 +135,6 @@ call output_init()
 
 ! Initialize turbines
 #ifdef PPTURBINES
-call turbines_base_init()
 call turbines_init()    !must occur before initial is called
 #endif
 
@@ -169,14 +169,11 @@ call test_filter_init( )
 call initial()
 
 !memory allocation for integral wall model xiang
-if(lbc_mom == 1)then
-if(iwm_on == 1)then
+if(lbc_mom == 3)then
   if(coord==0) write(*,*) 'iwm: start memory allocation...'
   if(coord==0) call iwm_malloc()
   if(coord==0) write(*,*) 'iwm: finish memory allocation...'
 endif
-endif
-    
 
 ! Initialize concurrent precursor stuff
 #if defined(PPMPI) && defined(PPCPS)

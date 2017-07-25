@@ -6,11 +6,11 @@ USAGE:
 - The script assumes the other data (statistics, snapshots, etc.) are stored in ./output.
 
 FEATURES:
-As of 31 Mar 2016, the scripts can read average velocities, Reynolds stresses, and instantaneous velocity snapshots.
+As of 9 June 2016, the scripts can read all standard lesgo output files
 
 TESTING:
 Successfully testing on the following MATLAB versions:
-- R2011b, R2013b
+- R2011b, R2013b, R2015b
 
 CONTRIBUTING:
 These MATLAB scripts are hosted within the lesgo project and at: https://github.com/jbret/binary-read-lesgo.git

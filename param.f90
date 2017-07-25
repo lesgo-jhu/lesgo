@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2016  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -44,6 +44,20 @@ module param
   character(*), parameter :: checkpoint_tavg_sgs_file = path // 'tavg_sgs.out'
 #endif
   character(*), parameter :: checkpoint_spectra_file = path // 'spectra.out'
+#ifdef PPWRITE_BIG_ENDIAN
+  character(*), parameter :: write_endian = 'BIG_ENDIAN'
+#elif PPWRITE_LITTLE_ENDIAN
+  character(*), parameter :: write_endian = 'LITTLE_ENDIAN'
+#else
+  character(*), parameter :: write_endian = 'NATIVE'
+#endif
+#ifdef PPREAD_BIG_ENDIAN
+  character(*), parameter :: read_endian = 'BIG_ENDIAN'
+#elif PPREAD_LITTLE_ENDIAN
+  character(*), parameter :: read_endian = 'LITTLE_ENDIAN'
+#else
+  character(*), parameter :: read_endian = 'NATIVE'
+#endif
 
 !---------------------------------------------------
 ! MPI PARAMETERS
@@ -133,7 +147,7 @@ module param
   ! nu_molec is dimensional m^2/s
   real(rprec) :: nu_molec = 1.14e-5_rprec
     
-  logical :: molec=.false., sgs=.true., dns_bc=.false.
+  logical :: molec=.false., sgs=.true.
   
 !---------------------------------------------------
 ! TIMESTEP PARAMETERS
@@ -170,8 +184,15 @@ module param
   logical :: inilag = .true.
 
   ! lbc: lower boundary condition:  0 - stress free, 1 - wall 
-  ! NOTE: the upper boundary condition is implicitly stress free
+  ! NOTE: the upper boundary condition is implicitly stress free (until ...
+  ! channel branch is complete)
   integer :: lbc_mom = 1
+  integer :: ubc_mom = 0
+
+  ! Prescribe bottom and top wall streamwise velocity
+  ! Only for DNS (sgs=.false.) and full channel (lbc_mom = ubc_mom = 1)
+  real(rprec) :: ubot = 0.0_rprec   ! nondimensional
+  real(rprec) :: utop = 0.0_rprec   ! nondimensional
   
   ! lower boundary condition, roughness length
   real(rprec) :: zo = 0.0001_rprec ! nondimensional
@@ -193,6 +214,13 @@ module param
   ! Specify whether mean_p_force should be evaluated as 1/L_z
   logical :: eval_mean_p_force = .false. 
   real(rprec) :: mean_p_force = 1.0_rprec
+
+  ! if true, provides random forcing for v & w until certain number of time steps
+  logical :: use_random_force = .false.
+  ! specify how many time steps random force should be used
+  integer :: stop_random_force = 20000
+  ! specify the rms magnitude of the random forcing to apply
+  real(rprec) :: rms_random_force = 0.4_rprec
   
 !---------------------------------------------------
 ! DATA OUTPUT PARAMETERS
@@ -273,44 +301,3 @@ module param
   integer :: ee_nbins = 10000
 
 end module param
-
-!module for iwmles, each variable is explained!
-module iwmles
-
-  use types,only:rprec
-
-  implicit none
-  
-  integer :: iwm_on
-  !                                                  u_tau,x  u_tau,y  tau_wall,x tau_wall,y
-  real(kind=rprec), dimension(:,:),   allocatable :: iwm_utx, iwm_uty, iwm_tauwx, iwm_tauwy
-  !                                                  filtered tangential velocity, current and previous
-  real(kind=rprec), dimension(:,:,:), allocatable :: iwm_flt_tagvel, iwm_flt_tagvel_m
-  !                                                  filtered pressure
-  real(kind=rprec), dimension(:,:),   allocatable :: iwm_flt_p
-  integer :: iwm_dirx=1   !direction x
-  integer :: iwm_diry=2   !direction y
-  integer :: iwm_DN  =2   !dimension of a surface, wall model always deal with 2D surfaces (because the world is 3D)
-  !                                                  integrated profiles, current and previous
-  real(kind=rprec), dimension(:,:,:), allocatable :: iwm_inte, iwm_inte_m
-  integer :: iwm_Lu  = 1  ! index for integral of u
-  integer :: iwm_Luu = 2  ! index for integral of uu
-  integer :: iwm_Lv  = 3  ! etc.
-  integer :: iwm_Lvv = 4
-  integer :: iwm_Luv = 5
-  integer :: iwm_LN  = 5  ! the total number of integrals that need to be calculated
-  !                                                  unsteady term, convective term, pressure gradient term, turbulent diffusion term, LHS
-  real(kind=rprec), dimension(:,:,:), allocatable :: iwm_unsdy, iwm_conv, iwm_PrsGrad, iwm_diff, iwm_LHS
-  !                                                  dudz at z=dz/2, dudz at z=zo
-  real(kind=rprec), dimension(:,:,:), allocatable :: iwm_dudzT, iwm_dudzB
-  !                                                  filtered friction velocity, filtering time scale
-  real(kind=rprec), dimension(:,:),   allocatable :: iwm_flt_us, iwm_tR
-  !                                                  HALF cell height, zo, linear correction in x, y directions
-  real(kind=rprec), dimension(:,:),   allocatable :: iwm_Dz, iwm_z0, iwm_Ax, iwm_Ay
-
-  integer :: iwm_ntime_skip=5   ! number of time steps to skip in between wall stress calculation
-  real(kind=rprec) :: iwm_dt    ! time step size seen by the wall model
-  integer :: iwm_debug    = 2014  !the file I use to track the performance, this is the year this model is developed
-  integer :: iwm_status   = 2016  !the file for check point use, this is the year I graduate...
-  
-end module iwmles

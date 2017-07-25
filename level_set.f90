@@ -112,7 +112,7 @@ contains
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine level_set_init ()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use param, only : path
+use param, only : path, read_endian
 use param, only : dx, dy, dz, lbz  !--in addition to those above
 use trees_pre_ls_mod, only : trees_pre_ls
 implicit none
@@ -209,13 +209,7 @@ inquire (file=fphi_in, exist=exst, opened=opn)
 if (.not. exst) call error (sub_name, 'file ' // fphi_in // ' does not exist')
 if (opn) call error (sub_name, 'file ' // fphi_in // ' is aleady open')
 
-#ifdef PPREAD_BIG_ENDIAN
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert='little_endian')
-#else
-open (lun, file=fphi_in, form='unformatted', action='read', position='rewind')
-#endif
+open (lun, file=fphi_in, form='unformatted', action='read', position='rewind', convert=read_endian)
 
 read (lun) phi(:, :, lbz:nz)
            !--phi(:, :, 0) will be BOGUS at coord == 0
@@ -1862,6 +1856,8 @@ character (*), intent (in), optional :: node  !--'u' or 'w'
 
 character (*), parameter :: sub_name = mod_name // '.interp_scal'
 
+character(1024) :: msg
+
 integer :: i, j, k
 integer :: i1, j1, k1
 integer :: ks, ks1
@@ -2459,6 +2455,8 @@ implicit none
 
 real (rp), intent (in) :: x(nd)
 real (rp), intent (out) :: phi_x
+
+character(1024) :: msg
 
 character (*), parameter :: sub_name = mod_name // '.interp_phi'
 
@@ -3659,6 +3657,7 @@ character (*), parameter :: sub_name = mod_name // '.extrap_tau'
 
 character (*), parameter :: fmt1 = '(4(i0,1x))'
 integer, parameter :: lun1 = 1
+character(1024) :: msg
 
 !real (rp), parameter :: phi_0 = 0._rp * zo_level_set  !--should be consistent with interp
 
@@ -3902,6 +3901,8 @@ real (rp) :: n_hat(nd)
 real (rp) :: vel(nd), vel_t(nd)
 real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 real (rp) :: x(nd), xv(nd)
+
+character(1024) :: msg
 
 !---------------------------------------------------------------------
 #ifdef PPVERBOSE

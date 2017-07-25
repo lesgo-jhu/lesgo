@@ -51,7 +51,7 @@ type turbineArray_t
     real(rprec) :: epsilon ! Width of the smearing Gaussian function
     character(128) :: sampling ! Sampling method for velocity atPoint or Spalart
     character(128) :: rotationDir ! Direction of rotation ('cw')
-    real(rprec) :: Azimuth           
+    real(rprec) :: Azimuth   ! Angle of rotation of the rotor 
     real(rprec) :: RotSpeed  ! Speed of the rotor (rpm)
     real(rprec) :: Pitch              
     real(rprec) :: NacYaw    ! The yaw angle of the nacelle         
@@ -63,6 +63,9 @@ type turbineArray_t
     real(rprec) :: PitchControlAngle = 0._rprec
     real(rprec) :: IntSpeedError = 0._rprec
     real(rprec) :: IntPowerError = 0._rprec
+    logical :: tipALMCorrection = .false. ! Includes a correction for tip
+    logical :: rootALMCorrection = .false. ! Includes a correction for tip
+    real(rprec) :: optimalEpsilonChord = 0.25 ! The optimal epsilon / chord 
 
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
@@ -73,6 +76,8 @@ type turbineArray_t
     logical :: nacelle  ! Includes a nacelle yes or no
     real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
+    real(rprec) :: VelNacelle_sampled = 0._rprec ! Sampled nacelle Vel
+    real(rprec) :: VelNacelle_corrected = 0._rprec ! Corrected nacelle Vel
     real(rprec) :: u_infinity_mean = 0._rprec ! Mean velocity
 
     ! The MPI communicator for this turbine
@@ -117,6 +122,8 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: Vmag
     ! Lift coefficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cl
+    ! Lift coefficient correction at each actuator point
+    real(rprec), allocatable, dimension(:,:,:) :: Cl_correction
     ! Drag coeficient at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: Cd
     ! Lift at each actuator point
@@ -127,15 +134,18 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+    ! The function G=1/2 * Cl * c * Vmag^2
+    real(rprec), allocatable, dimension(:,:,:) :: G
+    ! The derivative of G
+    real(rprec), allocatable, dimension(:,:,:) :: dG
+    ! Cl base for the correction
+    real(rprec), allocatable, dimension(:,:,:) :: Cl_b
 
-    ! These variables are to make corrections based on filtering
-    ! Optimum value of epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt(:,:,:)
-    ! Axial velocity filtered at 2 epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: windVectors_2f(:,:,:,:)
-    ! Axial velocity filtered at 2 epsilon
-    real(rprec), allocatable, dimension(:,:,:) :: bladeForces_2f(:,:,:,:)
+    ! These variables are to make corrections based on optimum value of epsilon
+    real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt
 
+!~     ! The circulation needed for the correction
+!~     real(rprec), allocatable, dimension(:,:,:) :: Gamma
 
     ! Induction factor and u infinity
     real(rprec), allocatable, dimension(:,:,:) :: induction_a
@@ -148,7 +158,6 @@ type turbineArray_t
     ! as lift coefficitent, angle of attack, etc
     real(rprec), allocatable, dimension(:,:,:,:) :: bladeVectorDummy
     real(rprec), allocatable, dimension(:,:,:) :: bladeScalarDummy
-
 
     ! An indicator of shaft direction.  The convention is that when viewed
     ! from upwind, the rotor turns clockwise for positive rotation angles,
@@ -413,10 +422,30 @@ do
 !~             write(*,*)  'cd is: ', &
 !~                          turbineArray(n) % nacelleCd
         endif 
+        if( buff(1:14) == 'nacelleEpsilon' ) then
+            read(buff(15:), *) turbineArray(n) % nacelleEpsilon
+!~             write(*,*)  'cd is: ', &
+!~                          turbineArray(n) % nacelleEpsilon
+        endif 
         if( buff(1:3) == 'TSR' ) then
             read(buff(4:), *) turbineArray(n) % TSR
 !~             write(*,*)  'TSR is: ', &
 !~                          turbineArray(n) % TSR
+        endif 
+        if( buff(1:16) == 'tipALMCorrection' ) then
+            read(buff(17:), *) turbineArray(n) % tipALMCorrection
+!~             write(*,*)  'tipALMCorrection is: ', &
+!~                          turbineArray(n) % tipALMCorrection
+        endif 
+        if( buff(1:17) == 'rootALMCorrection' ) then
+            read(buff(18:), *) turbineArray(n) % rootALMCorrection
+!~             write(*,*)  'rootALMCorrection is: ', &
+!~                          turbineArray(n) % rootALMCorrection
+        endif 
+        if( buff(1:19) == 'optimalEpsilonChord' ) then
+            read(buff(20:), *) turbineArray(n) % optimalEpsilonChord
+!~             write(*,*)  'optimalEpsilonChord is: ', &
+!~                          turbineArray(n) % optimalEpsilonChord
         endif 
     endif        
 end do
@@ -796,6 +825,8 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cl(numBl,                                       &
              numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl_correction(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % Cd(numBl,                                       &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % lift(numBl,                                     &
@@ -817,6 +848,12 @@ numBl=turbineModel(j) % numBl
     allocate(turbineArray(i) % sectionType(numBl,                              &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % epsilon_opt(numBl,                              &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % G(numBl,                                        &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % dG(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl_b(numBl,                                       &
              numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization

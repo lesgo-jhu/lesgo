@@ -42,8 +42,9 @@ use fft
 
 implicit none
 
-integer::jz
+integer :: jz
 integer :: jz_min
+integer :: jzLo, jzHi, jz_max  ! added for full channel capabilities
 
 ! !--save forces heap storage
 ! real(kind=rprec), save, dimension(ld_big,ny2,nz)::cc_big
@@ -61,6 +62,14 @@ real (rprec), save, allocatable, dimension (:, :, :) :: vort1_big, vort2_big, vo
 logical, save :: arrays_allocated = .false. 
 
 real(kind=rprec) :: const
+
+if (sgs) then
+   jzLo = 2        !! necessary for LES or else blows up ....?
+   jzHi = nz-1     !! can remove after testing
+else
+   jzLo = 1        !! for DNS
+   jzHi = nz-1     !! can remove after testing
+endif
 
 #ifdef PPVERBOSE
 write (*, *) 'started convec'
@@ -125,7 +134,7 @@ do jz = 1, nz
          cy(:, :, 1) = 0._rprec
 
       ! Wall
-      case (1)
+      case (1:)  !! all cases >= 1
 
          !--du3d2(jz=1) should be 0, so we could use this
          cx(:, :, 1) = const * ( 0.5_rprec * (du3d2(:, :, 1) +  &
@@ -137,13 +146,41 @@ do jz = 1, nz
                                               du3d1(:, :, 2)) )
 
      end select
+  endif
 
-   else
-   
+  if ( (coord == nproc-1) .and. (jz == nz) ) then
+
+     select case (ubc_mom)
+
+     ! Stress free
+     case (0)
+
+         cx(:, :, nz) = 0._rprec
+         cy(:, :, nz) = 0._rprec
+
+      ! No-slip and wall model
+      case (1:)
+
+         !--du3d2(jz=1) should be 0, so we could use this
+         ! this cx = vort1 is actually uvp nz-1 but stored as w nz
+         cx(:, :, nz) = const * ( 0.5_rprec * (du3d2(:, :, nz-1) +  &
+                                              du3d2(:, :, nz))   &
+                                 - du2d3(:, :, nz-1) )
+         !--du3d1(jz=1) should be 0, so we could use this
+         ! this cy = vort2 is actually uvp nz-1 but stored as w nz
+         cy(:, :, nz) = const * ( du1d3(:, :, nz-1) -               &
+                                 0.5_rprec * (du3d1(:, :, nz-1) +  &
+                                              du3d1(:, :, nz)) )
+
+      end select
+   endif
+  !else   !!channel
+
+  ! very kludgy -- fix later      !! channel
+  if (.not.(coord==0 .and. jz==1) .and. .not. (ubc_mom>0 .and. coord==nproc-1 .and. jz==nz)  ) then
      cx(:,:,jz)=const*(du3d2(:,:,jz)-du2d3(:,:,jz))
      cy(:,:,jz)=const*(du1d3(:,:,jz)-du3d1(:,:,jz))
-
-   end if
+  end if
 
    cz(:,:,jz)=const*(du2d1(:,:,jz)-du1d2(:,:,jz))
 
@@ -169,7 +206,7 @@ const=1._rprec/(nx2*ny2)
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u2_big(:,:,1)*(-vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(vort2_big(:,:,jzLo)))   ! (default index was 2)
   !--vort2(jz=1) is located on uvp-node        ^  try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -179,7 +216,20 @@ else
   jz_min = 1
 end if
 
-do jz=jz_min,nz-1
+if (coord == nproc-1 ) then  !!channel
+  ! the cc's contain the normalization factor for the upcoming fft's
+  cc_big(:,:,nz-1)=const*(u2_big(:,:,nz-1)*(-vort3_big(:,:,nz-1))&
+       +0.5_rprec*u3_big(:,:,nz-1)*(vort2_big(:,:,jzHi)))   !!channel
+  !--vort2(jz=1) is located on uvp-node           ^  try with nz-1 (experimental)
+  !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
+  !  below the wall (could arguably be 0.25 * u3(:,:,2))
+
+  jz_max = nz-2
+else
+  jz_max = nz-1
+end if
+
+do jz = jz_min, jz_max    !nz-1   !!channel
    cc_big(:,:,jz)=const*(u2_big(:,:,jz)*(-vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(vort2_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(vort2_big(:,:,jz))))
@@ -201,7 +251,7 @@ end do
 if (coord == 0) then
   ! the cc's contain the normalization factor for the upcoming fft's
   cc_big(:,:,1)=const*(u1_big(:,:,1)*(vort3_big(:,:,1))&
-       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,2)))
+       +0.5_rprec*u3_big(:,:,2)*(-vort1_big(:,:,jzLo)))   !!channel
   !--vort1(jz=1) is uvp-node                    ^ try with 1 (experimental)
   !--the 0.5 * u3(:,:,2) is the interpolation of u3 to the first uvp node
   !  above the wall (could arguably be 0.25 * u3(:,:,2))
@@ -211,7 +261,20 @@ else
   jz_min = 1
 end if
 
-do jz = jz_min, nz - 1
+if (coord == nproc-1) then   !!channel
+  ! the cc's contain the normalization factor for the upcoming fft's
+  cc_big(:,:,nz-1)=const*(u1_big(:,:,nz-1)*(vort3_big(:,:,nz-1))&
+       +0.5_rprec*u3_big(:,:,nz-1)*(-vort1_big(:,:,jzHi)))    !!channel
+  !--vort1(jz=1) is uvp-node                       ^ try with nz-1 (experimental)
+  !--the 0.5 * u3(:,:,nz-1) is the interpolation of u3 to the uvp node at nz-1
+  !  below the wall
+
+  jz_max = nz-2
+else
+  jz_max = nz-1
+end if
+
+do jz = jz_min, jz_max  !nz - 1   !!channel
    cc_big(:,:,jz)=const*(u1_big(:,:,jz)*(vort3_big(:,:,jz))&
         +0.5_rprec*(u3_big(:,:,jz+1)*(-vort1_big(:,:,jz+1))&
         +u3_big(:,:,jz)*(-vort1_big(:,:,jz))))
@@ -233,11 +296,26 @@ if (coord == 0) then
   ! There is no convective acceleration of w at wall or at top.
   !--not really true at wall, so this is an approximation?
   !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+  !--wrong, we do solve z-eqn (w-eqn) at bottom wall --pj
+  !--earlier comment is also wrong, it is true that cz = 0 at both walls and slip BC
   cc_big(:,:,1)=0._rprec
-
+  !! ^must change for Couette flow ... ?
   jz_min = 2
 else
   jz_min = 1
+end if
+
+if (coord == nproc-1) then     !!channel
+  ! There is no convective acceleration of w at wall or at top.
+  !--not really true at wall, so this is an approximation?
+  !  perhaps its OK since we dont solve z-eqn (w-eqn) at wall (its a BC)
+  !--but now we do solve z-eqn (w-eqn) at top wall --pj
+  !--earlier comment is also wrong, it is true that cz = 0 at both walls and slip BC
+  cc_big(:,:,nz)=0._rprec
+  !! ^must change for Couette flow ... ?
+  jz_max = nz-1
+else
+  jz_max = nz-1   !! or nz ?       !!channel
 end if
 
 !#ifdef PPMPI
@@ -252,7 +330,7 @@ end if
 !  jz_max = nz - 1
 !#endif
 
-do jz=jz_min, nz - 1
+do jz = jz_min, jz_max    !nz - 1    !!channel
    cc_big(:,:,jz)=const*0.5_rprec*(&
         (u1_big(:,:,jz)+u1_big(:,:,jz-1))*(-vort2_big(:,:,jz))&
         +(u2_big(:,:,jz)+u2_big(:,:,jz-1))*(vort1_big(:,:,jz))&
@@ -260,7 +338,7 @@ do jz=jz_min, nz - 1
 end do
 
 ! Loop through horizontal slices
-do jz=1,nz - 1
+do jz=1,nz !nz - 1
   call dfftw_execute_dft_r2c(forw_big,cc_big(:,:,jz),cc_big(:,:,jz))
 
 ! un-zero pad
@@ -283,7 +361,7 @@ end do
 #ifdef PPSAFETYMODE
 cx(:, :, nz) = BOGUS
 cy(:, :, nz) = BOGUS
-cz(:, :, nz) = BOGUS
+if(coord<nproc-1) cz(:, :, nz) = BOGUS
 #endif
 
 #ifdef PPVERBOSE

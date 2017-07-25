@@ -66,6 +66,7 @@ real(rprec) :: opftdelta,powcoeff
 #ifdef PPOUTPUT_EXTRA
 character (64) :: fnamek
 integer :: count_all, count_clip
+integer :: j
 #endif
 
 integer :: istart, iend, jz, ii, i

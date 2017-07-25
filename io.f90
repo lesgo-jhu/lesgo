@@ -31,11 +31,11 @@ use mpi
 #endif
 
 #ifdef PPCGNS
-    use cgns
+use cgns
 
 #ifdef PPMPI
-    use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
-    use param, only: ierr
+!~ use mpi_defs, only : cgnsParallelComm, cgnsSerialComm
+use param, only: ierr
 #endif
 
 #endif
@@ -44,12 +44,11 @@ implicit none
 save
 private
 
-public jt_total, openfiles, energy, output_loop, output_final,output_init
+public jt_total, openfiles, energy, output_loop, output_final, output_init, &
+       & write_tau_wall_bot, write_tau_wall_top
 
-! Where to start start and end with nz index.
-! For coord==nproc-1 nz_end=0 else  nz_end=1
-! For coord==0       nz_st=0 else   nz_st=1
-integer :: nz_st, nz_end
+! Where to end with nz index.
+integer :: nz_end
 
 contains
 
@@ -141,6 +140,54 @@ ke = ke*0.5_rprec/(nx*ny*(nz-1))
 
 end subroutine energy
 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_tau_wall_bot()   !!jb
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types ,only: rprec
+use param ,only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
+use param ,only: L_x, z_i, u_star
+use functions ,only: get_tau_wall_bot
+implicit none
+
+real(rprec) :: turnovers
+
+turnovers = total_time_dim / (L_x * z_i / u_star) 
+
+open(2,file=path // 'output/tau_wall_bot.dat',status='unknown',form='formatted',position='append')
+
+!! one time header output
+if (jt_total==wbase) write(2,*) 'jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, tau_wall'
+
+!! continual time-related output
+write(2,*) jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, get_tau_wall_bot()
+close(2)
+
+end subroutine write_tau_wall_bot
+
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine write_tau_wall_top()
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+use types ,only: rprec
+use param ,only: jt_total, total_time, total_time_dim, dt, dt_dim, wbase
+use param ,only: L_x, z_i, u_star
+use functions ,only: get_tau_wall_top
+implicit none
+
+real(rprec) :: turnovers
+
+turnovers = total_time_dim / (L_x * z_i / u_star) 
+
+open(2,file=path // 'output/tau_wall_top.dat',status='unknown',form='formatted',position='append')
+
+!! one time header output
+if (jt_total==wbase) write(2,*) 'jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, tau_wall'
+
+!! continual time-related output
+write(2,*) jt_total, total_time, total_time_dim, turnovers, dt, dt_dim, 1.0, get_tau_wall_top()
+close(2)
+
+end subroutine write_tau_wall_top
 
 #ifdef PPCGNS
 #ifdef PPMPI
@@ -179,8 +226,8 @@ integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 integer :: i,j,k
 real(rprec), dimension(nx,ny,nz) :: xyz
 
-! Set the parallel communicator
-call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+!~ ! Set the parallel communicator
+!~ call cgp_mpi_comm_f(cgnsParallelComm, ierr)
 
 ! Convert types such that CGNS libraries can handle the input
 start_n(1) = int(start_n_in(1), cgsize_t)
@@ -313,65 +360,71 @@ call cgp_close_f(fn, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 end subroutine write_parallel_cgns
-#endif
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
-                               num_fields, fieldNames, input )
+subroutine write_null_cgns ( file_name, nx, ny, nz, nz_tot, start_n_in,    &
+                                     end_n_in, xin, yin, zin, num_fields,      &
+                                     fieldNames )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 implicit none
 
-integer, intent(in) :: nx, ny, nz, num_fields
+integer, intent(in) :: nx, ny, nz, nz_tot, num_fields
 character(*), intent(in) :: file_name  ! Name of file to be written
 character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
-real(rprec), intent(in), dimension(:) :: input ! Data to be written
-real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: xin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: yin ! Coordinates to write
+real(rprec), intent(in), dimension(:) :: zin ! Coordinates to write
+integer, intent(in) :: start_n_in(3)  ! Where the total node counter starts nodes
+integer, intent(in) :: end_n_in(3)  ! Where the total node counter ends nodes
 
-integer :: fn=1          ! CGNS file index number
+integer :: fn=1        ! CGNS file index number
 integer :: ier         ! CGNS error status
-integer :: base=1        ! base number
-integer :: zone=1        ! zone number
+integer :: base=1      ! base number
+integer :: zone=1      ! zone number
 integer :: nnodes      ! Number of nodes in this processor
-integer :: sol =1        ! solution number
-integer :: field     ! section number
-integer(cgsize_t) :: sizes(3,3)    ! Sizes
+integer :: sol =1      ! solution number
+integer :: field       ! section number
+integer(cgsize_t) :: sizes(3,3)  ! Sizes
+
+! Convert input to right data type
+integer(cgsize_t) :: start_n(3)  ! Where the total node counter starts nodes
+integer(cgsize_t) :: end_n(3)  ! Where the total node counter ends nodes
 
 ! Building the lcoal mesh
 integer :: i,j,k
-real(rprec), dimension(nx,ny,nz) :: x,y,z
+real(rprec), dimension(nx,ny,nz) :: xyz
+
+!~ ! Set the parallel communicator
+!~ call cgp_mpi_comm_f(cgnsParallelComm, ierr)
+
+! Convert types such that CGNS libraries can handle the input
+start_n(1) = int(start_n_in(1), cgsize_t)
+start_n(2) = int(start_n_in(2), cgsize_t)
+start_n(3) = int(start_n_in(3), cgsize_t)
+end_n(1) = int(end_n_in(1), cgsize_t)
+end_n(2) = int(end_n_in(2), cgsize_t)
+end_n(3) = int(end_n_in(3), cgsize_t)
 
 ! The total number of nodes in this processor
 nnodes=nx*ny*nz
 
-! Create grid points
-do k=1,nz
-    do j=1,ny
-        do i=1,nx
-            x(i,j,k) = xin(i)
-            y(i,j,k) = yin(j)
-            z(i,j,k) = zin(k)
-        enddo
-    enddo
-enddo
-
 ! Sizes, used to create zone
-sizes(:,1) = (/nx,ny,nz/)
-sizes(:,2) = (/nx-1,ny-1,nz-1/)
-sizes(:,3) = (/0 , 0, 0/)
+sizes(:,1) = (/int(nx, cgsize_t),int(ny, cgsize_t),int(nz_tot, cgsize_t)/)
+sizes(:,2) = (/int(nx-1, cgsize_t),int(ny-1, cgsize_t),int(nz_tot-1, cgsize_t)/)
+sizes(:,3) = (/int(0, cgsize_t) , int(0, cgsize_t), int(0, cgsize_t)/)
 
 ! Open CGNS file
 call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
-!~ if (ier .ne. CG_OK) call cg_error_exit_f
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write base
 call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write zone
 call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write print info to screen
 if (coord .eq. 0) then
@@ -379,35 +432,359 @@ if (coord .eq. 0) then
 endif
 
 ! Create data nodes for coordinates
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
-                      x(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
-                      y(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
-                      z(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',              &
+                      nnodes, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
+! This is done for the 3 dimensions x,y and z
+! It writes the coordinates
+! Create grid points
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = xin(i)
+        enddo
+    enddo
+enddo
+write(*,*) 'Error NOT Here 0'
+
+call cgp_coord_write_data_f(fn, base, zone, 1,   &
+                            start_n, end_n, %VAL(0), ier)    
+if (ier .ne. CG_OK) call cgp_error_exit_f
+write(*,*) 'Error NOT Here'
+
+! Write out the queued coordinate data
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = yin(j)
+        enddo
+    enddo
+enddo
+call cgp_coord_write_data_f(fn, base, zone, 2,   &
+                            start_n, end_n, %VAL(0), ier)   
+if (ier .ne. CG_OK) call cgp_error_exit_f
+
+! Write out the queued coordinate data
+!~ call cgp_queue_flush_f(ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ call cgp_queue_set_f(0, ier)
+
+! Write the coordinate data in parallel to the queue
+!~ call cgp_queue_set_f(1, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+ 
+do k=1,nz
+    do j=1,ny
+        do i=1,nx
+            xyz(i,j,k) = zin(k)
+        enddo
+    enddo
+enddo
+call cgp_coord_write_data_f(fn, base, zone, 3,   &
+                            start_n, end_n, %VAL(0), ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
+    
 ! Create a centered solution
 call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
 
 ! Write the solution
 do i=1,num_fields
-    call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
-                           input((i-1)*nnodes+1:(i)*nnodes), field, ier)
-    if (ier .ne. CG_OK) call cg_error_exit_f
+    call cgp_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+                           field, ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
+
+    call cgp_field_write_data_f(fn, base, zone, sol, field, start_n, end_n,    &
+                                %VAL(0), ier)
+    if (ier .ne. CG_OK) call cgp_error_exit_f
 
 enddo
 
 ! Close the file
-call cg_close_f(fn, ier)
-if (ier .ne. CG_OK) call cg_error_exit_f
+call cgp_close_f(fn, ier)
+if (ier .ne. CG_OK) call cgp_error_exit_f
 
-end subroutine write_serial_cgns
+end subroutine write_null_cgns
+#endif
+
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine write_serial_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
+!~                                num_fields, fieldNames, input )
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ 
+!~ implicit none
+!~ 
+!~ integer, intent(in) :: nx, ny, nz, num_fields
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+!~ real(rprec), intent(in), dimension(:) :: input ! Data to be written
+!~ real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ ! Building the lcoal mesh
+!~ integer :: i,j,k
+!~ real(rprec), dimension(nx,ny,nz) :: x,y,z
+!~ 
+!~ ! The total number of nodes in this processor
+!~ nnodes=nx*ny*nz
+!~ 
+!~ ! Create grid points
+!~ do k=1,nz
+!~     do j=1,ny
+!~         do i=1,nx
+!~             x(i,j,k) = xin(i)
+!~             y(i,j,k) = yin(j)
+!~             z(i,j,k) = zin(k)
+!~         enddo
+!~     enddo
+!~ enddo
+!~ 
+!~ ! Sizes, used to create zone
+!~ sizes(:,1) = (/nx,ny,nz/)
+!~ sizes(:,2) = (/nx-1,ny-1,nz-1/)
+!~ sizes(:,3) = (/0 , 0, 0/)
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       x(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       y(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       z(1:nx,1:ny,1:nz), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+!~                            input((i-1)*nnodes+1:(i)*nnodes), field, ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ end subroutine write_serial_cgns
+!~ 
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ subroutine write_null_cgns ( file_name, nx, ny, nz, xin, yin, zin,           &
+!~                               num_fields, fieldNames )
+!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!~ 
+!~ implicit none
+!~ 
+!~ integer, intent(in) :: nx, ny, nz, num_fields
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ character(*), intent(in), dimension(:) :: fieldNames ! Name of fields we are writting
+!~ real(rprec), intent(in), dimension(:) :: xin,yin,zin ! Coordinates to write
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ ! Building the lcoal mesh
+!~ integer :: i,j,k
+!~ real(rprec), dimension(nx,ny,nz) :: x,y,z
+!~ 
+!~ ! The total number of nodes in this processor
+!~ nnodes=nx*ny*nz
+!~ 
+!~ ! Create grid points
+!~ do k=1,nz
+!~     do j=1,ny
+!~         do i=1,nx
+!~             x(i,j,k) = xin(i)
+!~             y(i,j,k) = yin(j)
+!~             z(i,j,k) = zin(k)
+!~         enddo
+!~     enddo
+!~ enddo
+!~ 
+!~ ! Sizes, used to create zone
+!~ sizes(:,1) = (/nx,ny,nz/)
+!~ sizes(:,2) = (/nx-1,ny-1,nz-1/)
+!~ sizes(:,3) = (/0 , 0, 0/)
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       %VAL(0), (/nx,ny,nz/), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ write(*,*) 'Error NOT Here 0'
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, fieldNames(i),     &
+!~                            %VAL(0), field, ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ write(*,*) 'Error NOT Here 1'
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+!~ 
+!~ character(*), intent(in) :: file_name  ! Name of file to be written
+!~ integer, intent(in) :: num_fields
+!~ 
+!~ integer :: fn=1          ! CGNS file index number
+!~ integer :: ier           ! CGNS error status
+!~ integer :: base=1        ! base number
+!~ integer :: zone=1        ! zone number
+!~ integer :: nnodes        ! Number of nodes in this processor
+!~ integer :: sol =1        ! solution number
+!~ integer :: field         ! section number
+!~ integer(cgsize_t) :: sizes(3,3)    ! Sizes
+!~ 
+!~ integer :: i
+!~ 
+!~ ! Open CGNS file
+!~ call cgp_open_f(file_name, CG_MODE_WRITE, fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write base
+!~ call cg_base_write_f(fn, 'Base', 3, 3, base, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write zone
+!~ call cg_zone_write_f(fn, base, 'Zone', sizes, Structured, zone, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Write print info to screen
+!~ if (coord .eq. 0) then
+!~     write(*,*) 'Writing, ', file_name
+!~ endif
+!~ 
+!~ ! Create data nodes for coordinates
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateX',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateY',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ call cg_coord_write_f(fn, base, zone, RealDouble, 'CoordinateZ',               &
+!~                       %VAL(0), %VAL(0), ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ ! Create a centered solution
+!~ call cg_sol_write_f(fn, base, zone, 'Solution', Vertex, sol, ier)
+!~ if (ier .ne. CG_OK) call cgp_error_exit_f
+!~ 
+!~ ! Write the solution
+!~ do i=1,num_fields
+!~     call cg_field_write_f(fn, base, zone, sol, RealDouble, %VAL(0),     &
+!~                            %VAL(0), %VAL(0), ier)
+!~     if (ier .ne. CG_OK) call cg_error_exit_f
+!~ 
+!~ enddo
+!~ 
+!~ ! Close the file
+!~ call cg_close_f(fn, ier)
+!~ if (ier .ne. CG_OK) call cg_error_exit_f
+
+!~ end subroutine write_null_cgns
 ! END OF  CGNS  PART
 #endif 
 
@@ -574,15 +951,17 @@ use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
+use param, only : write_endian
 use grid_m
 use sim_param, only : u,v,w
 ! For computing and writing vorticity
 !~ use sim_param, only: dwdy, dwdx, dvdx, dudy
 !~ use functions, only : interp_to_w_grid
 
-use stat_defs, only : xplane, yplane, zplane, point
+use stat_defs, only : xplane, yplane, zplane
 #ifdef PPMPI
-use param, only :ny,nz,comm,ierr
+use stat_defs, only : point
+use param, only : ny, nz
 #endif
 #ifdef PPLVLSET
 use level_set_base, only : phi
@@ -593,21 +972,29 @@ implicit none
 
 integer, intent(IN) :: itype
 character (64) :: fname
-character (64) :: point_name  ! Name of file for point
 integer :: n, i, j, k
-
-! #ifdef PPCGNS
-! Vorticity
-! real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
-! #endif
-
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
+real(rprec), pointer, dimension(:) :: x,y,z,zw
+#ifndef PPCGNS
+character(64) :: bin_ext
 
 #ifdef PPLVLSET
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 #endif
 
-real(rprec), pointer, dimension(:) :: x,y,z,zw
+#ifdef PPMPI
+call string_splice(bin_ext, '.c', coord, '.bin')
+#else
+bin_ext = '.bin'
+#endif
+#endif
+
+
+
+! #ifdef PPCGNS
+! Vorticity
+! real (rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
+! #endif
 
 ! Nullify pointers
 nullify(x,y,z,zw)
@@ -618,61 +1005,59 @@ y => grid % y
 z => grid % z
 zw => grid % zw
 
+
 !  Allocate space for the interpolated w values
 allocate(w_uv(nx,ny,lbz:nz))
 
 !  Make sure w has been interpolated to uv-grid
 w_uv = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz)
 
+!  Instantaneous velocity sampled at point
 if(itype==1) then
-
     do n=1,point_nloc
+        ! Common file name for all output types
+        call string_splice(fname, path // 'output/vel.x-', point_loc(n)%xyz(1), &
+         '.y-', point_loc(n)%xyz(2), '.z-', point_loc(n)%xyz(3), '.dat')
 
-        !  For parallel runs check if data is on correct proc
 #ifdef PPMPI
         if(point(n) % coord == coord) then
 #endif
-        
-        ! Create the name as 'point{number}.dat'
-        call string_splice( point_name, path //'output/point', n,'.dat')
-
-        ! Open the file to write (17 is arbitrary)
-        open(unit=17, position="append", file=point_name)
-
-        ! Write the instantaneous velocity at that point
-        write(17,*) total_time,                                                &
-        trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
-        trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
-        trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
-
-        close(17)        
-    
+            open(unit=13, position="append", file=fname)
+            write(13,*) total_time,                                                &
+            trilinear_interp(u(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+            trilinear_interp(v(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz),          &
+            trilinear_interp(w_uv(1:nx,1:ny,lbz:nz), lbz, point_loc(n)%xyz)
+            close(13)        
 #ifdef PPMPI
         endif
 #endif
-
     enddo
 
 !  Instantaneous write for entire domain
 elseif(itype==2) then
-    
-    !////////////////////////////////////////////
-    !/// WRITE VELOCITY                       ///
-    !////////////////////////////////////////////
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/vel.', jt_total)
 
-    ! Write CGNS Output
 #if defined(PPCGNS) && defined(PPMPI)
-        call string_splice( fname, path //'output/output_',               &  
-                            jt_total,'.cgns')
-        
-        call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,        &
-        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
-        (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
-        x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
-        3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                        &
-        (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),             &
-         w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
-    
+    ! Write CGNS Output
+    call string_concat(fname, '.cgns')
+    call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,        &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                   &
+    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                      &
+    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                            &
+    3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                   &
+    (/ u(1:nx,1:ny,1:(nz-nz_end)), v(1:nx,1:ny,1:(nz-nz_end)),        &
+     w_uv(1:nx,1:ny,1:(nz-nz_end)) /) )
+#else
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=nx*ny*nz*rprec)
+    write(13,rec=1) u(:nx,:ny,1:nz)
+    write(13,rec=2) v(:nx,:ny,1:nz)
+    write(13,rec=3) w_uv(:nx,:ny,1:nz)
+    close(13)
+#endif
+
 !~       ! Compute vorticity    
 !~       allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
 !~       vortx(1:nx,1:ny,lbz:nz) = 0.0_rprec
@@ -702,51 +1087,19 @@ elseif(itype==2) then
 !~ 
 !~         deallocate(vortx, vorty, vortz)
 
-#else
-    call string_splice( fname, path // 'output/binary_vel.', jt_total,'.dat')
-#ifdef PPMPI
-    call string_concat( fname, '.c', coord )
-#endif
-    open(unit=13,file=fname,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)
-    write(13,rec=1) u(:nx,:ny,1:nz)
-    write(13,rec=2) v(:nx,:ny,1:nz)
-    write(13,rec=3) w_uv(:nx,:ny,1:nz)
-    close(13)
-#endif
-  
-!  #ifdef PPMPI
-!  call mpi_barrier( comm, ierr )
-!  #endif
-!
-!  call pressure_sync()
-!
-!  #ifdef PPMPI
-!  call mpi_barrier( comm, ierr )
-!  #endif
-!  
-!  call RHS_sync()
-!
-!  #ifdef PPMPI
-!  call mpi_barrier( comm, ierr )
-!  #endif
 
 !  Write instantaneous x-plane values
 elseif(itype==3) then
 
     allocate(ui(1,ny,nz), vi(1,ny,nz), wi(1,ny,nz))
     
-#ifdef PPLVLSET
-    call force_tot()
-#endif
-
     !  Loop over all xplane locations
     do i=1,xplane_nloc
         do k=1,nz
             do j=1,ny
-
-                ui(1,j,k) = linear_interp(u(xplane(i) % istart,j,k), &
+                ui(1,j,k) = linear_interp(u(xplane(i) % istart,j,k),    &
                      u(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
-                vi(1,j,k) = linear_interp(v(xplane(i) % istart,j,k), &
+                vi(1,j,k) = linear_interp(v(xplane(i) % istart,j,k),    &
                      v(xplane(i) % istart+1,j,k), dx, xplane(i) % ldiff)
                 wi(1,j,k) = linear_interp(w_uv(xplane(i) % istart,j,k), &
                      w_uv(xplane(i) % istart+1,j,k), dx, &
@@ -754,19 +1107,29 @@ elseif(itype==3) then
             enddo
         enddo
 
+        ! Common file name portion for all output types
+        call string_splice(fname, path // 'output/vel.x-', xplane_loc(i), '.', jt_total)
+
 #if defined(PPCGNS) && defined(PPMPI)    
-            call string_splice( fname, path // 'output/plane_x_plane',    &
-                                xplane_loc(i),'_', jt_total, '.cgns')
-            
-            call write_parallel_cgns (fname,1,ny, nz - nz_end, nz_tot,    &
-                                (/ 1, 1,   (nz-1)*coord + 1 /),                &
-                                (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /),    &
-                            xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),     &
-                      3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
-                      (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)),   &
-                         wi(1,1:ny,1:(nz-nz_end)) /) )
+        ! Write CGNS Output        
+        call string_concat(fname, '.cgns')
+        call write_parallel_cgns (fname,1,ny, nz - nz_end, nz_tot,     &
+                        (/ 1, 1,   (nz-1)*coord + 1 /),                &
+                        (/ 1, ny, (nz-1)*(coord+1) + 1 - nz_end /),    &
+                    xplane_loc(i:i) , y(1:ny) , z(1:(nz-nz_end) ),     &
+              3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
+              (/ ui(1,1:ny,1:(nz-nz_end)), vi(1,1:ny,1:(nz-nz_end)),   &
+                 wi(1,1:ny,1:(nz-nz_end)) /) )
+
+#else
+        ! Write binary output
+        call string_concat(fname, bin_ext)
+        open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=ny*nz*rprec)
+        write(13,rec=1) ui
+        write(13,rec=2) vi
+        write(13,rec=3) wi
+        close(13)
 #endif
-        
     enddo
   
     deallocate(ui,vi,wi)
@@ -789,11 +1152,12 @@ elseif(itype==4) then
                      w_uv(i,yplane(j) % istart+1,k), dy, yplane(j) % ldiff)
             enddo
         enddo
+        
+        ! Common file name portion for all output types
+        call string_splice(fname, path // 'output/vel.y-', yplane_loc(j), '.', jt_total)
 
 #if defined(PPCGNS) && defined(PPMPI)    
-            call string_splice( fname, path // 'output/plane_y_plane',    &
-                            yplane_loc(j),'_', jt_total, '.cgns')
-
+            call string_concat(fname, '.cgns')
             call write_parallel_cgns (fname,nx,1, nz - nz_end, nz_tot,    &
                                 (/ 1, 1,   (nz-1)*coord + 1 /),                &
                                 (/ nx, 1, (nz-1)*(coord+1) + 1 - nz_end /),    &
@@ -801,6 +1165,15 @@ elseif(itype==4) then
                       3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),          &
                       (/ ui(1:nx,1,1:(nz-nz_end)), vi(1:nx,1,1:(nz-nz_end)),   &
                          wi(1:nx,1,1:(nz-nz_end)) /) )
+
+#else
+        ! Write binary output
+        call string_concat(fname, bin_ext)
+        open(unit=13,file=fname,form='unformatted',convert=write_endian, access='direct',recl=nx*nz*rprec)
+        write(13,rec=1) ui
+        write(13,rec=2) vi
+        write(13,rec=3) wi
+        close(13)
 #endif
 
     enddo  
@@ -810,43 +1183,46 @@ elseif(itype==4) then
 !  Write instantaneous z-plane values
 elseif(itype==5) then
 
-#if defined(PPCGNS) && defined(PPMPI)
-        ! Set the serial communicator
-        call cgp_mpi_comm_f(cgnsSerialComm, ierr)
-#endif
-
     allocate(ui(nx,ny,1), vi(nx,ny,1), wi(nx,ny,1))
 
     !  Loop over all zplane locations
     do k=1,zplane_nloc
 
-#ifdef PPMPI    
-            if(zplane(k) % coord == coord) then
-#endif
-    
-        do j=1,Ny
-            do i=1,Nx
-                ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),           &
-                     u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),           &
-                     v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-                wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),        &
-                     w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
-            enddo
-        enddo
-    
 #ifdef PPCGNS
-    
-            call string_splice( fname, path // 'output/plane_z_plane',    &
-                                zplane_loc(k),'_', jt_total, '.cgns')
-    
-            call write_serial_cgns ( fname, nx, ny,1,x,y,zplane_loc(k:k), &
-                            3, (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),    &
-                        (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /))
+        ! Common file name portion for all output types
+        call string_splice(fname, path // 'output/vel.z-',                      &
+                zplane_loc(k), '.', jt_total)
+                call string_concat(fname, '.cgns')
+#endif
+
+#ifdef PPMPI    
+        if(zplane(k) % coord == coord) then
+#endif
+            do j=1,Ny
+                do i=1,Nx
+                    ui(i,j,1) = linear_interp(u(i,j,zplane(k) % istart),        &
+                         u(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                    vi(i,j,1) = linear_interp(v(i,j,zplane(k) % istart),        &
+                         v(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                    wi(i,j,1) = linear_interp(w_uv(i,j,zplane(k) % istart),     &
+                         w_uv(i,j,zplane(k) % istart+1), dz, zplane(k) % ldiff)
+                enddo
+            enddo
+            
+#ifdef PPCGNS
+            ! Write CGNS Data
+            ! Only the processor with data writes, the other one is written
+            ! using null arguments with 'write_null_cgns'
+            call write_parallel_cgns (fname ,nx, ny, 1, 1,                      &
+            (/ 1, 1,   1 /),                                                    &
+            (/ nx, ny, 1 /),                                                    &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
+            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                        &
+            (/ ui(1:nx,1:ny,1), vi(1:nx,1:ny,1), wi(1:nx,1:ny,1) /) )
+
 #else
-            call string_splice( fname, path // 'output/binary_vel.z-',         &
-                                zplane_loc(k), '.', jt_total, '.dat')
-            open(unit=13,file=fname,form='unformatted',convert='big_endian',   &
+            call string_concat( fname, '.bin')
+            open(unit=13,file=fname,form='unformatted',convert=write_endian,    &
                             access='direct',recl=nx*ny*1*rprec)
             write(13,rec=1) ui(1:nx,1:ny,1)
             write(13,rec=2) vi(1:nx,1:ny,1)
@@ -855,10 +1231,18 @@ elseif(itype==5) then
 #endif
      
 #ifdef PPMPI 
+        else
+#ifdef PPCGNS
+            call write_null_cgns (fname ,nx, ny, 1, 1,                          &
+            (/ 1, 1,   1 /),                                                    &
+            (/ nx, ny, 1 /),                                                    &
+            x(1:nx) , y(1:ny) , zplane_loc(k:k), 3,                             &
+            (/ 'VelocityX', 'VelocityY', 'VelocityZ' /) )
+#endif
         endif
 #endif
     enddo
-  
+
     deallocate(ui,vi,wi)
 
 else
@@ -890,8 +1274,8 @@ allocate(fx_tot(nx,ny,nz), fy_tot(nx,ny,nz), fz_tot(nx,ny,nz))
 ! Richard: Might not be necessary to do this as the function only seems to be called when LVLSET is activated
 #if ( defined(PPTURBINES) && !defined(PPLVLSET) )
 fx_tot = fxa(1:nx,1:ny,1:nz)
-fy_tot = 0._rprec
-fz_tot = 0._rprec
+fy_tot = fya(1:nx,1:ny,1:nz)
+fz_tot = fza(1:nx,1:ny,1:nz)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #elif PPATM
@@ -974,14 +1358,14 @@ end subroutine inst_write
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine checkpoint ()
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-use iwmles, only : iwm_on !xiang: for iwm check point
+use iwmles !xiang: for iwm check point
 use param, only : nz, checkpoint_file, tavg_calc, lbc_mom !xiang: lbc_mom is used for iwm
 #ifdef PPMPI
 use param, only : comm,ierr
 #endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model
+use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model,write_endian
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
@@ -1004,13 +1388,7 @@ call string_concat( fname, '.c', coord )
 #endif
 
 !  Open vel.out (lun_default in io) for final output
-#ifdef PPWRITE_BIG_ENDIAN
-open(11,file=fname,form='unformatted', convert='big_endian', status='unknown', position='rewind')
-#elif PPWRITE_LITTLE_ENDIAN
-open(11,file=fname,form='unformatted', convert='little_endian', status='unknown', position='rewind')
-#else
-open(11,file=fname,form='unformatted', status='unknown', position='rewind')
-#endif
+open(11,file=fname,form='unformatted', convert=write_endian, status='unknown', position='rewind')
 
 if (sgs_model==1) then
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),     &
@@ -1041,14 +1419,12 @@ else
 endif
 
 !xiang check point for iwm
-if(lbc_mom==1)then
-if(iwm_on==1)then
-	if(coord == 0) call iwm_checkPoint()
-endif
+if(lbc_mom==3)then
+    if(coord == 0) call iwm_checkPoint()
 endif
 
 #ifdef PPHIT
-	if(coord == 0) call hit_write_restart()
+    if(coord == 0) call hit_write_restart()
 #endif
 
 #if PPUSE_TURBINES
@@ -1105,7 +1481,6 @@ use stat_defs, only : type_set
 use open_file_fid_mod
 implicit none
 
-character(120) :: fname
 integer :: i,j,k
 real(rprec), pointer, dimension(:) :: x,y,z
 
@@ -1257,10 +1632,11 @@ subroutine tavg_init()
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !  Load tavg.out files
 use messages
+use param, only : read_endian
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
 use stat_defs, only : operator(.MUL.)
 #ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs,tavg_time_stamp
+use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 #endif
 implicit none
 
@@ -1273,7 +1649,7 @@ character (*), parameter :: MPI_suffix = '.c'
 #endif
 character (128) :: fname
 
-logical :: opn, exst
+logical :: exst
 
 fname = ftavg_in
 #ifdef PPMPI
@@ -1293,18 +1669,10 @@ if (.not. exst) then
  
 else
 
-#ifdef PPREAD_BIG_ENDIAN
-    open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-    open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-#else
-    open (1, file=fname, action='read', position='rewind',form='unformatted')
-#endif
-
-    read (1) tavg_total_time
-    read (1) tavg
-
-    close(1)
+open(1, file=fname, action='read', position='rewind', form='unformatted', convert=read_endian)
+read(1) tavg_total_time
+read(1) tavg
+close(1)
 
 endif
 
@@ -1326,17 +1694,9 @@ endif
 
         tavg_total_time_sgs = 0._rprec  
     else
-#ifdef PPREAD_BIG_ENDIAN
-        open (1, file=fname, action='read', position='rewind',form='unformatted', convert='big_endian')
-#elif PPREAD_LITTLE_ENDIAN
-        open (1, file=fname, action='read', position='rewind',form='unformatted', convert='little_endian')  
-#else
-        open (1, file=fname, action='read', position='rewind',form='unformatted')
-#endif
-
+        open (1, file=fname, action='read', position='rewind', form='unformatted', convert=read_endian)
         read (1) tavg_total_time_sgs
         read (1) tavg_sgs
-
         close(1)    
     endif
     
@@ -1358,85 +1718,72 @@ subroutine tavg_compute()
 !  variable quantity
 use stat_defs, only : tavg,tavg_total_time,tavg_dt
 #ifdef PPOUTPUT_EXTRA
-use param, only : sgs_model
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 #endif
-use param, only : nx,ny,nz,lbz,jzmax
-use sim_param, only : u,v,w, dudz, dvdz, txx, txy, tyy, txz, tyz, tzz
+use param, only : nx,ny,nz,lbz,jzmax,ubc_mom,lbc_mom
+use sim_param, only : u, v, w
+#ifdef PPMPI
+use sim_param, only : txx, txy, tyy, txz, tyz, tzz
+#endif
 #ifdef PPTURBINES
-use sim_param, only : fxa
+use sim_param, only : fxa, fya, fza
 #endif
-#ifdef PPLVLSET
-use sim_param, only : fx, fy, fz, fxa, fya, fza
-#endif
-use functions, only : interp_to_uv_grid
+use functions, only : interp_to_uv_grid, interp_to_w_grid
 
 implicit none
 
 integer :: i,j,k
 
-real(rprec) :: u_p, v_p, w_p, w_p2
-real(rprec), allocatable, dimension(:,:,:) :: w_uv
-allocate(w_uv(nx,ny,lbz:nz))
-w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
+real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
+real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w, v_w
+allocate(w_uv(nx,ny,lbz:nz),u_w(nx,ny,lbz:nz),v_w(nx,ny,lbz:nz))
 
-#ifdef PPMPI
-k=0
-do j=1,ny
-   do i=1,nx
+!w_uv(1:nx,1:ny,lbz:nz)= interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
+u_w(1:nx,1:ny,lbz:nz) =  interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
+v_w(1:nx,1:ny,lbz:nz) =  interp_to_w_grid(v(1:nx,1:ny,lbz:nz), lbz )
+! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
+! can zero u_w at BC anyway:
+if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
+if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
+if(coord==0       .and. lbc_mom>0) v_w(:,:,1)  = 0._rprec
+if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
 
-      u_p = u(i,j,k)
-      v_p = v(i,j,k) 
-      w_p = w(i,j,k)
-      w_p2= w_uv(i,j,k)
-
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
-
-      tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt
-      tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt
-      tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt
-      tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt
-      tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt
-      tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt
-
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-!#ifdef PPTURBINES 
-!      tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
-!#endif
-!      tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
-   enddo
-enddo
-#endif
-
-do k=1,jzmax  
+do k=lbz,jzmax     !! lbz = 0 for mpi runs, otherwise lbz = 1  
   do j=1,ny
     do i=1,nx
    
-      u_p = u(i,j,k)
-      v_p = v(i,j,k) 
-      w_p = w(i,j,k)
-      w_p2= w_uv(i,j,k)
+      u_p = u(i,j,k)       !! uv grid
+      u_p2= u_w(i,j,k)     !! w grid 
+      v_p = v(i,j,k)       !! uv grid
+      v_p2= v_w(i,j,k)     !! w grid
+      w_p = w(i,j,k)       !! w grid
+      w_p2= w_uv(i,j,k)    !! uv grid
     
-      tavg(i,j,k)%u = tavg(i,j,k)%u + u_p * tavg_dt                    
-      tavg(i,j,k)%v = tavg(i,j,k)%v + v_p * tavg_dt                         
-      tavg(i,j,k)%w = tavg(i,j,k)%w + w_p * tavg_dt
+      tavg(i,j,k) % u = tavg(i,j,k) % u + u_p * tavg_dt !! uv grid                   
+      tavg(i,j,k) % v = tavg(i,j,k) % v + v_p * tavg_dt !! uv grid                      
+      tavg(i,j,k) % w = tavg(i,j,k) % w + w_p * tavg_dt !! w grid
+      tavg(i,j,k) % w_uv = tavg(i,j,k) % w_uv + w_p2 * tavg_dt !! uv grid
 
-      tavg(i,j,k)%u2 = tavg(i,j,k)%u2 + u_p * u_p * tavg_dt
-      tavg(i,j,k)%v2 = tavg(i,j,k)%v2 + v_p * v_p * tavg_dt
-      tavg(i,j,k)%w2 = tavg(i,j,k)%w2 + w_p * w_p * tavg_dt
-      tavg(i,j,k)%uv = tavg(i,j,k)%uv + u_p * v_p * tavg_dt
-      tavg(i,j,k)%uw = tavg(i,j,k)%uw + u_p * w_p2 * tavg_dt
-      tavg(i,j,k)%vw = tavg(i,j,k)%vw + v_p * w_p2 * tavg_dt
-#ifdef PPTURBINES       
-      tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
+      ! Note: compute u'w' on w-grid because stresses on w-grid --pj
+      tavg(i,j,k) % u2 = tavg(i,j,k) % u2 + u_p * u_p * tavg_dt !! uv grid
+      tavg(i,j,k) % v2 = tavg(i,j,k) % v2 + v_p * v_p * tavg_dt !! uv grid
+      tavg(i,j,k) % w2 = tavg(i,j,k) % w2 + w_p * w_p * tavg_dt !! w grid
+      tavg(i,j,k) % uv = tavg(i,j,k) % uv + u_p * v_p * tavg_dt !! uv grid
+      tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p2 * w_p * tavg_dt !! w grid
+      tavg(i,j,k) % vw = tavg(i,j,k) % vw + v_p2 * w_p * tavg_dt !! w grid
+      
+      tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt !! uv grid
+      tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt !! w grid
+      tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt !! w grid
+
+#ifdef PPTURBINES
+      tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt 
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt 
+      tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza(i,j,k) * tavg_dt 
 #endif
       tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
       
@@ -1482,25 +1829,23 @@ use stat_defs, only : operator(.DIV.), operator(.MUL.)
 use stat_defs, only : operator(.ADD.), operator(.SUB.)
 use stat_defs, only : tavg_interp_to_uv_grid
 use stat_defs, only : rs_compute, cnpy_tavg_mul
+use param, only : write_endian
 #ifdef PPOUTPUT_EXTRA
 use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 #endif
-use param, only : ny,nz,nz_tot
+use param, only : ny,nz
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
 use param, only : ierr,comm
 #endif
 
 implicit none
-character(64) :: fname_velb,fname_vel2b,fname_ddzb,fname_taub,fname_fb,fname_rsb,fname_csb,fname_u_vel_gridb
-#ifdef PPOUTPUT_EXTRA
-character(64) :: fname_sgs_TnNu
+
+#ifndef PPCGNS
+character(64) :: bin_ext
 #endif
 
-#ifdef PPCGNS
-character(64) :: fname_vel_cgns_uv, fname_vel_cgns,fname_vel2_cgns,fname_ddz_cgns,fname_tau_cgns,fname_f_cgns
-character(64) :: fname_rs_cgns,fname_cs_cgns,fname_u_vel_grid_cgns
-#endif
+character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_f, fname_rs, fname_cs
 
 integer :: i,j,k
 
@@ -1515,44 +1860,39 @@ zw => grid % zw
 
 allocate(rs(nx,ny,lbz:nz))
 
+! Common file name
+fname_vel = path // 'output/veluv_avg'
+fname_velw = path // 'output/velw_avg'
+fname_vel2 = path // 'output/vel2_avg'
+fname_tau = path // 'output/tau_avg'
+fname_f = path // 'output/force_avg'
+fname_rs = path // 'output/rs'
+fname_cs = path // 'output/cs_opt2'
+
+! CGNS
 #ifdef PPCGNS
-fname_vel_cgns_uv = path // 'output/veluv_avg.cgns'
-fname_vel_cgns = path // 'output/vel_avg.cgns'
-fname_vel2_cgns = path // 'output/vel2_avg.cgns'
-fname_ddz_cgns = path // 'output/ddz_avg.cgns'
-fname_tau_cgns = path // 'output/tau_avg.cgns'
-fname_f_cgns = path // 'output/force_avg.cgns'
-fname_rs_cgns = path // 'output/rs.cgns'
-fname_cs_cgns = path // 'output/cs_opt2.cgns'
-fname_u_vel_grid_cgns = path // 'output/u_grid_vel.cgns'
-#endif
+call string_concat(fname_vel, '.cgns')
+call string_concat(fname_velw, '.cgns')
+call string_concat(fname_vel2, '.cgns')
+call string_concat(fname_tau, '.cgns')
+call string_concat(fname_f, '.cgns')
+call string_concat(fname_rs, '.cgns')
+call string_concat(fname_cs, '.cgns')
 
 ! Binary
-fname_velb = path // 'output/binary_vel_avg.dat'
-fname_vel2b = path // 'output/binary_vel2_avg.dat'
-fname_ddzb = path // 'output/binary_ddz_avg.dat'
-fname_taub = path // 'output/binary_tau_avg.dat'
-fname_fb = path // 'output/binary_force_avg.dat'
-fname_rsb = path // 'output/binary_rs.dat'
-fname_csb = path // 'output/binary_cs_opt2.dat'
-fname_u_vel_gridb = path // 'output/binary_u_grid_vel.dat'
-
-#ifdef PPOUTPUT_EXTRA  
-fname_sgs_TnNu = path // 'output/TnNu_avg.dat'
-#endif  
-  
+#else
 #ifdef PPMPI
-  call string_concat( fname_velb, '.c', coord)
-  call string_concat( fname_vel2b, '.c', coord)
-  call string_concat( fname_ddzb, '.c', coord)
-  call string_concat( fname_taub, '.c', coord)
-  call string_concat( fname_fb, '.c', coord)
-  call string_concat( fname_rsb, '.c', coord)
-  call string_concat( fname_csb, '.c', coord)
-  call string_concat( fname_u_vel_gridb, '.c',coord)
-#ifdef PPOUTPUT_EXTRA  
-  call string_concat( fname_sgs_TnNu, '.c', coord)
-#endif    
+call string_splice(bin_ext, '.c', coord, '.bin')
+#else
+bin_ext = '.bin'
+#endif
+call string_concat(fname_vel, bin_ext)
+call string_concat(fname_velw, bin_ext)
+call string_concat(fname_vel2, bin_ext)
+call string_concat(fname_tau, bin_ext)
+call string_concat(fname_f, bin_ext)
+call string_concat(fname_rs, bin_ext)
+call string_concat(fname_cs, bin_ext)
 #endif
 
 ! Final checkpoint all restart data
@@ -1604,14 +1944,77 @@ call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
 #endif
 #endif
 
-! ----- Write all the 3D data -----
-open(unit=13,file=fname_velb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+! Write all the 3D data
+#ifdef PPCGNS
+! Write CGNS Data
+call write_parallel_cgns (fname_vel ,nx, ny, nz - nz_end, nz_tot,              &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 3,                                      &
+(/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                                   &
+(/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                          &
+   tavg(1:nx,1:ny,1:nz - nz_end) % v,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % w_uv /) )
+   
+call write_parallel_cgns (fname_velw ,nx, ny, nz - nz_end, nz_tot,             &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                        &
+1, (/ 'VelocityZ' /), (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
+
+call write_parallel_cgns(fname_vel2,nx,ny,nz- nz_end,nz_tot,                   &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                     &
+(/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
+    
+call write_parallel_cgns(fname_tau,nx,ny,nz- nz_end,nz_tot,                    &
+    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                     &
+(/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                         &
+   tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
+
+call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                     &
+(/ 'bodyForX', 'bodyForY', 'bodyForZ' /),                                      &
+(/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                          &
+   tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
+
+call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                     &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                                &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                   &
+x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                     &
+(/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
+
+#else
+! Write binary data
+open(unit=13,file=fname_vel,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v
-write(13,rec=3) tavg(:nx,:ny,1:nz)%w
+write(13,rec=3) tavg(:nx,:ny,1:nz)%w_uv
 close(13)
 
-open(unit=13,file=fname_vel2b,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+! Write binary data
+open(unit=13,file=fname_velw,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%w
+close(13)
+
+open(unit=13,file=fname_vel2,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%u2
 write(13,rec=2) tavg(:nx,:ny,1:nz)%v2
 write(13,rec=3) tavg(:nx,:ny,1:nz)%w2
@@ -1620,18 +2023,25 @@ write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
 write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
 close(13)
 
-open(unit=13,file=fname_fb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
+open(unit=13,file=fname_tau,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%txx
+write(13,rec=2) tavg(:nx,:ny,1:nz)%txy
+write(13,rec=3) tavg(:nx,:ny,1:nz)%tyy
+write(13,rec=4) tavg(:nx,:ny,1:nz)%txz
+write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
+write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
 close(13)
 
-open(unit=13,file=fname_csb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+open(unit=13,file=fname_f,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
+write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
+write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
+close(13)
+
+open(unit=13,file=fname_cs,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2 
 close(13)
 
-#ifdef PPOUTPUT_EXTRA
-open(unit=13,file=fname_sgs_TnNu,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg_sgs(:nx,:ny,1:nz)%Nu_t
-close(13)
 #endif
 
 #ifdef PPMPI
@@ -1639,73 +2049,29 @@ close(13)
 call mpi_barrier( comm, ierr )
 #endif
 
-#ifdef PPCGNS
-
-    ! Write CGNS Data
-    call write_parallel_cgns (fname_vel_cgns_uv ,nx, ny, nz - nz_end, nz_tot,  &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                     &
-    2, (/ 'VelocityX', 'VelocityY' /),                                         &
-    (/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                      &
-       tavg(1:nx,1:ny,1:nz - nz_end) % v /) )
-
-    call write_parallel_cgns (fname_vel_cgns, nx, ny, nz - nz_end, nz_tot,     &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                    &
-    1, (/ 'VelocityZ' /),                             &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
-    
-    call write_parallel_cgns(fname_vel2_cgns,nx,ny,nz- nz_end,nz_tot,          &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-    (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                      &
-    tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                         &
-    tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
-    
-!~     call write_parallel_cgns(fname_ddz_cgns,nx,ny,nz- nz_end,nz_tot,           &
-!~     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-!~     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-!~     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 2, (/ 'dudz----', 'dvdz----'/),    &
-!~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % dudz,                                    &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % dvdz /) )
-    
-    call write_parallel_cgns(fname_tau_cgns,nx,ny,nz- nz_end,nz_tot,           &
-        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-    (/ 'Tao--txx', 'Tao--txy', 'Tao--tyy','Tao--txz','Tao--tyz','Tao--tzz'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                     &
-    tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                        &
-    tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                        &
-    tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                        &
-    tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                        &
-    tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )  
-
-!~     call write_parallel_cgns(fname_f_cgns,nx,ny,nz- nz_end,nz_tot,             &
-!~     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-!~     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-!~     x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
-!~     (/ 'bodyForX', 'bodyForY', 'bodyForZ'/),                                   &
-!~     (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                         &
-!~     tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
-#endif
-
 ! Do the Reynolds stress calculations afterwards. Now we can interpolate w and
 ! ww to the uv grid and do the calculations. We have already written the data to
 ! the files so we can overwrite now
-tavg = tavg_interp_to_uv_grid( tavg )
+!!!tavg = tavg_interp_to_uv_grid( tavg )    !!jb
+rs = rs_compute(tavg , lbz)
 
-rs = rs_compute( tavg , lbz)
+#ifdef PPCGNS
+! Write CGNS data
+call write_parallel_cgns(fname_rs,nx,ny,nz- nz_end,nz_tot,                  &
+(/ 1, 1,   (nz-1)*coord + 1 /),                                             &
+(/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                   &
+(/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),   &
+(/ rs(1:nx,1:ny,1:nz- nz_end) % up2,                                        &
+rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                           &
+rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                           &
+rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                          &
+rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                          &
+rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
 
-open(unit=13,file=fname_rsb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+#else
+! Write binary data
+open(unit=13,file=fname_rs,form='unformatted',convert=write_endian,access='direct',recl=nx*ny*nz*rprec)
 write(13,rec=1) rs(:nx,:ny,1:nz)%up2
 write(13,rec=2) rs(:nx,:ny,1:nz)%vp2
 write(13,rec=3) rs(:nx,:ny,1:nz)%wp2
@@ -1713,25 +2079,6 @@ write(13,rec=4) rs(:nx,:ny,1:nz)%upwp
 write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
 close(13)
-
-#ifdef PPCGNS
-    call write_parallel_cgns(fname_rs_cgns,nx,ny,nz- nz_end,nz_tot,            &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                  &
-    (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
-    (/ rs(1:nx,1:ny,1:nz- nz_end) % up2,                                       &
-    rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                          &
-    rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                          &
-    rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                         &
-    rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                         &
-    rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
-    
-    call write_parallel_cgns(fname_cs_cgns,nx,ny,nz- nz_end,nz_tot,            &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
-    (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
 #endif
 
 deallocate(rs) 
@@ -1750,7 +2097,7 @@ subroutine tavg_checkpoint()
 ! This subroutine writes the restart data and is to be called by 'checkpoint'
 ! for intermediate checkpoints and by 'tavg_finalize' at the end of the
 ! simulation.
-use param, only : checkpoint_tavg_file
+use param, only : checkpoint_tavg_file, write_endian
 use stat_defs, only : tavg_total_time, tavg
 #ifdef PPOUTPUT_EXTRA
 use param, only : checkpoint_tavg_sgs_file
@@ -1759,7 +2106,6 @@ use stat_defs, only : tavg_total_time_sgs, tavg_sgs
 implicit none
 
 character(64) :: fname
-logical :: opn
 
 fname = checkpoint_tavg_file
 #ifdef PPMPI
@@ -1767,40 +2113,20 @@ call string_concat( fname, '.c', coord)
 #endif
 
 !  Write data to tavg.out
-inquire (unit=1, opened=opn)
-
-#ifdef PPWRITE_BIG_ENDIAN
-open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-#elif PPWRITE_LITTLE_ENDIAN
-open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-#else
-open (1, file=fname, action='write', position='rewind',form='unformatted')
-#endif
-
-! write the entire structures
-write (1) tavg_total_time
-write (1) tavg
+open(1, file=fname, action='write', position='rewind',form='unformatted', convert=write_endian)
+write(1) tavg_total_time
+write(1) tavg
 close(1)
 
-!----
 #ifdef PPOUTPUT_EXTRA
 fname = checkpoint_tavg_sgs_file
 #ifdef PPMPI
   call string_concat( fname, '.c', coord)
 #endif
-
   !  Write data to tavg_sgs.out
-#ifdef PPWRITE_BIG_ENDIAN
-  open (1, file=fname, action='write', position='rewind',form='unformatted', convert='big_endian')
-#elif PPWRITE_LITTLE_ENDIAN
-  open (1, file=fname, action='write', position='rewind',form='unformatted', convert='little_endian')
-#else
-  open (1, file=fname, action='write', position='rewind',form='unformatted')
-#endif
-
-  ! write the entire structures
-  write (1) tavg_total_time_sgs
-  write (1) tavg_sgs
+  open(1, file=fname, action='write', position='rewind',form='unformatted', convert=write_endian)
+  write(1) tavg_total_time_sgs
+  write(1) tavg_sgs
   close(1)
 #endif
 

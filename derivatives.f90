@@ -47,7 +47,7 @@ subroutine ddx(f,dfdx,lbz)
 !  
 
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
@@ -99,7 +99,7 @@ subroutine ddy(f,dfdy, lbz)
 !  y using spectral decomposition.
 !  
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none      
@@ -146,7 +146,7 @@ end subroutine ddy
 subroutine ddxy (f, dfdx, dfdy, lbz)              
 !**********************************************************************
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz,dz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none
@@ -197,7 +197,10 @@ subroutine ddz_uv(f, dfdz, lbz)
 !  bottom process it only supplies 2:nz
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
+use param,only:nx,ny,nz,dz,BOGUS
+#ifdef PPMPI
+use param,only:nproc,coord
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -215,20 +218,29 @@ const=1._rprec/dz
   dfdz(:, :, 0) = BOGUS
 #endif
 
-  if (coord > 0) then
-    !--ghost node information is available here
-    !--watch the z-dimensioning!
-    !--if coord == 0, dudz(1) will be set in wallstress
-    do jy=1,ny
-    do jx=1,nx    
-       dfdz(jx,jy,1)=const*(f(jx,jy,1)-f(jx,jy,0))
-    end do
-    end do
-  end if
+  !if (coord > 0) then
+  !  !--ghost node information is available here
+  !  !--watch the z-dimensioning!
+  !  !--if coord == 0, dudz(1) will be set in wallstress
+  !  do jy=1,ny
+  !  do jx=1,nx    
+  !     dfdz(jx,jy,1)=const*(f(jx,jy,1)-f(jx,jy,0))
+  !  end do
+  !  end do
+  !end if
+
+  !!! channel - pj
+  !if (coord < nproc-1) then
+  !  do jy=1,ny
+  !  do jx=1,nx
+  !     dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+  !  end do
+  !  end do
+  !end if
 
 #endif
 
-do jz=2,nz-1
+do jz=1,nz
 do jy=1,ny
 do jx=1,nx    
    dfdz(jx,jy,jz)=const*(f(jx,jy,jz)-f(jx,jy,jz-1))
@@ -236,26 +248,38 @@ end do
 end do
 end do
 
+! Not necessarily accurate at top and bottom boundary
+#ifdef PPSAFETYMODE
+  if (coord == 0) then
+    dfdz(:,:,1) = BOGUS
+  end if
+  if (coord == nproc-1) then
+    dfdz(:,:,nz) = BOGUS
+  end if
+#endif
+
+!! >>>>> this section commented out for channel capabilities
 !--should integrate this into the above loop, explicit zeroing is not
 !  needed, since dudz, dvdz are forced to zero by copying the u, v fields
 !--also, what happens when called with tzz? 
-#ifdef PPMPI 
-
-  if (coord == nproc-1) then
-    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-  else
-    do jy=1,ny
-    do jx=1,nx
-       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
-    end do
-    end do
-  endif
-
-#else
-
-  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
-
-#endif
+!!$#ifdef PPMPI 
+!!$
+!!$  if (coord == nproc-1) then
+!!$    dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$  else
+!!$    do jy=1,ny
+!!$    do jx=1,nx
+!!$       dfdz(jx,jy,nz)=const*(f(jx,jy,nz)-f(jx,jy,nz-1))
+!!$    end do
+!!$    end do
+!!$  endif
+!!$
+!!$#else
+!!$
+!!$  dfdz(:,:,nz)=0._rprec  !--do not need to do this...
+!!$
+!!$#endif
+!! <<<<< this section commented out for channel capabilities
 
 return
 end subroutine ddz_uv
@@ -271,7 +295,10 @@ subroutine ddz_w(f, dfdz, lbz)
 !  has 1:nz-1
 !
 use types,only:rprec
-use param,only:ld,nx,ny,nz,dz,coord,nproc,BOGUS
+use param,only:nx,ny,nz,dz,BOGUS
+#ifdef PPMPI
+use param,only:nproc,coord,ubc_mom
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -298,14 +325,14 @@ end do
 #endif      
     endif
     if (coord == nproc-1) then
-      dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
+      dfdz(:,:,nz) = BOGUS !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
     else
 #ifdef PPSAFETYMODE
       dfdz(:, :, nz) = BOGUS
 #endif      
     end if
 #else
-  dfdz(:,:,nz)=0._rprec !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
+  dfdz(:,:,nz)= BOGUS !dfdz(:,:,Nz-1) ! c? any better ideas for sponge?
 #endif
 
 
@@ -322,7 +349,7 @@ subroutine filt_da(f,dfdx,dfdy, lbz)
 !  except on bottom process (0 level set to BOGUS, starts at 1)
 !
 use types,only:rprec
-use param,only:ld,lh,nx,ny,nz
+use param,only:ld,nx,ny,nz
 use fft
 use emul_complex, only : OPERATOR(.MULI.)
 implicit none

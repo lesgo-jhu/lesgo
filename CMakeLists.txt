@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "generic")
+set(hostname "default")
 
 #--Set global VERBOSE flag;
 set(VERBOSE false)
@@ -54,6 +54,9 @@ set(USE_HIT false)
 # streaks effects on averaging
 set(USE_STREAKS false)
 
+# What does this do?
+set(USE_DYN_TN false)
+
 ################################################################################
 #                         Set up build (do not change)
 ################################################################################
@@ -62,6 +65,7 @@ set(USE_STREAKS false)
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     add_definitions(-DPPIFORT)
     set(compiler_name "ifort")
+    add_definitions(-DPPIFORT)
 #  GNU
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     add_definitions(-DPPGFORTRAN)
@@ -114,7 +118,9 @@ elseif (${hostname} STREQUAL "marcc")
 elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
 #  all other systems
-elseif (${hostname} STREQUAL "generic")
+elseif (${hostname} STREQUAL "default")
+    include_directories($ENV{HOME}/codes/fftw3/include)
+    link_directories($ENV{HOME}/codes/fftw3/lib)
     # nothing yet, but can add if needed
     if (USE_CGNS)
         include_directories($ENV{HOME}/cgns/include/)
@@ -124,15 +130,16 @@ endif ()
 
 # List common sources
 set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
-     divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 
-     forcing.f90 fringe_util.f90 functions.f90 grid.f90 ic.f90 ic_dns.f90 
+     divstress_w.f90 emul_complex.f90 fft.f90 finalize.f90 
+     forcing.f90 fringe_util.f90 functions.f90 grid.f90
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 
-     messages.f90 open_file.f90 padd.f90 param.f90 param_output.f90 
+     messages.f90 open_file.f90 param.f90 param_output.f90 
      press_stag_array.f90 rmsdiv.f90 scaledep_dynamic.f90 
      sgs_param.f90 sgs_stag_util.f90 sim_param.f90 stat_defs.f90 
      std_dynamic.f90 string_util.f90 test_filtermodule.f90 tridag_array.f90 
-     types.f90 unpadd.f90 wallstress.f90 wallstress_dns.f90 init_random_seed.f90)
+     types.f90 wallstress.f90 init_random_seed.f90
+     iwmles.f90)
 
 if (USE_MPI)
     add_definitions(-DPPMPI)
@@ -168,7 +175,7 @@ endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbines_base.f90 util.f90)
+    set(Sources ${Sources} turbines.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 
@@ -226,7 +233,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "-cpp -O2 -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics")
+    set (CMAKE_Fortran_FLAGS "-cpp -O2 -ffast-math -funroll-loops -fall-intrinsics -Wall")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable

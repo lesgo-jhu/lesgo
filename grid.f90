@@ -46,7 +46,10 @@ subroutine build(this)
 !**********************************************************************
 !  This subroutine creates the uv grid for the domain.
 
-use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, coord, lbz, nproc
+use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
+#ifdef PPMPI
+use param,only:nproc,coord
+#endif
 implicit none
 
 class(grid_t) :: this

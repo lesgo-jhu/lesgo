@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!**********************************************************************
+!*******************************************************************************
 subroutine param_output()
-!**********************************************************************
+!*******************************************************************************
 use param
 #ifdef PPLVLSET
 use level_set_base
@@ -29,7 +29,7 @@ implicit none
 
 integer :: n
 
-character(*), parameter :: fname = path // 'lesgo_param.out'
+character(*), parameter :: fname = path // 'output/lesgo_param.out'
 
 character(*), parameter :: c_fmt = '(a)'
 character(*), parameter :: x2c_fmt = '(2a)'
@@ -48,8 +48,9 @@ character(*), parameter :: x3f_fmt = '(a,3e15.7)'
 
 character(*), parameter :: if_fmt='(a,i7,e15.7)'
 character(*), parameter :: ix3f_fmt='(a,i7,3e15.7)'
+character(13) :: ch
 
-open (unit = 2,file = fname, status='unknown',form='formatted', &
+open (unit = 2,file = fname, status='unknown',form='formatted',                &
   action='write',position='rewind')
 
 write(2,c_fmt) '**********************************************************************'
@@ -77,7 +78,7 @@ write(2,f_fmt) 'vonk : ', vonk
 write(2,l_fmt) 'coriolis_forcing : ', coriolis_forcing
 write(2,x3f_fmt) 'coriol : ', coriol, ug, vg
 write(2,f_fmt) 'nu_molec : ', nu_molec
-write(2,x3l_fmt) 'molec, sgs, dns_bc : ', molec, sgs, dns_bc
+write(2,x3l_fmt) 'molec, sgs : ', molec, sgs
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'TIMESTEP PARAMETERS'
@@ -98,6 +99,9 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
+write(2,i_fmt) 'ubc_mom : ', ubc_mom
+write(2,f_fmt) 'ubot : ', ubot
+write(2,f_fmt) 'utop : ', utop
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
@@ -105,10 +109,33 @@ write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
 write(2,f_fmt) 'mean_p_force : ', mean_p_force
+write(2,l_fmt) 'use_random_force : ', use_random_force
+write(2,i_fmt) 'stop_random_force : ', stop_random_force
+write(2,f_fmt) 'rms_random_force : ', rms_random_force
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
+#if ( defined(PPWRITE_BIG_ENDIAN) || defined(PPWRITE_LITTLE_ENDIAN) )
+write(2,x2c_fmt) 'write_endian : ', write_endian
+#elif (defined(PPIFORT))
+! According to https://software.intel.com/en-us/node/524834:
+! Intel Fortran expects numeric data to be in native little endian order.
+write(2,x2c_fmt) 'write_endian : ', 'LITTLE_ENDIAN'
+#else
+inquire(2,convert=ch)
+write(2,x2c_fmt) 'write_endian : ', ch
+#endif
+#if ( defined(PPREAD_BIG_ENDIAN) || defined(PPREAD_LITTLE_ENDIAN) )
+write(2,x2c_fmt) 'read_endian : ', write_endian
+#elif (defined(PPIFORT))
+! According to https://software.intel.com/en-us/node/524834:
+! Intel Fortran expects numeric data to be in native little endian order.
+write(2,x2c_fmt) 'read_endian : ', 'LITTLE_ENDIAN'
+#else
+inquire(2,convert=ch)
+write(2,x2c_fmt) 'read_endian : ', ch
+#endif
 write(2,i_fmt) 'wbase : ', wbase
 write(2,i_fmt) 'nenergy : ', nenergy
 write(2,i_fmt) 'lag_cfl_count : ', lag_cfl_count
