@@ -64,7 +64,8 @@ type turbineArray_t
     real(rprec) :: IntSpeedError = 0._rprec
     real(rprec) :: IntPowerError = 0._rprec
     logical :: tipALMCorrection = .false. ! Includes a correction for tip
-    real(rprec) :: optimalEpsilon = 0.25 ! The optimal epsilon (m)
+    logical :: rootALMCorrection = .false. ! Includes a correction for tip
+    real(rprec) :: optimalEpsilonChord = 0.25 ! The optimal epsilon / chord 
 
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
@@ -133,6 +134,12 @@ type turbineArray_t
     real(rprec), allocatable, dimension(:,:,:) :: axialForce
     ! Tangential force at each actuator point
     real(rprec), allocatable, dimension(:,:,:) :: tangentialForce
+    ! The function G=1/2 * Cl * c * Vmag^2
+    real(rprec), allocatable, dimension(:,:,:) :: G
+    ! The derivative of G
+    real(rprec), allocatable, dimension(:,:,:) :: dG
+    ! Cl base for the correction
+    real(rprec), allocatable, dimension(:,:,:) :: Cl_b
 
     ! These variables are to make corrections based on optimum value of epsilon
     real(rprec), allocatable, dimension(:,:,:) :: epsilon_opt
@@ -430,10 +437,15 @@ do
 !~             write(*,*)  'tipALMCorrection is: ', &
 !~                          turbineArray(n) % tipALMCorrection
         endif 
-        if( buff(1:14) == 'optimalEpsilon' ) then
-            read(buff(15:), *) turbineArray(n) % optimalEpsilon
-!~             write(*,*)  'optimalEpsilon is: ', &
-!~                          turbineArray(n) % optimalEpsilon
+        if( buff(1:17) == 'rootALMCorrection' ) then
+            read(buff(18:), *) turbineArray(n) % rootALMCorrection
+!~             write(*,*)  'rootALMCorrection is: ', &
+!~                          turbineArray(n) % rootALMCorrection
+        endif 
+        if( buff(1:19) == 'optimalEpsilonChord' ) then
+            read(buff(20:), *) turbineArray(n) % optimalEpsilonChord
+!~             write(*,*)  'optimalEpsilonChord is: ', &
+!~                          turbineArray(n) % optimalEpsilonChord
         endif 
     endif        
 end do
@@ -837,8 +849,12 @@ numBl=turbineModel(j) % numBl
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % epsilon_opt(numBl,                              &
              numAnnulusSections, numBladePoints) )
-!~     allocate(turbineArray(i) % Gamma(numBl,                              &
-!~              numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % G(numBl,                                        &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % dG(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
+    allocate(turbineArray(i) % Cl_b(numBl,                                       &
+             numAnnulusSections, numBladePoints) )
 
     ! Variables meant for parallelization
     allocate(turbineArray(i) % bladeVectorDummy(numBl,                         &

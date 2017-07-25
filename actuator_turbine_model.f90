@@ -42,7 +42,8 @@ public :: atm_initialize, numberOfTurbines,                                    &
           atm_computeBladeForce, atm_update,                                   &
           vector_add, vector_divide, vector_mag, distance,                     &
           atm_output, atm_process_output,                                      &
-          atm_initialize_output, atm_computeNacelleForce, atm_write_restart
+          atm_initialize_output, atm_computeNacelleForce, atm_write_restart,   &
+          atm_compute_cl_correction
 
 ! The very crucial parameter pi
 real(rprec), parameter :: pi=acos(-1._rprec) 
@@ -542,6 +543,11 @@ call atm_rotateBlades(i)
 
 call atm_control_yaw(i, time)
 
+!~ if(pastFirstTimeStep) then
+    ! Compute the lift correction for this case
+!~     call atm_compute_cl_correction(i)
+!~ endif
+
 end subroutine atm_update
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -818,82 +824,232 @@ subroutine atm_compute_cl_correction(i)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 integer, intent(in) :: i             ! Turbine number
 integer :: j                         ! Turbine type
-integer :: m, n, q                   ! Counters tu be used in do loops
+integer :: m, n, q, k                ! Counters tu be used in do loops
 real(rprec) :: a,b,c                 ! Correction coefficients
-real(rprec) :: chord                 ! The chord value
+real(rprec) :: chord                 ! The chord value at the tip
+!~ real(rprec) :: chord_r               ! The chord value at the root
 real(rprec) :: r                     ! The radial distance from the tip
+!~ real(rprec) :: r_r                   ! The radial distance from the root
 real(rprec) :: eps_opt               ! The optimal epsilon
+real(rprec) :: eps_s                 ! The epsilon value in the simulation
+real(rprec) :: dG                    ! The finite difference G
+real(rprec) :: dz                    ! The difference in distance between points
+real(rprec) :: up_s                  ! The velocity perturbation for simulation
+real(rprec) :: up_o                  ! The velocity perturbation for optimal
+real(rprec) :: dup                   ! The difference in velocity perturbation
+real(rprec) :: dWt                   ! The second order correction for tip
+real(rprec) :: dWr                    ! The second order correction for tip
+
+! Terms for correction equation
+!~ real(rprec) :: term0, term1_tip, term2_tip, term1_root, term2_root 
+!~ real(rprec) :: term1_tip_d, term2_tip_d, term1_root_d, term2_root_d 
 
 ! Constants for the tip vortex solution
 a=0.029
 b=-2./3.
 c=0.357
 
+! Simulation epsilon
+eps_s = turbineArray(i) % epsilon
+
 ! The turbine type number
 j=turbineArray(i) % turbineTypeID
 
-! First determine the circulation based on the last portion of the blade
+! Firs compute the function G
 do q=1, turbineArray(i) % numBladePoints
     do n=1, turbineArray(i) % numAnnulusSections
         do m=1, turbineModel(j) % numBl
+            ! Compute G
+!~             turbineArray(i) % G(m,n,q) = 1./2. * turbineArray(i) % Cl(m,n,q) * &
+!~                 turbineArray(i) % chord(m,n,q) *                               &
+!~                 turbineArray(i) % Vmag(m,n,q)**2
+            turbineArray(i) % G(m,n,q) = 1./2. *  turbineArray(i) % Cl_b(m,n,q) * &
+                turbineArray(i) % chord(m,n,q) *                               &
+                turbineArray(i) % Vmag(m,n,q)**2
 
-            ! The chord
-!~             chord = turbineArray(i) % chord(m,n,q)
-            chord = turbineArray(i) % chord(m,n,turbineArray(i) % numBladePoints)
-
-            ! Compute the optimal epsilon
             turbineArray(i) % epsilon_opt(m,n,q) =                             &
-                chord * turbineArray(i) % optimalEpsilon
+                turbineArray(i) % chord(m,n,q) * turbineArray(i) % optimalEpsilonChord   
 
-            ! The optimal epsilon value
-            eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
-        
-            ! Distance from the tip 
-            r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
-                        -                                                      &
-                        turbineModel(j) % TipRad)
-
-            ! The correction eta
-            turbineArray(i) % cl_correction(m, n, q) =                         &
-                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
-                (1 - exp(-r**2/eps_opt**2)) +                                  &
-                2 * pi * a * eps_opt**(1+b) *                                  &
-                (1 - exp(-c*abs(r/eps_opt)**3))) /                             &
-                ( 2 * (r/chord)**2 - (r/chord)/2 *                             &
-                (1 - exp(-(r/chord)**2/turbineArray(i) % epsilon**2)) +                          &
-                2 * pi * a * turbineArray(i) % epsilon**(1+b) *                                  &
-                (1 - exp(-c*abs(r/turbineArray(i) % epsilon)**3)))
-!~         write(*,*) 'Correction is ', r, turbineArray(i) % cl_correction(m, n, q)
         enddo
     enddo
 enddo
 
-end subroutine atm_compute_cl_correction
+! Firs compute the function G
+do q=1, turbineArray(i) % numBladePoints
+    do n=1, turbineArray(i) % numAnnulusSections
+        do m=1, turbineModel(j) % numBl
+            ! Compute the difference in G using finite difference
+            ! The tip and root are a special case
+            if (q.eq.1) then
+                turbineArray(i) % dG(m,n,q) = turbineArray(i) % G(m,n,1)
+            elseif (q.eq.turbineArray(i) % numBladePoints) then
+                turbineArray(i) % dG(m,n,q) =                                  &
+                    - turbineArray(i) % G(m,n,turbineArray(i) % numBladePoints)
+            else
+                ! The central finite difference in G
+                turbineArray(i) %  dG(m,n,q) = (turbineArray(i) % G(m,n,q+1) - &
+                        turbineArray(i) % G(m,n,q-1))/2
+            endif
+!~     write(*,*) 'dG of q=', q, turbineArray(i) %  dG(m,n,q)
 
-!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!~ subroutine atm_correct_cl(i)
-!~ ! This subroutine employs a correction for the Cl
-!~ !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-!~ implicit none
+            ! First zero out the Cl correction
+            turbineArray(i) % cl_correction(m, n, q) = 0.
+        enddo
+    enddo
+enddo
 
-!~ integer, intent(in) :: i             ! Turbine number
-!~ integer :: j                         ! Turbine type
-!~ integer :: m, n, q                   ! Counters tu be used in do loops
+! Apply the correction to the ALM points
+! First compute the function G
+do n=1, turbineArray(i) % numAnnulusSections
+    do m=1, turbineModel(j) % numBl
+        ! This is the first loop over all actuator points
+        do q=1, turbineArray(i) % numBladePoints
+            !!
+            !!  Compute the contribution from the tip
+            !!
+            chord = turbineArray(i) % chord(m,n,                               &
+                            turbineArray(i) % numBladePoints)
 
-!~ ! The turbine type number
-!~ j=turbineArray(i) % turbineTypeID
+            ! Distance from the tip 
+            r = abs(turbineArray(i) % bladeRadius(m,n,q) -                     &
+                        turbineModel(j) % TipRad)
 
-!~ ! First determine the circulation based on the last portion of the blade
+            ! The optimal epsilon value in meters
+            eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
+            dWt =    1./2. *  a *                                              &
+                    turbineArray(i) % Cl_b(m,n,turbineArray(i) % numBladePoints)*&
+                        ! First term
+                        ((eps_opt/chord)**(1.+b) * (chord / r)**2 *            &
+                            (1. - exp(-c*abs(r/eps_opt)**3)) -                 &
+                        ! Second term
+                        (eps_s/chord)**(1.+b) * (chord / r)**2 *               &
+                            (1. - exp(-c*abs(r/eps_s)**3)))
+
+            ! Distance from the tip 
+            chord = turbineArray(i) % chord(m,n,1)
+            r = abs(turbineArray(i) % bladeRadius(m,n,q) -                     &
+                        turbineModel(j) % HubRad)
+
+            ! The difference in velocity from the root
+            dWr =   1./2. *  a *                                               &
+                    turbineArray(i) % Cl_b(m,n,1) *                              &
+                        ! First term
+                        ((eps_opt/chord)**(1.+b) * (chord / r)**2 *            &
+                            (1. - exp(-c*abs(r/eps_opt)**3)) -                 &
+                        ! Second term
+                        (eps_s/chord)**(1.+b) * (chord / r)**2 *               &
+                            (1. - exp(-c*abs(r/eps_s)**3)))
+
+            turbineArray(i) % cl_correction(m, n, q) =                         &
+                turbineArray(i) % cl_correction(m, n, q) + 2. * pi * (dWr + dWt)
+
+            ! Now loop through all actuator points
+            do k=1, turbineArray(i) % numBladePoints
+
+                ! Compute dup only if not at the same actuator point
+                if (k == q) then
+                   dup = 0.
+                else
+                    ! Define the dG
+                    dG = turbineArray(i) % dG(m,n,k)
+                    ! Compute the difference in distance
+                    dz = turbineArray(i) % bladeRadius(m,n,q) -                &
+                    turbineArray(i) % bladeRadius(m,n,k)
+                    ! Perturbation velocity for simulation epsilon
+                    up_s = -dG / (4. * pi * dz) * (1. - exp(-(dz/eps_s)**2))
+                    ! Perturbation velocity for optimal epsilon
+                    up_o = -dG / (4. * pi * dz) * (1. - exp(-(dz/eps_opt)**2))
+                    ! The difference in up
+                    dup = up_o - up_s
+!~                         write(*,*) 'dz',dz,'du', dup, up_o, up_s
+
+                endif
+
+                ! Additive correction
+                turbineArray(i) % cl_correction(m, n, q) =                     &
+                    turbineArray(i) % cl_correction(m, n, q) +                 &
+                    2. * pi * dup / turbineArray(i) % Vmag(m,n,q)**2
+            enddo
+!~     write(*,*) 'dz',dz,'Cl Correction', q,' is:', turbineArray(i) % cl_correction(m, n, q)
+!~     write(*,*) 'Epsilon', eps_s, eps_opt, chord
+        enddo
+    enddo
+enddo
+
+!~ ! Correction for the tip
 !~ do q=1, turbineArray(i) % numBladePoints
 !~     do n=1, turbineArray(i) % numAnnulusSections
 !~         do m=1, turbineModel(j) % numBl
-!~             turbineArray(i) % cl(m,n,q) = turbineArray(i) % cl(m,n,q) *        &
-!~                             turbineArray(i) % cl_correction(m,n,q)
+
+!~             ! The chord
+ !!!           chord = turbineArray(i) % chord(m,n,q)
+!~             chord = turbineArray(i) % chord(m,n,                               &
+!~                             turbineArray(i) % numBladePoints)
+!~             chord_r = turbineArray(i) % chord(m,n,1)
+
+!~             ! Compute the optimal epsilon
+!~             turbineArray(i) % epsilon_opt(m,n,q) =                             &
+!~                 chord * turbineArray(i) % optimalEpsilonChord
+
+!~             ! The optimal epsilon value in meters
+!~             eps_opt = turbineArray(i) % epsilon_opt(m,n,q)
+
+!~             ! Distance from the tip 
+!~             r = abs(turbineArray(i) % bladeRadius(m,n,q)                       &
+!~                         -                                                      &
+!~                         turbineModel(j) % TipRad)
+!~             r_r = abs(turbineArray(i) % bladeRadius(m,n,q)                     &
+!~                         -                                                      &
+!~                         turbineModel(j) % HubRad)
+
+!~             ! The correction eta for both tip and root
+!~             ! The correction needs to be multiplied by both radii^2
+!~             term0 = 2. * (r/chord)**2 * (r_r/chord_r)**2
+
+!~             ! Numerator terms
+!~             term1_tip = (r_r/chord_r)**2 * (r/chord)/2 *                       &
+!~                             (1. - exp(-r**2/eps_opt**2))
+!~             term2_tip = (r_r/chord_r)**2 * 2. * pi * a *                       &
+!~                             (eps_opt/chord)**(1.+b) *                          &
+!~                             (1. - exp(-c*abs(r/eps_opt)**3))
+!~             term1_root = (r/chord)**2 * (r_r/chord_r)/2 *                      &
+!~                              (1. - exp(-r_r**2/eps_opt**2))
+!~             term2_root = (r/chord)**2 * 2. * pi * a *                          &
+!~                              (eps_opt/chord_r)**(1.+b) *                       &
+!~                                  (1. - exp(-c*abs(r_r/eps_opt)**3))
+
+!~             ! Denominator terms
+!~             term1_tip_d = (r_r/chord_r)**2 * (r/chord)/2 *                     &
+!~                               (1. - exp(-r**2/eps_s**2)) 
+!~             term2_tip_d = (r_r/chord_r)**2 * 2. * pi * a *                     &
+!~                               (eps_s/chord)**(1.+b) *                          &
+!~                                 (1. - exp(-c*abs(r/eps_s)**3))
+!~             term1_root_d = (r/chord)**2 * (r_r/chord_r)/2 *                    &
+!~                                (1. - exp(-r_r**2/eps_s**2))
+!~             term2_root_d = (r/chord)**2 * 2. * pi * a *                        &
+!~                                (eps_s/chord_r)**(1.+b) *                       &
+!~                                 (1. - exp(-c*abs(r_r/eps_s)**3))
+
+!~             ! Correction for the root
+!~             if (turbineArray(i) % rootALMCorrection .eqv. .true.)  then
+
+!~                 turbineArray(i) % cl_correction(m, n, q) =                     &
+!~                      (term0 -term1_tip   + term2_tip                           &
+!~                      -term1_root   + term2_root )/                             &
+!~                     (term0 -term1_tip_d + term2_tip_d                          & 
+!~                     -term1_root_d + term2_root_d )
+!~             else
+!~                 ! The correction eta
+!~                 turbineArray(i) % cl_correction(m, n, q) =                     &
+!~                      (term0 -term1_tip   + term2_tip )/                        &
+!~                     (term0 -term1_tip_d + term2_tip_d )
+
+!~             endif
 !~         enddo
 !~     enddo
 !~ enddo
 
-!~ end subroutine atm_correct_cl
+end subroutine atm_compute_cl_correction
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine atm_calculate_variables(i)
@@ -966,8 +1122,8 @@ do m=1, turbineModel(j) % numBl
     enddo
 enddo
 
-! Compute the lift correction for this case
-call atm_compute_cl_correction(i)
+!~ ! Compute the lift correction for this case
+!~ call atm_compute_cl_correction(i)
 
 end subroutine atm_calculate_variables
 
@@ -988,7 +1144,7 @@ real(rprec), intent(in) :: U_local(3)    ! The local velocity at this point
 ! Local variables
 integer :: j,k ! Use to identify turbine type (j) and length of airoilTypes (k)
 integer :: sectionType_i ! The type of airfoil
-real(rprec) :: twistAng_i, chord_i, windAng_i, db_i, sigma
+real(rprec) :: twistAng_i, chord_i, windAng_i, db_i, sigma, base_alpha
 !real(rprec) :: solidity_i
 real(rprec), dimension(3) :: dragVector, liftVector
 
@@ -1096,9 +1252,16 @@ cl(m,n,q)= interpolate(alpha(m,n,q),                                           &
                  turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
                  turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
 
+base_alpha = 90. + alpha(m,n,q) - windAng_i
+! Lift coefficient base (zero velocity in tangential direction)
+turbineArray(i) % cl_b(m,n,q)= interpolate(base_alpha,                         &
+                 turbineModel(j) % airfoilType(sectionType_i) % AOA(1:k),      &
+                 turbineModel(j) % airfoilType(sectionType_i) % cl(1:k) )
+
 ! Correct the lift coefficient
 if (turbineArray(i) % tipALMCorrection .eqv. .true.)  then
-    cl(m,n,q) = cl(m,n,q) * turbineArray(i) % cl_correction(m, n, q)
+    cl(m,n,q) = cl(m,n,q) + turbineArray(i) % cl_correction(m, n, q)
+!~     cl(m,n,q) = cl(m,n,q) * turbineArray(i) % cl_correction(m, n, q)
 endif
 
 ! Drag coefficient
