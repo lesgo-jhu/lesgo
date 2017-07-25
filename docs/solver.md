@@ -80,9 +80,6 @@ of their contents. These file use the 'MPI appendix'
                   etc are store here and are used to maintain the averaging
                   between simulations.
 
-  3) spectra.out : Contains the time averaged spectra data from
-                   the previous simulation.
-
 The visualization data is located in the directory "output". The "output"
 directory is created by making a 'mkdir' system call and should work fine on all
 Unix based systems. By default these file are written in binary formatted files
