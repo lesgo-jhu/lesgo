@@ -1,0 +1,16 @@
+# Site settings
+title: LESGO
+email: your-email@domain.com
+description:  # this means to ignore newlines until "baseurl:"
+  LESGO is a parallel pseudo-spectral large-eddy simulation code.
+show_downloads: "true"
+
+# Build settings
+theme: jekyll-theme-minimal
+markdown: kramdown
+repository: lesgo_jhu/lesgo-pages
+exclude:
+  - Gemfile
+  - Gemfile.lock
+
+
