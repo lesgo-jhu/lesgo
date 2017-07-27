@@ -19,10 +19,13 @@
 
 module level_set
 use types, rp => rprec
-use param
-!use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, VERBOSE,   &
-!                  vonK, lbc_mom, coord, nproc, up, down,       &
-!                  comm, ierr, MPI_RPREC, 
+use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, path, L_x, L_y,   &
+    vonK, lbc_mom, coord, nproc, up, down, ierr, comm, MPI_RPREC, rank,        & 
+    total_time, rank, rank_of_coord
+#ifdef PPMPI
+use param, only : status
+use mpi
+#endif
 use test_filtermodule, only : filter_size
 use messages
 
@@ -136,11 +139,9 @@ logical :: exst, opn
 real (rp) :: x, y, z
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
-! This is extremely kludgy. This function will write to phi.out, which will 
+
+! This is extremely kludgy. This function will write to phi.out, which will
 ! subsequently be read in. Future developers should fix this.
 if (use_trees .and. coord == 0) then
     call trees_pre_ls
@@ -163,7 +164,7 @@ if( nphitop >= Nz .or. nphibot >= Nz .or. &
   call error( sub_name, 'Buffer array extents beyond neighboring processor')
 #endif
 
-! Allocate all arrays defined in level_set 
+! Allocate all arrays defined in level_set
 ! !--these are the extra overlap arrays required for BC with MPI
 allocate( phitop(ld, ny, nphitop) )
 allocate( phibot(ld, ny, nphibot) )
@@ -244,15 +245,15 @@ if (do_write_norm) then
     do j = 1, ny
 
       y = (j - 1) * dy
-    
+
       do i = 1, nx
 
         x = (i - 1) * dx
-      
+
         write (lun, '(6(1x,es12.5))') x, y, z, norm(:, i, j, k)
 
       end do
-    
+
     end do
 
   end do
@@ -260,19 +261,14 @@ if (do_write_norm) then
   close (lun)
 
 end if
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
-
 end subroutine level_set_init
 
 !**********************************************************************
-subroutine level_set_vel_err() 
+subroutine level_set_vel_err()
 !**********************************************************************
 !
 !  This subroutine computes the error in the final velocity field (u^{m+1})
-!  with respect to the desired IBM velocity (here zero). The averaged 
+!  with respect to the desired IBM velocity (here zero). The averaged
 !  value is written to file
 !
 use types, only : rprec
@@ -298,7 +294,7 @@ integer :: fid
 
 !  Initialize values
 uv_err_navg = 0
-w_err_navg = 0 
+w_err_navg = 0
 u_err = 0._rprec
 v_err = 0._rprec
 w_err = 0._rprec
@@ -333,7 +329,7 @@ do k=2, nz-1
         w_err_navg = w_err_navg + 1
         w_err = w_err + abs( w(i,j,k) )
       endif
-      
+
     enddo
   enddo
 enddo
@@ -352,18 +348,18 @@ else
   w_err = w_err / w_err_navg
 endif
 
-#ifdef PPMPI 
+#ifdef PPMPI
 
   call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
   call mpi_reduce (w_err, w_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
 
   if( rank == 0 ) then
-  
+
     u_err = u_err_global / nproc
     v_err = v_err_global / nproc
     w_err = w_err_global / nproc
-    
+
     fid = open_file_fid( fname_write, 'append', 'formatted' )
     write(fid,*) total_time, sqrt( u_err**2 + v_err**2 + w_err**2 )
     close(fid)
@@ -398,9 +394,6 @@ integer :: s
 real (rp) :: phix
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 do k = 1, nz
 
@@ -409,7 +402,7 @@ do k = 1, nz
   else
     s = 1
   end if
-  
+
   do j = 1, ny
     do i = 1, nx
 
@@ -421,10 +414,6 @@ do k = 1, nz
   end do
 
 end do
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine level_set_Cs_lag_dyn
 
@@ -451,9 +440,6 @@ logical, parameter :: lag_dyn_modify_beta = .true.
 real (rp) :: phi_c
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 !--part 1: smooth variables
 phi_c = 0._rp
@@ -477,11 +463,6 @@ call neumann_F_MM ()
 
 !--part 4 (optional): modify beta
 if (lag_dyn_modify_beta) call modify_beta ()
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
-
 end subroutine level_set_lag_dyn
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -503,9 +484,6 @@ real (rp) :: dmin
 real (rp) :: z
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 delta = filter_size * (dx * dy * dz)**(1._rp / 3._rp)
 
@@ -516,14 +494,14 @@ do k = 1, nz
   else
     s = 1
   end if
-  
+
   do j = 1, ny
     do i = 1, nx
 
       phix = 0.5_rp * (phi(i, j, k) + phi(i, j, k-s))
 
       if (phix > 0._rp) then
-         
+
         if (lbc_mom == 0) then
            ! Stress free
            dmin = phix
@@ -531,19 +509,15 @@ do k = 1, nz
            z = (k - 1) * dz
            dmin = min (z, phix)
         end if
-        
+
         beta(i, j, k) = 1._rp - c1 * exp (-c2 * dmin / delta)
 
       end if
-      
+
     end do
   end do
 
 end do
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine modify_beta
 
@@ -571,9 +545,6 @@ real (rp) :: x(nd), xp(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 phi1 = -sqrt (dx**2 + dy**2 + dz**2)
 phi2 = 0._rp
@@ -596,8 +567,8 @@ do k = 1, nz - 1
   do j = 1, ny
     do i = 1, nx
 
-      phix = 0.5_rp * (phi(i, j, k) + phi(i, j, k - s)) 
-   
+      phix = 0.5_rp * (phi(i, j, k) + phi(i, j, k - s))
+
       if ((phi1 < phix) .and. (phix < phi2)) then
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp * (1+s)) * dz /)
@@ -610,11 +581,11 @@ do k = 1, nz - 1
 
         call interp_scal (1, F_MM, nFMMbot, FMMbot, nFMMtop, FMMtop,  &
                           xp, F_MM_xp, 'w')
-        
+
         F_MM(i, j, k) = F_MM_xp
-        
+
       end if
-      
+
     end do
   end do
 end do
@@ -627,9 +598,6 @@ end do
                      comm, status, ierr)
 #endif
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 #ifdef PPMPI
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -644,7 +612,7 @@ call exit_sub (sub_name)
   integer :: kstart
 
   !-------------------------------------------------------------------
-  
+
   datasize = ld * ny * nFMMtop
   kstart = 2
   call mpi_sendrecv (F_MM(1, 1, kstart), datasize, MPI_RPREC, down, tag+1,  &
@@ -681,9 +649,6 @@ real (rp) :: phix
 real (rp) :: phi_F_LM
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 !phi_F_LM = 0._rp
 phi_F_LM = filter_size * dx  !--experimental
@@ -695,13 +660,13 @@ do k = 1, nz - 1
   else
     s = 1
   end if
-  
+
   do j = 1, ny
     do i = 1, nx
 
-      
+
       phix = 0.5_rp * (phi(i, j, k) + phi(i, j, k-s))
-      
+
       if (phix < phi_F_LM) F_LM(i, j, k) = 0._rp
 
     end do
@@ -717,11 +682,6 @@ end do
                      F_LM(1, 1, nz), ld*ny, MPI_RPREC, up, tag+1,   &
                      comm, status, ierr)
 #endif
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
-
 end subroutine zero_F_LM
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -749,9 +709,6 @@ real (rp) :: grad
 real (rp) :: phi_min
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 A(1, :) = x_hat
 A(2, :) = y_hat
@@ -768,7 +725,7 @@ if (present (node)) then
 else  !--assume u-node
 
   unode = .true.
-  
+
 end if
 
 if (unode) then
@@ -822,9 +779,6 @@ else
   dwdy(i, j, k) = G(3, 2)
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine modify_dutdn
 
@@ -872,10 +826,6 @@ real (rp) :: x(nd), x1(nd), x2(nd)
 real (rp) :: n_hat(nd)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
-
 ! Set default values
 imn = 1
 imx = nx
@@ -953,7 +903,7 @@ do k = 1, nz - 1
         jmx_used = max (jmx_used, j)
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 0.5_rp) * dz /)
-        
+
         n_hat = norm(:, i, j, k)
 
         dphi = dphi0
@@ -1009,7 +959,7 @@ do k = 1, nz - 1
 
         !--check phi(x2) >= 0
         call interp_phi (x2, phi2)
-        
+
         !--calculate tij1, for use in extrapolation
         call interp_tij_u (x1, txx1, txy1, tyy1, tzz1)
         !call interp_scal (txx, x1, txx1)
@@ -1131,7 +1081,7 @@ do k = kmn, nz - 1
           call interp_phi (x1, phi1)
 
           if (phi1 < phi_0) then
-          
+
             nbad = nbad + 1
 
             !call mesg (sub_name, 'bad point (w): ', (/ i, j, k /))
@@ -1192,7 +1142,7 @@ do k = kmn, nz - 1
         !                 'n_hat = ', n_hat
         !  call error (sub_name, msg)
         !end if
-          
+
         txz(i, j, k) = (txz1 - (1._rp - wgt) * txz2) / wgt
         tyz(i, j, k) = (tyz1 - (1._rp - wgt) * tyz2) / wgt
 
@@ -1230,10 +1180,6 @@ if (output) then
   close (lun)
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
-
 end subroutine extrap_tau_simple
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1267,9 +1213,7 @@ real (rp) :: v1(nd), v1t(nd)
 real (rp) :: x_hat(nd), y_hat(nd), z_hat(nd)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 !--assumes phi_cutoff is set. CAREFUL
 !--set phi_a
@@ -1306,9 +1250,9 @@ do k = 1, nz - 1
           txy(i, j, k) = 0._rp
           tyy(i, j, k) = 0._rp
           tzz(i, j, k) = 0._rp
-       
+
         else
-        
+
           !--local coordinate system
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
@@ -1337,7 +1281,7 @@ do k = 1, nz - 1
           wgt = abs (phi1) / (abs (phi_x) + abs (phi1))
 
           if (wgt >= 0.5_rp) then
-          
+
             txx(i, j, k) = (txx_w - (1._rp - wgt) * txx1) / wgt
             txy(i, j, k) = (txy_w - (1._rp - wgt) * txy1) / wgt
             tyy(i, j, k) = (tyy_w - (1._rp - wgt) * tyy1) / wgt
@@ -1439,9 +1383,9 @@ do k = 2, nz
 
           txz(i, j, k) = 0._rp
           tyz(i, j, k) = 0._rp
-       
+
         else
-        
+
           !--local coordinate system
           x_hat = v1t / mag (v1t)
           y_hat = cross_product (n_hat, x_hat)
@@ -1466,7 +1410,7 @@ do k = 2, nz
           wgt = abs (phi1) / (abs (phi_x) + abs (phi1))
 
           if (wgt >= 0.5_rp) then
-          
+
             txz(i, j, k) = (txz_w - (1._rp - wgt) * txz1) / wgt
             tyz(i, j, k) = (tyz_w - (1._rp - wgt) * tyz1) / wgt
 
@@ -1497,9 +1441,6 @@ do k = 2, nz
   end do
 end do
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine extrap_tau_log
 
@@ -1521,9 +1462,7 @@ real (rp) :: vel1(nd), vel2(nd)
 real (rp) :: vel1_n, vel2_n
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 !--need to experiment with these values
 if (phi_0_is_set) then
@@ -1556,7 +1495,7 @@ do k = 1, nz - 1
       phi1 = phi(i, j, k)
 
       if ((phi0 < phi1) .and. (phi1 < phic)) then
- 
+
         x1 = (/ (i-1) * dx, (j-1) * dy, (k-0.5_rp) * dz /)
 
         n_hat = norm(:, i, j, k)
@@ -1573,10 +1512,10 @@ do k = 1, nz - 1
           call interp_vel (x2, vel2)
 
           vel2_n = dot_product (vel2, n_hat)
-        
+
           vel1_n = vel2_n * (phi1 / phi2)**2
 
-          vel1 = vel1 + (vel2_n * (phi1 / phi2)**2 - vel1_n)* n_hat 
+          vel1 = vel1 + (vel2_n * (phi1 / phi2)**2 - vel1_n)* n_hat
 
           !--only take u,v components
           udes(i, j, k) = vel1(1)
@@ -1612,7 +1551,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
       phi1 = 0.5_rp * (phi(i, j, k) + phi(i, j, k-1))
 
       if ((phi0 < phi1) .and. (phi1 < phic)) then
-      
+
         x1 = (/ (i-1) * dx, (j-1) * dy, (k-1) * dz /)
 
         n_hat = 0.5_rp * (norm(:, i, j, k) + norm(:, i, j, k-1))
@@ -1638,10 +1577,10 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           end if
 
           vel2_n = dot_product (vel2, n_hat)
-        
+
           vel1_n = vel2_n * (phi1 / phi2)**2
 
-          vel1 = vel1 + (vel2_n * (phi1 / phi2)**2 - vel1_n)* n_hat 
+          vel1 = vel1 + (vel2_n * (phi1 / phi2)**2 - vel1_n)* n_hat
 
           !--only take w-component
           wdes(i, j, k) = vel1(3)
@@ -1663,10 +1602,6 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
     end do
   end do
 end do
-
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine enforce_un
 
@@ -1721,7 +1656,7 @@ do k = 1, nz - 1
       phi1 = phi(i, j, k)
 
       if ((phi0 < phi1) .and. (phi1 < phic)) then
-      
+
         x1 = (/ (i-1) * dx, (j-1) * dy, (k-0.5_rp) * dz /)
 
         n_hat = norm(:, i, j, k)
@@ -1738,7 +1673,7 @@ do k = 1, nz - 1
 
           vel2_n = dot_product (vel2, n_hat)
           vel2_p = vel2 - vel2_n * n_hat
-        
+
           vel1_n = vel2_n * (phi1 / phi2)**2
           vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
@@ -1778,7 +1713,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
       phi1 = 0.5_rp * (phi(i, j, k) + phi(i, j, k-1))
 
       if ((phi0 < phi1) .and. (phi1 < phic)) then
-      
+
         x1 = (/ (i-1) * dx, (j-1) * dy, (k-1) * dz /)
 
         n_hat = 0.5_rp * (norm(:, i, j, k) + norm(:, i, j, k-1))
@@ -1804,7 +1739,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
 
           vel2_n = dot_product (vel2, n_hat)
           vel2_p = vel2 - vel2_n * n_hat
-        
+
           vel1_n = vel2_n * (phi1 / phi2)**2
           vel1_p = vel2_p * (log (1._rp + phi1 / zo_level_set) / log (1._rp + phi2 / zo_level_set))
 
@@ -1871,9 +1806,6 @@ real (rp) :: w1, w2, w3, w4, w5, w6, w7, w8
 
 real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
-#ifdef PPVERBOSE
-call enter_sub( sub_name )
-#endif
 
 nullify(autowrap_i, autowrap_j)
 
@@ -2025,9 +1957,6 @@ a_x = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call exit_sub( sub_name )
-#endif
 
 end subroutine interp_scal
 
@@ -2061,9 +1990,6 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call enter_sub( sub_name )
-#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2167,11 +2093,8 @@ call fill_f (tzzbot, tzztop, tzz)
 tzz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
-nullify(autowrap_i, autowrap_j)        
+nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call exit_sub( sub_name )
-#endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -2276,9 +2199,6 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call enter_sub( sub_name )
-#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2320,7 +2240,7 @@ end if
   else
     if (kw > nz + ntautop - 1) call error (sub_name,                     &
                                          'out of range (kw, kwmax) =', &
-                                         (/ kw, nz + ntautop - 1 /)) 
+                                         (/ kw, nz + ntautop - 1 /))
   endif
 #else
   if (kw > nz - 1) call error (sub_name, 'kw out of range, kw =', kw)
@@ -2360,10 +2280,6 @@ tyz_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
         w(5) * f(5) + w(6) * f(6) + w(7) * f(7) + w(8) * f(8)
 
 nullify(autowrap_i, autowrap_j)
-
-#ifdef PPVERBOSE
-call exit_sub( sub_name )
-#endif
 
 !**********************************************************************
 contains
@@ -2472,9 +2388,6 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call enter_sub( sub_name )
-#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2539,7 +2452,7 @@ j1 = autowrap_j( j + 1 )
 ku1 = ku + 1
 
 !--calculate interpolation weights
-!  Computes fraction of dx,dy,dz that point exists from 
+!  Computes fraction of dx,dy,dz that point exists from
 !  starting i,j,k of cell
 x1 = modulo (xmod(1), dx) / dx
 x2 = modulo (xmod(2), dy) / dy
@@ -2615,9 +2528,7 @@ phi_x = w(1) * f(1) + w(2) * f(2) + w(3) * f(3) + w(4) * f(4) +  &
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call exit_sub( sub_name )
-#endif
+
 
 end subroutine interp_phi
 
@@ -2653,9 +2564,6 @@ real (rp) :: xmod(nd) ! Spatial location of autowrapped point
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call enter_sub( sub_name )
-#endif
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -2923,10 +2831,6 @@ vel(3) = w1 * f1 + w2 * f2 + w3 * f3 + w4 * f4 +  &
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call exit_sub( sub_name )
-#endif
-
 end subroutine interp_vel
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -2944,9 +2848,6 @@ real (rp), intent (in out), dimension (ld, ny, lbz:nz) ::  &
 character (*), parameter :: sub_name = mod_name // '.level_set_smooth_tau'
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 !if (phi_cutoff_is_set) then
 !  phi_c = -phi_cutoff - 10._rp * epsilon (0._rp)
@@ -2966,9 +2867,6 @@ call smooth (phi_c, lbz, tyy)
 call smooth (phi_c, lbz, tyz, node='w')
 call smooth (phi_c, lbz, tzz)
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
 
 end subroutine smooth_tau
 
@@ -2989,20 +2887,15 @@ character (*), parameter :: sub_name = mod_name // '.level_set_smooth_vel'
 real (rp), parameter :: phi_c = 0._rp !--any pt with phi < 0 is smoothed
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
 
 call smooth (phi_c, lbound (u, 3), u)
 call smooth (phi_c, lbound (v, 3), v)
 call smooth (phi_c, lbound (w, 3), w, node='w')
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine level_set_smooth_vel
- 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--smoothes in-place, so be careful
 !--uses SOR for laplace equation to acheive smoothing
@@ -3045,9 +2938,7 @@ integer :: im1, ip1, jm1, jp1
 !---------------------------------------------------------------------
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
@@ -3081,7 +2972,7 @@ select case (smooth_mode)
 end select
 
 do iter = 1, niter
-  
+
   do k = kmin, kmax
     do j = 1, ny
       do i = 1, nx
@@ -3115,7 +3006,7 @@ do iter = 1, niter
               call error (sub_name, 'invalid smooth_mode =' // smooth_mode)
           end select
 
-          a(i, j, k) = (1._rp - omega) * a(i, j, k) + omega * update 
+          a(i, j, k) = (1._rp - omega) * a(i, j, k) + omega * update
 
         end if
 
@@ -3127,9 +3018,7 @@ end do
 
 nullify(autowrap_i, autowrap_j)
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine smooth
 
@@ -3201,7 +3090,7 @@ Uinf = sum (u(1, :, 1:nz-1)) / (ny * (nz - 1))  !--measure at inflow plane
 
 #ifdef PPMPI
 if( coord == 0 ) then
-#endif 
+#endif
 
   CxA = f_Cx_global / (0.5_rp * Uinf_global**2)
   CyA = f_Cy_global / (0.5_rp * Uinf_global**2)
@@ -3236,7 +3125,7 @@ end subroutine level_set_global_CA
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine level_set_Cs (delta)
-use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => wall_damp_exp 
+use param, only : vonK, Co, dx, dy, dz, nx, ny, nz, n => wall_damp_exp
 use sgs_param, only : Cs_opt2
 implicit none
 
@@ -3254,9 +3143,7 @@ real (rp) :: dmin, z
 real (rp) :: phi_tmp
 
 !----------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 if (.not. initialized) then
 
@@ -3276,7 +3163,7 @@ if (.not. initialized) then
 
            z = (jz - 0.5_rp) * dz
            dmin = min (phi(jx, jy, jz), z)
-          
+
         end if
 
         !--sorry, this splitting is ugly
@@ -3285,9 +3172,9 @@ if (.not. initialized) then
 
       end do
     end do
-        
+
     jz_min = 2
-    
+
   else
 
     jz_min = 1
@@ -3311,14 +3198,14 @@ if (.not. initialized) then
 #else
             z = (jz - 1) * dz
 #endif
-          
+
           phi_tmp = 0.5_rp * (phi(jx, jy, jz) + phi(jx, jy, jz - 1))
                               !--MPI: requires phi(k=0)
-          
+
           dmin = min (phi_tmp, z)  !--min distance to surface
 
         end if
-      
+
         !--sorry, this splitting is ugly
         Cs_opt2(jx, jy, jz) = ( Co**(-n) + (delta / vonK / (dmin + zo_level_set))**n  &
                               )**(-2._rp / n)
@@ -3331,9 +3218,7 @@ if (.not. initialized) then
 
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine level_set_Cs
 
@@ -3360,9 +3245,7 @@ integer :: kstart
 logical, save :: phi_synced = .false.
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 !--this logic MUST match that in level_set_BC
 if (.not. use_log_profile) then
@@ -3371,9 +3254,9 @@ if (.not. use_log_profile) then
 
     !<extrap_tau_log is used>
     call error (sub_name, 'not implemented for use_extrap_tau_log')
-    
+
   else
-  
+
     !--interp_tau: needs sync of u, v, w
 
     !--this assumes u, v, w already hold 0:nz (bottom 1:nz)
@@ -3440,12 +3323,10 @@ if (.not. use_log_profile) then
     end if
 
   end if
-  
+
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine mpi_sync
 #endif
@@ -3588,9 +3469,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.level_set_BC'
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 #ifdef PPMPI
   call mpi_sync ()
@@ -3620,7 +3499,7 @@ if (.not. use_log_profile) then  !--skip this if enforce log profile directly
     call extrap_tau_log ()
 
   else
-  
+
     call interp_tau ()
 
     if (use_extrap_tau_simple) then
@@ -3639,9 +3518,7 @@ if (use_smooth_tau) then
 
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine level_set_BC
 
@@ -3673,9 +3550,7 @@ real (rp) :: sphi
 real (rp) :: normw(nd)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 if (phi_cutoff_is_set) then
   phi_c = phi_cutoff
@@ -3725,16 +3600,16 @@ do k = 2, nz-1
             counter = counter + 1
             list(:, counter) = indx(:, m)  !--store positive-phi points
           end if
-          
+
         end do
 
         nlist = counter
 
         !if ((counter > 0) .and. (counter < 3)) then
         !  !--try to find more points
-        !  
+        !
         !end do
-       
+
         !--stress extrapolation
         select case (nlist)
           case (0)
@@ -3747,7 +3622,7 @@ do k = 2, nz-1
             txx(i, j, k) = txx(list(1, 1), list(2, 1), list(3, 1))
             txy(i, j, k) = txy(list(1, 1), list(2, 1), list(3, 1))
             tyy(i, j, k) = tyy(list(1, 1), list(2, 1), list(3, 1))
-            
+
           case (2)
 
             !--should try to find more fluid points, this is only "for now"
@@ -3762,16 +3637,16 @@ do k = 2, nz-1
 
           case (3:7)
 
-            call fit3 (pt, nlist, list, txx) 
+            call fit3 (pt, nlist, list, txx)
             call fit3 (pt, nlist, list, txy)
             call fit3 (pt, nlist, list, tyy)
             call fit3 (pt, nlist, list, tzz)
-            
+
           case default
             call error (sub_name, 'invalid counter value')
         end select
 
-      end if 
+      end if
     end do
   end do
 end do
@@ -3782,7 +3657,7 @@ do k = 2, nz-1
     do i = 2, nx-1
 
       phiw = (phi(i, j, k) + phi(i, j, k-1)) / 2._rp
-      
+
       if ((phiw < phi_0) .and. (phiw >= -phi_c)) then
 
         pt = (/ i, j, k /)
@@ -3790,7 +3665,7 @@ do k = 2, nz-1
         !--try to locate three closest fluid nodes and fit plane
         normw = (norm(:, i, j, k) + norm(:, i, j, k-1)) / 2._rp
         normw = normw / mag (normw)
-        
+
         s = nint (sign (1._rp, normw))
         counter = 0
         list = -1  !--set to bogus value
@@ -3811,16 +3686,16 @@ do k = 2, nz-1
             counter = counter + 1
             list(:, counter) = indx(:, m)  !--store positive-phi points
           end if
-          
+
         end do
 
         nlist = counter
 
         !if ((counter > 0) .and. (counter < 3)) then
         !  !--try to find more points
-        !  
+        !
         !end do
-       
+
         !--stress extrapolation
         select case (nlist)
           case (0)
@@ -3832,7 +3707,7 @@ do k = 2, nz-1
             !--copy stress
             txz(i, j, k) = txz(list(1, 1), list(2, 1), list(3, 1))
             tyz(i, j, k) = tyz(list(1, 1), list(2, 1), list(3, 1))
-            
+
           case (2)
 
             !--should try to find more fluid points, this is only "for now"
@@ -3843,21 +3718,19 @@ do k = 2, nz-1
 
           case (3:7)
 
-            call fit3 (pt, nlist, list, txz) 
+            call fit3 (pt, nlist, list, txz)
             call fit3 (pt, nlist, list, tyz)
-            
+
           case default
             call error (sub_name, 'invalid counter value')
         end select
-       
-      end if      
+
+      end if
     end do
   end do
 end do
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine extrap_tau
 
@@ -3905,9 +3778,7 @@ real (rp) :: x(nd), xv(nd)
 character(1024) :: msg
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 ! Set default values
 imn = 1
@@ -4000,24 +3871,24 @@ do k = 1, nz-1
           call interp_vel (xv, vel)
 
         else
-        
+
           !--determine velocity vector here: beware w may include solid pt
           vel = (/ u(i, j, k), v(i, j, k),               &
                    0.5_rp * (w(i, j, k) + w(i, j, k+1)) /)
 
         end if
-        
+
         vel_t = vel - dot_product (vel, n_hat) * n_hat  !--tangential part
 
         if (mag (vel_t) < eps) then
-          
+
           txx(i, j, k) = 0._rp
           txy(i, j, k) = 0._rp
           tyy(i, j, k) = 0._rp
           tzz(i, j, k) = 0._rp
-            
+
         else
-         
+
           !--local coordinate system
           x_hat = vel_t / mag (vel_t)
           y_hat = cross_product (n_hat, x_hat)
@@ -4122,7 +3993,7 @@ do k = kmin, kmax
         jmx_used = max (jmx_used, j)
 
         x = (/ (i - 1) * dx, (j - 1) * dy, (k - 1) * dz /)
-        
+
         !--make sure norms are well defined
         if ((mag (norm(:, i, j, k)) < eps) .or.  &
             (mag (norm(:, i, j, k-1)) < eps)) then
@@ -4138,7 +4009,7 @@ do k = kmin, kmax
         n_hat = n_hat / mag (n_hat)
 
         if (physBC) then
-        
+
           !--determine velocity vector at point with phi ~ phi_c
           xv = x + n_hat * (phi_c - phix)
 
@@ -4158,7 +4029,7 @@ do k = kmin, kmax
 
           txz(i, j, k) = 0._rp
           tyz(i, j, k) = 0._rp
-          
+
         else
 
           x_hat = vel_t / mag (vel_t)
@@ -4170,10 +4041,10 @@ do k = kmin, kmax
           else
             tau = -(kappa * mag (vel_t) / log (1._rp + phix / zo_level_set))**2
           end if
-          
+
           txz(i, j, k) = (x_hat(1) * z_hat(3) + z_hat(1) * x_hat(3)) * tau
           tyz(i, j, k) = (x_hat(2) * z_hat(3) + z_hat(2) * x_hat(3)) * tau
-          
+
           if (use_modify_dutdn) then
 #ifdef PPMPI
               call error (sub_name, 'modify_dutdn not MPI enabled')
@@ -4247,9 +4118,7 @@ end if
   call mpi_sync_tau ()
 #endif
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine interp_tau
 
@@ -4280,9 +4149,7 @@ real (rp) :: A(3, 3), coeff(3), t_known(3)
 real (rp) :: dxi(nd-1)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 if (nl < 3) call error (sub_name, 'nl should be >= 3')
 
 counter = 0
@@ -4291,16 +4158,16 @@ dir = -1
 do d = 1, nd
 
   counter = 0
-  
+
   do m = 1, nl
     if (l(d, m) == p(d)) counter = counter + 1
   end do
-  
+
   if (counter >= 3) then
     dir = d
     exit  !--d-loop
   end if
-  
+
 end do
 
 !--experiment
@@ -4318,7 +4185,7 @@ if (.not. failed) then
   l_plane = iBOGUS
   q = 0
   do m = 1, nl
-  
+
     if (l(dir, m) == p(dir)) then
 
       q = q + 1
@@ -4349,7 +4216,7 @@ if (.not. failed) then
 
   !--we only need coeff(1)
   t(p(1), p(2), p(3)) = coeff(1)
-  
+
 else  !--just average all the points, for now
 
   tmp = 0._rp
@@ -4359,21 +4226,19 @@ else  !--just average all the points, for now
   end do
 
   tmp = tmp / m
-  
+
   t(p(1), p(2), p(3)) = tmp
 
 end if
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine fit3
 
 !**********************************************************************
 subroutine level_set_forcing ()
 !**********************************************************************
-! 
+!
 ! Set fx, fy, fz at 1:nz-1
 !
 use param, only : tadv1, dt, BOGUS, dx  !--in addition to param vars above
@@ -4390,9 +4255,7 @@ integer :: k_min
 real (rp) :: Rx, Ry, Rz
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 !--this is experimental
 if (vel_BC) then
@@ -4446,9 +4309,7 @@ fy(:, :, nz) = BOGUS
   fz(:,:,nz) = 0._rprec
 #endif
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 return
 
@@ -4460,15 +4321,15 @@ subroutine level_set_force_xy()
 implicit none
 
 if (phi(i, j, k) <= 0._rp) then  !--uv-nodes
-  
+
   Rx = -tadv1 * dpdx(i, j, k)
-  Ry = -tadv1 * dpdy(i, j, k)        
-  fx(i, j, k) = (-u(i, j, k)/dt - Rx) 
+  Ry = -tadv1 * dpdy(i, j, k)
+  fx(i, j, k) = (-u(i, j, k)/dt - Rx)
   fy(i, j, k) = (-v(i, j, k)/dt - Ry)
 
 
 else if (vel_BC) then
-       
+
   ! forces after pressure update
   Rx = -tadv1 * dpdx(i, j, k)
   Ry = -tadv1 * dpdy(i, j, k)
@@ -4537,7 +4398,7 @@ real (rp) :: delta
 
 nullify( autowrap_i, autowrap_j )
 
-autowrap_i => grid % autowrap_i  
+autowrap_i => grid % autowrap_i
 autowrap_j => grid % autowrap_j
 
 !---------------------------------------------------------------------
@@ -4564,9 +4425,9 @@ select case (d)
 
     !  Using autowrap to take care of edges
     safe_cd = ( f(autowrap_i(i + 1), j, k) - f(autowrap_i(i - 1), j, k) ) / (2._rp * delta)
-    
+
   case (2)
- 
+
     delta = dy
     !  Commented (JSG)
     ! n = ny
@@ -4659,7 +4520,7 @@ do k1 = 1, -1, -2
 
       if ((ii < 1) .or. (ii > nx) .or. (jj < 1) .or. (jj > ny) .or.  &
           (kk < 1) .or. (kk > nz)) cycle
-        
+
       !--hack: factor of i1, j1, k1 in front control sign
       ntmp(1) = i1 * (phi(ii, j , k ) - phi(i, j, k)) / dx
       ntmp(2) = j1 * (phi(i , jj, k ) - phi(i, j, k)) / dy
@@ -4687,7 +4548,7 @@ ntmp = (/ 1._rp, 0._rp, 0._rp /)  !--what else to try??
 end subroutine fix_norm
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!--uses centered finite differences to calculate unit normal from 
+!--uses centered finite differences to calculate unit normal from
 !  the signed distance function
 !--uses 1-sided finite differences near top and bottom boundaries
 !--not caring about speed too much here
@@ -4714,9 +4575,7 @@ integer :: ierr
 real (rp) :: ntmp(nd)
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub (sub_name)
-#endif
+
 
 nbad = 0
 bad = iBOGUS
@@ -4731,7 +4590,7 @@ do k = 1, nz - 1
       ntmp(3) = safe_cd (i, j, k, 3, phi)
 
       if (mag (ntmp) > eps) then
- 
+
         norm(:, i, j, k) = ntmp / mag (ntmp)
 
         !--double-check
@@ -4747,17 +4606,17 @@ do k = 1, nz - 1
 
         !--check error code for "bad" value
         if (ierr < 0) then
-        
+
           nbad = nbad + 1
-          
+
           if (nbad <= bad_size) then
             bad(:, nbad) = (/ i, j, k /)
           else
             call error (sub_name, 'bad_size is too small')
           end if
-          
+
         end if
-        
+
       end if
 
     end do
@@ -4789,9 +4648,7 @@ norm(:, :, :, nz) = BOGUS
 
 #endif
 
-#ifdef PPVERBOSE
-call exit_sub (sub_name)
-#endif
+
 
 end subroutine fill_norm
 

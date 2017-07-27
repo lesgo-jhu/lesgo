@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,10 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-
-!**********************************************************************
+!*******************************************************************************
 module grid_m
-!**********************************************************************
+!*******************************************************************************
 use types, only : rprec
 implicit none
 save
@@ -36,14 +35,14 @@ contains
     procedure, public :: build
 end type grid_t
 
-! The uv grid 
+! The uv grid
 type(grid_t) :: grid
 
 contains
 
-!**********************************************************************
+!*******************************************************************************
 subroutine build(this)
-!**********************************************************************
+!*******************************************************************************
 !  This subroutine creates the uv grid for the domain.
 
 use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
@@ -67,7 +66,7 @@ allocate(grid % z(lbz:nz), grid % zw(lbz:nz))
 allocate(grid % autowrap_i(0:nx+1), grid % autowrap_j(0:ny+1))
 
 ! Initialize built
-grid % built = .false. 
+grid % built = .false.
 
 ! Set pointers
 x => this % x
@@ -78,19 +77,22 @@ zw => this % zw
 autowrap_i => this % autowrap_i
 autowrap_j => this % autowrap_j
 
-do k=lbz,nz
+do k = lbz, nz
 #ifdef PPMPI
-  z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
+    z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
 #else
-  z(k) = (k - 0.5_rprec) * dz
+    z(k) = (k - 0.5_rprec) * dz
 #endif
 enddo
-do j=1,ny+1
-  y(j) = (j-1)*dy
+
+do j = 1, ny+1
+    y(j) = (j-1)*dy
 enddo
-do i=1,nx+1
-  x(i) = (i - 1)*dx
+
+do i = 1, nx+1
+    x(i) = (i - 1)*dx
 enddo
+
 zw = z - dz/2._rprec
 
 ! Set index autowrapping arrays
@@ -100,30 +102,29 @@ autowrap_i(nx+1) = 1
 autowrap_j(ny+1) = 1
 do i=1,nx; autowrap_i(i) = i; enddo
 do j=1,ny; autowrap_j(j) = j; enddo
-     
-this % built = .true. 
+
+this % built = .true.
 
 nullify(x,y,z,zw)
 nullify(autowrap_i,autowrap_j)
 
 ! Set jzmin and jzmax - the levels that this processor "owns"
 #ifdef PPMPI
-  if (coord == 0) then
+if (coord == 0) then
     jzmin = 0
     jzmax = nz-1
-  elseif (coord == nproc-1) then
+elseif (coord == nproc-1) then
     jzmin = 1
     jzmax = nz
-  else
+else
     jzmin = 1
     jzmax = nz-1
-  endif
+endif
 #else
-  jzmin = 1
-  jzmax = nz
+jzmin = 1
+jzmax = nz
 #endif
 
-return
-end subroutine build 
+end subroutine build
 
 end module grid_m

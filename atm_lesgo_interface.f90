@@ -408,6 +408,8 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % induction_a = 0._rprec
         turbineArray(i) % u_infinity = 0._rprec
         turbineArray(i) % bladeAlignedVectors = 0._rprec
+        turbineArray(i) % VelNacelle_sampled = 0._rprec
+        turbineArray(i) % VelNacelle_corrected = 0._rprec
                                 
         ! If statement is for running code only if grid points affected are in 
         ! this processor. If not, no code is executed at all.
@@ -441,8 +443,6 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~     write(*,*) 'coord ', coord, '  MPI Gather ', myClock % time
 
 
-
-
 !~  call myClock % start()
     do i=1,numberOfTurbines
 !~         if ( forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
@@ -460,7 +460,10 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 !~                     forceFieldUV(i) % force(1,c) * dx *dy * dz * z_i**2*u_star**2
 !~             endif
 !~         enddo
-        
+
+        ! Compute the correction for the Cl coefficient
+        call atm_compute_cl_correction(i)
+            
     enddo
     
 !~         totForce=0.
@@ -538,7 +541,7 @@ subroutine atm_lesgo_mpi_gather()
 ! so all processors have acces to it. This is done by means of all reduce SUM
 implicit none
 integer :: i
-real(rprec) :: torqueRotor, thrust
+real(rprec) :: torqueRotor, thrust, VelNacelle_sampled, VelNacelle_corrected
 real(rprec), dimension(3) :: nacelleForce
 
 ! Pointer for MPI communicator
@@ -553,9 +556,9 @@ do i=1,numberOfTurbines
 
         turbineArray(i) % bladeVectorDummy = turbineArray(i) % bladeForces
         ! Sync all the blade forces
-        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
-                           turbineArray(i) % bladeForces,                        &
-                           size(turbineArray(i) % bladeVectorDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
+                           turbineArray(i) % bladeForces,                      &
+                           size(turbineArray(i) % bladeVectorDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
         ! Sync bladeAlignedVectors
@@ -581,79 +584,79 @@ do i=1,numberOfTurbines
         
         ! Sync alpha
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % alpha,                              &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % alpha,                            &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
         ! Sync lift
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % lift
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % lift,                               &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % lift,                             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
         ! Sync drag
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % drag
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % drag,                               &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % drag,                             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
         ! Sync Cl
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cl
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % Cl,                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % Cl,                               &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
         ! Sync Cd
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % Cd,                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % Cd,                               &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
         ! Sync Vmag
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Vmag
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % Vmag,                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % Vmag,                             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
         ! Sync axialForce
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % axialForce
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
-                           turbineArray(i) % axialForce,                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
+                           turbineArray(i) % axialForce,                       &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
         ! Sync tangentialForce
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % tangentialForce
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % tangentialForce,                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
         ! Sync wind Vectors (Vaxial, Vtangential, Vradial)
-        turbineArray(i) % bladeVectorDummy = turbineArray(i) %                   &
+        turbineArray(i) % bladeVectorDummy = turbineArray(i) %                 &
                                              windVectors(:,:,:,1:3)
-        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
+        call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
                            turbineArray(i) % windVectors(:,:,:,1:3),                                 &
-                           size(turbineArray(i) % bladeVectorDummy),             &
+                           size(turbineArray(i) % bladeVectorDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
         ! Sync induction factor
-        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                   &
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                 &
                                              induction_a(:,:,:)
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % induction_a(:,:,:),                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
     
         ! Sync u infinity
-        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                   &
+        turbineArray(i) % bladeScalarDummy = turbineArray(i) %                 &
                                              u_infinity(:,:,:)
-        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                   &
+        call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % u_infinity(:,:,:),                                 &
-                           size(turbineArray(i) % bladeScalarDummy),             &
+                           size(turbineArray(i) % bladeScalarDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
         
         ! Store the torqueRotor. 
@@ -661,19 +664,31 @@ do i=1,numberOfTurbines
         torqueRotor=turbineArray(i) % torqueRotor
         thrust=turbineArray(i) % thrust
         nacelleForce=turbineArray(i) % nacelleForce
+        VelNacelle_sampled=turbineArray(i) % VelNacelle_sampled
+        VelNacelle_corrected=turbineArray(i) % VelNacelle_corrected
     
         ! Sum all the individual torqueRotor from different blade points
-        call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,           &
+        call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,        &
                            1, mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sum all the individual thrust from different blade points
-        call mpi_allreduce( thrust, turbineArray(i) % thrust,           &
+        call mpi_allreduce( thrust, turbineArray(i) % thrust,                  &
                            1, mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync the nacelle force
-        call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,         &
-                           size(turbineArray(i) % nacelleForce), mpi_rprec,       &
+        call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,      &
+                           size(turbineArray(i) % nacelleForce), mpi_rprec,    &
                                 mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+
+        ! Sync the nacelle sampled velocity
+        call mpi_allreduce( VelNacelle_sampled,                                &
+                               turbineArray(i) % VelNacelle_sampled,  1,       &
+                                mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
+        ! Sync the nacelle corrected velocity
+        call mpi_allreduce( VelNacelle_corrected,                              &
+                               turbineArray(i) % VelNacelle_corrected, 1,      &
+                                mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
 
     endif
 enddo
@@ -795,6 +810,9 @@ endif
     
         endif
     endif
+
+!~ ! Compute the correction for the Cl coefficient
+!~ call atm_compute_cl_correction(i)
 
 
 end subroutine atm_lesgo_force

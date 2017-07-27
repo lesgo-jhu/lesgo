@@ -153,9 +153,9 @@ logical :: buffer_logical
 
 contains
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbines_init()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This subroutine creates the 'turbine' folder and starts the turbine forcing
 ! output files. It also creates the indicator function (Gaussian-filtered from
@@ -302,9 +302,9 @@ nullify(x,y,z)
 
 end subroutine turbines_init
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbines_nodes
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This subroutine locates nodes for each turbine and builds the arrays: ind,
 ! n_hat, num_nodes, and nodes
@@ -501,9 +501,9 @@ deallocate(z_tot)
 
 end subroutine turbines_nodes
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbines_forcing()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This subroutine applies the drag-disk forcing
 !
@@ -722,12 +722,12 @@ if (coord == 0) then
     ! write(*,*) "farm:", wind_farm%turbine(:)%omega
     ! write(*,*) "model:", wm%wm%omega
     !write values to file
-!     if (modulo (jt_total, tbase) == 0) then
-!         do s = 1, nloc
-!             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
-!                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
-!         end do
-!     end if
+    if (modulo (jt_total, tbase) == 0) then
+        do s = 1, nloc
+            write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
+                wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
+        end do
+    end if
     deallocate(beta)
 end if
 
@@ -739,9 +739,9 @@ nullify(p_icp, p_jcp, p_kcp)
 
 end subroutine turbines_forcing
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbines_finalize ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
@@ -755,9 +755,9 @@ deallocate(wind_farm%turbine)
 
 end subroutine turbines_finalize
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbines_checkpoint ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 !
 !
@@ -780,9 +780,9 @@ end if
 
 end subroutine turbines_checkpoint
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine turbine_vel_init(zo_high)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! called from ic.f90 if initu, lbc_mom==1, S_FLAG are all false.
 ! this accounts for the turbines when creating the initial velocity profile.
@@ -820,9 +820,9 @@ if(.false.) then
 end if
 end subroutine turbine_vel_init
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine place_turbines
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This subroutine places the turbines on the domain. It also sets the values for
 ! each individual turbine. After the subroutine is called, the following values
@@ -970,9 +970,9 @@ end if
 
 end subroutine place_turbines
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine read_control_files
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This subroutine reads the input files for dynamic controls with theta1,
 ! theta2, and Ct_prime. This is calles from turbines_init.
@@ -1015,9 +1015,9 @@ end if
 
 end subroutine read_control_files
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine generate_splines
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use open_file_fid_mod
 use functions, only : linear_interp
 use pchip
@@ -1186,9 +1186,9 @@ deallocate (beta)
 
 end subroutine generate_splines
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function count_lines(fname) result(N)
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 ! This function counts the number of lines in a file
 !
@@ -1224,9 +1224,9 @@ close(fid)
 
 end function count_lines
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine wake_model_init
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use open_file_fid_mod
 
 real(rprec) :: U_infty

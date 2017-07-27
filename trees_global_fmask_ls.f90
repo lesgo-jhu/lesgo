@@ -85,14 +85,11 @@ real (rp) :: r
 type (branch_type) :: br  !--to simplify argument passing
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub ( sub_name )
-#endif
 
 !--set module copies
 np = nnp
 MPI_split = MMPI_split
-    
+
 global_fmask = 0.0_rp
 
 do i = 1, n_tree
@@ -115,7 +112,7 @@ do i = 1, n_tree
     br % z_hat = tree_array(i) % trunk % z_hat
 
     br % n_sub_branch = tree_array(i) % trunk % n_sub_branch
-    
+
     call calc_global_fmask_br ( r, br )
 
 end do
@@ -126,9 +123,6 @@ if ( do_filter_global_fmask ) call filter_global_fmask ()
 call write_global_fmask ()
 call write_fmt_global_fmask ()
 
-#ifdef PPVERBOSE
-call exit_sub ( sub_name )
-#endif
 
 end subroutine calc_global_fmask_ta
 
@@ -149,7 +143,7 @@ character (128) :: fname
 #ifdef PPMPI
 
     write ( fname, '(a,a,a,i0)' ) gfmask_base, raw_suffix, MPI_suffix, coord
-    
+
 #else
 
     write ( fname, '(a,a)' ) gfmask_base, raw_suffix
@@ -183,23 +177,23 @@ integer :: lbz, ubz
 if ( MPI_split ) then
 
     do ip = 0, np-1
-    
+
         write ( fname, '(a,a,a,i0)' ) gfmask_base, raw_suffix, MPI_suffix, ip
-        
+
         open ( lun, file=fname, action='write', position='rewind',  &
                form='unformatted' )
-        
+
         lbz = ip * (nz - 1) / np + 1  !--1 level (local)
         ubz = lbz + (nz - 1) / np  !--nz level (local)
 
         call mesg ( sub_name, '(ip,lbz,ubz)=', (/ ip, lbz, ubz /) )
 
         write ( lun ) global_fmask(:, :, lbz:ubz)
-    
+
         close ( lun )
-    
+
     end do
-    
+
 else
 
     write ( fname, '(a,a)' ) gfmask_base, raw_suffix
@@ -207,7 +201,7 @@ else
            form='unformatted' )
     write ( lun ) global_fmask
     close ( lun )
-    
+
 end if
 
 end subroutine write_global_fmask
@@ -237,13 +231,13 @@ fmt = '(4(es13.6,1x))'
 do k = 1, nz - 1
     do j = 1, ny
         do i = 1, nx
-        
+
             x(1) = pt_of_grid ( i, 1, 1 )  !--u-nodes
             x(2) = pt_of_grid ( j, 2, 1 )
             x(3) = pt_of_grid ( k, 3, 1 )
 
             write ( lun, fmt ) x(1), x(2), x(3), global_fmask( i, j, k )
-    
+
         end do
     end do
 end do
@@ -273,9 +267,6 @@ type ( branch_type ) :: sbr
 
 
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub ( sub_name )
-#endif
 
 if ( br % gen <= gen_max ) call calc_global_fmask ( br )
 
@@ -297,7 +288,7 @@ if ( br % gen < gen_max ) then  !--recursion
         sbr % z_hat = sbr % abs_dir
         sbr % x_hat = cross_product ( sbr % z_hat, br % abs_dir )
         sbr % y_hat = cross_product ( sbr % z_hat, sbr % x_hat )
-    
+
         !--if this coordinate system is degenerate (sbr % [xy]_hat = 0)
         !  then just use parents local coordinate system
         if ( maxval (abs ( sbr % y_hat ) ) < epsilon ( 1.0_rp ) ) then
@@ -305,15 +296,15 @@ if ( br % gen < gen_max ) then  !--recursion
             sbr % x_hat = br % x_hat
             sbr % y_hat = br % y_hat
             sbr % z_hat = br % z_hat
-            
+
         else  !--normalize
 
             sbr % x_hat = (sbr % x_hat) / mag ( sbr % x_hat )
             sbr % y_hat = (sbr % y_hat) / mag ( sbr % y_hat )
             sbr % z_hat = (sbr % z_hat) / mag ( sbr % z_hat )
-      
+
         end if
-        
+
         twist = tree_array(n_tree) % twist(i)  !--careful if trees different
 
         !--apply twist
@@ -321,7 +312,7 @@ if ( br % gen < gen_max ) then  !--recursion
         y_tmp = cos (twist) * (sbr % y_hat) - sin (twist) * (sbr % x_hat)
         sbr % x_hat = x_tmp
         sbr % y_hat = y_tmp
-        
+
         !--may need to check to see if other options apply
         if ( add_cap .and. sub_branches_outside ) then
 
@@ -342,10 +333,7 @@ if ( br % gen < gen_max ) then  !--recursion
 
 end if
 
-#ifdef PPVERBOSE
-call exit_sub ( sub_name )
-#endif
-    
+
 end subroutine calc_global_fmask_br
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -385,11 +373,11 @@ do k = 1, nz - 1
             x = x - br % x0
 
             d_para = dot_product (x, br % abs_dir)
-    
+
             if ( ( 0 <= d_para ) .and. ( d_para <= br % l + eps ) ) then
 
                 x_perp = x - d_para * (br % abs_dir)
-       
+
                 !--square cross-section test
                 if ( maxval ( abs ( x_perp ) ) <= 0.5_rp * (br % d) + eps )  &
                     global_fmask( i, j, k ) = 1.0_rp
@@ -420,11 +408,8 @@ real (rp) :: total_in, total
 real (rp) :: filtval
 !real (rp) :: x(nd), xp(nd)
 real (rp), allocatable :: wksp( :, :, : )
-    
+
 !---------------------------------------------------------------------
-#ifdef PPVERBOSE
-call enter_sub ( sub_name )
-#endif
 
 allocate ( wksp(ld, ny, nz) )
 
@@ -434,17 +419,14 @@ total_in = sum ( wksp )  !--to calculate normalization factor
 
 do k = 1, nz - 1
 
-#ifdef PPVERBOSE
-  call mesg ( sub_name, 'starting k =', k )
-#endif
   !x(3) = pt_of_grid ( k, 3, 1 )
 
   do j = 1, ny
-  
+
     !x(2) = pt_of_grid ( j, 2, 1 )
-    
+
     do i = 1, nx
-    
+
       !x(1) = pt_of_grid ( i, 1, 1 )
 
       filtval = 0.0_rp
@@ -455,20 +437,20 @@ do k = 1, nz - 1
 
       jjmin = max ( 1, j - fratiomax * idelta )
       jjmax = min ( ny, j + fratiomax * idelta )
-    
+
       iimin = max ( 1, i - fratiomax * idelta )
       iimax = min ( nx, i + fratiomax * idelta )
-      
+
       do kk = kkmin, kkmax
-      
+
         !xp(3) = pt_of_grid ( kk, 3, 1 )
-    
+
         do jj = jjmin, jjmax
-        
+
           !xp(2) = pt_of_grid ( jj, 2, 1 )
-    
+
           do ii = iimin, iimax
-          
+
             !xp(1) = pt_of_grid ( ii, 1, 1 )
 
             !--the normalization will be slightly off since discrete
@@ -479,9 +461,9 @@ do k = 1, nz - 1
           end do
         end do
       end do
-      
+
       global_fmask( i, j, k ) = filtval
-      
+
     end do
   end do
 end do
@@ -489,23 +471,20 @@ end do
 where ( global_fmask < epsilon ( 1.0_rp ) ) global_fmask = 0.0_rp
 
 !--watch accumulated error in doing these sums
-!--no dV required since we are doing the 
+!--no dV required since we are doing the
 total = sum ( global_fmask )
 global_fmask = global_fmask * total_in / total
 
 deallocate ( wksp )
 
-#ifdef PPVERBOSE
-call exit_sub ( sub_name )
-#endif
-    
+
 end subroutine filter_global_fmask
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !--requires external normalization
 !--assumes filter width equal to grid spacing, and that grid spacing
 !  equal in all directions
-!--(|x|/delta)^2 = (i^2 + j^2 + k^2); dx and delta cancel 
+!--(|x|/delta)^2 = (i^2 + j^2 + k^2); dx and delta cancel
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function truncgauss_kernel_3d ( i, j, k )
 implicit none

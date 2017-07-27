@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!**********************************************************************
+!*******************************************************************************
 module mpi_defs
-!**********************************************************************
+!*******************************************************************************
 use mpi
 implicit none
 
@@ -36,14 +36,14 @@ integer, parameter :: MPI_SYNC_UP=2
 integer, parameter :: MPI_SYNC_DOWNUP=3
 
 #ifdef PPCGNS
-integer, public :: cgnsParallelComm !, cgnsSerialComm
+integer, public :: cgnsParallelComm
 #endif
 
 contains
 
-!**********************************************************************
+!*******************************************************************************
 subroutine initialize_mpi()
-!**********************************************************************
+!*******************************************************************************
 use types, only : rprec
 use param
 #ifdef PPCPS
@@ -54,16 +54,8 @@ use cgns
 #endif
 implicit none
 
-integer :: np
 integer :: ip, coords(1)
 integer :: localComm
-
-!--check for consistent preprocessor & param.f90 definitions of
-!  MPI and $MPI
-if (.not. USE_MPI) then
-  write (*, *) 'inconsistent use of USE_MPI and $MPI'
-  stop
-end if
 
 ! Set the local communicator
 #ifdef PPCPS
@@ -74,71 +66,57 @@ end if
     localComm = MPI_COMM_WORLD
 #endif
 
-call mpi_comm_size (localComm, np, ierr)
+call mpi_comm_size (localComm, nproc, ierr)
 call mpi_comm_rank (localComm, global_rank, ierr)
 
-!--check if run-time number of processes agrees with nproc parameter
-if (np /= nproc) then
-  write (*, *) 'runtime number of procs = ', np,  &
-               ' not equal to nproc = ', nproc
-  stop
-else
-   nproc = np
-endif
+! set up a 1d cartesian topology
+call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),                &
+    .false., comm, ierr)
 
-  !--set up a 1d cartesian topology
-call mpi_cart_create (localComm, 1, (/ nproc /), (/ .false. /),  &
-  .false., comm, ierr)
-
-!--slight problem here for ghost layers:
-!  u-node info needs to be shifted up to proc w/ rank "up",
-!  w-node info needs to be shifted down to proc w/ rank "down"
+! slight problem here for ghost layers:
+! u-node info needs to be shifted up to proc w/ rank "up",
+! w-node info needs to be shifted down to proc w/ rank "down"
 call mpi_cart_shift (comm, 0, 1, down, up, ierr)
 call mpi_comm_rank (comm, rank, ierr)
 call mpi_cart_coords (comm, rank, 1, coords, ierr)
-coord = coords(1)  !--use coord (NOT rank) to determine global position
+! use coord (NOT rank) to determine global position
+coord = coords(1)
 
-write (chcoord, '(a,i0,a)') '(', coord, ')'  !--() make easier to use
+write (chcoord, '(a,i0,a)') '(', coord, ')'  ! () make easier to use
 
-!--rank->coord and coord->rank conversions
+! rank->coord and coord->rank conversions
 allocate( rank_of_coord(0:nproc-1), coord_of_rank(0:nproc-1) )
 do ip = 0, nproc-1
-  call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
-  call mpi_cart_coords (comm, ip, 1, coords, ierr)
-  coord_of_rank(ip) = coords(1)
+    call mpi_cart_rank (comm, (/ ip /), rank_of_coord(ip), ierr)
+    call mpi_cart_coords (comm, ip, 1, coords, ierr)
+    coord_of_rank(ip) = coords(1)
 end do
 
-!--set the MPI_RPREC variable
+! set the MPI_RPREC variable
 if (rprec == kind (1.e0)) then
-  MPI_RPREC = MPI_REAL
-  MPI_CPREC = MPI_COMPLEX
+    MPI_RPREC = MPI_REAL
+    MPI_CPREC = MPI_COMPLEX
 else if (rprec == kind (1.d0)) then
-  MPI_RPREC = MPI_DOUBLE_PRECISION
-  MPI_CPREC = MPI_DOUBLE_COMPLEX
+    MPI_RPREC = MPI_DOUBLE_PRECISION
+    MPI_CPREC = MPI_DOUBLE_COMPLEX
 else
-  write (*, *) 'error defining MPI_RPREC/MPI_CPREC'
-  stop
+    write (*, *) 'error defining MPI_RPREC/MPI_CPREC'
+    stop
 end if
 
 #ifdef PPCGNS
-    ! Set the CGNS parallel Communicator
-    cgnsParallelComm = localComm
+! Set the CGNS parallel Communicator
+cgnsParallelComm = localComm
 
-    ! Set the parallel communicator
-    call cgp_mpi_comm_f(cgnsParallelComm, ierr)
-
-    ! Set the serial communicator
-    ! It is one communicator per processor
-    ! creates : CGNSserialComm
-!~     call MPI_COMM_SPLIT(localComm, coord, 0, CGNSserialComm, ierr)
+! Set the parallel communicator
+call cgp_mpi_comm_f(cgnsParallelComm, ierr)
 #endif
 
-return
 end subroutine initialize_mpi
 
-!**********************************************************************
+!*******************************************************************************
 subroutine mpi_sync_real_array( var, lbz, isync )
-!**********************************************************************
+!*******************************************************************************
 !
 ! This subroutine provides a generic method for syncing arrays in
 ! lesgo. This method applies to arrays indexed in the direction starting
@@ -174,21 +152,15 @@ real(rprec), dimension(:,:,lbz:), intent(INOUT) :: var
 integer, intent(in) :: lbz
 integer, intent(in) :: isync
 
-!integer :: lbx,ubx
-!integer :: lby,uby
 integer :: sx, sy
 integer :: ubz
 integer :: mpi_datasize
 
-!lbx=lbound(var,1); ubx=ubound(var,1)
-!lby=lbound(var,2); uby=ubound(var,2)
-!lbz=lbound(var,3); ubz=ubound(var,3)
-
 ! Get size of var array in x and y directions
-sx=size(var,1)
-sy=size(var,2)
+sx = size(var,1)
+sy = size(var,2)
 ! Get upper bound of z index; the lower bound is specified
-ubz=ubound(var,3)
+ubz = ubound(var,3)
 
 ! We are assuming that the array var has nz as the upper bound - checking this
 if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz:nz z dimensions.')
@@ -196,60 +168,47 @@ if( ubz .ne. nz ) call error( sub_name, 'Input array must lbz:nz z dimensions.')
 !  Set mpi data size
 mpi_datasize = sx*sy
 
-if(isync == MPI_SYNC_DOWN) then
-
-   call sync_down()
-
-elseif( isync == MPI_SYNC_UP) then
-
-   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_UP with variable with non-zero starting index')
-   call sync_up()
-
-elseif( isync == MPI_SYNC_DOWNUP) then
-
-   if( lbz /= 0 ) call error( sub_name, 'Cannot SYNC_DOWNUP with variable with non-zero starting index')
-   call sync_down()
-   call sync_up()
-
+if (isync == MPI_SYNC_DOWN) then
+    call sync_down()
+else if( isync == MPI_SYNC_UP) then
+    if( lbz /= 0 ) call error( sub_name,                                       &
+        'Cannot SYNC_UP with variable with non-zero starting index')
+    call sync_up()
+else if( isync == MPI_SYNC_DOWNUP) then
+    if( lbz /= 0 ) call error( sub_name,                                       &
+        'Cannot SYNC_DOWNUP with variable with non-zero starting index')
+    call sync_down()
+    call sync_up()
 else
-
    call error( sub_name, 'isync not specified properly')
+end if
 
-endif
-
-if(ierr .ne. 0) call error( sub_name, 'Error occured during mpi sync; recieved mpi error code :', ierr)
+if(ierr .ne. 0) call error( sub_name,                                          &
+    'Error occured during mpi sync; recieved mpi error code :', ierr)
 
 ! Enforce globally synchronous MPI behavior. Most likely safe to comment
 ! out, but can be enabled to ensure absolute safety.
 !call mpi_barrier( comm, ierr )
 
-return
-
 contains
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine sync_down()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
-call mpi_sendrecv (var(:,:,1), mpi_datasize, MPI_RPREC, down, 1,  &
-  var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 1,   &
-  comm, status, ierr)
-
-return
+call mpi_sendrecv (var(:,:,1), mpi_datasize, MPI_RPREC, down, 1,               &
+    var(:,:,ubz), mpi_datasize, MPI_RPREC, up, 1, comm, status, ierr)
 
 end subroutine sync_down
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine sync_up()
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
-call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 2,  &
-  var(:,:,0), mpi_datasize, MPI_RPREC, down, 2,   &
-  comm, status, ierr)
-
-return
+call mpi_sendrecv (var(:,:,ubz-1), mpi_datasize, MPI_RPREC, up, 2,             &
+    var(:,:,0), mpi_datasize, MPI_RPREC, down, 2, comm, status, ierr)
 
 end subroutine sync_up
 
