@@ -11,7 +11,7 @@ necessary.
     
         brew install gcc
         brew install open-mpi
-        brew install fftw
+        brew install fftw --with-fortran --with-mpi
         brew install cmake
 
 3. Change the environment flag for lesgo on line 14 of CMakeLists.txt to:
