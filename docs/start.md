@@ -42,6 +42,8 @@ configured into the executable. For instance, for serial lesgo with no additiona
 bells and whistles the executable will be called "lesgo"; if you turned on MPI
 support it will be called "lesgo-mpi".
 
+LESGO can also be compiled easily on [MacOS using Homebrew](darwin-brew.html)
+
 ## Running LESGO
 Once you have an executable there is no need to recompile for running different 
 cases. This is done using "lesgo.conf", which is commented fairly well and is
