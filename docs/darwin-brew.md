@@ -9,15 +9,16 @@ necessary.
 1. Install homebrew from [https://brew.sh/](https://brew.sh/)
 2. Install gcc, open-mpi, fftw, and cmake in the terminal:
     
-    brew install gcc
-    brew install open-mpi
-    brew install fftw
-    brew install cmake
+        brew install gcc
+        brew install open-mpi
+        brew install fftw
+        brew install cmake
 
 3. Change the environment flag for lesgo on line 14 of CMakeLists.txt to:
 
-    set(hostname "darwin-brew")
+        set(hostname "darwin-brew")
 
 4. Compile in terminal:
 
-    ./build-lesgo
+        ./build-lesgo
+
