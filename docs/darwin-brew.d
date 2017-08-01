@@ -1,9 +1,9 @@
-# Installing on Mac OS with Homebrew
+# Installing on MacOS with Homebrew
 
-LESGO comes with support for Mac OS with libraries and dependencies installed 
-with [Homebrew](https://brew.sh/). To install with full MPI support, install 
-the dependencies using Homebrew. If some of these libaries or dependencies
-are already installed, some modification of the CMakeLists.txt file will be
+LESGO comes with support for MacOS with libraries and dependencies installed 
+using [Homebrew](https://brew.sh/). If some of these libaries or dependencies
+are already installed and you do not want to overwrite these using the Homebrew
+versions, some modification of the CMakeLists.txt file will be 
 necessary.
 
 1. Install homebrew from https://brew.sh/
