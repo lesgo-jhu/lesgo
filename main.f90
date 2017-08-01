@@ -396,7 +396,7 @@ time_loop: do jt_step = nstart, nsteps
 
         if (coord == 0) then
             write(*,*)
-            write(*,'(a)') '========================================'
+            write(*,'(a)') '==================================================='
             write(*,'(a)') 'Time step information:'
             write(*,'(a,i9)') '  Iteration: ', jt_total
             write(*,'(a,E15.7)') '  Time step: ', dt
@@ -407,7 +407,11 @@ time_loop: do jt_step = nstart, nsteps
             write(*,'(a,E15.7)') '  Velocity divergence metric: ', rmsdivvel
             write(*,'(a,E15.7)') '  Kinetic energy: ', ke
             write(*,'(a,E15.7)') '  Bot wall stress: ', get_tau_wall_bot()
+#ifdef PPMPI
             write(*,'(a,E15.7)') '  Top wall stress: ', tau_top
+#else
+            write(*,'(a,E15.7)') '  Top wall stress: ', get_tau_wall_top()
+#endif
             write(*,*)
             write(*,'(1a)') 'Simulation wall times (s): '
             write(*,'(1a,E15.7)') '  Iteration: ', clock % time
@@ -416,7 +420,7 @@ time_loop: do jt_step = nstart, nsteps
             write(*,'(1a,E15.7)') '  Cumulative Forcing: ', clock_total_f
             write(*,'(1a,E15.7)') '  Forcing %: ',                             &
                 clock_total_f /clock_total % time
-            write(*,'(a)') '========================================'
+            write(*,'(a)') '==================================================='
             call write_tau_wall_bot()
         end if
         if(coord == nproc-1) then

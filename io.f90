@@ -119,10 +119,10 @@ ke = ke*0.5_rprec/(nx*ny*(nz-1))
 #ifdef PPMPI
 call mpi_reduce (ke, ke_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
 if (rank == 0) then  ! note that it's rank here, not coord
+    ke = ke_global/nproc
 #endif
     open(2,file=path // 'output/check_ke.dat', status='unknown',               &
         form='formatted', position='append')
-    ke = ke_global/nproc
     write(2,*) total_time,ke
     close(2)
 #ifdef PPMPI
@@ -1442,9 +1442,7 @@ use sgs_param
 #endif
 use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
 use sim_param, only : u, v, w
-#ifdef PPMPI
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
-#endif
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
 #endif

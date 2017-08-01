@@ -25,11 +25,8 @@ subroutine divstress_w(divt, tx, ty, tz)
 ! except at top, where 1:nz is provided
 !
 use types, only : rprec
-use param, only : ld, nx, ny, nz, coord, BOGUS, lbz
+use param, only : ld, nx, ny, nz, coord, BOGUS, lbz, nproc, coord
 use derivatives, only : ddx, ddy, ddz_uv
-#ifdef PPMPI
-use param,only:nproc,coord
-#endif
 implicit none
 
 real(rprec),dimension(ld,ny,lbz:nz),intent(out)::divt
