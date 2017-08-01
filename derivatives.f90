@@ -221,10 +221,7 @@ subroutine ddz_uv(f, dfdz, lbz)
 ! process it only supplies 2:nz
 !
 use types, only : rprec
-use param, only : nx, ny, nz, dz, BOGUS
-#ifdef PPMPI
-use param, only : nproc, coord
-#endif
+use param, only : nx, ny, nz, dz, BOGUS, nproc, coord
 implicit none
 
 integer, intent(in) :: lbz
