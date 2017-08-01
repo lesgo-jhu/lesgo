@@ -1,0 +1,18 @@
+# Installing on Mac OS with Homebrew
+
+LESGO comes with support for Mac OS with libraries and dependencies installed 
+with [Homebrew](https://brew.sh/). To install with full MPI support, install 
+the dependencies using Homebrew. If some of these libaries or dependencies
+are already installed, some modification of the CMakeLists.txt file will be
+necessary.
+
+1. Install homebrew from https://brew.sh/
+2. Install gcc, open-mpi, fftw, and cmake in the terminal:
+    brew install gcc
+    brew install open-mpi
+    brew install fftw
+    brew install cmake
+3. Change the environment flag for lesgo on line 14 of CMakeLists.txt to:
+    set(hostname "darwin-brew")
+4. Compile in terminal:
+    ./build-lesgo
