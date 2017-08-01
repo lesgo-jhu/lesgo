@@ -25,7 +25,6 @@ module messages
 ! information to standard out:
 !
 !   error:      writes an error message and aborts the program
-!   warn:       writes a warning message, but continues to run the program
 !   mesg:       writes a simple message
 !
 use types, only : rprec
