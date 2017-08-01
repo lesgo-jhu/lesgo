@@ -271,9 +271,9 @@ iend_w = modulo (iend - 1, nx) + 1
 istart_w = modulo (istart - 1, nx) + 1
 
 ! Set end of domain (uniform inflow + turbulence)
-u(iend_w, :, :) = hit % u_plane(:,:)
-v(iend_w, :, :) = hit % v_plane(:,:)
-w(iend_w, :, :) = hit % w_plane(:,:)
+u(iend_w, :, 1:nz) = hit % u_plane(:,:)
+v(iend_w, :, 1:nz) = hit % v_plane(:,:)
+w(iend_w, :, 1:nz) = hit % w_plane(:,:)
 
 !--skip istart since we know vel at istart, iend already
 do i = istart + 1, iend - 1

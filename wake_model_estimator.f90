@@ -84,7 +84,7 @@ subroutine initialize_val(this, i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k,     &
     i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,           &
     i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
 !*******************************************************************************
-use param, only : coord
+use param, only : coord, BOGUS
 use grid_m
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
@@ -118,7 +118,7 @@ end do
 
 ! Allocate filter matrices
 this%Nm = 2 * this%wm%N                         ! Number of measurements
-this%Ns = (this%wm%N + 2) * this%wm%Nx - 1      ! Number of states
+this%Ns = (this%wm%Nx + 2) * this%wm%N - 1      ! Number of states
 allocate( this%Abar(this%Ns) )
 allocate( this%Ahatbar(this%Nm) )
 allocate( this%A(this%Ns, this%Ne) )
@@ -171,12 +171,13 @@ this%Ahatbar = 0
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
-        jend   = j*Nx
+        jend = j*Nx
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
-    this%A(Nx*N+1:Nx*(N+1),i) = this%ensemble(i)%omega(:)
-    this%A(Nx*(N+1)+1:,i) = this%ensemble(i)%k(1:N-1)
-    this%Ahat(:,i) = this%ensemble(i)%uhat
+    this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
+    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
+    this%Ahat(1:N,i) = this%ensemble(i)%uhat
+    this%Ahat((1+N):,i) = this%ensemble(i)%omega
     this%Abar = this%Abar + this%A(:,i) / this%Ne
     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
 end do
@@ -184,6 +185,32 @@ do j = 1, this%Ne
     this%Aprime(:,j) = this%A(:,j) - this%Abar
     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
 end do
+
+! Place ensemble into a matrix with each member in a column
+! this%Abar = 0
+! this%Ahatbar = 0
+! do i = 1, this%Ne
+!     do j = 1, N
+!         jstart = (j-1)*Nx+1
+!         jend = j*Nx
+!         ! if (i == 1) write(*,*) "du:", jstart, jend
+!         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+!     end do
+!     this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
+!     ! if (i == 1) write(*,*) "omega:", Nx*N+1, N*(Nx+1)
+!     this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
+!     ! if (i == 1) write(*,*) "k:", N*(Nx+1)+1, this%Ns
+!     ! if (i == 1) write(*,*) this%A((N*(Nx+1)+1):,i)
+!     ! if (i == 1) write(*,*) this%ensemble(i)%k(1:N)
+!     ! if (i == 1) write(*,*) "shape of A:", shape(this%A)
+!     this%Ahat(:,i) = this%ensemble(i)%uhat
+!     this%Abar = this%Abar + this%A(:,i) / this%Ne
+!     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
+! end do
+! do j = 1, this%Ne
+!     this%Aprime(:,j) = this%A(:,j) - this%Abar
+!     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+! end do
 
 end subroutine generate_initial_ensemble
 
@@ -218,8 +245,10 @@ if (size(gen_torque) /= N) then
     call error('wake_model_t.advance','gen_torque must be size N')
 end if
 
-write(*,*) "um: ", um
-write(*,*) "uhat: ", this%wm%uhat
+! write(*,*) "um: ", um
+! write(*,*) "uhat: ", this%wm%uhat
+! write(*,*) "omegam: ", omegam
+! write(*,*) "omegahat: ", this%wm%omega
 
 ! Calculate noisy measurements
 this%E = 0._rprec
@@ -229,13 +258,17 @@ do i = 1, N
         this%D(i, j) = um(i) + this%E(i, j)
     end do
 end do
-do i = N+1, 2*N
+do i = 1, N
     do j = 1, this%Ne
-        this%E(i, j) = this%sigma_omega * random_normal()
-        this%D(i, j) = omegam(i) + this%E(i, j)
+        this%E(i+N, j) = this%sigma_omega * random_normal()
+        this%D(i+N, j) = omegam(i) + this%E(i+N, j)
     end do
 end do
 this%Dprime = this%D - this%Ahat
+
+! write(*,*) "D: ", this%D
+! write(*,*) "Dprime: ", this%Dprime
+! write(*,*) "Ahat: ", this%Ahat
 
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
 ! Since the dimension is small, we don't bother doing the SVD. If the matrix becomes
@@ -254,12 +287,10 @@ end do
 Uinftyi = 0._rprec
 N_unwaked = this%wm%N - this%wm%Nwaked
 alpha = dt / (this%tau + dt)
-write(*,*) "tau = ", this%tau
-write(*,*) "alpha = ", alpha
 do i = 1, this%wm%N
     if (.not.this%wm%waked(i)) then
         Uinftyi = Uinftyi + (4._rprec + this%wm%Ctp(i))/4._rprec*um(i)/N_unwaked
-        write(*,*) "Uinftyi_intermediate:", Uinftyi
+        ! write(*,*) "Uinftyi_intermediate:", Uinftyi
     end if
 end do
 this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
@@ -267,7 +298,8 @@ this%wm%VELOCITY = this%wm%U_infty
 this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
 this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
 this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
-write(*,*) "Ctp:", this%wm%Ctp
+! write(*,*) "U_Infty:", this%wm%U_Infty
+! write(*,*) "Ctp:", this%wm%Ctp
 
 ! Fill into objects
 do i = 1, this%Ne
@@ -290,8 +322,8 @@ do j = 1, N
     jend = j*Nx
     this%wm%du(j,:) = this%Abar(jstart:jend)
 end do
-this%wm%omega(:) = this%Abar(Nx*N+1:(Nx+1)*N)
-this%wm%k(1:N-1) = this%Abar((Nx+1)*N+1:)
+this%wm%omega(:) = this%Abar((Nx*N+1):N*(Nx+1))
+this%wm%k(1:N-1) = this%Abar((N*(Nx+1)+1):)
 this%wm%k(N) = this%wm%k(N-1)
 
 ! Advance ensemble and mean estimate
@@ -303,12 +335,13 @@ this%Ahatbar = 0
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
-        jend   = j*Nx
+        jend = j*Nx
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
-    this%A(Nx*N+1:Nx*(N+1),i) = this%ensemble(i)%omega(:)
-    this%A(Nx*(N+1)+1:,i) = this%ensemble(i)%k(1:N-1)
-    this%Ahat(:,i) = this%ensemble(i)%uhat
+    this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
+    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
+    this%Ahat(1:N,i) = this%ensemble(i)%uhat
+    this%Ahat((1+N):,i) = this%ensemble(i)%omega
     this%Abar = this%Abar + this%A(:,i) / this%Ne
     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
 end do
@@ -385,6 +418,5 @@ call this%wm%compute_wake_expansion
 call this%wm%advance(dt)
 
 end subroutine advance_ensemble_noval
-
 
 end module wake_model_estimator

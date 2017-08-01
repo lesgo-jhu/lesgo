@@ -664,8 +664,6 @@ if (coord == 0) then
         p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
         disk_force(s) = p_f_n
 
-        disk_force(s) = 0._rprec
-
         !write current step's values to file
         if (modulo (jt_total, tbase) == 0) then
             write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
@@ -717,11 +715,10 @@ if (coord == 0) then
     allocate( beta(nloc) )
     beta = 0._rprec
     call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
-        torque_gain*wind_farm%turbine(:)%omega**2, beta,                       &
-        wind_farm%turbine(:)%omega, dt_dim)
-    ! write(*,*) "farm:", wind_farm%turbine(:)%omega
-    ! write(*,*) "model:", wm%wm%omega
-    !write values to file
+        wind_farm%turbine(:)%omega, beta,                                      &
+        torque_gain*wind_farm%turbine(:)%omega**2, dt_dim)
+
+    ! write values to file
     if (modulo (jt_total, tbase) == 0) then
         do s = 1, nloc
             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
@@ -1231,7 +1228,7 @@ use open_file_fid_mod
 
 real(rprec) :: U_infty
 real(rprec), dimension(:), allocatable :: wm_k, wm_sx, wm_sy
-integer :: i
+integer :: i, j, fid
 character (100) :: string1
 
 U_infty = 8._rprec
@@ -1253,11 +1250,40 @@ wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,               &
     sigma_omega, sigma_uhat, tau_U_infty)
 call wm%generate_initial_ensemble()
 
-! Create output files
+! Output the results of the initial ensemble
+! string1 = path // 'wake_model/turbine_k.dat'
+! fid = open_file_fid( string1, 'rewind', 'formatted' )
+! write(fid,*) wm%wm%k(:)
+! do i = 1, num_ensemble
+!     write(fid,*) wm%ensemble(i)%k(:)
+! end do
+! close(fid)
 
-! Generate the files for the turbine forcing output
-allocate( wm_fid(num_x) )
-do i = 1,num_x
+! string1 = path // 'wake_model/initial_omega.dat'
+! fid = open_file_fid( string1, 'rewind', 'formatted' )
+! write(fid,*) wm%wm%omega(:)
+! do i = 1, num_ensemble
+!     write(fid,*) wm%ensemble(i)%omega(:)
+! end do
+! close(fid)
+
+! do i = 1, nloc
+!     call string_splice(string1, path // 'wake_model/initial_', i, '_du.dat' )
+!     fid = open_file_fid( string1, 'rewind', 'formatted' )
+!     write(fid,*) wm%wm%du(i, :)
+!     close(fid)
+!     do j = 1, num_ensemble
+!         call string_splice(string1, path // 'wake_model/initial_', i, '_em_',  &
+!             j, '_du.dat' )
+!         fid = open_file_fid( string1, 'rewind', 'formatted' )
+!         write(fid,*) wm%ensemble(j)%du(i, :)
+!         close(fid)
+!     end do
+! end do
+
+! Create output files
+allocate( wm_fid(nloc) )
+do i = 1, nloc
     call string_splice( string1, path // 'wake_model/turbine_', i, '.dat' )
     wm_fid(i) = open_file_fid( string1, 'append', 'formatted' )
 end do

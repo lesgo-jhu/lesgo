@@ -47,14 +47,16 @@ def main():
     t = tot_t / 2
     
     # Size of the plain in grid points
-    nx, ny, nz = 32, 32, 32
+    nx, ny, nz = 92, 32, 32
     #~ nx, ny, nz = 64, 64, 64
     #~ nx, ny, nz = 15, 12, 16
     #~ nx, ny, nz = 1024, 192, 384
     #~ nx, ny, nz = 64, 64, 128
 
     # Domain Length from the HIT database
-    Lx = Ly = Lz = 2.*pi
+    Lx = 2.1
+    Ly = 1.0
+    Lz = 1.0
 
     # LES Filter width (depends on ny spectral direction)
     fw = Ly / ny
@@ -76,15 +78,15 @@ def main():
     v = np.zeros((nx, ny, nz), dtype = 'float32', order='F')
     w = np.zeros((nx, ny, nz), dtype = 'float32', order='F')
 
-    print 'shape points', np.shape(points)
-    print 'shape x', np.shape(x)
-    print 'shape y', np.shape(y)
-    print 'shape z', np.shape(z)
+    print('shape points', np.shape(points))
+    print('shape x', np.shape(x))
+    print('shape y', np.shape(y))
+    print('shape z', np.shape(z))
 
     # Asign values to points
-    for i in xrange(len(x1)):
-        for j in xrange(len(y1)):
-            for k in xrange(len(z1)):
+    for i in range(len(x1)):
+        for j in range(len(y1)):
+            for k in range(len(z1)):
                 points[i,j,k,0]=x1[i]
                 points[i,j,k,1]=y1[j]
                 points[i,j,k,2]=z1[k]
@@ -113,9 +115,9 @@ def main():
         #initialize webservices
         lTDB.initialize()
 
-        print "Error NOT Here 1"
+        print("Error NOT Here 1")
     
-        for k in xrange(len(z1)):
+        for k in range(len(z1)):
 
             # Get filtered Data
             uvw = lTDB.getBoxFilter(t, points[:,:,k,:].reshape(-1, 3),
@@ -133,7 +135,7 @@ def main():
             v[:,:,k] = uvw[:,1].reshape(nx, ny)
             w[:,:,k] = uvw[:,2].reshape(nx, ny)
 
-            print 'Filtered Velocity obtained for k=', k
+            print('Filtered Velocity obtained for k=', k)
 
         # Save data into numpy format
         np.save('./u' + fname, u)
@@ -202,7 +204,7 @@ def write_vapor(filename, L_x, L_y, L_z, nx, ny, nz, variables):
         ':'+str(L_y/minL)+':'+str(L_z/minL)+
         ' -vars3d '+':'.join(variables)+' '+ filename+'.vdf']
     os.system(cmd1[0])
-    print cmd1[0]
+    print(cmd1[0])
 
     fname = 'Filtered' + '_nx_' + str(nx) + '_ny_' + str(ny) + '_nz_' + str(nz)
 
@@ -210,7 +212,8 @@ def write_vapor(filename, L_x, L_y, L_z, nx, ny, nz, variables):
         cmd2=['raw2vdf -varname '+ var +' '+
                filename+'.vdf ' + var+fname]
         os.system(cmd2[0])
-        print cmd2[0]
+        print(cmd2[0])
+
 
 if __name__ == '__main__':
 	main()

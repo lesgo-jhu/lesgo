@@ -734,6 +734,18 @@ do
                 read (buff(equal_pos+1:),*) inertia_all
             case ('TORQUE_GAIN')
                 read (buff(equal_pos+1:),*) torque_gain
+            case ('TAU_U_INFTY')
+                read (buff(equal_pos+1:),*) tau_U_infty
+            case ('SIGMA_DU')
+                read (buff(equal_pos+1:),*) sigma_du
+            case ('SIGMA_K')
+                read (buff(equal_pos+1:),*) sigma_k
+            case ('SIGMA_UHAT')
+                read (buff(equal_pos+1:),*) sigma_uhat
+            case ('SIGMA_OMEGA')
+                read (buff(equal_pos+1:),*) sigma_omega
+            case ('NUM_ENSEMBLE')
+                read (buff(equal_pos+1:),*) num_ensemble
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

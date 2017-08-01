@@ -45,7 +45,7 @@ set(USE_LVLSET false)
 set(USE_CPS false)
 
 # Homogeneous isotropic turbulence input
-set(USE_HIT false)
+set(USE_HIT true)
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
@@ -234,7 +234,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall -fcheck=all")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 if (hostname STREQUAL "darwin-brew")
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -framework Accelerate ")
