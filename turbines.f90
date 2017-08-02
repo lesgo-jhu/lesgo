@@ -100,9 +100,6 @@ real(rprec), public :: sigma_omega = 0.01
 ! Number of members in ensemble
 integer, public :: num_ensemble = 50
 
-! Wake model
-type(wake_model_estimator_t) :: wm
-
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
 real(rprec) :: sx           ! spacing in the x-direction, multiple of diameter
@@ -116,8 +113,6 @@ real(rprec), dimension(:), allocatable :: theta2_time
 
 ! Arrays for interpolating power and thrust coefficients for LES
 type(bi_pchip_t), public :: Cp_prime_spline, Ct_prime_spline
-! Arrays for interpolating power and thrust coefficients for wake model
-type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 ! Input files
 character(*), parameter :: input_folder = 'input_turbines/'
@@ -134,7 +129,6 @@ character(*), parameter :: output_folder = 'turbine/'
 character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
 character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
 integer, dimension(:), allocatable :: forcing_fid
-integer, dimension(:), allocatable :: wm_fid
 
 ! epsilon used for disk velocity time-averaging
 real(rprec) :: eps
@@ -150,6 +144,12 @@ logical :: turbine_in_proc = .false.
 integer :: turbine_in_proc_cnt = 0
 logical :: buffer_logical
 #endif
+
+! Wake model
+type(wake_model_estimator_t) :: wm
+character(*), parameter :: wm_path = path // 'wake_model'
+integer, dimension(:), allocatable :: wm_fid
+type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 contains
 
@@ -537,6 +537,8 @@ z => grid % z
 
 allocate(w_uv(ld,ny,lbz:nz))
 
+write(*,*) "ENTER TURBINES_FORCING", coord
+
 #ifdef PPMPI
 !syncing intermediate w-velocities
 call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)
@@ -555,7 +557,9 @@ end do
 ! Recompute the turbine position if theta1 or theta2 can change
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
-!Each processor calculates the weighted disk-averaged velocity
+write(*,*) "turbines_forcing loc 1:", coord
+
+! Each processor calculates the weighted disk-averaged velocity
 send_array = 0._rprec
 disk_avg_vel = 0._rprec
 u_vel_center = 0._rprec
@@ -596,7 +600,9 @@ if (turbine_in_proc) then
     end do
 end if
 
-!send the disk-avg values to coord==0
+write(*,*) "turbines_forcing loc 2:", coord
+
+! send the disk-avg values to coord==0
 #ifdef PPMPI
 call mpi_barrier (comm,ierr)
 
@@ -620,6 +626,8 @@ elseif (turbine_in_proc) then
     call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
 end if
 #endif
+
+write(*,*) "turbines_forcing loc 3:", coord
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then
@@ -675,6 +683,8 @@ if (coord == 0) then
     end do
 end if
 
+write(*,*) "turbines_forcing loc 4:", coord
+
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 #ifdef PPMPI
 if (coord == 0) then
@@ -686,6 +696,8 @@ elseif (turbine_in_proc) then
     call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
 end if
 #endif
+
+write(*,*) "turbines_forcing loc 5:", coord
 
 !apply forcing to each node
 if (turbine_in_proc) then
@@ -702,6 +714,8 @@ if (turbine_in_proc) then
     end do
 end if
 
+write(*,*) "turbines_forcing loc 6:", coord
+
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
     open(unit=1,file=vel_top_dat,status='unknown',form='formatted',            &
@@ -709,6 +723,8 @@ if (coord .eq. nproc-1) then
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 end if
+
+write(*,*) "turbines_forcing loc 7:", coord
 
 ! Update wake model
 if (coord == 0) then
@@ -733,6 +749,7 @@ deallocate(w_uv)
 nullify(y,z)
 nullify(p_icp, p_jcp, p_kcp)
 
+write(*,*) "EXIT TURBINES_FORCING", coord
 
 end subroutine turbines_forcing
 
@@ -774,6 +791,8 @@ if (coord == 0) then
     write(fid,*) T_avg_dim
     close (fid)
 end if
+
+call wm%write_to_file(wm_path)
 
 end subroutine turbines_checkpoint
 
@@ -1224,74 +1243,60 @@ end function count_lines
 !*******************************************************************************
 subroutine wake_model_init
 !*******************************************************************************
+use param, only : CHAR_BUFF_LENGTH
 use open_file_fid_mod
-
+implicit none
 real(rprec) :: U_infty
 real(rprec), dimension(:), allocatable :: wm_k, wm_sx, wm_sy
 integer :: i, j, fid
-character (100) :: string1
+logical :: exst
+character (CHAR_BUFF_LENGTH) :: fstring
 
-U_infty = 8._rprec
+fstring = path // 'wake_model/wm_est.dat'
+inquire (file=fstring, exist=exst)
 
-! Specify spacing and wake expansion coefficients
-allocate( wm_k(nloc) )
-allocate( wm_sx(nloc) )
-allocate( wm_sy(nloc) )
-wm_k = 0.05_rprec
-do i = 1, nloc
-    wm_sx(i) = wind_farm%turbine(i)%xloc * z_i
-    wm_sy(i) = wind_farm%turbine(i)%yloc * z_i
-end do
+write(*,*) "ENTER"
 
-! Create wake model
-wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,               &
-    0.25*dia_all*z_i, wm_k, dia_all*z_i, rho, inertia_all, 2*nx, 2*ny,         &
-    wm_Ct_prime_spline, wm_Cp_prime_spline,  torque_gain, sigma_du, sigma_k,   &
-    sigma_omega, sigma_uhat, tau_U_infty)
-call wm%generate_initial_ensemble()
+if (exst) then
+    write(*,*) 'Reading wake model estimator data from wake_model/'
+    wm = wake_model_estimator_t(wm_path, wm_Ct_prime_spline,                   &
+        wm_Cp_prime_spline, torque_gain, sigma_du, sigma_k, sigma_omega,       &
+        sigma_uhat, tau_U_infty)
+else
+    ! Set initial velocity
+    U_infty = 8._rprec
 
-! Output the results of the initial ensemble
-! string1 = path // 'wake_model/turbine_k.dat'
-! fid = open_file_fid( string1, 'rewind', 'formatted' )
-! write(fid,*) wm%wm%k(:)
-! do i = 1, num_ensemble
-!     write(fid,*) wm%ensemble(i)%k(:)
-! end do
-! close(fid)
+    ! Specify spacing and wake expansion coefficients
+    allocate( wm_k(nloc) )
+    allocate( wm_sx(nloc) )
+    allocate( wm_sy(nloc) )
+    wm_k = 0.05_rprec
+    do i = 1, nloc
+        wm_sx(i) = wind_farm%turbine(i)%xloc * z_i
+        wm_sy(i) = wind_farm%turbine(i)%yloc * z_i
+    end do
 
-! string1 = path // 'wake_model/initial_omega.dat'
-! fid = open_file_fid( string1, 'rewind', 'formatted' )
-! write(fid,*) wm%wm%omega(:)
-! do i = 1, num_ensemble
-!     write(fid,*) wm%ensemble(i)%omega(:)
-! end do
-! close(fid)
+    ! Create wake model
+    wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,           &
+        0.25*dia_all*z_i, wm_k, dia_all*z_i, rho, inertia_all, 2*nx, 2*ny,     &
+        wm_Ct_prime_spline, wm_Cp_prime_spline,  torque_gain, sigma_du,        &
+        sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
+    call wm%generate_initial_ensemble()
 
-! do i = 1, nloc
-!     call string_splice(string1, path // 'wake_model/initial_', i, '_du.dat' )
-!     fid = open_file_fid( string1, 'rewind', 'formatted' )
-!     write(fid,*) wm%wm%du(i, :)
-!     close(fid)
-!     do j = 1, num_ensemble
-!         call string_splice(string1, path // 'wake_model/initial_', i, '_em_',  &
-!             j, '_du.dat' )
-!         fid = open_file_fid( string1, 'rewind', 'formatted' )
-!         write(fid,*) wm%ensemble(j)%du(i, :)
-!         close(fid)
-!     end do
-! end do
+    ! Create output files
+    allocate( wm_fid(nloc) )
+    do i = 1, nloc
+        call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat' )
+        wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
+    end do
 
-! Create output files
-allocate( wm_fid(nloc) )
-do i = 1, nloc
-    call string_splice( string1, path // 'wake_model/turbine_', i, '.dat' )
-    wm_fid(i) = open_file_fid( string1, 'append', 'formatted' )
-end do
+    ! Cleanup
+    deallocate(wm_k)
+    deallocate(wm_sx)
+    deallocate(wm_sy)
+end if
 
-! Cleanup
-deallocate(wm_k)
-deallocate(wm_sx)
-deallocate(wm_sy)
+write(*,*) "EXIT"
 
 end subroutine wake_model_init
 

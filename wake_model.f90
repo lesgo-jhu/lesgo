@@ -56,9 +56,8 @@ type, extends(wake_model_base_t) :: wake_model_t
     real(rprec), dimension(:), allocatable :: gen_torque
 contains
     procedure, public :: initialize_val
-!     procedure, private :: initialize_file
-!     procedure, public :: print
-!     procedure, public :: write_to_file
+    procedure, private :: initialize_file
+    procedure, public :: write_to_file
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
     procedure, private :: advance_val
@@ -70,7 +69,7 @@ end type wake_model_t
 
 interface wake_model_t
     module procedure :: constructor_val
-!     module procedure :: constructor_file
+    module procedure :: constructor_file
 end interface wake_model_t
 
 contains
@@ -92,21 +91,22 @@ real(rprec), intent(in) :: i_torque_gain
 call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
     i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 end function constructor_val
-!
-! !*******************************************************************************
-! function constructor_file(fstring) result(this)
-! !*******************************************************************************
-! ! Constructor for wake model that reads from file
-! use open_file_fid_mod
-! use param, only : CHAR_BUFF_LENGTH
-! implicit none
-!
-! type(wake_model_t) :: this
-! character(*), intent(in) :: fstring
-!
-! call this%initialize_file(fstring)
-!
-! end function constructor_file
+
+!*******************************************************************************
+function constructor_file(fstring, i_Ctp_spline, i_Cpp_spline) result(this)
+!*******************************************************************************
+! Constructor for wake model that reads from file
+use open_file_fid_mod
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+
+type(wake_model_t) :: this
+character(*), intent(in) :: fstring
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+
+call this%initialize_file(fstring, i_Ctp_spline, i_Cpp_spline)
+
+end function constructor_file
 
 !*******************************************************************************
 subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
@@ -152,55 +152,87 @@ this%lambda_prime = 0.5_rprec * this%Dia / this%U_infty
 this%gen_torque = 0._rprec
 
 end subroutine initialize_val
-!
-! !*******************************************************************************
-! subroutine initialize_file(this, fstring)
-! !*******************************************************************************
-! use open_file_fid_mod
-! use param, only : CHAR_BUFF_LENGTH
-! implicit none
-!
-! class(wake_model_t), intent(inout) :: this
-! character(*), intent(in) :: fstring
-! integer :: i, fid
-!
-! !  Open vel.out (lun_default in io) for final output
-! fid = open_file_fid(fstring, 'rewind', 'unformatted')
-! read(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                      &
-!           this%U_infty, this%isDimensionless
-! read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
-!
-! allocate( this%s(this%N)    )
-! allocate( this%k(this%N)    )
-! allocate( this%uhat(this%N) )
-! allocate( this%Phat(this%N) )
-! allocate( this%Ctp(this%N)  )
-! allocate( this%x(this%Nx) )
-! allocate( this%u(this%Nx) )
-! allocate( this%G(this%N,  this%Nx) )
-! allocate( this%d(this%N,  this%Nx) )
-! allocate( this%dp(this%N, this%Nx) )
-! allocate( this%w(this%N,  this%Nx) )
-! allocate( this%f(this%N, this%Nx) )
-! allocate( this%du(this%N, this%Nx) )
-!
-! read(fid) this%s
-! read(fid) this%k
-! read(fid) this%x
-! read(fid) this%du
-! read(fid) this%u
-! read(fid) this%uhat
-! read(fid) this%Phat
-! read(fid) this%Ctp
-! close(fid)
-!
-! do i = 1, this%N
-!     this%G(i,:) = gaussian(this%x, this%s(i), this%Delta)
-!     this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
-! end do
-! call this%computeWakeExpansionFunctions
-!
-! end subroutine initialize_file
+
+!*******************************************************************************
+subroutine initialize_file(this, fstring, i_Ctp_spline, i_Cpp_spline)
+!*******************************************************************************
+use open_file_fid_mod
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+
+class(wake_model_t), intent(inout) :: this
+character(*), intent(in) :: fstring
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+integer :: i, fid
+
+! Read scalar values
+fid = open_file_fid(fstring, 'rewind', 'unformatted')
+read(fid) this%N, this%U_infty, this%Delta, this%Dia, this%rho, this%inertia,  &
+    this%torque_gain, this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless,&
+    this%Nwaked
+read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%MASS, this%TORQUE,       &
+    this%POWER
+
+! Allocate arrays from wake_model_base_t
+allocate( this%sx(this%N) )
+allocate( this%sy(this%N) )
+allocate( this%k(this%N) )
+allocate( this%Gstart(this%N) )
+allocate( this%Gend(this%N) )
+allocate( this%x(this%Nx) )
+allocate( this%y(this%Ny) )
+allocate( this%G(this%N,  this%Nx) )
+allocate( this%d(this%N,  this%Nx) )
+allocate( this%dp(this%N, this%Nx) )
+allocate( this%w(this%N,  this%Nx) )
+allocate( this%f(this%N, this%Nx) )
+allocate( this%Istart(this%N, this%Nx) )
+allocate( this%Iend(this%N, this%Nx) )
+allocate( this%Isum(this%N, this%Nx) )
+allocate( this%waked(this%N) )
+
+! Allocate arrays from wake_model_t
+allocate( this%du(this%N, this%Nx) )
+allocate( this%u(this%Nx, this%Ny) )
+allocate( this%uhat(this%N) )
+allocate( this%Phat(this%N) )
+allocate( this%Paero(this%N) )
+allocate( this%Ctp(this%N)  )
+allocate( this%Cpp(this%N)  )
+allocate( this%omega(this%N)  )
+allocate( this%beta(this%N)  )
+allocate( this%lambda_prime(this%N)  )
+allocate( this%gen_torque(this%N)  )
+
+! Read arrays from file
+read(fid) this%sx
+read(fid) this%sy
+read(fid) this%k
+read(fid) this%x
+read(fid) this%y
+read(fid) this%du
+read(fid) this%u
+read(fid) this%uhat
+read(fid) this%Phat
+read(fid) this%Paero
+read(fid) this%Ctp
+read(fid) this%Cpp
+read(fid) this%omega
+read(fid) this%beta
+read(fid) this%lambda_prime
+read(fid) this%gen_torque
+read(fid) this%waked
+close(fid)
+
+! Assign splines
+this%Ctp_spline = i_Ctp_spline
+this%Cpp_spline = i_Cpp_spline
+
+! Calculate dependent variables
+call this%compute_gaussians
+call this%compute_wake_expansion
+
+end subroutine initialize_file
 
 !*******************************************************************************
 subroutine makeDimensionless(this)
@@ -247,34 +279,44 @@ if (this%isDimensionless) then
 end if
 
 end subroutine makeDimensional
-!
-! !*******************************************************************************
-! subroutine write_to_file(this, fstring)
-! !*******************************************************************************
-! ! Writes object to file
-! use open_file_fid_mod
-! use param, only : CHAR_BUFF_LENGTH
-! implicit none
-! class(wake_model_t), intent(in) :: this
-! character(CHAR_BUFF_LENGTH), intent(in) :: fstring
-! integer :: fid
-! !
-! ! !  Open vel.out (lun_default in io) for final output
-! ! fid = open_file_fid(fstring, 'rewind', 'unformatted')
-! ! write(fid) this%N, this%Nx, this%dx, this%Dia, this%Delta,                     &
-! !            this%U_infty, this%isDimensionless
-! ! write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%FORCE
-! ! write(fid) this%s
-! ! write(fid) this%k
-! ! write(fid) this%x
-! ! write(fid) this%du
-! ! write(fid) this%u
-! ! write(fid) this%uhat
-! ! write(fid) this%Phat
-! ! write(fid) this%Ctp
-! ! close(fid)
-!
-! end subroutine write_to_file
+
+!*******************************************************************************
+subroutine write_to_file(this, fstring)
+!*******************************************************************************
+! Writes object to file
+use open_file_fid_mod
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+class(wake_model_t), intent(in) :: this
+character(*), intent(in) :: fstring
+integer :: fid
+
+fid = open_file_fid(fstring, 'rewind', 'unformatted')
+write(fid) this%N, this%U_infty, this%Delta, this%Dia, this%rho, this%inertia, &
+    this%torque_gain, this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless,&
+    this%Nwaked
+write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%MASS, this%TORQUE,      &
+    this%POWER
+write(fid) this%sx
+write(fid) this%sy
+write(fid) this%k
+write(fid) this%x
+write(fid) this%y
+write(fid) this%du
+write(fid) this%u
+write(fid) this%uhat
+write(fid) this%Phat
+write(fid) this%Paero
+write(fid) this%Ctp
+write(fid) this%Cpp
+write(fid) this%omega
+write(fid) this%beta
+write(fid) this%lambda_prime
+write(fid) this%gen_torque
+write(fid) this%waked
+close(fid)
+
+end subroutine write_to_file
 !
 ! !*******************************************************************************
 ! subroutine print(this)

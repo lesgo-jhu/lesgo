@@ -91,6 +91,7 @@ contains
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
     procedure, public :: compute_wake_expansion
+    procedure, public :: compute_gaussians
 end type wake_model_base_t
 
 interface wake_model_base_t
@@ -202,6 +203,19 @@ do i = 2, this%Ny
     this%y(i) = this%y(i-1) + this%dy
 end do
 
+call this%compute_gaussians
+call this%compute_wake_expansion
+
+end subroutine initialize_val
+
+!*******************************************************************************
+subroutine compute_gaussians(this)
+!*******************************************************************************
+implicit none
+class(wake_model_base_t), intent(inout) :: this
+integer :: i
+integer, dimension(1) :: temp_int
+
 ! Gaussian functions
 this%G = 0._rprec
 do i = 1, this%N
@@ -214,9 +228,7 @@ do i = 1, this%N
     this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
 end do
 
-call this%compute_wake_expansion
-
-end subroutine initialize_val
+end subroutine compute_gaussians
 
 !*******************************************************************************
 subroutine compute_wake_expansion(this)
@@ -240,9 +252,11 @@ end do
 ! Indicator functions for wakes
 do i = 1, this%N
     do ii = 1, this%Nx
-        temp_int = minloc(abs(this%y - this%sy(i) + 0.5_rprec*this%Dia*this%d(i,ii)))
+        temp_int = minloc(abs(this%y - this%sy(i)                              &
+            + 0.5_rprec*this%Dia*this%d(i,ii)))
         this%Istart(i,ii) = temp_int(1)
-        temp_int = minloc(abs(this%y - this%sy(i) - 0.5_rprec*this%Dia*this%d(i,ii)))
+        temp_int = minloc(abs(this%y - this%sy(i)                              &
+            - 0.5_rprec*this%Dia*this%d(i,ii)))
         this%Iend(i,ii) = temp_int(1)
         this%Isum(i,ii) = (this%Iend(i,ii) - this%Istart(i,ii) + 1) * this%dy
     end do

@@ -42,6 +42,8 @@ type :: wake_model_estimator_t
     real(rprec) :: tau
 contains
     procedure, public :: initialize_val
+    procedure, private :: initialize_file
+    procedure, public :: write_to_file
     procedure, public :: advance
     procedure, private :: advance_ensemble_val
     procedure, private :: advance_ensemble_noval
@@ -52,7 +54,7 @@ end type wake_model_estimator_t
 
 interface wake_model_estimator_t
     module procedure :: constructor_val
-!     module procedure :: constructor_file
+    module procedure :: constructor_file
 end interface wake_model_estimator_t
 
 contains
@@ -80,11 +82,28 @@ call this%initialize_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
 end function constructor_val
 
 !*******************************************************************************
+function constructor_file(fpath, i_Ctp_spline, i_Cpp_spline, i_torque_gain,    &
+    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
+!*******************************************************************************
+! Constructor for wake model with values given
+implicit none
+type(wake_model_estimator_t) :: this
+character(*), intent(in) :: fpath
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_tau
+
+call this%initialize_file(fpath, i_Ctp_spline, i_Cpp_spline, i_torque_gain,    &
+    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+
+end function constructor_file
+
+!*******************************************************************************
 subroutine initialize_val(this, i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k,     &
     i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,           &
     i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
 !*******************************************************************************
-use param, only : coord, BOGUS
 use grid_m
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
@@ -130,6 +149,110 @@ allocate( this%D(this%Nm, this%Ne) )
 allocate( this%Dprime(this%Nm, this%Ne) )
 
 end subroutine initialize_val
+
+!*******************************************************************************
+subroutine initialize_file(this, fpath, i_Ctp_spline, i_Cpp_spline,              &
+    i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+!*******************************************************************************
+! Constructor for wake model with values given
+use param, only : CHAR_BUFF_LENGTH
+use string_util, only : string_splice
+use open_file_fid_mod
+implicit none
+class(wake_model_estimator_t), intent(inout) :: this
+character(*), intent(in) :: fpath
+type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_tau
+integer :: i, fid
+character(CHAR_BUFF_LENGTH) :: fstring
+
+! set std deviations for noise and filter time constant
+this%sigma_du = i_sigma_du
+this%sigma_k = i_sigma_k
+this%sigma_omega = i_sigma_omega
+this%sigma_uhat = i_sigma_uhat
+this%tau = i_tau
+
+! Read current estimator matrices
+fid = open_file_fid(fpath // '/wm_est.dat', 'rewind', 'unformatted')
+read(fid) this%Ne, this%Nm, this%Ns
+
+! allocate matrices
+allocate( this%Abar(this%Ns) )
+allocate( this%Ahatbar(this%Nm) )
+allocate( this%A(this%Ns, this%Ne) )
+allocate( this%Aprime(this%Ns, this%Ne) )
+allocate( this%Ahat(this%Nm, this%Ne) )
+allocate( this%Ahatprime(this%Nm, this%Ne) )
+allocate( this%E(this%Nm, this%Ne) )
+allocate( this%D(this%Nm, this%Ne) )
+allocate( this%Dprime(this%Nm, this%Ne) )
+
+! read matrices
+read(fid) this%A
+read(fid) this%Aprime
+read(fid) this%Ahat
+read(fid) this%Ahatprime
+read(fid) this%E
+read(fid) this%D
+read(fid) this%Dprime
+read(fid) this%Abar
+read(fid) this%Ahatbar
+close(fid)
+
+! write the current estimate
+this%wm = wake_model_t(fpath // '/wm.dat', i_Ctp_spline, i_Cpp_spline)
+
+! write the ensemble
+allocate( this%ensemble(this%Ne) )
+do i = 1, this%Ne
+    call string_splice(fstring, fpath // '/ensemble_', i, '.dat')
+    this%ensemble(i) = wake_model_t(fstring, i_Ctp_spline, i_Cpp_spline)
+end do
+
+end subroutine initialize_file
+
+!*******************************************************************************
+subroutine write_to_file(this, fpath)
+!*******************************************************************************
+use string_util, only : string_splice
+use param, only : CHAR_BUFF_LENGTH
+use open_file_fid_mod
+implicit none
+class(wake_model_estimator_t), intent(inout) :: this
+character(*), intent(in) :: fpath
+character(CHAR_BUFF_LENGTH) :: fstring
+integer :: i, fid
+
+! Create the folder if necessary
+call system('mkdir -vp ' // fpath)
+
+! write the current estimator matrices
+fid = open_file_fid(fpath // '/wm_est.dat', 'rewind', 'unformatted')
+write(fid) this%Ne, this%Nm, this%Ns
+write(fid) this%A
+write(fid) this%Aprime
+write(fid) this%Ahat
+write(fid) this%Ahatprime
+write(fid) this%E
+write(fid) this%D
+write(fid) this%Dprime
+write(fid) this%Abar
+write(fid) this%Ahatbar
+close(fid)
+
+! write the current estimate
+call this%wm%write_to_file(fpath // '/wm.dat')
+
+! write the ensemble
+do i = 1, this%Ne
+    call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+    call this%ensemble(i)%write_to_file(fstring)
+end do
+
+end subroutine write_to_file
 
 !*******************************************************************************
 subroutine generate_initial_ensemble(this)
@@ -231,6 +354,8 @@ integer :: jstart, jend
 N = this%wm%N
 Nx = this%wm%Nx
 
+write(*,*) "advance 1"
+
 ! Check size of inputs
 if (size(um) /= N) then
     call error('wake_model_t.advance','um must be size N')
@@ -245,10 +370,9 @@ if (size(gen_torque) /= N) then
     call error('wake_model_t.advance','gen_torque must be size N')
 end if
 
-! write(*,*) "um: ", um
-! write(*,*) "uhat: ", this%wm%uhat
-! write(*,*) "omegam: ", omegam
-! write(*,*) "omegahat: ", this%wm%omega
+write(*,*) "advance 2"
+write(*,*) N, this%Ne, this%sigma_omega, this%sigma_uhat
+
 
 ! Calculate noisy measurements
 this%E = 0._rprec
@@ -266,6 +390,8 @@ do i = 1, N
 end do
 this%Dprime = this%D - this%Ahat
 
+write(*,*) "advance 3"
+
 ! write(*,*) "D: ", this%D
 ! write(*,*) "Dprime: ", this%Dprime
 ! write(*,*) "Ahat: ", this%Ahat
@@ -277,11 +403,15 @@ this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +         &
     matmul(this%E, transpose(this%E))), this%Dprime))
 
+write(*,*) "advance 4"
+
 ! Compute mean
 this%Abar = 0._rprec
 do i = 1, this%Ne
     this%Abar = this%Abar + this%A(:,i) / this%Ne;
 end do
+
+write(*,*) "advance 5"
 
 ! Filter the freestream velocity based on unwaked turbines
 Uinftyi = 0._rprec
@@ -300,6 +430,8 @@ this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
 this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
 ! write(*,*) "U_Infty:", this%wm%U_Infty
 ! write(*,*) "Ctp:", this%wm%Ctp
+
+write(*,*) "advance 6"
 
 ! Fill into objects
 do i = 1, this%Ne
@@ -326,8 +458,12 @@ this%wm%omega(:) = this%Abar((Nx*N+1):N*(Nx+1))
 this%wm%k(1:N-1) = this%Abar((N*(Nx+1)+1):)
 this%wm%k(N) = this%wm%k(N-1)
 
+write(*,*) "advance 7"
+
 ! Advance ensemble and mean estimate
 call this%advance_ensemble(beta, gen_torque, dt)
+
+write(*,*) "advance 8"
 
 ! Place ensemble into a matrix with each member in a column
 this%Abar = 0
@@ -349,6 +485,8 @@ do j = 1, this%Ne
     this%Aprime(:,j) = this%A(:,j) - this%Abar
     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
 end do
+
+write(*,*) "advance 9"
 
 end subroutine advance
 

@@ -234,7 +234,7 @@ if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall -fcheck=all")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall -fcheck=bounds")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 if (hostname STREQUAL "darwin-brew")
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -framework Accelerate ")
