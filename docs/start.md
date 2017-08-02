@@ -19,7 +19,9 @@ been developed and used successfully with [MPICH](http://www.mpich.org/) and
 [Open MPI](https://www.open-mpi.org/).
 
 * **[HDF5](https://support.hdfgroup.org/HDF5/) and 
-[CGNS](http://cgns.github.io/)** are required to build with parallel IO support.
+[CGNS](http://cgns.github.io/)** are required to build with parallel IO support. 
+These libraries must be built with Fortran and Parallel IO support. Help properly 
+installing these libraries can be found [here](cgns.html).
 
 ## Compiling LESGO 
 To compile LESGO, you'll need to configure "CMakeLists.txt", which includes 

@@ -1126,17 +1126,10 @@ call string_concat( fname, '.c', coord )
 !  Open vel.out (lun_default in io) for final output
 open(11, file=fname, form='unformatted', convert=write_endian,                 &
     status='unknown', position='rewind')
-
-if (sgs_model==1) then
-write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),                        &
-     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),                     &
-     Cs_opt2(:,:,1:nz)
-else
 write (11) u(:, :, 1:nz), v(:, :, 1:nz), w(:, :, 1:nz),                        &
     RHSx(:, :, 1:nz), RHSy(:, :, 1:nz), RHSz(:, :, 1:nz),                      &
     Cs_opt2(:,:,1:nz), F_LM(:,:,1:nz), F_MM(:,:,1:nz),                         &
     F_QN(:,:,1:nz), F_NN(:,:,1:nz)
-end if
 close(11)
 
 #ifdef PPMPI
