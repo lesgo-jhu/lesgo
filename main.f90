@@ -130,8 +130,6 @@ allocate( dummyRHSz  (ld    ,ny, lbz:nz) )
 ! BEGIN TIME LOOP
 time_loop: do jt_step = nstart, nsteps
 
-    write(*,*) jt_step
-
     ! Get the starting time for the iteration
     call clock%start
 
@@ -182,14 +180,10 @@ time_loop: do jt_step = nstart, nsteps
         call wallstress()
     end if
 
-    write(*,*) "after wallstress"
-
     ! Calculate turbulent (subgrid) stress for entire domain
     !   using the model specified in param.f90 (Smag, LASD, etc)
     !   MPI: txx, txy, tyy, tzz at 1:nz-1; txz, tyz at 1:nz (stress-free lid)
     call sgs_stag()
-
-    write(*,*) "after sgs_stag"
 
     ! Exchange ghost node information (since coords overlap) for tau_zz
     !   send info up (from nz-1 below to 0 above)
@@ -205,13 +199,9 @@ time_loop: do jt_step = nstart, nsteps
     call divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
     call divstress_w(divtz, txz, tyz, tzz)
 
-    write(*,*) "after divstress"
-
     ! Calculates u x (omega) term in physical space. Uses 3/2 rule for
     ! dealiasing. Stores this term in RHS (right hand side) variable
     call convec()
-
-    write(*,*) "convec"
 
     ! Add div-tau term to RHS variable
     !   this will be used for pressure calculation
@@ -259,12 +249,8 @@ time_loop: do jt_step = nstart, nsteps
     ! Calculate forcing time
     call clock_forcing%start
 
-    write(*,*) "Here"
-
     ! Apply forcing. These forces will later go into RHS
     call forcing_applied()
-
-    write(*,*) "there"
 
     ! Calculate forcing time
     call clock_forcing%stop
@@ -279,8 +265,6 @@ time_loop: do jt_step = nstart, nsteps
     RHSz(:,:,1:nz-1) = RHSz(:,:,1:nz-1) + fza(:,:,1:nz-1)
 #endif
 
-    write(*,*) "HERE 0"
-
     !//////////////////////////////////////////////////////
     !/// EULER INTEGRATION CHECK                        ///
     !//////////////////////////////////////////////////////
@@ -293,8 +277,6 @@ time_loop: do jt_step = nstart, nsteps
         RHSy_f=RHSy
         RHSz_f=RHSz
     end if
-
-    write(*,*) "HERE 1"
 
     !//////////////////////////////////////////////////////
     !/// INTERMEDIATE VELOCITY                          ///
@@ -312,8 +294,6 @@ time_loop: do jt_step = nstart, nsteps
             dt * ( tadv1 * RHSz(:,:,nz) + tadv2 * RHSz_f(:,:,nz) )
     end if
 
-    write(*,*) "HERE 2"
-
     ! Set unused values to BOGUS so unintended uses will be noticable
 #ifdef PPSAFETYMODE
 #ifdef PPMPI
@@ -326,8 +306,6 @@ time_loop: do jt_step = nstart, nsteps
     if(coord < nproc-1) w(:,:,nz) = BOGUS
 #endif
 
-    write(*,*) "HERE 3"
-
     !//////////////////////////////////////////////////////
     !/// PRESSURE SOLUTION                              ///
     !//////////////////////////////////////////////////////
@@ -336,8 +314,6 @@ time_loop: do jt_step = nstart, nsteps
     !   do not need to store p --> only need gradient
     !   provides p, dpdx, dpdy at 0:nz-1 and dpdz at 1:nz-1
     call press_stag_array()
-
-    write(*,*) "after press_stag_arrayes"
 
     ! Add pressure gradients to RHS variables (for next time step)
     !   could avoid storing pressure gradients - add directly to RHS
@@ -357,8 +333,6 @@ time_loop: do jt_step = nstart, nsteps
     ! forces (RNS) depend on the induced forces and the
     ! two are assumed independent
     call forcing_induced()
-
-    write(*,*) "after forcing_induced"
 
     !//////////////////////////////////////////////////////
     !/// PROJECTION STEP                                ///

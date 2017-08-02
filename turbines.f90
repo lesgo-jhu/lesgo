@@ -537,8 +537,6 @@ z => grid % z
 
 allocate(w_uv(ld,ny,lbz:nz))
 
-write(*,*) "ENTER TURBINES_FORCING", coord
-
 #ifdef PPMPI
 !syncing intermediate w-velocities
 call mpi_sync_real_array(w, 0, MPI_SYNC_DOWNUP)
@@ -556,8 +554,6 @@ end do
 
 ! Recompute the turbine position if theta1 or theta2 can change
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
-
-write(*,*) "turbines_forcing loc 1:", coord
 
 ! Each processor calculates the weighted disk-averaged velocity
 send_array = 0._rprec
@@ -600,8 +596,6 @@ if (turbine_in_proc) then
     end do
 end if
 
-write(*,*) "turbines_forcing loc 2:", coord
-
 ! send the disk-avg values to coord==0
 #ifdef PPMPI
 call mpi_barrier (comm,ierr)
@@ -626,8 +620,6 @@ elseif (turbine_in_proc) then
     call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
 end if
 #endif
-
-write(*,*) "turbines_forcing loc 3:", coord
 
 !Coord==0 takes that info and calculates total disk force, then sends it back
 if (coord == 0) then
@@ -683,8 +675,6 @@ if (coord == 0) then
     end do
 end if
 
-write(*,*) "turbines_forcing loc 4:", coord
-
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 #ifdef PPMPI
 if (coord == 0) then
@@ -696,8 +686,6 @@ elseif (turbine_in_proc) then
     call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
 end if
 #endif
-
-write(*,*) "turbines_forcing loc 5:", coord
 
 !apply forcing to each node
 if (turbine_in_proc) then
@@ -714,8 +702,6 @@ if (turbine_in_proc) then
     end do
 end if
 
-write(*,*) "turbines_forcing loc 6:", coord
-
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
     open(unit=1,file=vel_top_dat,status='unknown',form='formatted',            &
@@ -723,8 +709,6 @@ if (coord .eq. nproc-1) then
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 end if
-
-write(*,*) "turbines_forcing loc 7:", coord
 
 ! Update wake model
 if (coord == 0) then
@@ -738,7 +722,8 @@ if (coord == 0) then
     if (modulo (jt_total, tbase) == 0) then
         do s = 1, nloc
             write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
-                wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s)
+                wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s), wm%wm%k(s),      &
+                wm%wm%U_infty
         end do
     end if
     deallocate(beta)
@@ -748,8 +733,6 @@ end if
 deallocate(w_uv)
 nullify(y,z)
 nullify(p_icp, p_jcp, p_kcp)
-
-write(*,*) "EXIT TURBINES_FORCING", coord
 
 end subroutine turbines_forcing
 
@@ -1255,8 +1238,6 @@ character (CHAR_BUFF_LENGTH) :: fstring
 fstring = path // 'wake_model/wm_est.dat'
 inquire (file=fstring, exist=exst)
 
-write(*,*) "ENTER"
-
 if (exst) then
     write(*,*) 'Reading wake model estimator data from wake_model/'
     wm = wake_model_estimator_t(wm_path, wm_Ct_prime_spline,                   &
@@ -1283,20 +1264,18 @@ else
         sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
     call wm%generate_initial_ensemble()
 
-    ! Create output files
-    allocate( wm_fid(nloc) )
-    do i = 1, nloc
-        call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat' )
-        wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
-    end do
-
     ! Cleanup
     deallocate(wm_k)
     deallocate(wm_sx)
     deallocate(wm_sy)
 end if
 
-write(*,*) "EXIT"
+! Create output files
+allocate( wm_fid(nloc) )
+do i = 1, nloc
+    call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat' )
+    wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
+end do
 
 end subroutine wake_model_init
 

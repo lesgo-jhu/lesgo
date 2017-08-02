@@ -285,7 +285,6 @@ beta = 0._rprec
 ! Do at least 1 FTT of simulations to get good ensemble statistics
 do i = 1, floor(FTT / dt)
     call this%advance_ensemble(dt)
-    ! write(*,*) sum(this%ensemble(1)%Phat), sum(this%ensemble(2)%Phat)
 end do
 
 ! Place ensemble into a matrix with each member in a column
@@ -309,32 +308,6 @@ do j = 1, this%Ne
     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
 end do
 
-! Place ensemble into a matrix with each member in a column
-! this%Abar = 0
-! this%Ahatbar = 0
-! do i = 1, this%Ne
-!     do j = 1, N
-!         jstart = (j-1)*Nx+1
-!         jend = j*Nx
-!         ! if (i == 1) write(*,*) "du:", jstart, jend
-!         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
-!     end do
-!     this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
-!     ! if (i == 1) write(*,*) "omega:", Nx*N+1, N*(Nx+1)
-!     this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
-!     ! if (i == 1) write(*,*) "k:", N*(Nx+1)+1, this%Ns
-!     ! if (i == 1) write(*,*) this%A((N*(Nx+1)+1):,i)
-!     ! if (i == 1) write(*,*) this%ensemble(i)%k(1:N)
-!     ! if (i == 1) write(*,*) "shape of A:", shape(this%A)
-!     this%Ahat(:,i) = this%ensemble(i)%uhat
-!     this%Abar = this%Abar + this%A(:,i) / this%Ne
-!     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
-! end do
-! do j = 1, this%Ne
-!     this%Aprime(:,j) = this%A(:,j) - this%Abar
-!     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
-! end do
-
 end subroutine generate_initial_ensemble
 
 !*******************************************************************************
@@ -354,8 +327,6 @@ integer :: jstart, jend
 N = this%wm%N
 Nx = this%wm%Nx
 
-write(*,*) "advance 1"
-
 ! Check size of inputs
 if (size(um) /= N) then
     call error('wake_model_t.advance','um must be size N')
@@ -369,9 +340,6 @@ end if
 if (size(gen_torque) /= N) then
     call error('wake_model_t.advance','gen_torque must be size N')
 end if
-
-write(*,*) "advance 2"
-write(*,*) N, this%Ne, this%sigma_omega, this%sigma_uhat
 
 
 ! Calculate noisy measurements
@@ -390,28 +358,19 @@ do i = 1, N
 end do
 this%Dprime = this%D - this%Ahat
 
-write(*,*) "advance 3"
-
-! write(*,*) "D: ", this%D
-! write(*,*) "Dprime: ", this%Dprime
-! write(*,*) "Ahat: ", this%Ahat
-
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
-! Since the dimension is small, we don't bother doing the SVD. If the matrix becomes
-! singular, then this should be considered as in section 4.3.2 of Everson(2003)
+! Since the dimension is small, we don't bother doing the SVD. If the matrix
+! becomes singular, then this should be considered as in section 4.3.2 of
+! Everson(2003)
 this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +         &
     matmul(this%E, transpose(this%E))), this%Dprime))
-
-write(*,*) "advance 4"
 
 ! Compute mean
 this%Abar = 0._rprec
 do i = 1, this%Ne
     this%Abar = this%Abar + this%A(:,i) / this%Ne;
 end do
-
-write(*,*) "advance 5"
 
 ! Filter the freestream velocity based on unwaked turbines
 Uinftyi = 0._rprec
@@ -420,7 +379,6 @@ alpha = dt / (this%tau + dt)
 do i = 1, this%wm%N
     if (.not.this%wm%waked(i)) then
         Uinftyi = Uinftyi + (4._rprec + this%wm%Ctp(i))/4._rprec*um(i)/N_unwaked
-        ! write(*,*) "Uinftyi_intermediate:", Uinftyi
     end if
 end do
 this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
@@ -428,10 +386,6 @@ this%wm%VELOCITY = this%wm%U_infty
 this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
 this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
 this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
-! write(*,*) "U_Infty:", this%wm%U_Infty
-! write(*,*) "Ctp:", this%wm%Ctp
-
-write(*,*) "advance 6"
 
 ! Fill into objects
 do i = 1, this%Ne
@@ -458,12 +412,8 @@ this%wm%omega(:) = this%Abar((Nx*N+1):N*(Nx+1))
 this%wm%k(1:N-1) = this%Abar((N*(Nx+1)+1):)
 this%wm%k(N) = this%wm%k(N-1)
 
-write(*,*) "advance 7"
-
 ! Advance ensemble and mean estimate
 call this%advance_ensemble(beta, gen_torque, dt)
-
-write(*,*) "advance 8"
 
 ! Place ensemble into a matrix with each member in a column
 this%Abar = 0
@@ -485,8 +435,6 @@ do j = 1, this%Ne
     this%Aprime(:,j) = this%A(:,j) - this%Abar
     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
 end do
-
-write(*,*) "advance 9"
 
 end subroutine advance
 
