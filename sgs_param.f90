@@ -131,11 +131,11 @@ if (sgs_model .ne. 1) then
 endif
 
 ! For Lagrangian models:
+allocate ( F_LM(ld,ny,lbz:nz) ); F_LM = 0.0_rprec
+allocate ( F_MM(ld,ny,lbz:nz) ); F_MM = 0.0_rprec
+allocate ( F_QN(ld,ny,lbz:nz) ); F_QN = 0.0_rprec
+allocate ( F_NN(ld,ny,lbz:nz) ); F_NN = 0.0_rprec
 if ((sgs_model .eq. 4).or.(sgs_model .eq. 5)) then
-    allocate ( F_LM(ld,ny,lbz:nz) ); F_LM = 0.0_rprec
-    allocate ( F_MM(ld,ny,lbz:nz) ); F_mm = 0.0_rprec
-    allocate ( F_QN(ld,ny,lbz:nz) ); F_QN = 0.0_rprec
-    allocate ( F_NN(ld,ny,lbz:nz) ); F_NN = 0.0_rprec
     allocate ( Beta(ld,ny,lbz:nz) ); Beta = 0.0_rprec
     allocate ( Tn_all(ld,ny,lbz:nz) ); Tn_all  = 0._rprec
 
