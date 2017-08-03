@@ -732,6 +732,8 @@ do
                 read (buff(equal_pos+1:),*) rho
             case ('INERTIA_ALL')
                 read (buff(equal_pos+1:),*) inertia_all
+            case ('USE_WAKE_MODEL')
+                read (buff(equal_pos+1:),*) use_wake_model
             case ('TORQUE_GAIN')
                 read (buff(equal_pos+1:),*) torque_gain
             case ('TAU_U_INFTY')

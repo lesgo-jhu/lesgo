@@ -87,6 +87,8 @@ real(rprec), public :: rho
 real(rprec), public :: inertia_all
 ! Torque gain (kg*m^2)
 real(rprec), public :: torque_gain
+! Use wake model or not
+logical, public :: use_wake_model
 ! time constant for estimating freestream velocity [seconds]
 real(rprec), public :: tau_U_infty = 300
 ! std. deviation of noise of velocity deficit
@@ -189,7 +191,7 @@ turbine_in_proc_array = 0
 
 ! Create turbine directory
 call system("mkdir -vp turbine")
-call system("mkdir -vp wake_model")
+if (use_wake_model) call system("mkdir -vp wake_model")
 
 ! Non-dimensionalize length values by z_i
 height_all = height_all / z_i
@@ -297,7 +299,7 @@ if(coord==0) then
     end do
 end if
 
-if (coord==0) call wake_model_init
+if (coord==0 .and. use_wake_model) call wake_model_init
 
 nullify(x,y,z)
 
@@ -712,7 +714,7 @@ if (coord .eq. nproc-1) then
 end if
 
 ! Update wake model
-if (coord == 0) then
+if (coord == 0 .and. use_wake_model) then
     allocate( beta(nloc) )
     beta = 0._rprec
     call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
@@ -777,7 +779,7 @@ if (coord == 0) then
     close (fid)
 end if
 
-call wm%write_to_file(wm_path)
+if (use_wake_model .and. coord == 0) call wm%write_to_file(wm_path)
 
 end subroutine turbines_checkpoint
 
