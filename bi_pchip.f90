@@ -41,7 +41,7 @@ type :: bi_pchip_t
     type(pchip_t), dimension(:), allocatable :: xspline, yspline
     real(rprec), dimension(:), allocatable :: x, y
     integer :: N, M
-    character(9) :: type_name = "bi_pchip_t"
+    character(10) :: type_name = "bi_pchip_t"
 contains
     procedure, private :: interp_scalar
     procedure, private :: interp_array

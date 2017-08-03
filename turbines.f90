@@ -149,6 +149,7 @@ logical :: buffer_logical
 type(wake_model_estimator_t) :: wm
 character(*), parameter :: wm_path = path // 'wake_model'
 integer, dimension(:), allocatable :: wm_fid
+integer, dimension(:), allocatable :: wm_du_fid
 type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 contains
@@ -721,9 +722,10 @@ if (coord == 0) then
     ! write values to file
     if (modulo (jt_total, tbase) == 0) then
         do s = 1, nloc
-            write( wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),   &
+            write(wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),    &
                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s), wm%wm%k(s),      &
                 wm%wm%U_infty
+            write(wm_du_fid(s), *) wm%wm%du(s,:)
         end do
     end if
     deallocate(beta)
@@ -1231,7 +1233,6 @@ use open_file_fid_mod
 implicit none
 real(rprec) :: U_infty
 real(rprec), dimension(:), allocatable :: wm_k, wm_sx, wm_sy
-integer :: i, j, fid
 logical :: exst
 character (CHAR_BUFF_LENGTH) :: fstring
 
@@ -1241,8 +1242,8 @@ inquire (file=fstring, exist=exst)
 if (exst) then
     write(*,*) 'Reading wake model estimator data from wake_model/'
     wm = wake_model_estimator_t(wm_path, wm_Ct_prime_spline,                   &
-        wm_Cp_prime_spline, torque_gain, sigma_du, sigma_k, sigma_omega,       &
-        sigma_uhat, tau_U_infty)
+        wm_Cp_prime_spline, sigma_du, sigma_k, sigma_omega, sigma_uhat,        &
+        tau_U_infty)
 else
     ! Set initial velocity
     U_infty = 8._rprec
@@ -1272,9 +1273,12 @@ end if
 
 ! Create output files
 allocate( wm_fid(nloc) )
+allocate( wm_du_fid(nloc) )
 do i = 1, nloc
     call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat' )
     wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
+    call string_splice( fstring, path // 'turbine/wm_turbine_', i, '_du.dat' )
+    wm_du_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
 end do
 
 end subroutine wake_model_init

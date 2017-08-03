@@ -82,20 +82,19 @@ call this%initialize_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
 end function constructor_val
 
 !*******************************************************************************
-function constructor_file(fpath, i_Ctp_spline, i_Cpp_spline, i_torque_gain,    &
-    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
+function constructor_file(fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,       &
+    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
 type(wake_model_estimator_t) :: this
 character(*), intent(in) :: fpath
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
-real(rprec), intent(in) :: i_torque_gain
 real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 
-call this%initialize_file(fpath, i_Ctp_spline, i_Cpp_spline, i_torque_gain,    &
-    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+call this%initialize_file(fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,       &
+    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
 
 end function constructor_file
 
@@ -151,8 +150,8 @@ allocate( this%Dprime(this%Nm, this%Ne) )
 end subroutine initialize_val
 
 !*******************************************************************************
-subroutine initialize_file(this, fpath, i_Ctp_spline, i_Cpp_spline,              &
-    i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+subroutine initialize_file(this, fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,&
+    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
 !*******************************************************************************
 ! Constructor for wake model with values given
 use param, only : CHAR_BUFF_LENGTH
@@ -162,7 +161,6 @@ implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 character(*), intent(in) :: fpath
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
-real(rprec), intent(in) :: i_torque_gain
 real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 integer :: i, fid
@@ -313,7 +311,6 @@ end subroutine generate_initial_ensemble
 !*******************************************************************************
 subroutine advance(this, um, omegam, beta, gen_torque, dt)
 !*******************************************************************************
-use sim_param, only : u
 use util, only : random_normal, inverse
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
@@ -461,7 +458,7 @@ do i = 1, this%Ne
             * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
             0._rprec)
         this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
-            + sqrt(dt) * this%sigma_omega * random_normal(), 0._rprec)
+            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
     this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
     call this%ensemble(i)%compute_wake_expansion
@@ -494,7 +491,7 @@ do i = 1, this%Ne
             * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
             0._rprec)
         this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
-            + sqrt(dt) * this%sigma_omega * random_normal(), 0._rprec)
+            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
     this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
     call this%ensemble(i)%compute_wake_expansion

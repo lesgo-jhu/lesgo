@@ -82,15 +82,15 @@ def main():
     # Total time sample
     #~ t0 = 0.
     #~ tf = 10.056
-    t0 = 2.
-    tf = 4.
+    t0 = 0.
+    tf = 10.056
 
     # Domain Length from the HIT database
     Lx = np.float32((tf - t0) * Usweeping)
-    Ly = Lz = 2.*pi
+    Ly = Lz = 1.0
 
     # Size of the plain in grid points
-    ny, nz = 32, 32
+    ny =  nz = 32
     nx = int(Lx * ny / Ly)
     #~ nx, ny, nz = 5, 5, 5
 
@@ -132,15 +132,15 @@ def main():
     v = np.zeros((nx, ny, nz), dtype = 'float32', order='F')
     w = np.zeros((nx, ny, nz), dtype = 'float32', order='F')
 
-    print 'shape points', np.shape(points)
-    print 'shape x', np.shape(x)
-    print 'shape y', np.shape(y)
-    print 'shape z', np.shape(z)
+    print('shape points', np.shape(points))
+    print('shape x', np.shape(x))
+    print('shape y', np.shape(y))
+    print('shape z', np.shape(z))
 
     # Asign values to points
-    for i in xrange(len(x1)):
-        for j in xrange(len(y1)):
-            for k in xrange(len(z1)):
+    for i in range(len(x1)):
+        for j in range(len(y1)):
+            for k in range(len(z1)):
                 points[i,j,k,0]=x1[i]
                 points[i,j,k,1]=y1[j]
                 points[i,j,k,2]=z1[k]
@@ -151,7 +151,7 @@ def main():
     # Read the files from current directory if available
     if os.path.isfile('./u' + fname + '.npy'):
 
-        print 'Reading Data'
+        print('Reading Data')
 
         # Load the numpy data
         u = np.load('./u' + fname + '.npy')
@@ -161,7 +161,7 @@ def main():
     # If not available extract the data from HIT database (JHU)
     else:
 
-        print 'Initializing Database'
+        print('Initializing Database')
 
         # load shared library
         lTDB = pyJHTDB.libJHTDB(auth_token='com.gmail.tonyinme-7a6d4581')
@@ -169,9 +169,9 @@ def main():
         #initialize webservices
         lTDB.initialize()
 
-        for i in xrange(len(x1)):
+        for i in range(len(x1)):
 
-            print 'Calling Database for i=', i
+            print('Calling Database for i=', i)
 
             # Get filtered Data
             uvw = lTDB.getBoxFilter(time[i], 
@@ -190,7 +190,7 @@ def main():
             v[i,:,:] = uvw[:,1].reshape(ny, nz)
             w[i,:,:] = uvw[:,2].reshape(ny, nz)
 
-            print 'Filtered Velocity obtained for i=', i
+            print('Filtered Velocity obtained for i=', i)
 
         # Save data into numpy format
         np.save('./u' + fname, u)
@@ -265,7 +265,7 @@ def write_vapor(filename, L_x, L_y, L_z, nx, ny, nz, variables):
         ':'+str(L_y/minL)+':'+str(L_z/minL)+
         ' -vars3d '+':'.join(variables)+' '+ filename+'.vdf']
     os.system(cmd1[0])
-    print cmd1[0]
+    print(cmd1[0])
 
     fname = 'Filtered' + '_nx_' + str(nx) + '_ny_' + str(ny) + '_nz_' + str(nz)
 
@@ -273,7 +273,7 @@ def write_vapor(filename, L_x, L_y, L_z, nx, ny, nz, variables):
         cmd2=['raw2vdf -varname '+ var +' '+
                filename+'.vdf ' + 'binary_'+var+fname]
         os.system(cmd2[0])
-        print cmd2[0]
+        print(cmd2[0])
 
 if __name__ == '__main__':
 	main()

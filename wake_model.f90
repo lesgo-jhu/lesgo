@@ -163,7 +163,7 @@ implicit none
 class(wake_model_t), intent(inout) :: this
 character(*), intent(in) :: fstring
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
-integer :: i, fid
+integer :: fid
 
 ! Read scalar values
 fid = open_file_fid(fstring, 'rewind', 'unformatted')
@@ -453,7 +453,7 @@ real(rprec), dimension(:), intent(out) :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:), intent(out) :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), intent(out) :: dCp_dbeta, dCp_dlambda
 
-real(rprec) :: dummy, dummy1, dummy2, dummy3
+real(rprec) :: dummy
 integer :: n
 
 ! advance wake model with dummy generator torque

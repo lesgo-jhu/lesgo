@@ -128,11 +128,9 @@ class(wake_model_base_t), intent(inout) :: this
 real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
-integer :: i, j, ii
+integer :: i
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec) :: xstart, xend, ystart, yend
-integer, dimension(1) :: temp_int
-real(rprec) :: R
 real(rprec), intent(in) :: i_torque_gain
 
 ! Allocate based on number of turbines
