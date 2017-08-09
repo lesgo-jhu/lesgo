@@ -1269,6 +1269,12 @@ else
         0.25*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
         rho, inertia_all, 2*nx, 2*ny, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
         torque_gain, sigma_du, sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
+
+    ! Calculate U_infty
+    wm%wm%Ctp = wind_farm%turbine(:)%Ct_prime
+    call wm%calc_U_infty(-wind_farm%turbine(:)%u_d_T, 1._rprec)
+
+    ! Generate the ensemble
     call wm%generate_initial_ensemble()
 
     ! Cleanup

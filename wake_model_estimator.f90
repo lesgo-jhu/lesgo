@@ -44,6 +44,7 @@ contains
     procedure, public :: initialize_val
     procedure, private :: initialize_file
     procedure, public :: write_to_file
+    procedure, public :: calc_U_infty
     procedure, public :: advance
     procedure, private :: advance_ensemble_val
     procedure, private :: advance_ensemble_noval
@@ -136,7 +137,7 @@ end do
 
 ! Allocate filter matrices
 this%Nm = 2 * this%wm%N                         ! Number of measurements
-this%Ns = (this%wm%Nx + 2) * this%wm%N - 1      ! Number of states
+this%Ns = (this%wm%Nx + 2) * this%wm%N          ! Number of states
 allocate( this%Abar(this%Ns) )
 allocate( this%Ahatbar(this%Nm) )
 allocate( this%A(this%Ns, this%Ne) )
@@ -253,6 +254,46 @@ end do
 end subroutine write_to_file
 
 !*******************************************************************************
+subroutine calc_U_infty(this, um, alpha)
+!*******************************************************************************
+implicit none
+class(wake_model_estimator_t), intent(inout) :: this
+real(rprec), dimension(:), intent(in) :: um
+real(rprec), intent(in) :: alpha
+real(rprec) :: Uinftyi
+integer :: i, N, N_unwaked
+
+N = this%wm%N
+
+! Check input size
+if (size(um) /= N) then
+    call error('wake_model_t.generate_initial_ensemble','um must be size N')
+end if
+if (alpha > 1._rprec .or. alpha < 0._rprec) then
+    call error('wake_model_t.generate_initial_ensemble',                       &
+        'Required: 0 <= alpha <=1')
+end if
+
+
+! Make dimensional and calculate the new Uinfty
+! Do not change scalings for the ensemble members, because they will not
+! actually be made non-dimensional with a controller
+Uinftyi = 0._rprec
+N_unwaked = this%wm%N - this%wm%Nwaked
+do i = 1, N
+    if (.not.this%wm%waked(i)) then
+        Uinftyi = Uinftyi + (4._rprec + this%wm%Ctp(i))/4._rprec*um(i)/N_unwaked
+    end if
+end do
+this%wm%U_infty = alpha * Uinftyi + (1._rprec - alpha) * this%wm%U_infty
+this%wm%VELOCITY = this%wm%U_infty
+this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
+this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
+this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
+
+end subroutine calc_U_infty
+
+!*******************************************************************************
 subroutine generate_initial_ensemble(this)
 !*******************************************************************************
 use util, only : random_normal
@@ -295,7 +336,7 @@ do i = 1, this%Ne
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
     this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
-    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
+    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(:)
     this%Ahat(1:N,i) = this%ensemble(i)%uhat
     this%Ahat((1+N):,i) = this%ensemble(i)%omega
     this%Abar = this%Abar + this%A(:,i) / this%Ne
@@ -316,8 +357,8 @@ implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
 real(rprec), dimension(:), intent(in) :: um, omegam, beta, gen_torque
-real(rprec) :: Uinftyi, alpha
-integer :: i, j, N_unwaked
+real(rprec) :: alpha
+integer :: i, j
 integer :: N, Nx
 integer :: jstart, jend
 
@@ -369,19 +410,8 @@ do i = 1, this%Ne
 end do
 
 ! Filter the freestream velocity based on unwaked turbines
-Uinftyi = 0._rprec
-N_unwaked = this%wm%N - this%wm%Nwaked
 alpha = dt / (this%tau + dt)
-do i = 1, this%wm%N
-    if (.not.this%wm%waked(i)) then
-        Uinftyi = Uinftyi + (4._rprec + this%wm%Ctp(i))/4._rprec*um(i)/N_unwaked
-    end if
-end do
-this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
-this%wm%VELOCITY = this%wm%U_infty
-this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
-this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
-this%wm%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
+call this%calc_U_infty(um, alpha)
 
 ! Fill into objects
 do i = 1, this%Ne
@@ -396,8 +426,7 @@ do i = 1, this%Ne
     this%ensemble(i)%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
     this%ensemble(i)%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
     this%ensemble(i)%omega(:) = this%A(Nx*N+1:(Nx+1)*N,i)
-    this%ensemble(i)%k(1:N-1) = this%A((Nx+1)*N+1:,i)
-    this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
+    this%ensemble(i)%k(:) = this%A((Nx+1)*N+1:,i)
 end do
 do j = 1, N
     jstart = (j-1)*Nx+1
@@ -405,8 +434,7 @@ do j = 1, N
     this%wm%du(j,:) = this%Abar(jstart:jend)
 end do
 this%wm%omega(:) = this%Abar((Nx*N+1):N*(Nx+1))
-this%wm%k(1:N-1) = this%Abar((N*(Nx+1)+1):)
-this%wm%k(N) = this%wm%k(N-1)
+this%wm%k(:) = this%Abar((N*(Nx+1)+1):)
 
 ! Advance ensemble and mean estimate
 call this%advance_ensemble(beta, gen_torque, dt)
@@ -421,7 +449,7 @@ do i = 1, this%Ne
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
     this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
-    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(1:N-1)
+    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(:)
     this%Ahat(1:N,i) = this%ensemble(i)%uhat
     this%Ahat((1+N):,i) = this%ensemble(i)%omega
     this%Abar = this%Abar + this%A(:,i) / this%Ne
