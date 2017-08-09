@@ -239,7 +239,7 @@ dfdz(:,:,0) = BOGUS
 ! Calculate derivative.
 ! The ghost node information is available here
 ! if coord == 0, dudz(1) will be set in wallstress
-do jz = 1, nz
+do jz = lbz+1, nz
 do jy = 1, ny
 do jx = 1, nx
     dfdz(jx,jy,jz) = const*(f(jx,jy,jz)-f(jx,jy,jz-1))
