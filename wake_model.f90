@@ -411,7 +411,9 @@ do i = 1, this%N
         sum(this%u(ii,this%Istart(i,ii):this%Iend(i,ii))) *                    &
         this%G(i,ii) / this%Isum(i,ii)
     end do
-    this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia / this%uhat(i)
+    ! protect against zero division
+    this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia /              &
+        max(this%uhat(i), 0.000000001)
     call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
     call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
     this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &

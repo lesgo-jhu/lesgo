@@ -81,7 +81,7 @@ type wake_model_base_t
     real(rprec) :: LENGTH = 0, VELOCITY = 0, TIME = 0, MASS = 0
     real(rprec) :: TORQUE = 0, POWER = 0
     ! Splines for Ctp and Cpp
-    type(bi_pchip_t) Ctp_spline, Cpp_spline
+    type(bi_pchip_t) :: Ctp_spline, Cpp_spline
     ! Determine whether a turbine is waked or not
     logical, dimension(:), allocatable :: waked
     integer :: Nwaked

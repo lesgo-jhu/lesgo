@@ -704,6 +704,8 @@ do
                 read (buff(equal_pos+1:), *) theta2_all
             case ('CT_PRIME')
                 read (buff(equal_pos+1:), *) Ct_prime
+            case ('CP_PRIME')
+                read (buff(equal_pos+1:), *) Cp_prime
             case ('READ_PARAM')
                 read (buff(equal_pos+1:), *) read_param
             case ('DYN_THETA1')

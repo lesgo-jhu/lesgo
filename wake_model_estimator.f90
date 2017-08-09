@@ -286,8 +286,8 @@ do i = 1, floor(FTT / dt)
 end do
 
 ! Place ensemble into a matrix with each member in a column
-this%Abar = 0
-this%Ahatbar = 0
+this%Abar = 0._rprec
+this%Ahatbar = 0._rprec
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
@@ -337,7 +337,6 @@ end if
 if (size(gen_torque) /= N) then
     call error('wake_model_t.advance','gen_torque must be size N')
 end if
-
 
 ! Calculate noisy measurements
 this%E = 0._rprec

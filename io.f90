@@ -447,12 +447,9 @@ do i = 1, nx
 end do
 end do
 end do
-write(*,*) "HERE 0.8"
 
 call cgp_coord_write_data_f(fn, base, zone, 1, start_n, end_n, %VAL(0), ier)
-write(*,*) "HERE 0.85"
 if (ier .ne. CG_OK) call cgp_error_exit_f
-write(*,*) "HERE 0.9"
 
 ! Write out the queued coordinate data
 !  call cgp_queue_flush_f(ier)
@@ -472,7 +469,6 @@ end do
 end do
 call cgp_coord_write_data_f(fn, base, zone, 2, start_n, end_n, %VAL(0), ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f
-write(*,*) "HERE 1.0"
 
 ! Write out the queued coordinate data
 !  call cgp_queue_flush_f(ier)
@@ -490,7 +486,6 @@ do i = 1, nx
 end do
 end do
 end do
-write(*,*) "HERE 1.1"
 
 call cgp_coord_write_data_f(fn, base, zone, 3, start_n, end_n, %VAL(0), ier)
 if (ier .ne. CG_OK) call cgp_error_exit_f

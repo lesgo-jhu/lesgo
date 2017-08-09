@@ -65,6 +65,8 @@ real(rprec), public :: theta1_all
 real(rprec), public :: theta2_all
 ! thrust coefficient (default 1.33)
 real(rprec), public :: Ct_prime
+! power coefficient (default 1.33)
+real(rprec), public :: Cp_prime
 ! Read parameters from input_turbines/param.dat
 logical, public :: read_param
 ! Dynamically change theta1 from input_turbines/theta1.dat
@@ -279,7 +281,7 @@ if (coord == 0) then
         write (*, *) 'File ', trim(u_d_T_dat), ' not found'
         write (*, *) 'Assuming u_d_T = -8, omega = 1 for all turbines'
         do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -1._rprec
+            wind_farm%turbine(k)%u_d_T = -8._rprec
             wind_farm%turbine(k)%omega = 1._rprec
         end do
     end if
@@ -510,7 +512,7 @@ subroutine turbines_forcing()
 !
 ! This subroutine applies the drag-disk forcing
 !
-use sim_param, only : u,v,w, fxa,fya,fza
+use sim_param, only : u, v, w, fxa, fya, fza
 use functions, only : linear_interp, interp_to_uv_grid, bilinear_interp
 implicit none
 
@@ -747,11 +749,11 @@ implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_finalize'
 
-!write disk-averaged velocity to file along with T_avg_dim
-!useful if simulation has multiple runs   >> may not make a large difference
+! write disk-averaged velocity to file along with T_avg_dim
+! useful if simulation has multiple runs   >> may not make a large difference
 call turbines_checkpoint
 
-!deallocate
+! deallocate
 deallocate(wind_farm%turbine)
 
 end subroutine turbines_finalize
@@ -768,8 +770,8 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_checkpoint'
 integer :: fid
 
-!write disk-averaged velocity to file along with T_avg_dim
-!useful if simulation has multiple runs   >> may not make a large difference
+! write disk-averaged velocity to file along with T_avg_dim
+! useful if simulation has multiple runs   >> may not make a large difference
 if (coord == 0) then
     fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
     do i=1,nloc
@@ -871,7 +873,8 @@ if (read_param) then
         read(fid,*) wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc,      &
             wind_farm%turbine(k)%height, wind_farm%turbine(k)%dia,             &
             wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,             &
-            wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
+            wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime,        &
+            wind_farm%turbine(k)%Cp_prime
     end do
     close(fid)
 
@@ -891,6 +894,7 @@ else
     wind_farm%turbine(:)%theta1 = theta1_all
     wind_farm%turbine(:)%theta2 = theta2_all
     wind_farm%turbine(:)%Ct_prime = Ct_prime
+    wind_farm%turbine(:)%Cp_prime = Cp_prime
 
     ! Set baseline locations (evenly spaced, not staggered aka aligned)
     k = 1
@@ -1262,9 +1266,9 @@ else
 
     ! Create wake model
     wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,           &
-        0.25*dia_all*z_i, wm_k, dia_all*z_i, rho, inertia_all, 2*nx, 2*ny,     &
-        wm_Ct_prime_spline, wm_Cp_prime_spline,  torque_gain, sigma_du,        &
-        sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
+        0.25*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
+        rho, inertia_all, 2*nx, 2*ny, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
+        torque_gain, sigma_du, sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
     call wm%generate_initial_ensemble()
 
     ! Cleanup
