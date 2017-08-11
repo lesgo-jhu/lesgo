@@ -695,10 +695,9 @@ use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
 use param, only : write_endian
 use grid_m
-use sim_param, only : u,v,w
-! For computing and writing vorticity
-!  use sim_param, only: dwdy, dwdx, dvdx, dudy
-!  use functions, only : interp_to_w_grid
+use sim_param, only : u, v, w
+use sim_param, only : dwdy, dwdx, dvdx, dudy
+use functions, only : interp_to_w_grid
 
 use stat_defs, only : xplane, yplane, zplane
 #ifdef PPMPI
@@ -707,7 +706,7 @@ use param, only : ny, nz
 #endif
 #ifdef PPLVLSET
 use level_set_base, only : phi
-use sim_param, only : fx,fy,fz,fxa,fya,fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 #endif
 
 implicit none
@@ -724,17 +723,15 @@ character(64) :: bin_ext
 real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 #endif
 
+! Vorticity
+real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
+
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
 #else
 bin_ext = '.bin'
 #endif
 #endif
-
-! #ifdef PPCGNS
-! Vorticity
-! real(rprec), dimension (:, :, :), allocatable :: vortx, vorty, vortz
-! #endif
 
 ! Nullify pointers
 nullify(x,y,z,zw)
@@ -798,34 +795,49 @@ elseif(itype==2) then
     close(13)
 #endif
 
-!     ! Compute vorticity
-!     allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
-!     vortx(1:nx,1:ny,lbz:nz) = 0._rprec
-!     vorty(1:nx,1:ny,lbz:nz) = 0._rprec
-!     vortz(1:nx,1:ny,lbz:nz) = 0._rprec
-!
-!     ! Use vorticityx as an intermediate step for performing uv-w interpolation
-!     ! Vorticity is written in w grid
-!     vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
-!     vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
-!     vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
-!     vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
-!
-!     if (coord == 0) then
-!        vortz(1:nx,1:ny, 1) = 0._rprec
-!     end if
-!
-!     call string_splice(fname, path //'output/vorticity_', jt_total,'.cgns')
-!
-!     call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,          &
-!      (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
-!      (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
-!      x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                &
-!      3, (/ 'VorticitX', 'VorticitY', 'VorticitZ' /),                        &
-!      (/ vortx(1:nx,1:ny,1:(nz-nz_end)), vorty(1:nx,1:ny,1:(nz-nz_end)),     &
-!       vortz(1:nx,1:ny,1:(nz-nz_end)) /) )
-!
-!      deallocate(vortx, vorty, vortz)
+    ! Compute vorticity
+    allocate(vortx(nx,ny,lbz:nz), vorty(nx,ny,lbz:nz), vortz(nx,ny,lbz:nz))
+    vortx(1:nx,1:ny,lbz:nz) = 0._rprec
+    vorty(1:nx,1:ny,lbz:nz) = 0._rprec
+    vortz(1:nx,1:ny,lbz:nz) = 0._rprec
+
+    ! Use vorticityx as an intermediate step for performing uv-w interpolation
+    ! Vorticity is written in w grid
+    vortx(1:nx,1:ny,lbz:nz) = dvdx(1:nx,1:ny,lbz:nz) - dudy(1:nx,1:ny,lbz:nz)
+    vortz(1:nx,1:ny,lbz:nz) = interp_to_w_grid( vortx(1:nx,1:ny,lbz:nz), lbz)
+    vortx(1:nx,1:ny,lbz:nz) = dwdy(1:nx,1:ny,lbz:nz) - dvdz(1:nx,1:ny,lbz:nz)
+    vorty(1:nx,1:ny,lbz:nz) = dudz(1:nx,1:ny,lbz:nz) - dwdx(1:nx,1:ny,lbz:nz)
+
+    if (coord == 0) then
+        vortz(1:nx,1:ny, 1) = 0._rprec
+    end if
+
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/vort.', jt_total)
+
+#if defined(PPCGNS) && defined(PPMPI)
+    ! Write CGNS Output
+    call string_concat(fname, '.cgns')
+    call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,                 &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+        (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
+        x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                &
+        3, (/ 'VorticityX', 'VorticityY', 'VorticityZ' /),                     &
+        (/ vortx(1:nx,1:ny,1:(nz-nz_end)), vorty(1:nx,1:ny,1:(nz-nz_end)),     &
+        vortz(1:nx,1:ny,1:(nz-nz_end)) /) )
+
+#else
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+        access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) vortx(:nx,:ny,1:nz)
+    write(13,rec=2) vorty(:nx,:ny,1:nz)
+    write(13,rec=3) vortz(:nx,:ny,1:nz)
+    close(13)
+#endif
+
+     deallocate(vortx, vorty, vortz)
 
 
 !  Write instantaneous x-plane values
@@ -1097,11 +1109,12 @@ subroutine checkpoint ()
 use iwmles
 use param, only : nz, checkpoint_file, tavg_calc, lbc_mom
 #ifdef PPMPI
-use param, only : comm,ierr
+use param, only : comm, ierr
 #endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model,write_endian
+use param, only : jt_total, total_time, total_time_dim, dt,                    &
+    use_cfl_dt, cfl, write_endian
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
