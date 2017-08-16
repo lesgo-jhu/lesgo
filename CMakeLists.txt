@@ -19,7 +19,7 @@ set(WRITE_ENDIAN "DEFAULT")
 set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
-option(USE_MPI "Enable parallelization support." OFF)
+option(USE_MPI "Enable parallelization support." ON)
 option(USE_CPS "Enable concurrent precursor simulations." OFF)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
