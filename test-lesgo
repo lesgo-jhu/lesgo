@@ -58,14 +58,30 @@ function compile() {
         fi
     done
 
+    # Coloring
+    RED=`tput setaf 1`
+    GREEN=`tput setaf 2`
+    YELLOW=`tput setaf 3`
+    RESET=`tput sgr0`
+
     # Run compilation test
     echo "Compiling lesgo${ename}..."
     rm -r bld${ename} &> temp.out
     cmake $flags . -Bbld${ename} &> temp.out
     cmake --build bld${ename} &> bld${ename}/cmake.out
     local warns=$(grep -c "Warning:" "bld${ename}/cmake.out")
-    local errs=$(grep -c "Error:" "bld${ename}/cmake.out")
-    echo "Finished compiling lesgo${ename} with $warns warning(s) and $errs error(s)."
+    local errs=$(grep -c "Error:" "bld${ename}/cmake.out")''
+    if [ $warns == 0 ]; then
+        local warn_mesg="${GREEN}$warns warning(s)${RESET}"
+    else
+        local warn_mesg="${YELLOW}$warns warning(s)${RESET}"
+    fi
+    if [ $errs == 0 ]; then
+        local err_mesg="${GREEN}$errs error(s)${RESET}"
+    else
+        local err_mesg="${RED}$errs error(s)${RESET}"
+    fi
+    echo "Finished compiling lesgo${ename} with $warn_mesg and $err_mesg."
 
     # Pre-runtime copying of data and editing for lesgo.conf
     cp lesgo.conf bld${ename}
@@ -88,6 +104,10 @@ function compile() {
         sed -ib -e "s/Lz\s\+=.*/Lz = 1.0/" lesgo.conf
     fi
 
+    # Runtime messages with coloring
+    local success="${GREEN}Finished running lesgo${ename} successfully.${RESET}"
+    local failure="${RED}lesgo${ename} failed at run time with error code $?.${RESET}"
+
     # Run with proper setup and number of processors
     if [ $use_cps == 1 ]; then
         mkdir red
@@ -97,13 +117,14 @@ function compile() {
         sed -ib -e "s/nproc.*=.*/nproc = 1/" red/lesgo.conf
         sed -ib -e "s/nproc.*=.*/nproc = 1/" blue/lesgo.conf
         sed -ib -e "s/inflow.*=.*.false./inflow = .true./" blue/lesgo.conf
-        mpirun -wdir red -np 1 ./lesgo${ename} : -wdir blue -np 1 ./lesgo${ename} > lesgo.out && echo "Finished running lesgo${ename} successfully." || echo "lesgo${ename} failed at run time with error code $?."
+        mpirun -wdir red -np 1 ./lesgo${ename} : -wdir blue -np 1 ./lesgo${ename} > lesgo.out && echo $success || echo $failure
+        cd ..
     else
         if [ $use_mpi == 1 ]; then
             sed -ib -e "s/nproc.*=.*/nproc = 2/" lesgo.conf
-            mpirun -np 2 ./lesgo${ename} &> lesgo.out && echo "Finished running lesgo${ename} successfully." || echo "lesgo${ename} failed at run time with error code $?."
+            mpirun -np 2 ./lesgo${ename} &> lesgo.out && echo $success || echo $failure
         else
-            ./lesgo${ename} &> lesgo.out && echo "Finished running lesgo${ename} successfully." || echo "lesgo${ename} failed at run time with error code $?."
+            ./lesgo${ename} &> lesgo.out && echo $success || echo $failure
         fi
         cd ..
     fi
@@ -124,7 +145,7 @@ sed -ib -e "s/USE_DYN_TN  \s\+\".*/USE_DYN_TN  OFF)/" CMakeLists.txt
 sed -ib -e "s/USE_SAFETYMODE \s\+\".*/USE_SAFETYMODE ON)/" CMakeLists.txt
 sed -ib -e "s/USE_CGNS \s\+\".*/USE_CGNS OFF)/" CMakeLists.txt
 
-# compile ls
+# Run all configurations
 list=( '-' HIT streaks ls turbines ATM exout dyntn safety_off)
 echo "will cite" | parallel --citation &> temp.out
 parallel compile ::: "${list[@]}"
