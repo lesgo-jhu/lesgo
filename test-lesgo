@@ -110,14 +110,28 @@ function compile() {
 }
 export -f compile
 
+# back up CMakeLists.txt and modify with defaults
+cp CMakeLists.txt CMakeLists.bkp
+sed -ib -e "s/USE_MPI\s\+\".*/USE_MPI OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_CPS\s\+\".*/USE_CPS OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_HIT\s\+\".*/USE_HIT OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_STREAKS\s\+\".*/USE_STREAKS OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_LVLSET\s\+\".*/USE_LVLSET OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_TURBINES\s\+\".*/USE_TURBINES OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_ATM\s\+\".*/USE_ATM OFF)/" CMakeLists.txt
+sed -ib -e "s/OUTPUT_EXTRA \s\+\".*/OUTPUT_EXTRA OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_DYN_TN  \s\+\".*/USE_DYN_TN  OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_SAFETYMODE \s\+\".*/USE_SAFETYMODE ON)/" CMakeLists.txt
+sed -ib -e "s/USE_CGNS \s\+\".*/USE_CGNS OFF)/" CMakeLists.txt
+
 # compile ls
 list=( '-' HIT streaks ls turbines ATM exout dyntn safety_off)
 echo "will cite" | parallel --citation &> temp.out
 parallel compile ::: "${list[@]}"
 parallel compile ::: "mpi" ::: "${list[@]}"
-# compile mpi exout
-# compile mpi cps
-rm temp.out
+compile mpi cps
+rm temp.out CMakeLists.txtb
+mv CMakeLists.bkp CMakeLists.txt
 
 echo
 echo "lesgo testing complete."

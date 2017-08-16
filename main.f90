@@ -387,11 +387,13 @@ time_loop: do jt_step = nstart, nsteps
 #ifdef PPMPI
         if (coord == nproc-1) then
             tau_top = get_tau_wall_top()
-            call MPI_send(tau_top, 1, MPI_rprec, 0, 3, comm, ierr)
-        end if
-        if (coord == 0) then
-            call MPI_recv(tau_top, 1, MPI_rprec, nproc-1, 3, comm, status, ierr)
+        else
+            tau_top = 0._rprec
         endif
+
+        call mpi_allreduce(tau_top, maxdummy, 1, mpi_rprec,               &
+            MPI_SUM, comm, ierr)
+        tau_top = maxdummy
 #endif
 
         if (coord == 0) then
