@@ -1,6 +1,5 @@
 #!/bin/sh
 cmake . -Bbld
-cd bld
-make
-cp lesgo* ../
-cd ..
+cmake --build bld
+cp bld/lesgo* .
+

@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!
-!! Written by: 
+!! Written by:
 !!
 !!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
 !!
@@ -8,12 +8,12 @@
 !!
 !!   This file is part of The Actuator Turbine Model Library.
 !!
-!!   The Actuator Turbine Model is free software: you can redistribute it 
-!!   and/or modify it under the terms of the GNU General Public License as 
-!!   published by the Free Software Foundation, either version 3 of the 
+!!   The Actuator Turbine Model is free software: you can redistribute it
+!!   and/or modify it under the terms of the GNU General Public License as
+!!   published by the Free Software Foundation, either version 3 of the
 !!   License, or (at your option) any later version.
 !!
-!!   The Actuator Turbine Model is distributed in the hope that it will be 
+!!   The Actuator Turbine Model is distributed in the hope that it will be
 !!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 !!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !!   GNU General Public License for more details.
@@ -29,7 +29,7 @@ module atm_lesgo_interface
 ! This module interfaces actuator turbine module with lesgo
 ! It is a lesgo specific module, unlike the atm module
 ! The MPI management is done only in this section of the code
-! This is very code dependent and will have to be modified according to 
+! This is very code dependent and will have to be modified according to
 ! the code being used. In this case LESGO has its own MPI details
 ! Look into mpi_defs.f90 for the details
 
@@ -41,7 +41,7 @@ use param, only : dt ,nx,ny,nz,nz_tot,dx,dy,dz,coord,nproc, z_i, u_star, lbz,  &
                   total_time, jt_total
 ! nx, ny, nz - nodes in every direction
 ! z_i - non-dimensionalizing length
-! dt - time-step 
+! dt - time-step
 
 ! These are the forces, and velocities on x,y, and z respectively
 use sim_param, only : fxa, fya, fza, u, v, w
@@ -66,19 +66,19 @@ use actuator_turbine_model
 use atm_input_util, only : rprec, turbineArray, turbineModel, eat_whitespace, &
                            atm_print_initialize, updateInterval
 
-! Used for testing time 
+! Used for testing time
 ! use clock_m
 
 implicit none
 
 ! Variable for interpolating the velocity in w onto the uv grid
-real(rprec), allocatable, dimension(:,:,:) :: w_uv 
+real(rprec), allocatable, dimension(:,:,:) :: w_uv
 
 private
 public atm_lesgo_initialize, atm_lesgo_forcing, atm_lesgo_finalize
 
-! This is a list that stores all the points in the domain with a body 
-! force due to the turbines. 
+! This is a list that stores all the points in the domain with a body
+! force due to the turbines.
 type bodyForce_t
     integer :: c ! Number of cells
     ! i,j,k stores the index for the point in the domain
@@ -163,7 +163,7 @@ subroutine atm_lesgo_findCells (m)
 ! This subroutine finds all the cells that surround the turbines
 
 ! The awkward if statements are to only consider points in front and behind
-! the turbine without having to 
+! the turbine without having to
 
 implicit none
 
@@ -213,7 +213,7 @@ do i=1,nx ! Loop through grid points in x
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
-!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then
                     cUV=cUV+1
 !~ endif
 
@@ -223,9 +223,9 @@ do i=1,nx ! Loop through grid points in x
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
-!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then
                     cW=cW+1
-!~ endif                    
+!~ endif
                 end if
         enddo
     enddo
@@ -242,10 +242,12 @@ allocate(forceFieldW(m) % force(3,cW))
 allocate(forceFieldW(m) % location(3,cW))
 allocate(forceFieldW(m) % ijk(3,cW))
 
+#ifdef PPMPI
 call mpi_barrier( comm, ierr )
 write(*,*) 'Number of cells being affected by ATM in turbine', m,              &
            ' cUV, cW = ', cUV, cW
 call mpi_barrier( comm, ierr )
+#endif
 
 cUV=0
 cW=0
@@ -260,7 +262,7 @@ do i=1,nx ! Loop through grid points in x
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
-!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then
                     cUV=cUV+1
                     forceFieldUV(m) % ijk(1,cUV) = i
                     forceFieldUV(m) % ijk(2,cUV) = j
@@ -268,12 +270,12 @@ do i=1,nx ! Loop through grid points in x
                     forceFieldUV(m) % location(1:3,cUV) = vector_point(1:3)
                     forceFieldUV(m) % force(1:3,cUV) = 0_rprec
                 endif
-!~ endif                
+!~ endif
             vector_point(3)=zw(k)*z_i
                 if (distance(vector_point,turbineArray(m) %                    &
                     towerShaftIntersect)                                       &
                     .le. turbineArray(m) % sphereRadius ) then
-!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then                    
+!~ if ( ( (vector_point(1) - turbineArray(m) % towerShaftIntersect(1) )**2 ) <= ( turbineArray(m) % projectionRadius**2 )) then
                     cW=cW+1
                     forceFieldW(m) % ijk(1,cW) = i
                     forceFieldW(m) % ijk(2,cW) = j
@@ -294,7 +296,7 @@ enddo
 ! Store the base group from the global communicator mpi_comm_world
 call MPI_COMM_GROUP(comm, base_group, ierr)
 
-! Assign member 
+! Assign member
 member = 0
 ! Flag to know if this turbine is operating or not
 turbineArray(m) % operate = .FALSE.
@@ -306,18 +308,18 @@ turbineArray(m) % operate = .TRUE.
 endif
 
 ! Find the total number of processors for each turbine
-call mpi_allreduce(member, num_of_members, 1, MPI_INTEGER , MPI_SUM, comm, ierr) 
+call mpi_allreduce(member, num_of_members, 1, MPI_INTEGER , MPI_SUM, comm, ierr)
 
 if (turbineArray(m) % operate) then
 ! Find the master processor for each turbine
     call mpi_allreduce(coord, turbineArray(m) % master, 1, MPI_INTEGER ,       &
-                       MPI_MIN, comm, ierr) 
+                       MPI_MIN, comm, ierr)
 else
     ! This is bogus since nz will always be less than number of processors
     ! This is done to ensure that the master is part of the processors
     ! that hold the turbine model
     call mpi_allreduce(nz_tot, turbineArray(m) % master, 1, MPI_INTEGER ,       &
-                       MPI_MIN, comm, ierr) 
+                       MPI_MIN, comm, ierr)
 endif
 
 allocate(ls_of_cores(num_of_members))
@@ -410,21 +412,21 @@ if ( mod(jt_total-1, updateInterval) == 0) then
         turbineArray(i) % bladeAlignedVectors = 0._rprec
         turbineArray(i) % VelNacelle_sampled = 0._rprec
         turbineArray(i) % VelNacelle_corrected = 0._rprec
-                                
-        ! If statement is for running code only if grid points affected are in 
+
+        ! If statement is for running code only if grid points affected are in
         ! this processor. If not, no code is executed at all.
 !~         if (forceFieldUV(i) % c .gt. 0 .or. forceFieldW(i) % c .gt. 0) then
         if (turbineArray(i) % operate) then
-    
+
             ! Set body forces to zero
             forceFieldUV(i) % force = 0._rprec
             forceFieldW(i) % force = 0._rprec
             ! Calculate forces for all turbines
             call atm_lesgo_force(i)
 
-                
+
         endif
-        
+
     enddo
 !~     call myClock % stop()
 !~     write(*,*) 'coord ', coord, '  Forces ', myClock % time
@@ -450,10 +452,10 @@ if ( mod(jt_total-1, updateInterval) == 0) then
             ! Convolute force onto the domain
             call atm_lesgo_convolute_force(i)
         endif
-            
+
 !~         ! Sync the nacelle force
 !~         integrateNacelleForce=0.
-!~ 
+!~
 !~         do c=1,forceFieldUV(i) % c
 !~             if (turbineArray(i) % nacelle) then
 !~                 integrateNacelleForce = integrateNacelleForce +  &
@@ -463,12 +465,12 @@ if ( mod(jt_total-1, updateInterval) == 0) then
 
         ! Compute the correction for the Cl coefficient
         call atm_compute_cl_correction(i)
-            
+
     enddo
-    
+
 !~         totForce=0.
 !~         call mpi_allreduce( integrateNacelleForce,  totForce, 1,   &
-!~                              mpi_rprec, mpi_sum, comm, ierr) 
+!~                              mpi_rprec, mpi_sum, comm, ierr)
 
        !write(*,*) 'Integrated Nacelle Force is: ', integrateNacelleForce
 !~         if (coord == 0) then
@@ -493,11 +495,11 @@ endif
 !    call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                   &
 !                       turbineArray(i) % integratedBladeForces,              &
 !                       size(turbineArray(i) % bladeVectorDummy),             &
-!                       mpi_rprec, mpi_sum, comm, ierr) 
+!                       mpi_rprec, mpi_sum, comm, ierr)
 
 
 !    if (coord==0) then
-    
+
 !    do q=1, turbineArray(i) % numBladePoints
 !        do n=1, turbineArray(i) % numAnnulusSections
 !            do m=1, turbineModel(j) % numBl
@@ -507,7 +509,7 @@ endif
 !                turbineArray(i) % integratedBladeForces(m,n,q,2) /  &
 !                turbineArray(i) % bladeForces(m,n,q,2) , &
 !                turbineArray(i) % integratedBladeForces(m,n,q,3) /  &
-!                turbineArray(i) % bladeForces(m,n,q,3) 
+!                turbineArray(i) % bladeForces(m,n,q,3)
 !            enddo
 !        enddo
 !    enddo
@@ -522,11 +524,13 @@ do i=1, numberOfTurbines
         call atm_output(i, jt_total, total_time*z_i/u_star)
     !~     call myClock % stop()
     !~     write(*,*) 'coord ', coord, '  Output ', myClock % time
-    endif 
+    endif
 enddo
 
-    ! Make sure all processors stop wait for the output to be completed
-    call mpi_barrier( comm, ierr )
+#ifdef PPMPDI
+! Make sure all processors stop wait for the output to be completed
+call mpi_barrier( comm, ierr )
+#endif
 
 end subroutine atm_lesgo_forcing
 
@@ -559,7 +563,7 @@ do i=1,numberOfTurbines
         call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
                            turbineArray(i) % bladeForces,                      &
                            size(turbineArray(i) % bladeVectorDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync bladeAlignedVectors
         turbineArray(i) % bladeVectorDummy =                                   &
@@ -581,59 +585,59 @@ do i=1,numberOfTurbines
                            size(turbineArray(i) % bladeVectorDummy),           &
                            mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
-        
+
         ! Sync alpha
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % alpha
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % alpha,                            &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
         ! Sync lift
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % lift
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % lift,                             &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
         ! Sync drag
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % drag
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % drag,                             &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
         ! Sync Cl
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cl
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % Cl,                               &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
         ! Sync Cd
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Cd
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % Cd,                               &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
         ! Sync Vmag
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % Vmag
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % Vmag,                             &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync axialForce
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % axialForce
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % axialForce,                       &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync tangentialForce
         turbineArray(i) % bladeScalarDummy = turbineArray(i) % tangentialForce
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % tangentialForce,                                 &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync wind Vectors (Vaxial, Vtangential, Vradial)
         turbineArray(i) % bladeVectorDummy = turbineArray(i) %                 &
@@ -641,32 +645,32 @@ do i=1,numberOfTurbines
         call mpi_allreduce(turbineArray(i) % bladeVectorDummy,                 &
                            turbineArray(i) % windVectors(:,:,:,1:3),                                 &
                            size(turbineArray(i) % bladeVectorDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
         ! Sync induction factor
         turbineArray(i) % bladeScalarDummy = turbineArray(i) %                 &
                                              induction_a(:,:,:)
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % induction_a(:,:,:),                                 &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-    
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
         ! Sync u infinity
         turbineArray(i) % bladeScalarDummy = turbineArray(i) %                 &
                                              u_infinity(:,:,:)
         call mpi_allreduce(turbineArray(i) % bladeScalarDummy,                 &
                            turbineArray(i) % u_infinity(:,:,:),                                 &
                            size(turbineArray(i) % bladeScalarDummy),           &
-                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
-        
-        ! Store the torqueRotor. 
+                           mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
+
+        ! Store the torqueRotor.
         ! Needs to be a different variable in order to do MPI Sum
         torqueRotor=turbineArray(i) % torqueRotor
         thrust=turbineArray(i) % thrust
         nacelleForce=turbineArray(i) % nacelleForce
         VelNacelle_sampled=turbineArray(i) % VelNacelle_sampled
         VelNacelle_corrected=turbineArray(i) % VelNacelle_corrected
-    
+
         ! Sum all the individual torqueRotor from different blade points
         call mpi_allreduce( torqueRotor, turbineArray(i) % torqueRotor,        &
                            1, mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
@@ -678,7 +682,7 @@ do i=1,numberOfTurbines
         ! Sync the nacelle force
         call mpi_allreduce( nacelleForce, turbineArray(i) % nacelleForce,      &
                            size(turbineArray(i) % nacelleForce), mpi_rprec,    &
-                                mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                                mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
         ! Sync the nacelle sampled velocity
         call mpi_allreduce( VelNacelle_sampled,                                &
@@ -688,7 +692,7 @@ do i=1,numberOfTurbines
         ! Sync the nacelle corrected velocity
         call mpi_allreduce( VelNacelle_corrected,                              &
                                turbineArray(i) % VelNacelle_corrected, 1,      &
-                                mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr) 
+                                mpi_rprec, mpi_sum, TURBINE_COMMUNICATOR, ierr)
 
     endif
 enddo
@@ -730,36 +734,36 @@ if (turbineArray(i) % sampling == 'Spalart') then
     do q=1, turbineArray(i) % numBladePoints
         do n=1, turbineArray(i) % numAnnulusSections
             do m=1, turbineModel(j) % numBl
-                           
+
                 ! Actuator point onto which to interpolate the velocity
                 xyz=turbineArray(i) % bladePoints(m,n,q,1:3)
-    
+
                 velocity = 0._rprec
                 mpi_velocity = 0._rprec
-    
+
                 call atm_lesgo_compute_spalart_u(i, xyz, velocity)
-    
+
                 mpi_velocity = velocity
-    
+
                 ! Complie this subroutines only if MPI will be used
 #ifdef PPMPI
 !~                     call mpi_barrier( TURBINE_COMM, ierr )
                     ! Sync all the blade forces
                     call mpi_allreduce(mpi_velocity, velocity, size(velocity), &
-                           mpi_rprec, mpi_sum, TURBINE_COMM , ierr) 
+                           mpi_rprec, mpi_sum, TURBINE_COMM , ierr)
 #endif
-    
+
                 ! This will compute the blade force for the specific point
                 if (  z(1) <= xyz(3)/z_i .and. xyz(3)/z_i < z(nz) ) then
                     call atm_computeBladeForce(i,m,n,q,velocity)
                 else
                     velocity = 0._rprec
                 endif
-    
+
             enddo
         enddo
     enddo
-    
+
 
 else if (turbineArray(i) % sampling == 'atPoint') then
     ! This loop goes through all the blade points and calculates the respective
@@ -767,13 +771,13 @@ else if (turbineArray(i) % sampling == 'atPoint') then
     do q=1, turbineArray(i) % numBladePoints
         do n=1, turbineArray(i) % numAnnulusSections
             do m=1, turbineModel(j) % numBl
-                           
+
                 ! Actuator point onto which to interpolate the velocity
                 xyz=turbineArray(i) % bladePoints(m,n,q,1:3)
-    
-                ! Non-dimensionalizes the point location 
+
+                ! Non-dimensionalizes the point location
                 xyz=xyz/z_i
-    
+
                 ! Interpolate velocities if inside the domain
                 if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
                     velocity(1)=                                               &
@@ -782,32 +786,32 @@ else if (turbineArray(i) % sampling == 'atPoint') then
                     trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
                     velocity(3)=                                               &
                     trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-    
+
                     ! This will compute the blade force for the specific point
                     call atm_computeBladeForce(i,m,n,q,velocity)
-    
+
                 endif
-    
+
             enddo
         enddo
     enddo
 endif
-    
+
     ! Calculate Nacelle force
     if (turbineArray(i) % nacelle) then
         xyz=turbineArray(i) % nacelleLocation
         xyz=xyz/z_i
         if (  z(1) <= xyz(3) .and. xyz(3) < z(nz) ) then
-    
+
             velocity(1)=                                                   &
             trilinear_interp(u(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
             velocity(2)=                                                   &
             trilinear_interp(v(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
             velocity(3)=                                                   &
             trilinear_interp(w_uv(1:nx,1:ny,lbz:nz),lbz,xyz)*u_star
-    
+
             call atm_computeNacelleForce(i,velocity)
-    
+
         endif
     endif
 
@@ -828,7 +832,7 @@ subroutine atm_lesgo_compute_Spalart_u(i, xyz, velocity)
 
 implicit none
 
-integer, intent(in) :: i 
+integer, intent(in) :: i
 real(rprec), intent(in) :: xyz(3)
 real(rprec), intent(inout) :: velocity(3)
 
@@ -867,9 +871,9 @@ do c=1,forceFieldUV(i) % c
 
         ! The value of the kernel. This is the actual smoothing function
         velocity(1) = velocity(1) + u(m,n,q) * exp(-(dist/epsilon)**2)    &
-                                 /  ((epsilon**3.)*(pi**1.5)) 
+                                 /  ((epsilon**3.)*(pi**1.5))
         velocity(2) = velocity(2) + v(m,n,q) * exp(-(dist/epsilon)**2)    &
-                                 /  ((epsilon**3.)*(pi**1.5)) 
+                                 /  ((epsilon**3.)*(pi**1.5))
         endif
     endif
 enddo
@@ -887,7 +891,7 @@ do c=1,forceFieldW(i) % c
 
         ! The value of the kernel. This is the actual smoothing function
         velocity(3) = velocity(3) + w(m,n,q) * exp(-(dist/epsilon)**2)    &
-                                 /  ((epsilon**3.)*(pi**1.5)) 
+                                 /  ((epsilon**3.)*(pi**1.5))
         endif
     endif
 enddo
@@ -957,25 +961,25 @@ if (turbineArray(i) % sampling == 'atPoint') then
     do c=1,forceFieldUV(i) % c
         a= forceFieldUV(i) %  location(1:3,c)
         force=0._rprec
-    
+
         ! Blade forces
         do m=1, mmend
             do n=1, nnend
                do q=1, qqend
-    
+
                     b= bladePoints(m,n,q,:)
                     dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    
+
                     if (dist .le. projectradius) then
                     ! The value of the kernel. This is the actual smoothing function
-                     force(1:2) = force(1:2) +  bladeForces(m,n,q,1:2) *exp(-(dist/epsilon)**2)  
+                     force(1:2) = force(1:2) +  bladeForces(m,n,q,1:2) *exp(-(dist/epsilon)**2)
                     endif
-    
+
                 enddo
             enddo
         enddo
         force(1:2)=force(1:2)* const3
-    
+
         ! Nacelle force
         if (turbineArray(i) % nacelle) then
             b=turbineArray(i) % nacelleLocation
@@ -987,53 +991,53 @@ if (turbineArray(i) % sampling == 'atPoint') then
                 force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
                              kernel *const2
     !~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
-    
+
     !~         endif
         endif
-    
-        
-        bodyForceUV(1:2,c) = force(1:2) 
+
+
+        bodyForceUV(1:2,c) = force(1:2)
     !~     if (abs(bodyForceUV(1,c)) .gt. 0) then
     !~                 write(*,*) 'bodyForceUV is: ', bodyForceUV(1,c)
     !~     endif
     enddo
-    
-    
+
+
     do c=1,forceFieldW(i) % c
         a= forceFieldW(i) %  location(1:3,c)
         force=0._rprec
-    
+
         ! Blade forces
         do m=1,mmend
             do n=1,nnend
                do q=1,qqend
-    
+
                     b= bladePoints(m,n,q,:)
                     dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    
+
                     if (dist .le. projectradius) then
                     ! The value of the kernel. This is the actual smoothing function
                     force(3) = force(3) +  bladeForces(m,n,q,3) &
                                *exp(-(dist/epsilon)**2)
                     endif
-    
+
                 enddo
             enddo
         enddo
         force(3)=force(3)* const3
-        
+
         ! Nacelle force
         if (turbineArray(i) % nacelle) then
             b=turbineArray(i) % nacelleLocation
             dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-            if (dist .le. projectradius) then    
+            if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
                 kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
                 force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
                            kernel *const2
             endif
-        endif    
-        
+        endif
+
         bodyForceW(3,c) = force(3)
     enddo
 
@@ -1050,15 +1054,15 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
         ii = forceFieldUV(i) % ijk(1,c)
         jj = forceFieldUV(i) % ijk(2,c)
         kk = forceFieldUV(i) % ijk(3,c)
-    
+
         ! Blade forces
         do m=1, mmend
             do n=1, nnend
                do q=1, qqend
-    
+
                     b= bladePoints(m,n,q,:)
                     dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    
+
                     if (dist .le. projectradius) then
                         ! The value of the kernel.
                         ! This is the actual smoothing function
@@ -1099,15 +1103,15 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
                 force(1:2) = force(1:2)+turbineArray(i) % nacelleForce(1:2) *  &
                              kernel *const2
     !~          integrateNacelleForce=integrateNacelleForce+force(1) * dx *dy * dz * z_i**3
-    
+
     !~         endif
         endif
-    
-        
-        bodyForceUV(1:2,c) = force(1:2) 
+
+
+        bodyForceUV(1:2,c) = force(1:2)
     enddo
-    
-    
+
+
     do c=1,forceFieldW(i) % c
         a= forceFieldW(i) %  location(1:3,c)
         force=0._rprec
@@ -1115,15 +1119,15 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
         ii = forceFieldW(i) % ijk(1,c)
         jj = forceFieldW(i) % ijk(2,c)
         kk = forceFieldW(i) % ijk(3,c)
-    
+
         ! Blade forces
         do m=1,mmend
             do n=1,nnend
                do q=1,qqend
-    
+
                     b= bladePoints(m,n,q,:)
                     dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-    
+
                     if (dist .le. projectradius) then
                         ! The value of the kernel.
                         ! This is the actual smoothing function
@@ -1134,26 +1138,26 @@ elseif (turbineArray(i) % sampling == 'Spalart') then
                          turbineArray(i) % bladeAlignedVectors(m,n,q,2,3) *    &
                          turbineArray(i) % rotSpeed *                          &
                          turbineArray(i) % bladeRadius(m,n,q) *                &
-                         cos(turbineModel(j) % PreCone)) 
+                         cos(turbineModel(j) % PreCone))
                     endif
-    
+
                 enddo
             enddo
         enddo
         force(3)=force(3)* const3
-        
+
         ! Nacelle force
         if (turbineArray(i) % nacelle) then
             b=turbineArray(i) % nacelleLocation
             dist=((a(1)-b(1))**2+(a(2)-b(2))**2+(a(3)-b(3))**2)**0.5
-            if (dist .le. projectradius) then    
+            if (dist .le. projectradius) then
                 ! The value of the kernel. This is the actual smoothing function
                 kernel=exp(-(dist/nacelleEpsilon)**2.)/(nacelleepsilon**3.*pi**1.5)
                 force(3) = force(3)+turbineArray(i) % nacelleForce(3) *           &
                            kernel *const2
             endif
-        endif    
-        
+        endif
+
         bodyForceW(3,c) = force(3)
     enddo
 
@@ -1174,26 +1178,26 @@ integer :: i,j,k
 
 do m=1, numberOfTurbines
 
-    if (turbineArray(m) % operate) then    
+    if (turbineArray(m) % operate) then
         ! Impose force field onto the flow field variables
         ! The forces are non-dimensionalized here as well
         do c=1,forceFieldUV(m) % c
             i=forceFieldUV(m) % ijk(1,c)
             j=forceFieldUV(m) % ijk(2,c)
             k=forceFieldUV(m) % ijk(3,c)
-        
-            fxa(i,j,k) = fxa(i,j,k) + forceFieldUV(m) % force(1,c) 
-            fya(i,j,k) = fya(i,j,k) + forceFieldUV(m) % force(2,c)  
-        
+
+            fxa(i,j,k) = fxa(i,j,k) + forceFieldUV(m) % force(1,c)
+            fya(i,j,k) = fya(i,j,k) + forceFieldUV(m) % force(2,c)
+
         enddo
-        
+
         do c=1,forceFieldW(m) % c
             i=forceFieldW(m) % ijk(1,c)
             j=forceFieldW(m) % ijk(2,c)
             k=forceFieldW(m) % ijk(3,c)
-        
-            fza(i,j,k) = fza(i,j,k) + forceFieldW(m) % force(3,c) 
-        
+
+            fza(i,j,k) = fza(i,j,k) + forceFieldW(m) % force(3,c)
+
         enddo
     endif
 enddo

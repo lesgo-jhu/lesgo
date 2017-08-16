@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!
-!! Written by: 
+!! Written by:
 !!
 !!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
 !!
@@ -8,12 +8,12 @@
 !!
 !!   This file is part of The Actuator Turbine Model Library.
 !!
-!!   The Actuator Turbine Model is free software: you can redistribute it 
-!!   and/or modify it under the terms of the GNU General Public License as 
-!!   published by the Free Software Foundation, either version 3 of the 
+!!   The Actuator Turbine Model is free software: you can redistribute it
+!!   and/or modify it under the terms of the GNU General Public License as
+!!   published by the Free Software Foundation, either version 3 of the
 !!   License, or (at your option) any later version.
 !!
-!!   The Actuator Turbine Model is distributed in the hope that it will be 
+!!   The Actuator Turbine Model is distributed in the hope that it will be
 !!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 !!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !!   GNU General Public License for more details.
@@ -50,12 +50,12 @@ write (*, '(1x,a)') '***************'
 write (*, '(1x,a)') 'Program aborted'
 write (*, '(1x,a)') '  '
 
-stop
+stop 1
 end subroutine error
 
 !-------------------------------------------------------------------------------
 function interpolate(xp,x,y)
-! This function interpolates xp from x and y 
+! This function interpolates xp from x and y
 !-------------------------------------------------------------------------------
 real(rprec), dimension(:), intent(in) :: x,y
 real(rprec), intent(in) ::  xp
@@ -64,7 +64,7 @@ integer :: i,p
 real(rprec) :: interpolate
 p=size(x)
 
-if (xp <= x(1)) then 
+if (xp <= x(1)) then
     interpolate=y(1)
 else if (xp >= x(p)) then
     interpolate=y(p)
@@ -75,7 +75,7 @@ else
             xb=x(i)
             ya=y(i-1)
             yb=y(i)
-            interpolate = ya + (yb-ya) * (xp-xa) / (xb-xa) 
+            interpolate = ya + (yb-ya) * (xp-xa) / (xb-xa)
         endif
     enddo
 endif
@@ -84,7 +84,7 @@ end function interpolate
 
 !-------------------------------------------------------------------------------
 integer function interpolate_i(xp,x,y)
-! This function interpolates xp from x and y 
+! This function interpolates xp from x and y
 !-------------------------------------------------------------------------------
 real(rprec), dimension(:), intent(in) :: x
 integer, dimension(:), intent(in) :: y
@@ -94,7 +94,7 @@ integer :: i,p
 p=size(x)
 
 if (xp .le. x(1)) then
-    interpolate_i=y(1) 
+    interpolate_i=y(1)
 else if (xp .ge. x(p)) then
     interpolate_i=y(p)
 else
@@ -185,7 +185,7 @@ RM(3,1) = axis(1) * axis(3) * (1.0 - cos(angle)) - axis(2) * sin(angle)
 RM(3,2) = axis(2) * axis(3) * (1.0 - cos(angle)) + axis(1) * sin(angle)
 RM(3,3) = axis(3)**2 + (1.0 - axis(3)**2) * cos(angle)
 
-! Rotation matrices make a rotation about the origin, so need to subtract 
+! Rotation matrices make a rotation about the origin, so need to subtract
 ! rotation point off the point to be rotated
 point=vector_add(point,-rotationPoint)
 
@@ -195,7 +195,7 @@ point=matrix_vector(RM,point)
 ! Return the rotated point to its new location relative to the rotation point
 rotatePoint = point + rotationPoint
 
-return 
+return
 end function rotatePoint
 
 !-------------------------------------------------------------------------------
