@@ -221,7 +221,10 @@ subroutine ddz_uv(f, dfdz, lbz)
 ! process it only supplies 2:nz
 !
 use types, only : rprec
-use param, only : nx, ny, nz, dz, BOGUS, nproc, coord
+use param, only : nx, ny, nz, dz, BOGUS
+#ifdef PPSAFETYMODE
+use param, only : nproc, coord
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -272,8 +275,10 @@ subroutine ddz_w(f, dfdz, lbz)
 !
 use types, only : rprec
 use param, only : nx, ny, nz, dz, BOGUS
+#ifdef PPSAFETYMODE
 #ifdef PPMPI
 use param, only : coord
+#endif
 #endif
 implicit none
 

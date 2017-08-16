@@ -692,22 +692,22 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use param, only : dx,dy,dz
+use param, only : dx, dy
 use param, only : write_endian
 use grid_m
-use sim_param, only : u,v,w
+use sim_param, only : u, v, w
 ! For computing and writing vorticity
 !  use sim_param, only: dwdy, dwdx, dvdx, dudy
 !  use functions, only : interp_to_w_grid
 
-use stat_defs, only : xplane, yplane, zplane
+use stat_defs, only : xplane, yplane
 #ifdef PPMPI
-use stat_defs, only : point
-use param, only : ny, nz
+use stat_defs, only : zplane, point
+use param, only : ny, nz, dz
 #endif
 #ifdef PPLVLSET
 use level_set_base, only : phi
-use sim_param, only : fx,fy,fz,fxa,fya,fza
+use sim_param, only : fx, fy, fz, fxa, fya, fza
 #endif
 
 implicit none
@@ -1097,11 +1097,12 @@ subroutine checkpoint ()
 use iwmles
 use param, only : nz, checkpoint_file, tavg_calc, lbc_mom
 #ifdef PPMPI
-use param, only : comm,ierr
+use param, only : comm, ierr
 #endif
 use sim_param, only : u, v, w, RHSx, RHSy, RHSz
 use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
-use param, only : jt_total, total_time, total_time_dim, dt,use_cfl_dt,cfl,sgs_model,write_endian
+use param, only : jt_total, total_time, total_time_dim, dt, use_cfl_dt, cfl
+use param, only : write_endian
 use cfl_util, only : get_max_cfl
 use stat_defs, only : tavg_initialized
 use string_util, only : string_concat

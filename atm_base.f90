@@ -64,6 +64,8 @@ integer :: i,p
 real(rprec) :: interpolate
 p=size(x)
 
+interpolate = 0._rprec
+
 if (xp <= x(1)) then
     interpolate=y(1)
 else if (xp >= x(p)) then
@@ -92,6 +94,8 @@ real(rprec), intent(in) ::  xp
 real(rprec) :: xa,xb,ya,yb
 integer :: i,p
 p=size(x)
+
+interpolate_i = 0._rprec
 
 if (xp .le. x(1)) then
     interpolate_i=y(1)

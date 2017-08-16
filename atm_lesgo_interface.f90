@@ -180,6 +180,7 @@ real(rprec), dimension(3) :: vector_point
 real(rprec), pointer, dimension(:) :: x,y,z,zw
 
 ! Variables for MPI implementation
+#ifdef PPMPI
 integer :: base_group ! The base group from comm --> MPI_COMM_WORLD (all processors)
 integer :: local_group  ! The local group of processors
 integer :: member !  (1 or 0) yes or no
@@ -188,6 +189,7 @@ integer :: num_of_members  ! total number of members
 ! List of all the cores that belong to this turbine
 ! This variable gets allocated for each turbine
 integer, allocatable, dimension(:) :: ls_of_cores
+#endif
 
 nullify(x,y,z,zw)
 x => grid % x

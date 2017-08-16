@@ -83,9 +83,9 @@ function compile() {
     fi
     cd bld${ename}
     if [ $use_ls == 1 ]; then
-        sed -ib -e "s/Lx.*=.*/Lx = 1.0/" lesgo.conf
-        sed -ib -e "s/Ly.*=.*/Ly = 1.0/" lesgo.conf
-        sed -ib -e "s/Lz.*=.*/Lz = 1.0/" lesgo.conf
+        sed -ib -e "s/Lx\s\+=.*/Lx = 1.0/" lesgo.conf
+        sed -ib -e "s/Ly\s\+=.*/Ly = 1.0/" lesgo.conf
+        sed -ib -e "s/Lz\s\+=.*/Lz = 1.0/" lesgo.conf
     fi
 
     # Run with proper setup and number of processors
