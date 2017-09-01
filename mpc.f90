@@ -65,7 +65,7 @@ do i = 1, N
 end do
 call generate_splines
 wm = wake_model_t(sx, sy, U_infty, Delta, k, Dia, rho, inertia, Nx, Ny,        &
-    wm_Ct_prime_spline, wm_Cp_prime_spline)
+    wm_Ct_prime_spline, wm_Cp_prime_spline, torque_gain)
 
 ! integrate the wake model forward in time to get reference power
 dt = cfl * wm%dx / wm%U_infty

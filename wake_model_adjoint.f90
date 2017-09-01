@@ -60,7 +60,8 @@ contains
 
 !*******************************************************************************
 function constructor_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline) result(this)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)          &
+    result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
@@ -69,9 +70,10 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 
 call this%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,    &
-    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 end function constructor_val
 !
 ! !*******************************************************************************
@@ -91,7 +93,7 @@ end function constructor_val
 
 !*******************************************************************************
 subroutine initialize_val(this, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,    &
-    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 !*******************************************************************************
 implicit none
 class(wake_model_adjoint_t), intent(inout) :: this
@@ -99,10 +101,12 @@ real(rprec), intent(in) :: i_U_infty, i_Delta, i_Dia, i_rho, i_inertia
 real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
+real(rprec), intent(in) :: i_torque_gain
 
 ! Call base class initializer
 call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta, i_k,&
-    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline)
+    i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,           &
+    i_torque_gain)
 
 allocate( this%du_star(this%N, this%Nx) )
 allocate( this%u_star(this%Nx, this%Ny) )
