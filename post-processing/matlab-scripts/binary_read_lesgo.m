@@ -1,6 +1,6 @@
 % Reads in lesgo's binary output data files to facilitate post-processing
 %
-% author: Joel Bretheim, jbretheim@gmail.com
+% author: Joel Bretheim
 %         Thanks to Richard Stevens for providing the basic scanning routine
 %         which is embedded in the get*.m functions
 %
