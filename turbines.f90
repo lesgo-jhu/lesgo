@@ -99,8 +99,6 @@ real(rprec), public :: sigma_du = 0.5
 real(rprec), public :: sigma_k = 0.001
 ! std. deviation of noise of power measurements
 real(rprec), public :: sigma_uhat = 1.0
-! std. deviation of noise of rotational speed
-real(rprec), public :: sigma_omega = 0.01
 ! Number of members in ensemble
 integer, public :: num_ensemble = 50
 
@@ -1258,7 +1256,7 @@ inquire (file=fstring, exist=exst)
 if (exst) then
     write(*,*) 'Reading wake model estimator data from wake_model/'
     wm = wake_model_estimator_t(wm_path, wm_Ct_prime_spline,                   &
-        wm_Cp_prime_spline, sigma_du, sigma_k, sigma_omega, sigma_uhat,        &
+        wm_Cp_prime_spline, sigma_du, sigma_k, sigma_uhat,        &
         tau_U_infty)
 else
     ! Set initial velocity
@@ -1278,7 +1276,7 @@ else
     wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,           &
         0.5*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
         rho, inertia_all, nx/2, ny/2, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
-        torque_gain, sigma_du, sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
+        torque_gain, sigma_du, sigma_k, sigma_uhat, tau_U_infty)
 
     ! Calculate U_infty
     wm%wm%Ctp = wind_farm%turbine(:)%Ct_prime

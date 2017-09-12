@@ -38,7 +38,7 @@ type :: wake_model_estimator_t
     real(rprec), dimension(:,:), allocatable :: A, Aprime, Ahat, Ahatprime
     real(rprec), dimension(:,:), allocatable :: E, D, Dprime
     real(rprec), dimension(:), allocatable :: Abar, Ahatbar
-    real(rprec) :: sigma_du, sigma_k, sigma_omega, sigma_uhat
+    real(rprec) :: sigma_du, sigma_k, sigma_uhat
     real(rprec) :: tau
 contains
     procedure, public :: initialize_val
@@ -63,7 +63,7 @@ contains
 !*******************************************************************************
 function constructor_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
     i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain,   &
-    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
+    i_sigma_du, i_sigma_k, i_sigma_uhat, i_tau) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
@@ -73,36 +73,36 @@ real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Ne, i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec), intent(in) :: i_torque_gain
-real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 
 call this%initialize_val(i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,     &
     i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain,   &
-    i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+    i_sigma_du, i_sigma_k, i_sigma_uhat, i_tau)
 
 end function constructor_val
 
 !*******************************************************************************
 function constructor_file(fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,       &
-    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau) result(this)
+    i_sigma_k, i_sigma_uhat, i_tau) result(this)
 !*******************************************************************************
 ! Constructor for wake model with values given
 implicit none
 type(wake_model_estimator_t) :: this
 character(*), intent(in) :: fpath
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
-real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 
 call this%initialize_file(fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,       &
-    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+    i_sigma_k, i_sigma_uhat, i_tau)
 
 end function constructor_file
 
 !*******************************************************************************
 subroutine initialize_val(this, i_Ne, i_sx, i_sy, i_U_infty, i_Delta, i_k,     &
     i_Dia, i_rho, i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline,           &
-    i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+    i_torque_gain, i_sigma_du, i_sigma_k, i_sigma_uhat, i_tau)
 !*******************************************************************************
 use grid_m
 implicit none
@@ -112,14 +112,13 @@ real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Ne, i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec), intent(in) :: i_torque_gain
-real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 integer :: i
 
 ! Set ensemble parameters
 this%sigma_du = i_sigma_du
 this%sigma_k = i_sigma_k
-this%sigma_omega = i_sigma_omega
 this%sigma_uhat = i_sigma_uhat
 this%tau = i_tau
 
@@ -136,8 +135,8 @@ do i = 1, this%Ne
 end do
 
 ! Allocate filter matrices
-this%Nm = 2 * this%wm%N                         ! Number of measurements
-this%Ns = (this%wm%Nx + 2) * this%wm%N          ! Number of states
+this%Nm = this%wm%N                             ! Number of measurements
+this%Ns = (this%wm%Nx + 1) * this%wm%N          ! Number of states
 allocate( this%Abar(this%Ns) )
 allocate( this%Ahatbar(this%Nm) )
 allocate( this%A(this%Ns, this%Ne) )
@@ -152,7 +151,7 @@ end subroutine initialize_val
 
 !*******************************************************************************
 subroutine initialize_file(this, fpath, i_Ctp_spline, i_Cpp_spline, i_sigma_du,&
-    i_sigma_k, i_sigma_omega, i_sigma_uhat, i_tau)
+    i_sigma_k, i_sigma_uhat, i_tau)
 !*******************************************************************************
 ! Constructor for wake model with values given
 use param, only : CHAR_BUFF_LENGTH
@@ -162,7 +161,7 @@ implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 character(*), intent(in) :: fpath
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
-real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_omega, i_sigma_uhat
+real(rprec), intent(in) :: i_sigma_du, i_sigma_k, i_sigma_uhat
 real(rprec), intent(in) :: i_tau
 integer :: i, fid
 character(CHAR_BUFF_LENGTH) :: fstring
@@ -170,7 +169,6 @@ character(CHAR_BUFF_LENGTH) :: fstring
 ! set std deviations for noise and filter time constant
 this%sigma_du = i_sigma_du
 this%sigma_k = i_sigma_k
-this%sigma_omega = i_sigma_omega
 this%sigma_uhat = i_sigma_uhat
 this%tau = i_tau
 
@@ -313,7 +311,7 @@ call init_random_seed
 
 ! Calculate safe dt
 dt = cfl * this%wm%dx / this%wm%U_infty
-FTT = 0.33_rprec * this%wm%x(this%wm%Nx) / this%wm%U_Infty
+FTT = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
 ! set integer
 N = this%wm%N
@@ -356,9 +354,6 @@ do ii = 1, floor(FTT / dt)
                 + sqrt(dt) * this%sigma_du * random_normal()                   &
                 * this%ensemble(i)%G(j,:) * sqrt(2*pi)                         &
                 * this%ensemble(i)%Delta, 0._rprec)
-!        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)
-!        &
-!            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
         end do
         call this%ensemble(i)%advance(dt)
     end do
@@ -376,10 +371,8 @@ do i = 1, this%Ne
         jend = j*Nx
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
-    this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
-    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(:)
-    this%Ahat(1:N,i) = this%ensemble(i)%uhat
-    this%Ahat((1+N):,i) = this%ensemble(i)%omega
+    this%A((N*Nx+1):,i) = this%ensemble(i)%k(:)
+    this%Ahat(:,i) = this%ensemble(i)%uhat
     this%Abar = this%Abar + this%A(:,i) / this%Ne
     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
 end do
@@ -430,12 +423,6 @@ do i = 1, N
         this%D(i, j) = um(i) + this%E(i, j)
     end do
 end do
-do i = 1, N
-    do j = 1, this%Ne
-        this%E(i+N, j) = this%sigma_omega * random_normal()
-        this%D(i+N, j) = omegam(i) + this%E(i+N, j)
-    end do
-end do
 this%Dprime = this%D - this%Ahat
 
 write(*,*) "um:", um
@@ -466,14 +453,19 @@ end do
 alpha = dt / (this%tau + dt)
 call this%calc_U_infty(um, alpha)
 
+! Place omega measurement into the wake model and each ensemble member
+this%wm%omega = omegam
+do i = 1, this%Ne
+    this%ensemble(i)%omega = omegam
+end do
+
 ! Fill into objects
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
         this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i), 0._rprec)
-        this%ensemble(i)%omega(j) = max(this%A(Nx*N+j,i), 0._rprec)
-        this%ensemble(i)%k(j) = max(this%A((Nx+1)*N+j,i), 0._rprec)
+        this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i), 0._rprec)
     end do
     this%ensemble(i)%U_infty  = this%wm%U_infty
     this%ensemble(i)%VELOCITY = this%wm%U_infty
@@ -486,8 +478,7 @@ do j = 1, N
     jend = j*Nx
     this%wm%du(j,:) = max(this%Abar(jstart:jend), 0._rprec)
 end do
-this%wm%omega(:) = max(this%Abar((Nx*N+1):N*(Nx+1)), 0._rprec)
-this%wm%k(:) = max(this%Abar((N*(Nx+1)+1):), 0._rprec)
+this%wm%k(:) = max(this%Abar((N*Nx+1):), 0._rprec)
 
 ! Fix previous timestep outputs based on corrected states
 !call this%advance_ensemble(beta, gen_torque, 0._rprec)
@@ -503,10 +494,8 @@ do i = 1, this%Ne
         jend = j*Nx
         this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
     end do
-    this%A(Nx*N+1:N*(Nx+1),i) = this%ensemble(i)%omega(:)
-    this%A((N*(Nx+1)+1):,i) = this%ensemble(i)%k(:)
-    this%Ahat(1:N,i) = this%ensemble(i)%uhat
-    this%Ahat((1+N):,i) = this%ensemble(i)%omega
+    this%A((N*Nx+1):,i) = this%ensemble(i)%k(:)
+    this%Ahat(:,i) = this%ensemble(i)%uhat
     this%Abar = this%Abar + this%A(:,i) / this%Ne
     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
 end do

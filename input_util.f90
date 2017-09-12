@@ -746,8 +746,6 @@ do
                 read (buff(equal_pos+1:),*) sigma_k
             case ('SIGMA_UHAT')
                 read (buff(equal_pos+1:),*) sigma_uhat
-            case ('SIGMA_OMEGA')
-                read (buff(equal_pos+1:),*) sigma_omega
             case ('NUM_ENSEMBLE')
                 read (buff(equal_pos+1:),*) num_ensemble
             case default
