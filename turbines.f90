@@ -287,6 +287,16 @@ if (coord == 0) then
     end if
 end if
 
+! Calculate Ct_prime and Cp_prime
+do i = 1, nloc
+    call Ct_prime_spline%interp(0._rprec, -wind_farm%turbine(i)%omega * 0.5    &
+        * wind_farm%turbine(i)%dia * z_i / wind_farm%turbine(i)%u_d_T / u_star,&
+         wind_farm%turbine(i)%Ct_prime)
+    call Cp_prime_spline%interp(0._rprec, -wind_farm%turbine(i)%omega * 0.5    &
+        * wind_farm%turbine(i)%dia * z_i / wind_farm%turbine(i)%u_d_T / u_star,&
+         wind_farm%turbine(i)%Cp_prime)
+end do
+
 ! Generate top of domain file
 if (coord .eq. nproc-1) then
     fid = open_file_fid( vel_top_dat, 'rewind', 'formatted' )
@@ -671,10 +681,10 @@ if (coord == 0) then
 
         !write current step's values to file
         if (modulo (jt_total, tbase) == 0) then
-            write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
-                v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
-                wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
-                p_Ct_prime, p_Cp_prime, p_omega
+            write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,  &
+                v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star, &
+                -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                  &
+                wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega
         end if
 
     end do
@@ -719,7 +729,7 @@ end if
 if (coord == 0 .and. use_wake_model) then
     allocate( beta(nloc) )
     beta = 0._rprec
-    call wm%advance(-wind_farm%turbine%u_d_T*u_star,                           &
+    call wm%advance(-wind_farm%turbine(:)%u_d_T*u_star,                        &
         wind_farm%turbine(:)%omega, beta,                                      &
         torque_gain*wind_farm%turbine(:)%omega**2, dt_dim)
 
@@ -1266,13 +1276,13 @@ else
 
     ! Create wake model
     wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,           &
-        0.25*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
-        rho, inertia_all, 2*nx, 2*ny, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
+        0.5*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
+        rho, inertia_all, nx/2, ny/2, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
         torque_gain, sigma_du, sigma_k, sigma_omega, sigma_uhat, tau_U_infty)
 
     ! Calculate U_infty
     wm%wm%Ctp = wind_farm%turbine(:)%Ct_prime
-    call wm%calc_U_infty(-wind_farm%turbine(:)%u_d_T, 1._rprec)
+    call wm%calc_U_infty(-wind_farm%turbine(:)%u_d_T*u_star, 1._rprec)
 
     ! Generate the ensemble
     call wm%generate_initial_ensemble()

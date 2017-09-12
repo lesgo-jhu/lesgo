@@ -274,7 +274,6 @@ if (alpha > 1._rprec .or. alpha < 0._rprec) then
         'Required: 0 <= alpha <=1')
 end if
 
-
 ! Make dimensional and calculate the new Uinfty
 ! Do not change scalings for the ensemble members, because they will not
 ! actually be made non-dimensional with a controller
@@ -286,6 +285,9 @@ do i = 1, N
     end if
 end do
 this%wm%U_infty = alpha * Uinftyi + (1._rprec - alpha) * this%wm%U_infty
+do i = 1, this%Ne
+    this%ensemble(i)%U_infty = this%wm%U_infty
+end do
 this%wm%VELOCITY = this%wm%U_infty
 this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
 this%wm%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
@@ -299,9 +301,9 @@ subroutine generate_initial_ensemble(this)
 use util, only : random_normal
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
-real(rprec), parameter :: cfl = 0.05
+real(rprec), parameter :: cfl = 0.2
 real(rprec) :: dt, FTT
-integer:: i, j, N, Nx, jstart, jend
+integer:: ii, i, j, N, Nx, jstart, jend
 real(rprec), dimension(:), allocatable :: beta
 
 write(*,*) 'Generating initial wake model filter ensemble...'
@@ -311,7 +313,7 @@ call init_random_seed
 
 ! Calculate safe dt
 dt = cfl * this%wm%dx / this%wm%U_infty
-FTT = this%wm%x(this%wm%Nx) / this%wm%U_Infty
+FTT = 0.33_rprec * this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
 ! set integer
 N = this%wm%N
@@ -321,12 +323,51 @@ Nx = this%wm%Nx
 allocate( beta(N) )
 beta = 0._rprec
 
+write(*,*) "Lx = ", this%wm%x(this%wm%Nx)
+write(*,*) "dx = ", this%wm%dx
+write(*,*) "dt = ", dt
+write(*,*) "FTT = ", FTT
+write(*,*) "N = ", N
+write(*,*) "Nx = ", Nx
+write(*,*) "U_infty = ", this%wm%U_infty
+write(*,*) "Nt = ", floor(FTT / dt)
+
+! Do 1 FFT of k's
+do i = 1, this%Ne
+    do ii = 1, floor(FTT / dt)
+        do j = 1, N
+            this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                  &
+                + sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
+        end do
+    end do
+    call this%ensemble(i)%compute_wake_expansion
+end do
+
 ! Do at least 1 FTT of simulations to get good ensemble statistics
-do i = 1, floor(FTT / dt)
-    call this%advance_ensemble(dt)
+do ii = 1, floor(FTT / dt)
+    write(*,*) "Advancing ensemble at time step", ii
+    ! Advance step for objects
+    ! always safeguard against negative k's, du's, and omega's
+    do i = 1, this%Ne
+        do j = 1, N
+      !      this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                      &
+      !          + sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
+            this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)            &
+                + sqrt(dt) * this%sigma_du * random_normal()                   &
+                * this%ensemble(i)%G(j,:) * sqrt(2*pi)                         &
+                * this%ensemble(i)%Delta, 0._rprec)
+!        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)
+!        &
+!            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
+        end do
+        call this%ensemble(i)%advance(dt)
+    end do
+    call this%wm%advance(dt)
+    write(*,*) "uhat = ", this%wm%uhat
 end do
 
 ! Place ensemble into a matrix with each member in a column
+write(*,*) "Placing ensemble into matrix"
 this%Abar = 0._rprec
 this%Ahatbar = 0._rprec
 do i = 1, this%Ne
@@ -346,6 +387,8 @@ do j = 1, this%Ne
     this%Aprime(:,j) = this%A(:,j) - this%Abar
     this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
 end do
+
+write(*,*) "Done generating initial ensemble"
 
 end subroutine generate_initial_ensemble
 
@@ -395,6 +438,9 @@ do i = 1, N
 end do
 this%Dprime = this%D - this%Ahat
 
+write(*,*) "um:", um
+write(*,*) "uhat:", this%wm%uhat
+
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
 ! Since the dimension is small, we don't bother doing the SVD. If the matrix
 ! becomes singular, then this should be considered as in section 4.3.2 of
@@ -402,6 +448,13 @@ this%Dprime = this%D - this%Ahat
 this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +         &
     matmul(this%E, transpose(this%E))), this%Dprime))
+
+! Protect states from being negative
+do i = 1, this%Ne
+    do j = 1, this%Ns
+        this%A(j,i) = max(this%A(j,i), 0._rprec)
+    end do
+end do
 
 ! Compute mean
 this%Abar = 0._rprec
@@ -418,24 +471,26 @@ do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
-        this%ensemble(i)%du(j,:)  = this%A(jstart:jend,i)
+        this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i), 0._rprec)
+        this%ensemble(i)%omega(j) = max(this%A(Nx*N+j,i), 0._rprec)
+        this%ensemble(i)%k(j) = max(this%A((Nx+1)*N+j,i), 0._rprec)
     end do
     this%ensemble(i)%U_infty  = this%wm%U_infty
     this%ensemble(i)%VELOCITY = this%wm%U_infty
     this%ensemble(i)%TIME  = this%wm%LENGTH / this%wm%VELOCITY
     this%ensemble(i)%TORQUE = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**2
     this%ensemble(i)%POWER = this%wm%MASS * this%wm%LENGTH**2 / this%wm%TIME**3
-    this%ensemble(i)%omega(:) = this%A(Nx*N+1:(Nx+1)*N,i)
-    this%ensemble(i)%k(:) = this%A((Nx+1)*N+1:,i)
 end do
 do j = 1, N
     jstart = (j-1)*Nx+1
     jend = j*Nx
-    this%wm%du(j,:) = this%Abar(jstart:jend)
+    this%wm%du(j,:) = max(this%Abar(jstart:jend), 0._rprec)
 end do
-this%wm%omega(:) = this%Abar((Nx*N+1):N*(Nx+1))
-this%wm%k(:) = this%Abar((N*(Nx+1)+1):)
+this%wm%omega(:) = max(this%Abar((Nx*N+1):N*(Nx+1)), 0._rprec)
+this%wm%k(:) = max(this%Abar((N*(Nx+1)+1):), 0._rprec)
 
+! Fix previous timestep outputs based on corrected states
+!call this%advance_ensemble(beta, gen_torque, 0._rprec)
 ! Advance ensemble and mean estimate
 call this%advance_ensemble(beta, gen_torque, dt)
 
@@ -484,10 +539,9 @@ do i = 1, this%Ne
             + sqrt(dt) * this%sigma_du * random_normal()                       &
             * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
             0._rprec)
-        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
-            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
+!        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
+!            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
-    this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
     call this%ensemble(i)%compute_wake_expansion
     call this%ensemble(i)%advance(beta, gen_torque, dt)
 end do
@@ -517,14 +571,11 @@ do i = 1, this%Ne
             + sqrt(dt) * this%sigma_du * random_normal()                       &
             * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
             0._rprec)
-        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
-            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
+!        this%ensemble(i)%omega(j) = max(this%ensemble(i)%omega(j)              &
+!            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
-    this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
-    call this%ensemble(i)%compute_wake_expansion
     call this%ensemble(i)%advance(dt)
 end do
-call this%wm%compute_wake_expansion
 call this%wm%advance(dt)
 
 end subroutine advance_ensemble_noval

@@ -383,8 +383,8 @@ end if
 ! Compute new wake deficit and superimpose wakes
 this%u = 0._rprec
 do i = 1, this%N
-    this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),                 &
-        this%f(i,:) * this%Ctp(i) / (4._rprec + this%Ctp(i)), i)
+    this%du(i,:) = max(this%du(i,:) +  dt * this%rhs(this%du(i,:),             &
+        this%f(i,:) * this%Ctp(i) / (4._rprec + this%Ctp(i)), i), 0._rprec)
     do ii = 1, this%Nx
         this%u(ii,this%Istart(i,ii):this%Iend(i,ii)) =                         &
             this%u(ii,this%Istart(i,ii):this%Iend(i,ii)) + this%du(i,ii)**2
@@ -394,12 +394,12 @@ this%u = sqrt(this%u)
 
 ! Calculate new rotational speed
 do i = 1, this%N
-    this%omega(i) = this%omega(i) + dt * (this%Paero(i) / this%omega(i)       &
-        - this%gen_torque(i)) / this%inertia
+    this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)    &
+        - this%gen_torque(i)) / this%inertia, 0._rprec)
 end do
 
 ! Find the velocity field
-this%u = this%U_infty - this%u
+this%u = max(this%U_infty - this%u, 0._rprec)
 
 ! Find estimated velocities, coefficients, and power
 this%uhat = 0._rprec
