@@ -101,7 +101,7 @@ this%w = this%iw
 ! Adjoint wake model
 this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,       &
     this%w%Delta, this%w%k, this%w%Dia, this%w%rho, this%w%inertia, this%w%Nx, &
-    this%w%Ny, this%w%Ctp_spline, this%w%Cpp_spline)
+    this%w%Ny, this%w%Ctp_spline, this%w%Cpp_spline, this%w%torque_gain)
 this%wstar = this%iwstar
 
 ! Create time for the time horizon

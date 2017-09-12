@@ -1,19 +1,89 @@
+module get_wm_m
+implicit none
+
+contains
+
+!*******************************************************************************
+subroutine read_Pref(time, Pref)
+!*******************************************************************************
+use turbines, only : count_lines
+use param, only : path
+use types, only : rprec
+implicit none
+integer :: N, fid, i
+real(rprec), dimension(:), allocatable, intent(out) :: time, Pref
+character(*), parameter :: Pref_dat = path // 'input_turbines/Pref.dat'
+
+! Create power reference
+! Count number of entries and allocate
+N = count_lines(Pref_dat)
+allocate( time(N) )
+allocate( Pref(N) )
+
+! Read values from file
+open(newunit=fid, file=Pref_dat, position='rewind', form='formatted')
+do i = 1, N
+    read(fid,*) time(i), Pref(i)
+end do
+close(fid)
+
+end subroutine read_Pref
+
+!*******************************************************************************
+function get_wm(U_infty) result(wm)
+!*******************************************************************************
+use turbines, only : turbines_init, num_x, num_y, inertia_all, dia_all
+use turbines, only : generate_splines, wm_Ct_prime_spline, wm_Cp_prime_spline
+use turbines, only : torque_gain
+use stat_defs, only : wind_farm
+use param, only : z_i, nx, ny
+use types, only : rprec
+use input_util
+use grid_m
+use cubic_spline
+use wake_model
+implicit none
+
+real(rprec), intent(in) :: U_infty
+type(wake_model_t) :: wm
+real(rprec) :: rho
+real(rprec), dimension(:), allocatable :: k
+
+! Call read lesgo's input file
+call read_input_conf
+
+! Initialize uv grid (calculate x,y,z vectors)
+call grid%build()
+
+! Initialize the turbines function
+call turbines_init
+
+rho = 1.225
+
+allocate(k(num_x*num_y))
+k = 0.05_rprec
+
+wm = wake_model_t(wind_farm%turbine(:)%xloc*z_i, wind_farm%turbine(:)%yloc*z_i,&
+    U_infty, 0.5*dia_all*z_i, k, dia_all*z_i, rho, inertia_all, nx, ny,        &
+    wm_Ct_prime_spline, wm_Cp_prime_spline, torque_gain)
+
+end function get_wm
+
+end module get_wm_m
+
 !*******************************************************************************
 program mpc
 !*******************************************************************************
 use types, only : rprec
 use wake_model
 use minimize
-use turbines, only : generate_splines, wm_Ct_prime_spline, wm_Cp_prime_spline
+use turbines, only : torque_gain
 use open_file_fid_mod
 use functions, only : linear_interp
-use cubic_spline
 use turbines_mpc
+use get_wm_m
 
 use lbfgsb
-use conjugate_gradient
-! use minimize
-! use util, only : rosenbrock
 implicit none
 
 ! common variables
@@ -21,11 +91,11 @@ integer :: i, j, ii
 real(rprec) :: cfl, dt
 
 ! wake model variables
-type(wake_model_t) :: wm, wmi
-real(rprec), dimension(:), allocatable :: sx, sy, k, beta, gen_torque
-real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
-integer :: N, Nx, Ny, Nt, Nskip
+real(rprec), dimension(:), allocatable :: beta, gen_torque
+real(rprec) :: U_infty
+integer :: Nt, Nskip
 
+type(wake_model_t) :: wm
 type(turbines_mpc_t) :: controller
 ! type(conjugate_gradient_t) :: m
 type(lbfgsb_t) :: m
@@ -35,37 +105,17 @@ real(rprec), dimension(:), allocatable :: time
 real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
 real(rprec) :: tt, T
 real(rprec) :: Ca, Cb
-integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
-integer, parameter :: Ctp_fid=5, Cpp_fid=60, Pref_fid=7, Pfarm_fid=8
-integer, parameter :: alpha_fid=9, u_fid=61
-real(rprec) :: dummy1, dummy2, dummy3
+integer :: omega_fid, beta_fid, gen_torque_fid, uhat_fid, Ctp_fid, Cpp_fid
+integer :: Pref_fid, Pfarm_fid, alpha_fid, u_fid
 
-! initialize wake model
-cfl = 0.1_rprec
-Dia = 126._rprec
-Delta = 0.25_rprec * Dia
-rho = 1.225_rprec
-inertia = 4.0469e+07_rprec
-torque_gain = 2.1648e6
+! Create the wake model
 U_infty = 9._rprec
-N = 4
-Nx = 64
-Ny = 32
-Nt = 8*Nx
-allocate(sx(N))
-allocate(sy(N))
-allocate(k(N))
-allocate(beta(N))
-allocate(gen_torque(N))
-k = 0.05_rprec
+wm =  get_wm(U_infty)
+allocate(beta(wm%N))
+allocate(gen_torque(wm%N))
 beta = 0._rprec
-do i = 1, N
-    sx(i) = 7._rprec * Dia * i
-    sy(i) = 2.5_rprec * Dia
-end do
-call generate_splines
-wm = wake_model_t(sx, sy, U_infty, Delta, k, Dia, rho, inertia, Nx, Ny,        &
-    wm_Ct_prime_spline, wm_Cp_prime_spline)
+cfl = 0.1_rprec
+Nt = floor(wm%Nx/cfl)
 
 ! integrate the wake model forward in time to get reference power
 dt = cfl * wm%dx / wm%U_infty
@@ -74,55 +124,28 @@ do i = 1, Nt
     call wm%advance(beta, gen_torque, dt)
 end do
 
-! Create power reference
-allocate(time(7))
-allocate(Pref(7))
-time(1) = 0._rprec
-time(2) = 60._rprec
-time(3) = 120._rprec
-time(4) = 360._rprec
-time(5) = 420._rprec
-time(6) = 600._rprec
-time(7) = 660._rprec
-Pref(1) = sum(wm%Phat)
-Pref(2) = sum(wm%Phat)
-Pref(3) = 0.9*sum(wm%Phat)
-Pref(4) = 0.9*sum(wm%Phat)
-Pref(5) = 1.2*sum(wm%Phat)
-Pref(6) = 1.2*sum(wm%Phat)
-Pref(7) = 0.9*sum(wm%Phat)
-
-write(*,*) time
-write(*,*) Pref
-! write(*,*) sum(wm%Phat)
-! write(*,*) wm%lambda_prime
+! Read the reference signal
+call read_Pref(time, Pref)
+Pref = Pref * sum(wm%Phat)
 
 ! Create controller
 tt = 0._rprec
 T = 2._rprec*wm%x(wm%Nx)/wm%U_infty
 controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref)
-controller%beta(:,2:) = 0._rprec
-controller%alpha(:,2:) = 0._rprec
+controller%beta = 0._rprec
+controller%alpha = 0._rprec
 call controller%makeDimensionless
 call controller%rescale_gradient
 Ca = controller%Ca
 Cb = controller%Cb
-! write(*,*) Ca, Cb
 
 ! Do the initial optimization
-! m = conjugate_gradient_t(controller, 500)
-m = lbfgsb_t(controller, 10)
+m = lbfgsb_t(controller, 5)
 call m%minimize( controller%get_control_vector() )
-! call controller%finite_difference_gradient()
 call controller%run()
-! write(*,*) "beta"
-! write(*,*) controller%grad_beta
-! write(*,*) "alpha"
-! write(*,*) controller%grad_alpha
-! write(*,*) "fdbeta"
-! write(*,*) controller%fdgrad_beta
-! write(*,*) "fdalpha"
-! write(*,*) controller%fdgrad_alpha
+call controller%rescale_gradient
+Ca = controller%Ca
+Cb = controller%Cb
 
 ! Allocate control vectors
 allocate(beta_c(controller%N, controller%Nt))
@@ -131,16 +154,16 @@ allocate(gen_torque_c(controller%N, controller%Nt))
 
 ! open files
 call system ( "mkdir -p output-mpc" )
-open(omega_fid,file='output-mpc/omega.dat')
-open(beta_fid,file='output-mpc/beta.dat')
-open(gen_torque_fid,file='output-mpc/gen_torque.dat')
-open(uhat_fid,file='output-mpc/uhat.dat')
-open(Ctp_fid,file='output-mpc/Ctp.dat')
-open(Cpp_fid,file='output-mpc/Cpp.dat')
-open(Pref_fid,file='output-mpc/Pref.dat')
-open(Pfarm_fid,file='output-mpc/Pfarm.dat')
-open(alpha_fid,file='output-mpc/alpha.dat')
-open(u_fid,file='output-mpc/u.dat')
+open(newunit=omega_fid,file='output-mpc/omega.dat')
+open(newunit=beta_fid,file='output-mpc/beta.dat')
+open(newunit=gen_torque_fid,file='output-mpc/gen_torque.dat')
+open(newunit=uhat_fid,file='output-mpc/uhat.dat')
+open(newunit=Ctp_fid,file='output-mpc/Ctp.dat')
+open(newunit=Cpp_fid,file='output-mpc/Cpp.dat')
+open(newunit=Pref_fid,file='output-mpc/Pref.dat')
+open(newunit=Pfarm_fid,file='output-mpc/Pfarm.dat')
+open(newunit=alpha_fid,file='output-mpc/alpha.dat')
+open(newunit=u_fid,file='output-mpc/u.dat')
 
 write(omega_fid,*) wm%omega
 write(beta_fid,*) wm%beta
@@ -153,8 +176,11 @@ write(Pfarm_fid,*) sum(wm%Phat)
 write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
 write(u_fid,*) wm%u
 
-Nskip = 1
-do j = 1,150
+Nskip = 5
+call controller%MakeDimensional
+write(*,*) "dt = ", controller%dt
+
+do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
@@ -185,11 +211,13 @@ do j = 1,150
     controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
     controller%alpha(:,:controller%Nt-Nskip) = alpha_c(:,Nskip+1:)
     do ii = controller%Nt-Nskip, controller%Nt
-        controller%beta(:,ii) = beta_c(:,controller%Nt)
+        controller%beta(:,ii) = 0._rprec
         controller%alpha(:,ii) = 0._rprec
     end do
     call controller%makeDimensionless
-    call controller%rescale_gradient(Ca, Cb)
+    call controller%rescale_gradient
+    controller%Ca = Ca
+    controller%Cb = Cb
 
     ! minimize
 !     m = conjugate_gradient_t(controller, 500)
