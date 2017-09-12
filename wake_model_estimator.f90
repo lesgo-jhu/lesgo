@@ -321,15 +321,6 @@ Nx = this%wm%Nx
 allocate( beta(N) )
 beta = 0._rprec
 
-write(*,*) "Lx = ", this%wm%x(this%wm%Nx)
-write(*,*) "dx = ", this%wm%dx
-write(*,*) "dt = ", dt
-write(*,*) "FTT = ", FTT
-write(*,*) "N = ", N
-write(*,*) "Nx = ", Nx
-write(*,*) "U_infty = ", this%wm%U_infty
-write(*,*) "Nt = ", floor(FTT / dt)
-
 ! Do 1 FFT of k's
 do i = 1, this%Ne
     do ii = 1, floor(FTT / dt)
@@ -358,11 +349,9 @@ do ii = 1, floor(FTT / dt)
         call this%ensemble(i)%advance(dt)
     end do
     call this%wm%advance(dt)
-    write(*,*) "uhat = ", this%wm%uhat
 end do
 
 ! Place ensemble into a matrix with each member in a column
-write(*,*) "Placing ensemble into matrix"
 this%Abar = 0._rprec
 this%Ahatbar = 0._rprec
 do i = 1, this%Ne
@@ -424,9 +413,6 @@ do i = 1, N
     end do
 end do
 this%Dprime = this%D - this%Ahat
-
-write(*,*) "um:", um
-write(*,*) "uhat:", this%wm%uhat
 
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
 ! Since the dimension is small, we don't bother doing the SVD. If the matrix
