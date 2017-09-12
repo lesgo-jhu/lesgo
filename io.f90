@@ -694,7 +694,7 @@ use param, only : zplane_nloc, zplane_loc
 use param, only : dx,dy,dz
 use param, only : write_endian
 use grid_m
-use sim_param, only : u, v, w
+use sim_param, only : u, v, w, p
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
 
@@ -710,11 +710,11 @@ use sim_param, only : fx, fy, fz, fxa, fya, fza
 
 implicit none
 
-integer, intent(IN) :: itype
+integer, intent(in) :: itype
 character (64) :: fname
 integer :: n, i, j, k
 real(rprec), allocatable, dimension(:,:,:) :: ui, vi, wi,w_uv
-real(rprec), pointer, dimension(:) :: x,y,z,zw
+real(rprec), pointer, dimension(:) :: x, y, z, zw
 #ifndef PPCGNS
 character(64) :: bin_ext
 
@@ -724,6 +724,9 @@ real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 
 ! Vorticity
 real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
+
+! Pressure
+real(rprec), dimension(:,:,:), allocatable :: press_real
 
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
@@ -776,7 +779,7 @@ elseif(itype==2) then
 #if defined(PPCGNS) && defined(PPMPI)
     ! Write CGNS Output
     call string_concat(fname, '.cgns')
-    call write_parallel_cgns(fname,nx,ny, nz - nz_end, nz_tot,                 &
+    call write_parallel_cgns(fname, nx, ny, nz - nz_end, nz_tot,               &
         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
         (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
         x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
@@ -837,6 +840,40 @@ elseif(itype==2) then
 #endif
 
      deallocate(vortx, vorty, vortz)
+
+    ! Compute pressure
+    allocate(press_real(nx,ny,lbz:nz))
+    press_real(1:nx,1:ny,lbz:nz) = 0._rprec
+
+    ! Use vorticityx as an intermediate step for performing uv-w interpolation
+    ! Vorticity is written in w grid
+    press_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                         &
+        - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2                                       &
+        + interp_to_uv_grid( w(1:nx,1:ny,lbz:nz), lbz)**2                      &
+        + v(1:nx,1:ny,lbz:nz)**2 )
+
+    ! Common file name for all output types
+    call string_splice(fname, path //'output/pres.', jt_total)
+
+#if defined(PPCGNS) && defined(PPMPI)
+    ! Write CGNS Output
+    call string_concat(fname, '.cgns')
+    call write_parallel_cgns(fname, nx, ny, nz - nz_end, nz_tot,               &
+        (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
+        (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
+        x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
+        1, (/ 'Pressure' /), (/ press_real(1:nx,1:ny,1:(nz-nz_end)) /) )
+
+#else
+    ! Write binary Output
+    call string_concat(fname, bin_ext)
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+        access='direct', recl=nx*ny*nz*rprec)
+    write(13,rec=1) press_real(:nx,:ny,1:nz)
+    close(13)
+#endif
+
+     deallocate(press_real)
 
 
 !  Write instantaneous x-plane values
