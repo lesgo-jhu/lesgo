@@ -46,7 +46,7 @@ allocate(k(N))
 allocate(beta(N))
 allocate(gen_torque(N))
 k = 0.05_rprec
-beta = 0._rprec
+beta = -2._rprec
 do i = 1, Numx
     do j = 1, Numy
         sx((i-1)*2+j) = 7._rprec * Dia * i
@@ -71,6 +71,14 @@ open(y_fid,file='output-startup/y.dat')
 
 ! integrate the wake model forward
 dt = cfl * wm%dx / wm%U_infty
+do i = 1, Nt
+    gen_torque = torque_gain * wm%omega**2
+    call wm%advance(beta, gen_torque, dt)
+end do
+
+! integrate the wake model forward
+dt = cfl * wm%dx / wm%U_infty
+beta = 0._rprec
 do i = 1, Nt
     gen_torque = torque_gain * wm%omega**2
     call wm%advance(beta, gen_torque, dt)

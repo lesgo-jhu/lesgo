@@ -40,7 +40,7 @@ save
 private
 
 public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize,&
-          generate_splines
+          generate_splines, count_lines
 
 character (*), parameter :: mod_name = 'turbines'
 
