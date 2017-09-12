@@ -54,7 +54,6 @@ contains
 subroutine openfiles()
 !*******************************************************************************
 use param, only : use_cfl_dt, dt, cfl_f
-use open_file_fid_mod
 implicit none
 logical :: exst
 
@@ -1220,7 +1219,6 @@ use stat_defs, only : tavg, tavg_zplane
 use stat_defs, only : tavg_sgs
 #endif
 use stat_defs, only : type_set
-use open_file_fid_mod
 implicit none
 
 integer :: i,j,k

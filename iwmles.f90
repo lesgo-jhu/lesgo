@@ -692,7 +692,6 @@ subroutine iwm_monitor
 ! subroutine if you are not interested in how the model works
 !
 use param, only : nx,ny,jt_total
-use open_file_fid_mod
 implicit none
 
 integer :: iwm_i,iwm_j,dmpPrd,fid
@@ -702,7 +701,8 @@ dmpPrd = iwm_ntime_skip
 iwm_i = int(nx/2._rprec)
 iwm_j = int(ny/2._rprec)
 write(fname,'(A,i5.5,A)') 'iwm_track.dat'
-fid = open_file_fid(fname, 'append', 'formatted' )
+open(newunit=fid, file=fname, status='unknown', form='formatted',              &
+    position='append')
 if( mod(jt_total,dmpPrd)==0)then
 write(fid,*) iwm_flt_tagvel(iwm_i,iwm_j,:), iwm_utx(iwm_i,iwm_j),              &
     iwm_uty(iwm_i,iwm_j),  iwm_Ax(iwm_i,iwm_j),                                &
@@ -720,12 +720,12 @@ subroutine iwm_checkPoint()
 ! This subroutine checkpoints the integral wall model. It is called after making
 ! sure lbc_mom=3
 !
-use open_file_fid_mod
 implicit none
 
 integer :: fid
 
-fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
+open(newunit=fid, file='iwm_checkPoint.dat', status='unknown',                 &
+    form='unformatted', position='rewind')
 write(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:),         &
     iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN),              &
     iwm_flt_p(:,:), iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),          &
@@ -744,13 +744,13 @@ subroutine iwm_read_checkPoint()
 ! This subroutine reads the check point data for the integral wall model. It is
 ! called after making sure lbc_mom=3
 !
-use open_file_fid_mod
 implicit none
 
 integer :: fid
 
-fid = open_file_fid('iwm_checkPoint.dat', 'rewind', 'unformatted' )
-read(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:),         &
+open(newunit=fid, file='iwm_checkPoint.dat', status='unknown',                 &
+    form='unformatted', position='rewind')
+read(fid) iwm_utx(:,:), iwm_uty(:,:), iwm_tauwx(:,:), iwm_tauwy(:,:),          &
     iwm_flt_tagvel(:,:,1:iwm_DN), iwm_flt_tagvel_m(:,:,1:iwm_DN),              &
     iwm_flt_p(:,:), iwm_inte(:,:,1:iwm_LN), iWM_inte_m(:,:,1:iwm_LN),          &
     iwm_unsdy(:,:,1:iwm_DN), iwm_conv(:,:,1:iwm_DN), iwm_PrsGrad(:,:,1:iwm_DN),&
