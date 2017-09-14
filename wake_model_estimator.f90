@@ -25,7 +25,7 @@ use util,  only : logistic, softplus, gaussian
 use wake_model
 use messages
 use bi_pchip
-use param, only : pi
+use param, only : pi, coord, nproc, MPI_RPREC, status, comm, coord, ierr
 implicit none
 
 private
@@ -34,10 +34,11 @@ public wake_model_estimator_t
 type :: wake_model_estimator_t
     type(wake_model_t), dimension(:), allocatable :: ensemble
     type(wake_model_t) :: wm
-    integer :: Ne, Nm, Ns
+    integer :: Ne, Ne_tot, Nm, Ns
     real(rprec), dimension(:,:), allocatable :: A, Aprime, Ahat, Ahatprime
     real(rprec), dimension(:,:), allocatable :: E, D, Dprime
     real(rprec), dimension(:), allocatable :: Abar, Ahatbar
+    real(rprec), dimension(:,:), allocatable :: MM_array, SM_array, ME_array, SE_array
     real(rprec) :: sigma_du, sigma_k, sigma_uhat
     real(rprec) :: tau
 contains
@@ -127,7 +128,11 @@ this%wm = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia, i_rho,      &
     i_inertia, i_Nx, i_Ny, i_Ctp_spline, i_Cpp_spline, i_torque_gain)
 
 ! Create ensemble
-this%Ne = i_Ne
+this%Ne = ceiling( 1._rprec * i_Ne / nproc)
+this%Ne_tot = this%Ne * nproc
+
+if (coord == 0) write(*,*) "Resizing ensemble to have ", this%Ne_tot, "members"
+
 allocate( this%ensemble(this%Ne) )
 do i = 1, this%Ne
     this%ensemble(i) = wake_model_t(i_sx, i_sy, i_U_infty, i_Delta, i_k, i_Dia,&
@@ -139,13 +144,17 @@ this%Nm = this%wm%N                             ! Number of measurements
 this%Ns = (this%wm%Nx + 1) * this%wm%N          ! Number of states
 allocate( this%Abar(this%Ns) )
 allocate( this%Ahatbar(this%Nm) )
-allocate( this%A(this%Ns, this%Ne) )
-allocate( this%Aprime(this%Ns, this%Ne) )
-allocate( this%Ahat(this%Nm, this%Ne) )
-allocate( this%Ahatprime(this%Nm, this%Ne) )
-allocate( this%E(this%Nm, this%Ne) )
-allocate( this%D(this%Nm, this%Ne) )
-allocate( this%Dprime(this%Nm, this%Ne) )
+allocate( this%A(this%Ns, this%Ne_tot) )
+allocate( this%Aprime(this%Ns, this%Ne_tot) )
+allocate( this%Ahat(this%Nm, this%Ne_tot) )
+allocate( this%Ahatprime(this%Nm, this%Ne_tot) )
+allocate( this%E(this%Nm, this%Ne_tot) )
+allocate( this%D(this%Nm, this%Ne_tot) )
+allocate( this%Dprime(this%Nm, this%Ne_tot) )
+allocate( this%MM_array(this%Nm, this%Nm) )
+allocate( this%SM_array(this%Ns, this%Nm) )
+allocate( this%ME_array(this%Nm, this%Ne_tot) )
+allocate( this%SE_array(this%Ns, this%Ne_tot) )
 
 end subroutine initialize_val
 
@@ -174,18 +183,22 @@ this%tau = i_tau
 
 ! Read current estimator matrices
 fid = open_file_fid(fpath // '/wm_est.dat', 'rewind', 'unformatted')
-read(fid) this%Ne, this%Nm, this%Ns
+read(fid) this%Ne, this%Ne_tot, this%Nm, this%Ns
 
 ! allocate matrices
 allocate( this%Abar(this%Ns) )
 allocate( this%Ahatbar(this%Nm) )
-allocate( this%A(this%Ns, this%Ne) )
-allocate( this%Aprime(this%Ns, this%Ne) )
-allocate( this%Ahat(this%Nm, this%Ne) )
-allocate( this%Ahatprime(this%Nm, this%Ne) )
-allocate( this%E(this%Nm, this%Ne) )
-allocate( this%D(this%Nm, this%Ne) )
-allocate( this%Dprime(this%Nm, this%Ne) )
+allocate( this%A(this%Ns, this%Ne_tot) )
+allocate( this%Aprime(this%Ns, this%Ne_tot) )
+allocate( this%Ahat(this%Nm, this%Ne_tot) )
+allocate( this%Ahatprime(this%Nm, this%Ne_tot) )
+allocate( this%E(this%Nm, this%Ne_tot) )
+allocate( this%D(this%Nm, this%Ne_tot) )
+allocate( this%Dprime(this%Nm, this%Ne_tot) )
+allocate( this%MM_array(this%Nm, this%Nm) )
+allocate( this%SM_array(this%Ns, this%Nm) )
+allocate( this%ME_array(this%Nm, this%Ne_tot) )
+allocate( this%SE_array(this%Ns, this%Ne_tot) )
 
 ! read matrices
 read(fid) this%A
@@ -199,13 +212,13 @@ read(fid) this%Abar
 read(fid) this%Ahatbar
 close(fid)
 
-! write the current estimate
+! read the current estimate
 this%wm = wake_model_t(fpath // '/wm.dat', i_Ctp_spline, i_Cpp_spline)
 
-! write the ensemble
+! read the ensemble
 allocate( this%ensemble(this%Ne) )
 do i = 1, this%Ne
-    call string_splice(fstring, fpath // '/ensemble_', i, '.dat')
+    call string_splice(fstring, fpath // '/ensemble_', i + nproc*coord, '.dat')
     this%ensemble(i) = wake_model_t(fstring, i_Ctp_spline, i_Cpp_spline)
 end do
 
@@ -223,29 +236,31 @@ character(*), intent(in) :: fpath
 character(CHAR_BUFF_LENGTH) :: fstring
 integer :: i, fid
 
-! Create the folder if necessary
-call system('mkdir -vp ' // fpath)
+if (coord == 0) then
+    ! Create the folder if necessary
+    call system('mkdir -vp ' // fpath)
 
-! write the current estimator matrices
-fid = open_file_fid(fpath // '/wm_est.dat', 'rewind', 'unformatted')
-write(fid) this%Ne, this%Nm, this%Ns
-write(fid) this%A
-write(fid) this%Aprime
-write(fid) this%Ahat
-write(fid) this%Ahatprime
-write(fid) this%E
-write(fid) this%D
-write(fid) this%Dprime
-write(fid) this%Abar
-write(fid) this%Ahatbar
-close(fid)
+    ! write the current estimator matrices
+    fid = open_file_fid(fpath // '/wm_est.dat', 'rewind', 'unformatted')
+    write(fid) this%Ne, this%Ne_tot, this%Nm, this%Ns
+    write(fid) this%A
+    write(fid) this%Aprime
+    write(fid) this%Ahat
+    write(fid) this%Ahatprime
+    write(fid) this%E
+    write(fid) this%D
+    write(fid) this%Dprime
+    write(fid) this%Abar
+    write(fid) this%Ahatbar
+    close(fid)
 
-! write the current estimate
-call this%wm%write_to_file(fpath // '/wm.dat')
+    ! write the current estimate
+    call this%wm%write_to_file(fpath // '/wm.dat')
+end if
 
 ! write the ensemble
 do i = 1, this%Ne
-    call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+    call string_splice( fstring, fpath // '/ensemble_', i+coord*nproc, '.dat' )
     call this%ensemble(i)%write_to_file(fstring)
 end do
 
@@ -297,6 +312,7 @@ end subroutine calc_U_infty
 subroutine generate_initial_ensemble(this)
 !*******************************************************************************
 use util, only : random_normal
+use mpi
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), parameter :: cfl = 0.2
@@ -304,7 +320,7 @@ real(rprec) :: dt, FTT
 integer:: ii, i, j, N, Nx, jstart, jend
 real(rprec), dimension(:), allocatable :: beta
 
-write(*,*) 'Generating initial wake model filter ensemble...'
+if (coord == 0) write(*,*) 'Generating initial wake model filter ensemble...'
 
 ! Initialize random number generator
 call init_random_seed
@@ -316,6 +332,7 @@ FTT = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 ! set integer
 N = this%wm%N
 Nx = this%wm%Nx
+write(*,*) N, Nx
 
 ! create dummy beta array
 allocate( beta(N) )
@@ -352,25 +369,41 @@ do ii = 1, floor(FTT / dt)
 end do
 
 ! Place ensemble into a matrix with each member in a column
+this%A = 0._rprec
+this%Ahat = 0._rprec
 this%Abar = 0._rprec
 this%Ahatbar = 0._rprec
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
-        this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+        this%A(jstart:jend,i+coord*this%Ne) = this%ensemble(i)%du(j,:)
     end do
-    this%A((N*Nx+1):,i) = this%ensemble(i)%k(:)
-    this%Ahat(:,i) = this%ensemble(i)%uhat
-    this%Abar = this%Abar + this%A(:,i) / this%Ne
-    this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
-end do
-do j = 1, this%Ne
-    this%Aprime(:,j) = this%A(:,j) - this%Abar
-    this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+    this%A((N*Nx+1):,i+coord*this%Ne) = this%ensemble(i)%k(:)
+    this%Ahat(:,i+coord*this%Ne) = this%ensemble(i)%uhat
 end do
 
-write(*,*) "Done generating initial ensemble"
+#ifdef PPMPI
+call mpi_allreduce(this%A, this%SE_array, this%Ns*this%Ne_tot, MPI_RPREC,      &
+    MPI_SUM, comm, ierr)
+call mpi_allreduce(this%Ahat, this%ME_array, this%Nm*this%Ne_tot, MPI_RPREC,   &
+    MPI_SUM, comm, ierr)
+this%A = this%SE_array
+this%Ahat = this%ME_array
+#endif
+
+write(*,*) shape(this%A)
+do i = 1, this%Ne_tot
+    this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
+    this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne_tot
+end do
+
+do i = 1, this%Ne_tot
+    this%Aprime(:,i) = this%A(:,i) - this%Abar
+    this%Ahatprime(:,i) = this%Ahat(:,i) - this%Ahatbar
+end do
+
+if (coord == 0) write(*,*) "Done generating initial ensemble"
 
 end subroutine generate_initial_ensemble
 
@@ -378,6 +411,10 @@ end subroutine generate_initial_ensemble
 subroutine advance(this, um, omegam, beta, gen_torque, dt)
 !*******************************************************************************
 use util, only : random_normal, inverse
+#ifdef PPIFORT
+use BLAS95
+#endif
+use mpi
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
@@ -406,9 +443,22 @@ end if
 
 ! Calculate noisy measurements
 this%E = 0._rprec
+if (coord == 0) then
+    do i = 1, this%Nm
+        do j = 1, this%Ne_tot
+            this%E(i, j) = this%sigma_uhat * random_normal()
+        end do
+    end do
+end if
+
+#ifdef PPMPI
+call mpi_allreduce(this%E, this%ME_array, this%Nm*this%Ne_tot,  MPI_RPREC,     &
+    MPI_SUM, comm, ierr)
+this%E = this%ME_array
+#endif
+
 do i = 1, N
-    do j = 1, this%Ne
-        this%E(i, j) = this%sigma_uhat * random_normal()
+    do j = 1, this%Ne_tot
         this%D(i, j) = um(i) + this%E(i, j)
     end do
 end do
@@ -417,13 +467,22 @@ this%Dprime = this%D - this%Ahat
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
 ! Since the dimension is small, we don't bother doing the SVD. If the matrix
 ! becomes singular, then this should be considered as in section 4.3.2 of
-! Everson(2003)
+! Everson(2003)i
+#ifdef PPIFORT
+call gemm(this%E, this%E, this%MM_array, 'n', 't', 1._rprec, 0._rprec)
+call gemm(this%Ahatprime, this%Ahatprime, this%MM_array, 'n', 't', 1._rprec, 1._rprec)
+this%MM_array = inverse(this%MM_array)
+call gemm(this%MM_array, this%Dprime, this%ME_array, 'n', 'n', 1._rprec, 0._rprec)
+call gemm(this%Aprime, this%Ahatprime, this%SM_array, 'n', 't', 1._rprec, 0._rprec)
+call gemm(this%SM_array, this%ME_array, this%A, 'n', 'n', 1._rprec, 1._rprec)
+#else
 this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),      &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +         &
     matmul(this%E, transpose(this%E))), this%Dprime))
+#endif
 
 ! Protect states from being negative
-do i = 1, this%Ne
+do i = 1, this%Ne_tot
     do j = 1, this%Ns
         this%A(j,i) = max(this%A(j,i), 0._rprec)
     end do
@@ -431,8 +490,8 @@ end do
 
 ! Compute mean
 this%Abar = 0._rprec
-do i = 1, this%Ne
-    this%Abar = this%Abar + this%A(:,i) / this%Ne;
+do i = 1, this%Ne_tot
+    this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
 end do
 
 ! Filter the freestream velocity based on unwaked turbines
@@ -450,8 +509,8 @@ do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
-        this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i), 0._rprec)
-        this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i), 0._rprec)
+        this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i+coord*nproc), 0._rprec)
+        this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i+coord*nproc), 0._rprec)
     end do
     this%ensemble(i)%U_infty  = this%wm%U_infty
     this%ensemble(i)%VELOCITY = this%wm%U_infty
@@ -472,22 +531,37 @@ this%wm%k(:) = max(this%Abar((N*Nx+1):), 0._rprec)
 call this%advance_ensemble(beta, gen_torque, dt)
 
 ! Place ensemble into a matrix with each member in a column
-this%Abar = 0
-this%Ahatbar = 0
+this%A = 0._rprec
+this%Ahat = 0._rprec
+this%Abar = 0._rprec
+this%Ahatbar = 0._rprec
 do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
-        this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+        this%A(jstart:jend,i+coord*this%Ne) = this%ensemble(i)%du(j,:)
     end do
-    this%A((N*Nx+1):,i) = this%ensemble(i)%k(:)
-    this%Ahat(:,i) = this%ensemble(i)%uhat
-    this%Abar = this%Abar + this%A(:,i) / this%Ne
-    this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne
+    this%A((N*Nx+1):,i+coord*this%Ne) = this%ensemble(i)%k(:)
+    this%Ahat(:,i+coord*this%Ne) = this%ensemble(i)%uhat
 end do
-do j = 1, this%Ne
-    this%Aprime(:,j) = this%A(:,j) - this%Abar
-    this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+
+#ifdef PPMPI
+call mpi_allreduce(this%A, this%SE_array, this%Ns*this%Ne_tot, MPI_RPREC,      &
+    MPI_SUM, comm, ierr)
+call mpi_allreduce(this%Ahat, this%ME_array, this%Nm*this%Ne_tot, MPI_RPREC,   &
+    MPI_SUM, comm, ierr)
+this%A = this%SE_array
+this%Ahat = this%ME_array
+#endif
+
+do i = 1, this%Ne_tot
+    this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
+    this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne_tot
+end do
+
+do i = 1, this%Ne_tot
+    this%Aprime(:,i) = this%A(:,i) - this%Abar
+    this%Ahatprime(:,i) = this%Ahat(:,i) - this%Ahatbar
 end do
 
 end subroutine advance

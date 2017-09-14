@@ -261,28 +261,28 @@ end do
 call turbines_nodes
 
 ! Read the time-averaged disk velocities from file if available
-if (coord == 0) then
-    inquire (file=u_d_T_dat, exist=exst)
-    if (exst) then
-        write(*,*) 'Reading from file ', trim(u_d_T_dat)
-        fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
-        do i=1,nloc
-            read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega
-        end do
-        read(fid,*) T_avg_dim_file
-        if (T_avg_dim_file /= T_avg_dim) then
+inquire (file=u_d_T_dat, exist=exst)
+if (exst) then
+    if (coord == 0) write(*,*) 'Reading from file ', trim(u_d_T_dat)
+    fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
+    do i=1,nloc
+        read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega
+    end do
+    read(fid,*) T_avg_dim_file
+    if (T_avg_dim_file /= T_avg_dim) then
+        if (coord == 0) then
             write(*,*) 'Time-averaging window does not match value in ',   &
-                       trim(u_d_T_dat)
+                   trim(u_d_T_dat)
         end if
-        close (fid)
-    else
-        write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-        write (*, *) 'Assuming u_d_T = -8, omega = 1 for all turbines'
-        do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -8._rprec
-            wind_farm%turbine(k)%omega = 1._rprec
-        end do
     end if
+    close (fid)
+else
+    if (coord == 0) write (*, *) 'File ', trim(u_d_T_dat), ' not found'
+    if (coord == 0) write (*, *) 'Assuming u_d_T = -8, omega = 1 for all turbines'
+    do k=1,nloc
+        wind_farm%turbine(k)%u_d_T = -8._rprec
+        wind_farm%turbine(k)%omega = 1._rprec
+    end do
 end if
 
 ! Calculate Ct_prime and Cp_prime
@@ -309,7 +309,7 @@ if(coord==0) then
     end do
 end if
 
-if (coord==0 .and. use_wake_model) call wake_model_init
+if (use_wake_model) call wake_model_init
 
 nullify(x,y,z)
 
@@ -685,18 +685,29 @@ if (coord == 0) then
                 wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega
         end if
 
+        send_array(s)        = disk_force(s)
+        send_array(nloc+s)   = wind_farm%turbine(s)%omega
+        send_array(2*nloc+s)   = -p_u_d_T*u_star
+
     end do
 end if
 
 !send total disk force to the necessary procs (with turbine_in_proc==.true.)
 #ifdef PPMPI
 if (coord == 0) then
-    do i=1,turbine_in_proc_cnt
-        j = turbine_in_proc_array(i)
-        call MPI_send( disk_force, nloc, MPI_rprec, j, 5, comm, ierr )
+    do j = 1, nproc-1
+        call MPI_send( send_array, 4*nloc, MPI_rprec, j, 5, comm, ierr )
     end do
-elseif (turbine_in_proc) then
-    call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
+    recv_array = send_array
+else
+    recv_array = 0._rprec
+    call MPI_recv( recv_array, 4*nloc, MPI_rprec, 0, 5, comm, status, ierr )
+    if (turbine_in_proc) then
+    do s = 1, nloc
+        disk_force(s) = recv_array(s)
+        wind_farm%turbine(s)%omega = recv_array(nloc+s)
+    end do
+    end if
 end if
 #endif
 
@@ -718,25 +729,25 @@ end if
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
     open(unit=1,file=vel_top_dat,status='unknown',form='formatted',            &
-    action='write',position='append')
+        action='write',position='append')
     write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
     close(1)
 end if
 
 ! Update wake model
-if (coord == 0 .and. use_wake_model) then
+if (use_wake_model) then
     allocate( beta(nloc) )
     beta = 0._rprec
-    call wm%advance(-wind_farm%turbine(:)%u_d_T*u_star,                        &
-        wind_farm%turbine(:)%omega, beta,                                      &
-        torque_gain*wind_farm%turbine(:)%omega**2, dt_dim)
+    call wm%advance(recv_array((2*nloc+1):(3*nloc)),                        &
+        recv_array((nloc+1):(2*nloc)), beta,                                      &
+        torque_gain*recv_array((nloc+1):(2*nloc))**2, dt_dim)
 
     ! write values to file
-    if (modulo (jt_total, tbase) == 0) then
+    if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
         do s = 1, nloc
             write(wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),    &
                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s), wm%wm%k(s),      &
-                wm%wm%U_infty
+                wm%wm%U_infty, coord
             write(wm_du_fid(s), *) wm%wm%du(s,:)
         end do
     end if
@@ -789,7 +800,7 @@ if (coord == 0) then
     close (fid)
 end if
 
-if (use_wake_model .and. coord == 0) call wm%write_to_file(wm_path)
+if (use_wake_model) call wm%write_to_file(wm_path)
 
 end subroutine turbines_checkpoint
 
@@ -1295,7 +1306,7 @@ end if
 allocate( wm_fid(nloc) )
 allocate( wm_du_fid(nloc) )
 do i = 1, nloc
-    call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat' )
+    call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat')
     wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
     call string_splice( fstring, path // 'turbine/wm_turbine_', i, '_du.dat' )
     wm_du_fid(i) = open_file_fid( fstring, 'append', 'formatted' )

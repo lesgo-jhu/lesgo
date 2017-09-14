@@ -75,6 +75,8 @@ if (cumulative_time) then
         jt_total = 0
         total_time = 0._rprec
         total_time_dim = 0._rprec
+        dt_r = dt
+        cfl_r = cfl_f
     end if
 end if
 
