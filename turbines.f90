@@ -747,7 +747,7 @@ if (use_wake_model) then
         do s = 1, nloc
             write(wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),    &
                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s), wm%wm%k(s),      &
-                wm%wm%U_infty, coord
+                wm%wm%U_infty
             write(wm_du_fid(s), *) wm%wm%du(s,:)
         end do
     end if

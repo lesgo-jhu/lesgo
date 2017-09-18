@@ -332,7 +332,6 @@ FTT = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 ! set integer
 N = this%wm%N
 Nx = this%wm%Nx
-write(*,*) N, Nx
 
 ! create dummy beta array
 allocate( beta(N) )
@@ -351,7 +350,7 @@ end do
 
 ! Do at least 1 FTT of simulations to get good ensemble statistics
 do ii = 1, floor(FTT / dt)
-    write(*,*) "Advancing ensemble at time step", ii
+    ! write(*,*) "Advancing ensemble at time step", ii
     ! Advance step for objects
     ! always safeguard against negative k's, du's, and omega's
     do i = 1, this%Ne
@@ -392,7 +391,6 @@ this%A = this%SE_array
 this%Ahat = this%ME_array
 #endif
 
-write(*,*) shape(this%A)
 do i = 1, this%Ne_tot
     this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
     this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne_tot
@@ -509,8 +507,8 @@ do i = 1, this%Ne
     do j = 1, N
         jstart = (j-1)*Nx+1
         jend = j*Nx
-        this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i+coord*nproc), 0._rprec)
-        this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i+coord*nproc), 0._rprec)
+        this%ensemble(i)%du(j,:)  = max(this%A(jstart:jend,i+coord*this%Ne), 0._rprec)
+        this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i+coord*this%Ne), 0._rprec)
     end do
     this%ensemble(i)%U_infty  = this%wm%U_infty
     this%ensemble(i)%VELOCITY = this%wm%U_infty
