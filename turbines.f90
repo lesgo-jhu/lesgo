@@ -81,8 +81,6 @@ real(rprec), public :: alpha
 real(rprec), public :: filter_cutoff
 ! Number of timesteps between the output
 integer, public :: tbase
-! Cp_prime corrections
-real(rprec), public :: phi_a, phi_b, phi_c, phi_d, phi_x0
 ! Air density
 real(rprec), public :: rho
 ! Inertia (kg*m^2)
@@ -125,6 +123,7 @@ character(*), parameter :: Ct_dat = path // input_folder // 'Ct.dat'
 character(*), parameter :: Cp_dat = path // input_folder // 'Cp.dat'
 character(*), parameter :: lambda_dat = path // input_folder // 'lambda.dat'
 character(*), parameter :: beta_dat = path // input_folder // 'beta.dat'
+character(*), parameter :: phi_dat = path // input_folder // 'phi.dat'
 
 ! Output files
 character(*), parameter :: output_folder = 'turbine/'
@@ -1052,11 +1051,13 @@ integer :: N, fid, Nlp
 real(rprec), dimension(:), allocatable :: lambda
 real(rprec), dimension(:,:), allocatable :: Ct, Cp, a
 real(rprec), dimension(:,:), allocatable :: iCtp, iCpp, ilp
-real(rprec) :: dlp, phi
+real(rprec) :: dlp, phim
 real(rprec), dimension(:,:), allocatable :: Cp_prime_arr
 real(rprec), dimension(:,:), allocatable :: Ct_prime_arr
 real(rprec), dimension(:), allocatable :: lambda_prime
 real(rprec), dimension(:), allocatable :: beta
+real(rprec), dimension(:), allocatable :: phi
+real(rprec), dimension(:), allocatable :: Ctp_phi
 type(pchip_t) :: cspl
 
 ! Read lambda
@@ -1087,6 +1088,14 @@ allocate( Cp(size(beta), size(lambda)) )
 fid = open_file_fid(Cp_dat, 'rewind', 'formatted')
 do i = 1, size(beta)
     read(fid,*) Cp(i,:)
+end do
+
+! Read phi
+N = count_lines(phi_dat)
+allocate( phi(N), Ctp_phi(N) )
+fid = open_file_fid(phi_dat, 'rewind', 'formatted')
+do i = 1, N
+    read(fid,*) Ctp_phi(i), phi(i)
 end do
 
 ! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
@@ -1139,15 +1148,19 @@ do i = 1, size(beta)
     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
 end do
 
-! Make sure the edges of Cp_prime are zero with zero gradient
-Cp_prime_arr(1,:) = 0._rprec
-Cp_prime_arr(2,:) = 0._rprec
-Cp_prime_arr(:,1) = 0._rprec
-Cp_prime_arr(:,2) = 0._rprec
-Cp_prime_arr(size(beta),:) = 0._rprec
-Cp_prime_arr(size(beta)-1,:) = 0._rprec
-Cp_prime_arr(:,Nlp) = 0._rprec
-Cp_prime_arr(:,Nlp-1) = 0._rprec
+! Now generate splines
+wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
+wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
+
+! Now save the adjusted splines for LES
+! Adjust the lambda_prime and Cp_prime to use the LES velocity
+cspl = pchip_t(Ctp_phi, phi)
+do i = 1, size(beta)
+    do j = 1, size(lambda)
+        call cspl%interp(iCtp(i,j), phim)
+        Ct_prime_arr(i,j) = max(min(Ct_prime_arr(i,j)*phim, 4._rprec), 0._rprec)
+    end do
+end do
 
 ! For Ct_prime, low beta and lambda are zero. All edges have zero gradient
 Ct_prime_arr(1,:) = 0._rprec
@@ -1156,42 +1169,6 @@ Ct_prime_arr(:,1) = 0._rprec
 Ct_prime_arr(:,2) = 0._rprec
 Ct_prime_arr(size(beta),:) = Ct_prime_arr(size(beta)-1,:)
 Ct_prime_arr(:,Nlp) = Ct_prime_arr(:,Nlp-1)
-
-! Now generate splines
-wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
-wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
-
-! Now save the adjusted splines for LES
-! Adjust the lambda_prime and Cp_prime to use the LES velocity
-do i = 1, size(beta)
-    do j = 1, size(lambda)
-        if (iCtp(i,j) > phi_x0) then
-            phi = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
-        else
-            phi = phi_a*iCtp(i,j)**3 + phi_b*iCtp(i,j)**2                      &
-                + phi_c*iCtp(i,j) + phi_d
-        end if
-        ilp(i,j) = ilp(i,j) * phi
-        iCpp(i,j) = iCpp(i,j) * phi**3
-    end do
-end do
-
-! Set the lambda_prime's onto which these curves will be interpolated
-lambda_prime(1) = maxval(ilp(:,1))
-lambda_prime(Nlp) = minval(ilp(:,size(lambda)))
-dlp = (lambda_prime(Nlp) - lambda_prime(1))
-dlp = dlp / (Nlp - 1)
-do i = 2, Nlp - 1
-    lambda_prime(i) = lambda_prime(i-1) + dlp
-end do
-
-! Interpolate onto Ct_prime and Cp_prime arrays
-do i = 1, size(beta)
-    cspl = pchip_t(ilp(i,:), iCtp(i,:))
-    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
-    cspl = pchip_t(ilp(i,:), iCpp(i,:))
-    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
-end do
 
 ! Now generate splines
 Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
@@ -1209,6 +1186,8 @@ deallocate (Cp_prime_arr)
 deallocate (Ct_prime_arr)
 deallocate (lambda_prime)
 deallocate (beta)
+deallocate (phi)
+deallocate (Ctp_phi)
 
 end subroutine generate_splines
 
