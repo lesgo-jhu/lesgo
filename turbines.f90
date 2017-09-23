@@ -151,7 +151,6 @@ logical :: buffer_logical
 type(wake_model_estimator_t) :: wm
 character(*), parameter :: wm_path = path // 'wake_model'
 integer, dimension(:), allocatable :: wm_fid
-integer, dimension(:), allocatable :: wm_du_fid
 type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
 
 contains
@@ -538,6 +537,7 @@ real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
 real(rprec) :: const
 real(rprec), dimension(:), allocatable :: beta
+character (64) :: fname
 
 real(rprec), dimension(4*nloc) :: send_array
 #ifdef PPMPI
@@ -738,8 +738,8 @@ end if
 if (use_wake_model) then
     allocate( beta(nloc) )
     beta = 0._rprec
-    call wm%advance(recv_array((2*nloc+1):(3*nloc)),                        &
-        recv_array((nloc+1):(2*nloc)), beta,                                      &
+    call wm%advance(recv_array((2*nloc+1):(3*nloc)),                           &
+        recv_array((nloc+1):(2*nloc)), beta,                                   &
         torque_gain*recv_array((nloc+1):(2*nloc))**2, dt_dim)
 
     ! write values to file
@@ -748,10 +748,20 @@ if (use_wake_model) then
             write(wm_fid(s), *) total_time_dim, wm%wm%Ctp(s), wm%wm%Cpp(s),    &
                 wm%wm%uhat(s), wm%wm%omega(s), wm%wm%Phat(s), wm%wm%k(s),      &
                 wm%wm%U_infty
-            write(wm_du_fid(s), *) wm%wm%du(s,:)
         end do
     end if
     deallocate(beta)
+end if
+
+!  Determine if instantaneous velocities are to be recorded
+if (zplane_calc .and. jt_total >= zplane_nstart .and. jt_total <= zplane_nend  &
+    .and. mod(jt_total-zplane_nstart,zplane_nskip)==0 .and. coord == 0) then
+    call string_splice(fname, path // 'output/wm_vel.', jt_total, '.bin')
+    open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
+        access='direct',recl=wm%wm%nx*wm%wm%ny*rprec)
+    write(*,*) wm%wm%nx*wm%wm%ny
+    write(13,rec=1) wm%wm%u
+    close(13)
 end if
 
 ! Cleanup
@@ -1304,12 +1314,9 @@ end if
 
 ! Create output files
 allocate( wm_fid(nloc) )
-allocate( wm_du_fid(nloc) )
 do i = 1, nloc
     call string_splice( fstring, path // 'turbine/wm_turbine_', i, '.dat')
     wm_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
-    call string_splice( fstring, path // 'turbine/wm_turbine_', i, '_du.dat' )
-    wm_du_fid(i) = open_file_fid( fstring, 'append', 'formatted' )
 end do
 
 end subroutine wake_model_init
