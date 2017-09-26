@@ -1167,7 +1167,7 @@ wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
 cspl = pchip_t(Ctp_phi, phi)
 do i = 1, size(beta)
     do j = 1, size(lambda)
-        call cspl%interp(iCtp(i,j), phim)
+        call cspl%interp(Ct_prime_arr(i,j), phim)
         Ct_prime_arr(i,j) = max(min(Ct_prime_arr(i,j)*phim, 4._rprec), 0._rprec)
     end do
 end do
@@ -1274,7 +1274,7 @@ else
 
     ! Create wake model
     wm = wake_model_estimator_t(num_ensemble, wm_sx, wm_sy, U_infty,           &
-        0.5*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i, &
+        0.5*wind_farm%turbine(1)%dia*z_i, wm_k, wind_farm%turbine(1)%dia*z_i,  &
         rho, inertia_all, nx/2, ny/2, wm_Ct_prime_spline, wm_Cp_prime_spline,  &
         torque_gain, sigma_du, sigma_k, sigma_uhat, tau_U_infty)
 
