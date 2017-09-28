@@ -691,17 +691,17 @@ use param, only : point_nloc, point_loc
 use param, only : xplane_nloc, xplane_loc
 use param, only : yplane_nloc, yplane_loc
 use param, only : zplane_nloc, zplane_loc
-use param, only : dx,dy,dz
+use param, only : dx, dy
 use param, only : write_endian
 use grid_m
 use sim_param, only : u, v, w, p
 use sim_param, only : dwdy, dwdx, dvdx, dudy
 use functions, only : interp_to_w_grid
 
-use stat_defs, only : xplane, yplane, zplane
+use stat_defs, only : xplane, yplane
 #ifdef PPMPI
-use stat_defs, only : point
-use param, only : ny, nz
+use stat_defs, only : zplane, point
+use param, only : ny, nz, dz
 #endif
 #ifdef PPLVLSET
 use level_set_base, only : phi

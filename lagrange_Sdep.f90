@@ -415,7 +415,7 @@ do jz = 1, nz
     ! Count how often Cs is clipped
     do i = 1, nx
     do j = 1, ny
-        if (real(Cs_opt2(i,j,jz)).lt.real(zero)) count_clip = count_clip + 1
+        if (real(Cs_opt2(i,j,jz)) < 0._rprec)  count_clip = count_clip + 1
         count_all = count_all + 1
     enddo
     enddo

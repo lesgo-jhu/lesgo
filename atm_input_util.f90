@@ -1,6 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!
-!! Written by: 
+!! Written by:
 !!
 !!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
 !!
@@ -8,12 +8,12 @@
 !!
 !!   This file is part of The Actuator Turbine Model Library.
 !!
-!!   The Actuator Turbine Model is free software: you can redistribute it 
-!!   and/or modify it under the terms of the GNU General Public License as 
-!!   published by the Free Software Foundation, either version 3 of the 
+!!   The Actuator Turbine Model is free software: you can redistribute it
+!!   and/or modify it under the terms of the GNU General Public License as
+!!   published by the Free Software Foundation, either version 3 of the
 !!   License, or (at your option) any later version.
 !!
-!!   The Actuator Turbine Model is distributed in the hope that it will be 
+!!   The Actuator Turbine Model is distributed in the hope that it will be
 !!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 !!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !!   GNU General Public License for more details.
@@ -38,23 +38,23 @@ integer :: numberOfTurbines
 integer :: outputInterval
 integer :: updateInterval
 
-! This type will store the necessary variables for -each- turbine 
+! This type will store the necessary variables for -each- turbine
 ! To declare: type(turbineArray_t), allocatable, dimension(:) :: turbineArray
-! To access the variables do: turbineArray(n) % variableNeeded  
-type turbineArray_t 
+! To access the variables do: turbineArray(n) % variableNeeded
+type turbineArray_t
     ! Variables that are read from input files
     character(128) :: turbineName ! Name of turbine ('turbine1')
     character(128) :: turbineType ! Name of turbine type ('NREL5MWRef')
     real(rprec), dimension(3) :: baseLocation ! Location of the base (0 0 0)
     integer :: numBladePoints ! Number of points along each blade
-    character(128) :: bladeUpdateType ! 
+    character(128) :: bladeUpdateType !
     real(rprec) :: epsilon ! Width of the smearing Gaussian function
     character(128) :: sampling ! Sampling method for velocity atPoint or Spalart
     character(128) :: rotationDir ! Direction of rotation ('cw')
-    real(rprec) :: Azimuth   ! Angle of rotation of the rotor 
+    real(rprec) :: Azimuth   ! Angle of rotation of the rotor
     real(rprec) :: RotSpeed  ! Speed of the rotor (rpm)
-    real(rprec) :: Pitch              
-    real(rprec) :: NacYaw    ! The yaw angle of the nacelle         
+    real(rprec) :: Pitch
+    real(rprec) :: NacYaw    ! The yaw angle of the nacelle
     real(rprec) :: fluidDensity   ! The density of the fluid (used for power)
     integer :: numAnnulusSections ! Number of annulus sections on each blade
     real(rprec) :: AnnulusSectionAngle ! Number of annulus sections on each blade
@@ -65,7 +65,7 @@ type turbineArray_t
     real(rprec) :: IntPowerError = 0._rprec
     logical :: tipALMCorrection = .false. ! Includes a correction for tip
     logical :: rootALMCorrection = .false. ! Includes a correction for tip
-    real(rprec) :: optimalEpsilonChord = 0.25 ! The optimal epsilon / chord 
+    real(rprec) :: optimalEpsilonChord = 0.25 ! The optimal epsilon / chord
 
     ! Not read variables
     real(rprec) :: thrust ! Total turbine thrust
@@ -74,7 +74,7 @@ type turbineArray_t
     real(rprec) :: powerRotor ! Rotor Power
     real(rprec) :: powerGen ! Generator Power
     logical :: nacelle  ! Includes a nacelle yes or no
-    real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function 
+    real(rprec) :: nacelleEpsilon ! Width of the smearing Gaussian function
     real(rprec) :: nacelleCd = 0._rprec ! Drag coefficient for the nacelle
     real(rprec) :: VelNacelle_sampled = 0._rprec ! Sampled nacelle Vel
     real(rprec) :: VelNacelle_corrected = 0._rprec ! Corrected nacelle Vel
@@ -89,13 +89,13 @@ type turbineArray_t
     ! Flag to know if this turbine operates or not in this processor
     logical :: operate
 
-    integer :: turbineTypeID ! Identifies the type of turbine   
-    
-    !!-- Important geometry data 
+    integer :: turbineTypeID ! Identifies the type of turbine
+
+    !!-- Important geometry data
     ! Collection of all the actuator points (blade, annular section, point, 3)
     real(rprec), allocatable, dimension(:,:,:,:) :: bladePoints
-    ! The solidity at each actuator section  
-    real(rprec), allocatable, dimension(:,:,:) :: solidity     
+    ! The solidity at each actuator section
+    real(rprec), allocatable, dimension(:,:,:) :: solidity
     ! Collection of radius of each point (different because of coning)
     real(rprec), allocatable, dimension(:,:,:) :: bladeRadius
     ! Twist angle along the blade
@@ -163,21 +163,21 @@ type turbineArray_t
     ! from upwind, the rotor turns clockwise for positive rotation angles,
     ! regardless of if it is an upwind or downwind turbine.  uvShaft is
     ! found by subtracting the rotor apex location from the tower shaft
-    ! intersection point.  This vector switches direciton depending on 
+    ! intersection point.  This vector switches direciton depending on
     ! if the turbine is upwind or downwind, so this uvShaftDir multiplier
     ! makes the vector consistent no matter what kind of turbine
      real(rprec) :: uvShaftDir
 
     ! Define the vector along the shaft pointing in the direction of the wind
     real(rprec), dimension(3) :: uvShaft
-  
+
     ! List of locations of the rotor apex relative to the origin (m)
     real(rprec), dimension(3) :: rotorApex
-  
-    ! List of locations of the intersection of the tower axis and the shaft 
+
+    ! List of locations of the intersection of the tower axis and the shaft
     ! centerline relative to the origin (m).
     real(rprec), dimension(3) :: towerShaftIntersect
-  
+
      ! Unit vector pointing along the tower (axis of yaw).
     real(rprec), dimension(3) :: uvTower
 
@@ -202,7 +202,7 @@ end type turbineArray_t
 type airfoilType_t
     character(128) :: airfoilName          ! The type of Airfoil ('Cylinder1')
     integer :: n                           ! Number of data points
-    ! The maximum number of points is chosen to be 150. If airfoil data has 
+    ! The maximum number of points is chosen to be 150. If airfoil data has
     ! more than this then this number should be modified!
     real(rprec), dimension(150) :: AOA    ! Angle of Attack
     real(rprec), dimension(150) :: Cd     ! Drag coefficient
@@ -248,7 +248,7 @@ type turbineModel_t
     real(rprec) :: RateLimitGenTorque
     real(rprec) :: KGen
     real(rprec) :: TorqueControllerRelax
-    
+
     ! Pitch controller variables
     character(64) :: PitchControllerType
     real(rprec) :: PitchControlAngleMax   ! Maximum pitch angle
@@ -271,12 +271,12 @@ type(turbineArray_t), allocatable, dimension(:) , target :: turbineArray
 ! Declare turbine model variable (stores information for turbine models)
 type(turbineModel_t), allocatable, dimension(:), target :: turbineModel
 
-! Name of the utility used  
+! Name of the utility used
 character (*), parameter :: mod_name = 'atm_input_util'
 character (*), parameter :: input_conf = './inputATM/turbineArrayProperties'
 character (*), parameter :: comment = '!'
 character (*), parameter :: block_entry = '{' ! The start of a block
-character (*), parameter :: block_exit = '}' ! The end of a block 
+character (*), parameter :: block_exit = '}' ! The end of a block
 character (*), parameter :: equal = '='
 character (*), parameter :: esyntax = 'syntax error at line'
 character (*), parameter :: array_entry = '(' ! The start of an array
@@ -290,12 +290,12 @@ character(*), parameter :: delim_major='//'
 !real(rprec), parameter :: thresh = 1.0e-6_rprec
 
 ! Variables used to read lines in file
-integer :: block_entry_pos ! Determines if the line is the start of a block 
+integer :: block_entry_pos ! Determines if the line is the start of a block
 integer :: block_exit_pos ! Determines if the line is the end of a block
-integer :: array_entry_pos ! Determines if the line is the start of a block 
+integer :: array_entry_pos ! Determines if the line is the start of a block
 integer :: array_exit_pos ! Determines if the line is the end of a block
 integer :: equal_pos ! Determines if there is an equal sign
-integer :: ios 
+integer :: ios
 logical :: exst ! Used to determine existence of a file
 
 contains
@@ -326,10 +326,10 @@ endif
 ! Read the file line by line *Counter starts at 0 and modified inside subroutine
 line = 0
 do
-! Read line by line (lun=file number) 
+! Read line by line (lun=file number)
     call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                    array_entry_pos, array_exit_pos, equal_pos, ios )
-                   
+
     if (ios /= 0) exit ! Exit if reached end of file
 
     ! This will read the numberOfTurbines integer
@@ -355,16 +355,16 @@ do
         ! Read the name of the turbine
         read(buff(1:index(buff, block_entry)-1), *) turbineArray(n) &
         % turbineName
-    endif  
+    endif
     if (block_entry_pos == 0) then ! This will start reading turbine block
         if( buff(1:11) == 'turbineType' ) then
             read(buff(12:), *) turbineArray(n) % turbineType
 !            write(*,*)  'turbineType is: ', turbineArray(n) % turbineType
         endif
         if( buff(1:12) == 'baseLocation' ) then
-            read(buff(13:), *) turbineArray(n) % baseLocation  
-!            write(*,*)  'baseLocation is: ', turbineArray(n) % baseLocation      
-        endif        
+            read(buff(13:), *) turbineArray(n) % baseLocation
+!            write(*,*)  'baseLocation is: ', turbineArray(n) % baseLocation
+        endif
         if( buff(1:14) == 'numBladePoints' ) then
             read(buff(15:), *) turbineArray(n) % numBladePoints
 !            write(*,*)  'numBladePoints is: ', turbineArray(n) % numBladePoints
@@ -406,53 +406,53 @@ do
             read(buff(19:), *) turbineArray(n) % numAnnulusSections
 !            write(*,*)  'numAnnulusSections is: ', &
 !                         turbineArray(n) % numAnnulusSections
-        endif      
+        endif
         if( buff(1:19) == 'annulusSectionAngle' ) then
             read(buff(20:), *) turbineArray(n) % annulusSectionAngle
 !            write(*,*)  'annulusSectionAngle is: ', &
 !                         turbineArray(n) % annulusSectionAngle
-        endif   
+        endif
         if( buff(1:11) == 'nacelleFlag' ) then
             read(buff(12:), *) turbineArray(n) % nacelle
 !            write(*,*)  'annulusSectionAngle is: ', &
 !                         turbineArray(n) % annulusSectionAngle
-        endif 
+        endif
         if( buff(1:9) == 'nacelleCd' ) then
             read(buff(10:), *) turbineArray(n) % nacelleCd
 !~             write(*,*)  'cd is: ', &
 !~                          turbineArray(n) % nacelleCd
-        endif 
+        endif
         if( buff(1:14) == 'nacelleEpsilon' ) then
             read(buff(15:), *) turbineArray(n) % nacelleEpsilon
 !~             write(*,*)  'cd is: ', &
 !~                          turbineArray(n) % nacelleEpsilon
-        endif 
+        endif
         if( buff(1:3) == 'TSR' ) then
             read(buff(4:), *) turbineArray(n) % TSR
 !~             write(*,*)  'TSR is: ', &
 !~                          turbineArray(n) % TSR
-        endif 
+        endif
         if( buff(1:16) == 'tipALMCorrection' ) then
             read(buff(17:), *) turbineArray(n) % tipALMCorrection
 !~             write(*,*)  'tipALMCorrection is: ', &
 !~                          turbineArray(n) % tipALMCorrection
-        endif 
+        endif
         if( buff(1:17) == 'rootALMCorrection' ) then
             read(buff(18:), *) turbineArray(n) % rootALMCorrection
 !~             write(*,*)  'rootALMCorrection is: ', &
 !~                          turbineArray(n) % rootALMCorrection
-        endif 
+        endif
         if( buff(1:19) == 'optimalEpsilonChord' ) then
             read(buff(20:), *) turbineArray(n) % optimalEpsilonChord
 !~             write(*,*)  'optimalEpsilonChord is: ', &
 !~                          turbineArray(n) % optimalEpsilonChord
-        endif 
-    endif        
+        endif
+    endif
 end do
 
-if( .not. allocated( turbineArray ) ) then 
-    write(*,*) 'Did not allocate memory for turbineArray' 
-stop 
+if( .not. allocated( turbineArray ) ) then
+    write(*,*) 'Did not allocate memory for turbineArray'
+stop
 endif
 close (lun)
 
@@ -468,7 +468,7 @@ implicit none
 integer :: i, j, c ! counter
 integer :: numTurbinesDistinct ! Number of different turbine types
 character(128) :: currentTurbineType ! Will store turbineType in loop
-character(128) :: input_turbine
+character(139) :: input_turbine
 integer :: lun =19  ! Reference number for input file
 integer :: line ! Counts the current line in a file
 character (128) :: buff ! Stored the read line
@@ -481,7 +481,7 @@ integer :: ios, N
 integer :: yawfile = 29
 
 ! Name of all the airfoils types (max 20) If more than this increase the number
-character(128), dimension(20) :: airfoils 
+character(128), dimension(20) :: airfoils
 
 ! Initialize variables for the loop
 ! Will find the number of distincet turbines to allocate memory for turbineModel
@@ -540,7 +540,7 @@ enddo
 ! Read the input properties for each turbine type
 do i = 1, numTurbinesDistinct
 
-    input_turbine = './inputATM/' // turbineModel(i) % turbineType 
+    input_turbine = './inputATM/' // turbineModel(i) % turbineType
 
     ! Check that the configuration file exists
     inquire (file=input_turbine, exist=exst)
@@ -562,7 +562,7 @@ do i = 1, numTurbinesDistinct
     ! Read the file line by line - starts at 0 and modified inside subroutine
     line = 0
     do
-    ! Read line by line (lun=file number) 
+    ! Read line by line (lun=file number)
         call readline( lun, line, buff, block_entry_pos, block_exit_pos, &
                        array_entry_pos, array_exit_pos, equal_pos, ios )
         if (ios /= 0) exit
@@ -689,7 +689,7 @@ do i = 1, numTurbinesDistinct
             read(buff(16:), *) turbineModel(i) % PitchControlKI0
             write(*,*) 'PitchControlKI0 is: ', turbineModel(i) % PitchControlKI0
         endif
-        
+
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! This will read the yaw control values
         if( buff(1:17) == 'YawControllerType' ) then
@@ -705,13 +705,13 @@ do i = 1, numTurbinesDistinct
         ! This will read the airfoils
         if ( buff(1:8) == 'Airfoils' ) then ! Start reading airfoil block
             numAirfoils=0 ! Conuter for the number of distince airfoils
-            array_entry_pos=0 ! If 'Airfoils(' then make array_entry_pos zero 
+            array_entry_pos=0 ! If 'Airfoils(' then make array_entry_pos zero
 
-            do while (array_entry_pos == 0) 
+            do while (array_entry_pos == 0)
                 call readline( lun, line, buff, block_entry_pos,              &
                 block_exit_pos, array_entry_pos, array_exit_pos, equal_pos, ios)
                 if (ios /= 0) exit        ! exit if end of file reached
-                
+
                 if (array_entry_pos /= 0) then
                     call readline( lun, line, buff, block_entry_pos,          &
                                    block_exit_pos, array_entry_pos,           &
@@ -723,7 +723,7 @@ do i = 1, numTurbinesDistinct
                 numAirfoils = numAirfoils + 1     ! Increment airfoil counter
                 airfoils(numAirfoils)=buff ! Stores the name of the airfoil
             enddo
-            
+
             ! Allocate the airfoilTypes
             allocate(turbineModel(i) % airfoilType(numAirfoils))
 
@@ -734,7 +734,7 @@ do i = 1, numTurbinesDistinct
                 ! Airfoil type (2:p) is used to eliminate the commas ""
                 turbineModel(i) % airfoilType % airfoilName =  airfoils(k)(2:p)
                 ! Read each airfoil accordingly
-                call read_airfoil( turbineModel(i) % airfoilType(k) ) 
+                call read_airfoil( turbineModel(i) % airfoilType(k) )
             enddo
         endif  ! End of Airfoil loop
 
@@ -742,7 +742,7 @@ do i = 1, numTurbinesDistinct
         ! This will read the blade properties
         if ( buff(1:9) .eq. 'BladeData' ) then ! Start reading blade data block
                 NumSec = 0
-                do while (array_exit_pos .eq. 0) 
+                do while (array_exit_pos .eq. 0)
                     read (lun, '(a)', iostat=ios) buff ! Read the comment line
                     if (scan(buff,'(' ) .ne. 0) cycle
                     if (scan(buff,'!' ) .ne. 0) cycle
@@ -758,21 +758,21 @@ do i = 1, numTurbinesDistinct
                     turbineModel(i) % twist(NumSec),   &
                     turbineModel(i) % sectionType(NumSec)
 
-                    ! Add one to airfoil identifier. List starts at 0, now 
+                    ! Add one to airfoil identifier. List starts at 0, now
                     ! it will start at 1
                     turbineModel(i) % sectionType( NumSec )  =                 &
                     turbineModel(i) % sectionType( NumSec ) + 1
                 enddo
         endif
     enddo
-    close (lun)  
+    close (lun)
 
     ! Read the yaw control file, if applicable
     if ( turbineModel(i) % YawControllerType == "timeYawTable" ) then
         open (unit = yawfile, file="inputATM/"//                               &
                 trim(turbineModel(i) % YawControllerFile),                     &
                 form = "formatted", status = "old", action = "read")
-        
+
         ! Determine number of lines
         ios = 0
         N = -1
@@ -801,7 +801,7 @@ do i = 1, numTurbinesDistinct
               (turbineModel(i) % BladeIner) + (turbineModel(i) % HubIner) +    &
               ( turbineModel(i) % GBRatio ) * ( turbineModel(i) % GBRatio) *   &
               ( turbineModel(i) % GenIner )
-    
+
 enddo
 
 ! Allocate variables inside turbineArray
@@ -838,7 +838,7 @@ numBl=turbineModel(j) % numBl
     allocate(turbineArray(i) % tangentialForce(numBl,                          &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % induction_a(numBl,                              &
-             numAnnulusSections, numBladePoints) ) 
+             numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % u_infinity(numBl,                               &
              numAnnulusSections, numBladePoints) )
     allocate(turbineArray(i) % chord(numBl,                                    &
@@ -884,7 +884,7 @@ end subroutine atm_print_initialize
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 subroutine read_airfoil( airfoilType )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This subroutine reads the angle of attack, lift and drag for a specific 
+! This subroutine reads the angle of attack, lift and drag for a specific
 ! airfoil type
 integer :: lun=17 ! File identifier
 integer :: q ! Counter
@@ -898,7 +898,7 @@ input_airfoil= './inputATM/AeroData/' //trim (airfoilType % airfoilName)  &
 ! Open airfoil input file
 open (lun, file=input_airfoil, action='read')
 
-! Skip the first 14 lines of the Fortran input file 
+! Skip the first 14 lines of the Fortran input file
 do q=1,14
     read(lun,*)
 enddo
@@ -908,7 +908,7 @@ q=0 ! Initialize the counter back to 1 for the first element in the list
 AOA=-181.
 do while (AOA .lt. 180.00)
     q=q+1
-    read(lun,*) AOA, Cl , Cd, Cm 
+    read(lun,*) AOA, Cl , Cd, Cm
     airfoilType % AOA(q) = AOA
     airfoilType % Cd(q) = Cd
     airfoilType % Cl(q) = Cl
@@ -921,10 +921,10 @@ close(lun)
 end subroutine read_airfoil
 
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-subroutine readline(lun, line, buff, block_entry_pos, block_exit_pos, & 
+subroutine readline(lun, line, buff, block_entry_pos, block_exit_pos, &
                     array_entry_pos, array_exit_pos, equal_pos, ios )
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! 
+!
 ! This subroutine reads the specified line and determines the attributes
 ! of the contents of the line.
 !
@@ -942,16 +942,16 @@ block_exit_pos = 0
 equal_pos = 0
 ios = -1
 
-do     
+do
     line = line + 1
     read (lun, '(a)', iostat=ios) buff
 
     if (ios /= 0) exit
-    
+
     call eat_whitespace (buff)
 
     if (verify (buff, ' ') == 0) cycle  !--drop blank lines
-  
+
     if (buff (1:len (comment)) == comment) cycle  !--drop comment lines
 
     block_entry_pos = index( buff, block_entry )
@@ -960,7 +960,7 @@ do
     array_exit_pos  = index( buff, array_exit )
     equal_pos       = index( buff, equal )
     exit
-enddo 
+enddo
 
 return
 end subroutine readline
@@ -975,7 +975,7 @@ subroutine eat_whitespace (buff, whtspc)
 implicit none
 
 character (*), intent (inout) :: buff
-character (*), intent (in), optional :: whtspc 
+character (*), intent (in), optional :: whtspc
 character (*), parameter :: whtspc_default = achar (9) // achar (32)
                             !--add more characters here if needed
 character (1), parameter :: fill_char = ' '
