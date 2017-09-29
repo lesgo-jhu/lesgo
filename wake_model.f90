@@ -454,9 +454,15 @@ real(rprec), dimension(:), intent(out) :: Udu, Uw, Wdu, Wu, Ww
 real(rprec), dimension(:), intent(out) :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:), intent(out) :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), intent(out) :: dCp_dbeta, dCp_dlambda
-
+real(rprec), dimension(:), allocatable :: Paero_uhat, Paero_Cpp
 real(rprec) :: dummy
 integer :: n
+
+allocate(Paero_uhat(this%N))
+allocate(Paero_Cpp(this%N))
+
+Paero_uhat = this%rho * pi * this%Dia**2 * this%Cpp * this%uhat**2 / 8._rprec
+Paero_Cpp = this%rho * pi * this%Dia**2 * this%uhat**3 / 8._rprec
 
 ! advance wake model with dummy generator torque
 call this%advance(beta, this%gen_torque, dt)
@@ -476,18 +482,18 @@ end do
 ! Everything else can be calculated at once
 Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega          &
     * 0.5_rprec * this%Dia / this%uhat**2
-Uw = alpha / this%inertia / this%omega * 3._rprec * this%Paero / this%uhat     &
-    - alpha / this%inertia * this%Paero / this%Cpp * dCp_dlambda * 0.5_rprec   &
+Uw = alpha / this%inertia / this%omega * 3._rprec * Paero_uhat     &
+    - alpha / this%inertia * Paero_Cpp * dCp_dlambda * 0.5_rprec   &
     * this%Dia / this%uhat**2
 Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                        &
     * 0.5_rprec * this%Dia / this%uhat
 Ww = -alpha / this%inertia * this%Paero / this%omega**2                        &
-    + alpha / this%inertia * this%Paero / this%omega * this%Dia * 0.5_rprec    &
-    / this%Cpp / this%uhat * dCp_dlambda
+    + alpha / this%inertia * Paero_Cpp / this%omega * this%Dia * 0.5_rprec    &
+    / this%uhat * dCp_dlambda
 Wu = 0._rprec
 Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
 Bu = 0._rprec
-Bw = -alpha / this%inertia / this%omega * this%Paero / this%Cpp * dCp_dbeta
+Bw = -alpha / this%inertia / this%omega * Paero_Cpp * dCp_dbeta
 Adu = 0._rprec
 Au = 0._rprec
 Aw = -this%Paero / this%inertia / this%omega

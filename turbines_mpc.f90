@@ -122,7 +122,7 @@ allocate( this%fdgrad_beta(this%N, this%Nt) )
 allocate( this%fdgrad_alpha(this%N, this%Nt) )
 allocate( this%gen_torque(this%N, this%Nt) )
 this%beta(:,1) = this%iw%beta
-this%alpha(:,1) = 1._rprec - this%iw%Phat / this%iw%Paero
+this%alpha(:,1) = 0._rprec
 this%gen_torque(:,1) = this%iw%gen_torque
 
 ! Interpolate the power signals and set initial condition for Pfarm
@@ -245,26 +245,25 @@ do k = 2, this%Nt
     this%gen_torque(:,k) = this%w%gen_torque
     this%cost = this%cost + this%dt * (sum(this%w%Phat) - this%Pref(k))**2
     ! calculate adjoint values that depend on cost function
-    Uj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
-        * (1 - this%alpha(:,k)) * 3._rprec * this%w%Paero / this%w%uhat        &
-        + 2._rprec * (this%Pfarm(k) - this%Pref(k))                            &
-        * (1 - this%alpha(:,k)) * this%w%Paero / this%w%Cpp * dCp_dlambda      &
-        * 0.5_rprec * this%w%Dia / this%w%uhat**2 * this%w%omega
-    Wj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
-        * (1 - this%alpha(:,k)) * this%w%Paero / this%w%Cpp * dCp_dlambda      &
-        * 0.5_rprec * this%w%Dia / this%w%uhat
     ! Make sure there are no Nans or Infs
     do n = 1, this%N
         if (this%w%Paero(n) == 0._rprec) then
             Uj(k,n) = 0._rprec
             Wj(k,n) = 0._rprec
-        end if
-    end do
-    do n = 1, this%N
+            this%grad_beta(n,k) = 0._rprec
+        else
+    Uj(k,n) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
+        * (1 - this%alpha(n,k)) * 3._rprec * this%w%Paero(n) / this%w%uhat(n)        &
+        + 2._rprec * (this%Pfarm(k) - this%Pref(k))                            &
+        * (1 - this%alpha(n,k)) * this%w%Paero(n) / this%w%Cpp(n) * dCp_dlambda(n)      &
+        * 0.5_rprec * this%w%Dia / this%w%uhat(n)**2 * this%w%omega(n)
+    Wj(k,n) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
+        * (1 - this%alpha(n,k)) * this%w%Paero(n) / this%w%Cpp(n) * dCp_dlambda(n)      &
+        * 0.5_rprec * this%w%Dia / this%w%uhat(n)
         this%grad_beta(n,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))        &
             * (1 - this%alpha(n,k)) * this%w%Paero(n) / this%w%Cpp(n)          &
             * dCp_dbeta(n) * this%dt
-        if (this%w%Paero(n) == 0._rprec) this%grad_beta(n,k) = 0._rprec
+        end if
     end do
     this%grad_alpha(:,k) = -2._rprec * (this%Pfarm(k) - this%Pref(k))          &
         * this%w%Paero * this%dt
@@ -419,12 +418,20 @@ call this%run()
 if ( present(Ca) ) then
     this%Ca = Ca
 else
-    this%Ca = 1._rprec / maxval(abs(this%grad_alpha))
+    if (maxval(abs(this%grad_alpha)) == 0) then
+        this%Ca = 1._rprec
+    else
+        this%Ca = 1._rprec / maxval(abs(this%grad_alpha))
+    end if
 end if
 if ( present(Cb) ) then
     this%Cb = Cb
 else
-    this%Cb = 1._rprec / maxval(abs(this%grad_beta))
+    if (maxval(abs(this%grad_beta)) == 0) then
+        this%Cb = 1._rprec
+    else
+        this%Cb = 1._rprec / maxval(abs(this%grad_beta))
+    end if
 end if
 
 ! write(*,*) this%Ca, this%Cb
