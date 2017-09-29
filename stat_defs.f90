@@ -127,6 +127,8 @@ type turbine_t
     integer, dimension(6) :: nodes_max
     ! rotational speed (s^-1)
     real(rprec) :: omega
+    ! generator torque
+    real(rprec) :: gen_torque
 end type turbine_t
 
 ! A collection of wind turbines

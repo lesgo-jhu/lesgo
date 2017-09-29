@@ -738,6 +738,16 @@ do
                 read (buff(equal_pos+1:),*) sigma_uhat
             case ('NUM_ENSEMBLE')
                 read (buff(equal_pos+1:),*) num_ensemble
+            case ('USE_RECEDING_HORIZON')
+                read (buff(equal_pos+1:),*) use_receding_horizon
+            case ('SOLVER')
+                read (buff(equal_pos+1:),*) solver
+            case ('ADVANCEMENT_BASE')
+                read (buff(equal_pos+1:),*) advancement_base
+            case ('HORIZON_TIME')
+                read (buff(equal_pos+1:),*) horizon_time
+            case ('MAX_ITER')
+                read (buff(equal_pos+1:),*) max_iter
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

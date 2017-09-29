@@ -99,6 +99,19 @@ real(rprec), public :: sigma_k = 0.001
 real(rprec), public :: sigma_uhat = 1.0
 ! Number of members in ensemble
 integer, public :: num_ensemble = 50
+! Use_receding horizon or not
+logical, public :: use_receding_horizon
+! Minimization solver: 1->Conjugate gradient; 2->L-BGFGS-B
+integer, public :: solver
+! Number of time steps between controller evaluations
+integer, public :: advancement_base
+! Length of receding horizon [seconds]
+real(rprec), public :: horizon_time
+! Maximum number of iterations for each minimization
+integer, public     :: max_iter
+
+! Scaling of receding horizon
+real(rprec) :: Ca = BOGUS, Cb = BOGUS
 
 ! The following are derived from the values above
 integer :: nloc             ! total number of turbines
@@ -110,6 +123,12 @@ real(rprec), dimension(:,:), allocatable :: theta1_arr
 real(rprec), dimension(:), allocatable :: theta1_time
 real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
+real(rprec), dimension(:), allocatable :: Pref_arr
+real(rprec), dimension(:), allocatable :: Pref_time
+real(rprec), dimension(:,:), allocatable :: gen_torque_arr
+real(rprec), dimension(:,:), allocatable :: alpha_arr
+real(rprec), dimension(:,:), allocatable :: beta_arr
+real(rprec), dimension(:), allocatable :: rh_time
 
 ! Arrays for interpolating power and thrust coefficients for LES
 type(bi_pchip_t), public :: Cp_prime_spline, Ct_prime_spline
@@ -124,11 +143,13 @@ character(*), parameter :: Cp_dat = path // input_folder // 'Cp.dat'
 character(*), parameter :: lambda_dat = path // input_folder // 'lambda.dat'
 character(*), parameter :: beta_dat = path // input_folder // 'beta.dat'
 character(*), parameter :: phi_dat = path // input_folder // 'phi.dat'
+character(*), parameter :: Pref_dat = path // input_folder // 'Pref.dat'
 
 ! Output files
 character(*), parameter :: output_folder = 'turbine/'
 character(*), parameter :: vel_top_dat = path // output_folder // 'vel_top.dat'
 character(*), parameter :: u_d_T_dat = path // output_folder // 'u_d_T.dat'
+character(*), parameter :: rh_dat = path // output_folder // 'rh.dat'
 integer, dimension(:), allocatable :: forcing_fid
 
 ! epsilon used for disk velocity time-averaging
@@ -138,13 +159,9 @@ real(rprec) :: eps
 integer :: i, j, k, i2, j2, k2, l, s
 integer :: k_start, k_end
 
-! Variables to keep track of which processors have turbines
-integer, dimension(:), allocatable :: turbine_in_proc_array
-logical :: turbine_in_proc = .false.
-#ifdef PPMPI
-integer :: turbine_in_proc_cnt = 0
-logical :: buffer_logical
-#endif
+! for MPI sending and receiving
+real(rprec), dimension(:), allocatable :: buffer_array
+real(rprec), dimension(:,:), allocatable :: buffer_array_2d
 
 ! Wake model
 type(wake_model_estimator_t) :: wm
@@ -173,6 +190,9 @@ real(rprec) :: T_avg_dim_file, delta2
 logical :: test_logical, exst
 character (100) :: string1
 
+! Turn on wake model if use_receding_horizon
+if (use_receding_horizon) use_wake_model = .true.
+
 ! Set pointers
 nullify(x,y,z)
 x => grid % x
@@ -183,9 +203,7 @@ z => grid % z
 nloc = num_x*num_y
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
-allocate(turbine_in_proc_array(nproc-1))
-allocate(forcing_fid(nloc))
-turbine_in_proc_array = 0
+allocate(buffer_array(nloc))
 
 ! Create turbine directory
 call system("mkdir -vp turbine")
@@ -240,11 +258,17 @@ do k = 1,nloc
 
 end do
 
+write(*,*) "Here 1 ", coord
+
 ! Read dynamic control input files
 call read_control_files
 
+write(*,*) "Here 2 ", coord
+
 ! Read power and thrust coefficient curves
 call generate_splines
+
+write(*,*) "Here 3 ", coord
 
 !Compute a lookup table object for the indicator function
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
@@ -254,9 +278,13 @@ do s = 1, nloc
             max( max(nx, ny), nz) )
 end do
 
+write(*,*) "Here 4 ", coord
+
 ! Find turbine nodes - including filtered ind, n_hat, num_nodes, and nodes for
 ! each turbine. Each processor finds turbines in its domain
 call turbines_nodes
+
+write(*,*) "Here 5 ", coord
 
 ! Read the time-averaged disk velocities from file if available
 inquire (file=u_d_T_dat, exist=exst)
@@ -300,6 +328,7 @@ if (coord .eq. nproc-1) then
 end if
 
 ! Generate the files for the turbine forcing output
+allocate(forcing_fid(nloc))
 if(coord==0) then
     do s=1,nloc
         call string_splice( string1, path // 'turbine/turbine_', s, '.dat' )
@@ -308,6 +337,7 @@ if(coord==0) then
 end if
 
 if (use_wake_model) call wake_model_init
+if (use_receding_horizon) call receding_horizon_init
 
 nullify(x,y,z)
 
@@ -336,9 +366,6 @@ integer :: min_i, max_i, min_j, max_j, min_k, max_k
 integer :: count_i, count_n
 real(rprec), dimension(:), allocatable :: z_tot
 
-#ifdef PPMPI
-real(rprec), dimension(:), allocatable :: buffer_array
-#endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
 real(rprec) :: filt
@@ -349,8 +376,6 @@ nullify(x,y,z)
 x => grid % x
 y => grid % y
 z => grid % z
-
-turbine_in_proc = .false.
 
 allocate(sumA(nloc))
 allocate(turbine_vol(nloc))
@@ -461,7 +486,6 @@ do s=1,nloc
                     wind_farm%turbine(s)%nodes(count_i,3) = k-coord*(nz-1)!local
                     count_n = count_n + 1
                     count_i = count_i + 1
-                    turbine_in_proc = .true.
                     sumA(s) = sumA(s) + filt * dx * dy * dz
                 end if
            end do
@@ -476,33 +500,14 @@ end do
 
 ! Sum the indicator function across all processors if using MPI
 #ifdef PPMPI
-allocate(buffer_array(nloc))
 buffer_array = sumA
 call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
-deallocate(buffer_array)
 #endif
 
 ! Normalize the indicator function
 do s = 1, nloc
     wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)*turbine_vol(s)/sumA(s)
 end do
-
-!each processor sends its value of turbine_in_proc
-!if false, disk-avg velocity will not be sent (since it will always be 0.)
-#ifdef PPMPI
-turbine_in_proc_cnt = 0
-if (coord == 0) then
-    do i=1,nproc-1
-        call MPI_recv(buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
-        if (buffer_logical) then
-            turbine_in_proc_cnt = turbine_in_proc_cnt + 1
-            turbine_in_proc_array(turbine_in_proc_cnt) = i
-        end if
-    end do
-else
-    call MPI_send(turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
-end if
-#endif
 
 ! Cleanup
 deallocate(sumA)
@@ -535,13 +540,7 @@ real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
 real(rprec) :: const
-real(rprec), dimension(:), allocatable :: beta
 character (64) :: fname
-
-real(rprec), dimension(4*nloc) :: send_array
-#ifdef PPMPI
-real(rprec), dimension(4*nloc) :: recv_array
-#endif
 
 nullify(y,z)
 y => grid % y
@@ -568,162 +567,120 @@ end do
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
 ! Each processor calculates the weighted disk-averaged velocity
-send_array = 0._rprec
 disk_avg_vel = 0._rprec
 u_vel_center = 0._rprec
 v_vel_center = 0._rprec
 w_vel_center = 0._rprec
-if (turbine_in_proc) then
-    do s=1,nloc
-        ! Calculate total disk-averaged velocity for each turbine
-        ! (current, instantaneous) in the normal direction. The weighted average
-        ! is calculated using "ind"
-        do l=1,wind_farm%turbine(s)%num_nodes
-            i2 = wind_farm%turbine(s)%nodes(l,1)
-            j2 = wind_farm%turbine(s)%nodes(l,2)
-            k2 = wind_farm%turbine(s)%nodes(l,3)
-            disk_avg_vel(s) = disk_avg_vel(s) + wind_farm%turbine(s)%ind(l)    &
-                            * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)       &
-                              + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)       &
-                              + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
-        end do
-
-        ! Set pointers
-        p_icp => wind_farm%turbine(s)%icp
-        p_jcp => wind_farm%turbine(s)%jcp
-        p_kcp => wind_farm%turbine(s)%kcp
-
-        ! Calculate disk center velocity
-        if (wind_farm%turbine(s)%center_in_proc) then
-            u_vel_center(s) = u(p_icp, p_jcp, p_kcp)
-            v_vel_center(s) = v(p_icp, p_jcp, p_kcp)
-            w_vel_center(s) = w_uv(p_icp, p_jcp, p_kcp)
-        end if
-
-        ! write this value to the array (which will be sent to coord 0)
-        send_array(s)        = disk_avg_vel(s)
-        send_array(nloc+s)   = u_vel_center(s)
-        send_array(2*nloc+s) = v_vel_center(s)
-        send_array(3*nloc+s) = w_vel_center(s)
+do s=1,nloc
+    ! Calculate total disk-averaged velocity for each turbine
+    ! (current, instantaneous) in the normal direction. The weighted average
+    ! is calculated using "ind"
+    do l=1,wind_farm%turbine(s)%num_nodes
+        i2 = wind_farm%turbine(s)%nodes(l,1)
+        j2 = wind_farm%turbine(s)%nodes(l,2)
+        k2 = wind_farm%turbine(s)%nodes(l,3)
+        disk_avg_vel(s) = disk_avg_vel(s) + wind_farm%turbine(s)%ind(l)    &
+                        * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)       &
+                          + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)       &
+                          + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
     end do
-end if
 
-! send the disk-avg values to coord==0
+    ! Set pointers
+    p_icp => wind_farm%turbine(s)%icp
+    p_jcp => wind_farm%turbine(s)%jcp
+    p_kcp => wind_farm%turbine(s)%kcp
+
+    ! Calculate disk center velocity
+    if (wind_farm%turbine(s)%center_in_proc) then
+        u_vel_center(s) = u(p_icp, p_jcp, p_kcp)
+        v_vel_center(s) = v(p_icp, p_jcp, p_kcp)
+        w_vel_center(s) = w_uv(p_icp, p_jcp, p_kcp)
+    end if
+end do
+
+! Add the velocities
 #ifdef PPMPI
-call mpi_barrier (comm,ierr)
-
-if (coord == 0) then
-    ! Add all received values from other processors
-    do i=1,turbine_in_proc_cnt
-        j = turbine_in_proc_array(i)
-        recv_array = 0._rprec
-        call MPI_recv( recv_array, 4*nloc, MPI_rprec, j, 3, comm, status, ierr )
-        send_array = send_array + recv_array
-    end do
-
-    ! Place summed values into arrays
-    do s = 1, nloc
-        disk_avg_vel(s) = send_array(s)
-        u_vel_center(s) = send_array(nloc+s)
-        v_vel_center(s) = send_array(2*nloc+s)
-        w_vel_center(s) = send_array(3*nloc+s)
-    end do
-elseif (turbine_in_proc) then
-    call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
-end if
+call MPI_Allreduce(disk_avg_vel, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+disk_avg_vel = buffer_array
+call MPI_Allreduce(u_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+u_vel_center = buffer_array
+call MPI_Allreduce(v_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+v_vel_center = buffer_array
+call MPI_Allreduce(w_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+w_vel_center = buffer_array
 #endif
 
-!Coord==0 takes that info and calculates total disk force, then sends it back
-if (coord == 0) then
-    !update epsilon for the new timestep (for cfl_dt)
-    if (T_avg_dim > 0.) then
-        eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
-    else
-        eps = 1.
-    end if
-
-    do s=1,nloc
-        !set pointers
-        p_u_d => wind_farm%turbine(s)%u_d
-        p_u_d_T => wind_farm%turbine(s)%u_d_T
-        p_f_n => wind_farm%turbine(s)%f_n
-        p_Ct_prime => wind_farm%turbine(s)%Ct_prime
-        p_Cp_prime => wind_farm%turbine(s)%Cp_prime
-        p_omega => wind_farm%turbine(s)%omega
-
-        ! Calculate rotational speed. Power needs to be dimensional.
-        ! Use the previous step's values.
-        const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
-        p_omega = p_omega + dt_dim / inertia_all *                             &
-                (const*(p_u_d_T*u_star)**3/p_omega - 0.5*torque_gain*p_omega**2)
-
-        !volume correction:
-        !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
-        p_u_d = disk_avg_vel(s) * wind_farm%turbine(s)%vol_c
-
-        !add this current value to the "running average" (first order filter)
-        p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-
-        ! Calculate Ct_prime and Cp_prime
-        call Ct_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
-            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
-        call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                   &
-            * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
-
-        !calculate total thrust force for each turbine  (per unit mass)
-        !force is normal to the surface (calc from u_d_T, normal to surface)
-        !write force to array that will be transferred via MPI
-        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
-        disk_force(s) = p_f_n
-
-        !write current step's values to file
-        if (modulo (jt_total, tbase) == 0) then
-            write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,  &
-                v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star, &
-                -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                  &
-                wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega
-        end if
-
-        send_array(s)        = disk_force(s)
-        send_array(nloc+s)   = wind_farm%turbine(s)%omega
-        send_array(2*nloc+s)   = -p_u_d_T*u_star
-
-    end do
-end if
-
-!send total disk force to the necessary procs (with turbine_in_proc==.true.)
-#ifdef PPMPI
-if (coord == 0) then
-    do j = 1, nproc-1
-        call MPI_send( send_array, 4*nloc, MPI_rprec, j, 5, comm, ierr )
-    end do
-    recv_array = send_array
+! Calculate total disk force, then sends it back
+!update epsilon for the new timestep (for cfl_dt)
+if (T_avg_dim > 0.) then
+    eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
 else
-    recv_array = 0._rprec
-    call MPI_recv( recv_array, 4*nloc, MPI_rprec, 0, 5, comm, status, ierr )
-    if (turbine_in_proc) then
-    do s = 1, nloc
-        disk_force(s) = recv_array(s)
-        wind_farm%turbine(s)%omega = recv_array(nloc+s)
-    end do
-    end if
+    eps = 1.
 end if
-#endif
+
+do s = 1,nloc
+    ! set pointers
+    p_u_d => wind_farm%turbine(s)%u_d
+    p_u_d_T => wind_farm%turbine(s)%u_d_T
+    p_f_n => wind_farm%turbine(s)%f_n
+    p_Ct_prime => wind_farm%turbine(s)%Ct_prime
+    p_Cp_prime => wind_farm%turbine(s)%Cp_prime
+    p_omega => wind_farm%turbine(s)%omega
+
+    ! Calculate rotational speed. Power needs to be dimensional.
+    ! Use the previous step's values.
+    const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
+    if (use_receding_horizon) then
+        wind_farm%turbine(s)%gen_torque =                                      &
+            linear_interp(rh_time, gen_torque_arr(s,:), total_time_dim)
+        wind_farm%turbine(s)%theta1 =                                          &
+            linear_interp(rh_time, beta_arr(s,:), total_time_dim)
+    else
+        wind_farm%turbine(s)%gen_torque = torque_gain*p_omega**2
+    end if
+    p_omega = p_omega + dt_dim / inertia_all *                                 &
+        (const*(p_u_d_T*u_star)**3/p_omega - wind_farm%turbine(s)%gen_torque)
+
+    !volume correction:
+    !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
+    p_u_d = disk_avg_vel(s) * wind_farm%turbine(s)%vol_c
+
+    !add this current value to the "running average" (first order filter)
+    p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
+
+    ! Calculate Ct_prime and Cp_prime
+    call Ct_prime_spline%interp(0._rprec, -p_omega * 0.5                       &
+        * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
+    call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                       &
+        * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
+
+    ! calculate total thrust force for each turbine  (per unit mass)
+    ! force is normal to the surface (calc from u_d_T, normal to surface)
+    ! write force to array that will be transferred via MPI
+    p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
+    disk_force(s) = p_f_n
+
+    ! write current step's values to file
+    if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
+        write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,      &
+            v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
+            -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
+            wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega
+    end if
+end do
 
 !apply forcing to each node
-if (turbine_in_proc) then
-    do s=1,nloc
-        do l=1,wind_farm%turbine(s)%num_nodes
-            i2 = wind_farm%turbine(s)%nodes(l,1)
-            j2 = wind_farm%turbine(s)%nodes(l,2)
-            k2 = wind_farm%turbine(s)%nodes(l,3)
-            ind2 = wind_farm%turbine(s)%ind(l)
-            fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2
-            fya(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(2)*ind2
-            fza(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(3)*ind2
-        end do
+do s=1,nloc
+    do l=1,wind_farm%turbine(s)%num_nodes
+        i2 = wind_farm%turbine(s)%nodes(l,1)
+        j2 = wind_farm%turbine(s)%nodes(l,2)
+        k2 = wind_farm%turbine(s)%nodes(l,3)
+        ind2 = wind_farm%turbine(s)%ind(l)
+        fxa(i2,j2,k2) = disk_force(s) * wind_farm%turbine(s)%nhat(1) * ind2
+        fya(i2,j2,k2) = disk_force(s) * wind_farm%turbine(s)%nhat(2) * ind2
+        fza(i2,j2,k2) = disk_force(s) * wind_farm%turbine(s)%nhat(3) * ind2
     end do
-end if
+end do
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
@@ -735,11 +692,12 @@ end if
 
 ! Update wake model
 if (use_wake_model) then
-    allocate( beta(nloc) )
-    beta = 0._rprec
-    call wm%advance(recv_array((2*nloc+1):(3*nloc)),                           &
-        recv_array((nloc+1):(2*nloc)), beta,                                   &
-        torque_gain*recv_array((nloc+1):(2*nloc))**2, dt_dim)
+    call wm%advance(wind_farm%turbine(:)%u_d_T*u_star,                         &
+        wind_farm%turbine(:)%omega, wind_farm%turbine(:)%theta1,               &
+        wind_farm%turbine(:)%gen_torque, dt_dim)
+
+    write(*,*) "beta:", coord, wind_farm%turbine(:)%theta1
+    write(*,*) "gen_torque:", coord, wind_farm%turbine(:)%gen_torque
 
     ! write values to file
     if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
@@ -749,7 +707,6 @@ if (use_wake_model) then
                 wm%wm%U_infty
         end do
     end if
-    deallocate(beta)
 end if
 
 !  Determine if instantaneous velocities are to be recorded
@@ -757,11 +714,13 @@ if (zplane_calc .and. jt_total >= zplane_nstart .and. jt_total <= zplane_nend  &
     .and. mod(jt_total-zplane_nstart,zplane_nskip)==0 .and. coord == 0) then
     call string_splice(fname, path // 'output/wm_vel.', jt_total, '.bin')
     open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
-        access='direct',recl=wm%wm%nx*wm%wm%ny*rprec)
-    write(*,*) wm%wm%nx*wm%wm%ny
+        access='direct', recl=wm%wm%nx*wm%wm%ny*rprec)
     write(13,rec=1) wm%wm%u
     close(13)
 end if
+
+! Calculate the receding horizon trajectories
+if (use_receding_horizon) call eval_receding_horizon
 
 ! Cleanup
 deallocate(w_uv)
@@ -810,6 +769,7 @@ if (coord == 0) then
 end if
 
 if (use_wake_model) call wm%write_to_file(wm_path)
+if (use_receding_horizon) call receding_horizon_checkpoint
 
 end subroutine turbines_checkpoint
 
@@ -1048,6 +1008,20 @@ if (dyn_theta2) then
     end do
 end if
 
+! Read the Pref input data
+if (use_receding_horizon) then
+    ! Count number of entries and allocate
+    num_t = count_lines(Pref_dat)
+    allocate( Pref_time(num_t) )
+    allocate( Pref_arr(num_t) )
+
+    ! Read values from file
+    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) Pref_time(i), Pref_arr(i)
+    end do
+end if
+
 end subroutine read_control_files
 
 !*******************************************************************************
@@ -1069,6 +1043,8 @@ real(rprec), dimension(:), allocatable :: beta
 real(rprec), dimension(:), allocatable :: phi
 real(rprec), dimension(:), allocatable :: Ctp_phi
 type(pchip_t) :: cspl
+
+write(*,*) "there 0 ", coord
 
 ! Read lambda
 N = count_lines(lambda_dat)
@@ -1108,6 +1084,8 @@ do i = 1, N
     read(fid,*) Ctp_phi(i), phi(i)
 end do
 
+write(*,*) "there 1 ", coord
+
 ! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
 ! Prevent negative power coefficients
 do i = 1, size(beta)
@@ -1118,9 +1096,13 @@ do i = 1, size(beta)
     end do
 end do
 
+write(*,*) "there 2 ", coord
+
 ! Calculate induction factor
 allocate( a(size(beta), size(lambda)) )
 a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
+
+write(*,*) "there 3 ", coord
 
 ! Calculate local Ct, Cp, and lambda
 allocate( iCtp(size(beta), size(lambda)) )
@@ -1134,11 +1116,15 @@ do i = 1, size(beta)
     end do
 end do
 
+write(*,*) "there 4 ", coord
+
 ! Allocate arrays
 Nlp = size(lambda)*3
 allocate( lambda_prime(Nlp) )
 allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
 allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
+
+write(*,*) "there 5 ", coord
 
 ! First save the uncorrected splines for use with the wake model
 ! Set the lambda_prime's onto which these curves will be interpolated
@@ -1150,17 +1136,28 @@ do i = 2, Nlp - 1
     lambda_prime(i) = lambda_prime(i-1) + dlp
 end do
 
+write(*,*) "there 6 ", coord
+
 ! Interpolate onto Ct_prime and Cp_prime arrays
 do i = 1, size(beta)
+    write(*,*) "there 6.0", i, size(beta), coord
     cspl = pchip_t(ilp(i,:), iCtp(i,:))
-    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+!     write(*,*) "there 6.1", i, size(beta), coord
+!     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
+!     write(*,*) "there 6.2", i, size(beta), coord
     cspl = pchip_t(ilp(i,:), iCpp(i,:))
-    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+    write(*,*) "there 6.3", i, size(beta), coord
+!     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
+!     write(*,*) "there 6.4", i, size(beta), coord
 end do
+
+write(*,*) "there 7 ", coord
 
 ! Now generate splines
 wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
 wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
+
+write(*,*) "there 8 ", coord
 
 ! Now save the adjusted splines for LES
 ! Adjust the lambda_prime and Cp_prime to use the LES velocity
@@ -1171,6 +1168,8 @@ do i = 1, size(beta)
         Ct_prime_arr(i,j) = max(min(Ct_prime_arr(i,j)*phim, 4._rprec), 0._rprec)
     end do
 end do
+
+write(*,*) "there 9 ", coord
 
 ! For Ct_prime, low beta and lambda are zero. All edges have zero gradient
 Ct_prime_arr(1,:) = 0._rprec
@@ -1183,6 +1182,8 @@ Ct_prime_arr(:,Nlp) = Ct_prime_arr(:,Nlp-1)
 ! Now generate splines
 Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
 Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
+
+write(*,*) "there 10 ", coord
 
 ! Cleanup
 deallocate (lambda)
@@ -1299,5 +1300,193 @@ do i = 1, nloc
 end do
 
 end subroutine wake_model_init
+
+!*******************************************************************************
+subroutine receding_horizon_init
+!*******************************************************************************
+use turbines_mpc
+use conjugate_gradient
+use lbfgsb
+use open_file_fid_mod
+implicit none
+
+logical :: exst
+integer :: fid, N
+type(turbines_mpc_t) :: controller
+type(lbfgsb_t) :: m
+integer :: i
+
+inquire (file=rh_dat, exist=exst)
+
+if (exst) then
+    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
+    write(*,*) "Reading receding horizon restart data..."
+    read(fid) N
+    allocate( rh_time(N) )
+    allocate( gen_torque_arr(nloc, N) )
+    allocate( beta_arr(nloc, N) )
+    read(fid) rh_time
+    read(fid) gen_torque_arr
+    read(fid) beta_arr
+    read(fid) Ca
+    read(fid) Cb
+    close(fid)
+else
+    allocate( rh_time(1) )
+    rh_time = 0._rprec
+    allocate( gen_torque_arr(nloc, 1) )
+    allocate( beta_arr(nloc, 1) )
+    do i = 1, nloc
+        gen_torque_arr(i,:) = torque_gain * wind_farm%turbine(i)%omega**2
+        beta_arr(i,:) = wind_farm%turbine(i)%theta1
+    end do
+
+    if (coord == 0) then
+        write(*,*) "Computing initial optimization..."
+        controller = turbines_mpc_t(wm%wm, total_time_dim, total_time_dim      &
+            + horizon_time, 0.99_rprec, Pref_time, Pref_arr)
+
+        write(*,*) wm%wm%U_infty
+        do i = 1, controller%N
+            controller%beta(i,:) = wind_farm%turbine(i)%theta1
+        end do
+        controller%alpha = 0._rprec
+        call controller%makeDimensionless
+        call controller%rescale_gradient
+        Ca = controller%Ca
+        Cb = controller%Cb
+
+        ! Do the initial optimization
+        m = lbfgsb_t(controller, max_iter)
+        call m%minimize( controller%get_control_vector() )
+        call controller%run()
+        call controller%rescale_gradient
+        Ca = controller%Ca
+        Cb = controller%Cb
+    end if
+
+    ! Allocate arrays
+    N = controller%Nt
+    call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
+    deallocate(rh_time)
+    deallocate(gen_torque_arr)
+    deallocate(beta_arr)
+    allocate(alpha_arr(nloc, N))
+    allocate(gen_torque_arr(nloc, N))
+    allocate(beta_arr(nloc, N))
+    allocate(rh_time(N))
+
+    ! Copy control arrays
+    if (coord == 0) then
+        call controller%makeDimensional
+        gen_torque_arr = controller%gen_torque
+        beta_arr = controller%beta
+        write(*,*) "controller%beta: ", controller%beta
+        write(*,*) "beta_arr: ", beta_arr
+        alpha_arr = controller%alpha
+        rh_time = controller%t
+        write(*,*) "controller%t: ", controller%t
+    end if
+
+    ! Transfer via MPI
+    call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
+
+end if
+
+end subroutine receding_horizon_init
+
+!*******************************************************************************
+subroutine eval_receding_horizon ()
+!*******************************************************************************
+use turbines_mpc
+use conjugate_gradient
+use lbfgsb
+use functions, only : linear_interp
+implicit none
+
+type(turbines_mpc_t) :: controller
+type(lbfgsb_t) :: m
+integer :: N
+
+! Only perform receding horizon control every advancement step
+if (modulo (jt_total, advancement_base) == 0) then
+
+    if (coord == 0) then
+        write(*,*) "Optimizing..."
+        controller = turbines_mpc_t(wm%wm, total_time_dim, total_time_dim      &
+            + horizon_time, 0.99_rprec, Pref_time, Pref_arr)
+
+        do i = 1, nloc
+            controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:), controller%t)
+            controller%gen_torque(i,:) = linear_interp(rh_time, gen_torque_arr(i,:), controller%t)
+            controller%alpha(i,:) = linear_interp(rh_time, alpha_arr(i,:), controller%t)
+        end do
+        call controller%makeDimensionless
+
+        ! Do the initial optimization
+        m = lbfgsb_t(controller, max_iter)
+        call m%minimize( controller%get_control_vector() )
+        controller%Ca = Ca
+        controller%Cb = Cb
+        call controller%run()
+    end if
+
+    ! Allocate arrays
+    N = controller%Nt
+    call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
+    deallocate(rh_time)
+    deallocate(gen_torque_arr)
+    deallocate(beta_arr)
+    deallocate(alpha_arr)
+    allocate(alpha_arr(nloc, N))
+    allocate(gen_torque_arr(nloc, N))
+    allocate(beta_arr(nloc, N))
+    allocate(rh_time(N))
+
+    ! Copy control arrays
+    if (coord == 0) then
+        call controller%makeDimensional
+        gen_torque_arr = controller%gen_torque
+        beta_arr = controller%beta
+        write(*,*) controller%beta
+        alpha_arr = controller%alpha
+        rh_time = controller%t
+    end if
+
+    ! Transfer via MPI
+    call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
+
+end if
+
+end subroutine eval_receding_horizon
+
+!*******************************************************************************
+subroutine receding_horizon_checkpoint
+!*******************************************************************************
+use turbines_mpc
+use open_file_fid_mod
+implicit none
+
+integer :: fid
+
+if (coord == 0) then
+    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
+    write(*,*) "Writing receding horizon restart data..."
+    write(fid) size(rh_time)
+    write(fid) rh_time
+    write(fid) gen_torque_arr
+    write(fid) beta_arr
+    write(fid) Ca
+    write(fid) Cb
+    close(fid)
+end if
+
+end subroutine receding_horizon_checkpoint
 
 end module turbines

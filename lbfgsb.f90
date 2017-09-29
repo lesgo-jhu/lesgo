@@ -1296,6 +1296,8 @@ do while (iterate)
     else
         dtm = -f1/f2
     endif
+
+    if (nleft .le. 0) iterate = .false.
 end do
 
 if (finish_loop) then
