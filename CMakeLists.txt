@@ -11,7 +11,7 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "darwin-brew")
 
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
@@ -45,7 +45,7 @@ set(USE_LVLSET false)
 set(USE_CPS false)
 
 # Homogeneous isotropic turbulence input
-set(USE_HIT true)
+set(USE_HIT false)
 
 # Shift the domain in the y (spanwise) direction to eliminate
 # streaks effects on averaging
@@ -178,7 +178,9 @@ if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
     set(Sources ${Sources} turbines.f90 util.f90 wake_model.f90 
         wake_model_base.f90 wake_model_estimator.f90 cubic_spline.f90 
-        bicubic_spline.f90 bi_pchip.f90 tridiagonal.f90 pchip.f90)
+        bicubic_spline.f90 bi_pchip.f90 tridiagonal.f90 pchip.f90 
+	turbines_mpc.f90 minimize.f90 wake_model_adjoint.f90 
+	conjugate_gradient.f90 lbfgsb.f90 line_search.f90)
 #        minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
@@ -228,17 +230,17 @@ if (READ_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPREAD_BIG_ENDIAN)
 endif (READ_ENDIAN STREQUAL "BIG")
 
-set(CMAKE_Fortran_FLAGS "-cpp -O2")
+set(CMAKE_Fortran_FLAGS "-cpp -O0 -ggdb -fbacktrace -fcheck=all -ffpe-trap=invalid,zero")
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall -fcheck=bounds")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-if (hostname STREQUAL "darwin-brew")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -framework Accelerate ")
-endif (hostname STREQUAL "darwin-brew")
+##if (hostname STREQUAL "darwin-brew")
+#    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -framework Accelerate ")
+#endif (hostname STREQUAL "darwin-brew")
 
 # main lesgo executable
 add_executable(${exec_name} ${Sources})
