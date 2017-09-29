@@ -117,8 +117,8 @@ end do
 ! secant line. Otherwise, set the derivatives to zero
 do i = 1, this%N-1
     if ( .not.zeroed(i) ) then
-        a = this%vp(i) / Delta(i) 
-        b = this%vp(i+1) / Delta(i) 
+        a = this%vp(i) / Delta(i)
+        b = this%vp(i+1) / Delta(i)
         if ( a < 0._rprec .or. b < 0._rprec ) this%vp(i) = 0._rprec
     end if
 end do
@@ -126,10 +126,10 @@ end do
 ! Ensure monotonicity by keeping a and b < 3
 do i = 1, this%N-1
     if ( .not.zeroed(i) ) then
-        a = this%vp(i) / Delta(i) 
+        a = this%vp(i) / Delta(i)
         b = this%vp(i+1) / Delta(i)
-        tau = 3._rprec / sqrt(a**2 + b**2)
-        if (tau < 1._rprec) then
+        if (a**2 + b**2 > 9._rprec) then
+            tau = 3._rprec / sqrt(a**2 + b**2)
             this%vp(i) = tau * a * Delta(i)
             this%vp(i+1) = tau * b * Delta(i)
         end if
