@@ -161,7 +161,6 @@ integer :: k_start, k_end
 
 ! for MPI sending and receiving
 real(rprec), dimension(:), allocatable :: buffer_array
-real(rprec), dimension(:,:), allocatable :: buffer_array_2d
 
 ! Wake model
 type(wake_model_estimator_t) :: wm
@@ -258,17 +257,11 @@ do k = 1,nloc
 
 end do
 
-write(*,*) "Here 1 ", coord
-
 ! Read dynamic control input files
 call read_control_files
 
-write(*,*) "Here 2 ", coord
-
 ! Read power and thrust coefficient curves
 call generate_splines
-
-write(*,*) "Here 3 ", coord
 
 !Compute a lookup table object for the indicator function
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
@@ -278,13 +271,9 @@ do s = 1, nloc
             max( max(nx, ny), nz) )
 end do
 
-write(*,*) "Here 4 ", coord
-
 ! Find turbine nodes - including filtered ind, n_hat, num_nodes, and nodes for
 ! each turbine. Each processor finds turbines in its domain
 call turbines_nodes
-
-write(*,*) "Here 5 ", coord
 
 ! Read the time-averaged disk velocities from file if available
 inquire (file=u_d_T_dat, exist=exst)
@@ -992,6 +981,8 @@ if (dyn_theta1) then
     do i = 1, num_t
         read(fid,*) theta1_time(i), theta1_arr(:,i)
     end do
+
+    close(fid)
 end if
 
 ! Read the theta2 input data
@@ -1006,6 +997,8 @@ if (dyn_theta2) then
     do i = 1, num_t
         read(fid,*) theta2_time(i), theta2_arr(:,i)
     end do
+
+    close(fid)
 end if
 
 ! Read the Pref input data
@@ -1020,7 +1013,10 @@ if (use_receding_horizon) then
     do i = 1, num_t
         read(fid,*) Pref_time(i), Pref_arr(i)
     end do
+
+    close(fid)
 end if
+
 
 end subroutine read_control_files
 
@@ -1043,8 +1039,6 @@ real(rprec), dimension(:), allocatable :: beta
 real(rprec), dimension(:), allocatable :: phi
 real(rprec), dimension(:), allocatable :: Ctp_phi
 type(pchip_t) :: cspl
-
-write(*,*) "there 0 ", coord
 
 ! Read lambda
 N = count_lines(lambda_dat)
@@ -1083,8 +1077,7 @@ fid = open_file_fid(phi_dat, 'rewind', 'formatted')
 do i = 1, N
     read(fid,*) Ctp_phi(i), phi(i)
 end do
-
-write(*,*) "there 1 ", coord
+close(fid)
 
 ! Ct_prime and Cp_prime are only really defined if 0<=Ct<=1
 ! Prevent negative power coefficients
@@ -1096,13 +1089,9 @@ do i = 1, size(beta)
     end do
 end do
 
-write(*,*) "there 2 ", coord
-
 ! Calculate induction factor
 allocate( a(size(beta), size(lambda)) )
 a = 0.5*(1._rprec-sqrt(1._rprec-Ct))
-
-write(*,*) "there 3 ", coord
 
 ! Calculate local Ct, Cp, and lambda
 allocate( iCtp(size(beta), size(lambda)) )
@@ -1116,15 +1105,11 @@ do i = 1, size(beta)
     end do
 end do
 
-write(*,*) "there 4 ", coord
-
 ! Allocate arrays
 Nlp = size(lambda)*3
 allocate( lambda_prime(Nlp) )
 allocate( Ct_prime_arr(size(beta), size(lambda_prime)) )
 allocate( Cp_prime_arr(size(beta), size(lambda_prime)) )
-
-write(*,*) "there 5 ", coord
 
 ! First save the uncorrected splines for use with the wake model
 ! Set the lambda_prime's onto which these curves will be interpolated
@@ -1136,28 +1121,21 @@ do i = 2, Nlp - 1
     lambda_prime(i) = lambda_prime(i-1) + dlp
 end do
 
-write(*,*) "there 6 ", coord
-
 ! Interpolate onto Ct_prime and Cp_prime arrays
 do i = 1, size(beta)
-    write(*,*) "there 6.0", i, size(beta), coord
     cspl = pchip_t(ilp(i,:), iCtp(i,:))
-!     write(*,*) "there 6.1", i, size(beta), coord
-!     call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
-!     write(*,*) "there 6.2", i, size(beta), coord
+    call cspl%interp(lambda_prime, Ct_prime_arr(i,:))
     cspl = pchip_t(ilp(i,:), iCpp(i,:))
-    write(*,*) "there 6.3", i, size(beta), coord
-!     call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
-!     write(*,*) "there 6.4", i, size(beta), coord
+    call cspl%interp(lambda_prime, Cp_prime_arr(i,:))
 end do
 
-write(*,*) "there 7 ", coord
+! Zero lambda_prime == 0
+Ct_prime_arr(:,1) = 0._rprec
+Cp_prime_arr(:,1) = 0._rprec
 
 ! Now generate splines
 wm_Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
 wm_Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
-
-write(*,*) "there 8 ", coord
 
 ! Now save the adjusted splines for LES
 ! Adjust the lambda_prime and Cp_prime to use the LES velocity
@@ -1168,8 +1146,6 @@ do i = 1, size(beta)
         Ct_prime_arr(i,j) = max(min(Ct_prime_arr(i,j)*phim, 4._rprec), 0._rprec)
     end do
 end do
-
-write(*,*) "there 9 ", coord
 
 ! For Ct_prime, low beta and lambda are zero. All edges have zero gradient
 Ct_prime_arr(1,:) = 0._rprec
@@ -1182,8 +1158,6 @@ Ct_prime_arr(:,Nlp) = Ct_prime_arr(:,Nlp-1)
 ! Now generate splines
 Ct_prime_spline = bi_pchip_t(beta, lambda_prime, Ct_prime_arr)
 Cp_prime_spline = bi_pchip_t(beta, lambda_prime, Cp_prime_arr)
-
-write(*,*) "there 10 ", coord
 
 ! Cleanup
 deallocate (lambda)
@@ -1367,7 +1341,9 @@ else
 
     ! Allocate arrays
     N = controller%Nt
+#ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
+#endif
     deallocate(rh_time)
     deallocate(gen_torque_arr)
     deallocate(beta_arr)
@@ -1388,11 +1364,13 @@ else
         write(*,*) "controller%t: ", controller%t
     end if
 
+#ifdef PPMPI
     ! Transfer via MPI
     call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
+#endif
 
 end if
 
@@ -1409,7 +1387,7 @@ implicit none
 
 type(turbines_mpc_t) :: controller
 type(lbfgsb_t) :: m
-integer :: N
+integer :: N = 0
 
 ! Only perform receding horizon control every advancement step
 if (modulo (jt_total, advancement_base) == 0) then
@@ -1434,9 +1412,11 @@ if (modulo (jt_total, advancement_base) == 0) then
         call controller%run()
     end if
 
-    ! Allocate arrays
+    ! Allocate arrays\
     N = controller%Nt
+#ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
+#endif
     deallocate(rh_time)
     deallocate(gen_torque_arr)
     deallocate(beta_arr)
@@ -1456,11 +1436,13 @@ if (modulo (jt_total, advancement_base) == 0) then
         rh_time = controller%t
     end if
 
+#ifdef PPMPI
     ! Transfer via MPI
     call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
+#endif
 
 end if
 

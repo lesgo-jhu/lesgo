@@ -42,6 +42,8 @@ type, extends(wake_model_base_t) :: wake_model_t
     real(rprec), dimension(:), allocatable :: Phat
     ! estimated aerodynamic power (turbine)
     real(rprec), dimension(:), allocatable :: Paero
+    ! estimated aerodynamic power (turbine) / Cp_prime
+    real(rprec), dimension(:), allocatable :: Paero_Cpp
     ! local thrust coefficient (turbine)
     real(rprec), dimension(:), allocatable :: Ctp
     ! local thrust coefficient (turbine)
@@ -131,6 +133,7 @@ allocate( this%u(this%Nx, this%Ny) )
 allocate( this%uhat(this%N) )
 allocate( this%Phat(this%N) )
 allocate( this%Paero(this%N) )
+allocate( this%Paero_Cpp(this%N) )
 allocate( this%Ctp(this%N)  )
 allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
@@ -144,6 +147,7 @@ this%u = this%U_infty
 this%uhat = this%U_infty
 this%Phat = 0._rprec
 this%Paero = 0._rprec
+this%Paero_Cpp = 0._rprec
 this%Ctp = 0._rprec
 this%Cpp = 0._rprec
 this%omega = 1._rprec
@@ -197,6 +201,7 @@ allocate( this%u(this%Nx, this%Ny) )
 allocate( this%uhat(this%N) )
 allocate( this%Phat(this%N) )
 allocate( this%Paero(this%N) )
+allocate( this%Paero_Cpp(this%N) )
 allocate( this%Ctp(this%N)  )
 allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
@@ -215,6 +220,7 @@ read(fid) this%u
 read(fid) this%uhat
 read(fid) this%Phat
 read(fid) this%Paero
+read(fid) this%Paero_Cpp
 read(fid) this%Ctp
 read(fid) this%Cpp
 read(fid) this%omega
@@ -249,6 +255,7 @@ if (.not.this%isDimensionless) then
     ! units power
     this%Phat = this%Phat / this%POWER
     this%Paero = this%Paero / this%POWER
+    this%Paero_Cpp = this%Paero_Cpp / this%POWER
     ! units T^-1
     this%omega = this%omega * this%TIME
     ! units TORQUE
@@ -272,6 +279,7 @@ if (this%isDimensionless) then
     ! units power
     this%Phat = this%Phat * this%POWER
     this%Paero = this%Paero * this%POWER
+    this%Paero_Cpp = this%Paero_Cpp * this%POWER
     ! units T^-1
     this%omega = this%omega / this%TIME
     ! units TORQUE
@@ -307,6 +315,7 @@ write(fid) this%u
 write(fid) this%uhat
 write(fid) this%Phat
 write(fid) this%Paero
+write(fid) this%Paero_Cpp
 write(fid) this%Ctp
 write(fid) this%Cpp
 write(fid) this%omega
@@ -394,8 +403,13 @@ this%u = sqrt(this%u)
 
 ! Calculate new rotational speed
 do i = 1, this%N
-    this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)    &
-        - this%gen_torque(i)) / this%inertia, 0._rprec)
+    if (this%Paero(i) == 0._rprec) then
+        this%omega(i) = max(this%omega(i) - dt * this%gen_torque(i)            &
+            / this%inertia, 0._rprec)
+    else
+        this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)&
+            - this%gen_torque(i)) / this%inertia, 0._rprec)
+    end if
 end do
 
 ! Find the velocity field
@@ -418,6 +432,7 @@ do i = 1, this%N
     call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
     this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &
                     * this%uhat(i)**3 / 8._rprec
+    this%Paero_Cpp(i) = this%rho * pi * this%Dia**2 * this%uhat(i)**3 / 8._rprec
     this%Phat(i) = this%gen_torque(i) * this%omega(i)
 end do
 
@@ -454,22 +469,22 @@ real(rprec), dimension(:), intent(out) :: Udu, Uw, Wdu, Wu, Ww
 real(rprec), dimension(:), intent(out) :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:), intent(out) :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), intent(out) :: dCp_dbeta, dCp_dlambda
-real(rprec), dimension(:), allocatable :: Paero_uhat, Paero_Cpp
+
 real(rprec) :: dummy
 integer :: n
-
-allocate(Paero_uhat(this%N))
-allocate(Paero_Cpp(this%N))
-
-Paero_uhat = this%rho * pi * this%Dia**2 * this%Cpp * this%uhat**2 / 8._rprec
-Paero_Cpp = this%rho * pi * this%Dia**2 * this%uhat**3 / 8._rprec
 
 ! advance wake model with dummy generator torque
 call this%advance(beta, this%gen_torque, dt)
 
 ! correct the stored values for power and generator torque based on alpha
 this%Phat = (1._rprec - alpha) * this%Paero
-this%gen_torque = this%Phat / this%omega
+do n = 1, this%N
+    if (this%Phat(n) == 0._rprec .or. this%omega(n) == 0._rprec) then
+        this%gen_torque(n) = 0._rprec
+    else
+        this%gen_torque(n) = this%Phat(n) / this%omega(n)
+    end if
+end do
 
 ! Calculate derivatives of Ct and Cp
 do n = 1, this%N
@@ -482,21 +497,13 @@ end do
 ! Everything else can be calculated at once
 Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega          &
     * 0.5_rprec * this%Dia / this%uhat**2
-Uw = alpha / this%inertia / this%omega * 3._rprec * Paero_uhat     &
-    - alpha / this%inertia * Paero_Cpp * dCp_dlambda * 0.5_rprec   &
-    * this%Dia / this%uhat**2
 Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                        &
     * 0.5_rprec * this%Dia / this%uhat
-Ww = -alpha / this%inertia * this%Paero / this%omega**2                        &
-    + alpha / this%inertia * Paero_Cpp / this%omega * this%Dia * 0.5_rprec    &
-    / this%uhat * dCp_dlambda
 Wu = 0._rprec
 Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
 Bu = 0._rprec
-Bw = -alpha / this%inertia / this%omega * Paero_Cpp * dCp_dbeta
 Adu = 0._rprec
 Au = 0._rprec
-Aw = -this%Paero / this%inertia / this%omega
 
 ! Fix values that may be NaNs
 do n = 1, this%N
@@ -505,6 +512,15 @@ do n = 1, this%N
         Ww(n) = 0._rprec
         Bw(n) = 0._rprec
         Aw(n) = 0._rprec
+    else
+        Uw(n) = alpha(n) / this%inertia / this%omega(n) * 3._rprec * this%Paero(n) / this%uhat(n)     &
+            - alpha(n) / this%inertia * this%Paero_Cpp(n) * dCp_dlambda(n) * 0.5_rprec          &
+            * this%Dia / this%uhat(n)**2
+        Ww(n) = -alpha(n) / this%inertia * this%Paero(n) / this%omega(n)**2                        &
+            + alpha(n) / this%inertia * this%Paero_Cpp(n) / this%omega(n) * this%Dia * 0.5_rprec&
+            / this%uhat(n) * dCp_dlambda(n)
+        Bw(n) = -alpha(n) / this%inertia / this%omega(n) * this%Paero_Cpp(n) * dCp_dbeta(n)
+        Aw(n) = -this%Paero(n) / this%inertia / this%omega(n)
     end if
 end do
 

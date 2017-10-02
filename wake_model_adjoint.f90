@@ -340,8 +340,6 @@ end do
 ! Compute adjoint of estimated velocity
 this%uhat_star = Uj + Uw * this%omega_star + Udu*fdustar
 
-! write(*,*) this%uhat_star
-
 ! evaluate inverse of superimposed forward velocity deficits
 du_super = 0._rprec
 do i = 1, this%N

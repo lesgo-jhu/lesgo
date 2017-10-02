@@ -25,7 +25,10 @@ use util,  only : logistic, softplus, gaussian
 use wake_model
 use messages
 use bi_pchip
-use param, only : pi, coord, nproc, MPI_RPREC, status, comm, coord, ierr
+use param, only : pi, coord, nproc
+#ifdef PPMPI
+use param, only : MPI_PREC, status, comm, coord, ierr
+#endif
 implicit none
 
 private
@@ -312,7 +315,9 @@ end subroutine calc_U_infty
 subroutine generate_initial_ensemble(this)
 !*******************************************************************************
 use util, only : random_normal
+#ifdef PPMPI
 use mpi
+#endif
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), parameter :: cfl = 0.2
@@ -412,7 +417,9 @@ use util, only : random_normal, inverse
 #ifdef PPIFORT
 use BLAS95
 #endif
+#ifdef PPMPI
 use mpi
+#endif
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
