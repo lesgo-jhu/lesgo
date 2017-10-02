@@ -27,7 +27,7 @@ use messages
 use bi_pchip
 use param, only : pi, coord, nproc
 #ifdef PPMPI
-use param, only : MPI_PREC, status, comm, coord, ierr
+use param, only : MPI_RPREC, status, comm, coord, ierr
 #endif
 implicit none
 

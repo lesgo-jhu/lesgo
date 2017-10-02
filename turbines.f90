@@ -654,7 +654,8 @@ do s = 1,nloc
         write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,      &
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
-            wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega
+            wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega,      &
+            wind_farm%turbine(s)%gen_torque
     end if
 end do
 
@@ -681,12 +682,9 @@ end if
 
 ! Update wake model
 if (use_wake_model) then
-    call wm%advance(wind_farm%turbine(:)%u_d_T*u_star,                         &
+    call wm%advance(-wind_farm%turbine(:)%u_d_T*u_star,                        &
         wind_farm%turbine(:)%omega, wind_farm%turbine(:)%theta1,               &
         wind_farm%turbine(:)%gen_torque, dt_dim)
-
-    write(*,*) "beta:", coord, wind_farm%turbine(:)%theta1
-    write(*,*) "gen_torque:", coord, wind_farm%turbine(:)%gen_torque
 
     ! write values to file
     if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
@@ -1299,6 +1297,7 @@ if (exst) then
     allocate( rh_time(N) )
     allocate( gen_torque_arr(nloc, N) )
     allocate( beta_arr(nloc, N) )
+    allocate( alpha_arr(nloc, N) )
     read(fid) rh_time
     read(fid) gen_torque_arr
     read(fid) beta_arr
@@ -1320,27 +1319,27 @@ else
         controller = turbines_mpc_t(wm%wm, total_time_dim, total_time_dim      &
             + horizon_time, 0.99_rprec, Pref_time, Pref_arr)
 
-        write(*,*) wm%wm%U_infty
         do i = 1, controller%N
             controller%beta(i,:) = wind_farm%turbine(i)%theta1
         end do
         controller%alpha = 0._rprec
+        controller%gen_torque(:,1) = wm%wm%gen_torque
         call controller%makeDimensionless
         call controller%rescale_gradient
         Ca = controller%Ca
         Cb = controller%Cb
 
         ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter)
+        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(), controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         call controller%run()
         call controller%rescale_gradient
         Ca = controller%Ca
         Cb = controller%Cb
+        N = controller%Nt
     end if
 
     ! Allocate arrays
-    N = controller%Nt
 #ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
@@ -1357,11 +1356,14 @@ else
         call controller%makeDimensional
         gen_torque_arr = controller%gen_torque
         beta_arr = controller%beta
-        write(*,*) "controller%beta: ", controller%beta
-        write(*,*) "beta_arr: ", beta_arr
         alpha_arr = controller%alpha
         rh_time = controller%t
-        write(*,*) "controller%t: ", controller%t
+
+        ! write(*,*) "rh_time: ", rh_time
+        ! write(*,*) "gen_torque: ", gen_torque_arr
+        ! write(*,*) "beta: ", beta_arr
+        ! write(*,*) "Pref: ", controller%Pref
+        ! write(*,*) "Phat: ", controller%Pfarm
     end if
 
 #ifdef PPMPI
@@ -1405,15 +1407,16 @@ if (modulo (jt_total, advancement_base) == 0) then
         call controller%makeDimensionless
 
         ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter)
+                write(*,*) "Max_iter: ", max_iter
+        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(), controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         controller%Ca = Ca
         controller%Cb = Cb
         call controller%run()
+        N = controller%Nt
     end if
 
-    ! Allocate arrays\
-    N = controller%Nt
+    ! Allocate arrays
 #ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
@@ -1431,7 +1434,6 @@ if (modulo (jt_total, advancement_base) == 0) then
         call controller%makeDimensional
         gen_torque_arr = controller%gen_torque
         beta_arr = controller%beta
-        write(*,*) controller%beta
         alpha_arr = controller%alpha
         rh_time = controller%t
     end if
@@ -1464,6 +1466,7 @@ if (coord == 0) then
     write(fid) rh_time
     write(fid) gen_torque_arr
     write(fid) beta_arr
+    write(fid) alpha_arr
     write(fid) Ca
     write(fid) Cb
     close(fid)

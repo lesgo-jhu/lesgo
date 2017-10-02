@@ -54,6 +54,8 @@ contains
     procedure, public :: makeDimensional
     procedure, public :: eval
     procedure, public :: get_control_vector
+    procedure, public :: get_lower_bound
+    procedure, public :: get_upper_bound
     procedure, public :: run
     procedure, public :: finite_difference_gradient
     procedure, public :: rescale_gradient
@@ -122,7 +124,8 @@ allocate( this%fdgrad_beta(this%N, this%Nt) )
 allocate( this%fdgrad_alpha(this%N, this%Nt) )
 allocate( this%gen_torque(this%N, this%Nt) )
 this%beta(:,1) = this%iw%beta
-this%alpha(:,1) = 1._rprec - this%iw%Phat / this%iw%Paero
+this%alpha(:,1) = 0._rprec
+!this%alpha(:,1) = 1._rprec - this%iw%Phat / this%iw%Paero
 this%gen_torque(:,1) = this%iw%gen_torque
 
 ! Interpolate the power signals and set initial condition for Pfarm
@@ -370,6 +373,49 @@ end do
 end function get_control_vector
 
 !*******************************************************************************
+function get_lower_bound(this) result(x)
+!*******************************************************************************
+implicit none
+class(turbines_mpc_t) :: this
+real(rprec), dimension(:), allocatable :: x
+integer :: k, istart, istop, iskip
+
+allocate( x(2*(size(this%beta) - this%N)) )
+x = -1000
+
+iskip = (this%Nt-1) * this%N
+do k = 1, this%Nt-1
+    istart = (k-1) * this%N + 1
+    istop = this%N * k
+    x(istart:istop) = -45._rprec / this%Cb
+    x(istart+iskip:istop+iskip) = 0._rprec / this%Ca
+end do
+
+end function get_lower_bound
+
+!*******************************************************************************
+function get_upper_bound(this) result(x)
+!*******************************************************************************
+implicit none
+class(turbines_mpc_t) :: this
+real(rprec), dimension(:), allocatable :: x
+integer :: k, istart, istop, iskip
+
+allocate( x(2*(size(this%beta) - this%N)) )
+x = -1000
+
+iskip = (this%Nt-1) * this%N
+do k = 1, this%Nt-1
+    istart = (k-1) * this%N + 1
+    istop = this%N * k
+    x(istart:istop) = 45._rprec / this%Cb
+    x(istart+iskip:istop+iskip) = 1000000000._rprec / this%Ca
+end do
+
+end function get_upper_bound
+
+
+!*******************************************************************************
 subroutine finite_difference_gradient(this)
 !*******************************************************************************
 implicit none
@@ -423,8 +469,6 @@ if ( present(Cb) ) then
 else
     this%Cb = 1._rprec / maxval(abs(this%grad_beta))
 end if
-
-! write(*,*) this%Ca, this%Cb
 
 end subroutine rescale_gradient
 

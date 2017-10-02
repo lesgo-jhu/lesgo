@@ -71,8 +71,8 @@ public lbfgsb_t
 type :: lbfgsb_t
     class(minimize_t), pointer :: mini => NULL()
     integer :: maxiteri = 10000     ! maximum number of iterations
-    real(rprec) :: lb = -10000000   ! -Infinity
-    real(rprec) :: ub = 10000000    ! Infinity
+    real(rprec), dimension(:), allocatable :: lb
+    real(rprec), dimension(:), allocatable :: ub
     real(rprec) :: tol = 1E-6       ! convergence level
     type(line_search_t) :: ls       ! line search class
 contains
@@ -93,13 +93,20 @@ implicit none
 type(lbfgsb_t) :: this
 class(minimize_t), target :: i_mini
 integer, intent(in), optional :: i_maxiteri
-real(rprec), intent(in), optional :: i_lb, i_ub, i_tol
+real(rprec), intent(in), dimension(:), optional :: i_lb, i_ub
+real(rprec), intent(in), optional :: i_tol
 
 ! Assign input arguments
 if ( present(i_maxiteri) ) this%maxiteri = i_maxiteri
 if ( present(i_tol) ) this%tol = i_tol
-if ( present(i_lb) ) this%lb = i_lb
-if ( present(i_ub) ) this%ub = i_ub
+if ( present(i_lb) ) then
+    allocate(this%lb(size(i_lb)))
+    this%lb = i_lb
+end if
+if ( present(i_ub) ) then
+    allocate(this%ub(size(i_ub)))
+    this%ub = i_ub
+end if
 this%mini => i_mini
 this%ls = line_search_t(i_mini, 1E-3_rprec, 0.9_rprec, 0.1_rprec)
 end function constructor
@@ -202,8 +209,16 @@ real(rprec), parameter :: big = 1.0E10_rprec
 integer :: dummy
 
 ! Initialize
-l = this%lb
-u = this%ub
+if (allocated(this%lb)) then
+    l = this%lb
+else
+    l = -1000000000._rprec
+end if
+if (allocated(this%ub)) then
+    u = this%ub
+else
+    u = -1000000000._rprec
+end if
 nbd = 2
 epsmch = epsilon(1._rprec)
 factr = this%tol/epsmch
