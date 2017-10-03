@@ -638,9 +638,9 @@ do s = 1,nloc
     p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
     ! Calculate Ct_prime and Cp_prime
-    call Ct_prime_spline%interp(0._rprec, -p_omega * 0.5                       &
+    call Ct_prime_spline%interp(wind_farm%turbine(s)%theta1, -p_omega * 0.5    &
         * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
-    call Cp_prime_spline%interp(0._rprec, -p_omega * 0.5                       &
+    call Cp_prime_spline%interp(wind_farm%turbine(s)%theta1, -p_omega * 0.5    &
         * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
 
     ! calculate total thrust force for each turbine  (per unit mass)
@@ -655,7 +655,7 @@ do s = 1,nloc
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
             wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega,      &
-            wind_farm%turbine(s)%gen_torque
+            wind_farm%turbine(s)%gen_torque, wind_farm%turbine(s)%gen_torque*p_omega
     end if
 end do
 
