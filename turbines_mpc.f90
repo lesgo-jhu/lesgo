@@ -381,14 +381,16 @@ real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
 allocate( x(2*(size(this%beta) - this%N)) )
-x = -1000
+x = -1000000000000._rprec
 
 iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = -45._rprec / this%Cb
-    x(istart+iskip:istop+iskip) = 0._rprec / this%Ca
+    x(istart:istop) = -1000000000._rprec
+    x(istart+iskip:istop+iskip) = -1000000000._rprec
+    !x(istart:istop) = -45._rprec / this%Cb
+    !x(istart+iskip:istop+iskip) = 0._rprec / this%Ca
 end do
 
 end function get_lower_bound
@@ -402,14 +404,16 @@ real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
 allocate( x(2*(size(this%beta) - this%N)) )
-x = -1000
+x = 1000000000._rprec
 
 iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = 45._rprec / this%Cb
-    x(istart+iskip:istop+iskip) = 1000000000._rprec / this%Ca
+    x(istart:istop) = 1000000000._rprec
+    x(istart+iskip:istop+iskip) = 1000000000._rprec
+    !x(istart:istop) = 45._rprec / this%Cb
+    !x(istart+iskip:istop+iskip) = 1000000000._rprec / this%Ca
 end do
 
 end function get_upper_bound
