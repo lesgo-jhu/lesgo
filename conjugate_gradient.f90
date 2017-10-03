@@ -22,7 +22,7 @@ module conjugate_gradient
 !*******************************************************************************
 use types, only : rprec
 use line_search
-use minimize
+use minimize_m
 use messages
 implicit none
 

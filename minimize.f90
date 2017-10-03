@@ -18,7 +18,7 @@
 !!
 
 !*******************************************************************************
-module minimize
+module minimize_m
 !*******************************************************************************
 use types, only : rprec
 use messages
@@ -83,6 +83,6 @@ call this%fun(x, f, g)
 
 end subroutine eval
 
-end module minimize
+end module minimize_m
 
 

@@ -61,7 +61,7 @@ module lbfgsb
 !                          March  2011
 !
 use types, only : rprec
-use minimize
+use minimize_m
 use line_search
 use messages
 
@@ -76,8 +76,8 @@ type :: lbfgsb_t
     real(rprec) :: tol = 1E-6       ! convergence level
     type(line_search_t) :: ls       ! line search class
 contains
-   procedure, public :: minimize
-   procedure, private :: minimize_priv
+    procedure, public :: minimize
+    procedure, private :: minimize_priv
 end type lbfgsb_t
 
 interface lbfgsb_t

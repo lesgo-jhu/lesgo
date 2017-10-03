@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "GNU")
+set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "darwin-brew")
+set(hostname "marcc")
 
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
@@ -103,9 +103,9 @@ if (${hostname} STREQUAL "panoramix")
 elseif (${hostname} STREQUAL "marcc")
     # Intel
     if (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-        include_directories(/cm/shared/apps/Intel/fftw/3.3.4/include)
+        include_directories(/cm/shared/apps/Intel/fftw/3.3.4/include /cm/shared/apps/Intel/parallel_studio_update_1_2017/mkl/include/intel64/lp64/)
         link_directories(/cm/shared/apps/Intel/fftw/3.3.4/lib
-        /cm/shared/apps/blas/3.2.1/lib /cm/shared/apps/Intel/lapack/3.3.0/lib)
+        /cm/shared/apps/blas/3.2.1/lib /cm/shared/apps/Intel/lapack/3.3.0/lib /cm/shared/apps/Intel/parallel_studio_update_1_2017/mkl/lib/intel64 /cm/shared/apps/Intel/parallel_studio_update_1_2017/mkl/lib/intel64_lin)
     # GNU -- These have to be installed locally for now.
     elseif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
         if (USE_CGNS)
@@ -180,7 +180,7 @@ if (USE_TURBINES)
         wake_model_base.f90 wake_model_estimator.f90 cubic_spline.f90 
         bicubic_spline.f90 bi_pchip.f90 tridiagonal.f90 pchip.f90 
 	turbines_mpc.f90 minimize.f90 wake_model_adjoint.f90 
-	conjugate_gradient.f90 lbfgsb.f90 line_search.f90)
+	lbfgsb.f90 line_search.f90 conjugate_gradient.f90)
 #        minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
@@ -230,13 +230,14 @@ if (READ_ENDIAN STREQUAL "BIG")
     add_definitions(-DPPREAD_BIG_ENDIAN)
 endif (READ_ENDIAN STREQUAL "BIG")
 
-set(CMAKE_Fortran_FLAGS "-cpp -O0 -ggdb -fbacktrace -fcheck=all -ffpe-trap=invalid,zero")
+set(CMAKE_Fortran_FLAGS "-cpp -O2")
 # Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    link_libraries(mkl_intel_lp64 mkl_core mkl_sequential mkl_blas95_lp64)
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -funroll-loops -no-wrap-margin -assume byterecl")
 # GNU
 else (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall")
+    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffast-math -funroll-loops -fall-intrinsics -fexternal-blas -Wall")
 endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 ##if (hostname STREQUAL "darwin-brew")
 #    set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -framework Accelerate ")

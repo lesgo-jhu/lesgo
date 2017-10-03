@@ -25,7 +25,7 @@ module line_search
 ! ...minpack2-linmin.c
 use types, only : rprec
 use messages
-use minimize
+use minimize_m
 implicit none
 
 private

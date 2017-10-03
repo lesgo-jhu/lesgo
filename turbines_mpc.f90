@@ -21,7 +21,7 @@
 module turbines_mpc
 !*******************************************************************************
 use types, only : rprec
-use minimize
+use minimize_m
 use wake_model
 use wake_model_adjoint
 use functions, only : linear_interp
