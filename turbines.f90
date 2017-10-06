@@ -257,7 +257,7 @@ end if
 if(coord==0) then
     do s=1,nloc
         call string_splice( string1, path // 'turbine/turbine_', s, '.dat' )
-        open(newunit=fid, file=string1, status='unknown', form='formatted',    &
+        open(newunit=forcing_fid(s), file=string1, status='unknown', form='formatted',    &
             position='append')
     end do
 end if
