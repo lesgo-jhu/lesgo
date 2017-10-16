@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2011-2013  Johns Hopkins University
+!!  Copyright (C) 2011-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,10 +17,10 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!***********************************************************************
+!*******************************************************************************
 subroutine initialize()
-!***********************************************************************
-! 
+!*******************************************************************************
+!
 ! This subroutine is a driver that calls all top-level initialization
 ! subroutines.
 !
@@ -28,9 +28,8 @@ use types, only : rprec
 use param, only : path
 use param, only : USE_MPI, coord, dt, jt_total, nsteps
 use param, only : use_cfl_dt, cfl, cfl_f, dt_dim, z_i, u_star
-use iwmles !xiang for integral wall model initialization
-use param, only : lbc_mom !xiang flag lbc_mom must be 1 for integral wall model to be used
-!use param, only : sgs_hist_calc
+use iwmles
+use param, only : lbc_mom
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #else
@@ -46,7 +45,6 @@ use sim_param, only : sim_param_init
 use grid_m
 use fft, only : init_fft
 use io, only : openfiles
-!use sgs_hist
 
 #ifdef PPMPI
 use mpi_defs, only : initialize_mpi
@@ -56,7 +54,7 @@ use concurrent_precursor, only : initialize_cps
 #endif
 
 #ifdef PPLVLSET
-use level_set_base, only : level_set_base_init 
+use level_set_base, only : level_set_base_init
 use level_set, only : level_set_init
 #endif
 
@@ -69,58 +67,55 @@ use turbines, only : turbines_init, turbines_forcing
 use hit_inflow, only : initialize_HIT
 #endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-    use atm_lesgo_interface, only: atm_lesgo_initialize
+use atm_lesgo_interface, only: atm_lesgo_initialize
 #endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 implicit none
 
 character(*), parameter :: make_output_dir = 'mkdir -p ' // path // 'output'
 
 ! Create output directory
-if( coord == 0 ) call system( make_output_dir )
+if (coord == 0) call system( make_output_dir )
+
+! Initialize MPI
+#ifdef PPMPI
+call initialize_mpi()
+#else
+if (nproc /= 1) then
+    write (*, *) 'nproc /=1 for non-MPI run is an error'
+    stop
+end if
+if (USE_MPI) then
+    write (*, *) 'inconsistent use of USE_MPI and CPP MPI flag'
+    stop
+end if
+chcoord = ''
+#endif
 
 ! Read input file
 ! This obtains all major data defined in param
 call read_input_conf()
 
-! Initialize MPI
-#ifdef PPMPI
-  call initialize_mpi()
-#else
-  if (nproc /= 1) then
-    write (*, *) 'nproc /=1 for non-MPI run is an error'
-    stop
-  end if
-  if (USE_MPI) then
-    write (*, *) 'inconsistent use of USE_MPI and $MPI'
-    stop
-  end if
-  chcoord = ''
-#endif
-
-! Open output files (total_time.dat and check_ke.out)  
+! Open output files (total_time.dat and check_ke.out)
 call openfiles()
 
 if( jt_total >= nsteps ) then
 
-   if(coord == 0 ) write(*,'(a)') 'Full number of time steps reached'
-   ! MPI:
+    if (coord == 0) write(*,'(a)') 'Full number of time steps reached'
 #ifdef PPMPI
-   ! First make sure everyone in has finished
-   call mpi_barrier( MPI_COMM_WORLD, ierr )
-   call mpi_finalize (ierr)
-#endif 
-   stop
+    ! First make sure everyone in has finished
+    call mpi_barrier( MPI_COMM_WORLD, ierr )
+    call mpi_finalize (ierr)
+#endif
+    stop
 endif
 
-! Write simulation data to file 
+! Write simulation data to file
 ! Commented out since we now have an input file and case information
 ! can be preserved via it; may still be useful for double checking that
 ! the input was read correctly and is sane.
-if(coord == 0) call param_output()
+if (coord == 0) call param_output()
 
 ! Define simulation parameters
 call sim_param_init ()
@@ -135,26 +130,24 @@ call output_init()
 
 ! Initialize turbines
 #ifdef PPTURBINES
-call turbines_init()    !must occur before initial is called
+call turbines_init()    ! must occur before initial is called
 #endif
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 #ifdef PPATM
-  call atm_lesgo_initialize ()  
+call atm_lesgo_initialize()
 #endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Tony ATM
 
 #ifdef PPHIT
-    ! This initializes HIT Data
-    ! The input is read from lesgo.conf
-    write(*,*) 'Inflow Condition using HIT Data'
-    call initialize_HIT()
+! This initializes HIT Data
+! The input is read from lesgo.conf
+write(*,*) 'Inflow Condition using HIT Data'
+call initialize_HIT()
 #endif
 
 ! If using level set method
 #ifdef PPLVLSET
 call level_set_base_init()
-call level_set_init () 
+call level_set_init ()
 #endif
 
 ! Formulate the fft plans--may want to use FFTW_USE_WISDOM
@@ -168,11 +161,9 @@ call test_filter_init( )
 ! Initialize velocity field
 call initial()
 
-!memory allocation for integral wall model xiang
-if(lbc_mom == 3)then
-  if(coord==0) write(*,*) 'iwm: start memory allocation...'
-  if(coord==0) call iwm_malloc()
-  if(coord==0) write(*,*) 'iwm: finish memory allocation...'
+! Initialize integral wall model xiang
+if (lbc_mom == 3) then
+    if (coord==0) call iwm_init()
 endif
 
 ! Initialize concurrent precursor stuff
@@ -180,20 +171,15 @@ endif
 call initialize_cps()
 #endif
 
-! Initialize sgs variable histogram calc
-!if (sgs_hist_calc) then
-!  call sgs_hist_init()
-!endif
-
 ! Initialize dt if needed to force 1st order Euler
 if( use_cfl_dt ) then
-   if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
-      if( coord == 0) write(*,*) '--> Using 1st order Euler for first time step.' 
-      dt = get_cfl_dt() 
-      dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
-      dt_dim = dt * z_i / u_star
-   endif
+    if( jt_total == 0 .or. abs((cfl_f - cfl)/cfl) > 1.e-2_rprec ) then
+        if (coord == 0) write(*,*)                                             &
+            '--> Using 1st order Euler for first time step.'
+        dt = get_cfl_dt()
+        dt = dt * huge(1._rprec) ! Force Euler advection (1st order)
+        dt_dim = dt * z_i / u_star
+    endif
 endif
 
-return
 end subroutine initialize

@@ -1,33 +1,26 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!
-!! Written by: 
+!!  Copyright (C) 2016-2017  Johns Hopkins University
 !!
-!!   Luis 'Tony' Martinez <tony.mtos@gmail.com> (Johns Hopkins University)
+!!  This file is part of lesgo.
 !!
-!!   Copyright (C) 2012-2013, Johns Hopkins University
+!!  lesgo is free software: you can redistribute it and/or modify
+!!  it under the terms of the GNU General Public License as published by
+!!  the Free Software Foundation, either version 3 of the License, or
+!!  (at your option) any later version.
 !!
-!!   This file is part of The Actuator Turbine Model Library.
+!!  lesgo is distributed in the hope that it will be useful,
+!!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!!  GNU General Public License for more details.
 !!
-!!   LESGO is free software: you can redistribute it 
-!!   and/or modify it under the terms of the GNU General Public License as 
-!!   published by the Free Software Foundation, either version 3 of the 
-!!   License, or (at your option) any later version.
+!!  You should have received a copy of the GNU General Public License
+!!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
-!!   LESGO is distributed in the hope that it will be 
-!!   useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-!!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!!   GNU General Public License for more details.
-!!
-!!   You should have received a copy of the GNU General Public License
-!!   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 module hit_inflow
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! This module provides basic functionalities to the actuator turbine model
-! Real precision variable and dynamic allocation types are stored here
+!*******************************************************************************
+! This module provides homogenous isotrophic inflow for lesgo
 
 ! Real precision from LESGO
 use types, only : rprec
@@ -51,7 +44,7 @@ type hit_t
     real(rprec) :: xloc=0.
 
     ! The sweeping velocity
-!~     real(rprec) :: U_sweep
+    ! real(rprec) :: U_sweep
 
     ! The input and output turbulence intensity
     ! By definition up_in/U_sweep = TI_out
@@ -87,9 +80,9 @@ type(hit_t), target :: hit
 
 contains
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine initialize_HIT ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 !  This initializes the HIT case by reading input and allocating arrays
 !
@@ -153,9 +146,9 @@ call hit_read_restart()
 
 end subroutine initialize_HIT
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine extract_HIT_data ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 !  This extracts the data from the input files
 !
@@ -201,9 +194,9 @@ close(readFile)
 
 end subroutine extract_HIT_data
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine compute_HIT_plane_data ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 !  This interploates the HIT data for each plane
 !
@@ -247,9 +240,9 @@ enddo
 
 end subroutine compute_HIT_plane_data
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine inflow_HIT ()
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 !
 !  Enforces prescribed inflow condition based on an uniform inflow
 !  velocity with Homogeneous Isotropic Inflow.
@@ -298,15 +291,15 @@ end do
 
 end subroutine inflow_HIT
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine hit_write_restart()
 ! This subroutine writes the hit restart information
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 integer :: restartFile=21 ! File to write restart data
 
-! Open the file 
+! Open the file
 open( unit=restartFile, file=trim(hit % restartFile), status="replace")
 
 write(restartFile,*) 'xloc'
@@ -319,10 +312,10 @@ close(restartFile)
 
 end subroutine hit_write_restart
 
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine hit_read_restart()
 ! This subroutine reads the hit restart information
-!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 integer :: restartFile=27 ! File to write restart data
@@ -341,18 +334,18 @@ if (file_exists) then
 
     ! Read the location x in the file
     read(restartFile,*) hit % xloc
-    
+
     close(restartFile)
 endif
 
 end subroutine hit_read_restart
 
-!-------------------------------------------------------------------------------
+!*******************************************************************************
 function interpolate3D(xp, yp, zp, x, y, z, u)
 ! This function does a trilinear intepolation
 ! xp, yp, zp - 3D point to intepolate
 ! x, y, z - vectors for doing interpolation
-!-------------------------------------------------------------------------------
+!*******************************************************************************
 real(rprec) :: interpolate3D
 real(rprec), dimension(:), intent(in) :: x, y, z
 real(rprec), dimension(:,:,:), intent(in) :: u
@@ -381,11 +374,11 @@ k1 = 1
 
 !!!!! x
 ! Point outside (lower bound)
-if (xp < x(1)) then 
+if (xp < x(1)) then
     ! Pick the first point in the interpolation
     i0 = 1
     i1 = 1
-    xd = 1.    
+    xd = 1.
 ! Point outside (upper bound)
 else if (xp > x(nx)) then
     ! Pick the last point in the interpolation
@@ -411,11 +404,11 @@ endif
 
 !!!!! y
 ! Point outside (lower bound)
-if (yp < y(1)) then 
+if (yp < y(1)) then
     ! Pick the first point in the interpolation
     j0 = 1
     j1 = 1
-    yd = 1.    
+    yd = 1.
 ! Point outside (upper bound)
 else if (yp > y(ny)) then
     ! Pick the last point in the interpolation
@@ -442,11 +435,11 @@ endif
 
 !!!!! z
 ! Point outside (lower bound)
-if (zp < z(1)) then 
+if (zp < z(1)) then
     ! Pick the first point in the interpolation
     k0 = 1
     k1 = 1
-    zd = 1.    
+    zd = 1.
 ! Point outside (upper bound)
 else if (zp > z(nz)) then
     ! Pick the last point in the interpolation
@@ -484,7 +477,6 @@ c1 = c01 * (1.-yd) + c11 * yd
 ! Interpolate along z
 interpolate3D = c0 * (1.-zd) + c1 * zd
 
-return
 end function interpolate3D
 
 end module hit_inflow

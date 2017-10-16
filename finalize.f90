@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2012-2013  Johns Hopkins University
+!!  Copyright (C) 2012-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -20,12 +20,12 @@
 !*******************************************************************************
 subroutine finalize()
 !*******************************************************************************
-! 
+!
 ! This subroutine is called by the main program. It is a driver subroutine for
 ! calling all the finalize routines of the various lesgo modules.
 !
 use param, only : coord, lbc_mom
-use iwmles, only : iwm_demalloc
+use iwmles, only : iwm_finalize
 #ifdef PPMPI
 use param, only : MPI_COMM_WORLD, ierr
 #endif
@@ -41,22 +41,17 @@ implicit none
 ! Turbines:
 #ifdef PPTURBINES
 call turbines_finalize ()   ! must come before MPI finalize
-#endif   
+#endif
 
-!finalize for integral wall model xiang
-if(lbc_mom == 3)then
-    if(coord==0) call iwm_demalloc()
-endif 
+! Integral wall model:
+if (lbc_mom == 3) then
+    if (coord==0) call iwm_finalize()
+endif
 
 ! Actuator Turbine Model:
 #ifdef PPATM
 call atm_lesgo_finalize ()   ! write the restart files
-#endif   
-
-! SGS variable histograms
-!if (sgs_hist_calc) then
-!  call sgs_hist_finalize()
-!endif
+#endif
 
 ! MPI:
 #ifdef PPMPI
@@ -65,5 +60,4 @@ call mpi_barrier( MPI_COMM_WORLD, ierr )
 call mpi_finalize (ierr)
 #endif
 
-return
 end subroutine finalize

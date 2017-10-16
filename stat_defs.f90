@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2016  Johns Hopkins University
+!!  Copyright (C) 2009-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,39 +17,39 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!**********************************************************************
+!*******************************************************************************
 module stat_defs
-!**********************************************************************
+!*******************************************************************************
 use types, only : rprec
-use param, only : nx,ny,nz,lh
+use param, only : nx, ny, nz, lh
 
 save
 public
 
 type point_t
-  integer :: istart, jstart, kstart, coord
-  real(rprec) :: xdiff, ydiff, zdiff
-  integer :: fid
+    integer :: istart, jstart, kstart, coord
+    real(rprec) :: xdiff, ydiff, zdiff
+    integer :: fid
 end type point_t
 
 type plane_t
-  integer :: istart
-  real(rprec) :: ldiff
+    integer :: istart
+    real(rprec) :: ldiff
 end type plane_t
 
 type zplane_t
-  integer :: istart, coord
-  real(rprec) :: ldiff
-end type zplane_t  
+    integer :: istart, coord
+    real(rprec) :: ldiff
+end type zplane_t
 
 type rs_t
-  real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp 
+    real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp
 end type rs_t
 
 type spectra_t
-  real(rprec), dimension(:), allocatable :: power
-  integer :: istart, coord
-  real(rprec) :: ldiff 
+    real(rprec), dimension(:), allocatable :: power
+    integer :: istart, coord
+    real(rprec) :: ldiff
 end type spectra_t
 
 real(rprec) :: spectra_total_time
@@ -64,18 +64,18 @@ logical :: tavg_initialized = .false.
 
 !  Sums performed over time
 type tavg_t
-  real(rprec) :: u, v, w, w_uv
-  real(rprec) :: u2, v2, w2, uv, uw, vw
-!  real(rprec) :: dudz, dvdz
-  real(rprec) :: txx, tyy, tzz, txy, txz, tyz
-  real(rprec) :: fx, fy, fz
-  real(rprec) :: cs_opt2  
+    real(rprec) :: u, v, w, u_w, v_w, w_uv
+    real(rprec) :: u2, v2, w2, uv, uw, vw
+    ! real(rprec) :: dudz, dvdz
+    real(rprec) :: txx, tyy, tzz, txy, txz, tyz
+    real(rprec) :: fx, fy, fz
+    real(rprec) :: cs_opt2
 end type tavg_t
-  
+
 !  Sums performed over time (for subgrid variables)
 #ifdef PPOUTPUT_EXTRA
 type tavg_sgs_t
-  real(rprec) :: Nu_t
+    real(rprec) :: Nu_t
 end type tavg_sgs_t
 #endif
 
@@ -84,36 +84,50 @@ end type tavg_sgs_t
 
 ! Indicator function calculator
 type turb_ind_func_t
-  real(rprec), dimension(:), allocatable :: r
-  real(rprec), dimension(:), allocatable :: R23
-  real(rprec) :: sqrt6overdelta, t_half
+    real(rprec), dimension(:), allocatable :: r
+    real(rprec), dimension(:), allocatable :: R23
+    real(rprec) :: sqrt6overdelta, t_half
 contains
-  procedure, public :: init
-  procedure, public :: val
+    procedure, public :: init
+    procedure, public :: val
 end type turb_ind_func_t
 
 ! Single turbines
 type turbine_t
-  real(rprec) :: xloc, yloc, height, dia, thk
-  real(rprec) :: vol_c                        ! term used for volume correction  
-  real(rprec) :: theta1                       ! angle CCW(from above) from -x direction [degrees]
-  real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
-  real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
-  integer :: num_nodes                        ! number of nodes associated with each turbine
-  integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
-  integer, dimension(6) :: nodes_max          ! search area for nearby nodes
-  integer :: icp, jcp, kcp                    ! location of turbine center (local k)
-  logical :: center_in_proc                   ! true if the center is in the processor
-  real(rprec) :: Ct_prime                     ! thrust coefficient
-  real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
-  real(rprec) :: f_n                          ! normal force on turbine disk
-  real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
-  type(turb_ind_func_t) :: turb_ind_func      ! object to calculate indicator function
+    real(rprec) :: xloc, yloc, height, dia, thk
+    ! term used for volume correction
+    real(rprec) :: vol_c
+    ! angle CCW(from above) from -x direction [degrees]
+    real(rprec) :: theta1
+    ! angle above the horizontal, from -x dir [degrees]
+    real(rprec) :: theta2
+    ! number of nodes associated with each turbine
+    integer :: num_nodes
+    ! location of turbine center (local k)
+    integer :: icp, jcp, kcp
+    ! true if the center is in the processor
+    logical :: center_in_proc
+    ! thrust coefficient
+    real(rprec) :: Ct_prime
+    ! running time-average of mean disk velocity
+    real(rprec) :: u_d, u_d_T
+    ! normal force on turbine disk
+    real(rprec) :: f_n
+    ! (nx,ny,nz) of unit normal for each turbine
+    real(rprec), dimension(3) :: nhat
+    ! indicator function - weighting of each node
+    real(rprec), dimension(5000) :: ind
+    ! object to calculate indicator function
+    type(turb_ind_func_t) :: turb_ind_func
+    ! (i,j,k) of each included node
+    integer, dimension(5000,3) :: nodes
+    ! search area for nearby nodes
+    integer, dimension(6) :: nodes_max
 end type turbine_t
 
 ! A collection of wind turbines
 type wind_farm_t
-  type(turbine_t), pointer, dimension(:) :: turbine
+    type(turbine_t), pointer, dimension(:) :: turbine
 end type wind_farm_t
 
 ! The wind farm
@@ -137,42 +151,44 @@ type(rs_t), allocatable, dimension(:,:,:) :: rs
 type(rs_t), allocatable, dimension(:) :: rs_zplane, cnpy_zplane
 
 ! Overloaded operators for tavg and rs types
-INTERFACE OPERATOR (.ADD.)
-  MODULE PROCEDURE tavg_add, tavg_scalar_add, rs_add
-END INTERFACE
+interface operator (.ADD.)
+    module procedure tavg_add, tavg_scalar_add, rs_add
+end interface
 
-INTERFACE OPERATOR (.SUB.)
-  MODULE PROCEDURE tavg_sub, rs_sub
-END INTERFACE
+interface operator (.SUB.)
+    module procedure tavg_sub, rs_sub
+end interface
 
-INTERFACE OPERATOR (.DIV.)
+interface operator (.DIV.)
 #ifdef PPOUTPUT_EXTRA
-    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div, tavg_sgs_scalar_div
+    module procedure tavg_scalar_div, rs_scalar_div, tavg_sgs_scalar_div
 #else
-    MODULE PROCEDURE tavg_scalar_div, rs_scalar_div
-#endif  
-END INTERFACE
+    module procedure tavg_scalar_div, rs_scalar_div
+#endif
+end interface
 
-INTERFACE OPERATOR (.MUL.)
-  MODULE PROCEDURE tavg_mul, tavg_scalar_mul
-END INTERFACE
+interface operator (.MUL.)
+    module procedure tavg_mul, tavg_scalar_mul
+end interface
 
-INTERFACE type_set
+interface type_set
 #ifdef PPOUTPUT_EXTRA
-    MODULE PROCEDURE tavg_set, rs_set, tavg_sgs_set
+    module procedure tavg_set, rs_set, tavg_sgs_set
 #else
-    MODULE PROCEDURE tavg_set, rs_set
-#endif  
-END INTERFACE
+    module procedure tavg_set, rs_set
+#endif
+end interface
 
-INTERFACE type_zero_bogus
-  MODULE PROCEDURE tavg_zero_bogus_2D, tavg_zero_bogus_3D
-END INTERFACE
+interface type_zero_bogus
+    module procedure tavg_zero_bogus_2D, tavg_zero_bogus_3D
+end interface
 
 contains
 
 #ifdef PPTURBINES
+!*******************************************************************************
 function val(this, r, x) result(Rval)
+!*******************************************************************************
 use functions, only : linear_interp
 implicit none
 class(turb_ind_func_t), intent(in) :: this
@@ -180,12 +196,15 @@ real(rprec), intent(in) :: r, x
 real(rprec) :: R1, R23, Rval
 
 R23 = linear_interp(this%r, this%R23, r)
-R1 = erf(this%sqrt6overdelta*(this%t_half + x)) + erf(this%sqrt6overdelta*(this%t_half - x))
-Rval = 0.5 * R1 * R23 
+R1 = erf(this%sqrt6overdelta*(this%t_half + x)) +                              &
+    erf(this%sqrt6overdelta*(this%t_half - x))
+Rval = 0.5 * R1 * R23
 
 end function val
 
+!*******************************************************************************
 subroutine init(this, delta2, thk, dia, N)
+!*******************************************************************************
 use param, only : write_endian, path, pi
 use functions, only : bilinear_interp
 implicit none
@@ -285,25 +304,16 @@ end do
 this%R23 = bilinear_interp(yz, yz, f, xi, this%r)
 this%R23 = this%R23 / this%R23(1)
 
-! 
-! ! Write the result to file
-! write(*,*) this%r
-! write(*,*) this%R23
-! open(unit=13,file=path // 'R23.bin',form='unformatted',convert=write_endian, access='direct',recl=N*rprec)
-! write(13,rec=1) this%r
-! write(13,rec=2) this%R23
-! close(13)
-
 end subroutine init
 #endif
 
-!//////////////////////////////////////////////////////////////////////
-!/////////////////// TAVG OPERATORS ///////////////////////////////////
-!//////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////
+!/// TAVG operators
+!///////////////////////////////////////////////////////////////////////////////
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_add( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
@@ -311,6 +321,8 @@ type(tavg_t) :: c
 c % u = a % u + b % u
 c % v = a % v + b % v
 c % w = a % w + b % w
+c % u_w  = a % u_w  + b % u_w
+c % v_w  = a % v_w  + b % v_w
 c % w_uv = a % w_uv + b % w_uv
 c % u2 = a % u2 + b % u2
 c % v2 = a % v2 + b % v2
@@ -331,12 +343,11 @@ c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
 c % cs_opt2 = a % cs_opt2 + b % cs_opt2
 
-return
 end function tavg_add
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_sub( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
@@ -344,13 +355,15 @@ type(tavg_t) :: c
 c % u = a % u - b % u
 c % v = a % v - b % v
 c % w = a % w - b % w
+c % u_w  = a % u_w  - b % u_w
+c % v_w  = a % v_w  - b % v_w
 c % w_uv = a % w_uv - b % w_uv
 c % u2 = a % u2 - b % u2
 c % v2 = a % v2 - b % v2
 c % w2 = a % w2 - b % w2
 c % uv = a % uv - b % uv
 c % uw = a % uw - b % uw
-c % vw = a % vw - b % vw 
+c % vw = a % vw - b % vw
 !c % dudz = a % dudz - b % dudz
 !c % dvdz = a % dvdz - b % dvdz
 c % txx = a % txx - b % txx
@@ -364,12 +377,11 @@ c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
 c % cs_opt2 = a % cs_opt2 - b % cs_opt2
 
-return
 end function tavg_sub
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_scalar_add( a, b ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -380,6 +392,8 @@ type(tavg_t) :: c
 c % u = a % u + b
 c % v = a % v + b
 c % w = a % w + b
+c % u_w  = a % u_w  + b
+c % v_w  = a % v_w  + b
 c % w_uv = a % w_uv + b
 c % u2 = a % u2 + b
 c % v2 = a % v2 + b
@@ -400,12 +414,11 @@ c % fy = a % fy + b
 c % fz = a % fz + b
 c % cs_opt2 = a % cs_opt2 + b
 
-return
 end function tavg_scalar_add
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine tavg_zero_bogus_2D( c )
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -421,12 +434,11 @@ c % fx = 0._rprec
 c % fy = 0._rprec
 c % fz = 0._rprec
 
-return
 end subroutine tavg_zero_bogus_2D
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine tavg_zero_bogus_3D( c )
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -442,13 +454,11 @@ c % fx = 0._rprec
 c % fy = 0._rprec
 c % fz = 0._rprec
 
-return
 end subroutine tavg_zero_bogus_3D
 
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_scalar_div( a, b ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -459,6 +469,8 @@ type(tavg_t) :: c
 c % u = a % u / b
 c % v = a % v / b
 c % w = a % w / b
+c % u_w  = a % u_w  / b
+c % v_w  = a % v_w  / b
 c % w_uv = a % w_uv / b
 c % u2 = a % u2 / b
 c % v2 = a % v2 / b
@@ -479,12 +491,11 @@ c % fy = a % fy / b
 c % fz = a % fz / b
 c % cs_opt2 = a % cs_opt2 / b
 
-return
 end function tavg_scalar_div
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_mul( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 type(tavg_t), intent(in) :: a, b
 type(tavg_t) :: c
@@ -492,6 +503,8 @@ type(tavg_t) :: c
 c % u = a % u * b % u
 c % v = a % v * b % v
 c % w = a % w * b % w
+c % u_w  = a % u_w  * b % u_w
+c % v_w  = a % v_w  * b % v_w
 c % w_uv = a % w_uv * b % w_uv
 c % u2 = a % u2 * b % u2
 c % v2 = a % v2 * b % v2
@@ -512,12 +525,11 @@ c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
 c % cs_opt2 = a % cs_opt2 * b % cs_opt2
 
-return
 end function tavg_mul
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_scalar_mul( a, b ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -528,6 +540,8 @@ type(tavg_t) :: c
 c % u = a % u * b
 c % v = a % v * b
 c % w = a % w * b
+c % u_w  = a % u_w  * b
+c % v_w  = a % v_w  * b
 c % w_uv = a % w_uv * b
 c % u2 = a % u2 * b
 c % v2 = a % v2 * b
@@ -548,13 +562,12 @@ c % fy = a % fy * b
 c % fz = a % fz * b
 c % cs_opt2 = a % cs_opt2 * b
 
-return
 end function tavg_scalar_mul
 
 #ifdef PPOUTPUT_EXTRA
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_sgs_scalar_div( a, b ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 
@@ -574,13 +587,12 @@ c % Nu_t = a % Nu_t / b
 !c % F_deedt2 = a % F_deedt2 / b
 !#endif
 
-return
 end function tavg_sgs_scalar_div
 #endif
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_interp_to_uv_grid( a ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use param, only: lbz
 use functions, only : interp_to_uv_grid
 implicit none
@@ -602,13 +614,11 @@ c % fz = interp_to_uv_grid(a % fz, lbz )
 c % w  = interp_to_uv_grid(a % w,lbz)
 c % w2 = interp_to_uv_grid(a % w2,lbz)
 
-return
-
 end function tavg_interp_to_uv_grid
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function tavg_interp_to_w_grid( a ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use param, only: lbz
 use functions, only : interp_to_w_grid
 implicit none
@@ -634,16 +644,15 @@ c % txy =  interp_to_w_grid( a % txy, lbz )
 c % fx = interp_to_w_grid( a % fx, lbz )
 c % fy = interp_to_w_grid( a % fy, lbz )
 
-return
-
 end function tavg_interp_to_w_grid
 
-!///////////////////// RS OPERATORS ///////////////////////////////////
-!//////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////
+!/// RS operators
+!///////////////////////////////////////////////////////////////////////////////
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function rs_add( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 type(rs_t), intent(in) :: a, b
@@ -656,12 +665,11 @@ c % upvp = a % upvp + b % upvp
 c % upwp = a % upwp + b % upwp
 c % vpwp = a % vpwp + b % vpwp
 
-return
 end function rs_add
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function rs_sub( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 type(rs_t), intent(in) :: a, b
@@ -674,12 +682,11 @@ c % upvp = a % upvp - b % upvp
 c % upwp = a % upwp - b % upwp
 c % vpwp = a % vpwp - b % vpwp
 
-return
 end function rs_sub
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function rs_scalar_div( a, b) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 
 type(rs_t), intent(in) :: a
@@ -687,22 +694,21 @@ real(rprec), intent(in) :: b
 type(rs_t) :: c
 
 c % up2 = a % up2 / b
-c % vp2 = a % vp2 / b 
+c % vp2 = a % vp2 / b
 c % wp2 = a % wp2 / b
 c % upvp = a % upvp / b
-c % upwp = a % upwp / b 
-c % vpwp = a % vpwp / b 
+c % upwp = a % upwp / b
+c % vpwp = a % vpwp / b
 
-return
 end function rs_scalar_div
 
-!//////////////////////////////////////////////////////////////////////
-!/////////////////// SPECIAL RS FUNCTIONS /////////////////////////////
-!//////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////
+!/// Spectral RS operators
+!///////////////////////////////////////////////////////////////////////////////
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function rs_compute( a , lbz2) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 implicit none
 integer, intent(in) :: lbz2
 type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
@@ -720,18 +726,17 @@ c % up2 = a % u2 - a % u * a % u
 c % vp2 = a % v2 - a % v * a % v
 c % wp2 = a % w2 - a % w * a % w
 c % upvp = a % uv - a % u * a % v
-!! using w_uv below instead of w ensures that the Reynolds stresses are on
-!! the same grid as the squared velocities (i.e., the uv grid)
-c % upwp = a % uw - a % u * a % w_uv   !!jb
-c % vpwp = a % vw - a % v * a % w_uv   !!jb
+!! using u_w and v_w below instead of u and v ensures that the Reynolds
+!! stresses are on the same grid as the squared velocities (i.e., w-grid)
+c % upwp = a % uw - a % u_w * a % w   !!pj
+c % vpwp = a % vw - a % v_w * a % w   !!pj
 
-return
 end function rs_compute
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 function cnpy_tavg_mul( a ) result(c)
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-! 
+!*******************************************************************************
+!
 ! This performs one set of multiplication for the canopy stresses
 !
 implicit none
@@ -746,16 +751,15 @@ c % upvp = a % u * a % v
 c % upwp = a % u * a % w
 c % vpwp = a % v * a % w
 
-return
 end function cnpy_tavg_mul
 
-!//////////////////////////////////////////////////////////////////////
-!///////////////// SPECIAL TAVG SUBROUTINES ///////////////////////////
-!//////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////
+!/// Spectral TAVG operators
+!///////////////////////////////////////////////////////////////////////////////
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine tavg_set( c, a )
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
@@ -764,6 +768,8 @@ type(tavg_t), intent(out) :: c
 c % u = a
 c % v = a
 c % w = a
+c % u_w  = a
+c % v_w  = a
 c % w_uv = a
 c % u2 = a
 c % v2 = a
@@ -784,13 +790,12 @@ c % fy = a
 c % fz = a
 c % cs_opt2 = a
 
-return
 end subroutine tavg_set
 
 #ifdef PPOUTPUT_EXTRA
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine tavg_sgs_set( c, a )
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
@@ -808,17 +813,16 @@ c % Nu_t =  a
 !c % F_deedt2 = a
 !#endif
 
-return
 end subroutine tavg_sgs_set
 #endif
 
-!//////////////////////////////////////////////////////////////////////
-!/////////////////// SPECIAL RS SUBROUTINES ///////////////////////////
-!//////////////////////////////////////////////////////////////////////
+!///////////////////////////////////////////////////////////////////////////////
+!/// Spectral RS subroutines
+!///////////////////////////////////////////////////////////////////////////////
 
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 subroutine rs_set( c, a )
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!*******************************************************************************
 use types, only : rprec
 implicit none
 real(rprec), intent(in) :: a
@@ -831,7 +835,6 @@ c % upvp = a
 c % upwp = a
 c % vpwp = a
 
-return
 end subroutine rs_set
 
 end module stat_defs

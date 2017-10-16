@@ -99,6 +99,9 @@ write(2,c_fmt) '---------------------------------------------------'
 write(2,l_fmt) 'initu : ', initu
 write(2,l_fmt) 'inilag : ', inilag
 write(2,i_fmt) 'lbc_mom : ', lbc_mom
+write(2,i_fmt) 'ubc_mom : ', ubc_mom
+write(2,f_fmt) 'ubot : ', ubot
+write(2,f_fmt) 'utop : ', utop
 write(2,f_fmt) 'zo : ', zo
 write(2,l_fmt) 'inflow : ', inflow
 write(2,f_fmt) 'fringe_region_end : ', fringe_region_end
@@ -106,6 +109,9 @@ write(2,f_fmt) 'fringe_region_len : ', fringe_region_len
 write(2,f_fmt) 'inflow_velocity : ', inflow_velocity
 write(2,l_fmt) 'use_mean_p_force : ', use_mean_p_force
 write(2,f_fmt) 'mean_p_force : ', mean_p_force
+write(2,l_fmt) 'use_random_force : ', use_random_force
+write(2,i_fmt) 'stop_random_force : ', stop_random_force
+write(2,f_fmt) 'rms_random_force : ', rms_random_force
 write(2,c_fmt) ''
 write(2,c_fmt) '---------------------------------------------------'
 write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
@@ -166,29 +172,6 @@ write(2,i_fmt) 'zplane_nloc : ', zplane_nloc
 do n=1,zplane_nloc
   write(2,if_fmt) 'n, zplane_loc(n) : ', n, zplane_loc(n)
 enddo
-
-write(2,l_fmt) 'spectra_calc : ', spectra_calc
-write(2,x2i_fmt) 'spectra_nstart, spectra_nend : ', spectra_nstart, spectra_nend
-write(2,i_fmt) 'spectra_nloc : ', spectra_nloc
-do n=1,spectra_nloc
-  write(2,if_fmt) 'n, spectra_loc(n) : ', n, spectra_loc(n)
-enddo
-
-write(2,l_fmt) 'sgs_hist_calc : ', sgs_hist_calc
-write(2,l_fmt) 'sgs_hist_cumulative : ', sgs_hist_cumulative
-write(2,x2i_fmt) 'sgs_hist_nstart, sgs_hist_nskip : ', sgs_hist_nstart, sgs_hist_nskip
-write(2,i_fmt) 'sgs_hist_nloc : ', sgs_hist_nloc
-do n=1,sgs_hist_nloc
-  write(2,if_fmt) 'n, sgs_hist_loc(n) : ', n, sgs_hist_loc(n)
-enddo
-write(2,x2f_fmt) 'cs2_bmin, cs2_bmax : ', cs2_bmin, cs2_bmax
-write(2,i_fmt) 'cs2_nbins : ', cs2_nbins
-write(2,x2f_fmt) 'tn_bmin, tn_bmax : ', tn_bmin, tn_bmax
-write(2,i_fmt) 'tn_nbins : ', tn_nbins
-write(2,x2f_fmt) 'nu_bmin, nu_bmax : ', nu_bmin, nu_bmax
-write(2,i_fmt) 'nu_nbins : ', nu_nbins
-write(2,x2f_fmt) 'ee_bmin, ee_bmax : ', ee_bmin, ee_bmax
-write(2,i_fmt) 'ee_nbins : ', ee_nbins
 
 #ifdef PPLVLSET
 write(2,c_fmt) ''

@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2011-2016  Johns Hopkins University
+!!  Copyright (C) 2011-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*********************************************************************
+!*******************************************************************************
 module clock_m
-!*********************************************************************
+!*******************************************************************************
 !
 ! This module provides the clock data type (object) and the
 ! subroutines/functions that act on instances of the clock data type.
@@ -27,7 +27,7 @@ module clock_m
 use types, only : rprec
 implicit none
 
-save 
+save
 private
 
 public clock_t
@@ -43,9 +43,9 @@ end type clock_t
 
 contains
 
-!*********************************************************************
+!*******************************************************************************
 subroutine start( this )
-!*********************************************************************
+!*******************************************************************************
 #ifdef PPMPI
 use mpi, only : mpi_wtime
 #endif
@@ -59,12 +59,11 @@ this % start_time = mpi_wtime()
 call cpu_time( this % start_time )
 #endif
 
-return
 end subroutine start
 
-!*********************************************************************
+!*******************************************************************************
 subroutine stop( this )
-!*********************************************************************
+!*******************************************************************************
 #ifdef PPMPI
 use mpi, only : mpi_wtime
 #endif
@@ -80,8 +79,6 @@ call cpu_time( this % stop_time )
 
 ! Compute the clock time
 this % time = this % stop_time - this % start_time
-
-return
 
 end subroutine stop
 

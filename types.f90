@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2013  Johns Hopkins University
+!!  Copyright (C) 2009-2017  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -26,23 +26,12 @@ module types
 implicit none
 
 public
-! rprec is used to specify precision
-integer, parameter :: rprec = kind (1.d0)
- 
-type vec3d_t
-  real(rprec) :: mag
-  real(rprec), dimension(3) :: xyz
-end type vec3d_t
 
-type vec2d_t
-  real(rprec) :: mag
-  real(rprec), dimension(2) :: xy
-end type vec2d_t
+! rprec is used to specify precision
+integer, parameter :: rprec = kind(1.d0)
 
 type point3D_t
-  real(rprec), dimension(3) :: xyz
+    real(rprec), dimension(3) :: xyz
 end type point3D_t
-
-
 
 end module types

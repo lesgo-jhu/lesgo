@@ -13,9 +13,6 @@ set(CMAKE_Fortran_COMPILER_ID "GNU")
 # Otherwise, default settings are used
 set(hostname "default")
 
-#--Set global VERBOSE flag;
-set(VERBOSE false)
-
 # Set extra safety measures 
 set(USE_SAFETYMODE true)
 
@@ -54,7 +51,8 @@ set(USE_HIT false)
 # streaks effects on averaging
 set(USE_STREAKS false)
 
-# What does this do?
+# Dynamically update T, the timescale for Lagrangian averaging, using Taylor 
+# timescale
 set(USE_DYN_TN false)
 
 ################################################################################
@@ -63,11 +61,12 @@ set(USE_DYN_TN false)
 # Set compiler versions for Cmake
 #  Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
+    add_definitions(-DPPIFORT)
     set(compiler_name "ifort")
     add_definitions(-DPPIFORT)
 #  GNU
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-    add_definitions(-DPPGFOFTRAN)
+    add_definitions(-DPPGFORTRAN)
     set(compiler_name "gfortran")
 endif ()
 find_program(WHICH NAMES which)
@@ -119,6 +118,8 @@ elseif (${hostname} STREQUAL "njord")
     # nothing yet, but can add if needed
 #  all other systems
 elseif (${hostname} STREQUAL "default")
+    include_directories($ENV{HOME}/codes/fftw3/include)
+    link_directories($ENV{HOME}/codes/fftw3/lib)
     # nothing yet, but can add if needed
     if (USE_CGNS)
         include_directories($ENV{HOME}/cgns/include/)
@@ -128,7 +129,7 @@ endif ()
 
 # List common sources
 set (Sources cfl_util.f90 clocks.f90 convec.f90 derivatives.f90 divstress_uv.f90
-     divstress_w.f90 dns_stress.f90 emul_complex.f90 fft.f90 finalize.f90 
+     divstress_w.f90 emul_complex.f90 fft.f90 finalize.f90 
      forcing.f90 fringe_util.f90 functions.f90 grid.f90
      initial.f90 initialize.f90 input_util.f90 interpolag_Sdep.f90 
      interpolag_Ssim.f90 io.f90 lagrange_Sdep.f90 lagrange_Ssim.f90 main.f90 
@@ -208,10 +209,6 @@ if (USE_CGNS)
     link_libraries(cgns hdf5)   
     set(exec_name "${exec_name}-cgns") 
 endif (USE_CGNS)
-
-if (VERBOSE)
-    add_definitions(-DPPVERBOSE)
-endif (VERBOSE)
 
 if (WRITE_ENDIAN STREQUAL "LITTLE")
     add_definitions(-DPPWRITE_LITTLE_ENDIAN)
