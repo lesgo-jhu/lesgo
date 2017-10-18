@@ -726,7 +726,7 @@ real(rprec), allocatable, dimension(:,:,:) :: fx_tot, fy_tot, fz_tot
 real(rprec), dimension (:,:,:), allocatable :: vortx, vorty, vortz
 
 ! Pressure
-real(rprec), dimension(:,:,:), allocatable :: press_real
+real(rprec), dimension(:,:,:), allocatable :: pres_real
 
 #ifdef PPMPI
 call string_splice(bin_ext, '.c', coord, '.bin')
@@ -839,15 +839,14 @@ elseif(itype==2) then
     close(13)
 #endif
 
-     deallocate(vortx, vorty, vortz)
+    deallocate(vortx, vorty, vortz)
 
     ! Compute pressure
-    allocate(press_real(nx,ny,lbz:nz))
-    press_real(1:nx,1:ny,lbz:nz) = 0._rprec
+    allocate(pres_real(nx,ny,lbz:nz))
+    pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
 
-    ! Use vorticityx as an intermediate step for performing uv-w interpolation
-    ! Vorticity is written in w grid
-    press_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                         &
+    ! Calculate real pressure
+    pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                          &
         - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2                                       &
         + interp_to_uv_grid( w(1:nx,1:ny,lbz:nz), lbz)**2                      &
         + v(1:nx,1:ny,lbz:nz)**2 )
@@ -862,18 +861,18 @@ elseif(itype==2) then
         (/ 1, 1,   (nz-1)*coord + 1 /),                                        &
         (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                           &
         x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ),                                 &
-        1, (/ 'Pressure' /), (/ press_real(1:nx,1:ny,1:(nz-nz_end)) /) )
+        1, (/ 'Pressure' /), (/ pres_real(1:nx,1:ny,1:(nz-nz_end)) /) )
 
 #else
     ! Write binary Output
     call string_concat(fname, bin_ext)
     open(unit=13, file=fname, form='unformatted', convert=write_endian,        &
         access='direct', recl=nx*ny*nz*rprec)
-    write(13,rec=1) press_real(:nx,:ny,1:nz)
+    write(13,rec=1) pres_real(:nx,:ny,1:nz)
     close(13)
 #endif
 
-     deallocate(press_real)
+     deallocate(pres_real)
 
 
 !  Write instantaneous x-plane values
@@ -1482,7 +1481,7 @@ use stat_defs, only : tavg_sgs, tavg_total_time_sgs
 use sgs_param
 #endif
 use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
-use sim_param, only : u, v, w
+use sim_param, only : u, v, w, p
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
 #ifdef PPTURBINES
 use sim_param, only : fxa, fya, fza
@@ -1494,12 +1493,19 @@ implicit none
 integer :: i, j, k
 real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
 real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w, v_w
+real(rprec), allocatable, dimension(:,:,:) :: pres_real
 
 allocate(w_uv(nx,ny,lbz:nz), u_w(nx,ny,lbz:nz), v_w(nx,ny,lbz:nz))
+allocate(pres_real(nx,ny,lbz:nz))
 
 w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
 u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
 v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(v(1:nx,1:ny,lbz:nz), lbz )
+pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
+pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                              &
+    - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2 + w_uv(1:nx,1:ny,lbz:nz)**2               &
+    + v(1:nx,1:ny,lbz:nz)**2 )
+
 ! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
 ! can zero u_w at BC anyway:
 if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
@@ -1537,6 +1543,14 @@ do i = 1, nx
     tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt !! w grid
     tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt !! w grid
 
+    tavg(i,j,k) % p = tavg(i,j,k) % p + pres_real(i,j,k) * tavg_dt
+end do
+end do
+end do
+
+do k = 1, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
+do j = 1, ny
+do i = 1, nx
 #ifdef PPTURBINES
     tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
     tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt
@@ -1557,8 +1571,6 @@ end do
 end do
 end do
 #endif
-
-deallocate(w_uv)
 
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
@@ -1597,8 +1609,8 @@ implicit none
 character(64) :: bin_ext
 #endif
 
-character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_f
-character(64) :: fname_rs, fname_cs
+character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_pres
+character(64) :: fname_f, fname_rs, fname_cs
 
 integer :: i,j,k
 
@@ -1619,6 +1631,7 @@ fname_velw = path // 'output/velw_avg'
 fname_vel2 = path // 'output/vel2_avg'
 fname_tau = path // 'output/tau_avg'
 fname_f = path // 'output/force_avg'
+fname_pres = path // 'output/pres_avg'
 fname_rs = path // 'output/rs'
 fname_cs = path // 'output/cs_opt2'
 
@@ -1628,6 +1641,7 @@ call string_concat(fname_vel, '.cgns')
 call string_concat(fname_velw, '.cgns')
 call string_concat(fname_vel2, '.cgns')
 call string_concat(fname_tau, '.cgns')
+call string_concat(fname_pres, '.cgns')
 call string_concat(fname_f, '.cgns')
 call string_concat(fname_rs, '.cgns')
 call string_concat(fname_cs, '.cgns')
@@ -1643,6 +1657,7 @@ call string_concat(fname_vel, bin_ext)
 call string_concat(fname_velw, bin_ext)
 call string_concat(fname_vel2, bin_ext)
 call string_concat(fname_tau, bin_ext)
+call string_concat(fname_pres, bin_ext)
 call string_concat(fname_f, bin_ext)
 call string_concat(fname_rs, bin_ext)
 call string_concat(fname_cs, bin_ext)
@@ -1690,6 +1705,7 @@ call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%w2, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uw, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%vw, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uv, 0, MPI_SYNC_DOWNUP )
+call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%p, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%fx, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
 #ifdef PPOUTPUT_EXTRA
@@ -1739,6 +1755,13 @@ call write_parallel_cgns(fname_tau,nx,ny,nz- nz_end,nz_tot,                    &
        tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                     &
        tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )
 
+call write_parallel_cgns(fname_pres,nx,ny,nz- nz_end,nz_tot,                   &
+   (/ 1, 1,   (nz-1)*coord + 1 /),                                             &
+   (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
+   x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
+   (/ 'pressure' /),                                                           &
+   (/ tavg(1:nx,1:ny,1:nz- nz_end) % p /) )
+
 call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
@@ -1787,6 +1810,11 @@ write(13,rec=3) tavg(:nx,:ny,1:nz)%tyy
 write(13,rec=4) tavg(:nx,:ny,1:nz)%txz
 write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
 write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
+close(13)
+
+open(unit=13, file=fname_pres, form='unformatted', convert=write_endian,       &
+    access='direct', recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%p
 close(13)
 
 open(unit=13, file=fname_f, form='unformatted', convert=write_endian,          &

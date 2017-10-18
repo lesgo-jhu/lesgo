@@ -68,7 +68,7 @@ type tavg_t
     real(rprec) :: u2, v2, w2, uv, uw, vw
     ! real(rprec) :: dudz, dvdz
     real(rprec) :: txx, tyy, tzz, txy, txz, tyz
-    real(rprec) :: fx, fy, fz
+    real(rprec) :: p, fx, fy, fz
     real(rprec) :: cs_opt2
 end type tavg_t
 
@@ -312,7 +312,7 @@ end subroutine init
 !///////////////////////////////////////////////////////////////////////////////
 
 !*******************************************************************************
-function tavg_add( a, b) result(c)
+function tavg_add(a, b) result(c)
 !*******************************************************************************
 implicit none
 type(tavg_t), intent(in) :: a, b
@@ -338,6 +338,7 @@ c % tzz = a % tzz + b % tzz
 c % txy = a % txy + b % txy
 c % txz = a % txz + b % txz
 c % tyz = a % tyz + b % tyz
+c % p = a % p + b % p
 c % fx = a % fx + b % fx
 c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
@@ -372,6 +373,7 @@ c % tzz = a % tzz - b % tzz
 c % txy = a % txy - b % txy
 c % txz = a % txz - b % txz
 c % tyz = a % tyz - b % tyz
+c % p = a % p - b % p
 c % fx = a % fx - b % fx
 c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
@@ -409,6 +411,7 @@ c % tyy = a % tyy + b
 c % txy = a % txy + b
 c % txz = a % txz + b
 c % tyz = a % tyz + b
+c % p = a % p + b
 c % fx = a % fx + b
 c % fy = a % fy + b
 c % fz = a % fz + b
@@ -486,6 +489,7 @@ c % tzz = a % tzz / b
 c % txy = a % txy / b
 c % txz = a % txz / b
 c % tyz = a % tyz / b
+c % p = a % p / b
 c % fx = a % fx / b
 c % fy = a % fy / b
 c % fz = a % fz / b
@@ -520,6 +524,7 @@ c % tzz = a % tzz * b % tzz
 c % txy = a % txy * b % txy
 c % txz = a % txz * b % txz
 c % tyz = a % tyz * b % tyz
+c % p = a % p * b % p
 c % fx = a % fx * b % fx
 c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
@@ -557,6 +562,7 @@ c % tzz = a % tzz * b
 c % txy = a % txy * b
 c % txz = a % txz * b
 c % tyz = a % tyz * b
+c % p = a % p * b
 c % fx = a % fx * b
 c % fy = a % fy * b
 c % fz = a % fz * b
@@ -641,6 +647,7 @@ c % tyy =  interp_to_w_grid( a % tyy, lbz )
 c % tzz =  interp_to_w_grid( a % tzz, lbz )
 c % txy =  interp_to_w_grid( a % txy, lbz )
 
+c % p = interp_to_w_grid( a % p, lbz )
 c % fx = interp_to_w_grid( a % fx, lbz )
 c % fy = interp_to_w_grid( a % fy, lbz )
 
@@ -838,4 +845,3 @@ c % vpwp = a
 end subroutine rs_set
 
 end module stat_defs
-
