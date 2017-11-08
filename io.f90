@@ -1483,7 +1483,7 @@ use sgs_param
 use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
 use sim_param, only : u, v, w, p
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
-#ifdef PPTURBINES
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
 use sim_param, only : fxa, fya, fza
 #endif
 use functions, only : interp_to_uv_grid, interp_to_w_grid
@@ -1494,6 +1494,9 @@ integer :: i, j, k
 real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
 real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w, v_w
 real(rprec), allocatable, dimension(:,:,:) :: pres_real
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
+real(rprec), allocatable, dimension(:,:,:) :: fza_uv
+#endif
 
 allocate(w_uv(nx,ny,lbz:nz), u_w(nx,ny,lbz:nz), v_w(nx,ny,lbz:nz))
 allocate(pres_real(nx,ny,lbz:nz))
@@ -1505,6 +1508,10 @@ pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
 pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                              &
     - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2 + w_uv(1:nx,1:ny,lbz:nz)**2               &
     + v(1:nx,1:ny,lbz:nz)**2 )
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
+allocate(fza_uv(nx,ny,lbz:nz))
+fza_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(fza(1:nx,1:ny,lbz:nz), lbz )
+#endif
 
 ! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
 ! can zero u_w at BC anyway:
@@ -1551,10 +1558,10 @@ end do
 do k = 1, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
 do j = 1, ny
 do i = 1, nx
-#ifdef PPTURBINES
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
     tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
     tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt
-    tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza(i,j,k) * tavg_dt
+    tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza_uv(i,j,k) * tavg_dt
 #endif
     tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
 end do
@@ -1614,7 +1621,7 @@ character(64) :: fname_f, fname_rs, fname_cs
 
 integer :: i,j,k
 
-real(rprec), pointer, dimension(:) :: x,y,z,zw
+real(rprec), pointer, dimension(:) :: x, y, z, zw
 
 nullify(x,y,z,zw)
 
@@ -1762,6 +1769,7 @@ call write_parallel_cgns(fname_pres,nx,ny,nz- nz_end,nz_tot,                   &
    (/ 'pressure' /),                                                           &
    (/ tavg(1:nx,1:ny,1:nz- nz_end) % p /) )
 
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
 call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
     (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
@@ -1770,6 +1778,7 @@ call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
     (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
        tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                      &
        tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
+#endif
 
 call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                     &
     (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
@@ -1817,12 +1826,14 @@ open(unit=13, file=fname_pres, form='unformatted', convert=write_endian,       &
 write(13,rec=1) tavg(:nx,:ny,1:nz)%p
 close(13)
 
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
 open(unit=13, file=fname_f, form='unformatted', convert=write_endian,          &
     access='direct', recl=nx*ny*nz*rprec)
 write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
 write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
 write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
 close(13)
+#endif
 
 open(unit=13, file=fname_cs, form='unformatted', convert=write_endian,         &
     access='direct', recl=nx*ny*nz*rprec)

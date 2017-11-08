@@ -22,6 +22,9 @@ module stat_defs
 !*******************************************************************************
 use types, only : rprec
 use param, only : nx, ny, nz, lh
+#ifdef PPTURBINES
+use turbine_indicator
+#endif
 
 save
 public
@@ -81,17 +84,6 @@ end type tavg_sgs_t
 
 ! Types for including wind turbines as drag disks
 #ifdef PPTURBINES
-
-! Indicator function calculator
-type turb_ind_func_t
-    real(rprec), dimension(:), allocatable :: r
-    real(rprec), dimension(:), allocatable :: R23
-    real(rprec) :: sqrt6overdelta, t_half
-contains
-    procedure, public :: init
-    procedure, public :: val
-end type turb_ind_func_t
-
 ! Single turbines
 type turbine_t
     real(rprec) :: xloc, yloc, height, dia, thk
@@ -116,11 +108,11 @@ type turbine_t
     ! (nx,ny,nz) of unit normal for each turbine
     real(rprec), dimension(3) :: nhat
     ! indicator function - weighting of each node
-    real(rprec), dimension(5000) :: ind
+    real(rprec), dimension(10000) :: ind
     ! object to calculate indicator function
     type(turb_ind_func_t) :: turb_ind_func
     ! (i,j,k) of each included node
-    integer, dimension(5000,3) :: nodes
+    integer, dimension(10000,3) :: nodes
     ! search area for nearby nodes
     integer, dimension(6) :: nodes_max
 end type turbine_t
@@ -184,128 +176,6 @@ interface type_zero_bogus
 end interface
 
 contains
-
-#ifdef PPTURBINES
-!*******************************************************************************
-function val(this, r, x) result(Rval)
-!*******************************************************************************
-use functions, only : linear_interp
-implicit none
-class(turb_ind_func_t), intent(in) :: this
-real(rprec), intent(in) :: r, x
-real(rprec) :: R1, R23, Rval
-
-R23 = linear_interp(this%r, this%R23, r)
-R1 = erf(this%sqrt6overdelta*(this%t_half + x)) +                              &
-    erf(this%sqrt6overdelta*(this%t_half - x))
-Rval = 0.5 * R1 * R23
-
-end function val
-
-!*******************************************************************************
-subroutine init(this, delta2, thk, dia, N)
-!*******************************************************************************
-use param, only : write_endian, path, pi
-use functions, only : bilinear_interp
-implicit none
-include'fftw3.f'
-
-class(turb_ind_func_t), intent(inout) :: this
-real(rprec), intent(in) :: delta2, thk, dia
-integer, intent(in) :: N
-
-real(rprec) :: L, d, R
-integer, dimension(:), allocatable :: ind
-real(rprec), dimension(:), allocatable :: yz
-real(rprec), dimension(:,:), allocatable :: g, f, h
-real(rprec), dimension(:), allocatable :: xi
-real(rprec) :: dr, Lr
-integer :: i, j
-
-integer*8 plan
-complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
-
-L = 4 * dia
-d = L / N
-R = 0.5 * dia;
-
-allocate(yz(N))
-allocate(ind(N))
-allocate(g(N, N))
-allocate(h(N, N))
-allocate(f(N, N))
-allocate(ghat(N/2+1, N))
-allocate(hhat(N/2+1, N))
-allocate(fhat(N/2+1, N))
-
-! Calculate constants
-this%t_half = 0.5 * thk
-this%sqrt6overdelta = sqrt(6._rprec) / sqrt(delta2)
-
-! Calculate yz and indices to sort the result
-do i = 1, N/2
-    yz(i) = d*(i-0.5)
-    ind(i) = N/2+i
-end do
-do i = N/2+1, N
-    yz(i) = -L + d*(i-0.5)
-    ind(i) = i-N/2
-end do
-
-! Calculate g and f
-do j = 1, N
-    do i = 1, N
-        g(i,j) = exp(-6*(yz(i)**2+yz(j)**2)/delta2)
-        if (sqrt(yz(i)**2 + yz(j)**2) < R) then
-            h(i,j) = 1.0
-        else
-            h(i,j) = 0.0
-        end if
-    end do
-end do
-
-! Do the convolution f = g*h in fourier space
-call dfftw_plan_dft_r2c_2d(plan, N, N, g, ghat, FFTW_ESTIMATE)
-call dfftw_execute_dft_r2c(plan, g, ghat)
-call dfftw_destroy_plan(plan)
-
-call dfftw_plan_dft_r2c_2d(plan, N, N, h, hhat, FFTW_ESTIMATE)
-call dfftw_execute_dft_r2c(plan, h, hhat)
-call dfftw_destroy_plan(plan)
-
-fhat = ghat*hhat
-
-! Compute the inverse fft of fhat
-call dfftw_plan_dft_c2r_2d(plan, N, N, fhat, f, FFTW_ESTIMATE)
-call dfftw_execute_dft_c2r(plan, fhat, f)
-call dfftw_destroy_plan(plan)
-
-! Normalize
-f = f / N**2 * d**2
-
-! Sort the results
-f = f(ind,ind)
-yz = yz(ind);
-
-! Interpolate onto the lookup table
-allocate(xi(N))
-if (allocated(this%r) ) then
-    deallocate(this%r)
-end if
-allocate( this%r(N) )
-allocate( this%R23(N) )
-
-Lr = R + 2 * sqrt(delta2)
-dr = Lr / (N - 1)
-do i = 1,N
-    this%r(i) = (i-1)*dr
-    xi(i) = 0
-end do
-this%R23 = bilinear_interp(yz, yz, f, xi, this%r)
-this%R23 = this%R23 / this%R23(1)
-
-end subroutine init
-#endif
 
 !///////////////////////////////////////////////////////////////////////////////
 !/// TAVG operators

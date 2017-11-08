@@ -79,20 +79,16 @@ allocate ( divtx(ld, ny, lbz:nz) ); divtx = 0.0_rprec
 allocate ( divty(ld, ny, lbz:nz) ); divty = 0.0_rprec
 allocate ( divtz(ld, ny, lbz:nz) ); divtz = 0.0_rprec
 
-#ifdef PPTURBINES
-allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
-allocate ( fya(ld, ny, nz) ); fya = 0.0_rprec
-allocate ( fza(ld, ny, nz) ); fza = 0.0_rprec
+#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
+allocate ( fxa(ld, ny, lbz:nz) ); fxa = 0.0_rprec
+allocate ( fya(ld, ny, lbz:nz) ); fya = 0.0_rprec
+allocate ( fza(ld, ny, lbz:nz) ); fza = 0.0_rprec
 #endif
 
 #if defined(PPLVLSET) || defined(PPATM)
 allocate ( fx(ld, ny, nz) ); fx = 0.0_rprec
 allocate ( fy(ld, ny, nz) ); fy = 0.0_rprec
 allocate ( fz(ld, ny, nz) ); fz = 0.0_rprec
-! May already be allocated if using TURBINES
-if( .not. allocated(fxa) ) allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
-if( .not. allocated(fya) ) allocate ( fya(ld, ny, nz) ); fya = 0.0_rprec
-if( .not. allocated(fza) ) allocate ( fza(ld, ny, nz) ); fza = 0.0_rprec
 #endif
 
 sim_param_initialized = .true.
