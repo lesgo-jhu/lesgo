@@ -29,7 +29,7 @@ public :: turb_ind_func_t
 ! Indicator function calculator
 type turb_ind_func_t
     real(rprec), dimension(:), allocatable :: r
-    real(rprec), dimension(:), allocatable :: R23
+    real(rprec), dimension(:), allocatable :: R2
     real(rprec) :: sqrt6overdelta, t_half
 contains
     procedure, public :: init
@@ -45,12 +45,12 @@ use functions, only : linear_interp
 implicit none
 class(turb_ind_func_t), intent(in) :: this
 real(rprec), intent(in) :: r, x
-real(rprec) :: R1, R23, Rval
+real(rprec) :: R1, R2, Rval
 
-R23 = linear_interp(this%r, this%R23, r)
-R1 = 0.5_rprec * ( erf(this%sqrt6overdelta*(this%t_half + x)) +                &
-    erf(this%sqrt6overdelta*(this%t_half - x)) )
-Rval = R1 * R23
+R2 = linear_interp(this%r, this%R2, r)
+R1 = 0.5_rprec * ( erf(this%sqrt6overdelta*(x + this%t_half)) -                &
+    erf(this%sqrt6overdelta*(x - this%t_half)) )
+Rval = R1 * R2
 
 end function val
 
@@ -78,7 +78,7 @@ integer*8 plan
 complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
 
 L = 3._rprec * dia
-N = 2*ceiling(2._rprec*L / sqrt(delta2))
+N = 3*ceiling(2._rprec*L / sqrt(delta2))
 d = L / N
 R = 0.5 * dia
 
@@ -146,7 +146,7 @@ if (allocated(this%r) ) then
     deallocate(this%r)
 end if
 allocate( this%r(N) )
-allocate( this%R23(N) )
+allocate( this%R2(N) )
 
 Lr = R + 4 * sqrt(delta2)
 dr = Lr / (N - 1)
@@ -154,7 +154,7 @@ do i = 1,N
     this%r(i) = (i-1)*dr
     xi(i) = 0
 end do
-this%R23 = max(6._rprec / pi / delta2 * bilinear_interp(yz, yz, f, xi, this%r),&
+this%R2 = max(6._rprec / pi / delta2 * bilinear_interp(yz, yz, f, xi, this%r), &
     0._rprec)
 
 end subroutine init
