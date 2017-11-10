@@ -27,6 +27,7 @@ use sim_param , only : w, dudz, dvdz
 use sgs_param , only : Cs_opt2
 use string_util
 use messages
+use time_average
 #ifdef PPMPI
 use mpi
 #endif
@@ -47,6 +48,9 @@ public jt_total, openfiles, energy, output_loop, output_final, output_init,    &
 
 ! Where to end with nz index.
 integer :: nz_end
+
+! time averaging
+type(tavg_t) :: tavg
 
 contains
 
@@ -536,7 +540,6 @@ use param, only : domain_calc, domain_nstart, domain_nend, domain_nskip
 use param, only : xplane_calc, xplane_nstart, xplane_nend, xplane_nskip
 use param, only : yplane_calc, yplane_nstart, yplane_nend, yplane_nskip
 use param, only : zplane_calc, zplane_nstart, zplane_nend, zplane_nskip
-use stat_defs, only : tavg_initialized,tavg_dt
 implicit none
 
 ! Determine if we are to checkpoint intermediate times
@@ -549,13 +552,13 @@ end if
 if (tavg_calc) then
     ! Are we between the start and stop timesteps?
     if ((jt_total >= tavg_nstart).and.(jt_total <= tavg_nend)) then
-        ! Every timestep (between nstart and nend), add to tavg_dt
-        tavg_dt = tavg_dt + dt
+        ! Every timestep (between nstart and nend), add to tavg%dt
+        tavg%dt = tavg%dt + dt
 
         ! Are we at the beginning or a multiple of nstart?
         if ( mod(jt_total-tavg_nstart,tavg_nskip)==0 ) then
             ! Check if we have initialized tavg
-            if (.not.tavg_initialized) then
+            if (.not.tavg%initialized) then
                 if (coord == 0) then
                     write(*,*) '-------------------------------'
                     write(*,"(1a,i9,1a,i9)")                                   &
@@ -564,9 +567,9 @@ if (tavg_calc) then
                     write(*,*) '-------------------------------'
                 end if
 
-                call tavg_init()
+                call tavg%init()
             else
-                call tavg_compute ()
+                call tavg%compute()
             end if
         end if
     end if
@@ -1151,7 +1154,6 @@ use sgs_param, only : Cs_opt2, F_LM, F_MM, F_QN, F_NN
 use param, only : jt_total, total_time, total_time_dim, dt,                    &
     use_cfl_dt, cfl, write_endian
 use cfl_util, only : get_max_cfl
-use stat_defs, only : tavg_initialized
 use string_util, only : string_concat
 #if PPUSE_TURBINES
 use turbines, only : turbines_checkpoint
@@ -1185,7 +1187,7 @@ call mpi_barrier( comm, ierr )
 #endif
 
 ! Checkpoint time averaging restart data
-if ( tavg_calc .and. tavg_initialized ) call tavg_checkpoint()
+if ( tavg_calc .and. tavg%initialized ) call tavg%checkpoint()
 
 ! Write time and current simulation state
 ! Set the current cfl to a temporary (write) value based whether CFL is
@@ -1222,7 +1224,6 @@ end subroutine checkpoint
 !*******************************************************************************
 subroutine output_final()
 !*******************************************************************************
-use stat_defs, only : tavg_initialized
 use param, only : tavg_calc
 implicit none
 
@@ -1230,7 +1231,7 @@ implicit none
 call checkpoint()
 
 !  Check if average quantities are to be recorded
-if (tavg_calc .and. tavg_initialized ) call tavg_finalize()
+if (tavg_calc .and. tavg%initialized ) call tavg%finalize()
 
 end subroutine output_final
 
@@ -1241,16 +1242,14 @@ subroutine output_init ()
 !  This subroutine allocates the memory for arrays used for statistical
 !  calculations
 !
-use param, only : dx, dy, dz, nx, ny, nz, lbz
+use param, only : dx, dy, dz, nz, lbz
 use param, only : point_calc, point_nloc, point_loc
 use param, only : xplane_calc, xplane_nloc, xplane_loc
 use param, only : yplane_calc, yplane_nloc, yplane_loc
 use param, only : zplane_calc, zplane_nloc, zplane_loc
-use param, only : tavg_calc
 use grid_m
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
-use stat_defs, only : tavg
 implicit none
 
 integer :: i,j,k
@@ -1275,40 +1274,6 @@ nullify(x,y,z)
 x => grid % x
 y => grid % y
 z => grid % z
-
-if( tavg_calc ) then
-    allocate(tavg(nx,ny,lbz:nz))
-
-  ! Initialize the derived types tavg
-    do k = 1, Nz
-        do j = 1, Ny
-        do i = 1, Nx
-            tavg(i,j,k)%u = 0._rprec
-            tavg(i,j,k)%v = 0._rprec
-            tavg(i,j,k)%w = 0._rprec
-            tavg(i,j,k)%u_w  = 0._rprec
-            tavg(i,j,k)%v_w  = 0._rprec
-            tavg(i,j,k)%w_uv = 0._rprec
-            tavg(i,j,k)%u2 = 0._rprec
-            tavg(i,j,k)%v2 = 0._rprec
-            tavg(i,j,k)%w2 = 0._rprec
-            tavg(i,j,k)%uv = 0._rprec
-            tavg(i,j,k)%uw = 0._rprec
-            tavg(i,j,k)%vw = 0._rprec
-            tavg(i,j,k)%txx = 0._rprec
-            tavg(i,j,k)%tyy = 0._rprec
-            tavg(i,j,k)%tzz = 0._rprec
-            tavg(i,j,k)%txy = 0._rprec
-            tavg(i,j,k)%txz = 0._rprec
-            tavg(i,j,k)%tyz = 0._rprec
-            tavg(i,j,k)%fx = 0._rprec
-            tavg(i,j,k)%fy = 0._rprec
-            tavg(i,j,k)%fz = 0._rprec
-            tavg(i,j,k)%cs_opt2 = 0._rprec
-        end do
-        end do
-  end do
-end if
 
 ! Initialize information for x-planar stats/data
 if (xplane_calc) then
@@ -1396,488 +1361,5 @@ end if
 nullify(x,y,z)
 
 end subroutine output_init
-
-!*******************************************************************************
-subroutine tavg_init()
-!*******************************************************************************
-!
-!  This subroutine loads the tavg.out files
-!
-use messages
-use param, only : read_endian
-use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
-implicit none
-
-character (*), parameter :: ftavg_in = path // 'tavg.out'
-#ifdef PPMPI
-character (*), parameter :: MPI_suffix = '.c'
-#endif
-character (128) :: fname
-
-logical :: exst
-
-fname = ftavg_in
-#ifdef PPMPI
-call string_concat( fname, MPI_suffix, coord )
-#endif
-
-inquire (file=fname, exist=exst)
-if (.not. exst) then
-    !  Nothing to read in
-    if (coord == 0) then
-        write(*,*) ' '
-        write(*,*)'No previous time averaged data - starting from scratch.'
-    end if
-    ! note: tavg was already initialized to zero in output_init routine
-    tavg_total_time = 0._rprec
-else
-    open(1, file=fname, action='read', position='rewind', form='unformatted',  &
-        convert=read_endian)
-    read(1) tavg_total_time
-    read(1) tavg
-    close(1)
-end if
-
-
-! Initialize tavg_dt
-tavg_dt = 0._rprec
-
-! Set global switch that tavg as been initialized
-tavg_initialized = .true.
-
-end subroutine tavg_init
-
-!*******************************************************************************
-subroutine tavg_compute()
-!*******************************************************************************
-!
-!  This subroutine collects the stats for each flow
-!  variable quantity
-!
-use stat_defs, only : tavg, tavg_total_time, tavg_dt
-use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
-use sim_param, only : u, v, w, p
-use sim_param, only : txx, txy, tyy, txz, tyz, tzz
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-use sim_param, only : fxa, fya, fza
-#endif
-use functions, only : interp_to_uv_grid, interp_to_w_grid
-
-implicit none
-
-integer :: i, j, k
-real(rprec) :: u_p, u_p2, v_p, v_p2, w_p, w_p2
-real(rprec), allocatable, dimension(:,:,:) :: w_uv, u_w, v_w
-real(rprec), allocatable, dimension(:,:,:) :: pres_real
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-real(rprec), allocatable, dimension(:,:,:) :: fza_uv
-#endif
-
-allocate(w_uv(nx,ny,lbz:nz), u_w(nx,ny,lbz:nz), v_w(nx,ny,lbz:nz))
-allocate(pres_real(nx,ny,lbz:nz))
-
-w_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(w(1:nx,1:ny,lbz:nz), lbz )
-u_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(u(1:nx,1:ny,lbz:nz), lbz )
-v_w(1:nx,1:ny,lbz:nz) = interp_to_w_grid(v(1:nx,1:ny,lbz:nz), lbz )
-pres_real(1:nx,1:ny,lbz:nz) = 0._rprec
-pres_real(1:nx,1:ny,lbz:nz) = p(1:nx,1:ny,lbz:nz)                              &
-    - 0.5 * ( u(1:nx,1:ny,lbz:nz)**2 + w_uv(1:nx,1:ny,lbz:nz)**2               &
-    + v(1:nx,1:ny,lbz:nz)**2 )
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-allocate(fza_uv(nx,ny,lbz:nz))
-fza_uv(1:nx,1:ny,lbz:nz) = interp_to_uv_grid(fza(1:nx,1:ny,lbz:nz), lbz )
-#endif
-
-! note: u_w not necessarily zero on walls, but only mult by w=0 vu u'w', so OK
-! can zero u_w at BC anyway:
-if(coord==0       .and. lbc_mom>0) u_w(:,:,1)  = 0._rprec
-if(coord==nproc-1 .and. ubc_mom>0) u_w(:,:,nz) = 0._rprec
-if(coord==0       .and. lbc_mom>0) v_w(:,:,1)  = 0._rprec
-if(coord==nproc-1 .and. ubc_mom>0) v_w(:,:,nz) = 0._rprec
-
-do k = lbz, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
-do j = 1, ny
-do i = 1, nx
-    u_p = u(i,j,k)       !! uv grid
-    u_p2= u_w(i,j,k)     !! w grid
-    v_p = v(i,j,k)       !! uv grid
-    v_p2= v_w(i,j,k)     !! w grid
-    w_p = w(i,j,k)       !! w grid
-    w_p2= w_uv(i,j,k)    !! uv grid
-
-    tavg(i,j,k) % u = tavg(i,j,k) % u + u_p * tavg_dt !! uv grid
-    tavg(i,j,k) % v = tavg(i,j,k) % v + v_p * tavg_dt !! uv grid
-    tavg(i,j,k) % w = tavg(i,j,k) % w + w_p * tavg_dt !! w grid
-    tavg(i,j,k) % w_uv = tavg(i,j,k) % w_uv + w_p2 * tavg_dt !! uv grid
-
-    ! Note: compute u'w' on w-grid because stresses on w-grid --pj
-    tavg(i,j,k) % u2 = tavg(i,j,k) % u2 + u_p * u_p * tavg_dt !! uv grid
-    tavg(i,j,k) % v2 = tavg(i,j,k) % v2 + v_p * v_p * tavg_dt !! uv grid
-    tavg(i,j,k) % w2 = tavg(i,j,k) % w2 + w_p * w_p * tavg_dt !! w grid
-    tavg(i,j,k) % uv = tavg(i,j,k) % uv + u_p * v_p * tavg_dt !! uv grid
-    tavg(i,j,k) % uw = tavg(i,j,k) % uw + u_p2 * w_p * tavg_dt !! w grid
-    tavg(i,j,k) % vw = tavg(i,j,k) % vw + v_p2 * w_p * tavg_dt !! w grid
-
-    tavg(i,j,k) % txx = tavg(i,j,k) % txx + txx(i,j,k) * tavg_dt !! uv grid
-    tavg(i,j,k) % tyy = tavg(i,j,k) % tyy + tyy(i,j,k) * tavg_dt !! uv grid
-    tavg(i,j,k) % tzz = tavg(i,j,k) % tzz + tzz(i,j,k) * tavg_dt !! uv grid
-    tavg(i,j,k) % txy = tavg(i,j,k) % txy + txy(i,j,k) * tavg_dt !! uv grid
-    tavg(i,j,k) % txz = tavg(i,j,k) % txz + txz(i,j,k) * tavg_dt !! w grid
-    tavg(i,j,k) % tyz = tavg(i,j,k) % tyz + tyz(i,j,k) * tavg_dt !! w grid
-
-    tavg(i,j,k) % p = tavg(i,j,k) % p + pres_real(i,j,k) * tavg_dt
-end do
-end do
-end do
-
-do k = 1, jzmax     ! lbz = 0 for mpi runs, otherwise lbz = 1
-do j = 1, ny
-do i = 1, nx
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-    tavg(i,j,k)%fx = tavg(i,j,k)%fx + fxa(i,j,k) * tavg_dt
-    tavg(i,j,k)%fy = tavg(i,j,k)%fy + fya(i,j,k) * tavg_dt
-    tavg(i,j,k)%fz = tavg(i,j,k)%fz + fza_uv(i,j,k) * tavg_dt
-#endif
-    tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
-end do
-end do
-end do
-
-! Update tavg_total_time for variable time stepping
-tavg_total_time = tavg_total_time + tavg_dt
-
-! Set tavg_dt back to zero for next increment
-tavg_dt = 0._rprec
-
-end subroutine tavg_compute
-
-
-!*******************************************************************************
-subroutine tavg_finalize()
-!*******************************************************************************
-use grid_m
-use stat_defs, only : tavg_t, tavg_total_time, tavg
-use stat_defs, only : rs_t, rs
-use stat_defs, only : rs_compute
-use param, only : write_endian
-use param, only : ny,nz
-#ifdef PPMPI
-use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
-use param, only : ierr,comm
-#endif
-implicit none
-
-#ifndef PPCGNS
-character(64) :: bin_ext
-#endif
-
-character(64) :: fname_vel, fname_velw, fname_vel2, fname_tau, fname_pres
-character(64) :: fname_f, fname_rs, fname_cs
-
-integer :: i,j,k
-
-real(rprec), pointer, dimension(:) :: x, y, z, zw
-
-nullify(x,y,z,zw)
-
-x => grid % x
-y => grid % y
-z => grid % z
-zw => grid % zw
-
-allocate(rs(nx,ny,lbz:nz))
-
-! Common file name
-fname_vel = path // 'output/veluv_avg'
-fname_velw = path // 'output/velw_avg'
-fname_vel2 = path // 'output/vel2_avg'
-fname_tau = path // 'output/tau_avg'
-fname_f = path // 'output/force_avg'
-fname_pres = path // 'output/pres_avg'
-fname_rs = path // 'output/rs'
-fname_cs = path // 'output/cs_opt2'
-
-! CGNS
-#ifdef PPCGNS
-call string_concat(fname_vel, '.cgns')
-call string_concat(fname_velw, '.cgns')
-call string_concat(fname_vel2, '.cgns')
-call string_concat(fname_tau, '.cgns')
-call string_concat(fname_pres, '.cgns')
-call string_concat(fname_f, '.cgns')
-call string_concat(fname_rs, '.cgns')
-call string_concat(fname_cs, '.cgns')
-
-! Binary
-#else
-#ifdef PPMPI
-call string_splice(bin_ext, '.c', coord, '.bin')
-#else
-bin_ext = '.bin'
-#endif
-call string_concat(fname_vel, bin_ext)
-call string_concat(fname_velw, bin_ext)
-call string_concat(fname_vel2, bin_ext)
-call string_concat(fname_tau, bin_ext)
-call string_concat(fname_pres, bin_ext)
-call string_concat(fname_f, bin_ext)
-call string_concat(fname_rs, bin_ext)
-call string_concat(fname_cs, bin_ext)
-#endif
-
-! Final checkpoint all restart data
-call tavg_checkpoint()
-
-#ifdef PPMPI
-call mpi_barrier( comm, ierr )
-#endif
-
-!  Perform time averaging operation
-!  tavg = tavg / tavg_total_time
-do k = jzmin, jzmax
-do j = 1, Ny
-do i = 1, Nx
-    tavg(i,j,k)%u = tavg(i,j,k)%u /  tavg_total_time
-    tavg(i,j,k)%v = tavg(i,j,k)%v /  tavg_total_time
-    tavg(i,j,k)%w = tavg(i,j,k)%w /  tavg_total_time
-    tavg(i,j,k)%u_w  = tavg(i,j,k)%u_w  /  tavg_total_time
-    tavg(i,j,k)%v_w  = tavg(i,j,k)%v_w  /  tavg_total_time
-    tavg(i,j,k)%w_uv = tavg(i,j,k)%w_uv /  tavg_total_time
-    tavg(i,j,k)%u2 = tavg(i,j,k)%u2 /  tavg_total_time
-    tavg(i,j,k)%v2 = tavg(i,j,k)%v2 /  tavg_total_time
-    tavg(i,j,k)%w2 = tavg(i,j,k)%w2 /  tavg_total_time
-    tavg(i,j,k)%uv = tavg(i,j,k)%uv /  tavg_total_time
-    tavg(i,j,k)%uw = tavg(i,j,k)%uw /  tavg_total_time
-    tavg(i,j,k)%vw = tavg(i,j,k)%vw /  tavg_total_time
-    tavg(i,j,k)%txx = tavg(i,j,k)%txx /  tavg_total_time
-    tavg(i,j,k)%tyy = tavg(i,j,k)%tyy /  tavg_total_time
-    tavg(i,j,k)%tzz = tavg(i,j,k)%tzz /  tavg_total_time
-    tavg(i,j,k)%txy = tavg(i,j,k)%txy /  tavg_total_time
-    tavg(i,j,k)%txz = tavg(i,j,k)%txz /  tavg_total_time
-    tavg(i,j,k)%tyz = tavg(i,j,k)%tyz /  tavg_total_time
-    tavg(i,j,k)%p = tavg(i,j,k)%p /  tavg_total_time
-    tavg(i,j,k)%fx = tavg(i,j,k)%fx /  tavg_total_time
-    tavg(i,j,k)%fy = tavg(i,j,k)%fy /  tavg_total_time
-    tavg(i,j,k)%fz = tavg(i,j,k)%fz /  tavg_total_time
-    tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 /  tavg_total_time
-
-end do
-end do
-end do
-
-#ifdef PPMPI
-call mpi_barrier( comm, ierr )
-#endif
-
-!  Sync entire tavg structure
-#ifdef PPMPI
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%u, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%v, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%w, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%u2, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%v2, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%w2, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uw, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%vw, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uv, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%p, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%fx, 0, MPI_SYNC_DOWNUP )
-call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
-#endif
-
-! Write all the 3D data
-#ifdef PPCGNS
-! Write CGNS Data
-call write_parallel_cgns (fname_vel ,nx, ny, nz - nz_end, nz_tot,              &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 3,                                  &
-    (/ 'VelocityX', 'VelocityY', 'VelocityZ' /),                               &
-    (/ tavg(1:nx,1:ny,1:nz - nz_end) % u,                                      &
-       tavg(1:nx,1:ny,1:nz - nz_end) % v,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % w_uv /) )
-
-call write_parallel_cgns (fname_velw ,nx, ny, nz - nz_end, nz_tot,             &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ),                                    &
-    1, (/ 'VelocityZ' /), (/ tavg(1:nx,1:ny,1:nz- nz_end) % w /) )
-
-call write_parallel_cgns(fname_vel2,nx,ny,nz- nz_end,nz_tot,                   &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-    (/ 'Mean--uu', 'Mean--vv', 'Mean--ww','Mean--uw','Mean--vw','Mean--uv'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % u2,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % v2,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % w2,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % uw,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % vw,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % uv /) )
-
-call write_parallel_cgns(fname_tau,nx,ny,nz- nz_end,nz_tot,                    &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 6,                                 &
-    (/ 'Tau--txx', 'Tau--txy', 'Tau--tyy','Tau--txz','Tau--tyz','Tau--tzz'/),  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % txx,                                     &
-       tavg(1:nx,1:ny,1:nz- nz_end) % txy,                                     &
-       tavg(1:nx,1:ny,1:nz- nz_end) % tyy,                                     &
-       tavg(1:nx,1:ny,1:nz- nz_end) % txz,                                     &
-       tavg(1:nx,1:ny,1:nz- nz_end) % tyz,                                     &
-       tavg(1:nx,1:ny,1:nz- nz_end) % tzz /) )
-
-call write_parallel_cgns(fname_pres,nx,ny,nz- nz_end,nz_tot,                   &
-   (/ 1, 1,   (nz-1)*coord + 1 /),                                             &
-   (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                                &
-   x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                  &
-   (/ 'pressure' /),                                                           &
-   (/ tavg(1:nx,1:ny,1:nz- nz_end) % p /) )
-
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-call write_parallel_cgns(fname_f,nx,ny,nz- nz_end,nz_tot,                      &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 3,                                 &
-    (/ 'bodyForX', 'bodyForY', 'bodyForZ' /),                                  &
-    (/ tavg(1:nx,1:ny,1:nz- nz_end) % fx,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % fy,                                      &
-       tavg(1:nx,1:ny,1:nz- nz_end) % fz /) )
-#endif
-
-call write_parallel_cgns(fname_cs,nx,ny,nz- nz_end,nz_tot,                     &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , zw(1:(nz-nz_end) ), 1,                                 &
-    (/ 'Cs_Coeff'/),  (/ tavg(1:nx,1:ny,1:nz- nz_end) % cs_opt2 /) )
-
-#else
-! Write binary data
-open(unit=13, file=fname_vel, form='unformatted', convert=write_endian,        &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%u
-write(13,rec=2) tavg(:nx,:ny,1:nz)%v
-write(13,rec=3) tavg(:nx,:ny,1:nz)%w_uv
-close(13)
-
-! Write binary data
-open(unit=13, file=fname_velw, form='unformatted', convert=write_endian,       &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%w
-close(13)
-
-open(unit=13, file=fname_vel2, form='unformatted', convert=write_endian,       &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%u2
-write(13,rec=2) tavg(:nx,:ny,1:nz)%v2
-write(13,rec=3) tavg(:nx,:ny,1:nz)%w2
-write(13,rec=4) tavg(:nx,:ny,1:nz)%uw
-write(13,rec=5) tavg(:nx,:ny,1:nz)%vw
-write(13,rec=6) tavg(:nx,:ny,1:nz)%uv
-close(13)
-
-open(unit=13, file=fname_tau, form='unformatted', convert=write_endian,        &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%txx
-write(13,rec=2) tavg(:nx,:ny,1:nz)%txy
-write(13,rec=3) tavg(:nx,:ny,1:nz)%tyy
-write(13,rec=4) tavg(:nx,:ny,1:nz)%txz
-write(13,rec=5) tavg(:nx,:ny,1:nz)%tyz
-write(13,rec=6) tavg(:nx,:ny,1:nz)%tzz
-close(13)
-
-open(unit=13, file=fname_pres, form='unformatted', convert=write_endian,       &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%p
-close(13)
-
-#if defined(PPTURBINES) || defined(PPATM) || defined(PPLVLSET)
-open(unit=13, file=fname_f, form='unformatted', convert=write_endian,          &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%fx
-write(13,rec=2) tavg(:nx,:ny,1:nz)%fy
-write(13,rec=3) tavg(:nx,:ny,1:nz)%fz
-close(13)
-#endif
-
-open(unit=13, file=fname_cs, form='unformatted', convert=write_endian,         &
-    access='direct', recl=nx*ny*nz*rprec)
-write(13,rec=1) tavg(:nx,:ny,1:nz)%cs_opt2
-close(13)
-
-#endif
-
-#ifdef PPMPI
-! Ensure all writes complete before preceeding
-call mpi_barrier( comm, ierr )
-#endif
-
-! Do the Reynolds stress calculations afterwards. Now we can interpolate w and
-! ww to the uv grid and do the calculations. We have already written the data to
-! the files so we can overwrite now
-rs = rs_compute(tavg , lbz)
-
-#ifdef PPCGNS
-! Write CGNS data
-call write_parallel_cgns(fname_rs,nx,ny,nz- nz_end,nz_tot,                     &
-    (/ 1, 1,   (nz-1)*coord + 1 /),                                            &
-    (/ nx, ny, (nz-1)*(coord+1) + 1 - nz_end /),                               &
-    x(1:nx) , y(1:ny) , z(1:(nz-nz_end) ), 6,                                  &
-    (/ 'Meanupup', 'Meanvpvp', 'Meanwpwp','Meanupwp','Meanvpwp','Meanupvp'/),  &
-    (/ rs(1:nx,1:ny,1:nz- nz_end) % up2,                                       &
-    rs(1:nx,1:ny,1:nz- nz_end) % vp2,                                          &
-    rs(1:nx,1:ny,1:nz- nz_end) % wp2,                                          &
-    rs(1:nx,1:ny,1:nz- nz_end) % upwp,                                         &
-    rs(1:nx,1:ny,1:nz- nz_end) % vpwp,                                         &
-    rs(1:nx,1:ny,1:nz- nz_end) % upvp /) )
-#else
-! Write binary data
-open(unit=13, file=fname_rs, form='unformatted', convert=write_endian,         &
-    access='direct',recl=nx*ny*nz*rprec)
-write(13,rec=1) rs(:nx,:ny,1:nz)%up2
-write(13,rec=2) rs(:nx,:ny,1:nz)%vp2
-write(13,rec=3) rs(:nx,:ny,1:nz)%wp2
-write(13,rec=4) rs(:nx,:ny,1:nz)%upwp
-write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
-write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
-close(13)
-#endif
-
-deallocate(rs)
-
-#ifdef PPMPI
-! Ensure all writes complete before preceeding
-call mpi_barrier( comm, ierr )
-#endif
-
-end subroutine tavg_finalize
-
-!*******************************************************************************
-subroutine tavg_checkpoint()
-!*******************************************************************************
-!
-! This subroutine writes the restart data and is to be called by 'checkpoint'
-! for intermediate checkpoints and by 'tavg_finalize' at the end of the
-! simulation.
-!
-use param, only : checkpoint_tavg_file, write_endian
-use stat_defs, only : tavg_total_time, tavg
-implicit none
-
-character(64) :: fname
-
-fname = checkpoint_tavg_file
-#ifdef PPMPI
-call string_concat( fname, '.c', coord)
-#endif
-
-!  Write data to tavg.out
-open(1, file=fname, action='write', position='rewind',form='unformatted',      &
-    convert=write_endian)
-write(1) tavg_total_time
-write(1) tavg
-close(1)
-
-end subroutine tavg_checkpoint
 
 end module io

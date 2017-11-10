@@ -45,24 +45,6 @@ type zplane_t
     real(rprec) :: ldiff
 end type zplane_t
 
-type tavg_t
-    real(rprec) :: u, v, w, u_w, v_w, w_uv
-    real(rprec) :: u2, v2, w2, uv, uw, vw
-    real(rprec) :: txx, tyy, tzz, txy, txz, tyz
-    real(rprec) :: p, fx, fy, fz
-    real(rprec) :: cs_opt2
-end type tavg_t
-
-type rs_t
-    real(rprec) :: up2, vp2, wp2, upvp, upwp, vpwp
-end type rs_t
-
-real(rprec) :: tavg_total_time
-! Time between calls of tavg_compute, built by summing dt
-real(rprec) :: tavg_dt
-! Switch for determining if time averaging has been initialized
-logical :: tavg_initialized = .false.
-
 ! Types for including wind turbines as drag disks
 #ifdef PPTURBINES
 ! Single turbines
@@ -111,36 +93,7 @@ type(wind_farm_t) :: wind_farm
 type(point_t), allocatable, dimension(:) :: point
 type(plane_t), allocatable, dimension(:) :: xplane, yplane
 type(zplane_t), allocatable, dimension(:) :: zplane
-type(tavg_t), allocatable, dimension(:,:,:) :: tavg
-type(rs_t), allocatable, dimension(:,:,:) :: rs
 
 contains
-
-!*******************************************************************************
-function rs_compute(a, lbz2) result(c)
-!*******************************************************************************
-implicit none
-integer, intent(in) :: lbz2
-type(tavg_t), dimension(:,:,lbz2:), intent(in) :: a
-type(rs_t), allocatable, dimension(:,:,:) :: c
-
-integer :: ubx, uby, ubz
-
-ubx=ubound(a,1)
-uby=ubound(a,2)
-ubz=ubound(a,3)
-
-allocate(c(ubx,uby,lbz2:ubz))
-
-c % up2 = a % u2 - a % u * a % u
-c % vp2 = a % v2 - a % v * a % v
-c % wp2 = a % w2 - a % w * a % w
-c % upvp = a % uv - a % u * a % v
-!! using u_w and v_w below instead of u and v ensures that the Reynolds
-!! stresses are on the same grid as the squared velocities (i.e., w-grid)
-c % upwp = a % uw - a % u_w * a % w
-c % vpwp = a % vw - a % v_w * a % w
-
-end function rs_compute
 
 end module stat_defs
