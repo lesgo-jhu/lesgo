@@ -49,10 +49,9 @@ contains
 !*******************************************************************************
 subroutine init(this)
 !*******************************************************************************
-use param, only : nx, ny, lbz, nz
 use messages
 use string_util
-use param, only : read_endian, coord, path, nx, ny, nz, lbz
+use param, only : read_endian, coord, path
 implicit none
 
 class(tavg_t), intent(inout) :: this
@@ -178,7 +177,7 @@ subroutine compute(this)
 !  This subroutine collects the stats for each flow
 !  variable quantity
 !
-use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom, coord, nproc
+use param, only : jzmax, ubc_mom, lbc_mom, coord, nproc
 use sgs_param, only : Cs_opt2
 use sim_param, only : u, v, w, p
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
@@ -280,8 +279,7 @@ end subroutine compute
 subroutine finalize(this)
 !*******************************************************************************
 use grid_m
-use param, only : write_endian, jzmin, jzmax, lbz, path
-use param, only : ny, nz, coord
+use param, only : write_endian, jzmin, jzmax, lbz, path, coord
 use string_util
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
