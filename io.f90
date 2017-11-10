@@ -1250,11 +1250,7 @@ use param, only : tavg_calc
 use grid_m
 use functions, only : cell_indx
 use stat_defs, only : point, xplane, yplane, zplane
-use stat_defs, only : tavg, tavg_zplane
-#ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs
-#endif
-use stat_defs, only : type_set
+use stat_defs, only : tavg
 implicit none
 
 integer :: i,j,k
@@ -1282,22 +1278,35 @@ z => grid % z
 
 if( tavg_calc ) then
     allocate(tavg(nx,ny,lbz:nz))
-    allocate(tavg_zplane(nz))
-#ifdef PPOUTPUT_EXTRA
-    allocate(tavg_sgs(nx,ny,nz))
-#endif
 
-  ! Initialize the derived types tavg and tavg_zplane
+  ! Initialize the derived types tavg
     do k = 1, Nz
         do j = 1, Ny
         do i = 1, Nx
-            call type_set( tavg(i,j,k), 0._rprec )
-#ifdef PPOUTPUT_EXTRA
-            call type_set( tavg_sgs(i,j,k), 0._rprec )
-#endif
+            tavg(i,j,k)%u = 0._rprec
+            tavg(i,j,k)%v = 0._rprec
+            tavg(i,j,k)%w = 0._rprec
+            tavg(i,j,k)%u_w  = 0._rprec
+            tavg(i,j,k)%v_w  = 0._rprec
+            tavg(i,j,k)%w_uv = 0._rprec
+            tavg(i,j,k)%u2 = 0._rprec
+            tavg(i,j,k)%v2 = 0._rprec
+            tavg(i,j,k)%w2 = 0._rprec
+            tavg(i,j,k)%uv = 0._rprec
+            tavg(i,j,k)%uw = 0._rprec
+            tavg(i,j,k)%vw = 0._rprec
+            tavg(i,j,k)%txx = 0._rprec
+            tavg(i,j,k)%tyy = 0._rprec
+            tavg(i,j,k)%tzz = 0._rprec
+            tavg(i,j,k)%txy = 0._rprec
+            tavg(i,j,k)%txz = 0._rprec
+            tavg(i,j,k)%tyz = 0._rprec
+            tavg(i,j,k)%fx = 0._rprec
+            tavg(i,j,k)%fy = 0._rprec
+            tavg(i,j,k)%fz = 0._rprec
+            tavg(i,j,k)%cs_opt2 = 0._rprec
         end do
         end do
-        call type_set( tavg_zplane(k), 0._rprec )
   end do
 end if
 
@@ -1397,16 +1406,9 @@ subroutine tavg_init()
 use messages
 use param, only : read_endian
 use stat_defs, only : tavg, tavg_total_time, tavg_dt, tavg_initialized
-use stat_defs, only : operator(.MUL.)
-#ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs
-#endif
 implicit none
 
 character (*), parameter :: ftavg_in = path // 'tavg.out'
-#ifdef PPOUTPUT_EXTRA
-character (*), parameter :: ftavg_sgs_in = path // 'tavg_sgs.out'
-#endif
 #ifdef PPMPI
 character (*), parameter :: MPI_suffix = '.c'
 #endif
@@ -1436,29 +1438,6 @@ else
     close(1)
 end if
 
-#ifdef PPOUTPUT_EXTRA
-fname = ftavg_sgs_in
-#ifdef PPMPI
-call string_concat( fname, MPI_suffix, coord )
-#endif
-
-inquire (file=fname, exist=exst)
-if (.not. exst) then
-    !  Nothing to read in
-    if(coord == 0) then
-        write(*,*) ' '
-        write(*,*)'No previous time averaged data (sgs) - starting from scratch.'
-    end if
-
-    tavg_total_time_sgs = 0._rprec
-else
-    open(1, file=fname, action='read', position='rewind', form='unformatted',  &
-        convert=read_endian)
-    read(1) tavg_total_time_sgs
-    read(1) tavg_sgs
-    close(1)
-end if
-#endif
 
 ! Initialize tavg_dt
 tavg_dt = 0._rprec
@@ -1476,10 +1455,6 @@ subroutine tavg_compute()
 !  variable quantity
 !
 use stat_defs, only : tavg, tavg_total_time, tavg_dt
-#ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs
-use sgs_param
-#endif
 use param, only : nx, ny, nz, lbz, jzmax, ubc_mom, lbc_mom
 use sim_param, only : u, v, w, p
 use sim_param, only : txx, txy, tyy, txz, tyz, tzz
@@ -1568,22 +1543,8 @@ end do
 end do
 end do
 
-#ifdef PPOUTPUT_EXTRA
-do k = 1, jzmax
-do j = 1, ny
-do i = 1, nx
-    ! w-grid variables
-    tavg_sgs(i,j,k)%Nu_t = tavg_sgs(i,j,k)%Nu_t + Nu_t(i,j,k) * tavg_dt
-end do
-end do
-end do
-#endif
-
 ! Update tavg_total_time for variable time stepping
 tavg_total_time = tavg_total_time + tavg_dt
-#ifdef PPOUTPUT_EXTRA
-tavg_total_time_sgs = tavg_total_time_sgs + tavg_dt
-#endif
 
 ! Set tavg_dt back to zero for next increment
 tavg_dt = 0._rprec
@@ -1597,14 +1558,8 @@ subroutine tavg_finalize()
 use grid_m
 use stat_defs, only : tavg_t, tavg_total_time, tavg
 use stat_defs, only : rs_t, rs
-use stat_defs, only : operator(.DIV.), operator(.MUL.)
-use stat_defs, only : operator(.ADD.), operator(.SUB.)
-use stat_defs, only : tavg_interp_to_uv_grid
-use stat_defs, only : rs_compute, cnpy_tavg_mul
+use stat_defs, only : rs_compute
 use param, only : write_endian
-#ifdef PPOUTPUT_EXTRA
-use stat_defs, only : tavg_sgs, tavg_total_time_sgs
-#endif
 use param, only : ny,nz
 #ifdef PPMPI
 use mpi_defs, only : mpi_sync_real_array,MPI_SYNC_DOWNUP
@@ -1682,20 +1637,33 @@ call mpi_barrier( comm, ierr )
 do k = jzmin, jzmax
 do j = 1, Ny
 do i = 1, Nx
-    tavg(i,j,k) = tavg(i,j,k) .DIV. tavg_total_time
-end do
-end do
-end do
+    tavg(i,j,k)%u = tavg(i,j,k)%u /  tavg_total_time
+    tavg(i,j,k)%v = tavg(i,j,k)%v /  tavg_total_time
+    tavg(i,j,k)%w = tavg(i,j,k)%w /  tavg_total_time
+    tavg(i,j,k)%u_w  = tavg(i,j,k)%u_w  /  tavg_total_time
+    tavg(i,j,k)%v_w  = tavg(i,j,k)%v_w  /  tavg_total_time
+    tavg(i,j,k)%w_uv = tavg(i,j,k)%w_uv /  tavg_total_time
+    tavg(i,j,k)%u2 = tavg(i,j,k)%u2 /  tavg_total_time
+    tavg(i,j,k)%v2 = tavg(i,j,k)%v2 /  tavg_total_time
+    tavg(i,j,k)%w2 = tavg(i,j,k)%w2 /  tavg_total_time
+    tavg(i,j,k)%uv = tavg(i,j,k)%uv /  tavg_total_time
+    tavg(i,j,k)%uw = tavg(i,j,k)%uw /  tavg_total_time
+    tavg(i,j,k)%vw = tavg(i,j,k)%vw /  tavg_total_time
+    tavg(i,j,k)%txx = tavg(i,j,k)%txx /  tavg_total_time
+    tavg(i,j,k)%tyy = tavg(i,j,k)%tyy /  tavg_total_time
+    tavg(i,j,k)%tzz = tavg(i,j,k)%tzz /  tavg_total_time
+    tavg(i,j,k)%txy = tavg(i,j,k)%txy /  tavg_total_time
+    tavg(i,j,k)%txz = tavg(i,j,k)%txz /  tavg_total_time
+    tavg(i,j,k)%tyz = tavg(i,j,k)%tyz /  tavg_total_time
+    tavg(i,j,k)%p = tavg(i,j,k)%p /  tavg_total_time
+    tavg(i,j,k)%fx = tavg(i,j,k)%fx /  tavg_total_time
+    tavg(i,j,k)%fy = tavg(i,j,k)%fy /  tavg_total_time
+    tavg(i,j,k)%fz = tavg(i,j,k)%fz /  tavg_total_time
+    tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 /  tavg_total_time
 
-#ifdef PPOUTPUT_EXTRA
-do k = 1, jzmax
-do j = 1, Ny
-do i = 1, Nx
-    tavg_sgs(i,j,k) = tavg_sgs(i,j,k) .DIV. tavg_total_time_sgs
 end do
 end do
 end do
-#endif
 
 #ifdef PPMPI
 call mpi_barrier( comm, ierr )
@@ -1715,9 +1683,6 @@ call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%uv, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%p, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%fx, 0, MPI_SYNC_DOWNUP )
 call mpi_sync_real_array( tavg(1:nx,1:ny,lbz:nz)%cs_opt2, 0, MPI_SYNC_DOWNUP )
-#ifdef PPOUTPUT_EXTRA
-call mpi_sync_real_array( tavg_sgs(1:nx,1:ny,lbz:nz)%Nu_t, 0, MPI_SYNC_DOWNUP )
-#endif
 #endif
 
 ! Write all the 3D data
@@ -1897,10 +1862,6 @@ subroutine tavg_checkpoint()
 !
 use param, only : checkpoint_tavg_file, write_endian
 use stat_defs, only : tavg_total_time, tavg
-#ifdef PPOUTPUT_EXTRA
-use param, only : checkpoint_tavg_sgs_file
-use stat_defs, only : tavg_total_time_sgs, tavg_sgs
-#endif
 implicit none
 
 character(64) :: fname
@@ -1916,19 +1877,6 @@ open(1, file=fname, action='write', position='rewind',form='unformatted',      &
 write(1) tavg_total_time
 write(1) tavg
 close(1)
-
-#ifdef PPOUTPUT_EXTRA
-fname = checkpoint_tavg_sgs_file
-#ifdef PPMPI
-call string_concat( fname, '.c', coord)
-#endif
-!  Write data to tavg_sgs.out
-open(1, file=fname, action='write', position='rewind',form='unformatted',      &
-    convert=write_endian)
-write(1) tavg_total_time_sgs
-write(1) tavg_sgs
-close(1)
-#endif
 
 end subroutine tavg_checkpoint
 

@@ -68,12 +68,6 @@ real(rprec), parameter :: zero=1.e-24_rprec ! zero = infimum(0)
 logical, save :: F_LM_MM_init = .false.
 logical, save :: F_QN_NN_init = .false.
 
-#ifdef PPOUTPUT_EXTRA
-integer :: i, j
-character (64) :: fnamek
-integer :: count_all, count_clip
-#endif
-
 ! Set coefficients
 opftdelta = opftime*delta
 powcoeff = -1._rprec/8._rprec
@@ -92,11 +86,6 @@ call interpolag_Sdep()
 !   Then update the running averages, F_*(:,:,jz), which are used to
 !   calculate Cs_opt2(:,:,jz).
 do jz = 1, nz
-#ifdef PPOUTPUT_EXTRA
-    ! Reset counting variables for Cs clipping stats
-    count_all = 0
-    count_clip = 0
-#endif
 
     ! Calculate Lij
     ! Interp u,v,w onto w-nodes and store result as u_bar,v_bar,w_bar
@@ -411,40 +400,8 @@ do jz = 1, nz
         Cs_opt2(ld,:,jz) = zero
         Cs_opt2(ld-1,:,jz) = zero
 
-#ifdef PPOUTPUT_EXTRA
-    ! Count how often Cs is clipped
-    do i = 1, nx
-    do j = 1, ny
-        if (real(Cs_opt2(i,j,jz)) < 0._rprec)  count_clip = count_clip + 1
-        count_all = count_all + 1
-    enddo
-    enddo
-#endif
-
     ! Clip, if necessary
     Cs_opt2(:,:,jz)=max(zero,Cs_opt2(:,:,jz))
-
-#ifdef PPOUTPUT_EXTRA
-    ! Write average Tn for this level to file
-    fnamek = path
-#ifdef PPDYN_TN
-    call string_concat( fnamek, 'output/Tn_dyn_', jz + coord*(nz-1), '.dat' )
-#else
-    call string_concat( fnamek, 'output/Tn_mlc_', jz + coord*(nz-1), '.dat' )
-#endif
-
-    ! Write
-    open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-    write(2,*) jt_total,sum(Tn(1:nx,1:ny))/(nx*ny)
-    close(2)
-
-    ! Also write clipping stats to file
-    fnamek = path
-    call string_concat( fnamek, 'output/clip_', jz + coord*(nz-1), '.dat' )
-    open(unit=2,file=fnamek,action='write',position='append',form='formatted')
-    write(2,*) jt_total,real(count_clip)/real(count_all)
-    close(2)
-#endif
 
     ! Save Tn to 3D array for use with tavg_sgs
     Tn_all(:,:,jz) = Tn(:,:)

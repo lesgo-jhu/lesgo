@@ -26,7 +26,6 @@ option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate 
 option(USE_LVLSET "Enable level set." OFF)
 option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
 option(USE_ATM "Enable actuator line/section model" OFF)
-option(OUTPUT_EXTRA "Output additional quantities to file." OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
 option(USE_CGNS "Enable CGNS data output." OFF)
