@@ -97,7 +97,7 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
     this%N = this%w%N
 
     ! Create adjoint wake models
-    this%iwstar = WakeModelAdjoint(this%w%s, this%w%U_infty, this%w%Delta, this%w%k, this%w%Dia, this%w%Nx)
+    this%iwstar = WakeModelAdjoint(this%w%s, this%w%U_infty, this%w%Delta, this%w%k, this%w%Dia, this%w%Nx, this%w%Ny)
     this%wstar = this%iwstar
     
     ! Dimension for power
