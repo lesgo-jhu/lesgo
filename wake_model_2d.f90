@@ -51,9 +51,8 @@ type wake_model_base
     integer     :: Nx      = 0                         ! Number of streamwise points
     integer     :: Ny      = 0                         ! Number of spanwise points
     integer     :: N       = 0                         ! Number of turbines
-    integer, dimension(:,:), allocatable     :: s_int  ! Wake boundary vectors
-    integer, dimension(:,:,:), allocatable   :: wakeb  ! Wake boundary matrices
-    integer, dimension(:,:,:), allocatable   :: bounds ! Wake voundary vectors
+    integer, dimension(:,:), allocatable     :: ymin   ! Wake boundary vector L
+    integer, dimension(:,:), allocatable     :: ymax   ! Wake boundary vector U
     logical     :: isDimensionless = .false.
     real(rprec) :: LENGTH=0, VELOCITY=0, TIME=0, FORCE=0
 contains
@@ -110,6 +109,8 @@ this%Nx = i_Nx
 this%Ny = i_Ny
 allocate( this%x(this%Nx) )
 allocate( this%y(this%Ny) )
+allocate( this%ymin(this%N, this%Nx) )
+allocate( this%ymax(this%N, this%Nx) )
 allocate( this%G(this%N,  this%Nx) )
 allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
@@ -117,9 +118,6 @@ allocate( this%w(this%N,  this%Nx) )
 allocate( this%fp(this%N, this%Nx) )
 allocate( this%gridx(this%Nx, this%Ny) )
 allocate( this%gridy(this%Nx, this%Ny) )
-allocate( this%s_int(this%N, 2) )
-allocate( this%bounds(this%N, this%Nx, 2) )
-allocate( this%wakeb(this%N, this%Nx, this%Ny) )
 
 ! Assign input arguments
 this%s          = i_s
@@ -135,12 +133,10 @@ this%TIME     = this%LENGTH / this%VELOCITY
 this%FORCE    = this%VELOCITY / this%TIME
 
 ! Calculate other variables
-this%dx = ( this%s(1,1) + this%s(this%N,1) ) / this%Nx
+this%dx = ( minval(this%s(:,1)) + maxval(this%s(:,1)) ) / this%Nx
 this%x(1) = this%dx/2
-this%dy = ( this%s(1,2) + this%s(this%N,2) ) / this%Ny
+this%dy = ( minval(this%s(:,2)) + maxval(this%s(:,2)) ) / this%Ny
 this%y(1) = this%dy/2
-this%s_int(:,1) = ceiling(this%s(:,1) / this%dx) + 1
-this%s_int(:,2) = floor(this%s(:,2) / this%dy) + 1
 
 do i = 2, this%Nx
     this%x(i) = this%x(i-1) + this%dx
@@ -188,23 +184,43 @@ subroutine compute2Dwakes(this)
 !*******************************************************************************
 implicit none
 class(wake_model_base), intent(inout)  :: this
-integer                                :: i, j, d_plus, d_points
-real(rprec), dimension(:), allocatable :: dval
-
+integer                                :: i, j, dplus
+real                                   :: y_val
+real(rprec), dimension(:), allocatable :: dval,dmid
 allocate( dval(this%Nx) ) 
+allocate( dmid(this%Nx) )
 
 do i = 1, this%N
-    d_points = this%Dia / (2*this%dy)
-    this%wakeb(i, this%s_int(i,1), this%s_int(i,2)-d_points:this%s_int(i,2)+d_points) = 1
-    this%bounds(i, this%s_int(i,1),1) = this%s_int(i,2)-d_points 
-    this%bounds(i, this%s_int(i,1),2) = this%s_int(i,2)+d_points
-    dval = floor((anint(this%d(i,:) * this%Dia - this%Dia)) / (2*this%dy) )
-    do j = this%s_int(i,1)+1, this%Nx
-        d_plus = d_points + dval(j)
-        this%wakeb(i, j, this%s_int(i,2)-d_plus:this%s_int(i,2)+d_plus) = 1
-        this%bounds(i, j, 1) = this%s_int(i,2)-d_plus 
-        this%bounds(i, j, 2) = this%s_int(i,2)+d_plus
+    dmid = this%d(i,:) * this%Dia
+    dval = this%s(i,2) - (dmid / 2)
+    do j = 1, this%Nx
+        dplus = 1  
+        y_val = this%y(dplus)
+        do while (y_val < dval(j))
+           dplus = dplus + 1
+           this%ymin(i,j) = dplus
+           y_val = this%y(dplus)
+        end do
     end do
+
+    dval = this%s(i,2) + (dmid / 2)
+    do j = 1, this%Nx
+        dplus = 1  
+        y_val = this%y(dplus)
+        do while (y_val < dval(j))
+           dplus = dplus + 1
+           this%ymax(i,j) = dplus
+           y_val = this%y(dplus)
+        end do
+    end do
+!    this%wakeb(i, this%s_int(i,1), this%s_int(i,2)-d_points:this%s_int(i,2)+d_points) = 1
+!    this%bounds(i, this%s_int(i,1),1) = this%s_int(i,2)-d_points 
+!    this%bounds(i, this%s_int(i,1),2) = this%s_int(i,2)+d_points
+!    dval = floor((anint(this%d(i,:) * this%Dia - this%Dia)) / (2*this%dy) )
+!    do j = this%s_int(i,1)+1, this%Nx
+!        d_plus = d_points + dval(j)
+!        this%wakeb(i, j, this%s_int(i,2)-d_plus:this%s_int(i,2)+d_plus) = 1
+!        this%bounds(i, j, 1) = this%s_int(i,2)-d_plus 
 end do
 
 end subroutine compute2Dwakes
@@ -424,6 +440,8 @@ subroutine initialize_file(this, fstring)
     allocate( this%Ctp(this%N)  )
     allocate( this%x(this%Nx) )
     allocate( this%y(this%Ny) )
+    allocate( this%ymin(this%N, this%Nx) )
+    allocate( this%ymax(this%N, this%Nx) )
     allocate( this%u(this%Nx, this%Ny) )
     allocate( this%G(this%N,  this%Nx) )
     allocate( this%d(this%N,  this%Nx) )
@@ -433,9 +451,6 @@ subroutine initialize_file(this, fstring)
     allocate( this%du(this%N, this%Nx, this%Ny) )    
     allocate( this%gridx(this%Nx, this%Ny) )    
     allocate( this%gridy(this%Nx, this%Ny) )
-    allocate( this%s_int(this%N, 2) )
-    allocate( this%bounds(this%N, this%Nx, 2) )
-    allocate( this%wakeb(this%N, this%Nx, this%Ny) )    
     
     read(fid) this%s
     read(fid) this%k
@@ -550,13 +565,15 @@ subroutine print(this)
 end subroutine print
 
 subroutine advance(this, Ctp, dt)
+    use util, only : ddx_upwind1
     implicit none
     class(WakeModel), intent(inout)          :: this
     real(rprec), intent(in)                  :: dt
     real(rprec), dimension(:), intent(in)    :: Ctp
-    integer                                  :: i, j
+    integer                                  :: i, j, m 
     real(rprec)                              :: diff
-    real(rprec), dimension(:,:), allocatable :: du_superimposed, wakeid
+    real(rprec), dimension(:), allocatable   :: ddudx
+    real(rprec), dimension(:,:), allocatable :: du_superimposed
     real(rprec), dimension(:,:,:), allocatable :: u_temp
   
     if (size(Ctp) /= this%N) then
@@ -566,20 +583,20 @@ subroutine advance(this, Ctp, dt)
     ! Compute new wake deficit and superimpose wakes
     allocate( du_superimposed( this%Nx, this%Ny) )
     allocate( u_temp( this%N, this%Nx, this%Ny) )
-    allocate( wakeid( this%Nx, this%Ny) )
+    allocate(ddudx(this%Nx))
     du_superimposed = 0.0
     do i = 1, this%N
-        do j = this%bounds(i,this%Nx,1) , this%bounds(i,this%Nx,2)
-            diff = this%Nx - this%s_int(i,1) + 1 
-            this%du(i,:,j) = this%du(i,:,j)  &
-            +  dt * this%rhs(this%du(i,:,j),                      &
-            this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i, diff)
-!            this%du(i,this%s_int(i,1):this%Nx,j) = this%du(i,this%s_int(i,1):this%Nx,j)  &
-!            +  dt * this%rhs(this%du(i,this%s_int(i,1):this%Nx,j),                      &
-!            this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i, diff)
+        do j = 1, this%Nx           
+            ddudx = ddx_upwind1(this%du(i,:,this%ymin(i,1) + 1), this%dx)
+            do m = this%ymin(i,j), this%ymax(i,j)
+!                ddudx = ddx_upwind1(this%du(i,:,m), this%dx)
+                this%du(i,j,m) = this%du(i,j,m)  &
+                +  dt * this%rhs(this%du(i,j,m),                      &
+                this%fp(i,j) * this%Ctp(i) / (4.0 + this%Ctp(i)), i, j, & 
+                ddudx(j))
+            end do
         end do
-        wakeid = this%wakeb(i,:,:)
-        u_temp(i,:,:) = this%du(i,:,:) * wakeid
+        u_temp(i,:,:) = this%du(i,:,:) 
         du_superimposed = du_superimposed + u_temp(i,:,:)**2
     end do
     du_superimposed = sqrt(du_superimposed)
@@ -590,10 +607,10 @@ subroutine advance(this, Ctp, dt)
     ! Find estimated velocities
     this%uhat(:) = 0
     do i = 1, this%N
-        do j = this%bounds(i,this%s_int(i,1),1),this%bounds(i,this%s_int(i,1),2)
+        do j = this%ymin(i,1), this%ymax(i,1)
             this%uhat(i) = this%uhat(i) + sum(this%G(i,:) * this%u(:,j) * this%dx)
         end do
-        diff = this%bounds(i,this%s_int(i,1),2) - this%bounds(i,this%s_int(i,1),1)
+        diff = this%ymax(i,1) - this%ymin(i,1)
         this%uhat(i) = this%uhat(i) / (diff + 1)
         this%Ctp(i) = Ctp(i)
         this%Phat(i) = this%Ctp(i) * this%uhat(i)**3
@@ -602,22 +619,15 @@ subroutine advance(this, Ctp, dt)
 end subroutine advance
 
 ! Evaluates RHS of wake equation
-function rhs(this, du, f, i, diff) result(ddudt)
+function rhs(this, du, f, i, j, ddudx) result(ddudt)
     use util, only : ddx_upwind1
     implicit none
     class(WakeModel), intent(in)               :: this
-    real(rprec), intent(in)                    :: diff
-    real(rprec), dimension(:), intent(in)      :: f
-    real(rprec), dimension(:), intent(in)      :: du
-    integer, intent(in)                        :: i
-    real(rprec), dimension(:), allocatable     :: ddudt, ddudx
+    real(rprec), intent(in)                    :: du, f, ddudx
+    integer, intent(in)                        :: i,j
+    real(rprec)                                :: ddudt
 
-
-    allocate(ddudt(this%Nx))
-    allocate(ddudx(this%Nx))
-    
-    ddudx = ddx_upwind1(du, this%dx)
-    ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
+    ddudt = -this%U_infty * ddudx - this%w(i,j) * du + f
 end function rhs
 
 end module wake_model_class
