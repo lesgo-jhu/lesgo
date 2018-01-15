@@ -343,7 +343,7 @@ private
 public WakeModel
 
 type, extends(wake_model_base) :: WakeModel
-    real(rprec), dimension(:,:,:), allocatable :: du   ! velocity deficit (turbine, space)
+    real(rprec), dimension(:,:), allocatable   :: du   ! velocity deficit (turbine, space)
     real(rprec), dimension(:,:), allocatable   :: u    ! superimposed velocity (space)
     real(rprec), dimension(:), allocatable     :: uhat ! estimated local turbine velocity (turbine)
     real(rprec), dimension(:), allocatable     :: Phat ! estimated turbine power (turbine)
@@ -404,13 +404,13 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny)
     ! Call base class initializer
     call this%wake_model_base%initialize_val(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny)
 
-    allocate( this%du(this%N, this%Nx, this%Ny) )
+    allocate( this%du(this%N, this%Nx) )
     allocate( this%u(this%Nx, this%Ny) )
     allocate( this%uhat(this%N) )
     allocate( this%Phat(this%N) )
     allocate( this%Ctp(this%N)  )    
     
-    this%du(:,:,:) = 0.d0
+    this%du(:,:) = 0.d0
     this%u(:,:)    = this%U_infty
     this%uhat(:) = this%U_infty
     this%Phat(:) = 0.d0
@@ -448,7 +448,7 @@ subroutine initialize_file(this, fstring)
     allocate( this%dp(this%N, this%Nx) )
     allocate( this%w(this%N,  this%Nx) )
     allocate( this%fp(this%N, this%Nx) )
-    allocate( this%du(this%N, this%Nx, this%Ny) )    
+    allocate( this%du(this%N, this%Nx) )    
     allocate( this%gridx(this%Nx, this%Ny) )    
     allocate( this%gridy(this%Nx, this%Ny) )
     
@@ -586,17 +586,15 @@ subroutine advance(this, Ctp, dt)
     allocate(ddudx(this%Nx))
     du_superimposed = 0.0
     do i = 1, this%N
+        this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),             &
+            this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
+    end do
+    do i = 1, this%N
         do j = 1, this%Nx           
-            ddudx = ddx_upwind1(this%du(i,:,this%ymin(i,1) + 1), this%dx)
             do m = this%ymin(i,j), this%ymax(i,j)
-!                ddudx = ddx_upwind1(this%du(i,:,m), this%dx)
-                this%du(i,j,m) = this%du(i,j,m)  &
-                +  dt * this%rhs(this%du(i,j,m),                      &
-                this%fp(i,j) * this%Ctp(i) / (4.0 + this%Ctp(i)), i, j, & 
-                ddudx(j))
+                u_temp(i,j,m) = this%du(i,j)
             end do
         end do
-        u_temp(i,:,:) = this%du(i,:,:) 
         du_superimposed = du_superimposed + u_temp(i,:,:)**2
     end do
     du_superimposed = sqrt(du_superimposed)
@@ -619,15 +617,19 @@ subroutine advance(this, Ctp, dt)
 end subroutine advance
 
 ! Evaluates RHS of wake equation
-function rhs(this, du, f, i, j, ddudx) result(ddudt)
+function rhs(this, du, f, i) result(ddudt)
     use util, only : ddx_upwind1
     implicit none
-    class(WakeModel), intent(in)               :: this
-    real(rprec), intent(in)                    :: du, f, ddudx
-    integer, intent(in)                        :: i,j
-    real(rprec)                                :: ddudt
+    class(WakeModel), intent(in)           :: this
+    real(rprec), dimension(:), intent(in)  :: f, du
+    integer, intent(in)                    :: i
+    real(rprec), dimension(:), allocatable :: ddudt, ddudx
 
-    ddudt = -this%U_infty * ddudx - this%w(i,j) * du + f
+    allocate(ddudt(this%Nx))
+    allocate(ddudx(this%Nx))
+    
+    ddudx = ddx_upwind1(du, this%dx)
+    ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 end module wake_model_class
