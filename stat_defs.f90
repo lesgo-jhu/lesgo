@@ -110,7 +110,7 @@ type turbine_t
     ! thrust coefficient
     real(rprec) :: Ct_prime
     ! running time-average of mean disk velocity
-    real(rprec) :: u_d, u_d_T
+    real(rprec) :: u_d, u_d_T, u_d_T_corr
     ! normal force on turbine disk
     real(rprec) :: f_n
     ! (nx,ny,nz) of unit normal for each turbine
@@ -838,4 +838,3 @@ c % vpwp = a
 end subroutine rs_set
 
 end module stat_defs
-
