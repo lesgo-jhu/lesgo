@@ -185,29 +185,35 @@ subroutine run(this)
 implicit none
 class(turbines_mpc_t), intent(inout) :: this
 integer :: i, k, n
-real(rprec), dimension(:,:,:), allocatable :: du
-real(rprec), dimension(:,:), allocatable :: Udu, Uw, Wdu, Wu, Ww
-real(rprec), dimension(:,:), allocatable :: Bdu, Bu, Bw, Adu, Au, Aw
-real(rprec), dimension(:,:), allocatable :: Uj, Wj
-real(rprec), dimension(:), allocatable :: dCt_dbeta, dCt_dlambda
-real(rprec), dimension(:), allocatable :: dCp_dbeta, dCp_dlambda
+real(rprec), dimension(:,:,:), allocatable, save :: du
+real(rprec), dimension(:,:), allocatable, save :: Udu, Uw, Wdu, Wu, Ww
+real(rprec), dimension(:,:), allocatable, save :: Bdu, Bu, Bw, Adu, Au, Aw
+real(rprec), dimension(:,:), allocatable, save :: Uj, Wj
+real(rprec), dimension(:), allocatable, save :: dCt_dbeta, dCt_dlambda
+real(rprec), dimension(:), allocatable, save :: dCp_dbeta, dCp_dlambda
 real(rprec) :: dummy
 
 ! allocate adjoint forcing terms
-allocate(du(this%Nt, this%N, this%w%Nx))
-allocate(Udu(this%Nt,this%N))
-allocate(Uw(this%Nt,this%N))
-allocate(Wdu(this%Nt,this%N))
-allocate(Wu(this%Nt,this%N))
-allocate(Ww(this%Nt,this%N))
-allocate(Bdu(this%Nt,this%N))
-allocate(Bu(this%Nt,this%N))
-allocate(Bw(this%Nt,this%N))
-allocate(Adu(this%Nt,this%N))
-allocate(Au(this%Nt,this%N))
-allocate(Aw(this%Nt,this%N))
-allocate(Uj(this%Nt,this%N))
-allocate(Wj(this%Nt,this%N))
+if (.not.allocated(du)) then
+    allocate(du(this%Nt, this%N, this%w%Nx))
+    allocate(Udu(this%Nt,this%N))
+    allocate(Uw(this%Nt,this%N))
+    allocate(Wdu(this%Nt,this%N))
+    allocate(Wu(this%Nt,this%N))
+    allocate(Ww(this%Nt,this%N))
+    allocate(Bdu(this%Nt,this%N))
+    allocate(Bu(this%Nt,this%N))
+    allocate(Bw(this%Nt,this%N))
+    allocate(Adu(this%Nt,this%N))
+    allocate(Au(this%Nt,this%N))
+    allocate(Aw(this%Nt,this%N))
+    allocate(Uj(this%Nt,this%N))
+    allocate(Wj(this%Nt,this%N))
+    allocate(dCt_dbeta(this%N))
+    allocate(dCt_dlambda(this%N))
+    allocate(dCp_dbeta(this%N))
+    allocate(dCp_dlambda(this%N))
+end if
 du = 0._rprec
 Udu = 0._rprec
 Uw = 0._rprec
@@ -222,12 +228,6 @@ Au = 0._rprec
 Aw = 0._rprec
 Uj = 0._rprec
 Wj = 0._rprec
-
-! Derivatives of Ctp and Cpp
-allocate(dCt_dbeta(this%N))
-allocate(dCt_dlambda(this%N))
-allocate(dCp_dbeta(this%N))
-allocate(dCp_dlambda(this%N))
 
 ! reset costs and gradients
 this%cost = 0._rprec
@@ -293,26 +293,6 @@ do k = this%Nt-1, 1, -1
             + Au(k,i) * this%wstar%uhat_star(i) * this%dt
     end do
 end do
-
-! cleanup
-deallocate(du)
-deallocate(Udu)
-deallocate(Uw)
-deallocate(Wdu)
-deallocate(Wu)
-deallocate(Bdu)
-deallocate(Bu)
-deallocate(Bw)
-deallocate(Adu)
-deallocate(Au)
-deallocate(Aw)
-deallocate(Uj)
-deallocate(dCt_dbeta)
-deallocate(dCt_dlambda)
-deallocate(dCp_dbeta)
-deallocate(dCp_dlambda)
-
-deallocate(Wj)
 
 end subroutine run
 

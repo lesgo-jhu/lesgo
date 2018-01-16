@@ -659,6 +659,8 @@ do s = 1,nloc
     end if
 end do
 
+if (coord == 0) write(*,*) "Farm power = ", sum(wind_farm%turbine(:)%gen_torque*wind_farm%turbine(:)%omega)
+
 !apply forcing to each node
 do s=1,nloc
     do l=1,wind_farm%turbine(s)%num_nodes
@@ -1316,8 +1318,7 @@ else
 
     if (coord == 0) then
         write(*,*) "Computing initial optimization..."
-        controller = turbines_mpc_t(wm%wm, total_time_dim, total_time_dim      &
-            + horizon_time, 0.99_rprec, Pref_time, Pref_arr)
+        controller = turbines_mpc_t(wm%wm, total_time_dim,  horizon_time, 0.99_rprec, Pref_time, Pref_arr)
 
         do i = 1, controller%N
             controller%beta(i,:) = wind_farm%turbine(i)%theta1
@@ -1396,8 +1397,7 @@ if (modulo (jt_total, advancement_base) == 0) then
 
     if (coord == 0) then
         write(*,*) "Optimizing..."
-        controller = turbines_mpc_t(wm%wm, total_time_dim, total_time_dim      &
-            + horizon_time, 0.99_rprec, Pref_time, Pref_arr)
+        controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time, 0.99_rprec, Pref_time, Pref_arr)
 
         do i = 1, nloc
             controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:), controller%t)
@@ -1407,7 +1407,6 @@ if (modulo (jt_total, advancement_base) == 0) then
         call controller%makeDimensionless
 
         ! Do the initial optimization
-                write(*,*) "Max_iter: ", max_iter
         m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(), controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         controller%Ca = Ca
