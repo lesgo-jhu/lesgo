@@ -3,7 +3,7 @@ program wake_model_startup
 !*******************************************************************************
 use types, only : rprec
 use wake_model
-use minimize
+use minimize_m
 use turbines, only : generate_splines, wm_Ct_prime_spline, wm_Cp_prime_spline
 use open_file_fid_mod
 use functions, only : linear_interp

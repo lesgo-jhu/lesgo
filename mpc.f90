@@ -76,7 +76,7 @@ program mpc
 !*******************************************************************************
 use types, only : rprec
 use wake_model
-use minimize
+use minimize_m
 use turbines, only : torque_gain
 use open_file_fid_mod
 use functions, only : linear_interp
