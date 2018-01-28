@@ -33,7 +33,7 @@ plt.xlim(xl)
 
 ax = fig.add_subplot(3,3,3)
 ax.plot(t/60,omega)
-plt.ylabel(r'$\omega$ (Hz)')
+plt.ylabel(r'$\omega$ (rad/s)')
 plt.xlim(xl)
 
 ax = fig.add_subplot(3,3,4)

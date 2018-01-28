@@ -54,6 +54,11 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec) :: omega_min = 0._rprec
     real(rprec) :: omega_max = 1000000000000._rprec
     real(rprec) :: eta1 = 1000._rprec
+    ! Penalty away from optimal TSR and pitch angle
+    real(rprec) :: eta2 = 0.000001_rprec
+    real(rprec) :: beta_star = 0._rprec
+    real(rprec) :: eta3 = 0.000001_rprec
+    real(rprec) :: lambda_prime_star = 11._rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -74,37 +79,39 @@ end interface turbines_mpc_t
 contains
 
 !*******************************************************************************
-function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_omega_min,      &
-    i_omega_max) result(this)
+function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,      &
+    i_lambda_prime_star, i_omega_min, i_omega_max) result(this)
 !*******************************************************************************
 implicit none
 type(turbines_mpc_t) :: this
 class(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
-real(rprec), intent(in) :: i_t0, i_T, i_cfl
+real(rprec), intent(in) :: i_t0, i_T, i_cfl, i_beta_star, i_lambda_prime_star
 real(rprec), intent(in), optional :: i_omega_min, i_omega_max
 
 if (present(i_omega_max)) then
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref,               &
-        i_omega_min, i_omega_max)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
+        i_lambda_prime_star, i_omega_min, i_omega_max)
 elseif (present(i_omega_min)) then
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_omega_min)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
+        i_lambda_prime_star, i_omega_min)
 else
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
+        i_lambda_prime_star)
 end if
 
 end function constructor
 
 !*******************************************************************************
 subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref,            &
-    i_omega_min, i_omega_max)
+    i_beta_star, i_lambda_prime_star, i_omega_min, i_omega_max)
 !*******************************************************************************
 use functions, only : linear_interp
 implicit none
 class(turbines_mpc_t) :: this
 type(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
-real(rprec), intent(in) :: i_t0, i_T, i_cfl
+real(rprec), intent(in) :: i_t0, i_T, i_cfl, i_beta_star, i_lambda_prime_star
 real(rprec), intent(in), optional :: i_omega_min, i_omega_max
 integer :: i
 
@@ -130,6 +137,10 @@ allocate( this%t(this%Nt) )
 do i = 1, this%Nt
     this%t(i) = i_t0 + this%dt * (i - 1)
 end do
+
+! Penalty terms away from optimal
+this%beta_star = i_beta_star
+this%lambda_prime_star = i_lambda_prime_star
 
 ! Set bounds of rotational speed
 if (present(i_omega_min)) this%omega_min = i_omega_min
@@ -273,7 +284,7 @@ do k = 2, this%Nt
     ! calculate contribution to cost function
     this%Pfarm(k) = sum(this%w%Phat)
     this%cost = this%cost + this%dt * (this%Pfarm(k) - this%Pref(k))**2
-    ! Add regs to cost function
+    ! Add regularizations to cost function
     reg = 0._rprec
     where (this%w%omega(:) < this%omega_min)
         reg(:) = reg(:) + this%w%omega(:) - this%omega_min
@@ -281,17 +292,18 @@ do k = 2, this%Nt
     where (this%w%omega(:) > this%omega_max)
         reg(:) = reg(:) + this%w%omega(:) - this%omega_max
     end where
-    ! write(*,*) this%omega_min, this%omega_max
-    ! write(*,*) this%w%omega
-    ! write(*,*) sum(reg)
-    this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)
+    this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)!                  &
+!         + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )
     ! calculate adjoint values that depend on cost function
     Uj(k,:) = 0._rprec
     Wj(k,:) = -6._rprec * (this%Pfarm(k) - this%Pref(k))                       &
         * this%w%torque_gain * this%w%omega**2 - 2._rprec * this%eta1 * reg
-    ! calculate part of gradients that depends only on the states
+    ! calculate part of gradients that depends only on the cost function and   &
+    ! states
     this%grad_torque_gain(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))     &
         * this%w%omega**3 * this%dt
+!     this%grad_beta(:,k) = 2._rprec * this%eta2 * (this%w%beta - this%beta_star)&
+!         * this%dt
 end do
 
 ! Run backwards in time

@@ -748,6 +748,14 @@ do
                 read (buff(equal_pos+1:),*) horizon_time
             case ('MAX_ITER')
                 read (buff(equal_pos+1:),*) max_iter
+            case ('OMEGA_MIN')
+                read (buff(equal_pos+1:),*) omega_min
+            case ('OMEGA_MAX')
+                read (buff(equal_pos+1:),*) omega_max
+            case ('BETA_STAR')
+                read (buff(equal_pos+1:),*) beta_star
+            case ('LAMBDA_PRIME_STAR')
+                read (buff(equal_pos+1:),*) lambda_prime_star
             case default
                 if (coord == 0) write(*,*) 'Found unused data value in '       &
                     // block_name // ' block: ' // buff(1:equal_pos-1)

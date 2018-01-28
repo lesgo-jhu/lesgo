@@ -77,7 +77,7 @@ program mpc
 use types, only : rprec
 use wake_model
 use minimize_m
-use turbines, only : torque_gain
+use turbines, only : torque_gain, omega_min, omega_max, beta_star, lambda_prime_star
 use open_file_fid_mod
 use functions, only : linear_interp
 use turbines_mpc
@@ -131,8 +131,9 @@ write(*,*) Pref
 ! Create controller
 tt = 0._rprec
 T = 2._rprec*wm%x(wm%Nx)/wm%U_infty
-controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref, 0.723_rprec,  1.267_rprec)
-controller%beta = 0._rprec
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref, beta_star,&
+    lambda_prime_star, omega_min, omega_max)
+controller%beta = 40._rprec
 controller%torque_gain = wm%torque_gain(1)
 call controller%makeDimensionless
 write(*,*) controller%torque_gain
@@ -184,7 +185,7 @@ Nskip = 1
 call controller%MakeDimensional
 write(*,*) "dt = ", controller%dt
 
-do j = 1, 3*ceiling( time(size(time)) / controller%dt ) / Nskip
+do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
@@ -208,7 +209,8 @@ do j = 1, 3*ceiling( time(size(time)) / controller%dt ) / Nskip
     end do
 
     ! create controller
-    controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref, 0.723_rprec,  1.267_rprec)
+    controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref,    &
+        beta_star, lambda_prime_star, omega_min, omega_max)
     controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
     controller%torque_gain(:,:controller%Nt-Nskip) = torque_gain_c(:,Nskip+1:)
     do ii = controller%Nt-Nskip, controller%Nt
