@@ -217,7 +217,7 @@ end if
 if (allocated(this%ub)) then
     u = this%ub
 else
-    u = -1000000000._rprec
+    u = 1000000000._rprec
 end if
 nbd = 2
 epsmch = epsilon(1._rprec)
