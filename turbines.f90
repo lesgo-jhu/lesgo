@@ -109,11 +109,14 @@ integer, public :: advancement_base
 real(rprec), public :: horizon_time
 ! Maximum number of iterations for each minimization
 integer, public     :: max_iter
-! Rotational speed limits (in Hz)
+! Rotational speed limits (in rad/s)
+real(rprec), public :: speed_penalty
 real(rprec), public :: omega_min
 real(rprec), public :: omega_max
 ! Optimal pitch angle and TSR
+real(rprec), public :: beta_penalty
 real(rprec), public :: beta_star
+real(rprec), public :: tsr_penalty
 real(rprec), public :: lambda_prime_star
 
 ! Scaling of receding horizon
@@ -1325,8 +1328,8 @@ else
     if (coord == 0) then
         write(*,*) "Computing initial optimization..."
         controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,       &
-            0.99_rprec, Pref_time, Pref_arr, beta_star, lambda_prime_star,     &
-            omega_min, omega_max)
+            0.99_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,          &
+            tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
         do i = 1, controller%N
             controller%beta(i,:) = wind_farm%turbine(i)%theta1
@@ -1402,8 +1405,8 @@ if (modulo (jt_total, advancement_base) == 0) then
     if (coord == 0) then
         write(*,*) "Optimizing..."
         controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,       &
-            0.99_rprec, Pref_time, Pref_arr, beta_star, lambda_prime_star,     &
-            omega_min, omega_max)
+            0.99_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,          &
+            tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
         do i = 1, nloc
             controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:), controller%t)

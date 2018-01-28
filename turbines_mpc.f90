@@ -79,32 +79,34 @@ end interface turbines_mpc_t
 contains
 
 !*******************************************************************************
-function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,      &
-    i_lambda_prime_star, i_omega_min, i_omega_max) result(this)
+function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_eta2,           &
+    i_beta_star, i_eta3, i_lambda_prime_star, i_eta1, i_omega_min, i_omega_max)&
+    result(this)
 !*******************************************************************************
 implicit none
 type(turbines_mpc_t) :: this
 class(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
 real(rprec), intent(in) :: i_t0, i_T, i_cfl, i_beta_star, i_lambda_prime_star
-real(rprec), intent(in), optional :: i_omega_min, i_omega_max
+real(rprec), intent(in) :: i_eta2, i_eta3
+real(rprec), intent(in), optional :: i_eta1, i_omega_min, i_omega_max
 
 if (present(i_omega_max)) then
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
-        i_lambda_prime_star, i_omega_min, i_omega_max)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_eta2,       &
+    i_beta_star, i_eta3, i_lambda_prime_star, i_eta1, i_omega_min, i_omega_max)
 elseif (present(i_omega_min)) then
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
-        i_lambda_prime_star, i_omega_min)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_eta2,       &
+    i_beta_star, i_eta3, i_lambda_prime_star, i_eta1, i_omega_min)
 else
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_beta_star,  &
-        i_lambda_prime_star)
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_eta2,       &
+    i_beta_star, i_eta3, i_lambda_prime_star)
 end if
 
 end function constructor
 
 !*******************************************************************************
-subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref,            &
-    i_beta_star, i_lambda_prime_star, i_omega_min, i_omega_max)
+subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_eta2,    &
+    i_beta_star, i_eta3, i_lambda_prime_star, i_eta1, i_omega_min, i_omega_max)
 !*******************************************************************************
 use functions, only : linear_interp
 implicit none
@@ -112,7 +114,8 @@ class(turbines_mpc_t) :: this
 type(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
 real(rprec), intent(in) :: i_t0, i_T, i_cfl, i_beta_star, i_lambda_prime_star
-real(rprec), intent(in), optional :: i_omega_min, i_omega_max
+real(rprec), intent(in) :: i_eta2, i_eta3
+real(rprec), intent(in), optional :: i_eta1, i_omega_min, i_omega_max
 integer :: i
 
 ! number of turbine rows
@@ -139,10 +142,13 @@ do i = 1, this%Nt
 end do
 
 ! Penalty terms away from optimal
+this%eta2 = i_eta2
 this%beta_star = i_beta_star
+this%eta3 = i_eta3
 this%lambda_prime_star = i_lambda_prime_star
 
 ! Set bounds of rotational speed
+if (present(i_eta1)) this%eta1 = i_eta1
 if (present(i_omega_min)) this%omega_min = i_omega_min
 if (present(i_omega_max)) this%omega_max = i_omega_max
 
@@ -292,8 +298,8 @@ do k = 2, this%Nt
     where (this%w%omega(:) > this%omega_max)
         reg(:) = reg(:) + this%w%omega(:) - this%omega_max
     end where
-    this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)!                  &
-!         + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )
+    this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)                  &
+        + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )
     ! calculate adjoint values that depend on cost function
     Uj(k,:) = 0._rprec
     Wj(k,:) = -6._rprec * (this%Pfarm(k) - this%Pref(k))                       &
@@ -302,8 +308,8 @@ do k = 2, this%Nt
     ! states
     this%grad_torque_gain(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))     &
         * this%w%omega**3 * this%dt
-!     this%grad_beta(:,k) = 2._rprec * this%eta2 * (this%w%beta - this%beta_star)&
-!         * this%dt
+    this%grad_beta(:,k) = 2._rprec * this%eta2 * (this%w%beta - this%beta_star)&
+        * this%dt
 end do
 
 ! Run backwards in time

@@ -77,7 +77,8 @@ program mpc
 use types, only : rprec
 use wake_model
 use minimize_m
-use turbines, only : torque_gain, omega_min, omega_max, beta_star, lambda_prime_star
+use turbines, only : torque_gain, speed_penalty, omega_min, omega_max,         &
+    beta_penalty, beta_star, tsr_penalty, lambda_prime_star
 use open_file_fid_mod
 use functions, only : linear_interp
 use turbines_mpc
@@ -131,9 +132,10 @@ write(*,*) Pref
 ! Create controller
 tt = 0._rprec
 T = 2._rprec*wm%x(wm%Nx)/wm%U_infty
-controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref, beta_star,&
-    lambda_prime_star, omega_min, omega_max)
-controller%beta = 40._rprec
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref,           &
+    beta_penalty, beta_star, tsr_penalty, lambda_prime_star, speed_penalty,    &
+    omega_min, omega_max)
+controller%beta = 0._rprec
 controller%torque_gain = wm%torque_gain(1)
 call controller%makeDimensionless
 write(*,*) controller%torque_gain
@@ -141,7 +143,7 @@ call controller%run
 call controller%rescale_gradient
 Ca = controller%Ca
 Cb = controller%Cb
-!
+
 write(*,*) "Ca, Cb: ", controller%Ca, controller%Cb
 
 ! Do the initial optimization
@@ -210,7 +212,8 @@ do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
 
     ! create controller
     controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref,    &
-        beta_star, lambda_prime_star, omega_min, omega_max)
+        beta_penalty, beta_star, tsr_penalty, lambda_prime_star, speed_penalty,&
+        omega_min, omega_max)
     controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
     controller%torque_gain(:,:controller%Nt-Nskip) = torque_gain_c(:,Nskip+1:)
     do ii = controller%Nt-Nskip, controller%Nt

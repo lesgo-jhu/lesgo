@@ -748,12 +748,18 @@ do
                 read (buff(equal_pos+1:),*) horizon_time
             case ('MAX_ITER')
                 read (buff(equal_pos+1:),*) max_iter
+            case ('SPEED_PENALTY')
+                read (buff(equal_pos+1:),*) speed_penalty
             case ('OMEGA_MIN')
                 read (buff(equal_pos+1:),*) omega_min
             case ('OMEGA_MAX')
                 read (buff(equal_pos+1:),*) omega_max
+            case ('BETA_PENALTY')
+                read (buff(equal_pos+1:),*) beta_penalty
             case ('BETA_STAR')
                 read (buff(equal_pos+1:),*) beta_star
+            case ('TSR_PENALTY')
+                read (buff(equal_pos+1:),*) tsr_penalty
             case ('LAMBDA_PRIME_STAR')
                 read (buff(equal_pos+1:),*) lambda_prime_star
             case default
