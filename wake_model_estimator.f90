@@ -597,10 +597,10 @@ do i = 1, this%Ne
 !            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
     call this%ensemble(i)%compute_wake_expansion
-    call this%ensemble(i)%advance(beta, gen_torque, dt)
+    call this%ensemble(i)%advance(dt, beta, gen_torque)
 end do
 call this%wm%compute_wake_expansion
-call this%wm%advance(beta, gen_torque, dt)
+call this%wm%advance(dt, beta, gen_torque)
 
 end subroutine advance_ensemble_val
 

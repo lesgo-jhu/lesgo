@@ -60,11 +60,11 @@ call turbines_init
 
 rho = 1.225
 
-allocate(k(num_x*num_y))
+allocate(k(2))
 k = 0.05_rprec
 
-wm = wake_model_t(wind_farm%turbine(:)%xloc*z_i, wind_farm%turbine(:)%yloc*z_i,&
-    U_infty, 0.5*dia_all*z_i, k, dia_all*z_i, rho, inertia_all, nx, ny,        &
+wm = wake_model_t(wind_farm%turbine(1:2)%xloc*z_i, wind_farm%turbine(1:2)%yloc*z_i,&
+    U_infty, 0.5*dia_all*z_i, k, dia_all*z_i, rho, inertia_all, 25, 25,      &
     wm_Ct_prime_spline, wm_Cp_prime_spline, torque_gain)
 
 end function get_wm
@@ -102,126 +102,128 @@ type(lbfgsb_t) :: m
 
 real(rprec), dimension(:), allocatable :: Pref
 real(rprec), dimension(:), allocatable :: time
-real(rprec), dimension(:,:), allocatable :: beta_c, alpha_c, gen_torque_c
+real(rprec), dimension(:,:), allocatable :: beta_c, torque_gain_c
 real(rprec) :: tt, T
 real(rprec) :: Ca, Cb
-integer :: omega_fid, beta_fid, gen_torque_fid, uhat_fid, Ctp_fid, Cpp_fid
-integer :: Pref_fid, Pfarm_fid, alpha_fid, u_fid
+integer :: omega_fid, beta_fid, torque_gain_fid, uhat_fid, Ctp_fid, Cpp_fid
+integer :: Pref_fid, Pfarm_fid, u_fid
 
 ! Create the wake model
 U_infty = 9._rprec
-wm =  get_wm(U_infty)
+wm = get_wm(U_infty)
 allocate(beta(wm%N))
 allocate(gen_torque(wm%N))
-beta = 0._rprec
 cfl = 0.1_rprec
 Nt = floor(wm%Nx/cfl)
 
 ! integrate the wake model forward in time to get reference power
 dt = cfl * wm%dx / wm%U_infty
 do i = 1, Nt
-    gen_torque = torque_gain * wm%omega**2
-    call wm%advance(beta, gen_torque, dt)
+    call wm%advance(dt)
 end do
 
 ! Read the reference signal
 call read_Pref(time, Pref)
 Pref = Pref * sum(wm%Phat)
 
+write(*,*) Pref
+
 ! Create controller
 tt = 0._rprec
 T = 2._rprec*wm%x(wm%Nx)/wm%U_infty
-controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref)
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref, 0.723_rprec,  1.267_rprec)
 controller%beta = 0._rprec
-controller%alpha = 0._rprec
+controller%torque_gain = wm%torque_gain(1)
 call controller%makeDimensionless
+write(*,*) controller%torque_gain
+call controller%run
 call controller%rescale_gradient
 Ca = controller%Ca
 Cb = controller%Cb
+!
+write(*,*) "Ca, Cb: ", controller%Ca, controller%Cb
 
 ! Do the initial optimization
-m = lbfgsb_t(controller, 5)
+m = lbfgsb_t(controller, 10, controller%get_lower_bound(), controller%get_upper_bound() )
+call controller%run()
 call m%minimize( controller%get_control_vector() )
 call controller%run()
-call controller%rescale_gradient
-Ca = controller%Ca
-Cb = controller%Cb
+! call controller%rescale_gradient
+! Ca = controller%Ca
+! Cb = controller%Cb
 
 ! Allocate control vectors
 allocate(beta_c(controller%N, controller%Nt))
-allocate(alpha_c(controller%N, controller%Nt))
-allocate(gen_torque_c(controller%N, controller%Nt))
+allocate(torque_gain_c(controller%N, controller%Nt))
 
 ! open files
 call system ( "mkdir -p output-mpc" )
 open(newunit=omega_fid,file='output-mpc/omega.dat')
 open(newunit=beta_fid,file='output-mpc/beta.dat')
-open(newunit=gen_torque_fid,file='output-mpc/gen_torque.dat')
+open(newunit=torque_gain_fid,file='output-mpc/torque_gain.dat')
 open(newunit=uhat_fid,file='output-mpc/uhat.dat')
 open(newunit=Ctp_fid,file='output-mpc/Ctp.dat')
 open(newunit=Cpp_fid,file='output-mpc/Cpp.dat')
 open(newunit=Pref_fid,file='output-mpc/Pref.dat')
 open(newunit=Pfarm_fid,file='output-mpc/Pfarm.dat')
-open(newunit=alpha_fid,file='output-mpc/alpha.dat')
 open(newunit=u_fid,file='output-mpc/u.dat')
 
 write(omega_fid,*) wm%omega
 write(beta_fid,*) wm%beta
-write(gen_torque_fid,*) wm%gen_torque
+write(torque_gain_fid,*) wm%torque_gain
 write(uhat_fid,*) wm%uhat
 write(Ctp_fid,*) wm%Ctp
 write(Cpp_fid,*) wm%Cpp
 write(Pref_fid,*) Pref(1)
 write(Pfarm_fid,*) sum(wm%Phat)
-write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
 write(u_fid,*) wm%u
 
-Nskip = 5
+write(*,*) wm%omega
+
+Nskip = 1
 call controller%MakeDimensional
 write(*,*) "dt = ", controller%dt
 
-do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
+do j = 1, 3*ceiling( time(size(time)) / controller%dt ) / Nskip
     ! Copy over control vectors
     call controller%MakeDimensional
     beta_c = controller%beta
-    alpha_c = controller%alpha
-    gen_torque_c = controller%gen_torque
-
+    torque_gain_c = controller%torque_gain
     ! Advance wake model
     do i = 2, Nskip+1
         tt = tt + controller%dt
         write(*,*) tt
-        call wm%advance(beta_c(:,i), gen_torque_c(:,i), controller%dt)
+        call wm%advance(controller%dt, beta_c(:,i), torque_gain_c(:,i))
         write(omega_fid,*) wm%omega
         write(beta_fid,*) wm%beta
-        write(gen_torque_fid,*) wm%gen_torque
+        write(torque_gain_fid,*) wm%torque_gain
         write(uhat_fid,*) wm%uhat
         write(Ctp_fid,*) wm%Ctp
         write(Cpp_fid,*) wm%Cpp
         write(Pref_fid,*) controller%Pref(i)
         write(Pfarm_fid,*) sum(wm%Phat)
-        write(alpha_fid,*) wm%Phat/wm%Paero - 1._rprec
         write(u_fid,*) wm%u
         write(*,*) "Percent error:",                                           &
             (sum(wm%Phat) - controller%Pref(i))/controller%Pref(i)*100._rprec
     end do
 
     ! create controller
-    controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref)
+    controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time-tt, Pref, 0.723_rprec,  1.267_rprec)
     controller%beta(:,:controller%Nt-Nskip) = beta_c(:,Nskip+1:)
-    controller%alpha(:,:controller%Nt-Nskip) = alpha_c(:,Nskip+1:)
+    controller%torque_gain(:,:controller%Nt-Nskip) = torque_gain_c(:,Nskip+1:)
     do ii = controller%Nt-Nskip, controller%Nt
         controller%beta(:,ii) = 0._rprec
-        controller%alpha(:,ii) = 0._rprec
+        controller%torque_gain(:,ii) = torque_gain
     end do
     call controller%makeDimensionless
-    call controller%rescale_gradient
+    !call controller%rescale_gradient
     controller%Ca = Ca
     controller%Cb = Cb
 
     ! minimize
 !     m = conjugate_gradient_t(controller, 500)
-    m = lbfgsb_t(controller, 10)
+    m = lbfgsb_t(controller, 10, controller%get_lower_bound(),                 &
+        controller%get_upper_bound() )
     call m%minimize( controller%get_control_vector() )
     call controller%run()
 
@@ -230,15 +232,12 @@ end do
 ! close files
 close(omega_fid)
 close(beta_fid)
-close(gen_torque_fid)
+close(torque_gain_fid)
 close(uhat_fid)
 close(Ctp_fid)
 close(Cpp_fid)
 close(Pref_fid)
 close(Pfarm_fid)
-close(alpha_fid)
 close(u_fid)
-call controller%makeDimensional()
-write(*,*) controller%dt
 
 end program mpc

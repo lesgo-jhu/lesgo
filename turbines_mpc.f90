@@ -36,18 +36,24 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec) :: cfl, dt
     real(rprec), dimension(:), allocatable :: t, Pref, Pfarm
     ! Control variables (turbine, time)
-    real(rprec), dimension(:,:), allocatable :: beta, alpha
+    real(rprec), dimension(:,:), allocatable :: beta, torque_gain
     ! gradients
-    real(rprec), dimension(:,:), allocatable :: grad_beta, grad_alpha
+    real(rprec), dimension(:,:), allocatable :: grad_beta, grad_torque_gain
     ! finite difference gradients
-    real(rprec), dimension(:,:), allocatable :: fdgrad_beta, fdgrad_alpha
-    ! Generator torque for actually running turbines (turbine, time)
-    real(rprec), dimension(:,:), allocatable :: gen_torque
+    real(rprec), dimension(:,:), allocatable :: fdgrad_beta, fdgrad_torque_gain
     real(rprec) :: cost = 0._rprec
-    real(rprec) :: kappa = 1._rprec
     ! scaling constants for gradient
     real(rprec) :: Ca = 1._rprec
     real(rprec) :: Cb = 1._rprec
+    ! Constraints on controls
+    real(rprec) :: beta_min = -45._rprec
+    real(rprec) :: beta_max = 45._rprec
+    real(rprec) :: torque_gain_min = 0._rprec
+    real(rprec) :: torque_gain_max = 1000000000000._rprec
+    ! Constraints on rotational speed (penalized in cost function)
+    real(rprec) :: omega_min = 0._rprec
+    real(rprec) :: omega_max = 1000000000000._rprec
+    real(rprec) :: eta1 = 1000._rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -68,19 +74,30 @@ end interface turbines_mpc_t
 contains
 
 !*******************************************************************************
-function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref) result(this)
+function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_omega_min,      &
+    i_omega_max) result(this)
 !*******************************************************************************
 implicit none
 type(turbines_mpc_t) :: this
 class(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
 real(rprec), intent(in) :: i_t0, i_T, i_cfl
+real(rprec), intent(in), optional :: i_omega_min, i_omega_max
 
-call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
+if (present(i_omega_max)) then
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref,               &
+        i_omega_min, i_omega_max)
+elseif (present(i_omega_min)) then
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_omega_min)
+else
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
+end if
+
 end function constructor
 
 !*******************************************************************************
-subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref)
+subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref,            &
+    i_omega_min, i_omega_max)
 !*******************************************************************************
 use functions, only : linear_interp
 implicit none
@@ -88,6 +105,7 @@ class(turbines_mpc_t) :: this
 type(wake_model_t), intent(in) :: i_wm
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
 real(rprec), intent(in) :: i_t0, i_T, i_cfl
+real(rprec), intent(in), optional :: i_omega_min, i_omega_max
 integer :: i
 
 ! number of turbine rows
@@ -98,12 +116,10 @@ this%iw = i_wm
 call this%iw%makeDimensional
 this%w = this%iw
 
-! write(*,*) this%w%lambda_prime
-
 ! Adjoint wake model
-this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,       &
-    this%w%Delta, this%w%k, this%w%Dia, this%w%rho, this%w%inertia, this%w%Nx, &
-    this%w%Ny, this%w%Ctp_spline, this%w%Cpp_spline, this%w%torque_gain)
+this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,                        &
+    this%w%Delta, this%w%k, this%w%Dia, this%w%rho, this%w%inertia, this%w%Nx,                  &
+    this%w%Ny, this%w%Ctp_spline, this%w%Cpp_spline, this%w%torque_gain(1))
 this%wstar = this%iwstar
 
 ! Create time for the time horizon
@@ -115,18 +131,19 @@ do i = 1, this%Nt
     this%t(i) = i_t0 + this%dt * (i - 1)
 end do
 
+! Set bounds of rotational speed
+if (present(i_omega_min)) this%omega_min = i_omega_min
+if (present(i_omega_max)) this%omega_max = i_omega_max
+
 ! allocate and set initial conditions for control variables
 allocate( this%beta(this%N, this%Nt) )
-allocate( this%alpha(this%N, this%Nt) )
+allocate( this%torque_gain(this%N, this%Nt) )
 allocate( this%grad_beta(this%N, this%Nt) )
-allocate( this%grad_alpha(this%N, this%Nt) )
+allocate( this%grad_torque_gain(this%N, this%Nt) )
 allocate( this%fdgrad_beta(this%N, this%Nt) )
-allocate( this%fdgrad_alpha(this%N, this%Nt) )
-allocate( this%gen_torque(this%N, this%Nt) )
+allocate( this%fdgrad_torque_gain(this%N, this%Nt) )
 this%beta(:,1) = this%iw%beta
-this%alpha(:,1) = 0._rprec
-!this%alpha(:,1) = 1._rprec - this%iw%Phat / this%iw%Paero
-this%gen_torque(:,1) = this%iw%gen_torque
+this%torque_gain(:,1) = this%iw%torque_gain
 
 ! Interpolate the power signals and set initial condition for Pfarm
 allocate( this%Pref(this%Nt) )
@@ -150,7 +167,11 @@ if (.not.this%isDimensionless) then
     this%Pref = this%Pref / this%w%POWER
     this%Pfarm = this%Pfarm / this%w%POWER
     this%cost = this%cost / this%w%POWER**2 / this%w%TIME
-    this%gen_torque = this%gen_torque / this%w%TORQUE
+    this%torque_gain = this%torque_gain / this%w%TORQUE / this%w%TIME**2
+    this%torque_gain_min = this%torque_gain_min / this%w%TORQUE / this%w%TIME**2
+    this%torque_gain_max = this%torque_gain_max / this%w%TORQUE / this%w%TIME**2
+    this%omega_min = this%omega_min * this%w%TIME
+    this%omega_max = this%omega_max * this%w%TIME
     call this%w%makeDimensionless
     call this%wstar%makeDimensionless
     call this%iw%makeDimensionless
@@ -171,7 +192,11 @@ if (this%isDimensionless) then
     this%Pref = this%Pref * this%w%POWER
     this%Pfarm = this%Pfarm * this%w%POWER
     this%cost = this%cost * this%w%POWER**2 * this%w%TIME
-    this%gen_torque = this%gen_torque * this%w%TORQUE
+    this%torque_gain = this%torque_gain * this%w%TORQUE * this%w%TIME**2
+    this%torque_gain_min = this%torque_gain_min * this%w%TORQUE * this%w%TIME**2
+    this%torque_gain_max = this%torque_gain_max * this%w%TORQUE * this%w%TIME**2
+    this%omega_min = this%omega_min / this%w%TIME
+    this%omega_max = this%omega_max / this%w%TIME
     call this%w%makeDimensional
     call this%wstar%makeDimensional
     call this%iw%makeDimensional
@@ -184,13 +209,14 @@ subroutine run(this)
 !*******************************************************************************
 implicit none
 class(turbines_mpc_t), intent(inout) :: this
-integer :: i, k, n
+integer :: i, k
 real(rprec), dimension(:,:,:), allocatable, save :: du
 real(rprec), dimension(:,:), allocatable, save :: Udu, Uw, Wdu, Wu, Ww
 real(rprec), dimension(:,:), allocatable, save :: Bdu, Bu, Bw, Adu, Au, Aw
 real(rprec), dimension(:,:), allocatable, save :: Uj, Wj
 real(rprec), dimension(:), allocatable, save :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), allocatable, save :: dCp_dbeta, dCp_dlambda
+real(rprec), dimension(:), allocatable, save :: reg
 real(rprec) :: dummy
 
 ! allocate adjoint forcing terms
@@ -213,6 +239,7 @@ if (.not.allocated(du)) then
     allocate(dCt_dlambda(this%N))
     allocate(dCp_dbeta(this%N))
     allocate(dCp_dlambda(this%N))
+    allocate(reg(this%N))
 end if
 du = 0._rprec
 Udu = 0._rprec
@@ -232,62 +259,54 @@ Wj = 0._rprec
 ! reset costs and gradients
 this%cost = 0._rprec
 this%grad_beta = 0._rprec
-this%grad_alpha = 0._rprec
+this%grad_torque_gain = 0._rprec
 
 ! Run forward in time
 this%w = this%iw
 do k = 2, this%Nt
-    ! advance with a dummy generator torque
-    call this%w%adjoint_advance(this%beta(:,k), this%alpha(:,k), this%dt,      &
+    ! advance and save values that are independent of the cost function
+    call this%w%adjoint_advance(this%dt, this%beta(:,k), this%torque_gain(:,k),&
         Udu(k,:), Uw(k,:), Wdu(k,:), Wu(k,:), Ww(k,:),                         &
-        Bdu(k,:), Bu(k,:), Bw(k,:), Adu(k,:), Au(k,:), Aw(k,:),                &
+        Adu(k,:), Au(k,:), Aw(k,:), Bdu(k,:), Bu(k,:), Bw(k,:),                &
         dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
     du(k,:,:) = this%w%du
     ! calculate contribution to cost function
     this%Pfarm(k) = sum(this%w%Phat)
-    this%gen_torque(:,k) = this%w%gen_torque
-    this%cost = this%cost + this%dt * (sum(this%w%Phat) - this%Pref(k))**2
+    this%cost = this%cost + this%dt * (this%Pfarm(k) - this%Pref(k))**2
+    ! Add regs to cost function
+    reg = 0._rprec
+    where (this%w%omega(:) < this%omega_min)
+        reg(:) = reg(:) + this%w%omega(:) - this%omega_min
+    end where
+    where (this%w%omega(:) > this%omega_max)
+        reg(:) = reg(:) + this%w%omega(:) - this%omega_max
+    end where
+    ! write(*,*) this%omega_min, this%omega_max
+    ! write(*,*) this%w%omega
+    ! write(*,*) sum(reg)
+    this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)
     ! calculate adjoint values that depend on cost function
-    Uj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
-        * (1 - this%alpha(:,k)) * 3._rprec * this%w%Paero / this%w%uhat        &
-        + 2._rprec * (this%Pfarm(k) - this%Pref(k))                            &
-        * (1 - this%alpha(:,k)) * this%w%Paero_Cpp * dCp_dlambda               &
-        * 0.5_rprec * this%w%Dia / this%w%uhat**2 * this%w%omega
-    Wj(k,:) = -2._rprec * (this%Pfarm(k) - this%Pref(k))                       &
-        * (1 - this%alpha(:,k)) * this%w%Paero_Cpp * dCp_dlambda               &
-        * 0.5_rprec * this%w%Dia / this%w%uhat
-    ! Make sure there are no Nans or Infs
-    do n = 1, this%N
-        if (this%w%Paero(n) == 0._rprec) then
-            Uj(k,n) = 0._rprec
-            Wj(k,n) = 0._rprec
-        end if
-    end do
-    do n = 1, this%N
-        this%grad_beta(n,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))        &
-            * (1 - this%alpha(n,k)) * this%w%Paero_Cpp(n)                   &
-            * dCp_dbeta(n) * this%dt
-        if (this%w%Paero(n) == 0._rprec) this%grad_beta(n,k) = 0._rprec
-    end do
-    this%grad_alpha(:,k) = -2._rprec * (this%Pfarm(k) - this%Pref(k))          &
-        * this%w%Paero * this%dt
+    Uj(k,:) = 0._rprec
+    Wj(k,:) = -6._rprec * (this%Pfarm(k) - this%Pref(k))                       &
+        * this%w%torque_gain * this%w%omega**2 - 2._rprec * this%eta1 * reg
+    ! calculate part of gradients that depends only on the states
+    this%grad_torque_gain(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))     &
+        * this%w%omega**3 * this%dt
 end do
 
 ! Run backwards in time
 this%wstar = this%iwstar
 do k = this%Nt-1, 1, -1
-!     write(*,*) "Here"
     ! retract adjoint wake model. Indices should definitely should be k+1
-    call this%wstar%retract(du(k+1,:,:), Udu(k+1,:), Uw(k+1,:), Uj(k+1,:),  &
+    call this%wstar%retract(du(k+1,:,:), Udu(k+1,:), Uw(k+1,:), Uj(k+1,:),     &
         Wdu(k+1,:), Ww(k+1,:), Wj(k+1,:), this%dt)
     do i = 1, this%N
-        dummy = sum(this%wstar%du_star(i,:) * this%w%G(i,:) / this%w%d(i,:)**2)&
-            * this%w%dx
+        dummy = sum(this%wstar%du_star(i,:) * this%w%f(i,:)) * this%w%dx
         this%grad_beta(i,k) = this%grad_beta(i,k)                              &
             + Bw(k,i) * this%wstar%omega_star(i) * this%dt                     &
             + Bdu(k,i) * dummy * this%dt                                       &
             + Bu(k,i) * this%wstar%uhat_star(i) * this%dt
-        this%grad_alpha(i,k) = this%grad_alpha(i,k)                            &
+        this%grad_torque_gain(i,k) = this%grad_torque_gain(i,k)                &
             + Aw(k,i) * this%wstar%omega_star(i) * this%dt                     &
             + Adu(k,i) * dummy * this%dt                                       &
             + Au(k,i) * this%wstar%uhat_star(i) * this%dt
@@ -312,7 +331,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     this%beta(:,k+1) = x(istart:istop) * this%Cb
-    this%alpha(:,k+1) = x(istart+iskip:istop+iskip) * this%Ca
+    this%torque_gain(:,k+1) = x(istart+iskip:istop+iskip) * this%Ca
 end do
 
 ! Run model
@@ -327,8 +346,9 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     g(istart:istop) = this%grad_beta(:,k+1) * this%Cb
-    g(istart+iskip:istop+iskip) = this%grad_alpha(:,k+1) * this%Ca
+    g(istart+iskip:istop+iskip) = this%grad_torque_gain(:,k+1) * this%Ca
 end do
+
 end subroutine eval
 
 !*******************************************************************************
@@ -347,7 +367,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta(:,k+1) / this%Cb
-    x(istart+iskip:istop+iskip) = this%alpha(:,k+1) / this%Ca
+    x(istart+iskip:istop+iskip) = this%torque_gain(:,k+1) / this%Ca
 end do
 
 end function get_control_vector
@@ -361,16 +381,15 @@ real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
 allocate( x(2*(size(this%beta) - this%N)) )
-x = -1000000000000._rprec
+! combined with get_upper_bound default, would cause an error
+x = 1._rprec
 
 iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = -1000000000._rprec
-    x(istart+iskip:istop+iskip) = -1000000000._rprec
-    !x(istart:istop) = -45._rprec / this%Cb
-    !x(istart+iskip:istop+iskip) = 0._rprec / this%Ca
+    x(istart:istop) = this%beta_min / this%Cb
+    x(istart+iskip:istop+iskip) = this%torque_gain_min / this%Ca
 end do
 
 end function get_lower_bound
@@ -384,16 +403,15 @@ real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
 allocate( x(2*(size(this%beta) - this%N)) )
-x = 1000000000._rprec
+! combined with get_lower_bound default, would cause an errors
+x = -1._rprec
 
 iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = 1000000000._rprec
-    x(istart+iskip:istop+iskip) = 1000000000._rprec
-    !x(istart:istop) = 45._rprec / this%Cb
-    !x(istart+iskip:istop+iskip) = 1000000000._rprec / this%Ca
+    x(istart:istop) = this%beta_max / this%Cb
+    x(istart+iskip:istop+iskip) = this%torque_gain_max / this%Ca
 end do
 
 end function get_upper_bound
@@ -422,14 +440,14 @@ do n = 1, this%N
     end do
 end do
 
-! calculate gradient for gen_torque
-this%fdgrad_alpha = 0._rprec
+! calculate gradient for torque gain
+this%fdgrad_torque_gain = 0._rprec
 do n = 1, this%N
     do k = 1, this%Nt
         mf = this
-        mf%alpha(n,k) = mf%alpha(n,k) + dphi
+        mf%torque_gain(n,k) = mf%torque_gain(n,k) + dphi
         call mf%run
-        this%fdgrad_alpha(n,k) = (mf%cost - this%cost) / dphi
+        this%fdgrad_torque_gain(n,k) = (mf%cost - this%cost) / dphi
     end do
 end do
 
@@ -446,7 +464,7 @@ call this%run()
 if ( present(Ca) ) then
     this%Ca = Ca
 else
-    this%Ca = 1._rprec / maxval(abs(this%grad_alpha))
+    this%Ca = 1._rprec / maxval(abs(this%grad_torque_gain))
 end if
 if ( present(Cb) ) then
     this%Cb = Cb

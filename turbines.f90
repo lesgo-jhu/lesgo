@@ -125,8 +125,7 @@ real(rprec), dimension(:,:), allocatable :: theta2_arr
 real(rprec), dimension(:), allocatable :: theta2_time
 real(rprec), dimension(:), allocatable :: Pref_arr
 real(rprec), dimension(:), allocatable :: Pref_time
-real(rprec), dimension(:,:), allocatable :: gen_torque_arr
-real(rprec), dimension(:,:), allocatable :: alpha_arr
+real(rprec), dimension(:,:), allocatable :: torque_gain_arr
 real(rprec), dimension(:,:), allocatable :: beta_arr
 real(rprec), dimension(:), allocatable :: rh_time
 
@@ -488,6 +487,7 @@ do s=1,nloc
 end do
 
 ! Sum the indicator function across all processors if using MPI
+write(*,*) sumA
 #ifdef PPMPI
 buffer_array = sumA
 call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
@@ -621,7 +621,8 @@ do s = 1,nloc
     const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
     if (use_receding_horizon) then
         wind_farm%turbine(s)%gen_torque =                                      &
-            linear_interp(rh_time, gen_torque_arr(s,:), total_time_dim)
+            linear_interp(rh_time, torque_gain_arr(s,:), total_time_dim)       &
+            * wind_farm%turbine(s)%omega**2
         wind_farm%turbine(s)%theta1 =                                          &
             linear_interp(rh_time, beta_arr(s,:), total_time_dim)
     else
@@ -1297,11 +1298,10 @@ if (exst) then
     write(*,*) "Reading receding horizon restart data..."
     read(fid) N
     allocate( rh_time(N) )
-    allocate( gen_torque_arr(nloc, N) )
     allocate( beta_arr(nloc, N) )
-    allocate( alpha_arr(nloc, N) )
+    allocate( torque_gain_arr(nloc, N) )
     read(fid) rh_time
-    read(fid) gen_torque_arr
+    read(fid) torque_gain_arr
     read(fid) beta_arr
     read(fid) Ca
     read(fid) Cb
@@ -1309,22 +1309,21 @@ if (exst) then
 else
     allocate( rh_time(1) )
     rh_time = 0._rprec
-    allocate( gen_torque_arr(nloc, 1) )
+    allocate( torque_gain_arr(nloc, 1) )
     allocate( beta_arr(nloc, 1) )
     do i = 1, nloc
-        gen_torque_arr(i,:) = torque_gain * wind_farm%turbine(i)%omega**2
+        torque_gain_arr(i,:) = wind_farm%turbine(i)%gen_torque / wind_farm%turbine(i)%omega**2
         beta_arr(i,:) = wind_farm%turbine(i)%theta1
     end do
 
     if (coord == 0) then
         write(*,*) "Computing initial optimization..."
-        controller = turbines_mpc_t(wm%wm, total_time_dim,  horizon_time, 0.99_rprec, Pref_time, Pref_arr)
+        controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time, 0.99_rprec, Pref_time, Pref_arr)
 
         do i = 1, controller%N
             controller%beta(i,:) = wind_farm%turbine(i)%theta1
+            controller%torque_gain(i,:) = wind_farm%turbine(i)%gen_torque / wind_farm%turbine(i)%omega**2
         end do
-        controller%alpha = 0._rprec
-        controller%gen_torque(:,1) = wm%wm%gen_torque
         call controller%makeDimensionless
         call controller%rescale_gradient
         Ca = controller%Ca
@@ -1345,19 +1344,16 @@ else
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
     deallocate(rh_time)
-    deallocate(gen_torque_arr)
     deallocate(beta_arr)
-    allocate(alpha_arr(nloc, N))
-    allocate(gen_torque_arr(nloc, N))
+    allocate(torque_gain_arr(nloc, N))
     allocate(beta_arr(nloc, N))
     allocate(rh_time(N))
 
     ! Copy control arrays
     if (coord == 0) then
         call controller%makeDimensional
-        gen_torque_arr = controller%gen_torque
         beta_arr = controller%beta
-        alpha_arr = controller%alpha
+        torque_gain_arr = controller%torque_gain
         rh_time = controller%t
 
         ! write(*,*) "rh_time: ", rh_time
@@ -1369,7 +1365,7 @@ else
 
 #ifdef PPMPI
     ! Transfer via MPI
-    call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
@@ -1401,8 +1397,7 @@ if (modulo (jt_total, advancement_base) == 0) then
 
         do i = 1, nloc
             controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:), controller%t)
-            controller%gen_torque(i,:) = linear_interp(rh_time, gen_torque_arr(i,:), controller%t)
-            controller%alpha(i,:) = linear_interp(rh_time, alpha_arr(i,:), controller%t)
+            controller%torque_gain(i,:) = linear_interp(rh_time, torque_gain_arr(i,:), controller%t)
         end do
         call controller%makeDimensionless
 
@@ -1420,27 +1415,23 @@ if (modulo (jt_total, advancement_base) == 0) then
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
     deallocate(rh_time)
-    deallocate(gen_torque_arr)
     deallocate(beta_arr)
-    deallocate(alpha_arr)
-    allocate(alpha_arr(nloc, N))
-    allocate(gen_torque_arr(nloc, N))
+    deallocate(torque_gain_arr)
+    allocate(torque_gain_arr(nloc, N))
     allocate(beta_arr(nloc, N))
     allocate(rh_time(N))
 
     ! Copy control arrays
     if (coord == 0) then
         call controller%makeDimensional
-        gen_torque_arr = controller%gen_torque
         beta_arr = controller%beta
-        alpha_arr = controller%alpha
+        torque_gain_arr = controller%torque_gain
         rh_time = controller%t
     end if
 
 #ifdef PPMPI
     ! Transfer via MPI
-    call MPI_Bcast(alpha_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
-    call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+    call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
 #endif
@@ -1463,9 +1454,8 @@ if (coord == 0) then
     write(*,*) "Writing receding horizon restart data..."
     write(fid) size(rh_time)
     write(fid) rh_time
-    write(fid) gen_torque_arr
     write(fid) beta_arr
-    write(fid) alpha_arr
+    write(fid) torque_gain_arr
     write(fid) Ca
     write(fid) Cb
     close(fid)

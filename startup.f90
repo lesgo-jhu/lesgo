@@ -22,7 +22,7 @@ real(rprec) :: U_infty, Delta, Dia, rho, inertia, torque_gain
 integer :: N, Nx, Ny, Nt, Numx, Numy
 
 ! Output files
-integer, parameter :: omega_fid=1, beta_fid=2, gen_torque_fid=3, uhat_fid=4
+integer, parameter :: omega_fid=1, beta_fid=2, torque_gain_fid=3, uhat_fid=4
 integer, parameter :: Ctp_fid=5, Cpp_fid=60, u_fid=61, x_fid=62, y_fid=63
 
 ! initialize wake model
@@ -46,7 +46,7 @@ allocate(k(N))
 allocate(beta(N))
 allocate(gen_torque(N))
 k = 0.05_rprec
-beta = -2._rprec
+beta = 0._rprec
 do i = 1, Numx
     do j = 1, Numy
         sx((i-1)*2+j) = 7._rprec * Dia * i
@@ -61,7 +61,7 @@ wm = wake_model_t(sx, sy, U_infty, Delta, k, Dia, rho, inertia, Nx, Ny,        &
 call system ( "mkdir -p output-startup" )
 open(omega_fid,file='output-startup/omega.dat')
 open(beta_fid,file='output-startup/beta.dat')
-open(gen_torque_fid,file='output-startup/gen_torque.dat')
+open(torque_gain_fid,file='output-startup/torque_gain.dat')
 open(uhat_fid,file='output-startup/uhat.dat')
 open(Ctp_fid,file='output-startup/Ctp.dat')
 open(Cpp_fid,file='output-startup/Cpp.dat')
@@ -69,22 +69,22 @@ open(u_fid,file='output-startup/u.dat')
 open(x_fid,file='output-startup/x.dat')
 open(y_fid,file='output-startup/y.dat')
 
-! integrate the wake model forward
+! integrate the wake model forward to set initial pitch angle
 dt = cfl * wm%dx / wm%U_infty
+wm%beta = -2._rprec
 do i = 1, Nt
-    gen_torque = torque_gain * wm%omega**2
-    call wm%advance(beta, gen_torque, dt)
+    call wm%advance(dt)
 end do
 
-! integrate the wake model forward
+! integrate the wake model forward with optiaml pitch angle
 dt = cfl * wm%dx / wm%U_infty
-beta = 0._rprec
+wm%beta = 0._rprec
 do i = 1, Nt
-    gen_torque = torque_gain * wm%omega**2
-    call wm%advance(beta, gen_torque, dt)
+    call wm%advance(dt)
+    write(*,*) wm%Phat
     write(omega_fid,*) wm%omega
     write(beta_fid,*) wm%beta
-    write(gen_torque_fid,*) wm%gen_torque
+    write(torque_gain_fid,*) wm%torque_gain
     write(uhat_fid,*) wm%uhat
     write(Ctp_fid,*) wm%Ctp
     write(Cpp_fid,*) wm%Cpp
@@ -97,7 +97,7 @@ write(y_fid,*) wm%y
 ! close files
 close(omega_fid)
 close(beta_fid)
-close(gen_torque_fid)
+close(torque_gain_fid)
 close(uhat_fid)
 close(Ctp_fid)
 close(Cpp_fid)

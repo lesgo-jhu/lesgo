@@ -24,4 +24,3 @@ set (CMAKE_Fortran_FLAGS "-cpp -O0 -g -fbacktrace -ffpe-trap=invalid,zero -DPPTU
 # main lesgo executable
 add_executable(mpc mpc.f90 ${Sources})
 add_executable(startup startup.f90  ${Sources})
-

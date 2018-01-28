@@ -332,13 +332,11 @@ allocate(fdustar(this%N))
 allocate(fstar(this%N, this%Nx))
 allocate(du_super(this%Nx, this%Ny))
 
-! evaluate \int_0^L f_n(x) (du_star)_n(x,t) \, dx
+! evaluate \int_0^L 2 * U_\infty^2 * G / d^2 (du_star)_n(x,t) \, dx
+! Note: f = 2 * U_\infty^2 * G / d^2
 do i = 1, this%N
     fdustar(i) = sum( this%f(i,:) * this%du_star(i,:) ) * this%dx
 end do
-
-! Compute adjoint of estimated velocity
-this%uhat_star = Uj + Uw * this%omega_star + Udu*fdustar
 
 ! evaluate inverse of superimposed forward velocity deficits
 du_super = 0._rprec
@@ -358,6 +356,9 @@ do i = 1, this%Nx
         endif
     end do
 end do
+
+! Adjoint of estimated velocity
+this%uhat_star = Uj + Udu*fdustar + Uw * this%omega_star
 
 ! adjoint of velocity field
 this%u_star = 0._rprec
@@ -379,19 +380,17 @@ do i = 1, this%N
     end do
 end do
 
-! Adjoint for rotational equations
-do i = 1, this%N
-    this%omega_star(i) = this%omega_star(i)                                    &
-        + dt * ( Wj(i) + Ww(i)*this%omega_star(i) + Wdu(i)*fdustar(i))
-end do
-
 ! compute velocity field adjoints
 do i = 1, this%N
-    this%du_star(i,:) = this%du_star(i,:) - dt                                 &
+    this%du_star(i,:) = this%du_star(i,:) + dt                                 &
         * this%rhs(this%du_star(i,:), fstar(i,:), i)
 end do
 
-! write(*,*) this%du_star
+! Adjoint of rotational equations
+do i = 1, this%N
+   this%omega_star(i) = this%omega_star(i)                                    &
+       + dt * ( Wj(i) + Wdu(i)*fdustar(i) + Ww(i)*this%omega_star(i) )
+end do
 
 deallocate(fdustar)
 deallocate(fstar)
@@ -414,7 +413,7 @@ allocate(ddudt(this%Nx))
 allocate(ddudx(this%Nx))
 
 ddudx = ddx_downwind1(du, this%dx)
-ddudt = -this%U_infty * ddudx + this%w(i,:) * du - f
+ddudt = this%U_infty * ddudx - this%w(i,:) * du + f
 
 end function rhs
 

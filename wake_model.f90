@@ -54,17 +54,13 @@ type, extends(wake_model_base_t) :: wake_model_t
     real(rprec), dimension(:), allocatable :: beta
     ! local tip speed ratio
     real(rprec), dimension(:), allocatable :: lambda_prime
-    ! generator torque
-    real(rprec), dimension(:), allocatable :: gen_torque
 contains
     procedure, public :: initialize_val
     procedure, private :: initialize_file
     procedure, public :: write_to_file
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
-    procedure, private :: advance_val
-    procedure, private :: advance_noval
-    generic, public :: advance => advance_val, advance_noval
+    procedure, public :: advance
     procedure, private :: rhs
     procedure, public :: adjoint_advance
 end type wake_model_t
@@ -121,6 +117,7 @@ real(rprec), dimension(:), intent(in) :: i_sx, i_sy, i_k
 integer, intent(in) :: i_Nx, i_Ny
 type(bi_pchip_t), intent(in) :: i_Ctp_spline, i_Cpp_spline
 real(rprec), intent(in) :: i_torque_gain
+integer :: i
 
 ! Call base class initializer
 call this%wake_model_base_t%initialize_val(i_sx, i_sy, i_U_infty, i_Delta,     &
@@ -139,7 +136,6 @@ allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
 allocate( this%beta(this%N)  )
 allocate( this%lambda_prime(this%N)  )
-allocate( this%gen_torque(this%N)  )
 
 ! initialize
 this%du = 0._rprec
@@ -148,12 +144,13 @@ this%uhat = this%U_infty
 this%Phat = 0._rprec
 this%Paero = 0._rprec
 this%Paero_Cpp = 0._rprec
-this%Ctp = 0._rprec
-this%Cpp = 0._rprec
 this%omega = 1._rprec
 this%beta = 0._rprec
 this%lambda_prime = 0.5_rprec * this%Dia / this%U_infty
-this%gen_torque = 0._rprec
+do i = 1, this%N
+    call this%Ctp_spline%interp(this%beta(i), this%lambda_prime(i), this%Ctp(i))
+    call this%Cpp_spline%interp(this%beta(i), this%lambda_prime(i), this%Cpp(i))
+end do
 
 end subroutine initialize_val
 
@@ -207,7 +204,6 @@ allocate( this%Cpp(this%N)  )
 allocate( this%omega(this%N)  )
 allocate( this%beta(this%N)  )
 allocate( this%lambda_prime(this%N)  )
-allocate( this%gen_torque(this%N)  )
 
 ! Read arrays from file
 read(fid) this%sx
@@ -226,7 +222,6 @@ read(fid) this%Cpp
 read(fid) this%omega
 read(fid) this%beta
 read(fid) this%lambda_prime
-read(fid) this%gen_torque
 read(fid) this%waked
 close(fid)
 
@@ -258,8 +253,6 @@ if (.not.this%isDimensionless) then
     this%Paero_Cpp = this%Paero_Cpp / this%POWER
     ! units T^-1
     this%omega = this%omega * this%TIME
-    ! units TORQUE
-    this%gen_torque = this%gen_torque / this%TORQUE
 end if
 
 end subroutine makeDimensionless
@@ -282,8 +275,6 @@ if (this%isDimensionless) then
     this%Paero_Cpp = this%Paero_Cpp * this%POWER
     ! units T^-1
     this%omega = this%omega / this%TIME
-    ! units TORQUE
-    this%gen_torque = this%gen_torque * this%TORQUE
 end if
 
 end subroutine makeDimensional
@@ -321,7 +312,6 @@ write(fid) this%Cpp
 write(fid) this%omega
 write(fid) this%beta
 write(fid) this%lambda_prime
-write(fid) this%gen_torque
 write(fid) this%waked
 close(fid)
 
@@ -361,32 +351,26 @@ end subroutine write_to_file
 ! end subroutine print
 
 !*******************************************************************************
-subroutine advance_noval(this, dt)
+subroutine advance(this, dt, beta, torque_gain)
 !*******************************************************************************
 ! Note: every input value is for time step n. Values at time step n-1 were saved
 ! during the previous call the advance and are used before being reassigned.
 implicit none
 class(wake_model_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
-
-! call with current values and torque gain
-call this%advance_val(this%beta, this%torque_gain * this%omega**2, dt)
-
-end subroutine advance_noval
-
-!*******************************************************************************
-subroutine advance_val(this, beta, gen_torque, dt)
-!*******************************************************************************
-! Note: every input value is for time step n. Values at time step n-1 were saved
-! during the previous call the advance and are used before being reassigned.
-implicit none
-class(wake_model_t), intent(inout) :: this
-real(rprec), intent(in) :: dt
-real(rprec), dimension(:), intent(in) :: beta, gen_torque
+real(rprec), dimension(:), intent(in), optional :: beta, torque_gain
 integer :: i, ii
 
-if (size(beta) /= this%N .or. size(gen_torque) /= this%N) then
-    call error('wake_model_t.advance','beta and gen_torque must be size N')
+! Check inputs for next time step if present
+if ( present(beta) ) then
+    if ( size(beta) /= this%N ) then
+        call error('wake_model_t.advance','beta must be size N')
+    end if
+end if
+if ( present(torque_gain) ) then
+    if ( size(torque_gain) /= this%N ) then
+        call error('wake_model_t.advance','torque_gain must be size N')
+    end if
 end if
 
 ! Compute new wake deficit and superimpose wakes
@@ -401,30 +385,40 @@ do i = 1, this%N
 end do
 this%u = sqrt(this%u)
 
-! Calculate new rotational speed
-do i = 1, this%N
-    if (this%Paero(i) == 0._rprec) then
-        this%omega(i) = max(this%omega(i) - dt * this%gen_torque(i)            &
-            / this%inertia, 0._rprec)
-    else
-        this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)&
-            - this%gen_torque(i)) / this%inertia, 0._rprec)
-    end if
-end do
-
-! Find the velocity field
+! Find the velocity field, protecting against negative velocities
 this%u = max(this%U_infty - this%u, 0._rprec)
 
 ! Find estimated velocities, coefficients, and power
 this%uhat = 0._rprec
 do i = 1, this%N
-    this%beta(i) = beta(i)
-    this%gen_torque(i) = gen_torque(i)
     do ii = this%Gstart(i), this%Gend(i)
         this%uhat(i) = this%uhat(i) + this%dx * this%dy *                      &
         sum(this%u(ii,this%Istart(i,ii):this%Iend(i,ii))) *                    &
         this%G(i,ii) / this%Isum(i,ii)
     end do
+end do
+
+! Calculate new rotational speed, protecting against zero division.
+do i = 1, this%N
+    this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)    &
+        - this%torque_gain(i) * this%omega(i)**2) / this%inertia,              &
+        0.000000001_rprec)
+end do
+
+! Save next time step values
+if( present(beta) ) then
+    do i = 1, this%N
+        this%beta(i) = beta(i)
+    end do
+end if
+if( present(torque_gain) ) then
+    do i = 1, this%N
+        this%torque_gain(i) = torque_gain(i)
+    end do
+end if
+
+! Now calculate power, etc.
+do i = 1, this%N
     ! protect against zero division
     this%lambda_prime(i) = 0.5_rprec * this%omega(i) * this%Dia /              &
         max(this%uhat(i), 0.000000001)
@@ -433,10 +427,10 @@ do i = 1, this%N
     this%Paero(i) = this%rho * pi * this%Dia**2 * this%Cpp(i)                  &
                     * this%uhat(i)**3 / 8._rprec
     this%Paero_Cpp(i) = this%rho * pi * this%Dia**2 * this%uhat(i)**3 / 8._rprec
-    this%Phat(i) = this%gen_torque(i) * this%omega(i)
+    this%Phat(i) = this%torque_gain(i) * this%omega(i)**3
 end do
 
-end subroutine advance_val
+end subroutine advance
 
 !*******************************************************************************
 function rhs(this, du, f, i) result(ddudt)
@@ -458,33 +452,23 @@ ddudt = -this%U_infty * ddudx - this%w(i,:) * du + f
 end function rhs
 
 !*******************************************************************************
-subroutine adjoint_advance(this, beta, alpha, dt, Udu, Uw, Wdu, Wu, Ww,        &
-    Bdu, Bu, Bw, Adu, Au, Aw, dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
+subroutine adjoint_advance(this, dt, beta, torque_gain, Udu, Uw, Wdu, Wu, Ww,  &
+    Adu, Au, Aw, Bdu, Bu, Bw, dCt_dbeta, dCt_dlambda, dCp_dbeta, dCp_dlambda)
 !*******************************************************************************
 implicit none
 class(wake_model_t), intent(inout) :: this
-real(rprec), dimension(:), intent(in) :: beta, alpha
 real(rprec), intent(in) :: dt
+real(rprec), dimension(:), intent(in) :: beta, torque_gain
 real(rprec), dimension(:), intent(out) :: Udu, Uw, Wdu, Wu, Ww
-real(rprec), dimension(:), intent(out) :: Bdu, Bu, Bw, Adu, Au, Aw
+real(rprec), dimension(:), intent(out) :: Adu, Au, Aw, Bdu, Bu, Bw
 real(rprec), dimension(:), intent(out) :: dCt_dbeta, dCt_dlambda
 real(rprec), dimension(:), intent(out) :: dCp_dbeta, dCp_dlambda
 
 real(rprec) :: dummy
 integer :: n
 
-! advance wake model with dummy generator torque
-call this%advance(beta, this%gen_torque, dt)
-
-! correct the stored values for power and generator torque based on alpha
-this%Phat = (1._rprec - alpha) * this%Paero
-do n = 1, this%N
-    if (this%Phat(n) == 0._rprec .or. this%omega(n) == 0._rprec) then
-        this%gen_torque(n) = 0._rprec
-    else
-        this%gen_torque(n) = this%Phat(n) / this%omega(n)
-    end if
-end do
+! advance wake model
+call this%advance(dt, beta, torque_gain)
 
 ! Calculate derivatives of Ct and Cp
 do n = 1, this%N
@@ -497,32 +481,22 @@ end do
 ! Everything else can be calculated at once
 Udu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda * this%omega          &
     * 0.5_rprec * this%Dia / this%uhat**2
+Uw = this%Paero / this%inertia / this%omega * 3._rprec / this%uhat             &
+    - this%Paero_Cpp / this%inertia * dCp_dlambda * 0.5_rprec                  &
+    * this%Dia / this%uhat**2
 Wdu = 4._rprec / (4._rprec + this%Ctp)**2 * dCt_dlambda                        &
     * 0.5_rprec * this%Dia / this%uhat
 Wu = 0._rprec
-Bdu = -8._rprec * this%U_infty**2 / (4._rprec + this%Ctp)**2 * dCt_dbeta
-Bu = 0._rprec
+Ww = -this%Paero / this%inertia / this%omega**2                                &
+    + this%Paero_Cpp / this%inertia / this%omega * this%Dia * 0.5_rprec        &
+    / this%uhat * dCp_dlambda                                                  &
+    - 2._rprec * this%torque_gain * this%omega / this%inertia
 Adu = 0._rprec
 Au = 0._rprec
-
-! Fix values that may be NaNs
-do n = 1, this%N
-    if (this%Paero(n) == 0._rprec) then
-        Uw(n) = 0._rprec
-        Ww(n) = 0._rprec
-        Bw(n) = 0._rprec
-        Aw(n) = 0._rprec
-    else
-        Uw(n) = alpha(n) / this%inertia / this%omega(n) * 3._rprec * this%Paero(n) / this%uhat(n)     &
-            - alpha(n) / this%inertia * this%Paero_Cpp(n) * dCp_dlambda(n) * 0.5_rprec          &
-            * this%Dia / this%uhat(n)**2
-        Ww(n) = -alpha(n) / this%inertia * this%Paero(n) / this%omega(n)**2                        &
-            + alpha(n) / this%inertia * this%Paero_Cpp(n) / this%omega(n) * this%Dia * 0.5_rprec&
-            / this%uhat(n) * dCp_dlambda(n)
-        Bw(n) = -alpha(n) / this%inertia / this%omega(n) * this%Paero_Cpp(n) * dCp_dbeta(n)
-        Aw(n) = -this%Paero(n) / this%inertia / this%omega(n)
-    end if
-end do
+Aw = this%omega**2 / this%inertia
+Bdu = -4._rprec / (4._rprec + this%Ctp)**2 * dCt_dbeta
+Bu = 0._rprec
+Bw = -this%Paero_Cpp / this%inertia / this%omega * dCp_dbeta
 
 end subroutine adjoint_advance
 

@@ -66,7 +66,7 @@ type wake_model_base_t
     ! Rotor inertia
     real(rprec) :: inertia = 0
     ! default torque gain
-    real(rprec) :: torque_gain
+    real(rprec), dimension(:), allocatable :: torque_gain
     ! grid spacing
     real(rprec) :: dx = 0
     real(rprec) :: dy = 0
@@ -163,6 +163,7 @@ allocate( this%Istart(this%N, this%Nx) )
 allocate( this%Iend(this%N, this%Nx) )
 allocate( this%Isum(this%N, this%Nx) )
 allocate( this%waked(this%N) )
+allocate( this%torque_gain(this%N) )
 
 ! Assign input arguments
 this%sx = i_sx
@@ -173,13 +174,13 @@ this%k = i_k
 this%Dia = i_Dia
 this%rho = i_rho
 this%inertia = i_inertia
-this%torque_gain = i_torque_gain
+this%torque_gain(:) = i_torque_gain
 
 ! Normalization constants
 this%VELOCITY = i_U_infty
 this%LENGTH = i_Dia
 this%TIME = this%LENGTH / this%VELOCITY
-this%MASS = this%rho * this%LENGTH**3
+this%MASS = this%rho * this%LENGTH**3 !/ 50._rprec**3
 this%TORQUE = this%MASS * this%LENGTH**2 / this%TIME**2
 this%POWER = this%MASS * this%LENGTH**2 / this%TIME**3
 
