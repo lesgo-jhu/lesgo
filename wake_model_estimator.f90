@@ -411,7 +411,7 @@ if (coord == 0) write(*,*) "Done generating initial ensemble"
 end subroutine generate_initial_ensemble
 
 !*******************************************************************************
-subroutine advance(this, um, omegam, beta, gen_torque, dt)
+subroutine advance(this, dt, um, omegam, beta, torque_gain)
 !*******************************************************************************
 use util, only : random_normal, inverse
 #ifdef PPIFORT
@@ -423,7 +423,7 @@ use mpi
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
 real(rprec), intent(in) :: dt
-real(rprec), dimension(:), intent(in) :: um, omegam, beta, gen_torque
+real(rprec), dimension(:), intent(in) :: um, omegam, beta, torque_gain
 real(rprec) :: alpha
 integer :: i, j
 integer :: N, Nx
@@ -442,8 +442,8 @@ end if
 if (size(beta) /= N) then
     call error('wake_model_t.advance','beta must be size N')
 end if
-if (size(gen_torque) /= N) then
-    call error('wake_model_t.advance','gen_torque must be size N')
+if (size(torque_gain) /= N) then
+    call error('wake_model_t.advance','torque_gain must be size N')
 end if
 
 ! Calculate noisy measurements
@@ -472,7 +472,7 @@ this%Dprime = this%D - this%Ahat
 ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
 ! Since the dimension is small, we don't bother doing the SVD. If the matrix
 ! becomes singular, then this should be considered as in section 4.3.2 of
-! Everson(2003)i
+! Everson(2003)
 #ifdef PPIFORT
 call gemm(this%E, this%E, this%MM_array, 'n', 't', 1._rprec, 0._rprec)
 call gemm(this%Ahatprime, this%Ahatprime, this%MM_array, 'n', 't', 1._rprec, 1._rprec)
@@ -530,10 +530,8 @@ do j = 1, N
 end do
 this%wm%k(:) = max(this%Abar((N*Nx+1):), 0._rprec)
 
-! Fix previous timestep outputs based on corrected states
-!call this%advance_ensemble(beta, gen_torque, 0._rprec)
 ! Advance ensemble and mean estimate
-call this%advance_ensemble(beta, gen_torque, dt)
+call this%advance_ensemble(dt, beta, torque_gain)
 
 ! Place ensemble into a matrix with each member in a column
 this%A = 0._rprec
@@ -572,13 +570,13 @@ end do
 end subroutine advance
 
 !*******************************************************************************
-subroutine advance_ensemble_val(this, beta, gen_torque, dt)
+subroutine advance_ensemble_val(this, dt, beta, torque_gain)
 !*******************************************************************************
 use param, only : pi
 use util, only  : random_normal
 implicit none
 class(wake_model_estimator_t), intent(inout) :: this
-real(rprec), dimension(:), intent(in) :: beta, gen_torque
+real(rprec), dimension(:), intent(in) :: beta, torque_gain
 real(rprec), intent(in) :: dt
 integer :: i, j, N
 
@@ -597,10 +595,10 @@ do i = 1, this%Ne
 !            + sqrt(dt) * 10 * this%sigma_omega * random_normal(), 0._rprec)
     end do
     call this%ensemble(i)%compute_wake_expansion
-    call this%ensemble(i)%advance(dt, beta, gen_torque)
+    call this%ensemble(i)%advance(dt, beta, torque_gain)
 end do
 call this%wm%compute_wake_expansion
-call this%wm%advance(dt, beta, gen_torque)
+call this%wm%advance(dt, beta, torque_gain)
 
 end subroutine advance_ensemble_val
 

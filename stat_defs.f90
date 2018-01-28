@@ -125,10 +125,10 @@ type turbine_t
     integer, dimension(5000,3) :: nodes
     ! search area for nearby nodes
     integer, dimension(6) :: nodes_max
-    ! rotational speed (s^-1)
+    ! rotational speed (rad/s)
     real(rprec) :: omega
-    ! generator torque
-    real(rprec) :: gen_torque
+    ! torque_gain
+    real(rprec) :: torque_gain
 end type turbine_t
 
 ! A collection of wind turbines

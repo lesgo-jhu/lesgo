@@ -305,6 +305,7 @@ else
     do k=1,nloc
         wind_farm%turbine(k)%u_d_T = -8._rprec
         wind_farm%turbine(k)%omega = 1._rprec
+        wind_farm%turbine(k)%torque_gain = torque_gain
     end do
 end if
 
@@ -625,20 +626,19 @@ do s = 1,nloc
     p_Cp_prime => wind_farm%turbine(s)%Cp_prime
     p_omega => wind_farm%turbine(s)%omega
 
+    ! Read control variables
+    if (use_receding_horizon) then
+        wind_farm%turbine(s)%torque_gain =                                     &
+            linear_interp(rh_time, torque_gain_arr(s,:), total_time_dim)
+        wind_farm%turbine(s)%theta1 =                                          &
+            linear_interp(rh_time, beta_arr(s,:), total_time_dim)
+    end if
+
     ! Calculate rotational speed. Power needs to be dimensional.
     ! Use the previous step's values.
     const = -p_Cp_prime*0.5*rho*pi*0.25*(wind_farm%turbine(s)%dia*z_i)**2
-    if (use_receding_horizon) then
-        wind_farm%turbine(s)%gen_torque =                                      &
-            linear_interp(rh_time, torque_gain_arr(s,:), total_time_dim)       &
-            * wind_farm%turbine(s)%omega**2
-        wind_farm%turbine(s)%theta1 =                                          &
-            linear_interp(rh_time, beta_arr(s,:), total_time_dim)
-    else
-        wind_farm%turbine(s)%gen_torque = torque_gain*p_omega**2
-    end if
-    p_omega = p_omega + dt_dim / inertia_all *                                 &
-        (const*(p_u_d_T*u_star)**3/p_omega - wind_farm%turbine(s)%gen_torque)
+    p_omega = p_omega + dt_dim / inertia_all * ( const*(p_u_d_T*u_star)**3 /   &
+        p_omega - wind_farm%turbine(s)%torque_gain * p_omega**2 )
 
     !volume correction:
     !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
@@ -665,11 +665,13 @@ do s = 1,nloc
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
             wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega,      &
-            wind_farm%turbine(s)%gen_torque, wind_farm%turbine(s)%gen_torque*p_omega
+            wind_farm%turbine(s)%torque_gain*p_omega**2,                        &
+            wind_farm%turbine(s)%torque_gain*p_omega**3
     end if
 end do
 
-if (coord == 0) write(*,*) "Farm power = ", sum(wind_farm%turbine(:)%gen_torque*wind_farm%turbine(:)%omega)
+if (coord == 0) write(*,*) "Farm power = ",                                    &
+    sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3)
 
 !apply forcing to each node
 do s=1,nloc
@@ -694,9 +696,9 @@ end if
 
 ! Update wake model
 if (use_wake_model) then
-    call wm%advance(-wind_farm%turbine(:)%u_d_T*u_star,                        &
+    call wm%advance(dt_dim, -wind_farm%turbine(:)%u_d_T*u_star,                &
         wind_farm%turbine(:)%omega, wind_farm%turbine(:)%theta1,               &
-        wind_farm%turbine(:)%gen_torque, dt_dim)
+        wind_farm%turbine(:)%torque_gain)
 
     ! write values to file
     if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
@@ -1321,7 +1323,7 @@ else
     allocate( torque_gain_arr(nloc, 1) )
     allocate( beta_arr(nloc, 1) )
     do i = 1, nloc
-        torque_gain_arr(i,:) = wind_farm%turbine(i)%gen_torque / wind_farm%turbine(i)%omega**2
+        torque_gain_arr(i,:) = wind_farm%turbine(i)%torque_gain
         beta_arr(i,:) = wind_farm%turbine(i)%theta1
     end do
 
@@ -1333,7 +1335,7 @@ else
 
         do i = 1, controller%N
             controller%beta(i,:) = wind_farm%turbine(i)%theta1
-            controller%torque_gain(i,:) = wind_farm%turbine(i)%gen_torque / wind_farm%turbine(i)%omega**2
+            controller%torque_gain(i,:) = wind_farm%turbine(i)%torque_gain
         end do
         call controller%makeDimensionless
         call controller%rescale_gradient
@@ -1341,7 +1343,8 @@ else
         Cb = controller%Cb
 
         ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(), controller%get_upper_bound())
+        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
+            controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         call controller%run()
         call controller%rescale_gradient
@@ -1366,18 +1369,11 @@ else
         beta_arr = controller%beta
         torque_gain_arr = controller%torque_gain
         rh_time = controller%t
-
-        ! write(*,*) "rh_time: ", rh_time
-        ! write(*,*) "gen_torque: ", gen_torque_arr
-        ! write(*,*) "beta: ", beta_arr
-        ! write(*,*) "Pref: ", controller%Pref
-        ! write(*,*) "Phat: ", controller%Pfarm
     end if
 
 #ifdef PPMPI
     ! Transfer via MPI
     call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
-    call MPI_Bcast(gen_torque_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
 #endif
@@ -1409,13 +1405,16 @@ if (modulo (jt_total, advancement_base) == 0) then
             tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
         do i = 1, nloc
-            controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:), controller%t)
-            controller%torque_gain(i,:) = linear_interp(rh_time, torque_gain_arr(i,:), controller%t)
+            controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:),       &
+                controller%t)
+            controller%torque_gain(i,:) = linear_interp(rh_time,               &
+                torque_gain_arr(i,:), controller%t)
         end do
         call controller%makeDimensionless
 
         ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(), controller%get_upper_bound())
+        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
+            controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         controller%Ca = Ca
         controller%Cb = Cb
