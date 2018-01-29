@@ -82,12 +82,12 @@ integer, public :: tbase
 
 ! Input file values for receding horizon control
 logical, public :: use_receding_horizon
-integer, public :: solver
-integer, public :: advancement_base
-real(rprec), public :: horizon_time
-integer, public     :: max_iter
-real(rprec), public :: phi_tau
-real(rprec), public :: Ct_prime_min, Ct_prime_max
+!integer, public :: solver
+!integer, public :: advancement_base
+!real(rprec), public :: horizon_time
+!integer, public     :: max_iter
+!real(rprec), public :: phi_tau
+!real(rprec), public :: Ct_prime_min, Ct_prime_max
 
 ! Input file values for wake model
 logical, public :: use_wake_model
@@ -291,7 +291,7 @@ end if
 
 ! Initialize wake mode and receding horizon
 if (use_wake_model .and. coord == 0) call wake_model_est_init
-if (use_receding_horizon) call receding_horizon_init
+!if (use_receding_horizon) call receding_horizon_init
 
 ! Cleanup
 nullify(x,y,z)
@@ -307,12 +307,13 @@ use wake_model_class
 use functions, only : linear_interp
 implicit none
 
-real(rprec) :: U_infty, wm_Delta, wm_Dia
-real(rprec), dimension(:), allocatable :: wm_Ctp, wm_k, wm_s
-real(rprec) :: ind_factor
-integer :: i
-logical :: exst
-character(100) :: string1
+real(rprec)                               :: U_infty, wm_Delta, wm_Dia
+real(rprec), dimension(:), allocatable    :: wm_Ctp, wm_k
+real(rprec), dimension(:,:), allocatable  :: wm_s
+real(rprec)                               :: ind_factor
+integer                                   :: i
+logical                                   :: exst
+character(100)                            :: string1
 
 string1 = path // 'wake_model/wm_est.dat'
 inquire (file=string1, exist=exst)
@@ -325,16 +326,15 @@ else
     wm_Dia = dia_all*z_i
     wm_Delta = 0.5 * wm_Dia
 
-    allocate( wm_Ctp(num_x) )
-    allocate( wm_k(num_x) )
-    allocate( wm_s(num_x) )
+    allocate( wm_Ctp(nloc) )
+    allocate( wm_k(nloc) )
+    allocate( wm_s(nloc,2) )
 
     wm_k = 0.05_rprec
-
-    do i = 1, num_x
-        wm_s(i) = wind_farm%turbine((i-1)*num_y + 1)%xloc * z_i
-        wm_Ctp(i) = Ct_prime
-    end do
+    
+    wm_s(:,1) = wind_farm%turbine%xloc * z_i
+    wm_s(:,2) = wind_farm%turbine%yloc * z_i
+    wm_Ctp(:) = wind_farm%turbine%Ct_prime
 
     U_infty = 0
     do i = 1, num_y
@@ -346,7 +346,7 @@ else
     U_infty = U_infty**(1._rprec/3._rprec)
 
     wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
-        num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
+        Ny, num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
 
@@ -368,47 +368,47 @@ write(u_fid, *) total_time_dim, wm_est%wm%u
 
 end subroutine wake_model_est_init
 
-!*******************************************************************************
-subroutine receding_horizon_init
-!*******************************************************************************
-use open_file_fid_mod
-use wake_model_class
-use functions, only : linear_interp
-implicit none
-
-logical :: exst
-character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
-integer :: fid, N
-
-! We're now going to use dynamic Ct_primes for the control
-! Deallocate the arrays because they will be reset.
-if (.not. dyn_Ct_prime) then
-    dyn_Ct_prime = .true.
-else
-    deallocate( Ct_prime_time )
-    deallocate( Ct_prime_arr )
-end if
-
-inquire (file=rh_dat, exist=exst)
-
-if (exst) then
-    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
-    read(fid) N
-    allocate( Ct_prime_time(N) )
-    allocate( Ct_prime_arr(nloc, N) )
-    allocate( phi_arr(num_x, N) )
-    read(fid) Ct_prime_time
-    read(fid) Ct_prime_arr
-    close(fid)
-else
-    allocate( Ct_prime_time(1) )
-    allocate( Ct_prime_arr(nloc, 1) )
-    allocate( phi_arr(num_x, 1) )
-    Ct_prime_arr = Ct_prime
-    phi_arr = Ct_prime
-end if
-
-end subroutine receding_horizon_init
+!!*******************************************************************************
+!subroutine receding_horizon_init
+!!*******************************************************************************
+!use open_file_fid_mod
+!use wake_model_class
+!use functions, only : linear_interp
+!implicit none
+!
+!logical :: exst
+!character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
+!integer :: fid, N
+!
+!! We're now going to use dynamic Ct_primes for the control
+!! Deallocate the arrays because they will be reset.
+!if (.not. dyn_Ct_prime) then
+!    dyn_Ct_prime = .true.
+!else
+!    deallocate( Ct_prime_time )
+!    deallocate( Ct_prime_arr )
+!end if
+!
+!inquire (file=rh_dat, exist=exst)
+!
+!if (exst) then
+!    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
+!    read(fid) N
+!    allocate( Ct_prime_time(N) )
+!    allocate( Ct_prime_arr(nloc, N) )
+!    allocate( phi_arr(num_x, N) )
+!    read(fid) Ct_prime_time
+!    read(fid) Ct_prime_arr
+!    close(fid)
+!else
+!    allocate( Ct_prime_time(1) )
+!    allocate( Ct_prime_arr(nloc, 1) )
+!    allocate( phi_arr(num_x, 1) )
+!    Ct_prime_arr = Ct_prime
+!    phi_arr = Ct_prime
+!end if
+!
+!end subroutine receding_horizon_init
 
 !*******************************************************************************
 subroutine turbines_nodes
@@ -807,21 +807,23 @@ end if
 
 if (use_wake_model .and. coord == 0) then
     ! Input thrust coefficient
-    allocate ( wm_Ctp(num_x) )
-    do i = 1, num_x
-        wm_Ctp(i) = wind_farm%turbine((i-1)*num_y+1)%Ct_prime
-    end do
+    allocate ( wm_Ctp(nloc) )
+    wm_Ctp(:) = wind_farm%turbine%Ct_prime
+!    do i = 1, num_x
+!        wm_Ctp(i) = wind_farm%turbine((i-1)*num_y+1)%Ct_prime
+!    end do
 
-    ! Measure average power along row
-    allocate ( wm_Pm(num_x) )
+    ! Measure average power of each turbine 
+    allocate ( wm_Pm(nloc) )
     wm_Pm = 0._rprec
-    do i = 1, num_x
-        do j = 1, num_y
-            wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) *                                  &
-                (wind_farm%turbine((i-1)*num_y + j)%u_d_T * u_star)**3 / num_y
-        end do
-    end do
-
+    wm_Pm(:) = wm_Pm - wm_Ctp * (wind_farm%turbine%u_d_T * u_star)**3
+!    do i = 1, num_x
+!        do j = 1, num_y
+!            wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) *                                  &
+!                (wind_farm%turbine((i-1)*num_y + j)%u_d_T * u_star)**3 / num_y
+!        end do
+!    end do
+    
     ! Advance the estimator with the measurements
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
 
@@ -839,7 +841,7 @@ if (use_wake_model .and. coord == 0) then
 end if
 
 ! Calculate the receding horizon trajectories
-if (use_receding_horizon) call eval_receding_horizon
+!if (use_receding_horizon) call eval_receding_horizon
 
 ! Cleanup
 deallocate(w_uv)
@@ -848,88 +850,88 @@ nullify(p_icp, p_jcp, p_kcp)
 
 end subroutine turbines_forcing
 
-!*******************************************************************************
-subroutine eval_receding_horizon ()
-!*******************************************************************************
-use rh_control
-use conjugate_gradient_class
-use lbfgsb_class
-use wake_model_class
-use functions, only : linear_interp
-implicit none
-
-type(MinimizedFarm) :: mfarm
-type(ConjugateGradient) :: cg
-type(lbfgsb) :: bf
-integer :: num_t = 0
-real(rprec), dimension(:), allocatable :: buffer_array
-
-! Only perform receding horizon control every advancement step
-if (modulo (jt_total, advancement_base) == 0) then
-    if (coord == 0) then
-        ! Run initial guess in object
-        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
-            Pref_time, Pref_arr, phi_tau)
-        call mfarm%run(Ct_prime_time, phi_arr)
-
-        ! Perform optimization
-        if (solver == 1) then
-            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call cg%minimize(mfarm%get_phi_vector())
-        else
-            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call bf%minimize(mfarm%get_phi_vector())
-        end if
-        call mfarm%makeDimensional
-
-        ! Place result in buffer array
-        num_t = mfarm%Nt
-        allocate( buffer_array((num_x + 1) * num_t) )
-        buffer_array(1:num_t) = mfarm%t
-        do i = 1, num_x
-            buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
-        end do
-
-        ! Store phi vector for next iteration
-        deallocate(phi_arr)
-        allocate( phi_arr(num_x, num_t) )
-        phi_arr = mfarm%phi
-
-#ifdef PPMPI
-        ! Send to other processors
-        do i = 1, nproc-1
-            call MPI_send( (num_x + 1) * mfarm%Nt, 1, MPI_integer, i, &
-                10, comm, ierr)
-            call MPI_send( buffer_array, (num_x + 1) * mfarm%Nt, MPI_rprec, i, &
-                11, comm, ierr)
-        end do
-    else
-
-        ! Receive from coord 0
-        call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
-        num_t = num_t / (num_x+1)
-        allocate( buffer_array(num_t*(num_x+1)) )
-        call MPI_recv(buffer_array, num_t*(num_x+1), MPI_rprec, 0, 11, comm, status, ierr)
-#endif
-    end if
-
-    ! Place row Ct_prime's into interpolation array
-    deallocate(Ct_prime_time)
-    allocate(Ct_prime_time(num_t))
-    Ct_prime_time = buffer_array(1:num_t)
-    deallocate(Ct_prime_arr)
-    allocate( Ct_prime_arr(nloc,num_t) )
-    do i = 1, num_x
-        do j = 1, num_y
-            Ct_prime_arr(j + (i-1)*num_y, :) = buffer_array((num_t*i+1):num_t*(i+1))
-        end do
-    end do
-
-    ! Cleanup
-    deallocate(buffer_array)
-end if
-
-end subroutine eval_receding_horizon
+!!*******************************************************************************
+!subroutine eval_receding_horizon ()
+!!*******************************************************************************
+!use rh_control
+!use conjugate_gradient_class
+!use lbfgsb_class
+!use wake_model_class
+!use functions, only : linear_interp
+!implicit none
+!
+!type(MinimizedFarm) :: mfarm
+!type(ConjugateGradient) :: cg
+!type(lbfgsb) :: bf
+!integer :: num_t = 0
+!real(rprec), dimension(:), allocatable :: buffer_array
+!
+!! Only perform receding horizon control every advancement step
+!if (modulo (jt_total, advancement_base) == 0) then
+!    if (coord == 0) then
+!        ! Run initial guess in object
+!        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
+!            Pref_time, Pref_arr, phi_tau)
+!        call mfarm%run(Ct_prime_time, phi_arr)
+!
+!        ! Perform optimization
+!        if (solver == 1) then
+!            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+!            call cg%minimize(mfarm%get_phi_vector())
+!        else
+!            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+!            call bf%minimize(mfarm%get_phi_vector())
+!        end if
+!        call mfarm%makeDimensional
+!
+!        ! Place result in buffer array
+!        num_t = mfarm%Nt
+!        allocate( buffer_array((num_x + 1) * num_t) )
+!        buffer_array(1:num_t) = mfarm%t
+!        do i = 1, num_x
+!            buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
+!        end do
+!
+!        ! Store phi vector for next iteration
+!        deallocate(phi_arr)
+!        allocate( phi_arr(num_x, num_t) )
+!        phi_arr = mfarm%phi
+!
+!#ifdef PPMPI
+!        ! Send to other processors
+!        do i = 1, nproc-1
+!            call MPI_send( (num_x + 1) * mfarm%Nt, 1, MPI_integer, i, &
+!                10, comm, ierr)
+!            call MPI_send( buffer_array, (num_x + 1) * mfarm%Nt, MPI_rprec, i, &
+!                11, comm, ierr)
+!        end do
+!    else
+!
+!        ! Receive from coord 0
+!        call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
+!        num_t = num_t / (num_x+1)
+!        allocate( buffer_array(num_t*(num_x+1)) )
+!        call MPI_recv(buffer_array, num_t*(num_x+1), MPI_rprec, 0, 11, comm, status, ierr)
+!#endif
+!    end if
+!
+!    ! Place row Ct_prime's into interpolation array
+!    deallocate(Ct_prime_time)
+!    allocate(Ct_prime_time(num_t))
+!    Ct_prime_time = buffer_array(1:num_t)
+!    deallocate(Ct_prime_arr)
+!    allocate( Ct_prime_arr(nloc,num_t) )
+!    do i = 1, num_x
+!        do j = 1, num_y
+!            Ct_prime_arr(j + (i-1)*num_y, :) = buffer_array((num_t*i+1):num_t*(i+1))
+!        end do
+!    end do
+!
+!    ! Cleanup
+!    deallocate(buffer_array)
+!end if
+!
+!end subroutine eval_receding_horizon
 
 !*******************************************************************************
 subroutine turbines_finalize ()
