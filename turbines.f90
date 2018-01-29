@@ -1348,9 +1348,6 @@ else
             controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
         call controller%run()
-        call controller%rescale_gradient
-        Ca = controller%Ca
-        Cb = controller%Cb
         N = controller%Nt
     end if
 
@@ -1413,12 +1410,12 @@ if (modulo (jt_total, advancement_base) == 0) then
                 torque_gain_arr(i,:), controller%t)
         end do
         call controller%makeDimensionless
+        controller%Ca = Ca
+        controller%Cb = Cb
 
         ! Do the initial optimization
         m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
             controller%get_upper_bound())
-        controller%Ca = Ca
-        controller%Cb = Cb
         call m%minimize( controller%get_control_vector() )
         call controller%run()
         N = controller%Nt
