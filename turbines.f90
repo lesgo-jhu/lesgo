@@ -290,6 +290,7 @@ if (exst) then
     fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
     do i=1,nloc
         wind_farm%turbine(i)%torque_gain = torque_gain
+        wind_farm%turbine(i)%beta = 0._rprec
         read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega
     end do
     read(fid,*) T_avg_dim_file
@@ -307,6 +308,7 @@ else
         wind_farm%turbine(k)%u_d_T = -8._rprec
         wind_farm%turbine(k)%omega = 1._rprec
         wind_farm%turbine(k)%torque_gain = torque_gain
+        wind_farm%turbine(i)%beta = 0._rprec
     end do
 end if
 
@@ -631,7 +633,7 @@ do s = 1,nloc
     if (use_receding_horizon) then
         wind_farm%turbine(s)%torque_gain =                                     &
             linear_interp(rh_time, torque_gain_arr(s,:), total_time_dim)
-        wind_farm%turbine(s)%theta1 =                                          &
+        wind_farm%turbine(s)%beta =                                            &
             linear_interp(rh_time, beta_arr(s,:), total_time_dim)
     end if
 
@@ -649,9 +651,9 @@ do s = 1,nloc
     p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
     ! Calculate Ct_prime and Cp_prime
-    call Ct_prime_spline%interp(wind_farm%turbine(s)%theta1, -p_omega * 0.5    &
+    call Ct_prime_spline%interp(wind_farm%turbine(s)%beta, -p_omega * 0.5      &
         * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Ct_prime)
-    call Cp_prime_spline%interp(wind_farm%turbine(s)%theta1, -p_omega * 0.5    &
+    call Cp_prime_spline%interp(wind_farm%turbine(s)%beta, -p_omega * 0.5      &
         * wind_farm%turbine(s)%dia * z_i / p_u_d_T / u_star, p_Cp_prime)
 
     ! calculate total thrust force for each turbine  (per unit mass)
@@ -665,8 +667,9 @@ do s = 1,nloc
         write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,      &
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
-            wind_farm%turbine(s)%theta2, p_Ct_prime, p_Cp_prime, p_omega,      &
-            wind_farm%turbine(s)%torque_gain*p_omega**2,                        &
+            wind_farm%turbine(s)%theta2, wind_farm%turbine%beta, p_Ct_prime,   &
+            p_Cp_prime, p_omega, wind_farm%turbine(s)%torque_gain,             &
+            wind_farm%turbine(s)%torque_gain*p_omega**2,                       &
             wind_farm%turbine(s)%torque_gain*p_omega**3
     end if
 end do
@@ -698,7 +701,7 @@ end if
 ! Update wake model
 if (use_wake_model) then
     call wm%advance(dt_dim, -wind_farm%turbine(:)%u_d_T*u_star,                &
-        wind_farm%turbine(:)%omega, wind_farm%turbine(:)%theta1,               &
+        wind_farm%turbine(:)%omega, wind_farm%turbine(:)%beta,                 &
         wind_farm%turbine(:)%torque_gain)
 
     ! write values to file
@@ -1325,7 +1328,7 @@ else
     allocate( beta_arr(nloc, 1) )
     do i = 1, nloc
         torque_gain_arr(i,:) = wind_farm%turbine(i)%torque_gain
-        beta_arr(i,:) = wind_farm%turbine(i)%theta1
+        beta_arr(i,:) = wind_farm%turbine(i)%beta
     end do
 
     if (coord == 0) then
@@ -1335,7 +1338,7 @@ else
             tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
         do i = 1, controller%N
-            controller%beta(i,:) = wind_farm%turbine(i)%theta1
+            controller%beta(i,:) = wind_farm%turbine(i)%beta
             controller%torque_gain(i,:) = wind_farm%turbine(i)%torque_gain
         end do
         call controller%makeDimensionless

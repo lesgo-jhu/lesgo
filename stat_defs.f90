@@ -127,6 +127,8 @@ type turbine_t
     integer, dimension(6) :: nodes_max
     ! rotational speed (rad/s)
     real(rprec) :: omega
+    ! pitch angle (degrees)
+    real(rprec) :: beta
     ! torque_gain
     real(rprec) :: torque_gain
 end type turbine_t
@@ -844,4 +846,3 @@ c % vpwp = a
 end subroutine rs_set
 
 end module stat_defs
-
