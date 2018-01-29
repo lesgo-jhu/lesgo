@@ -1417,9 +1417,9 @@ if (modulo (jt_total, advancement_base) == 0) then
         ! Do the initial optimization
         m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
             controller%get_upper_bound())
-        call m%minimize( controller%get_control_vector() )
         controller%Ca = Ca
         controller%Cb = Cb
+        call m%minimize( controller%get_control_vector() )
         call controller%run()
         N = controller%Nt
     end if
