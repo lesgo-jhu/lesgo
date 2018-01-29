@@ -289,6 +289,7 @@ if (exst) then
     if (coord == 0) write(*,*) 'Reading from file ', trim(u_d_T_dat)
     fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
     do i=1,nloc
+        wind_farm%turbine(i)%torque_gain = torque_gain
         read(fid,*) wind_farm%turbine(i)%u_d_T, wind_farm%turbine(i)%omega
     end do
     read(fid,*) T_avg_dim_file
