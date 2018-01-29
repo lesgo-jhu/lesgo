@@ -667,7 +667,7 @@ do s = 1,nloc
         write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,      &
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
-            wind_farm%turbine(s)%theta2, wind_farm%turbine%beta, p_Ct_prime,   &
+            wind_farm%turbine(s)%theta2, wind_farm%turbine(s)%beta, p_Ct_prime,   &
             p_Cp_prime, p_omega, wind_farm%turbine(s)%torque_gain,             &
             wind_farm%turbine(s)%torque_gain*p_omega**2,                       &
             wind_farm%turbine(s)%torque_gain*p_omega**3
