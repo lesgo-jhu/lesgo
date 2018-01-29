@@ -169,8 +169,7 @@ integer :: fid
 ! Read scalar values
 fid = open_file_fid(fstring, 'rewind', 'unformatted')
 read(fid) this%N, this%U_infty, this%Delta, this%Dia, this%rho, this%inertia,  &
-    this%torque_gain, this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless,&
-    this%Nwaked
+    this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless, this%Nwaked
 read(fid) this%LENGTH, this%VELOCITY, this%TIME, this%MASS, this%TORQUE,       &
     this%POWER
 
@@ -191,6 +190,7 @@ allocate( this%Istart(this%N, this%Nx) )
 allocate( this%Iend(this%N, this%Nx) )
 allocate( this%Isum(this%N, this%Nx) )
 allocate( this%waked(this%N) )
+allocate( this%torque_gain(this%N) )
 
 ! Allocate arrays from wake_model_t
 allocate( this%du(this%N, this%Nx) )
@@ -223,6 +223,7 @@ read(fid) this%omega
 read(fid) this%beta
 read(fid) this%lambda_prime
 read(fid) this%waked
+read(fid) this%torque_gain
 close(fid)
 
 ! Assign splines
@@ -292,8 +293,7 @@ integer :: fid
 
 fid = open_file_fid(fstring, 'rewind', 'unformatted')
 write(fid) this%N, this%U_infty, this%Delta, this%Dia, this%rho, this%inertia, &
-    this%torque_gain, this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless,&
-    this%Nwaked
+    this%dx, this%dy, this%Nx, this%Ny, this%isDimensionless, this%Nwaked
 write(fid) this%LENGTH, this%VELOCITY, this%TIME, this%MASS, this%TORQUE,      &
     this%POWER
 write(fid) this%sx
@@ -313,6 +313,7 @@ write(fid) this%omega
 write(fid) this%beta
 write(fid) this%lambda_prime
 write(fid) this%waked
+write(fid) this%torque_gain
 close(fid)
 
 end subroutine write_to_file
