@@ -1358,6 +1358,7 @@ else
 #ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
+    deallocate(torque_gain_arr)
     deallocate(rh_time)
     deallocate(beta_arr)
     allocate(torque_gain_arr(nloc, N))
