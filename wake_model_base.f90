@@ -177,12 +177,19 @@ this%inertia = i_inertia
 this%torque_gain(:) = i_torque_gain
 
 ! Normalization constants
-this%VELOCITY = i_U_infty
-this%LENGTH = i_Dia
-this%TIME = this%LENGTH / this%VELOCITY
-this%MASS = this%rho * this%LENGTH**3 !/ 50._rprec**3
-this%TORQUE = this%MASS * this%LENGTH**2 / this%TIME**2
-this%POWER = this%MASS * this%LENGTH**2 / this%TIME**3
+this%TIME = 1._rprec
+this%POWER = 0.25_rprec * this%rho * 3.14_rprec * i_Dia**2 *0.25_rprec * i_U_infty**3
+this%TORQUE = this%POWER * this%TIME
+this%LENGTH = (this%POWER * this%TIME**3 / this%rho)**(0.2_rprec)
+this%MASS = this%rho * this%LENGTH**3
+this%VELOCITY = this%LENGTH / this%TIME
+
+! this%VELOCITY = i_U_infty
+! this%LENGTH = 0.1_rprec * i_Dia
+! this%TIME = this%LENGTH / this%VELOCITY
+! this%MASS = this%rho * this%LENGTH**3 !/ 50._rprec**3
+! this%TORQUE = this%MASS * this%LENGTH**2 / this%TIME**2
+! this%POWER = this%MASS * this%LENGTH**2 / this%TIME**3
 
 ! Streamwise coordinate
 xstart = minval(this%sx) - 2.5_rprec*this%Dia
@@ -321,6 +328,7 @@ implicit none
 class(wake_model_base_t), intent(inout) :: this
 
 if (this%isDimensionless) then
+    this%isDimensionless = .false.
     ! units L
     this%sx = this%sx * this%LENGTH
     this%sy = this%sy * this%LENGTH
@@ -333,6 +341,7 @@ if (this%isDimensionless) then
     this%Isum = this%Isum * this%LENGTH
     ! units L^-1
     this%G = this%G / this%LENGTH
+    this%dp = this%dp / this%LENGTH
     ! units T^-1
     this%w = this%w / this%TIME
     ! units V*T^-1

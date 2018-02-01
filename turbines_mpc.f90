@@ -183,7 +183,7 @@ if (.not.this%isDimensionless) then
     this%dt = this%dt / this%w%TIME
     this%Pref = this%Pref / this%w%POWER
     this%Pfarm = this%Pfarm / this%w%POWER
-    this%cost = this%cost / this%w%POWER**2 / this%w%TIME
+    !this%cost = this%cost / this%w%POWER**2 / this%w%TIME
     this%torque_gain = this%torque_gain / this%w%TORQUE / this%w%TIME**2
     this%torque_gain_min = this%torque_gain_min / this%w%TORQUE / this%w%TIME**2
     this%torque_gain_max = this%torque_gain_max / this%w%TORQUE / this%w%TIME**2
@@ -208,7 +208,7 @@ if (this%isDimensionless) then
     this%dt = this%dt * this%w%TIME
     this%Pref = this%Pref * this%w%POWER
     this%Pfarm = this%Pfarm * this%w%POWER
-    this%cost = this%cost * this%w%POWER**2 * this%w%TIME
+    !this%cost = this%cost * this%w%POWER**2 * this%w%TIME
     this%torque_gain = this%torque_gain * this%w%TORQUE * this%w%TIME**2
     this%torque_gain_min = this%torque_gain_min * this%w%TORQUE * this%w%TIME**2
     this%torque_gain_max = this%torque_gain_max * this%w%TORQUE * this%w%TIME**2
