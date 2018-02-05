@@ -308,7 +308,7 @@ else
         wind_farm%turbine(k)%u_d_T = -8._rprec
         wind_farm%turbine(k)%omega = 1._rprec
         wind_farm%turbine(k)%torque_gain = torque_gain
-        wind_farm%turbine(i)%beta = 0._rprec
+        wind_farm%turbine(k)%beta = 0._rprec
     end do
 end if
 
@@ -500,7 +500,6 @@ do s=1,nloc
 end do
 
 ! Sum the indicator function across all processors if using MPI
-write(*,*) sumA
 #ifdef PPMPI
 buffer_array = sumA
 call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)

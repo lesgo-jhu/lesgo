@@ -53,11 +53,11 @@ type, extends(minimize_t) :: turbines_mpc_t
     ! Constraints on rotational speed (penalized in cost function)
     real(rprec) :: omega_min = 0._rprec
     real(rprec) :: omega_max = 1000000000000._rprec
-    real(rprec) :: eta1 = 1000._rprec
+    real(rprec) :: eta1 = 1000000._rprec
     ! Penalty away from optimal TSR and pitch angle
-    real(rprec) :: eta2 = 0.000001_rprec
+    real(rprec) :: eta2 = 0.001_rprec
     real(rprec) :: beta_star = 0._rprec
-    real(rprec) :: eta3 = 0.000001_rprec
+    real(rprec) :: eta3 = 0.001_rprec
     real(rprec) :: lambda_prime_star = 11._rprec
 contains
     procedure, public :: initialize
@@ -70,6 +70,7 @@ contains
     procedure, public :: run
     procedure, public :: finite_difference_gradient
     procedure, public :: rescale_gradient
+    procedure, public :: reset_state
 end type turbines_mpc_t
 
 interface turbines_mpc_t
@@ -151,6 +152,8 @@ this%lambda_prime_star = i_lambda_prime_star
 if (present(i_eta1)) this%eta1 = i_eta1
 if (present(i_omega_min)) this%omega_min = i_omega_min
 if (present(i_omega_max)) this%omega_max = i_omega_max
+! this%torque_gain_min = 0.9_rprec*i_wm%torque_gain(1)
+! this%torque_gain_max = 1.1_rprec*i_wm%torque_gain(1)
 
 ! allocate and set initial conditions for control variables
 allocate( this%beta(this%N, this%Nt) )
@@ -299,7 +302,10 @@ do k = 2, this%Nt
         reg(:) = reg(:) + this%w%omega(:) - this%omega_max
     end where
     this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)                  &
-        + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )
+        + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )       &
+         + 0.1_rprec * sum ( (this%torque_gain(:,k) - this%torque_gain(:,k-1))**2 ) / this%dt &
+         + 0.1_rprec * sum ( (this%beta(:,k) - this%beta(:,k-1))**2 ) / this%dt
+
     ! calculate adjoint values that depend on cost function
     Uj(k,:) = 0._rprec
     Wj(k,:) = -6._rprec * (this%Pfarm(k) - this%Pref(k))                       &
@@ -307,9 +313,12 @@ do k = 2, this%Nt
     ! calculate part of gradients that depends only on the cost function and   &
     ! states
     this%grad_torque_gain(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))     &
-        * this%w%omega**3 * this%dt
+        * this%w%omega**3 * this%dt + 0.2_rprec * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
+     this%grad_torque_gain(:,k-1) = this%grad_torque_gain(:,k-1)               &
+        - 0.2_rprec * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
     this%grad_beta(:,k) = 2._rprec * this%eta2 * (this%w%beta - this%beta_star)&
-        * this%dt
+         * this%dt + 0.2_rprec *  (this%beta(:,k) - this%beta(:,k-1)) / this%dt
+     this%grad_beta(:,k-1) = this%grad_beta(:,k-1) - 0.2_rprec *  (this%beta(:,k) - this%beta(:,k-1)) / this%dt
 end do
 
 ! Run backwards in time
@@ -349,7 +358,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     this%beta(:,k+1) = x(istart:istop) * this%Cb
-    this%torque_gain(:,k+1) = x(istart+iskip:istop+iskip) * this%Ca
+    this%torque_gain(:,k+1) = x((istart+iskip):(istop+iskip)) * this%Ca
 end do
 
 ! Run model
@@ -364,7 +373,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     g(istart:istop) = this%grad_beta(:,k+1) * this%Cb
-    g(istart+iskip:istop+iskip) = this%grad_torque_gain(:,k+1) * this%Ca
+    g((istart+iskip):(istop+iskip)) = this%grad_torque_gain(:,k+1) * this%Ca
 end do
 
 end subroutine eval
@@ -377,15 +386,14 @@ class(turbines_mpc_t) :: this
 real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
-allocate( x(2*(size(this%beta) - this%N)) )
-x = -1000
+allocate( x(2*(this%Nt-1)*this%N) )
 
 iskip = (this%Nt-1) * this%N
 do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta(:,k+1) / this%Cb
-    x(istart+iskip:istop+iskip) = this%torque_gain(:,k+1) / this%Ca
+    x((istart+iskip):(istop+iskip)) = this%torque_gain(:,k+1) / this%Ca
 end do
 
 end function get_control_vector
@@ -407,7 +415,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta_min / this%Cb
-    x(istart+iskip:istop+iskip) = this%torque_gain_min / this%Ca
+    x((istart+iskip):(istop+iskip)) = this%torque_gain_min / this%Ca
 end do
 
 end function get_lower_bound
@@ -429,7 +437,7 @@ do k = 1, this%Nt-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta_max / this%Cb
-    x(istart+iskip:istop+iskip) = this%torque_gain_max / this%Ca
+    x((istart+iskip):(istop+iskip)) = this%torque_gain_max / this%Ca
 end do
 
 end function get_upper_bound
@@ -491,5 +499,31 @@ else
 end if
 
 end subroutine rescale_gradient
+
+!*******************************************************************************
+subroutine reset_state(this, i_time, i_Pref, t0, i_wm, i_torque_gain)
+!*******************************************************************************
+implicit none
+class(turbines_mpc_t), intent(inout) :: this
+real(rprec), dimension(:), intent(in) :: i_time, i_Pref
+real(rprec), intent(in) :: t0, i_torque_gain
+type(wake_model_t), intent(in) :: i_wm
+integer :: i
+
+do i = 1, this%N
+    this%beta(i,:) = linear_interp(this%t(1:this%Nt-1), this%beta(i,1:this%Nt-1), this%t - this%t(1) + t0)
+    this%torque_gain(i,:) = linear_interp(this%t(1:this%Nt-1), this%torque_gain(i,1:this%Nt-1), this%t - this%t(1) + t0)
+!     where (this%t - this%t(1) + t0 > this%t(this%Nt))
+!         this%beta(i,:) = 0._rprec
+!         this%torque_gain(i,:) = i_torque_gain
+!     end where
+end do
+this%t = this%t - this%t(1) + t0
+this%Pref = linear_interp(i_time, i_Pref, this%t)
+this%iw = i_wm
+this%Pfarm(1) = sum(this%iw%Phat)
+
+end subroutine reset_state
+
 
 end module turbines_mpc

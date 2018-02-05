@@ -210,10 +210,6 @@ integer, save :: dummy
 ! procedures
 real(rprec) :: ddot
 
-write(*,*) "here"
-write(*,*) size(l)
-write(*,*) n
-
 if (.not.(size(l) == n)) then
     ! If already allocate, deallocate
     if (allocated(l)) then
@@ -587,6 +583,7 @@ do while (iter < this%maxiteri)
     call this%mini%eval(x, f, g)
     write(*,*) f
     gdold = ddot(n,g,1,d,1)
+    if (sum(g*d) > 0.0) cycle
     call this%ls%search(x, f, g, d, stp, dummy)
     gd = ddot(n,g,1,d,1)
     nfgv = nfgv + dummy
@@ -1959,8 +1956,8 @@ do i=1, n
 enddo
 if ( dd_p .gt.0.0d0 ) then
     call dcopy( n, xp, 1, x, 1 )
-    write(6,*) ' Positive dir derivative in projection '
-    write(6,*) ' Using the backtracking step '
+!     write(6,*) ' Positive dir derivative in projection '
+!     write(6,*) ' Using the backtracking step '
 else
     if (iprint .ge. 99) write (6,*) "----------------exit SUBSM --------------------"
     return
