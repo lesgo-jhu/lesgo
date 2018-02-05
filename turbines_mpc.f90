@@ -59,6 +59,8 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec) :: beta_star = 0._rprec
     real(rprec) :: eta3 = 0.001_rprec
     real(rprec) :: lambda_prime_star = 11._rprec
+    ! Penalty of derivatives
+    real(rprec) :: eta4 = 0.1_rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -303,8 +305,9 @@ do k = 2, this%Nt
     end where
     this%cost = this%cost + this%dt * this%eta1 * sum(reg**2)                  &
         + this%dt * this%eta2 * sum( (this%w%beta - this%beta_star)**2 )       &
-         + 0.1_rprec * sum ( (this%torque_gain(:,k) - this%torque_gain(:,k-1))**2 ) / this%dt &
-         + 0.1_rprec * sum ( (this%beta(:,k) - this%beta(:,k-1))**2 ) / this%dt
+         + this%eta4 * sum((this%torque_gain(:,k)-this%torque_gain(:,k-1))**2) &
+         / this%dt + this%eta4 * sum((this%beta(:,k)-this%beta(:,k-1))**2)     &
+         / this%dt
 
     ! calculate adjoint values that depend on cost function
     Uj(k,:) = 0._rprec
@@ -313,12 +316,16 @@ do k = 2, this%Nt
     ! calculate part of gradients that depends only on the cost function and   &
     ! states
     this%grad_torque_gain(:,k) = 2._rprec * (this%Pfarm(k) - this%Pref(k))     &
-        * this%w%omega**3 * this%dt + 0.2_rprec * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
+        * this%w%omega**3 * this%dt +  2._rprec * this%eta4                    &
+        * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
      this%grad_torque_gain(:,k-1) = this%grad_torque_gain(:,k-1)               &
-        - 0.2_rprec * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
+        - 2._rprec * this%eta4                                                 &
+        * (this%torque_gain(:,k) - this%torque_gain(:,k-1)) / this%dt
     this%grad_beta(:,k) = 2._rprec * this%eta2 * (this%w%beta - this%beta_star)&
-         * this%dt + 0.2_rprec *  (this%beta(:,k) - this%beta(:,k-1)) / this%dt
-     this%grad_beta(:,k-1) = this%grad_beta(:,k-1) - 0.2_rprec *  (this%beta(:,k) - this%beta(:,k-1)) / this%dt
+         * this%dt + 2._rprec * this%eta4 * (this%beta(:,k) - this%beta(:,k-1))&
+         / this%dt
+     this%grad_beta(:,k-1) = this%grad_beta(:,k-1) -  2._rprec * this%eta4 *   &
+        (this%beta(:,k) - this%beta(:,k-1)) / this%dt
 end do
 
 ! Run backwards in time
@@ -501,22 +508,20 @@ end if
 end subroutine rescale_gradient
 
 !*******************************************************************************
-subroutine reset_state(this, i_time, i_Pref, t0, i_wm, i_torque_gain)
+subroutine reset_state(this, i_time, i_Pref, t0, i_wm)
 !*******************************************************************************
 implicit none
 class(turbines_mpc_t), intent(inout) :: this
 real(rprec), dimension(:), intent(in) :: i_time, i_Pref
-real(rprec), intent(in) :: t0, i_torque_gain
+real(rprec), intent(in) :: t0
 type(wake_model_t), intent(in) :: i_wm
 integer :: i
 
 do i = 1, this%N
-    this%beta(i,:) = linear_interp(this%t(1:this%Nt-1), this%beta(i,1:this%Nt-1), this%t - this%t(1) + t0)
-    this%torque_gain(i,:) = linear_interp(this%t(1:this%Nt-1), this%torque_gain(i,1:this%Nt-1), this%t - this%t(1) + t0)
-!     where (this%t - this%t(1) + t0 > this%t(this%Nt))
-!         this%beta(i,:) = 0._rprec
-!         this%torque_gain(i,:) = i_torque_gain
-!     end where
+    this%beta(i,:) = linear_interp(this%t(1:this%Nt-1),                        &
+        this%beta(i,1:this%Nt-1), this%t - this%t(1) + t0)
+    this%torque_gain(i,:) = linear_interp(this%t(1:this%Nt-1),                 &
+        this%torque_gain(i,1:this%Nt-1), this%t - this%t(1) + t0)
 end do
 this%t = this%t - this%t(1) + t0
 this%Pref = linear_interp(i_time, i_Pref, this%t)

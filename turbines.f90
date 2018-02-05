@@ -30,6 +30,8 @@ use string_util
 use stat_defs, only : wind_farm
 use bi_pchip
 use wake_model_estimator
+use turbines_mpc
+use lbfgsb
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
 #endif
@@ -175,6 +177,10 @@ type(wake_model_estimator_t) :: wm
 character(*), parameter :: wm_path = path // 'wake_model'
 integer, dimension(:), allocatable :: wm_fid
 type(bi_pchip_t), public :: wm_Cp_prime_spline, wm_Ct_prime_spline
+
+! controller
+type(turbines_mpc_t) :: controller
+type(lbfgsb_t) :: m
 
 contains
 
@@ -1301,8 +1307,6 @@ implicit none
 
 logical :: exst
 integer :: fid, N
-type(turbines_mpc_t) :: controller
-type(lbfgsb_t) :: m
 integer :: i
 
 inquire (file=rh_dat, exist=exst)
@@ -1317,8 +1321,6 @@ if (exst) then
     read(fid) rh_time
     read(fid) torque_gain_arr
     read(fid) beta_arr
-    read(fid) Ca
-    read(fid) Cb
     close(fid)
 else
     allocate( rh_time(1) )
@@ -1329,31 +1331,33 @@ else
         torque_gain_arr(i,:) = wind_farm%turbine(i)%torque_gain
         beta_arr(i,:) = wind_farm%turbine(i)%beta
     end do
+ end if
 
-    if (coord == 0) then
-        write(*,*) "Computing initial optimization..."
-        controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,       &
-            0.99_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,          &
-            tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
+if (coord == 0) then
+    write(*,*) "Computing initial optimization..."
+    controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,           &
+        0.1_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,               &
+        tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
-        do i = 1, controller%N
-            controller%beta(i,:) = wind_farm%turbine(i)%beta
-            controller%torque_gain(i,:) = wind_farm%turbine(i)%torque_gain
-        end do
-        call controller%makeDimensionless
-        call controller%rescale_gradient
-        Ca = controller%Ca
-        Cb = controller%Cb
+    do i = 1, nloc
+        controller%beta(i,:) = linear_interp(rh_time, torque_gain_arr(i,:),    &
+            controller%t)
+        controller%torque_gain(i,:) = linear_interp(rh_time, beta_arr(i,:),    &
+            controller%t)
+    end do
+    call controller%makeDimensionless
+    call controller%rescale_gradient(0.1_rprec, 1._rprec)
 
-        ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
-            controller%get_upper_bound())
-        call m%minimize( controller%get_control_vector() )
-        call controller%run()
-        N = controller%Nt
-    end if
+    ! Do the initial optimization
+    m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),           &
+        controller%get_upper_bound())
+    call m%minimize( controller%get_control_vector() )
+    call controller%makeDimensional
+    if (.not. exst) N = controller%Nt
+ end if
 
-    ! Allocate arrays
+if (.not. exst) then
+! Allocate arrays
 #ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
@@ -1363,23 +1367,21 @@ else
     allocate(torque_gain_arr(nloc, N))
     allocate(beta_arr(nloc, N))
     allocate(rh_time(N))
+end if
 
-    ! Copy control arrays
-    if (coord == 0) then
-        call controller%makeDimensional
-        beta_arr = controller%beta
-        torque_gain_arr = controller%torque_gain
-        rh_time = controller%t
-    end if
+! Copy control arrays
+if (coord == 0) then
+    beta_arr = controller%beta
+    torque_gain_arr = controller%torque_gain
+    rh_time = controller%t
+end if
 
 #ifdef PPMPI
-    ! Transfer via MPI
-    call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
-    call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
-    call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
+! Transfer via MPI
+call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
+call MPI_Bcast(rh_time, N, MPI_RPREC, 0, comm, ierr)
 #endif
-
-end if
 
 end subroutine receding_horizon_init
 
@@ -1392,8 +1394,6 @@ use lbfgsb
 use functions, only : linear_interp
 implicit none
 
-type(turbines_mpc_t) :: controller
-type(lbfgsb_t) :: m
 integer :: N = 0
 
 ! Only perform receding horizon control every advancement step
@@ -1401,42 +1401,19 @@ if (modulo (jt_total, advancement_base) == 0) then
 
     if (coord == 0) then
         write(*,*) "Optimizing..."
-        controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,       &
-            0.99_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,          &
-            tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
-
-        do i = 1, nloc
-            controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:),       &
-                controller%t)
-            controller%torque_gain(i,:) = linear_interp(rh_time,               &
-                torque_gain_arr(i,:), controller%t)
-        end do
+        call controller%reset_state(Pref_time, Pref_arr, total_time_dim, wm%wm)
         call controller%makeDimensionless
-        controller%Ca = Ca
-        controller%Cb = Cb
-
-        ! Do the initial optimization
-        m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),       &
-            controller%get_upper_bound())
         call m%minimize( controller%get_control_vector() )
-        call controller%run()
-        N = controller%Nt
+        call controller%MakeDimensional
     end if
 
     ! Allocate arrays
 #ifdef PPMPI
     call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
 #endif
-    deallocate(rh_time)
-    deallocate(beta_arr)
-    deallocate(torque_gain_arr)
-    allocate(torque_gain_arr(nloc, N))
-    allocate(beta_arr(nloc, N))
-    allocate(rh_time(N))
 
     ! Copy control arrays
     if (coord == 0) then
-        call controller%makeDimensional
         beta_arr = controller%beta
         torque_gain_arr = controller%torque_gain
         rh_time = controller%t
@@ -1469,8 +1446,6 @@ if (coord == 0) then
     write(fid) rh_time
     write(fid) beta_arr
     write(fid) torque_gain_arr
-    write(fid) Ca
-    write(fid) Cb
     close(fid)
 end if
 

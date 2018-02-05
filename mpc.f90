@@ -167,7 +167,7 @@ write(Pfarm_fid,*) sum(wm%Phat)
 write(u_fid,*) wm%u
 
 Nskip = 5
-do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
+do j = 1, controller%Nt/Nskip
     ! Advance wake model
     do i = 1, Nskip
         tt = tt + controller%dt
@@ -193,8 +193,7 @@ do j = 1, ceiling( time(size(time)) / controller%dt ) / Nskip
     end do
 
     ! Minimize
-    call controller%reset_state(time, Pref, tt, wm, torque_gain)
-    call controller%run
+    call controller%reset_state(time, Pref, tt, wm)
     call controller%makeDimensionless
     call m%minimize( controller%get_control_vector() )
     call controller%MakeDimensional
