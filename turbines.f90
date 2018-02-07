@@ -1328,29 +1328,34 @@ else
     allocate( torque_gain_arr(nloc, 1) )
     allocate( beta_arr(nloc, 1) )
     do i = 1, nloc
-        torque_gain_arr(i,:) = wind_farm%turbine(i)%torque_gain
-        beta_arr(i,:) = wind_farm%turbine(i)%beta
+        torque_gain_arr(i,:) = torque_gain
+        beta_arr(i,:) = 0._rprec
     end do
  end if
 
 if (coord == 0) then
     write(*,*) "Computing initial optimization..."
     controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,           &
-        0.1_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,               &
+        0.25_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,              &
         tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
     do i = 1, nloc
-        controller%beta(i,:) = linear_interp(rh_time, torque_gain_arr(i,:),    &
+        controller%beta(i,:) = linear_interp(rh_time, beta_arr(i,:),           &
             controller%t)
-        controller%torque_gain(i,:) = linear_interp(rh_time, beta_arr(i,:),    &
-            controller%t)
+        controller%torque_gain(i,:) = linear_interp(rh_time,                   &
+            torque_gain_arr(i,:), controller%t)
     end do
-    call controller%makeDimensionless
-    call controller%rescale_gradient(0.1_rprec, 1._rprec)
 
     ! Do the initial optimization
+    call controller%makeDimensionless
+    call controller%rescale_gradient(0.01_rprec, 0.1_rprec)
+    call controller%run
+    write(*,*) maxval(abs(controller%grad_beta))
+    write(*,*) maxval(abs(controller%grad_torque_gain))
+
     m = lbfgsb_t(controller, max_iter, controller%get_lower_bound(),           &
         controller%get_upper_bound())
+    write(*,*) max_iter
     call m%minimize( controller%get_control_vector() )
     call controller%makeDimensional
     if (.not. exst) N = controller%Nt
@@ -1394,23 +1399,28 @@ use lbfgsb
 use functions, only : linear_interp
 implicit none
 
-integer :: N = 0
+integer :: N = -1
 
 ! Only perform receding horizon control every advancement step
 if (modulo (jt_total, advancement_base) == 0) then
 
     if (coord == 0) then
+        write(*,*) "time = ", total_time_dim
+        !write(*,*) "Before reset_state:"
+        !write(*,*) controller%t(1:6)
+        !write(*,*) controller%torque_gain(1,1:6)
         write(*,*) "Optimizing..."
         call controller%reset_state(Pref_time, Pref_arr, total_time_dim, wm%wm)
+        !write(*,*) "After reset_state:"
+        !write(*,*) controller%t(1:6)
+        !write(*,*) controller%torque_gain(1,1:6)
         call controller%makeDimensionless
         call m%minimize( controller%get_control_vector() )
         call controller%MakeDimensional
+        !write(*,*) "After miniize:"
+        !write(*,*) controller%t(1:6)
+        !write(*,*) controller%torque_gain(1,1:6)
     end if
-
-    ! Allocate arrays
-#ifdef PPMPI
-    call MPI_Bcast(N, 1, MPI_INT, 0, comm, ierr)
-#endif
 
     ! Copy control arrays
     if (coord == 0) then
@@ -1420,6 +1430,7 @@ if (modulo (jt_total, advancement_base) == 0) then
     end if
 
 #ifdef PPMPI
+    N = size(rh_time)
     ! Transfer via MPI
     call MPI_Bcast(torque_gain_arr, nloc*N, MPI_RPREC, 0, comm, ierr)
     call MPI_Bcast(beta_arr, nloc*N, MPI_RPREC, 0, comm, ierr)

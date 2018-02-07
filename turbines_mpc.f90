@@ -60,7 +60,7 @@ type, extends(minimize_t) :: turbines_mpc_t
     real(rprec) :: eta3 = 0.001_rprec
     real(rprec) :: lambda_prime_star = 11._rprec
     ! Penalty of derivatives
-    real(rprec) :: eta4 = 0.1_rprec
+    real(rprec) :: eta4 = 0.001_rprec
 contains
     procedure, public :: initialize
     procedure, public :: makeDimensionless
@@ -526,6 +526,7 @@ end do
 this%t = this%t - this%t(1) + t0
 this%Pref = linear_interp(i_time, i_Pref, this%t)
 this%iw = i_wm
+this%w = i_wm
 this%Pfarm(1) = sum(this%iw%Phat)
 
 end subroutine reset_state
