@@ -2,5 +2,5 @@
 cmake . -Bbld
 cd bld
 make
-cp wm_ex_2d* ../
+cp lesgo* ../
 cd ..

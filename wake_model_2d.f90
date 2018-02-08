@@ -987,6 +987,7 @@ module wake_model_estimator_class
 use types, only : rprec
 use messages
 use wake_model_class
+use param, only : pi, coord, nproc
 implicit none
 
 private
@@ -1204,7 +1205,7 @@ subroutine generateInitialEnsemble(this, Ctp)
     real(rprec)                                 :: dt
     real(rprec), parameter                      :: cfl = 0.99
     real(rprec)                                 :: FTT
-    integer                                     :: ii, i, j, N, Nx, jstart, jend
+    integer                                     :: i, j, N, Nx, jstart, jend
     
     if (size(Ctp) /= this%ensemble(1)%N) then
         call error('WakeModelEstimator.generateInitialEnsemble','Ctp must be of size N')
@@ -1212,10 +1213,6 @@ subroutine generateInitialEnsemble(this, Ctp)
     
     write(*,*) 'Generating initial wake model filter ensemble...'
 
-
-    N  = this%wm%N
-    Nx = this%wm%Nx
-    
     ! Initialize random number generator
     call init_random_seed
     
@@ -1223,41 +1220,24 @@ subroutine generateInitialEnsemble(this, Ctp)
     dt          = cfl * this%wm%dx / this%wm%U_infty
     FTT         = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
-    ! Do 1 flow through of k's
-    do i = 1,this%Ne
-       do ii = 1, floor(FTT / dt)
-          do j = 1, N
-             this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j) +           &
-                sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
-          end do
-       end do
-       call this%ensemble(i)%ComputeWakeExpansionFunctions
-    end do
-
-
     ! Do at least 1 FTT of simulations to get good ensemble statistics  
-    do ii = 1, floor(FTT / dt)
-       do i = 1, this%Ne
-          do j = 1, N
-             this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)       &
-                 + sqrt(dt) * this%sigma_du * random_normal() *            &
-                 this%ensemble(i)%G(j,:) * sqrt(2*pi)                      &
-                 * this%ensemble(i)%Delta, 0._rprec)
-          end do
-          call this%ensemble(i)%advance(dt)
-       end do
-       call this%wm%advance(dt)
+    N = this%wm%N  
+    do i = 1, floor(FTT / dt)
+        call this%advanceEnsemble(Ctp, dt)
     end do
+    
     ! Place ensemble into a matrix with each member in a column
     this%Abar    = 0
     this%Ahatbar = 0
+    N  = this%wm%N
+    Nx = this%wm%Nx
     do i = 1, this%Ne
         do j = 1, N
             jstart = (j-1)*Nx+1
             jend   = j*Nx
             this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
         end do
-        this%A(Nx*N+1:,i) = this%ensemble(i)%k(1:N)
+        this%A(Nx*N+1:,i) = this%ensemble(i)%k(1:N-1)
         this%Ahat(:,i)    = this%ensemble(i)%Phat
         this%Abar         = this%Abar + this%A(:,i) / this%Ne
         this%Ahatbar      = this%Ahatbar + this%Ahat(:,i) / this%Ne
@@ -1271,6 +1251,9 @@ end subroutine generateInitialEnsemble
 
 subroutine advance(this, dt, Pm, Ctp)
     use util, only : random_normal, inverse
+#ifdef PPIFORT
+    use BLAS95
+#endif   
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
     real(rprec), intent(in)                     :: dt
@@ -1301,16 +1284,24 @@ subroutine advance(this, dt, Pm, Ctp)
     ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
     ! Since the dimension is small, we don't bother doing the SVD. If the matrix becomes
     ! singular, then this should be considered as in section 4.3.2 of Everson(2003)
-    #ifdef PPIFORT
-    call gemm(this%E,this%E, thei
-    #else
-    this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),            &
-    matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +                   &
-    matmul(this%E, transpose(this%E))), this%Dprime))
-    #endif
+#ifdef PPIFORT
+    call gemm(this%E, this%E, this%MM_array, 'n', 't', 1._rprec, 0._rprec)
+    call gemm(this%Ahatprime, this%Ahatprime, this%MM_array, 'n', 't',         &
+        1._rprec, 1._rprec)
+    this%MM_array = inverse(this%MM_array)
+    call gemm(this%MM_array, this%Dprime, this%ME_array, 'n', 'n', 1._rprec,   &
+        0._rprec)
+    call gemm(this%Aprime, this%Ahatprime, this%SM_array, 'n', 't', 1._rprec,  &
+        0._rprec)
+    call gemm(this%SM_array, this%ME_array, this%A, 'n', 'n', 1._rprec,        &
+        1._rprec)
+#else
+    this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),  &
+        matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +     &
+        matmul(this%E, transpose(this%E))), this%Dprime))
+#endif
     
     ! Compute mean
-
     this%Abar = 0._rprec
     do i = 1, this%Ne
         this%Abar = this%Abar + this%A(:,i) / this%Ne;
