@@ -41,8 +41,6 @@ type wake_model_base
     real(rprec), dimension(:,:), allocatable :: dp     ! d/dx of d (turbine, space)
     real(rprec), dimension(:,:), allocatable :: w      ! wake expansion function (turbine, space)
     real(rprec), dimension(:,:), allocatable :: fp     ! forcing prefactor f = fp*Ctp/(4+Ctp)  (turbine, space)
-    real(rprec), dimension(:,:), allocatable :: gridx  ! x values (x,y)
-    real(rprec), dimension(:,:), allocatable :: gridy  ! y values (x,y)
     real(rprec) :: U_infty = 0                         ! inlet velocity
     real(rprec) :: Delta   = 0                         ! Gaussian forcing width
     real(rprec) :: Dia     = 0                         ! rotor diameter
@@ -121,8 +119,6 @@ allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
 allocate( this%w(this%N,  this%Nx) )
 allocate( this%fp(this%N, this%Nx) )
-allocate( this%gridx(this%Nx, this%Ny) )
-allocate( this%gridy(this%Nx, this%Ny) )
 
 ! Assign input arguments
 this%s          = i_s
@@ -146,14 +142,8 @@ this%y(1) = this%dy/2
 do i = 2, this%Nx
     this%x(i) = this%x(i-1) + this%dx
 end do
-do i = 1, this%Nx
-    this%gridx(i,:) = this%x(:)
-end do
 do i = 2, this%Ny
     this%y(i) = this%y(i-1) + this%dy
-end do
-do i = 1, this%Ny
-    this%gridy(:,i) = this%y(:)
 end do
 
 do i = 1, this%N
@@ -199,13 +189,16 @@ real(rprec), dimension(:), allocatable :: dval,dmid
 allocate( dval(this%Nx) ) 
 allocate( dmid(this%Nx) )
 
+this%ymin = 1
+this%ymax = 1
+
 do i = 1, this%N
     dmid = this%d(i,:) * this%Dia
     dval = this%s(i,2) - (dmid / 2)
     do j = 1, this%Nx
         dplus = 1  
         y_val = this%y(dplus)
-        do while (y_val < dval(j))
+        do while (y_val < dval(j) .and. dplus < this%Ny)
            dplus = dplus + 1
            this%ymin(i,j) = dplus
            y_val = this%y(dplus)
@@ -216,7 +209,7 @@ do i = 1, this%N
     do j = 1, this%Nx
         dplus = 1  
         y_val = this%y(dplus)
-        do while (y_val < dval(j))
+        do while (y_val < dval(j) .and. dplus < this%Ny)
            dplus = dplus + 1
            this%ymax(i,j) = dplus
            y_val = this%y(dplus)
@@ -363,7 +356,6 @@ write(*,*) ' Nx              = ', this%Nx
 write(*,*) ' x               = ', this%x
 write(*,*) ' Ny              = ', this%Ny
 write(*,*) ' y               = ', this%y
-write(*,*) ' gridx           = ', this%gridx
 write(*,*) ' dx              = ', this%dx
 write(*,*) ' dy              = ', this%dy
 write(*,*) ' isDimensionless = ', this%isDimensionless
@@ -505,8 +497,6 @@ subroutine initialize_file(this, fstring)
     allocate( this%w(this%N,  this%Nx) )
     allocate( this%fp(this%N, this%Nx) )
     allocate( this%du(this%N, this%Nx) )    
-    allocate( this%gridx(this%Nx, this%Ny) )    
-    allocate( this%gridy(this%Nx, this%Ny) )
     
     read(fid) this%s
     read(fid) this%k
@@ -519,11 +509,6 @@ subroutine initialize_file(this, fstring)
     read(fid) this%Ctp
     close(fid)
    
-
-    do i = 1, this%Nx
-       this%gridx(i,:) = this%x(:)
-    end do
- 
     do i = 1, this%N
         this%G(i,:) = gaussian(this%x, this%s(i,1), this%Delta)
         this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
@@ -587,8 +572,6 @@ subroutine write_to_file(this, fstring)
     write(fid) this%uhat
     write(fid) this%Phat
     write(fid) this%Ctp
-    write(fid) this%gridx
-    write(fid) this%gridy
     close(fid)
 
 end subroutine write_to_file
@@ -642,28 +625,41 @@ subroutine advance(this, Ctp, dt)
         call error('WakeModel.advance','Ctp must be size N')
     end if
 
+!   write(*,*) 'checkpoint 0.0.1' 
     ! Compute new wake deficit and superimpose wakes
     allocate( du_superimposed( this%Nx, this%Ny) )
     allocate( u_temp( this%N, this%Nx, this%Ny) )
     allocate(ddudx(this%Nx))
     du_superimposed = 0.0
+!   write(*,*) 'checkpoint 0.0.2' 
     do i = 1, this%N
         this%du(i,:) = this%du(i,:) +  dt * this%rhs(this%du(i,:),             &
             this%fp(i,:) * this%Ctp(i) / (4.0 + this%Ctp(i)), i)
     end do
+!   counter = 0
+!   write(*,*) 'checkpoint 0.0.3', this%Nx, this%Ny
+!   write(*,*) this%x 
+!   write(*,*) this%y 
     do i = 1, this%N
-        do j = 1, this%Nx           
+        do j = 1, this%Nx
+!            counter = counter + 1           
             do m = this%ymin(i,j), this%ymax(i,j)
+!                write(*,*) i,j, size(this%du), size(u_temp)
                 u_temp(i,j,m) = this%du(i,j)
+!                write(*,*) 'loop number', counter
             end do
+!            write(*,*) 'outer loop number', counter
         end do
+!   write(*,*) 'checkpoint 0.0.4 ', i 
         du_superimposed = du_superimposed + u_temp(i,:,:)**2
     end do
     du_superimposed = sqrt(du_superimposed)
     
+!   write(*,*) 'checkpoint 0.0.5' 
     ! Find the velocity field
     this%u = this%U_infty - du_superimposed
     
+!   write(*,*) 'checkpoint 0.0.6' 
     ! Find estimated velocities
     this%uhat(:) = 0
     do i = 1, this%N
@@ -671,11 +667,13 @@ subroutine advance(this, Ctp, dt)
             this%uhat(i) = this%uhat(i) + sum(this%G(i,:) * this%u(:,j) * this%dx)
         end do
         diff = this%ymax(i,1) - this%ymin(i,1)
+!   write(*,*) 'checkpoint 0.0.7' 
         this%uhat(i) = this%uhat(i) / (diff + 1)
         this%Ctp(i) = Ctp(i)
         this%Phat(i) = this%Ctp(i) * this%uhat(i)**3
     end do
     
+!   write(*,*) 'checkpoint 0.0.8' 
 end subroutine advance
 
 ! Evaluates RHS of wake equation
@@ -1001,6 +999,8 @@ type :: WakeModelEstimator
     integer                                    :: Ne, Nm, Ns
     real(rprec), dimension(:,:), allocatable   :: A, Aprime, Ahat, Ahatprime, E, D, Dprime
     real(rprec), dimension(:), allocatable     :: Abar, Ahatbar
+    real(rprec), dimension(:,:), allocatable   :: MM_array, SM_array, ME_array,&
+         SE_array
     real(rprec)                                :: tau_U_infty = 300
 contains
     procedure, private :: initialize_val
@@ -1093,6 +1093,10 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny,
     allocate( this%E(this%Nm, this%Ne) )
     allocate( this%D(this%Nm, this%Ne) )
     allocate( this%Dprime(this%Nm, this%Ne) )
+    allocate( this%MM_array(this%Nm, this%Nm) )
+    allocate( this%SM_array(this%Ns, this%Nm) )
+    allocate( this%ME_array(this%Nm, this%Ne) )
+    allocate( this%SE_array(this%Ns, this%Ne) )
     
 end subroutine initialize_val
 
@@ -1129,6 +1133,10 @@ subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_t
     allocate( this%E(this%Nm, this%Ne) )
     allocate( this%D(this%Nm, this%Ne) )
     allocate( this%Dprime(this%Nm, this%Ne) )
+    allocate( this%MM_array(this%Nm, this%Nm) )
+    allocate( this%SM_array(this%Ns, this%Nm) )
+    allocate( this%ME_array(this%Nm, this%Ne) )
+    allocate( this%SE_array(this%Ns, this%Ne) )
     
     read(fid) this%A
     read(fid) this%Aprime
@@ -1196,7 +1204,7 @@ subroutine generateInitialEnsemble(this, Ctp)
     real(rprec)                                 :: dt
     real(rprec), parameter                      :: cfl = 0.99
     real(rprec)                                 :: FTT
-    integer                                     :: i, j, N, Nx, jstart, jend
+    integer                                     :: ii, i, j, N, Nx, jstart, jend
     
     if (size(Ctp) /= this%ensemble(1)%N) then
         call error('WakeModelEstimator.generateInitialEnsemble','Ctp must be of size N')
@@ -1204,6 +1212,10 @@ subroutine generateInitialEnsemble(this, Ctp)
     
     write(*,*) 'Generating initial wake model filter ensemble...'
 
+
+    N  = this%wm%N
+    Nx = this%wm%Nx
+    
     ! Initialize random number generator
     call init_random_seed
     
@@ -1211,17 +1223,34 @@ subroutine generateInitialEnsemble(this, Ctp)
     dt          = cfl * this%wm%dx / this%wm%U_infty
     FTT         = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
-    ! Do at least 1 FTT of simulations to get good ensemble statistics  
-    N = this%wm%N  
-    do i = 1, floor(FTT / dt)
-        call this%advanceEnsemble(Ctp, dt)
+    ! Do 1 flow through of k's
+    do i = 1,this%Ne
+       do ii = 1, floor(FTT / dt)
+          do j = 1, N
+             this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j) +           &
+                sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
+          end do
+       end do
+       call this%ensemble(i)%ComputeWakeExpansionFunctions
     end do
-    
+
+
+    ! Do at least 1 FTT of simulations to get good ensemble statistics  
+    do ii = 1, floor(FTT / dt)
+       do i = 1, this%Ne
+          do j = 1, N
+             this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)       &
+                 + sqrt(dt) * this%sigma_du * random_normal() *            &
+                 this%ensemble(i)%G(j,:) * sqrt(2*pi)                      &
+                 * this%ensemble(i)%Delta, 0._rprec)
+          end do
+          call this%ensemble(i)%advance(dt)
+       end do
+       call this%wm%advance(dt)
+    end do
     ! Place ensemble into a matrix with each member in a column
     this%Abar    = 0
     this%Ahatbar = 0
-    N  = this%wm%N
-    Nx = this%wm%Nx
     do i = 1, this%Ne
         do j = 1, N
             jstart = (j-1)*Nx+1
@@ -1272,10 +1301,14 @@ subroutine advance(this, dt, Pm, Ctp)
     ! Update Anew = A + A'*Ahat'^T * (Ahat'*Ahat'^T + E*E^T)^-1 * D'
     ! Since the dimension is small, we don't bother doing the SVD. If the matrix becomes
     ! singular, then this should be considered as in section 4.3.2 of Everson(2003)
+    #ifdef PPIFORT
+    call gemm(this%E,this%E, thei
+    #else
     this%A = this%A + matmul( matmul(this%Aprime, transpose(this%Ahatprime)),            &
     matmul(inverse(matmul(this%Ahatprime, transpose(this%Ahatprime)) +                   &
     matmul(this%E, transpose(this%E))), this%Dprime))
-        
+    #endif
+    
     ! Compute mean
 
     this%Abar = 0._rprec
@@ -1286,8 +1319,8 @@ subroutine advance(this, dt, Pm, Ctp)
     ! Filter U_infty
     alpha = dt / (this%tau_U_infty + dt)
     r1_if = this%wm%Ctp(1) / ( 4._rprec + this%wm%Ctp(1) )
-    Uinftyi = sum(( Pm(this%wm%free_turbines) / this%wm%Ctp(this%wm%free_turbines)  &
-                   )**(1._rprec/3._rprec) / (1._rprec - r1_if)) / this%wm%nfree
+    Uinftyi = ((sum(Pm(this%wm%free_turbines) / this%wm%Ctp(this%wm%free_turbines)  &
+                   )) / this%wm%nfree)**(1._rprec/3._rprec) / (1._rprec - r1_if)
     this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
     this%wm%VELOCITY = this%wm%U_infty
     this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
@@ -1349,7 +1382,6 @@ subroutine advanceEnsemble(this, Ctp, dt)
     real(rprec), dimension(:), intent(in)    :: Ctp
     real(rprec), intent(in)                  :: dt
     integer                                  :: i, j, N
-    
     ! Advance step for objects
     N = this%wm%N
     do i = 1, this%Ne
