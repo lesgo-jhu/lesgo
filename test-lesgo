@@ -1,0 +1,158 @@
+#!/bin/bash
+
+function compile() {
+    local ename=""
+    local flags=""
+    local use_hit=0
+    local use_atm=0
+    local use_turbines=0
+    local use_ls=0
+    local use_mpi=0
+    local use_cps=0
+    for arg in "$@"
+    do
+        if [ $arg == "-" ]; then
+            ename="${ename}"
+        elif [ $arg == "mpi" ]; then
+            ename="${ename}-mpi"
+            flags="${flags} -DUSE_MPI=ON"
+            use_mpi=1
+        elif [ $arg == "cps" ]; then
+            ename="${ename}-cps"
+            flags="${flags} -DUSE_CPS=ON"
+            use_cps=1
+        elif [ $arg == "HIT" ]; then
+            ename="${ename}-HIT"
+            flags="${flags} -DUSE_HIT=ON"
+            use_hit=1
+        elif [ $arg == "streaks" ]; then
+            ename="${ename}-streaks"
+            flags="${flags} -DUSE_STREAKS=ON"
+        elif [ $arg == "ls" ]; then
+            ename="${ename}-ls"
+            flags="${flags} -DUSE_LVLSET=ON"
+            use_ls=1
+        elif [ $arg == "turbines" ]; then
+            ename="${ename}-turbines"
+            flags="${flags} -DUSE_TURBINES=ON"
+            use_turbines=1
+        elif [ $arg == "ATM" ]; then
+            ename="${ename}-ATM"
+            flags="${flags} -DUSE_ATM=ON"
+            use_atm=1
+        elif [ $arg == "exout" ]; then
+            ename="${ename}-exout"
+            flags="${flags} -DOUTPUT_EXTRA=ON"
+        elif [ $arg == "dyntn" ]; then
+            ename="${ename}-dyntn"
+            flags="${flags} -DUSE_DYN_TN=ON"
+        elif [ $arg == "safety_off" ]; then
+            ename="${ename}-safety_off"
+            flags="${flags} -DUSE_SAFETYMODE=OFF"
+        elif [ $arg == "cgns" ]; then
+            ename="${ename}-cgns"
+            flags="${flags} -DUSE_CGNS=ON"
+        else
+            echo "Invalid compile option $arg...."
+            exit 1
+        fi
+    done
+
+    # Coloring
+    RED=`tput setaf 1`
+    GREEN=`tput setaf 2`
+    YELLOW=`tput setaf 3`
+    RESET=`tput sgr0`
+
+    # Run compilation test
+    echo "Compiling lesgo${ename}..."
+    rm -r bld${ename} &> temp.out
+    cmake $flags . -Bbld${ename} &> temp.out
+    cmake --build bld${ename} &> bld${ename}/cmake.out
+    local warns=$(grep -c "Warning:" "bld${ename}/cmake.out")
+    local errs=$(grep -c "Error:" "bld${ename}/cmake.out")''
+    if [ $warns == 0 ]; then
+        local warn_mesg="${GREEN}$warns warning(s)${RESET}"
+    else
+        local warn_mesg="${YELLOW}$warns warning(s)${RESET}"
+    fi
+    if [ $errs == 0 ]; then
+        local err_mesg="${GREEN}$errs error(s)${RESET}"
+    else
+        local err_mesg="${RED}$errs error(s)${RESET}"
+    fi
+    echo "Finished compiling lesgo${ename} with $warn_mesg and $err_mesg."
+
+    # Pre-runtime copying of data and editing for lesgo.conf
+    cp lesgo.conf bld${ename}
+    if [ $use_ls == 1 ]; then
+        cp trees.conf bld${ename}
+    fi
+    if [ $use_turbines == 1 ]; then
+        cp -r input_turbines bld${ename}
+    fi
+    if [ $use_atm == 1 ]; then
+        cp -r inputATM bld${ename}
+    fi
+    if [ $use_hit == 1 ]; then
+        cp -r HITData bld${ename}
+    fi
+    cd bld${ename}
+    if [ $use_ls == 1 ]; then
+        sed -ib -e "s/Lx\s\+=.*/Lx = 1.0/" lesgo.conf
+        sed -ib -e "s/Ly\s\+=.*/Ly = 1.0/" lesgo.conf
+        sed -ib -e "s/Lz\s\+=.*/Lz = 1.0/" lesgo.conf
+    fi
+
+    # Runtime messages with coloring
+    local success="${GREEN}Finished running lesgo${ename} successfully.${RESET}"
+    local failure="${RED}lesgo${ename} failed at run time with error code $?.${RESET}"
+
+    # Run with proper setup and number of processors
+    if [ $use_cps == 1 ]; then
+        mkdir red
+        mkdir blue
+        cp -r lesgo${ename} lesgo.conf trees.conf input_turbine inputATM HITDATA red &> temp.out
+        cp -r lesgo${ename} lesgo.conf trees.conf input_turbine inputATM HITDATA blue &> temp.out
+        sed -ib -e "s/nproc.*=.*/nproc = 1/" red/lesgo.conf
+        sed -ib -e "s/nproc.*=.*/nproc = 1/" blue/lesgo.conf
+        sed -ib -e "s/inflow.*=.*.false./inflow = .true./" blue/lesgo.conf
+        mpirun -wdir red -np 1 ./lesgo${ename} : -wdir blue -np 1 ./lesgo${ename} > lesgo.out && echo $success || echo $failure
+        cd ..
+    else
+        if [ $use_mpi == 1 ]; then
+            sed -ib -e "s/nproc.*=.*/nproc = 2/" lesgo.conf
+            mpirun -np 2 ./lesgo${ename} &> lesgo.out && echo $success || echo $failure
+        else
+            ./lesgo${ename} &> lesgo.out && echo $success || echo $failure
+        fi
+        cd ..
+    fi
+}
+export -f compile
+
+# back up CMakeLists.txt and modify with defaults
+cp CMakeLists.txt CMakeLists.bkp
+sed -ib -e "s/USE_MPI\s\+\".*/USE_MPI OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_CPS\s\+\".*/USE_CPS OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_HIT\s\+\".*/USE_HIT OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_STREAKS\s\+\".*/USE_STREAKS OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_LVLSET\s\+\".*/USE_LVLSET OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_TURBINES\s\+\".*/USE_TURBINES OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_ATM\s\+\".*/USE_ATM OFF)/" CMakeLists.txt
+sed -ib -e "s/OUTPUT_EXTRA \s\+\".*/OUTPUT_EXTRA OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_DYN_TN  \s\+\".*/USE_DYN_TN  OFF)/" CMakeLists.txt
+sed -ib -e "s/USE_SAFETYMODE \s\+\".*/USE_SAFETYMODE ON)/" CMakeLists.txt
+sed -ib -e "s/USE_CGNS \s\+\".*/USE_CGNS OFF)/" CMakeLists.txt
+
+# Run all configurations
+list=( '-' HIT streaks ls turbines ATM exout dyntn safety_off)
+echo "will cite" | parallel --citation &> temp.out
+parallel compile ::: "${list[@]}"
+parallel compile ::: "mpi" ::: "${list[@]}"
+compile mpi cps
+rm temp.out CMakeLists.txtb
+mv CMakeLists.bkp CMakeLists.txt
+
+echo
+echo "lesgo testing complete."

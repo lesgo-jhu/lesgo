@@ -20,7 +20,7 @@
 module level_set
 use types, rp => rprec
 use param, only : ld, nx, ny, nz, dx, dy, dz, iBOGUS, BOGUS, path, L_x, L_y,   &
-    vonK, lbc_mom, coord, nproc, up, down, ierr, comm, MPI_RPREC, rank,        & 
+    vonK, lbc_mom, coord, nproc, up, down, ierr, comm, MPI_RPREC, rank,        &
     total_time, rank, rank_of_coord
 #ifdef PPMPI
 use param, only : status
@@ -274,7 +274,6 @@ subroutine level_set_vel_err()
 use types, only : rprec
 use param, only : nx, ny, nz, total_time
 use sim_param, only : u, v, w
-use open_file_fid_mod
 #ifdef PPMPI
 use mpi
 use param, only : up, down, ierr, MPI_RPREC, status, comm, coord
@@ -350,25 +349,27 @@ endif
 
 #ifdef PPMPI
 
-  call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
-  call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
-  call mpi_reduce (w_err, w_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+call mpi_reduce (u_err, u_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+call mpi_reduce (v_err, v_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
+call mpi_reduce (w_err, w_err_global, 1, MPI_RPREC, MPI_SUM, 0, comm, ierr)
 
-  if( rank == 0 ) then
+if( rank == 0 ) then
 
     u_err = u_err_global / nproc
     v_err = v_err_global / nproc
     w_err = w_err_global / nproc
 
-    fid = open_file_fid( fname_write, 'append', 'formatted' )
+    open(newunit=fid, file=fname_write, status='unknown', form='formatted',    &
+        position='append')
     write(fid,*) total_time, sqrt( u_err**2 + v_err**2 + w_err**2 )
     close(fid)
 
-  endif
+endif
 
 #else
 
-fid = open_file_fid( fname_write, 'append', 'formatted' )
+open(newunit=fid, file=fname_write, status='unknown', form='formatted',        &
+    position='append')
 write(fid,*) total_time, sqrt( u_err**2 + v_err**2 + w_err**2 )
 close(fid)
 
@@ -3031,7 +3032,6 @@ subroutine level_set_global_CA
 use param, only : jt_total, dt, L_y, L_z
 use sim_param, only : fx, fy, fz
 use sim_param, only : u
-use open_file_fid_mod
 implicit none
 
 ! include 'tecryte.h'
@@ -3104,7 +3104,8 @@ if( coord == 0 ) then
     if (opn) call error (sub_name, 'unit', lun, ' is already open')
 
     if (.not. exst) then
-        fid = open_file_fid( fCA_out, 'rewind', 'formatted' )
+        open(newunit=fid, file=fCA_out, status='unknown', form='formatted',    &
+            position='rewind')
         write(fid,*) '"t", "CxA", "fx", "CyA", "fy", "CzA", "fz", "Uinf"'
         close(fid)
     end if
@@ -3113,7 +3114,8 @@ if( coord == 0 ) then
 
   endif
 
-    fid = open_file_fid( fCA_out, 'append', 'formatted' )
+    open(newunit=fid, file=fCA_out, status='unknown', form='formatted',        &
+        position='append')
     write(fid,*) total_time, CxA, f_Cx_global, CyA, f_Cy_global, CzA, f_Cz_global, Uinf_global
     close(fid)
 

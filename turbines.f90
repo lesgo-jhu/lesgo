@@ -27,6 +27,7 @@ use param
 use grid_m
 use messages
 use string_util
+use turbine_indicator
 use stat_defs, only : wind_farm
 use wake_model_estimator_class
 #ifdef PPMPI
@@ -127,16 +128,8 @@ integer, dimension(:), allocatable :: forcing_fid
 real(rprec) :: eps
 
 ! Commonly used indices
-integer :: i,j,k,i2,j2,k2,l,s
+integer :: i, j, k, i2, j2, k2, l, s
 integer :: k_start, k_end
-
-! Variables to keep track of which processors have turbines
-integer, dimension(:), allocatable :: turbine_in_proc_array
-logical :: turbine_in_proc = .false.
-#ifdef PPMPI
-integer :: turbine_in_proc_cnt = 0
-logical :: buffer_logical
-#endif
 
 ! Receding horizon control
 real(rprec), dimension(:), allocatable :: Pref_arr
@@ -157,7 +150,6 @@ subroutine turbines_init()
 ! binary locations - in or out) and sets values for turbine type
 ! (node locations, etc)
 !
-use open_file_fid_mod
 implicit none
 
 real(rprec), pointer, dimension(:) :: x,y,z
@@ -180,9 +172,7 @@ z => grid % z
 nloc = num_x*num_y
 nullify(wind_farm%turbine)
 allocate(wind_farm%turbine(nloc))
-allocate(turbine_in_proc_array(nproc-1))
 allocate(forcing_fid(nloc))
-turbine_in_proc_array = 0
 
 ! Create turbine directory
 call system("mkdir -vp turbine")
@@ -243,8 +233,7 @@ call read_control_files
 delta2 = alpha**2 * (dx**2 + dy**2 + dz**2)
 do s = 1, nloc
     call  wind_farm%turbine(s)%turb_ind_func%init(delta2,                      &
-            wind_farm%turbine(s)%thk, wind_farm%turbine(s)%dia,                &
-            max( max(nx, ny), nz) )
+        wind_farm%turbine(s)%thk, wind_farm%turbine(s)%dia)
 end do
 
 ! Find turbine nodes - including filtered ind, n_hat, num_nodes, and nodes for
@@ -256,13 +245,14 @@ if (coord == 0) then
     inquire (file=u_d_T_dat, exist=exst)
     if (exst) then
         write(*,*) 'Reading from file ', trim(u_d_T_dat)
-        fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
+        open(newunit=fid, file=u_d_T_dat, status='unknown', form='formatted',  &
+            position='rewind')
         do i=1,nloc
             read(fid,*) wind_farm%turbine(i)%u_d_T
         end do
         read(fid,*) T_avg_dim_file
         if (T_avg_dim_file /= T_avg_dim) then
-            write(*,*) 'Time-averaging window does not match value in ',   &
+            write(*,*) 'Time-averaging window does not match value in ',       &
                        trim(u_d_T_dat)
         end if
         close (fid)
@@ -277,7 +267,8 @@ end if
 
 ! Generate top of domain file
 if (coord .eq. nproc-1) then
-    fid = open_file_fid( vel_top_dat, 'rewind', 'formatted' )
+    open(newunit=fid, file=vel_top_dat, status='unknown', form='formatted',    &
+        position='rewind')
     close(fid)
 end if
 
@@ -285,7 +276,8 @@ end if
 if(coord==0) then
     do s=1,nloc
         call string_splice( string1, path // 'turbine/turbine_', s, '.dat' )
-        forcing_fid(s) = open_file_fid( string1, 'append', 'formatted' )
+        open(newunit=forcing_fid(s), file=string1, status='unknown',           &
+            form='formatted', position='append')
     end do
 end if
 
@@ -331,7 +323,7 @@ else
     allocate( wm_s(nloc,2) )
 
     wm_k = 0.05_rprec
-    
+
     wm_s(:,1) = wind_farm%turbine%xloc * z_i
     wm_s(:,2) = wind_farm%turbine%yloc * z_i
     wm_Ctp(:) = wind_farm%turbine%Ct_prime
@@ -431,15 +423,15 @@ integer :: icp, jcp, kcp
 integer :: imax, jmax, kmax
 integer :: min_i, max_i, min_j, max_j, min_k, max_k
 integer :: count_i, count_n
-real(rprec), dimension(:), allocatable :: z_tot
+real(rprec), dimension(nz_tot) :: z_tot
 
 #ifdef PPMPI
-real(rprec), dimension(:), allocatable :: buffer_array
+real(rprec), dimension(nloc) :: buffer_array
 #endif
 real(rprec), pointer, dimension(:) :: x, y, z
 
 real(rprec) :: filt
-real(rprec), dimension(:), allocatable :: sumA, turbine_vol
+real(rprec), dimension(nloc) :: sumA, turbine_vol
 
 nullify(x,y,z)
 
@@ -447,14 +439,9 @@ x => grid % x
 y => grid % y
 z => grid % z
 
-turbine_in_proc = .false.
-
-allocate(sumA(nloc))
-allocate(turbine_vol(nloc))
-sumA = 0
+sumA = 0._rprec
 
 ! z_tot for total domain (since z is local to the processor)
-allocate(z_tot(nz_tot))
 do k = 1,nz_tot
     z_tot(k) = (k - 0.5_rprec) * dz
 end do
@@ -558,7 +545,6 @@ do s=1,nloc
                     wind_farm%turbine(s)%nodes(count_i,3) = k-coord*(nz-1)!local
                     count_n = count_n + 1
                     count_i = count_i + 1
-                    turbine_in_proc = .true.
                     sumA(s) = sumA(s) + filt * dx * dy * dz
                 end if
            end do
@@ -567,45 +553,25 @@ do s=1,nloc
     wind_farm%turbine(s)%num_nodes = count_n
 
     ! Calculate turbine volume
-    turbine_vol(s) = pi/4. * p_dia**2 * p_thk
+    turbine_vol(s) = 0.25_rprec * pi* p_dia**2 * p_thk
 
 end do
 
 ! Sum the indicator function across all processors if using MPI
 #ifdef PPMPI
-allocate(buffer_array(nloc))
 buffer_array = sumA
 call MPI_Allreduce(buffer_array, sumA, nloc, MPI_rprec, MPI_SUM, comm, ierr)
-deallocate(buffer_array)
 #endif
 
-! Normalize the indicator function
+! Normalize the indicator function integrate to 1
+! All integration will simply use a sum, so include the volume of each cell
+! in ind
 do s = 1, nloc
-    wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)*turbine_vol(s)/sumA(s)
+    wind_farm%turbine(s)%ind=wind_farm%turbine(s)%ind(:)/sumA(s)
 end do
 
-!each processor sends its value of turbine_in_proc
-!if false, disk-avg velocity will not be sent (since it will always be 0.)
-#ifdef PPMPI
-turbine_in_proc_cnt = 0
-if (coord == 0) then
-    do i=1,nproc-1
-        call MPI_recv(buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
-        if (buffer_logical) then
-            turbine_in_proc_cnt = turbine_in_proc_cnt + 1
-            turbine_in_proc_array(turbine_in_proc_cnt) = i
-        end if
-    end do
-else
-    call MPI_send(turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
-end if
-#endif
-
 ! Cleanup
-deallocate(sumA)
-deallocate(turbine_vol)
 nullify(x,y,z)
-deallocate(z_tot)
 
 end subroutine turbines_nodes
 
@@ -615,26 +581,25 @@ subroutine turbines_forcing()
 !
 ! This subroutine applies the drag-disk forcing
 !
-use sim_param, only : u,v,w, fxa,fya,fza
+use param, only : pi
+use sim_param, only : u, v, w, fxa, fya, fza
 use functions, only : linear_interp, interp_to_uv_grid
 implicit none
 
-character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
+character(*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
 real(rprec), pointer :: p_Ct_prime => null()
 integer, pointer :: p_icp => null(), p_jcp => null(), p_kcp => null()
 
+integer :: fid
+
 real(rprec) :: ind2
-real(rprec), dimension(nloc) :: disk_avg_vel, disk_force
+real(rprec), dimension(nloc) :: disk_avg_vel
 real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
-real(rprec), pointer, dimension(:) :: y,z
-
-real(rprec), dimension(4*nloc) :: send_array
-#ifdef PPMPI
-real(rprec), dimension(4*nloc) :: recv_array
-#endif
+real(rprec), pointer, dimension(:) :: y, z
+real(rprec), dimension(nloc) :: buffer_array
 
 real(rprec), dimension(:), allocatable :: wm_Pm, wm_Ctp
 
@@ -665,144 +630,99 @@ end do
 if (dyn_theta1 .or. dyn_theta2) call turbines_nodes
 
 !Each processor calculates the weighted disk-averaged velocity
-send_array = 0._rprec
 disk_avg_vel = 0._rprec
 u_vel_center = 0._rprec
 v_vel_center = 0._rprec
 w_vel_center = 0._rprec
-if (turbine_in_proc) then
-    do s=1,nloc
-        ! Calculate total disk-averaged velocity for each turbine
-        ! (current, instantaneous) in the normal direction. The weighted average
-        ! is calculated using "ind"
-        do l=1,wind_farm%turbine(s)%num_nodes
-            i2 = wind_farm%turbine(s)%nodes(l,1)
-            j2 = wind_farm%turbine(s)%nodes(l,2)
-            k2 = wind_farm%turbine(s)%nodes(l,3)
-            disk_avg_vel(s) = disk_avg_vel(s) + wind_farm%turbine(s)%ind(l)    &
-                            * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)       &
-                              + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)       &
-                              + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
-        end do
 
-        ! Set pointers
-        p_icp => wind_farm%turbine(s)%icp
-        p_jcp => wind_farm%turbine(s)%jcp
-        p_kcp => wind_farm%turbine(s)%kcp
-
-        ! Calculate disk center velocity
-        if (wind_farm%turbine(s)%center_in_proc) then
-            u_vel_center(s) = u(p_icp, p_jcp, p_kcp)
-            v_vel_center(s) = v(p_icp, p_jcp, p_kcp)
-            w_vel_center(s) = w_uv(p_icp, p_jcp, p_kcp)
-        end if
-
-        ! write this value to the array (which will be sent to coord 0)
-        send_array(s)        = disk_avg_vel(s)
-        send_array(nloc+s)   = u_vel_center(s)
-        send_array(2*nloc+s) = v_vel_center(s)
-        send_array(3*nloc+s) = w_vel_center(s)
+do s=1,nloc
+    ! Calculate total disk-averaged velocity for each turbine
+    ! (current, instantaneous) in the normal direction by integrating the
+    ! velocity times the indicator function
+    do l=1,wind_farm%turbine(s)%num_nodes
+        i2 = wind_farm%turbine(s)%nodes(l,1)
+        j2 = wind_farm%turbine(s)%nodes(l,2)
+        k2 = wind_farm%turbine(s)%nodes(l,3)
+        disk_avg_vel(s) = disk_avg_vel(s) + dx*dy*dz*wind_farm%turbine(s)%ind(l)&
+                        * ( wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2)       &
+                          + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2)       &
+                          + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2) )
     end do
-end if
 
-!send the disk-avg values to coord==0
+    ! Set pointers
+    p_icp => wind_farm%turbine(s)%icp
+    p_jcp => wind_farm%turbine(s)%jcp
+    p_kcp => wind_farm%turbine(s)%kcp
+
+    ! Calculate disk center velocity
+    if (wind_farm%turbine(s)%center_in_proc) then
+        u_vel_center(s) = u(p_icp, p_jcp, p_kcp)
+        v_vel_center(s) = v(p_icp, p_jcp, p_kcp)
+        w_vel_center(s) = w_uv(p_icp, p_jcp, p_kcp)
+    end if
+end do
+
+! Calculate disk velocities by summing all processors and multiplying by disk volume
 #ifdef PPMPI
-call mpi_barrier (comm,ierr)
-
-if (coord == 0) then
-    ! Add all received values from other processors
-    do i=1,turbine_in_proc_cnt
-        j = turbine_in_proc_array(i)
-        recv_array = 0._rprec
-        call MPI_recv( recv_array, 4*nloc, MPI_rprec, j, 3, comm, status, ierr )
-        send_array = send_array + recv_array
-    end do
-
-    ! Place summed values into arrays
-    do s = 1, nloc
-        disk_avg_vel(s) = send_array(s)
-        u_vel_center(s) = send_array(nloc+s)
-        v_vel_center(s) = send_array(2*nloc+s)
-        w_vel_center(s) = send_array(3*nloc+s)
-    end do
-elseif (turbine_in_proc) then
-    call MPI_send( send_array, 4*nloc, MPI_rprec, 0, 3, comm, ierr )
-end if
+call MPI_Allreduce(disk_avg_vel, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+disk_avg_vel = buffer_array
+call MPI_Allreduce(u_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+u_vel_center = buffer_array
+call MPI_Allreduce(v_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+v_vel_center = buffer_array
+call MPI_Allreduce(w_vel_center, buffer_array, nloc, MPI_rprec, MPI_SUM, comm, ierr)
+w_vel_center = buffer_array
 #endif
 
-!Coord==0 takes that info and calculates total disk force, then sends it back
-if (coord == 0) then
-    !update epsilon for the new timestep (for cfl_dt)
-    if (T_avg_dim > 0.) then
-        eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
-    else
-        eps = 1.
+! Update epsilon for the new timestep (for cfl_dt)
+if (T_avg_dim > 0.) then
+    eps = (dt_dim / T_avg_dim) / (1. + dt_dim / T_avg_dim)
+else
+    eps = 1.
+end if
+
+! Calculate and apply disk force
+do s=1,nloc
+    !set pointers
+    p_u_d => wind_farm%turbine(s)%u_d
+    p_u_d_T => wind_farm%turbine(s)%u_d_T
+    p_f_n => wind_farm%turbine(s)%f_n
+    p_Ct_prime => wind_farm%turbine(s)%Ct_prime
+
+    !add this current value to the "running average" (first order filter)
+    p_u_d = disk_avg_vel(s)
+    p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
+
+    !calculate total thrust force for each turbine  (per unit mass)
+    !force is normal to the surface (calc from u_d_T, normal to surface)
+    !write force to array that will be transferred via MPI
+    p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T*0.25*pi*wind_farm%turbine(s)%dia**2
+
+    !write values to file
+    if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
+        write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
+            v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
+            wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
+            p_Ct_prime
     end if
 
-    do s=1,nloc
-        !set pointers
-        p_u_d => wind_farm%turbine(s)%u_d
-        p_u_d_T => wind_farm%turbine(s)%u_d_T
-        p_f_n => wind_farm%turbine(s)%f_n
-        p_Ct_prime => wind_farm%turbine(s)%Ct_prime
-
-        !volume correction:
-        !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
-        p_u_d = disk_avg_vel(s) * wind_farm%turbine(s)%vol_c
-
-        !add this current value to the "running average" (first order filter)
-        p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-
-        !calculate total thrust force for each turbine  (per unit mass)
-        !force is normal to the surface (calc from u_d_T, normal to surface)
-        !write force to array that will be transferred via MPI
-        p_f_n = -0.5*p_Ct_prime*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk
-        disk_force(s) = p_f_n
-
-        !write values to file
-        if (modulo (jt_total, tbase) == 0) then
-            write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
-                v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
-                wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
-                p_Ct_prime
-        end if
-
+    do l=1,wind_farm%turbine(s)%num_nodes
+        i2 = wind_farm%turbine(s)%nodes(l,1)
+        j2 = wind_farm%turbine(s)%nodes(l,2)
+        k2 = wind_farm%turbine(s)%nodes(l,3)
+        ind2 = wind_farm%turbine(s)%ind(l)
+        fxa(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(1)*ind2
+        fya(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(2)*ind2
+        fza(i2,j2,k2) = p_f_n*wind_farm%turbine(s)%nhat(3)*ind2
     end do
-end if
-
-!send total disk force to the necessary procs (with turbine_in_proc==.true.)
-#ifdef PPMPI
-if (coord == 0) then
-    do i=1,turbine_in_proc_cnt
-        j = turbine_in_proc_array(i)
-        call MPI_send( disk_force, nloc, MPI_rprec, j, 5, comm, ierr )
-    end do
-elseif (turbine_in_proc) then
-    call MPI_recv( disk_force, nloc, MPI_rprec, 0, 5, comm, status, ierr )
-end if
-#endif
-
-!apply forcing to each node
-if (turbine_in_proc) then
-    do s=1,nloc
-        do l=1,wind_farm%turbine(s)%num_nodes
-            i2 = wind_farm%turbine(s)%nodes(l,1)
-            j2 = wind_farm%turbine(s)%nodes(l,2)
-            k2 = wind_farm%turbine(s)%nodes(l,3)
-            ind2 = wind_farm%turbine(s)%ind(l)
-            fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2
-            fya(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(2)*ind2
-            fza(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(3)*ind2
-        end do
-    end do
-end if
+end do
 
 !spatially average velocity at the top of the domain and write to file
 if (coord .eq. nproc-1) then
-    open(unit=1,file=vel_top_dat,status='unknown',form='formatted',            &
-    action='write',position='append')
-    write(1,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
-    close(1)
+    open(newunit=fid, file=vel_top_dat, status='unknown', form='formatted',    &
+        action='write', position='append')
+    write(fid,*) total_time, sum(u(:,:,nz-1))/(nx*ny)
+    close(fid)
 end if
 
 if (use_wake_model .and. coord == 0) then
@@ -813,7 +733,7 @@ if (use_wake_model .and. coord == 0) then
 !        wm_Ctp(i) = wind_farm%turbine((i-1)*num_y+1)%Ct_prime
 !    end do
 
-    ! Measure average power of each turbine 
+    ! Measure average power of each turbine
     allocate ( wm_Pm(nloc) )
     wm_Pm = 0._rprec
     wm_Pm(:) = wm_Pm - wm_Ctp * (wind_farm%turbine%u_d_T * u_star)**3
@@ -823,7 +743,7 @@ if (use_wake_model .and. coord == 0) then
 !                (wind_farm%turbine((i-1)*num_y + j)%u_d_T * u_star)**3 / num_y
 !        end do
 !    end do
-    
+
     ! Advance the estimator with the measurements
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
 
@@ -955,7 +875,6 @@ subroutine turbines_checkpoint ()
 !
 !
 !
-use open_file_fid_mod
 implicit none
 
 character (*), parameter :: sub_name = mod_name // '.turbines_checkpoint'
@@ -965,7 +884,8 @@ character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
 !write disk-averaged velocity to file along with T_avg_dim
 !useful if simulation has multiple runs   >> may not make a large difference
 if (coord == 0) then
-    fid = open_file_fid( u_d_T_dat, 'rewind', 'formatted' )
+    open(newunit=fid, file=u_d_T_dat, status='unknown', form='formatted',      &
+        position='rewind')
     do i=1,nloc
         write(fid,*) wind_farm%turbine(i)%u_d_T
     end do
@@ -1040,7 +960,6 @@ subroutine place_turbines
 ! theta2, and Ct_prime.
 !
 use param, only: pi, z_i
-use open_file_fid_mod
 use messages
 implicit none
 
@@ -1073,7 +992,8 @@ if (read_param) then
     ! xloc [meters], yloc [meters], height [meters], dia [meters], thk [meters],
     ! theta1 [degrees], theta2 [degrees], Ct_prime [-]
     write(*,*) "Reading from", param_dat
-    fid = open_file_fid(param_dat, 'rewind', 'formatted')
+    open(newunit=fid, file=param_dat, status='unknown', form='formatted',      &
+        position='rewind')
     do k = 1, nloc
         read(fid,*) wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc,      &
             wind_farm%turbine(k)%height, wind_farm%turbine(k)%dia,             &
@@ -1188,7 +1108,6 @@ subroutine read_control_files
 ! theta2, and Ct_prime. This is calles from turbines_init.
 !
 use param, only: pi
-use open_file_fid_mod
 use messages
 implicit none
 
@@ -1204,7 +1123,8 @@ if (dyn_theta1) then
     allocate( theta1_arr(nloc, num_t) )
 
     ! Read values from file
-    fid = open_file_fid(theta1_dat, 'rewind', 'formatted')
+    open(newunit=fid, file=theta1_dat, status='unknown', form='formatted',     &
+        position='rewind')
     do i = 1, num_t
         read(fid,*) theta1_time(i), theta1_arr(:,i)
     end do
@@ -1218,7 +1138,8 @@ if (dyn_theta2) then
     allocate( theta2_arr(nloc, num_t) )
 
     ! Read values from file
-    fid = open_file_fid(theta2_dat, 'rewind', 'formatted')
+    open(newunit=fid, file=theta2_dat, status='unknown', form='formatted',     &
+        position='rewind')
     do i = 1, num_t
         read(fid,*) theta2_time(i), theta2_arr(:,i)
     end do
@@ -1232,7 +1153,8 @@ if (dyn_Ct_prime) then
     allocate( Ct_prime_arr(nloc, num_t) )
 
     ! Read values from file
-    fid = open_file_fid(Ct_prime_dat, 'rewind', 'formatted')
+    open(newunit=fid, file=Ct_prime_dat, status='unknown', form='formatted',   &
+        position='rewind')
     do i = 1, num_t
         read(fid,*) Ct_prime_time(i), Ct_prime_arr(:,i)
     end do
@@ -1260,7 +1182,6 @@ function count_lines(fname) result(N)
 !
 ! This function counts the number of lines in a file
 !
-use open_file_fid_mod
 use messages
 use param, only : CHAR_BUFF_LENGTH
 implicit none
@@ -1276,7 +1197,8 @@ inquire (file = trim(fname), exist = exst)
 if (.not. exst) then
     call error (sub_name, 'file ' // trim(fname) // 'does not exist')
 end if
-fid = open_file_fid(trim(fname), 'rewind', 'formatted')
+open(newunit=fid, file=trim(fname), status='unknown', form='formatted',        &
+    position='rewind')
 
 ! count number of lines and close
 ios = 0

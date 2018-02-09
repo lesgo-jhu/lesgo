@@ -236,7 +236,7 @@ write (lun, '(1x,a)') trim (msg)
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_a
 
@@ -253,7 +253,7 @@ write (lun, '(1x,a,1x,i0)') trim (msg), i
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_ai
 
@@ -274,7 +274,7 @@ write (lun, fmt) trim (msg), i_arr
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_ai_array
 
@@ -291,7 +291,7 @@ write (lun, '(1x,a,1x,i0,1x,a)') trim (msg1), i, trim (msg2)
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_aia
 
@@ -308,7 +308,7 @@ write (lun, '(1x,a,1x,i0,1x,a,1x,i0)') trim (msg1), i1, trim (msg2), i2
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_aiai
 
@@ -326,7 +326,7 @@ write (lun, '(1x,a,1x,i0,1x,a,1x,es11.4)') trim (msg1), i, trim (msg2), r
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_aiar
 
@@ -343,7 +343,7 @@ write (lun, '(1x,a,1x,es11.4,1x,a,1x,es11.4)') trim (msg1), r1, trim (msg2), r2
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_arar
 
@@ -360,7 +360,7 @@ write (lun, '(1x,a,1x,l1)') trim (msg), l
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_al
 
@@ -377,7 +377,7 @@ write (lun, '(1x,a,1x,es11.4)') trim (msg), r
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_ar
 
@@ -398,7 +398,7 @@ write (lun, fmt) trim (msg), r_arr
 write (lun, '(1x,a)') '***************'
 write (lun, '(1x,a)') 'Program aborted'
 
-stop
+stop 1
 
 end subroutine error_ar_array
 
