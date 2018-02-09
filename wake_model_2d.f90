@@ -988,6 +988,10 @@ use types, only : rprec
 use messages
 use wake_model_class
 use param, only : pi, coord, nproc
+#ifdef PPMPI
+use param, only : MPI_RPREC, status, comm, ierr
+use mpi
+#endif
 implicit none
 
 private
@@ -997,7 +1001,7 @@ type :: WakeModelEstimator
     type(WakeModel), dimension(:), allocatable :: ensemble
     type(WakeModel)                            :: wm
     real(rprec)                                :: sigma_du, sigma_k, sigma_Phat
-    integer                                    :: Ne, Nm, Ns
+    integer                                    :: Ne, Ne_tot, Nm, Ns
     real(rprec), dimension(:,:), allocatable   :: A, Aprime, Ahat, Ahatprime, E, D, Dprime
     real(rprec), dimension(:), allocatable     :: Abar, Ahatbar
     real(rprec), dimension(:,:), allocatable   :: MM_array, SM_array, ME_array,&
@@ -1070,34 +1074,39 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny,
     ! Filter time for U_infty
     this%tau_U_infty = i_tau
     
+    ! Create ensemble
+    this%Ne = ceiling( 1._rprec * i_Ne / nproc)
+    this%Ne_tot = this%Ne * nproc
+
+    if (coord == 0) write(*,*) "Resizing ensemble to have ", this%Ne_tot,      &
+        "members"
+    
+    ! Create wake model estim
+    this%wm = WakeModel(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny) 
+
     ! Create ensemble members
-    this%Ne = i_Ne
     allocate( this%ensemble(this%Ne) )
     do i = 1, this%Ne
         this%ensemble(i) = WakeModel(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx,&
-                                        i_Ny)
+             i_Ny)
     end do
     
-    ! Create wake model estimate
-    this%wm = WakeModel(i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny)
-    
-
     ! Allocate filter matrices
     this%Nm = this%wm%N                              ! Number of measurements
     this%Ns = this%wm%N * this%wm%Nx + this%wm%N     ! Number of states
     allocate( this%Abar(this%Ns) )
     allocate( this%Ahatbar(this%Nm) )
-    allocate( this%A(this%Ns, this%Ne) )
-    allocate( this%Aprime(this%Ns, this%Ne) )
-    allocate( this%Ahat(this%Nm, this%Ne) )
-    allocate( this%Ahatprime(this%Nm, this%Ne) )
-    allocate( this%E(this%Nm, this%Ne) )
-    allocate( this%D(this%Nm, this%Ne) )
-    allocate( this%Dprime(this%Nm, this%Ne) )
+    allocate( this%A(this%Ns, this%Ne_tot) )
+    allocate( this%Aprime(this%Ns, this%Ne_tot) )
+    allocate( this%Ahat(this%Nm, this%Ne_tot) )
+    allocate( this%Ahatprime(this%Nm, this%Ne_tot) )
+    allocate( this%E(this%Nm, this%Ne_tot) )
+    allocate( this%D(this%Nm, this%Ne_tot) )
+    allocate( this%Dprime(this%Nm, this%Ne_tot) )
     allocate( this%MM_array(this%Nm, this%Nm) )
     allocate( this%SM_array(this%Ns, this%Nm) )
-    allocate( this%ME_array(this%Nm, this%Ne) )
-    allocate( this%SE_array(this%Ns, this%Ne) )
+    allocate( this%ME_array(this%Nm, this%Ne_tot) )
+    allocate( this%SE_array(this%Ns, this%Ne_tot) )
     
 end subroutine initialize_val
 
@@ -1123,21 +1132,21 @@ subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_t
 
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
-    read(fid) this%Ne, this%Nm, this%Ns
+    read(fid) this%Ne, this%Ne_tot, this%Nm, this%Ns
     
     allocate( this%Abar(this%Ns) )
     allocate( this%Ahatbar(this%Nm) )
-    allocate( this%A(this%Ns, this%Ne) )
-    allocate( this%Aprime(this%Ns, this%Ne) )
-    allocate( this%Ahat(this%Nm, this%Ne) )
-    allocate( this%Ahatprime(this%Nm, this%Ne) )
-    allocate( this%E(this%Nm, this%Ne) )
-    allocate( this%D(this%Nm, this%Ne) )
-    allocate( this%Dprime(this%Nm, this%Ne) )
+    allocate( this%A(this%Ns, this%Ne_tot) )
+    allocate( this%Aprime(this%Ns, this%Ne_tot) )
+    allocate( this%Ahat(this%Nm, this%Ne_tot) )
+    allocate( this%Ahatprime(this%Nm, this%Ne_tot) )
+    allocate( this%E(this%Nm, this%Ne_tot) )
+    allocate( this%D(this%Nm, this%Ne_tot) )
+    allocate( this%Dprime(this%Nm, this%Ne_tot) )
     allocate( this%MM_array(this%Nm, this%Nm) )
     allocate( this%SM_array(this%Ns, this%Nm) )
-    allocate( this%ME_array(this%Nm, this%Ne) )
-    allocate( this%SE_array(this%Ns, this%Ne) )
+    allocate( this%ME_array(this%Nm, this%Ne_tot) )
+    allocate( this%SE_array(this%Ns, this%Ne_tot) )
     
     read(fid) this%A
     read(fid) this%Aprime
@@ -1175,7 +1184,7 @@ subroutine write_to_file(this, fpath)
     call system('mkdir -vp ' // fpath)
     fstring = fpath // '/wm_est.dat'
     fid = open_file_fid(fstring, 'rewind', 'unformatted')
-    write(fid) this%Ne, this%Nm, this%Ns
+    write(fid) this%Ne, this%Ne_tot, this%Nm, this%Ns
     write(fid) this%A
     write(fid) this%Aprime
     write(fid) this%Ahat
@@ -1205,7 +1214,7 @@ subroutine generateInitialEnsemble(this, Ctp)
     real(rprec)                                 :: dt
     real(rprec), parameter                      :: cfl = 0.99
     real(rprec)                                 :: FTT
-    integer                                     :: i, j, N, Nx, jstart, jend
+    integer                                     :: ii, i, j, N, Nx, jstart, jend
     
     if (size(Ctp) /= this%ensemble(1)%N) then
         call error('WakeModelEstimator.generateInitialEnsemble','Ctp must be of size N')
@@ -1217,35 +1226,85 @@ subroutine generateInitialEnsemble(this, Ctp)
     call init_random_seed
     
     ! Calculate safe dt.
-    dt          = cfl * this%wm%dx / this%wm%U_infty
-    FTT         = this%wm%x(this%wm%Nx) / this%wm%U_Infty
+    dt = cfl * this%wm%dx / this%wm%U_infty
+    FTT = this%wm%x(this%wm%Nx) / this%wm%U_Infty
 
-    ! Do at least 1 FTT of simulations to get good ensemble statistics  
-    N = this%wm%N  
-    do i = 1, floor(FTT / dt)
-        call this%advanceEnsemble(Ctp, dt)
-    end do
-    
-    ! Place ensemble into a matrix with each member in a column
-    this%Abar    = 0
-    this%Ahatbar = 0
-    N  = this%wm%N
+    ! set integer
+    N = this%wm%N
     Nx = this%wm%Nx
+
+    ! Do 1 FFT of k's
+    if (coord == 0) write(*,*) "At k advancement"
+    do i = 1, this%Ne
+        do ii = 1, floor(FTT / dt)
+            do j = 1, N
+                this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                  &
+                    + sqrt(dt) * this%sigma_k * random_normal(), 0._rprec)
+            end do
+        end do
+        call this%ensemble(i)%computeWakeExpansionFunctions
+        call this%ensemble(i)%compute2Dwakes
+        call this%ensemble(i)%wokeTurbines
+    end do
+
+    ! Do at least 1 FTT of simulations to get good ensemble statistics
+    if (coord == 0) write(*,*) "At ensemble advancement"
+    do ii = 1, floor(FTT / dt)
+        ! write(*,*) "Advancing ensemble at time step", ii
+        ! Advance step for objects
+        ! always safeguard against negative k's, du's, and omega's
+        do i = 1, this%Ne
+            do j = 1, N
+                this%ensemble(i)%du(j,:) = max(this%ensemble(i)%du(j,:)            &
+                    + sqrt(dt) * this%sigma_du * random_normal()                   &
+                    * this%ensemble(i)%G(j,:) * sqrt(2*pi)                         &
+                    * this%ensemble(i)%Delta, 0._rprec)
+            end do
+            call this%ensemble(i)%advance(Ctp, dt)
+        end do
+        call this%wm%advance(Ctp, dt)
+    end do
+
+    ! Place ensemble into a matrix with each member in a column
+    if (coord == 0) write(*,*) "At ensemble matrix placement"
+    this%A = 0._rprec
+    this%Ahat = 0._rprec
+    this%Abar = 0._rprec
+    this%Ahatbar = 0._rprec
     do i = 1, this%Ne
         do j = 1, N
             jstart = (j-1)*Nx+1
-            jend   = j*Nx
-            this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+            jend = j*Nx
+            this%A(jstart:jend,i+coord*this%Ne) = this%ensemble(i)%du(j,:)
         end do
-        this%A(Nx*N+1:,i) = this%ensemble(i)%k(1:N-1)
-        this%Ahat(:,i)    = this%ensemble(i)%Phat
-        this%Abar         = this%Abar + this%A(:,i) / this%Ne
-        this%Ahatbar      = this%Ahatbar + this%Ahat(:,i) / this%Ne
+        this%A((N*Nx+1):,i+coord*this%Ne) = this%ensemble(i)%k(:)
+        this%Ahat(:,i+coord*this%Ne) = this%ensemble(i)%Phat
     end do
-    do j = 1, this%Ne
-        this%Aprime(:,j) = this%A(:,j) - this%Abar
-        this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+
+#ifdef PPMPI
+    write(*,*) "At MPI_ALLREDUCE ", coord
+    call mpi_allreduce(this%A, this%SE_array, this%Ns*this%Ne_tot, MPI_RPREC,      &
+        MPI_SUM, comm, ierr)
+    call mpi_allreduce(this%Ahat, this%ME_array, this%Nm*this%Ne_tot, MPI_RPREC,   &
+        MPI_SUM, comm, ierr)
+    if (coord == 0) write(*,*) "At A, Ahat asignment"
+    this%A = this%SE_array
+    this%Ahat = this%ME_array
+#endif
+
+    if (coord == 0) write(*,*) "At Abar, Ahatbar asignment"
+    do i = 1, this%Ne_tot
+        this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
+        this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne_tot
     end do
+
+    if (coord == 0) write(*,*) "At Aprime, Ahatprime asignment"
+    do i = 1, this%Ne_tot
+        this%Aprime(:,i) = this%A(:,i) - this%Abar
+        this%Ahatprime(:,i) = this%Ahat(:,i) - this%Ahatbar
+    end do
+
+    if (coord == 0) write(*,*) "Done generating initial ensemble"
     
 end subroutine generateInitialEnsemble
 
@@ -1253,7 +1312,7 @@ subroutine advance(this, dt, Pm, Ctp)
     use util, only : random_normal, inverse
 #ifdef PPIFORT
     use BLAS95
-#endif   
+#endif
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
     real(rprec), intent(in)                     :: dt
@@ -1340,29 +1399,42 @@ subroutine advance(this, dt, Pm, Ctp)
 !    this%wm%k(N)     = this%wm%k(N-1)
 
     ! Advance ensemble and mean estimate
-    call this%advanceEnsemble(Ctp, dt)
-    
+    call this%advanceEnsemble(Ctp, dt) 
+
     ! Place ensemble into a matrix with each member in a column
-    this%Abar    = 0
-    this%Ahatbar = 0
-    N  = this%wm%N
-    Nx = this%wm%Nx
+    this%A = 0._rprec
+    this%Ahat = 0._rprec
+    this%Abar = 0._rprec
+    this%Ahatbar = 0._rprec
     do i = 1, this%Ne
         do j = 1, N
             jstart = (j-1)*Nx+1
-            jend   = j*Nx
-            this%A(jstart:jend,i) = this%ensemble(i)%du(j,:)
+            jend = j*Nx
+            this%A(jstart:jend,i+coord*this%Ne) = this%ensemble(i)%du(j,:)
         end do
-        this%A(Nx*N+1:,i) = this%ensemble(i)%k(1:N)
-        this%Ahat(:,i)    = this%ensemble(i)%Phat
-        this%Abar         = this%Abar + this%A(:,i) / this%Ne
-        this%Ahatbar      = this%Ahatbar + this%Ahat(:,i) / this%Ne
+        this%A((N*Nx+1):,i+coord*this%Ne) = this%ensemble(i)%k(:)
+        this%Ahat(:,i+coord*this%Ne) = this%ensemble(i)%Phat
     end do
-    do j = 1, this%Ne
-        this%Aprime(:,j) = this%A(:,j) - this%Abar
-        this%Ahatprime(:,j) = this%Ahat(:,j) - this%Ahatbar
+
+#ifdef PPMPI
+    call mpi_allreduce(this%A, this%SE_array, this%Ns*this%Ne_tot, MPI_RPREC,      &
+        MPI_SUM, comm, ierr)
+    call mpi_allreduce(this%Ahat, this%ME_array, this%Nm*this%Ne_tot, MPI_RPREC,   &
+        MPI_SUM, comm, ierr)
+    this%A = this%SE_array
+    this%Ahat = this%ME_array
+#endif
+
+    do i = 1, this%Ne_tot
+        this%Abar = this%Abar + this%A(:,i) / this%Ne_tot
+        this%Ahatbar = this%Ahatbar + this%Ahat(:,i) / this%Ne_tot
     end do
-    
+
+    do i = 1, this%Ne_tot
+        this%Aprime(:,i) = this%A(:,i) - this%Abar
+        this%Ahatprime(:,i) = this%Ahat(:,i) - this%Ahatbar
+    end do
+
 end subroutine 
 
 subroutine advanceEnsemble(this, Ctp, dt)
@@ -1385,9 +1457,13 @@ subroutine advanceEnsemble(this, Ctp, dt)
         end do
 !        this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
         call this%ensemble(i)%computeWakeExpansionFunctions
+        call this%ensemble(i)%compute2Dwakes
+        call this%ensemble(i)%wokeTurbines
         call this%ensemble(i)%advance(Ctp, dt)
     end do
     call this%wm%computeWakeExpansionFunctions
+    call this%wm%compute2Dwakes
+    call this%wm%woketurbines
     call this%wm%advance(Ctp, dt)
     
 end subroutine advanceEnsemble
