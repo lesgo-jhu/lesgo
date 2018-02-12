@@ -428,7 +428,6 @@ end function constructor_val
 
 ! Constructor for wake model that reads from file
 function constructor_file(fstring) result(this)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     implicit none
 
@@ -466,7 +465,6 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny)
 end subroutine initialize_val
 
 subroutine initialize_file(this, fstring)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     implicit none
 
@@ -552,7 +550,6 @@ end subroutine makeDimensional
 
 ! Writes object to file
 subroutine write_to_file(this, fstring)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     implicit none
     class(WakeModel), intent(in) :: this
@@ -1044,7 +1041,6 @@ end function constructor_val
 
 ! Constructor for wake model that reads from file
 function constructor_file(fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau) result(this)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     implicit none
 
@@ -1113,7 +1109,6 @@ subroutine initialize_val(this, i_s, i_U_infty, i_Delta, i_k, i_Dia, i_Nx, i_Ny,
 end subroutine initialize_val
 
 subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_tau)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     use string_util, only : string_splice
     implicit none
@@ -1174,7 +1169,6 @@ subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_t
 end subroutine initialize_file
 
 subroutine write_to_file(this, fpath)
-    use open_file_fid_mod
     use param, only : CHAR_BUFF_LENGTH
     use string_util, only : string_splice
     implicit none

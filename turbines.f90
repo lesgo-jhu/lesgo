@@ -294,7 +294,6 @@ end subroutine turbines_init
 subroutine wake_model_est_init
 !*******************************************************************************
 use param, only : u_star, CHAR_BUFF_LENGTH
-use open_file_fid_mod
 use wake_model_class
 use functions, only : linear_interp
 implicit none
@@ -367,7 +366,6 @@ end subroutine wake_model_est_init
 !!*******************************************************************************
 !subroutine receding_horizon_init
 !!*******************************************************************************
-!use open_file_fid_mod
 !use wake_model_class
 !use functions, only : linear_interp
 !implicit none
