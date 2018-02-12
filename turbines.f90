@@ -344,13 +344,17 @@ end if
 
 ! Generate the files for the wake model estimator
 string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
-U_infty_fid = open_file_fid( string1, 'append', 'formatted' )
+open(newunit=U_infty_fid , file=string1, status='unknown', form='formatted',   &
+    action='write', position='append')
 string1 = trim( path // 'turbine/wake_model_k.dat' )
-k_fid = open_file_fid( string1, 'append', 'formatted' )
+open(newunit=k_fid , file=string1, status='unknown', form='formatted',         &
+    action='write', position='append')
 string1 = trim( path // 'turbine/wake_model_Phat.dat' )
-Phat_fid = open_file_fid( string1, 'append', 'formatted' )
+open(newunit=Phat_fid , file=string1, status='unknown', form='formatted',      &
+    action='write', position='append')
 string1 = trim( path // 'turbine/wake_model_u.dat' )
-u_fid = open_file_fid( string1, 'append', 'formatted' )
+open(newunit=u_fid , file=string1, status='unknown', form='formatted',      &
+    action='write', position='append')
 
 ! Write initial values
 write(k_fid, *) total_time_dim, wm_est%wm%k
@@ -725,7 +729,7 @@ if (coord .eq. nproc-1) then
     close(fid)
 end if
 
-if (use_wake_model .and. coord == 0) then
+if (use_wake_model) then
     ! Input thrust coefficient
     allocate ( wm_Ctp(nloc) )
     wm_Ctp(:) = wind_farm%turbine%Ct_prime
@@ -748,7 +752,7 @@ if (use_wake_model .and. coord == 0) then
     call wm_est%advance(dt_dim, wm_Pm, wm_Ctp)
 
     ! Write to file
-    if (modulo (jt_total, tbase) == 0) then
+    if (modulo (jt_total, tbase) == 0 .and. coord == 0) then
         write(k_fid, *) total_time_dim, wm_est%wm%k
         write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
         write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
@@ -900,7 +904,8 @@ end if
 
 ! Checkpoint receding horizon controller
 if (use_receding_horizon .and. coord == 0) then
-    fid = open_file_fid( rh_dat, 'rewind', 'unformatted')
+    open(newunit=fid, file=rh_dat, status='unknown', form='unformatted',       &
+        position='rewind')
     write(fid) size(Ct_prime_time)
     write(fid) Ct_prime_time
     write(fid) Ct_prime_arr
@@ -1168,7 +1173,8 @@ if (use_receding_horizon) then
     allocate( Pref_arr(num_t) )
 
     ! Read values from file
-    fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
+    open(newunit=fid, file=Pref_dat, status='unknown', form='formatted',       &
+        position='rewind')
     do i = 1, num_t
         read(fid,*) Pref_time(i), Pref_arr(i)
     end do
