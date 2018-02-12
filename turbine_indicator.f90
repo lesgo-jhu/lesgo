@@ -78,7 +78,7 @@ integer*8 plan
 complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
 
 L = 3._rprec * dia
-N = 3*ceiling(2._rprec*L / sqrt(delta2))
+N = 4*ceiling(2._rprec*L / sqrt(delta2))
 d = L / N
 R = 0.5 * dia
 
