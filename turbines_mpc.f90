@@ -31,7 +31,7 @@ type, extends(minimize_t) :: turbines_mpc_t
     type(wake_model_t) :: iw                ! wake model initial condition
     type(wake_model_adjoint_t) :: wstar     ! adjoint wake model
     type(wake_model_adjoint_t) :: iwstar    ! adjoint wake model initial condition
-    integer :: N, Nt, Nsample
+    integer :: N, Nt, Nsample, Nskip
     logical :: isDimensionless = .false.
     real(rprec) :: cfl, dt
     real(rprec), dimension(:), allocatable :: t, Pref, Pfarm
@@ -136,15 +136,16 @@ this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,        
 this%wstar = this%iwstar
 
 ! Create time for the time horizon
-this%Nsample = 100
+this%Nskip = 5
 this%cfl = i_cfl
 this%dt = this%cfl * this%w%dx / this%w%U_infty
-this%Nt = (ceiling(i_T / this%dt / this%Nsample) + 1) * this%Nsample
+this%Nsample = (ceiling(i_T / this%dt / this%Nskip) + 1)
+this%Nt = this%Nsample * this%Nskip
 allocate( this%t(this%Nt) )
 do i = 1, this%Nt
     this%t(i) = i_t0 + this%dt * (i - 1)
 end do
-write(*,*) "Nt, Nsample, tend: ", this%Nt, this%Nsample, this%t(1), this%t(this%Nt)
+write(*,*) "Nt, Nsample, Nskp, tend: ", this%Nt, this%Nsample, this%Nskip, this%t(1), this%t(this%Nt)
 
 ! Penalty terms away from optimal
 this%eta2 = i_eta2
@@ -354,20 +355,25 @@ end subroutine run
 !*******************************************************************************
 subroutine eval(this, x, f, g)
 !*******************************************************************************
+use functions, only : linear_interp
 implicit none
 class(turbines_mpc_t), intent(inout) :: this
 real(rprec), dimension(:), intent(in) :: x
 real(rprec), intent(inout) :: f
 real(rprec), dimension(:), intent(inout) :: g
-integer :: k, istart, istop, iskip
+real(rprec) :: alpha
+integer :: i, k, istart, istop, iskip
 
 ! Place x in control variables
-iskip = (this%Nt-1) * this%N
-do k = 1, this%Nt-1
-    istart = (k-1) * this%N + 1
-    istop = this%N * k
-    this%beta(:,k+1) = x(istart:istop) * this%Cb
-    this%torque_gain(:,k+1) = x((istart+iskip):(istop+iskip)) * this%Ca
+iskip = (this%Nsample-1)*this%N
+do i = 1, this%N
+    this%beta(i,this%Nskip+1:this%Nt:this%Nskip) = x(i:iskip:this%N) * this%Cb
+    this%torque_gain(i,this%Nskip+1:this%Nt:this%Nskip)                        &
+        = x(i+iskip:2*iskip:this%N) * this%Ca
+    this%beta(i,:) = linear_interp(this%t(1:this%Nt:this%Nskip),               &
+        this%beta(i,1:this%Nt:this%Nskip), this%t)
+    this%torque_gain(i,:) = linear_interp(this%t(1:this%Nt:this%Nskip),        &
+        this%torque_gain(i,1:this%Nt:this%Nskip), this%t)
 end do
 
 ! Run model
@@ -378,12 +384,23 @@ f = this%cost
 
 ! Return gradient as vector
 g = 0._rprec
-do k = 1, this%Nt-1
-    istart = (k-1) * this%N + 1
-    istop = this%N * k
-    g(istart:istop) = this%grad_beta(:,k+1) * this%Cb
-    g((istart+iskip):(istop+iskip)) = this%grad_torque_gain(:,k+1) * this%Ca
+do i = 1, this%N
+    do k = 1, this%Nskip
+        alpha = real(k) / this%Nskip
+        g(i) = g(i) + alpha* this%grad_beta(i,k+1)
+        g(i+iskip) = g(i+iskip) + alpha* this%grad_torque_gain(i,k+1)
+        ! g(i+1:iskip:this%N) = this%beta(i,this%Nskip+1:this%Nt:this%Nskip) / this%Cb
+        ! g(i+1+iskip:2*iskip:this%N) = this%torque_gain(i,this%Nskip+1:this%Nt:this%Nskip) / this%Ca
+    end do
 end do
+! do k = 1, this%Nsample-1
+!     for i = 1, this%Nskip
+!         istart = (k-1) * this%N + 1
+!         istop = this%N * k
+!         g(istart:istop) = this%grad_beta(:,(k-1)*this%Nskip+1) * this%Cb
+!         g((istart+iskip):(istop+iskip)) = this%grad_torque_gain(:,(k-1)*this%Nskip+1) * this%Ca
+!     end
+! end do
 
 end subroutine eval
 
@@ -395,14 +412,13 @@ class(turbines_mpc_t) :: this
 real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
-allocate( x(2*(this%Nt-1)*this%N) )
-
-iskip = (this%Nt-1) * this%N
-do k = 1, this%Nt-1
+allocate( x(2*(this%Nsample-1)*this%N) )
+iskip = (this%Nsample-1) * this%N
+do k = 1, this%Nsample-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
-    x(istart:istop) = this%beta(:,k+1) / this%Cb
-    x((istart+iskip):(istop+iskip)) = this%torque_gain(:,k+1) / this%Ca
+    x(istart:istop) = this%beta(:,k*this%Nskip+1) / this%Cb
+    x((istart+iskip):(istop+iskip)) = this%torque_gain(:,k*this%Nskip+1) / this%Ca
 end do
 
 end function get_control_vector
@@ -415,12 +431,12 @@ class(turbines_mpc_t) :: this
 real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
-allocate( x(2*(size(this%beta) - this%N)) )
+allocate( x(2*(this%Nsample-1)*this%N) )
 ! combined with get_upper_bound default, would cause an error
 x = 1._rprec
 
-iskip = (this%Nt-1) * this%N
-do k = 1, this%Nt-1
+iskip = (this%Nsample-1) * this%N
+do k = 1, this%Nsample-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta_min / this%Cb
@@ -437,12 +453,12 @@ class(turbines_mpc_t) :: this
 real(rprec), dimension(:), allocatable :: x
 integer :: k, istart, istop, iskip
 
-allocate( x(2*(size(this%beta) - this%N)) )
+allocate( x(2*(this%Nsample-1)*this%N) )
 ! combined with get_lower_bound default, would cause an errors
 x = -1._rprec
 
-iskip = (this%Nt-1) * this%N
-do k = 1, this%Nt-1
+iskip = (this%Nsample-1) * this%N
+do k = 1, this%Nsample-1
     istart = (k-1) * this%N + 1
     istop = this%N * k
     x(istart:istop) = this%beta_max / this%Cb

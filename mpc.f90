@@ -48,6 +48,7 @@ real(rprec), intent(in) :: U_infty
 type(wake_model_t) :: wm
 real(rprec) :: rho
 real(rprec), dimension(:), allocatable :: k
+integer :: i
 
 ! Call read lesgo's input file
 call read_input_conf
@@ -59,11 +60,10 @@ call grid%build()
 call turbines_init
 
 rho = 1.225
-
-allocate(k(num_x*num_y))
+allocate(k(4))
 k = 0.05_rprec
 
-wm = wake_model_t(wind_farm%turbine(:)%xloc*z_i, wind_farm%turbine(:)%yloc*z_i,&
+wm = wake_model_t(wind_farm%turbine(1:4*12:12)%xloc*z_i, wind_farm%turbine(1:4*12:12)%yloc*z_i,&
     U_infty, 0.5*dia_all*z_i, k, dia_all*z_i, rho, inertia_all, nx/2, ny/2,    &
     wm_Ct_prime_spline, wm_Cp_prime_spline, torque_gain)
 
@@ -128,7 +128,7 @@ call read_Pref(time, Pref)
 ! Create controller
 tt = 0._rprec
 T = 300._rprec!1.25_rprec*wm%x(wm%Nx)/wm%U_infty
-controller = turbines_mpc_t(wm, 0._rprec, T, 0.01_rprec, time, Pref,           &
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref,           &
     beta_penalty, beta_star, tsr_penalty, lambda_prime_star, speed_penalty,    &
     omega_min, omega_max)
 controller%beta = 0._rprec
