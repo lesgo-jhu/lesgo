@@ -241,28 +241,26 @@ end do
 call turbines_nodes
 
 ! Read the time-averaged disk velocities from file if available
-if (coord == 0) then
-    inquire (file=u_d_T_dat, exist=exst)
-    if (exst) then
-        write(*,*) 'Reading from file ', trim(u_d_T_dat)
-        open(newunit=fid, file=u_d_T_dat, status='unknown', form='formatted',  &
-            position='rewind')
-        do i=1,nloc
-            read(fid,*) wind_farm%turbine(i)%u_d_T
-        end do
-        read(fid,*) T_avg_dim_file
-        if (T_avg_dim_file /= T_avg_dim) then
-            write(*,*) 'Time-averaging window does not match value in ',       &
-                       trim(u_d_T_dat)
-        end if
-        close (fid)
-    else
-        write (*, *) 'File ', trim(u_d_T_dat), ' not found'
-        write (*, *) 'Assuming u_d_T = -1. for all turbines'
-        do k=1,nloc
-            wind_farm%turbine(k)%u_d_T = -1.
-        end do
+inquire (file=u_d_T_dat, exist=exst)
+if (exst) then
+    write(*,*) 'Reading from file ', trim(u_d_T_dat)
+    open(newunit=fid, file=u_d_T_dat, status='unknown', form='formatted',  &
+        position='rewind')
+    do i=1,nloc
+        read(fid,*) wind_farm%turbine(i)%u_d_T
+    end do
+    read(fid,*) T_avg_dim_file
+    if (T_avg_dim_file /= T_avg_dim) then
+        write(*,*) 'Time-averaging window does not match value in ',       &
+                   trim(u_d_T_dat)
     end if
+    close (fid)
+else
+    write (*, *) 'File ', trim(u_d_T_dat), ' not found'
+    write (*, *) 'Assuming u_d_T = -1. for all turbines'
+    do k=1,nloc
+        wind_farm%turbine(k)%u_d_T = -1.
+    end do
 end if
 
 ! Generate top of domain file
@@ -335,7 +333,6 @@ else
             (1._rprec - ind_factor))**3 / num_y
     end do
     U_infty = U_infty**(1._rprec/3._rprec)
-
     wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
         Ny, num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
     call wm_est%generateInitialEnsemble(wm_Ctp)
@@ -994,7 +991,6 @@ if (read_param) then
     ! Read from parameters file, which should be in this format:
     ! xloc [meters], yloc [meters], height [meters], dia [meters], thk [meters],
     ! theta1 [degrees], theta2 [degrees], Ct_prime [-]
-    write(*,*) "Reading from", param_dat
     open(newunit=fid, file=param_dat, status='unknown', form='formatted',      &
         position='rewind')
     do k = 1, nloc
