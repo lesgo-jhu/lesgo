@@ -338,25 +338,26 @@ else
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
 
-! Generate the files for the wake model estimator
-string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
-open(newunit=U_infty_fid , file=string1, status='unknown', form='formatted',   &
-    action='write', position='append')
-string1 = trim( path // 'turbine/wake_model_k.dat' )
-open(newunit=k_fid , file=string1, status='unknown', form='formatted',         &
-    action='write', position='append')
-string1 = trim( path // 'turbine/wake_model_Phat.dat' )
-open(newunit=Phat_fid , file=string1, status='unknown', form='formatted',      &
-    action='write', position='append')
-string1 = trim( path // 'turbine/wake_model_u.dat' )
-open(newunit=u_fid , file=string1, status='unknown', form='formatted',      &
-    action='write', position='append')
+if (coord == 0) then
+    ! Generate the files for the wake model estimator
+    string1 = trim( path // 'turbine/wake_model_U_infty.dat' )
+    open(newunit=U_infty_fid , file=string1, status='unknown', form='formatted',   &
+        action='write', position='append')
+    string1 = trim( path // 'turbine/wake_model_k.dat' )
+    open(newunit=k_fid , file=string1, status='unknown', form='formatted',         &
+        action='write', position='append')
+    string1 = trim( path // 'turbine/wake_model_Phat.dat' )
+    open(newunit=Phat_fid , file=string1, status='unknown', form='formatted',      &
+        action='write', position='append')
+    string1 = trim( path // 'turbine/wake_model_u.dat' )
+    open(newunit=u_fid , file=string1, status='unknown', form='formatted',      &
+        action='write', position='append')
 
-! Write initial values
-write(k_fid, *) total_time_dim, wm_est%wm%k
-write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
-write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
-write(u_fid, *) total_time_dim, wm_est%wm%u
+    ! Write initial values
+    write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
+    write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
+    write(u_fid, *) total_time_dim, wm_est%wm%u
+end if
 
 end subroutine wake_model_est_init
 
