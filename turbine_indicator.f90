@@ -57,7 +57,7 @@ end function val
 !*******************************************************************************
 subroutine init(this, delta2, thk, dia)
 !*******************************************************************************
-use param, only : write_endian, path, pi
+use param, only : write_endian, path, pi, coord
 use functions, only : bilinear_interp
 implicit none
 include'fftw3.f'
@@ -78,7 +78,7 @@ integer*8 plan
 complex(rprec), dimension(:,:), allocatable :: ghat, fhat, hhat
 
 L = 3._rprec * dia
-N = 3*ceiling(2._rprec*L / sqrt(delta2))
+N = 4*ceiling(2._rprec*L / sqrt(delta2))
 d = L / N
 R = 0.5 * dia
 
@@ -154,8 +154,7 @@ do i = 1,N
     this%r(i) = (i-1)*dr
     xi(i) = 0
 end do
-this%R2 = max(6._rprec / pi / delta2 * bilinear_interp(yz, yz, f, xi, this%r), &
-    0._rprec)
+this%R2 = 6._rprec / pi / delta2 * bilinear_interp(yz, yz, f, xi, this%r)
 
 end subroutine init
 
