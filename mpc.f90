@@ -128,7 +128,7 @@ call read_Pref(time, Pref)
 ! Create controller
 tt = 0._rprec
 T = 300._rprec!1.25_rprec*wm%x(wm%Nx)/wm%U_infty
-controller = turbines_mpc_t(wm, 0._rprec, T, 0.99_rprec, time, Pref,           &
+controller = turbines_mpc_t(wm, 0._rprec, T, 0.01_rprec, time, Pref,           &
     beta_penalty, beta_star, tsr_penalty, lambda_prime_star, speed_penalty,    &
     omega_min, omega_max)
 controller%beta = 0._rprec

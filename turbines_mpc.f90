@@ -31,7 +31,7 @@ type, extends(minimize_t) :: turbines_mpc_t
     type(wake_model_t) :: iw                ! wake model initial condition
     type(wake_model_adjoint_t) :: wstar     ! adjoint wake model
     type(wake_model_adjoint_t) :: iwstar    ! adjoint wake model initial condition
-    integer :: N, Nt
+    integer :: N, Nt, Nsample
     logical :: isDimensionless = .false.
     real(rprec) :: cfl, dt
     real(rprec), dimension(:), allocatable :: t, Pref, Pfarm
@@ -136,13 +136,15 @@ this%iwstar = wake_model_adjoint_t(this%w%sx, this%w%sy, this%w%U_infty,        
 this%wstar = this%iwstar
 
 ! Create time for the time horizon
+this%Nsample = 100
 this%cfl = i_cfl
 this%dt = this%cfl * this%w%dx / this%w%U_infty
-this%Nt = ceiling(i_T / this%dt)
+this%Nt = (ceiling(i_T / this%dt / this%Nsample) + 1) * this%Nsample
 allocate( this%t(this%Nt) )
 do i = 1, this%Nt
     this%t(i) = i_t0 + this%dt * (i - 1)
 end do
+write(*,*) "Nt, Nsample, tend: ", this%Nt, this%Nsample, this%t(1), this%t(this%Nt)
 
 ! Penalty terms away from optimal
 this%eta2 = i_eta2
