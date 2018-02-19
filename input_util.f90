@@ -712,16 +712,6 @@ do
                 read (buff(equal_pos+1:), *) dyn_theta2
             case ('DYN_CT_PRIME')
                 read (buff(equal_pos+1:), *) dyn_Ct_prime
-            case ('PHI_A')
-                read (buff(equal_pos+1:), *) phi_a
-            case ('PHI_B')
-                read (buff(equal_pos+1:), *) phi_b
-            case ('PHI_C')
-                read (buff(equal_pos+1:), *) phi_c
-            case ('PHI_D')
-                read (buff(equal_pos+1:), *) phi_d
-            case ('PHI_X0')
-                read (buff(equal_pos+1:), *) phi_x0
             case ('T_AVG_DIM')
                 read (buff(equal_pos+1:), *) T_avg_dim
             case ('ALPHA')

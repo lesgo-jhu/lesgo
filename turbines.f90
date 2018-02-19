@@ -71,8 +71,6 @@ logical, public :: dyn_theta1
 logical, public :: dyn_theta2
 ! Dynamically change Ct_prime from input_turbines/Ct_prime.dat
 logical, public :: dyn_Ct_prime
-! Correction paramters for u_d_T
-real(rprec), public :: phi_a, phi_b, phi_c, phi_d, phi_x0
 ! disk-avg time scale in seconds (default 600)
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -624,7 +622,7 @@ implicit none
 character (*), parameter :: sub_name = mod_name // '.turbines_forcing'
 
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
-real(rprec), pointer :: p_u_d_T_corr => null(), p_Ct_prime => null()
+real(rprec), pointer :: p_Ct_prime => null()
 integer, pointer :: p_icp => null(), p_jcp => null(), p_kcp => null()
 
 real(rprec) :: ind2
@@ -632,7 +630,6 @@ real(rprec), dimension(nloc) :: disk_avg_vel, disk_force
 real(rprec), dimension(nloc) :: u_vel_center, v_vel_center, w_vel_center
 real(rprec), allocatable, dimension(:,:,:) :: w_uv
 real(rprec), pointer, dimension(:) :: y,z
-real(rprec) :: phi_u
 
 real(rprec), dimension(4*nloc) :: send_array
 #ifdef PPMPI
@@ -746,7 +743,6 @@ if (coord == 0) then
         !set pointers
         p_u_d => wind_farm%turbine(s)%u_d
         p_u_d_T => wind_farm%turbine(s)%u_d_T
-        p_u_d_T_corr => wind_farm%turbine(s)%u_d_T_corr
         p_f_n => wind_farm%turbine(s)%f_n
         p_Ct_prime => wind_farm%turbine(s)%Ct_prime
 
@@ -756,15 +752,6 @@ if (coord == 0) then
 
         !add this current value to the "running average" (first order filter)
         p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
-
-        !do correction for u
-        if (p_Ct_prime > phi_x0) then
-            phi_u = phi_a*phi_x0**3 + phi_b*phi_x0**2 + phi_c*phi_x0 + phi_d
-        else
-            phi_u = phi_a*p_Ct_prime**3 + phi_b*p_Ct_prime**2                  &
-                + phi_c*p_Ct_prime + phi_d
-        end if
-        p_u_d_T_corr = p_u_d_T*phi_u
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
@@ -776,8 +763,8 @@ if (coord == 0) then
         if (modulo (jt_total, tbase) == 0) then
             write( forcing_fid(s), *) total_time_dim, u_vel_center(s),         &
                 v_vel_center(s), w_vel_center(s), -p_u_d, -p_u_d_T,            &
-                -p_u_d_T_corr, wind_farm%turbine(s)%theta1,                    &
-                wind_farm%turbine(s)%theta2, p_Ct_prime
+                wind_farm%turbine(s)%theta1, wind_farm%turbine(s)%theta2,      &
+                p_Ct_prime
         end if
 
     end do
@@ -831,7 +818,7 @@ if (use_wake_model .and. coord == 0) then
     do i = 1, num_x
         do j = 1, num_y
             wm_Pm(i) = wm_Pm(i) - wm_Ctp(i) *                                  &
-                (wind_farm%turbine((i-1)*num_y + j)%u_d_T_corr*u_star)**3/num_y
+                (wind_farm%turbine((i-1)*num_y + j)%u_d_T * u_star)**3 / num_y
         end do
     end do
 
