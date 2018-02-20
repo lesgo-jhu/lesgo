@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "GNU")
+set(CMAKE_Fortran_COMPILER_ID "Intel")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "default")
+set(hostname "marcc")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -153,8 +153,7 @@ endif (USE_LVLSET)
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
     set(Sources ${Sources} turbines.f90 turbine_indicator.f90 util.f90
-    wake_model_2d.f90 minimize.f90 lbfgsb.f timer.f linpack.f)
-#   rh_control.f90)
+    wake_model_2d.f90 minimize.f90 lbfgsb.f timer.f linpack.f rh_control.f90)
     set(exec_name "${exec_name}-turbines-2d")
 endif (USE_TURBINES)
 
