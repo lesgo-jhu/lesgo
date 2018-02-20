@@ -722,20 +722,20 @@ do
                 read (buff(equal_pos+1:), *) tbase
             case ('USE_RECEDING_HORIZON')
                 read (buff(equal_pos+1:), *) use_receding_horizon
-!            case ('SOLVER')
-!                read (buff(equal_pos+1:), *) solver
-!            case ('ADVANCEMENT_BASE')
-!                read (buff(equal_pos+1:), *) advancement_base
-!            case ('HORIZON_TIME')
-!                read (buff(equal_pos+1:), *) horizon_time
-!            case ('MAX_ITER')
-!                read (buff(equal_pos+1:), *) max_iter
-!            case ('PHI_TAU')
-!                read (buff(equal_pos+1:), *) phi_tau
-!            case ('CT_PRIME_MIN')
-!                read (buff(equal_pos+1:), *) Ct_prime_min
-!            case ('CT_PRIME_MAX')
-!                read (buff(equal_pos+1:), *) Ct_prime_max
+           case ('SOLVER')
+               read (buff(equal_pos+1:), *) solver
+           case ('ADVANCEMENT_BASE')
+               read (buff(equal_pos+1:), *) advancement_base
+           case ('HORIZON_TIME')
+               read (buff(equal_pos+1:), *) horizon_time
+           case ('MAX_ITER')
+               read (buff(equal_pos+1:), *) max_iter
+           case ('PHI_TAU')
+               read (buff(equal_pos+1:), *) phi_tau
+           case ('CT_PRIME_MIN')
+               read (buff(equal_pos+1:), *) Ct_prime_min
+           case ('CT_PRIME_MAX')
+               read (buff(equal_pos+1:), *) Ct_prime_max
             case ('USE_WAKE_MODEL')
                 read (buff(equal_pos+1:), *) use_wake_model
             case ('TAU_U_INFTY')

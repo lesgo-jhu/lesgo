@@ -6,12 +6,12 @@ cmake_minimum_required(VERSION 2.8.9)
 
 # Specify Compiler
 # Options: Intel and GNU
-set(CMAKE_Fortran_COMPILER_ID "Intel")
+set(CMAKE_Fortran_COMPILER_ID "GNU")
 
 # Set the name of the computer you are compiling on.
 # Supported computers: panoramix, njord, marcc, darwin-brew
 # Otherwise, default settings are used
-set(hostname "marcc")
+set(hostname "default")
 
 # Read and write binary files as big_endian or little_endian
 # Options: DEFAULT, LITTLE, or BIG
@@ -20,11 +20,11 @@ set(READ_ENDIAN "DEFAULT")
 
 # Options to enable various features in the code
 option(USE_MPI "Enable parallelization support." ON)
-option(USE_CPS "Enable concurrent precursor simulations." OFF)
+option(USE_CPS "Enable concurrent precursor simulations." ON)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
 option(USE_LVLSET "Enable level set." OFF)
-option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
+option(USE_TURBINES "Enable actuator disk model without rotation." ON)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
@@ -152,8 +152,9 @@ endif (USE_LVLSET)
 
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
-    set(Sources ${Sources} turbines.f90 turbine_indicator.f90 util.f90 wake_model_2d.f90)
-#        minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
+    set(Sources ${Sources} turbines.f90 turbine_indicator.f90 util.f90
+    wake_model_2d.f90 minimize.f90 lbfgsb.f timer.f linpack.f)
+#   rh_control.f90)
     set(exec_name "${exec_name}-turbines-2d")
 endif (USE_TURBINES)
 
@@ -217,4 +218,3 @@ endif (hostname STREQUAL "darwin-brew")
 
 # main lesgo executable
 add_executable(${exec_name} ${Sources})
-

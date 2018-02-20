@@ -83,12 +83,12 @@ integer, public :: tbase
 
 ! Input file values for receding horizon control
 logical, public :: use_receding_horizon
-!integer, public :: solver
-!integer, public :: advancement_base
-!real(rprec), public :: horizon_time
-!integer, public     :: max_iter
-!real(rprec), public :: phi_tau
-!real(rprec), public :: Ct_prime_min, Ct_prime_max
+integer, public :: solver
+integer, public :: advancement_base
+real(rprec), public :: horizon_time
+integer, public     :: max_iter
+real(rprec), public :: phi_tau
+real(rprec), public :: Ct_prime_min, Ct_prime_max
 
 ! Input file values for wake model
 logical, public :: use_wake_model
@@ -281,7 +281,7 @@ end if
 
 ! Initialize wake mode and receding horizon
 if (use_wake_model) call wake_model_est_init
-!if (use_receding_horizon) call receding_horizon_init
+if (use_receding_horizon) call receding_horizon_init
 
 ! Cleanup
 nullify(x,y,z)
@@ -361,46 +361,45 @@ end if
 
 end subroutine wake_model_est_init
 
-!!*******************************************************************************
-!subroutine receding_horizon_init
-!!*******************************************************************************
-!use wake_model_class
-!use functions, only : linear_interp
-!implicit none
-!
-!logical :: exst
-!character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
-!integer :: fid, N
-!
-!! We're now going to use dynamic Ct_primes for the control
-!! Deallocate the arrays because they will be reset.
-!if (.not. dyn_Ct_prime) then
-!    dyn_Ct_prime = .true.
-!else
-!    deallocate( Ct_prime_time )
-!    deallocate( Ct_prime_arr )
-!end if
-!
-!inquire (file=rh_dat, exist=exst)
-!
-!if (exst) then
-!    fid = open_file_fid(rh_dat, 'rewind', 'unformatted')
-!    read(fid) N
-!    allocate( Ct_prime_time(N) )
-!    allocate( Ct_prime_arr(nloc, N) )
-!    allocate( phi_arr(num_x, N) )
-!    read(fid) Ct_prime_time
-!    read(fid) Ct_prime_arr
-!    close(fid)
-!else
-!    allocate( Ct_prime_time(1) )
-!    allocate( Ct_prime_arr(nloc, 1) )
-!    allocate( phi_arr(num_x, 1) )
-!    Ct_prime_arr = Ct_prime
-!    phi_arr = Ct_prime
-!end if
-!
-!end subroutine receding_horizon_init
+!*******************************************************************************
+subroutine receding_horizon_init
+!*******************************************************************************
+use functions, only : linear_interp
+implicit none
+
+logical :: exst
+character(*), parameter :: rh_dat = path // 'turbine/rh.dat'
+integer :: fid, N
+
+! We're now going to use dynamic Ct_primes for the control
+! Deallocate the arrays because they will be reset.
+if (.not. dyn_Ct_prime) then
+   dyn_Ct_prime = .true.
+else
+   deallocate( Ct_prime_time )
+   deallocate( Ct_prime_arr )
+end if
+
+inquire (file=rh_dat, exist=exst)
+if (exst) then
+   open(newunit=fid, file=rh_dat, status='unknown', form='unformatted',    &
+       action='read', position='rewind')
+   read(fid) N
+   allocate( Ct_prime_time(N) )
+   allocate( Ct_prime_arr(nloc, N) )
+   allocate( phi_arr(num_x, N) )
+   read(fid) Ct_prime_time
+   read(fid) Ct_prime_arr
+   close(fid)
+else
+   allocate( Ct_prime_time(1) )
+   allocate( Ct_prime_arr(nloc, 1) )
+   allocate( phi_arr(num_x, 1) )
+   Ct_prime_arr = Ct_prime
+   phi_arr = Ct_prime
+end if
+
+end subroutine receding_horizon_init
 
 !*******************************************************************************
 subroutine turbines_nodes
@@ -761,7 +760,7 @@ if (use_wake_model) then
 end if
 
 ! Calculate the receding horizon trajectories
-!if (use_receding_horizon) call eval_receding_horizon
+if (use_receding_horizon) call eval_receding_horizon
 
 ! Cleanup
 deallocate(w_uv)
@@ -770,9 +769,9 @@ nullify(p_icp, p_jcp, p_kcp)
 
 end subroutine turbines_forcing
 
-!!*******************************************************************************
-!subroutine eval_receding_horizon ()
-!!*******************************************************************************
+!*******************************************************************************
+subroutine eval_receding_horizon ()
+!*******************************************************************************
 !use rh_control
 !use conjugate_gradient_class
 !use lbfgsb_class
@@ -851,7 +850,7 @@ end subroutine turbines_forcing
 !    deallocate(buffer_array)
 !end if
 !
-!end subroutine eval_receding_horizon
+end subroutine eval_receding_horizon
 
 !*******************************************************************************
 subroutine turbines_finalize ()
