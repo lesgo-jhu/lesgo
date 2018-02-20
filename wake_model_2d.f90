@@ -45,7 +45,7 @@ type wake_model_base
     real(rprec) :: Delta   = 0                         ! Gaussian forcing width
     real(rprec) :: Dia     = 0                         ! rotor diameter
     real(rprec) :: dx      = 0                         ! rotor diameter
-    real(rprec) :: dy      = 0                         ! delta in spanwise direc
+    real(rprec) :: dy      = 0                         ! delta in spanwise direction
     integer     :: Nx      = 0                         ! Number of streamwise points
     integer     :: Ny      = 0                         ! Number of spanwise points
     integer     :: N       = 0                         ! Number of turbines
@@ -694,7 +694,7 @@ private
 public WakeModelAdjoint
 
 type, extends(wake_model_base) :: WakeModelAdjoint
-   real(rprec), dimension(:,:), allocatable :: dustar ! adjointvelocity deficit (turbine, space)
+   real(rprec), dimension(:,:), allocatable :: dustar ! adjoint velocity deficit (turbine, space)
 contains
    procedure, public  :: initialize_val
 !     procedure, private :: initialize_file

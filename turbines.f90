@@ -387,14 +387,14 @@ if (exst) then
    read(fid) N
    allocate( Ct_prime_time(N) )
    allocate( Ct_prime_arr(nloc, N) )
-   allocate( phi_arr(num_x, N) )
+   allocate( phi_arr(nloc, N) )
    read(fid) Ct_prime_time
    read(fid) Ct_prime_arr
    close(fid)
 else
    allocate( Ct_prime_time(1) )
    allocate( Ct_prime_arr(nloc, 1) )
-   allocate( phi_arr(num_x, 1) )
+   allocate( phi_arr(nloc, 1) )
    Ct_prime_arr = Ct_prime
    phi_arr = Ct_prime
 end if
@@ -772,84 +772,82 @@ end subroutine turbines_forcing
 !*******************************************************************************
 subroutine eval_receding_horizon ()
 !*******************************************************************************
-!use rh_control
-!use conjugate_gradient_class
-!use lbfgsb_class
-!use wake_model_class
-!use functions, only : linear_interp
-!implicit none
-!
-!type(MinimizedFarm) :: mfarm
-!type(ConjugateGradient) :: cg
-!type(lbfgsb) :: bf
-!integer :: num_t = 0
-!real(rprec), dimension(:), allocatable :: buffer_array
-!
-!! Only perform receding horizon control every advancement step
-!if (modulo (jt_total, advancement_base) == 0) then
-!    if (coord == 0) then
-!        ! Run initial guess in object
-!        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
-!            Pref_time, Pref_arr, phi_tau)
-!        call mfarm%run(Ct_prime_time, phi_arr)
-!
-!        ! Perform optimization
-!        if (solver == 1) then
-!            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-!            call cg%minimize(mfarm%get_phi_vector())
-!        else
-!            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-!            call bf%minimize(mfarm%get_phi_vector())
-!        end if
-!        call mfarm%makeDimensional
-!
-!        ! Place result in buffer array
-!        num_t = mfarm%Nt
-!        allocate( buffer_array((num_x + 1) * num_t) )
-!        buffer_array(1:num_t) = mfarm%t
-!        do i = 1, num_x
-!            buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
-!        end do
-!
-!        ! Store phi vector for next iteration
-!        deallocate(phi_arr)
-!        allocate( phi_arr(num_x, num_t) )
-!        phi_arr = mfarm%phi
-!
-!#ifdef PPMPI
-!        ! Send to other processors
-!        do i = 1, nproc-1
-!            call MPI_send( (num_x + 1) * mfarm%Nt, 1, MPI_integer, i, &
-!                10, comm, ierr)
-!            call MPI_send( buffer_array, (num_x + 1) * mfarm%Nt, MPI_rprec, i, &
-!                11, comm, ierr)
-!        end do
-!    else
-!
-!        ! Receive from coord 0
-!        call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
-!        num_t = num_t / (num_x+1)
-!        allocate( buffer_array(num_t*(num_x+1)) )
-!        call MPI_recv(buffer_array, num_t*(num_x+1), MPI_rprec, 0, 11, comm, status, ierr)
-!#endif
-!    end if
-!
-!    ! Place row Ct_prime's into interpolation array
-!    deallocate(Ct_prime_time)
-!    allocate(Ct_prime_time(num_t))
-!    Ct_prime_time = buffer_array(1:num_t)
-!    deallocate(Ct_prime_arr)
-!    allocate( Ct_prime_arr(nloc,num_t) )
-!    do i = 1, num_x
-!        do j = 1, num_y
-!            Ct_prime_arr(j + (i-1)*num_y, :) = buffer_array((num_t*i+1):num_t*(i+1))
-!        end do
-!    end do
-!
-!    ! Cleanup
-!    deallocate(buffer_array)
-!end if
-!
+use rh_control
+use conjugate_gradient_class
+use lbfgsb_class
+use wake_model_class
+use functions, only : linear_interp
+implicit none
+
+type(MinimizedFarm) :: mfarm
+type(ConjugateGradient) :: cg
+type(lbfgsb) :: bf
+integer :: num_t = 0
+real(rprec), dimension(:), allocatable :: buffer_array
+
+! Only perform receding horizon control every advancement step
+if (modulo (jt_total, advancement_base) == 0) then
+    if (coord == 0) then
+        ! Run initial guess in object
+        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time,         &
+            0.99_rprec, Pref_time, Pref_arr, phi_tau)
+       call mfarm%run(Ct_prime_time, phi_arr)
+
+       ! Perform optimization
+       if (solver == 1) then
+           cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+           call cg%minimize(mfarm%get_phi_vector())
+       else
+           bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+           call bf%minimize(mfarm%get_phi_vector())
+       end if
+       call mfarm%makeDimensional
+
+       ! Place result in buffer array
+       num_t = mfarm%Nt
+       allocate( buffer_array((nloc + 1) * num_t) )
+       buffer_array(1:num_t) = mfarm%t
+       do i = 1, nloc
+           buffer_array((num_t*i+1):num_t*(i+1)) = mfarm%Ctp(i,:)
+       end do
+
+       ! Store phi vector for next iteration
+       deallocate(phi_arr)
+       allocate( phi_arr(nloc, num_t) )
+       phi_arr = mfarm%phi
+
+#ifdef PPMPI
+       ! Send to other processors
+       do i = 1, nproc-1
+           call MPI_send( (nloc + 1) * mfarm%Nt, 1, MPI_integer, i, &
+               10, comm, ierr)
+           call MPI_send( buffer_array, (nloc + 1) * mfarm%Nt, MPI_rprec, i, &
+               11, comm, ierr)
+       end do
+   else
+
+       ! Receive from coord 0
+       call MPI_recv(num_t, 1, MPI_integer, 0, 10, comm, status, ierr)
+       num_t = num_t / (nloc+1)
+       allocate( buffer_array(num_t*(nloc+1)) )
+       call MPI_recv(buffer_array, num_t*(nloc+1), MPI_rprec, 0, 11, comm, status, ierr)
+#endif
+   end if
+
+   ! Place row Ct_prime's into interpolation array
+   deallocate(Ct_prime_time)
+   allocate(Ct_prime_time(num_t))
+   Ct_prime_time = buffer_array(1:num_t)
+   deallocate(Ct_prime_arr)
+   allocate( Ct_prime_arr(nloc,num_t) )
+   do i = 1, nloc
+       Ct_prime_arr(i, :) = buffer_array((num_t*i+1):num_t*(i+1))
+   end do
+
+   ! Cleanup
+   deallocate(buffer_array)
+end if
+
 end subroutine eval_receding_horizon
 
 !*******************************************************************************
