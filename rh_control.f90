@@ -214,7 +214,7 @@ subroutine run_noinput(this)
             * this%w%uhat**2 * this%dt
         ustar = 0._rprec
         do n = 1, this%N
-            do i = 1, this%w%Nx
+            do i = this%w%Gstart(n), this%w%Gstop(n)
                 ustar(i,this%w%ymin(n,1):this%w%ymax(n,1)) =                   &
                     ustar(i,this%w%ymin(n,1):this%w%ymax(n,1)) + this%w%G(n,i) &
                     * uhatstar(n) / (this%w%ymax(n,1) - this%w%ymin(n,1) + 1)
@@ -268,8 +268,8 @@ subroutine makeDimensionless(this)
         this%isDimensionless = .true.
         this%Pref  = this%Pref / this%POWER
         this%Pfarm = this%Pfarm / this%POWER
-        this%t     = this%t    / this%w%TIME
-        this%dt    = this%dt   / this%w%TIME
+        this%t     = this%t / this%w%TIME
+        this%dt    = this%dt / this%w%TIME
         this%tau   = this%tau / this%w%TIME
         call this%w%makeDimensionless
         call this%wstar%makeDimensionless
@@ -286,8 +286,8 @@ subroutine makeDimensional(this)
         this%isDimensionless = .false.
         this%Pref  = this%Pref * this%POWER
         this%Pfarm = this%Pfarm * this%POWER
-        this%t     = this%t    * this%w%TIME
-        this%dt    = this%dt   * this%w%TIME
+        this%t     = this%t * this%w%TIME
+        this%dt    = this%dt * this%w%TIME
         this%tau   = this%tau * this%w%TIME
         call this%w%makeDimensional
         call this%wstar%makeDimensional

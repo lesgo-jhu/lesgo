@@ -37,6 +37,7 @@ type wake_model_base
     real(rprec), dimension(:), allocatable :: y    ! spanwise coordinate
     real(rprec), dimension(:,:), allocatable :: s      ! turbine location
     real(rprec), dimension(:,:), allocatable :: G      ! Gaussian forcing function (turbine, space)
+    integer, dimension(:), allocatable :: Gstart, Gstop
     real(rprec), dimension(:,:), allocatable :: d      ! dimensionless wake diameter (turbine, space)
     real(rprec), dimension(:,:), allocatable :: dp     ! d/dx of d (turbine, space)
     real(rprec), dimension(:,:), allocatable :: w      ! wake expansion function (turbine, space)
@@ -61,6 +62,7 @@ contains
     procedure, public :: print
     procedure, public :: makeDimensionless
     procedure, public :: makeDimensional
+    procedure, public :: computeGaussians
     procedure, public :: computeWakeExpansionFunctions
     procedure, public :: compute2Dwakes
     procedure, public :: woketurbines
@@ -116,6 +118,7 @@ allocate( this%wake_num(this%N) )
 allocate( this%ymin(this%N, this%Nx) )
 allocate( this%ymax(this%N, this%Nx) )
 allocate( this%G(this%N,  this%Nx) )
+allocate( this%Gstart(this%N), this%Gstop(this%N) )
 allocate( this%d(this%N,  this%Nx) )
 allocate( this%dp(this%N, this%Nx) )
 allocate( this%w(this%N,  this%Nx) )
@@ -147,16 +150,34 @@ do i = 2, this%Ny
     this%y(i) = this%y(i-1) + this%dy
 end do
 
-do i = 1, this%N
-    this%G(i,:) = gaussian(this%x, this%s(i,1), this%Delta)
-    this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
-end do
-
+call this%computeGaussians
 call this%computeWakeExpansionFunctions
 call this%compute2Dwakes
 call this%woketurbines
 
 end subroutine initialize_val
+
+!*******************************************************************************
+subroutine computeGaussians(this)
+!*******************************************************************************
+implicit none
+class(wake_model_base), intent(inout) :: this
+integer :: i
+integer, dimension(1) :: temp_int
+
+! Gaussian functions
+this%G = 0._rprec
+do i = 1, this%N
+    temp_int = minloc(abs(this%x - this%s(i,1) + 4*this%Delta))
+    this%Gstart(i) = temp_int(1)
+    temp_int = minloc(abs(this%x -  this%s(i,1) - 4*this%Delta))
+    this%Gstop(i) = temp_int(1)
+    this%G(i,this%Gstart(i):this%Gstop(i)) =                                  &
+        gaussian(this%x(this%Gstart(i):this%Gstop(i)), this%s(i,1), this%Delta)
+    this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
+end do
+
+end subroutine computeGaussians
 
 !*******************************************************************************
 subroutine computeWakeExpansionFunctions(this)
@@ -516,10 +537,7 @@ subroutine initialize_file(this, fstring)
     read(fid) this%Ctp
     close(fid)
 
-    do i = 1, this%N
-        this%G(i,:) = gaussian(this%x, this%s(i,1), this%Delta)
-        this%G(i,:) = this%G(i,:) / sum(this%G(i,:)) / this%dx
-    end do
+    call this%computeGaussians
     call this%computeWakeExpansionFunctions
     call this%compute2Dwakes
     call this%woketurbines
@@ -642,7 +660,6 @@ subroutine advance(this, Ctp, dt)
     end do
     du_superimposed = sqrt(du_superimposed)
 
-!   write(*,*) 'checkpoint 0.0.5'
     ! Find the velocity field
     this%u = this%U_infty - du_superimposed
 
@@ -650,16 +667,16 @@ subroutine advance(this, Ctp, dt)
     this%uhat(:) = 0
     do i = 1, this%N
         do j = this%ymin(i,1), this%ymax(i,1)
-            this%uhat(i) = this%uhat(i) + sum(this%G(i,:) * this%u(:,j) * this%dx)
+            this%uhat(i) = this%uhat(i)                                        &
+                + sum(this%G(i,this%Gstart(i):this%Gstop(i))                   &
+                * this%u(this%Gstart(i):this%Gstop(i),j) * this%dx)
         end do
         diff = this%ymax(i,1) - this%ymin(i,1)
-!   write(*,*) 'checkpoint 0.0.7'
         this%uhat(i) = this%uhat(i) / (diff + 1)
         this%Ctp(i) = Ctp(i)
         this%Phat(i) = this%Ctp(i) * this%uhat(i)**3
     end do
 
-!   write(*,*) 'checkpoint 0.0.8'
 end subroutine advance
 
 ! Evaluates RHS of wake equation
@@ -1382,7 +1399,6 @@ subroutine advanceEnsemble(this, Ctp, dt)
                 * this%ensemble(i)%G(j,:) * sqrt(2*pi) * this%ensemble(i)%Delta,   &
     0._rprec)
         end do
-!        this%ensemble(i)%k(N) = this%ensemble(i)%k(N-1)
         call this%ensemble(i)%computeWakeExpansionFunctions
         call this%ensemble(i)%compute2Dwakes
         call this%ensemble(i)%wokeTurbines
