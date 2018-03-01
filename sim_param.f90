@@ -49,7 +49,7 @@ real (rprec), target, dimension (:, :, :), allocatable :: p
 real (rprec), dimension (:, :, :), allocatable :: divtx, divty, divtz
 
 real (rprec), dimension (:, :, :), allocatable :: fx, fy, fz, &
-                                                  fxa, fya, fza
+                                                  fxa, fya, fza !, pow  !!jb
 
 $if ($USE_RNL)
 real (rprec), dimension (:, :, :), allocatable :: u_rnl, v_rnl, w_rnl
@@ -141,6 +141,7 @@ allocate(  tyzF(nxp+2, ny, lbz:nz) ); tyzF = 0.0_rprec
 $if($TURBINES)
 allocate ( fxa(ld, ny, nz) ); fxa = 0.0_rprec
 allocate ( fxaF(nxp+2, ny, nz) ); fxaF = 0.0_rprec
+!allocate ( pow(ld, ny, nz) ); pow = 0.0_rprec
 $endif
 
 $if($LVLSET)

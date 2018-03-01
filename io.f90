@@ -2732,6 +2732,7 @@ $endif
 use param, only : nx,ny,nz,lbz,jzmax, fourier, ld_big, ny2, spectra_jb
 use sim_param, only : u,v,w,txx, txy, tyy, txz, tyz, tzz
 use sim_param, only : dudz, dvdz, dwdy, dwdx, dvdx, dudy
+use sim_param, only : dpdx, dpdy, dpdz !, pow  !!jb
 $if($TURBINES)
 use sim_param, only : fxa
 $endif
@@ -2862,6 +2863,11 @@ $if ($TURBINES and not $LVLSET)
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (             fxa(i,j,k)) * tavg_dt 
 !      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k)             ) * tavg_dt
+!!$      $if($USE_RNL)
+!!$      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (             pow(i,j,k)) * tavg_dt  !!jb  !!power
+!!$      $else
+!!$      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (             fxa(i,j,k))*(u(i,j,k)) * tavg_dt  !!jb  !!power
+!!$      $endif
       ! === w-grid variables === 
 
 !      tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k)             ) * tavg_dt
@@ -2870,7 +2876,8 @@ $elseif ($LVLSET)
       ! Includes both induced (IBM) and applied (RNS, turbines, etc.) forces 
       ! === uv-grid variables === 
       tavg(i,j,k)%fx = tavg(i,j,k)%fx + (fx(i,j,k) + fxa(i,j,k)) * tavg_dt 
-      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt
+      tavg(i,j,k)%fy = tavg(i,j,k)%fy + (fy(i,j,k) + fya(i,j,k)) * tavg_dt 
+
       ! === w-grid variables === 
       tavg(i,j,k)%fz = tavg(i,j,k)%fz + (fz(i,j,k) + fza(i,j,k)) * tavg_dt
 $elseif ($ATM)
@@ -2888,6 +2895,12 @@ $else
 $endif
       
       tavg(i,j,k)%cs_opt2 = tavg(i,j,k)%cs_opt2 + Cs_opt2(i,j,k) * tavg_dt
+
+      ! uv-grid
+      tavg(i,j,k)%dpdx = tavg(i,j,k)%dpdx + dpdx(i,j,k) * tavg_dt   !!jb
+      tavg(i,j,k)%dpdy = tavg(i,j,k)%dpdy + dpdy(i,j,k) * tavg_dt   !!jb
+      ! w-grid
+      tavg(i,j,k)%dpdz = tavg(i,j,k)%dpdz + dpdz(i,j,k) * tavg_dt   !!jb 
 
    enddo
 enddo
@@ -3258,14 +3271,16 @@ character(64) :: fname_vel, &
      fname_vel2, fname_ddz, &
      fname_tau, fname_f, &
      fname_rs, fname_cs, fname_u_vel_grid, &
-     fname_sp1dkx, fname_sp1dky, fname_sp2d, fname_spvort, fname_nu_t !!jb
+     fname_sp1dkx, fname_sp1dky, fname_sp2d, &
+     fname_spvort, fname_nu_t, fname_dp   !!jb
      
 ! For binary output
 character(64) :: fname_velb, &
      fname_vel2b, fname_ddzb, &
      fname_taub, fname_fb, &
      fname_rsb, fname_csb, fname_u_vel_gridb, &
-     fname_sp1dkxb, fname_sp1dkyb, fname_sp2db, fname_spvortb, fname_nu_tb !!jb
+     fname_sp1dkxb, fname_sp1dkyb, fname_sp2db, &
+     fname_spvortb, fname_nu_tb, fname_dpb   !!jb
 
 $if($CGNS)
 ! For CGNS
@@ -3336,6 +3351,7 @@ fname_ddz = path // 'output/ddz_avg.dat'
 fname_tau = path // 'output/tau_avg.dat'
 fname_f = path // 'output/force_avg.dat'
 fname_rs = path // 'output/rs.dat'
+fname_dp = path // 'output/dp.dat'           !!jb
 fname_sp1dkx = path // 'output/sp1dkx.dat'   !!jb
 fname_sp1dky = path // 'output/sp1dky.dat'   !!jb
 fname_sp2d = path // 'output/sp2d.dat'   !!jb
@@ -3364,6 +3380,7 @@ fname_ddzb = path // 'output/binary_ddz_avg.dat'
 fname_taub = path // 'output/binary_tau_avg.dat'
 fname_fb = path // 'output/binary_force_avg.dat'
 fname_rsb = path // 'output/binary_rs.dat'
+fname_dpb = path // 'output/binary_dp.dat'           !!jb
 fname_sp1dkxb = path // 'output/binary_sp1dkx.dat'   !!jb
 fname_sp1dkyb = path // 'output/binary_sp1dky.dat'   !!jb
 fname_sp2db = path // 'output/binary_sp2d.dat'   !!jb
@@ -3396,6 +3413,7 @@ $if ($MPI)
   call string_concat( fname_taub, '.c', coord)
   call string_concat( fname_fb, '.c', coord)
   call string_concat( fname_rsb, '.c', coord)
+  call string_concat( fname_dpb, '.c', coord)      !!jb
   call string_concat( fname_sp1dkxb, '.c', coord)  !!jb
   call string_concat( fname_sp1dkyb, '.c', coord)  !!jb
   call string_concat( fname_sp2db, '.c', coord)    !!jb
@@ -3410,6 +3428,7 @@ $if ($MPI)
   call string_concat( fname_tau, '.c', coord)
   call string_concat( fname_f, '.c', coord)
   call string_concat( fname_rs, '.c', coord)
+  call string_concat( fname_dp, '.c', coord)      !!jb
   call string_concat( fname_sp1dkx, '.c', coord)   !!jb
   call string_concat( fname_sp1dky, '.c', coord)   !!jb
   call string_concat( fname_sp2d, '.c', coord)     !!jb
@@ -3817,6 +3836,12 @@ write(13,rec=3) rs(:nx,:ny,1:nz)%wp2
 write(13,rec=4) rs(:nx,:ny,1:nz)%upwp
 write(13,rec=5) rs(:nx,:ny,1:nz)%vpwp
 write(13,rec=6) rs(:nx,:ny,1:nz)%upvp
+close(13)
+
+open(unit=13,file=fname_dpb,form='unformatted',convert='big_endian',access='direct',recl=nx*ny*nz*rprec)
+write(13,rec=1) tavg(:nx,:ny,1:nz)%dpdx
+write(13,rec=2) tavg(:nx,:ny,1:nz)%dpdy
+write(13,rec=3) tavg(:nx,:ny,1:nz)%dpdz
 close(13)
 
 open(unit=13,file=fname_csb,form='unformatted',convert='big_endian', access='direct',recl=nx*ny*nz*rprec)

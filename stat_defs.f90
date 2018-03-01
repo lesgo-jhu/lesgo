@@ -81,6 +81,7 @@ type tavg_t
   real(rprec) :: fx, fy, fz
   real(rprec) :: cs_opt2  
   real(rprec) :: Nu_t   !!jb
+  real(rprec) :: dpdx, dpdy, dpdz   !!jb
 end type tavg_t
 
 type spec_t     !!jb
@@ -111,12 +112,16 @@ type turbine_t
   real(rprec) :: theta1                       ! angle CCW(from above) from -x direction [degrees]
   real(rprec) :: theta2                       ! angle above the horizontal, from -x dir [degrees]
   real(rprec), dimension(3) :: nhat           ! (nx,ny,nz) of unit normal for each turbine
+  real(rprec) :: Ct_prime                     ! thrust coefficient
   integer :: num_nodes                        ! number of nodes associated with each turbine
   integer, dimension(5000,3) :: nodes         ! (i,j,k) of each included node
   integer, dimension(6) :: nodes_max          ! search area for nearby nodes
   real(rprec) :: u_d, u_d_T                   ! running time-average of mean disk velocity
   real(rprec) :: f_n                          ! normal force on turbine disk
   real(rprec), dimension(5000) :: ind         ! indicator function - weighting of each node
+  !$if ($USE_RNL)
+  real(rprec), allocatable, dimension(:) :: u_d_kx   !!jb 
+  !$endif
 end type turbine_t
 
 ! A collection of wind-turbines
@@ -243,6 +248,9 @@ c % fy = a % fy + b % fy
 c % fz = a % fz + b % fz
 c % cs_opt2 = a % cs_opt2 + b % cs_opt2
 c % Nu_t = a % Nu_t + b % Nu_t
+c % dpdx = a % dpdx + b % dpdx  !!jb
+c % dpdy = a % dpdy + b % dpdy  !!jb
+c % dpdz = a % dpdz + b % dpdz  !!jb
 
 return
 end function tavg_add
@@ -277,6 +285,9 @@ c % fy = a % fy - b % fy
 c % fz = a % fz - b % fz
 c % cs_opt2 = a % cs_opt2 - b % cs_opt2
 c % Nu_t = a % Nu_t - b % Nu_t
+c % dpdx = a % dpdx - b % dpdx  !!jb
+c % dpdy = a % dpdy - b % dpdy  !!jb
+c % dpdz = a % dpdz - b % dpdz  !!jb
 
 return
 end function tavg_sub
@@ -314,6 +325,9 @@ c % fy = a % fy + b
 c % fz = a % fz + b
 c % cs_opt2 = a % cs_opt2 + b
 c % Nu_t = a % Nu_t + b
+c % dpdx = a % dpdx + b  !!jb
+c % dpdy = a % dpdy + b  !!jb
+c % dpdz = a % dpdz + b  !!jb
 
 return
 end function tavg_scalar_add
@@ -394,6 +408,9 @@ c % fy = a % fy / b
 c % fz = a % fz / b
 c % cs_opt2 = a % cs_opt2 / b
 c % Nu_t = a % Nu_t / b
+c % dpdx = a % dpdx / b  !!jb
+c % dpdy = a % dpdy / b  !!jb
+c % dpdz = a % dpdz / b  !!jb
 
 return
 end function tavg_scalar_div
@@ -457,6 +474,9 @@ c % fy = a % fy * b % fy
 c % fz = a % fz * b % fz
 c % cs_opt2 = a % cs_opt2 * b % cs_opt2
 c % Nu_t = a % Nu_t * b % Nu_t
+c % dpdx = a % dpdx * b % dpdx  !!jb
+c % dpdy = a % dpdy * b % dpdy  !!jb
+c % dpdz = a % dpdz * b % dpdz  !!jb
 
 return
 end function tavg_mul
@@ -494,6 +514,9 @@ c % fy = a % fy * b
 c % fz = a % fz * b
 c % cs_opt2 = a % cs_opt2 * b
 c % Nu_t = a % Nu_t * b
+c % dpdx = a % dpdx * b !!jb
+c % dpdy = a % dpdy * b !!jb
+c % dpdz = a % dpdz * b !!jb
 
 return
 end function tavg_scalar_mul
@@ -787,6 +810,9 @@ c % fy = a
 c % fz = a
 c % cs_opt2 = a
 c % Nu_t = a
+c % dpdx = a   !!jb
+c % dpdy = a   !!jb
+c % dpdz = a   !!jb
 
 return
 end subroutine tavg_set

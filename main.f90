@@ -169,34 +169,29 @@ time_loop: do jt_step = nstart, nsteps
 !!$      !u(jx,jy,:) = u(jx,jy,:) + 4.7*sin(L_x/(nx)*(jx-1)*6.0) + 1.4*sin(L_y/(ny)*(jy-1)*2.0)
 !!$      !enddo
 !!$      !enddo
-!!$      rhsx = u**2
 !!$      v = u
-!!$      call phys2wave( v )
-!!$      call dfftw_execute_dft_r2c(forw, rhsx(:,:,1), rhsx(:,:,1))
-!!$
-!!$      call dft_direct_back_2d_n_yonlyC( v(:,:,1) )
-!!$      w = 0._rprec
-!!$      w(:,:,1) = convolve( v(:,:,1), v(:,:,1) )
-!!$      call dft_direct_forw_2d_n_yonlyC( w(:,:,1) )
-!!$
-!!$      print*, 'COMPARE >>>>>>>>>>>>>>>>>>>>>>>>>>>>'
-!!$      do jx=1,ld
-!!$      do jy=1,ny
-!!$         write(*,*) jx,jy, rhsx(jx,jy,1)/real(nx*ny,rprec), w(jx,jy,1)
-!!$      enddo
-!!$      enddo
-!!$      print*, 'END <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+!!$      w = u
+!!$      call wave2phys( v )
+!!$      print*, '>>      u:', u(:,1,1)
+!!$      print*, '>>      v:',  sum( v(1:nx,1,1) ) / nx
+!!$      print*, '>>    v^2:', (sum( v(1:nx,1,1) ) / nx)**2
+!!$      print*, '>>    v^3:', (sum( v(1:nx,1,1) ) / nx)**3
+!!$      call dft_direct_back_2d_n_yonlyC( u(:,:,1) )
+!!$      print*, '>>   u(1):', u(1,1,1)
+!!$      print*, '>> u(1)^2:', u(1,1,1)**2
+!!$      print*, '>> u(1)^3:', u(1,1,1)**3
 !!$   endif
 
 !!$   if ( fourier ) then    !!jb
 !!$      if ( coord == 0 ) then
-!!$         write(*,*) 'TRANSFORMING VELOCITY TO KX SPACE !!!'
+!!$         v = u
+!!$         call wave2phys( u )
+!!$         call wave2physF( v , vF )
+!!$         print*, 'u: ',  u(1:nx,1,1)
+!!$         print*, 'v: ', vF(1:nx,1,1)
 !!$      endif
-!!$      call phys2wave( u )
-!!$      call phys2wave( v )
-!!$      call phys2wave( w )
 !!$   endif
-!!$
+
 
 !!$  if (coord == 0) then
 !!$     if ( fourier ) then    !!jb
@@ -1483,6 +1478,14 @@ time_loop: do jt_step = nstart, nsteps
 !!$       enddo
 !!$
 !!$    endif
+
+    if (fourier) then
+       if (coord == 0) then
+          u(3:4,:,:) = 0._rprec
+          v(3:4,:,:) = 0._rprec
+          w(3:4,:,:) = 0._rprec
+       endif
+    endif
 
     call press_stag_array()
 

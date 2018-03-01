@@ -70,6 +70,12 @@ use turbines_base, only: turbines_base_init
 use turbines, only : turbines_init, turbines_forcing
 $endif
 
+$if ($USE_RNL)
+$if ($TURBINES)
+use turbines_base, only: turbines_RNL_ind
+$endif
+$endif
+
 $if ($DEBUG)
 use debug_mod
 $endif
@@ -146,6 +152,10 @@ call output_init()
 $if ($TURBINES)
 call turbines_base_init()
 call turbines_init()    !must occur before initial is called
+
+$if ($USE_RNL)
+call turbines_RNL_ind()  !for RNL turb indicator  !!jb
+$endif
 $endif
 
 ! If using level set method

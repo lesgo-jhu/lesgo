@@ -1053,6 +1053,9 @@ do
      case ('CT_NOPRIME')
         read (buff(equal_pos+1:), *) Ct_noprime
 
+     case ('READ_PARAM')
+        read (buff(equal_pos+1:), *) read_param
+
      case ('T_AVG_DIM')
         read (buff(equal_pos+1:), *) T_avg_dim
 

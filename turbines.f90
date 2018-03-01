@@ -39,7 +39,11 @@ private
 
 public :: turbines_init, turbines_forcing, turbine_vel_init, turbines_finalize
 !!public :: turbines_forcing_fourier
-public :: turbines_RNL
+public :: turbines_RNL2
+public :: turbines_RNL3  ! seems to work
+public :: turbines_RNL4  ! experimental
+public :: turbines_RNL5  ! trying w/ disk averaging
+public :: disk_avg_kx
 
 real(rprec) :: Ct_prime_05
 real(rprec) :: T_avg_dim_file
@@ -66,9 +70,90 @@ integer :: turbine_in_proc_cnt = 0
 integer, dimension(:), allocatable :: file_id,file_id2
 character (*), parameter :: mod_name = 'turbines'
 
+character(*), parameter :: param_dat = path // 'turb_param.dat'
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine disk_avg_kx()
+use sim_param, only: u
+use derivatives, only: dft_direct_back_2d_n_yonlyC
+implicit none
+
+real(rprec), dimension(ld) :: buff
+real(rprec), dimension(nloc, ld) :: disk_avgs, disk_buff
+real(rprec), dimension(ld, ny, lbz:nz) :: vel_temp
+real(rprec), dimension(ld, ny) :: uhat
+integer :: jz
+
+disk_avgs(:,:) = 0._rprec
+disk_buff(:,:) = 0._rprec
+buff(:) = 0._rprec
+vel_temp(:,:,:) = 0._rprec
+uhat(:,:) = 0._rprec
+
+if (turbine_in_proc) then
+   vel_temp(:,:,:) = 0._rprec
+   uhat(:,:) = 0._rprec
+   do jz=1,nz
+      uhat(:,:) = u(:,:,jz)
+      call dft_direct_back_2d_n_yonlyC( uhat(:,:) )
+      vel_temp(:,:,jz) = uhat(:,:)
+   enddo
+endif
+
+if (turbine_in_proc) then
+   ! for each turbine
+   do s=1,nloc
+      buff(:) = 0._rprec
+      do l=1,wind_farm%turbine(s)%num_nodes
+         j2 = wind_farm%turbine(s)%nodes(l,2)
+         k2 = wind_farm%turbine(s)%nodes(l,3)
+         buff(:) = buff(:) + vel_temp(:, j2, k2)
+      enddo
+      disk_avgs(s,:) = buff(:) / real(wind_farm%turbine(s)%num_nodes,rprec)
+   enddo
+endif
+
+call mpi_barrier(comm, ierr)
+if (coord == 0) then
+   do i=1,turbine_in_proc_cnt
+      j = turbine_in_proc_array(i)
+      disk_buff = 0.
+      call MPI_recv( disk_buff, nloc*ld, MPI_rprec, j, 3, comm, status, ierr )
+      disk_avgs(:,:) = disk_avgs(:,:) + disk_buff(:,:)
+   enddo
+elseif (turbine_in_proc) then
+   call MPI_send( disk_avgs(:,:), nloc*ld, MPI_rprec, 0, 3, comm, ierr )
+endif
+call mpi_barrier(comm, ierr)
+
+!!$if (coord == 0) then
+!!$   do s=1,nloc
+!!$      print*, 'sss', s, disk_avgs(s,:)
+!!$   enddo
+!!$endif
+
+call mpi_barrier(comm, ierr)
+if (coord == 0) then
+
+   do i=1,turbine_in_proc_cnt
+      j = turbine_in_proc_array(i)
+      call MPI_send( disk_avgs(:,:), nloc*ld, MPI_rprec, j, 5, comm, ierr )
+   enddo
+elseif (turbine_in_proc) then
+
+   call MPI_recv( disk_buff(:,:), nloc*ld, MPI_rprec, 0, 5, comm, status, ierr )
+   disk_avgs(:,:) = disk_buff(:,:)
+
+endif
+
+do s=1,nloc
+   wind_farm%turbine(s)%u_d_kx(:) = disk_avgs(s,:)
+enddo
+
+end subroutine disk_avg_kx
 
 subroutine turbines_init()
 
@@ -94,6 +179,13 @@ turbine_in_proc_array = 0
 nullify(buffer_array)
 allocate(buffer_array(nloc))
 
+if (fourier) then   !!jb
+   do s=1,nloc
+      allocate( wind_farm % turbine(s) % u_d_kx(ld) )
+   enddo
+endif
+!call disk_avg_kx()   !!jb
+
 !new variables for optimization:
     Ct_prime_05 = -0.5*Ct_prime
 
@@ -101,6 +193,8 @@ allocate(buffer_array(nloc))
     do k=1,nz_tot
         z_tot(k) = (k - 0.5_rprec) * dz
     enddo
+
+    call place_turbines    !!jb
 
 !find turbine nodes - including unfiltered ind, n_hat, num_nodes, and nodes for each turbine
 !each processor finds turbines in the entire domain
@@ -122,12 +216,44 @@ allocate(buffer_array(nloc))
 !2.associate new nodes with turbines                               
 !3.normalize such that each turbine's ind integrates to turbine volume
 !4.split domain between processors 
+
+    print*, 'coord, turbine_in_proc: ', coord, turbine_in_proc
+    if (coord == 1) then
+    print*, '>>before >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> '
+    do s=1,nloc
+       do l=1,wind_farm % turbine(s) % num_nodes
+            i2 = wind_farm%turbine(s)%nodes(l,1)
+            j2 = wind_farm%turbine(s)%nodes(l,2)
+            k2 = wind_farm%turbine(s)%nodes(l,3)
+            k = wind_farm%turbine(s)%ind(l)
+            print*,'s,l,i,j,k,ind',s, l, i2, j2, k2, k
+       enddo
+    enddo
+    endif
+
     if (fourier) then
-       call turbines_filter_ind_fourier()
+       !call turbines_filter_ind_fourier()
+       call turbines_filter_ind2()
     else
        call turbines_filter_ind()
     endif
     
+    print*, 'coord, turbine_in_proc: ', coord, turbine_in_proc
+    if (coord == 1) then
+    print*, '>>after >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> '
+    do s=1,nloc
+       do l=1,wind_farm % turbine(s) % num_nodes
+            i2 = wind_farm%turbine(s)%nodes(l,1)
+            j2 = wind_farm%turbine(s)%nodes(l,2)
+            k2 = wind_farm%turbine(s)%nodes(l,3)
+            k = wind_farm%turbine(s)%ind(l)
+            print*,'s,l,i,j,k,ind',s, l, i2, j2, k2, k
+       enddo
+    enddo
+    endif
+  
+
+
     if (turbine_cumulative_time) then
         if (coord == 0) then
             string1 = path // 'turbine/turbine_u_d_T.dat'
@@ -555,13 +681,11 @@ sumG = sum(g(:,:,:))*dx*dy*dz
 g = g/sumG
 
 !display the convolution function
-    !if (coord == 0) then
-    !    if(.false.) then
-    !      write(*,*) 'Convolution function'
-    !      write(*,*) g
-    !      write(*,*) 'integral of g(i,j,k): ',sumG
-    !    endif       
-    !endif
+    if (coord == 0) then
+       write(*,*) 'Convolution function'
+       !write(*,*) g
+       write(*,*) 'integral of g(i,j,k): ',sumG
+    endif
 
     !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
 !    if (coord == 0) then    
@@ -659,12 +783,12 @@ do b=1,nloc
                 out_a(i4,j4,k) = out_a(i4,j4,k) + fg*dx*dy*dz
             endif    
         
-        enddo
-       enddo
+         enddo
       enddo
-     enddo
-    enddo
-        enddo
+   enddo
+   enddo
+   enddo
+   enddo
 
         !if (coord == 0) then
         !    if (verbose) then
@@ -788,6 +912,265 @@ $endif
 nullify(x,y,z)
 !##############################################
 end subroutine turbines_filter_ind
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_filter_ind2()
+! This subroutine takes ind and nodes for each turbine and filters according to
+! alpha and ifilter from wind_farm
+!       1.smooth/filter indicator function                                  CHANGE IND
+!       2.normalize such that each turbine's ind integrates to 1.           CHANGE IND
+!       3.associate new nodes with turbines                                 CHANGE NODES, NUM_NODES       
+
+implicit none
+!real(rprec), dimension(nx,ny,nz_tot) :: out_a, g, g_shift, fg
+! Richard: Commented out g_shift. This large array is not used  fg can easily be replaced by single double
+real(rprec), dimension(ny,nz_tot) :: out_a, g
+real(rprec), dimension(ny,nz_tot) :: temp_array
+!real(rprec), dimension(nx,ny,nz) :: temp_array_2 ! Richard: Commented out to save i/o operations and memory
+real(rprec) :: sumG,delta2,r2,sumA
+real(rprec) :: turbine_vol
+real(rprec) :: fg ! Removed the 3D matrix as it is only used as a temporary dummy variable
+
+real(rprec), pointer, dimension(:) :: x,y,z
+
+!logical :: verbose = .false.
+nullify(x,y,z)
+x => grid % x
+y => grid % y
+z => grid % z
+
+!create convolution function, centered at (nx/2,ny/2,(nz_tot-1)/2) and normalized
+!if(wind_farm%ifilter==2) then		!2-> Gaussian
+delta2 = alpha**2 * (dy**2 + dz**2)
+      do k=1,nz_tot
+        do j=1,ny
+            r2 = ((real(j)-ny/2.)*dy)**2 + ((real(k)-(nz_tot-1)/2.)*dz)**2
+            g(j,k) = 6./(pi*delta2)*exp(-6.*r2/delta2)
+        enddo
+      enddo
+!endif
+
+!normalize the convolution function
+sumG = sum(g(:,:))*dy*dz
+g = g/sumG
+
+    !display the convolution function
+    if (coord == 0) then
+       write(*,*) '2D Convolution function'
+       !write(*,*) g
+       write(*,*) 'integral of g(i,j,k): ',sumG
+    endif
+
+    !to write the data to file, centered at (i,j,k=(nz_tot-1)/2)
+!    if (coord == 0) then    
+!        i=nx/2
+!        j=ny/2
+!        do k2=1,nz_tot
+!          do j2=1,ny
+!            do i2=1,nx
+!            g_shift(i2,j2,k2) = g( mod(i2-i+nx/2+nx-1,nx)+1 , mod(j2-j+ny/2+ny-1,ny)+1, k2)
+!            enddo
+!          enddo
+!        enddo
+
+        !if (.false.) then
+        !    fname0 = path // 'turbine/convolution_function.dat'
+        !    call write_tecplot_header_ND(fname0,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","g"', convtostr(1,1), 1)
+        !    call write_real_data_3D(fname0, 'append', 'formatted', 1, nx, ny, nz_tot, (/g_shift/), 0, x, y, z_tot)
+
+        !    if (verbose) then
+        !        write(*,*) 'Convolution function written to Tecplot file.'
+        !    endif
+        !endif
+!    endif
+
+!filter indicator function for each turbine
+do b=1,nloc
+    
+    !if (coord == 0) then
+    !    if (verbose) then
+    !        write(*,*) 'Filtering turbine Number ',b
+    !    endif
+    !endif
+
+    !create the input array (nx,ny,nz_tot) from a list of included nodes
+        temp_array = 0.
+        do l=1,wind_farm%turbine(b)%num_nodes
+            j2 = wind_farm%turbine(b)%nodes(l,2)
+            k2 = wind_farm%turbine(b)%nodes(l,3)
+            temp_array(j2,k2) = wind_farm%turbine(b)%ind(l)
+        enddo
+
+    !perform convolution on temp_array --> out_a    
+        out_a=0.
+
+        min_j = wind_farm%turbine(b)%nodes_max(3) 
+        max_j = wind_farm%turbine(b)%nodes_max(4) 
+        min_k = wind_farm%turbine(b)%nodes_max(5)
+        max_k = wind_farm%turbine(b)%nodes_max(6) 
+        cut = trunc   
+
+        !if (coord == 0) then
+        !    if (verbose) then
+        !        write(*,*) 'search over: ',min_i-cut,max_i+cut,min_j-cut,max_j+cut,min_k-cut,max_k+cut
+        !    endif
+        !endif
+
+        !convolution computed for points (i4,j4,k)
+        !only compute for nodes near the turbine (defined by cut aka trunc)
+        do k=max(min_k-cut,1),min(max_k+cut,nz_tot)    
+        do j=(min_j-cut),(max_j+cut)
+        
+            j4 = mod(j+ny-1,ny)+1              
+        
+          !for each (i4,j4,k), center convolution function on that point and 'integrate' 
+          !relative coords are (ssx,ssy,ssz). absolute coords of other/surrounding points are (i2,j2,k2)
+          !only need to consider other/surrounding points near (i4,j4,k) since conv. function is compact
+          do k2=max(k-trunc,1),min(k+trunc,nz_tot)     !currently using truncated Gaussian
+          do j2=j-trunc,j+trunc
+            j3 = mod(j2+ny-1,ny)+1             
+          
+            ssy = mod(j2-j+ny/2+ny-1,ny)+1       
+            ssz = k2-k+(nz_tot-1)/2       !since no spectral BCs in z-direction
+                             
+            if( ssz < 1) then
+                !fg(i2,j2,k2) = 0.
+                fg=0.
+                write(*,*) 'See turbines.f90, ssz < 1'                    
+            elseif( ssz > nz_tot ) then
+                !fg(i2,j2,k2) = 0.
+                fg=0.
+                write(*,*) 'See turbines.f90, ssz > nz_tot'                    
+            else
+                !fg(i3,j3,k2) = temp_array(i3,j3,k2)*g(ssx,ssy,ssz)
+                !out_a(i4,j4,k) = out_a(i4,j4,k) + fg(i3,j3,k2)*dx*dy*dz
+                fg = temp_array(j3,k2)*g(ssy,ssz)
+                out_a(j4,k) = out_a(j4,k) + fg*dy*dz
+            endif    
+          enddo
+          enddo
+        enddo
+        enddo
+
+        !if (coord == 0) then
+        !    if (verbose) then
+        !        write(*,*) 'Convolution complete for turbine ',b
+        !    endif
+        !endif
+
+    !normalize this "indicator function" such that it integrates to turbine volume
+    sumA = 0.
+    do k=1,nz_tot
+     do j=1,ny
+            if (out_a(j,k) < filter_cutoff) then
+            out_a(j,k) = 0.     !don't want to include too many nodes (truncated Gaussian?)
+            else
+                sumA = sumA + out_a(j,k)*dy*dz
+            endif
+     enddo
+    enddo
+    turbine_vol = pi/4. * (wind_farm%turbine(b)%dia)**2 !* wind_farm%turbine(b)%thk
+    out_a = turbine_vol/sumA*out_a
+
+!    if (coord == 0) then
+!        large_node_array_filtered = large_node_array_filtered + out_a ! removed large 3D array to limit memory use
+!    endif
+
+    !update num_nodes, nodes, and ind for this turbine
+    !and split domain between processors
+    !z(nz) and z(1) of neighboring coords match so each coord gets (local) 1 to nz-1
+    wind_farm%turbine(b)%ind = 0.
+    wind_farm%turbine(b)%nodes = 0.
+    wind_farm%turbine(b)%num_nodes = 0.
+    count_n = 0
+    count_i = 1
+    $if ($MPI)
+        k_start = 1+coord*(nz-1)
+        k_end = nz-1+coord*(nz-1)
+    $else
+        k_start = 1
+        k_end = nz
+    $endif
+
+    do k=k_start,k_end  !global k     
+     do j=1,ny
+       if (out_a(j,k) > filter_cutoff) then
+        wind_farm%turbine(b)%ind(count_i) = out_a(j,k)
+        !wind_farm%turbine(b)%nodes(count_i,1) = i
+        wind_farm%turbine(b)%nodes(count_i,2) = j
+        wind_farm%turbine(b)%nodes(count_i,3) = k - coord*(nz-1)   !local k
+        count_n = count_n + 1
+        count_i = count_i + 1
+        turbine_in_proc = .true.                    
+       endif
+     enddo
+    enddo
+    wind_farm%turbine(b)%num_nodes = count_n
+    
+    if (count_n > 0) then
+        $if ($MPI)
+
+            call string_splice( string1, 'Turbine number ', b,' has ', count_n,' filtered nodes in coord ', coord )
+            write(*,*) trim(string1)
+            
+        $else
+
+            call string_splice( string1, 'Turbine number ',b,' has ',count_n,' filtered nodes' )
+            write(*,*) trim(string1)
+
+        $endif
+    endif
+
+enddo
+
+!    !test to make sure domain is divided correctly:
+!        temp_array_2 = 0.
+!        do b=1,nloc
+!        do l=1,wind_farm%turbine(b)%num_nodes
+!            i2 = wind_farm%turbine(b)%nodes(l,1)
+!            j2 = wind_farm%turbine(b)%nodes(l,2)
+!            k2 = wind_farm%turbine(b)%nodes(l,3)
+!            temp_array_2(i2,j2,k2) = wind_farm%turbine(b)%ind(l)
+!        enddo   
+!        enddo
+!        !write to file with .dat.c* extension
+!        call string_splice( string1, path // 'turbine/nodes_filtered_c.dat' // '.c', coord )
+!        
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz/), '"x","y","z","nodes_filtered_c"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz, (/temp_array_2/), 0, x, y, z(1:nz))      
+
+!    if (coord == 0) then
+!        string1 = path // 'turbine/nodes_filtered.dat'
+!        call write_tecplot_header_ND(string1,'rewind', 4, (/nx,ny,nz_tot/), '"x","y","z","nodes_filtered"', numtostr(1,1), 1)
+!        call write_real_data_3D(string1, 'append', 'formatted', 1, nx, ny, nz_tot, (/large_node_array_filtered/), 0, x, y, z_tot)                       
+!    endif
+
+!each processor sends its value of turbine_in_proc
+!if false, disk-avg velocity will not be sent (since it will always be 0.)
+!############################################## 2
+$if ($MPI)
+    if (coord == 0) then
+        if (turbine_in_proc) then
+            write(*,*),'Coord 0 has turbine nodes' 
+        endif
+        do i=1,nproc-1
+            call MPI_recv( buffer_logical, 1, MPI_logical, i, 2, comm, status, ierr )
+
+            if (buffer_logical) then
+                call string_splice( string1, 'Coord', i,' has turbine nodes')
+                write(*,*) trim(string1)
+                turbine_in_proc_cnt = turbine_in_proc_cnt + 1
+                turbine_in_proc_array(turbine_in_proc_cnt) = i
+            endif
+        enddo
+    else
+        call MPI_send( turbine_in_proc, 1, MPI_logical, 0, 2, comm, ierr )
+    endif
+$endif
+nullify(x,y,z)
+!##############################################
+end subroutine turbines_filter_ind2
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1073,6 +1456,7 @@ end subroutine turbines_filter_ind_fourier
 subroutine turbines_forcing()
 use sim_param, only: u,v,w, fxa
 use functions, only: interp_to_uv_grid
+use derivatives, only: dft_direct_back_2d_n_yonlyC, dft_direct_forw_2d_n_yonlyC
 
 implicit none
 real(rprec), pointer :: p_u_d => null(), p_u_d_T => null(), p_f_n => null()
@@ -1080,6 +1464,8 @@ real(rprec) :: ind2
 real(rprec), dimension(nloc) :: disk_avg_vels, disk_force
 real(rprec), allocatable, dimension(:,:,:) :: w_uv ! Richard: This 3D matrix can relatively easy be prevented
 real(rprec), pointer, dimension(:) :: y,z
+integer :: jz
+
 
 nullify(y,z)
 y => grid % y
@@ -1097,10 +1483,15 @@ disk_avg_vels = 0.
 
 !Each processor calculates the weighted disk-averaged velocity
 if (turbine_in_proc) then
+  if (fourier) then
+  do jz=1,nz
+    call dft_direct_back_2d_n_yonlyC( u(:,:,jz) )
+  enddo
+  endif
+
 
     !for each turbine:        
         do s=1,nloc      
-             
         !set pointers
             p_u_d => wind_farm%turbine(s)%u_d   
 
@@ -1112,11 +1503,16 @@ if (turbine_in_proc) then
                 i2 = wind_farm%turbine(s)%nodes(l,1)
                 j2 = wind_farm%turbine(s)%nodes(l,2)
                 k2 = wind_farm%turbine(s)%nodes(l,3)
+                if (fourier) then
+                p_u_d = p_u_d + (wind_farm%turbine(s)%nhat(1)*u(1,j2,k2))* wind_farm%turbine(s)%ind(l)  !! just kx=0 part! (purely real)
+                else
                 p_u_d = p_u_d + (wind_farm%turbine(s)%nhat(1)*u(i2,j2,k2) &
                                + wind_farm%turbine(s)%nhat(2)*v(i2,j2,k2) &
                                + wind_farm%turbine(s)%nhat(3)*w_uv(i2,j2,k2)) &
                     * wind_farm%turbine(s)%ind(l)        
+                endif
              enddo
+
                 !write center disk velocity to file                   
                 if (modulo (jt_total, tbase) == 0) then
                 icp = nint(wind_farm%turbine(s)%xloc/dx)
@@ -1135,11 +1531,17 @@ if (turbine_in_proc) then
                 endif
                 endif
         !write this value to the array (which will be sent to coord 0)
-            disk_avg_vels(s) = p_u_d
+            disk_avg_vels(s) = p_u_d !/ real(wind_farm%turbine(s)%num_nodes, rprec)
             
-        enddo
+         enddo
+
+  if (fourier) then
+  do jz=1,nz
+    call dft_direct_forw_2d_n_yonlyC( u(:,:,jz) )
+  enddo
+  endif
         
-endif        
+endif
 
 !send the disk-avg values to coord==0
 $if ($MPI) 
@@ -1177,17 +1579,26 @@ if (coord == 0) then
             
         !volume correction:
         !since sum of ind is turbine volume/(dx*dy*dz) (not exactly 1.)
-            p_u_d = disk_avg_vels(s) * wind_farm%turbine(s)%vol_c
-    
+            if (fourier) then
+               p_u_d = disk_avg_vels(s) * wind_farm%turbine(s)%vol_c
+            else
+               p_u_d = disk_avg_vels(s) * wind_farm%turbine(s)%vol_c
+            endif
         !add this current value to the "running average" (first order relaxation)
             p_u_d_T = (1.-eps)*p_u_d_T + eps*p_u_d
 
         !calculate total thrust force for each turbine  (per unit mass)
         !force is normal to the surface (calc from u_d_T, normal to surface)
-            p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
+            if (fourier) then
+               p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T !/wind_farm%turbine(s)%thk       
+            else
+               p_f_n = Ct_prime_05*abs(p_u_d_T)*p_u_d_T/wind_farm%turbine(s)%thk       
+            endif
+
             !write values to file                   
                 if (modulo (jt_total, tbase) == 0) then
-                call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
+                !call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, Ct_prime_05*(p_u_d_T*p_u_d_T*p_u_d_T)*pi/(4.*sx*sy) /))
+                call write_real_data( file_id(s), 'formatted', 5, (/total_time_dim, p_u_d, p_u_d_T, p_f_n, (p_u_d_T*p_u_d_T*p_u_d_T) /))   !!jb
                 endif 
             !write force to array that will be transferred via MPI    
             disk_force(s) = p_f_n
@@ -1216,18 +1627,36 @@ $endif
 if (turbine_in_proc) then
 
     do s=1,nloc     
-            
-        do l=1,wind_farm%turbine(s)%num_nodes
+       !print*,'s,nhat,thk: ',s,wind_farm%turbine(s)%nhat(1),wind_farm%turbine(s)%thk,wind_farm%turbine(s)%vol_c
+       if (fourier) then
+         do l=1,wind_farm%turbine(s)%num_nodes
+            !i2 = wind_farm%turbine(s)%nodes(l,1)
+            j2 = wind_farm%turbine(s)%nodes(l,2)
+            k2 = wind_farm%turbine(s)%nodes(l,3)
+            ind2 = wind_farm%turbine(s)%ind(l)
+            !print*,'s, l, ind2: ', s, l, ind2
+            fxa(1,j2,k2) = fxa(1,j2,k2) + disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2
+         enddo
+       else
+         do l=1,wind_farm%turbine(s)%num_nodes
             i2 = wind_farm%turbine(s)%nodes(l,1)
             j2 = wind_farm%turbine(s)%nodes(l,2)
             k2 = wind_farm%turbine(s)%nodes(l,3)
             ind2 = wind_farm%turbine(s)%ind(l)
             fxa(i2,j2,k2) = disk_force(s)*wind_farm%turbine(s)%nhat(1)*ind2 
-        enddo
+         enddo
+       endif
 
     enddo
-    
-endif    
+
+  if (fourier) then
+     fxa(:,:,:) = fxa(:,:,:) / L_x * real(num_x, rprec)
+     do jz=1,nz
+        call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
+     enddo  
+  endif
+
+endif
 
 deallocate(w_uv)
 
@@ -1509,7 +1938,7 @@ real(rprec), dimension(ld, ny) :: uhat
 
 complex(rprec) :: imag = (0._rprec, 1._rprec)
 integer :: jx,jy,jz
-real(rprec) :: r1,r2,r3,r4,r5,r6,rad
+real(rprec) :: r1,r2,r3,r4,r5,r6,r7,rad
 
 rad = 0.5_rprec * dia_all
 
@@ -1524,8 +1953,12 @@ nullify(y,z)
 y => grid % y  ! non-dimensional, 0 to L_y
 z => grid % z  ! goes from 0 to 1+, coord is taken into account
 
-do jx=1,nxp !+1
-  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!do jx=1,nxp !+1
+!  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!enddo
+
+do jx=1,num_x
+  xp(jx) = (jx - 1)*L_x/real(num_x,rprec)
 enddo
 
 !!$print*, 'Y >>'
@@ -1556,6 +1989,23 @@ call dft_direct_back_2d_n_yonlyC( uhat(:,:) )
 !fhat_big(:,:) = convolve( uhat_big(:,:), uhat_big(:,:) )
 fhat(:,:) = convolve2( uhat(:,:), uhat(:,:) )
 
+!! aligned
+!do jy = 1, ny !ny2
+!   r1 = sqrt( abs(y(jy)-0.261799)**2 + abs(z(jz)-height_all)**2 )
+!   r2 = sqrt( abs(y(jy)-0.785398)**2 + abs(z(jz)-height_all)**2 )
+!   r3 = sqrt( abs(y(jy)-1.309)**2 + abs(z(jz)-height_all)**2 )
+!   r4 = sqrt( abs(y(jy)-1.8326)**2 + abs(z(jz)-height_all)**2 )
+!   r5 = sqrt( abs(y(jy)-2.35619)**2 + abs(z(jz)-height_all)**2 )
+!   r6 = sqrt( abs(y(jy)-2.87979)**2 + abs(z(jz)-height_all)**2 )
+!   if ( r1 .le. rad .or. r2 .le. rad .or. r3 .le. rad .or. r4 .le. rad .or. r5 .le. rad .or. r6 .le. rad) then
+!   do jx=1,4  !4
+!   !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
+!   fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
+!   enddo
+!   endif
+!enddo
+
+!! staggered
 do jy = 1, ny !ny2
    r1 = sqrt( abs(y(jy)-0.261799)**2 + abs(z(jz)-height_all)**2 )
    r2 = sqrt( abs(y(jy)-0.785398)**2 + abs(z(jz)-height_all)**2 )
@@ -1564,12 +2014,34 @@ do jy = 1, ny !ny2
    r5 = sqrt( abs(y(jy)-2.35619)**2 + abs(z(jz)-height_all)**2 )
    r6 = sqrt( abs(y(jy)-2.87979)**2 + abs(z(jz)-height_all)**2 )
    if ( r1 .le. rad .or. r2 .le. rad .or. r3 .le. rad .or. r4 .le. rad .or. r5 .le. rad .or. r6 .le. rad) then
-   do jx=1,4  !4
-   !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
-   fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp( imag*kx(1:ld,jy)*xp(jx) )
+   do jx=1,num_x  !4
+   !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
+   fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
    enddo
    endif
 enddo
+
+!do jy = 1, ny !ny2
+!   r1 = sqrt( abs(y(jy)-0.5235987)**2 + abs(z(jz)-height_all)**2 )
+!   r2 = sqrt( abs(y(jy)-1.04719755)**2 + abs(z(jz)-height_all)**2 )
+!   r3 = sqrt( abs(y(jy)-1.5707963)**2 + abs(z(jz)-height_all)**2 )
+!   r4 = sqrt( abs(y(jy)-2.0943951)**2 + abs(z(jz)-height_all)**2 )
+!   r5 = sqrt( abs(y(jy)-2.6179938)**2 + abs(z(jz)-height_all)**2 )
+!   r6 = sqrt( abs(y(jy)-3.14159265)**2 + abs(z(jz)-height_all)**2 )
+!   r7 = sqrt( abs(y(jy)-0.0)**2 + abs(z(jz)-height_all)**2 )
+!   if ( r1 .le. rad .or. r2 .le. rad .or. r3 .le. rad .or. r4 .le. rad) then
+!   do jx=1,2  !4
+!   !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
+!   fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
+!   enddo
+!   endif
+!   if ( r5 .le. rad .or. r6 .le. rad .or. r7 .le. rad) then
+!   do jx=1,2  !4
+!   !fxa_big(1:ld,jy) = fxa_big(1:ld,jy) + fhat_big(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
+!   fxa(1:ld,jy,jz) = fxa(1:ld,jy,jz) + fhat(1:ld,jy)*exp(imag*kx(1:ld,jy)*xp(jx) )
+!   enddo
+!   endif
+!enddo
 
 !call dft_direct_forw_2d_n_yonlyC_big( fxa_big(:,:) )
 call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
@@ -1578,10 +2050,565 @@ enddo
 
 !! eliminate nonzero kx modes
 fxa(3:,:,:) = 0._rprec
-fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0/L_x,rprec)   !C_Tprime = 4/3
+!fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0/L_x,rprec)   !C_Tprime = 4/3
+fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0,rprec)   !C_Tprime = 4/3
 !fxa(:,:,23:) = 0._rprec
 
 end subroutine turbines_RNL
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_RNL2()
+use param, only: ld_big, ny2, nxp, ny, L_x
+use sim_param, only: u, fxa
+use derivatives, only: convolve, convolve2
+use derivatives, only: dft_direct_back_2d_n_yonlyC_big
+use derivatives, only: dft_direct_forw_2d_n_yonlyC_big
+use derivatives, only: dft_direct_back_2d_n_yonlyC
+use derivatives, only: dft_direct_forw_2d_n_yonlyC
+use messages
+use fft
+
+implicit none
+
+real(rprec), pointer, dimension(:) :: y, z
+real(rprec), dimension(nxp) :: xp
+real(rprec), dimension(ld_big, ny2) :: fhat_big
+real(rprec), dimension(ld_big, ny2) :: uhat_big
+real(rprec), dimension(ld_big, ny2) :: fxa_big
+
+real(rprec), dimension(ld, ny) :: fhat
+real(rprec), dimension(ld, ny) :: uhat
+
+complex(rprec) :: imag = (0._rprec, 1._rprec)
+integer :: jx,jy,jz
+real(rprec) :: r1,r2,r3,r4,r5,r6,r7,rad
+
+rad = 0.5_rprec * dia_all
+
+fhat_big = 0._rprec
+uhat_big = 0._rprec
+fxa_big = 0._rprec
+
+fhat = 0._rprec
+uhat = 0._rprec
+
+nullify(y,z)
+y => grid % y  ! non-dimensional, 0 to L_y
+z => grid % z  ! goes from 0 to 1+, coord is taken into account
+
+!do jx=1,nxp !+1
+!  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!enddo
+
+do jx=1,num_x
+  xp(jx) = (jx - 1)*L_x/real(num_x,rprec)
+enddo
+
+fxa(:,:,:) = 0._rprec
+do jz = 1, nz
+
+uhat(:,:) = u(:,:,jz)
+call dft_direct_back_2d_n_yonlyC( uhat(:,:) )
+
+fhat(:,:) = convolve2( uhat(:,:), uhat(:,:) )
+
+do jy = 1, ny
+   r1 = sqrt( abs(y(jy)-0.261799)**2 + abs(z(jz)-height_all)**2 ) ! aligned
+   r2 = sqrt( abs(y(jy)-0.785398)**2 + abs(z(jz)-height_all)**2 )
+   r3 = sqrt( abs(y(jy)-1.309)**2 + abs(z(jz)-height_all)**2 )
+   r4 = sqrt( abs(y(jy)-1.8326)**2 + abs(z(jz)-height_all)**2 )
+   r5 = sqrt( abs(y(jy)-2.35619)**2 + abs(z(jz)-height_all)**2 )
+   r6 = sqrt( abs(y(jy)-2.87979)**2 + abs(z(jz)-height_all)**2 )
+   !r1 = sqrt( abs(y(jy)-0.261799)**2 + abs(z(jz)-height_all)**2 ) ! staggered
+   !r2 = sqrt( abs(y(jy)-0.785398)**2 + abs(z(jz)-height_all)**2 )
+   !r3 = sqrt( abs(y(jy)-1.309)**2 + abs(z(jz)-height_all)**2 )
+   !r4 = sqrt( abs(y(jy)-1.8326)**2 + abs(z(jz)-height_all)**2 )
+   !r5 = sqrt( abs(y(jy)-2.35619)**2 + abs(z(jz)-height_all)**2 )
+   !r6 = sqrt( abs(y(jy)-2.87979)**2 + abs(z(jz)-height_all)**2 )
+   if ( r1 .le. rad .or. r2 .le. rad .or. r3 .le. rad .or. r4 .le. rad .or. r5 .le. rad .or. r6 .le. rad) then
+       fxa(1:ld,jy,jz) = fhat(1:ld,jy) !* real(num_x, rprec)
+   endif
+enddo
+
+call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
+enddo
+
+!! eliminate nonzero kx modes
+!fxa(3:,:,:) = 0._rprec
+!fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0,rprec)   !C_Tprime = 4/3
+fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0*num_x/L_x,rprec)   !C_Tprime = 4/3
+
+end subroutine turbines_RNL2
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_RNL3()
+use param, only: ld_big, ny2, nxp, ny, L_x
+use sim_param, only: u, fxa
+use turbines_base, only: ind
+use derivatives, only: convolve, convolve2
+use derivatives, only: dft_direct_back_2d_n_yonlyC_big
+use derivatives, only: dft_direct_forw_2d_n_yonlyC_big
+use derivatives, only: dft_direct_back_2d_n_yonlyC
+use derivatives, only: dft_direct_forw_2d_n_yonlyC
+use messages
+use fft
+
+implicit none
+
+real(rprec), pointer, dimension(:) :: y, z
+real(rprec), dimension(nxp) :: xp
+real(rprec), dimension(ld_big, ny2) :: fhat_big
+real(rprec), dimension(ld_big, ny2) :: uhat_big
+real(rprec), dimension(ld_big, ny2) :: fxa_big
+
+real(rprec), dimension(ld, ny) :: fhat
+real(rprec), dimension(ld, ny) :: uhat
+
+complex(rprec) :: imag = (0._rprec, 1._rprec)
+integer :: jx,jy,jz
+real(rprec) :: r1,r2,r3,r4,r5,r6,r7,rad
+
+rad = 0.5_rprec * dia_all
+
+fhat_big = 0._rprec
+uhat_big = 0._rprec
+fxa_big = 0._rprec
+
+fhat = 0._rprec
+uhat = 0._rprec
+
+nullify(y,z)
+y => grid % y  ! non-dimensional, 0 to L_y
+z => grid % z  ! goes from 0 to 1+, coord is taken into account
+
+!do jx=1,nxp !+1
+!  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!enddo
+
+do jx=1,num_x
+  xp(jx) = (jx - 1)*L_x/real(num_x,rprec)
+enddo
+
+fxa(:,:,:) = 0._rprec
+do jz = 1, nz
+  uhat(:,:) = u(:,:,jz)
+  call dft_direct_back_2d_n_yonlyC( uhat(:,:) )
+  fhat(:,:) = convolve2( uhat(:,:), uhat(:,:) )
+  fxa(1:ld, :, jz) = fhat(1:ld, :)
+enddo
+
+do jx = 1, ld
+  fxa(jx, 1:ny, 1:nz) = fxa(jx, 1:ny, 1:nz) * ind(1:ny, 1:nz) !*6._rprec
+enddo
+
+do jz = 1, nz
+  call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
+enddo
+
+!! eliminate nonzero kx modes
+!fxa(3:,:,:) = 0._rprec
+fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0/L_x,rprec)   !C_Tprime = 4/3
+
+!if (coord .eq. 0) then
+!do jz=1,nz
+!write(*,*) jz, fxa(1,1:ny, jz)
+!enddo
+!endif
+
+end subroutine turbines_RNL3
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_RNL4()
+use param, only: ld_big, ny2, nxp, ny, L_x
+use sim_param, only: u, fxa !, pow
+use turbines_base, only: ind
+use derivatives, only: convolve, convolve2
+use derivatives, only: dft_direct_back_2d_n_yonlyC_big
+use derivatives, only: dft_direct_forw_2d_n_yonlyC_big
+use derivatives, only: dft_direct_back_2d_n_yonlyC
+use derivatives, only: dft_direct_forw_2d_n_yonlyC
+use messages
+use fft
+
+implicit none
+
+real(rprec), pointer, dimension(:) :: y, z
+real(rprec), dimension(nxp) :: xp
+real(rprec), dimension(ld_big, ny2) :: fhat_big
+real(rprec), dimension(ld_big, ny2) :: uhat_big
+real(rprec), dimension(ld_big, ny2) :: fxa_big
+
+real(rprec), dimension(ld, ny) :: fhat
+real(rprec), dimension(ld, ny) :: uhat
+
+complex(rprec) :: imag = (0._rprec, 1._rprec)
+integer :: jx,jy,jz
+real(rprec) :: r1,r2,r3,r4,r5,r6,r7,rad
+
+rad = 0.5_rprec * dia_all
+
+fhat_big = 0._rprec
+uhat_big = 0._rprec
+fxa_big = 0._rprec
+
+fhat = 0._rprec
+uhat = 0._rprec
+
+nullify(y,z)
+y => grid % y  ! non-dimensional, 0 to L_y
+z => grid % z  ! goes from 0 to 1+, coord is taken into account
+
+!do jx=1,nxp !+1
+!  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!enddo
+
+do jx=1,num_x
+  xp(jx) = (jx - 1)*L_x/real(num_x,rprec)
+enddo
+
+fxa(:,:,:) = 0._rprec
+do jz = 1, nz
+  uhat(:,:) = u(:,:,jz)
+  call dft_direct_back_2d_n_yonlyC( uhat(:,:) )
+  fhat(:,:) = convolve2( uhat(:,:), uhat(:,:) )
+  fxa(1:ld, :, jz) = fhat(1:ld, :)
+enddo
+
+do jx = 1, ld
+  fxa(jx, 1:ny, 1:nz) = fxa(jx, 1:ny, 1:nz) * ind(1:ny, 1:nz) !*3._rprec
+enddo
+
+!! eliminate nonzero kx modes
+!fxa(3:,:,:) = 0._rprec
+fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0/L_x,rprec)   !C_Tprime = 4/3
+
+do jz = 1, nz
+   fhat(:,:) = convolve2( fxa(1:ld,:,jz), uhat(:,:) )   !! power calc
+   !pow(:,:,jz) = fhat(:,:)
+enddo
+
+do jz = 1, nz
+  call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
+enddo
+
+
+!if (coord .eq. 0) then
+!do jz=1,nz
+!write(*,*) jz, fxa(1,1:ny, jz)
+!enddo
+!endif
+
+end subroutine turbines_RNL4
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine turbines_RNL5()
+use param, only: ld_big, ny2, nxp, ny, L_x, lbz, nz
+use sim_param, only: u, fxa
+use turbines_base, only: ind
+use derivatives, only: convolve, convolve2
+use derivatives, only: dft_direct_back_2d_n_yonlyC_big
+use derivatives, only: dft_direct_forw_2d_n_yonlyC_big
+use derivatives, only: dft_direct_back_2d_n_yonlyC
+use derivatives, only: dft_direct_forw_2d_n_yonlyC
+use derivatives, only: wave2phys
+use messages
+use fft
+
+implicit none
+
+real(rprec), pointer, dimension(:) :: y, z
+real(rprec), dimension(nxp) :: xp
+real(rprec), dimension(ld_big, ny2) :: fhat_big
+real(rprec), dimension(ld_big, ny2) :: uhat_big
+real(rprec), dimension(ld_big, ny2) :: fxa_big
+
+real(rprec), dimension(ld, ny) :: fhat
+real(rprec), dimension(ld, ny) :: uhat
+
+real(rprec), dimension(ld,ny,lbz:nz) :: temp
+
+complex(rprec) :: imag = (0._rprec, 1._rprec)
+integer :: jx,jy,jz
+real(rprec) :: r1,r2,r3,r4,r5,r6,r7,rad
+
+rad = 0.5_rprec * dia_all
+
+fhat_big = 0._rprec
+uhat_big = 0._rprec
+fxa_big = 0._rprec
+
+fhat = 0._rprec
+uhat = 0._rprec
+
+nullify(y,z)
+y => grid % y  ! non-dimensional, 0 to L_y
+z => grid % z  ! goes from 0 to 1+, coord is taken into account
+
+!do jx=1,nxp !+1
+!  xp(jx) = (jx - 1)*dx    !! dx = L_x / nxp
+!enddo
+
+do jx=1,num_x
+  xp(jx) = (jx - 1)*L_x/real(num_x,rprec)
+enddo
+
+call disk_avg_kx()
+
+fxa(:,:,:) = 0._rprec
+
+if (turbine_in_proc) then
+   do s=1,nloc
+      temp(:,:,:) = 0._rprec    !! temp vel field
+      do l=1,wind_farm%turbine(s)%num_nodes
+         jy = wind_farm%turbine(s)%nodes(l,2)
+         jz = wind_farm%turbine(s)%nodes(l,3)
+         temp(1:ld,jy,jz) = wind_farm % turbine(s) % u_d_kx(1:ld)
+      enddo
+      do jz=1,nz
+         uhat(:,:) = temp(:,:,jz)
+         uhat(3:,:) = 0._rprec
+         fhat(:,:) = convolve2( uhat(:,:), uhat(:,:) )
+         fxa(1:ld, :, jz) = fxa(1:ld,:,jz) + fhat(1:ld, :)
+      enddo
+   enddo
+endif
+
+do jz = 1, nz
+  call dft_direct_forw_2d_n_yonlyC( fxa(:,:,jz) )
+enddo
+
+!! eliminate nonzero kx modes
+!fxa(3:,:,:) = 0._rprec
+!C_Tprime = 4/3
+fxa(:,:,:) = fxa(:,:,:) * real(-1.0/2.0*4.0/3.0/L_x,rprec) !* 0.1_rprec   
+
+if (coord == 0) then
+do s=1,nloc
+!print*, coord, s, '>>', wind_farm % turbine(s) % u_d_kx(:) 
+do jy=1,ny
+   temp(:,jy,1) = wind_farm % turbine(s) % u_d_kx(:) 
+enddo
+
+!!$temp(3:,:,:) = 0._rprec
+!!$if ( s == 1 ) then
+!!$   print*, 'a1', temp(:,1,1)
+!!$   fhat(:,:) = convolve2( temp(:,:,1), temp(:,:,1) )
+!!$   print*, 'b1', fhat(:,1)
+!!$   fhat(:,:) = convolve2(   fhat(:,:), temp(:,:,1) )
+!!$   print*, 'c1', fhat(:,1)
+!!$endif
+
+call dft_direct_forw_2d_n_yonlyC( fhat(:,:) )
+do jz=1,nz
+temp(:,:,jz) = fhat(:,:)
+enddo
+temp(3:,:,:) = 0._rprec
+call wave2phys( temp )
+!print*,'>>> s: ', s
+!print*, 'aaa', temp(:,1,1)
+!print*, 'bbb', temp(:,2,2)
+
+enddo
+endif
+
+
+
+
+end subroutine turbines_RNL5
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!*******************************************************************************
+subroutine place_turbines
+!*******************************************************************************
+!
+! This subroutine places the turbines on the domain. It also sets the values for
+! each individual turbine. After the subroutine is called, the following values 
+! are set for each turbine in wind_farm: xloc, yloc, height, dia, thk, theta1, 
+! theta2, and Ct_prime.
+!
+use param, only: pi, z_i
+use open_file_fid_mod
+use messages
+implicit none
+
+character(*), parameter :: sub_name = mod_name // '.place_turbines'
+
+real(rprec) :: sxx, syy, shift_base, const
+real(rprec) :: dummy, dummy2
+logical :: exst
+integer :: fid
+
+! Read parameters from file if needed
+if (read_param) then
+    ! Check if file exists and open
+    inquire (file = param_dat, exist = exst)
+    if (.not. exst) then
+        call error (sub_name, 'file ' // param_dat // 'does not exist')
+    end if
+
+    ! Check that there are enough lines from which to read data
+    nloc = count_lines(param_dat)
+    !if (nloc < num_x*num_y) then
+    !    nloc = num_x*num_y
+    !    call error(sub_name, param_dat // 'must have num_x*num_y lines')
+    !else if (nloc > num_x*num_y) then
+    !    call warn(sub_name, param_dat // ' has more than num_x*num_y lines. '  &
+    !              // 'Only reading first num_x*num_y lines')
+    !end if
+    write(*,*) "Number of turbines (nloc):", nloc
+
+    ! Read from parameters file, which should be in this format:
+    ! xloc [meters], yloc [meters], height [meters], dia [meters], thk [meters], 
+    ! theta1 [degrees], theta2 [degrees], Ct_prime [-]
+    write(*,*) "Reading from", param_dat
+    fid = open_file_fid(param_dat, 'rewind', 'formatted')
+    do k = 1, nloc
+        read(fid,*) wind_farm%turbine(k)%xloc, wind_farm%turbine(k)%yloc,      &
+            wind_farm%turbine(k)%height, wind_farm%turbine(k)%dia,             &
+            wind_farm%turbine(k)%thk, wind_farm%turbine(k)%theta1,             &
+            wind_farm%turbine(k)%theta2, wind_farm%turbine(k)%Ct_prime
+    end do
+    close(fid)
+    
+    ! Make lengths dimensionless
+    do k = 1, nloc
+        wind_farm%turbine(k)%xloc = wind_farm%turbine(k)%xloc / z_i
+        wind_farm%turbine(k)%yloc = wind_farm%turbine(k)%yloc / z_i
+        wind_farm%turbine(k)%height = wind_farm%turbine(k)%height / z_i
+        wind_farm%turbine(k)%dia = wind_farm%turbine(k)%dia / z_i
+        wind_farm%turbine(k)%thk = wind_farm%turbine(k)%thk / z_i
+    end do
+else
+    ! Set values for each turbine based on values in input file
+    wind_farm%turbine(:)%height = height_all
+    wind_farm%turbine(:)%dia = dia_all
+    wind_farm%turbine(:)%thk = thk_all
+    wind_farm%turbine(:)%theta1 = theta1_all
+    wind_farm%turbine(:)%theta2 = theta2_all
+    wind_farm%turbine(:)%Ct_prime = Ct_prime
+
+    ! Set baseline locations (evenly spaced, not staggered aka aligned)
+    k = 1
+    sxx = sx * dia_all  ! x-spacing with units to match those of L_x
+    syy = sy * dia_all  ! y-spacing
+    do i = 1,num_x
+        do j = 1,num_y
+            wind_farm%turbine(k)%xloc = sxx*real(2*i-1)/2
+            wind_farm%turbine(k)%yloc = syy*real(2*j-1)/2
+            k = k + 1
+        end do
+    end do
+
+ 
+    ! Place turbines based on orientation flag
+    ! This will shift the placement relative to the baseline locations abive
+    select case (orientation)
+        ! Evenly-spaced, not staggered
+        case (1)
+    
+        ! Evenly-spaced, horizontally staggered only
+        ! Shift each row according to stag_perc    
+        case (2)
+            do i = 2, num_x
+                do k = 1+num_y*(i-1), num_y*i
+                    shift_base = syy * stag_perc/100.
+                    wind_farm%turbine(k)%yloc = mod( wind_farm%turbine(k)%yloc &
+                                                    + (i-1)*shift_base , L_y )
+                end do
+            end do
+ 
+        ! Evenly-spaced, only vertically staggered (by rows)
+        case (3)
+            ! Make even rows taller
+            do i = 2, num_x, 2
+                do k = 1+num_y*(i-1), num_y*i
+                    wind_farm%turbine(k)%height = height_all*(1.+stag_perc/100.)
+                end do
+            end do
+            ! Make odd rows shorter
+            do i = 1, num_x, 2
+                do k = 1+num_y*(i-1), num_y*i
+                    wind_farm%turbine(k)%height = height_all*(1.-stag_perc/100.)
+                end do
+            end do
+       
+        ! Evenly-spaced, only vertically staggered, checkerboard pattern
+        case (4)
+            k = 1
+            do i = 1, num_x 
+                do j = 1, num_y
+                    ! this should alternate between 1, -1
+                    const = 2.*mod(real(i+j),2.)-1.  
+                    wind_farm%turbine(k)%height = height_all                   &
+                                                  *(1.+const*stag_perc/100.)
+                    k = k + 1
+                end do
+            end do
+
+        ! Aligned, but shifted forward for efficient use of simulation space 
+        ! during CPS runs
+        case (5)
+        ! Shift in spanwise direction: Note that stag_perc is now used
+            k=1
+            dummy=stag_perc                                                    &
+                  *(wind_farm%turbine(2)%yloc - wind_farm%turbine(1)%yloc)
+            do i = 1, num_x
+                do j = 1, num_y
+                    dummy2=dummy*(i-1)         
+                    wind_farm%turbine(k)%yloc=mod( wind_farm%turbine(k)%yloc   &
+                                                  + dummy2,L_y)
+                    k=k+1
+                end do
+            end do      
+
+        case default
+            call error (sub_name, 'invalid orientation')
+        
+    end select
+end if
+end subroutine place_turbines
+
+!*******************************************************************************
+function count_lines(fname) result(N)
+!*******************************************************************************
+!
+! This function counts the number of lines in a file
+!
+use open_file_fid_mod
+use messages
+use param, only : CHAR_BUFF_LENGTH
+implicit none
+character(*), intent(in) :: fname
+logical :: exst
+integer :: fid, ios
+integer :: N
+
+character(*), parameter :: sub_name = mod_name // '.count_lines'
+
+! Check if file exists and open
+inquire (file = trim(fname), exist = exst)
+if (.not. exst) then
+    call error (sub_name, 'file ' // trim(fname) // 'does not exist')
+end if
+fid = open_file_fid(trim(fname), 'rewind', 'formatted')
+
+! count number of lines and close
+ios = 0
+N = 0
+do
+    read(fid, *, IOstat = ios)
+    if (ios /= 0) exit
+    N = N + 1
+end do
+
+! Close file
+close(fid)
+
+end function count_lines
 
 end module turbines

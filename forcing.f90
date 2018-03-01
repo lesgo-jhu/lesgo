@@ -62,7 +62,7 @@ $if ($TURBINES)
 use sim_param, only : fxa
 use turbines, only:turbines_forcing
 !!use turbines, only:turbines_forcing_fourier
-use turbines, only:turbines_RNL
+use turbines, only:turbines_RNL2, turbines_RNL3, turbines_RNL4, turbines_RNL5
 $endif
 
 $if ($USE_RNL)
@@ -87,8 +87,12 @@ $if ($TURBINES)
    ! Reset applied force arrays
    fxa = 0._rprec
    if (fourier) then
+      call turbines_forcing ()
       !call turbines_forcing_fourier ()
-      call turbines_RNL()
+      !call turbines_RNL2()
+      !call turbines_RNL3()
+      !call turbines_RNL4()
+      !call turbines_RNL5()
    else
       call turbines_forcing ()
    endif

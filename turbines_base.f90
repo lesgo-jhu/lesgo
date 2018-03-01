@@ -20,6 +20,7 @@
 module turbines_base
 use types, only:rprec
 use stat_defs, only:wind_farm
+use param, only: fourier
 $if ($MPI)
   use mpi_defs
 $endif
@@ -44,6 +45,8 @@ real(rprec) :: theta2_all   ! angle above horizontal
 real(rprec) :: Ct_prime     ! thrust coefficient (default 1.33)
 real(rprec) :: Ct_noprime   ! thrust coefficient (default 0.75)
 
+logical, public :: read_param ! Read parameters from input_turbines/param.dat
+
 real(rprec) :: T_avg_dim    ! disk-avg time scale in seconds (default 600)
 
 real(rprec) :: alpha        ! filter size as multiple of grid spacing
@@ -60,8 +63,55 @@ real(rprec) :: sx           ! spacing in the x-direction, multiple of (mean) dia
 real(rprec) :: sy           ! spacing in the y-direction
 real(rprec) :: dummy,dummy2 ! used to shift the turbine positions
 
+! RNL, fourier, indicator function  !!jb
+real(rprec), dimension(:,:), allocatable :: ind_tot   !! on (ny, nz_tot) 
+real(rprec), dimension(:,:), allocatable :: ind       !! on (ny, nz)
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
+
+subroutine turbines_RNL_ind()
+use param, only: ny, nz, nz_tot, coord, lbz
+implicit none
+
+logical :: wtxyz_exist
+character (*), parameter :: wtxyz_filename = 'wt_out_6x4a.txt'
+integer :: jz, jz_tot
+
+allocate(ind_tot(ny, lbz:nz_tot))
+allocate(ind(ny, lbz:nz))
+
+inquire(file = wtxyz_filename, exist = wtxyz_exist)
+if (wtxyz_exist) then
+  print*, 'Opening wind turbine indicator file.'
+  open(1, file = wtxyz_filename)
+
+  do jz = 1, nz_tot
+     read(1,*) ind_tot(:, jz)
+     write(*,*) jz, ind_tot(:, jz)
+  enddo
+  close(1)
+else
+  print*, 'Wind turbine indicator file not found.'
+endif
+
+! distribute across all processors
+do jz = lbz, nz
+  jz_tot = coord*(nz-1) + jz
+  ind(:, jz) = ind_tot(:, jz_tot) 
+enddo
+
+if (coord .eq. 0) then
+  print*, 'coord 0 ind: '
+  do jz = lbz, nz
+     write(*,*) jz, ind(:, jz)
+  enddo
+endif
+
+deallocate(ind_tot)
+
+end subroutine turbines_RNL_ind
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! This subroutine sets the values for wind_farm based on values
 !   read from the input file.
@@ -94,7 +144,11 @@ real(rprec) :: sxx, syy, shift_base, const
     wind_farm%turbine(:)%height = height_all
     wind_farm%turbine(:)%dia = dia_all
     wind_farm%turbine(:)%thk = thk_all                      
-    wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+    if (fourier) then
+        wind_farm%turbine(:)%vol_c =  dy*dz/(pi/4.*(dia_all)**2)        
+    else
+        wind_farm%turbine(:)%vol_c =  dx*dy*dz/(pi/4.*(dia_all)**2 * thk_all)        
+    endif
 
     ! Spacing between turbines (as multiple of mean diameter)
     sx = L_x / (num_x * dia_all )
