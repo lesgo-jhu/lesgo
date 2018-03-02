@@ -137,7 +137,7 @@ real(rprec), dimension(:), allocatable :: Pref_time
 
 ! Wake model estimation
 type(wakeModelEstimator) :: wm_est
-integer :: k_fid, U_infty_fid, Phat_fid, u_fid
+integer :: k_fid, U_infty_fid, Phat_fid, u_fid, yu_inf_fid
 
 contains
 
@@ -333,8 +333,8 @@ else
             (1._rprec - ind_factor))**3 / num_y
     end do
     U_infty = U_infty**(1._rprec/3._rprec)
-    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
-        Ny, num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
+    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx/2,   &
+        Ny/2, num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
 
@@ -352,11 +352,15 @@ if (coord == 0) then
     string1 = trim( path // 'turbine/wake_model_u.dat' )
     open(newunit=u_fid , file=string1, status='unknown', form='formatted',      &
         action='write', position='append')
+    string1 = trim( path // 'turbine/wake_model_yu_inf.dat')
+    open(newunit=yu_inf_fid , file=string1, status='unknown', form='formatted',&
+        action='write', position='append')
 
     ! Write initial values
     write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
     write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
     write(u_fid, *) total_time_dim, wm_est%wm%u
+    write(yu_inf_fid, *) total_time_dim, wm_est%wm%yu_inf    
 end if
 
 end subroutine wake_model_est_init
@@ -752,6 +756,7 @@ if (use_wake_model) then
         write(U_infty_fid, *) total_time_dim, wm_est%wm%U_infty
         write(Phat_fid, *) total_time_dim, wm_est%wm%Phat
         write(u_fid, *) total_time_dim, wm_est%wm%u
+        write(yu_inf_fid, *) total_time_dim, wm_est%wm%yu_inf
     end if
 
     ! Cleanup

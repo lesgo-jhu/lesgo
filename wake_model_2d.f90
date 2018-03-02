@@ -35,6 +35,7 @@ type wake_model_base
     real(rprec), dimension(:), allocatable :: k    ! wake expansion coefficient
     real(rprec), dimension(:), allocatable :: x    ! streamwise coordinate
     real(rprec), dimension(:), allocatable :: y    ! spanwise coordinate
+    real(rprec), dimension(:), allocatable :: yu_inf   ! freestream flow in y
     real(rprec), dimension(:,:), allocatable :: s      ! turbine location
     real(rprec), dimension(:,:), allocatable :: G      ! Gaussian forcing function (turbine, space)
     real(rprec), dimension(:,:), allocatable :: d      ! dimensionless wake diameter (turbine, space)
@@ -112,6 +113,7 @@ this%Nx = i_Nx
 this%Ny = i_Ny
 allocate( this%x(this%Nx) )
 allocate( this%y(this%Ny) )
+allocate( this%yu_inf(this%Ny) )
 allocate( this%wake_num(this%N) )
 allocate( this%ymin(this%N, this%Nx) )
 allocate( this%ymax(this%N, this%Nx) )
@@ -127,6 +129,7 @@ this%U_infty    = i_U_infty
 this%Delta      = i_Delta
 this%k          = i_k
 this%Dia        = i_Dia
+this%yu_inf     = i_U_infty
 
 ! Normalization constants
 this%VELOCITY = i_U_infty
@@ -292,6 +295,7 @@ if (.not.this%isDimensionless) then
     this%dy      = this%dy / this%LENGTH
     this%x       = this%x / this%LENGTH
     this%y       = this%y / this%LENGTH
+    this%yu_inf  = this%yu_inf / this%VELOCITY
     this%G       = this%G * this%LENGTH         ! G has units 1/length
     this%dp      = this%dp * this%LENGTH        ! dp has units 1/length
     this%w       = this%w * this%TIME           ! w has units 1/time
@@ -315,6 +319,7 @@ if (this%isDimensionless) then
     this%dy      = this%dy * this%LENGTH
     this%x       = this%x * this%LENGTH
     this%y       = this%y * this%LENGTH
+    this%yu_inf  = this%yu_inf * this%VELOCITY
     this%G       = this%G / this%LENGTH         ! G has units 1/length
     this%dp      = this%dp / this%LENGTH        ! dp has units 1/length
     this%w       = this%w / this%TIME           ! w has units 1/time
@@ -364,6 +369,7 @@ write(*,*) ' Nx              = ', this%Nx
 write(*,*) ' x               = ', this%x
 write(*,*) ' Ny              = ', this%Ny
 write(*,*) ' y               = ', this%y
+write(*,*) ' yu_inf          = ', this%yu_inf
 write(*,*) ' dx              = ', this%dx
 write(*,*) ' dy              = ', this%dy
 write(*,*) ' isDimensionless = ', this%isDimensionless
@@ -495,6 +501,7 @@ subroutine initialize_file(this, fstring)
     allocate( this%Ctp(this%N)  )
     allocate( this%x(this%Nx) )
     allocate( this%y(this%Ny) )
+    allocate( this%yu_inf(this%Ny) )
     allocate( this%ymin(this%N, this%Nx) )
     allocate( this%ymax(this%N, this%Nx) )
     allocate( this%u(this%Nx, this%Ny) )
@@ -509,6 +516,7 @@ subroutine initialize_file(this, fstring)
     read(fid) this%k
     read(fid) this%x
     read(fid) this%y
+    read(fid) this%yu_inf
     read(fid) this%du
     read(fid) this%u
     read(fid) this%uhat
@@ -570,6 +578,7 @@ subroutine write_to_file(this, fstring)
     write(fid) this%k
     write(fid) this%x
     write(fid) this%y
+    write(fid) this%yu_inf
     write(fid) this%du
     write(fid) this%u
     write(fid) this%uhat
@@ -592,6 +601,7 @@ subroutine print(this)
     write(*,*) ' Ny              = ', this%Ny
     write(*,*) ' x               = ', this%x
     write(*,*) ' y               = ', this%y
+    write(*,*) ' yu_inf          = ', this%yu_inf
     write(*,*) ' dx              = ', this%dx
     write(*,*) ' dy              = ', this%dy
     write(*,*) ' isDimensionless = ', this%isDimensionless
@@ -620,7 +630,9 @@ subroutine advance(this, Ctp, dt)
     real(rprec), dimension(:), intent(in)    :: Ctp
     integer                                  :: i, j, m
     real(rprec)                              :: diff
-    real(rprec), dimension(:,:), allocatable :: du_superimposed
+    real(rprec), dimension(:,:), allocatable :: du_superimposed, new_ui
+
+    allocate( new_ui(this%Nx,this%Ny) )
 
     if (size(Ctp) /= this%N) then
         call error('WakeModel.advance','Ctp must be size N')
@@ -638,13 +650,14 @@ subroutine advance(this, Ctp, dt)
             du_superimposed(j,this%ymin(i,j):this%ymax(i,j)) =                 &
                 du_superimposed(j,this%ymin(i,j):this%ymax(i,j))               &
                 +this%du(i,j)**2
+            new_ui(j,:) = this%yu_inf
         end do
     end do
     du_superimposed = sqrt(du_superimposed)
 
 !   write(*,*) 'checkpoint 0.0.5'
     ! Find the velocity field
-    this%u = this%U_infty - du_superimposed
+    this%u = new_ui - du_superimposed
 
     ! Find estimated velocities
     this%uhat(:) = 0
@@ -923,6 +936,7 @@ use types, only : rprec
 use messages
 use wake_model_class
 use param, only : pi, coord, nproc
+use functions, only: linear_interp
 #ifdef PPMPI
 use param, only : MPI_RPREC, status, comm, ierr
 use mpi
@@ -1236,6 +1250,7 @@ end subroutine generateInitialEnsemble
 
 subroutine advance(this, dt, Pm, Ctp)
     use util, only : random_normal, inverse
+    use functions, only: linear_interp
 #ifdef PPIFORT
     use BLAS95
 #endif
@@ -1244,10 +1259,14 @@ subroutine advance(this, dt, Pm, Ctp)
     real(rprec), intent(in)                     :: dt
     real(rprec), dimension(:), intent(in)       :: Pm, Ctp
     integer                                     :: i, j, N, Nx, jstart, jend
-    real(rprec) :: Uinftyi, alpha
+    real(rprec)                                 :: Uinftyi, alpha
+    real(rprec), dimension(:), allocatable      :: yu_turb, yu_temp
 
     N = this%wm%N
     Nx = this%wm%Nx
+
+    allocate( yu_turb(this%wm%nfree) )
+    allocate( yu_temp(this%wm%Ny) )
 
     if (size(Pm) /= N ) then
         call error('WakeModelEstimator.advance','Pm must be of size N')
@@ -1297,10 +1316,15 @@ subroutine advance(this, dt, Pm, Ctp)
     Uinftyi = 0._rprec
     do j = 1, size(this%wm%free_turbines)
         i = this%wm%free_turbines(j)
-        Uinftyi = Uinftyi + (Pm(i) / this%wm%Ctp(i))**(1._rprec/3._rprec)      &
-            * (4._rprec + this%wm%Ctp(i)) / 4._rprec / size(this%wm%free_turbines)
+!        Uinftyi = Uinftyi + (Pm(i) / this%wm%Ctp(i))**(1._rprec/3._rprec)      &
+!            * (4._rprec + this%wm%Ctp(i)) / 4._rprec / size(this%wm%free_turbines)
+        yu_turb(i) = (Pm(i) / this%wm%Ctp(i))**(1._rprec/3._rprec)      &
+            * (4._rprec + this%wm%Ctp(i)) / 4._rprec
     end do
-    this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
+    yu_temp = linear_interp(this%wm%s(1:this%wm%nfree,2),yu_turb,this%wm%y)
+    this%wm%yu_inf = alpha * yu_temp + (1 - alpha) * this%wm%yu_inf
+    this%wm%U_infty = sum(this%wm%yu_inf) / size(this%wm%yu_inf)
+!    this%wm%U_infty = alpha * Uinftyi + (1 - alpha) * this%wm%U_infty
     this%wm%VELOCITY = this%wm%U_infty
     this%wm%TIME  = this%wm%LENGTH / this%wm%VELOCITY
     this%wm%FORCE = this%wm%VELOCITY / this%wm%TIME
@@ -1314,6 +1338,7 @@ subroutine advance(this, dt, Pm, Ctp)
             this%ensemble(i)%k(j) = max(this%A(Nx*N+j,i+coord*this%Ne), 0._rprec)
         end do
         this%ensemble(i)%U_infty  = this%wm%U_infty
+        this%ensemble(i)%yu_inf = this%wm%yu_inf
         this%ensemble(i)%VELOCITY = this%wm%VELOCITY
         this%ensemble(i)%TIME  = this%wm%TIME
         this%ensemble(i)%FORCE = this%wm%FORCE
