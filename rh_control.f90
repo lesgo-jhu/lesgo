@@ -221,8 +221,10 @@ subroutine run_noinput(this)
             end do
         end do
         du_super = 0._rprec
-        where(this%w%U_infty - this%w%u > 1E-5)                                &
-            du_super = 1._rprec / (this%w%U_infty - this%w%u)
+        do j = 1, this%w%Ny
+            where(this%w%yu_inf(j) - this%w%u(:,j) > 1E-5)                     &
+                du_super(:,j) = 1._rprec / (this%w%yu_inf(j) - this%w%u(:,j))
+        end do
         do n = 1, this%N
             do i = 1, this%w%Nx
                 do j = this%w%ymin(n,i), this%w%ymax(n,i)
