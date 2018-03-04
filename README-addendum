@@ -1,0 +1,18 @@
+Notes:
+
+This branch allows one to account for the changes in temperature and salinity on the buoyancy force.
+
+This scalar transport branch has significantly diverged from the master and devel branches. This branch should be considered essentially a different code.
+
+This branch requires the tecryte library for input/output. Installation of tecryte is straightforward and instructions are found in the ./tecryte directory included here.
+
+The Lagrangian scale dependent SGS model for the scalar terms has not been validated.
+
+The file gsw_data_v3_0.dat must be included in the run directory as input.
+
+The scalar transport features of this branch were authored by Eshwan Ramudu. Details can be found in the paper by Ramudu et al.:
+
+Ramudu, E., Gelderloos, R., Yang, D., Meneveau, C., & Gnanadesikan, A. (2018). Large eddy simulation of heat entrainment under Arctic Sea Ice. Journal of Geophysical Research: Oceans, 123, 287–304. https://doi.org/10.1002/2017JC013267
+
+
+
