@@ -1,0 +1,89 @@
+Written by:
+
+Jason Graham
+Johns Hopkins University
+jgraha8@gmail.com
+
+The tecryte library provides an interface for creating Tecplot formatted data
+files. The library includes two types of interfaces: 1) subroutines for created
+Tecplot header information and 2) subroutine for writing real (single or double
+precision) data in block format. Therefore, non-Tecplot data files written in
+block format may also be obtained with tecryte.
+
+The library provides support for both single and double precision for all
+interfaces. Please note that the only real variable that has a static precision
+is 'soln_time' (an optional argument) in 'write_tecplot_header_nd' which is
+single or real(4).
+
+Provided subroutines:
+
+1) write_real_data              write a vector to a specified file
+
+2) write_real_data_1d           write 1d data in block format
+
+3) write_real_data_2d		write 2d data in block format
+
+4) write_real_data_3d           write 3d data in block format
+
+5) write_tecplot_header_xyline  write Tecplot header for xyline type data;
+				typically use for writing header for data
+				written with 'write_real_data'
+
+6) write_tecplot_header_nd 	write Tecplot header for n-dimensional data sets;
+   				typically used to write the Tecplot header for
+   				data written with 'write_real_data_{1,2,3}d'
+
+7) open_file 			interface for opening data files; it provides a mechanism for
+   				generating unique file identifiers
+
+Detailed comments regarding the capabilties of the subroutines may be seen in
+the source files. 
+
+To compile, check that the Makefile settings are correct for your
+system. Then run:
+
+  make source
+
+to build the source files from templates. Compile and install
+with:
+
+  make && make install
+
+To use the library include tecryte.h within your program, then link
+against the tecryte library after compiling your program.
+
+Example: Suppose tecryte is installed in /usr/local where tecryte.h
+resides in /usr/local/include and libftecryte.a resides in
+/usr/local/lib. A sample program file may be as follows:
+
+=======================================
+program tecryte_test
+
+:
+:
+
+implicit none
+include 'tecryte.h'
+
+real(4) :: u(10,10,10)
+real(8) :: v(10,10,10)
+
+:
+:
+
+call write_tecplot_header_ND( ... )
+call write_real_data_3D( ..., u, ... )
+
+call write_tecplot_header_ND( ... )
+call write_real_data_3D( ..., v, ... )
+
+
+end program tecryte_test
+=======================================
+
+Then to compile:
+
+gfortran -I/usr/local/include -c tecryte_test.f90
+gfortran -L/usr/local/lib -o tecryte_test tecryte_test.o -ltecryte
+
+

@@ -1,0 +1,65 @@
+##
+##  Copyright (C) 2010-2011,2013  Johns Hopkins University
+##
+##  This file is part of lesgo.
+##
+##  lesgo is free software: you can redistribute it and/or modify
+##  it under the terms of the GNU General Public License as published by
+##  the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+##
+##  lesgo is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License
+##  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
+##
+
+# This is the main makefile.
+# Use with GNU make.
+# Relies on makedepf90 to do dependency lists:
+# You can obtain this free program from:
+#   http://www.helsinki.fi/~eedelman/makedepf90.html
+# New $ARCH entries may be required, depending on your compiler.
+# Also requires fpx3 fortran preprocessor available at
+#   http://wwwuser.gwdg.de/~jbehren/fpx3.html
+
+include Makefile.in
+
+EXE = cyl_skew_pre_ls
+
+SRCS = cyl_skew_base_ls.f90 \
+     cyl_skew_ls.f90 \
+     cyl_skew_pre_ls.f90 \
+     input_util.f90 \
+     param.f90 \
+     types.f90 \
+     messages.f90 \
+     string_util.f90
+
+ifeq ($(USE_MPI), yes)
+  SRCS += mpi_defs.f90
+endif
+
+ifeq ($(USE_RNS_LS), yes)
+  SRCS += rns_base_ls.f90 rns_ls.f90 sim_param.f90 functions.f90 grid.f90
+endif
+
+ifeq ($(USE_LVLSET), yes)
+  SRCS += level_set_base.f90
+endif
+
+COMPSTR = '$(FPP) $$< > t.$$<; $$(FC) -c -o $$@ $$(FFLAGS) t.$$<'
+
+include .depend_cspl
+
+.depend_cspl: $(SRCS)
+	mkdir -p $(OPATH) $(MPATH);
+	makedepf90 -r $(COMPSTR) -b $(OPATH) -o $(EXE) $(SRCS) > .depend_cspl
+        
+.PHONY : clean
+clean:
+	rm -rf $(OPATH)/* $(FOBJ) .depend* $(MPATH)/*.mod
+	rm -f t.*

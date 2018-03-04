@@ -32,8 +32,13 @@ private :: rp, ld, ny, nz, dx, lbz
 !public :: phi
 
 !logical, parameter :: global_CD_calc = .true. ! Compute global CD based on inflow velocity
-logical :: global_CA_calc = .false. ! Compute global CA based on inflow velocity
-integer :: global_CA_nskip = 10     ! Number of time steps to skip between global CA writes
+logical :: global_CD_calc = .false. ! Compute global CD based on inflow velocity
+
+!integer, parameter :: Ldir = 2
+integer :: Ldir = 2   !--lift direction:
+                      !  2 when lift direction is y
+                      !  3 when lift direction is z
+
 
 !logical, parameter :: vel_BC = .false. 
 logical :: vel_BC = .false. !--means we are forcing velocity for
@@ -86,9 +91,7 @@ logical :: phi_0_is_set = .false.
 !real (rp) :: phi(ld, ny, lbz:nz)
 real(rp), allocatable, dimension(:,:,:) :: phi
 
-logical :: use_trees
-
-#ifdef PPMPI
+$if ($MPI)
   ! Make sure all values (top and bottom) are less than Nz
   integer :: nphitop = 3
   integer :: nphibot = 2
@@ -98,7 +101,7 @@ logical :: use_trees
   integer :: ntaubot = 2
   integer :: nFMMtop = 1
   integer :: nFMMbot = 1
-#else
+$else
   integer, parameter :: nphitop = 0
   integer, parameter :: nphibot = 0
   integer, parameter :: nveltop = 0
@@ -107,7 +110,7 @@ logical :: use_trees
   integer, parameter :: ntaubot = 0
   integer, parameter :: nFMMtop = 0
   integer, parameter :: nFMMbot = 0
-#endif
+$endif
 
 
 contains

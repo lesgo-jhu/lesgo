@@ -1,0 +1,108 @@
+**********************************************************************
+PARAM
+**********************************************************************
+
+---------------------------------------------------
+COMPUTATIONAL DOMAIN PARAMETERS
+---------------------------------------------------
+nproc :      64
+nx, ny, nz, nz_tot :     128    128      5    257
+z_i :   0.1500000E+03
+L_x, L_y, L_z :   0.2000000E+01  0.2000000E+01  0.1000000E+01
+dx, dy, dz :   0.1562500E-01  0.1562500E-01  0.3906250E-02
+
+---------------------------------------------------
+MODEL PARAMETERS
+---------------------------------------------------
+sgs_model, wall_damp_exp :       5      2
+Co :   0.1600000E+00
+cs_count :       5
+ifilter :       1
+u_star :   0.1500000E+00
+vonk :   0.4000000E+00
+coriolis_forcing :  F
+coriol :   0.1450000E+00  0.1000000E+01  0.0000000E+00
+nu_molec :   0.1140000E-04
+molec, sgs, dns_bc :  F T F
+
+---------------------------------------------------
+TIMESTEP PARAMETERS
+---------------------------------------------------
+nsteps :   63200
+runtime :      -1
+dt :   0.1264808-320
+cumulative_time :  T
+fcumulative_time : ./total_time.dat
+
+---------------------------------------------------
+BOUNDARY/INITIAL CONDITION PARAMETERS
+---------------------------------------------------
+initu :  F
+inilag :  T
+lbc_mom :       3
+zo :   0.8000000E-07
+inflow :  F
+fringe_region_end :   0.1000000E+01
+fringe_region_len :   0.1250000E+00
+inflow_velocity :   0.1000000E+01
+force_top_bot :  F
+use_mean_p_force :  F
+mean_p_force :   0.1000000E+01
+
+---------------------------------------------------
+DATA OUTPUT PARAMETERS
+---------------------------------------------------
+wbase :     100
+nenergy :     100
+lag_cfl_count :    1000
+checkpoint_data :  F
+checkpoint_nskip :   10000
+tavg_calc :  T
+tavg_nstart, tavg_nend, tavg_nskip :   54200  63200     10
+point_calc :  F
+point_nstart, point_nend, point_nskip :       1  50000     10
+point_nloc :       3
+n, point_loc(n)%xyz :       1  0.1000000E+00  0.1000000E+00  0.1000000E+00
+n, point_loc(n)%xyz :       2  0.5000000E+00  0.5000000E+00  0.5000000E+00
+n, point_loc(n)%xyz :       3  0.8000000E+00  0.8000000E+00  0.1000000E+00
+domain_calc :  F
+domain_nstart, domain_nend, domain_nskip :    1000 100000  10000
+xplane_calc :  F
+xplane_nstart, xplane_nend, xplane_nskip :       11000000     10
+xplane_nloc :       3
+n, xplane_loc(n) :       1  0.1000000E+00
+n, xplane_loc(n) :       2  0.2000000E+00
+n, xplane_loc(n) :       3  0.3000000E+00
+yplane_calc :  F
+yplane_nstart, yplane_nend, yplane_nskip :       11000000     10
+yplane_nloc :       3
+n, yplane_loc(n) :       1  0.1000000E+00
+n, yplane_loc(n) :       2  0.2000000E+00
+n, yplane_loc(n) :       3  0.3000000E+00
+zplane_calc :  F
+zplane_nstart, zplane_nend, zplane_nskip :       11000000     10
+zplane_nloc :       3
+n, zplane_loc(n) :       1  0.1000000E+00
+n, zplane_loc(n) :       2  0.2000000E+00
+n, zplane_loc(n) :       3  0.3000000E+00
+spectra_calc :  F
+spectra_nstart, spectra_nend :       1 100000
+spectra_nloc :       3
+n, spectra_loc(n) :       1  0.1000000E+00
+n, spectra_loc(n) :       2  0.2000000E+00
+n, spectra_loc(n) :       3  0.3000000E+00
+sgs_hist_calc :  F
+sgs_hist_cumulative :  F
+sgs_hist_nstart, sgs_hist_nskip :    5000      3
+sgs_hist_nloc :       3
+n, sgs_hist_loc(n) :       1  0.1000000E+00
+n, sgs_hist_loc(n) :       2  0.2000000E+00
+n, sgs_hist_loc(n) :       3  0.3000000E+00
+cs2_bmin, cs2_bmax :   0.0000000E+00  0.1500000E+00
+cs2_nbins :    1000
+tn_bmin, tn_bmax :   0.0000000E+00  0.1000000E+01
+tn_nbins :    1000
+nu_bmin, nu_bmax :   0.0000000E+00  0.3000000E-01
+nu_nbins :    1000
+ee_bmin, ee_bmax :   0.0000000E+00  0.1000000E+03
+ee_nbins :   10000

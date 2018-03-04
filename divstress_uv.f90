@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2017  Johns Hopkins University
+!!  Copyright (C) 2009-2013  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,70 +17,94 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*******************************************************************************
 subroutine divstress_uv (divtx, divty, txx, txy, txz, tyy, tyz)
-!*******************************************************************************
-!
-! This subroutine provides divt for 1:nz. MPI provides 1:nz-1,
-! except at top, where 1:nz is provided
-!
-use types, only : rprec
-use param, only : ld, ny, nz, BOGUS, lbz
+use types,only:rprec
+use param,only:ld,ny,nz,BOGUS,lbz 
 use derivatives, only : ddx, ddy, ddz_w,ddxy
+use mpi_defs
+
 implicit none
 
-real(rprec), dimension(ld,ny,lbz:nz), intent(out) :: divtx, divty
-real(rprec), dimension(ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
-real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx, dtydy, dtzdz
-real(rprec), dimension(ld,ny,lbz:nz) :: dtxdx2, dtydy2, dtzdz2
+real(kind=rprec),dimension(ld,ny,lbz:nz),intent(out)::divtx,divty
+real (rprec), dimension (ld, ny, lbz:nz), intent (in) :: txx, txy, txz, tyy, tyz
+! sc: we should be able to save some memory here!
+! do this by writing a divergence subroutine--then do not store derivs 
+real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx,dtydy, dtzdz
+real(kind=rprec),dimension(ld,ny,lbz:nz)::dtxdx2,dtydy2, dtzdz2
 
-! compute stress gradients
-! MPI: tx 1:nz-1 => dtxdx 1:nz-1
-call ddx(txx, dtxdx, lbz)  ! really should replace with ddxy (save an fft)
 
-! MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
+$if ($DEBUG)
+logical, parameter :: DEBUG = .true.
+$endif
+
+$if ($VERBOSE)
+write (*, *) 'started divstress_uv'
+$endif
+ 
+! compute stress gradients      
+!--MPI: tx 1:nz-1 => dtxdx 1:nz-1
+call ddx(txx, dtxdx, lbz)  !--really should replace with ddxy (save an fft)
+
+!--MPI: ty 1:nz-1 => dtdy 1:nz-1
+!call ddy(txy, dtydy, lbz)
+
+!--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(txz, dtzdz, lbz)
 
-! MPI: ty 1:nz-1 => dtdy 1:nz-1
+! compute stress gradients      
+!--MPI: tx 1:nz-1 => dtxdx 1:nz-1
+!call ddx(txy, dtxdx2, lbz)  !--really should replace with ddxy (save an fft)
+
+!--MPI: ty 1:nz-1 => dtdy 1:nz-1
 call ddy(tyy, dtydy2, lbz)
 
-! MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
+!--MPI: tz 1:nz => ddz_w limits dtzdz to 1:nz-1, except top process 1:nz
 call ddz_w(tyz, dtzdz2, lbz)
 
-! MPI: ty 1:nz-1 => dtdy 1:nz-1
-call ddxy(txy , dtxdx2, dtydy, lbz)
+call ddxy(txy , dtxdx2, dtydy, lbz)              
 
-! MPI following comment only true at bottom process
+!--MPI following comment only true at bottom process
 ! the following gives bad results...but it seems like i the
 ! issue should be taken care of somewhere
 ! need to correct wall level, since tz will be on uv-node there
 !      dtzdz(:,:,1) = (tz(:,:,2)-tz(:,:,1))/(0.5*dz)
 
-! only 1:nz-1 are valid
-divtx(:,:,1:nz-1) = dtxdx(:,:,1:nz-1) + dtydy(:,:,1:nz-1) + dtzdz(:,:,1:nz-1)
+!--only 1:nz-1 are valid
+divtx(:, :, 1:nz-1) = dtxdx(:, :, 1:nz-1) + dtydy(:, :, 1:nz-1) +  &
+                     dtzdz(:, :, 1:nz-1)
 
-! Set ld-1, ld to 0 (or could do BOGUS)
+!--Set ld-1, ld to 0 (or could do BOGUS)
 divtx(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-#ifdef PPSAFETYMODE
-#ifdef PPMPI
-divtx(:,:,0) = BOGUS
-#endif
-divtx(:,:,nz) = BOGUS
-#endif
+$if ($SAFETYMODE)
+$if ($MPI)
+  divtx(:, :, 0) = BOGUS
+$endif
+divtx(:, :, nz) = BOGUS
+$endif
 
-! only 1:nz-1 are valid
-divty(:,:,1:nz-1) = dtxdx2(:,:,1:nz-1) + dtydy2(:,:,1:nz-1) + dtzdz2(:,:,1:nz-1)
+!--only 1:nz-1 are valid
+divty(:, :, 1:nz-1) = dtxdx2(:, :, 1:nz-1) + dtydy2(:, :, 1:nz-1) +  &
+                     dtzdz2(:, :, 1:nz-1)
 
-! Set ld-1, ld to 0 (or could do BOGUS)
-divty(ld-1:ld,:,1:nz-1) = 0._rprec
+!--Set ld-1, ld to 0 (or could do BOGUS)
+divty(ld-1:ld, :, 1:nz-1) = 0._rprec
 
-#ifdef PPSAFETYMODE
-#ifdef PPMPI
-divty(:,:,0) = BOGUS
-#endif
-divty(:,:,nz) = BOGUS
-#endif
+$if ($SAFETYMODE)
+$if ($MPI)
+  divty(:, :, 0) = BOGUS
+$endif
+divty(:, :, nz) = BOGUS
+$endif
+
+!Sync
+call mpi_sync_real_array(divtx, lbz, MPI_SYNC_DOWNUP)
+call mpi_sync_real_array(divty, lbz, MPI_SYNC_DOWNUP)
+
+
+$if ($VERBOSE)
+write (*, *) 'finished divstress_uv'
+$endif
 
 end subroutine divstress_uv
 

@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2012-2017  Johns Hopkins University
+!!  Copyright (C) 2012-2013  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -20,44 +20,52 @@
 !*******************************************************************************
 subroutine finalize()
 !*******************************************************************************
-!
+! 
 ! This subroutine is called by the main program. It is a driver subroutine for
 ! calling all the finalize routines of the various lesgo modules.
 !
-use param, only : coord, lbc_mom
-use iwmles, only : iwm_finalize
-#ifdef PPMPI
+use param, only : coord, sgs_hist_calc
+use io, only : closefiles
+use sgs_hist
+$if($MPI)
 use param, only : MPI_COMM_WORLD, ierr
-#endif
-#ifdef PPTURBINES
+$endif
+$if ($LVLSET and $RNS_LS )
+use rns_ls, only : rns_finalize_ls
+$endif
+$if ($TURBINES)
 use turbines, only : turbines_finalize
-#endif
-#ifdef PPATM
-use atm_lesgo_interface, only : atm_lesgo_finalize
-#endif
+$endif
 
 implicit none
 
-! Turbines:
-#ifdef PPTURBINES
-call turbines_finalize ()   ! must come before MPI finalize
-#endif
+! Close all files opened by calling 'openfiles'
+call closefiles()
 
-! Integral wall model:
-if (lbc_mom == 3) then
-    if (coord==0) call iwm_finalize()
+! Level set:
+$if ($LVLSET)
+
+  $if ($RNS_LS)
+  call rns_finalize_ls ()
+  $endif
+$endif
+
+! Turbines:
+$if ($TURBINES)
+call turbines_finalize ()   ! must come before MPI finalize
+$endif   
+
+! SGS variable histograms
+if (sgs_hist_calc) then
+  call sgs_hist_finalize()
 endif
 
-! Actuator Turbine Model:
-#ifdef PPATM
-call atm_lesgo_finalize ()   ! write the restart files
-#endif
-
 ! MPI:
-#ifdef PPMPI
+$if ($MPI)
 ! First make sure everyone in has finished
 call mpi_barrier( MPI_COMM_WORLD, ierr )
 call mpi_finalize (ierr)
-#endif
+$endif
 
+return
 end subroutine finalize

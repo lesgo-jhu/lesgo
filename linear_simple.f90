@@ -87,7 +87,6 @@ FUNCTION assert_eq2(n1,n2,string)
 CHARACTER(LEN=*), INTENT(IN) :: string
 INTEGER, INTENT(IN) :: n1,n2
 INTEGER :: assert_eq2
-CHARACTER(LEN=1024) :: msg
 
 character (len=*), parameter :: sub_name = mod_name // '.assert_eq2'
 
@@ -107,7 +106,6 @@ FUNCTION assert_eq3(n1,n2,n3,string)
 CHARACTER(LEN=*), INTENT(IN) :: string
 INTEGER, INTENT(IN) :: n1,n2,n3
 INTEGER :: assert_eq3
-CHARACTER(LEN=1024) :: msg
 
 character (len=*), parameter :: sub_name = mod_name // '.assert_eq3'
 
@@ -127,7 +125,6 @@ FUNCTION assert_eq4(n1,n2,n3,n4,string)
 CHARACTER(LEN=*), INTENT(IN) :: string
 INTEGER, INTENT(IN) :: n1,n2,n3,n4
 INTEGER :: assert_eq4
-CHARACTER(LEN=1024) :: msg
 
 character (len=*), parameter :: sub_name = mod_name // '.assert_eq4'
 

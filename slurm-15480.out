@@ -1,0 +1,2 @@
+mpirun: Forwarding signal 18 to job
+slurmstepd: error: *** JOB 15480 ON ln121 CANCELLED AT 2016-12-08T22:31:07 ***

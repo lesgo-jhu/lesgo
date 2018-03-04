@@ -3,26 +3,5 @@ if [ -e "./total_time.dat" ]
 then 
 rm total_time.dat 
 fi 
-if [ -e "./turbineOutput" ]
-then
-rm -r ./turbineOutput
-fi
-if [ -e "./output" ]
-then
-rm -r ./output
-fi
-if [ -e "./vel.out.c0" ]
-then
-rm vel.out.c*
-fi
-if [ -e "./lesgo_param.out" ]
-then
-rm lesgo_param.out
-fi
-
-# Add the hdf5 and cgns libraries to $LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$HOME/hdf5/lib:$HOME/cgns/lib:$LD_LIBRARY_PATH
-
-# Run first continuing case
-mpirun -np 4 lesgo-mpi
+mpirun -np 64 lesgo-mpi
 

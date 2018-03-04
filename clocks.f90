@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2011-2017  Johns Hopkins University
+!!  Copyright (C) 2011-2013  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,9 +17,9 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*******************************************************************************
-module clock_m
-!*******************************************************************************
+!*********************************************************************
+module clocks
+!*********************************************************************
 !
 ! This module provides the clock data type (object) and the
 ! subroutines/functions that act on instances of the clock data type.
@@ -27,59 +27,50 @@ module clock_m
 use types, only : rprec
 implicit none
 
-save
+save 
 private
 
-public clock_t
+public clock_t, &
+     clock_start, &
+     clock_stop
 
 type clock_t
-    real(rprec) :: start_time
-    real(rprec) :: stop_time
-    real(rprec) :: time
-contains
-    procedure, public :: start
-    procedure, public :: stop
+   real(rprec) :: start
+   real(rprec) :: stop
+   real(rprec) :: time
 end type clock_t
 
+!---------------------------------------------------------------------
 contains
+!---------------------------------------------------------------------
 
-!*******************************************************************************
-subroutine start( this )
-!*******************************************************************************
-#ifdef PPMPI
-use mpi, only : mpi_wtime
-#endif
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine clock_start( this )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-class(clock_t), intent(inout) :: this
+type(clock_t), intent(inout) :: this
 
-#ifdef PPMPI
-this % start_time = mpi_wtime()
-#else
-call cpu_time( this % start_time )
-#endif
+call cpu_time( this % start )
 
-end subroutine start
+return
 
-!*******************************************************************************
-subroutine stop( this )
-!*******************************************************************************
-#ifdef PPMPI
-use mpi, only : mpi_wtime
-#endif
+end subroutine clock_start
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+subroutine clock_stop( this )
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 implicit none
 
-class(clock_t), intent(inout) :: this
+type(clock_t), intent(inout) :: this
 
-#ifdef PPMPI
-this % stop_time = mpi_wtime()
-#else
-call cpu_time( this % stop_time )
-#endif
+call cpu_time( this % stop )
 
 ! Compute the clock time
-this % time = this % stop_time - this % start_time
+this % time = this % stop - this % start
 
-end subroutine stop
+return
 
-end module clock_m
+end subroutine clock_stop
+
+end module clocks

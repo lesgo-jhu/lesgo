@@ -28,7 +28,7 @@ public ::  sdistfcn_tree_array, fill_tree_array
 
 character (*), parameter :: mod_name = 'trees_setup'
 
-integer :: ident = 0 !--global index used to set branch % ident
+integer :: ident = 0 !--global index used to set branch % ident 
 
 real (rp), parameter :: zero_vector(nd) = 0._rp
 
@@ -48,7 +48,7 @@ integer, intent (in) :: ip  !--specifies chunk (or process)
                             !  local chunk k=nz <-> ip*(mx(3)-1)+mx(3)
 integer, intent (in) :: mx(nd) ! maximum dimension in x,y,z directions
 
-real (rp), intent (out) :: phi(mx(1), mx(2), 0:mx(3))  !--note 0 here
+real (rp), intent (out) :: phi(mx(1), mx(2), 0:mx(3))  !--note 0 here 
 integer, intent (out), optional :: brident(mx(1), mx(2), mx(3))
 
 character (*), parameter :: sub = mod_name // '.sdistfcn_tree_array'
@@ -90,7 +90,7 @@ do i = 1, n_tree
   else
     call sdistfcn_branch (tree_array(i) % trunk, ip, mx, phi)
   end if
-
+  
 end do
 
 !--where phi is 0 < phi < thresh, set phi to 0
@@ -114,7 +114,7 @@ integer, intent (in) :: mx(3)
 real (rp), intent (inout) :: phi(mx(1), mx(2), 0:mx(3))
                              !--only 1:nx, 1:ny used
                              !--note 0
-integer, intent (inout), optional :: brident(mx(1), mx(2), mx(3))
+integer, intent (inout), optional :: brident(mx(1), mx(2), mx(3))  
 
 character (*), parameter :: sub_name = mod_name // '.sdistfcn_branch'
 
@@ -147,9 +147,9 @@ t = br % taper
 write(*,*) 'br%taper = ', br%taper
 
 !  Radius of the base
-rb0 = 0.5_rp * (br % d)
+rb0 = 0.5_rp * (br % d)  
 !  Radius of the top
-rbl = rb0 * (1._rp - t)
+rbl = rb0 * (1._rp - t) 
 
 tgt = rb0 * t / l
 sine = rb0 * t / sqrt ((rb0 * t)**2 + l**2)
@@ -160,6 +160,11 @@ cosine  = l / sqrt ((rb0 * t)**2 + l**2)
 !lambda_skew(3,1)=sin(45.*3.14/180);
 !lambda_skew(3,3)=cos(45.*3.14/180);
 
+!--not sure how openmp will handle the internal sub variables and
+!  present (brident)
+!$omp parallel do                                             &
+!$omp private(x,d_para,x_para,d_perp,x_perp,rb,dist_sq,dist)  &
+!$omp shared(phi, brident)
 
 do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
 
@@ -169,7 +174,7 @@ do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
 
   x(3) = pt_of_grid (ktot, 3, phi_node) - br % x0(3)
   xkeep=x(3)
-
+  
 
   do j = 1, mx(2)  !--mx(2) should be grid % nx(2)
 
@@ -211,7 +216,7 @@ do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
       if (phi(i, j, k) >= 0._rp) then  !--cannot modify interior values...
 
         if (dist < phi(i, j, k)) then
-
+        
           phi(i, j, k) = dist
 
           if (present (brident) .and. (dist <= 0._rp)) then
@@ -230,6 +235,7 @@ do k = 0, mx(3)  !--mx(3) should be (grid % nx(3) - 1) / (np) + 1
   end do
 
 end do
+!$omp end parallel do
 
 if (associated (br % sub_branch)) then
 
@@ -268,13 +274,13 @@ contains
   real (rp) :: xi_hat(nd), eta_hat(nd), zeta_hat(nd)
   real (rp) :: hdepth, s  !--dimensions of plate shape
   real (rp) :: ratio
-
+  
   !-------------------------------------------------------------------
 
   if (br % gen /= tree_array(br % itree) % n_gen) return
 
   ratio = tree_array(br % itree) % ratio
-
+  
   hdepth = ratio * rb0  !--half-depth
   s = (rb0 + (l + rb0) * ratio / (1._rp - ratio)) / sqrt (2._rp)
   !--s is the half length of one of the plate sides
@@ -296,7 +302,7 @@ contains
 
   zeta_hat = (/ 0._rp, 1._rp, 1._rp /)
   zeta_hat = zeta_hat / mag (zeta_hat)
-
+  
   !--rotate again to get 45 degree clockwise rotation in x_hat-z_hat plane
   xi(1) = dot_product (xp, xi_hat)
   xi(2) = dot_product (xp, eta_hat)
@@ -336,7 +342,7 @@ contains
       u = xi - xi_part
       dist = mag (u - dot_product (u, eta_hat) * eta_hat)
     end if
-
+    
   else if ((xi(2) >= 0._rp .and. xi(3) <= -s) .and.  &
            ( abs (xi(3)) >= abs (xi(2)) )) then
     !--case 6
@@ -423,7 +429,7 @@ contains
         dist = -min ( d1, d2, d3, hdepth - abs (xi(1)) )
 
     end if
-
+    
   end if
 
   end subroutine dist_plate
@@ -441,7 +447,7 @@ contains
   else  !--no bases/caps
     call dist_circle_nobc ()
   end if
-
+  
   end subroutine dist_circle
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -459,7 +465,7 @@ contains
   call error (sub_name, 'dist_circle_c not implemented')
 
   end subroutine dist_circle_c
-
+ 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine dist_circle_bc ()
   implicit none
@@ -473,7 +479,7 @@ contains
     if (base_shape == 'hemispherical') then
 
       dist = mag (x) - rb0
-
+      
     else if (base_shape == 'rectangular') then
 
       !--special case: allowing so-called rectangular base with
@@ -493,20 +499,20 @@ contains
         else
           dist = sqrt ((d_perp - rb0)**2 + (d_para + rb0)**2)
         end if
-
+        
       end if
 
     else
       call error (sub_name, 'invalid base_shape')
     end if
     !code = 1
-
+    
   else if ((d_para < (d_perp - rb0) * tgt) .and. (d_perp > rb0)) then
     !--know d_para > 0 here
 
     dist = sqrt ((d_perp - rb0)**2 + d_para**2)
     !code = 2
-
+    
   else if ((d_para < l) .and. (d_perp < rb)) then
     !--know d_para > 0 here
 
@@ -514,29 +520,29 @@ contains
 
       dist = -sqrt ((l - d_para)**2 + (rbl - d_perp)**2)
       !code = 3
-
+      
     else
 
       dist = - (rb - d_perp) * cosine
       !code = 4
-
+      
     end if
-
+    
   else if ((d_para >= l) .and. (d_perp**2 + (d_para - l)**2 <= rbl**2)) then
 
     dist = sqrt (d_perp**2 + (d_para - l)**2) - rbl
     !code = 5
-
+    
   else if ((d_para >= l) .and. (d_para - l >= (d_perp - rbl) * tgt)) then
 
     dist = sqrt (d_perp**2 + (d_para - l)**2) - rbl
     !code = 6
-
+    
   else
 
     dist = (d_perp - rb) * cosine
     !code = 7
-
+    
   end if
 
  !write (*, '(1x,a,4(1x,i0),es12.5)') 'i, j, k, code, dist =',  &
@@ -551,7 +557,7 @@ contains
   call error (sub_name, 'dist_circle_nobc not implemented yet')
 
   end subroutine dist_circle_nobc
-
+  
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine dist_square ()
   implicit none
@@ -573,7 +579,7 @@ contains
   implicit none
 
   call error (sub_name, 'dist_square_b not implemented yet')
-
+  
   end subroutine dist_square_b
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -581,7 +587,7 @@ contains
   implicit none
 
   call error (sub_name, 'dist_square_c not implemented yet')
-
+  
   end subroutine dist_square_c
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -591,7 +597,7 @@ contains
   real (rp) :: c(nd), u(nd)
   real (rp) :: s1, s2
   real (rp) :: x1, x2
-
+  
   !-------------------------------------------------------------------
 
   x1 = dot_product (x, br % x_hat)
@@ -615,7 +621,7 @@ contains
        c = x - c
        c = c - (dot_product (br % x_hat, c)) * (br % x_hat)
        dist = mag (c)
-
+       
     else if ((abs (x1) > rb0) .and. (abs (x2) <= rb0)) then
 
       c = rb0 * (-(br % z_hat) + s1 * (br % x_hat))
@@ -651,11 +657,11 @@ contains
         dist = -(rb0 - abs (d_para))
 
       else
-
+      
         dist = max (abs (x1), abs (x2)) - rb0
 
       end if
-
+      
     end if
 
   else if (d_para > l + rbl) then
@@ -692,7 +698,7 @@ contains
 
        c = rbl * (s1 * (br % x_hat) + s2 * (br % y_hat))
        c = x_perp - c
-
+       
        if (d_para - l > mag (c) * tgt) then  !--closer to vertical
 
          dist = mag (c)
@@ -715,7 +721,7 @@ contains
      else if ((abs (x1) <= rbl) .and. (abs (x2) > rbl)) then
 
        if ( d_para - l > (abs (x2) - rbl) * tgt ) then  !--closer to vertical
-
+         
          dist = abs (x2) - rbl
 
        else  !--closer to slanted plane
@@ -747,7 +753,7 @@ contains
          dist = max (abs (x1), abs (x2)) - rbl
 
        end if
-
+  
     end if
 
   else  !--d_para >= 0 & d_para <= l
@@ -808,7 +814,7 @@ contains
     end if
 
   end if
-
+ 
   end subroutine dist_square_bc
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -944,6 +950,10 @@ character (*), parameter :: esyntax = 'syntax error at line'
 integer, parameter :: lun = 1
 integer, parameter :: BUFF_LEN = 256
 
+$if ($DEBUG)
+logical, parameter :: DEBUG = .true.
+$endif
+
 character (BUFF_LEN) :: buff
 
 integer :: eqpos
@@ -958,6 +968,9 @@ logical :: exst
 logical :: have_n_tree, have_n_sub_branch, have_rel_dir, have_root_height
 
 !---------------------------------------------------------------------
+$if ($DEBUG)
+if (DEBUG) call enter_sub (sub)
+$endif
 inquire (file=ftrees_conf, exist=exst)
 
 if (exst) then
@@ -997,7 +1010,7 @@ do
   call eat_whitespace (buff)
 
   if (verify (buff, ' ') == 0) cycle  !--drop blank lines
-
+  
   if (buff (1:len (comment)) == comment) cycle  !--drop comment lines
 
   if (state /= 0) then
@@ -1009,47 +1022,62 @@ do
       cycle
     end if
   end if
-
+  
   !--isolate up to the first equals sign
   eqpos = index (buff, '=')
 
   if (eqpos == 0) then  !--for now, invalid format if no equals sign
-    call error (sub, 'no equals sign in line', line)
+    call error (sub, 'no equals sign in line', line) 
   end if
-
+  
   if (len_trim (buff) == eqpos) then  !--invalid if nothing after equals
-    call error (sub, 'nothing after equals sign in line', line)
+    call error (sub, 'nothing after equals sign in line', line) 
   end if
 
   select case (buff(1:eqpos-1))
 
     case ('d')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'd case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % d
       call mesg (sub, 'read d =', tree_array(i_tree) % d)
 
     case ('l')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'l case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % l
       call mesg (sub, 'read l =', tree_array(i_tree) % l)
-
+      
     case ('max_res_gen')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'max_res_gen case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % max_res_gen
       call mesg (sub, 'read max_res_gen =', tree_array(i_tree) % max_res_gen)
-
+      
     case ('n_gen')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'n_gen case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % n_gen
       call mesg (sub, 'read n_gen =', tree_array(i_tree) % n_gen)
-
+      
     case ('n_sub_branch')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'n_sub_branch case selected')
+      $endif
       read (buff(eqpos+1:), *) n_sub_branch
       call mesg (sub, 'read n_sub_branch =', n_sub_branch)
 
       tree_array(i_tree) % n_sub_branch = n_sub_branch
-
+      
       !--now we must allocate certain arrays
       allocate ( tree_array(i_tree) % root_height(n_sub_branch) )
       allocate ( tree_array(i_tree) % rel_dir(nd, n_sub_branch) )
@@ -1061,21 +1089,30 @@ do
 
     case ('n_tree')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'n_tree case selected')
+      $endif
       call case_n_tree ()
 
     case ('ratio')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'ratio case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % ratio
       call mesg (sub, 'read ratio =', tree_array(i_tree) % ratio)
-
+      
     case ('rel_dir')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'rel_dir case selected')
+      $endif
       if (.not. have_n_sub_branch) then
         call error (sub, 'n_sub_branch must be specified before rel_dir')
       end if
       read (buff(eqpos+1:), *) tree_array(i_tree) % rel_dir
       write(*,*) 'tree_array(i_tree) % rel_dir = ', tree_array(i_tree) % rel_dir
-
+      
       do i = 1, n_sub_branch
         call mesg (sub, 'rel_dir =', tree_array(i_tree) % rel_dir(:, i))
       end do
@@ -1088,9 +1125,12 @@ do
       end do
 
       have_rel_dir = .true.
-
+   
     case ('root_height')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'root_height case selected')
+      $endif
       !--make n_sub_branch is known
       if (.not. have_n_sub_branch) then
         call error (sub, 'n_sub_branch must specified before root_height')
@@ -1102,20 +1142,32 @@ do
 
     case ('taper')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'taper case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % taper
       call mesg (sub, 'read taper =', tree_array(i_tree) % taper)
 
     case ('tree')
-
+      
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'tree case selected')
+      $endif
       call case_tree ()
 
     case ('trunk_dir')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'trunk_dir case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % trunk_dir
       call mesg (sub, 'read trunk_dir =', tree_array(i_tree) % trunk_dir)
 
     case ('trunk_twist')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'trunk_twist case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % trunk_twist
       call mesg (sub, 'read trunk_twist =', tree_array(i_tree) % trunk_twist)
       call mesg (sub, 'converting trunk_twist to radians')
@@ -1125,22 +1177,28 @@ do
 
     case ('twist')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'twist case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % twist
       call mesg (sub, 'read twist =', tree_array(i_tree) % twist)
       call mesg (sub, 'converting twist to radians')
       !--assume input in degrees, convert to radians
       tree_array(i_tree) % twist = (acos (-1._rp) / 180) *  &
                                    tree_array(i_tree) % twist
-
+ 
     case ('x0')
 
+      $if ($DEBUG)
+      if (DEBUG) call mesg (sub, 'x0 case selected')
+      $endif
       read (buff(eqpos+1:), *) tree_array(i_tree) % x0
       call mesg (sub, 'read x0 =', tree_array(i_tree) % x0)
     case default
       call error (sub, 'invalid variable tag ' // buff(1:eqpos-1) //  &
                   ' at line', line)
   end select
-
+  
 end do
 
 close (lun)
@@ -1150,6 +1208,10 @@ if (.not. (have_n_tree .and. have_n_sub_branch .and.  &
            have_rel_dir .and. have_root_height) ) then
   call error (sub, 'missing required trees data')
 end if
+
+$if ($DEBUG)
+if (DEBUG) call exit_sub (sub)
+$endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 contains
@@ -1176,7 +1238,7 @@ contains
   implicit none
 
   call mesg (sub, 'entering tree block')
-
+  
   !--check for beginning of tree block right after equals (since we
   !  removed whitespace), and rest of line is blank
   if ((buff(eqpos + 1 : eqpos + len (begin_tree_block)) /=           &
@@ -1187,7 +1249,7 @@ contains
 
   state = 1  !--we alter the state when in a tree block
   i_tree = i_tree + 1
-
+  
   !--now read in tree data until we read a line with a end_tree_block
 
   end subroutine case_tree
@@ -1208,17 +1270,22 @@ type (tree_type), intent (inout) :: tree
 
 character (*), parameter :: sub_name = mod_name // '.init_tree'
 
+!logical, parameter :: DEBUG = .true. 
+
 real (rp), parameter :: pi = 3.14159265359_rp  ! precision not needed
 real (rp), parameter :: thresh = 100._rp * epsilon (1._rp)
 
 real (rp) :: x_hat(nd), y_hat(nd)
 
 !---------------------------------------------------------------------
+$if ($DEBUG)
+if (DEBUG) call enter_sub (sub_name)
+$endif
 
 !--allocate the trunk
 allocate (tree % trunk)
 
-ident = ident + 1
+ident = ident + 1  
 tree % trunk % ident = ident
 
 tree % trunk % itree = itree
@@ -1252,8 +1319,15 @@ tree % trunk % abs_dir = real (tree % trunk_dir, rp)
 tree % trunk % abs_dir = (tree % trunk % abs_dir) /  &
                          mag (tree % trunk % abs_dir)
 
+$if ($DEBUG)
+if (DEBUG) then
+  call mesg (sub_name, 'tree % trunk_dir =', tree % trunk_dir)
+  call mesg (sub_name, 'tree % trunk % abs_dir =', tree % trunk % abs_dir)
+end if
+$endif
+
 ! relative to absolute coords (not really needed for trunk)
-! 8/11/04 note: not sure if this is valid
+! 8/11/04 note: not sure if this is valid 
 tree % trunk % rel_dir = real (tree % trunk_dir, rp)
 tree % trunk % rel_dir = (tree % trunk % rel_dir) /  &
                          mag (tree % trunk % rel_dir)
@@ -1303,7 +1377,7 @@ tree % trunk % z_hat = (tree % trunk % z_hat) / mag (tree % trunk % z_hat)
 
 call heightwidth_bbox_br (tree % trunk)
 
-!call Ap_bbox_br (tree % trunk)
+!call Ap_bbox_br (tree % trunk) 
 
 ! use abs dir to determine zone
 ! actually, only smallest resolved and unresolved need zones
@@ -1327,12 +1401,16 @@ if (tree % n_gen == tree % max_res_gen) then
   !  call error (sub_name, 'cannot have use_unres_f_test = .true.' // n_l //  &
   !                        'there are no unresolved branches')
   !end if
-
+  
 else if (tree % n_gen < tree % max_res_gen) then
 
   call error (sub_name, 'n_gen < max_res_gen does not make sense')
 
 end if
+
+$if ($DEBUG)
+if (DEBUG) call exit_sub (sub_name)
+$endif
 
 end subroutine init_tree
 
@@ -1350,6 +1428,9 @@ character (*), parameter :: sub_name = mod_name // '.cartesian_correction'
 integer :: i
 
 !---------------------------------------------------------------------
+$if ($VERBOSE)
+call enter_sub (sub_name)
+$endif
 
 do i = 1, nd
   if ( abs (x_hat(i)) < epsilon (x_hat(i)) ) x_hat(i) = 0.0_rp
@@ -1357,6 +1438,9 @@ do i = 1, nd
   if ( abs (z_hat(i)) < epsilon (z_hat(i)) ) z_hat(i) = 0.0_rp
 end do
 
+$if ($VERBOSE)
+call exit_sub (sub_name)
+$endif
 
 end subroutine cartesian_correction
 
@@ -1385,9 +1469,15 @@ real (rp) :: x_hat(nd), y_hat(nd)
 type (branch_type), pointer :: t  ! this
 
 !---------------------------------------------------------------------
+$if ($DEBUG)
+if (DEBUG) call enter_sub (sub_name)
+$endif
 
 if ((p % n_sub_branch) < 1) then
-
+  
+  $if ($DEBUG)
+  if (DEBUG) call exit_sub (sub_name)
+  $endif
   return  ! do nothing
 end if
 
@@ -1399,13 +1489,23 @@ do i = 1, p % n_sub_branch
   t => p % sub_branch(i)
 
   t % parent_branch => p  ! set pointer back to parent
-
+  
   ident = ident + 1
   t % ident = ident
 
   t % itree = p % itree
 
   t % gen = (p % gen) + 1
+
+  $if ($DEBUG)
+  if (DEBUG) then
+    if (t % gen > tree_array (t % itree) % n_gen) then
+      call error (sub_name, 'invalid gen')
+    end if
+    call mesg (sub_name, 'adding branch ', i ,         &
+                         ' on level ', t % gen)
+  end if
+  $endif
 
   t % n_sub_branch = tree_array (t % itree) % n_sub_branch
 
@@ -1414,7 +1514,7 @@ do i = 1, p % n_sub_branch
   else
     t % resolved = .false.
   end if
-
+  
   t % l = tree_array (t % itree) % ratio * (p % l)
   t % d = tree_array (t % itree) % ratio * (p % d)
 
@@ -1429,6 +1529,8 @@ do i = 1, p % n_sub_branch
   !--calculation of x0 moved after that of abs_dir, to facilitate
   !  putting sub-branches on the outside of the parent
   !t % x0 = (p % x0) + (t % root_height) * (p % l) * (p % abs_dir)
+
+  !if (DEBUG) call mesg (sub_name, 't % x0(3) = ', t % x0(3))
 
   ! direction relative to parents coords
   t % rel_dir(:) = tree_array(t % itree) % rel_dir(:, i)
@@ -1480,10 +1582,14 @@ do i = 1, p % n_sub_branch
       disp = 0.5_rp * d * dir_disp
 
     end if
-
+    
     t % x0 = (t % x0) + disp
 
   end if
+
+  $if ($DEBUG)
+  if (DEBUG) call mesg (sub_name, 't % x0(3) = ', t % x0(3))
+  $endif
 
   ! now we have the absolute direction of this sub-branch,
   ! we can calculate the x_hat, y_hat, z_hat of this sub-branch
@@ -1507,6 +1613,12 @@ do i = 1, p % n_sub_branch
   ! then t inherits p local coordinate system
   if (maxval (abs (t % y_hat - zero_vector)) < thresh) then
 
+    $if ($DEBUG)
+    if (DEBUG) then
+      call mesg (sub_name, "t's coords degenerate, using p's")
+    end if
+    $endif
+
     t % x_hat = p % x_hat
     t % y_hat = p % y_hat
     t % z_hat = p % z_hat
@@ -1524,7 +1636,7 @@ do i = 1, p % n_sub_branch
   y_hat = cos (t % twist) * (t % y_hat) - sin (t % twist) * (t % x_hat)
   t % x_hat = x_hat
   t % y_hat = y_hat
-
+  
   call cartesian_correction (t % x_hat, t % y_hat, t % z_hat)
 
   !--normalize again (errors in twist/correction)
@@ -1532,8 +1644,24 @@ do i = 1, p % n_sub_branch
   t % y_hat = t % y_hat / mag (t % y_hat)
   t % z_hat = t % z_hat / mag (t % z_hat)
 
+  $if ($DEBUG)
+  if (DEBUG) then
+    call mesg (sub_name, 't % x_hat = ', t % x_hat)
+    call mesg (sub_name, 't % y_hat = ', t % y_hat)
+    call mesg (sub_name, 't % z_hat = ', t % z_hat)
+  end if
+  $endif
+
   !--evaluate bounding box height, width
   call heightwidth_bbox_br (t)
+
+  $if ($DEBUG)
+  if (DEBUG) then
+    call mesg (sub_name, 't % ident = ', t % ident)
+    call mesg (sub_name, 't % height_bbox = ', t % height_bbox)
+    call mesg (sub_name, 't % width_bbox = ', t % width_bbox)
+  end if
+  $endif
 
   !--evaluate bounding box projected area
   !call Ap_bbox_br (t)
@@ -1548,6 +1676,10 @@ do i = 1, p % n_sub_branch
   end if
 
 end do
+
+$if ($DEBUG)
+if (DEBUG) call exit_sub (sub_name)
+$endif
 
 end subroutine add_sub_branches
 
@@ -1577,7 +1709,7 @@ d = br % d
 if (Y_experiment) then  !--for right-angled Y-shapes
 
   call warn (sub_name, 'Y_experiment is active')
-
+  
   height = l + (d / 2._rp + r * l) * (1._rp + sqrt (2._rp) * r) /  &
                (1._rp - r**2) / sqrt (2._rp)
   width = sqrt (2._rp) * (d / 2._rp + r * l) *      &
@@ -1655,13 +1787,14 @@ integer, parameter :: e1(nd) = (/ 1, 0, 0 /)
 integer, parameter :: e2(nd) = (/ 0, 1, 0 /)
 integer, parameter :: e3(nd) = (/ 0, 0, 1 /)
 
-character(1024) :: msg
-
 integer :: int_dir(nd)
 integer :: int_b_dot_f
 integer :: int_b_dot_p
 
 !----------------------------------------------------------------------
+$if ($DEBUG)
+if (DEBUG) call enter_sub (sub_name)
+$endif
 
 if (nzone <= 0) then
   write (msg, *) 'invalid nzone = ', nzone
@@ -1747,10 +1880,10 @@ select case (zone_selection)  ! plan on making internal subroutines
       end if
 
     end if
-
+    
     select case (int_b_dot_f)
       case (0)
-
+      
         if (int_b_dot_p == 0) then
           branch % zone = 1  !--cross-stream/bent
         else
@@ -1822,7 +1955,7 @@ select case (zone_selection)  ! plan on making internal subroutines
       else
         call error (sub_name, 'expecting gen 0')
       end if
-
+    
     end if
 
   case ('hv')
@@ -1856,6 +1989,9 @@ select case (zone_selection)  ! plan on making internal subroutines
 
 end select
 
+$if ($DEBUG)
+if (DEBUG) call exit_sub (sub_name)
+$endif
 
 end subroutine set_zone_branch
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

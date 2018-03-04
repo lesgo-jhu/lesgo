@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mpirun -np 12 lesgo-mpi
+

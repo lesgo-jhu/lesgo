@@ -1,5 +1,5 @@
 !!
-!!  Copyright (C) 2009-2017  Johns Hopkins University
+!!  Copyright (C) 2009-2013  Johns Hopkins University
 !!
 !!  This file is part of lesgo.
 !!
@@ -17,46 +17,51 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-!*******************************************************************************
-module grid_m
-!*******************************************************************************
+
+!**********************************************************************
+module grid_defs
+!**********************************************************************
 use types, only : rprec
 implicit none
 save
 private
-
-public grid
+!public x, y, z, zw, grid_build, grid_built
+!public autowrap_i, autowrap_j
+public grid, grid_build
 
 type grid_t
-    logical :: built
-    real(rprec), pointer, dimension(:) :: x, y, z, zw
-    integer, pointer, dimension(:) :: autowrap_i, autowrap_j
-contains
-    procedure, public :: build
+  logical :: built
+  real(rprec), pointer, dimension(:) :: x, y, z, zw
+  integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 end type grid_t
 
-! The uv grid
 type(grid_t) :: grid
+!real(rprec), allocatable, dimension(:) :: x, y, z, zw
+! These need to be used in conjunction with modulo
+
 
 contains
 
-!*******************************************************************************
-subroutine build(this)
-!*******************************************************************************
-!  This subroutine creates the uv grid for the domain.
-
-use param, only : nx, ny, nz, jzmin, jzmax, dx, dy, dz, lbz
-#ifdef PPMPI
-use param,only:nproc,coord
-#endif
+!**********************************************************************
+subroutine grid_build()
+!**********************************************************************
+!
+!  This subroutine creates the uv grid for the domain. It uses the x,y,z
+!  variables decalared in grid_defs. This subroutine should only be called
+!  once. To use x,y,z elsewhere in the code make sure
+!  
+!  use grid_defs, only : x,y,z 
+!  
+!  is placed in the routine
+!  
+use param, only : nx,ny,nz,jzmin,jzmax,dx,dy,dz,coord,lbz,nproc
 implicit none
 
-class(grid_t) :: this
 integer :: i,j,k
-real(rprec), pointer, dimension(:) :: x, y, z, zw
+real(rprec), pointer, dimension(:) :: x,y,z,zw
 integer, pointer, dimension(:) :: autowrap_i, autowrap_j
 
-nullify(x, y, z, zw)
+nullify(x,y,z,zw)
 nullify(autowrap_i,autowrap_j)
 
 !  x and y go to nx+1, ny+1 respectively for adding
@@ -66,33 +71,30 @@ allocate(grid % z(lbz:nz), grid % zw(lbz:nz))
 allocate(grid % autowrap_i(0:nx+1), grid % autowrap_j(0:ny+1))
 
 ! Initialize built
-grid % built = .false.
+grid % built = .false. 
 
 ! Set pointers
-x => this % x
-y => this % y
-z => this % z
-zw => this % zw
+x => grid % x
+y => grid % y
+z => grid % z
+zw => grid %zw
 
-autowrap_i => this % autowrap_i
-autowrap_j => this % autowrap_j
+autowrap_i => grid % autowrap_i
+autowrap_j => grid % autowrap_j
 
-do k = lbz, nz
-#ifdef PPMPI
-    z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
-#else
-    z(k) = (k - 0.5_rprec) * dz
-#endif
+do k=lbz,nz
+  $if ($MPI)
+  z(k) = (coord*(nz-1) + k - 0.5_rprec) * dz
+  $else
+  z(k) = (k - 0.5_rprec) * dz
+  $endif
 enddo
-
-do j = 1, ny+1
-    y(j) = (j-1)*dy
+do j=1,ny+1
+  y(j) = (j-1)*dy
 enddo
-
-do i = 1, nx+1
-    x(i) = (i - 1)*dx
+do i=1,nx+1
+  x(i) = (i - 1)*dx
 enddo
-
 zw = z - dz/2._rprec
 
 ! Set index autowrapping arrays
@@ -102,29 +104,30 @@ autowrap_i(nx+1) = 1
 autowrap_j(ny+1) = 1
 do i=1,nx; autowrap_i(i) = i; enddo
 do j=1,ny; autowrap_j(j) = j; enddo
-
-this % built = .true.
+     
+grid % built = .true. 
 
 nullify(x,y,z,zw)
 nullify(autowrap_i,autowrap_j)
 
 ! Set jzmin and jzmax - the levels that this processor "owns"
-#ifdef PPMPI
-if (coord == 0) then
+$if($MPI)
+  if (coord == 0) then
     jzmin = 0
     jzmax = nz-1
-elseif (coord == nproc-1) then
+  elseif (coord == nproc-1) then
     jzmin = 1
     jzmax = nz
-else
+  else
     jzmin = 1
     jzmax = nz-1
-endif
-#else
-jzmin = 1
-jzmax = nz
-#endif
+  endif
+$else
+  jzmin = 1
+  jzmax = nz
+$endif
 
-end subroutine build
+return
+end subroutine grid_build 
 
-end module grid_m
+end module grid_defs

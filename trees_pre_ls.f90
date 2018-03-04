@@ -17,11 +17,7 @@
 !!  along with lesgo.  If not, see <http://www.gnu.org/licenses/>.
 !!
 
-module trees_pre_ls_mod
-
-contains
-
-subroutine trees_pre_ls
+program trees_pre_ls
 use types, only : rprec
 use param, only : path
 use param, only : nx, ny, nz, BOGUS, nproc
@@ -39,17 +35,13 @@ character (*), parameter :: fphi_raw_out = path // 'phi.out'
 character (*), parameter :: fbrindex_out = path // 'brindex.dat'
 character (*), parameter :: fbrindex_raw_out = path // 'brindex.out'
 
-logical, parameter :: do_write_ascii = .false.
+logical, parameter :: do_write_ascii = .true.
 logical, parameter :: do_calc_global_fmask = .false.
 
 !--may choose to connect np with nproc in params and
 !  MPI_split with $MPI
 character (*), parameter :: MPI_suffix = '.c'
-#ifdef PPMPI
 logical, parameter :: MPI_split = .true.
-#else
-logical, parameter :: MPI_split = .false.
-#endif
 
 character (128) :: fphi_out_MPI, fphi_raw_out_MPI
 character (128) :: fbrindex_out_MPI, fbrindex_raw_out_MPI
@@ -102,7 +94,7 @@ end if
 
 call grid_initialize ()
 call fill_tree_array ()
-! call draw_tree_array (fdraw_out)
+call draw_tree_array (fdraw_out)
 
 allocate ( phi( nx+2, ny, 0:nz ) )
 allocate ( brindex( nx+2, ny, nz ) )
@@ -135,19 +127,19 @@ do ip = ipmin, ipmax
     write (1) phi(:, :, 0:nz)  !--each file gets 0:nz_local
       
     close (1)
-! 
-!     !--branch index
-!     write (fbrindex_raw_out_MPI, '(a,a,i0)') trim (fbrindex_raw_out),  &
-!                                              MPI_suffix, ip
-!     open (1, file=fbrindex_raw_out_MPI, form='unformatted')
-! 
-!     !--overlap is different from above: brindex is only 1:nz_local-1
-!     !lbz = ip * (nz - 1) / nproc + 1   !--1 level (local)
-!     !ubz = lbz + (nz - 1) / nproc - 1  !--nz-1 level (local)
-! 
-!     write (1) brindex(:, :, 1:nz-1)
-! 
-!     close (1)
+
+    !--branch index
+    write (fbrindex_raw_out_MPI, '(a,a,i0)') trim (fbrindex_raw_out),  &
+                                             MPI_suffix, ip
+    open (1, file=fbrindex_raw_out_MPI, form='unformatted')
+
+    !--overlap is different from above: brindex is only 1:nz_local-1
+    !lbz = ip * (nz - 1) / nproc + 1   !--1 level (local)
+    !ubz = lbz + (nz - 1) / nproc - 1  !--nz-1 level (local)
+
+    write (1) brindex(:, :, 1:nz-1)
+
+    close (1)
 
     if (do_write_ascii) then  !--ascii-files for checking
       !--phi
@@ -280,6 +272,4 @@ if (do_calc_global_fmask) then  !--global fmask initialization
    !--this also writes to file, which is why we pass MPI stuff
 end if
 
-end subroutine trees_pre_ls
-
-end module trees_pre_ls_mod
+end program trees_pre_ls

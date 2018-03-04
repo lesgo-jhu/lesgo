@@ -1,0 +1,278 @@
+2012-07-27 20:31  tag r2_3
+
+2012-07-27 20:31  jgraham
+
+	* tecryte.h: Updated open_file interface to use new variable names
+
+2012-07-27 19:41  jgraham
+
+	* open_file.f90: Renamed write_* variable names to open_* variable
+	  names since this can be used for writing and reading data
+
+	  Fixed several comments
+
+2012-07-27 18:10  cverhul1
+
+	* open_file.f90: Removed action='write' so the file can be written
+	  to OR read from
+
+2012-07-25 10:45  cverhul1
+
+	* write_real_data_3d.ftp: Corrected type (x_2d rather than x_3d,
+	  etc)
+
+2012-07-25 10:41  cverhul1
+
+	* write_real_data_1d.ftp, write_real_data_2d.ftp,
+	  write_real_data_3d.ftp: Added deallocate commands
+
+2012-07-10 16:46  tag r2_2
+
+2012-07-10 16:46  jgraham
+
+	* README: Updated the comments and information; added details
+	  regarding the purpose of each subroutine
+
+2012-07-10 13:43  athorma1
+
+	* ftptof90.sh: Updated inplace sed write to use backup file with
+	  extension "tmp". Works for both GNU and BSD style sed commands;
+	  tested on Mac
+
+2012-07-10 13:10  jgraham
+
+	* ftptof90.sh: Added workaround for BSD style sed inplace replace
+
+2012-07-10 12:39  jgraham
+
+	* Makefile, ftptof90.sh: Updated things to reflect renaming of
+	  files
+
+2012-07-10 12:31  jgraham
+
+	* write_tecplot_header_nd.f90: Updated comments in header
+	  information. Renamed name to use lower case.
+
+2012-07-10 11:33  cverhul1
+
+	* write_tecplot_header_nd.f90: Fixed comment that misrepresented
+	  "zone" as an integer rather than a character string.
+
+2012-05-23 22:50  tag r2_1_1
+
+2012-05-23 22:50  jgraham
+
+	* tecryte.h, write_tecplot_header_xyline.f90: Renamed
+	  write_tecplot_header_xyline within the interface to avoid
+	  conflict. This was an issue esp. with the intel compiler.
+
+2012-05-19 11:54  tag r2_1
+
+2012-05-19 11:54  jgraham
+
+	* write_tecplot_header_xyline.f90: Added ability to write based on
+	  file identifier. It is required to call 'open_file' before using
+	  this.
+
+2012-05-19 11:53  jgraham
+
+	* Makefile, open_file.f90, tecryte.f90, tecryte.h: Added function
+	  for opening files and returning the assigned file identifier. By
+	  default the file identifiers start at 1001. This can be changed
+	  in the tecryte module.
+
+2012-05-19 00:21  tag r2_0
+
+2012-05-19 00:21  jgraham
+
+	* tecryte.h, write_real_data.ftp: Added function for writting data
+	  using a file id. This allows for files to remain open and to just
+	  append data. Before it was required to open, traverse to end of
+	  the records then write. Now it should be faster especially for
+	  growing files.
+
+2012-05-19 00:17  jgraham
+
+	* Makefile: Moved specification of install prefix and child
+	  directories up in the order.
+
+	  This just make it more convenient to adjust. The compiler
+	  settings should follow since they won't be changed much.
+
+2012-05-03 21:03  tag r1_3_2
+
+2012-05-03 21:03  jgraham
+
+	* Makefile: Updated g95 compiler flags
+
+2012-05-03 21:00  jgraham
+
+	* Makefile: Added g95 compiler option
+
+2012-05-03 20:29  jgraham
+
+	* Makefile: Removed mcmodel flag from compiler flags
+
+2012-05-03 20:29  jgraham
+
+	* README: Updated author information
+
+2011-09-20 17:02  jgraham
+
+	* Makefile: Added option for compiling tecryte with XLF compilers
+
+2011-09-09 21:51  tag r1_3_1
+
+2011-09-09 21:51  jgraham
+
+	* write_real_data_3d.ftp: Fixed issue with deallocation of x,y,z
+	  arrays when not allocated
+
+2011-09-07 15:09  tag r1_3
+
+2011-09-07 15:09  jgraham
+
+	* AUTHORS, Makefile, README, tecryte.f90, write_real_data.ftp,
+	  write_real_data_1d.ftp, write_real_data_2d.ftp,
+	  write_real_data_3d.ftp, write_tecplot_header_nd.f90,
+	  write_tecplot_header_xyline.f90: Converted library name from
+	  tecio to tecryte. Updated sources files to reflect this
+
+2011-09-06 16:00  jgraham
+
+	* AUTHORS: Added authors file to note contributions to tecio
+
+2011-09-03 14:16  jgraham
+
+	* tecryte.f90: Reverted last commit to revision 1.6
+
+	  Revision 1.7 was erroneously committed
+
+2011-09-03 14:08  jgraham
+
+	* Makefile: Removed unused -fPIC flag (only use with shared
+	  libraries); updated library name to reflect development
+
+2011-09-03 14:07  jgraham
+
+	* tecryte.f90: IGNORE THIS COMMIT
+
+2011-09-03 12:46  jgraham
+
+	* README: Updated line wrapping for uniformity
+
+2011-09-03 12:38  jgraham
+
+	* tecryte.f90: Updated double precison data to be written to file
+	  as single precision
+
+	  This is to 1) decrease overall write time and 2) save space since
+	  the extra bits probably aren't necessary.
+
+2011-09-02 17:36  jgraham
+
+	* write_real_data.ftp, write_real_data_1d.ftp,
+	  write_real_data_2d.ftp, write_real_data_3d.ftp: Updated all file
+	  writes to use a block line write.
+
+	  This fixes problems with writing many small bits over network or
+	  distributed file systems. Also optimizes the performance on local
+	  file systems. All data wrapping now is performed in system memory
+	  before the write.
+
+2011-09-02 17:34  jgraham
+
+	* ftptof90.sh, tecryte.f90: Updated the data output specifier to
+	  respect single or double precision data.
+
+	  Also updated the template to source generator to replace
+	  <DATAFORMAT> with an appropriate value
+
+2011-09-02 17:32  jgraham
+
+	* tecryte.f90, tecryte.h, write_tecplot_header_nd.f90,
+	  write_tecplot_header_xyline.f90: Changed the naming convention of
+	  several functions and variables; this is to make things more
+	  readable and eliminate funky abbreviations
+
+2011-09-02 17:31  jgraham
+
+	* Makefile: Updated default compiler flags to use -O3 optimization;
+	  change default install location to lib instead of lib64
+
+2011-04-16 03:44  tag r1_2
+
+2011-04-16 03:44  jgraham
+
+	* Makefile, README, tecryte.h, write_tecplot_header_nd.f90: Changed
+	  zone specification in Tecplot header to be of string type
+
+2011-03-04 15:32  tag r1_1
+
+2011-03-04 15:32  jgraham
+
+	* README: Updated comments
+
+2011-03-04 15:19  jgraham
+
+	* README: Updated to reflect changes
+
+2011-03-04 15:15  jgraham
+
+	* write_tecplot_header_nd.f90, write_tecplot_header_xyline.f90:
+	  Initial import
+
+2011-03-04 15:14  jgraham
+
+	* Makefile: Removed double precision arguments from compiler
+
+2011-03-04 15:11  jgraham
+
+	* Makefile: Updated to reflect additional source files; added make
+	  option to generate *.f90 source from ftptof90.sh
+
+2011-03-04 15:10  jgraham
+
+	* tecryte.f90, tecryte.h: Added subroutines not in the tecio module
+	  to their own file; create external interfaces for overloaded
+	  subroutines
+
+2011-03-04 15:09  jgraham
+
+	* ftptof90.sh: Changed to be called once to create all source
+
+2011-03-04 15:07  jgraham
+
+	* write_real_data_1d.ftp, write_real_data_2d.ftp,
+	  write_real_data_3d.ftp, write_real_data.ftp: Adding templates for
+	  fortran source; these along with ftptof90.sh act to reduce the
+	  amount of redundancy due to the overloaded subroutines
+
+2011-03-04 14:34  jgraham
+
+	* ftptof90.sh: Added script to generate *.f90 files from a template
+
+2011-03-03 18:30  tag r1_0
+
+2011-03-03 18:30  jgraham
+
+	* Makefile: Added -f to rm command
+
+2011-03-03 18:14  jgraham
+
+	* tecryte.f90: Updated output format to have non-negative width
+
+2011-03-03 16:48  jgraham
+
+	* Makefile: Moved specification of header file up
+
+2011-03-03 16:14  tag r0_1
+
+2011-03-03 16:14  jgraham
+
+	* Makefile, README, tecryte.f90, tecryte.h: Initial import
+
+2011-03-03 16:14  jgraham
+
+	* Makefile, README, tecryte.f90, tecryte.h: Initial revision
+
