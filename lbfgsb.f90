@@ -210,7 +210,7 @@ integer, save :: dummy
 ! procedures
 real(rprec) :: ddot
 
-if (.not.(size(l) == n)) then
+!if (.not.(size(l) == n)) then
     ! If already allocate, deallocate
     if (allocated(l)) then
         deallocate(l, u, g)
@@ -307,7 +307,7 @@ if (.not.(size(l) == n)) then
 
     ! Initialize iwhere & project x onto the feasible set.
     call active(n,l,u,nbd,x,iwhere,iprint,prjctd,cnstnd,boxed)
-end if
+!end if
 
 ! set iteration counter, evaluate function and derivative, and begin
 task = 'FG_START'

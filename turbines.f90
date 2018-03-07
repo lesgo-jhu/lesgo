@@ -679,9 +679,14 @@ do s = 1,nloc
     end if
 end do
 
-if (coord == 0) write(*,*) "Farm power = ",                                    &
-    sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3)
-
+if (coord == 0 .and. use_receding_horizon) then
+    write(*,*) "Farm power, reference = ",                                     &
+        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3),   &
+        linear_interp(Pref_time, Pref_arr, total_time_dim)
+elseif (coord == 0) then
+    write(*,*) "Farm power, ",                                                 &
+        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3)
+end if
 !apply forcing to each node
 do s=1,nloc
     do l=1,wind_farm%turbine(s)%num_nodes
@@ -1336,7 +1341,7 @@ else
 if (coord == 0) then
     write(*,*) "Computing initial optimization..."
     controller = turbines_mpc_t(wm%wm, total_time_dim, horizon_time,           &
-        0.25_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,              &
+        0.99_rprec, Pref_time, Pref_arr, beta_penalty, beta_star,              &
         tsr_penalty, lambda_prime_star, speed_penalty, omega_min, omega_max)
 
     do i = 1, nloc

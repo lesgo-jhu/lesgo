@@ -401,9 +401,11 @@ end do
 
 ! Calculate new rotational speed, protecting against zero division.
 do i = 1, this%N
-    this%omega(i) = max(this%omega(i) + dt * (this%Paero(i) / this%omega(i)    &
+    do ii = 1, 100
+    this%omega(i) = max(this%omega(i) + (dt/100) * (this%Paero(i) / this%omega(i)    &
         - this%torque_gain(i) * this%omega(i)**2) / this%inertia,              &
         0.000000001_rprec)
+    end do
 end do
 
 ! Save next time step values

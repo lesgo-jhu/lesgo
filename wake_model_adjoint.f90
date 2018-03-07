@@ -388,8 +388,10 @@ end do
 
 ! Adjoint of rotational equations
 do i = 1, this%N
+    do ii= 1, 100
    this%omega_star(i) = this%omega_star(i)                                    &
-       + dt * ( Wj(i) + Wdu(i)*fdustar(i) + Ww(i)*this%omega_star(i) )
+       + (dt/100) * ( Wj(i) + Wdu(i)*fdustar(i) + Ww(i)*this%omega_star(i) )
+    end do
 end do
 
 deallocate(fdustar)
