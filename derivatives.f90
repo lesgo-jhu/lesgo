@@ -221,7 +221,10 @@ subroutine ddz_uv(f, dfdz, lbz)
 ! process it only supplies 2:nz
 !
 use types, only : rprec
-use param, only : nx, ny, nz, dz, BOGUS, nproc, coord
+use param, only : nx, ny, nz, dz, BOGUS
+#ifdef PPSAFETYMODE
+use param, only : nproc, coord
+#endif
 implicit none
 
 integer, intent(in) :: lbz
@@ -239,7 +242,7 @@ dfdz(:,:,0) = BOGUS
 ! Calculate derivative.
 ! The ghost node information is available here
 ! if coord == 0, dudz(1) will be set in wallstress
-do jz = 1, nz
+do jz = lbz+1, nz
 do jy = 1, ny
 do jx = 1, nx
     dfdz(jx,jy,jz) = const*(f(jx,jy,jz)-f(jx,jy,jz-1))
@@ -272,8 +275,10 @@ subroutine ddz_w(f, dfdz, lbz)
 !
 use types, only : rprec
 use param, only : nx, ny, nz, dz, BOGUS
+#ifdef PPSAFETYMODE
 #ifdef PPMPI
 use param, only : coord
+#endif
 #endif
 implicit none
 

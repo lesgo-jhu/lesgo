@@ -1,3 +1,8 @@
+# Branches
+The master branch is reserved for stable snapshots of the code that have been proven and compile and run for a large subset of configurations. Before committing changes to master, run the bundled test-lesgo script. The modified code must pass all compilation and runtime testing with no errors. Warnings at compile time are discouraged, but allowed.
+
+Active development occurs in the "devel_branch" branch. For major code changes, consider creating a new branch first.
+
 # Style guide
 ## License Heading
    All source files must begin with the licensing information:
