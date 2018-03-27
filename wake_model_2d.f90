@@ -132,7 +132,7 @@ this%U_infty    = i_U_infty
 this%Delta      = i_Delta
 this%k          = i_k
 this%Dia        = i_Dia
-this%yu_inf     = i_U_infty
+
 
 ! Normalization constants
 this%VELOCITY = i_U_infty
@@ -157,6 +157,7 @@ call this%computeGaussians
 call this%computeWakeExpansionFunctions
 call this%compute2Dwakes
 call this%woketurbines
+
 
 end subroutine initialize_val
 
@@ -1172,11 +1173,13 @@ subroutine write_to_file(this, fpath)
 
 end subroutine write_to_file
 
-subroutine generateInitialEnsemble(this, Ctp)
+subroutine generateInitialEnsemble(this, Ctp, Pm)
     use util, only : random_normal
+    use functions, only: linear_interp
     implicit none
     class(WakeModelEstimator), intent(inout)    :: this
-    real(rprec), dimension(:)                   :: Ctp
+    real(rprec), dimension(:)                   :: Ctp, Pm
+    real(rprec), allocatable, dimension(:)      ::  yu_turb
     real(rprec)                                 :: dt
     real(rprec), parameter                      :: cfl = 0.99
     real(rprec)                                 :: FTT
@@ -1199,8 +1202,22 @@ subroutine generateInitialEnsemble(this, Ctp)
     N = this%wm%N
     Nx = this%wm%Nx
 
+    allocate( yu_turb(this%wm%nfree) )
+
+    ! initial u_inf(y) setting
+    do j = 1, size(this%wm%free_turbines)
+       i = this%wm%free_turbines(j)  
+       yu_turb(i) = (Pm(i) / Ctp(i))**(1._rprec/3._rprec)      &
+           * (4._rprec + Ctp(i)) / 4._rprec
+    end do
+    this%wm%yu_inf = linear_interp(this%wm%s(1:this%wm%nfree,2),yu_turb,this%wm%y)
+    this%wm%U_infty = sum(this%wm%yu_inf) / size(this%wm%yu_inf)
+    
+
     ! Do 1 FFT of k's
     do i = 1, this%Ne
+        this%ensemble(i)%yu_inf(:) = this%wm%yu_inf
+        this%ensemble(i)%U_infty = this%wm%U_infty
         do ii = 1, floor(FTT / dt)
             do j = 1, N
                 this%ensemble(i)%k(j) = max(this%ensemble(i)%k(j)                  &

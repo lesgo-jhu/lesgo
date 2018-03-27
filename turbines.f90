@@ -297,7 +297,7 @@ use functions, only : linear_interp
 implicit none
 
 real(rprec)                               :: U_infty, wm_Delta, wm_Dia
-real(rprec), dimension(:), allocatable    :: wm_Ctp, wm_k
+real(rprec), dimension(:), allocatable    :: wm_Ctp, wm_k, wm_Pm
 real(rprec), dimension(:,:), allocatable  :: wm_s
 real(rprec)                               :: ind_factor
 integer                                   :: i
@@ -317,6 +317,7 @@ else
 
     allocate( wm_Ctp(nloc) )
     allocate( wm_k(nloc) )
+    allocate( wm_Pm(nloc) )
     allocate( wm_s(nloc,2) )
 
     wm_k = 0.05_rprec
@@ -335,7 +336,10 @@ else
     U_infty = U_infty**(1._rprec/3._rprec)
     wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx/2,   &
         Ny/2, num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
-    call wm_est%generateInitialEnsemble(wm_Ctp)
+    
+    wm_Pm = 0._rprec
+    wm_Pm(:) = wm_Pm - wm_Ctp * (wind_farm%turbine%u_d_T * u_star)**3
+    call wm_est%generateInitialEnsemble(wm_Ctp, wm_Pm)
 end if
 
 if (coord == 0) then
