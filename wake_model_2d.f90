@@ -1131,7 +1131,7 @@ subroutine initialize_file(this, fpath, i_sigma_du, i_sigma_k, i_sigma_Phat, i_t
 
     allocate( this%ensemble(this%Ne) )
     do i = 1, this%Ne
-        call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+        call string_splice( fstring, fpath // '/ensemble_', i+coord*nproc, '.dat' )
         this%ensemble(i) = WakeModel(fstring)
     end do
 
@@ -1167,7 +1167,7 @@ subroutine write_to_file(this, fpath)
     call this%wm%write_to_file(fstring)
 
     do i = 1, this%Ne
-        call string_splice( fstring, fpath // '/ensemble_', i, '.dat' )
+        call string_splice( fstring, fpath // '/ensemble_', i+coord*nproc, '.dat' )
         call this%ensemble(i)%write_to_file(fstring)
     end do
 
