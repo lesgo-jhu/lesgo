@@ -900,7 +900,7 @@ if (coord == 0) then
 end if
 
 ! Checkpoint wake model estimator
-if (use_wake_model .and. coord == 0) then
+if (use_wake_model) then
     call wm_est%write_to_file(path // 'wake_model')
 end if
 
