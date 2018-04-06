@@ -712,6 +712,10 @@ do
                 read (buff(equal_pos+1:), *) dyn_theta1
             case ('DYN_THETA2')
                 read (buff(equal_pos+1:), *) dyn_theta2
+            case ('DYN_BETA')
+                read (buff(equal_pos+1:), *) dyn_beta
+            case ('DYN_TORQUE_GAIN')
+                read (buff(equal_pos+1:), *) dyn_torque_gain
             case ('T_AVG_DIM')
                 read (buff(equal_pos+1:), *) T_avg_dim
             case ('ALPHA')

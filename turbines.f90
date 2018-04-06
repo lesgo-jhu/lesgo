@@ -75,6 +75,10 @@ logical, public :: read_param
 logical, public :: dyn_theta1
 ! Dynamically change theta2 from input_turbines/theta2.dat
 logical, public :: dyn_theta2
+! Dynamically change theta2 from input_turbines/theta2.dat
+logical, public :: dyn_beta
+! Dynamically change theta2 from input_turbines/theta2.dat
+logical, public :: dyn_torque_gain
 ! disk-avg time scale in seconds (default 600)
 real(rprec), public :: T_avg_dim
 ! filter size as multiple of grid spacing
@@ -139,6 +143,8 @@ real(rprec), dimension(:), allocatable :: Pref_time
 real(rprec), dimension(:,:), allocatable :: torque_gain_arr
 real(rprec), dimension(:,:), allocatable :: beta_arr
 real(rprec), dimension(:), allocatable :: rh_time
+real(rprec), dimension(:), allocatable :: beta_time
+real(rprec), dimension(:), allocatable :: torque_gain_time
 
 ! Arrays for interpolating power and thrust coefficients for LES
 type(bi_pchip_t), public :: Cp_prime_spline, Ct_prime_spline
@@ -154,6 +160,9 @@ character(*), parameter :: lambda_dat = path // input_folder // 'lambda.dat'
 character(*), parameter :: beta_dat = path // input_folder // 'beta.dat'
 character(*), parameter :: phi_dat = path // input_folder // 'phi.dat'
 character(*), parameter :: Pref_dat = path // input_folder // 'Pref.dat'
+
+character(*), parameter :: beta_command_dat = path // input_folder // 'beta_command.dat'
+character(*), parameter :: torque_gain_command_dat = path // input_folder // 'torque_gain_command.dat'
 
 ! Output files
 character(*), parameter :: output_folder = 'turbine/'
@@ -568,6 +577,10 @@ do s = 1, nloc
         linear_interp(theta1_time, theta1_arr(s,:), total_time_dim)
     if (dyn_theta2) wind_farm%turbine(s)%theta2 =                              &
         linear_interp(theta2_time, theta2_arr(s,:), total_time_dim)
+    if (dyn_beta) wind_farm%turbine(s)%beta =                                  &
+        linear_interp(beta_time, beta_arr(s,:), total_time_dim)
+    if (dyn_torque_gain) wind_farm%turbine(s)%torque_gain =                    &
+        linear_interp(torque_gain_time, torque_gain_arr(s,:), total_time_dim)
 end do
 
 ! Recompute the turbine position if theta1 or theta2 can change
@@ -672,7 +685,7 @@ do s = 1,nloc
         write( forcing_fid(s), *) total_time_dim, u_vel_center(s)*u_star,      &
             v_vel_center(s)*u_star, w_vel_center(s)*u_star, -p_u_d*u_star,     &
             -p_u_d_T*u_star, wind_farm%turbine(s)%theta1,                      &
-            wind_farm%turbine(s)%theta2, wind_farm%turbine(s)%beta, p_Ct_prime,   &
+            wind_farm%turbine(s)%theta2, wind_farm%turbine(s)%beta, p_Ct_prime,&
             p_Cp_prime, p_omega, wind_farm%turbine(s)%torque_gain,             &
             wind_farm%turbine(s)%torque_gain*p_omega**2,                       &
             wind_farm%turbine(s)%torque_gain*p_omega**3
@@ -1038,6 +1051,38 @@ if (use_receding_horizon) then
     fid = open_file_fid(Pref_dat, 'rewind', 'formatted')
     do i = 1, num_t
         read(fid,*) Pref_time(i), Pref_arr(i)
+    end do
+
+    close(fid)
+end if
+
+! Read the theta1 input data
+if (dyn_beta) then
+    ! Count number of entries and allocate
+    num_t = count_lines(beta_command_dat)
+    allocate( beta_time(num_t) )
+    allocate( beta_arr(nloc, num_t) )
+
+    ! Read values from file
+    fid = open_file_fid(beta_command_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) beta_time(i), beta_arr(:,i)
+    end do
+
+    close(fid)
+end if
+
+! Read the torque_gain_command input data
+if (dyn_torque_gain) then
+    ! Count number of entries and allocate
+    num_t = count_lines(torque_gain_command_dat)
+    allocate( torque_gain_time(num_t) )
+    allocate( torque_gain_arr(nloc, num_t) )
+
+    ! Read values from file
+    fid = open_file_fid(torque_gain_command_dat, 'rewind', 'formatted')
+    do i = 1, num_t
+        read(fid,*) torque_gain_time(i), torque_gain_arr(:,i)
     end do
 
     close(fid)
