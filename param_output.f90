@@ -118,7 +118,7 @@ write(2,c_fmt) 'DATA OUTPUT PARAMETERS'
 write(2,c_fmt) '---------------------------------------------------'
 #if ( defined(PPWRITE_BIG_ENDIAN) || defined(PPWRITE_LITTLE_ENDIAN) )
 write(2,x2c_fmt) 'write_endian : ', write_endian
-#elif (defined(PPIFORT))
+#elif (defined(__INTEL_COMPILER))
 ! According to https://software.intel.com/en-us/node/524834:
 ! Intel Fortran expects numeric data to be in native little endian order.
 write(2,x2c_fmt) 'write_endian : ', 'LITTLE_ENDIAN'
@@ -128,7 +128,7 @@ write(2,x2c_fmt) 'write_endian : ', ch
 #endif
 #if ( defined(PPREAD_BIG_ENDIAN) || defined(PPREAD_LITTLE_ENDIAN) )
 write(2,x2c_fmt) 'read_endian : ', write_endian
-#elif (defined(PPIFORT))
+#elif (defined(__INTEL_COMPILER))
 ! According to https://software.intel.com/en-us/node/524834:
 ! Intel Fortran expects numeric data to be in native little endian order.
 write(2,x2c_fmt) 'read_endian : ', 'LITTLE_ENDIAN'

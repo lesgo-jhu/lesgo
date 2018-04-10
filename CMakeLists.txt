@@ -36,12 +36,9 @@ option(USE_CGNS "Enable CGNS data output." OFF)
 # Set compiler versions for Cmake
 #  Intel
 if (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
-    add_definitions(-DPPIFORT)
     set(compiler_name "ifort")
-    add_definitions(-DPPIFORT)
 #  GNU
 elseif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-    add_definitions(-DPPGFORTRAN)
     set(compiler_name "gfortran")
 endif ()
 find_program(WHICH NAMES which)
@@ -208,4 +205,3 @@ endif (CMAKE_Fortran_COMPILER_ID STREQUAL "Intel")
 
 # main lesgo executable
 add_executable(${exec_name} ${Sources})
-

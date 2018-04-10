@@ -1315,7 +1315,7 @@ do k = 1, nz - 1
 
         end if
 
-#if defined(PPIFORT) || defined(PPIFC)
+#ifdef __INTEL_COMPILER
 
           if (isnan (txx(i, j, k))) then
             call mesg (sub_name, 'phi_x =', phi_x)
@@ -1522,7 +1522,7 @@ do k = 1, nz - 1
           udes(i, j, k) = vel1(1)
           vdes(i, j, k) = vel1(2)
 
-#if defined(PPIFORT) || defined(PPIFC)
+#ifdef __INTEL_COMPILER
 
             if (isnan (udes(i, j, k))) then
               call error (sub_name, 'Nan at (i, j, k) =', (/ i, j, k /))
@@ -1586,7 +1586,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           !--only take w-component
           wdes(i, j, k) = vel1(3)
 
-#if defined(PPIFORT) || defined(PPIFC)
+#ifdef __INTEL_COMPILER
 
             if (isnan (wdes(i, j, k))) then
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))
@@ -1684,7 +1684,7 @@ do k = 1, nz - 1
           udes(i, j, k) = vel1(1)
           vdes(i, j, k) = vel1(2)
 
-#if defined(PPIFORT) || defined(PPIFC)
+#ifdef __INTEL_COMPILER
 
             if (isnan (udes(i, j, k))) then
               call error (sub_name, 'Nan at (i, j, k) =', (/ i, j, k /))
@@ -1749,7 +1749,7 @@ do k = 2, nz - 1  !--(-1) here due to BOGUS
           !--only take w-component
           wdes(i, j, k) = vel1(3)
 
-#if defined(PPIFORT) || defined(PPIFC)
+#ifdef __INTEL_COMPILER
 
             if (isnan (wdes(i, j, k))) then
               call error (sub_name, 'NaN at (i, j, k) =', (/ i, j, k /))

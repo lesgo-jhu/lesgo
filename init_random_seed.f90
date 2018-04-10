@@ -27,7 +27,7 @@ subroutine init_random_seed()
 ! This subroutine is taken from gcc:
 ! https://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED
 !
-#ifdef PPIFORT
+#ifdef __INTEL_COMPILER
 use ifport, only : getpid
 #endif
 use iso_fortran_env, only : int64
