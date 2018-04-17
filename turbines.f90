@@ -692,14 +692,14 @@ do s = 1,nloc
     end if
 end do
 
-if (coord == 0 .and. use_receding_horizon) then
-    write(*,*) "Farm power, reference = ",                                     &
-        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3),   &
-        linear_interp(Pref_time, Pref_arr, total_time_dim)
-elseif (coord == 0) then
-    write(*,*) "Farm power, ",                                                 &
-        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3)
-end if
+!if (coord == 0 .and. use_receding_horizon) then
+!    write(*,*) "Farm power, reference = ",                                     &
+!        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3),   &
+!        linear_interp(Pref_time, Pref_arr, total_time_dim)
+!elseif (coord == 0) then
+!    write(*,*) "Farm power = ",                                                &
+!        sum(wind_farm%turbine(:)%torque_gain*wind_farm%turbine(:)%omega**3)
+!end if
 !apply forcing to each node
 do s=1,nloc
     do l=1,wind_farm%turbine(s)%num_nodes
