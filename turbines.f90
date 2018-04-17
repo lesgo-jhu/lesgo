@@ -29,7 +29,7 @@ use messages
 use string_util
 use turbine_indicator
 use stat_defs, only : wind_farm
-use wake_model_estimator_class
+use wake_model_estimator
 #ifdef PPMPI
 use mpi_defs, only : MPI_SYNC_DOWNUP, mpi_sync_real_array
 #endif
@@ -136,7 +136,7 @@ real(rprec), dimension(:), allocatable :: Pref_arr
 real(rprec), dimension(:), allocatable :: Pref_time
 
 ! Wake model estimation
-type(wakeModelEstimator) :: wm_est
+type(wake_model_estimator_t) :: wm_est
 integer :: k_fid, U_infty_fid, Phat_fid, u_fid
 
 contains
@@ -294,7 +294,7 @@ end subroutine turbines_init
 subroutine wake_model_est_init
 !*******************************************************************************
 use param, only : u_star, CHAR_BUFF_LENGTH
-use wake_model_class
+use wake_model
 use functions, only : linear_interp
 implicit none
 
@@ -310,7 +310,7 @@ inquire (file=string1, exist=exst)
 
 if (exst) then
     write(*,*) 'Reading wake model estimator data from wake_model/'
-    wm_est = WakeModelEstimator(path // 'wake_model', sigma_du, sigma_k,       &
+    wm_est = wake_model_estimator_t(path // 'wake_model', sigma_du, sigma_k,       &
         sigma_Phat, tau_U_infty)
 else
     wm_Dia = dia_all*z_i
@@ -336,7 +336,7 @@ else
     end do
     U_infty = U_infty**(1._rprec/3._rprec)
 
-    wm_est = WakeModelEstimator(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
+    wm_est = wake_model_estimator_t(wm_s, U_infty, wm_Delta, wm_k, wm_Dia, Nx,     &
         num_ensemble, sigma_du, sigma_k, sigma_Phat, tau_U_infty)
     call wm_est%generateInitialEnsemble(wm_Ctp)
 end if
@@ -366,7 +366,7 @@ end subroutine wake_model_est_init
 !*******************************************************************************
 subroutine receding_horizon_init
 !*******************************************************************************
-use wake_model_class
+use wake_model
 use functions, only : linear_interp
 implicit none
 
@@ -774,15 +774,14 @@ end subroutine turbines_forcing
 subroutine eval_receding_horizon ()
 !*******************************************************************************
 use rh_control
-use conjugate_gradient_class
-use lbfgsb_class
-use wake_model_class
+use lbfgsb
+use wake_model
 use functions, only : linear_interp
 implicit none
 
-type(MinimizedFarm) :: mfarm
-type(ConjugateGradient) :: cg
-type(lbfgsb) :: bf
+type(rh_control_t) :: mfarm
+!type(ConjugateGradient) :: cg
+type(lbfgsb_t) :: bf
 integer :: num_t = 0
 real(rprec), dimension(:), allocatable :: buffer_array
 
@@ -790,16 +789,17 @@ real(rprec), dimension(:), allocatable :: buffer_array
 if (modulo (jt_total, advancement_base) == 0) then
     if (coord == 0) then
         ! Run initial guess in object
-        mfarm = MinimizedFarm(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
+        mfarm = rh_control_t(wm_est%wm, total_time_dim, horizon_time, 0.99_rprec, &
             Pref_time, Pref_arr, phi_tau)
         call mfarm%run(Ct_prime_time, phi_arr)
 
         ! Perform optimization
         if (solver == 1) then
-            cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
-            call cg%minimize(mfarm%get_phi_vector())
+            ! cg = ConjugateGradient(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+            ! call cg%minimize(mfarm%get_phi_vector())
+            stop
         else
-            bf = lbfgsb(mfarm, max_iter, Ct_prime_min, Ct_prime_max)
+            bf = lbfgsb_t(mfarm, max_iter, mfarm%get_lower_bound(), mfarm%get_upper_bound())
             call bf%minimize(mfarm%get_phi_vector())
         end if
         call mfarm%makeDimensional

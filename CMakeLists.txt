@@ -24,7 +24,7 @@ option(USE_CPS "Enable concurrent precursor simulations." OFF)
 option(USE_HIT "Enable homogeneous isotropic turbulence input." OFF)
 option(USE_STREAKS "Shift the domain in the y (spanwise) direction to eliminate streaks effects on averaging." OFF)
 option(USE_LVLSET "Enable level set." OFF)
-option(USE_TURBINES "Enable actuator disk model without rotation." OFF)
+option(USE_TURBINES "Enable actuator disk model without rotation." ON)
 option(USE_ATM "Enable actuator line/section model" OFF)
 option(USE_DYN_TN "Dynamically update T, the timescale for Lagrangian averaging, using Taylor timescale." OFF)
 option(USE_SAFETYMODE "Set extra safety measures." ON)
@@ -153,7 +153,9 @@ endif (USE_LVLSET)
 if (USE_TURBINES)
     add_definitions(-DPPTURBINES)
     set(Sources ${Sources} turbines.f90 turbine_indicator.f90 util.f90
-        wake_model.f90 minimize.f90 rh_control.f90 lbfgsb.f timer.f linpack.f)
+        wake_model.f90 wake_model_base.f90 wake_model_adjoint.f90
+        wake_model_estimator.f90 minimize.f90 rh_control.f90 lbfgsb.f90
+        line_search.f90)
     set(exec_name "${exec_name}-turbines")
 endif (USE_TURBINES)
 

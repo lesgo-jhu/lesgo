@@ -21,20 +21,20 @@ module rh_control
 
 use types, only : rprec
 use param, only : pi
-use wake_model_class
-use wake_model_adjoint_class
-use minimized_class
+use wake_model
+use wake_model_adjoint
+use minimize_m
 use messages
 implicit none
 
 private
-public MinimizedFarm
+public rh_control_t
 
-type, extends(Minimized) :: MinimizedFarm
-    type(WakeModel)         :: w       ! wake (turbine)
-    type(WakeModel)         :: iw      ! wake initial condition (turbine)
-    type(WakeModelAdjoint)  :: wstar   ! adjoint wake (turbine)
-    type(WakeModelAdjoint)  :: iwstar  ! adjoint wake initial condition  (turbine)
+type, extends(minimize_t) :: rh_control_t
+    type(wake_model_t)         :: w       ! wake (turbine)
+    type(wake_model_t)         :: iw      ! wake initial condition (turbine)
+    type(wake_model_adjoint_t)  :: wstar   ! adjoint wake (turbine)
+    type(wake_model_adjoint_t)  :: iwstar  ! adjoint wake initial condition  (turbine)
     real(rprec), dimension(:,:), allocatable     :: Ctp     ! local thrust coefficient (turbine, time)
     real(rprec), dimension(:,:), allocatable     :: phi     ! control variable coefficient (turbine, time)
     real(rprec), dimension(:), allocatable       :: t       ! times
@@ -54,42 +54,44 @@ contains
     procedure, public  :: eval
 !    procedure, public  :: get_Ctp_vector
     procedure, public  :: get_phi_vector
+    procedure, public  :: get_lower_bound
+    procedure, public  :: get_upper_bound
     procedure, public  :: initialize
     procedure, public  :: makeDimensionless
     procedure, public  :: makeDimensional
     procedure, public  :: finiteDifferenceGradient
     procedure, public  :: run => run_input
     procedure, private :: run_noinput
-end type MinimizedFarm
+end type rh_control_t
 
-interface MinimizedFarm
+interface rh_control_t
     module procedure :: constructor
-end interface MinimizedFarm
+end interface rh_control_t
 
 contains
 
 function constructor(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau) result(this)
     implicit none
-    type(MinimizedFarm)                         :: this
-    class(WakeModel), intent(in)                :: i_wm
+    type(rh_control_t)                         :: this
+    class(wake_model_t), intent(in)                :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
     real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_tau
-    
-    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau) 
+
+    call this%initialize(i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
 end function constructor
 
 subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
     use functions, only : linear_interp
     implicit none
-    class(MinimizedFarm)                        :: this
-    type(WakeModel), intent(in)                 :: i_wm
+    class(rh_control_t)                        :: this
+    type(wake_model_t), intent(in)                 :: i_wm
     real(rprec), dimension(:), intent(in)       :: i_time, i_Pref
     real(rprec), intent(in)                     :: i_t0, i_T, i_cfl, i_tau
     integer                                     :: i
-        
+
     ! Set reference values
-    this%tau = i_tau    
-    
+    this%tau = i_tau
+
     ! Set initial condition for wake model
     this%iw = i_wm
     call this%iw%makeDimensional
@@ -97,12 +99,12 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
     this%N = this%w%N
 
     ! Create adjoint wake models
-    this%iwstar = WakeModelAdjoint(this%w%s, this%w%U_infty, this%w%Delta, this%w%k, this%w%Dia, this%w%Nx)
+    this%iwstar = wake_model_adjoint_t(this%w%s, this%w%U_infty, this%w%Delta, this%w%k, this%w%Dia, this%w%Nx)
     this%wstar = this%iwstar
-    
+
     ! Dimension for power
-    this%POWER = this%w%VELOCITY**3 
-    
+    this%POWER = this%w%VELOCITY**3
+
     ! Create time for the time horizon
     this%cfl      = i_cfl
     this%dt       = this%cfl * this%w%dx / this%w%U_infty
@@ -111,36 +113,36 @@ subroutine initialize(this, i_wm, i_t0, i_T, i_cfl, i_time, i_Pref, i_tau)
     do i = 1, this%Nt
         this%t(i) = i_t0 + this%dt * (i - 1)
     end do
-    
+
     ! Interpolate the reference signal
     allocate( this%Pref(this%Nt) )
     allocate( this%Pfarm(this%Nt) )
     this%Pref = linear_interp(i_time, i_Pref, this%t)
-    
+
     ! Allocate other variables
     allocate( this%Ctp(this%N, this%Nt)    )
     allocate( this%phi(this%N, this%Nt)    )
     allocate( this%grad(this%N, this%Nt)   )
     allocate( this%fdgrad(this%N, this%Nt) )
-    
+
     ! Put state of wake model Ctp into first array
     do i = 1, this%Nt
         this%Ctp(:, i) = this%iw%Ctp
     end do
-    
+
 end subroutine initialize
 
 subroutine run_input(this, i_t, i_phi)
     use functions, only : linear_interp
     implicit none
-    class(MinimizedFarm), intent(inout)        :: this
+    class(rh_control_t), intent(inout)        :: this
     real(rprec), dimension(:), intent(in)      :: i_t
     real(rprec), dimension(:,:), intent(in)    :: i_phi
     integer                                    :: n
-    
+
     ! Make dimensionless
     call this%makeDimensionless
-    
+
     ! Interpolate input onto object
     do n = 1, this%N
         this%phi(n,:) = linear_interp(i_t, i_phi(n,:), this%t * this%w%TIME)
@@ -152,7 +154,7 @@ end subroutine run_input
 subroutine run_noinput(this)
     use functions, only : linear_interp
     implicit none
-    class(MinimizedFarm), intent(inout)        :: this
+    class(rh_control_t), intent(inout)        :: this
     integer                                    :: i, n, k
     real(rprec), dimension(:), allocatable     :: du_super
     real(rprec), dimension(:), allocatable     :: uhatstar, ustar ! adjoint forcing terms
@@ -166,16 +168,16 @@ subroutine run_noinput(this)
     allocate( ustar(this%w%Nx) )
     allocate( fstar(this%N, this%Nt, this%w%Nx) )
     allocate( phistar(this%N, this%Nt) )
-    
+
     ! Make dimensionless
     call this%makeDimensionless
-        
+
     ! Reset cost and gradient
     this%cost = 0._rprec
     this%grad = 0._rprec
     this%Pfarm = 0._rprec
     fstar = 0._rprec
-    
+
     ! Assign initial conditions
     this%w = this%iw
     this%wstar = this%iwstar
@@ -184,28 +186,28 @@ subroutine run_noinput(this)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Forward Simulation
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
+
     ! Iterate in time
     do k = 2, this%Nt
         ! Calculate next thrust coefficient
         do n = 1, this%N
             this%Ctp(n,k) = this%Ctp(n,k-1) + this%dt * ( this%phi(n,k-1) - this%Ctp(n,k-1) ) / this%tau
         end do
-    
+
         ! Calculate next step
         call this%w%advance(this%Ctp(:,k), this%dt)
-        
+
         ! Calculate farm power
         this%Pfarm(k) = sum(this%w%Phat)
-        
+
         ! Calculate contribution to cost function
         this%cost = this%cost + (this%Pfarm(k) - this%Pref(k))**2 * this%dt
-        
+
         ! Calculate the contribution dJ/dCt'_n to phistar at time k
         do n = 1, this%N
             phistar(n, k) = 2.d0 * (this%Pfarm(k) - this%Pref(k)) * this%w%uhat(n)**3 * this%dt
         end do
-        
+
         ! Calculate adjoint forcing
         uhatstar = -6.d0 * (this%Pfarm(k) - this%Pref(k)) * this%Ctp(:,k) * this%w%uhat**2 * this%dt
         ustar = 0
@@ -219,7 +221,7 @@ subroutine run_noinput(this)
                 if ( du_super(i) <= 1E-10 )   fstar(n, k, i) = 0._rprec
             end do
         end do
-        
+
     end do
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -245,13 +247,13 @@ subroutine run_noinput(this)
 
     ! Multiply Ctstar to get gradient
     this%grad = -this%grad / this%tau
-    
+
 end subroutine run_noinput
 
 subroutine makeDimensionless(this)
     implicit none
-    class(MinimizedFarm), intent(inout)  :: this
-    
+    class(rh_control_t), intent(inout)  :: this
+
     if (.not.this%isDimensionless) then
         this%isDimensionless = .true.
         this%Pref  = this%Pref / this%POWER
@@ -268,8 +270,8 @@ end subroutine makeDimensionless
 
 subroutine makeDimensional(this)
     implicit none
-    class(MinimizedFarm), intent(inout)  :: this
-    
+    class(rh_control_t), intent(inout)  :: this
+
     if (this%isDimensionless) then
         this%isDimensionless = .false.
         this%Pref  = this%Pref * this%POWER
@@ -286,23 +288,23 @@ end subroutine makeDimensional
 
 subroutine eval(this, x, f, g)
     implicit none
-    class(MinimizedFarm), intent(inout)                   :: this
+    class(rh_control_t), intent(inout)                   :: this
     real(rprec), dimension(:), intent(in)                 :: x
     real(rprec), intent(inout)                            :: f
     real(rprec), dimension(:),  intent(inout)             :: g
     integer                         :: k
 
-    ! Place x in this%phi 
+    ! Place x in this%phi
     do k = 1, this%Nt-1
         this%phi(:,k) = x((k - 1) * this%N + 1 : this%N * k)
     end do
 
     ! Run model
     call this%run_noinput
-    
+
     ! Return cost function
     f = this%cost
-    
+
     ! Return gradient as vector
     g = 0.d0
     do k = 1, this%Nt-1
@@ -312,11 +314,11 @@ end subroutine eval
 
 subroutine finiteDifferenceGradient(this)
     implicit none
-    class(MinimizedFarm), intent(inout)     :: this
-    type(MinimizedFarm)                     :: mf
+    class(rh_control_t), intent(inout)     :: this
+    type(rh_control_t)                     :: mf
     integer :: n, k
     real(rprec) :: dphi
-    
+
     this%fdgrad = 0.d0
     dphi = sqrt( epsilon( this%Ctp(n,k) ) )
     do n = 1, this%N
@@ -331,30 +333,52 @@ end subroutine finiteDifferenceGradient
 
 function get_phi_vector(this) result(phi_vec)
     implicit none
-    class(MinimizedFarm) :: this
+    class(rh_control_t) :: this
     real(rprec), dimension(:), allocatable :: phi_vec
     integer :: k
-    
+
     allocate(phi_vec(size(this%phi) - this%N))
-    
+
     do k = 1, this%Nt-1
         phi_vec((k - 1) * this%N + 1 : this%N * k) = this%phi(:,k)
     end do
-    
+
 end function get_phi_vector
+
+function get_lower_bound(this) result(lb)
+    implicit none
+    class(rh_control_t) :: this
+    real(rprec), dimension(:), allocatable :: lb
+
+    allocate(lb(size(this%phi) - this%N))
+    lb = 0._rprec
+
+end function get_lower_bound
+
+function get_upper_bound(this) result(ub)
+    implicit none
+    class(rh_control_t) :: this
+    real(rprec), dimension(:), allocatable :: ub
+
+    allocate(ub(size(this%phi) - this%N))
+    ub = 2._rprec
+
+end function get_upper_bound
+
+
 
 ! function get_Ctp_vector(this) result(Ctp_vec)
 !     implicit none
-!     class(MinimizedFarm) :: this
+!     class(rh_control_t) :: this
 !     real(rprec), dimension(:), allocatable :: Ctp_vec
 !     integer :: k
-!     
+!
 !     allocate(Ctp_vec(size(this%Ctp) - this%N))
-!     
+!
 !     do k = 1, this%Nt-1
 !         Ctp_vec((k - 1) * this%N + 1 : this%N * k) = this%Ctp(:,k)
 !     end do
-!     
+!
 ! end function get_Ctp_vector
 
 end module rh_control
